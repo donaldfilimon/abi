@@ -217,8 +217,8 @@ test "cloud context wrap handler" {
     defer ctx.deinit();
 
     const TestHandler = struct {
-        fn handle(_: *cloud.CloudEvent, _: std.mem.Allocator) anyerror!cloud.CloudResponse {
-            return cloud.CloudResponse{ .status_code = 200 };
+        fn handle(_: *cloud.CloudEvent, alloc: std.mem.Allocator) anyerror!cloud.CloudResponse {
+            return cloud.CloudResponse.init(alloc);
         }
     };
 
@@ -358,11 +358,11 @@ test "gcp cloud functions event structure" {
 // =============================================================================
 
 test "invocation metadata initialization" {
-    const time = @import("../shared/time.zig");
+    const abi = @import("abi");
     var metadata = cloud.InvocationMetadata{
         .request_id = "req-123",
         .provider = .aws_lambda,
-        .start_time = time.unixSeconds(),
+        .start_time = abi.utils.unixSeconds(),
         .cold_start = true,
     };
 

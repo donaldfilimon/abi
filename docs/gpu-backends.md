@@ -1,6 +1,18 @@
+---
+title: "GPU Backend Completeness"
+tags: [gpu, backends, hardware]
+---
 # GPU Backend Completeness
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
-The ABI framework supports multiple GPU backends.  The current implementation includes:
+<p align="center">
+  <img src="https://img.shields.io/badge/Vulkan-Implemented-success?style=for-the-badge" alt="Vulkan"/>
+  <img src="https://img.shields.io/badge/Metal-Implemented-success?style=for-the-badge" alt="Metal"/>
+  <img src="https://img.shields.io/badge/WebGPU-Implemented-success?style=for-the-badge" alt="WebGPU"/>
+  <img src="https://img.shields.io/badge/CUDA-Stubbed-yellow?style=for-the-badge" alt="CUDA"/>
+</p>
+
+The ABI framework supports multiple GPU backends. The current implementation includes:
 
 | Backend | Status | Notes |
 |--------|--------|-------|

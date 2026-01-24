@@ -1,4 +1,14 @@
+---
+title: "GEMINI"
+tags: [ai, agents, gemini]
+---
 # GEMINI.md
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Gemini-Agent_Guide-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini Guide"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+</p>
 
 This file gives the Gemini agent guidance on interacting with the ABI framework. It mirrors the structure of `AGENTS.md` and `CLAUDE.md` but is tuned for Gemini‑like prompts.
 

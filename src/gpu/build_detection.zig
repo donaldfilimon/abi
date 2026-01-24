@@ -235,8 +235,9 @@ pub const GpuCapabilities = struct {
     pub fn printReport(self: *const GpuCapabilities) void {
         std.debug.print("GPU Capability Detection Report\n", .{});
         std.debug.print("================================\n", .{});
-        std.debug.print("Platform: {s}\n", .{@tagName(builtin.target.os.tag)});
-        std.debug.print("Architecture: {s}\n\n", .{@tagName(builtin.target.cpu.arch)});
+        // Use {t} format specifier for enums (Zig 0.16)
+        std.debug.print("Platform: {t}\n", .{builtin.target.os.tag});
+        std.debug.print("Architecture: {t}\n\n", .{builtin.target.cpu.arch});
 
         std.debug.print("Available Backends:\n", .{});
         if (self.has_cuda) std.debug.print("  ✓ CUDA\n", .{});

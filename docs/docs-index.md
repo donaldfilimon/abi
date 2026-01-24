@@ -1,9 +1,9 @@
 ---
-title: "docs-index"
-tags: []
+title: "Documentation Index"
+tags: [documentation, index, navigation]
 ---
 # ABI Framework Documentation
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Docs-Complete-success?style=for-the-badge" alt="Docs Complete"/>
@@ -60,6 +60,8 @@ tags: []
 | [Refactor Phase 2](plans/archive/2026-01-17-refactor-phase2.md) | Codebase refactoring | ![Completed](https://img.shields.io/badge/-Completed-success) |
 | [Task Management](plans/archive/2026-01-17-task-management-system.md) | Task system design | ![Completed](https://img.shields.io/badge/-Completed-success) |
 | [GPU Codegen Consolidation](plans/archive/2026-01-23-gpu-codegen-consolidation.md) | GPU codegen refactoring | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [Vulkan Consolidation](plans/2026-01-24-vulkan-consolidation.md) | Vulkan backend consolidation | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [Mega GPU + TUI + Agent](plans/2026-01-24-mega-gpu-tui-agent-upgrade.md) | Cross-backend GPU + self-learning agent | ![Completed](https://img.shields.io/badge/-Completed-success) |
 
 ## Developer Resources
 

@@ -18,6 +18,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 zig build                              # Build the project
 zig build test --summary all           # Run tests with detailed output
 zig fmt .                              # Format code (run after edits)
+zig build lint                         # Check formatting (CI uses this)
+zig build typecheck                    # Type check without running tests
 zig build run -- --help                # CLI help
 
 # Single file testing (use zig test, NOT zig build test)
@@ -72,6 +74,18 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | HTTP Server init | Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()` |
 | Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
 | Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
+
+## Known Limitations
+
+| Platform/Feature | Limitation | Workaround |
+|------------------|------------|------------|
+| **WASM** | `database`, `network`, `gpu` auto-disabled | Use browser/JS equivalents |
+| **WASM** | No `std.Io.Threaded` support | Single-threaded execution only |
+| **GPU (CUDA)** | Requires NVIDIA drivers + toolkit | Use Vulkan or `stdgpu` fallback |
+| **GPU (Metal)** | macOS only | Use Vulkan on other platforms |
+| **GPU (multi-backend)** | Some backend combinations conflict | Enable one primary backend |
+| **Network** | No socket support in WASM | Use fetch API via JS interop |
+| **libc** | CLI/examples require libc linking | Build with default settings |
 
 ## Feature Flags
 
@@ -165,7 +179,7 @@ src/
 - **Shared Utilities**: Import from `src/shared/utils_combined.zig` for all utils sub-modules, or specific files for targeted imports
 - **Internal AI**: Implementation files import from `../../core/mod.zig` for types
 
-**Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility.
+**Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility. The AI module has extensive sub-feature stubs (`src/ai/*/stub.zig`) for agents, embeddings, llm, vision, training, etc.
 
 **Comptime generics pattern:** Use comptime configuration structs to eliminate code duplication. Example from GPU codegen:
 
@@ -346,13 +360,41 @@ The LLM feature (`src/ai/llm/`) provides local GGUF model inference with:
 | `ABI_ANTHROPIC_API_KEY` | - | Anthropic/Claude API key |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
 
+## Platform Notes
+
+### Windows
+
+| Issue | Solution |
+|-------|----------|
+| Path separators | Use forward slashes `/` in Zig code; backslashes work in shell commands |
+| Binary location | `zig-out\bin\abi.exe` (note `.exe` extension) |
+| Cache clearing | `rmdir /s /q .zig-cache` or `Remove-Item -Recurse .zig-cache` (PowerShell) |
+| Environment variables | Use `set VAR=value` (cmd) or `$env:VAR="value"` (PowerShell) |
+| Line endings | Git handles CRLF/LF; `zig fmt` normalizes to LF |
+
+```powershell
+# Windows PowerShell examples
+zig build run -- --help
+zig build test --summary all
+$env:ABI_OPENAI_API_KEY="sk-..."
+.\zig-out\bin\abi.exe db stats
+```
+
+### macOS/Linux
+
+```bash
+# Use LLDB on macOS, GDB on Linux
+lldb ./zig-out/bin/abi    # macOS
+gdb ./zig-out/bin/abi     # Linux
+```
+
 ## Debugging
 
 ```bash
 # Debug build
 zig build -Doptimize=Debug
 
-# Run with GDB
+# Run with GDB (Linux)
 gdb ./zig-out/bin/abi
 (gdb) break src/runtime/engine/engine.zig:150
 (gdb) run -- db stats
@@ -421,4 +463,5 @@ After making changes, always run:
 ```bash
 zig fmt .                        # Format code
 zig build test --summary all     # Run all tests
+zig build lint                   # Verify formatting passes CI
 ```

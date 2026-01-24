@@ -1,4 +1,15 @@
+---
+title: "Helm Chart"
+tags: [kubernetes, helm, deployment]
+---
 # ABI Helm Chart
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Kubernetes-1.25+-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes"/>
+  <img src="https://img.shields.io/badge/Helm-3.8+-0F1689?style=for-the-badge&logo=helm&logoColor=white" alt="Helm"/>
+  <img src="https://img.shields.io/badge/Status-Ready-success?style=for-the-badge" alt="Ready"/>
+</p>
 
 A Helm chart for deploying ABI (Abbey) instances on Kubernetes.
 

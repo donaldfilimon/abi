@@ -50,7 +50,7 @@ tags: []
 //! - `fulltext.zig` - Full-text search integration
 //! - `filter.zig` - Metadata filtering
 //! - `reindex.zig` - Background reindexing
-//! - `shard.zig` - Distributed sharding
+//! - `distributed/` - Sharding, block exchange, and Raft consensus
 //! - `http.zig` - HTTP/REST API server
 //!
 //! ## Distance Metrics
@@ -78,5 +78,4 @@ tags: []
 //!
 //! - [Database Documentation](../../../docs/database.md)
 //! - [API Reference](../../../API_REFERENCE.md)
-
 

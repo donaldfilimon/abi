@@ -334,9 +334,9 @@ pub const Context = struct {
             .handle = null,
         };
 
-        // Auto-open database if path is provided and not in-memory
+        // Auto-open database if path is provided.
         if (cfg.path.len > 0) {
-            ctx.handle = wdbx.createDatabase(allocator, cfg.path) catch null;
+            ctx.handle = try wdbx.createDatabase(allocator, cfg.path);
         }
 
         return ctx;
@@ -358,9 +358,16 @@ pub const Context = struct {
         return &self.handle.?;
     }
 
-    /// Open a database at the configured path.
-    pub fn openDatabase(self: *Context, name: []const u8) !DatabaseHandle {
-        return wdbx.createDatabase(self.allocator, name);
+    /// Open a database and attach it to this Context.
+    /// If a database is already open, it is closed first.
+    /// The returned handle is owned by the Context; do not close it directly.
+    pub fn openDatabase(self: *Context, name: []const u8) !*DatabaseHandle {
+        if (self.handle) |*h| {
+            wdbx.closeDatabase(h);
+            self.handle = null;
+        }
+        self.handle = try wdbx.createDatabase(self.allocator, name);
+        return &self.handle.?;
     }
 
     /// Insert a vector into the database.

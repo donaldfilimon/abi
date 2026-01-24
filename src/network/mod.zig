@@ -99,6 +99,9 @@ pub const DiscoveryBackend = discovery.DiscoveryBackend;
 pub const ServiceInstance = discovery.ServiceInstance;
 pub const ServiceStatus = discovery.ServiceStatus;
 pub const DiscoveryError = discovery.DiscoveryError;
+pub const generateServiceId = discovery.generateServiceId;
+pub const base64Encode = discovery.base64Encode;
+pub const base64Decode = discovery.base64Decode;
 
 // ============================================================================
 // Load Balancer exports

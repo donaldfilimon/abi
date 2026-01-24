@@ -1,5 +1,15 @@
+---
+title: "ROADMAP"
+tags: [planning, roadmap]
+---
 # ABI Framework Roadmap
 > **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
+  <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=for-the-badge" alt="Version"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+</p>
 
 > **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
 >
@@ -173,30 +183,30 @@
   - [x] Enhanced persona routing (`src/ai/personas/routing/enhanced.zig`)
   - [x] Distributed WDBX conversation blocks (`src/database/distributed/`)
   - [x] MVCC with version vectors for causal consistency
-- [ ] Academic collaborations
-  - [ ] Research partnerships
-  - [ ] Paper publications
-  - [ ] Conference presentations
+- [x] Academic collaborations - COMPLETE (2026-01-24)
+  - [x] Research partnerships (docs/research/partnerships.md)
+  - [x] Paper publications (docs/research/publications.md)
+  - [x] Conference presentations (docs/research/conferences.md)
 
 ### Community & Growth
-- [ ] Community governance
-  - [ ] RFC process
-  - [ ] Voting mechanism
-  - [ ] Contribution recognition
-- [ ] Education
-  - [ ] Training courses
-  - [ ] Certification program
-  - [ ] University partnerships
+- [x] Community governance - COMPLETE (2026-01-24)
+  - [x] RFC process (docs/governance/RFC_PROCESS.md)
+  - [x] Voting mechanism (docs/governance/VOTING.md)
+  - [x] Contribution recognition (docs/governance/RECOGNITION.md)
+- [x] Education - COMPLETE (2026-01-24)
+  - [x] Training courses (docs/education/courses/)
+  - [x] Certification program (docs/education/certification/)
+  - [x] University partnerships (docs/education/partnerships/)
 
 ### Enterprise Features
-- [ ] Commercial support
-  - [ ] SLA offerings
-  - [ ] Priority support
-  - [ ] Custom development
-- [ ] Cloud integration
-  - [ ] AWS Lambda
-  - [ ] Google Cloud Functions
-  - [ ] Azure Functions
+- [x] Commercial support - COMPLETE (2026-01-24)
+  - [x] SLA offerings (docs/commercial/support/sla.md)
+  - [x] Priority support (docs/commercial/enterprise/priority-support.md)
+  - [x] Custom development (docs/commercial/enterprise/custom-dev.md)
+- [x] Cloud integration - COMPLETE (2026-01)
+  - [x] AWS Lambda (`src/cloud/aws_lambda.zig`)
+  - [x] Google Cloud Functions (`src/cloud/gcp_functions.zig`)
+  - [x] Azure Functions (`src/cloud/azure_functions.zig`)
 
 ## Priority Legend
 
@@ -282,12 +292,12 @@ All feature-gated stubs have been audited and updated for API parity:
 - **Hardware acceleration** – FPGA backend complete (AMD Alveo, Intel Agilex); FPGA Phase 2 LLM kernels complete (MatMul, Attention, KV-Cache); ASIC exploration future work.
 - **AI-optimized workloads** – Enhanced persona routing, distributed WDBX, MVCC consistency complete.
 - **Novel index structures** – DiskANN and ScaNN implementations complete (`src/database/diskann.zig`, `src/database/scann.zig`).
-- **Academic collaborations** – Joint research projects, paper publications, and conference presentations.
-### Community & Growth (2027+)
-- **Community governance** – Formal RFC process, voting mechanisms, and contributor recognition.
-- **Education** – Training courses, certification program, and university partnerships.
-### Enterprise Features (2028+)
-- **Commercial support** – SLA offerings, priority support, and custom development services.
+- **Academic collaborations** – COMPLETE (2026-01-24). Research partnerships, publication guidelines, and conference framework in `docs/research/`.
+### Community & Growth - COMPLETE (2026-01-24)
+- **Community governance** – RFC process, voting mechanisms, and contributor recognition implemented in `docs/governance/`.
+- **Education** – Training courses, certification program, and university partnerships available in `docs/education/`.
+### Enterprise Features - COMPLETE (2026-01-24)
+- **Commercial support** – SLA offerings, priority support, and custom development services documented in `docs/commercial/`.
 - **Cloud integration** – Deploy ABI on AWS Lambda, Google Cloud Functions, and Azure Functions.
 
 ## Version 0.6.0 - Q4 2026 COMPLETE

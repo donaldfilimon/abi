@@ -35,6 +35,7 @@ The **AI** module (`abi.ai`) provides the building blocks for creating autonomou
 | **Agents** | Conversational AI agents | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Training** | Training pipelines & checkpointing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Connectors** | OpenAI, Ollama, HuggingFace | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU-Aware Agent** | RL-based GPU scheduling for AI workloads | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ## Architecture
 
@@ -411,6 +412,53 @@ The `AgentConfig` struct supports:
 - `setTemperature(temp)` - Update temperature
 - `setTopP(top_p)` - Update top_p parameter
 - `setHistoryEnabled(enabled)` - Enable/disable history tracking
+
+### GPU-Aware Agent
+
+The **GPU-Aware Agent** (`abi.ai.GpuAgent`) integrates AI capabilities with intelligent GPU scheduling, using reinforcement learning to optimize resource allocation.
+
+```zig
+const abi = @import("abi");
+
+var agent = try abi.ai.GpuAgent.init(allocator);
+defer agent.deinit();
+
+// Process request with GPU-aware scheduling
+const response = try agent.process(.{
+    .prompt = "Analyze this dataset...",
+    .workload_type = .inference,
+    .priority = .high,
+    .max_tokens = 2048,
+    .memory_hint_mb = 4096,
+});
+defer allocator.free(response.content);
+
+std.debug.print("Backend: {s}, Latency: {d}ms\n", .{
+    response.gpu_backend_used,
+    response.latency_ms,
+});
+
+// Get learning statistics
+if (agent.getGpuStats()) |stats| {
+    std.debug.print("Episodes: {d}, Avg Reward: {d:.2}\n", .{
+        stats.episodes,
+        stats.avg_episode_reward,
+    });
+}
+```
+
+**Workload Types:**
+- `.inference` - Standard LLM inference
+- `.training` - Model training (GPU-intensive)
+- `.embedding` - Vector embedding generation
+- `.fine_tuning` - Model fine-tuning
+- `.batch_inference` - Batch processing
+
+**Features:**
+- Automatic GPU backend selection via RL
+- Workload profiling and memory hints
+- Learning-based scheduling optimization
+- Integration with Mega GPU coordinator
 
 ---
 

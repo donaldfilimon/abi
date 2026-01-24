@@ -1,7 +1,17 @@
+---
+title: "FPGA Research Alignment"
+tags: [fpga, research, hardware]
+---
 # FPGA Acceleration Research Alignment Verification
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
-**Date**: 2026-01-23  
-**Status**: Implementation Complete, Foundation Ready  
+<p align="center">
+  <img src="https://img.shields.io/badge/FPGA-Foundation_Ready-success?style=for-the-badge" alt="Foundation Ready"/>
+  <img src="https://img.shields.io/badge/AMD_Alveo-Supported-red?style=for-the-badge" alt="AMD Alveo"/>
+  <img src="https://img.shields.io/badge/Intel_Agilex-Supported-0071C5?style=for-the-badge" alt="Intel Agilex"/>
+</p>
+
+**Status**: Implementation Complete, Foundation Ready
 **Research Document**: `docs/research/fpga-inference-acceleration.md`
 
 ## ✅ **Research Requirements vs Implementation**

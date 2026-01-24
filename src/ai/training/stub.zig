@@ -111,6 +111,10 @@ pub const LlmTrainingConfig = struct {
     lr_schedule: LearningRateSchedule = .constant,
     mixed_precision: bool = false,
     log_interval: u32 = 10,
+    log_dir: ?[]const u8 = null,
+    enable_tensorboard: bool = false,
+    enable_wandb: bool = false,
+    enable_metrics_stream: bool = false,
 };
 pub const LlamaTrainer = struct {
     pub fn init(_: std.mem.Allocator, _: *TrainableModel, _: LlmTrainingConfig) Error!@This() {

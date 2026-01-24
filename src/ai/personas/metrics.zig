@@ -7,11 +7,23 @@
 //! - P50, P90, P99 latency percentile tracking
 //! - Sliding window metrics for trend analysis
 //! - Alert integration for threshold monitoring
+//!
+//! ## Shared Primitives
+//!
+//! For new standalone metrics that don't need registry integration, use the
+//! centralized primitives from `observability.core_metrics`:
+//! - `core_metrics.Counter` - Thread-safe atomic counter
+//! - `core_metrics.Gauge` - Thread-safe gauge (i64)
+//! - `core_metrics.FloatGauge` - Mutex-protected float gauge
+//! - `core_metrics.SlidingWindow` - Timestamp-based sliding window
 
 const std = @import("std");
 const types = @import("types.zig");
 const obs = @import("../../observability/mod.zig");
 const alerts = @import("alerts.zig");
+
+// Shared metrics primitives (for standalone use)
+const core_metrics = @import("../../observability/metrics/mod.zig");
 
 /// Collection of metrics for a specific persona.
 pub const PersonaMetricSet = struct {

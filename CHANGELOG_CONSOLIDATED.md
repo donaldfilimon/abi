@@ -1,5 +1,14 @@
+---
+title: "Changelog"
+tags: [changelog, releases, history]
+---
 # Changelog
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=for-the-badge" alt="Version 0.4.0"/>
+  <img src="https://img.shields.io/badge/Status-Stable-success?style=for-the-badge" alt="Stable"/>
+</p>
 
 ## 0.4.0 - 2026-01-23
 

@@ -1,7 +1,18 @@
+---
+title: "Release v0.4.0"
+tags: [release, v0.4.0, changelog]
+---
 # ABI Framework v0.4.0 Release
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
-**Release Date**: January 23, 2026  
-**Zig Version**: 0.16.0-dev.2290+200fb7c2a  
+<p align="center">
+  <img src="https://img.shields.io/badge/Release-v0.4.0-blue?style=for-the-badge" alt="v0.4.0"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
+  <img src="https://img.shields.io/badge/Date-January_23,_2026-green?style=for-the-badge" alt="Date"/>
+</p>
+
+**Release Date**: January 23, 2026
+**Zig Version**: 0.16.0-dev.2290+200fb7c2a
 **Package Version**: 0.4.0-z16
 
 ## 🚀 Release Highlights

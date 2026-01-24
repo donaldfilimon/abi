@@ -1,9 +1,15 @@
 ---
-title: "README"
-tags: []
+title: "Examples"
+tags: [examples, tutorials, getting-started]
 ---
 # ABI Framework Examples
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Examples-10+-blue?style=for-the-badge" alt="10+ Examples"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
+</p>
 
 This directory contains example programs demonstrating various features of the ABI framework.
 
@@ -119,6 +125,30 @@ Local LLM inference with GGUF models.
 zig build run-llm -- path/to/model.gguf
 ```
 
+### train_ava.zig
+
+Train the Ava assistant model based on gpt-oss.
+
+**Features:**
+- Fine-tuning from gpt-oss compatible GGUF models
+- LoRA support for efficient training
+- JSONL and text dataset formats
+- Checkpointing and GGUF export
+- GPU acceleration with CPU fallback
+
+**Run:**
+
+```bash
+# Basic training
+zig build run-train-ava -- path/to/gpt-oss.gguf --dataset-path train.jsonl
+
+# With custom configuration
+zig build run-train-ava -- gpt2.gguf -d data.jsonl --epochs 5 --lr 2e-5
+
+# Show help
+zig build run-train-ava -- --help
+```
+
 ### ha.zig
 
 High Availability features for production deployments.
@@ -152,6 +182,7 @@ zig build run-network
 zig build run-discord
 zig build run-training
 zig build run-llm
+zig build run-train-ava
 zig build run-ha
 ```
 
@@ -176,6 +207,7 @@ zig build benchmarks
 8. **Explore `training.zig`** - Model training and checkpointing
 9. **Try `llm.zig`** - Local LLM inference
 10. **Study `ha.zig`** - High availability features
+11. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
 
 ## Common Patterns
 

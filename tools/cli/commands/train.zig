@@ -4,17 +4,20 @@
 //! - train run [options] - Run training pipeline
 //! - train llm <model.gguf> [options] - Train LLM model
 //! - train resume <checkpoint> - Resume training from checkpoint
+//! - train monitor [run-id] - Monitor training progress (TUI dashboard)
 //! - train info - Show default training configuration
 //! - train help - Show help message
 
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const tui = @import("../tui/mod.zig");
 
 const train_subcommands = [_][]const u8{
     "run",
     "llm",
     "resume",
+    "monitor",
     "info",
     "help",
 };
@@ -40,6 +43,11 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     if (std.mem.eql(u8, command, "resume")) {
         try runResume(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "monitor")) {
+        try runMonitor(allocator, args[1..]);
         return;
     }
 
@@ -329,6 +337,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var dataset_max_bytes: usize = 64 * 1024 * 1024;
     var export_gguf_path: ?[]const u8 = null;
     var export_gguf_name: ?[]const u8 = null;
+    var log_dir: ?[]const u8 = null;
     var i: usize = 1;
 
     while (i < args.len) {
@@ -546,6 +555,14 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--log-dir")) {
+            if (i < args.len) {
+                log_dir = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--export-gguf")) {
             if (i < args.len) {
                 export_gguf_path = std.mem.sliceTo(args[i], 0);
@@ -623,6 +640,13 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (export_gguf_name) |name| {
         config.export_name = name;
     }
+
+    // Default log directory and metrics stream for dashboards
+    if (log_dir == null) {
+        log_dir = "logs";
+    }
+    config.log_dir = log_dir;
+    config.enable_metrics_stream = true;
 
     var tokenizer: ?abi.ai.llm.tokenizer.Tokenizer = null;
     defer if (tokenizer) |*tok| tok.deinit();
@@ -736,6 +760,120 @@ fn runResume(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("  Weights:   {d} parameters\n", .{ckpt.weights.len});
     std.debug.print("\nNote: Full resume training not yet implemented.\n", .{});
     std.debug.print("Checkpoint loaded successfully.\n", .{});
+}
+
+fn runMonitor(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printMonitorHelp();
+        return;
+    }
+
+    // Parse optional run-id argument
+    var run_id: ?[]const u8 = null;
+    var log_dir: []const u8 = "logs";
+    var non_interactive = false;
+
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = args[i];
+        i += 1;
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--log-dir")) {
+            if (i < args.len) {
+                log_dir = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--no-tui") or
+            std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--non-interactive"))
+        {
+            non_interactive = true;
+            continue;
+        }
+
+        // First non-option argument is run-id
+        if (run_id == null and arg[0] != '-') {
+            run_id = std.mem.sliceTo(arg, 0);
+        }
+    }
+
+    // Use the default theme from the theme system
+    const theme = &tui.themes.themes.default;
+
+    var panel = tui.TrainingPanel.init(allocator, theme, .{
+        .log_dir = log_dir,
+        .run_id = run_id,
+    });
+    defer panel.deinit();
+
+    // Try interactive mode if terminal is supported
+    if (!non_interactive and tui.Terminal.isSupported()) {
+        var terminal = tui.Terminal.init(allocator);
+        defer terminal.deinit();
+
+        panel.runInteractive(&terminal) catch |err| {
+            // Fall back to non-interactive mode on error
+            std.debug.print("Interactive mode failed ({t}), falling back to snapshot mode.\n\n", .{err});
+            non_interactive = true;
+        };
+
+        if (!non_interactive) return;
+    }
+
+    // Non-interactive fallback: render single snapshot
+    const DebugWriter = struct {
+        pub const Error = error{};
+        pub fn print(_: @This(), comptime fmt: []const u8, print_args: anytype) Error!void {
+            std.debug.print(fmt, print_args);
+        }
+    };
+
+    // Load metrics before rendering
+    panel.loadMetricsFile(panel.buildMetricsPath()) catch {};
+
+    panel.render(DebugWriter{}) catch |err| {
+        std.debug.print("Error rendering panel: {t}\n", .{err});
+        return;
+    };
+
+    std.debug.print("\nTraining Monitor (snapshot mode)\n", .{});
+    std.debug.print("Log directory: {s}\n", .{log_dir});
+    if (run_id) |id| {
+        std.debug.print("Run ID: {s}\n", .{id});
+    } else {
+        std.debug.print("Monitoring: current/latest run\n", .{});
+    }
+    std.debug.print("\nRun without --no-tui for interactive mode.\n", .{});
+}
+
+fn printMonitorHelp() void {
+    const help_text =
+        \\Usage: abi train monitor [run-id] [options]
+        \\
+        \\Monitor training progress with a TUI dashboard.
+        \\
+        \\Options:
+        \\  --log-dir <path>    Log directory (default: logs)
+        \\
+        \\Arguments:
+        \\  run-id              Optional run ID to monitor (default: latest)
+        \\
+        \\Keyboard controls:
+        \\  r       Refresh display
+        \\  h       Toggle history mode
+        \\  q       Quit
+        \\  ?       Show help
+        \\  ←/→     Switch between runs (history mode)
+        \\
+        \\Examples:
+        \\  abi train monitor                    # Monitor latest run
+        \\  abi train monitor run-2026-01-24     # Monitor specific run
+        \\  abi train monitor --log-dir ./logs   # Custom log directory
+        \\
+    ;
+    std.debug.print("{s}", .{help_text});
 }
 
 fn runInfo() void {
@@ -1029,6 +1167,7 @@ fn printHelp() void {
         \\  run [options]           Run basic training with specified configuration
         \\  llm <model> [options]   Train LLM from GGUF model file
         \\  resume <checkpoint>     Resume training from a checkpoint file
+        \\  monitor [run-id]        Monitor training progress (TUI dashboard)
         \\  info                    Show default training configuration
         \\  help                    Show this help message
         \\

@@ -1,9 +1,15 @@
 ---
-title: "PERFORMANCE_BASELINE"
-tags: []
+title: "Performance Baseline"
+tags: [performance, benchmarks, baseline]
 ---
 # Performance Baseline Document
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Hash-833M_ops%2Fsec-success?style=for-the-badge" alt="Hash"/>
+  <img src="https://img.shields.io/badge/Vector-2.86M_ops%2Fsec-blue?style=for-the-badge" alt="Vector"/>
+  <img src="https://img.shields.io/badge/HTTP-10K_req%2Fsec-orange?style=for-the-badge" alt="HTTP"/>
+</p>
 
 **Date**: 2026-01-18
 **Zig Version**: 0.16.0

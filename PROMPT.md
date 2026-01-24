@@ -1,10 +1,15 @@
 ---
 title: "PROMPT"
-tags: ["requirements", "standards", "kpi", "architecture"]
+tags: [requirements, standards, kpi, architecture]
 ---
 # ABI Framework: Engineering Requirements & Standards
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
-> **Status:** Synced with repository as of 2026-01-23.
+<p align="center">
+  <img src="https://img.shields.io/badge/Standards-Enforced-critical?style=for-the-badge" alt="Standards Enforced"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/KPIs-Defined-blue?style=for-the-badge" alt="KPIs"/>
+</p>
 > **Standard:** Zig 0.16 (Master Branch) with `std.gpu`.
 
 ## 1. Core Mandates

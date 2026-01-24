@@ -25,11 +25,13 @@ Wraps the database functionality to provide a consistent interface with other mo
 
 Get or create the database handle.
 
-### `pub fn openDatabase(self: *Context, name: []const u8) !DatabaseHandle`
+### `pub fn openDatabase(self: *Context, name: []const u8) !*DatabaseHandle`
 
 <sup>**fn**</sup>
 
-Open a database at the configured path.
+Open a database and attach it to the Context.
+If a database is already open, it is closed first.
+The returned handle is owned by the Context; do not close it directly.
 
 ### `pub fn insertVector(self: *Context, id: u64, vector: []const f32, metadata: ?[]const u8) !void`
 

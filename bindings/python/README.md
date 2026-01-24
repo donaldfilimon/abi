@@ -1,10 +1,15 @@
 ---
 title: "Python Bindings"
-tags: ["python", "bindings", "api"]
+tags: [python, bindings, api]
 ---
 # ABI Python Bindings
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
+  <img src="https://img.shields.io/badge/pip-abi-blue?style=for-the-badge" alt="pip"/>
+  <img src="https://img.shields.io/badge/Status-Ready-success?style=for-the-badge" alt="Ready"/>
+</p>
 
 Python bindings for the ABI high-performance AI and vector database framework.
 

@@ -98,6 +98,18 @@ pub const TrainingLogger = logging.TrainingLogger;
 pub const TrainingLogConfig = logging.LoggerConfig;
 pub const TrainingLogMetric = logging.Metric;
 
+// Self-learning exports
+pub const self_learning = @import("self_learning.zig");
+pub const SelfLearningSystem = self_learning.SelfLearningSystem;
+pub const SelfLearningConfig = self_learning.SelfLearningConfig;
+pub const LearningExperience = self_learning.LearningExperience;
+pub const ExperienceBuffer = self_learning.ExperienceBuffer;
+pub const RewardModel = self_learning.RewardModel;
+pub const VisionTrainer = self_learning.VisionTrainer;
+pub const DocumentTrainer = self_learning.DocumentTrainer;
+pub const ExperienceType = self_learning.ExperienceType;
+pub const FeedbackType = self_learning.FeedbackType;
+
 pub const TrainingError = error{
     InvalidConfiguration,
     ConvergenceFailed,

@@ -1,9 +1,24 @@
 ---
-title: "framework"
-tags: []
+title: "Framework Guide"
+tags: [framework, configuration, lifecycle]
 ---
 # Framework Guide
 > **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-Framework-purple?style=for-the-badge" alt="Framework"/>
+  <img src="https://img.shields.io/badge/Status-Ready-success?style=for-the-badge" alt="Ready"/>
+  <img src="https://img.shields.io/badge/Pattern-Builder-blue?style=for-the-badge" alt="Builder Pattern"/>
+</p>
+
+<p align="center">
+  <a href="#architecture-overview">Architecture</a> •
+  <a href="#initialization">Initialization</a> •
+  <a href="#configuration">Configuration</a> •
+  <a href="#lifecycle">Lifecycle</a>
+</p>
+
+---
 
 This guide covers the initialization, configuration, and lifecycle management of an ABI application.
 

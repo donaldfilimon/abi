@@ -222,18 +222,22 @@ pub const CloudResponse = struct {
         resp.status_code = status_code;
         try resp.headers.put("Content-Type", "application/json");
 
-        // Format error as JSON
-        var buffer = std.ArrayListUnmanaged(u8){};
-        errdefer buffer.deinit(allocator);
+        // Format error as JSON using Zig 0.16 API
+        var out: std.Io.Writer.Allocating = .init(allocator);
+        errdefer out.deinit();
+        var writer = std.json.Stringify{ .writer = &out.writer, .options = .{} };
+        try writer.beginObject();
+        try writer.objectField("error");
+        try writer.beginObject();
+        try writer.objectField("code");
+        try writer.write(status_code);
+        try writer.objectField("message");
+        try writer.write(message);
+        try writer.endObject();
+        try writer.endObject();
+        // Get owned slice so allocator ownership is clear
+        resp.body = try out.toOwnedSlice();
 
-        try std.json.stringify(.{
-            .@"error" = .{
-                .code = status_code,
-                .message = message,
-            },
-        }, .{}, buffer.writer(allocator));
-
-        resp.body = try buffer.toOwnedSlice(allocator);
         return resp;
     }
 

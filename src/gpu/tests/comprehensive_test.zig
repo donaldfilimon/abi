@@ -423,10 +423,10 @@ pub const TestSuite = struct {
         const num_threads = 4;
         const operations_per_thread = 100;
 
-        var threads = try self.allocator.alloc(std.Thread, num_threads);
+        const threads = try self.allocator.alloc(std.Thread, num_threads);
         defer self.allocator.free(threads);
 
-        var contexts = try self.allocator.alloc(ThreadContext, num_threads);
+        const contexts = try self.allocator.alloc(ThreadContext, num_threads);
         defer self.allocator.free(contexts);
 
         // Initialize thread contexts
@@ -437,7 +437,7 @@ pub const TestSuite = struct {
         }
 
         // Start threads
-        for (threads, contexts, 0..) |*thread, *ctx, i| {
+        for (threads, contexts) |*thread, *ctx| {
             thread.* = try std.Thread.spawn(.{}, concurrentOperations, .{ctx});
         }
 
@@ -472,7 +472,7 @@ pub const TestSuite = struct {
         }
     }
 
-    fn testDevicePeerTransfer(self: *TestSuite, devices: []const device_mod.Device) !void {
+    fn testDevicePeerTransfer(_: *TestSuite, devices: []const device_mod.Device) !void {
         if (devices.len < 2) return;
 
         // Test peer-to-peer transfer capabilities
@@ -506,7 +506,8 @@ pub const TestSuite = struct {
     fn recordBenchmark(self: *TestSuite, result: BenchmarkResult) !void {
         try self.results.append(self.allocator, result);
 
-        std.debug.print("Benchmark: {s} on {s}\n", .{ result.operation, @tagName(result.backend) });
+        // Use {t} format for enums (Zig 0.16)
+        std.debug.print("Benchmark: {s} on {t}\n", .{ result.operation, result.backend });
         std.debug.print("  Data size: {} elements\n", .{result.data_size});
         std.debug.print("  Iterations: {}\n", .{result.iterations});
         std.debug.print("  Avg time: {} ns\n", .{result.avg_time_ns});
@@ -535,7 +536,8 @@ pub const TestSuite = struct {
         if (self.results.items.len > 0) {
             std.debug.print("Benchmark Results:\n", .{});
             for (self.results.items) |result| {
-                std.debug.print("  {s} ({s}):\n", .{ result.operation, @tagName(result.backend) });
+                // Use {t} format for enums (Zig 0.16)
+                std.debug.print("  {s} ({t}):\n", .{ result.operation, result.backend });
                 std.debug.print("    Throughput: {:.2} elements/sec\n", .{result.throughput_elements_per_sec});
                 std.debug.print("    Memory BW: {:.2} GB/s\n", .{result.memory_bandwidth_gb_per_sec});
                 std.debug.print("    Avg latency: {} ns\n", .{result.avg_time_ns});

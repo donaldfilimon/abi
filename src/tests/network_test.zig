@@ -494,7 +494,7 @@ test "service discovery id generation" {
 
     const allocator = std.testing.allocator;
 
-    const id = try network.ServiceDiscovery.discovery_types.generateServiceId(allocator, "my-service");
+    const id = try network.generateServiceId(allocator, "my-service");
     defer allocator.free(id);
 
     try std.testing.expect(std.mem.startsWith(u8, id, "my-service-"));
@@ -581,9 +581,9 @@ test "network context lifecycle" {
     if (!network.isEnabled()) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
-    const config_module = @import("../config/mod.zig");
+    const config = @import("abi").config;
 
-    const ctx = try network.Context.init(allocator, config_module.NetworkConfig{});
+    const ctx = try network.Context.init(allocator, config.NetworkConfig{});
     defer ctx.deinit();
 
     try std.testing.expectEqual(network.Context.State.disconnected, ctx.getState());

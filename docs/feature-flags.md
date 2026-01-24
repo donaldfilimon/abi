@@ -1,9 +1,15 @@
 ---
-title: "feature-flags"
-tags: []
+title: "Feature Flags Reference"
+tags: [build, configuration, features]
 ---
 # Feature Flags Reference
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Flags-10+_Options-blue?style=for-the-badge" alt="Flags"/>
+  <img src="https://img.shields.io/badge/GPU-6_Backends-green?style=for-the-badge" alt="GPU Backends"/>
+  <img src="https://img.shields.io/badge/Build-Configurable-success?style=for-the-badge" alt="Configurable"/>
+</p>
 
 > **Single source of truth for all ABI framework build options**
 

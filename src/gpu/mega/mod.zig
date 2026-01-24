@@ -5,6 +5,10 @@
 //! - Intelligent workload scheduling
 //! - Learning-based optimization
 //! - Real-time monitoring integration
+//! - Power monitoring and eco-mode
+//! - Priority workload queuing
+//! - Auto-failover with circuit breaker
+//! - Prometheus metrics export
 //!
 //! ## Overview
 //!
@@ -52,6 +56,10 @@
 //! - `BackendInstance`: Metadata and capabilities for each backend
 //! - `WorkloadProfile`: Description of workload characteristics
 //! - `ScheduleDecision`: Routing decision with confidence score
+//! - `PowerMonitor`: Energy tracking and eco-mode scoring
+//! - `WorkloadQueue`: Priority-based workload queuing
+//! - `FailoverManager`: Circuit breaker and auto-failover
+//! - `MetricsExporter`: Prometheus-compatible metrics export
 //!
 //! ## Thread Safety
 //!
@@ -61,6 +69,10 @@
 pub const coordinator = @import("coordinator.zig");
 pub const scheduler = @import("scheduler.zig");
 pub const hybrid = @import("hybrid.zig");
+pub const queue = @import("queue.zig");
+pub const failover = @import("failover.zig");
+pub const power = @import("power.zig");
+pub const metrics = @import("metrics.zig");
 
 // Re-export main types
 pub const Coordinator = coordinator.Coordinator;
@@ -87,6 +99,40 @@ pub const HybridRoutingDecision = hybrid.HybridRoutingDecision;
 pub const HybridDeviceType = hybrid.HybridDeviceType;
 pub const HybridWorkloadType = hybrid.HybridWorkloadType;
 
+// Re-export queue types
+pub const WorkloadQueue = queue.WorkloadQueue;
+pub const QueueConfig = queue.QueueConfig;
+pub const EnqueueOptions = queue.EnqueueOptions;
+pub const QueueStats = queue.QueueStats;
+pub const Priority = queue.Priority;
+pub const QueuedWorkload = queue.QueuedWorkload;
+pub const WorkloadStatus = queue.WorkloadStatus;
+
+// Re-export failover types
+pub const FailoverManager = failover.FailoverManager;
+pub const FailoverPolicy = failover.FailoverPolicy;
+pub const FailoverEvent = failover.FailoverEvent;
+pub const FailoverReason = failover.FailoverReason;
+pub const FailoverStats = failover.FailoverStats;
+pub const BackendHealth = failover.BackendHealth;
+pub const CircuitState = failover.CircuitState;
+
+// Re-export power monitoring types
+pub const PowerMonitor = power.PowerMonitor;
+pub const BackendPowerProfile = power.BackendPowerProfile;
+pub const BackendEnergyStats = power.BackendEnergyStats;
+pub const EcoModeConfig = power.EcoModeConfig;
+pub const EnergyReport = power.EnergyReport;
+pub const default_power_profiles = power.default_profiles;
+
+// Re-export metrics exporter types
+pub const MetricsExporter = metrics.MetricsExporter;
+pub const BackendMetrics = metrics.BackendMetrics;
+pub const HistogramValue = metrics.HistogramValue;
+pub const Counter = metrics.Counter;
+pub const Gauge = metrics.Gauge;
+pub const default_latency_buckets = metrics.default_latency_buckets;
+
 // Re-export convenience functions
 pub const init = Coordinator.init;
 
@@ -95,4 +141,8 @@ test {
     _ = coordinator;
     _ = scheduler;
     _ = hybrid;
+    _ = power;
+    _ = queue;
+    _ = failover;
+    _ = metrics;
 }

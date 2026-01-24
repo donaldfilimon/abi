@@ -1,4 +1,15 @@
+---
+title: "WASM Bindings"
+tags: [wasm, bindings, javascript, typescript]
+---
 # @anthropic/abi-wasm
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-WebAssembly-654FF0?style=for-the-badge&logo=webassembly&logoColor=white" alt="WASM"/>
+  <img src="https://img.shields.io/badge/npm-@anthropic%2Fabi--wasm-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm"/>
+  <img src="https://img.shields.io/badge/TypeScript-Ready-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
+</p>
 
 WebAssembly bindings for the ABI high-performance AI and vector database framework.
 
