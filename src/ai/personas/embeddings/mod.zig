@@ -13,6 +13,7 @@ const std = @import("std");
 const index = @import("persona_index.zig");
 const learning = @import("learning.zig");
 const seed = @import("seed_data.zig");
+const time = @import("../../../shared/time.zig");
 
 // Re-export core types from persona_index
 pub const PersonaEmbeddingIndex = index.PersonaEmbeddingIndex;
@@ -141,7 +142,7 @@ pub const EmbeddingsModule = struct {
         domain: ?[]const u8,
         user_id: ?[]const u8,
     ) !void {
-        const timestamp = std.time.timestamp();
+        const timestamp = time.unixSeconds();
 
         // Record in learner
         try self.learner.recordInteraction(.{

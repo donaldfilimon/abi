@@ -15,6 +15,7 @@ const std = @import("std");
 const chat = @import("../handlers/chat.zig");
 const types = @import("../../ai/personas/types.zig");
 const health = @import("../../ai/personas/health.zig");
+const time = @import("../../shared/time.zig");
 
 /// HTTP method.
 pub const Method = enum {
@@ -163,7 +164,7 @@ fn handleHealthCheck(ctx: *RouteContext) RouteError!void {
     defer response_obj.deinit();
 
     try response_obj.put("status", std.json.Value{ .string = "ok" });
-    try response_obj.put("timestamp", std.json.Value{ .integer = std.time.timestamp() });
+    try response_obj.put("timestamp", std.json.Value{ .integer = time.unixSeconds() });
 
     // Add health details if checker is available
     if (ctx.health_checker) |checker| {

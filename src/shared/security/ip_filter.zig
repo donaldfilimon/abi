@@ -10,6 +10,7 @@
 //! - Automatic threat detection
 
 const std = @import("std");
+const time = @import("../time.zig");
 
 /// IP version
 pub const IpVersion = enum {
@@ -380,7 +381,7 @@ pub const IpFilter = struct {
             }
         }
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         // Check blocklist
         for (self.blocklist.items) |entry| {
@@ -438,7 +439,7 @@ pub const IpFilter = struct {
             }
         }
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         try self.blocklist.append(self.allocator, .{
             .ip = ip,
@@ -459,7 +460,7 @@ pub const IpFilter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         try self.blocked_ranges.append(self.allocator, .{
             .range = range,
@@ -523,7 +524,7 @@ pub const IpFilter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         const key = ipToKey(ip);
 
         const result = try self.violations.getOrPut(self.allocator, key);
@@ -563,7 +564,7 @@ pub const IpFilter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         var removed: u32 = 0;
 
         // Clean blocklist

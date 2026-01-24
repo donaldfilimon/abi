@@ -1,7 +1,7 @@
 //! LLM trainer checkpoint persistence (weights + optimizer state).
 const std = @import("std");
 const binary = @import("../../shared/utils.zig").binary;
-const time = @import("../../shared/utils.zig");
+const time = @import("../../shared/time.zig");
 
 const checkpoint_magic = "ABLC";
 const checkpoint_version: u16 = 1;

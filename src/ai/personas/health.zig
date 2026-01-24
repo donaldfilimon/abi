@@ -14,6 +14,7 @@ const types = @import("types.zig");
 const metrics_mod = @import("metrics.zig");
 const alerts = @import("alerts.zig");
 const loadbalancer = @import("loadbalancer.zig");
+const time = @import("../../shared/time.zig");
 
 /// Health status of a persona.
 pub const HealthStatus = enum {
@@ -189,7 +190,7 @@ pub const HealthChecker = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         // Calculate component scores
         var latency_score: f32 = 1.0;

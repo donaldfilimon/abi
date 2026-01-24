@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const classifier = @import("classifier.zig");
+const time = @import("../../../shared/time.zig");
 
 /// A retrieved knowledge fragment.
 pub const KnowledgeFragment = struct {
@@ -193,7 +194,7 @@ pub const KnowledgeRetriever = struct {
         // Check cache
         if (self.config.enable_cache) {
             if (self.cache.get(query)) |cached| {
-                const now = std.time.timestamp();
+                const now = time.unixSeconds();
                 if (now - cached.cached_at < @as(i64, @intCast(self.config.cache_ttl_seconds))) {
                     var result = cached.result;
                     result.from_cache = true;
@@ -242,7 +243,7 @@ pub const KnowledgeRetriever = struct {
             errdefer self.allocator.free(key);
             try self.cache.put(self.allocator, key, .{
                 .result = result,
-                .cached_at = std.time.timestamp(),
+                .cached_at = time.unixSeconds(),
             });
         }
 

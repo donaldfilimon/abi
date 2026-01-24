@@ -1356,3 +1356,19 @@ pub fn isVulkanAvailable() bool {
     }
     return vulkan_lib != null;
 }
+
+// ============================================================================
+// Shader Cache (stub)
+// ============================================================================
+
+/// Shader cache stub for future caching implementation.
+/// Currently a placeholder to satisfy imports.
+pub const ShaderCache = struct {};
+
+// ============================================================================
+// Command Pool (stub)
+// ============================================================================
+
+/// Command pool stub for future pooling implementation.
+/// Currently a placeholder to satisfy imports.
+pub const CommandPool = struct {};

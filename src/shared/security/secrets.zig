@@ -9,6 +9,7 @@
 //! - Provider abstraction (env, file, vault)
 
 const std = @import("std");
+const time = @import("../time.zig");
 const crypto = std.crypto;
 
 /// Secret provider types
@@ -83,7 +84,7 @@ pub const SecretValue = struct {
             key,
         ) catch return error.DecryptionFailed;
 
-        self.metadata.last_accessed_at = std.time.timestamp();
+        self.metadata.last_accessed_at = time.unixSeconds();
         self.metadata.access_count += 1;
 
         return plaintext;
@@ -238,7 +239,7 @@ pub const SecretsManager = struct {
         // Check cache
         if (self.config.cache_secrets) {
             if (self.cache.get(name)) |cached| {
-                const now = std.time.timestamp();
+                const now = time.unixSeconds();
                 if (now - cached.cached_at < self.config.cache_ttl) {
                     self.stats.cache_hits += 1;
                     var value_copy = cached.value;
@@ -268,7 +269,7 @@ pub const SecretsManager = struct {
             const name_copy = try self.allocator.dupe(u8, name);
             try self.cache.put(self.allocator, name_copy, .{
                 .value = encrypted,
-                .cached_at = std.time.timestamp(),
+                .cached_at = time.unixSeconds(),
             });
         }
 
@@ -299,7 +300,7 @@ pub const SecretsManager = struct {
                 const name_copy = try self.allocator.dupe(u8, name);
                 try self.cache.put(self.allocator, name_copy, .{
                     .value = encrypted,
-                    .cached_at = std.time.timestamp(),
+                    .cached_at = time.unixSeconds(),
                 });
             },
             .vault => try self.saveToVault(name, value),
@@ -610,7 +611,7 @@ pub const SecretsManager = struct {
 
         try self.cache.put(self.allocator, cache_key, .{
             .value = encrypted,
-            .cached_at = std.time.timestamp(),
+            .cached_at = time.unixSeconds(),
         });
 
         // HashiCorp Vault write not yet implemented
@@ -746,7 +747,7 @@ pub const SecretsManager = struct {
             .nonce = nonce,
             .tag = tag,
             .metadata = .{
-                .created_at = std.time.timestamp(),
+                .created_at = time.unixSeconds(),
             },
         };
     }

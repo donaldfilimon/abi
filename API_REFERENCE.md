@@ -762,7 +762,7 @@ Flat domain structure (modular architecture):
 - [TODO.md](TODO.md) — Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))
 - [ROADMAP.md](ROADMAP.md) — Upcoming milestones
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Development guidelines
-- [CHANGELOG.md](CHANGELOG.md) — Version history
+ - [CHANGELOG_CONSOLIDATED.md](CHANGELOG_CONSOLIDATED.md) — Version history
 
 </td>
 </tr>
@@ -774,4 +774,3 @@ Flat domain structure (modular architecture):
   <a href="README.md">← Back to README</a> •
   <a href="docs/intro.md">Full Documentation →</a>
 </p>
-

@@ -388,32 +388,28 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
         return;
     }
 
+    // NOTE: Removed explicit TTY check using std.os.isatty which is not available on Windows.
+    // The `terminal.enter()` call below will gracefully handle non‑interactive environments
+    // and provide the same fallback command list when a real terminal cannot be used.
+
     var terminal = tui.Terminal.init(allocator);
     defer terminal.deinit();
 
+    // Attempt to enter the TUI. Preserve detailed error information for debugging.
     terminal.enter() catch |err| {
-        const err_msg = switch (err) {
-            error.ConsoleUnavailable, error.ConsoleModeFailed => blk: {
-                utils.output.printError("Interactive TUI requires a real terminal/console.", .{});
-                utils.output.printInfo("This command needs to run in a proper terminal window.", .{});
-                std.debug.print("\nAvailable commands (run individually):\n", .{});
-                std.debug.print("  abi llm list                    - List supported LLM formats\n", .{});
-                std.debug.print("  abi llm demo                    - Demo LLM interface (no model needed)\n", .{});
-                std.debug.print("  abi bench all                   - Run all benchmarks\n", .{});
-                std.debug.print("  abi system-info                 - Show system information\n", .{});
-                std.debug.print("  abi config show                 - Show current configuration\n", .{});
-                std.debug.print("  abi db stats                    - Show database statistics\n", .{});
-                std.debug.print("  abi gpu backends                - List GPU backends\n", .{});
-                std.debug.print("  abi task list                   - List tasks\n", .{});
-                std.debug.print("  abi --list-features             - Show available features\n", .{});
-                break :blk true;
-            },
-            else => blk: {
-                utils.output.printError("Failed to initialize terminal: {t}", .{err});
-                break :blk false;
-            },
-        };
-        _ = err_msg;
+        // Log the specific error using the {t} formatter for clarity.
+        utils.output.printError("Failed to start interactive TUI: {t}", .{err});
+        utils.output.printInfo("Falling back to command list display.", .{});
+        std.debug.print("\nAvailable commands (run individually):\n", .{});
+        std.debug.print("  abi llm list                    - List supported LLM formats\n", .{});
+        std.debug.print("  abi llm demo                    - Demo LLM interface (no model needed)\n", .{});
+        std.debug.print("  abi bench all                   - Run all benchmarks\n", .{});
+        std.debug.print("  abi system-info                 - Show system information\n", .{});
+        std.debug.print("  abi config show                 - Show current configuration\n", .{});
+        std.debug.print("  abi db stats                    - Show database statistics\n", .{});
+        std.debug.print("  abi gpu backends                - List GPU backends\n", .{});
+        std.debug.print("  abi task list                   - List tasks\n", .{});
+        std.debug.print("  abi --list-features             - Show available features\n", .{});
         return;
     };
     defer terminal.exit() catch {};

@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const mod = @import("mod.zig");
+const time = @import("../../shared/time.zig");
 
 // ============================================================================
 // Types
@@ -362,7 +363,7 @@ pub const RoutingRule = struct {
             .prompt_length => |range| prompt.len >= range.min and prompt.len <= range.max,
             .always => true,
             .time_window => |window| blk: {
-                const hour: u8 = @intCast(@mod(@divTrunc(std.time.timestamp(), 3600), 24));
+                const hour: u8 = @intCast(@mod(@divTrunc(time.unixSeconds(), 3600), 24));
                 break :blk hour >= window.start_hour and hour < window.end_hour;
             },
         };

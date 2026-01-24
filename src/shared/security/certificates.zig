@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const crypto = std.crypto;
+const time = @import("../time.zig");
 
 /// Certificate type
 pub const CertificateType = enum {
@@ -90,17 +91,17 @@ pub const CertificateInfo = struct {
 
     /// Check if certificate is expired
     pub fn isExpired(self: CertificateInfo) bool {
-        return std.time.timestamp() > self.not_after;
+        return time.unixSeconds() > self.not_after;
     }
 
     /// Check if certificate is valid yet
     pub fn isValidYet(self: CertificateInfo) bool {
-        return std.time.timestamp() >= self.not_before;
+        return time.unixSeconds() >= self.not_before;
     }
 
     /// Get days until expiration
     pub fn daysUntilExpiry(self: CertificateInfo) i64 {
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         const seconds_remaining = self.not_after - now;
         return @divTrunc(seconds_remaining, 86400);
     }
@@ -625,7 +626,7 @@ pub const CertificateManager = struct {
         const serial = try std.fmt.allocPrint(self.allocator, "{}", .{std.fmt.fmtSliceHexLower(&serial_buf)});
         errdefer self.allocator.free(serial);
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         return CertificateInfo{
             .cert_type = .server,
@@ -645,7 +646,7 @@ pub const CertificateManager = struct {
 
 /// Generate a self-signed certificate
 pub fn generateSelfSigned(allocator: std.mem.Allocator, options: GenerateOptions) !CertificateInfo {
-    const now = std.time.timestamp();
+    const now = time.unixSeconds();
 
     // Generate fingerprint
     var fingerprint: [32]u8 = undefined;
@@ -745,7 +746,7 @@ test "certificate manager" {
     var manager = CertificateManager.init(allocator, .{});
     defer manager.deinit();
 
-    var cert = try generateSelfSigned(allocator, .{
+    const cert = try generateSelfSigned(allocator, .{
         .common_name = "server.local",
     });
 

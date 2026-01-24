@@ -66,6 +66,91 @@ tags: []
 
 </details>
 
+## Quick Start
+
+> **Codebase Status:** Synced with repository as of 2026-01-23.
+
+### Prerequisites
+
+| Requirement | Version | Status |
+|------------|---------|--------|
+| Zig | 0.16.x | ![Required](https://img.shields.io/badge/-Required-red) |
+| Git | Any | ![Required](https://img.shields.io/badge/-Required-red) |
+| GPU Drivers | Latest | ![Optional](https://img.shields.io/badge/-Optional-yellow) |
+
+### Build and Run the CLI
+
+```bash
+zig build
+zig build run -- --help
+zig build run -- --version
+```
+
+### Run Tests and Benchmarks
+
+```bash
+zig build test                    # Run all tests
+zig build test --summary all      # Run tests with detailed output
+zig test src/runtime/engine/engine.zig     # Test single file (new path)
+zig test src/tests/mod.zig --test-filter "pattern"  # Filter tests
+zig build test -Denable-gpu=true -Denable-network=true  # Test with features
+zig build benchmarks              # Run performance benchmarks
+```
+
+### CLI Commands
+
+#### General
+
+```bash
+zig build run -- --help           # Show all commands
+zig build run -- --version        # Show version info
+zig build run -- system-info       # System and framework status
+```
+
+#### Database
+
+```bash
+zig build run -- db stats
+zig build run -- db add --id 1 --embed "text to embed"
+zig build run -- db backup --path backup.db
+zig build run -- db restore --path backup.db
+```
+
+#### AI & Agents
+
+```bash
+zig build run -- agent                          # Interactive agent
+zig build run -- agent --message "Hello"          # Single message
+zig build run -- agent --persona coder           # Use specific persona
+```
+
+#### GPU
+
+```bash
+zig build run -- gpu backends                  # List backends
+zig build run -- gpu devices                   # List devices
+zig build run -- gpu summary                   # GPU summary
+```
+
+#### Training
+
+```bash
+zig build run -- train run --epochs 10          # Run training
+zig build run -- train info                     # Show config
+zig build run -- train resume ./model.ckpt       # Resume from checkpoint
+```
+
+#### Explore codebase
+
+```bash
+zig build run -- explore "fn init" --level quick
+zig build run -- explore "pub fn" --level thorough
+```
+
+---
+
+For more detailed guides, see [docs/intro.md](docs/intro.md).
+
 ## What's New (2026.01)
 
 <details open>

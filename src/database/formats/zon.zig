@@ -40,6 +40,7 @@
 
 const std = @import("std");
 const batch = @import("../batch.zig");
+const time = @import("../../shared/time.zig");
 
 /// ZON format version for WDBX databases.
 pub const ZON_FORMAT_VERSION: u32 = 1;
@@ -364,8 +365,8 @@ pub const ZonFormat = struct {
             .name = self.config.name,
             .dimension = dimension,
             .distance_metric = self.config.distance_metric,
-            .created_at = std.time.timestamp(),
-            .modified_at = std.time.timestamp(),
+            .created_at = time.unixSeconds(),
+            .modified_at = time.unixSeconds(),
             .db_metadata = self.config.metadata,
             .records = zon_records,
         };

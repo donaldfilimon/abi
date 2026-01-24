@@ -240,10 +240,10 @@ All feature-gated stubs have been audited and updated for API parity:
 
 ## Changelog History
 
-- [0.2.2](CHANGELOG.md#022---2025-12-27) - Zig 0.16 modernization
-- [0.2.1](CHANGELOG.md#021---2025-12-27) - Security fixes, memory safety
-- [0.2.0](CHANGELOG.md#020---2025-12-24) - High-performance compute runtime
-- [0.1.0](CHANGELOG.md#010---2025-12-24) - Initial release
+ - [0.2.2](CHANGELOG_CONSOLIDATED.md#022---2025-12-27) - Zig 0.16 modernization
+ - [0.2.1](CHANGELOG_CONSOLIDATED.md#021---2025-12-27) - Security fixes, memory safety
+ - [0.2.0](CHANGELOG_CONSOLIDATED.md#020---2025-12-24) - High-performance compute runtime
+ - [0.1.0](CHANGELOG_CONSOLIDATED.md#010---2025-12-24) - Initial release
 
 ## Expanded Roadmap Details
 ### Tooling (Q2 2026) COMPLETE
