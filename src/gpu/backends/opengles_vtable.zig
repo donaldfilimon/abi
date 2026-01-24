@@ -152,9 +152,18 @@ pub const OpenGLESBackend = struct {
     // ========================================================================
 
     pub fn allocate(self: *Self, size: usize, flags: interface.MemoryFlags) interface.MemoryError!*anyopaque {
-        _ = flags; // TODO: Use memory flags for GLES memory type selection
+        // Map interface memory flags to OpenGL ES buffer usage hints
+        // GLES uses glBufferData with usage hints for optimal memory placement
+        const usage_hint: opengles.BufferUsageHint = if (flags.host_visible and flags.host_coherent)
+            .dynamic_coherent // Host-visible + coherent: frequent CPU access with coherency
+        else if (flags.host_visible)
+            .dynamic_storage // Host-visible: frequent CPU access without coherency
+        else if (flags.cached)
+            .static_read // Device-only cached: GPU read-heavy workloads
+        else
+            .static_draw; // Default: GPU-only, write once, use many
 
-        const ptr = opengles.allocateDeviceMemory(size) catch {
+        const ptr = opengles.allocateDeviceMemoryWithHint(size, usage_hint) catch {
             return interface.MemoryError.AllocationFailed;
         };
 
