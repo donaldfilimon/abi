@@ -43,6 +43,20 @@ zig build test -Denable-gpu=true -Denable-network=true  # Test with features
 zig build benchmarks              # Run performance benchmarks
 ```
 
+## GPU Backend Selection
+
+```bash
+# Unified GPU backend syntax (recommended)
+zig build -Dgpu-backend=vulkan              # Single backend (default)
+zig build -Dgpu-backend=cuda                # NVIDIA CUDA
+zig build -Dgpu-backend=metal               # Apple Metal
+zig build -Dgpu-backend=cuda,vulkan         # Multiple backends
+zig build -Dgpu-backend=none                # Disable all GPU backends
+zig build -Dgpu-backend=auto                # Auto-detect available backends
+```
+
+> Legacy flags (`-Dgpu-vulkan`, `-Dgpu-cuda`, etc.) are deprecated but still work with a warning.
+
 ## CLI Commands
 
 ```bash

@@ -1,5 +1,5 @@
 # Video Walkthrough: Getting Started with ABI
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 **Duration:** 20 minutes
 **Difficulty:** Beginner
