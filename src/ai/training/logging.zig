@@ -19,6 +19,8 @@ pub const LoggerConfig = struct {
     wandb_project: ?[]const u8 = null,
     wandb_run_name: ?[]const u8 = null,
     wandb_entity: ?[]const u8 = null,
+    enable_metrics_stream: bool = false,
+    metrics_path: ?[]const u8 = null,
 };
 
 pub const Metric = struct {
@@ -30,12 +32,14 @@ pub const TrainingLogger = struct {
     allocator: std.mem.Allocator,
     tensorboard: ?TensorboardLogger,
     wandb: ?WandbLogger,
+    metrics_stream: ?MetricsStream,
 
     pub fn init(allocator: std.mem.Allocator, config: LoggerConfig) LogError!TrainingLogger {
         var logger = TrainingLogger{
             .allocator = allocator,
             .tensorboard = null,
             .wandb = null,
+            .metrics_stream = null,
         };
 
         if (config.enable_tensorboard) {
@@ -46,12 +50,23 @@ pub const TrainingLogger = struct {
             logger.wandb = try WandbLogger.init(allocator, config);
         }
 
+        if (config.enable_metrics_stream) {
+            const metrics_path = config.metrics_path orelse try std.fmt.allocPrint(
+                allocator,
+                "{s}/metrics.jsonl",
+                .{config.log_dir},
+            );
+            defer if (config.metrics_path == null) allocator.free(metrics_path);
+            logger.metrics_stream = try MetricsStream.init(allocator, metrics_path);
+        }
+
         return logger;
     }
 
     pub fn deinit(self: *TrainingLogger) void {
         if (self.tensorboard) |*tb| tb.deinit();
         if (self.wandb) |*wb| wb.deinit();
+        if (self.metrics_stream) |*ms| ms.deinit();
         self.* = undefined;
     }
 
@@ -62,11 +77,34 @@ pub const TrainingLogger = struct {
         if (self.wandb) |*wb| {
             try wb.logScalar(tag, value, step);
         }
+        if (self.metrics_stream) |*ms| {
+            try ms.logScalar(tag, value, step);
+        }
     }
 
     pub fn writeSummary(self: *TrainingLogger, metrics: []const Metric) LogError!void {
         if (self.wandb) |*wb| {
             try wb.writeSummary(metrics);
+        }
+        if (self.metrics_stream) |*ms| {
+            // Summaries are recorded as scalars with step = 0 for simplicity
+            for (metrics) |metric| {
+                try ms.logScalar(metric.key, @floatCast(metric.value), 0);
+            }
+        }
+    }
+
+    /// Optional helper to log checkpoint events to the metrics stream.
+    pub fn logCheckpoint(self: *TrainingLogger, path: []const u8, size: u64, step: u64) LogError!void {
+        if (self.metrics_stream) |*ms| {
+            try ms.logCheckpoint(path, size, step);
+        }
+    }
+
+    /// Optional helper to log progress events.
+    pub fn logProgress(self: *TrainingLogger, epoch: u32, total_epochs: u32, step_in_epoch: u64, total_steps: u64) LogError!void {
+        if (self.metrics_stream) |*ms| {
+            try ms.logProgress(epoch, total_epochs, step_in_epoch, total_steps);
         }
     }
 };

@@ -13,8 +13,8 @@
 //!   ←/→ - Switch runs (history mode)
 
 const std = @import("std");
-const events = @import("events.zig");
 const terminal = @import("terminal.zig");
+const events = @import("events.zig");
 const themes = @import("themes.zig");
 const widgets = @import("widgets.zig");
 const metrics = @import("training_metrics.zig");
@@ -53,6 +53,8 @@ pub const TrainingPanel = struct {
     config: PanelConfig,
     mode: Mode,
     training_metrics: metrics.TrainingMetrics,
+    metrics_path: []const u8,
+    owns_metrics_path: bool,
 
     // Display state
     width: usize,
@@ -61,6 +63,8 @@ pub const TrainingPanel = struct {
     running: bool,
 
     pub fn init(allocator: std.mem.Allocator, theme: *const themes.Theme, config: PanelConfig) TrainingPanel {
+        const path = std.fmt.allocPrint(allocator, "{s}/metrics.jsonl", .{config.log_dir}) catch config.log_dir;
+        const owns = path.ptr != config.log_dir.ptr;
         return .{
             .allocator = allocator,
             .theme = theme,
@@ -71,11 +75,15 @@ pub const TrainingPanel = struct {
             .last_refresh = 0,
             .last_file_pos = 0,
             .running = true,
+            .metrics_path = path,
+            .owns_metrics_path = owns,
         };
     }
 
     pub fn deinit(self: *TrainingPanel) void {
-        _ = self;
+        if (self.owns_metrics_path) {
+            self.allocator.free(self.metrics_path);
+        }
     }
 
     /// Render the full panel to a writer
@@ -367,9 +375,12 @@ pub const TrainingPanel = struct {
         self.running = true;
 
         // Initial load
-        self.loadMetricsFile("logs/metrics.jsonl") catch {};
+        self.loadMetricsFile(self.buildMetricsPath()) catch {};
 
         while (self.running) {
+            // Pull latest metrics incrementally
+            _ = self.pollMetrics() catch {};
+
             // Clear and render
             try term.clear();
 
@@ -463,6 +474,7 @@ pub const TrainingPanel = struct {
             const event = metrics.MetricsParser.parseLine(line);
             self.training_metrics.update(event);
         }
+        self.last_file_pos = content.len;
     }
 
     /// Poll for new metrics (incremental read from last position)
@@ -508,11 +520,8 @@ pub const TrainingPanel = struct {
         return has_updates;
     }
 
-    fn buildMetricsPath(self: *TrainingPanel) []const u8 {
-        // Build path: log_dir/run_id/metrics.jsonl
-        // For now, return a simple default path
-        _ = self;
-        return "logs/metrics.jsonl";
+    pub fn buildMetricsPath(self: *TrainingPanel) []const u8 {
+        return self.metrics_path;
     }
 
     /// Update metrics from a single event

@@ -61,6 +61,8 @@ pub const LlmTrainingConfig = struct {
     enable_tensorboard: bool = false,
     /// Enable W&B offline logging
     enable_wandb: bool = false,
+    /// Enable JSONL metrics stream for TUI dashboard
+    enable_metrics_stream: bool = false,
     /// W&B project name (defaults to "abi")
     wandb_project: ?[]const u8 = null,
     /// W&B run name (defaults to "run")
@@ -88,7 +90,7 @@ pub const LlmTrainingConfig = struct {
         if (self.grad_accum_steps == 0) return error.InvalidConfiguration;
         if (self.max_grad_norm < 0) return error.InvalidConfiguration;
         if (self.label_smoothing < 0 or self.label_smoothing >= 1) return error.InvalidConfiguration;
-        if ((self.enable_tensorboard or self.enable_wandb) and self.log_dir == null) {
+        if ((self.enable_tensorboard or self.enable_wandb or self.enable_metrics_stream) and self.log_dir == null) {
             return error.InvalidConfiguration;
         }
     }
@@ -263,6 +265,8 @@ pub const LlamaTrainer = struct {
                 .log_dir = config.log_dir.?,
                 .enable_tensorboard = config.enable_tensorboard,
                 .enable_wandb = config.enable_wandb,
+                .enable_metrics_stream = config.enable_metrics_stream,
+                .metrics_path = null,
                 .wandb_project = config.wandb_project,
                 .wandb_run_name = config.wandb_run_name,
                 .wandb_entity = config.wandb_entity,

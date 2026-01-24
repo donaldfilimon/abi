@@ -337,6 +337,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var dataset_max_bytes: usize = 64 * 1024 * 1024;
     var export_gguf_path: ?[]const u8 = null;
     var export_gguf_name: ?[]const u8 = null;
+    var log_dir: ?[]const u8 = null;
     var i: usize = 1;
 
     while (i < args.len) {
@@ -554,6 +555,14 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--log-dir")) {
+            if (i < args.len) {
+                log_dir = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--export-gguf")) {
             if (i < args.len) {
                 export_gguf_path = std.mem.sliceTo(args[i], 0);
@@ -631,6 +640,13 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (export_gguf_name) |name| {
         config.export_name = name;
     }
+
+    // Default log directory and metrics stream for dashboards
+    if (log_dir == null) {
+        log_dir = "logs";
+    }
+    config.log_dir = log_dir;
+    config.enable_metrics_stream = true;
 
     var tokenizer: ?abi.ai.llm.tokenizer.Tokenizer = null;
     defer if (tokenizer) |*tok| tok.deinit();
@@ -815,7 +831,7 @@ fn runMonitor(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     };
 
     // Load metrics before rendering
-    panel.loadMetricsFile("logs/metrics.jsonl") catch {};
+    panel.loadMetricsFile(panel.buildMetricsPath()) catch {};
 
     panel.render(DebugWriter{}) catch |err| {
         std.debug.print("Error rendering panel: {t}\n", .{err});
