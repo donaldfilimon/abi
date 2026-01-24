@@ -1384,6 +1384,4 @@ pub const CommandPool = struct {};
 ///
 /// Returns BackendError.NotAvailable if Vulkan driver cannot be loaded.
 /// Returns BackendError.InitFailed if Vulkan initialization fails.
-pub fn createVulkanVTable(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
-    return vulkan_vtable.createVulkanVTable(allocator);
-}
+pub const createVulkanVTable = vulkan_vtable.createVulkanVTable;
