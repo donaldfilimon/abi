@@ -92,9 +92,9 @@ pub const AddressPort = struct {
 
 /// Generate a unique service ID from service name and random bytes.
 pub fn generateServiceId(allocator: std.mem.Allocator, service_name: []const u8) ![]const u8 {
-    // Use time-based seed with hash for uniqueness (Zig 0.16 compatible)
-    const instant = std.time.Instant.now() catch return error.TimerUnsupported;
-    const seed = instant.timestamp;
+    // Use timer-based seed with hash for uniqueness (Zig 0.16 compatible)
+    var timer = std.time.Timer.start() catch return error.TimerUnsupported;
+    const seed = timer.read();
     var prng = std.Random.DefaultPrng.init(seed);
     const random = prng.random();
 

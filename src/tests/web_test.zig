@@ -429,9 +429,9 @@ test "web context initialization" {
     if (!web.isEnabled()) return error.SkipZigTest;
 
     const allocator = std.testing.allocator;
-    const config_module = @import("../config/mod.zig");
+    const abi = @import("abi");
 
-    const ctx = try web.Context.init(allocator, config_module.WebConfig{});
+    const ctx = try web.Context.init(allocator, abi.config.WebConfig{});
     defer ctx.deinit();
 
     try std.testing.expect(ctx.http_client != null);

@@ -67,29 +67,31 @@ pub const ClaimType = enum {
 
 /// Result of fact checking.
 pub const FactCheckResult = struct {
+    allocator: std.mem.Allocator,
     /// Extracted claims.
-    claims: std.ArrayList(Claim),
+    claims: std.ArrayListUnmanaged(Claim),
     /// Overall confidence score.
     overall_confidence: f32,
     /// Number of claims needing verification.
     verification_needed_count: usize,
     /// Suggested response qualifications.
-    qualifications: std.ArrayList([]const u8),
+    qualifications: std.ArrayListUnmanaged([]const u8),
 
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
-            .claims = std.ArrayList(Claim).init(allocator),
+            .allocator = allocator,
+            .claims = .{},
             .overall_confidence = 1.0,
             .verification_needed_count = 0,
-            .qualifications = std.ArrayList([]const u8).init(allocator),
+            .qualifications = .{},
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.claims.deinit();
-        self.qualifications.deinit();
+        self.claims.deinit(self.allocator);
+        self.qualifications.deinit(self.allocator);
     }
 
     /// Get high-confidence claims.
@@ -281,7 +283,7 @@ pub const FactChecker = struct {
             // Determine if verification needed
             const needs_verification = confidence < self.config.min_unqualified_confidence;
 
-            try result.claims.append(.{
+            try result.claims.append(result.allocator, .{
                 .text = trimmed,
                 .claim_type = claim_type,
                 .confidence = confidence,
@@ -363,7 +365,7 @@ pub const FactChecker = struct {
             if (claim.needs_verification) {
                 if (!added_types.contains(claim.claim_type)) {
                     if (claim.qualification) |qual| {
-                        try result.qualifications.append(qual);
+                        try result.qualifications.append(result.allocator, qual);
                         try added_types.put(claim.claim_type, {});
                     }
                 }
@@ -372,7 +374,7 @@ pub const FactChecker = struct {
 
         // Add overall qualification if confidence is low
         if (result.overall_confidence < 0.6) {
-            try result.qualifications.append("Some information in this response may need verification.");
+            try result.qualifications.append(result.allocator, "Some information in this response may need verification.");
         }
     }
 
@@ -409,20 +411,20 @@ pub fn applyQualifications(
 ) ![]const u8 {
     if (qualifications.len == 0) return try allocator.dupe(u8, content);
 
-    var result = std.ArrayList(u8).init(allocator);
-    errdefer result.deinit();
+    var result: std.ArrayListUnmanaged(u8) = .{};
+    errdefer result.deinit(allocator);
 
-    try result.appendSlice(content);
+    try result.appendSlice(allocator, content);
 
     if (qualifications.len > 0) {
-        try result.appendSlice("\n\n---\n**Note**: ");
+        try result.appendSlice(allocator, "\n\n---\n**Note**: ");
         for (qualifications, 0..) |qual, i| {
-            if (i > 0) try result.appendSlice(" ");
-            try result.appendSlice(qual);
+            if (i > 0) try result.appendSlice(allocator, " ");
+            try result.appendSlice(allocator, qual);
         }
     }
 
-    return result.toOwnedSlice();
+    return result.toOwnedSlice(allocator);
 }
 
 // Tests

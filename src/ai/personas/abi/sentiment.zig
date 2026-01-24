@@ -275,8 +275,8 @@ pub const SentimentAnalyzer = struct {
 
         // Detect emotions with scoring
         var emotion_scores = EmotionScores{};
-        var secondary = std.ArrayList(core_types.EmotionType).init(self.allocator);
-        errdefer secondary.deinit();
+        var secondary: std.ArrayListUnmanaged(core_types.EmotionType) = .{};
+        errdefer secondary.deinit(self.allocator);
 
         // Calculate emotion scores
         for (EMOTION_PATTERNS) |pattern| {
@@ -301,7 +301,7 @@ pub const SentimentAnalyzer = struct {
 
         // Determine primary and secondary emotions
         const primary = self.getPrimaryEmotion(emotion_scores);
-        try self.getSecondaryEmotions(emotion_scores, primary, &secondary);
+        try self.getSecondaryEmotions(emotion_scores, primary, self.allocator, &secondary);
 
         // Calculate urgency
         const urgency = self.calculateUrgency(lower);
@@ -321,7 +321,7 @@ pub const SentimentAnalyzer = struct {
 
         return SentimentResult{
             .primary_emotion = primary,
-            .secondary_emotions = try secondary.toOwnedSlice(),
+            .secondary_emotions = try secondary.toOwnedSlice(self.allocator),
             .urgency_score = urgency,
             .confidence = confidence,
             .requires_empathy = requires_empathy,
@@ -392,7 +392,7 @@ pub const SentimentAnalyzer = struct {
     }
 
     /// Get secondary emotions (those with significant scores).
-    fn getSecondaryEmotions(_: *const Self, scores: EmotionScores, primary: core_types.EmotionType, list: *std.ArrayList(core_types.EmotionType)) !void {
+    fn getSecondaryEmotions(_: *const Self, scores: EmotionScores, primary: core_types.EmotionType, allocator: std.mem.Allocator, list: *std.ArrayListUnmanaged(core_types.EmotionType)) !void {
         const threshold: f32 = 0.4;
 
         const emotion_values = [_]struct { emotion: core_types.EmotionType, score: f32 }{
@@ -409,7 +409,7 @@ pub const SentimentAnalyzer = struct {
 
         for (emotion_values) |ev| {
             if (ev.emotion != primary and ev.score >= threshold) {
-                try list.append(ev.emotion);
+                try list.append(allocator, ev.emotion);
             }
         }
     }

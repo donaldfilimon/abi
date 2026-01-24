@@ -90,6 +90,7 @@ pub const PersonaAdjustments = struct {
 
 /// Result of evaluating all routing rules.
 pub const RoutingRulesScore = struct {
+    allocator: std.mem.Allocator,
     /// Cumulative boost for Abbey persona.
     abbey_boost: f32 = 0.0,
     /// Cumulative boost for Aviva persona.
@@ -99,16 +100,17 @@ pub const RoutingRulesScore = struct {
     /// Whether content requires moderation (route to Abi).
     requires_moderation: bool = false,
     /// Names of rules that matched.
-    matched_rules: std.ArrayList([]const u8),
+    matched_rules: std.ArrayListUnmanaged([]const u8),
 
     pub fn init(allocator: std.mem.Allocator) RoutingRulesScore {
         return .{
-            .matched_rules = std.ArrayList([]const u8).init(allocator),
+            .allocator = allocator,
+            .matched_rules = .{},
         };
     }
 
     pub fn deinit(self: *RoutingRulesScore) void {
-        self.matched_rules.deinit();
+        self.matched_rules.deinit(self.allocator);
     }
 
     /// Get the persona with the highest boost.
@@ -274,7 +276,7 @@ pub const RulesEngine = struct {
                 score.aviva_boost += rule.persona_adjustments.aviva_boost;
                 score.abi_boost += rule.persona_adjustments.abi_boost;
 
-                score.matched_rules.append(rule.name) catch {};
+                score.matched_rules.append(score.allocator, rule.name) catch {};
             }
         }
 

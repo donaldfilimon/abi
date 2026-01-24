@@ -13,7 +13,7 @@ const std = @import("std");
 const engine = @import("engine.zig");
 const core_types = @import("../core/types.zig");
 const core_config = @import("../core/config.zig");
-const net_utils = @import("../../shared/utils_combined.zig").net;
+const net_utils = @import("../../shared/utils.zig").net;
 
 // ============================================================================
 // Server Types

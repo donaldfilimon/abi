@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const time = @import("../shared/utils.zig");
-const async_http = @import("../shared/utils_combined.zig").async_http;
+const async_http = @import("../shared/utils.zig").async_http;
 
 pub const ServiceDiscoveryError = error{
     DiscoveryFailed,

@@ -198,7 +198,7 @@ pub const EmotionProcessor = struct {
     allocator: std.mem.Allocator,
     config: EmotionConfig,
     /// Tracks emotional trajectory over conversation.
-    trajectory: std.ArrayList(EmotionalState),
+    trajectory: std.ArrayListUnmanaged(EmotionalState),
 
     const Self = @This();
 
@@ -212,13 +212,13 @@ pub const EmotionProcessor = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .trajectory = std.ArrayList(EmotionalState).init(allocator),
+            .trajectory = .{},
         };
     }
 
     /// Shutdown and free resources.
     pub fn deinit(self: *Self) void {
-        self.trajectory.deinit();
+        self.trajectory.deinit(self.allocator);
     }
 
     /// Process text and detect emotional content.
@@ -294,7 +294,7 @@ pub const EmotionProcessor = struct {
         if (self.config.track_trajectory) {
             var new_state = context;
             new_state.update(primary_emotion, primary_intensity);
-            try self.trajectory.append(new_state);
+            try self.trajectory.append(self.allocator, new_state);
 
             // Limit trajectory size
             if (self.trajectory.items.len > 50) {

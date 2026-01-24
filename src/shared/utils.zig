@@ -40,6 +40,9 @@ pub fn nowMilliseconds() i64 {
     return platform_time.nowMilliseconds();
 }
 
+/// Get current time in milliseconds (alias for unixMs).
+pub const unixMilliseconds = unixMs;
+
 /// Sleep for a specified number of milliseconds.
 pub fn sleepMs(ms: u64) void {
     platform_time.sleepMs(ms);
@@ -369,10 +372,20 @@ pub const crypto = @import("utils/crypto/mod.zig");
 pub const encoding = @import("utils/encoding/mod.zig");
 pub const fs = @import("utils/fs/mod.zig");
 pub const http = @import("utils/http/mod.zig");
+pub const async_http = @import("utils/http/async_http.zig");
 pub const json = @import("utils/json/mod.zig");
 pub const memory = @import("utils/memory/mod.zig");
 pub const net = @import("utils/net/mod.zig");
 pub const config = @import("utils/config.zig");
+pub const http_retry = @import("utils/retry.zig");
+
+// Top-level shared module re-exports
+pub const logging = @import("logging.zig");
+pub const os = @import("os.zig");
+pub const platform = @import("platform.zig");
+pub const plugins = @import("plugins.zig");
+pub const simd = @import("simd.zig");
+pub const time = @import("time.zig");
 
 // ============================================================================
 // Tests

@@ -92,49 +92,49 @@ pub const AbiRouter = struct {
 
         // 4. Make routing decision
         var selected: types.PersonaType = .abbey;
-        var reason_buf = std.ArrayList(u8).init(self.allocator);
-        errdefer reason_buf.deinit();
+        var reason_buf: std.ArrayListUnmanaged(u8) = .{};
+        errdefer reason_buf.deinit(self.allocator);
 
         // Policy violations override all other routing
         if (!policy_result.is_allowed) {
             selected = .abi;
-            try reason_buf.appendSlice("Policy violation detected");
+            try reason_buf.appendSlice(self.allocator, "Policy violation detected");
 
             // Append violation details
             if (policy_result.violations.len > 0) {
-                try reason_buf.appendSlice(": ");
+                try reason_buf.appendSlice(self.allocator, ": ");
                 for (policy_result.violations, 0..) |violation, i| {
-                    if (i > 0) try reason_buf.appendSlice(", ");
-                    try reason_buf.appendSlice(violation);
+                    if (i > 0) try reason_buf.appendSlice(self.allocator, ", ");
+                    try reason_buf.appendSlice(self.allocator, violation);
                 }
             }
-            try reason_buf.appendSlice(". Routing to Abi for safety handling.");
+            try reason_buf.appendSlice(self.allocator, ". Routing to Abi for safety handling.");
         }
         // Moderation required -> route to Abi
         else if (policy_result.requires_moderation or rules_score.requires_moderation) {
             selected = .abi;
-            try reason_buf.appendSlice("Content requires human moderation; routing to Abi.");
+            try reason_buf.appendSlice(self.allocator, "Content requires human moderation; routing to Abi.");
         }
         // Use rules engine scoring if rules matched
         else if (rules_score.matched_rules.items.len > 0) {
             selected = rules_score.getBestPersona();
 
-            try reason_buf.appendSlice("Rules-based routing to ");
-            try reason_buf.appendSlice(@tagName(selected));
-            try reason_buf.appendSlice(". Matched rules: ");
+            try reason_buf.appendSlice(self.allocator, "Rules-based routing to ");
+            try reason_buf.appendSlice(self.allocator, @tagName(selected));
+            try reason_buf.appendSlice(self.allocator, ". Matched rules: ");
 
             for (rules_score.matched_rules.items, 0..) |rule_name, i| {
-                if (i > 0) try reason_buf.appendSlice(", ");
-                try reason_buf.appendSlice(rule_name);
+                if (i > 0) try reason_buf.appendSlice(self.allocator, ", ");
+                try reason_buf.appendSlice(self.allocator, rule_name);
             }
         }
         // Fallback to heuristic routing
         else if (sentiment.is_technical and !sentiment.requires_empathy) {
             selected = .aviva;
-            try reason_buf.appendSlice("Technical query without emotional distress; routing to Aviva for direct expertise.");
+            try reason_buf.appendSlice(self.allocator, "Technical query without emotional distress; routing to Aviva for direct expertise.");
         } else if (sentiment.requires_empathy) {
             selected = .abbey;
-            try reason_buf.appendSlice("Emotional or complex query detected; routing to Abbey for empathetic assistance.");
+            try reason_buf.appendSlice(self.allocator, "Emotional or complex query detected; routing to Abbey for empathetic assistance.");
         } else {
             // Use intent to refine default
             selected = switch (sentiment.intent) {
@@ -142,11 +142,11 @@ pub const AbiRouter = struct {
                 .greeting, .farewell, .complaint => .abbey,
                 else => .abbey,
             };
-            try reason_buf.appendSlice("Intent-based routing to ");
-            try reason_buf.appendSlice(@tagName(selected));
-            try reason_buf.appendSlice(" (intent: ");
-            try reason_buf.appendSlice(@tagName(sentiment.intent));
-            try reason_buf.appendSlice(").");
+            try reason_buf.appendSlice(self.allocator, "Intent-based routing to ");
+            try reason_buf.appendSlice(self.allocator, @tagName(selected));
+            try reason_buf.appendSlice(self.allocator, " (intent: ");
+            try reason_buf.appendSlice(self.allocator, @tagName(sentiment.intent));
+            try reason_buf.appendSlice(self.allocator, ").");
         }
 
         // Calculate confidence based on multiple factors
@@ -165,7 +165,7 @@ pub const AbiRouter = struct {
             .confidence = confidence,
             .emotional_context = sentiment.toEmotionalState(),
             .policy_flags = policy_flags,
-            .routing_reason = try reason_buf.toOwnedSlice(),
+            .routing_reason = try reason_buf.toOwnedSlice(self.allocator),
         };
     }
 
@@ -217,8 +217,8 @@ pub const AbiPersona = struct {
             };
         }
 
-        const content = try std.fmt.allocPrint(self.router.allocator, "Routing System: {s} selected. Reason: {s}", .{
-            @tagName(decision.selected_persona),
+        const content = try std.fmt.allocPrint(self.router.allocator, "Routing System: {t} selected. Reason: {s}", .{
+            decision.selected_persona,
             decision.routing_reason,
         });
 

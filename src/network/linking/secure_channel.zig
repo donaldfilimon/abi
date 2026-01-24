@@ -4,7 +4,7 @@
 //! Supports multiple encryption backends and protocols.
 
 const std = @import("std");
-const shared_utils = @import("../../shared/utils_combined.zig");
+const shared_utils = @import("../../shared/utils.zig");
 
 /// Encryption type for the channel.
 pub const EncryptionType = enum {

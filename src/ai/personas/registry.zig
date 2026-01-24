@@ -81,15 +81,15 @@ pub const PersonaRegistry = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var list = std.ArrayList(types.PersonaType).init(allocator);
-        errdefer list.deinit();
+        var list: std.ArrayListUnmanaged(types.PersonaType) = .{};
+        errdefer list.deinit(allocator);
 
         var it = self.personas.keyIterator();
         while (it.next()) |key| {
-            try list.append(key.*);
+            try list.append(allocator, key.*);
         }
 
-        return list.toOwnedSlice();
+        return list.toOwnedSlice(allocator);
     }
 
     /// Remove a persona from the registry.

@@ -16,7 +16,7 @@ pub const WdbxTokenDataset = struct {
     pub fn importTokenBin(_: *@This(), _: []const u32, _: u32) !void {
         return error.AiDisabled;
     }
-    pub fn collectTokens(_: *@This(), _: std.mem.Allocator, _: usize) ![]u32 {
+    pub fn collectTokens(_: *@This(), _: usize) ![]u32 {
         return error.AiDisabled;
     }
     pub fn exportTokenBinFile(_: *@This(), _: std.mem.Allocator, _: []const u8, _: usize) !void {

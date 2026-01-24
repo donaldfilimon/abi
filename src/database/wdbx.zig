@@ -1,9 +1,8 @@
 //! WDBX public surface built on top of the in-memory database and storage helpers.
 const std = @import("std");
 const database = @import("database.zig");
-const storage = @import("storage.zig");
-const storage_v2 = @import("storage_v2.zig");
-const fs = @import("../shared/utils_combined.zig").fs;
+const storage = @import("storage_v2.zig"); // Unified storage with v1 fallback
+const fs = @import("../shared/utils.zig").fs;
 
 pub const UnifiedError = error{
     Unsupported,
@@ -94,7 +93,7 @@ pub fn backup(handle: *DatabaseHandle, path: []const u8) !void {
     if (!fs.isSafeBackupPath(path)) return fs.PathValidationError.InvalidPath;
     const safe_path = try fs.normalizeBackupPath(handle.db.allocator, path);
     defer handle.db.allocator.free(safe_path);
-    try storage_v2.saveDatabaseV2(handle.db.allocator, &handle.db, safe_path, .{});
+    try storage.saveDatabase(handle.db.allocator, &handle.db, safe_path);
 }
 
 pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
@@ -104,16 +103,8 @@ pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
     const safe_path = try fs.normalizeBackupPath(allocator, path);
     defer allocator.free(safe_path);
 
-    var restored: database.Database = undefined;
-    if (storage_v2.loadDatabaseV2(allocator, safe_path, .{})) |db| {
-        restored = db;
-    } else |err| {
-        if (err == storage_v2.StorageV2Error.InvalidMagic) {
-            restored = try storage.loadDatabase(allocator, safe_path);
-        } else {
-            return err;
-        }
-    }
+    // Uses unified API which auto-detects v2 or v1 format
+    const restored = try storage.loadDatabase(allocator, safe_path);
     handle.db.deinit();
     handle.db = restored;
 }

@@ -130,14 +130,14 @@ pub const PolicyChecker = struct {
 
     /// Check content against all registered safety rules.
     pub fn check(self: *const Self, content: []const u8) !PolicyResult {
-        var violations = std.ArrayList([]const u8).init(self.allocator);
+        var violations: std.ArrayListUnmanaged([]const u8) = .{};
         errdefer {
             for (violations.items) |v| self.allocator.free(v);
-            violations.deinit();
+            violations.deinit(self.allocator);
         }
 
-        var detected_pii = std.ArrayList(PiiType).init(self.allocator);
-        errdefer detected_pii.deinit();
+        var detected_pii: std.ArrayListUnmanaged(PiiType) = .{};
+        errdefer detected_pii.deinit(self.allocator);
 
         var is_allowed = true;
         var requires_moderation = false;
@@ -147,7 +147,7 @@ pub const PolicyChecker = struct {
         // Check all rules against content
         for (self.rules.items) |rule| {
             if (std.mem.indexOf(u8, content, rule.pattern) != null) {
-                try violations.append(try self.allocator.dupe(u8, rule.name));
+                try violations.append(self.allocator, try self.allocator.dupe(u8, rule.name));
 
                 if (rule.action == .block) is_allowed = false;
                 if (rule.action == .require_human_review) requires_moderation = true;
@@ -159,14 +159,14 @@ pub const PolicyChecker = struct {
                 // Track PII detections
                 if (rule.is_pii_rule) {
                     if (rule.pii_type) |pii| {
-                        try detected_pii.append(pii);
+                        try detected_pii.append(self.allocator, pii);
                     }
                 }
             }
         }
 
         // Run PII pattern detection
-        try self.detectPii(content, &detected_pii);
+        try self.detectPii(content, self.allocator, &detected_pii);
 
         // Update compliance flags based on detected PII
         if (detected_pii.items.len > 0) {
@@ -186,40 +186,40 @@ pub const PolicyChecker = struct {
         return PolicyResult{
             .is_allowed = is_allowed,
             .requires_moderation = requires_moderation,
-            .violations = try violations.toOwnedSlice(),
+            .violations = try violations.toOwnedSlice(self.allocator),
             .suggested_action = max_action,
-            .detected_pii = try detected_pii.toOwnedSlice(),
+            .detected_pii = try detected_pii.toOwnedSlice(self.allocator),
             .compliance = compliance,
         };
     }
 
     /// Detect PII patterns in content using heuristic matching.
-    fn detectPii(self: *const Self, content: []const u8, detected: *std.ArrayList(PiiType)) !void {
+    fn detectPii(self: *const Self, content: []const u8, allocator: std.mem.Allocator, detected: *std.ArrayListUnmanaged(PiiType)) !void {
         _ = self;
 
         // Email pattern: contains @ with text before and after
         if (containsEmailPattern(content)) {
-            try detected.append(.email);
+            try detected.append(allocator, .email);
         }
 
         // Phone pattern: sequences of digits with common separators
         if (containsPhonePattern(content)) {
-            try detected.append(.phone);
+            try detected.append(allocator, .phone);
         }
 
         // SSN pattern: XXX-XX-XXXX or XXXXXXXXX (9 digits)
         if (containsSsnPattern(content)) {
-            try detected.append(.ssn);
+            try detected.append(allocator, .ssn);
         }
 
         // Credit card: 13-19 digit sequences
         if (containsCreditCardPattern(content)) {
-            try detected.append(.credit_card);
+            try detected.append(allocator, .credit_card);
         }
 
         // IP address: X.X.X.X pattern
         if (containsIpPattern(content)) {
-            try detected.append(.ip_address);
+            try detected.append(allocator, .ip_address);
         }
     }
 };

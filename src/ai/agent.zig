@@ -6,8 +6,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const http = @import("../shared/utils_combined.zig").async_http;
-const retry = @import("../shared/utils_combined.zig").retry;
+const http = @import("../shared/utils.zig").async_http;
+const retry = @import("../shared/utils.zig").http_retry;
 const connectors = @import("../connectors/mod.zig");
 const time = @import("../shared/utils.zig");
 const platform_time = @import("../shared/time.zig");

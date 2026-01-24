@@ -26,6 +26,10 @@ pub const training = @import("training/stub.zig");
 pub const database = @import("database/stub.zig");
 pub const vision = @import("vision/stub.zig");
 pub const orchestration = @import("orchestration/stub.zig");
+pub const multi_agent = @import("multi_agent/stub.zig");
+
+// Multi-agent re-exports
+pub const MultiAgentCoordinator = multi_agent.Coordinator;
 
 // Agent module stub (singular - for backward compatibility)
 pub const agent = struct {
@@ -120,6 +124,7 @@ pub const Checkpoint = training.Checkpoint;
 pub const LlmTrainingConfig = training.LlmTrainingConfig;
 pub const LlamaTrainer = training.LlamaTrainer;
 pub const TrainableModel = training.TrainableModel;
+pub const TokenizedDataset = training.TokenizedDataset;
 pub const WdbxTokenDataset = database.WdbxTokenDataset;
 pub const TokenBlock = training.TokenBlock;
 pub const encodeTokenBlock = training.encodeTokenBlock;

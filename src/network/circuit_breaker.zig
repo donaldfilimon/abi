@@ -17,7 +17,7 @@
 //! - Registry for managing multiple circuit breakers
 
 const std = @import("std");
-const time = @import("../shared/utils_combined.zig");
+const time = @import("../shared/utils.zig");
 
 /// Error set for network operations that can be wrapped by the circuit breaker
 pub const NetworkOperationError = error{

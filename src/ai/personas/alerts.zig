@@ -206,11 +206,11 @@ pub const AlertManager = struct {
     allocator: std.mem.Allocator,
     config: AlertManagerConfig,
     /// All active alert rules.
-    rules: std.ArrayList(AlertRule),
+    rules: std.ArrayListUnmanaged(AlertRule),
     /// Currently active alerts.
-    active_alerts: std.ArrayList(Alert),
+    active_alerts: std.ArrayListUnmanaged(Alert),
     /// Alert history.
-    history: std.ArrayList(Alert),
+    history: std.ArrayListUnmanaged(Alert),
     /// Last alert time per rule (for cooldown).
     last_alert_time: std.StringHashMapUnmanaged(i64),
     /// Consecutive failure counters per persona.
@@ -228,21 +228,21 @@ pub const AlertManager = struct {
         var manager = Self{
             .allocator = allocator,
             .config = config,
-            .rules = std.ArrayList(AlertRule).init(allocator),
-            .active_alerts = std.ArrayList(Alert).init(allocator),
-            .history = std.ArrayList(Alert).init(allocator),
+            .rules = .{},
+            .active_alerts = .{},
+            .history = .{},
             .last_alert_time = .{},
             .failure_counters = .{},
         };
 
         // Load default rules
         for (PERSONA_ALERTS) |rule| {
-            manager.rules.append(rule) catch {};
+            manager.rules.append(allocator, rule) catch {};
         }
 
         // Load custom rules
         for (config.custom_rules) |rule| {
-            manager.rules.append(rule) catch {};
+            manager.rules.append(allocator, rule) catch {};
         }
 
         return manager;
@@ -257,9 +257,9 @@ pub const AlertManager = struct {
         for (self.history.items) |alert| {
             self.allocator.free(alert.message);
         }
-        self.rules.deinit();
-        self.active_alerts.deinit();
-        self.history.deinit();
+        self.rules.deinit(self.allocator);
+        self.active_alerts.deinit(self.allocator);
+        self.history.deinit(self.allocator);
         self.last_alert_time.deinit(self.allocator);
         self.failure_counters.deinit(self.allocator);
     }
@@ -334,7 +334,7 @@ pub const AlertManager = struct {
 
         // Add to active alerts (with limit)
         if (self.active_alerts.items.len < self.config.max_active_alerts) {
-            try self.active_alerts.append(alert);
+            try self.active_alerts.append(self.allocator, alert);
         } else {
             // If we can't add the alert, free the message we allocated
             self.allocator.free(message);
@@ -373,7 +373,7 @@ pub const AlertManager = struct {
             if (self.history.items.len >= self.config.max_history) {
                 _ = self.history.orderedRemove(0);
             }
-            self.history.append(alert) catch {};
+            self.history.append(self.allocator, alert) catch {};
         }
     }
 
@@ -407,7 +407,7 @@ pub const AlertManager = struct {
 
     /// Add a custom alert rule.
     pub fn addRule(self: *Self, rule: AlertRule) !void {
-        try self.rules.append(rule);
+        try self.rules.append(self.allocator, rule);
     }
 
     /// Enable or disable a rule by name.

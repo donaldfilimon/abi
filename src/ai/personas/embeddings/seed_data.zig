@@ -144,22 +144,22 @@ pub fn getAllPersonas() [3]PersonaCharacteristics {
 pub fn getCombinedCharacteristics(allocator: std.mem.Allocator, persona: types.PersonaType) ![]const u8 {
     const chars = getCharacteristics(persona);
 
-    var result = std.ArrayList(u8).init(allocator);
-    errdefer result.deinit();
+    var result: std.ArrayListUnmanaged(u8) = .{};
+    errdefer result.deinit(allocator);
 
     // Add name and description
-    try result.appendSlice(chars.name);
-    try result.appendSlice(": ");
-    try result.appendSlice(chars.description);
-    try result.appendSlice(". ");
+    try result.appendSlice(allocator, chars.name);
+    try result.appendSlice(allocator, ": ");
+    try result.appendSlice(allocator, chars.description);
+    try result.appendSlice(allocator, ". ");
 
     // Add all characteristics
     for (chars.characteristics) |char| {
-        try result.appendSlice(char);
-        try result.appendSlice(". ");
+        try result.appendSlice(allocator, char);
+        try result.appendSlice(allocator, ". ");
     }
 
-    return result.toOwnedSlice();
+    return result.toOwnedSlice(allocator);
 }
 
 /// Domain mapping to preferred personas.

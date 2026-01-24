@@ -5,7 +5,7 @@
 //! context propagation and OTLP export.
 
 const std = @import("std");
-const utils = @import("../shared/utils_combined.zig");
+const utils = @import("../shared/utils.zig");
 
 // ============================================================================
 // Core Types

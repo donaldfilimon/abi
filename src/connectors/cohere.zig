@@ -6,8 +6,8 @@
 const std = @import("std");
 const connectors = @import("mod.zig");
 const shared = @import("shared.zig");
-const async_http = @import("../shared/utils_combined.zig").async_http;
-const json_utils = @import("../shared/utils_combined.zig").json;
+const async_http = @import("../shared/utils.zig").async_http;
+const json_utils = @import("../shared/utils.zig").json;
 
 pub const CohereError = error{
     MissingApiKey,

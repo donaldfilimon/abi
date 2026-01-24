@@ -167,7 +167,7 @@ pub const logging = @import("shared/logging.zig");
 pub const plugins = @import("shared/plugins.zig");
 pub const platform = @import("shared/platform.zig");
 pub const simd = @import("shared/simd.zig");
-pub const utils = @import("shared/utils_combined.zig");
+pub const utils = @import("shared/utils.zig");
 pub const os = @import("shared/os.zig");
 
 // SIMD functions exported directly

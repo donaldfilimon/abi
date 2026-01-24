@@ -8,10 +8,15 @@ const std = @import("std");
 pub const Error = error{ AgentDisabled, NoAgents };
 
 pub const Coordinator = struct {
-    pub fn init(_: std.mem.Allocator) Coordinator {
-        return .{};
+    allocator: std.mem.Allocator = undefined,
+    agents: std.ArrayListUnmanaged(*anyopaque) = .{},
+
+    pub fn init(allocator: std.mem.Allocator) Coordinator {
+        return .{ .allocator = allocator };
     }
-    pub fn deinit(_: *Coordinator) void {}
+    pub fn deinit(self: *Coordinator) void {
+        self.agents.deinit(self.allocator);
+    }
     pub fn register(_: *Coordinator, _: *anyopaque) Error!void {
         return error.AgentDisabled;
     }

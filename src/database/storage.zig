@@ -1,4 +1,12 @@
 //! Persistence helpers for the WDBX vector database.
+//!
+//! **DEPRECATED**: This module uses the legacy v1 format (ABID magic).
+//! New code should use `storage_v2.zig` which provides the unified API with
+//! automatic format detection. This module is kept for backward compatibility
+//! with existing v1 database files.
+//!
+//! Prefer: `const storage = @import("storage_v2.zig");`
+//! Use: `storage.saveDatabase()` and `storage.loadDatabase()` for unified API.
 const std = @import("std");
 const database = @import("database.zig");
 
