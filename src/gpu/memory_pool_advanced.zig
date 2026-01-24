@@ -81,6 +81,38 @@ const SizeClassBucket = struct {
         };
     }
 
+    /// Find the best-fit free slot for the requested size.
+    /// Returns the metadata pointer and its predecessor (for list removal).
+    fn findBestFit(self: *SizeClassBucket, requested_size: usize) struct { meta: ?*AllocationMeta, prev: ?*AllocationMeta } {
+        var best: ?*AllocationMeta = null;
+        var best_prev: ?*AllocationMeta = null;
+        var best_waste: usize = std.math.maxInt(usize);
+
+        var prev: ?*AllocationMeta = null;
+        var current = self.free_list;
+
+        while (current) |meta| {
+            // Calculate waste if we use this slot
+            // For reused slots, meta.size contains the last allocation size
+            // The actual buffer is always size_class bytes
+            const waste = self.size_class - requested_size;
+
+            if (waste < best_waste) {
+                best_waste = waste;
+                best = meta;
+                best_prev = prev;
+
+                // Perfect fit - no need to continue searching
+                if (waste == 0) break;
+            }
+
+            prev = meta;
+            current = meta.next_free;
+        }
+
+        return .{ .meta = best, .prev = best_prev };
+    }
+
     fn deinit(self: *SizeClassBucket) void {
         for (self.allocations.items) |*buf| {
             buf.deinit();
@@ -91,12 +123,18 @@ const SizeClassBucket = struct {
     }
 
     fn allocate(self: *SizeClassBucket, size: usize, flags: memory.BufferFlags) !*memory.GpuBuffer {
-        // Try to reuse from free list - find the metadata index first
-        if (self.free_list) |meta| {
+        // Try to reuse from free list using best-fit selection
+        const best_fit = self.findBestFit(size);
+        if (best_fit.meta) |meta| {
             // Find the index of this metadata entry
             const meta_idx = self.findMetadataIndex(meta);
             if (meta_idx) |idx| {
-                self.free_list = meta.next_free;
+                // Remove from free list (handle both head and middle cases)
+                if (best_fit.prev) |prev| {
+                    prev.next_free = meta.next_free;
+                } else {
+                    self.free_list = meta.next_free;
+                }
                 meta.used = true;
                 meta.next_free = null;
                 self.total_used += size;
@@ -178,6 +216,8 @@ pub const AdvancedMemoryPool = struct {
     free_count: u64,
     coalesce_count: u64,
     mutex: std.Thread.Mutex,
+    /// Histogram tracking allocation frequency per size class (for hot class detection)
+    allocation_histogram: [SIZE_CLASSES.len]u64,
 
     /// Initialize the advanced memory pool.
     pub fn init(allocator: std.mem.Allocator, config: PoolConfig) AdvancedMemoryPool {
@@ -192,6 +232,7 @@ pub const AdvancedMemoryPool = struct {
             .free_count = 0,
             .coalesce_count = 0,
             .mutex = .{},
+            .allocation_histogram = .{0} ** SIZE_CLASSES.len,
         };
 
         for (&pool.size_classes, 0..) |*bucket, i| {
@@ -235,6 +276,8 @@ pub const AdvancedMemoryPool = struct {
             const buffer = try bucket.allocate(size, flags);
             self.total_size += SIZE_CLASSES[idx];
             self.allocation_count += 1;
+            // Track allocation in histogram for hot class detection
+            self.allocation_histogram[idx] += 1;
 
             if (self.total_size > self.peak_size) {
                 self.peak_size = self.total_size;
@@ -330,6 +373,53 @@ pub const AdvancedMemoryPool = struct {
         self.free_count = 0;
         self.coalesce_count = 0;
         self.peak_size = self.total_size;
+    }
+
+    /// Get allocation histogram for hot class detection.
+    /// Returns the count of allocations per size class since last reset.
+    pub fn getAllocationHistogram(self: *const AdvancedMemoryPool) [SIZE_CLASSES.len]u64 {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        return self.allocation_histogram;
+    }
+
+    /// Get the indices of hot size classes (sorted by allocation count, descending).
+    /// Returns up to `max_results` hot class indices.
+    pub fn getHotClasses(self: *const AdvancedMemoryPool, max_results: usize) []const usize {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        // Static buffer for results (avoids allocation)
+        const S = struct {
+            var indices: [SIZE_CLASSES.len]usize = undefined;
+        };
+
+        // Initialize indices
+        for (&S.indices, 0..) |*idx, i| {
+            idx.* = i;
+        }
+
+        // Sort by allocation count (descending) using insertion sort
+        var i: usize = 1;
+        while (i < SIZE_CLASSES.len) : (i += 1) {
+            const key_idx = S.indices[i];
+            const key_count = self.allocation_histogram[key_idx];
+            var j: usize = i;
+            while (j > 0 and self.allocation_histogram[S.indices[j - 1]] < key_count) : (j -= 1) {
+                S.indices[j] = S.indices[j - 1];
+            }
+            S.indices[j] = key_idx;
+        }
+
+        const result_count = @min(max_results, SIZE_CLASSES.len);
+        return S.indices[0..result_count];
+    }
+
+    /// Reset the allocation histogram.
+    pub fn resetHistogram(self: *AdvancedMemoryPool) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+        self.allocation_histogram = .{0} ** SIZE_CLASSES.len;
     }
 
     /// Force memory coalescing.
@@ -610,7 +700,7 @@ pub const AdvancedMemoryPool = struct {
 
     fn shouldCoalesce(self: *const AdvancedMemoryPool) bool {
         // Coalesce when:
-        // 1. Fragmentation is high (>30% internal fragmentation)
+        // 1. Fragmentation is high (>25% internal fragmentation)
         // 2. OR utilization is high and we've done enough frees to warrant cleanup
         const frag = self.calculateFragmentation();
         const utilization = if (self.config.max_total_size > 0)
@@ -618,11 +708,11 @@ pub const AdvancedMemoryPool = struct {
         else
             0.0;
 
-        // High fragmentation triggers coalesce
-        if (frag > 0.3) return true;
+        // High fragmentation triggers coalesce (lowered from 0.3 to 0.25)
+        if (frag > 0.25) return true;
 
-        // High utilization + significant free activity
-        if (utilization > 0.7 and self.free_count > 0 and self.free_count % 50 == 0) return true;
+        // High utilization + significant free activity (lowered from 50 to 25)
+        if (utilization > 0.7 and self.free_count > 0 and self.free_count % 25 == 0) return true;
 
         return false;
     }

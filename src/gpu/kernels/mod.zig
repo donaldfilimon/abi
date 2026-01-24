@@ -42,6 +42,10 @@ pub const Type = dsl.Type;
 pub const AccessMode = dsl.AccessMode;
 pub const BuiltinKernel = dsl.BuiltinKernel;
 
+// Re-export adaptive tiling types for matrix operations
+pub const TileConfig = matrix.TileConfig;
+pub const selectOptimalMatmulTile = matrix.selectOptimalMatmulTile;
+
 /// Build kernel IR for a given builtin kernel type.
 pub fn buildKernelIR(allocator: std.mem.Allocator, kernel_type: BuiltinKernel) !*const KernelIR {
     return switch (kernel_type) {
@@ -51,8 +55,8 @@ pub fn buildKernelIR(allocator: std.mem.Allocator, kernel_type: BuiltinKernel) !
         .vector_mul => elementwise.buildVectorMulKernel(allocator),
         .vector_div => elementwise.buildVectorDivKernel(allocator),
         .vector_scale => elementwise.buildVectorScaleKernel(allocator),
-        // Matrix operations
-        .matrix_multiply => matrix.buildMatrixMultiplyKernel(allocator),
+        // Matrix operations (null tile_config uses default 16x16 tiles)
+        .matrix_multiply => matrix.buildMatrixMultiplyKernel(allocator, null),
         .matrix_transpose => matrix.buildMatrixTransposeKernel(allocator),
         // Reductions
         .reduce_sum => reduction.buildReduceSumKernel(allocator),

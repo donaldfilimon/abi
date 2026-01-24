@@ -816,6 +816,359 @@ pub fn matrixMultiply(
     }
 }
 
+// ============================================================================
+// Integer Vector Operations (Zig 0.16 @Vector)
+// ============================================================================
+
+/// Vector size for i32 operations
+const VectorSizeI32 = std.simd.suggestVectorLength(i32) orelse 4;
+
+/// Vector size for u8 operations (useful for quantization)
+const VectorSizeU8 = std.simd.suggestVectorLength(u8) orelse 16;
+
+/// SIMD integer addition
+pub fn vectorAddI32(a: []const i32, b: []const i32, result: []i32) void {
+    std.debug.assert(a.len > 0);
+    std.debug.assert(a.len == b.len and a.len == result.len);
+
+    var i: usize = 0;
+    if (comptime VectorSizeI32 > 1) {
+        const Vec = @Vector(VectorSizeI32, i32);
+        while (i + VectorSizeI32 <= a.len) : (i += VectorSizeI32) {
+            const va: Vec = a[i..][0..VectorSizeI32].*;
+            const vb: Vec = b[i..][0..VectorSizeI32].*;
+            result[i..][0..VectorSizeI32].* = va + vb;
+        }
+    }
+    while (i < a.len) : (i += 1) {
+        result[i] = a[i] + b[i];
+    }
+}
+
+/// SIMD integer sum reduction
+pub fn sumI32(data: []const i32) i64 {
+    if (data.len == 0) return 0;
+
+    var i: usize = 0;
+    var total: i64 = 0;
+
+    if (comptime VectorSizeI32 > 1) {
+        const Vec = @Vector(VectorSizeI32, i32);
+        var sum_vec: Vec = @splat(0);
+
+        while (i + VectorSizeI32 <= data.len) : (i += VectorSizeI32) {
+            const v: Vec = data[i..][0..VectorSizeI32].*;
+            sum_vec += v;
+        }
+
+        // Horizontal sum using @reduce
+        total = @reduce(.Add, sum_vec);
+    }
+
+    while (i < data.len) : (i += 1) {
+        total += data[i];
+    }
+
+    return total;
+}
+
+/// SIMD max for i32
+pub fn maxI32(data: []const i32) i32 {
+    if (data.len == 0) return std.math.minInt(i32);
+
+    var i: usize = 0;
+    var max_val: i32 = data[0];
+
+    if (comptime VectorSizeI32 > 1) {
+        const Vec = @Vector(VectorSizeI32, i32);
+        var max_vec: Vec = @splat(data[0]);
+
+        while (i + VectorSizeI32 <= data.len) : (i += VectorSizeI32) {
+            const v: Vec = data[i..][0..VectorSizeI32].*;
+            max_vec = @max(max_vec, v);
+        }
+
+        max_val = @reduce(.Max, max_vec);
+    }
+
+    while (i < data.len) : (i += 1) {
+        max_val = @max(max_val, data[i]);
+    }
+
+    return max_val;
+}
+
+/// SIMD min for i32
+pub fn minI32(data: []const i32) i32 {
+    if (data.len == 0) return std.math.maxInt(i32);
+
+    var i: usize = 0;
+    var min_val: i32 = data[0];
+
+    if (comptime VectorSizeI32 > 1) {
+        const Vec = @Vector(VectorSizeI32, i32);
+        var min_vec: Vec = @splat(data[0]);
+
+        while (i + VectorSizeI32 <= data.len) : (i += VectorSizeI32) {
+            const v: Vec = data[i..][0..VectorSizeI32].*;
+            min_vec = @min(min_vec, v);
+        }
+
+        min_val = @reduce(.Min, min_vec);
+    }
+
+    while (i < data.len) : (i += 1) {
+        min_val = @min(min_val, data[i]);
+    }
+
+    return min_val;
+}
+
+// ============================================================================
+// Fused Multiply-Add Operations (FMA)
+// ============================================================================
+
+/// Fused multiply-add: result = a * b + c
+/// Uses SIMD FMA when available for better precision and performance
+pub fn fma(a: []const f32, b: []const f32, c: []const f32, result: []f32) void {
+    std.debug.assert(a.len == b.len and b.len == c.len and c.len == result.len);
+    if (a.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+
+        while (i + VectorSize <= a.len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            const vc: Vec = c[i..][0..VectorSize].*;
+            result[i..][0..VectorSize].* = @mulAdd(Vec, va, vb, vc);
+        }
+    }
+
+    while (i < a.len) : (i += 1) {
+        result[i] = @mulAdd(f32, a[i], b[i], c[i]);
+    }
+}
+
+/// Scalar-vector fused multiply-add: result = scalar * a + b
+pub fn fmaScalar(scalar: f32, a: []const f32, b: []const f32, result: []f32) void {
+    std.debug.assert(a.len == b.len and b.len == result.len);
+    if (a.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const s: Vec = @splat(scalar);
+
+        while (i + VectorSize <= a.len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            result[i..][0..VectorSize].* = @mulAdd(Vec, s, va, vb);
+        }
+    }
+
+    while (i < a.len) : (i += 1) {
+        result[i] = @mulAdd(f32, scalar, a[i], b[i]);
+    }
+}
+
+// ============================================================================
+// Vector Scaling Operations
+// ============================================================================
+
+/// Multiply vector by scalar in-place
+pub fn scaleInPlace(data: []f32, scalar: f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const s: Vec = @splat(scalar);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            data[i..][0..VectorSize].* = v * s;
+        }
+    }
+
+    while (i < data.len) : (i += 1) {
+        data[i] *= scalar;
+    }
+}
+
+/// Add scalar to vector in-place
+pub fn addScalarInPlace(data: []f32, scalar: f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const s: Vec = @splat(scalar);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            data[i..][0..VectorSize].* = v + s;
+        }
+    }
+
+    while (i < data.len) : (i += 1) {
+        data[i] += scalar;
+    }
+}
+
+// ============================================================================
+// Element-wise Operations
+// ============================================================================
+
+/// Element-wise multiplication (Hadamard product)
+pub fn hadamard(a: []const f32, b: []const f32, result: []f32) void {
+    std.debug.assert(a.len == b.len and a.len == result.len);
+    if (a.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+
+        while (i + VectorSize <= a.len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            result[i..][0..VectorSize].* = va * vb;
+        }
+    }
+
+    while (i < a.len) : (i += 1) {
+        result[i] = a[i] * b[i];
+    }
+}
+
+/// Element-wise absolute value
+pub fn absInPlace(data: []f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            data[i..][0..VectorSize].* = @abs(v);
+        }
+    }
+
+    while (i < data.len) : (i += 1) {
+        data[i] = @abs(data[i]);
+    }
+}
+
+/// Element-wise clamp
+pub fn clampInPlace(data: []f32, min_val: f32, max_val: f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const min_vec: Vec = @splat(min_val);
+        const max_vec: Vec = @splat(max_val);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            data[i..][0..VectorSize].* = @max(min_vec, @min(max_vec, v));
+        }
+    }
+
+    while (i < data.len) : (i += 1) {
+        data[i] = @max(min_val, @min(max_val, data[i]));
+    }
+}
+
+// ============================================================================
+// Comparison Operations (returning masks)
+// ============================================================================
+
+/// Count elements greater than threshold
+pub fn countGreaterThan(data: []const f32, threshold: f32) usize {
+    if (data.len == 0) return 0;
+
+    var count: usize = 0;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const thresh: Vec = @splat(threshold);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            const mask = v > thresh;
+            // Count true values in mask
+            const ones: @Vector(VectorSize, u1) = @bitCast(mask);
+            count += @reduce(.Add, @as(@Vector(VectorSize, usize), ones));
+        }
+    }
+
+    while (i < data.len) : (i += 1) {
+        if (data[i] > threshold) count += 1;
+    }
+
+    return count;
+}
+
+// ============================================================================
+// Memory Operations
+// ============================================================================
+
+/// Copy with SIMD acceleration
+pub fn copyF32(src: []const f32, dst: []f32) void {
+    std.debug.assert(src.len == dst.len);
+    if (src.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+
+        while (i + VectorSize <= src.len) : (i += VectorSize) {
+            const v: Vec = src[i..][0..VectorSize].*;
+            dst[i..][0..VectorSize].* = v;
+        }
+    }
+
+    while (i < src.len) : (i += 1) {
+        dst[i] = src[i];
+    }
+}
+
+/// Fill array with value using SIMD
+pub fn fillF32(data: []f32, value: f32) void {
+    if (data.len == 0) return;
+
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const v: Vec = @splat(value);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            data[i..][0..VectorSize].* = v;
+        }
+    }
+
+    while (i < data.len) : (i += 1) {
+        data[i] = value;
+    }
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
 test "vector addition works" {
     var a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     var b = [_]f32{ 0.5, 1.5, 2.5, 3.5 };
@@ -1053,5 +1406,158 @@ test "SIMD activation large array" {
     for (relu_data) |v| {
         try std.testing.expect(!std.math.isNan(v));
         try std.testing.expect(!std.math.isInf(v));
+    }
+}
+
+// ============================================================================
+// Tests for Integer SIMD Operations
+// ============================================================================
+
+test "integer addition works" {
+    const a = [_]i32{ 1, 2, 3, 4, 5, 6, 7, 8 };
+    const b = [_]i32{ 10, 20, 30, 40, 50, 60, 70, 80 };
+    var result: [8]i32 = undefined;
+
+    vectorAddI32(&a, &b, &result);
+
+    try std.testing.expectEqual(@as(i32, 11), result[0]);
+    try std.testing.expectEqual(@as(i32, 22), result[1]);
+    try std.testing.expectEqual(@as(i32, 88), result[7]);
+}
+
+test "integer sum works" {
+    const data = [_]i32{ 1, 2, 3, 4, 5, 6, 7, 8 };
+    const total = sumI32(&data);
+    try std.testing.expectEqual(@as(i64, 36), total);
+}
+
+test "integer max works" {
+    const data = [_]i32{ 1, 5, 3, 9, 2, 8, 4, 7 };
+    const max_val = maxI32(&data);
+    try std.testing.expectEqual(@as(i32, 9), max_val);
+}
+
+test "integer min works" {
+    const data = [_]i32{ 5, 3, 9, 1, 8, 4, 7, 2 };
+    const min_val = minI32(&data);
+    try std.testing.expectEqual(@as(i32, 1), min_val);
+}
+
+// ============================================================================
+// Tests for FMA Operations
+// ============================================================================
+
+test "fma works" {
+    const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
+    const c = [_]f32{ 0.5, 0.5, 0.5, 0.5 };
+    var result: [4]f32 = undefined;
+
+    fma(&a, &b, &c, &result);
+
+    // a*b+c = [2.5, 6.5, 12.5, 20.5]
+    try std.testing.expectApproxEqAbs(@as(f32, 2.5), result[0], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 6.5), result[1], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 12.5), result[2], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 20.5), result[3], 1e-6);
+}
+
+test "fmaScalar works" {
+    const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const b = [_]f32{ 0.5, 0.5, 0.5, 0.5 };
+    var result: [4]f32 = undefined;
+
+    fmaScalar(2.0, &a, &b, &result);
+
+    // 2*a+b = [2.5, 4.5, 6.5, 8.5]
+    try std.testing.expectApproxEqAbs(@as(f32, 2.5), result[0], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 4.5), result[1], 1e-6);
+}
+
+// ============================================================================
+// Tests for Scaling Operations
+// ============================================================================
+
+test "scaleInPlace works" {
+    var data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    scaleInPlace(&data, 2.0);
+
+    try std.testing.expectEqual(@as(f32, 2.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 4.0), data[1]);
+    try std.testing.expectEqual(@as(f32, 6.0), data[2]);
+    try std.testing.expectEqual(@as(f32, 8.0), data[3]);
+}
+
+test "addScalarInPlace works" {
+    var data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    addScalarInPlace(&data, 10.0);
+
+    try std.testing.expectEqual(@as(f32, 11.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 12.0), data[1]);
+}
+
+// ============================================================================
+// Tests for Element-wise Operations
+// ============================================================================
+
+test "hadamard product works" {
+    const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const b = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
+    var result: [4]f32 = undefined;
+
+    hadamard(&a, &b, &result);
+
+    try std.testing.expectEqual(@as(f32, 2.0), result[0]);
+    try std.testing.expectEqual(@as(f32, 6.0), result[1]);
+    try std.testing.expectEqual(@as(f32, 12.0), result[2]);
+    try std.testing.expectEqual(@as(f32, 20.0), result[3]);
+}
+
+test "absInPlace works" {
+    var data = [_]f32{ -1.0, 2.0, -3.0, 4.0 };
+    absInPlace(&data);
+
+    try std.testing.expectEqual(@as(f32, 1.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 2.0), data[1]);
+    try std.testing.expectEqual(@as(f32, 3.0), data[2]);
+    try std.testing.expectEqual(@as(f32, 4.0), data[3]);
+}
+
+test "clampInPlace works" {
+    var data = [_]f32{ -5.0, 0.5, 1.5, 10.0 };
+    clampInPlace(&data, 0.0, 1.0);
+
+    try std.testing.expectEqual(@as(f32, 0.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 0.5), data[1]);
+    try std.testing.expectEqual(@as(f32, 1.0), data[2]);
+    try std.testing.expectEqual(@as(f32, 1.0), data[3]);
+}
+
+test "countGreaterThan works" {
+    const data = [_]f32{ 0.1, 0.6, 0.3, 0.8, 0.2, 0.9, 0.4, 0.7 };
+    const count = countGreaterThan(&data, 0.5);
+    try std.testing.expectEqual(@as(usize, 4), count);
+}
+
+// ============================================================================
+// Tests for Memory Operations
+// ============================================================================
+
+test "copyF32 works" {
+    const src = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var dst: [4]f32 = undefined;
+
+    copyF32(&src, &dst);
+
+    try std.testing.expectEqual(@as(f32, 1.0), dst[0]);
+    try std.testing.expectEqual(@as(f32, 4.0), dst[3]);
+}
+
+test "fillF32 works" {
+    var data: [8]f32 = undefined;
+    fillF32(&data, 3.14);
+
+    for (data) |v| {
+        try std.testing.expectApproxEqAbs(@as(f32, 3.14), v, 1e-6);
     }
 }

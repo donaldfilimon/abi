@@ -143,6 +143,7 @@ pub const ErrorMetrics = struct {
 };
 
 /// Comprehensive GPU metrics collector.
+/// Uses lock-free atomics for counters on hot paths, mutex only for HashMap operations.
 pub const MetricsCollector = struct {
     allocator: std.mem.Allocator,
     kernel_metrics: std.StringHashMapUnmanaged(KernelMetrics),
@@ -150,10 +151,15 @@ pub const MetricsCollector = struct {
     device_metrics: std.AutoHashMapUnmanaged(i32, DeviceMetrics),
     error_metrics: ErrorMetrics,
     collection_start: i64,
-    total_kernel_invocations: u64,
-    total_memory_allocated: u64,
-    total_memory_freed: u64,
-    peak_memory_usage: u64,
+    /// Lock-free counter for kernel invocations
+    total_kernel_invocations: std.atomic.Value(u64),
+    /// Lock-free counter for total memory allocated
+    total_memory_allocated: std.atomic.Value(u64),
+    /// Lock-free counter for total memory freed
+    total_memory_freed: std.atomic.Value(u64),
+    /// Lock-free peak memory tracking (updated via CAS)
+    peak_memory_usage: std.atomic.Value(u64),
+    /// Mutex only needed for HashMap operations (insert/remove)
     mutex: std.Thread.Mutex,
 
     /// Initialize the metrics collector.
@@ -169,10 +175,10 @@ pub const MetricsCollector = struct {
             .device_metrics = .{},
             .error_metrics = ErrorMetrics.init(),
             .collection_start = time.nowSeconds(),
-            .total_kernel_invocations = 0,
-            .total_memory_allocated = 0,
-            .total_memory_freed = 0,
-            .peak_memory_usage = 0,
+            .total_kernel_invocations = std.atomic.Value(u64).init(0),
+            .total_memory_allocated = std.atomic.Value(u64).init(0),
+            .total_memory_freed = std.atomic.Value(u64).init(0),
+            .peak_memory_usage = std.atomic.Value(u64).init(0),
             .mutex = .{},
         };
     }
@@ -189,7 +195,9 @@ pub const MetricsCollector = struct {
     }
 
     /// Record a kernel execution.
+    /// Uses mutex only for HashMap operations, atomic for counter.
     pub fn recordKernel(self: *MetricsCollector, name: []const u8, duration_ns: u64) !void {
+        // Mutex needed for HashMap getOrPut (may insert new entry)
         self.mutex.lock();
         defer self.mutex.unlock();
 
@@ -200,7 +208,8 @@ pub const MetricsCollector = struct {
         }
 
         result.value_ptr.record(duration_ns);
-        self.total_kernel_invocations += 1;
+        // Lock-free increment using atomic fetchAdd
+        _ = self.total_kernel_invocations.fetchAdd(1, .monotonic);
     }
 
     /// Record a memory transfer.
@@ -222,24 +231,35 @@ pub const MetricsCollector = struct {
         self.transfer_metrics[idx].record(bytes, duration_ns);
     }
 
-    /// Record memory allocation.
+    /// Record memory allocation (lock-free).
+    /// Uses atomic operations for all counters and CAS loop for peak tracking.
     pub fn recordAllocation(self: *MetricsCollector, bytes: u64) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        // Lock-free increment of allocated bytes
+        const new_allocated = self.total_memory_allocated.fetchAdd(bytes, .monotonic) + bytes;
+        const freed = self.total_memory_freed.load(.monotonic);
+        const current_usage = new_allocated -| freed; // Saturating sub for safety
 
-        self.total_memory_allocated += bytes;
-        const current_usage = self.total_memory_allocated - self.total_memory_freed;
-        if (current_usage > self.peak_memory_usage) {
-            self.peak_memory_usage = current_usage;
+        // CAS loop to update peak memory if current exceeds it
+        var current_peak = self.peak_memory_usage.load(.monotonic);
+        while (current_usage > current_peak) {
+            const result = self.peak_memory_usage.cmpxchgWeak(
+                current_peak,
+                current_usage,
+                .monotonic,
+                .monotonic,
+            );
+            if (result) |actual_peak| {
+                current_peak = actual_peak;
+            } else {
+                break; // Successfully updated
+            }
         }
     }
 
-    /// Record memory deallocation.
+    /// Record memory deallocation (lock-free).
     pub fn recordDeallocation(self: *MetricsCollector, bytes: u64) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-
-        self.total_memory_freed += bytes;
+        // Lock-free increment of freed bytes
+        _ = self.total_memory_freed.fetchAdd(bytes, .monotonic);
     }
 
     /// Update device metrics.
@@ -259,12 +279,20 @@ pub const MetricsCollector = struct {
     }
 
     /// Get summary of all metrics.
+    /// Reads atomic counters without locks where possible.
     pub fn getSummary(self: *MetricsCollector) Summary {
+        // Read atomic counters first (lock-free)
+        const total_allocated = self.total_memory_allocated.load(.monotonic);
+        const total_freed = self.total_memory_freed.load(.monotonic);
+        const peak_memory = self.peak_memory_usage.load(.monotonic);
+        const total_invocations = self.total_kernel_invocations.load(.monotonic);
+
+        // Mutex needed for HashMap iteration
         self.mutex.lock();
         defer self.mutex.unlock();
 
         const uptime_seconds = @as(f64, @floatFromInt(time.nowSeconds() - self.collection_start));
-        const current_memory = self.total_memory_allocated - self.total_memory_freed;
+        const current_memory = total_allocated -| total_freed;
 
         var total_kernel_time_ns: u64 = 0;
         var kernel_count: usize = 0;
@@ -274,24 +302,24 @@ pub const MetricsCollector = struct {
             kernel_count += 1;
         }
 
-        const avg_kernel_time_ns = if (self.total_kernel_invocations > 0)
-            @as(f64, @floatFromInt(total_kernel_time_ns)) / @as(f64, @floatFromInt(self.total_kernel_invocations))
+        const avg_kernel_time_ns = if (total_invocations > 0)
+            @as(f64, @floatFromInt(total_kernel_time_ns)) / @as(f64, @floatFromInt(total_invocations))
         else
             0.0;
 
         return .{
             .uptime_seconds = uptime_seconds,
             .total_kernels = kernel_count,
-            .total_kernel_invocations = self.total_kernel_invocations,
+            .total_kernel_invocations = total_invocations,
             .avg_kernel_time_ns = avg_kernel_time_ns,
             .kernels_per_second = if (uptime_seconds > 0)
-                @as(f64, @floatFromInt(self.total_kernel_invocations)) / uptime_seconds
+                @as(f64, @floatFromInt(total_invocations)) / uptime_seconds
             else
                 0.0,
-            .total_memory_allocated = self.total_memory_allocated,
-            .total_memory_freed = self.total_memory_freed,
+            .total_memory_allocated = total_allocated,
+            .total_memory_freed = total_freed,
             .current_memory_usage = current_memory,
-            .peak_memory_usage = self.peak_memory_usage,
+            .peak_memory_usage = peak_memory,
             .total_h2d_transfers = self.transfer_metrics[0].transfer_count,
             .total_d2h_transfers = self.transfer_metrics[1].transfer_count,
             .total_d2d_transfers = self.transfer_metrics[2].transfer_count,
@@ -347,10 +375,11 @@ pub const MetricsCollector = struct {
 
         self.error_metrics = ErrorMetrics.init();
         self.collection_start = time.nowSeconds();
-        self.total_kernel_invocations = 0;
-        self.total_memory_allocated = 0;
-        self.total_memory_freed = 0;
-        self.peak_memory_usage = 0;
+        // Reset atomic counters
+        self.total_kernel_invocations.store(0, .monotonic);
+        self.total_memory_allocated.store(0, .monotonic);
+        self.total_memory_freed.store(0, .monotonic);
+        self.peak_memory_usage.store(0, .monotonic);
     }
 
     /// Export metrics in JSON format.

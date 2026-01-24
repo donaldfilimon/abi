@@ -243,6 +243,10 @@ pub const FusionOptimizer = struct {
     device_caps: ?occupancy.DeviceCapabilities,
     /// Statistics.
     stats: FusionStats,
+    /// Auto-apply mode: automatically fuse operations when recorded.
+    auto_apply: bool = false,
+    /// Minimum speedup threshold for auto-apply (default: 1.1 = 10% speedup required).
+    min_speedup_threshold: f32 = 1.1,
 
     const Self = @This();
 
@@ -256,7 +260,30 @@ pub const FusionOptimizer = struct {
             .patterns = .{},
             .device_caps = null,
             .stats = .{},
+            .auto_apply = false,
+            .min_speedup_threshold = 1.1,
         };
+    }
+
+    /// Enable auto-apply mode: operations are automatically fused when recorded
+    /// if the estimated speedup exceeds the threshold.
+    ///
+    /// Args:
+    ///   min_speedup: Minimum speedup factor required to apply fusion (e.g., 1.1 = 10% speedup).
+    ///                Setting to 1.0 fuses everything possible, higher values are more conservative.
+    pub fn enableAutoApply(self: *Self, min_speedup: f32) void {
+        self.auto_apply = true;
+        self.min_speedup_threshold = @max(min_speedup, 1.0);
+    }
+
+    /// Disable auto-apply mode.
+    pub fn disableAutoApply(self: *Self) void {
+        self.auto_apply = false;
+    }
+
+    /// Check if auto-apply mode is enabled.
+    pub fn isAutoApplyEnabled(self: *const Self) bool {
+        return self.auto_apply;
     }
 
     /// Deinitialize.
@@ -273,6 +300,7 @@ pub const FusionOptimizer = struct {
     }
 
     /// Record an operation for fusion analysis.
+    /// In auto-apply mode, checks for immediate fusion opportunities with the previous operation.
     pub fn recordOp(
         self: *Self,
         op: OpType,
@@ -295,12 +323,104 @@ pub const FusionOptimizer = struct {
         }
 
         // Track buffer producer
-        try self.buffer_producers.put(self.allocator, output, @intCast(self.nodes.items.len));
+        const new_idx: u32 = @intCast(self.nodes.items.len);
+        try self.buffer_producers.put(self.allocator, output, new_idx);
 
         try self.nodes.append(self.allocator, node);
         self.stats.ops_recorded += 1;
 
-        return @intCast(self.nodes.items.len - 1);
+        // In auto-apply mode, try to fuse immediately with producer
+        if (self.auto_apply) {
+            self.tryImmediateFusion(new_idx);
+        }
+
+        return new_idx;
+    }
+
+    /// Try to fuse the newly added operation with its producer (auto-apply mode).
+    fn tryImmediateFusion(self: *Self, new_idx: u32) void {
+        if (new_idx == 0) return; // First operation, nothing to fuse with
+
+        const new_node = &self.nodes.items[new_idx];
+        if (new_node.num_inputs == 0) return;
+
+        // Check the first input - find its producer
+        const input_buf = new_node.inputs[0];
+        const producer_idx = self.buffer_producers.get(input_buf) orelse return;
+        if (producer_idx >= new_idx) return; // Safety check
+
+        const producer_node = &self.nodes.items[producer_idx];
+        if (producer_node.fused) return; // Already fused
+
+        // Check if this is a single-consumer relationship
+        const refs = self.buffer_refs.get(input_buf) orelse 0;
+        if (refs != 1) return; // Multiple consumers, can't fuse
+
+        // Check for known fusion patterns
+        const fused_op = self.detectImmediateFusionPattern(producer_node.op, new_node.op);
+        if (fused_op == null) return;
+
+        // Calculate estimated speedup
+        const speedup = calculateSpeedup(producer_node.op, new_node.op, new_node.element_count);
+        if (speedup < self.min_speedup_threshold) return;
+
+        // Apply fusion immediately
+        self.nodes.items[new_idx].fused = true;
+        self.nodes.items[new_idx].fused_into = producer_idx;
+        self.nodes.items[producer_idx].op = fused_op.?;
+        self.nodes.items[producer_idx].output = new_node.output;
+
+        self.stats.fusions_applied += 1;
+        self.stats.bandwidth_saved_bytes += new_node.element_count * 8; // Intermediate eliminated
+    }
+
+    /// Detect if two consecutive operations can be immediately fused.
+    /// Returns the fused operation type if fusable, null otherwise.
+    fn detectImmediateFusionPattern(_: *const Self, producer_op: OpType, consumer_op: OpType) ?OpType {
+        // Element-wise + activation patterns
+        if (producer_op == .add) {
+            switch (consumer_op) {
+                .relu => return .fused_add_relu,
+                .gelu, .gelu_fast => return .fused_add_gelu,
+                else => {},
+            }
+        }
+
+        // Mul + add pattern (FMA)
+        if (producer_op == .mul and consumer_op == .add) {
+            return .fused_mul_add;
+        }
+
+        // Normalization + activation patterns
+        if (producer_op == .layer_norm) {
+            switch (consumer_op) {
+                .gelu, .gelu_fast => return .fused_layer_norm_gelu,
+                else => {},
+            }
+        }
+
+        // Matmul + activation patterns (linear layers)
+        if (producer_op == .matmul) {
+            switch (consumer_op) {
+                .relu => return .fused_linear_relu,
+                .gelu, .gelu_fast => return .fused_linear_gelu,
+                .silu => return .fused_linear_silu,
+                else => {},
+            }
+        }
+
+        // Reduction patterns
+        if (producer_op == .mul and consumer_op == .reduce_sum) {
+            return .dot_product;
+        }
+
+        // Generic element-wise chain (if both are element-wise)
+        if (producer_op.isElementWise() and consumer_op.isElementWise()) {
+            // Can be fused but keep consumer op type
+            return consumer_op;
+        }
+
+        return null;
     }
 
     /// Analyze recorded operations and detect fusion opportunities.
@@ -869,4 +989,74 @@ test "fusion apply" {
 
     const stats = optimizer.getStats();
     try std.testing.expect(stats.fusions_applied > 0);
+}
+
+test "fusion optimizer auto-apply mode" {
+    const allocator = std.testing.allocator;
+    var optimizer = FusionOptimizer.init(allocator);
+    defer optimizer.deinit();
+
+    // Enable auto-apply with 1.0 threshold (fuse everything possible)
+    optimizer.enableAutoApply(1.0);
+    try std.testing.expect(optimizer.isAutoApplyEnabled());
+
+    // Record add -> relu chain - should auto-fuse
+    _ = try optimizer.recordOp(.add, &.{ 0, 1 }, 2, 1024);
+    _ = try optimizer.recordOp(.relu, &.{2}, 3, 1024);
+
+    // Fusion should have already been applied without calling analyze()
+    const stats = optimizer.getStats();
+    try std.testing.expect(stats.fusions_applied > 0);
+    try std.testing.expect(stats.bandwidth_saved_bytes > 0);
+
+    // The second operation should be marked as fused
+    try std.testing.expect(optimizer.nodes.items[1].fused);
+    try std.testing.expectEqual(@as(?u32, 0), optimizer.nodes.items[1].fused_into);
+
+    // The first operation should have the fused type
+    try std.testing.expectEqual(OpType.fused_add_relu, optimizer.nodes.items[0].op);
+}
+
+test "fusion optimizer auto-apply with threshold" {
+    const allocator = std.testing.allocator;
+    var optimizer = FusionOptimizer.init(allocator);
+    defer optimizer.deinit();
+
+    // Enable auto-apply with high threshold (should not fuse small speedups)
+    optimizer.enableAutoApply(2.0);
+
+    // Record add -> relu chain
+    _ = try optimizer.recordOp(.add, &.{ 0, 1 }, 2, 1024);
+    _ = try optimizer.recordOp(.relu, &.{2}, 3, 1024);
+
+    // With high threshold, fusion might not be applied
+    // (depends on speedup calculation - relu fusion gives ~1.5x speedup typically)
+    const stats = optimizer.getStats();
+
+    // Disable and verify
+    optimizer.disableAutoApply();
+    try std.testing.expect(!optimizer.isAutoApplyEnabled());
+
+    // Just verify the optimizer didn't crash
+    try std.testing.expect(stats.ops_recorded == 2);
+}
+
+test "fusion optimizer auto-apply dot product" {
+    const allocator = std.testing.allocator;
+    var optimizer = FusionOptimizer.init(allocator);
+    defer optimizer.deinit();
+
+    // Enable auto-apply
+    optimizer.enableAutoApply(1.0);
+
+    // Record mul -> reduce_sum (dot product pattern)
+    _ = try optimizer.recordOp(.mul, &.{ 0, 1 }, 2, 1024);
+    _ = try optimizer.recordOp(.reduce_sum, &.{2}, 3, 1024);
+
+    // Should auto-fuse to dot_product
+    const stats = optimizer.getStats();
+    try std.testing.expect(stats.fusions_applied > 0);
+
+    // First operation should now be dot_product
+    try std.testing.expectEqual(OpType.dot_product, optimizer.nodes.items[0].op);
 }

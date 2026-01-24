@@ -8,11 +8,15 @@
 
 const std = @import("std");
 const dsl = @import("../dsl/mod.zig");
+const adaptive_tiling = @import("../adaptive_tiling.zig");
 
 pub const KernelIR = dsl.KernelIR;
 pub const KernelBuilder = dsl.KernelBuilder;
 pub const Type = dsl.Type;
 pub const AccessMode = dsl.AccessMode;
+
+/// Tile configuration for matrix kernels.
+pub const TileConfig = adaptive_tiling.AdaptiveTiling.TileConfig;
 
 /// Build matrix_multiply kernel: C = A * B (with tiled optimization)
 ///
@@ -20,12 +24,19 @@ pub const AccessMode = dsl.AccessMode;
 /// - Each workgroup computes a TILE_SIZE x TILE_SIZE block of C
 /// - Tiles of A and B are loaded into shared memory cooperatively
 /// - Reduces global memory bandwidth requirements
-pub fn buildMatrixMultiplyKernel(allocator: std.mem.Allocator) !*const KernelIR {
+///
+/// Args:
+///   allocator: Memory allocator for kernel IR
+///   tile_config: Optional tile configuration from adaptive tiling. If null, uses default 16x16 tiles.
+pub fn buildMatrixMultiplyKernel(allocator: std.mem.Allocator, tile_config: ?TileConfig) !*const KernelIR {
     var builder = KernelBuilder.init(allocator, "matrix_multiply");
     errdefer builder.deinit();
 
-    // 16x16 tiles for matrix multiplication
-    const TILE_SIZE: u32 = 16;
+    // Use adaptive tile sizes or default to 16x16
+    const TILE_M: u32 = if (tile_config) |tc| tc.m else 16;
+    const TILE_N: u32 = if (tile_config) |tc| tc.n else 16;
+    // Note: For workgroup size, we use the smaller of M and N to keep threads reasonable
+    const TILE_SIZE: u32 = @min(TILE_M, TILE_N);
     _ = builder.setWorkgroupSize(TILE_SIZE, TILE_SIZE, 1);
 
     // Buffer bindings
@@ -145,6 +156,31 @@ pub fn buildMatrixMultiplyKernel(allocator: std.mem.Allocator) !*const KernelIR 
     return ir;
 }
 
+/// Select optimal tile configuration for matrix multiplication.
+/// Uses adaptive tiling based on device capabilities and matrix dimensions.
+///
+/// Args:
+///   m: Number of rows in matrix A and C
+///   n: Number of columns in matrix B and C
+///   k: Number of columns in A / rows in B (reduction dimension)
+///   device_info: Optional device info for adaptive selection. If null, returns default config.
+///
+/// Returns:
+///   Optimal tile configuration for the given matrix dimensions and device.
+pub fn selectOptimalMatmulTile(
+    m: u32,
+    n: u32,
+    k: u32,
+    device_info: ?adaptive_tiling.AdaptiveTiling.DeviceInfo,
+) TileConfig {
+    if (device_info) |info| {
+        const tiling = adaptive_tiling.AdaptiveTiling.init(info);
+        return tiling.selectTile(m, n, k, .f32);
+    }
+    // Default to 16x16x16 tiles (backward compatible)
+    return .{ .m = 16, .n = 16, .k = 16 };
+}
+
 /// Build matrix_transpose kernel: B = A^T
 pub fn buildMatrixTransposeKernel(allocator: std.mem.Allocator) !*const KernelIR {
     var builder = KernelBuilder.init(allocator, "matrix_transpose");
@@ -190,10 +226,48 @@ test "buildMatrixMultiplyKernel" {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const ir = try buildMatrixMultiplyKernel(allocator);
+    // Test with default tiles (null config)
+    const ir = try buildMatrixMultiplyKernel(allocator, null);
     try std.testing.expectEqualStrings("matrix_multiply", ir.name);
     try std.testing.expectEqual(@as(usize, 3), ir.buffers.len);
     try std.testing.expectEqual(@as(usize, 3), ir.uniforms.len); // m, n, k
     try std.testing.expectEqual(@as(u32, 16), ir.workgroup_size[0]);
     try std.testing.expectEqual(@as(u32, 16), ir.workgroup_size[1]);
+}
+
+test "buildMatrixMultiplyKernel with adaptive tiling" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    // Test with custom tile config
+    const tile_config = TileConfig{ .m = 32, .n = 32, .k = 16 };
+    const ir = try buildMatrixMultiplyKernel(allocator, tile_config);
+    try std.testing.expectEqualStrings("matrix_multiply", ir.name);
+    // Workgroup size should be min(32, 32) = 32
+    try std.testing.expectEqual(@as(u32, 32), ir.workgroup_size[0]);
+    try std.testing.expectEqual(@as(u32, 32), ir.workgroup_size[1]);
+}
+
+test "selectOptimalMatmulTile default" {
+    // Test default selection (no device info)
+    const tile = selectOptimalMatmulTile(1024, 1024, 1024, null);
+    try std.testing.expectEqual(@as(u32, 16), tile.m);
+    try std.testing.expectEqual(@as(u32, 16), tile.n);
+    try std.testing.expectEqual(@as(u32, 16), tile.k);
+}
+
+test "selectOptimalMatmulTile with device info" {
+    // Test with device info
+    const device_info = adaptive_tiling.AdaptiveTiling.DeviceInfo{
+        .max_threads_per_block = 1024,
+        .max_shared_memory = 48 * 1024,
+        .warp_size = 32,
+        .compute_capability = .{ .major = 8, .minor = 0 },
+    };
+    const tile = selectOptimalMatmulTile(1024, 1024, 1024, device_info);
+    // Should select larger tiles for Ampere
+    try std.testing.expect(tile.m >= 16);
+    try std.testing.expect(tile.n >= 16);
+    try std.testing.expect(tile.k >= 8);
 }

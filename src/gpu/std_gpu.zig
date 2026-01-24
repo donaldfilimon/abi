@@ -558,3 +558,304 @@ test "is_gpu_target detection" {
     // On x86/x64, this should be false
     try std.testing.expect(!is_gpu_target);
 }
+
+// ============================================================================
+// Subgroup Operations (Zig 0.16 std.gpu)
+// ============================================================================
+
+/// Subgroup size (warp/wavefront size)
+pub inline fn subgroupSize() u32 {
+    if (is_gpu_target and std_gpu_available) {
+        return std.gpu.subgroup_size;
+    }
+    // Return typical value for testing
+    return 32;
+}
+
+/// Subgroup invocation ID (lane ID within subgroup)
+pub inline fn subgroupInvocationId() u32 {
+    if (is_gpu_target and std_gpu_available) {
+        return std.gpu.subgroup_local_invocation_id;
+    }
+    return 0;
+}
+
+/// Subgroup ballot - returns mask of threads where predicate is true
+pub inline fn subgroupBallot(predicate: bool) u64 {
+    if (is_gpu_target) {
+        // SPIR-V ballot instruction
+        var result: u64 = 0;
+        asm volatile ("OpGroupNonUniformBallot %[result] %[scope] %[pred]"
+            : [result] "=r" (result),
+            : [scope] "c" (@as(u32, 3)), // Subgroup scope
+              [pred] "r" (predicate),
+        );
+        return result;
+    }
+    return if (predicate) 1 else 0;
+}
+
+/// Subgroup broadcast - broadcast value from leader lane to all lanes
+/// On non-GPU targets, lane_id is ignored and value is returned directly.
+pub const subgroupBroadcast = if (is_gpu_target) subgroupBroadcastGpu else subgroupBroadcastCpu;
+
+fn subgroupBroadcastGpu(comptime T: type, value: T, lane_id: u32) T {
+    var result: T = undefined;
+    asm volatile ("OpGroupNonUniformBroadcast %[result] %[scope] %[value] %[lane]"
+        : [result] "=r" (result),
+        : [scope] "c" (@as(u32, 3)), // Subgroup scope
+          [value] "r" (value),
+          [lane] "r" (lane_id),
+    );
+    return result;
+}
+
+fn subgroupBroadcastCpu(comptime T: type, value: T, lane_id: u32) T {
+    _ = lane_id;
+    return value;
+}
+
+/// Subgroup shuffle - exchange values between lanes
+/// On non-GPU targets, lane_id is ignored and value is returned directly.
+pub const subgroupShuffle = if (is_gpu_target) subgroupShuffleGpu else subgroupShuffleCpu;
+
+fn subgroupShuffleGpu(comptime T: type, value: T, lane_id: u32) T {
+    var result: T = undefined;
+    asm volatile ("OpGroupNonUniformShuffle %[result] %[scope] %[value] %[lane]"
+        : [result] "=r" (result),
+        : [scope] "c" (@as(u32, 3)), // Subgroup scope
+          [value] "r" (value),
+          [lane] "r" (lane_id),
+    );
+    return result;
+}
+
+fn subgroupShuffleCpu(comptime T: type, value: T, lane_id: u32) T {
+    _ = lane_id;
+    return value;
+}
+
+/// Subgroup reduction - add across all lanes
+pub inline fn subgroupAdd(comptime T: type, value: T) T {
+    if (is_gpu_target) {
+        var result: T = undefined;
+        asm volatile ("OpGroupNonUniformFAdd %[result] %[scope] Reduce %[value]"
+            : [result] "=r" (result),
+            : [scope] "c" (@as(u32, 3)), // Subgroup scope
+              [value] "r" (value),
+        );
+        return result;
+    }
+    return value;
+}
+
+/// Subgroup reduction - max across all lanes
+pub inline fn subgroupMax(comptime T: type, value: T) T {
+    if (is_gpu_target) {
+        var result: T = undefined;
+        asm volatile ("OpGroupNonUniformFMax %[result] %[scope] Reduce %[value]"
+            : [result] "=r" (result),
+            : [scope] "c" (@as(u32, 3)), // Subgroup scope
+              [value] "r" (value),
+        );
+        return result;
+    }
+    return value;
+}
+
+/// Subgroup reduction - min across all lanes
+pub inline fn subgroupMin(comptime T: type, value: T) T {
+    if (is_gpu_target) {
+        var result: T = undefined;
+        asm volatile ("OpGroupNonUniformFMin %[result] %[scope] Reduce %[value]"
+            : [result] "=r" (result),
+            : [scope] "c" (@as(u32, 3)), // Subgroup scope
+              [value] "r" (value),
+        );
+        return result;
+    }
+    return value;
+}
+
+// ============================================================================
+// Vector Type Utilities (std.simd integration)
+// ============================================================================
+
+/// Suggested f32 vector size for current GPU target
+pub const VecF32Size = if (is_gpu_target)
+    std.simd.suggestVectorLength(f32) orelse 4
+else
+    std.simd.suggestVectorLength(f32) orelse 8;
+
+/// Suggested i32 vector size for current GPU target
+pub const VecI32Size = if (is_gpu_target)
+    std.simd.suggestVectorLength(i32) orelse 4
+else
+    std.simd.suggestVectorLength(i32) orelse 8;
+
+/// Standard f32 vector type for GPU operations
+pub const VecF32 = @Vector(VecF32Size, f32);
+
+/// Standard i32 vector type for GPU operations
+pub const VecI32 = @Vector(VecI32Size, i32);
+
+/// Create a VecF32 filled with a single value
+pub inline fn splatF32(value: f32) VecF32 {
+    return @splat(value);
+}
+
+/// Create a VecI32 filled with a single value
+pub inline fn splatI32(value: i32) VecI32 {
+    return @splat(value);
+}
+
+/// Reduce f32 vector to scalar sum
+pub inline fn reduceAddF32(vec: VecF32) f32 {
+    return @reduce(.Add, vec);
+}
+
+/// Reduce f32 vector to scalar max
+pub inline fn reduceMaxF32(vec: VecF32) f32 {
+    return @reduce(.Max, vec);
+}
+
+/// Reduce f32 vector to scalar min
+pub inline fn reduceMinF32(vec: VecF32) f32 {
+    return @reduce(.Min, vec);
+}
+
+/// Reduce i32 vector to scalar sum
+pub inline fn reduceAddI32(vec: VecI32) i32 {
+    return @reduce(.Add, vec);
+}
+
+// ============================================================================
+// Fused Multiply-Add (FMA) Operations
+// ============================================================================
+
+/// Fused multiply-add for f32: a * b + c
+/// Uses hardware FMA instruction when available
+pub inline fn fmaF32(a: f32, b: f32, c: f32) f32 {
+    return @mulAdd(f32, a, b, c);
+}
+
+/// Fused multiply-add for VecF32: a * b + c
+pub inline fn fmaVecF32(a: VecF32, b: VecF32, c: VecF32) VecF32 {
+    return @mulAdd(VecF32, a, b, c);
+}
+
+// ============================================================================
+// Texture/Image Operations (SPIR-V)
+// ============================================================================
+
+/// Image dimension types
+pub const ImageDim = enum(u32) {
+    @"1d" = 0,
+    @"2d" = 1,
+    @"3d" = 2,
+    cube = 3,
+    rect = 4,
+    buffer = 5,
+    subpass_data = 6,
+};
+
+/// Image format
+pub const ImageFormat = enum(u32) {
+    unknown = 0,
+    rgba32f = 1,
+    rgba16f = 2,
+    r32f = 3,
+    rgba8 = 4,
+    rgba8_snorm = 5,
+    // ... more formats as needed
+};
+
+/// Image operation result for typed image reads
+pub const ImageResult = struct {
+    r: f32,
+    g: f32,
+    b: f32,
+    a: f32,
+};
+
+// ============================================================================
+// Compute Dispatch Helpers
+// ============================================================================
+
+/// Calculate number of workgroups needed to cover total_elements
+pub fn calculateWorkgroups(total_elements: u32, workgroup_size: u32) u32 {
+    return (total_elements + workgroup_size - 1) / workgroup_size;
+}
+
+/// Calculate 2D workgroup counts for a 2D grid
+pub fn calculateWorkgroups2D(
+    width: u32,
+    height: u32,
+    wg_size_x: u32,
+    wg_size_y: u32,
+) struct { x: u32, y: u32 } {
+    return .{
+        .x = (width + wg_size_x - 1) / wg_size_x,
+        .y = (height + wg_size_y - 1) / wg_size_y,
+    };
+}
+
+/// Calculate 3D workgroup counts
+pub fn calculateWorkgroups3D(
+    width: u32,
+    height: u32,
+    depth: u32,
+    wg_size_x: u32,
+    wg_size_y: u32,
+    wg_size_z: u32,
+) struct { x: u32, y: u32, z: u32 } {
+    return .{
+        .x = (width + wg_size_x - 1) / wg_size_x,
+        .y = (height + wg_size_y - 1) / wg_size_y,
+        .z = (depth + wg_size_z - 1) / wg_size_z,
+    };
+}
+
+// ============================================================================
+// Additional Tests
+// ============================================================================
+
+test "subgroup operations fallback" {
+    // Test fallback values on non-GPU target
+    try std.testing.expectEqual(@as(u32, 32), subgroupSize());
+    try std.testing.expectEqual(@as(u32, 0), subgroupInvocationId());
+
+    const ballot = subgroupBallot(true);
+    try std.testing.expectEqual(@as(u64, 1), ballot);
+}
+
+test "vector type utilities" {
+    const vec = splatF32(3.14);
+    const sum_val = reduceAddF32(vec);
+    try std.testing.expectApproxEqAbs(3.14 * @as(f32, @floatFromInt(VecF32Size)), sum_val, 0.01);
+
+    const max_val = reduceMaxF32(vec);
+    try std.testing.expectApproxEqAbs(3.14, max_val, 0.001);
+}
+
+test "fma operations" {
+    const result = fmaF32(2.0, 3.0, 4.0);
+    try std.testing.expectApproxEqAbs(10.0, result, 0.001); // 2*3+4 = 10
+
+    const a = splatF32(2.0);
+    const b = splatF32(3.0);
+    const c = splatF32(4.0);
+    const vec_result = fmaVecF32(a, b, c);
+    const sum_fma = reduceAddF32(vec_result);
+    try std.testing.expectApproxEqAbs(10.0 * @as(f32, @floatFromInt(VecF32Size)), sum_fma, 0.01);
+}
+
+test "workgroup calculations" {
+    try std.testing.expectEqual(@as(u32, 4), calculateWorkgroups(1000, 256));
+    try std.testing.expectEqual(@as(u32, 1), calculateWorkgroups(100, 256));
+    try std.testing.expectEqual(@as(u32, 2), calculateWorkgroups(257, 256));
+
+    const wg2d = calculateWorkgroups2D(1920, 1080, 16, 16);
+    try std.testing.expectEqual(@as(u32, 120), wg2d.x);
+    try std.testing.expectEqual(@as(u32, 68), wg2d.y);
+}

@@ -86,25 +86,62 @@ pub fn layerNorm(
 ) void {
     const dim = x.len;
 
-    // Compute mean
-    var sum: f32 = 0;
-    for (x) |v| {
-        sum += v;
-    }
-    const mean = sum / @as(f32, @floatFromInt(dim));
+    // Compute mean using SIMD
+    const sum_val = simd.sum(x);
+    const mean = sum_val / @as(f32, @floatFromInt(dim));
 
-    // Compute variance
+    // Compute variance using SIMD
+    const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
     var var_sum: f32 = 0;
-    for (x) |v| {
-        const diff = v - mean;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const mean_vec: Vec = @splat(mean);
+        var var_vec: Vec = @splat(0.0);
+
+        while (i + VectorSize <= dim) : (i += VectorSize) {
+            const v: Vec = x[i..][0..VectorSize].*;
+            const diff = v - mean_vec;
+            var_vec += diff * diff;
+        }
+        var_sum = @reduce(.Add, var_vec);
+    }
+
+    // Scalar remainder for variance
+    while (i < dim) : (i += 1) {
+        const diff = x[i] - mean;
         var_sum += diff * diff;
     }
     const variance = var_sum / @as(f32, @floatFromInt(dim));
 
-    // Normalize
+    // Normalize with SIMD
     const inv_std = 1.0 / @sqrt(variance + eps);
+    i = 0;
 
-    for (0..dim) |i| {
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const mean_vec: Vec = @splat(mean);
+        const inv_std_vec: Vec = @splat(inv_std);
+
+        if (bias) |b| {
+            while (i + VectorSize <= dim) : (i += VectorSize) {
+                const v: Vec = x[i..][0..VectorSize].*;
+                const w: Vec = weight[i..][0..VectorSize].*;
+                const bias_vec: Vec = b[i..][0..VectorSize].*;
+                output[i..][0..VectorSize].* = (v - mean_vec) * inv_std_vec * w + bias_vec;
+            }
+        } else {
+            while (i + VectorSize <= dim) : (i += VectorSize) {
+                const v: Vec = x[i..][0..VectorSize].*;
+                const w: Vec = weight[i..][0..VectorSize].*;
+                output[i..][0..VectorSize].* = (v - mean_vec) * inv_std_vec * w;
+            }
+        }
+    }
+
+    // Scalar remainder
+    while (i < dim) : (i += 1) {
         var y = (x[i] - mean) * inv_std * weight[i];
         if (bias) |b| {
             y += b[i];
@@ -114,6 +151,7 @@ pub fn layerNorm(
 }
 
 /// Batch RMS normalization for multiple vectors.
+/// Uses SIMD acceleration for each batch element.
 pub fn batchRmsNorm(
     x: []const f32, // [batch, dim]
     weight: []const f32, // [dim]
@@ -124,9 +162,31 @@ pub fn batchRmsNorm(
 ) void {
     for (0..batch_size) |b| {
         const offset = b * dim;
-        rmsNorm(
+        rmsNormSimd(
             x[offset .. offset + dim],
             weight,
+            output[offset .. offset + dim],
+            eps,
+        );
+    }
+}
+
+/// Batch Layer Normalization with SIMD acceleration.
+pub fn batchLayerNorm(
+    x: []const f32, // [batch, dim]
+    weight: []const f32, // [dim]
+    bias: ?[]const f32, // [dim] or null
+    output: []f32, // [batch, dim]
+    batch_size: u32,
+    dim: u32,
+    eps: f32,
+) void {
+    for (0..batch_size) |b| {
+        const offset = b * dim;
+        layerNorm(
+            x[offset .. offset + dim],
+            weight,
+            bias,
             output[offset .. offset + dim],
             eps,
         );

@@ -75,6 +75,8 @@ pub const buildVectorScaleKernel = kernels.elementwise.buildVectorScaleKernel;
 // Matrix operations
 pub const buildMatrixMultiplyKernel = kernels.matrix.buildMatrixMultiplyKernel;
 pub const buildMatrixTransposeKernel = kernels.matrix.buildMatrixTransposeKernel;
+pub const TileConfig = kernels.matrix.TileConfig;
+pub const selectOptimalMatmulTile = kernels.matrix.selectOptimalMatmulTile;
 
 // Reduction operations
 pub const buildReduceSumKernel = kernels.reduction.buildReduceSumKernel;
@@ -216,7 +218,8 @@ test "buildMatrixMultiplyKernel" {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const ir = try buildMatrixMultiplyKernel(allocator);
+    // Pass null for tile_config to use default 16x16 tiles
+    const ir = try buildMatrixMultiplyKernel(allocator, null);
     try std.testing.expectEqualStrings("matrix_multiply", ir.name);
     try std.testing.expectEqual(@as(usize, 3), ir.buffers.len);
     try std.testing.expectEqual(@as(usize, 3), ir.uniforms.len); // m, n, k
