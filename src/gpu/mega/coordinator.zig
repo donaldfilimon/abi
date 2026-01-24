@@ -166,6 +166,10 @@ pub const Coordinator = struct {
 
     /// Statistics tracked by the coordinator.
     pub const CoordinatorStats = struct {
+        /// Comptime-computed array sizes from enum field counts
+        const backend_count = @typeInfo(backend_mod.Backend).@"enum".fields.len;
+        const category_count = @typeInfo(WorkloadCategory).@"enum".fields.len;
+
         /// Total number of scheduling decisions made
         total_schedules: u64 = 0,
         /// Number of successful scheduling decisions
@@ -175,11 +179,11 @@ pub const Coordinator = struct {
         /// Average scheduling latency in microseconds
         avg_scheduling_latency_us: u64 = 0,
         /// Per-backend usage counts (indexed by backend enum value)
-        backend_usage: [16]u64 = [_]u64{0} ** 16,
+        backend_usage: [backend_count]u64 = [_]u64{0} ** backend_count,
         /// Per-backend success counts
-        backend_successes: [16]u64 = [_]u64{0} ** 16,
+        backend_successes: [backend_count]u64 = [_]u64{0} ** backend_count,
         /// Per-category scheduling counts
-        category_counts: [16]u64 = [_]u64{0} ** 16,
+        category_counts: [category_count]u64 = [_]u64{0} ** category_count,
     };
 
     /// Initialize the coordinator and discover available backends.
@@ -291,7 +295,7 @@ pub const Coordinator = struct {
         var best_backend: ?BackendInstance = null;
 
         for (self.backends.items) |backend| {
-            const score = self.scoreBackend(backend, profile);
+            const score = scoreBackendForWorkload(backend, profile);
             if (score > best_score) {
                 best_score = score;
                 best_backend = backend;
@@ -325,107 +329,6 @@ pub const Coordinator = struct {
         };
     }
 
-    /// Score a backend for a given workload profile.
-    fn scoreBackend(self: *Coordinator, backend: BackendInstance, profile: WorkloadProfile) f32 {
-        _ = self;
-
-        var score = backend.healthScore();
-
-        // Check hard requirements first
-        if (!backend.supportsPrecision(profile.required_precision)) {
-            return 0.0;
-        }
-
-        if (backend.available_memory_mb < profile.memory_requirement_mb) {
-            score *= 0.1; // Heavy penalty but not exclusion
-        }
-
-        // Prefer explicitly requested backend
-        if (profile.preferred_backend) |pref| {
-            if (backend.backend_type == pref) {
-                score *= 2.0;
-            }
-        }
-
-        // Training workloads prefer CUDA or Metal
-        if (profile.is_training) {
-            if (backend.backend_type == .cuda) {
-                score *= 1.8;
-            } else if (backend.backend_type == .metal) {
-                score *= 1.5;
-            }
-        }
-
-        // Compute-bound workloads prefer high-performance backends
-        if (profile.compute_intensity > 0.7) {
-            if (backend.backend_type == .cuda or backend.backend_type == .metal) {
-                score *= 1.3;
-            }
-        }
-
-        // Low-latency workloads prefer local backends
-        if (profile.low_latency) {
-            if (backend.backend_type == .metal or backend.backend_type == .cuda) {
-                score *= 1.2;
-            }
-        }
-
-        // Large batch sizes benefit from GPU backends
-        if (profile.batch_size > 32) {
-            if (!backend.is_emulated) {
-                score *= 1.2;
-            }
-        }
-
-        // Specialized category bonuses
-        switch (profile.category) {
-            .matrix_multiply, .convolution, .attention => {
-                if (backend.backend_type == .cuda) score *= 1.4;
-            },
-            .fft => {
-                if (backend.backend_type == .cuda or backend.backend_type == .metal) score *= 1.3;
-            },
-            else => {},
-        }
-
-        return score;
-    }
-
-    fn estimateTime(backend: BackendInstance, profile: WorkloadProfile) u64 {
-        if (profile.expected_duration_ms > 0) {
-            // Adjust expected time based on backend characteristics
-            const multiplier: f32 = if (backend.is_emulated) 10.0 else 1.0;
-            return @intFromFloat(@as(f32, @floatFromInt(profile.expected_duration_ms)) * multiplier);
-        }
-
-        // Default estimates based on workload characteristics
-        const base_time: u64 = 100;
-        const memory_factor = profile.memory_requirement_mb / 1024;
-        const compute_factor: u64 = @intFromFloat(profile.compute_intensity * 100);
-
-        return base_time + memory_factor + compute_factor;
-    }
-
-    fn selectReason(backend: BackendInstance, profile: WorkloadProfile) []const u8 {
-        if (profile.preferred_backend != null and profile.preferred_backend == backend.backend_type) {
-            return "Selected preferred backend";
-        }
-
-        if (profile.is_training) {
-            if (backend.backend_type == .cuda) {
-                return "CUDA selected for training workload";
-            } else if (backend.backend_type == .metal) {
-                return "Metal selected for training workload";
-            }
-        }
-
-        if (backend.is_emulated) {
-            return "CPU fallback selected (no GPU available)";
-        }
-
-        return "Selected based on availability and workload profile";
-    }
-
     /// Record the outcome of a scheduling decision for learning.
     pub fn recordOutcome(
         self: *Coordinator,
@@ -457,34 +360,46 @@ pub const Coordinator = struct {
         }
         self.stats.total_compute_time_ms += actual_time_ms;
 
-        // Trim history if too large
+        // Trim history if too large - use efficient O(n) approach instead of O(n^2) orderedRemove loop
         const max_history = 10000;
         if (self.scheduling_history.items.len > max_history) {
-            // Remove oldest entries
             const to_remove = self.scheduling_history.items.len - max_history;
-            for (0..to_remove) |_| {
-                _ = self.scheduling_history.orderedRemove(0);
-            }
+            // Shift items in place - O(n) instead of O(n^2)
+            const items = self.scheduling_history.items;
+            std.mem.copyForwards(SchedulingRecord, items[0..max_history], items[to_remove..]);
+            self.scheduling_history.shrinkRetainingCapacity(max_history);
         }
     }
 
     /// Get summary of available backends.
     pub fn getBackendsSummary(self: *Coordinator) []const BackendInstance {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         return self.backends.items;
     }
 
     /// Get current coordinator statistics.
     pub fn getStats(self: *Coordinator) CoordinatorStats {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         return self.stats;
     }
 
     /// Get the number of available backends.
     pub fn backendCount(self: *Coordinator) usize {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         return self.backends.items.len;
     }
 
     /// Check if a specific backend is available.
     pub fn hasBackend(self: *Coordinator, backend_type: backend_mod.Backend) bool {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         for (self.backends.items) |backend| {
             if (backend.backend_type == backend_type and backend.is_healthy) {
                 return true;
@@ -533,6 +448,9 @@ pub const Coordinator = struct {
 
     /// Get success rate for a specific backend (0.0 to 1.0).
     pub fn getBackendSuccessRate(self: *Coordinator, backend_type: backend_mod.Backend) f32 {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
         const idx = @intFromEnum(backend_type);
         if (idx >= self.stats.backend_usage.len) return 0.0;
 
@@ -543,6 +461,105 @@ pub const Coordinator = struct {
         return @as(f32, @floatFromInt(successes)) / @as(f32, @floatFromInt(usage));
     }
 };
+
+/// Score a backend for a given workload profile.
+fn scoreBackendForWorkload(backend: BackendInstance, profile: WorkloadProfile) f32 {
+    var score = backend.healthScore();
+
+    // Check hard requirements first
+    if (!backend.supportsPrecision(profile.required_precision)) {
+        return 0.0;
+    }
+
+    if (backend.available_memory_mb < profile.memory_requirement_mb) {
+        score *= 0.1; // Heavy penalty but not exclusion
+    }
+
+    // Prefer explicitly requested backend
+    if (profile.preferred_backend) |pref| {
+        if (backend.backend_type == pref) {
+            score *= 2.0;
+        }
+    }
+
+    // Training workloads prefer CUDA or Metal
+    if (profile.is_training) {
+        if (backend.backend_type == .cuda) {
+            score *= 1.8;
+        } else if (backend.backend_type == .metal) {
+            score *= 1.5;
+        }
+    }
+
+    // Compute-bound workloads prefer high-performance backends
+    if (profile.compute_intensity > 0.7) {
+        if (backend.backend_type == .cuda or backend.backend_type == .metal) {
+            score *= 1.3;
+        }
+    }
+
+    // Low-latency workloads prefer local backends
+    if (profile.low_latency) {
+        if (backend.backend_type == .metal or backend.backend_type == .cuda) {
+            score *= 1.2;
+        }
+    }
+
+    // Large batch sizes benefit from GPU backends
+    if (profile.batch_size > 32) {
+        if (!backend.is_emulated) {
+            score *= 1.2;
+        }
+    }
+
+    // Specialized category bonuses
+    switch (profile.category) {
+        .matrix_multiply, .convolution, .attention => {
+            if (backend.backend_type == .cuda) score *= 1.4;
+        },
+        .fft => {
+            if (backend.backend_type == .cuda or backend.backend_type == .metal) score *= 1.3;
+        },
+        else => {},
+    }
+
+    return score;
+}
+
+fn estimateTime(backend: BackendInstance, profile: WorkloadProfile) u64 {
+    if (profile.expected_duration_ms > 0) {
+        // Adjust expected time based on backend characteristics
+        const multiplier: f32 = if (backend.is_emulated) 10.0 else 1.0;
+        return @intFromFloat(@as(f32, @floatFromInt(profile.expected_duration_ms)) * multiplier);
+    }
+
+    // Default estimates based on workload characteristics
+    const base_time: u64 = 100;
+    const memory_factor = profile.memory_requirement_mb / 1024;
+    const compute_factor: u64 = @intFromFloat(profile.compute_intensity * 100);
+
+    return base_time + memory_factor + compute_factor;
+}
+
+fn selectReason(backend: BackendInstance, profile: WorkloadProfile) []const u8 {
+    if (profile.preferred_backend != null and profile.preferred_backend == backend.backend_type) {
+        return "Selected preferred backend";
+    }
+
+    if (profile.is_training) {
+        if (backend.backend_type == .cuda) {
+            return "CUDA selected for training workload";
+        } else if (backend.backend_type == .metal) {
+            return "Metal selected for training workload";
+        }
+    }
+
+    if (backend.is_emulated) {
+        return "CPU fallback selected (no GPU available)";
+    }
+
+    return "Selected based on availability and workload profile";
+}
 
 // ============================================================================
 // Backend Availability Checks
@@ -634,9 +651,10 @@ test "backend health updates" {
     const coord = try Coordinator.init(allocator);
     defer coord.deinit();
 
-    // Get a backend type that exists
-    if (coord.backends.items.len > 0) {
-        const bt = coord.backends.items[0].backend_type;
+    // Get a backend type that exists (use thread-safe accessor)
+    const backends = coord.getBackendsSummary();
+    if (backends.len > 0) {
+        const bt = backends[0].backend_type;
 
         // Should initially be healthy
         try std.testing.expect(coord.hasBackend(bt));
