@@ -46,6 +46,9 @@ pub const Theme = struct {
     dim: []const u8 = "\x1b[2m",
     italic: []const u8 = "\x1b[3m",
     underline: []const u8 = "\x1b[4m",
+
+    // Semantic styles
+    header: []const u8 = "\x1b[1m", // Bold for headers by default
 };
 
 // ═══════════════════════════════════════════════════════════════════════════

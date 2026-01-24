@@ -18,6 +18,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 zig build                              # Build the project
 zig build test --summary all           # Run tests with detailed output
 zig fmt .                              # Format code (run after edits)
+zig build lint                         # Check formatting (CI uses this)
+zig build typecheck                    # Type check without running tests
 zig build run -- --help                # CLI help
 
 # Single file testing (use zig test, NOT zig build test)
@@ -177,7 +179,7 @@ src/
 - **Shared Utilities**: Import from `src/shared/utils_combined.zig` for all utils sub-modules, or specific files for targeted imports
 - **Internal AI**: Implementation files import from `../../core/mod.zig` for types
 
-**Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility.
+**Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility. The AI module has extensive sub-feature stubs (`src/ai/*/stub.zig`) for agents, embeddings, llm, vision, training, etc.
 
 **Comptime generics pattern:** Use comptime configuration structs to eliminate code duplication. Example from GPU codegen:
 
@@ -461,4 +463,5 @@ After making changes, always run:
 ```bash
 zig fmt .                        # Format code
 zig build test --summary all     # Run all tests
+zig build lint                   # Verify formatting passes CI
 ```
