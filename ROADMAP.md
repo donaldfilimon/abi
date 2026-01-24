@@ -193,10 +193,10 @@
   - [ ] SLA offerings
   - [ ] Priority support
   - [ ] Custom development
-- [ ] Cloud integration
-  - [ ] AWS Lambda
-  - [ ] Google Cloud Functions
-  - [ ] Azure Functions
+- [x] Cloud integration - COMPLETE (2026-01)
+  - [x] AWS Lambda (`src/cloud/aws_lambda.zig`)
+  - [x] Google Cloud Functions (`src/cloud/gcp_functions.zig`)
+  - [x] Azure Functions (`src/cloud/azure_functions.zig`)
 
 ## Priority Legend
 

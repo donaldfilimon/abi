@@ -3,7 +3,7 @@ title: "README"
 tags: []
 ---
 # Documentation Map
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 A guide to the docs layout and primary entry points.
 

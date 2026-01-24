@@ -3,7 +3,7 @@ title: "overview"
 tags: []
 ---
 # ABI Framework Architecture Overview
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 This document provides a comprehensive overview of the ABI framework architecture after the 2026.01 migration.
 

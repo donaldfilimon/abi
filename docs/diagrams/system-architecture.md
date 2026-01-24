@@ -3,7 +3,7 @@ title: "system-architecture"
 tags: []
 ---
 # ABI System Architecture
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 ```mermaid
 flowchart TB
