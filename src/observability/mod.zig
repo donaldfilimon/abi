@@ -571,3 +571,17 @@ pub const Context = struct {
 // ---------------------------------------------------------------------------
 pub const system_info = @import("system_info/mod.zig");
 pub const SystemInfo = system_info.SystemInfo;
+
+// ---------------------------------------------------------------------------
+// Centralized Metrics Module
+// ---------------------------------------------------------------------------
+// Provides shared metric primitives (Counter, Gauge, Histogram, SlidingWindow)
+// that can be used across the codebase for consistent metrics collection.
+pub const core_metrics = @import("metrics/mod.zig");
+
+test {
+    _ = tracing;
+    _ = monitoring;
+    _ = otel;
+    _ = core_metrics;
+}
