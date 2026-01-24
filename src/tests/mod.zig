@@ -48,6 +48,16 @@ comptime {
     _ = @import("error_handling_test.zig");
     // KernelRing fast‑path test
     _ = @import("kernel_ring_test.zig");
+
+    // Network module comprehensive tests
+    if (build_options.enable_network) {
+        _ = @import("network_test.zig");
+    }
+
+    // Cloud adapter tests
+    if (build_options.enable_web) {
+        _ = @import("cloud_test.zig");
+    }
 }
 
 // Connector tests
