@@ -1,0 +1,23 @@
+test
++- run test
+   +- compile test Debug native 1 errors
+src\shared\utils.zig:59:20: error: root source file struct 'time' has no member named 'timestamp'
+    return std.time.timestamp();
+           ~~~~~~~~^~~~~~~~~~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\time.zig:1:1: note: struct declared here
+const std = @import("std.zig");
+^~~~~
+referenced by:
+    trainWithResult: src\ai\training\mod.zig:656:82
+    trainWithResult: src\ai\mod.zig:499:36
+    2 reference(s) hidden; use '-freference-trace=4' to see all references
+error: 1 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.2223+4f16e80ce\\zig.exe" test -ODebug --dep abi --dep build_options "-Mroot=C:\\Users\\donald\\abi\\src\\tests\\mod.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" "-Mbuild_options=.zig-cache\\c\\c290e6efef1f57036e2411bdad41ddea\\options.zig" -lc --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name test --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.2223+4f16e80ce\\lib\\" --listen=-
+
+Build Summary: 1/4 steps succeeded (1 failed)
+test transitive failure
++- run test transitive failure
+   +- compile test Debug native 1 errors
+
+error: the following build command failed with exit code 1:
+.zig-cache\o\bb8120b099056445f584a00d6255efb5\build.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\zig.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib C:\Users\donald\abi .zig-cache C:\Users\donald\AppData\Local\zig --seed 0x7dcba219 -Zbe12c295ab0f6aa8 test -Denable-web=true

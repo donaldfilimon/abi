@@ -244,6 +244,7 @@ pub const Config = struct {
     allocator: std.mem.Allocator,
     source: ConfigSource,
     source_path: []const u8,
+    owned_strings: std.ArrayListUnmanaged([]u8),
 
     framework: FrameworkConfig,
     database: DatabaseConfig,
@@ -253,26 +254,46 @@ pub const Config = struct {
     web: WebConfig,
 
     /// Custom key-value pairs
-    custom: std.StringHashMap([]const u8),
+    custom: std.StringHashMapUnmanaged([]const u8),
 
     pub fn init(allocator: std.mem.Allocator) Config {
         return .{
             .allocator = allocator,
             .source = .default,
             .source_path = "",
+            .owned_strings = .{},
             .framework = .{},
             .database = .{},
             .gpu = .{},
             .ai = .{},
             .network = .{},
             .web = .{},
-            .custom = std.StringHashMap([]const u8).init(allocator),
+            .custom = .{},
         };
     }
 
     pub fn deinit(self: *Config) void {
-        self.custom.deinit();
+        for (self.owned_strings.items) |item| {
+            self.allocator.free(item);
+        }
+        self.owned_strings.deinit(self.allocator);
+        self.custom.deinit(self.allocator);
         self.* = undefined;
+    }
+
+    fn ownString(self: *Config, value: []const u8) ![]const u8 {
+        const copy = try self.allocator.dupe(u8, value);
+        errdefer self.allocator.free(copy);
+        try self.owned_strings.append(self.allocator, copy);
+        return copy;
+    }
+
+    fn adoptString(self: *Config, value: []u8) ![]const u8 {
+        self.owned_strings.append(self.allocator, value) catch |err| {
+            self.allocator.free(value);
+            return err;
+        };
+        return value;
     }
 
     /// Validate all configuration sections
@@ -289,38 +310,44 @@ pub const Config = struct {
 /// Configuration loader
 pub const ConfigLoader = struct {
     allocator: std.mem.Allocator,
+    io_backend: std.Io.Threaded,
 
     pub fn init(allocator: std.mem.Allocator) ConfigLoader {
-        return .{ .allocator = allocator };
+        return .{
+            .allocator = allocator,
+            .io_backend = std.Io.Threaded.init(allocator, .{ .environ = .empty }),
+        };
+    }
+
+    pub fn deinit(self: *ConfigLoader) void {
+        self.io_backend.deinit();
     }
 
     /// Load configuration from JSON file
     pub fn loadFromFile(self: *ConfigLoader, path: []const u8) !Config {
-        const file = try std.fs.Dir.cwd().openFile(path, .{});
-        defer file.close();
-
-        const size = try file.getEndPos();
-        const contents = try file.readToEndAlloc(self.allocator, size);
+        const io = self.io_backend.io();
+        const contents = std.Io.Dir.cwd().readFileAlloc(io, path, self.allocator, .limited(1024 * 1024)) catch {
+            return ConfigError.FileNotFound;
+        };
         defer self.allocator.free(contents);
 
         return try self.loadFromJson(contents, path);
     }
 
     /// Load configuration from JSON string
-    pub fn loadFromJson(self: *ConfigLoader, json: []const u8, source: []const u8) !Config {
+    pub fn loadFromJson(self: *ConfigLoader, json_str: []const u8, source: []const u8) !Config {
         var config = Config.init(self.allocator);
         errdefer config.deinit();
 
-        var parser = std.json.Parser.init(self.allocator, .{});
-        defer parser.deinit();
+        const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, json_str, .{}) catch {
+            return ConfigError.ParseError;
+        };
+        defer parsed.deinit();
 
-        const tree = try parser.parse(json);
-        defer tree.deinit();
-
-        try self.parseJsonIntoConfig(&config, tree.root);
+        try self.parseJsonIntoConfig(&config, parsed.value);
 
         config.source = .file_json;
-        config.source_path = try self.allocator.dupe(u8, source);
+        config.source_path = try config.ownString(source);
 
         return config;
     }
@@ -350,25 +377,25 @@ pub const ConfigLoader = struct {
         }
 
         if (try self.getEnvString(prefix, "DATABASE_NAME")) |name| {
-            config.database.name = name;
+            config.database.name = try config.adoptString(name);
         }
 
         if (try self.getEnvString(prefix, "GPU_BACKEND")) |backend| {
-            config.gpu.preferred_backend = backend;
+            config.gpu.preferred_backend = try config.adoptString(backend);
         }
 
         if (try self.getEnvString(prefix, "AI_MODEL")) |model| {
-            config.ai.default_model = model;
+            config.ai.default_model = try config.adoptString(model);
         }
         if (try self.getEnvF32(prefix, "AI_TEMPERATURE")) |temp| {
             config.ai.temperature = temp;
         }
 
         if (try self.getEnvString(prefix, "CLUSTER_ID")) |id| {
-            config.network.cluster_id = id;
+            config.network.cluster_id = try config.adoptString(id);
         }
         if (try self.getEnvString(prefix, "NODE_ADDRESS")) |addr| {
-            config.network.node_address = addr;
+            config.network.node_address = try config.adoptString(addr);
         }
 
         if (try self.getEnvU16(prefix, "WEB_PORT")) |port| {
@@ -377,7 +404,7 @@ pub const ConfigLoader = struct {
         if (try self.getEnvBool(prefix, "WEB_CORS")) |v| config.web.cors_enabled = v;
 
         config.source = .environment;
-        config.source_path = try self.allocator.dupe(u8, prefix);
+        config.source_path = try config.ownString(prefix);
 
         return config;
     }
@@ -411,7 +438,7 @@ pub const ConfigLoader = struct {
 
                 if (obj.get("database")) |db| {
                     if (db.object.get("name")) |v| {
-                        if (v == .string) config.database.name = v.string;
+                        if (v == .string) config.database.name = try config.ownString(v.string);
                     }
                     if (db.object.get("max_records")) |v| {
                         if (v == .integer) config.database.max_records = @as(usize, @intCast(v.integer));
@@ -429,16 +456,16 @@ pub const ConfigLoader = struct {
                         if (v == .bool) config.gpu.enable_cuda = v.bool;
                     }
                     if (gpu.object.get("preferred_backend")) |v| {
-                        if (v == .string) config.gpu.preferred_backend = v.string;
+                        if (v == .string) config.gpu.preferred_backend = try config.ownString(v.string);
                     }
                 }
 
                 if (obj.get("ai")) |ai| {
                     if (ai.object.get("default_model")) |v| {
-                        if (v == .string) config.ai.default_model = v.string;
+                        if (v == .string) config.ai.default_model = try config.ownString(v.string);
                     }
                     if (ai.object.get("temperature")) |v| {
-                        if (v == .number_float) config.ai.temperature = v.number_float;
+                        if (v == .float) config.ai.temperature = @floatCast(v.float);
                     }
                     if (ai.object.get("max_tokens")) |v| {
                         if (v == .integer) config.ai.max_tokens = @as(u32, @intCast(v.integer));
@@ -447,10 +474,10 @@ pub const ConfigLoader = struct {
 
                 if (obj.get("network")) |net| {
                     if (net.object.get("cluster_id")) |v| {
-                        if (v == .string) config.network.cluster_id = v.string;
+                        if (v == .string) config.network.cluster_id = try config.ownString(v.string);
                     }
                     if (net.object.get("node_address")) |v| {
-                        if (v == .string) config.network.node_address = v.string;
+                        if (v == .string) config.network.node_address = try config.ownString(v.string);
                     }
                     if (net.object.get("distributed_enabled")) |v| {
                         if (v == .bool) config.network.distributed_enabled = v.bool;

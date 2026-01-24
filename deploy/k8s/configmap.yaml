@@ -1,0 +1,26 @@
+# =============================================================================
+# ABI ConfigMap
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: abbey-config
+  namespace: abbey
+  labels:
+    app.kubernetes.io/name: abbey
+    app.kubernetes.io/component: config
+data:
+  # Application settings
+  ABBEY_LOG_LEVEL: "info"
+  ABBEY_LOG_FORMAT: "json"
+  ABBEY_HOST: "0.0.0.0"
+  ABBEY_PORT: "8080"
+  ABBEY_METRICS_PORT: "9090"
+  ABBEY_ENABLE_TRACING: "true"
+  ABBEY_DATA_DIR: "/app/data"
+
+  # Ollama configuration (when using in-cluster Ollama)
+  ABI_OLLAMA_HOST: "http://ollama-service:11434"
+
+  # Jaeger configuration
+  ABBEY_JAEGER_ENDPOINT: "http://jaeger-collector:14268/api/traces"

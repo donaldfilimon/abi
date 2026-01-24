@@ -1,4 +1,14 @@
+---
+title: "SECURITY"
+tags: [security, policy]
+---
 # Security Policy
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Security-Priority-critical?style=for-the-badge" alt="Security Priority"/>
+  <img src="https://img.shields.io/badge/Reporting-GitHub_Issues-blue?style=for-the-badge" alt="Reporting"/>
+</p>
 
 ## Security Advisories
 
@@ -9,7 +19,7 @@
 **Affected Versions**: All versions prior to 0.2.0
 
 **Vulnerability**:
-The database backup and restore HTTP endpoints in `src/features/database/unified.zig` did not validate user-provided filenames. An attacker could craft requests with path traversal sequences (e.g., `../`) to read arbitrary files on the server filesystem or write backup files to arbitrary locations.
+The database backup and restore HTTP endpoints in `src/database/unified.zig` did not validate user-provided filenames. An attacker could craft requests with path traversal sequences (e.g., `../`) to read arbitrary files on the server filesystem or write backup files to arbitrary locations.
 
 **Attack Scenario**:
 ```http
@@ -42,14 +52,15 @@ Upgrade to version 0.2.0 or later. If unable to upgrade immediately:
 - Use reverse proxies to block requests with `..` in parameters
 
 **References**:
-- Fix in `src/features/database/unified.zig:68-95`
+- Fix in `src/database/unified.zig:68-95`
 - Fix in `src/shared/utils/fs/mod.zig:1-90`
-- Fix in `src/features/database/http.zig:48`
+- Fix in `src/database/http.zig:48`
 
 ## Supported Versions
 | Version | Supported |
 | ------- | --------- |
-| 0.2.x   | Yes       |
+| 0.3.x   | Yes       |
+| 0.2.x   | Security fixes only |
 | 0.1.x   | No        |
 
 ## Reporting a Vulnerability
@@ -60,6 +71,13 @@ Include reproduction steps, impact assessment, and suggested fixes.
 - Use the latest supported version.
 - Keep Zig updated.
 - Validate untrusted inputs and sandbox untrusted code.
+- **Secrets Management**: Use `src/shared/security/secrets.zig` for all credential handling. Secrets are encrypted in memory, audited on access, and never logged. Configure `SecretsConfig` with an appropriate `env_prefix` and enable `audit_logging`.
+- Avoid printing secret values or their hashes to logs; the `SecretsManager` ensures decryption occurs only in controlled code paths.
 
 ## Additional Details
 The CLI is minimal by design; most deployments should embed ABI as a library.
+
+## See Also
+
+- [CONTACTS.md](CONTACTS.md) - Maintainer contact information
+- [TODO.md](TODO.md) - Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))

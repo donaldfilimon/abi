@@ -1,0 +1,113 @@
+install
++- install abi-profile
+   +- compile exe abi-profile ReleaseFast native 5 errors
+src\ai\training\logging.zig:81:59: error: missing struct field: environ
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                         ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+referenced by:
+    init: src\ai\training\logging.zig:42:60
+    init: src\ai\training\llm_trainer.zig:251:53
+    8 reference(s) hidden; use '-freference-trace=10' to see all references
+src\ai\training\logging.zig:135:59: error: missing struct field: environ
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                         ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+src\shared\utils\config.zig:318:60: error: missing struct field: environ
+            .io_backend = std.Io.Threaded.init(allocator, .{}),
+                                                          ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+src\tasks\persistence.zig:111:55: error: missing struct field: environ
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                     ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+src\tasks\persistence.zig:151:55: error: missing struct field: environ
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                     ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+error: 5 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.2223+4f16e80ce\\zig.exe" build-exe -OReleaseFast --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\tools\\cli\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\tools\\cli\\mod.zig" "-Mbuild_options=.zig-cache\\c\\c290e6efef1f57036e2411bdad41ddea\\options.zig" -lc --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi-profile --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.2223+4f16e80ce\\lib\\" --listen=-
+
+install
++- install example-train-demo
+   +- compile exe example-train-demo Debug native 2 errors
+src\ai\training\logging.zig:81:59: error: missing struct field: environ
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                         ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+referenced by:
+    init: src\ai\training\logging.zig:42:60
+    init: src\ai\training\llm_trainer.zig:251:53
+    5 reference(s) hidden; use '-freference-trace=7' to see all references
+src\ai\training\logging.zig:135:59: error: missing struct field: environ
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                         ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+error: 2 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.2223+4f16e80ce\\zig.exe" build-exe -ODebug --dep abi "-Mroot=C:\\Users\\donald\\abi\\examples\\training\\train_demo.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" "-Mbuild_options=.zig-cache\\c\\c290e6efef1f57036e2411bdad41ddea\\options.zig" -lc --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name example-train-demo --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.2223+4f16e80ce\\lib\\" --listen=-
+
+install
++- install abi
+   +- compile exe abi Debug native 5 errors
+src\ai\training\logging.zig:81:59: error: missing struct field: environ
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                         ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+referenced by:
+    init: src\ai\training\logging.zig:42:60
+    init: src\ai\training\llm_trainer.zig:251:53
+    8 reference(s) hidden; use '-freference-trace=10' to see all references
+src\ai\training\logging.zig:135:59: error: missing struct field: environ
+        var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                         ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+src\shared\utils\config.zig:318:60: error: missing struct field: environ
+            .io_backend = std.Io.Threaded.init(allocator, .{}),
+                                                          ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+src\tasks\persistence.zig:111:55: error: missing struct field: environ
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                     ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+src\tasks\persistence.zig:151:55: error: missing struct field: environ
+    var io_backend = std.Io.Threaded.init(allocator, .{});
+                                                     ~^~
+C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib\std\Io\Threaded.zig:1188:25: note: struct declared here
+pub const InitOptions = struct {
+                        ^~~~~~
+error: 5 compilation errors
+failed command: "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.2223+4f16e80ce\\zig.exe" build-exe -ODebug --dep abi --dep cli "-Mroot=C:\\Users\\donald\\abi\\tools\\cli\\main.zig" -ODebug --dep build_options "-Mabi=C:\\Users\\donald\\abi\\src\\abi.zig" -ODebug --dep abi "-Mcli=C:\\Users\\donald\\abi\\tools\\cli\\mod.zig" "-Mbuild_options=.zig-cache\\c\\c290e6efef1f57036e2411bdad41ddea\\options.zig" -lc --cache-dir .zig-cache --global-cache-dir "C:\\Users\\donald\\AppData\\Local\\zig" --name abi --zig-lib-dir "C:\\Users\\donald\\AppData\\Roaming\\Antigravity\\User\\globalStorage\\ziglang.vscode-zig\\zig\\x86_64-windows-0.16.0-dev.2223+4f16e80ce\\lib\\" --listen=-
+
+Build Summary: 28/35 steps succeeded (3 failed)
+install transitive failure
++- install abi transitive failure
+|  +- compile exe abi Debug native 5 errors
++- install example-train-demo transitive failure
+|  +- compile exe example-train-demo Debug native 2 errors
++- install abi-profile transitive failure
+   +- compile exe abi-profile ReleaseFast native 5 errors
+
+error: the following build command failed with exit code 1:
+.zig-cache\o\bb8120b099056445f584a00d6255efb5\build.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\zig.exe C:\Users\donald\AppData\Roaming\Antigravity\User\globalStorage\ziglang.vscode-zig\zig\x86_64-windows-0.16.0-dev.2223+4f16e80ce\lib C:\Users\donald\abi .zig-cache C:\Users\donald\AppData\Local\zig --seed 0x3175a7b5 -Zbd3ec6e8424bfaac

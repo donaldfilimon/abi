@@ -1,14 +1,29 @@
 //! API key management for authentication and authorization.
+//!
+//! Security features:
+//! - Salted hashing with configurable KDF iterations
+//! - Timing-safe comparison to prevent timing attacks
+//! - Key rotation and expiration support
+//! - Secure memory wiping for sensitive data
 const std = @import("std");
+const time = @import("../time.zig");
+
+/// Salt length in bytes for key hashing
+pub const SALT_LENGTH: usize = 16;
+
+/// Default number of hash iterations for key derivation
+pub const DEFAULT_HASH_ITERATIONS: u32 = 100_000;
 
 pub const ApiKeyConfig = struct {
     key_length: usize = 32,
     prefix: []const u8 = "abi_",
-    hash_algorithm: HashAlgorithm = .sha256,
+    hash_algorithm: HashAlgorithm = .blake3,
     storage_path: []const u8 = "api_keys.json",
     enable_rotation: bool = true,
     rotation_period_days: u64 = 90,
     max_keys_per_user: usize = 10,
+    /// Number of iterations for key derivation (higher = more secure but slower)
+    hash_iterations: u32 = DEFAULT_HASH_ITERATIONS,
 };
 
 pub const HashAlgorithm = enum {
@@ -17,9 +32,32 @@ pub const HashAlgorithm = enum {
     blake3,
 };
 
+/// Securely wipe memory to prevent sensitive data leakage.
+/// Uses volatile writes to prevent compiler optimization.
+fn secureWipe(data: anytype) void {
+    const T = @TypeOf(data);
+    const info = @typeInfo(T);
+
+    if (info == .Pointer) {
+        const slice = switch (info.Pointer.size) {
+            .Slice => data,
+            .One => if (@typeInfo(info.Pointer.child) == .Array)
+                @as([]u8, data)
+            else
+                @as(*[1]u8, @ptrCast(data))[0..1],
+            else => return,
+        };
+
+        // Use std.crypto.utils.secureZero for guaranteed wiping
+        std.crypto.utils.secureZero(u8, @constCast(slice));
+    }
+}
+
 pub const ApiKey = struct {
     id: []const u8,
     key_hash: []const u8,
+    /// Random salt used for this key's hash
+    salt: [SALT_LENGTH]u8,
     key_prefix: []const u8,
     user_id: []const u8,
     created_at: i64,
@@ -28,6 +66,21 @@ pub const ApiKey = struct {
     is_active: bool,
     scopes: []const []const u8,
     metadata: std.StringArrayHashMapUnmanaged([]const u8),
+
+    pub fn deinit(self: *ApiKey, allocator: std.mem.Allocator) void {
+        // Securely wipe sensitive data before freeing
+        secureWipe(self.key_hash);
+        secureWipe(&self.salt);
+        allocator.free(self.id);
+        allocator.free(self.key_hash);
+        allocator.free(self.key_prefix);
+        allocator.free(self.user_id);
+        for (self.scopes) |scope| {
+            allocator.free(scope);
+        }
+        allocator.free(self.scopes);
+        self.metadata.deinit(allocator);
+    }
 };
 
 pub const ApiKeyManager = struct {
@@ -63,7 +116,12 @@ pub const ApiKeyManager = struct {
     ) !GeneratedKey {
         const key_id = try self.generateKeyId();
         const key_plain = try self.generateKeyPlain();
-        const key_hash = try self.hashKey(key_plain);
+
+        // Generate random salt for this key
+        var salt: [SALT_LENGTH]u8 = undefined;
+        std.crypto.random.bytes(&salt);
+
+        const key_hash = try self.hashKeyWithSalt(key_plain, &salt);
         const key_prefix = key_plain[0..@min(8, key_plain.len)];
 
         const api_key = try self.allocator.create(ApiKey);
@@ -72,11 +130,12 @@ pub const ApiKeyManager = struct {
         api_key.* = ApiKey{
             .id = try self.allocator.dupe(u8, key_id),
             .key_hash = key_hash,
+            .salt = salt,
             .key_prefix = try self.allocator.dupe(u8, key_prefix),
             .user_id = try self.allocator.dupe(u8, user_id),
-            .created_at = std.time.timestamp(),
+            .created_at = time.unixSeconds(),
             .expires_at = if (self.config.rotation_period_days > 0)
-                std.time.timestamp() + @as(i64, @intCast(self.config.rotation_period_days * 86400))
+                time.unixSeconds() + @as(i64, @intCast(self.config.rotation_period_days * 86400))
             else
                 null,
             .last_used_at = null,
@@ -95,15 +154,20 @@ pub const ApiKeyManager = struct {
     }
 
     pub fn validateKey(self: *ApiKeyManager, key_plain: []const u8) !?*ApiKey {
-        const key_hash = self.hashKey(key_plain) catch null;
-
         for (self.keys.values()) |key| {
-            if (std.crypto.utils.timingSafeEql(key.key_hash, key_hash)) {
+            // Hash the provided key with this key's salt
+            const computed_hash = self.hashKeyWithSalt(key_plain, &key.salt) catch continue;
+            defer self.allocator.free(computed_hash);
+
+            // Timing-safe comparison to prevent timing attacks
+            if (computed_hash.len == key.key_hash.len and
+                std.crypto.utils.timingSafeEql(u8, computed_hash, key.key_hash))
+            {
                 if (!key.is_active) return null;
                 if (key.expires_at) |exp| {
-                    if (std.time.timestamp() > exp) return null;
+                    if (time.unixSeconds() > exp) return null;
                 }
-                key.last_used_at = std.time.timestamp();
+                key.last_used_at = time.unixSeconds();
                 return key;
             }
         }
@@ -162,25 +226,60 @@ pub const ApiKeyManager = struct {
         return self.encodeKey(key_bytes);
     }
 
-    fn hashKey(self: *ApiKeyManager, key: []const u8) ![]const u8 {
+    /// Hash a key with the given salt using iterative hashing for key stretching.
+    /// This provides resistance against brute-force attacks.
+    fn hashKeyWithSalt(self: *ApiKeyManager, key: []const u8, salt: []const u8) ![]const u8 {
         var hash: [32]u8 = undefined;
+
+        // Initial hash: salt || key
         switch (self.config.hash_algorithm) {
             .sha256 => {
                 var hasher = std.crypto.hash.sha2.Sha256.init(.{});
+                hasher.update(salt);
                 hasher.update(key);
                 hasher.final(&hash);
+
+                // Iterative hashing for key stretching
+                var i: u32 = 1;
+                while (i < self.config.hash_iterations) : (i += 1) {
+                    hasher = std.crypto.hash.sha2.Sha256.init(.{});
+                    hasher.update(&hash);
+                    hasher.update(salt);
+                    hasher.final(&hash);
+                }
             },
             .sha512 => {
                 var hasher = std.crypto.hash.sha2.Sha512.init(.{});
+                hasher.update(salt);
                 hasher.update(key);
                 var out: [64]u8 = undefined;
                 hasher.final(&out);
                 @memcpy(hash[0..32], out[0..32]);
+
+                // Iterative hashing for key stretching
+                var i: u32 = 1;
+                while (i < self.config.hash_iterations) : (i += 1) {
+                    hasher = std.crypto.hash.sha2.Sha512.init(.{});
+                    hasher.update(&hash);
+                    hasher.update(salt);
+                    hasher.final(&out);
+                    @memcpy(hash[0..32], out[0..32]);
+                }
             },
             .blake3 => {
-                var hasher = std.crypto.hash.blake3.Blake3.init(.{});
+                var hasher = std.crypto.hash.Blake3.init(.{});
+                hasher.update(salt);
                 hasher.update(key);
                 hasher.final(&hash);
+
+                // Iterative hashing for key stretching
+                var i: u32 = 1;
+                while (i < self.config.hash_iterations) : (i += 1) {
+                    hasher = std.crypto.hash.Blake3.init(.{});
+                    hasher.update(&hash);
+                    hasher.update(salt);
+                    hasher.final(&hash);
+                }
             },
         }
         return self.allocator.dupe(u8, &hash);
@@ -219,7 +318,8 @@ pub const ApiKeyError = error{
 
 test "api key generation" {
     const allocator = std.testing.allocator;
-    var manager = ApiKeyManager.init(allocator, .{});
+    // Use low iteration count for fast tests
+    var manager = ApiKeyManager.init(allocator, .{ .hash_iterations = 10 });
     defer manager.deinit();
 
     const scopes = &.{ "read", "write" };
@@ -232,7 +332,8 @@ test "api key generation" {
 
 test "api key validation" {
     const allocator = std.testing.allocator;
-    var manager = ApiKeyManager.init(allocator, .{});
+    // Use low iteration count for fast tests
+    var manager = ApiKeyManager.init(allocator, .{ .hash_iterations = 10 });
     defer manager.deinit();
 
     const generated = try manager.generateKey("user1", &.{"read"});
@@ -244,7 +345,8 @@ test "api key validation" {
 
 test "api key revocation" {
     const allocator = std.testing.allocator;
-    var manager = ApiKeyManager.init(allocator, .{});
+    // Use low iteration count for fast tests
+    var manager = ApiKeyManager.init(allocator, .{ .hash_iterations = 10 });
     defer manager.deinit();
 
     const generated = try manager.generateKey("user1", &.{"read"});

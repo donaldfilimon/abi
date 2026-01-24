@@ -1,468 +1,497 @@
 const std = @import("std");
-const builtin = @import("builtin");
 
-fn pathExists(path: []const u8) bool {
-    // For files in the project root, assume they exist
-    // The actual compilation will fail if the file doesn't exist
-    _ = path;
-    return true;
+// ============================================================================
+// GPU Backend Configuration
+// ============================================================================
+
+pub const GpuBackend = enum {
+    none,
+    auto,
+    cuda,
+    vulkan,
+    stdgpu,
+    metal,
+    webgpu,
+    opengl,
+    opengles,
+    webgl2,
+    fpga,
+
+    pub fn fromString(s: []const u8) ?GpuBackend {
+        return std.StaticStringMap(GpuBackend).initComptime(.{
+            .{ "none", .none },     .{ "auto", .auto },     .{ "cuda", .cuda },
+            .{ "vulkan", .vulkan }, .{ "stdgpu", .stdgpu }, .{ "metal", .metal },
+            .{ "webgpu", .webgpu }, .{ "opengl", .opengl }, .{ "opengles", .opengles },
+            .{ "webgl2", .webgl2 }, .{ "fpga", .fpga },
+        }).get(s);
+    }
+};
+
+fn parseGpuBackends(b: *std.Build, enable_gpu: bool, enable_web: bool) []const GpuBackend {
+    const backend_str = b.option([]const u8, "gpu-backend", "GPU backend(s): auto, none, cuda, vulkan, metal, webgpu, opengl, opengles, webgl2, stdgpu, fpga (comma-separated)");
+
+    // Legacy flags (deprecated)
+    const legacy = .{
+        .cuda = b.option(bool, "gpu-cuda", "Enable CUDA (deprecated: use -Dgpu-backend=cuda)"),
+        .vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan (deprecated: use -Dgpu-backend=vulkan)"),
+        .stdgpu = b.option(bool, "gpu-stdgpu", "Enable std.gpu (deprecated: use -Dgpu-backend=stdgpu)"),
+        .metal = b.option(bool, "gpu-metal", "Enable Metal (deprecated: use -Dgpu-backend=metal)"),
+        .webgpu = b.option(bool, "gpu-webgpu", "Enable WebGPU (deprecated: use -Dgpu-backend=webgpu)"),
+        .opengl = b.option(bool, "gpu-opengl", "Enable OpenGL (deprecated: use -Dgpu-backend=opengl)"),
+        .opengles = b.option(bool, "gpu-opengles", "Enable OpenGL ES (deprecated: use -Dgpu-backend=opengles)"),
+        .webgl2 = b.option(bool, "gpu-webgl2", "Enable WebGL2 (deprecated: use -Dgpu-backend=webgl2)"),
+        .fpga = b.option(bool, "gpu-fpga", "Enable FPGA (deprecated: use -Dgpu-backend=fpga)"),
+    };
+
+    const has_legacy = legacy.cuda != null or legacy.vulkan != null or legacy.stdgpu != null or
+        legacy.metal != null or legacy.webgpu != null or legacy.opengl != null or
+        legacy.opengles != null or legacy.webgl2 != null or legacy.fpga != null;
+
+    if (has_legacy) std.log.warn("Legacy GPU flags are deprecated. Use -Dgpu-backend=cuda,vulkan instead.", .{});
+
+    const backend_count = 11;
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+    var use_auto = false;
+
+    const addBackend = struct {
+        fn call(backend: GpuBackend, buffer_ptr: *[backend_count]GpuBackend, count_ptr: *usize, seen_ptr: *[backend_count]bool) void {
+            const idx = @intFromEnum(backend);
+            if (seen_ptr[idx]) return;
+            if (count_ptr.* >= buffer_ptr.len) return;
+            buffer_ptr[count_ptr.*] = backend;
+            count_ptr.* += 1;
+            seen_ptr[idx] = true;
+        }
+    }.call;
+
+    if (backend_str) |str| {
+        var iter = std.mem.splitScalar(u8, str, ',');
+        while (iter.next()) |part| {
+            const trimmed = std.mem.trim(u8, part, " \t");
+            if (trimmed.len == 0) continue;
+            if (GpuBackend.fromString(trimmed)) |backend| {
+                if (backend == .none) return &.{};
+                if (backend == .auto) {
+                    use_auto = true;
+                    continue;
+                }
+                addBackend(backend, &buffer, &count, &seen);
+            } else std.log.warn("Unknown GPU backend: '{s}'", .{trimmed});
+        }
+        if (use_auto) {
+            if (enable_gpu) addBackend(.vulkan, &buffer, &count, &seen);
+            if (enable_web) {
+                addBackend(.webgpu, &buffer, &count, &seen);
+                addBackend(.webgl2, &buffer, &count, &seen);
+            }
+        }
+    } else {
+        // Legacy defaults
+        if (legacy.cuda orelse false) addBackend(.cuda, &buffer, &count, &seen);
+        if (legacy.vulkan orelse enable_gpu) addBackend(.vulkan, &buffer, &count, &seen);
+        if (legacy.stdgpu orelse false) addBackend(.stdgpu, &buffer, &count, &seen);
+        if (legacy.metal orelse false) addBackend(.metal, &buffer, &count, &seen);
+        if (legacy.webgpu orelse enable_web) addBackend(.webgpu, &buffer, &count, &seen);
+        if (legacy.opengl orelse false) addBackend(.opengl, &buffer, &count, &seen);
+        if (legacy.opengles orelse false) addBackend(.opengles, &buffer, &count, &seen);
+        if (legacy.webgl2 orelse enable_web) addBackend(.webgl2, &buffer, &count, &seen);
+        if (legacy.fpga orelse false) addBackend(.fpga, &buffer, &count, &seen);
+    }
+    return b.allocator.dupe(GpuBackend, buffer[0..count]) catch &.{};
 }
+
+// ============================================================================
+// Build Options
+// ============================================================================
 
 const BuildOptions = struct {
     enable_gpu: bool,
     enable_ai: bool,
+    enable_explore: bool,
+    enable_llm: bool,
+    enable_vision: bool,
     enable_web: bool,
     enable_database: bool,
     enable_network: bool,
     enable_profiling: bool,
-    gpu_cuda: bool,
-    gpu_vulkan: bool,
-    gpu_stdgpu: bool,
-    gpu_metal: bool,
-    gpu_webgpu: bool,
-    gpu_opengl: bool,
-    gpu_opengles: bool,
-    gpu_webgl2: bool,
-    cache_dir: []const u8,
-    global_cache_dir: ?[]const u8,
-};
+    gpu_backends: []const GpuBackend,
 
-const Defaults = struct {
-    const enable_gpu = true;
-    const enable_ai = true;
-    const enable_web = true;
-    const enable_database = true;
-    const enable_network = true;
-    const enable_profiling = true;
+    pub fn hasGpuBackend(self: BuildOptions, backend: GpuBackend) bool {
+        for (self.gpu_backends) |b| if (b == backend) return true;
+        return false;
+    }
+
+    pub fn hasAnyGpuBackend(self: BuildOptions, backends: []const GpuBackend) bool {
+        for (backends) |check| if (self.hasGpuBackend(check)) return true;
+        return false;
+    }
+
+    // Legacy accessors for backward compatibility
+    pub fn gpu_cuda(self: BuildOptions) bool {
+        return self.hasGpuBackend(.cuda);
+    }
+    pub fn gpu_vulkan(self: BuildOptions) bool {
+        return self.hasGpuBackend(.vulkan);
+    }
+    pub fn gpu_stdgpu(self: BuildOptions) bool {
+        return self.hasGpuBackend(.stdgpu);
+    }
+    pub fn gpu_metal(self: BuildOptions) bool {
+        return self.hasGpuBackend(.metal);
+    }
+    pub fn gpu_webgpu(self: BuildOptions) bool {
+        return self.hasGpuBackend(.webgpu);
+    }
+    pub fn gpu_opengl(self: BuildOptions) bool {
+        return self.hasGpuBackend(.opengl);
+    }
+    pub fn gpu_opengles(self: BuildOptions) bool {
+        return self.hasGpuBackend(.opengles);
+    }
+    pub fn gpu_webgl2(self: BuildOptions) bool {
+        return self.hasGpuBackend(.webgl2);
+    }
+    pub fn gpu_fpga(self: BuildOptions) bool {
+        return self.hasGpuBackend(.fpga);
+    }
 };
 
 fn readBuildOptions(b: *std.Build) BuildOptions {
-    const enable_gpu =
-        b.option(bool, "enable-gpu", "Enable GPU support") orelse
-        Defaults.enable_gpu;
-    const enable_ai =
-        b.option(bool, "enable-ai", "Enable AI features") orelse
-        Defaults.enable_ai;
-    const enable_web =
-        b.option(bool, "enable-web", "Enable web features") orelse
-        Defaults.enable_web;
-    const enable_database =
-        b.option(bool, "enable-database", "Enable database features") orelse
-        Defaults.enable_database;
-    const enable_network =
-        b.option(bool, "enable-network", "Enable network distributed compute") orelse
-        Defaults.enable_network;
-    const enable_profiling =
-        b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse
-        Defaults.enable_profiling;
-
-    const cache_dir =
-        b.option([]const u8, "cache-dir", "Directory for build cache") orelse
-        ".zig-cache";
-
-    const global_cache_dir =
-        b.option([]const u8, "global-cache-dir", "Directory for global build cache") orelse
-        null;
-
-    // GPU backend options - only enable Vulkan by default for cross-platform compatibility
-    const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA GPU backend") orelse false;
-    const gpu_vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan GPU backend") orelse enable_gpu;
-    const gpu_stdgpu = b.option(bool, "gpu-stdgpu", "Enable Zig std.gpu SPIR-V backend") orelse false;
-    const gpu_metal = b.option(bool, "gpu-metal", "Enable Metal GPU backend") orelse false;
-    const gpu_webgpu = b.option(bool, "gpu-webgpu", "Enable WebGPU backend") orelse enable_web;
-    const gpu_opengl = b.option(bool, "gpu-opengl", "Enable OpenGL backend") orelse false;
-    const gpu_opengles =
-        b.option(bool, "gpu-opengles", "Enable OpenGL ES backend") orelse false;
-    const gpu_webgl2 = b.option(bool, "gpu-webgl2", "Enable WebGL2 backend") orelse enable_web;
-
-    // Validate GPU backend combinations
-    if (gpu_cuda and gpu_vulkan) {
-        std.log.warn("Both CUDA and Vulkan backends enabled; this may cause conflicts. Consider using only one GPU backend.", .{});
-    }
-    if (gpu_opengl and gpu_webgl2) {
-        std.log.warn("Both OpenGL and WebGL2 backends enabled; prefer one or the other.", .{});
-    }
+    const enable_gpu = b.option(bool, "enable-gpu", "Enable GPU support") orelse true;
+    const enable_ai = b.option(bool, "enable-ai", "Enable AI features") orelse true;
+    const enable_web = b.option(bool, "enable-web", "Enable web features") orelse true;
 
     return .{
         .enable_gpu = enable_gpu,
         .enable_ai = enable_ai,
+        .enable_explore = b.option(bool, "enable-explore", "Enable AI code exploration") orelse enable_ai,
+        .enable_llm = b.option(bool, "enable-llm", "Enable local LLM inference") orelse enable_ai,
+        .enable_vision = b.option(bool, "enable-vision", "Enable vision/image processing") orelse enable_ai,
         .enable_web = enable_web,
-        .enable_database = enable_database,
-        .enable_network = enable_network,
-        .enable_profiling = enable_profiling,
-        .gpu_cuda = gpu_cuda,
-        .gpu_vulkan = gpu_vulkan,
-        .gpu_stdgpu = gpu_stdgpu,
-        .gpu_metal = gpu_metal,
-        .gpu_webgpu = gpu_webgpu,
-        .gpu_opengl = gpu_opengl,
-        .gpu_opengles = gpu_opengles,
-        .gpu_webgl2 = gpu_webgl2,
-        .cache_dir = cache_dir,
-        .global_cache_dir = global_cache_dir,
+        .enable_database = b.option(bool, "enable-database", "Enable database features") orelse true,
+        .enable_network = b.option(bool, "enable-network", "Enable network distributed compute") orelse true,
+        .enable_profiling = b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse true,
+        .gpu_backends = parseGpuBackends(b, enable_gpu, enable_web),
     };
 }
 
-/// Create build options module with centralized defaults.
-fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Module {
-    var build_options = b.addOptions();
+fn validateOptions(options: BuildOptions) void {
+    const has_native = options.hasAnyGpuBackend(&.{ .cuda, .vulkan, .stdgpu, .metal, .opengl, .opengles });
+    const has_web = options.hasAnyGpuBackend(&.{ .webgpu, .webgl2 });
 
-    // Package version
-    build_options.addOption([]const u8, "package_version", "0.1.0");
-
-    build_options.addOption(bool, "enable_gpu", options.enable_gpu);
-    build_options.addOption(bool, "enable_ai", options.enable_ai);
-    build_options.addOption(bool, "enable_web", options.enable_web);
-    build_options.addOption(bool, "enable_database", options.enable_database);
-    build_options.addOption(bool, "enable_network", options.enable_network);
-    build_options.addOption(bool, "enable_profiling", options.enable_profiling);
-
-    // GPU backend options
-    build_options.addOption(bool, "gpu_cuda", options.gpu_cuda);
-    build_options.addOption(bool, "gpu_vulkan", options.gpu_vulkan);
-    build_options.addOption(bool, "gpu_stdgpu", options.gpu_stdgpu);
-    build_options.addOption(bool, "gpu_metal", options.gpu_metal);
-    build_options.addOption(bool, "gpu_webgpu", options.gpu_webgpu);
-    build_options.addOption(bool, "gpu_opengl", options.gpu_opengl);
-    build_options.addOption(bool, "gpu_opengles", options.gpu_opengles);
-    build_options.addOption(bool, "gpu_webgl2", options.gpu_webgl2);
-
-    return build_options.createModule();
+    if (has_native and !options.enable_gpu)
+        std.log.err("GPU backends enabled but enable-gpu=false", .{});
+    if (has_web and !options.enable_web)
+        std.log.err("Web GPU backends enabled but enable-web=false", .{});
+    if (options.hasGpuBackend(.cuda) and options.hasGpuBackend(.vulkan))
+        std.log.warn("Both CUDA and Vulkan backends enabled; may cause conflicts", .{});
+    if (options.hasGpuBackend(.opengl) and options.hasGpuBackend(.webgl2))
+        std.log.warn("Both OpenGL and WebGL2 enabled; prefer one", .{});
+    if (options.hasGpuBackend(.opengl) and options.hasGpuBackend(.opengles))
+        std.log.warn("Both OpenGL and OpenGL ES enabled; typically mutually exclusive", .{});
 }
 
-fn createCliModule(
+// ============================================================================
+// Table-Driven Build Targets
+// ============================================================================
+
+const BuildTarget = struct {
+    name: []const u8,
+    step_name: []const u8,
+    description: []const u8,
+    source_path: []const u8,
+    optimize: ?std.builtin.OptimizeMode = null,
+};
+
+const example_targets = [_]BuildTarget{
+    .{ .name = "example-hello", .step_name = "run-hello", .description = "Run hello example", .source_path = "examples/hello.zig" },
+    .{ .name = "example-database", .step_name = "run-database", .description = "Run database example", .source_path = "examples/database.zig" },
+    .{ .name = "example-agent", .step_name = "run-agent", .description = "Run agent example", .source_path = "examples/agent.zig" },
+    .{ .name = "example-compute", .step_name = "run-compute", .description = "Run compute example", .source_path = "examples/compute.zig" },
+    .{ .name = "example-network", .step_name = "run-network", .description = "Run network example", .source_path = "examples/network.zig" },
+    .{ .name = "example-discord", .step_name = "run-discord", .description = "Run discord example", .source_path = "examples/discord.zig" },
+    .{ .name = "example-llm", .step_name = "run-llm", .description = "Run LLM example", .source_path = "examples/llm.zig" },
+    .{ .name = "example-training", .step_name = "run-training", .description = "Run training example", .source_path = "examples/training.zig" },
+    .{ .name = "example-ha", .step_name = "run-ha", .description = "Run HA example", .source_path = "examples/ha.zig" },
+    .{ .name = "example-train-demo", .step_name = "run-train-demo", .description = "Run LLM training demo", .source_path = "examples/training/train_demo.zig" },
+    .{ .name = "example-orchestration", .step_name = "run-orchestration", .description = "Run multi-model orchestration example", .source_path = "examples/orchestration.zig" },
+    .{ .name = "example-train-ava", .step_name = "run-train-ava", .description = "Train Ava assistant from gpt-oss", .source_path = "examples/train_ava.zig" },
+};
+
+const benchmark_targets = [_]BuildTarget{
+    .{ .name = "benchmarks", .step_name = "benchmarks", .description = "Run comprehensive benchmarks", .source_path = "benchmarks/main.zig", .optimize = .ReleaseFast },
+    .{ .name = "bench-competitive", .step_name = "bench-competitive", .description = "Run competitive benchmarks", .source_path = "benchmarks/run_competitive.zig", .optimize = .ReleaseFast },
+};
+
+fn pathExists(path: []const u8) bool {
+    const file = std.Io.Dir.cwd().openFile(std.Options.debug_io, path, .{}) catch return false;
+    file.close(std.Options.debug_io);
+    return true;
+}
+
+fn buildTargets(
     b: *std.Build,
+    targets: []const BuildTarget,
     abi_module: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
-) *std.Build.Module {
-    const cli_module = b.createModule(.{
-        .root_source_file = b.path("src/cli.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    cli_module.addImport("abi", abi_module);
-    return cli_module;
-}
+    aggregate: ?*std.Build.Step,
+    aggregate_runs: bool,
+) void {
+    for (targets) |t| {
+        if (!pathExists(t.source_path)) continue;
+        const exe_optimize = t.optimize orelse optimize;
+        const exe = b.addExecutable(.{
+            .name = t.name,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(t.source_path),
+                .target = target,
+                .optimize = exe_optimize,
+                .link_libc = true,
+            }),
+        });
+        exe.root_module.addImport("abi", abi_module);
 
-fn warnInconsistentOptions(options: BuildOptions) void {
-    if (!options.enable_gpu and
-        (options.gpu_cuda or options.gpu_vulkan or options.gpu_stdgpu or options.gpu_metal or
-            options.gpu_opengl or options.gpu_opengles))
-    {
-        std.log.warn(
-            "GPU backends enabled but enable-gpu=false; " ++
-                "backends will be inactive until GPU is enabled",
-            .{},
-        );
-    }
-    if (!options.enable_web and (options.gpu_webgpu or options.gpu_webgl2)) {
-        std.log.warn(
-            "Web GPU backends enabled but enable-web=false; web GPU backends will be inactive",
-            .{},
-        );
-    }
-}
+        // Apply performance optimizations
+        applyPerformanceTweaks(exe, exe_optimize);
 
-fn validateFeatureFlags(options: BuildOptions) !void {
-    const invalid_combos = [2]struct { enabled: bool, required: bool, name: []const u8 }{
-        .{
-            .enabled = options.gpu_cuda or options.gpu_vulkan or options.gpu_stdgpu or options.gpu_metal,
-            .required = options.enable_gpu,
-            .name = "enable-gpu",
-        },
-        .{
-            .enabled = options.gpu_webgpu or options.gpu_webgl2,
-            .required = options.enable_web,
-            .name = "enable-web",
-        },
-    };
+        b.installArtifact(exe);
 
-    for (invalid_combos) |combo| {
-        if (combo.enabled and !combo.required) {
-            std.log.err(
-                "Feature flag validation failed: GPU backend enabled without {s}=true",
-                .{combo.name},
-            );
-            std.log.err("Enable {s} or disable GPU backend flags", .{combo.name});
-            return error.InvalidFeatureCombination;
+        const run = b.addRunArtifact(exe);
+        if (b.args) |args| run.addArgs(args);
+        const step = b.step(t.step_name, t.description);
+        step.dependOn(b.getInstallStep());
+        step.dependOn(&run.step);
+        if (aggregate) |agg| {
+            if (aggregate_runs) {
+                agg.dependOn(&run.step);
+            } else {
+                agg.dependOn(&exe.step);
+            }
         }
     }
+}
 
-    if (options.gpu_webgpu and options.gpu_cuda) {
-        std.log.warn(
-            "Both WebGPU and CUDA backends enabled; this is unusual configuration",
-            .{},
-        );
-    }
+// ============================================================================
+// Module Creation
+// ============================================================================
 
-    if (options.gpu_webgl2 and options.gpu_opengl) {
-        std.log.warn(
-            "Both WebGL2 and OpenGL backends enabled; prefer one or the other",
-            .{},
-        );
+fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Module {
+    var opts = b.addOptions();
+    opts.addOption([]const u8, "package_version", "0.1.1");
+    opts.addOption(bool, "enable_gpu", options.enable_gpu);
+    opts.addOption(bool, "enable_ai", options.enable_ai);
+    opts.addOption(bool, "enable_explore", options.enable_explore);
+    opts.addOption(bool, "enable_llm", options.enable_llm);
+    opts.addOption(bool, "enable_vision", options.enable_vision);
+    opts.addOption(bool, "enable_web", options.enable_web);
+    opts.addOption(bool, "enable_database", options.enable_database);
+    opts.addOption(bool, "enable_network", options.enable_network);
+    opts.addOption(bool, "enable_profiling", options.enable_profiling);
+    opts.addOption(bool, "gpu_cuda", options.gpu_cuda());
+    opts.addOption(bool, "gpu_vulkan", options.gpu_vulkan());
+    opts.addOption(bool, "gpu_stdgpu", options.gpu_stdgpu());
+    opts.addOption(bool, "gpu_metal", options.gpu_metal());
+    opts.addOption(bool, "gpu_webgpu", options.gpu_webgpu());
+    opts.addOption(bool, "gpu_opengl", options.gpu_opengl());
+    opts.addOption(bool, "gpu_opengles", options.gpu_opengles());
+    opts.addOption(bool, "gpu_webgl2", options.gpu_webgl2());
+    opts.addOption(bool, "gpu_fpga", options.gpu_fpga());
+    return opts.createModule();
+}
+
+fn createCliModule(b: *std.Build, abi_module: *std.Build.Module, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+    const cli = b.createModule(.{ .root_source_file = b.path("tools/cli/mod.zig"), .target = target, .optimize = optimize });
+    cli.addImport("abi", abi_module);
+    return cli;
+}
+
+fn createAbiModule(b: *std.Build, options: BuildOptions, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
+    const build_opts = createBuildOptionsModule(b, options);
+    const abi = b.addModule("abi", .{ .root_source_file = b.path("src/abi.zig"), .target = target, .optimize = optimize });
+    abi.addImport("build_options", build_opts);
+    return abi;
+}
+
+// ============================================================================
+// Performance Tuning
+// ============================================================================
+
+fn applyPerformanceTweaks(exe: *std.Build.Step.Compile, optimize: std.builtin.OptimizeMode) void {
+    if (optimize == .ReleaseFast or optimize == .ReleaseSmall) {
+        // Link Time Optimization: significantly improves throughput and reduces binary size
+        // by allowing optimizations across module boundaries.
+        // exe.want_lto = true; // Removed as it is not a valid field in Zig 0.16 Build.Step.Compile
+
+        // Stripping: Reduces binary size, improving disk resource utilization and start-up latency.
+        // We default to true for release builds unless explicitly overridden later (e.g. for profiling).
+        if (exe.root_module.strip == null) {
+            exe.root_module.strip = true;
+        }
     }
 }
 
-// Determine if a file exists using std.fs. The original implementation used
-// std.Io, but that requires a correctly initialised `IO` instance which is
-// fragile across Zig versions. The logic below simply probes the filesystem
-// using the current working directory.
+// ============================================================================
+// Main Build Function
+// ============================================================================
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
+    const options = readBuildOptions(b);
+    validateOptions(options);
 
-    // The original build script used a `std.Io.Threaded` instance. Replacing
-    // it with the single‑threaded `std.Io` keeps the behaviour consistent
-    // while avoiding the complex initialization required by Threaded.
-    // `io` is no longer needed.
-
-    // Create build options module
-    const base_options = readBuildOptions(b);
-    warnInconsistentOptions(base_options);
-    validateFeatureFlags(base_options) catch |err| {
-        std.log.err("Feature flag validation failed: {s}", .{@errorName(err)});
-        std.process.exit(1);
-    };
-    const build_options_module = createBuildOptionsModule(b, base_options);
-
-    // Core library module
-    const abi_module = b.addModule("abi", .{
-        .root_source_file = b.path("src/abi.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    abi_module.addImport("build_options", build_options_module);
+    const build_opts = createBuildOptionsModule(b, options);
+    const abi_module = b.addModule("abi", .{ .root_source_file = b.path("src/abi.zig"), .target = target, .optimize = optimize });
+    abi_module.addImport("build_options", build_opts);
 
     // CLI executable
-    const cli_path: ?[]const u8 = if (pathExists("tools/cli/main.zig"))
-        "tools/cli/main.zig"
-    else
-        null;
-    if (cli_path) |path| {
-        const exe = b.addExecutable(.{
-            .name = "abi",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(path),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
-        const cli_module = createCliModule(b, abi_module, target, optimize);
-        exe.root_module.addImport("abi", abi_module);
-        exe.root_module.addImport("cli", cli_module);
-        b.installArtifact(exe);
-
-        // Run step for CLI
-        const run_cli = b.addRunArtifact(exe);
-        run_cli.step.dependOn(b.getInstallStep());
-        if (b.args) |args| {
-            run_cli.addArgs(args);
-        }
-
-        const run_step = b.step("run", "Run the ABI CLI");
-        run_step.dependOn(&run_cli.step);
-    } else {
-        // Fall back to src/main.zig as the CLI entrypoint
-        const exe = b.addExecutable(.{
-            .name = "abi",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("src/main.zig"),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
-        exe.root_module.addImport("abi", abi_module);
-
-        b.installArtifact(exe);
-
-        // Run step for CLI fallback
-        const run_cli = b.addRunArtifact(exe);
-        run_cli.step.dependOn(b.getInstallStep());
-        if (b.args) |args| {
-            run_cli.addArgs(args);
-        }
-
-        const run_step = b.step("run", "Run the ABI CLI");
-        run_step.dependOn(&run_cli.step);
-    }
-
-    // Example programs
-    const examples_step = b.step("examples", "Build all examples");
-    const example_names = [_][]const u8{
-        "hello",
-        "database",
-        "agent",
-        "compute",
-        "gpu",
-        "network",
-    };
-
-    for (example_names) |example_name| {
-        const example_path = b.fmt("examples/{s}.zig", .{example_name});
-        if (pathExists(example_path)) {
-            const example_exe = b.addExecutable(.{
-                .name = b.fmt("example-{s}", .{example_name}),
-                .root_module = b.createModule(.{
-                    .root_source_file = b.path(example_path),
-                    .target = target,
-                    .optimize = optimize,
-                }),
-            });
-            example_exe.root_module.addImport("abi", abi_module);
-            b.installArtifact(example_exe);
-
-            const run_example = b.addRunArtifact(example_exe);
-            if (b.args) |args| {
-                run_example.addArgs(args);
-            }
-
-            const example_run_step = b.step(b.fmt("run-{s}", .{example_name}), b.fmt("Run {s} example", .{example_name}));
-            example_run_step.dependOn(b.getInstallStep());
-            example_run_step.dependOn(&run_example.step);
-
-            examples_step.dependOn(&example_exe.step);
-        }
-    }
-
-    // Test suite
-    const has_tests = pathExists("src/tests/mod.zig");
-    if (has_tests) {
-        const main_tests = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("src/tests/mod.zig"),
-                .target = target,
-                .optimize = optimize,
-            }),
-        });
-        main_tests.root_module.addImport("abi", abi_module);
-        main_tests.root_module.addImport("build_options", build_options_module);
-
-        const run_main_tests = b.addRunArtifact(main_tests);
-        run_main_tests.skip_foreign_checks = true;
-
-        const test_step = b.step("test", "Run unit tests");
-        test_step.dependOn(&run_main_tests.step);
-    } else {
-        std.log.warn("src/tests/mod.zig not found; skipping test step", .{});
-    }
-
-    // Benchmark step
-    const has_benchmark = pathExists("src/compute/runtime/benchmark.zig");
-    if (has_benchmark) {
-        const benchmark_exe = b.addExecutable(.{
-            .name = "abi-benchmark",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("src/compute/runtime/benchmark.zig"),
-                .target = target,
-                .optimize = .ReleaseFast,
-            }),
-        });
-        benchmark_exe.root_module.addImport("abi", abi_module);
-
-        const run_benchmark = b.addRunArtifact(benchmark_exe);
-
-        const benchmark_step = b.step("benchmark-legacy", "Run legacy performance benchmarks");
-        benchmark_step.dependOn(&run_benchmark.step);
-    } else {
-        std.log.warn("src/compute/runtime/benchmark.zig not found; skipping benchmark step", .{});
-    }
-
-    // Benchmarks
-    if (pathExists("benchmarks/run.zig")) {
-        const benchmark_exe = b.addExecutable(.{
-            .name = "benchmarks",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("benchmarks/run.zig"),
-                .target = target,
-                .optimize = .ReleaseFast,
-            }),
-        });
-        benchmark_exe.root_module.addImport("abi", abi_module);
-
-        const run_benchmarks = b.addRunArtifact(benchmark_exe);
-
-        const benchmarks_step = b.step("benchmarks", "Run comprehensive benchmarks");
-        benchmarks_step.dependOn(&run_benchmarks.step);
-    }
-
-    // Performance profiling build
-    if (cli_path) |path| {
-        var profile_options = base_options;
-        profile_options.enable_profiling = true;
-        const profile_build_options_module = createBuildOptionsModule(b, profile_options);
-        const abi_profile_module = b.addModule("abi-profile", .{
-            .root_source_file = b.path("src/abi.zig"),
-            .target = target,
-            .optimize = optimize,
-        });
-        abi_profile_module.addImport("build_options", profile_build_options_module);
-
-        const profile_exe = b.addExecutable(.{
-            .name = "abi-profile",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path(path),
-                .target = target,
-                .optimize = .ReleaseFast,
-            }),
-        });
-        const cli_profile_module = createCliModule(b, abi_profile_module, target, optimize);
-        profile_exe.root_module.addImport("abi", abi_profile_module);
-        profile_exe.root_module.addImport("cli", cli_profile_module);
-        b.installArtifact(profile_exe);
-
-        const profile_step = b.step("profile", "Build with performance profiling");
-        profile_step.dependOn(b.getInstallStep());
-    }
-
-    // WASM Build
-    const wasm_target = b.resolveTargetQuery(.{
-        .cpu_arch = .wasm32,
-        .os_tag = .freestanding,
-    });
-
-    var wasm_options = base_options;
-    // WASM environment constraints
-    wasm_options.enable_database = false; // No std.Io.Threaded
-    wasm_options.enable_network = false; // No socket support
-    wasm_options.enable_gpu = false; // Explicitly disable GPU defaults
-    wasm_options.gpu_cuda = false;
-    wasm_options.gpu_vulkan = false;
-    wasm_options.gpu_metal = false;
-    wasm_options.gpu_opengl = false;
-    wasm_options.gpu_opengles = false;
-
-    // WebGPU can technically work via bindings, but let's disable to simplify first pass
-    wasm_options.enable_web = false;
-
-    // Create a specific module for WASM that uses these restricted options
-    const wasm_build_options_module = createBuildOptionsModule(b, wasm_options);
-    const abi_wasm_module = b.addModule("abi-wasm", .{
-        .root_source_file = b.path("src/abi.zig"),
-        .target = wasm_target,
-        .optimize = optimize,
-    });
-    abi_wasm_module.addImport("build_options", wasm_build_options_module);
-
-    const wasm_lib = b.addExecutable(.{
+    const cli_path = if (pathExists("tools/cli/main.zig")) "tools/cli/main.zig" else "src/main.zig";
+    const exe = b.addExecutable(.{
         .name = "abi",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("bindings/wasm/abi_wasm.zig"),
-            .target = wasm_target,
-            .optimize = optimize,
-        }),
+        .root_module = b.createModule(.{ .root_source_file = b.path(cli_path), .target = target, .optimize = optimize, .link_libc = true }),
     });
+    exe.root_module.addImport("abi", abi_module);
+    if (pathExists("tools/cli/main.zig")) exe.root_module.addImport("cli", createCliModule(b, abi_module, target, optimize));
+
+    // Apply performance optimizations (LTO, strip)
+    applyPerformanceTweaks(exe, optimize);
+
+    b.installArtifact(exe);
+
+    const run_cli = b.addRunArtifact(exe);
+    run_cli.step.dependOn(b.getInstallStep());
+    if (b.args) |args| run_cli.addArgs(args);
+    b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
+
+    // Examples and benchmarks (table-driven)
+    buildTargets(b, &example_targets, abi_module, target, optimize, b.step("examples", "Build all examples"), false);
+
+    // ---------------------------------------------------------------------------
+    // CLI smoke-test step (runs all example commands sequentially)
+    // ---------------------------------------------------------------------------
+    const cli_test_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\run_cli_tests.bat" });
+    b.step("cli-tests", "Run smoke test of all CLI example commands").dependOn(&cli_test_cmd.step);
+
+    // ---------------------------------------------------------------------------
+    // Lint step (formatting check)
+    // ---------------------------------------------------------------------------
+    const lint_cmd = b.addSystemCommand(&[_][]const u8{ "zig", "fmt", "--check", "." });
+    b.step("lint", "Check code formatting").dependOn(&lint_cmd.step);
+
+    // ---------------------------------------------------------------------------
+    // Full verification step – formatting, tests, CLI smoke test, benchmarks
+    // ---------------------------------------------------------------------------
+    const full_check_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\full_check.bat" });
+    b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks").dependOn(&full_check_cmd.step);
+    buildTargets(b, &benchmark_targets, abi_module, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
+
+    // Tests
+    if (pathExists("src/tests/mod.zig")) {
+        const tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/tests/mod.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
+        tests.root_module.addImport("abi", abi_module);
+        tests.root_module.addImport("build_options", build_opts);
+        b.step("typecheck", "Compile tests without running").dependOn(&tests.step);
+        const run_tests = b.addRunArtifact(tests);
+        run_tests.skip_foreign_checks = true;
+        b.step("test", "Run unit tests").dependOn(&run_tests.step);
+    }
+
+    // Documentation - API markdown generation
+    if (pathExists("tools/gendocs/main.zig")) {
+        const gendocs = b.addExecutable(.{ .name = "gendocs", .root_module = b.createModule(.{ .root_source_file = b.path("tools/gendocs/main.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
+        const run_gendocs = b.addRunArtifact(gendocs);
+        if (b.args) |args| run_gendocs.addArgs(args);
+        b.step("gendocs", "Generate API documentation").dependOn(&run_gendocs.step);
+    }
+
+    // Documentation - Static site generation
+    if (pathExists("tools/docgen/main.zig")) {
+        const docgen = b.addExecutable(.{ .name = "docgen", .root_module = b.createModule(.{ .root_source_file = b.path("tools/docgen/main.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
+        const run_docgen = b.addRunArtifact(docgen);
+        if (b.args) |args| run_docgen.addArgs(args);
+        b.step("docs-site", "Generate documentation website").dependOn(&run_docgen.step);
+    }
+
+    // Profile build
+    if (pathExists("tools/cli/main.zig")) {
+        var profile_opts = options;
+        profile_opts.enable_profiling = true;
+        const abi_profile = createAbiModule(b, profile_opts, target, optimize);
+        const profile_exe = b.addExecutable(.{ .name = "abi-profile", .root_module = b.createModule(.{ .root_source_file = b.path("tools/cli/main.zig"), .target = target, .optimize = .ReleaseFast, .link_libc = true }) });
+        profile_exe.root_module.addImport("abi", abi_profile);
+        profile_exe.root_module.addImport("cli", createCliModule(b, abi_profile, target, optimize));
+
+        // Profiling specific overrides:
+        // 1. Keep symbols for profilers (don't strip)
+        profile_exe.root_module.strip = false;
+        // 2. Keep frame pointers for accurate stack unwinding in perf/instruments
+        profile_exe.root_module.omit_frame_pointer = false;
+
+        b.installArtifact(profile_exe);
+        b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
+    }
+
+    // Mobile
+    const mobile_step = b.step("mobile", "Build for mobile targets (Android/iOS)");
+    const enable_mobile = b.option(bool, "enable-mobile", "Enable mobile target cross-compilation") orelse false;
+
+    if (enable_mobile) {
+        // Android (aarch64)
+        const android_target = b.resolveTargetQuery(.{ .cpu_arch = .aarch64, .os_tag = .linux, .abi = .android });
+        const abi_android = b.addLibrary(.{
+            .name = "abi-android",
+            .root_module = b.createModule(.{ .root_source_file = b.path("src/abi.zig"), .target = android_target, .optimize = optimize }),
+            .linkage = .static,
+        });
+        abi_android.root_module.addImport("build_options", createBuildOptionsModule(b, options));
+        mobile_step.dependOn(&b.addInstallArtifact(abi_android, .{ .dest_dir = .{ .override = .{ .custom = "mobile/android" } } }).step);
+
+        // iOS (aarch64) - Simulated as macOS-none for now or actual ios if SDK present
+        // Zig treats aarch64-macos as compatible for general logic, but strict iOS requires ios tag
+        const ios_target = b.resolveTargetQuery(.{ .cpu_arch = .aarch64, .os_tag = .ios });
+        const abi_ios = b.addLibrary(.{
+            .name = "abi-ios",
+            .root_module = b.createModule(.{ .root_source_file = b.path("src/abi.zig"), .target = ios_target, .optimize = optimize }),
+            .linkage = .static,
+        });
+        abi_ios.root_module.addImport("build_options", createBuildOptionsModule(b, options));
+        mobile_step.dependOn(&b.addInstallArtifact(abi_ios, .{ .dest_dir = .{ .override = .{ .custom = "mobile/ios" } } }).step);
+    }
+
+    // Performance Verification Tool
+    if (pathExists("tools/perf/check.zig")) {
+        const check_perf_exe = b.addExecutable(.{
+            .name = "abi-check-perf",
+            .root_module = b.createModule(.{ .root_source_file = b.path("tools/perf/check.zig"), .target = target, .optimize = .ReleaseSafe }),
+        });
+        b.installArtifact(check_perf_exe);
+        const check_perf_run = b.addRunArtifact(check_perf_exe);
+        if (b.args) |args| check_perf_run.addArgs(args);
+        b.step("check-perf", "Run performance verification tool").dependOn(&check_perf_run.step);
+    }
+
+    // WASM
+    const wasm_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
+    var wasm_opts = options;
+    wasm_opts.enable_database = false;
+    wasm_opts.enable_network = false;
+    wasm_opts.enable_gpu = false;
+    wasm_opts.enable_profiling = false;
+    wasm_opts.enable_web = false;
+    wasm_opts.gpu_backends = &.{};
+
+    const wasm_build_opts = createBuildOptionsModule(b, wasm_opts);
+    const abi_wasm = b.addModule("abi-wasm", .{ .root_source_file = b.path("src/abi.zig"), .target = wasm_target, .optimize = optimize });
+    abi_wasm.addImport("build_options", wasm_build_opts);
+
+    const wasm_lib = b.addExecutable(.{ .name = "abi", .root_module = b.createModule(.{ .root_source_file = b.path("bindings/wasm/abi_wasm.zig"), .target = wasm_target, .optimize = optimize }) });
     wasm_lib.entry = .disabled;
     wasm_lib.rdynamic = true;
-    wasm_lib.root_module.addImport("abi", abi_wasm_module);
+    wasm_lib.root_module.addImport("abi", abi_wasm);
 
-    const check_wasm = b.step("check-wasm", "Check WASM compilation");
-    check_wasm.dependOn(&wasm_lib.step);
-
-    const install_wasm = b.addInstallArtifact(wasm_lib, .{
-        .dest_dir = .{ .override = .{ .custom = "wasm" } },
-    });
-    const wasm_step = b.step("wasm", "Build WASM bindings");
-    wasm_step.dependOn(&install_wasm.step);
+    b.step("check-wasm", "Check WASM compilation").dependOn(&wasm_lib.step);
+    b.step("wasm", "Build WASM bindings").dependOn(&b.addInstallArtifact(wasm_lib, .{ .dest_dir = .{ .override = .{ .custom = "wasm" } } }).step);
 }

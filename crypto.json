@@ -1,0 +1,10 @@
+{
+  "duration_sec": 0.21,
+  "benchmarks": [
+    {"name": "sha256_450b", "category": "crypto", "ops_per_sec": 1137943.83, "mean_ns": 878.78, "iterations": 50000},
+    {"name": "blake3_54b", "category": "crypto", "ops_per_sec": 1367910.46, "mean_ns": 731.04, "iterations": 100000},
+    {"name": "hmac_sha256", "category": "crypto", "ops_per_sec": 1490861.02, "mean_ns": 670.75, "iterations": 30000},
+    {"name": "chacha20_poly1305_256b", "category": "crypto", "ops_per_sec": 272479.56, "mean_ns": 3670.00, "iterations": 20000},
+    {"name": "prng_u64", "category": "crypto", "ops_per_sec": 46825248.17, "mean_ns": 21.36, "iterations": 100000}
+  ]
+}

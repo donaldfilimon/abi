@@ -1,195 +1,250 @@
-# Repository Guidelines
+---
+title: "AGENTS"
+tags: [ai, agents, development]
+---
+# AGENTS.md
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
-## Project Structure
+<p align="center">
+  <img src="https://img.shields.io/badge/AI_Agents-Guide-purple?style=for-the-badge" alt="AI Agents Guide"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/Tests-194%2F198-success?style=for-the-badge" alt="Tests"/>
+</p>
 
-- `src/` holds the library: `core/`, `compute/`, `features/`, `framework/`, `shared/`
-- Public API: `src/abi.zig`; CLI: `tools/cli/main.zig` (fallback: `src/main.zig`)
-- Tests: `src/tests/` (integration, property tests) and inline `test "..."` blocks
-- Examples, benchmarks, and docs in corresponding directories
-- Build: `build.zig` and `build.zig.zon`
+This file provides guidance for AI agents (Claude, GPT, Gemini, Copilot, and others) working with the ABI framework codebase.
 
-## Build, Test, and Development Commands
+> **Core Mandates:** See [PROMPT.md](PROMPT.md) for strict requirements and KPIs.
 
-**Required:** Zig 0.16.x
+## Project Overview
 
+**ABI Framework** is a Zig 0.16 multi-persona AI system with WDBX distributed memory:
+- **Persona System**: Abbey (high-EQ), Aviva (unfiltered expert), Abi (moderator)
+- **WDBX Memory**: Block-chained conversational memory with MVCC and version vectors
+- **Distributed Architecture**: Raft consensus, intelligent sharding, block exchange
+- **GPU Acceleration**: VTable-based backends (CUDA, Vulkan, Metal, FPGA)
+
+## Essential Commands
+
+### Build & Test
 ```bash
-# Core commands
-zig build                      # Build all modules
-zig build run -- --help        # Run CLI
-zig build test                 # Run test suite
-zig build test --summary all   # Detailed test output
+# Build and test everything
+zig build                              # Build project
+zig build test --summary all           # Run all tests (194/198 must pass)
+zig fmt --check .                      # Check formatting (always run zig fmt . after edits)
 
-# Single file tests (IMPORTANT - use this for focused testing)
-zig test src/compute/runtime/engine.zig      # Run specific file tests
-zig test --test-filter "engine init"         # Filter by test name
-zig test src/abi.zig --test-filter "version" # Filter in specific file
+# Single file testing
+zig test src/file.zig                  # Test specific file
+zig test src/file.zig --test-filter "pattern"  # Run specific tests
+zig build test src/file.zig            # Alternative: use build system
 
-# Formatting and checks
-zig fmt .                      # Format code
-zig fmt --check .              # Check formatting (no linter beyond this)
-
-# Benchmarks and WASM
-zig build benchmark            # Run legacy benchmarks
-zig build benchmarks           # Run comprehensive benchmarks
-zig build wasm                 # Build WASM bindings
-
-# Feature flags
-zig build -Denable-gpu=false -Denable-network=true
+# Development
+zig build bench-competitive            # CRITICAL: Run before/after performance changes
+zig build benchmarks                   # Complete benchmark suite
+zig build run -- --help                # CLI help
 ```
 
-## Coding Style & Naming Conventions
+### Linting & Validation
+```bash
+# Must run after every edit
+zig fmt .                              # Format all files (ALWAYS)
+zig build test --summary all           # Regression test (194/198 baseline)
+zig build typecheck                    # Type checking without running tests
+```
 
-- **Formatting:** 4 spaces, no tabs, max 100 chars/line, one blank line between functions
-- **Types:** PascalCase (`Engine`, `TaskConfig`)
-- **Functions/Variables:** snake_case (`createEngine`, `task_id`)
-- **Constants:** UPPER_SNAKE_CASE (`MAX_TASKS`, `CacheLineBytes`)
-- **Documentation:** `//!` module docs, `///` function docs with `@param`/`@return`
-- **Imports:** Explicit only; never `usingnamespace`
-- **Cleanup:** Prefer `defer`/`errdefer`
-- **Allocator:** First field/argument when needed; use `std.ArrayListUnmanaged` for struct fields
+## Critical Performance Rules
 
-## Zig 0.16-Specific Conventions
+**FAILURE TO COMPLY BREAKS KPI CONTRACTS:**
+- **Latency**: GPU dispatch overhead < 50µs (verify with `zig build bench-competitive`)
+- **Throughput**: Kernels > 80% theoretical peak bandwidth
+- **Memory**: Zero leaks; use `GeneralPurposeAllocator` in tests
+- **Formatting**: Zero `zig fmt` diffs allowed
+
+## Code Style & Conventions
+
+### Module Imports & Structure
+```zig
+// Parent modules export dependencies for children
+// src/database/distributed/mod.zig:
+pub const time = @import("../../shared/time.zig");
+pub const network = @import("../../network/mod.zig");
+
+// Child modules import via parent
+// src/database/distributed/shard_manager.zig:
+const parent = @import("./mod.zig");
+const time = parent.time;
+const network = parent.network;
+```
+
+### Type Definitions & Exports
+```zig
+// Export primary types at module level
+pub const ConversationBlock = struct { ... };
+pub const BlockConfig = struct { ... };
+pub const BlockChain = struct { ... };
+
+// Error types use Error suffix
+pub const BlockChainError = error{ ... };
+pub const DistributedBlockChainError = error{ ... };
+
+// Configuration types use Config suffix  
+pub const DistributedConfig = struct { ... };
+pub const ShardConfig = struct { ... };
+```
+
+### Error Handling Pattern
+```zig
+// Use error sets, not generic error
+pub const MyError = error{
+    NotFound,
+    InvalidInput,
+    OutOfMemory,
+};
+
+// Return error!Type
+pub fn init(allocator: std.mem.Allocator) MyError!Self {
+    const ptr = allocator.create(Self) catch return error.OutOfMemory;
+    // ...
+}
+
+// Error formatting (Zig 0.16)
+std.debug.print("Error: {t}", .{err});
+```
 
 ### Memory Management
-
 ```zig
-// Good - unmanaged for struct fields
-pub const BenchmarkSuite = struct {
-    allocator: std.mem.Allocator,
-    results: std.ArrayListUnmanaged(BenchmarkResult),
-};
+// Always defer cleanup in init functions
+pub fn init(allocator: std.mem.Allocator) !Self {
+    const data = try allocator.alloc(u8, size);
+    errdefer allocator.free(data);  // Cleanup on error
+    
+    const obj = try allocator.create(MyType);
+    errdefer allocator.destroy(obj);
+    
+    return Self{
+        .allocator = allocator,
+        .data = data,
+        .obj = obj,
+    };
+}
 
-// Usage
-try list.append(allocator, item);
-list.deinit(allocator);
-
-// Avoid - managed for struct fields
-results: std.ArrayList(BenchmarkResult),
-```
-
-### Modern Format Specifiers
-
-```zig
-// Good - use modern specifiers
-std.debug.print("Status: {t}\n", .{status});       // {t} for enums/errors
-std.debug.print("Size: {B}\n", .{size});           // {B} for bytes (raw)
-std.debug.print("Duration: {D}\n", .{duration});   // {D} for nanoseconds
-std.debug.print("Data: {b64}\n", .{data});         // {b64} for base64
-
-// Avoid - manual conversions
-std.debug.print("Status: {s}\n", .{@tagName(status)});
-```
-
-**Exceptions for JSON:** JSON requires strings, so `@tagName()` and `@errorName()` are acceptable.
-
-### I/O API Changes
-
-```zig
-// HTTP Server - direct reader/writer
-var connection_reader = stream.reader(io, &recv_buffer);
-var connection_writer = stream.writer(io, &send_buffer);
-var server: std.http.Server = .init(
-    &connection_reader,     // Direct reference (no .interface)
-    &connection_writer,    // Direct reference (no .interface)
-);
-
-// Streaming - use std.Io.Reader
-pub const StreamingResponse = struct {
-    reader: std.Io.Reader,
-    response: HttpResponse,
-};
-
-// File.Reader uses .interface for delimiter methods only
-const line_opt = reader.interface.takeDelimiter('\n') catch |err| {
-    return err;
-};
-```
-
-### std.Io.Threaded Usage
-
-```zig
-// Async runtime pattern for HTTP clients
-pub const HttpClient = struct {
-    allocator: std.mem.Allocator,
-    io_backend: std.Io.Threaded,
-    client: std.http.Client,
-
-    pub fn init(allocator: std.mem.Allocator) !HttpClient {
-        var io_backend = std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
-        return .{
-            .allocator = allocator,
-            .io_backend = io_backend,
-            .client = std.http.Client{
-                .allocator = allocator,
-                .io = io_backend.io(),
-            },
-        };
-    }
-
-    pub fn deinit(self: *HttpClient) void {
-        self.io_backend.deinit();
-    }
-};
-```
-
-## Error Handling
-
-- Use specific error sets instead of `anyerror` where possible
-- Document errors with `@return` tags
-- Use `errdefer` for cleanup on error paths
-
-```zig
-// Good - specific error set
-const TaskError = error{
-    Timeout,
-    Cancelled,
-    TaskFailed,
-} || std.mem.Allocator.Error;
-
-// Good - errdefer cleanup
-var buffer = try allocator.alloc(u8, size);
-errdefer allocator.free(buffer);
-```
-
-**Keep `anyerror` for:**
-
-- Function pointer types needing flexibility
-- Generic error logging contexts
-
-## Testing Guidelines
-
-- Tests in `src/tests/` and inline `test "..."` blocks
-- Name tests descriptively; add coverage for new features or note why not
-- Gate hardware-specific tests with feature flags (e.g., `-Denable-gpu=true`)
-
-```zig
-// Feature-gated test pattern
-fn testGPUOperations(allocator: std.mem.Allocator) !void {
-    if (!abi.gpu.moduleEnabled()) {
-        std.debug.print("GPU module not enabled, skipping\n", .{});
-        return;
-    }
-    // ... test code
+// Always implement deinit
+pub fn deinit(self: *Self) void {
+    self.allocator.free(self.data);
+    self.allocator.destroy(self.obj);
 }
 ```
 
-## Commit & PR Guidelines
+### Testing Standards
+```zig
+// Test files should be in `tests/` subdirectory or named `*_test.zig`
+test "function name description" {
+    const allocator = std.testing.allocator;
+    
+    // Setup with proper cleanup
+    const data = try allocator.alloc(u8, 100);
+    defer allocator.free(data);
+    
+    // Test assertion
+    try std.testing.expect(data.len == 100);
+    
+    // Test error cases
+    try std.testing.expectError(error.NotFound, functionThatFails());
+}
+```
 
-- Format: `<type>: <imperative summary>` with `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `build`
-- Keep summaries <= 72 chars
-- Keep commits focused; update docs when public APIs change
-- PRs should explain intent, link issues, and list commands run (e.g., `zig build`, `zig build test`, `zig fmt .`)
+## Architecture Patterns
 
-## Architecture References
+### VTable Backend Implementation
+```zig
+// Follow src/gpu/interface.zig pattern
+pub const MyBackend = struct {
+    allocator: std.mem.Allocator,
+    
+    pub fn init(allocator: std.mem.Allocator) interface.BackendError!*Self {
+        const self = allocator.create(Self) catch return error.OutOfMemory;
+        self.* = .{ .allocator = allocator };
+        return self;
+    }
+    
+    pub fn deinit(self: *Self) void {
+        self.allocator.destroy(self);
+    }
+    
+    // Implement all interface methods
+    pub fn allocate(self: *Self, size: usize) interface.BackendError!*anyopaque { ... }
+};
+```
 
-- System overview: `docs/intro.md`
-- API surface: `API_REFERENCE.md`
-- Zig 0.16 migration: `docs/migration/zig-0.16-migration.md`
+### WDBX Block Chain Pattern
+```zig
+// Use src/database/block_chain.zig as reference
+// Conversation blocks: B_t = {V_t, M_t, T_t, R_t, H_t}
+// - V_t: Embeddings (query/response)
+// - M_t: Metadata (persona tag, routing weights, intent)
+// - T_t: Temporal markers (MVCC timestamps)
+// - R_t: References (parent, skip pointers)
+// - H_t: Integrity (cryptographic hash)
+```
 
-## Configuration Notes
+### Distributed Components
+```zig
+// Sharding: src/database/distributed/shard_manager.zig
+// - Tenant → session → semantic clustering hierarchy
+// - Consistent hashing ring for placement
+// - Locality-aware replication
 
-- Feature flags: `-Denable-*` (e.g., `enable-gpu`, `enable-ai`)
-- GPU backends: `-Dgpu-*` (e.g., `gpu-cuda`, `gpu-vulkan`)
-- Connector credentials via environment variables (see `README.md`)
+// Block Exchange: src/database/distributed/block_exchange.zig  
+// - Version vectors for causal consistency
+// - Anti-entropy synchronization
+// - MVCC conflict resolution
+
+// Raft Consensus: src/database/distributed/raft_block_chain.zig
+// - Wraps local block chain with distributed coordination
+// - Leader election and log replication
+```
+
+## Common Workflows
+
+### Adding New Feature
+1. **Research Alignment**: Check against research documents (WDBX, FPGA roadmap)
+2. **Module Structure**: Follow existing patterns in same domain
+3. **Import Paths**: Use parent module export pattern (critical for `src/database/distributed/`)
+4. **Testing**: Write unit tests with `GeneralPurposeAllocator`
+5. **Validation**: `zig fmt .` → `zig build test --summary all` → `zig build bench-competitive`
+
+### Debugging Import Issues
+```bash
+# If "import of file outside module path" error:
+# 1. Check if parent module exports dependency
+# 2. Use parent = @import("./mod.zig"); pattern
+# 3. Example: src/database/distributed/ files must import via mod.zig
+```
+
+### Performance Verification
+```bash
+# BEFORE and AFTER any performance-critical change:
+zig build bench-competitive  # Must maintain < 50µs dispatch latency
+zig build benchmarks         # Full benchmark suite
+```
+
+## Quality Gates (Non-Negotiable)
+
+1. **✅ zig fmt .** - No formatting diffs
+2. **✅ zig build test --summary all** - 194/198 tests must pass (regression)
+3. **✅ GeneralPurposeAllocator in tests** - Zero memory leaks
+4. **✅ Parent module export pattern** - For nested modules
+5. **✅ Performance benchmarks** - Before/after critical changes
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Format code | `zig fmt .` |
+| Run all tests | `zig build test --summary all` |
+| Test single file | `zig test src/file.zig` |
+| Benchmark | `zig build bench-competitive` |
+| Check formatting | `zig fmt --check .` |
+| Build project | `zig build` |
+| Run CLI | `zig build run -- --help` |
+
+**Remember**: This codebase implements research-mandated WDBX architecture. All changes must align with research documents and maintain 194/198 test pass rate.

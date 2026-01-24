@@ -1,0 +1,6 @@
+{
+  "duration_sec": 0.00,
+  "benchmarks": [
+    {"name": "atomic_increment", "category": "concurrency", "ops_per_sec": 226963231.96, "mean_ns": 4.41, "iterations": 100000}
+  ]
+}

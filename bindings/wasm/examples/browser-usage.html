@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABI WASM Browser Example | ABI Framework</title>
+    <meta name="description" content="Interactive browser demo for ABI WebAssembly bindings">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>A</text></svg>">
+    <style>
+        :root {
+            --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a24; --card: #16161f;
+            --text: #f0f0f5; --text2: #a0a0b0; --muted: #606070;
+            --accent: #6366f1; --accent2: #8b5cf6;
+            --border: rgba(255,255,255,0.08); --glow: rgba(99,102,241,0.4);
+            --green: #10b981; --red: #ef4444; --yellow: #f59e0b;
+        }
+        [data-theme="light"] {
+            --bg: #f8fafc; --bg2: #f1f5f9; --bg3: #e2e8f0; --card: #fff;
+            --text: #0f172a; --text2: #475569; --muted: #94a3b8;
+            --accent: #4f46e5; --accent2: #7c3aed;
+            --border: rgba(0,0,0,0.08); --glow: rgba(79,70,229,0.25);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.75rem 1.5rem; background: rgba(10,10,15,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+        [data-theme="light"] .nav { background: rgba(248,250,252,0.9); }
+        .nav-inner { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--text); }
+        .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.9rem; }
+        .nav-links { display: flex; gap: 1rem; align-items: center; }
+        .nav-links a { color: var(--text2); font-size: 0.9rem; }
+        .nav-links a:hover { color: var(--text); text-decoration: none; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 500; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); cursor: pointer; color: var(--text); }
+        .btn-sm:hover { border-color: var(--accent); }
+
+        .container { max-width: 900px; margin: 0 auto; padding: 5rem 1.5rem 2rem; }
+
+        .header { text-align: center; margin-bottom: 2rem; }
+        .badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 100px; font-size: 0.75rem; color: var(--accent); margin-bottom: 1rem; }
+        .badge-wasm { background: rgba(101, 79, 240, 0.15); border-color: rgba(101, 79, 240, 0.3); color: #654ff0; }
+        h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--text2); }
+
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .card h2::before { content: ''; width: 4px; height: 1.1rem; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 2px; }
+
+        .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1.25rem; font-size: 0.9rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; transition: all 0.15s; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 0 20px var(--glow); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 30px var(--glow); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--accent); }
+        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .status { display: inline-flex; align-items: center; gap: 0.5rem; margin-left: 1rem; font-size: 0.85rem; color: var(--muted); }
+        .status.success { color: var(--green); }
+        .status.error { color: var(--red); }
+
+        .vector-input { display: flex; gap: 0.75rem; align-items: center; margin: 0.75rem 0; }
+        .vector-input label { min-width: 80px; font-weight: 500; color: var(--text2); font-size: 0.9rem; }
+        .vector-input input { flex: 1; padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg2); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+        .vector-input input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+
+        .result-box { margin-top: 1rem; padding: 1rem; background: var(--bg2); border-radius: 8px; border: 1px solid var(--border); }
+        .result-box p { margin: 0.25rem 0; font-size: 0.9rem; }
+        .result-box strong { color: var(--accent); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+        th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+        th { color: var(--text2); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+
+        .log-section { margin-top: 1rem; }
+        .log-header { font-size: 0.8rem; font-weight: 600; color: var(--text2); margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .log { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text2); overflow-x: auto; min-height: 180px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+
+        .footer { text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
+        .footer a { color: var(--accent); }
+
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+        @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="../../../docs/" class="logo"><span class="logo-icon">A</span>ABI</a>
+            <div class="nav-links">
+                <a href="../README.md">Docs</a>
+                <a href="https://github.com/donaldfilimon/abi" target="_blank" rel="noopener">GitHub</a>
+                <button class="btn-sm" id="themeToggle" aria-label="Toggle theme"><span id="themeIcon">&#9790;</span></button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="header">
+            <span class="badge badge-wasm">WebAssembly</span>
+            <h1>ABI WASM Browser Example</h1>
+            <p class="subtitle">Interactive demo of vector operations and database functionality</p>
+        </header>
+
+        <div class="card">
+            <h2>Initialization</h2>
+            <button class="btn btn-primary" id="initBtn" onclick="initAbi()">Initialize ABI</button>
+            <span id="initStatus" class="status"></span>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <h2>Vector Operations</h2>
+                <div class="vector-input">
+                    <label>Vector A:</label>
+                    <input type="text" id="vectorA" value="1, 2, 3, 4" placeholder="Comma-separated numbers">
+                </div>
+                <div class="vector-input">
+                    <label>Vector B:</label>
+                    <input type="text" id="vectorB" value="4, 3, 2, 1" placeholder="Comma-separated numbers">
+                </div>
+                <button class="btn btn-secondary" onclick="calculateSimilarity()" id="calcBtn" disabled>Calculate Similarity</button>
+                <div id="vectorResult" class="result-box" style="display: none;"></div>
+            </div>
+
+            <div class="card">
+                <h2>Vector Database</h2>
+                <p style="color: var(--text2); font-size: 0.9rem; margin-bottom: 1rem;">Demo of in-memory vector storage with similarity search.</p>
+                <button class="btn btn-secondary" onclick="runDatabaseDemo()" id="dbBtn" disabled>Run Database Demo</button>
+                <div id="dbResult" class="result-box" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Output Log</h2>
+            <div class="log-section">
+                <pre id="output" class="log">Waiting for initialization...</pre>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Part of the <a href="../../../docs/">ABI Framework</a> | <a href="https://github.com/donaldfilimon/abi" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Theme toggle
+        const html = document.documentElement;
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        html.setAttribute('data-theme', saved);
+        themeIcon.textContent = saved === 'dark' ? '\u263E' : '\u2600';
+        themeToggle.addEventListener('click', () => {
+            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            themeIcon.textContent = next === 'dark' ? '\u263E' : '\u2600';
+        });
+    </script>
+
+    <script type="module">
+        // In production, import from the npm package:
+        // import * as abi from '@anthropic/abi-wasm';
+
+        // For this example, we'll define the module inline
+        // (In reality, you'd build and serve the TypeScript files)
+
+        let isInitialized = false;
+        let vectorDb = null;
+
+        // Simple vector operations (pure JS fallback for demo)
+        function cosineSimilarity(a, b) {
+            if (a.length !== b.length) throw new Error('Vector length mismatch');
+            let dot = 0, normA = 0, normB = 0;
+            for (let i = 0; i < a.length; i++) {
+                dot += a[i] * b[i];
+                normA += a[i] * a[i];
+                normB += b[i] * b[i];
+            }
+            const mag = Math.sqrt(normA) * Math.sqrt(normB);
+            return mag === 0 ? 0 : dot / mag;
+        }
+
+        function normalize(vec) {
+            const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
+            return norm === 0 ? vec.slice() : vec.map(v => v / norm);
+        }
+
+        function log(message) {
+            const output = document.getElementById('output');
+            output.textContent += message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Simple in-memory vector database
+        class VectorDatabase {
+            constructor(name) {
+                this.name = name;
+                this.vectors = [];
+                this.nextId = 0;
+            }
+
+            add(vector, metadata) {
+                const id = this.nextId++;
+                this.vectors.push({ id, vector: vector.slice(), metadata });
+                return id;
+            }
+
+            search(query, topK = 10) {
+                return this.vectors
+                    .map(v => ({
+                        id: v.id,
+                        score: cosineSimilarity(query, v.vector),
+                        metadata: v.metadata
+                    }))
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, topK);
+            }
+
+            get size() { return this.vectors.length; }
+        }
+
+        window.initAbi = async function() {
+            const status = document.getElementById('initStatus');
+            const initBtn = document.getElementById('initBtn');
+
+            try {
+                status.textContent = 'Initializing...';
+                status.className = 'status';
+
+                // In production with actual WASM:
+                // await abi.init({ wasmPath: '/abi.wasm' });
+
+                // For demo, simulate initialization
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                isInitialized = true;
+                status.textContent = 'Initialized! Version: 0.3.0';
+                status.className = 'status success';
+                initBtn.disabled = true;
+                document.getElementById('calcBtn').disabled = false;
+                document.getElementById('dbBtn').disabled = false;
+
+                document.getElementById('output').textContent = '';
+                log('ABI Framework initialized successfully');
+                log('Version: 0.3.0');
+                log('');
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+                status.className = 'status error';
+                log('Initialization failed: ' + err.message);
+            }
+        };
+
+        window.calculateSimilarity = function() {
+            if (!isInitialized) return;
+
+            try {
+                const vecA = document.getElementById('vectorA').value
+                    .split(',').map(v => parseFloat(v.trim()));
+                const vecB = document.getElementById('vectorB').value
+                    .split(',').map(v => parseFloat(v.trim()));
+
+                const similarity = cosineSimilarity(vecA, vecB);
+
+                const result = document.getElementById('vectorResult');
+                result.style.display = 'block';
+                result.innerHTML = `
+                    <p><strong>Cosine Similarity:</strong> ${similarity.toFixed(6)}</p>
+                    <p><strong>Interpretation:</strong> ${
+                        similarity > 0.9 ? 'Very similar' :
+                        similarity > 0.7 ? 'Similar' :
+                        similarity > 0.5 ? 'Somewhat similar' :
+                        similarity > 0 ? 'Different' : 'Opposite'
+                    }</p>
+                `;
+
+                log(`Calculated similarity between vectors:`);
+                log(`  A: [${vecA.join(', ')}]`);
+                log(`  B: [${vecB.join(', ')}]`);
+                log(`  Similarity: ${similarity.toFixed(6)}`);
+                log('');
+            } catch (err) {
+                const result = document.getElementById('vectorResult');
+                result.style.display = 'block';
+                result.innerHTML = `<p style="color: var(--red);">Error: ${err.message}</p>`;
+            }
+        };
+
+        window.runDatabaseDemo = function() {
+            if (!isInitialized) return;
+
+            const result = document.getElementById('dbResult');
+
+            try {
+                log('=== Vector Database Demo ===');
+
+                vectorDb = new VectorDatabase('demo');
+
+                // Add some sample embeddings
+                const samples = [
+                    { vec: [1, 0, 0], meta: { label: 'x-axis', color: '#ef4444' } },
+                    { vec: [0, 1, 0], meta: { label: 'y-axis', color: '#10b981' } },
+                    { vec: [0, 0, 1], meta: { label: 'z-axis', color: '#3b82f6' } },
+                    { vec: normalize([1, 1, 0]), meta: { label: 'xy-plane', color: '#f59e0b' } },
+                    { vec: normalize([1, 1, 1]), meta: { label: 'diagonal', color: '#8b5cf6' } },
+                ];
+
+                for (const sample of samples) {
+                    const id = vectorDb.add(sample.vec, sample.meta);
+                    log(`Added vector ${id}: ${sample.meta.label}`);
+                }
+
+                log(`\nDatabase size: ${vectorDb.size} vectors`);
+
+                // Search
+                const query = normalize([0.9, 0.1, 0]);
+                log(`\nSearching for query: [${query.map(v => v.toFixed(3)).join(', ')}]`);
+
+                const results = vectorDb.search(query, 3);
+                log('\nTop 3 results:');
+
+                result.style.display = 'block';
+                let html = '<table>';
+                html += '<tr><th>Rank</th><th>Label</th><th>Score</th><th>Color</th></tr>';
+
+                results.forEach((r, i) => {
+                    log(`  ${i + 1}. ${r.metadata.label}: ${r.score.toFixed(4)}`);
+                    html += `<tr>
+                        <td>${i + 1}</td>
+                        <td>${r.metadata.label}</td>
+                        <td>${r.score.toFixed(4)}</td>
+                        <td><span style="display:inline-block;width:12px;height:12px;background:${r.metadata.color};border-radius:2px;vertical-align:middle;margin-right:6px;"></span>${r.metadata.color}</td>
+                    </tr>`;
+                });
+
+                html += '</table>';
+                result.innerHTML = html;
+
+                log('\n=== Demo Complete ===\n');
+            } catch (err) {
+                result.style.display = 'block';
+                result.innerHTML = `<p style="color: var(--red);">Error: ${err.message}</p>`;
+                log('Error: ' + err.message);
+            }
+        };
+    </script>
+</body>
+</html>

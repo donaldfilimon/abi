@@ -1,0 +1,604 @@
+{
+  "metadata": {
+    "version": "v0.16.0",
+    "generatedAt": "2026-01-23T10:00:00Z",
+    "description": "ABI Framework Benchmark Results"
+  },
+  "systemInfo": {
+    "os": "Linux Ubuntu 22.04",
+    "arch": "x86_64",
+    "cpu": "AMD Ryzen 9 5950X",
+    "cpuCores": "16",
+    "memory": "64 GB DDR4-3600",
+    "zigVersion": "0.16.0",
+    "gpu": "NVIDIA RTX 4090",
+    "buildMode": "ReleaseFast"
+  },
+  "benchmarks": [
+    {
+      "name": "vector_add_1m",
+      "type": "gpu",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 2.45,
+        "memory": 128.5,
+        "throughput": 408163265
+      },
+      "status": "passed",
+      "tags": ["gpu", "compute", "vulkan"]
+    },
+    {
+      "name": "vector_add_1m",
+      "type": "gpu",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 3.12,
+        "memory": 135.2,
+        "throughput": 320512820
+      },
+      "status": "passed",
+      "tags": ["gpu", "compute", "vulkan"]
+    },
+    {
+      "name": "vector_add_1m",
+      "type": "gpu",
+      "version": "v0.14.0",
+      "date": "2026-01-09",
+      "metrics": {
+        "time": 3.89,
+        "memory": 142.1,
+        "throughput": 257069408
+      },
+      "status": "passed",
+      "tags": ["gpu", "compute", "vulkan"]
+    },
+    {
+      "name": "matrix_multiply_1024x1024",
+      "type": "gpu",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 15.32,
+        "memory": 512.0,
+        "throughput": 140186916
+      },
+      "status": "passed",
+      "tags": ["gpu", "compute", "cuda"]
+    },
+    {
+      "name": "matrix_multiply_1024x1024",
+      "type": "gpu",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 18.76,
+        "memory": 520.5,
+        "throughput": 114478864
+      },
+      "status": "passed",
+      "tags": ["gpu", "compute", "cuda"]
+    },
+    {
+      "name": "hnsw_index_100k",
+      "type": "database",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 1245.67,
+        "memory": 256.3,
+        "throughput": 80278
+      },
+      "status": "passed",
+      "tags": ["database", "hnsw", "indexing"]
+    },
+    {
+      "name": "hnsw_index_100k",
+      "type": "database",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 1456.89,
+        "memory": 268.1,
+        "throughput": 68638
+      },
+      "status": "passed",
+      "tags": ["database", "hnsw", "indexing"]
+    },
+    {
+      "name": "hnsw_search_10k_queries",
+      "type": "database",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 89.45,
+        "memory": 45.2,
+        "throughput": 111856
+      },
+      "status": "passed",
+      "tags": ["database", "hnsw", "search"]
+    },
+    {
+      "name": "hnsw_search_10k_queries",
+      "type": "database",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 102.34,
+        "memory": 48.7,
+        "throughput": 97713
+      },
+      "status": "passed",
+      "tags": ["database", "hnsw", "search"]
+    },
+    {
+      "name": "runtime_task_spawn_1m",
+      "type": "runtime",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 567.23,
+        "memory": 89.4,
+        "throughput": 1763036
+      },
+      "status": "passed",
+      "tags": ["runtime", "tasks", "spawn"]
+    },
+    {
+      "name": "runtime_task_spawn_1m",
+      "type": "runtime",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 623.45,
+        "memory": 95.2,
+        "throughput": 1604008
+      },
+      "status": "passed",
+      "tags": ["runtime", "tasks", "spawn"]
+    },
+    {
+      "name": "runtime_task_spawn_1m",
+      "type": "runtime",
+      "version": "v0.14.0",
+      "date": "2026-01-09",
+      "metrics": {
+        "time": 712.89,
+        "memory": 108.6,
+        "throughput": 1402720
+      },
+      "status": "passed",
+      "tags": ["runtime", "tasks", "spawn"]
+    },
+    {
+      "name": "memory_pool_alloc_10m",
+      "type": "memory",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 234.56,
+        "memory": 1024.0,
+        "throughput": 42634155
+      },
+      "status": "passed",
+      "tags": ["memory", "pool", "allocation"]
+    },
+    {
+      "name": "memory_pool_alloc_10m",
+      "type": "memory",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 267.89,
+        "memory": 1048.5,
+        "throughput": 37334504
+      },
+      "status": "passed",
+      "tags": ["memory", "pool", "allocation"]
+    },
+    {
+      "name": "simd_f32_dot_product_1m",
+      "type": "throughput",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 0.89,
+        "memory": 8.0,
+        "throughput": 1123595505
+      },
+      "status": "passed",
+      "tags": ["simd", "vector", "dot-product"]
+    },
+    {
+      "name": "simd_f32_dot_product_1m",
+      "type": "throughput",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 1.12,
+        "memory": 8.0,
+        "throughput": 892857142
+      },
+      "status": "passed",
+      "tags": ["simd", "vector", "dot-product"]
+    },
+    {
+      "name": "network_rpc_latency_10k",
+      "type": "network",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 456.78,
+        "memory": 32.5,
+        "throughput": 21892
+      },
+      "status": "passed",
+      "tags": ["network", "rpc", "latency"]
+    },
+    {
+      "name": "network_rpc_latency_10k",
+      "type": "network",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 512.34,
+        "memory": 35.8,
+        "throughput": 19518
+      },
+      "status": "passed",
+      "tags": ["network", "rpc", "latency"]
+    },
+    {
+      "name": "llm_tokenize_1m_tokens",
+      "type": "throughput",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 345.67,
+        "memory": 64.2,
+        "throughput": 2893145
+      },
+      "status": "passed",
+      "tags": ["ai", "llm", "tokenizer"]
+    },
+    {
+      "name": "llm_tokenize_1m_tokens",
+      "type": "throughput",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 398.45,
+        "memory": 68.9,
+        "throughput": 2509716
+      },
+      "status": "passed",
+      "tags": ["ai", "llm", "tokenizer"]
+    },
+    {
+      "name": "embedding_generation_batch_1k",
+      "type": "gpu",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 78.92,
+        "memory": 256.0,
+        "throughput": 12670
+      },
+      "status": "passed",
+      "tags": ["ai", "embeddings", "gpu"]
+    },
+    {
+      "name": "embedding_generation_batch_1k",
+      "type": "gpu",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 92.45,
+        "memory": 268.5,
+        "throughput": 10816
+      },
+      "status": "passed",
+      "tags": ["ai", "embeddings", "gpu"]
+    },
+    {
+      "name": "json_parse_10mb",
+      "type": "throughput",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 123.45,
+        "memory": 48.0,
+        "throughput": 81003
+      },
+      "status": "passed",
+      "tags": ["parsing", "json", "utils"]
+    },
+    {
+      "name": "json_parse_10mb",
+      "type": "throughput",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 145.67,
+        "memory": 52.3,
+        "throughput": 68648
+      },
+      "status": "passed",
+      "tags": ["parsing", "json", "utils"]
+    },
+    {
+      "name": "concurrent_readers_100",
+      "type": "runtime",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 89.12,
+        "memory": 24.5,
+        "throughput": 1122
+      },
+      "status": "passed",
+      "tags": ["runtime", "concurrency", "readers"]
+    },
+    {
+      "name": "concurrent_readers_100",
+      "type": "runtime",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 98.45,
+        "memory": 26.8,
+        "throughput": 1015
+      },
+      "status": "passed",
+      "tags": ["runtime", "concurrency", "readers"]
+    },
+    {
+      "name": "gpu_shader_compile",
+      "type": "gpu",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 456.78,
+        "memory": 128.0,
+        "throughput": 219
+      },
+      "status": "passed",
+      "tags": ["gpu", "shader", "compile"]
+    },
+    {
+      "name": "gpu_shader_compile",
+      "type": "gpu",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 523.45,
+        "memory": 135.2,
+        "throughput": 191
+      },
+      "status": "passed",
+      "tags": ["gpu", "shader", "compile"]
+    },
+    {
+      "name": "backup_checkpoint_1gb",
+      "type": "database",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 2345.67,
+        "memory": 512.0,
+        "throughput": 436
+      },
+      "status": "passed",
+      "tags": ["database", "backup", "checkpoint"]
+    },
+    {
+      "name": "backup_checkpoint_1gb",
+      "type": "database",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 2678.90,
+        "memory": 545.3,
+        "throughput": 382
+      },
+      "status": "passed",
+      "tags": ["database", "backup", "checkpoint"]
+    },
+    {
+      "name": "raft_consensus_round",
+      "type": "network",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 12.34,
+        "memory": 8.5,
+        "throughput": 81037
+      },
+      "status": "passed",
+      "tags": ["network", "raft", "consensus"]
+    },
+    {
+      "name": "raft_consensus_round",
+      "type": "network",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 14.56,
+        "memory": 9.2,
+        "throughput": 68681
+      },
+      "status": "passed",
+      "tags": ["network", "raft", "consensus"]
+    },
+    {
+      "name": "work_stealing_queue_ops",
+      "type": "runtime",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 34.56,
+        "memory": 4.2,
+        "throughput": 28935185
+      },
+      "status": "passed",
+      "tags": ["runtime", "work-stealing", "queue"]
+    },
+    {
+      "name": "work_stealing_queue_ops",
+      "type": "runtime",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 38.92,
+        "memory": 4.5,
+        "throughput": 25693395
+      },
+      "status": "passed",
+      "tags": ["runtime", "work-stealing", "queue"]
+    },
+    {
+      "name": "transformer_forward_pass",
+      "type": "gpu",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 45.67,
+        "memory": 2048.0,
+        "throughput": 2189
+      },
+      "status": "passed",
+      "tags": ["ai", "transformer", "gpu"]
+    },
+    {
+      "name": "transformer_forward_pass",
+      "type": "gpu",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 52.34,
+        "memory": 2100.5,
+        "throughput": 1910
+      },
+      "status": "passed",
+      "tags": ["ai", "transformer", "gpu"]
+    },
+    {
+      "name": "kv_cache_operations",
+      "type": "memory",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 12.34,
+        "memory": 256.0,
+        "throughput": 8103727
+      },
+      "status": "passed",
+      "tags": ["ai", "kv-cache", "memory"]
+    },
+    {
+      "name": "kv_cache_operations",
+      "type": "memory",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 14.89,
+        "memory": 268.3,
+        "throughput": 6715915
+      },
+      "status": "passed",
+      "tags": ["ai", "kv-cache", "memory"]
+    },
+    {
+      "name": "connection_pool_checkout",
+      "type": "network",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 0.45,
+        "memory": 2.1,
+        "throughput": 2222222
+      },
+      "status": "passed",
+      "tags": ["network", "pool", "connection"]
+    },
+    {
+      "name": "connection_pool_checkout",
+      "type": "network",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 0.52,
+        "memory": 2.3,
+        "throughput": 1923076
+      },
+      "status": "passed",
+      "tags": ["network", "pool", "connection"]
+    },
+    {
+      "name": "feature_registry_lookup",
+      "type": "runtime",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 0.0012,
+        "memory": 0.1,
+        "throughput": 833333333
+      },
+      "status": "passed",
+      "tags": ["runtime", "registry", "lookup"]
+    },
+    {
+      "name": "feature_registry_lookup",
+      "type": "runtime",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 0.0015,
+        "memory": 0.1,
+        "throughput": 666666666
+      },
+      "status": "passed",
+      "tags": ["runtime", "registry", "lookup"]
+    },
+    {
+      "name": "stress_test_mixed_workload",
+      "type": "runtime",
+      "version": "v0.16.0",
+      "date": "2026-01-23",
+      "metrics": {
+        "time": 5678.90,
+        "memory": 4096.0,
+        "throughput": 176073
+      },
+      "status": "passed",
+      "tags": ["stress", "mixed", "workload"]
+    },
+    {
+      "name": "stress_test_mixed_workload",
+      "type": "runtime",
+      "version": "v0.15.0",
+      "date": "2026-01-16",
+      "metrics": {
+        "time": 6234.56,
+        "memory": 4200.5,
+        "throughput": 160396
+      },
+      "status": "passed",
+      "tags": ["stress", "mixed", "workload"]
+    },
+    {
+      "name": "failed_test_example",
+      "type": "runtime",
+      "version": "v0.16.0",
+      "date": "2026-01-22",
+      "metrics": {
+        "time": 0,
+        "memory": 0,
+        "throughput": 0
+      },
+      "status": "failed",
+      "tags": ["test", "failure", "example"]
+    }
+  ]
+}

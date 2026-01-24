@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 | ABI Framework</title>
+    <meta name="description" content="Page not found - ABI Framework">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>A</text></svg>">
+    <style>
+        :root {
+            --bg: #0a0a0f; --bg2: #12121a; --card: #16161f;
+            --text: #f0f0f5; --text2: #a0a0b0; --muted: #606070;
+            --accent: #6366f1; --accent2: #8b5cf6;
+            --border: rgba(255,255,255,0.08); --glow: rgba(99,102,241,0.4);
+        }
+        [data-theme="light"] {
+            --bg: #f8fafc; --bg2: #f1f5f9; --card: #fff;
+            --text: #0f172a; --text2: #475569; --muted: #94a3b8;
+            --accent: #4f46e5; --accent2: #7c3aed;
+            --border: rgba(0,0,0,0.08); --glow: rgba(79,70,229,0.25);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; }
+        a { color: inherit; text-decoration: none; }
+
+        .nav { position: fixed; top: 0; left: 0; right: 0; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; }
+        .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.9rem; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 500; border-radius: 6px; border: 1px solid var(--border); background: var(--bg2); cursor: pointer; color: var(--text); }
+        .btn-sm:hover { border-color: var(--accent); }
+
+        .content { max-width: 500px; }
+        .code { font-size: clamp(5rem, 18vw, 10rem); font-weight: 800; line-height: 1; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        h1 { font-size: 1.25rem; font-weight: 600; margin: 0.5rem 0; }
+        p { font-size: 0.95rem; color: var(--text2); margin-bottom: 1.5rem; }
+
+        .error-block { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--muted); text-align: left; }
+        [data-theme="light"] .error-block { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        .kw { color: #c792ea; }
+        .err { color: #ff5370; }
+        .cmt { color: #546e7a; }
+
+        .btns { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; margin-bottom: 2rem; }
+        .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.65rem 1.2rem; font-size: 0.9rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 0 15px var(--glow); }
+        .btn-primary:hover { box-shadow: 0 0 25px var(--glow); }
+        .btn-ghost { background: var(--bg2); color: var(--text); border: 1px solid var(--border); }
+        .btn-ghost:hover { border-color: var(--accent); }
+
+        .links { border-top: 1px solid var(--border); padding-top: 1.5rem; }
+        .links-title { font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+        .links-list { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; }
+        .link { padding: 0.4rem 0.8rem; background: var(--bg2); border: 1px solid var(--border); border-radius: 100px; font-size: 0.8rem; color: var(--text2); }
+        .link:hover { border-color: var(--accent); color: var(--accent); }
+
+        @media (max-width: 480px) { .btns { flex-direction: column; } .btn { width: 100%; justify-content: center; } }
+    </style>
+</head>
+<body>
+    <header class="nav">
+        <a href="./" class="logo"><span class="logo-icon">A</span>ABI</a>
+        <button class="btn-sm" id="themeToggle" aria-label="Toggle theme"><span id="themeIcon">&#9790;</span></button>
+    </header>
+
+    <main class="content">
+        <div class="code">404</div>
+        <h1>Page Not Found</h1>
+        <p>The page has been moved, deleted, or never existed.</p>
+
+        <div class="error-block">
+            <span class="kw">error</span>: PageNotFound<br>
+            <span class="cmt">// resource not located</span><br>
+            <span class="kw">return</span> <span class="err">error.NotFound</span>;
+        </div>
+
+        <div class="btns">
+            <a href="./" class="btn btn-primary">Go Home</a>
+            <a href="https://github.com/donaldfilimon/abi" class="btn btn-ghost" target="_blank" rel="noopener">GitHub</a>
+        </div>
+
+        <div class="links">
+            <div class="links-title">Quick Links</div>
+            <div class="links-list">
+                <a href="intro.html" class="link">Intro</a>
+                <a href="tutorials/getting-started.html" class="link">Get Started</a>
+                <a href="api/index.html" class="link">API</a>
+                <a href="ai.html" class="link">AI</a>
+                <a href="gpu.html" class="link">GPU</a>
+                <a href="database.html" class="link">WDBX</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const html = document.documentElement;
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        html.setAttribute('data-theme', saved);
+        themeIcon.textContent = saved === 'dark' ? '\u263E' : '\u2600';
+        themeToggle.addEventListener('click', () => {
+            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            themeIcon.textContent = next === 'dark' ? '\u263E' : '\u2600';
+        });
+    </script>
+</body>
+</html>

@@ -4,8 +4,8 @@ zig-out/
 build/
 .zig-cache/
 
-# Documentation
-docs/build/
+# Documentation build artifacts
+docs-src/build/
 
 # Editor and IDE
 .vscode/
@@ -57,6 +57,17 @@ logs/
 tmp/
 temp/
 *.tmp
+probe_error.txt
+test_build.zig
+build_options.zig
+src/build_options.zig
+abi.json
+
+# Claude Code local settings
+.claude/
+
+# Backup files created by CLI
+backups/
 
 # OS specific
 Thumbs.db
@@ -71,6 +82,8 @@ desktop.ini
 *.pth
 *.h5
 *.pb
+*.ckpt
+testingllm.ckpt/
 
 # Profiling data
 *.prof
@@ -100,3 +113,7 @@ release/
 .nx/installation
 .nx/cache
 .nx/workspace-data
+tmpclaude-*-cwd
+tmpclaude-*
+
+nul

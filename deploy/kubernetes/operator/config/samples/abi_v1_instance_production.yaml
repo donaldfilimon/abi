@@ -1,0 +1,82 @@
+# =============================================================================
+# ABI Instance - Production Example
+# =============================================================================
+# A production-ready AbiInstance with HA, autoscaling, and full configuration
+apiVersion: abi.io/v1
+kind: AbiInstance
+metadata:
+  name: abi-production
+  namespace: abi
+  labels:
+    environment: production
+    team: platform
+spec:
+  replicas: 3
+
+  image:
+    repository: ghcr.io/abi/abi
+    tag: v1.0.0
+    pullPolicy: IfNotPresent
+    pullSecrets:
+      - name: ghcr-credentials
+
+  features:
+    ai: true
+    gpu: false
+    database: true
+    network: true
+    web: true
+    profiling: true
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+
+  storage:
+    enabled: true
+    size: "50Gi"
+    storageClassName: "fast-ssd"
+    accessModes:
+      - ReadWriteOnce
+
+  networking:
+    httpPort: 8080
+    metricsPort: 9090
+    grpcPort: 50051
+    serviceType: ClusterIP
+
+  config:
+    logLevel: info
+    logFormat: json
+    tracing: true
+    jaegerEndpoint: "http://jaeger-collector.observability:14268/api/traces"
+
+  llm:
+    provider: ollama
+    ollamaHost: "http://ollama.ai-services:11434"
+    model: llama3
+
+  secrets:
+    openaiApiKeySecret:
+      name: abi-api-keys
+      key: openai-api-key
+    anthropicApiKeySecret:
+      name: abi-api-keys
+      key: anthropic-api-key
+
+  highAvailability:
+    enabled: true
+    antiAffinity: hard
+    podDisruptionBudget:
+      minAvailable: 2
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilization: 70
+    targetMemoryUtilization: 80

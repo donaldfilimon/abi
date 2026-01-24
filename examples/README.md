@@ -1,4 +1,15 @@
+---
+title: "Examples"
+tags: [examples, tutorials, getting-started]
+---
 # ABI Framework Examples
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Examples-10+-blue?style=for-the-badge" alt="10+ Examples"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
+</p>
 
 This directory contains example programs demonstrating various features of the ABI framework.
 
@@ -26,7 +37,12 @@ zig run examples/database.zig
 
 ### agent.zig
 
-AI agent usage with conversation processing.
+AI agent usage with conversational chat interface. Demonstrates the `Agent.chat()` method for processing user input with history tracking.
+
+**Features:**
+- Agent initialization with configuration
+- Using `chat()` method for conversational interface
+- Proper memory management with defer
 
 **Run:**
 
@@ -64,6 +80,91 @@ Network cluster setup and node management.
 zig run examples/network.zig -Denable-network=true
 ```
 
+### discord.zig
+
+Discord bot integration with bot info, guild listing, and gateway information.
+
+**Prerequisites:**
+- Set `DISCORD_BOT_TOKEN` environment variable with your bot token
+
+**Run:**
+
+```bash
+zig build run-discord
+```
+
+### training.zig
+
+Model training with optimizers, checkpointing, and metrics.
+
+**Features:**
+- Training configuration (epochs, batch size, learning rate)
+- AdamW optimizer with weight decay
+- Checkpoint saving and resuming
+- Loss history tracking
+
+**Run:**
+
+```bash
+zig run examples/training.zig -Denable-ai=true
+```
+
+### llm.zig
+
+Local LLM inference with GGUF models.
+
+**Features:**
+- GGUF model loading
+- BPE/SentencePiece tokenization
+- Text generation with sampling (temperature, top-k, top-p)
+- Streaming output
+
+**Run:**
+
+```bash
+zig build run-llm -- path/to/model.gguf
+```
+
+### train_ava.zig
+
+Train the Ava assistant model based on gpt-oss.
+
+**Features:**
+- Fine-tuning from gpt-oss compatible GGUF models
+- LoRA support for efficient training
+- JSONL and text dataset formats
+- Checkpointing and GGUF export
+- GPU acceleration with CPU fallback
+
+**Run:**
+
+```bash
+# Basic training
+zig build run-train-ava -- path/to/gpt-oss.gguf --dataset-path train.jsonl
+
+# With custom configuration
+zig build run-train-ava -- gpt2.gguf -d data.jsonl --epochs 5 --lr 2e-5
+
+# Show help
+zig build run-train-ava -- --help
+```
+
+### ha.zig
+
+High Availability features for production deployments.
+
+**Features:**
+- Multi-region replication setup
+- Backup orchestration
+- Point-in-time recovery (PITR)
+- Automatic failover
+
+**Run:**
+
+```bash
+zig run examples/ha.zig -Denable-database=true
+```
+
 ## Building Examples
 
 All examples are integrated into the main build system:
@@ -78,6 +179,11 @@ zig build run-database
 zig build run-compute
 zig build run-gpu
 zig build run-network
+zig build run-discord
+zig build run-training
+zig build run-llm
+zig build run-train-ava
+zig build run-ha
 ```
 
 ## Running Benchmarks
@@ -97,17 +203,23 @@ zig build benchmarks
 4. **Check `agent.zig`** - See AI integration
 5. **Review `gpu.zig`** - Understand GPU acceleration
 6. **Study `network.zig`** - Learn distributed computing
+7. **Check `discord.zig`** - Discord bot integration
+8. **Explore `training.zig`** - Model training and checkpointing
+9. **Try `llm.zig`** - Local LLM inference
+10. **Study `ha.zig`** - High availability features
+11. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
 
 ## Common Patterns
 
-All examples follow these patterns:
+All examples follow these Zig 0.16 best practices:
 
-1. **Allocator Setup:**
+1. **Modern Main Signature (Zig 0.16):**
 
    ```zig
-   var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-   defer _ = gpa.deinit();
-   const allocator = gpa.allocator();
+   pub fn main(init: std.process.Init) !void {
+       const allocator = init.gpa;
+       // ... your code
+   }
    ```
 
 2. **Framework Initialization:**
@@ -120,18 +232,32 @@ All examples follow these patterns:
 3. **Error Handling:**
 
    ```zig
-   pub fn main() !void {
+   pub fn main(init: std.process.Init) !void {
        try someOperation();
        return;
    }
    ```
 
 4. **Cleanup with defer:**
+
    ```zig
    const data = try allocateData();
    defer allocator.free(data);
    ```
 
+5. **Format Specifiers (Zig 0.16):**
+
+   ```zig
+   std.debug.print("Status: {t}\n", .{status});  // {t} for enums
+   std.debug.print("Count: {d}\n", .{count});    // {d} for integers
+   ```
+
 ## Need Help?
 
 See the [Documentation Index](docs/intro.md) for comprehensive guides, or check API_REFERENCE.md for detailed API information.
+
+## See Also
+
+- [API Reference](../API_REFERENCE.md) - Detailed API information
+- [Documentation Index](../docs/intro.md) - Comprehensive guides
+

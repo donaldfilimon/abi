@@ -1,0 +1,52 @@
+# =============================================================================
+# ABI Instance - GPU-Enabled Example
+# =============================================================================
+# An AbiInstance with GPU acceleration for ML workloads
+apiVersion: abi.io/v1
+kind: AbiInstance
+metadata:
+  name: abi-gpu
+  namespace: ml-workloads
+  labels:
+    workload-type: ml-inference
+spec:
+  replicas: 2
+
+  image:
+    repository: ghcr.io/abi/abi
+    tag: v1.0.0-cuda
+    pullPolicy: IfNotPresent
+
+  features:
+    ai: true
+    gpu: true
+    database: true
+    network: true
+    web: true
+    profiling: true
+
+  gpu:
+    backend: cuda
+    count: 1
+    memory: "8Gi"
+
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "4Gi"
+    limits:
+      cpu: "4000m"
+      memory: "16Gi"
+
+  storage:
+    enabled: true
+    size: "100Gi"
+    storageClassName: "fast-nvme"
+
+  llm:
+    provider: local
+    model: llama-7b
+
+  highAvailability:
+    enabled: true
+    antiAffinity: soft

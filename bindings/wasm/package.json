@@ -1,0 +1,65 @@
+{
+  "name": "@anthropic/abi-wasm",
+  "version": "0.3.0",
+  "description": "WebAssembly bindings for the ABI high-performance AI and vector database framework",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "wasm",
+    "README.md"
+  ],
+  "scripts": {
+    "build:wasm": "cd ../.. && zig build wasm",
+    "build:ts": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "build": "npm run build:wasm && npm run build:ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "abi",
+    "wasm",
+    "webassembly",
+    "ai",
+    "vector-database",
+    "embeddings",
+    "simd",
+    "high-performance"
+  ],
+  "author": "ABI Framework Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/donaldfilimon/abi.git",
+    "directory": "bindings/wasm"
+  },
+  "bugs": {
+    "url": "https://github.com/donaldfilimon/abi/issues"
+  },
+  "homepage": "https://github.com/donaldfilimon/abi#readme",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

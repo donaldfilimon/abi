@@ -1,5 +1,6 @@
 //! Role-based access control (RBAC) implementation.
 const std = @import("std");
+const time = @import("../time.zig");
 
 pub const Permission = enum {
     read,
@@ -12,6 +13,16 @@ pub const Permission = enum {
     view_metrics,
     view_logs,
     configure,
+    // Unified Memory permissions
+    memory_read, // Read from shared memory regions
+    memory_write, // Write to shared memory regions
+    memory_register, // Register new memory regions for sharing
+    memory_admin, // Manage memory regions, coherence, and policies
+    // Link permissions
+    link_connect, // Connect to remote nodes
+    link_admin, // Manage link configuration and security
+    link_thunderbolt, // Use Thunderbolt transport
+    link_internet, // Use Internet transport
 };
 
 pub const Role = struct {
@@ -41,8 +52,8 @@ pub const RbacManager = struct {
     config: RbacConfig,
     roles: std.StringArrayHashMapUnmanaged(*Role),
     role_assignments: std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged(RoleAssignment)),
-    user_permissions: std.AutoHashMap(u64, []const Permission),
-    permission_cache: std.AutoHashMap(u64, bool),
+    user_permissions: std.AutoHashMapUnmanaged(u64, []const Permission),
+    permission_cache: std.AutoHashMapUnmanaged(u64, bool),
 
     pub fn init(allocator: std.mem.Allocator, config: RbacConfig) !RbacManager {
         var manager = RbacManager{
@@ -50,8 +61,8 @@ pub const RbacManager = struct {
             .config = config,
             .roles = std.StringArrayHashMapUnmanaged(*Role).empty,
             .role_assignments = std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged(RoleAssignment)).empty,
-            .user_permissions = std.AutoHashMap(u64, []const Permission).init(allocator),
-            .permission_cache = std.AutoHashMap(u64, bool).init(allocator),
+            .user_permissions = .{},
+            .permission_cache = .{},
         };
 
         if (config.default_roles) {
@@ -86,8 +97,8 @@ pub const RbacManager = struct {
         while (perm_it.next()) |perms| {
             self.allocator.free(perms.*);
         }
-        self.user_permissions.deinit();
-        self.permission_cache.deinit();
+        self.user_permissions.deinit(self.allocator);
+        self.permission_cache.deinit(self.allocator);
         self.* = undefined;
     }
 
@@ -138,19 +149,19 @@ pub const RbacManager = struct {
         const assignment = RoleAssignment{
             .user_id = try self.allocator.dupe(u8, user_id),
             .role_name = try self.allocator.dupe(u8, role_name),
-            .granted_at = std.time.timestamp(),
+            .granted_at = time.unixSeconds(),
             .granted_by = granted_by_copy,
             .expires_at = null,
         };
 
         var assignments = self.role_assignments.get(user_id) orelse blk: {
-            var list = std.ArrayListUnmanaged(RoleAssignment).empty;
+            const list = std.ArrayListUnmanaged(RoleAssignment).empty;
             try self.role_assignments.put(self.allocator, try self.allocator.dupe(u8, user_id), list);
             break :blk self.role_assignments.get(user_id).?;
         };
         try assignments.append(self.allocator, assignment);
 
-        self.invalidateUserCache(self, user_id);
+        self.invalidateUserCache(user_id);
     }
 
     pub fn revokeRole(self: *RbacManager, user_id: []const u8, role_name: []const u8) bool {
@@ -185,7 +196,7 @@ pub const RbacManager = struct {
         }
 
         const has_perm = self.checkPermissionDirect(user_id, permission);
-        try self.permission_cache.put(cache_key, has_perm);
+        try self.permission_cache.put(self.allocator, cache_key, has_perm);
         return has_perm;
     }
 
@@ -241,7 +252,59 @@ pub const RbacManager = struct {
         return false;
     }
 
-    fn invalidateUserCache(_: *RbacManager, _: []const u8) void {}
+    /// Invalidate cached permissions for a specific user.
+    /// Called when role assignments change.
+    fn invalidateUserCache(self: *RbacManager, user_id: []const u8) void {
+        // Remove all cached permission entries for this user
+        // by iterating through the cache and removing matching keys
+        var keys_to_remove = std.ArrayListUnmanaged(u64).empty;
+        defer keys_to_remove.deinit(self.allocator);
+
+        // Find all cache keys for this user
+        var it = self.permission_cache.iterator();
+        while (it.next()) |entry| {
+            // Check if this cache key belongs to this user by comparing hash prefix
+            const user_hash = self.computeUserHash(user_id);
+            // Keys are composed of user hash + permission enum, so we check the prefix
+            const key = entry.key_ptr.*;
+            if ((key / 17) == user_hash) {
+                keys_to_remove.append(self.allocator, key) catch continue;
+            }
+        }
+
+        // Remove identified cache entries
+        for (keys_to_remove.items) |key| {
+            _ = self.permission_cache.remove(key);
+        }
+
+        // Also remove from user_permissions cache
+        const user_hash = self.computeUserHash(user_id);
+        if (self.user_permissions.fetchRemove(user_hash)) |kv| {
+            self.allocator.free(kv.value);
+        }
+    }
+
+    /// Compute a hash for the user ID to use as cache key prefix
+    fn computeUserHash(_: *RbacManager, user_id: []const u8) u64 {
+        var hash: u64 = 0;
+        for (user_id) |byte| {
+            hash = hash *% 31 +% byte;
+        }
+        return hash;
+    }
+
+    /// Clear all cached permissions (useful for bulk updates)
+    pub fn clearPermissionCache(self: *RbacManager) void {
+        // Clear user permissions cache
+        var perm_it = self.user_permissions.valueIterator();
+        while (perm_it.next()) |perms| {
+            self.allocator.free(perms.*);
+        }
+        self.user_permissions.clearRetainingCapacity();
+
+        // Clear permission check cache
+        self.permission_cache.clearRetainingCapacity();
+    }
 
     fn getCacheKey(_: *RbacManager, user_id: []const u8, permission: Permission) u64 {
         var hash: u64 = 0;
@@ -264,6 +327,14 @@ pub const RbacManager = struct {
             .view_metrics,
             .view_logs,
             .configure,
+            .memory_read,
+            .memory_write,
+            .memory_register,
+            .memory_admin,
+            .link_connect,
+            .link_admin,
+            .link_thunderbolt,
+            .link_internet,
         }, "Full administrative access");
 
         try self.createRole("user", &.{ .read, .write, .execute }, "Regular user access");
@@ -280,11 +351,51 @@ pub const RbacManager = struct {
             .view_metrics,
             .view_logs,
         }, "Management access");
+
+        // Memory and linking roles
+        try self.createRole("memory_user", &.{
+            .memory_read,
+            .memory_write,
+            .link_connect,
+        }, "Access to unified memory read/write");
+
+        try self.createRole("memory_admin", &.{
+            .memory_read,
+            .memory_write,
+            .memory_register,
+            .memory_admin,
+            .link_connect,
+            .link_admin,
+            .link_thunderbolt,
+            .link_internet,
+        }, "Full unified memory administration");
+
+        try self.createRole("link_user", &.{
+            .link_connect,
+            .link_internet,
+        }, "Basic link connectivity");
+
+        try self.createRole("link_admin", &.{
+            .link_connect,
+            .link_admin,
+            .link_thunderbolt,
+            .link_internet,
+        }, "Full link administration");
     }
 };
 
 fn isSystemRoleName(name: []const u8) bool {
-    const system_roles = &.{ "admin", "user", "readonly", "metrics", "manager" };
+    const system_roles = &.{
+        "admin",
+        "user",
+        "readonly",
+        "metrics",
+        "manager",
+        "memory_user",
+        "memory_admin",
+        "link_user",
+        "link_admin",
+    };
     for (system_roles) |role| {
         if (std.mem.eql(u8, name, role)) return true;
     }

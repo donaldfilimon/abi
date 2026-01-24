@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABI WASM Test | ABI Framework</title>
+    <meta name="description" content="WebAssembly verification test for ABI Framework">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>A</text></svg>">
+    <style>
+        :root {
+            --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a24; --card: #16161f;
+            --text: #f0f0f5; --text2: #a0a0b0; --muted: #606070;
+            --accent: #6366f1; --accent2: #8b5cf6;
+            --border: rgba(255,255,255,0.08); --glow: rgba(99,102,241,0.4);
+            --green: #10b981; --red: #ef4444;
+        }
+        [data-theme="light"] {
+            --bg: #f8fafc; --bg2: #f1f5f9; --bg3: #e2e8f0; --card: #fff;
+            --text: #0f172a; --text2: #475569; --muted: #94a3b8;
+            --accent: #4f46e5; --accent2: #7c3aed;
+            --border: rgba(0,0,0,0.08); --glow: rgba(79,70,229,0.25);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+        a { color: var(--accent); text-decoration: none; }
+
+        .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 0.75rem 1.5rem; background: rgba(10,10,15,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); }
+        [data-theme="light"] .nav { background: rgba(248,250,252,0.9); }
+        .nav-inner { max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .logo { display: flex; align-items: center; gap: 0.5rem; font-weight: 700; color: var(--text); }
+        .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.9rem; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 500; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); cursor: pointer; color: var(--text); }
+        .btn-sm:hover { border-color: var(--accent); }
+
+        .container { max-width: 800px; margin: 0 auto; padding: 6rem 1.5rem 2rem; }
+
+        .header { text-align: center; margin-bottom: 2rem; }
+        .badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 100px; font-size: 0.75rem; color: var(--accent); margin-bottom: 1rem; }
+        .badge-wasm { background: rgba(101, 79, 240, 0.15); border-color: rgba(101, 79, 240, 0.3); color: #654ff0; }
+        h1 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--text2); }
+
+        .status { padding: 1rem 1.25rem; border-radius: 8px; margin: 1rem 0; display: none; border: 1px solid var(--border); }
+        .status.success { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: var(--green); }
+        .status.error { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: var(--red); }
+
+        .controls { text-align: center; margin: 2rem 0; }
+        .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; font-size: 0.9rem; font-weight: 600; border-radius: 8px; border: none; cursor: pointer; transition: all 0.15s; }
+        .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: 0 0 20px var(--glow); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 30px var(--glow); }
+
+        .log-section { margin-top: 2rem; }
+        .log-header { font-size: 0.85rem; font-weight: 600; color: var(--text2); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .log { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--text2); overflow-x: auto; min-height: 150px; white-space: pre-wrap; }
+
+        .footer { text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border); font-size: 0.8rem; color: var(--muted); }
+        .footer a { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-inner">
+            <a href="../docs/" class="logo"><span class="logo-icon">A</span>ABI</a>
+            <button class="btn-sm" id="themeToggle" aria-label="Toggle theme"><span id="themeIcon">&#9790;</span></button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="header">
+            <span class="badge badge-wasm">WebAssembly</span>
+            <h1>ABI WASM Test</h1>
+            <p class="subtitle">WebAssembly verification and functionality test</p>
+        </header>
+
+        <div id="status" class="status"></div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="runTest()">Run Verification</button>
+        </div>
+
+        <section class="log-section">
+            <h3 class="log-header">Log Output</h3>
+            <pre id="log" class="log">Waiting for test...</pre>
+        </section>
+
+        <footer class="footer">
+            <p>Part of the <a href="../docs/">ABI Framework</a> | <a href="https://github.com/donaldfilimon/abi" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Theme toggle
+        const html = document.documentElement;
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        const saved = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        html.setAttribute('data-theme', saved);
+        themeIcon.textContent = saved === 'dark' ? '\u263E' : '\u2600';
+        themeToggle.addEventListener('click', () => {
+            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            themeIcon.textContent = next === 'dark' ? '\u263E' : '\u2600';
+        });
+    </script>
+    <script src="test.js"></script>
+</body>
+</html>

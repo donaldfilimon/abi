@@ -1,8 +1,10 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     if (!abi.ai.isEnabled()) {
         std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
@@ -26,8 +28,9 @@ pub fn main(init: std.process.Init) !void {
     defer agent.deinit();
 
     const user_input = "Hello, how are you today?";
-    const response = agent.process(user_input, allocator) catch |err| {
-        std.debug.print("Failed to process user input: {}\n", .{err});
+    // Using the chat() method (alias for process()) as documented in docs/ai.md
+    const response = agent.chat(user_input, allocator) catch |err| {
+        std.debug.print("Failed to chat with agent: {}\n", .{err});
         return err;
     };
     defer allocator.free(response);
