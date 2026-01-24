@@ -92,12 +92,13 @@ zig build run -- --version
 ### Run Tests and Benchmarks
 
 ```bash
-zig build test                    # Run all tests
-zig build test --summary all      # Run tests with detailed output
-zig test src/runtime/engine/engine.zig     # Test single file (new path)
+zig fmt .                               # Format all files (required)
+zig build test --summary all            # Run tests with detailed output
+zig build typecheck                     # Type check without running tests
+zig test src/runtime/engine/engine.zig  # Test single file
 zig test src/tests/mod.zig --test-filter "pattern"  # Filter tests
 zig build test -Denable-gpu=true -Denable-network=true  # Test with features
-zig build benchmarks              # Run performance benchmarks
+zig build benchmarks                    # Run performance benchmarks
 ```
 
 ### CLI Commands
