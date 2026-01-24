@@ -18,6 +18,20 @@ pub const OpenGlesError = error{
     VersionNotSupported,
     FunctionLoadFailed,
     LibraryNotFound,
+    HintNotSupported,
+};
+
+/// Buffer usage hints for OpenGL ES memory allocation
+/// Maps to GL buffer usage patterns for optimal memory placement
+pub const BufferUsageHint = enum {
+    /// GPU-only buffer, written once, used many times (GL_STATIC_DRAW)
+    static_draw,
+    /// GPU-only buffer, read-heavy workloads (GL_STATIC_READ)
+    static_read,
+    /// Host-visible buffer for frequent CPU access (GL_DYNAMIC_DRAW)
+    dynamic_storage,
+    /// Host-visible + coherent for CPU/GPU shared access (GL_DYNAMIC_READ)
+    dynamic_coherent,
 };
 
 var opengles_lib: ?std.DynLib = null;
@@ -109,6 +123,8 @@ const GL_COMPUTE_SHADER = 0x91B9;
 const GL_SHADER_STORAGE_BUFFER = 0x90D2;
 const GL_SHADER_STORAGE_BARRIER_BIT = 0x00002000;
 const GL_STATIC_DRAW = 0x88E4;
+const GL_STATIC_READ = 0x88E5;
+const GL_DYNAMIC_DRAW = 0x88E8;
 const GL_DYNAMIC_READ = 0x88E9;
 const GL_COMPILE_STATUS = 0x8B81;
 const GL_LINK_STATUS = 0x8B82;
@@ -343,6 +359,60 @@ pub fn allocateDeviceMemory(size: usize) OpenGlesError!*anyopaque {
     // Use cached allocator or fallback to page_allocator
     const allocator = buffer_allocator orelse std.heap.page_allocator;
     return allocateDeviceMemoryWithAllocator(allocator, size);
+}
+
+/// Allocate device memory with a specific usage hint for optimal placement
+pub fn allocateDeviceMemoryWithHint(size: usize, hint: BufferUsageHint) OpenGlesError!*anyopaque {
+    const allocator = buffer_allocator orelse std.heap.page_allocator;
+
+    if (!opengles_initialized) {
+        return OpenGlesError.InitializationFailed;
+    }
+
+    const gen_buffers_fn = glesGenBuffers orelse return OpenGlesError.BufferCreationFailed;
+    var buffer_id: u32 = 0;
+    gen_buffers_fn(1, &buffer_id);
+    if (buffer_id == 0) {
+        checkAndLogGlesError("glGenBuffers");
+        return OpenGlesError.BufferCreationFailed;
+    }
+
+    const bind_buffer_fn = glesBindBuffer orelse return OpenGlesError.BufferCreationFailed;
+    bind_buffer_fn(GL_SHADER_STORAGE_BUFFER, buffer_id);
+
+    // Map BufferUsageHint to OpenGL ES usage constants
+    const gl_usage: u32 = switch (hint) {
+        .static_draw => GL_STATIC_DRAW,
+        .static_read => GL_STATIC_READ,
+        .dynamic_storage => GL_DYNAMIC_DRAW,
+        .dynamic_coherent => GL_DYNAMIC_READ,
+    };
+
+    const buffer_data_fn = glesBufferData orelse return OpenGlesError.BufferCreationFailed;
+    buffer_data_fn(GL_SHADER_STORAGE_BUFFER, @intCast(size), null, gl_usage);
+
+    // Check for GL errors after buffer creation
+    if (checkAndLogGlesError("glBufferData")) {
+        const delete_buffers_fn = glesDeleteBuffers orelse return OpenGlesError.BufferCreationFailed;
+        delete_buffers_fn(1, &buffer_id);
+        return OpenGlesError.BufferCreationFailed;
+    }
+
+    const opengles_buffer = allocator.create(OpenGlesBuffer) catch {
+        const delete_buffers_fn = glesDeleteBuffers orelse return OpenGlesError.BufferCreationFailed;
+        delete_buffers_fn(1, &buffer_id);
+        return OpenGlesError.BufferCreationFailed;
+    };
+    errdefer allocator.destroy(opengles_buffer);
+
+    opengles_buffer.* = .{
+        .buffer_id = buffer_id,
+        .size = size,
+        .allocator = allocator,
+    };
+
+    std.log.debug("OpenGL ES buffer allocated with hint {s}: ID={}, size={B}", .{ @tagName(hint), buffer_id, size });
+    return opengles_buffer;
 }
 
 pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usize) OpenGlesError!*anyopaque {
