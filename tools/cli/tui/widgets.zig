@@ -751,6 +751,96 @@ pub const Toast = struct {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Sparkline Chart (for Training Dashboard)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Renders values as an ASCII sparkline using block characters.
+/// Input values should be normalized to 0-100 range.
+pub const SparklineChart = struct {
+    /// Sparkline bar characters (8 levels, UTF-8 encoded)
+    pub const BARS = [_][]const u8{ "▁", "▂", "▃", "▄", "▅", "▆", "▇", "█" };
+
+    /// Render an array of values (0-100) as a sparkline string.
+    /// Returns a slice of the buffer containing the rendered sparkline.
+    pub fn render(values: []const u8, buf: []u8) []const u8 {
+        var pos: usize = 0;
+        for (values) |v| {
+            const idx = @min(7, v / 13); // Map 0-100 to 0-7
+            const bar = BARS[idx];
+            if (pos + bar.len > buf.len) break;
+            @memcpy(buf[pos..][0..bar.len], bar);
+            pos += bar.len;
+        }
+        return buf[0..pos];
+    }
+
+    /// Render with color based on trend (green=down, red=up for loss).
+    pub fn renderColored(values: []const u8, buf: []u8, rising_is_bad: bool) struct { text: []const u8, color: []const u8 } {
+        const text = render(values, buf);
+
+        // Determine trend from last few values
+        if (values.len < 2) return .{ .text = text, .color = colors.reset };
+
+        const last = values[values.len - 1];
+        const prev = values[values.len - 2];
+
+        const color = if (last > prev + 5)
+            if (rising_is_bad) colors.red else colors.green
+        else if (last + 5 < prev)
+            if (rising_is_bad) colors.green else colors.red
+        else
+            colors.yellow;
+
+        return .{ .text = text, .color = color };
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Progress Gauge (for Training Dashboard)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Renders a percentage as a horizontal progress bar.
+pub const ProgressGauge = struct {
+    pub const FILLED = "█";
+    pub const EMPTY = "░";
+
+    /// Render a percentage (0-100) as a progress bar of given width.
+    pub fn render(percent: u8, width: usize, buf: []u8) []const u8 {
+        const clamped = @min(100, percent);
+        const filled_count = (clamped * width) / 100;
+        var pos: usize = 0;
+
+        // Filled portion
+        for (0..filled_count) |_| {
+            if (pos + FILLED.len > buf.len) break;
+            @memcpy(buf[pos..][0..FILLED.len], FILLED);
+            pos += FILLED.len;
+        }
+
+        // Empty portion
+        for (0..(width - filled_count)) |_| {
+            if (pos + EMPTY.len > buf.len) break;
+            @memcpy(buf[pos..][0..EMPTY.len], EMPTY);
+            pos += EMPTY.len;
+        }
+
+        return buf[0..pos];
+    }
+
+    /// Render with color based on threshold levels.
+    pub fn renderColored(percent: u8, width: usize, buf: []u8) struct { text: []const u8, color: []const u8 } {
+        const text = render(percent, width, buf);
+        const color = if (percent >= 90)
+            colors.red
+        else if (percent >= 70)
+            colors.yellow
+        else
+            colors.green;
+        return .{ .text = text, .color = color };
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -770,4 +860,35 @@ test "SpinnerStyle frames" {
 
     const line = SpinnerStyle.line.frames();
     try std.testing.expect(line.len == 4);
+}
+
+test "SparklineChart renders values" {
+    const values = [_]u8{ 10, 30, 50, 70, 90, 70, 50, 30, 10 };
+    var buf: [128]u8 = undefined;
+    const result = SparklineChart.render(&values, &buf);
+
+    // Should have rendered something
+    try std.testing.expect(result.len > 0);
+    // Result should contain sparkline characters (UTF-8 block elements)
+    try std.testing.expect(std.mem.indexOf(u8, result, "▁") != null or
+        std.mem.indexOf(u8, result, "█") != null or
+        std.mem.indexOf(u8, result, "▄") != null);
+}
+
+test "ProgressGauge renders percentage" {
+    var buf: [64]u8 = undefined;
+
+    // 50% should have both filled and empty
+    const half = ProgressGauge.render(50, 10, &buf);
+    try std.testing.expect(half.len > 0);
+    try std.testing.expect(std.mem.indexOf(u8, half, "█") != null);
+    try std.testing.expect(std.mem.indexOf(u8, half, "░") != null);
+
+    // 100% should be all filled
+    const full = ProgressGauge.render(100, 10, &buf);
+    try std.testing.expect(std.mem.indexOf(u8, full, "░") == null);
+
+    // 0% should be all empty
+    const empty = ProgressGauge.render(0, 10, &buf);
+    try std.testing.expect(std.mem.indexOf(u8, empty, "█") == null);
 }

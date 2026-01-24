@@ -245,6 +245,87 @@ const WandbLogger = struct {
     }
 };
 
+// ===============================================================================
+// MetricsStream - JSONL format for TUI dashboard
+// ===============================================================================
+
+/// Streams metrics to a JSONL file for real-time TUI monitoring.
+/// Each line is a self-contained JSON object with event data.
+pub const MetricsStream = struct {
+    allocator: std.mem.Allocator,
+    io_backend: std.Io.Threaded,
+    file: std.Io.File,
+    offset: u64,
+
+    pub fn init(allocator: std.mem.Allocator, path: []const u8) LogError!MetricsStream {
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        errdefer io_backend.deinit();
+        const io = io_backend.io();
+
+        const file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = false });
+        errdefer file.close(io);
+
+        const stat = file.stat(io) catch |err| switch (err) {
+            error.Streaming => std.Io.File.Stat{
+                .inode = 0,
+                .nlink = 0,
+                .size = 0,
+                .permissions = @enumFromInt(0),
+                .kind = .file,
+                .atime = null,
+                .mtime = .{ .nanoseconds = 0 },
+                .ctime = .{ .nanoseconds = 0 },
+                .block_size = 0,
+            },
+            else => return err,
+        };
+
+        return .{
+            .allocator = allocator,
+            .io_backend = io_backend,
+            .file = file,
+            .offset = stat.size,
+        };
+    }
+
+    pub fn deinit(self: *MetricsStream) void {
+        const io = self.io_backend.io();
+        self.file.close(io);
+        self.io_backend.deinit();
+        self.* = undefined;
+    }
+
+    /// Log a scalar metric value.
+    pub fn logScalar(self: *MetricsStream, tag: []const u8, value: f32, step: u64) LogError!void {
+        const io = self.io_backend.io();
+        const ts = @as(u64, @intCast(time.unixSeconds()));
+        var buf: [512]u8 = undefined;
+        const line = std.fmt.bufPrint(&buf, "{{\"type\":\"scalar\",\"tag\":\"{s}\",\"value\":{d},\"step\":{d},\"ts\":{d}}}\n", .{ tag, value, step, ts }) catch return error.OutOfBounds;
+        try self.file.writePositionalAll(io, line, self.offset);
+        self.offset += line.len;
+    }
+
+    /// Log a checkpoint event.
+    pub fn logCheckpoint(self: *MetricsStream, path: []const u8, size: u64, step: u64) LogError!void {
+        const io = self.io_backend.io();
+        const ts = @as(u64, @intCast(time.unixSeconds()));
+        var buf: [512]u8 = undefined;
+        const line = std.fmt.bufPrint(&buf, "{{\"type\":\"checkpoint\",\"path\":\"{s}\",\"size\":{d},\"step\":{d},\"ts\":{d}}}\n", .{ path, size, step, ts }) catch return error.OutOfBounds;
+        try self.file.writePositionalAll(io, line, self.offset);
+        self.offset += line.len;
+    }
+
+    /// Log training progress (epoch, step counts).
+    pub fn logProgress(self: *MetricsStream, epoch: u32, total_epochs: u32, step_in_epoch: u64, total_steps: u64) LogError!void {
+        const io = self.io_backend.io();
+        const ts = @as(u64, @intCast(time.unixSeconds()));
+        var buf: [512]u8 = undefined;
+        const line = std.fmt.bufPrint(&buf, "{{\"type\":\"progress\",\"epoch\":{d},\"total_epochs\":{d},\"step\":{d},\"total_steps\":{d},\"ts\":{d}}}\n", .{ epoch, total_epochs, step_in_epoch, total_steps, ts }) catch return error.OutOfBounds;
+        try self.file.writePositionalAll(io, line, self.offset);
+        self.offset += line.len;
+    }
+};
+
 fn makeRunId(allocator: std.mem.Allocator) ![]const u8 {
     var rng = std.Random.DefaultPrng.init(@as(u64, @intCast(time.unixSeconds())));
     const rand = rng.random().int(u32);
@@ -395,4 +476,25 @@ fn maskedCrc32c(data: []const u8) u32 {
     const crc = std.hash.crc.Crc32Iscsi.hash(data);
     const rotated = (crc >> 15) | (crc << 17);
     return rotated +% 0xa282ead8;
+}
+
+// ===============================================================================
+// Tests
+// ===============================================================================
+
+test "MetricsStream logScalar writes JSONL" {
+    // This test verifies the MetricsStream can write scalar metrics in JSONL format.
+    // We skip if file operations aren't available in test environment.
+    var stream = MetricsStream.init(std.testing.allocator, "/tmp/abi-test-metrics.jsonl") catch |err| {
+        // Skip test if we can't create the file (e.g., in CI without /tmp access)
+        if (err == error.AccessDenied or err == error.FileNotFound) return error.SkipZigTest;
+        return err;
+    };
+    defer stream.deinit();
+
+    try stream.logScalar("loss/train", 0.5, 100);
+    try stream.logScalar("loss/val", 0.6, 100);
+
+    // Verify file was written (offset should have advanced)
+    try std.testing.expect(stream.offset > 0);
 }

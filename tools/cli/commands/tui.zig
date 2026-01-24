@@ -87,6 +87,7 @@ const Command = enum {
     simd,
     system_info,
     train,
+    train_monitor,
     task,
 };
 
@@ -1194,6 +1195,7 @@ fn commandName(cmd: Command) []const u8 {
         .simd => "simd",
         .system_info => "system-info",
         .train => "train",
+        .train_monitor => "train-monitor",
         .task => "task",
     };
 }
@@ -1662,6 +1664,7 @@ fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
         .simd => try simd.run(allocator, empty_args),
         .system_info => try system_info.run(allocator, empty_args),
         .train => try train.run(allocator, empty_args),
+        .train_monitor => try train.run(allocator, &[_][:0]const u8{"monitor"}),
         .task => try task.run(allocator, empty_args),
     }
 }
@@ -1701,7 +1704,16 @@ fn menuItemsExtended() []const MenuItem {
             .shortcut = 3,
             .usage = "abi train <subcommand> [options]",
             .examples = &[_][]const u8{ "abi train run", "abi train resume", "abi train info" },
-            .related = &[_][]const u8{ "agent", "llm" },
+            .related = &[_][]const u8{ "agent", "llm", "train-monitor" },
+        },
+        .{
+            .label = "Training Monitor",
+            .description = "Live training dashboard",
+            .action = .{ .command = .train_monitor },
+            .category = .ai,
+            .usage = "abi train monitor [run-id]",
+            .examples = &[_][]const u8{ "abi train monitor", "abi train monitor --log-dir ./logs" },
+            .related = &[_][]const u8{ "train", "llm" },
         },
         .{
             .label = "Embeddings",
