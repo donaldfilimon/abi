@@ -169,6 +169,46 @@ print(f"Decode speed: {stats.decode_tokens_per_second:.1f} tok/s")
 engine.unload_model()
 ```
 
+### Training (`abi.training`)
+
+```python
+from abi.training import (
+    Trainer, TrainingConfig, train,
+    TrainingMetrics, TrainingReport,
+)
+
+# Quick training with convenience function
+config = TrainingConfig(epochs=10, batch_size=32, learning_rate=0.001)
+report = train(config, verbose=True)
+print(f"Final loss: {report.final_loss:.4f}")
+
+# Training with context manager for more control
+config = TrainingConfig(
+    epochs=5,
+    batch_size=16,
+    learning_rate=2e-5,
+    optimizer="adamw",
+    warmup_steps=100,
+    checkpoint_interval=500,
+)
+
+with Trainer(config) as trainer:
+    for metrics in trainer.train():
+        if metrics.step % 100 == 0:
+            print(f"Step {metrics.step}: loss={metrics.loss:.4f}, acc={metrics.accuracy:.4f}")
+
+    # Get final report
+    report = trainer.get_report()
+    print(f"Training complete: {report.epochs} epochs, {report.total_time_seconds:.1f}s")
+
+    # Save checkpoint
+    trainer.save_checkpoint("./checkpoints/final.ckpt")
+
+# Pre-configured training profiles
+finetune_config = TrainingConfig.for_finetuning()
+pretrain_config = TrainingConfig.for_pretraining()
+```
+
 ### Vector Database (`abi.database`)
 
 ```python
@@ -339,12 +379,37 @@ pip install -e .
 ## Testing
 
 ```bash
-# Run tests
-pytest tests/
+# Install test dependencies
+pip install -e ".[dev]"
 
-# With coverage
-pytest tests/ --cov=abi --cov-report=html
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run with coverage
+pytest --cov=abi --cov-report=html
+
+# Run only unit tests (no native library required)
+pytest -m "not native"
+
+# Run specific test files
+pytest tests/test_streaming.py -v
+pytest tests/test_training.py -v
+
+# Run integration tests (requires native library)
+pytest tests/test_integration.py -v
 ```
+
+### Test Suites
+
+| Suite | File | Coverage |
+|-------|------|----------|
+| Core | `test_abi.py` | Core, vectors, database, agent |
+| Streaming | `test_streaming.py` | StreamingConfig, TokenEvent, generate_streaming |
+| Training | `test_training.py` | TrainingConfig, Trainer, TrainingMetrics, TrainingReport |
+| Integration | `test_integration.py` | Native library when available |
 
 ## API Reference
 

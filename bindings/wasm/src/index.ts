@@ -647,6 +647,147 @@ export class VectorDatabase {
 }
 
 // ============================================================================
+// LLM Streaming API (Mock implementation for WASM)
+// ============================================================================
+
+/**
+ * Configuration for streaming text generation.
+ */
+export interface StreamingConfigOptions {
+  /** Maximum tokens to generate */
+  maxTokens?: number;
+  /** Sampling temperature (0.0 = greedy, 1.0 = default) */
+  temperature?: number;
+  /** Top-p nucleus sampling threshold */
+  topP?: number;
+  /** Top-k sampling (0 = disabled) */
+  topK?: number;
+  /** Repetition penalty (1.0 = disabled) */
+  repetitionPenalty?: number;
+  /** Random seed for reproducibility */
+  seed?: number;
+}
+
+/**
+ * Configuration for streaming text generation.
+ */
+export class StreamingConfig {
+  readonly maxTokens: number;
+  readonly temperature: number;
+  readonly topP: number;
+  readonly topK: number;
+  readonly repetitionPenalty: number;
+  readonly seed: number;
+
+  constructor(options: StreamingConfigOptions = {}) {
+    this.maxTokens = options.maxTokens ?? 256;
+    this.temperature = options.temperature ?? 0.7;
+    this.topP = options.topP ?? 0.9;
+    this.topK = options.topK ?? 40;
+    this.repetitionPenalty = options.repetitionPenalty ?? 1.1;
+    this.seed = options.seed ?? 0;
+  }
+}
+
+/**
+ * Token event from streaming generation.
+ */
+export interface TokenEvent {
+  /** The generated text for this token */
+  text: string;
+  /** Token ID in vocabulary */
+  tokenId: number;
+  /** Position in generated sequence */
+  position: number;
+  /** Whether this is the final token */
+  isFinal: boolean;
+  /** Timestamp in nanoseconds */
+  timestampNs: number;
+}
+
+/**
+ * LLM Engine for text generation.
+ *
+ * In WASM, this provides a mock implementation suitable for testing.
+ * Real inference would require connecting to a backend service.
+ */
+export class LlmEngine {
+  private isModelLoaded = false;
+
+  /**
+   * Check if a model is loaded.
+   */
+  get isLoaded(): boolean {
+    return this.isModelLoaded;
+  }
+
+  /**
+   * Load a model (mock implementation).
+   */
+  loadModel(path: string): void {
+    this.isModelLoaded = true;
+  }
+
+  /**
+   * Unload the current model.
+   */
+  unloadModel(): void {
+    this.isModelLoaded = false;
+  }
+
+  /**
+   * Generate text with streaming output.
+   *
+   * @param prompt - Input prompt
+   * @param config - Streaming configuration
+   * @returns Async iterator of token events
+   */
+  async *generateStreaming(
+    prompt: string,
+    config: StreamingConfig = new StreamingConfig()
+  ): AsyncGenerator<TokenEvent> {
+    if (!this.isModelLoaded) {
+      throw new Error("No model loaded. Call loadModel() first.");
+    }
+
+    // Mock streaming generation
+    const mockTokens = ["The", " AI", " responds", ":", " ", prompt.slice(0, 20), "..."];
+    const limit = Math.min(mockTokens.length, config.maxTokens);
+
+    for (let i = 0; i < limit; i++) {
+      const isFinal = i === limit - 1;
+      yield {
+        text: mockTokens[i],
+        tokenId: i + 1,
+        position: i,
+        isFinal,
+        timestampNs: Date.now() * 1_000_000,
+      };
+      // Small delay to simulate streaming
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+
+  /**
+   * Generate text (non-streaming).
+   *
+   * @param prompt - Input prompt
+   * @param maxTokens - Maximum tokens to generate
+   * @returns Generated text
+   */
+  async generate(prompt: string, maxTokens: number = 256): Promise<string> {
+    const tokens: string[] = [];
+    const config = new StreamingConfig({ maxTokens });
+
+    for await (const event of this.generateStreaming(prompt, config)) {
+      tokens.push(event.text);
+    }
+
+    return tokens.join("");
+  }
+}
+
+// ============================================================================
 // Re-exports for convenience
 // ============================================================================
 
@@ -670,4 +811,6 @@ export default {
   vectorSub,
   vectorScale,
   VectorDatabase,
+  StreamingConfig,
+  LlmEngine,
 };

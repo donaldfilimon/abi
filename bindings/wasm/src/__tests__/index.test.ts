@@ -12,6 +12,9 @@ import {
   vectorSub,
   vectorScale,
   VectorDatabase,
+  StreamingConfig,
+  LlmEngine,
+  type TokenEvent,
 } from "../index";
 
 describe("Vector Operations", () => {
@@ -275,6 +278,164 @@ describe("VectorDatabase", () => {
 
       expect(db.size()).toBe(0);
       expect(db.getDimensions()).toBeNull();
+    });
+  });
+});
+
+describe("LLM Streaming", () => {
+  describe("StreamingConfig", () => {
+    it("should create with default values", () => {
+      const config = new StreamingConfig();
+      expect(config.maxTokens).toBeGreaterThan(0);
+      expect(config.temperature).toBeGreaterThanOrEqual(0);
+      expect(config.temperature).toBeLessThanOrEqual(2);
+    });
+
+    it("should accept custom values", () => {
+      const config = new StreamingConfig({
+        maxTokens: 100,
+        temperature: 0.8,
+        topP: 0.95,
+        topK: 50,
+      });
+      expect(config.maxTokens).toBe(100);
+      expect(config.temperature).toBe(0.8);
+      expect(config.topP).toBe(0.95);
+      expect(config.topK).toBe(50);
+    });
+
+    it("should have correct default values", () => {
+      const config = new StreamingConfig();
+      expect(config.maxTokens).toBe(256);
+      expect(config.temperature).toBe(0.7);
+      expect(config.topP).toBe(0.9);
+      expect(config.topK).toBe(40);
+      expect(config.repetitionPenalty).toBe(1.1);
+      expect(config.seed).toBe(0);
+    });
+  });
+
+  describe("LlmEngine", () => {
+    let engine: LlmEngine;
+
+    beforeEach(() => {
+      engine = new LlmEngine();
+    });
+
+    it("should start without model loaded", () => {
+      expect(engine.isLoaded).toBe(false);
+    });
+
+    it("should mark model as loaded after loadModel", () => {
+      engine.loadModel("test-model.gguf");
+      expect(engine.isLoaded).toBe(true);
+    });
+
+    it("should unload model", () => {
+      engine.loadModel("test-model.gguf");
+      expect(engine.isLoaded).toBe(true);
+      engine.unloadModel();
+      expect(engine.isLoaded).toBe(false);
+    });
+
+    it("should throw when streaming without model", async () => {
+      const config = new StreamingConfig();
+      await expect(async () => {
+        for await (const _ of engine.generateStreaming("Hello", config)) {
+          // Should throw before yielding
+        }
+      }).rejects.toThrow("No model loaded");
+    });
+  });
+
+  describe("generateStreaming", () => {
+    let engine: LlmEngine;
+
+    beforeEach(() => {
+      engine = new LlmEngine();
+      engine.loadModel("test-model.gguf");
+    });
+
+    it("should return async iterator", async () => {
+      const config = new StreamingConfig();
+      const stream = engine.generateStreaming("Hello", config);
+
+      expect(stream[Symbol.asyncIterator]).toBeDefined();
+    });
+
+    it("should yield token events", async () => {
+      const tokens: TokenEvent[] = [];
+      const config = new StreamingConfig({ maxTokens: 5 });
+
+      for await (const token of engine.generateStreaming("Test", config)) {
+        tokens.push(token);
+      }
+
+      expect(tokens.length).toBeGreaterThan(0);
+      expect(tokens[0]).toHaveProperty("text");
+      expect(tokens[0]).toHaveProperty("tokenId");
+      expect(tokens[0]).toHaveProperty("position");
+      expect(tokens[0]).toHaveProperty("isFinal");
+    });
+
+    it("should respect maxTokens limit", async () => {
+      const maxTokens = 3;
+      let count = 0;
+
+      for await (const _ of engine.generateStreaming(
+        "Hello world",
+        new StreamingConfig({ maxTokens })
+      )) {
+        count++;
+      }
+
+      expect(count).toBeLessThanOrEqual(maxTokens);
+    });
+
+    it("should mark last token as final", async () => {
+      const tokens: TokenEvent[] = [];
+      const config = new StreamingConfig({ maxTokens: 3 });
+
+      for await (const token of engine.generateStreaming("Test", config)) {
+        tokens.push(token);
+      }
+
+      expect(tokens.length).toBeGreaterThan(0);
+      expect(tokens[tokens.length - 1].isFinal).toBe(true);
+    });
+
+    it("should have incrementing positions", async () => {
+      const tokens: TokenEvent[] = [];
+      const config = new StreamingConfig({ maxTokens: 5 });
+
+      for await (const token of engine.generateStreaming("Test", config)) {
+        tokens.push(token);
+      }
+
+      for (let i = 0; i < tokens.length; i++) {
+        expect(tokens[i].position).toBe(i);
+      }
+    });
+  });
+
+  describe("generate (non-streaming)", () => {
+    let engine: LlmEngine;
+
+    beforeEach(() => {
+      engine = new LlmEngine();
+      engine.loadModel("test-model.gguf");
+    });
+
+    it("should return complete text", async () => {
+      const result = await engine.generate("Hello", 5);
+
+      expect(typeof result).toBe("string");
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it("should throw without model loaded", async () => {
+      const newEngine = new LlmEngine();
+      await expect(newEngine.generate("Hello")).rejects.toThrow("No model loaded");
     });
   });
 });

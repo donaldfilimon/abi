@@ -2,7 +2,7 @@
 title: "WASM Bindings"
 tags: [wasm, bindings, javascript, typescript]
 ---
-# @anthropic/abi-wasm
+# @abi-framework/wasm
 > **Codebase Status:** Synced with repository as of 2026-01-24.
 
 <p align="center">
@@ -16,13 +16,13 @@ WebAssembly bindings for the ABI high-performance AI and vector database framewo
 ## Installation
 
 ```bash
-npm install @anthropic/abi-wasm
+npm install @abi-framework/wasm
 ```
 
 ## Quick Start
 
 ```typescript
-import { init, shutdown, version, cosineSimilarity, VectorDatabase } from '@anthropic/abi-wasm';
+import { init, shutdown, version, cosineSimilarity, VectorDatabase } from '@abi-framework/wasm';
 
 // Initialize the WASM module
 await init();
@@ -91,7 +91,7 @@ import {
   vectorAdd,
   vectorSub,
   vectorScale,
-} from '@anthropic/abi-wasm';
+} from '@abi-framework/wasm';
 
 const a = [1, 2, 3, 4];
 const b = [4, 3, 2, 1];
@@ -111,7 +111,7 @@ vectorScale(a, 2.0);     // Scalar multiplication
 ### Vector Database
 
 ```typescript
-import { VectorDatabase } from '@anthropic/abi-wasm';
+import { VectorDatabase } from '@abi-framework/wasm';
 
 // Create a database
 const db = new VectorDatabase({ name: 'my_vectors' });
@@ -146,7 +146,7 @@ db.clear();
 For advanced use cases requiring direct WASM memory access:
 
 ```typescript
-import { alloc, free, getMemory, getExports } from '@anthropic/abi-wasm';
+import { alloc, free, getMemory, getExports } from '@abi-framework/wasm';
 
 // Allocate memory in WASM linear memory
 const ptr = alloc(1024);  // 1KB
@@ -167,7 +167,7 @@ const exports = getExports();
 
 ```html
 <script type="module">
-  import { init, VectorDatabase } from 'https://unpkg.com/@anthropic/abi-wasm';
+  import { init, VectorDatabase } from 'https://unpkg.com/@abi-framework/wasm';
 
   async function main() {
     await init({ wasmPath: '/abi.wasm' });
@@ -187,11 +187,11 @@ const exports = getExports();
 
 ```javascript
 import { readFile } from 'node:fs/promises';
-import { init, VectorDatabase } from '@anthropic/abi-wasm';
+import { init, VectorDatabase } from '@abi-framework/wasm';
 
 async function main() {
   // Load WASM binary from file system
-  const wasmBinary = await readFile('./node_modules/@anthropic/abi-wasm/wasm/abi.wasm');
+  const wasmBinary = await readFile('./node_modules/@abi-framework/wasm/wasm/abi.wasm');
   await init({ wasmBinary });
 
   const db = new VectorDatabase({ name: 'demo' });
@@ -231,8 +231,14 @@ npm run build
 ### Development
 
 ```bash
+# Install dependencies
+npm install
+
 # Run tests
 npm test
+
+# Run with coverage
+npm run test:coverage
 
 # Watch mode for tests
 npm run test:watch
@@ -244,6 +250,14 @@ npm run lint
 npm run format
 ```
 
+### Test Suites
+
+| Suite | Coverage |
+|-------|----------|
+| Vector Operations | cosineSimilarity, dotProduct, l2Norm, normalize, vectorAdd/Sub/Scale |
+| VectorDatabase | add, remove, get, search, persistence, clear |
+| LLM Streaming | StreamingConfig, LlmEngine, generateStreaming, TokenEvent |
+
 ## TypeScript Types
 
 Full TypeScript definitions are included:
@@ -254,7 +268,7 @@ import type {
   AbiInitOptions,
   SearchResult,
   VectorDatabaseConfig,
-} from '@anthropic/abi-wasm';
+} from '@abi-framework/wasm';
 ```
 
 ## Performance Notes
