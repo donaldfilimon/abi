@@ -29,7 +29,7 @@
 
 </div>
 
----
+## Why ABI?
 
 ## Why ABI?
 
@@ -225,8 +225,6 @@ pub fn main() !void {
     const config = abi.ai.TrainingConfig{
         .epochs = 10,
         .batch_size = 32,
-        .sample_count = 1024,
-        .model_size = 512,
         .learning_rate = 0.001,
         .optimizer = .adamw,
     };
@@ -437,7 +435,16 @@ zig build -Dgpu-backend=auto
 
 ---
 
-## Testing
+| Resource | Description |
+|----------|-------------|
+| [**Online Docs**](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
+| [**API Reference**](API_REFERENCE.md) | Complete public API |
+| [**Quickstart**](QUICKSTART.md) | Getting started guide |
+| [**AI Guide**](docs/ai.md) | LLM, agents, training |
+| [**GPU Guide**](docs/gpu.md) | Multi-backend GPU |
+| [**Database Guide**](docs/database.md) | WDBX vector database |
+| [**Network Guide**](docs/network.md) | Distributed compute |
+| [**Troubleshooting**](docs/troubleshooting.md) | Common issues |
 
 ```bash
 # Run all tests
@@ -503,7 +510,7 @@ We welcome contributions! Please see:
 
 ---
 
-## License
+<div align="center">
 
 <div align="center">
 
