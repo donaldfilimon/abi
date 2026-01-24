@@ -58,6 +58,11 @@ comptime {
     if (build_options.enable_web) {
         _ = @import("cloud_test.zig");
     }
+
+    // Web module tests (handlers, routes, context)
+    if (build_options.enable_web) {
+        _ = @import("web_test.zig");
+    }
 }
 
 // Connector tests
