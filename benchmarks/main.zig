@@ -53,10 +53,49 @@ const Args = struct {
     json: bool = false,
 };
 
-fn parseArgs(_: std.mem.Allocator) Args {
-    // TODO: Implement proper argument parsing with Zig 0.16 API
-    // For now, return default arguments
-    return Args{};
+fn parseArgs(allocator: std.mem.Allocator) Args {
+    var args = Args{};
+
+    // Get command line arguments using Zig 0.16 API
+    var arg_iter = std.process.args();
+    _ = arg_iter.skip(); // Skip program name
+
+    while (arg_iter.next()) |arg| {
+        if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
+            printHelp();
+            std.process.exit(0);
+        } else if (std.mem.eql(u8, arg, "--verbose") or std.mem.eql(u8, arg, "-v")) {
+            args.verbose = true;
+        } else if (std.mem.eql(u8, arg, "--quick") or std.mem.eql(u8, arg, "-q")) {
+            args.quick = true;
+            args.suite = .quick;
+        } else if (std.mem.eql(u8, arg, "--json")) {
+            args.json = true;
+        } else if (std.mem.startsWith(u8, arg, "--suite=")) {
+            const suite_name = arg["--suite=".len..];
+            args.suite = parseSuite(suite_name);
+        } else if (std.mem.startsWith(u8, arg, "--output=")) {
+            args.output_json = allocator.dupe(u8, arg["--output=".len..]) catch null;
+        } else if (!std.mem.startsWith(u8, arg, "-")) {
+            // Positional argument - treat as suite name
+            args.suite = parseSuite(arg);
+        }
+    }
+
+    return args;
+}
+
+fn parseSuite(name: []const u8) BenchmarkSuite {
+    if (std.mem.eql(u8, name, "simd")) return .simd;
+    if (std.mem.eql(u8, name, "memory")) return .memory;
+    if (std.mem.eql(u8, name, "concurrency")) return .concurrency;
+    if (std.mem.eql(u8, name, "database")) return .database;
+    if (std.mem.eql(u8, name, "network")) return .network;
+    if (std.mem.eql(u8, name, "crypto")) return .crypto;
+    if (std.mem.eql(u8, name, "ai")) return .ai;
+    if (std.mem.eql(u8, name, "quick")) return .quick;
+    if (std.mem.eql(u8, name, "all")) return .all;
+    return .all; // Default to all if unknown
 }
 
 fn printHelp() void {
