@@ -21,6 +21,26 @@ VS Code extension for the ABI (Adaptive Binary Intelligence) Framework, providin
 - Device enumeration with memory usage
 - Configurable refresh interval
 
+### Diagnostics
+- Inline error highlighting for Zig files
+- Auto-refresh on file save
+- Integration with VS Code Problems panel
+
+### Status Bar
+- Build status indicator (idle/building/success/error)
+- Quick action menu (click status bar item)
+- Last build timestamp
+
+### Code Snippets
+15 ABI-specific Zig snippets including:
+- `abiimport` - Import the ABI framework
+- `abiinit` - Initialize framework with config
+- `abivectordb` - Create vector database
+- `abillm` - LLM engine usage
+- `abiagent` - Create AI agent
+- `abigpu` - GPU context
+- `abiio` - Zig 0.16 I/O backend
+
 ## Requirements
 
 - VS Code 1.85.0 or higher
@@ -46,6 +66,9 @@ VS Code extension for the ABI (Adaptive Binary Intelligence) Framework, providin
 | `ABI: Format` | Format code |
 | `ABI: Lint` | Check formatting |
 | `ABI: Refresh GPU Status` | Refresh GPU panel |
+| `ABI: Show Quick Actions` | Open status bar quick pick menu |
+| `ABI: Run Diagnostics` | Manually trigger diagnostics |
+| `ABI: Clear Diagnostics` | Clear all diagnostics |
 
 ## Development
 
@@ -84,6 +107,7 @@ npm test
 | Commands | `commands.test.ts` | Build, test, format, lint, GPU refresh |
 | Chat | `chat.test.ts` | Chat configuration, model settings |
 | GPU | `gpu.test.ts` | GPU configuration, refresh interval |
+| Status Bar | `statusBar.test.ts` | Quick pick, diagnostics commands |
 
 ## Building from Source
 

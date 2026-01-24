@@ -21,3 +21,5 @@ pub const tui = @import("tui.zig");
 pub const train = @import("train.zig");
 pub const completions = @import("completions.zig");
 pub const multi_agent = @import("multi_agent.zig");
+pub const plugins = @import("plugins.zig");
+pub const profile = @import("profile.zig");

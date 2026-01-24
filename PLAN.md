@@ -14,9 +14,9 @@ tags: [planning, sprint, development]
 
 Active development on remaining queued items:
 
-1. ~~**Python bindings expansion**~~ - DONE: Streaming FFI, training API, pyproject.toml
+1. ~~**Python bindings expansion**~~ - DONE: Streaming FFI, training API, pyproject.toml, observability module
 2. ~~**npm package for WASM bindings**~~ - DONE: @abi-framework/wasm v0.4.0
-3. ~~**VS Code extension**~~ - DONE: Build/test commands, AI chat sidebar, GPU status panel, task provider
+3. ~~**VS Code extension**~~ - DONE: Build/test commands, AI chat sidebar, GPU status panel, task provider, diagnostics, status bar, 15 snippets
 
 ---
 
@@ -30,7 +30,9 @@ _(Queue cleared - all items moved to active sprint)_
 
 ## Recently Completed
 
-- **E2E Testing** - Comprehensive tests for Python (92 tests), WASM (51 tests), VS Code extension (4 suites) (2026-01-24)
+- **VS Code extension enhancements** - Diagnostics provider, status bar with quick actions, 15 Zig snippets for ABI patterns (2026-01-24)
+- **Python observability module** - Metrics (Counter/Gauge/Histogram), distributed tracing, profiler, health checks with 57 tests (2026-01-24)
+- **E2E Testing** - Comprehensive tests for Python (149 tests), WASM (51 tests), VS Code extension (5 suites) (2026-01-24)
 - **VS Code extension** - Build/test integration, AI chat sidebar webview, GPU status tree view, custom task provider (2026-01-24)
 - **npm WASM package** - @abi-framework/wasm v0.4.0 with updated README (2026-01-24)
 - **Python bindings expansion** - Streaming FFI layer, training API with context manager, pyproject.toml for PyPI (2026-01-24)

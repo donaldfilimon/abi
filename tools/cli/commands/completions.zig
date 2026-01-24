@@ -26,9 +26,11 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         generateZsh();
     } else if (std.mem.eql(u8, shell, "fish")) {
         generateFish();
+    } else if (std.mem.eql(u8, shell, "powershell") or std.mem.eql(u8, shell, "pwsh")) {
+        generatePowerShell();
     } else {
         utils.output.printError("Unknown shell: {s}", .{shell});
-        utils.output.printInfo("Supported shells: bash, zsh, fish", .{});
+        utils.output.printInfo("Supported shells: bash, zsh, fish, powershell", .{});
     }
 }
 
@@ -309,6 +311,89 @@ fn generateFish() void {
     std.debug.print("{s}", .{script});
 }
 
+fn generatePowerShell() void {
+    const script =
+        \\# ABI CLI PowerShell Completion
+        \\# Add to your PowerShell profile: abi completions powershell | Out-String | Invoke-Expression
+        \\# Or save to a file and dot-source it: . $HOME\abi-completions.ps1
+        \\
+        \\$script:AbiCommands = @(
+        \\    'db', 'agent', 'bench', 'config', 'discord', 'embed', 'explore',
+        \\    'gpu', 'gpu-dashboard', 'llm', 'network', 'simd', 'system-info',
+        \\    'multi-agent', 'train', 'convert', 'task', 'tui', 'plugins',
+        \\    'profile', 'completions', 'version', 'help'
+        \\)
+        \\
+        \\$script:AbiSubcommands = @{
+        \\    'db' = @('add', 'query', 'stats', 'optimize', 'backup', 'restore')
+        \\    'agent' = @('--message', '--persona', '--debug', 'help')
+        \\    'gpu' = @('backends', 'devices', 'summary', 'default')
+        \\    'llm' = @('chat', 'generate', 'info', 'bench', 'download')
+        \\    'train' = @('run', 'resume', 'info')
+        \\    'network' = @('list', 'register', 'status')
+        \\    'config' = @('init', 'show', 'validate')
+        \\    'bench' = @('all', 'simd', 'memory', 'ai', 'quick')
+        \\    'completions' = @('bash', 'zsh', 'fish', 'powershell')
+        \\    'task' = @('add', 'list', 'done', 'stats')
+        \\    'discord' = @('status', 'guilds', 'send', 'commands')
+        \\    'embed' = @('--provider', 'openai', 'mistral', 'cohere', 'ollama')
+        \\    'plugins' = @('list', 'info', 'enable', 'disable', 'search')
+        \\    'profile' = @('show', 'list', 'create', 'switch', 'delete', 'set', 'get', 'api-key', 'export', 'import')
+        \\}
+        \\
+        \\$script:AbiGlobalFlags = @(
+        \\    '--help', '--list-features',
+        \\    '--enable-gpu', '--disable-gpu',
+        \\    '--enable-ai', '--disable-ai',
+        \\    '--enable-database', '--disable-database',
+        \\    '--enable-network', '--disable-network'
+        \\)
+        \\
+        \\Register-ArgumentCompleter -Native -CommandName abi -ScriptBlock {
+        \\    param($wordToComplete, $commandAst, $cursorPosition)
+        \\
+        \\    $tokens = $commandAst.CommandElements
+        \\    $command = $null
+        \\
+        \\    # Find the command (skip 'abi' and any global flags)
+        \\    for ($i = 1; $i -lt $tokens.Count; $i++) {
+        \\        $token = $tokens[$i].Extent.Text
+        \\        if (-not $token.StartsWith('-')) {
+        \\            $command = $token
+        \\            break
+        \\        }
+        \\    }
+        \\
+        \\    # Completing global flags
+        \\    if ($wordToComplete.StartsWith('-')) {
+        \\        $script:AbiGlobalFlags | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        \\            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterName', $_)
+        \\        }
+        \\        return
+        \\    }
+        \\
+        \\    # Completing commands
+        \\    if (-not $command -or $command -eq $wordToComplete) {
+        \\        $script:AbiCommands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        \\            [System.Management.Automation.CompletionResult]::new($_, $_, 'Command', $_)
+        \\        }
+        \\        return
+        \\    }
+        \\
+        \\    # Completing subcommands
+        \\    if ($script:AbiSubcommands.ContainsKey($command)) {
+        \\        $script:AbiSubcommands[$command] | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        \\            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        \\        }
+        \\    }
+        \\}
+        \\
+        \\Write-Host "ABI CLI completions loaded. Press Tab after 'abi' to see commands."
+        \\
+    ;
+    std.debug.print("{s}", .{script});
+}
+
 fn printHelp() void {
     const help =
         \\Usage: abi completions <shell>
@@ -316,9 +401,10 @@ fn printHelp() void {
         \\Generate shell completion scripts.
         \\
         \\Shells:
-        \\  bash     Generate Bash completion script
-        \\  zsh      Generate Zsh completion script
-        \\  fish     Generate Fish completion script
+        \\  bash        Generate Bash completion script
+        \\  zsh         Generate Zsh completion script
+        \\  fish        Generate Fish completion script
+        \\  powershell  Generate PowerShell completion script
         \\
         \\Installation:
         \\  Bash:  source <(abi completions bash)
@@ -328,6 +414,14 @@ fn printHelp() void {
         \\         Or add to ~/.zshrc
         \\
         \\  Fish:  abi completions fish > ~/.config/fish/completions/abi.fish
+        \\
+        \\  PowerShell:
+        \\         # Add to your profile ($PROFILE):
+        \\         abi completions powershell | Out-String | Invoke-Expression
+        \\
+        \\         # Or save to file and dot-source:
+        \\         abi completions powershell > $HOME\abi-completions.ps1
+        \\         . $HOME\abi-completions.ps1
         \\
     ;
     std.debug.print("{s}", .{help});

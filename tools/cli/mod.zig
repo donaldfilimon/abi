@@ -48,7 +48,9 @@ const command_infos = [_]CommandInfo{
     .{ .name = "convert", .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)" },
     .{ .name = "task", .description = "Task management (add, list, done, stats)" },
     .{ .name = "tui", .description = "Launch interactive TUI command menu" },
-    .{ .name = "completions", .description = "Generate shell completions (bash, zsh, fish)" },
+    .{ .name = "plugins", .description = "Plugin management (list, enable, disable, info)" },
+    .{ .name = "profile", .description = "User profile and settings management" },
+    .{ .name = "completions", .description = "Generate shell completions (bash, zsh, fish, powershell)" },
     .{ .name = "version", .description = "Show framework version" },
     .{ .name = "help", .description = "Show help (use: abi help <command>)" },
 };
@@ -253,8 +255,12 @@ fn runCommand(
         try commands.completions.run(allocator, args);
         return true;
     }
-    if (std.mem.eql(u8, command, "convert")) {
-        try commands.convert.run(allocator, args);
+    if (std.mem.eql(u8, command, "plugins")) {
+        try commands.plugins.run(allocator, args);
+        return true;
+    }
+    if (std.mem.eql(u8, command, "profile")) {
+        try commands.profile.run(allocator, args);
         return true;
     }
 

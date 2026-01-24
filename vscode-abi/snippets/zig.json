@@ -1,0 +1,179 @@
+{
+    "ABI Import": {
+        "prefix": "abiimport",
+        "body": [
+            "const abi = @import(\"abi\");",
+            "$0"
+        ],
+        "description": "Import the ABI framework"
+    },
+    "ABI Init": {
+        "prefix": "abiinit",
+        "body": [
+            "var framework = try abi.Framework.init(allocator, abi.Config.init()",
+            "    .withAI(${1:true})",
+            "    .withGPU(${2:true})",
+            "    .withDatabase(${3:true}));",
+            "defer framework.deinit();",
+            "$0"
+        ],
+        "description": "Initialize ABI framework with configuration"
+    },
+    "ABI Test": {
+        "prefix": "abitest",
+        "body": [
+            "test \"${1:description}\" {",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a Zig test block"
+    },
+    "ABI Test Skip GPU": {
+        "prefix": "abitestgpu",
+        "body": [
+            "test \"${1:description}\" {",
+            "    const gpu = abi.gpu.Gpu.init() catch return error.SkipZigTest;",
+            "    defer gpu.deinit();",
+            "    $0",
+            "}"
+        ],
+        "description": "Create a test that skips if GPU unavailable"
+    },
+    "ABI Vector Database": {
+        "prefix": "abivectordb",
+        "body": [
+            "var db = try abi.database.VectorDatabase.init(allocator, .{",
+            "    .dimensions = ${1:384},",
+            "    .distance_metric = .cosine,",
+            "    .index_type = .hnsw,",
+            "});",
+            "defer db.deinit();",
+            "$0"
+        ],
+        "description": "Create a vector database instance"
+    },
+    "ABI LLM Engine": {
+        "prefix": "abillm",
+        "body": [
+            "var engine = try abi.ai.llm.LlmEngine.init(allocator, .{",
+            "    .context_size = ${1:4096},",
+            "    .temperature = ${2:0.7},",
+            "});",
+            "defer engine.deinit();",
+            "",
+            "try engine.loadModel(\"${3:./model.gguf}\");",
+            "const response = try engine.generate(\"${4:prompt}\");",
+            "$0"
+        ],
+        "description": "Create and use an LLM engine"
+    },
+    "ABI Agent": {
+        "prefix": "abiagent",
+        "body": [
+            "const agent = try abi.ai.agents.Agent.init(allocator, .{",
+            "    .name = \"${1:assistant}\",",
+            "    .persona = .${2:abi},",
+            "});",
+            "defer agent.deinit();",
+            "",
+            "const response = try agent.process(\"${3:message}\");",
+            "$0"
+        ],
+        "description": "Create an AI agent"
+    },
+    "ABI GPU Context": {
+        "prefix": "abigpu",
+        "body": [
+            "var gpu = try abi.gpu.Gpu.init(.{",
+            "    .backend = .${1|auto,vulkan,cuda,metal,webgpu,opengl|},",
+            "});",
+            "defer gpu.deinit();",
+            "",
+            "// Matrix multiply",
+            "const result = try gpu.matrixMultiply(a, b);",
+            "$0"
+        ],
+        "description": "Initialize GPU context"
+    },
+    "ABI Error Handling": {
+        "prefix": "abierror",
+        "body": [
+            "${1:operation}() catch |err| switch (err) {",
+            "    error.${2:SpecificError} => {",
+            "        $0",
+            "    },",
+            "    else => return err,",
+            "};"
+        ],
+        "description": "ABI error handling pattern"
+    },
+    "ABI IO Backend": {
+        "prefix": "abiio",
+        "body": [
+            "var io_backend = std.Io.Threaded.init(allocator, .{",
+            "    .environ = std.process.Environ.${1|empty,init|}(),",
+            "});",
+            "defer io_backend.deinit();",
+            "const io = io_backend.io();",
+            "$0"
+        ],
+        "description": "Initialize Zig 0.16 I/O backend"
+    },
+    "ABI Read File": {
+        "prefix": "abireadfile",
+        "body": [
+            "const content = try std.Io.Dir.cwd().readFileAlloc(",
+            "    io,",
+            "    \"${1:path}\",",
+            "    allocator,",
+            "    .limited(${2:10} * 1024 * 1024),",
+            ");",
+            "defer allocator.free(content);",
+            "$0"
+        ],
+        "description": "Read file with Zig 0.16 I/O"
+    },
+    "ABI Write File": {
+        "prefix": "abiwritefile",
+        "body": [
+            "var file = try std.Io.Dir.cwd().createFile(io, \"${1:path}\", .{ .truncate = true });",
+            "defer file.close(io);",
+            "try file.writer(io).writeAll(${2:content});",
+            "$0"
+        ],
+        "description": "Write file with Zig 0.16 I/O"
+    },
+    "ABI Metrics Counter": {
+        "prefix": "abicounter",
+        "body": [
+            "var ${1:counter} = abi.observability.Counter{ .name = \"${2:metric_name}\" };",
+            "${1:counter}.inc(${3:1});",
+            "$0"
+        ],
+        "description": "Create a metrics counter"
+    },
+    "ABI Timer": {
+        "prefix": "abitimer",
+        "body": [
+            "var timer = std.time.Timer.start() catch return error.TimerFailed;",
+            "$0",
+            "const elapsed_ns = timer.read();"
+        ],
+        "description": "Create a timer for measuring elapsed time"
+    },
+    "ABI GPA Allocator": {
+        "prefix": "abigpa",
+        "body": [
+            "var gpa = std.heap.GeneralPurposeAllocator(.{",
+            "    .stack_trace_frames = ${1:10},",
+            "}){};",
+            "defer {",
+            "    const check = gpa.deinit();",
+            "    if (check == .leak) @panic(\"Memory leak detected\");",
+            "}",
+            "const allocator = gpa.allocator();",
+            "$0"
+        ],
+        "description": "Create a GPA with leak detection"
+    }
+}

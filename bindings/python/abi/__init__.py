@@ -95,12 +95,23 @@ __all__ = [
     "TrainingMetrics",
     "TrainingReport",
     "train",
+    # Observability
+    "MetricsRegistry",
+    "Counter",
+    "Gauge",
+    "Histogram",
+    "Tracer",
+    "Span",
+    "Profiler",
+    "HealthChecker",
+    "HealthStatus",
     # Submodules
     "config",
     "llm",
     "database",
     "gpu",
     "training",
+    "observability",
 ]
 
 
@@ -586,6 +597,7 @@ from . import llm
 from . import database
 from . import gpu
 from . import training
+from . import observability
 
 # Training exports
 from .training import (
@@ -594,6 +606,25 @@ from .training import (
     TrainingMetrics,
     TrainingReport,
     train,
+)
+
+
+# Observability exports
+from .observability import (
+    MetricsRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    Tracer,
+    Span,
+    Profiler,
+    HealthChecker,
+    HealthStatus,
+    HealthCheckResult,
+    get_registry,
+    get_tracer,
+    get_profiler,
+    get_health_checker,
 )
 
 

@@ -54,6 +54,24 @@
       {
         "command": "abi.gpu.showDetails",
         "title": "ABI: Show GPU Details"
+      },
+      {
+        "command": "abi.showQuickPick",
+        "title": "ABI: Show Quick Actions"
+      },
+      {
+        "command": "abi.runDiagnostics",
+        "title": "ABI: Run Diagnostics"
+      },
+      {
+        "command": "abi.clearDiagnostics",
+        "title": "ABI: Clear Diagnostics"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "zig",
+        "path": "./snippets/zig.json"
       }
     ],
     "viewsContainers": {

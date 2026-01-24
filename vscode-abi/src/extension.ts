@@ -6,6 +6,8 @@ import { GpuMonitor } from './gpu/gpuMonitor';
 import { BinaryManager } from './core/binaryManager';
 import { OutputChannelManager } from './core/outputChannel';
 import { AbiTaskProvider } from './tasks/taskProvider';
+import { DiagnosticsProvider } from './diagnostics/diagnosticsProvider';
+import { StatusBarManager } from './statusBar/statusBarManager';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('ABI Framework extension activating...');
@@ -13,6 +15,8 @@ export function activate(context: vscode.ExtensionContext) {
     // Initialize core services
     const binaryManager = new BinaryManager();
     const outputChannel = new OutputChannelManager();
+    const diagnosticsProvider = new DiagnosticsProvider(binaryManager);
+    const statusBarManager = new StatusBarManager(binaryManager);
 
     // Validate binary on activation
     binaryManager.validate().then(isValid => {
@@ -28,9 +32,24 @@ export function activate(context: vscode.ExtensionContext) {
         }
     });
 
-    // Register build/test commands
+    // Register status bar quick pick command
     context.subscriptions.push(
-        vscode.commands.registerCommand('abi.build', () => buildCommand(outputChannel)),
+        vscode.commands.registerCommand('abi.showQuickPick', () => statusBarManager.showQuickPick())
+    );
+
+    // Register build/test commands with status updates
+    context.subscriptions.push(
+        vscode.commands.registerCommand('abi.build', async () => {
+            statusBarManager.setStatus('building');
+            try {
+                await buildCommand(outputChannel);
+                statusBarManager.setStatus('success');
+                diagnosticsProvider.runDiagnostics();
+            } catch (e) {
+                statusBarManager.setStatus('error');
+                diagnosticsProvider.runDiagnostics();
+            }
+        }),
         vscode.commands.registerCommand('abi.test', () => testCommand(outputChannel)),
         vscode.commands.registerCommand('abi.testFiltered', async () => {
             const filter = await vscode.window.showInputBox({
@@ -82,9 +101,26 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.tasks.registerTaskProvider(AbiTaskProvider.TaskType, taskProvider)
     );
 
+    // Register diagnostics command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('abi.runDiagnostics', () => diagnosticsProvider.runDiagnostics()),
+        vscode.commands.registerCommand('abi.clearDiagnostics', () => diagnosticsProvider.clear())
+    );
+
+    // Watch for file changes to trigger diagnostics
+    const watcher = vscode.workspace.createFileSystemWatcher('**/*.zig');
+    watcher.onDidChange(() => diagnosticsProvider.scheduleDiagnostics());
+    watcher.onDidCreate(() => diagnosticsProvider.scheduleDiagnostics());
+    watcher.onDidDelete(() => diagnosticsProvider.scheduleDiagnostics());
+    context.subscriptions.push(watcher);
+
     // Clean up on deactivation
     context.subscriptions.push({
-        dispose: () => gpuMonitor.dispose()
+        dispose: () => {
+            gpuMonitor.dispose();
+            diagnosticsProvider.dispose();
+            statusBarManager.dispose();
+        }
     });
 
     console.log('ABI Framework extension activated');

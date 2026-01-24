@@ -313,6 +313,76 @@ stats = ctx.stats
 print(f"GPU utilization: {stats.gpu_utilization:.1%}")
 ```
 
+### Observability (`abi.observability`)
+
+```python
+from abi.observability import (
+    MetricsRegistry, Counter, Gauge, Histogram,
+    Tracer, Span,
+    Profiler,
+    HealthChecker, HealthStatus, HealthCheckResult,
+)
+
+# Metrics (Prometheus-compatible)
+registry = MetricsRegistry(prefix="myapp_")
+requests = registry.counter("http_requests_total", "Total HTTP requests")
+requests.inc()
+
+latency = registry.histogram("request_duration_seconds", "Request latency")
+with latency.time():
+    # ... handle request
+    pass
+
+active = registry.gauge("active_connections", "Active connections")
+with active.track_inprogress():
+    # ... connection handling
+    pass
+
+# Export metrics
+print(registry.to_prometheus())  # Prometheus text format
+print(registry.to_json())        # JSON format
+
+# Distributed Tracing
+tracer = Tracer("my-service")
+with tracer.start_span("process_request") as span:
+    span.set_attribute("http.method", "GET")
+    span.set_attribute("http.url", "/api/users")
+
+    with tracer.start_span("database_query") as child:
+        child.set_attribute("db.statement", "SELECT * FROM users")
+        # ... query database
+
+    span.add_event("cache_hit", {"key": "user:123"})
+
+# Export traces
+print(tracer.export_json())
+
+# Profiling
+profiler = Profiler()
+with profiler.measure("expensive_operation"):
+    # ... expensive code
+    pass
+
+stats = profiler.get_stats("expensive_operation")
+print(f"Avg: {stats['avg_ms']:.2f}ms, Count: {stats['count']}")
+
+# Health Checks
+checker = HealthChecker()
+checker.register("database", lambda: HealthCheckResult(
+    name="database",
+    status=HealthStatus.HEALTHY,
+    message="Connected",
+))
+checker.register("cache", lambda: HealthCheckResult(
+    name="cache",
+    status=HealthStatus.DEGRADED,
+    message="High latency",
+))
+
+print(checker.to_json())  # {"status": "degraded", "checks": [...]}
+print(checker.is_healthy())  # False (degraded != healthy)
+```
+
 ## Configuration Options
 
 ### GPU Backends
@@ -409,6 +479,7 @@ pytest tests/test_integration.py -v
 | Core | `test_abi.py` | Core, vectors, database, agent |
 | Streaming | `test_streaming.py` | StreamingConfig, TokenEvent, generate_streaming |
 | Training | `test_training.py` | TrainingConfig, Trainer, TrainingMetrics, TrainingReport |
+| Observability | `test_observability.py` | Metrics, Tracing, Profiler, HealthChecker |
 | Integration | `test_integration.py` | Native library when available |
 
 ## API Reference
