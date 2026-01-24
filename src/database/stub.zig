@@ -30,7 +30,7 @@ pub const Context = struct {
         return error.DatabaseDisabled;
     }
 
-    pub fn openDatabase(self: *Context, name: []const u8) !DatabaseHandle {
+    pub fn openDatabase(self: *Context, name: []const u8) !*DatabaseHandle {
         _ = self;
         _ = name;
         return error.DatabaseDisabled;
