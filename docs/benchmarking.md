@@ -1,9 +1,15 @@
 ---
 title: "Benchmarking Guide"
-tags: []
+tags: [performance, benchmarks, testing]
 ---
-
 # ABI Framework Benchmarking Guide
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Performance-Benchmarks-orange?style=for-the-badge" alt="Benchmarks"/>
+  <img src="https://img.shields.io/badge/WDBX-6.1M_ops%2Fsec-success?style=for-the-badge" alt="WDBX"/>
+  <img src="https://img.shields.io/badge/LLM-2.8M_tokens%2Fsec-blue?style=for-the-badge" alt="LLM"/>
+</p>
 
 This guide provides quick reference for using the **benchmark** command suite.
 

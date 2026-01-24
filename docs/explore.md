@@ -1,9 +1,15 @@
 ---
-title: "explore"
-tags: []
+title: "Explore Module"
+tags: [explore, search, codebase]
 ---
 # ABI Explore Module
 > **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Module-Explore-cyan?style=for-the-badge" alt="Explore"/>
+  <img src="https://img.shields.io/badge/Status-Ready-success?style=for-the-badge" alt="Ready"/>
+  <img src="https://img.shields.io/badge/Feature-NLP_Search-blue?style=for-the-badge" alt="NLP Search"/>
+</p>
 
 A powerful codebase exploration and search tool with natural language query understanding, AST parsing, and multiple output formats.
 

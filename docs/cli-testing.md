@@ -1,4 +1,15 @@
+---
+title: "CLI Smoke Test Guide"
+tags: [testing, cli, automation]
+---
 # CLI Smoke Test Guide
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Tests-CLI_Smoke-blue?style=for-the-badge" alt="CLI Smoke"/>
+  <img src="https://img.shields.io/badge/Platform-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows"/>
+  <img src="https://img.shields.io/badge/Status-Automated-success?style=for-the-badge" alt="Automated"/>
+</p>
 
 The ABI project provides a Windows batch script `scripts/run_cli_tests.bat` that executes **all** example
 commands and the three nested LLM commands (`chat`, `generate`, `list`).

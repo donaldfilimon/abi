@@ -783,8 +783,9 @@ pub const RaftNode = struct {
 
     fn truncateLog(self: *RaftNode, from_index: usize) void {
         while (self.log.items.len > from_index) {
-            const entry = self.log.pop();
-            self.allocator.free(entry.data);
+            if (self.log.pop()) |entry| {
+                self.allocator.free(entry.data);
+            }
         }
     }
 };

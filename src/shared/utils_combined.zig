@@ -36,8 +36,10 @@ pub const utils = @import("utils.zig");
 // Direct re-exports from utils for convenience
 pub const unixSeconds = utils.unixSeconds;
 pub const unixMs = utils.unixMs;
+pub const unixMilliseconds = utils.unixMs; // Alias for compatibility
 pub const nowSeconds = utils.nowSeconds;
 pub const nowMs = utils.nowMs;
+pub const nowMilliseconds = utils.nowMilliseconds;
 pub const nowNanoseconds = utils.nowNanoseconds;
 pub const sleepMs = utils.sleepMs;
 pub const sleepNs = utils.sleepNs;

@@ -1,4 +1,15 @@
+---
+title: "API Reference"
+tags: [api, reference, documentation]
+---
 # ABI Framework API Reference
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Docs-Auto--Generated-blue?style=for-the-badge" alt="Auto-Generated"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/Modules-20+-success?style=for-the-badge" alt="Modules"/>
+</p>
 
 > Comprehensive API documentation auto-generated from source code
 

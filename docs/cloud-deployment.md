@@ -1,9 +1,16 @@
 ---
-title: Cloud Deployment Guide
+title: "Cloud Deployment Guide"
+tags: [cloud, deployment, serverless]
 description: Deploy ABI applications as serverless functions on AWS Lambda, Google Cloud Functions, and Azure Functions
 ---
-
 # Cloud Deployment Guide
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/AWS-Lambda-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white" alt="AWS Lambda"/>
+  <img src="https://img.shields.io/badge/GCP-Cloud_Functions-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white" alt="GCP"/>
+  <img src="https://img.shields.io/badge/Azure-Functions-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white" alt="Azure"/>
+</p>
 
 The ABI framework provides unified cloud function adapters for deploying your applications as serverless functions across major cloud providers. This guide covers deployment to AWS Lambda, Google Cloud Functions, and Azure Functions.
 

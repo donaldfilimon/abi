@@ -1,8 +1,14 @@
 ---
-title: "feature_flag_matrix"
-tags: []
+title: "Feature Flag Matrix"
+tags: [configuration, build, features]
 ---
 # Feature‑Flag Matrix
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Features-7_Flags-blue?style=for-the-badge" alt="7 Flags"/>
+  <img src="https://img.shields.io/badge/Build-Configurable-success?style=for-the-badge" alt="Configurable"/>
+</p>
 
 This table maps each `build_options.enable_*` flag to the files that depend on it. It helps developers understand the impact of toggling a feature.
 

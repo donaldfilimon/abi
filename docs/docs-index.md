@@ -1,6 +1,6 @@
 ---
-title: "docs-index"
-tags: []
+title: "Documentation Index"
+tags: [documentation, index, navigation]
 ---
 # ABI Framework Documentation
 > **Codebase Status:** Synced with repository as of 2026-01-24.

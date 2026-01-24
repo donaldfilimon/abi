@@ -1,4 +1,16 @@
+---
+title: "Security Audit Report"
+tags: [security, audit, review]
+---
 # Security Audit Report
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Critical-0_Issues-success?style=for-the-badge" alt="Critical 0"/>
+  <img src="https://img.shields.io/badge/High-2_Issues-red?style=for-the-badge" alt="High 2"/>
+  <img src="https://img.shields.io/badge/Medium-5_Issues-orange?style=for-the-badge" alt="Medium 5"/>
+  <img src="https://img.shields.io/badge/Overall-Strong-success?style=for-the-badge" alt="Strong Security"/>
+</p>
 
 **Issue**: #402
 **Date**: 2026-01-23

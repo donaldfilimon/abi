@@ -35,11 +35,14 @@ pub const ServiceDiscovery = struct {
     cached_services: std.ArrayListUnmanaged(ServiceInstance),
     cache_valid_until_ms: i64,
     node_registry: ?*registry.NodeRegistry,
+    owns_service_id: bool, // Track if we allocated the service_id
 
     pub fn init(allocator: std.mem.Allocator, config: DiscoveryConfig) !ServiceDiscovery {
         var cfg = config;
+        var owns_id = false;
         if (cfg.service_id.len == 0) {
             cfg.service_id = try generateServiceId(allocator, cfg.service_name);
+            owns_id = true;
         }
 
         return .{
@@ -50,6 +53,7 @@ pub const ServiceDiscovery = struct {
             .cached_services = std.ArrayListUnmanaged(ServiceInstance){},
             .cache_valid_until_ms = 0,
             .node_registry = null,
+            .owns_service_id = owns_id,
         };
     }
 
@@ -59,6 +63,10 @@ pub const ServiceDiscovery = struct {
         }
         self.clearCache();
         self.cached_services.deinit(self.allocator);
+        // Free generated service_id if we own it
+        if (self.owns_service_id) {
+            self.allocator.free(self.config.service_id);
+        }
         self.* = undefined;
     }
 
@@ -341,7 +349,7 @@ pub const ServiceDiscovery = struct {
         const body = try self.buildEtcdPutBody(key, value);
         defer self.allocator.free(body);
 
-        try self.httpPost(url, body);
+        _ = try self.httpPost(url, body);
     }
 
     fn deregisterEtcd(self: *ServiceDiscovery) !void {
@@ -358,7 +366,7 @@ pub const ServiceDiscovery = struct {
         const body = try self.buildEtcdDeleteBody(key);
         defer self.allocator.free(body);
 
-        try self.httpPost(url, body);
+        _ = try self.httpPost(url, body);
     }
 
     fn heartbeatEtcd(self: *ServiceDiscovery) !void {

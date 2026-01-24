@@ -1,9 +1,14 @@
 ---
-title: "troubleshooting"
-tags: []
+title: "Troubleshooting"
+tags: [troubleshooting, help, debugging]
 ---
 # Troubleshooting
 > **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Guide-Troubleshooting-red?style=for-the-badge" alt="Troubleshooting"/>
+  <img src="https://img.shields.io/badge/Topics-Build%7CRuntime%7CGPU-blue?style=for-the-badge" alt="Topics"/>
+</p>
 
 Common issues and solutions when working with the ABI Framework.
 

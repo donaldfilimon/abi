@@ -689,9 +689,10 @@ pub const CircuitRegistry = struct {
         defer self.mutex.unlock();
 
         var names = std.ArrayListUnmanaged([]const u8){};
-        var it = self.breakers.keyIterator();
-        while (it.next()) |key| {
-            try names.append(self.allocator, key.*);
+        // Use iterator() for Zig 0.16 compatibility
+        var it = self.breakers.iterator();
+        while (it.next()) |entry| {
+            try names.append(self.allocator, entry.key_ptr.*);
         }
         return names.toOwnedSlice(self.allocator);
     }

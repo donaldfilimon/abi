@@ -73,6 +73,18 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
 | Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
 
+## Known Limitations
+
+| Platform/Feature | Limitation | Workaround |
+|------------------|------------|------------|
+| **WASM** | `database`, `network`, `gpu` auto-disabled | Use browser/JS equivalents |
+| **WASM** | No `std.Io.Threaded` support | Single-threaded execution only |
+| **GPU (CUDA)** | Requires NVIDIA drivers + toolkit | Use Vulkan or `stdgpu` fallback |
+| **GPU (Metal)** | macOS only | Use Vulkan on other platforms |
+| **GPU (multi-backend)** | Some backend combinations conflict | Enable one primary backend |
+| **Network** | No socket support in WASM | Use fetch API via JS interop |
+| **libc** | CLI/examples require libc linking | Build with default settings |
+
 ## Feature Flags
 
 | Flag | Default | Description |
@@ -346,13 +358,41 @@ The LLM feature (`src/ai/llm/`) provides local GGUF model inference with:
 | `ABI_ANTHROPIC_API_KEY` | - | Anthropic/Claude API key |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
 
+## Platform Notes
+
+### Windows
+
+| Issue | Solution |
+|-------|----------|
+| Path separators | Use forward slashes `/` in Zig code; backslashes work in shell commands |
+| Binary location | `zig-out\bin\abi.exe` (note `.exe` extension) |
+| Cache clearing | `rmdir /s /q .zig-cache` or `Remove-Item -Recurse .zig-cache` (PowerShell) |
+| Environment variables | Use `set VAR=value` (cmd) or `$env:VAR="value"` (PowerShell) |
+| Line endings | Git handles CRLF/LF; `zig fmt` normalizes to LF |
+
+```powershell
+# Windows PowerShell examples
+zig build run -- --help
+zig build test --summary all
+$env:ABI_OPENAI_API_KEY="sk-..."
+.\zig-out\bin\abi.exe db stats
+```
+
+### macOS/Linux
+
+```bash
+# Use LLDB on macOS, GDB on Linux
+lldb ./zig-out/bin/abi    # macOS
+gdb ./zig-out/bin/abi     # Linux
+```
+
 ## Debugging
 
 ```bash
 # Debug build
 zig build -Doptimize=Debug
 
-# Run with GDB
+# Run with GDB (Linux)
 gdb ./zig-out/bin/abi
 (gdb) break src/runtime/engine/engine.zig:150
 (gdb) run -- db stats

@@ -1,9 +1,15 @@
 ---
-title: "README"
-tags: []
+title: "Benchmark Suite"
+tags: [benchmarks, performance, testing]
 ---
 # ABI Benchmark Suite
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Benchmarks-Comprehensive-blue?style=for-the-badge" alt="Benchmarks"/>
+  <img src="https://img.shields.io/badge/WDBX-6.1M_ops%2Fsec-success?style=for-the-badge" alt="WDBX"/>
+  <img src="https://img.shields.io/badge/LLM-2.8M_tokens%2Fsec-green?style=for-the-badge" alt="LLM"/>
+</p>
 
 Comprehensive performance benchmarks for the ABI framework, measuring throughput, latency, and resource utilization across all major subsystems.
 

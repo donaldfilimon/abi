@@ -1,4 +1,14 @@
+---
+title: "REFACTOR"
+tags: [architecture, refactoring]
+---
 # ABI Framework Modular Refactor Plan
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Completed-success?style=for-the-badge" alt="Completed"/>
+  <img src="https://img.shields.io/badge/Phases-7%2F7-green?style=for-the-badge" alt="Phases"/>
+</p>
 
 ## Overview
 This document outlines the phased refactor plan for the ABI framework to achieve clearer separation of concerns, stronger compile-time feature gating, and reduced coupling between AI and GPU paths, while preserving the public API in `abi.zig`.
