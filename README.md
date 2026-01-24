@@ -148,7 +148,9 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true
 | `-Denable-network` | true | Distributed compute |
 | `-Denable-profiling` | true | Profiling and metrics |
 
-**GPU Backends:** `-Dgpu-vulkan` (default), `-Dgpu-cuda`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`
+**GPU Backends (unified syntax):** `-Dgpu-backend=vulkan` (default), `-Dgpu-backend=cuda`, `-Dgpu-backend=metal`, `-Dgpu-backend=webgpu`, `-Dgpu-backend=cuda,vulkan` (multiple)
+
+> Legacy flags (`-Dgpu-vulkan`, `-Dgpu-cuda`, etc.) are deprecated but still work with a warning.
 
 ## Quick Start
 
