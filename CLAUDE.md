@@ -434,6 +434,7 @@ Connectors require corresponding environment variables (see Environment Variable
 ## Reference
 
 - [README.md](README.md) - Project overview
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow and contribution guidelines
 - [API_REFERENCE.md](API_REFERENCE.md) - Public API reference
 - [docs/troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
 - [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 patterns
