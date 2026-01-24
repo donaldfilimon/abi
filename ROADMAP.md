@@ -160,10 +160,11 @@
 ### Research & Innovation
 - [x] Hardware acceleration
   - [x] FPGA backend (AMD Alveo, Intel Agilex) - COMPLETE (2026-01)
-  - [x] FPGA Phase 2 kernels - COMPLETE (2026-01-23)
+  - [x] FPGA Phase 2 kernels - COMPLETE (2026-01-24)
     - [x] Quantized MatMul (Q4/Q8, tiled, fused activation)
     - [x] Streaming Softmax & Flash Attention (O(N) memory)
     - [x] Hierarchical KV-Cache (BRAM/HBM/DDR tiers)
+    - [x] Hybrid GPU-FPGA coordinator (`src/gpu/mega/hybrid.zig`)
   - [ ] ASIC exploration (future research)
 - [x] Novel index structures - COMPLETE (2026-01-23)
   - [x] DiskANN integration (billion-scale graph-based ANN)
@@ -192,10 +193,10 @@
   - [ ] SLA offerings
   - [ ] Priority support
   - [ ] Custom development
-- [ ] Cloud integration
-  - [ ] AWS Lambda
-  - [ ] Google Cloud Functions
-  - [ ] Azure Functions
+- [x] Cloud integration - COMPLETE (2026-01)
+  - [x] AWS Lambda (`src/cloud/aws_lambda.zig`)
+  - [x] Google Cloud Functions (`src/cloud/gcp_functions.zig`)
+  - [x] Azure Functions (`src/cloud/azure_functions.zig`)
 
 ## Priority Legend
 

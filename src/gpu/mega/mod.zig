@@ -60,6 +60,7 @@
 
 pub const coordinator = @import("coordinator.zig");
 pub const scheduler = @import("scheduler.zig");
+pub const hybrid = @import("hybrid.zig");
 
 // Re-export main types
 pub const Coordinator = coordinator.Coordinator;
@@ -78,6 +79,14 @@ pub const SchedulerState = scheduler.SchedulerState;
 pub const QTable = scheduler.QTable;
 pub const ReplayBuffer = scheduler.ReplayBuffer;
 
+// Re-export hybrid types
+pub const HybridCoordinator = hybrid.HybridCoordinator;
+pub const HybridRoutingConfig = hybrid.HybridRoutingConfig;
+pub const HybridWorkload = hybrid.HybridWorkload;
+pub const HybridRoutingDecision = hybrid.HybridRoutingDecision;
+pub const HybridDeviceType = hybrid.HybridDeviceType;
+pub const HybridWorkloadType = hybrid.HybridWorkloadType;
+
 // Re-export convenience functions
 pub const init = Coordinator.init;
 
@@ -85,4 +94,5 @@ test {
     // Run all tests in submodules
     _ = coordinator;
     _ = scheduler;
+    _ = hybrid;
 }

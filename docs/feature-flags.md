@@ -15,8 +15,11 @@ This document describes all feature flags available when building the ABI framew
 # Enable specific features
 zig build -Denable-ai=true -Denable-gpu=false
 
-# Select GPU backend
-zig build -Dgpu-cuda=true -Dgpu-vulkan=false
+# Select GPU backend (unified syntax - recommended)
+zig build -Dgpu-backend=cuda                # Single backend
+zig build -Dgpu-backend=cuda,vulkan         # Multiple backends
+zig build -Dgpu-backend=none                # Disable all GPU backends
+zig build -Dgpu-backend=auto                # Auto-detect available backends
 
 # Production build with all features
 zig build -Doptimize=ReleaseFast
@@ -50,26 +53,51 @@ When `-Denable-ai=false`, both `-Denable-explore` and `-Denable-llm` are automat
 
 ## GPU Backend Flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-Dgpu-vulkan` | `true` | Vulkan compute backend (cross-platform, recommended) |
-| `-Dgpu-cuda` | `false` | NVIDIA CUDA backend (requires CUDA toolkit) |
-| `-Dgpu-metal` | `false` | Apple Metal backend (macOS/iOS only) |
-| `-Dgpu-webgpu` | `true`* | WebGPU backend (when `-Denable-web=true`) |
-| `-Dgpu-opengl` | `false` | OpenGL compute backend (legacy) |
-| `-Dgpu-opengles` | `false` | OpenGL ES backend (mobile/embedded) |
-| `-Dgpu-stdgpu` | `false` | Zig std.gpu SPIR-V backend (CPU fallback) |
-| `-Dgpu-webgl2` | `true`* | WebGL2 backend (when `-Denable-web=true`) |
+### Unified Syntax (Recommended)
 
-*WebGPU and WebGL2 default to `true` when `-Denable-web=true`.
+The new unified `-Dgpu-backend` flag accepts a comma-separated list of backends:
+
+```bash
+zig build -Dgpu-backend=vulkan              # Single backend (default)
+zig build -Dgpu-backend=cuda,vulkan         # Multiple backends
+zig build -Dgpu-backend=none                # Disable all GPU backends
+zig build -Dgpu-backend=auto                # Auto-detect available backends
+```
+
+| Backend Value | Description |
+|---------------|-------------|
+| `vulkan` | Vulkan compute backend (cross-platform, default) |
+| `cuda` | NVIDIA CUDA backend (requires CUDA toolkit) |
+| `metal` | Apple Metal backend (macOS/iOS only) |
+| `webgpu` | WebGPU backend (web deployment) |
+| `opengl` | OpenGL compute backend (legacy) |
+| `opengles` | OpenGL ES backend (mobile/embedded) |
+| `stdgpu` | Zig std.gpu SPIR-V backend (CPU fallback) |
+| `webgl2` | WebGL2 backend (web deployment) |
+| `fpga` | FPGA backend (experimental) |
+| `none` | Disable all GPU backends |
+| `auto` | Auto-detect available backends |
+
+### Legacy Flags (Deprecated)
+
+The following flags still work but emit a deprecation warning:
+
+| Flag | Replacement |
+|------|-------------|
+| `-Dgpu-vulkan` | `-Dgpu-backend=vulkan` |
+| `-Dgpu-cuda` | `-Dgpu-backend=cuda` |
+| `-Dgpu-metal` | `-Dgpu-backend=metal` |
+| `-Dgpu-webgpu` | `-Dgpu-backend=webgpu` |
+| `-Dgpu-opengl` | `-Dgpu-backend=opengl` |
 
 ### Backend Selection Guidelines
 
-- **Cross-platform desktop**: Use `-Dgpu-vulkan=true` (default)
-- **NVIDIA GPU optimization**: Use `-Dgpu-cuda=true -Dgpu-vulkan=false`
-- **Apple platforms**: Use `-Dgpu-metal=true`
-- **Web deployment**: Use `-Dgpu-webgpu=true`
-- **CPU-only fallback**: Use `-Dgpu-stdgpu=true -Dgpu-vulkan=false`
+- **Cross-platform desktop**: Use `-Dgpu-backend=vulkan` (default)
+- **NVIDIA GPU optimization**: Use `-Dgpu-backend=cuda`
+- **Apple platforms**: Use `-Dgpu-backend=metal`
+- **Web deployment**: Use `-Dgpu-backend=webgpu`
+- **CPU-only fallback**: Use `-Dgpu-backend=stdgpu`
+- **Multiple backends**: Use `-Dgpu-backend=cuda,vulkan`
 
 ### Backend Conflict Warnings
 
