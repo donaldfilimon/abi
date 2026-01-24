@@ -17,10 +17,11 @@
 //! - Little's Law optimization: λ = N_concurrent / L_latency
 
 const std = @import("std");
-const time = @import("../../shared/time.zig");
+const time = @import("../../../shared/time.zig");
 const personas = @import("../mod.zig");
 const types = personas.types;
-const wdbx = @import("../../database/wdbx.zig");
+const block_chain = @import("../../../database/block_chain.zig");
+const embeddings = @import("../../../ai/embeddings/mod.zig");
 
 /// Enhanced routing result with mathematical blending and WDBX integration
 pub const EnhancedRoutingDecision = struct {
@@ -28,8 +29,8 @@ pub const EnhancedRoutingDecision = struct {
     base_decision: types.RoutingDecision,
     /// Blending coefficient (0.0 = pure Aviva, 1.0 = pure Abbey)
     blend_coefficient: f32 = 0.0,
-    /// WDBX block ID for this conversation turn
-    wdbx_block_id: ?u64 = null,
+    /// Block chain ID for this conversation turn
+    block_chain_id: ?u64 = null,
     /// Parent block ID for chain continuity
     parent_block_id: ?u64 = null,
     /// Skip pointer for efficient traversal
@@ -38,13 +39,14 @@ pub const EnhancedRoutingDecision = struct {
     enhanced_confidence: f32,
 
     /// Create a new decision with WDBX integration
-    pub fn create(allocator: std.mem.Allocator, base: types.RoutingDecision, blend_coeff: f32, parent_id: ?u64) !EnhancedRoutingDecision {
+    pub fn create(allocator: std.mem.Allocator, base: types.RoutingDecision, blend_coeff: f32, parent_id: ?u64, block_id: ?u64) !EnhancedRoutingDecision {
         _ = allocator; // Not used in this implementation
         const enhanced_conf = @min(base.confidence + 0.1, 1.0); // Boost confidence
 
         return EnhancedRoutingDecision{
             .base_decision = base,
             .blend_coefficient = blend_coeff,
+            .block_chain_id = block_id,
             .parent_block_id = parent_id,
             .enhanced_confidence = enhanced_conf,
         };
@@ -153,37 +155,39 @@ pub const IntentCategory = enum {
     safety_critical,
 };
 
-/// Enhanced router with WDBX integration
+/// Enhanced router with WDBX block chain integration
 pub const EnhancedRouter = struct {
     allocator: std.mem.Allocator,
-    wdbx_handle: ?*wdbx.DatabaseHandle,
+    block_chain: ?*block_chain.BlockChain,
     intent_classifier: IntentClassifier,
     previous_persona: ?types.PersonaType = null,
     hysteresis_weight: f32 = 0.2, // Bias toward previous persona
+    parent_block_id: ?u64 = null, // Current parent for chain continuity
 
     const Self = @This();
 
-    /// Initialize enhanced router with optional WDBX
-    pub fn init(allocator: std.mem.Allocator, wdbx_name: ?[]const u8) !Self {
-        var wdbx_handle: ?*wdbx.DatabaseHandle = null;
+    /// Initialize enhanced router with optional block chain
+    pub fn init(allocator: std.mem.Allocator, session_id: ?[]const u8) !Self {
+        var bc: ?*block_chain.BlockChain = null;
 
-        if (wdbx_name) |name| {
-            const handle = try wdbx.createDatabase(allocator, name);
-            wdbx_handle = handle;
+        if (session_id) |sid| {
+            const chain = try allocator.create(block_chain.BlockChain);
+            chain.* = block_chain.BlockChain.init(allocator, sid);
+            bc = chain;
         }
 
         return Self{
             .allocator = allocator,
-            .wdbx_handle = wdbx_handle,
+            .block_chain = bc,
             .intent_classifier = IntentClassifier.init(allocator),
         };
     }
 
     /// Deinitialize router
     pub fn deinit(self: *Self) void {
-        if (self.wdbx_handle) |handle| {
-            wdbx.closeDatabase(handle);
-            self.allocator.destroy(handle);
+        if (self.block_chain) |chain| {
+            chain.deinit();
+            self.allocator.destroy(chain);
         }
     }
 
@@ -271,39 +275,82 @@ pub const EnhancedRouter = struct {
             break :blk probs.p_abbey / (probs.p_abbey + probs.p_aviva);
         } else 0.0;
 
-        // Generate WDBX block if configured
-        const block_id: ?u64 = null;
-        if (self.wdbx_handle) |handle| {
-            _ = handle;
-            // In real implementation, would create actual block
-            // block_id = try self.createWdbxBlock(handle, request, base_decision, blend_coeff);
+        // Generate WDBX block chain entry if configured
+        var block_id: ?u64 = null;
+        if (self.block_chain) |chain| {
+            // Create block with current parent
+            block_id = try self.createBlockChainEntry(chain, request, base_decision, blend_coeff);
+            // Update parent for next iteration
+            self.parent_block_id = block_id;
         }
 
         // Store for hysteresis
         self.previous_persona = best.persona;
 
-        return try EnhancedRoutingDecision.create(self.allocator, base_decision, blend_coeff, block_id);
+        // Return decision with block ID and parent relationship
+        return try EnhancedRoutingDecision.create(self.allocator, base_decision, blend_coeff, null, block_id);
     }
 
     /// Store routing decision in WDBX block chain
-    fn createWdbxBlock(self: *Self, handle: *wdbx.DatabaseHandle, request: types.PersonaRequest, decision: types.RoutingDecision, blend_coeff: f32) !u64 {
-        // Create embedding of request content
-        // In real implementation, would use embeddings module
-        var fake_embedding = [_]f32{0.1} ** 384;
+    fn createBlockChainEntry(self: *Self, chain: *block_chain.BlockChain, request: types.PersonaRequest, decision: types.RoutingDecision, blend_coeff: f32) !u64 {
+        // Generate embedding of request content
+        // Create embeddings model temporarily
+        const emb_model = embeddings.EmbeddingModel.init(self.allocator, .{ .dimension = 384 });
+        const query_embedding = try emb_model.embed(request.content);
+        defer {
+            emb_model.deinit();
+            self.allocator.free(query_embedding);
+        }
 
-        // Create block metadata
-        const metadata = try std.fmt.allocPrint(self.allocator,
-            \\{{"persona":"{s}","blend_coefficient":{d:.2},"timestamp":{d},"confidence":{d:.2}}}
-        , .{ @tagName(decision.selected_persona), blend_coeff, time.unixSeconds(), decision.confidence });
-        defer self.allocator.free(metadata);
+        // Create persona tag
+        const persona_tag = block_chain.PersonaTag{
+            .primary_persona = switch (decision.selected_persona) {
+                .abbey => .abbey,
+                .aviva => .aviva,
+                .abi => .abi,
+                else => .blended,
+            },
+            .blend_coefficient = blend_coeff,
+            .secondary_persona = if (blend_coeff > 0.0 and blend_coeff < 1.0) blk: {
+                const secondary = if (decision.selected_persona == .abbey) .aviva else .abbey;
+                break :blk switch (secondary) {
+                    .abbey => .abbey,
+                    .aviva => .aviva,
+                    .abi => .abi,
+                    else => .blended,
+                };
+            } else null,
+        };
 
-        // Generate unique block ID
-        const block_id = @as(u64, @intCast(time.unixSeconds())) ^
-            @as(u64, @intFromPtr(&request)) ^
-            std.hash.CityHash64.hash(metadata);
+        // Create routing weights
+        const routing_weights = block_chain.RoutingWeights{
+            .abbey_weight = if (decision.selected_persona == .abbey) 1.0 - blend_coeff else blend_coeff,
+            .aviva_weight = if (decision.selected_persona == .aviva) 1.0 - blend_coeff else blend_coeff,
+            .abi_weight = if (decision.selected_persona == .abi) 1.0 else 0.0,
+        };
 
-        // Store in WDBX (actual implementation would use proper embeddings)
-        try wdbx.insertVector(handle, block_id, &fake_embedding, metadata);
+        // Determine intent from classifier
+        const intent = self.intent_classifier.classify(request.content);
+
+        // Create block configuration
+        const config = block_chain.BlockConfig{
+            .query_embedding = query_embedding,
+            .persona_tag = persona_tag,
+            .routing_weights = routing_weights,
+            .intent = switch (intent) {
+                .empathy_seeking => .empathy_seeking,
+                .technical_problem => .technical_problem,
+                .factual_inquiry => .factual_inquiry,
+                .safety_critical => .safety_critical,
+                .policy_check => .policy_check,
+                .creative_generation => .creative_generation,
+                else => .general,
+            },
+            .parent_block_id = self.parent_block_id,
+        };
+
+        // Add block to chain
+        const block_id = try chain.addBlock(config);
 
         return block_id;
     }
@@ -357,7 +404,7 @@ test "EnhancedRouter initialization" {
     var router = try EnhancedRouter.init(allocator, null);
     defer router.deinit();
 
-    try std.testing.expect(router.wdbx_handle == null);
+    try std.testing.expect(router.block_chain == null);
     try std.testing.expect(router.previous_persona == null);
 }
 

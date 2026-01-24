@@ -3,12 +3,12 @@ title: "gpu"
 tags: []
 ---
 # GPU Acceleration
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-GPU-green?style=for-the-badge&logo=nvidia&logoColor=white" alt="GPU Module"/>
   <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Production Ready"/>
-  <img src="https://img.shields.io/badge/Backends-8-blue?style=for-the-badge" alt="8 Backends"/>
+  <img src="https://img.shields.io/badge/Backends-9-blue?style=for-the-badge" alt="9 Backends"/>
 </p>
 
 <p align="center">
@@ -16,6 +16,7 @@ tags: []
   <img src="https://img.shields.io/badge/Vulkan-Supported-AC162C?logo=vulkan&logoColor=white" alt="Vulkan"/>
   <img src="https://img.shields.io/badge/Metal-Supported-000000?logo=apple&logoColor=white" alt="Metal"/>
   <img src="https://img.shields.io/badge/WebGPU-Supported-005A9C?logo=w3c&logoColor=white" alt="WebGPU"/>
+  <img src="https://img.shields.io/badge/FPGA-Supported-FF6600?logo=xilinx&logoColor=white" alt="FPGA"/>
 </p>
 
 <p align="center">

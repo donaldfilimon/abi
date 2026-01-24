@@ -12,7 +12,8 @@ const std = @import("std");
 const build_options = @import("build_options");
 
 // Centralized GPU interface - handles compile-time gating and stubs
-const ai_ops = @import("../../../gpu/ai_ops.zig");
+// Import from the top-level gpu module
+const ai_ops = @import("abi").gpu.ai_ops;
 
 // Re-export GPU modules from ai_ops (stubs provided when GPU disabled)
 const cuda_mod = struct {

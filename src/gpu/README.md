@@ -3,7 +3,7 @@ title: "README"
 tags: []
 ---
 # GPU Module Overview
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 This directory contains the GPU acceleration layer of the ABI framework.
 
@@ -11,7 +11,7 @@ This directory contains the GPU acceleration layer of the ABI framework.
 
 The files are grouped by responsibility:
 
-- **backends/** – Concrete implementations for each GPU backend (Vulkan, CUDA, Metal, WebGPU, OpenGL, etc.)
+- **backends/** – Concrete implementations for each GPU backend (Vulkan, CUDA, Metal, WebGPU, OpenGL, FPGA, etc.)
 - **dsl/** – Domain-specific language utilities for kernel generation
 - **tests/** – Unit tests exercising the GPU API
 

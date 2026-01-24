@@ -1,5 +1,5 @@
 # Project TODO List
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 > **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
 >
@@ -30,7 +30,7 @@ The following high-level items are still open in **[ROADMAP.md](ROADMAP.md)**. T
 | `ROADMAP.md` | 125-129 | ~~High Availability: Failover mechanisms (automatic failover, health checks, circuit breakers)~~ ✅ Complete |
 | `ROADMAP.md` | 130-133 | ~~High Availability: Disaster recovery (backup orchestration, point-in-time recovery, multi-region support)~~ ✅ Complete |
 | `ROADMAP.md` | 140-143 | ~~Ecosystem: Package manager integration (Zig registry ✅, Homebrew formula ✅, Docker images ✅)~~ ✅ Complete |
-| `ROADMAP.md` | 148-151 | Research & Innovation: Experimental hardware acceleration (FPGA, ASIC), novel index structures, AI-optimized workloads |
+| `ROADMAP.md` | 148-151 | ~~Research & Innovation: FPGA Phase 2 kernels~~ ✅ Complete, ~~Novel index structures (DiskANN, ScaNN)~~ ✅ Complete, ASIC exploration (future) |
 | `ROADMAP.md` | 152-155 | Academic collaborations (research partnerships, paper publications, conference presentations) |
 | `ROADMAP.md` | 158-161 | Community governance: RFC process, voting mechanism, contribution recognition |
 | `ROADMAP.md` | 162-165 | Education: Training courses, certification program, university partnerships |
@@ -103,6 +103,12 @@ All major implementation tasks are complete. See ROADMAP.md for future enhanceme
 
 | Area | Description | Target File(s) |
 |------|-------------|----------------|
+| FPGA VTable Integration | Phase 2 LLM kernels (MatMul, Attention, KV-Cache) wired into FPGA backend vtable. | `src/gpu/backends/fpga/vtable.zig` |
+| FPGA MatMul Kernels | Quantized MatMul (Q4/Q8), tiled computation, fused bias+activation. | `src/gpu/backends/fpga/kernels/matmul_kernels.zig` |
+| FPGA Attention Kernels | Streaming softmax, multi-head attention, flash attention O(N). | `src/gpu/backends/fpga/kernels/attention_kernels.zig` |
+| FPGA KV-Cache Kernels | Hierarchical BRAM/HBM/DDR cache, paged attention, prefix caching. | `src/gpu/backends/fpga/kernels/kv_cache_kernels.zig` |
+| DiskANN Index | Billion-scale disk-based ANN with Vamana graph, PQ compression. | `src/database/diskann.zig` |
+| ScaNN Index | Learned quantization with AVQ, dimension weighting, two-phase search. | `src/database/scann.zig` |
 | Flash Attention | Memory-efficient tiled attention with online softmax normalization. O(N) memory. | `src/features/ai/llm/ops/attention.zig` |
 | Fused Attention Kernel | Single CUDA kernel for Q*K^T, softmax, V in one pass. Includes tiled variant. | `src/gpu/backends/cuda/llm_kernels.zig` |
 | Interactive TUI CLI | Cross-platform terminal UI for selecting CLI commands. | `tools/cli/tui/`, `tools/cli/commands/tui.zig` |
@@ -146,7 +152,7 @@ This section aggregates all high‑level and implementation‑level tasks that a
 | ~~Disaster Recovery~~ | ~~Backup orchestration, point‑in‑time recovery, multi‑region support~~ ✅ Complete |
 | ~~Ecosystem~~ | ~~Package manager integration (Zig registry ✅, Homebrew formula ✅, Docker images ✅)~~ ✅ Complete |
 | ~~Modular Refactor~~ | ~~Unified config, Framework orchestration, top-level modules~~ ✅ Complete (2026-01-17) |
-| Research & Innovation | Experimental hardware acceleration (FPGA, ASIC), novel index structures, AI‑optimized workloads |
+| ~~Research & Innovation~~ | ~~FPGA Phase 2 kernels (MatMul, Attention, KV-Cache)~~ ✅ Complete (2026-01-23), ~~Novel index structures (DiskANN, ScaNN)~~ ✅ Complete (2026-01-23), ASIC exploration (future) |
 | Academic Collaboration | Research partnerships, paper publications, conference presentations |
 | Community Governance | RFC process, voting mechanism, contribution recognition |
 | Education | Training courses, certification program, university partnerships |

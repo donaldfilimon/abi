@@ -3,11 +3,28 @@
 //! Provides support for FPGA-based acceleration of AI workloads.
 //! Implementation follows the research in docs/research/fpga-inference-acceleration.md.
 //! Currently supports simulation mode for development and testing.
+//!
+//! Phase 1 (Complete): Distance kernels, VTable, memory management
+//! Phase 2 (Current): MatMul, Attention, KV-Cache kernels
+//! Phase 3 (Planned): Multi-node clustering, production deployment
 
 const std = @import("std");
 
 pub const vtable = @import("vtable.zig");
 pub const kernels = @import("kernels.zig");
+
+// Phase 1 kernels
+pub const distance_kernels = @import("kernels/distance_kernels.zig");
+
+// Phase 2 kernels (LLM inference acceleration)
+pub const matmul_kernels = @import("kernels/matmul_kernels.zig");
+pub const attention_kernels = @import("kernels/attention_kernels.zig");
+pub const kv_cache_kernels = @import("kernels/kv_cache_kernels.zig");
+
+// Memory management
+pub const memory = @import("memory.zig");
+pub const loader = @import("loader.zig");
+pub const types = @import("types.zig");
 
 var initialized = false;
 

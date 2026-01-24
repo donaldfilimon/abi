@@ -90,6 +90,9 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../config/mod.zig");
 
+// Re-export shared dependencies for child modules
+pub const time = @import("../shared/time.zig");
+
 pub const database = @import("database.zig");
 pub const db_helpers = @import("db_helpers.zig");
 pub const storage = @import("storage.zig");
@@ -105,6 +108,12 @@ pub const clustering = @import("clustering.zig");
 pub const formats = @import("formats/mod.zig");
 pub const quantization = @import("quantization.zig");
 pub const gpu_accel = @import("gpu_accel.zig");
+pub const block_chain = @import("block_chain.zig");
+pub const distributed = @import("distributed/mod.zig");
+
+// Novel index structures (research: billion-scale ANN)
+pub const diskann = @import("diskann.zig");
+pub const scann = @import("scann.zig");
 
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
@@ -210,6 +219,51 @@ pub const ZonDistanceMetric = formats.ZonDistanceMetric;
 pub const exportToZon = formats.exportToZon;
 pub const importFromZon = formats.importFromZon;
 pub const ImportFormat = batch.ImportFormat;
+
+// Distributed WDBX exports (block chain, sharding, consensus)
+pub const BlockChain = block_chain.BlockChain;
+pub const ConversationBlock = block_chain.ConversationBlock;
+pub const BlockChainConfig = block_chain.BlockChainConfig;
+pub const BlockChainError = block_chain.BlockChainError;
+pub const PersonaTag = block_chain.PersonaTag;
+pub const RoutingWeights = block_chain.RoutingWeights;
+pub const IntentCategory = block_chain.IntentCategory;
+pub const PolicyFlags = block_chain.PolicyFlags;
+
+pub const ShardManager = distributed.ShardManager;
+pub const ShardConfig = distributed.ShardConfig;
+pub const ShardKey = distributed.ShardKey;
+pub const ShardManagerError = distributed.ShardManagerError;
+pub const HashRing = distributed.HashRing;
+pub const LoadStats = distributed.LoadStats;
+
+// DiskANN exports (billion-scale disk-based ANN)
+pub const DiskANNIndex = diskann.DiskANNIndex;
+pub const DiskANNConfig = diskann.DiskANNConfig;
+pub const PQCodebook = diskann.PQCodebook;
+pub const DiskANNStats = diskann.IndexStats;
+
+// ScaNN exports (learned quantization for ANN)
+pub const ScaNNIndex = scann.ScaNNIndex;
+pub const ScaNNConfig = scann.ScaNNConfig;
+pub const QuantizationType = scann.QuantizationType;
+pub const AVQCodebook = scann.AVQCodebook;
+pub const ScaNNStats = scann.IndexStats;
+
+pub const BlockExchangeManager = distributed.BlockExchangeManager;
+pub const BlockExchangeError = distributed.BlockExchangeError;
+pub const SyncState = distributed.SyncState;
+pub const VersionVector = distributed.VersionVector;
+pub const VersionComparison = distributed.VersionComparison;
+pub const SyncRequest = distributed.SyncRequest;
+pub const SyncResponse = distributed.SyncResponse;
+pub const BlockConflict = distributed.BlockConflict;
+
+pub const DistributedBlockChain = distributed.DistributedBlockChain;
+pub const DistributedBlockChainConfig = distributed.DistributedBlockChainConfig;
+pub const DistributedBlockChainError = distributed.DistributedBlockChainError;
+pub const DistributedConfig = distributed.DistributedConfig;
+pub const DistributedContext = distributed.Context;
 
 pub const DatabaseFeatureError = error{
     DatabaseDisabled,

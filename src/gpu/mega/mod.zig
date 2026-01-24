@@ -59,6 +59,7 @@
 //! Multiple threads can call `schedule()` concurrently.
 
 pub const coordinator = @import("coordinator.zig");
+pub const scheduler = @import("scheduler.zig");
 
 // Re-export main types
 pub const Coordinator = coordinator.Coordinator;
@@ -68,6 +69,14 @@ pub const WorkloadCategory = coordinator.WorkloadCategory;
 pub const ScheduleDecision = coordinator.ScheduleDecision;
 pub const CoordinatorStats = coordinator.Coordinator.CoordinatorStats;
 pub const Precision = coordinator.Precision;
+
+// Re-export scheduler types
+pub const LearningScheduler = scheduler.LearningScheduler;
+pub const LearningStats = scheduler.LearningStats;
+pub const Experience = scheduler.Experience;
+pub const SchedulerState = scheduler.SchedulerState;
+pub const QTable = scheduler.QTable;
+pub const ReplayBuffer = scheduler.ReplayBuffer;
 
 // Re-export convenience functions
 pub const init = Coordinator.init;

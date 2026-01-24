@@ -87,7 +87,7 @@ pub const BatchCosineSimilarityKernel = struct {
         const dim = query.len;
 
         var i: usize = 0;
-        var chunk_size: usize = 16;
+        const chunk_size: usize = 16;
 
         while (i < batch_size) : (i += chunk_size) {
             const end = @min(i + chunk_size, batch_size);
@@ -126,16 +126,148 @@ pub const BatchCosineSimilarityKernel = struct {
         batch_size: usize,
         results: []f32,
     ) !void {
-        _ = self;
-        _ = quantized_query;
-        _ = query_norm;
-        _ = quantized_vectors;
-        _ = batch_size;
-        _ = results;
+        const dim = self.config.dim;
+        const precision = self.config.precision;
 
-        // FPGA-specific optimized implementation
-        // Would use specialized hardware for quantized operations
-        return;
+        // Based on FPGA research: 10-20x speedup for quantized operations
+        // Implementation strategies:
+        // 1. INT4: Pack 2 values per byte, use 4-bit ALUs
+        // 2. INT8: Use 8-bit multiply-accumulate units
+        // 3. FP16: Use half-precision units
+
+        switch (precision) {
+            .int4 => {
+                // INT4: Process 2 values per byte
+                // FPGA can compute 16 parallel dot products per cycle
+
+                // For simulation: dequantize and compute
+                const query_dequant = try std.testing.allocator.alloc(f32, dim);
+                defer std.testing.allocator.free(query_dequant);
+
+                for (0..dim) |i| {
+                    const byte_idx = i / 2;
+                    const bit_offset = (i % 2) * 4;
+                    const nibble = (quantized_query[byte_idx] >> bit_offset) & 0x0F;
+                    query_dequant[i] = @as(f32, @floatFromInt(@as(i8, @intCast(nibble)) - 8));
+                }
+
+                // Compute cosine similarity for each vector
+                const vec_bytes_per_dim = switch (precision) {
+                    .int4 => (dim + 1) / 2,
+                    .int8 => dim,
+                    .fp16 => dim * 2,
+                    .fp32 => dim * 4,
+                };
+
+                for (0..batch_size) |vec_idx| {
+                    const vec_offset = vec_idx * vec_bytes_per_dim;
+                    var dot: f32 = 0.0;
+                    var vec_norm_sq: f32 = 0.0;
+
+                    for (0..dim) |i| {
+                        const byte_idx = i / 2;
+                        const bit_offset = (i % 2) * 4;
+                        const nibble = (quantized_vectors[vec_offset + byte_idx] >> bit_offset) & 0x0F;
+                        const vec_val = @as(f32, @floatFromInt(@as(i8, @intCast(nibble)) - 8));
+
+                        dot += query_dequant[i] * vec_val;
+                        vec_norm_sq += vec_val * vec_val;
+                    }
+
+                    const vec_norm = std.math.sqrt(vec_norm_sq);
+                    results[vec_idx] = if (query_norm > 0 and vec_norm > 0)
+                        dot / (query_norm * vec_norm)
+                    else
+                        0.0;
+                }
+            },
+            .int8 => {
+                // INT8: Process values directly
+                // FPGA can compute 32 parallel dot products per cycle
+
+                var query_dequant = try std.testing.allocator.alloc(f32, dim);
+                defer std.testing.allocator.free(query_dequant);
+
+                for (0..dim) |i| {
+                    query_dequant[i] = @as(f32, @floatFromInt(@as(i8, @bitCast(quantized_query[i]))));
+                }
+
+                for (0..batch_size) |vec_idx| {
+                    const vec_offset = vec_idx * dim;
+                    var dot: f32 = 0.0;
+                    var vec_norm_sq: f32 = 0.0;
+
+                    for (0..dim) |i| {
+                        const vec_val = @as(f32, @floatFromInt(@as(i8, @bitCast(quantized_vectors[vec_offset + i]))));
+                        dot += query_dequant[i] * vec_val;
+                        vec_norm_sq += vec_val * vec_val;
+                    }
+
+                    const vec_norm = std.math.sqrt(vec_norm_sq);
+                    results[vec_idx] = if (query_norm > 0 and vec_norm > 0)
+                        dot / (query_norm * vec_norm)
+                    else
+                        0.0;
+                }
+            },
+            .fp16, .fp32 => {
+                // For FPGA simulation: dequantize and use regular path
+                const allocator = std.testing.allocator;
+
+                // Dequantize query
+                var query_dequant = try allocator.alloc(f32, dim);
+                defer allocator.free(query_dequant);
+
+                for (0..dim) |i| {
+                    query_dequant[i] = switch (precision) {
+                        .fp16 => blk: {
+                            const offset = i * 2;
+                            if (offset + 1 >= quantized_query.len) break :blk 0.0;
+                            const fp16_val = @as(u16, quantized_query[offset]) |
+                                (@as(u16, quantized_query[offset + 1]) << 8);
+                            break :blk @as(f32, @floatFromInt(fp16_val));
+                        },
+                        .fp32 => @as(f32, @bitCast(std.mem.readIntLittle(u32, quantized_query[i * 4 ..][0..4]))),
+                        else => 0.0,
+                    };
+                }
+
+                // Dequantize vectors
+                const vec_bytes_per_dim = switch (precision) {
+                    .fp16 => dim * 2,
+                    .fp32 => dim * 4,
+                    else => dim,
+                };
+
+                var vectors_dequant = try allocator.alloc([]const f32, batch_size);
+                defer {
+                    for (vectors_dequant) |vec| allocator.free(vec);
+                    allocator.free(vectors_dequant);
+                }
+                _ = &vectors_dequant;
+
+                for (vectors_dequant, 0..) |*vec, vec_idx| {
+                    const vec_offset = vec_idx * vec_bytes_per_dim;
+                    vec.* = try allocator.alloc(f32, dim);
+
+                    for (0..dim) |i| {
+                        vec.*[i] = switch (precision) {
+                            .fp16 => blk: {
+                                const offset = vec_offset + i * 2;
+                                if (offset + 1 >= quantized_vectors.len) break :blk 0.0;
+                                const fp16_val = @as(u16, quantized_vectors[offset]) |
+                                    (@as(u16, quantized_vectors[offset + 1]) << 8);
+                                break :blk @as(f32, @floatFromInt(fp16_val));
+                            },
+                            .fp32 => @as(f32, @bitCast(std.mem.readIntLittle(u32, quantized_vectors[vec_offset + i * 4 ..][0..4]))),
+                            else => 0.0,
+                        };
+                    }
+                }
+
+                try self.execute(query_dequant, query_norm, vectors_dequant, results);
+            },
+        }
     }
 };
 
@@ -220,7 +352,6 @@ pub const BatchDotProductKernel = struct {
         vectors: []const []const f32,
         results: []f32,
     ) !void {
-        _ = self;
         std.debug.assert(query.len == self.config.dim);
         std.debug.assert(vectors.len == results.len);
 

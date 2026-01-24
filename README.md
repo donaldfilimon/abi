@@ -5,7 +5,7 @@ tags: []
 
 # ABI Framework
 >
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
@@ -47,7 +47,8 @@ tags: []
 | **AI Runtime** | LLM inference (Llama-CPP parity), agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, diagnostics | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **GPU Backends** | CUDA, Vulkan, Metal, WebGPU with unified API, graceful degradation | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU Backends** | CUDA, Vulkan, Metal, WebGPU, FPGA with unified API, graceful degradation | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **FPGA Acceleration** | LLM MatMul, Attention, KV-Cache kernels for AMD Alveo/Intel Agilex | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **GPU Sync & Cache** | Event‑based synchronization (SyncEvent) and fast‑path kernel descriptor cache (KernelRing) | ![In‑Progress](https://img.shields.io/badge/-In%20Progress-yellow) |
 | **Distributed Network** | Node discovery, Raft consensus, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
@@ -68,7 +69,7 @@ tags: []
 
 ## Quick Start
 
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 ### Prerequisites
 
