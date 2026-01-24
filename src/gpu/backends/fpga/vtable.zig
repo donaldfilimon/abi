@@ -6,6 +6,8 @@
 const std = @import("std");
 const interface = @import("../../interface.zig");
 const kernels = @import("kernels.zig");
+const fpga_mod = @import("mod.zig");
+const loader = @import("loader.zig");
 
 pub const FpgaBackend = struct {
     allocator: std.mem.Allocator,
@@ -17,34 +19,65 @@ pub const FpgaBackend = struct {
         self.* = .{
             .allocator = allocator,
         };
+
+        // Initialize FPGA loader (does detection)
+        loader.init() catch {
+            // Even if loader fails, we can run in simulation mode
+            std.log.warn("FPGA backend: Loader initialization failed, running in simulation mode", .{});
+        };
+
+        // Initialize FPGA module
+        fpga_mod.init() catch return interface.BackendError.InitFailed;
+
         return self;
     }
 
     pub fn deinit(self: *Self) void {
+        fpga_mod.deinit();
+        loader.deinit();
         self.allocator.destroy(self);
     }
 
     pub fn getDeviceCount(self: *Self) u32 {
         _ = self;
-        return 0; // TODO: Detect FPGAs
+        return loader.detectFpgaDevices();
     }
 
     pub fn getDeviceCaps(self: *Self, device_id: u32) interface.BackendError!interface.DeviceCaps {
         _ = self;
-        if (device_id != 0) return interface.BackendError.DeviceNotFound;
 
-        return interface.DeviceCaps{
-            .name = "FPGA Accelerator (Simulated)",
-            .name_len = 26,
-            .total_memory = 16 * 1024 * 1024 * 1024, // 16GB HBM
-            .max_threads_per_block = 1, // Task parallelism
-            .max_shared_memory = 32 * 1024 * 1024, // URAM size
-            .warp_size = 1,
-            .supports_fp16 = true,
-            .supports_fp64 = false,
-            .supports_int8 = true, // Native quantized support
-            .unified_memory = false,
+        // Get device info from loader
+        const device_info = loader.getDeviceInfo(device_id) catch {
+            return interface.BackendError.DeviceNotFound;
         };
+
+        var caps = interface.DeviceCaps{};
+
+        // Copy device name
+        const name = device_info.getName();
+        const copy_len = @min(name.len, caps.name.len);
+        @memcpy(caps.name[0..copy_len], name[0..copy_len]);
+        caps.name_len = copy_len;
+
+        // Set memory size (use DDR or HBM, whichever is larger)
+        caps.total_memory = if (device_info.hbm_size_bytes > 0)
+            device_info.hbm_size_bytes
+        else
+            device_info.ddr_size_bytes;
+
+        // FPGA-specific capabilities
+        caps.max_threads_per_block = 1; // Task parallelism model
+        caps.max_shared_memory = 32 * 1024 * 1024; // Typical FPGA URAM/BRAM
+        caps.warp_size = 1; // No warps on FPGA
+        caps.supports_fp16 = true; // Most FPGAs support FP16
+        caps.supports_fp64 = false; // Limited FP64 support
+        caps.supports_int8 = true; // Native quantized support
+        caps.unified_memory = false; // Separate host/device memory
+        caps.compute_capability_major = @intCast(device_info.num_compute_units);
+        caps.compute_capability_minor = @intCast(device_info.clock_frequency_mhz / 100);
+        caps.async_engine_count = 1; // Single async engine typical
+
+        return caps;
     }
 
     pub fn allocate(self: *Self, size: usize, flags: interface.MemoryFlags) interface.MemoryError!*anyopaque {

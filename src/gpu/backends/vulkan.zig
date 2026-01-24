@@ -1301,7 +1301,36 @@ pub const VulkanBackend = struct {
         _ = vkFreeDescriptorSets.?(ctx.device, kernel.descriptor_pool, 1, @ptrCast(&descriptor_set));
     }
 
-    pub fn destroyKernel(_: *Self, _: *anyopaque) void {}
+    pub fn destroyKernel(self: *Self, kernel_handle: *anyopaque) void {
+        const ctx = vulkan_context.?;
+        const kernel: *VulkanKernel = @ptrCast(@alignCast(kernel_handle));
+
+        // Remove from tracking if present
+        for (self.kernels.items, 0..) |k, i| {
+            if (k.handle == kernel_handle) {
+                _ = self.kernels.swapRemove(i);
+                self.allocator.free(k.name);
+                break;
+            }
+        }
+
+        // Destroy Vulkan resources
+        if (vkDestroyPipeline) |destroy_pipeline| {
+            destroy_pipeline(ctx.device, kernel.pipeline, null);
+        }
+        if (vkDestroyPipelineLayout) |destroy_pipeline_layout| {
+            destroy_pipeline_layout(ctx.device, kernel.pipeline_layout, null);
+        }
+        if (vkDestroyDescriptorSetLayout) |destroy_descriptor_set_layout| {
+            destroy_descriptor_set_layout(ctx.device, kernel.descriptor_set_layout, null);
+        }
+        if (vkDestroyDescriptorPool) |destroy_descriptor_pool| {
+            destroy_descriptor_pool(ctx.device, kernel.descriptor_pool, null);
+        }
+        // shader_module is usually destroyed after pipeline creation
+
+        self.allocator.destroy(kernel);
+    }
 
     pub fn synchronize(_: *Self) interface.BackendError!void {
         const ctx = vulkan_context.?;

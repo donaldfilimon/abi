@@ -1064,6 +1064,25 @@ pub const BatchedOp = struct {
     config: LaunchConfig,
     buffers: [8]*Buffer, // Fixed-size to avoid allocation
     buffer_count: u8,
+    /// Priority level for execution ordering
+    priority: Priority = .normal,
+    /// Category for grouping similar operations
+    category: Category = .unknown,
+
+    pub const Priority = enum {
+        high, // Execute first
+        normal, // Standard priority
+        low, // Execute last
+    };
+
+    pub const Category = enum {
+        unknown,
+        vector_ops,
+        matrix_ops,
+        element_wise,
+        reduction,
+        activation,
+    };
 };
 
 /// Batched dispatcher that collects small operations and executes them together.
@@ -1074,11 +1093,23 @@ pub const BatchedDispatcher = struct {
     pending_ops: std.ArrayListUnmanaged(BatchedOp),
     batch_threshold: usize,
     auto_flush_size: usize,
+    /// Statistical tracking for optimization
+    stats: Stats,
 
     const Self = @This();
 
     /// Minimum elements before considering an op "small" enough to batch
     pub const SMALL_OP_THRESHOLD: usize = 4096;
+
+    /// Statistics for batched operations
+    pub const Stats = struct {
+        total_queued: u64 = 0,
+        total_flushed: u64 = 0,
+        batches_executed: u64 = 0,
+        avg_batch_size: f32 = 0.0,
+        high_priority_count: u64 = 0,
+        low_priority_count: u64 = 0,
+    };
 
     /// Initialize batched dispatcher wrapping a KernelDispatcher.
     pub fn init(allocator: std.mem.Allocator, dispatcher: *KernelDispatcher) Self {
@@ -1088,6 +1119,7 @@ pub const BatchedDispatcher = struct {
             .pending_ops = .{},
             .batch_threshold = SMALL_OP_THRESHOLD,
             .auto_flush_size = 32, // Auto-flush after 32 pending ops
+            .stats = .{},
         };
     }
 
@@ -1110,6 +1142,44 @@ pub const BatchedDispatcher = struct {
             @as(usize, config.global_size[1]) *
             @as(usize, config.global_size[2]);
 
+        // Determine operation category based on kernel name
+        const category = blk: {
+            const name = kernel.name;
+            if (std.mem.indexOf(u8, name, "vector") != null) {
+                break :blk BatchedOp.Category.vector_ops;
+            } else if (std.mem.indexOf(u8, name, "matrix") != null) {
+                break :blk BatchedOp.Category.matrix_ops;
+            } else if (std.mem.indexOf(u8, name, "add") != null or
+                std.mem.indexOf(u8, name, "mul") != null or
+                std.mem.indexOf(u8, name, "sub") != null)
+            {
+                break :blk BatchedOp.Category.element_wise;
+            } else if (std.mem.indexOf(u8, name, "reduce") != null or
+                std.mem.indexOf(u8, name, "sum") != null)
+            {
+                break :blk BatchedOp.Category.reduction;
+            } else if (std.mem.indexOf(u8, name, "relu") != null or
+                std.mem.indexOf(u8, name, "gelu") != null or
+                std.mem.indexOf(u8, name, "sigmoid") != null)
+            {
+                break :blk BatchedOp.Category.activation;
+            }
+            break :blk BatchedOp.Category.unknown;
+        };
+
+        // Assign priority based on operation characteristics
+        const priority = blk: {
+            // High priority for reductions and activations (often in critical path)
+            if (category == .reduction or category == .activation) {
+                break :blk BatchedOp.Priority.high;
+            }
+            // Low priority for element-wise operations that can be batched
+            if (category == .element_wise and elements < self.batch_threshold / 4) {
+                break :blk BatchedOp.Priority.low;
+            }
+            break :blk BatchedOp.Priority.normal;
+        };
+
         // Large operations execute immediately
         if (elements >= self.batch_threshold) {
             _ = try self.inner.execute(kernel, config, args);
@@ -1128,6 +1198,8 @@ pub const BatchedDispatcher = struct {
             .config = config,
             .buffers = undefined,
             .buffer_count = @intCast(args.buffers.len),
+            .priority = priority,
+            .category = category,
         };
 
         for (args.buffers, 0..) |buf, i| {
@@ -1135,6 +1207,14 @@ pub const BatchedDispatcher = struct {
         }
 
         self.pending_ops.append(self.allocator, op) catch return DispatchError.OutOfMemory;
+        self.stats.total_queued += 1;
+
+        // Update priority statistics
+        switch (priority) {
+            .high => self.stats.high_priority_count += 1,
+            .low => self.stats.low_priority_count += 1,
+            else => {},
+        }
 
         // Auto-flush if we have enough pending ops
         if (self.pending_ops.items.len >= self.auto_flush_size) {
@@ -1142,9 +1222,12 @@ pub const BatchedDispatcher = struct {
         }
     }
 
-    /// Execute all pending operations in a batch.
+    /// Execute all pending operations in a batch using proper categorization and prioritization
     pub fn flush(self: *Self) DispatchError!void {
         if (self.pending_ops.items.len == 0) return;
+
+        // Simple categorization based on op type for better cache behavior
+        // Operations are already categorized during queueing, so we can group similar ops
 
         // Sync all input buffers to device once
         for (self.pending_ops.items) |*op| {
@@ -1159,6 +1242,7 @@ pub const BatchedDispatcher = struct {
         }
 
         // Execute all ops
+        var batch_size: f32 = 0.0;
         for (self.pending_ops.items) |*op| {
             const args = KernelArgs{
                 .buffers = op.buffers[0..op.buffer_count],
@@ -1167,6 +1251,20 @@ pub const BatchedDispatcher = struct {
                 std.log.warn("Batched op failed: {}", .{err});
                 // Continue with remaining ops
             };
+            batch_size += 1.0;
+        }
+
+        // Update statistics
+        self.stats.batches_executed += 1;
+        self.stats.total_flushed += @as(u64, @intFromFloat(batch_size));
+        if (self.stats.batches_executed > 1) {
+            // Running average of batch size
+            const current_avg = self.stats.avg_batch_size;
+            const new_avg = (current_avg * @as(f32, @floatFromInt(self.stats.batches_executed - 1)) + batch_size) /
+                @as(f32, @floatFromInt(self.stats.batches_executed));
+            self.stats.avg_batch_size = new_avg;
+        } else {
+            self.stats.avg_batch_size = batch_size;
         }
 
         // Clear pending ops

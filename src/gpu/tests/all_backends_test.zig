@@ -1,14 +1,15 @@
 const std = @import("std");
-const device = @import("../device.zig");
+const device_mod = @import("../device.zig");
 const backend_factory = @import("../backend_factory.zig");
-const Backend = @import("../backend.zig").Backend;
+const backend_mod = @import("../backend.zig");
+const Backend = backend_mod.Backend;
 
 test "all backends device enumeration" {
     const allocator = std.testing.allocator;
 
     // Test enumeration for each backend type
     inline for (std.meta.tags(Backend)) |backend_tag| {
-        const devices = try device.enumerateDevicesForBackend(allocator, backend_tag);
+        const devices = try device_mod.enumerateDevicesForBackend(allocator, backend_tag);
         defer allocator.free(devices);
 
         // All returned devices should match the backend
@@ -64,14 +65,14 @@ test "feature-based backend selection" {
 test "device scoring and selection" {
     const allocator = std.testing.allocator;
 
-    const all_devices = try device.enumerateAllDevices(allocator);
+    const all_devices = try device_mod.enumerateAllDevices(allocator);
     defer allocator.free(all_devices);
 
     if (all_devices.len == 0) return;
 
     // Find highest scoring device
     var best_score: u32 = 0;
-    var best_device: ?device.Device = null;
+    var best_device: ?device_mod.Device = null;
 
     for (all_devices) |dev| {
         const score = dev.score();
@@ -88,7 +89,7 @@ test "device scoring and selection" {
 test "device capability queries" {
     const allocator = std.testing.allocator;
 
-    const all_devices = try device.enumerateAllDevices(allocator);
+    const all_devices = try device_mod.enumerateAllDevices(allocator);
     defer allocator.free(all_devices);
 
     for (all_devices) |dev| {
