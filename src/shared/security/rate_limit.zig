@@ -10,6 +10,7 @@
 //! - Distributed rate limiting support
 
 const std = @import("std");
+const time = @import("../time.zig");
 
 /// Rate limiting algorithm
 pub const Algorithm = enum {
@@ -206,7 +207,7 @@ pub const RateLimiter = struct {
             };
         };
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         // Check ban
         if (bucket.ban_until) |ban_time| {
@@ -315,7 +316,7 @@ pub const RateLimiter = struct {
             return .{
                 .total_requests = bucket.total_requests,
                 .violations = bucket.violations,
-                .is_banned = bucket.ban_until != null and bucket.ban_until.? > std.time.timestamp(),
+                .is_banned = bucket.ban_until != null and bucket.ban_until.? > time.unixSeconds(),
                 .ban_expires_at = bucket.ban_until,
             };
         }
@@ -334,7 +335,7 @@ pub const RateLimiter = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         const window = @as(i64, self.config.window_seconds);
 
         var to_remove = std.ArrayList([]const u8).init(self.allocator);
@@ -370,7 +371,7 @@ pub const RateLimiter = struct {
         const key_copy = try self.allocator.dupe(u8, key);
         errdefer self.allocator.free(key_copy);
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         const bucket = Bucket{
             .tokens = @floatFromInt(self.config.requests + self.config.burst),
             .last_update = now,

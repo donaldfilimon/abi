@@ -24,6 +24,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const time = @import("../shared/time.zig");
 
 pub const CloudEvent = types.CloudEvent;
 pub const CloudResponse = types.CloudResponse;
@@ -132,7 +133,8 @@ pub const GcpRuntime = struct {
         if (self.handler(&event, self.allocator)) |response| {
             return response;
         } else |err| {
-            return CloudResponse.err(self.allocator, 500, @errorName(err));
+            const err_name = @errorName(err);
+            return CloudResponse.err(self.allocator, 500, err_name);
         }
     }
 };
@@ -205,10 +207,10 @@ pub fn parseCloudEvent(allocator: std.mem.Allocator, raw_event: []const u8) !Clo
     }
 
     // Extract timestamp
-    if (root.object.get("time")) |time| {
+    if (root.object.get("time")) |time_value| {
         // Parse ISO 8601 timestamp (simplified)
-        _ = time;
-        event.timestamp = std.time.timestamp();
+        _ = time_value;
+        event.timestamp = time.unixSeconds();
     }
 
     return event;

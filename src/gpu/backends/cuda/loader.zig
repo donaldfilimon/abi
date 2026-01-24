@@ -34,6 +34,10 @@ pub const CuMemcpyDtoHFn = *const fn (*anyopaque, u64, usize) callconv(.c) CuRes
 pub const CuMemcpyDtoDFn = *const fn (u64, u64, usize) callconv(.c) CuResult;
 pub const CuMemAllocHostFn = *const fn (**anyopaque, usize) callconv(.c) CuResult;
 pub const CuMemFreeHostFn = *const fn (*anyopaque) callconv(.c) CuResult;
+// Async memory transfer function types
+pub const CuMemcpyHtoDAsyncFn = *const fn (u64, *const anyopaque, usize, ?*anyopaque) callconv(.c) CuResult;
+pub const CuMemcpyDtoHAsyncFn = *const fn (*anyopaque, u64, usize, ?*anyopaque) callconv(.c) CuResult;
+pub const CuMemcpyDtoDAsyncFn = *const fn (u64, u64, usize, ?*anyopaque) callconv(.c) CuResult;
 
 // Stream function types
 pub const CuStreamCreateFn = *const fn (*?*anyopaque, u32) callconv(.c) CuResult;
@@ -82,6 +86,10 @@ pub const MemoryFunctions = struct {
     cuMemcpyDtoD: ?CuMemcpyDtoDFn = null,
     cuMemAllocHost: ?CuMemAllocHostFn = null,
     cuMemFreeHost: ?CuMemFreeHostFn = null,
+    // Async memory transfer functions
+    cuMemcpyHtoDAsync: ?CuMemcpyHtoDAsyncFn = null,
+    cuMemcpyDtoHAsync: ?CuMemcpyDtoHAsyncFn = null,
+    cuMemcpyDtoDAsync: ?CuMemcpyDtoDAsyncFn = null,
 };
 
 /// All CUDA stream functions
@@ -201,6 +209,10 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
     cuda_functions.memory.cuMemcpyDtoD = bind(CuMemcpyDtoDFn, "cuMemcpyDtoD_v2");
     cuda_functions.memory.cuMemAllocHost = bind(CuMemAllocHostFn, "cuMemAllocHost_v2");
     cuda_functions.memory.cuMemFreeHost = bind(CuMemFreeHostFn, "cuMemFreeHost");
+    // Load async memory transfer symbols (optional)
+    cuda_functions.memory.cuMemcpyHtoDAsync = bind(CuMemcpyHtoDAsyncFn, "cuMemcpyHtoDAsync");
+    cuda_functions.memory.cuMemcpyDtoHAsync = bind(CuMemcpyDtoHAsyncFn, "cuMemcpyDtoHAsync");
+    cuda_functions.memory.cuMemcpyDtoDAsync = bind(CuMemcpyDtoDAsyncFn, "cuMemcpyDtoDAsync");
 
     // Load stream symbols.
     cuda_functions.stream.cuStreamCreate = bind(CuStreamCreateFn, "cuStreamCreate");

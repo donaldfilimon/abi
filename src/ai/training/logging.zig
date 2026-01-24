@@ -1,6 +1,6 @@
 //! Training metrics logging (TensorBoard + W&B offline).
 const std = @import("std");
-const time = @import("../../shared/utils.zig");
+const time = @import("../../shared/time.zig");
 
 pub const LogError =
     std.mem.Allocator.Error ||

@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const time = @import("../../shared/time.zig");
 
 /// Alert severity levels.
 pub const AlertSeverity = enum {
@@ -265,7 +266,7 @@ pub const AlertManager = struct {
 
     /// Check metrics against all rules and trigger alerts as needed.
     pub fn checkMetrics(self: *Self, metrics: MetricSnapshot) !void {
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         for (self.rules.items) |rule| {
             if (!rule.enabled) continue;
@@ -366,7 +367,7 @@ pub const AlertManager = struct {
     pub fn resolveAlert(self: *Self, index: usize) void {
         if (index < self.active_alerts.items.len) {
             var alert = self.active_alerts.orderedRemove(index);
-            alert.resolved_at = std.time.timestamp();
+            alert.resolved_at = time.unixSeconds();
 
             // Add to history
             if (self.history.items.len >= self.config.max_history) {

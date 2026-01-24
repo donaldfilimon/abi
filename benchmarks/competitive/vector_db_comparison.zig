@@ -15,7 +15,7 @@
 
 const std = @import("std");
 const mod = @import("mod.zig");
-const framework = @import("../framework.zig");
+const framework = @import("../system/framework.zig");
 
 /// Vector database reference baselines
 pub const VectorDbBaseline = struct {

@@ -1,6 +1,6 @@
 //! Role-based access control (RBAC) implementation.
 const std = @import("std");
-const time = @import("../utils.zig");
+const time = @import("../time.zig");
 
 pub const Permission = enum {
     read,

@@ -11,10 +11,10 @@ const utils = @import("../../shared/utils.zig");
 /// SystemInfo offers static helpers for runtime data.
 pub const SystemInfo = struct {
     /// Returns the current monotonic time in nanoseconds.
-    /// In Zig 0.16 the preferred high‑resolution timestamp is
-    /// `std.time.nanoTimestamp()`.
+    /// In Zig 0.16 use std.time.Timer for high‑resolution timing.
     pub fn uptimeNs() u64 {
-        return std.time.nanoTimestamp();
+        var timer = std.time.Timer.start() catch return 0;
+        return timer.read();
     }
 
     /// Returns the current wall‑clock time in milliseconds since the Unix epoch.

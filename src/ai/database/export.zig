@@ -41,7 +41,11 @@ pub fn exportGguf(
     defer allocator.free(gguf_bytes);
 
     // 3. Write to disk
-    var file = try std.fs.cwd().createFile(path, .{});
-    defer file.close();
-    try file.writeAll(gguf_bytes);
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+    var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+    defer file.close(io);
+    var writer = file.writer(io);
+    try writer.writeAll(gguf_bytes);
 }

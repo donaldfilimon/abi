@@ -200,6 +200,16 @@ pub const Terminal = struct {
         try self.write("\x1b[?25l");
     }
 
+    /// Set the terminal window title (if supported).
+    /// Uses the ANSI OSC 0 sequence: ESC ] 0 ; <title> BEL.
+    /// This works on most modern terminal emulators across platforms.
+    pub fn setTitle(self: *Terminal, title: []const u8) !void {
+        // The sequence must be sent as separate writes to avoid allocation.
+        try self.write("\x1b]0;");
+        try self.write(title);
+        try self.write("\x07");
+    }
+
     pub fn showCursor(self: *Terminal) !void {
         try self.write("\x1b[?25h");
     }

@@ -15,6 +15,7 @@ const std = @import("std");
 const chat = @import("../handlers/chat.zig");
 const types = @import("../../ai/personas/types.zig");
 const health = @import("../../ai/personas/health.zig");
+const time = @import("../../shared/time.zig");
 
 /// HTTP method.
 pub const Method = enum {
@@ -140,7 +141,8 @@ fn handleAvivaChat(ctx: *RouteContext) RouteError!void {
 
 fn handleListPersonas(ctx: *RouteContext) RouteError!void {
     const response = ctx.chat_handler.listPersonas() catch |err| {
-        try ctx.writeError(500, "INTERNAL_ERROR", @errorName(err));
+        const err_name = @errorName(err);
+        try ctx.writeError(500, "INTERNAL_ERROR", err_name);
         return;
     };
     try ctx.writeJson(response);
@@ -149,7 +151,8 @@ fn handleListPersonas(ctx: *RouteContext) RouteError!void {
 /// Handle GET /api/v1/personas/metrics - Get metrics.
 fn handleGetMetrics(ctx: *RouteContext) RouteError!void {
     const response = ctx.chat_handler.getMetrics() catch |err| {
-        try ctx.writeError(500, "INTERNAL_ERROR", @errorName(err));
+        const err_name = @errorName(err);
+        try ctx.writeError(500, "INTERNAL_ERROR", err_name);
         return RouteError.InternalError;
     };
     try ctx.writeJson(response);
@@ -161,7 +164,7 @@ fn handleHealthCheck(ctx: *RouteContext) RouteError!void {
     defer response_obj.deinit();
 
     try response_obj.put("status", std.json.Value{ .string = "ok" });
-    try response_obj.put("timestamp", std.json.Value{ .integer = std.time.timestamp() });
+    try response_obj.put("timestamp", std.json.Value{ .integer = time.unixSeconds() });
 
     // Add health details if checker is available
     if (ctx.health_checker) |checker| {
@@ -276,7 +279,7 @@ pub const Router = struct {
         route.handler(&ctx) catch |err| {
             return RouteResult{
                 .status = 500,
-                .body = try std.fmt.allocPrint(self.allocator, "{{\"error\":{{\"code\":\"INTERNAL_ERROR\",\"message\":\"{s}\"}}}}", .{@errorName(err)}),
+                .body = try std.fmt.allocPrint(self.allocator, "{{\"error\":{{\"code\":\"INTERNAL_ERROR\",\"message\":\"{t}\"}}}}", .{err}),
                 .content_type = "application/json",
             };
         };

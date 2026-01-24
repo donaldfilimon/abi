@@ -264,7 +264,7 @@ pub fn loadBitstreamFromMemory(
     const device = device_cache[device_index];
 
     // In a real implementation, parse bitstream header and load
-    var handle = BitstreamHandle{
+    const handle = BitstreamHandle{
         .allocator = allocator,
         .device_index = device_index,
         .platform = device.platform,

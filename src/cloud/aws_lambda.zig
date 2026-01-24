@@ -90,7 +90,7 @@ pub const LambdaRuntime = struct {
             response = resp;
         } else |err| {
             error_message = @errorName(err);
-            response = try CloudResponse.err(self.allocator, 500, @errorName(err));
+            response = try CloudResponse.err(self.allocator, 500, error_message.?);
         }
         defer response.deinit();
 

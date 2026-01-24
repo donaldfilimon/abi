@@ -136,7 +136,8 @@ pub const AzureRuntime = struct {
         if (self.handler(&event, self.allocator)) |resp| {
             response = resp;
         } else |err| {
-            response = try CloudResponse.err(self.allocator, 500, @errorName(err));
+            const err_name = @errorName(err);
+            response = try CloudResponse.err(self.allocator, 500, err_name);
         }
         defer response.deinit();
 

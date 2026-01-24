@@ -2,9 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Working with the Codebase
+## ⚠️ Before Making Changes
 
-**IMPORTANT**: Before making changes, always check `git status` for uncommitted work. This codebase frequently has work-in-progress changes across multiple files. Review existing changes before adding new ones to avoid conflicts or duplicating work.
+**CRITICAL**: This codebase frequently has work-in-progress changes. Before making any modifications:
+
+1. Run `git status` to see uncommitted work
+2. Run `git diff --stat` to understand the scope of existing changes
+3. Review existing changes before adding new ones to avoid conflicts or duplicating work
+4. If there are many staged/unstaged changes, ask the user about their status before proceeding
 
 ## Quick Reference
 
@@ -231,6 +236,18 @@ defer framework.deinit();
 2. Create the example file in `examples/`
 3. Run `zig build examples` to verify compilation
 
+### Writing tests
+- Use `error.SkipZigTest` for hardware-gated tests (GPU, network):
+  ```zig
+  test "gpu operation" {
+      const gpu = initGpu() catch return error.SkipZigTest;
+      defer gpu.deinit();
+      // ... test code
+  }
+  ```
+- Unit tests live in library files and `src/tests/mod.zig`
+- Run filtered tests with `zig test file.zig --test-filter "pattern"`
+
 ## Zig 0.16 Patterns
 
 > See [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) for comprehensive examples.
@@ -356,6 +373,23 @@ defer {
 }
 ```
 
+## Connectors
+
+Use external AI providers through the connectors module:
+
+```zig
+// OpenAI
+const openai = @import("abi").connectors.openai;
+var client = try openai.Client.init(allocator, .{});
+const response = try client.chat("Hello", .{});
+
+// Ollama (local)
+const ollama = @import("abi").connectors.ollama;
+var client = try ollama.Client.init(allocator, .{ .host = "http://127.0.0.1:11434" });
+```
+
+Connectors require corresponding environment variables (see Environment Variables section).
+
 ## Reference
 
 - [README.md](README.md) - Project overview
@@ -369,23 +403,22 @@ defer {
 - [docs/cloud-deployment.md](docs/cloud-deployment.md) - Cloud function deployment
 - [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security findings and recommendations
 
-## New Feature Flags
-During CI or local builds you may need to toggle new experimental flags via `-D` options. Examples:
+## Experimental Feature Flags
+
+During CI or local builds you may need to toggle experimental flags via `-D` options:
 
 ```bash
 zig build -Denable-telemetry=true        # Enable experimental telemetry
-zig build -Denable-scripting=true       # Enable embedded scripting backends
+zig build -Denable-scripting=true        # Enable embedded scripting backends
 ```
+
 These flags are integrated into `build_options` and must have corresponding stub implementations in `stub.zig` to keep API parity.
 
-## Important Gotchas
-* **Stub‑Real API parity** – Every change to a `mod.zig` file must be mirrored in its `stub.zig`. The CI parity checker will flag mismatches.
-* **GPU backend list** – `-Dgpu-backend` accepts a comma‑separated list; use `-Dgpu-backend=none` to disable all backends.
-* **WASM builds** – When targeting WebAssembly the `database`, `network`, and `gpu` features are auto‑disabled; declare them explicitly for deterministic runs.
-* **Compile‑time vs Runtime Flags** – `-D...` flags affect compilation. Runtime toggles (`--enable-gpu`) only modify a binary's runtime behaviour.
-* **Dependency order** – Changing the import order in `build.zig` can alter the feature graph.
+## Post-Edit Checklist
 
-★ *Tip:* After editing run `zig fmt .` and verify with
+After making changes, always run:
+
 ```bash
-zig build test --summary all
+zig fmt .                        # Format code
+zig build test --summary all     # Run all tests
 ```

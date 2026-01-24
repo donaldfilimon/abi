@@ -484,7 +484,8 @@ test "circuit breaker state transitions" {
     try std.testing.expect(!cb.allowRequest());
 
     // Wait for circuit to half-open
-    std.time.sleep(150 * std.time.ns_per_ms);
+    const time = @import("../../shared/time.zig");
+    time.sleepMs(150);
     try std.testing.expect(cb.allowRequest()); // Transitions to half-open
     try std.testing.expectEqual(CircuitBreaker.State.half_open, cb.state);
 

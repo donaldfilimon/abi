@@ -10,6 +10,7 @@
 //! - Activity tracking
 
 const std = @import("std");
+const time = @import("../time.zig");
 const crypto = std.crypto;
 
 /// Session configuration
@@ -113,13 +114,13 @@ pub const Session = struct {
 
     /// Check if session is expired
     pub fn isExpired(self: Session) bool {
-        return std.time.timestamp() > self.expires_at;
+        return time.unixSeconds() > self.expires_at;
     }
 
     /// Check if session is idle (timed out due to inactivity)
     pub fn isIdle(self: Session, idle_timeout: i64) bool {
         if (idle_timeout == 0) return false;
-        return std.time.timestamp() - self.last_activity > idle_timeout;
+        return time.unixSeconds() - self.last_activity > idle_timeout;
     }
 
     /// Get a session data value
@@ -208,7 +209,7 @@ pub const SessionManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         // Check max sessions for user
         if (options.user_id) |uid| {
@@ -313,7 +314,7 @@ pub const SessionManager = struct {
         }
 
         // Update activity and potentially renew
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         session.last_activity = now;
 
         if (self.config.renew_on_activity) {
@@ -431,7 +432,7 @@ pub const SessionManager = struct {
 
         try std.fmt.format(buffer.writer(), "; SameSite={s}", .{self.config.same_site.toString()});
 
-        const max_age = session.expires_at - std.time.timestamp();
+        const max_age = session.expires_at - time.unixSeconds();
         if (max_age > 0) {
             try std.fmt.format(buffer.writer(), "; Max-Age={d}", .{max_age});
         }

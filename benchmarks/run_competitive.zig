@@ -4,7 +4,7 @@
 
 const std = @import("std");
 const competitive = @import("competitive/mod.zig");
-const framework = @import("framework.zig");
+const framework = @import("system/framework.zig");
 
 pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

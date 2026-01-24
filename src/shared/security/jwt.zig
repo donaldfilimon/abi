@@ -9,6 +9,7 @@
 //! - JWK (JSON Web Key) support
 
 const std = @import("std");
+const time = @import("../time.zig");
 const crypto = std.crypto;
 
 /// JWT signing algorithms
@@ -81,7 +82,7 @@ pub const Claims = struct {
     /// Check if the token is expired
     pub fn isExpired(self: Claims) bool {
         if (self.exp) |exp| {
-            return std.time.timestamp() > exp;
+            return time.unixSeconds() > exp;
         }
         return false;
     }
@@ -89,14 +90,14 @@ pub const Claims = struct {
     /// Check if the token is valid yet (nbf check)
     pub fn isValidYet(self: Claims) bool {
         if (self.nbf) |nbf| {
-            return std.time.timestamp() >= nbf;
+            return time.unixSeconds() >= nbf;
         }
         return true;
     }
 
     /// Validate all time-based claims
     pub fn validateTime(self: Claims, clock_skew: i64) bool {
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         if (self.exp) |exp| {
             if (now > exp + clock_skew) return false;
@@ -208,7 +209,7 @@ pub const JwtManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
 
         // Build claims with defaults
         var final_claims = claims;
@@ -414,7 +415,7 @@ pub const JwtManager = struct {
             try self.cleanupBlacklist();
         }
 
-        const exp = token.claims.exp orelse std.time.timestamp() + 86400;
+        const exp = token.claims.exp orelse time.unixSeconds() + 86400;
         try self.blacklist.put(self.allocator, try self.allocator.dupe(u8, jti), exp);
 
         self.stats.tokens_blacklisted += 1;
@@ -663,7 +664,7 @@ pub const JwtManager = struct {
     }
 
     fn cleanupBlacklist(self: *JwtManager) !void {
-        const now = std.time.timestamp();
+        const now = time.unixSeconds();
         var to_remove = std.ArrayList([]const u8).init(self.allocator);
         defer to_remove.deinit();
 
@@ -731,7 +732,7 @@ test "jwt create and verify" {
     // Create token
     const token_str = try manager.createToken(.{
         .sub = "user123",
-        .exp = std.time.timestamp() + 3600,
+        .exp = time.unixSeconds() + 3600,
     });
     defer allocator.free(token_str);
 
@@ -761,7 +762,7 @@ test "jwt expiration" {
     // Create expired token
     const token_str = try manager.createToken(.{
         .sub = "user123",
-        .exp = std.time.timestamp() - 100, // Expired 100 seconds ago
+        .exp = time.unixSeconds() - 100, // Expired 100 seconds ago
     });
     defer allocator.free(token_str);
 

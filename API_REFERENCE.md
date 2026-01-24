@@ -3,7 +3,7 @@ title: "API_REFERENCE"
 tags: []
 ---
 # API Reference
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 <p align="center">
   <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>
@@ -762,7 +762,7 @@ Flat domain structure (modular architecture):
 - [TODO.md](TODO.md) — Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))
 - [ROADMAP.md](ROADMAP.md) — Upcoming milestones
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Development guidelines
-- [CHANGELOG.md](CHANGELOG.md) — Version history
+ - [CHANGELOG_CONSOLIDATED.md](CHANGELOG_CONSOLIDATED.md) — Version history
 
 </td>
 </tr>
@@ -774,4 +774,3 @@ Flat domain structure (modular architecture):
   <a href="README.md">← Back to README</a> •
   <a href="docs/intro.md">Full Documentation →</a>
 </p>
-

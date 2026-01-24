@@ -13,6 +13,7 @@ const loss_mod = @import("loss.zig");
 const mod = @import("mod.zig");
 const llm_checkpoint = @import("llm_checkpoint.zig");
 const logging = @import("logging.zig");
+const ai_ops = @import("../../gpu/ai_ops.zig");
 
 /// Training configuration for LLM.
 pub const LlmTrainingConfig = struct {
@@ -70,6 +71,14 @@ pub const LlmTrainingConfig = struct {
     export_gguf_path: ?[]const u8 = null,
     /// GGUF model name metadata
     export_name: []const u8 = "abi-llama",
+    /// Enable GPU acceleration
+    use_gpu: bool = false,
+    /// GPU acceleration backend preference
+    gpu_backend: ?[]const u8 = null, // null = auto-select best available
+    /// Threshold for GPU dispatch (batch size below this uses CPU)
+    gpu_batch_threshold: u32 = 8,
+    /// Device memory buffer for GPU operations
+    gpu_device_buffer_mb: u32 = 256, // MB
 
     pub fn validate(self: LlmTrainingConfig) !void {
         if (self.epochs == 0) return error.InvalidConfiguration;
@@ -187,6 +196,8 @@ pub const LlamaTrainer = struct {
     accumulator: mod.GradientAccumulator,
     optimizer_state: OptimizerState,
     stats: TrainingStats,
+    /// GPU operations interface (if GPU enabled)
+    gpu_ops: ?ai_ops.AiOps,
     /// Accumulated loss for logging
     accum_loss: f32,
     /// Loss history for early stopping
@@ -272,6 +283,7 @@ pub const LlamaTrainer = struct {
                 .v = v,
             },
             .stats = .{},
+            .gpu_ops = null,
             .accum_loss = 0,
             .loss_history = std.ArrayListUnmanaged(f32).empty,
             .val_data = null,

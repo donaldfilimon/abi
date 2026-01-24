@@ -2,7 +2,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const binary = @import("../../shared/utils_combined.zig").binary;
-const time = @import("../../shared/utils.zig");
+const time = @import("../../shared/time.zig");
 const windows = std.os.windows;
 const posix = std.posix;
 

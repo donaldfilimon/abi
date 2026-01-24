@@ -10,7 +10,7 @@
 //! - Compliance-ready audit trails
 
 const std = @import("std");
-const time = @import("../utils.zig");
+const time = @import("../time.zig");
 
 /// Severity level for security events
 pub const Severity = enum(u8) {
@@ -326,7 +326,7 @@ pub const AuditLogger = struct {
         // Build the event
         var event = AuditEvent{
             .id = id,
-            .timestamp = std.time.nanoTimestamp(),
+            .timestamp = @as(i128, time.nowNanoseconds()),
             .severity = event_builder.severity,
             .category = event_builder.category,
             .event_type = try self.allocator.dupe(u8, event_builder.event_type),

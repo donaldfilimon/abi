@@ -2,6 +2,8 @@ pub const events = @import("events.zig");
 pub const terminal = @import("terminal.zig");
 pub const widgets = @import("widgets.zig");
 pub const themes = @import("themes.zig");
+pub const gpu_monitor = @import("gpu_monitor.zig");
+pub const agent_panel = @import("agent_panel.zig");
 
 pub const Key = events.Key;
 pub const KeyCode = events.KeyCode;
@@ -22,6 +24,19 @@ pub const DialogResult = widgets.DialogResult;
 pub const CommandPreview = widgets.CommandPreview;
 pub const Toast = widgets.Toast;
 pub const SpinnerStyle = widgets.SpinnerStyle;
+
+// GPU Monitor Widget
+pub const GpuMonitor = gpu_monitor.GpuMonitor;
+pub const GpuDeviceStatus = gpu_monitor.GpuDeviceStatus;
+pub const SchedulerStats = gpu_monitor.SchedulerStats;
+pub const MemoryHistory = gpu_monitor.MemoryHistory;
+pub const BackendType = gpu_monitor.BackendType;
+
+// Agent Panel Widget
+pub const AgentPanel = agent_panel.AgentPanel;
+pub const LearningPhase = agent_panel.LearningPhase;
+pub const DecisionEntry = agent_panel.DecisionEntry;
+pub const RewardHistory = agent_panel.RewardHistory;
 
 // Themes
 pub const Theme = themes.Theme;

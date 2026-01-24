@@ -93,6 +93,9 @@ pub const eval = if (build_options.enable_ai) @import("eval/mod.zig") else @impo
 pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
 pub const orchestration = if (build_options.enable_ai) @import("orchestration/mod.zig") else @import("orchestration/stub.zig");
 
+// GPU-aware agent (always available, uses stubs when GPU disabled)
+pub const gpu_agent = @import("gpu_agent.zig");
+
 // ============================================================================
 // Sub-modules (conditionally compiled)
 // ============================================================================
@@ -260,6 +263,14 @@ pub const HealthStatus = orchestration.HealthStatus;
 pub const ModelBackend = orchestration.ModelBackend;
 pub const ModelCapability = orchestration.Capability;
 pub const OrchestrationModelConfig = orchestration.ModelConfig;
+
+// GPU-Aware Agent types
+pub const GpuAgent = gpu_agent.GpuAgent;
+pub const GpuAwareRequest = gpu_agent.GpuAwareRequest;
+pub const GpuAwareResponse = gpu_agent.GpuAwareResponse;
+pub const WorkloadType = gpu_agent.WorkloadType;
+pub const GpuAgentPriority = gpu_agent.Priority;
+pub const GpuAgentStats = gpu_agent.AgentStats;
 
 // ============================================================================
 // Errors

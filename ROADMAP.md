@@ -13,7 +13,7 @@
 - [x] Complete GPU backend implementations
   - [x] CUDA backend (fallback runtime + kernel simulation)
   - [x] Vulkan backend (fallback runtime + kernel simulation)
-  - [ ] Vulkan backend consolidation – merge `vulkan_types.zig`, `vulkan_init.zig`, `vulkan_pipelines.zig`, and `vulkan_buffers.zig` into a single `vulkan.zig` module (see docs/plans/2026-01-23-vulkan-combine.md)
+  - [x] Vulkan backend consolidation – merged `vulkan_vtable.zig`, `vulkan_cache.zig`, and `vulkan_command_pool.zig` into the main `vulkan.zig` module
   - [x] Metal backend (fallback runtime + kernel simulation)
   - [x] WebGPU backend (fallback runtime + kernel simulation)
 - [x] Full async/await implementation using std.Io
@@ -89,8 +89,8 @@
       - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
       - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
       - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
-    - [ ] Vulkan backend consolidation
-      - [ ] Merge four Vulkan source files into a single module (`vulkan.zig`)
+    - [x] Vulkan backend consolidation
+      - [x] Merged Vulkan split files into a single module (`vulkan.zig`)
 
 ### Documentation
 - [x] Comprehensive API docs
@@ -102,8 +102,14 @@
   - [x] Component interactions (docs/diagrams/gpu-architecture.md)
   - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
   - [x] Modular codebase structure (completed 2026-01-17)
-  - [ ] Vulkan backend consolidation documentation – see `docs/plans/2026-01-23-vulkan-combine.md`
- - [ ] Mega GPU + TUI + Self-Learning Agent Upgrade – see `docs/plans/2026-01-23-mega-gpu-tui-agent-upgrade.md`
+  - [x] Vulkan backend consolidation documentation – completed (see `docs/plans/2026-01-24-vulkan-consolidation.md`)
+ - [x] Mega GPU + TUI + Self-Learning Agent Upgrade – COMPLETE (2026-01-24)
+   - [x] Cross-backend GPU coordinator (`src/gpu/mega/coordinator.zig`)
+   - [x] Learning-based scheduler with Q-learning (`src/gpu/mega/scheduler.zig`)
+   - [x] GPU monitor TUI widget (`tools/cli/tui/gpu_monitor.zig`)
+   - [x] Agent status panel (`tools/cli/tui/agent_panel.zig`)
+   - [x] GPU-aware agent integration (`src/ai/gpu_agent.zig`)
+   - [x] Interactive dashboard command (`tools/cli/commands/gpu_dashboard.zig`)
 
 ### Testing
 - [x] Expanded test suite
@@ -152,10 +158,21 @@
 ## Long-Term Goals (2026+)
 
 ### Research & Innovation
-- [ ] Experimental features
-  - [ ] Hardware acceleration (FPGA, ASIC)
-  - [ ] Novel index structures
-  - [ ] AI-optimized workloads
+- [x] Hardware acceleration
+  - [x] FPGA backend (AMD Alveo, Intel Agilex) - COMPLETE (2026-01)
+  - [x] FPGA Phase 2 kernels - COMPLETE (2026-01-24)
+    - [x] Quantized MatMul (Q4/Q8, tiled, fused activation)
+    - [x] Streaming Softmax & Flash Attention (O(N) memory)
+    - [x] Hierarchical KV-Cache (BRAM/HBM/DDR tiers)
+    - [x] Hybrid GPU-FPGA coordinator (`src/gpu/mega/hybrid.zig`)
+  - [ ] ASIC exploration (future research)
+- [x] Novel index structures - COMPLETE (2026-01-23)
+  - [x] DiskANN integration (billion-scale graph-based ANN)
+  - [x] ScaNN-style quantized indexes (AVQ, learned weights)
+- [x] AI-optimized workloads
+  - [x] Enhanced persona routing (`src/ai/personas/routing/enhanced.zig`)
+  - [x] Distributed WDBX conversation blocks (`src/database/distributed/`)
+  - [x] MVCC with version vectors for causal consistency
 - [ ] Academic collaborations
   - [ ] Research partnerships
   - [ ] Paper publications
@@ -241,10 +258,10 @@ All feature-gated stubs have been audited and updated for API parity:
 
 ## Changelog History
 
-- [0.2.2](CHANGELOG.md#022---2025-12-27) - Zig 0.16 modernization
-- [0.2.1](CHANGELOG.md#021---2025-12-27) - Security fixes, memory safety
-- [0.2.0](CHANGELOG.md#020---2025-12-24) - High-performance compute runtime
-- [0.1.0](CHANGELOG.md#010---2025-12-24) - Initial release
+ - [0.2.2](CHANGELOG_CONSOLIDATED.md#022---2025-12-27) - Zig 0.16 modernization
+ - [0.2.1](CHANGELOG_CONSOLIDATED.md#021---2025-12-27) - Security fixes, memory safety
+ - [0.2.0](CHANGELOG_CONSOLIDATED.md#020---2025-12-24) - High-performance compute runtime
+ - [0.1.0](CHANGELOG_CONSOLIDATED.md#010---2025-12-24) - Initial release
 
 ## Expanded Roadmap Details
 ### Tooling (Q2 2026) COMPLETE
@@ -261,8 +278,10 @@ All feature-gated stubs have been audited and updated for API parity:
 - **Disaster recovery** – Automated backup orchestration, point‑in‑time recovery, and multi‑region support.
 ### Ecosystem (Q4 2026)
 - **Package manager integration** – Publish to the Zig package registry, provide Homebrew formulae, and release Docker images.
-### Research & Innovation (2027+)
-- **Experimental features** – Explore FPGA/ASIC acceleration, novel index structures, and AI‑optimized workloads.
+### Research & Innovation (2026-2027)
+- **Hardware acceleration** – FPGA backend complete (AMD Alveo, Intel Agilex); FPGA Phase 2 LLM kernels complete (MatMul, Attention, KV-Cache); ASIC exploration future work.
+- **AI-optimized workloads** – Enhanced persona routing, distributed WDBX, MVCC consistency complete.
+- **Novel index structures** – DiskANN and ScaNN implementations complete (`src/database/diskann.zig`, `src/database/scann.zig`).
 - **Academic collaborations** – Joint research projects, paper publications, and conference presentations.
 ### Community & Growth (2027+)
 - **Community governance** – Formal RFC process, voting mechanisms, and contributor recognition.

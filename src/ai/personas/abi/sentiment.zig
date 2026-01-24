@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const core_types = @import("../../core/types.zig");
+const time = @import("../../../shared/time.zig");
 
 /// Result of sentiment and intent analysis.
 pub const SentimentResult = struct {
@@ -40,7 +41,7 @@ pub const SentimentResult = struct {
         return .{
             .current = self.primary_emotion,
             .intensity = self.urgency_score,
-            .last_detected = std.time.timestamp(),
+            .last_detected = time.unixSeconds(),
         };
     }
 };

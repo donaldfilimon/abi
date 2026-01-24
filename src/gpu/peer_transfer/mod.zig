@@ -578,10 +578,10 @@ pub const PeerTransferManager = struct {
         _ = self;
 
         const timeout_ns: u64 = 30_000_000_000; // 30 seconds
-        const start = std.time.nanoTimestamp();
+        var timer = std.time.Timer.start() catch return error.TimerFailed;
 
         while (!handle.isComplete()) {
-            if (@as(u64, @intCast(std.time.nanoTimestamp() - start)) > timeout_ns) {
+            if (timer.read() > timeout_ns) {
                 handle.status.store(.failed, .release);
                 handle.error_info = error.TransferTimeout;
                 return error.TransferTimeout;

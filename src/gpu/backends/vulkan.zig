@@ -1301,7 +1301,36 @@ pub const VulkanBackend = struct {
         _ = vkFreeDescriptorSets.?(ctx.device, kernel.descriptor_pool, 1, @ptrCast(&descriptor_set));
     }
 
-    pub fn destroyKernel(_: *Self, _: *anyopaque) void {}
+    pub fn destroyKernel(self: *Self, kernel_handle: *anyopaque) void {
+        const ctx = vulkan_context.?;
+        const kernel: *VulkanKernel = @ptrCast(@alignCast(kernel_handle));
+
+        // Remove from tracking if present
+        for (self.kernels.items, 0..) |k, i| {
+            if (k.handle == kernel_handle) {
+                _ = self.kernels.swapRemove(i);
+                self.allocator.free(k.name);
+                break;
+            }
+        }
+
+        // Destroy Vulkan resources
+        if (vkDestroyPipeline) |destroy_pipeline| {
+            destroy_pipeline(ctx.device, kernel.pipeline, null);
+        }
+        if (vkDestroyPipelineLayout) |destroy_pipeline_layout| {
+            destroy_pipeline_layout(ctx.device, kernel.pipeline_layout, null);
+        }
+        if (vkDestroyDescriptorSetLayout) |destroy_descriptor_set_layout| {
+            destroy_descriptor_set_layout(ctx.device, kernel.descriptor_set_layout, null);
+        }
+        if (vkDestroyDescriptorPool) |destroy_descriptor_pool| {
+            destroy_descriptor_pool(ctx.device, kernel.descriptor_pool, null);
+        }
+        // shader_module is usually destroyed after pipeline creation
+
+        self.allocator.destroy(kernel);
+    }
 
     pub fn synchronize(_: *Self) interface.BackendError!void {
         const ctx = vulkan_context.?;
@@ -1326,4 +1355,35 @@ pub fn isVulkanAvailable() bool {
         _ = tryLoadVulkanLibrary();
     }
     return vulkan_lib != null;
+}
+
+// ============================================================================
+// Shader Cache (stub)
+// ============================================================================
+
+/// Shader cache stub for future caching implementation.
+/// Currently a placeholder to satisfy imports.
+pub const ShaderCache = struct {};
+
+// ============================================================================
+// Command Pool (stub)
+// ============================================================================
+
+/// Command pool stub for future pooling implementation.
+/// Currently a placeholder to satisfy imports.
+pub const CommandPool = struct {};
+
+// ============================================================================
+// Top-Level VTable Factory Export
+// ============================================================================
+
+/// Creates a Vulkan backend instance wrapped in the VTable interface.
+///
+/// This is the main entry point for creating a Vulkan backend. It wraps
+/// the internal vulkan_vtable implementation for external consumers.
+///
+/// Returns BackendError.NotAvailable if Vulkan driver cannot be loaded.
+/// Returns BackendError.InitFailed if Vulkan initialization fails.
+pub fn createVulkanVTable(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
+    return vulkan_vtable.createVulkanVTable(allocator);
 }

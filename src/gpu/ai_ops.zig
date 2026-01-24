@@ -734,7 +734,50 @@ pub const gpu_enabled = build_options.enable_gpu;
 /// Device memory management re-exports.
 /// Provides DeviceMemory struct with init/deinit and memcpy functions.
 pub const memory = if (build_options.enable_gpu)
-    @import("backends/cuda/memory.zig")
+    if (build_options.gpu_fpga)
+        // FPGA memory interface would go here
+        struct {
+            pub fn init() !void {
+                std.log.info("FPGA memory simulation initialized", .{});
+            }
+
+            pub fn deinit() void {}
+
+            pub const DeviceMemory = struct {
+                ptr: ?*anyopaque,
+                size: usize,
+                allocator: std.mem.Allocator,
+                tier: enum { bram, hbm, ddr } = .ddr,
+
+                pub fn init(allocator: std.mem.Allocator, size: usize) !@This() {
+                    const ptr = try allocator.alloc(u8, size);
+                    return @This(){
+                        .ptr = ptr.ptr,
+                        .size = size,
+                        .allocator = allocator,
+                    };
+                }
+
+                pub fn deinit(self: *@This()) void {
+                    const slice = @as([*]u8, @ptrCast(@alignCast(self.ptr)))[0..self.size];
+                    self.allocator.free(slice);
+                }
+            };
+
+            pub fn memcpyHostToDevice(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
+                const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
+                const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
+                @memcpy(dst_ptr[0..size], src_ptr[0..size]);
+            }
+
+            pub fn memcpyDeviceToHost(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
+                const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
+                const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
+                @memcpy(dst_ptr[0..size], src_ptr[0..size]);
+            }
+        }
+    else
+        @import("backends/cuda/memory.zig")
 else
     struct {
         pub fn init() !void {

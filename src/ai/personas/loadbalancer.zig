@@ -14,6 +14,7 @@ const std = @import("std");
 const types = @import("types.zig");
 const config = @import("config.zig");
 const cb = @import("../../network/circuit_breaker.zig");
+const time = @import("../../shared/time.zig");
 
 /// Status of a persona node.
 pub const NodeStatus = enum {
@@ -322,7 +323,7 @@ pub const PersonaLoadBalancer = struct {
             if (node.active_requests > 0) node.active_requests -= 1;
             node.consecutive_failures += 1;
             node.total_failures += 1;
-            node.last_failure_timestamp = std.time.timestamp();
+            node.last_failure_timestamp = time.unixSeconds();
 
             // Status is managed by circuit breaker now
             if (self.config.enable_circuit_breaker) {
@@ -373,7 +374,7 @@ pub const PersonaLoadBalancer = struct {
 
         if (self.nodes.getPtr(persona_type)) |node| {
             node.health_score = std.math.clamp(score, 0.0, 1.0);
-            node.last_health_check = std.time.timestamp();
+            node.last_health_check = time.unixSeconds();
 
             // Update status based on health score
             if (node.status != .circuit_broken) {

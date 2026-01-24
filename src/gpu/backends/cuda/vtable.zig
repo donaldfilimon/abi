@@ -411,13 +411,39 @@ pub const CudaBackend = struct {
 
     /// Copy data from host to device asynchronously.
     pub fn copyToDeviceAsync(self: *Self, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) interface.MemoryError!void {
-        _ = stream; // TODO: Use cuMemcpyHtoDAsync
+        const funcs = self.functions orelse return interface.MemoryError.TransferFailed;
+
+        // Try async transfer first, fall back to sync if async not available
+        if (funcs.memory.cuMemcpyHtoDAsync) |cu_memcpy_htod_async| {
+            const device_ptr = @intFromPtr(dst);
+            const result = cu_memcpy_htod_async(device_ptr, src.ptr, src.len, stream);
+            if (result != .success) {
+                // Fall back to synchronous transfer
+                return self.copyToDevice(dst, src);
+            }
+            return;
+        }
+
+        // Fall back to synchronous transfer
         return self.copyToDevice(dst, src);
     }
 
     /// Copy data from device to host asynchronously.
     pub fn copyFromDeviceAsync(self: *Self, dst: []u8, src: *anyopaque, stream: ?*anyopaque) interface.MemoryError!void {
-        _ = stream; // TODO: Use cuMemcpyDtoHAsync
+        const funcs = self.functions orelse return interface.MemoryError.TransferFailed;
+
+        // Try async transfer first, fall back to sync if async not available
+        if (funcs.memory.cuMemcpyDtoHAsync) |cu_memcpy_dtoh_async| {
+            const device_ptr = @intFromPtr(src);
+            const result = cu_memcpy_dtoh_async(dst.ptr, device_ptr, dst.len, stream);
+            if (result != .success) {
+                // Fall back to synchronous transfer
+                return self.copyFromDevice(dst, src);
+            }
+            return;
+        }
+
+        // Fall back to synchronous transfer
         return self.copyFromDevice(dst, src);
     }
 

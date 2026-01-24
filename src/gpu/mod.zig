@@ -218,6 +218,17 @@ pub const TransferStats = peer_transfer.TransferStats;
 pub const DeviceBuffer = peer_transfer.DeviceBuffer;
 pub const RecoveryStrategy = peer_transfer.RecoveryStrategy;
 
+// Mega GPU orchestration (cross-backend coordinator)
+pub const mega = @import("mega/mod.zig");
+
+// Mega types for cross-backend coordination
+pub const MegaCoordinator = mega.Coordinator;
+pub const MegaBackendInstance = mega.BackendInstance;
+pub const MegaWorkloadProfile = mega.WorkloadProfile;
+pub const MegaWorkloadCategory = mega.WorkloadCategory;
+pub const MegaScheduleDecision = mega.ScheduleDecision;
+pub const MegaPrecision = mega.Precision;
+
 // Include test modules in test builds
 comptime {
     if (@import("builtin").is_test) {
@@ -235,6 +246,8 @@ comptime {
         // std.gpu integration tests
         _ = @import("std_gpu.zig");
         _ = @import("std_gpu_kernels.zig");
+        // Mega GPU orchestration tests
+        _ = @import("mega/mod.zig");
     }
 }
 

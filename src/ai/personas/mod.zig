@@ -21,6 +21,7 @@ pub const abi = @import("abi/mod.zig");
 pub const abbey = @import("abbey/mod.zig");
 pub const aviva = @import("aviva/mod.zig");
 pub const embeddings = @import("embeddings/mod.zig");
+pub const enhanced = @import("routing/enhanced.zig");
 pub const metrics = @import("metrics.zig");
 pub const loadbalancer = @import("loadbalancer.zig");
 

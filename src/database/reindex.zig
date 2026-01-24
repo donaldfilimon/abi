@@ -1,6 +1,6 @@
 //! Automatic re-indexing for vector databases with background monitoring.
 const std = @import("std");
-const time = @import("../shared/utils.zig");
+const time = @import("../shared/time.zig");
 const index = @import("index.zig");
 
 pub const ReindexConfig = struct {

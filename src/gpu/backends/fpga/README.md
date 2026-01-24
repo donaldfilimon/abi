@@ -1,8 +1,8 @@
 # FPGA Backend for ABI
 
-> **Status:** Development Phase
-> **Version:** 0.1.0
-> **Last Updated:** January 2026
+> **Status:** Phase 2 Complete (LLM Kernels Integrated)
+> **Version:** 0.2.0
+> **Last Updated:** January 24, 2026
 
 ## Overview
 
@@ -15,6 +15,8 @@ The FPGA backend provides hardware acceleration for compute-intensive operations
 - **Pre-Compiled Kernels**: Optimized bitstreams for common operations
 - **Memory Management**: DDR, HBM, and on-chip memory support
 - **Quantized Operations**: Native support for Q4, Q5, Q8 quantization formats
+- **LLM Inference**: MatMul, Attention, KV-Cache kernels for LLM acceleration
+- **Flash Attention**: O(N) memory-efficient attention implementation
 
 ## Architecture
 
@@ -22,10 +24,15 @@ The FPGA backend provides hardware acceleration for compute-intensive operations
 src/gpu/backends/fpga/
 ├── mod.zig          # Module entry point, public API
 ├── types.zig        # Core type definitions
-├── vtable.zig       # GPU interface implementation
+├── vtable.zig       # GPU interface implementation (Phase 1 + Phase 2 kernels)
 ├── loader.zig       # Bitstream loading and device management
 ├── memory.zig       # Memory allocation and transfer
-└── kernels.zig      # Kernel implementations (CPU simulation + HLS templates)
+├── kernels.zig      # Kernel implementations (CPU simulation + HLS templates)
+└── kernels/
+    ├── distance_kernels.zig   # Phase 1: Vector distance operations
+    ├── matmul_kernels.zig     # Phase 2: Quantized MatMul (Q4/Q8)
+    ├── attention_kernels.zig  # Phase 2: Multi-head & Flash Attention
+    └── kv_cache_kernels.zig   # Phase 2: Hierarchical KV-Cache
 ```
 
 ### Module Dependencies
@@ -62,11 +69,15 @@ mod.zig
 
 | Operation | Status | Description |
 |-----------|--------|-------------|
-| `softmax` | Implemented | Streaming softmax |
-| `rmsnorm` | Planned | RMS normalization |
-| `silu_activation` | Planned | SiLU/Swish activation |
+| `softmax` | ✅ Implemented | Streaming softmax |
+| `rmsnorm` | ✅ Implemented | RMS normalization |
+| `silu_activation` | ✅ Implemented | SiLU/Swish activation (fused) |
+| `gelu_activation` | ✅ Implemented | GELU activation (fused) |
 | `rope_embedding` | Planned | Rotary position embeddings |
-| `attention` | Planned | Multi-head attention |
+| `attention_multihead` | ✅ Implemented | Multi-head attention |
+| `attention_flash` | ✅ Implemented | Flash attention (O(N) memory) |
+| `kv_cache_update` | ✅ Implemented | KV cache update/append |
+| `kv_cache_paged` | ✅ Implemented | Paged attention KV cache |
 
 ### Vector Database Operations
 
@@ -304,30 +315,36 @@ v++ -l -t hw --platform xilinx_u250_gen3x16_xdma_4_1_202210_1 \
 
 ## Roadmap
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation (COMPLETE)
 - [x] Basic backend structure
 - [x] Memory management
 - [x] VTable implementation
 - [x] CPU simulation for testing
-- [ ] Xilinx XRT integration
+- [x] Distance kernels (cosine, L2, dot product)
+- [ ] Xilinx XRT integration (hardware testing)
 
-### Phase 2: Core Kernels
-- [ ] Optimized vector distance (HLS)
-- [ ] Quantized matrix multiplication
-- [ ] Streaming softmax
-- [ ] K-means acceleration
+### Phase 2: LLM Kernels (COMPLETE)
+- [x] Quantized matrix multiplication (Q4/Q8)
+- [x] Tiled MatMul with fused bias+activation
+- [x] Batch MatMul for multi-head attention
+- [x] Streaming softmax
+- [x] Multi-head attention kernels
+- [x] Flash attention (O(N) memory)
+- [x] Hierarchical KV-cache (BRAM/HBM/DDR tiers)
+- [x] Paged attention support
+- [x] VTable integration for all kernel types
 
-### Phase 3: LLM Support
-- [ ] Full attention mechanism
-- [ ] KV-cache management
-- [ ] RoPE embeddings
-- [ ] Multi-head parallelism
-
-### Phase 4: Production
-- [ ] Intel oneAPI support
+### Phase 3: Production Validation (IN PROGRESS)
+- [ ] Hardware testing on AMD Alveo
+- [ ] Hardware testing on Intel Agilex
 - [ ] Multi-FPGA scaling
+- [ ] Production benchmarks vs GPU baseline
+- [ ] Intel oneAPI support
+
+### Phase 4: Hybrid Architecture (PLANNED)
+- [ ] GPU-FPGA workload distribution
 - [ ] Dynamic reconfiguration
-- [ ] Production benchmarks
+- [ ] Auto-tuning for workload patterns
 
 ## References
 

@@ -2,6 +2,9 @@ const std = @import("std");
 const device = @import("../device.zig");
 const backend_factory = @import("../backend_factory.zig");
 const exec_coordinator = @import("../execution_coordinator.zig");
+const multi_device = @import("../multi_device.zig");
+const GPUCluster = multi_device.GPUCluster;
+const DeviceId = multi_device.DeviceId;
 
 test "full stack: auto-detect → execute → fallback" {
     const allocator = std.testing.allocator;
@@ -149,5 +152,157 @@ test "device capability queries" {
         _ = dev.supportsFeature(.int8);
         _ = dev.maxWorkgroupSize();
         _ = dev.maxSharedMemory();
+    }
+}
+
+test "multi-GPU scheduling: round-robin load balancing" {
+    const allocator = std.testing.allocator;
+    var group = try multi_device.DeviceGroup.init(allocator, .{
+        .strategy = .round_robin,
+        .min_distribute_size = 1000,
+    });
+    defer group.deinit();
+
+    const device_count = group.activeDeviceCount();
+    try std.testing.expect(device_count >= 1);
+
+    // Test round-robin selection
+    var selected_devices = std.ArrayList(DeviceId).init(allocator);
+    defer selected_devices.deinit();
+
+    for (0..device_count * 3) |_| {
+        const device_id = group.selectDevice(1024);
+        try selected_devices.append(device_id);
+    }
+
+    // Should cycle through available devices
+    for (selected_devices.items, 0..) |dev_id, i| {
+        const expected_idx = i % device_count;
+        const expected_dev = group.active_devices.items[expected_idx];
+        try std.testing.expectEqual(expected_dev, dev_id);
+    }
+}
+
+test "multi-GPU scheduling: memory-aware load balancing" {
+    const allocator = std.testing.allocator;
+    var group = try multi_device.DeviceGroup.init(allocator, .{
+        .strategy = .memory_aware,
+    });
+    defer group.deinit();
+
+    const dist = try group.distributeWork(5000);
+    defer allocator.free(dist);
+
+    // Work should be distributed appropriately
+    try std.testing.expect(dist.len >= 1);
+    var total_size: usize = 0;
+    for (dist) |d| {
+        total_size += d.size;
+    }
+    try std.testing.expectEqual(@as(usize, 5000), total_size);
+}
+
+test "multi-GPU scheduling: capability-weighted distribution" {
+    const allocator = std.testing.allocator;
+    var group = try multi_device.DeviceGroup.init(allocator, .{
+        .strategy = .capability_weighted,
+    });
+    defer group.deinit();
+
+    const large_workload = 10000;
+    const dist = try group.distributeWork(large_workload);
+    defer allocator.free(dist);
+
+    try std.testing.expect(dist.len >= 1);
+
+    // Verify distribution sums to total workload
+    var distributed_size: usize = 0;
+    for (dist) |d| {
+        distributed_size += d.size;
+    }
+    try std.testing.expectEqual(large_workload, distributed_size);
+}
+
+test "multi-GPU scheduling: device enable/disable" {
+    const allocator = std.testing.allocator;
+    var group = try multi_device.DeviceGroup.init(allocator, .{});
+    defer group.deinit();
+
+    const initial_count = group.activeDeviceCount();
+
+    // Test disabling devices
+    if (initial_count > 1) {
+        const device_to_disable = group.active_devices.items[0];
+        group.disableDevice(device_to_disable);
+        try std.testing.expectEqual(initial_count - 1, group.activeDeviceCount());
+
+        // Re-enable the device
+        try group.enableDevice(device_to_disable);
+        try std.testing.expectEqual(initial_count, group.activeDeviceCount());
+    }
+}
+
+test "multi-GPU scheduling: workload validation cross-device" {
+    const allocator = std.testing.allocator;
+    var cluster = GPUCluster.init(allocator, .{
+        .parallelism = .data_parallel,
+    }) catch |err| {
+        if (err == error.GpuDisabled or err == error.OutOfMemory) {
+            return error.SkipZigTest;
+        }
+        return err;
+    };
+    defer cluster.deinit();
+
+    const work_distribution = try cluster.distributeWork(8192);
+    defer allocator.free(work_distribution);
+
+    // Validate distribution
+    var total_size: usize = 0;
+    var valid_devices: usize = 0;
+
+    for (work_distribution) |dist| {
+        if (cluster.getContext(dist.device_id) != null) {
+            valid_devices += 1;
+        }
+        total_size += dist.size;
+
+        // Each distribution should have valid offsets
+        try std.testing.expect(dist.size > 0);
+    }
+
+    try std.testing.expectEqual(@as(usize, 8192), total_size);
+    try std.testing.expect(valid_devices > 0);
+}
+
+test "multi-GPU scheduling: fault tolerance and recovery" {
+    const allocator = std.testing.allocator;
+    var cluster = GPUCluster.init(allocator, .{
+        .parallelism = .data_parallel,
+    }) catch |err| {
+        if (err == error.GpuDisabled or err == error.OutOfMemory) {
+            return error.SkipZigTest;
+        }
+        return err;
+    };
+    defer cluster.deinit();
+
+    const initial_device_count = cluster.deviceCount();
+
+    // Simulate device failure by disabling devices
+    if (initial_device_count > 1) {
+        const failing_device = cluster.device_group.active_devices.items[0];
+        cluster.device_group.disableDevice(failing_device);
+
+        // Cluster should still function with remaining devices
+        const work_distribution = try cluster.distributeWork(4096);
+        defer allocator.free(work_distribution);
+
+        try std.testing.expectEqual(initial_device_count - 1, work_distribution.len);
+
+        // Verify no work assigned to failed device
+        for (work_distribution) |dist| {
+            try std.testing.expect(dist.device_id != failing_device);
+        }
     }
 }

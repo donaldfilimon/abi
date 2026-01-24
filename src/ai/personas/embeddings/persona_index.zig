@@ -15,6 +15,7 @@ const types = @import("../types.zig");
 const embeddings = @import("../../embeddings/mod.zig");
 const database = @import("../../../database/mod.zig");
 const seed_data = @import("seed_data.zig");
+const time = @import("../../../shared/time.zig");
 
 /// Result of a persona matching operation.
 pub const PersonaMatch = struct {
@@ -267,7 +268,7 @@ pub const PersonaEmbeddingIndex = struct {
         try std.json.stringify(.{
             .persona = @tagName(persona_used),
             .score = success_score,
-            .timestamp = std.time.timestamp(),
+            .timestamp = time.unixSeconds(),
         }, .{}, metadata_buf.writer());
 
         try self.db.insertVectorWithNamespace(NAMESPACE_CONVERSATIONS, conversation_id, vector, metadata_buf.items);
@@ -291,7 +292,7 @@ pub const PersonaEmbeddingIndex = struct {
         try std.json.stringify(.{
             .correct = @tagName(correct_persona),
             .was_routed = @tagName(was_routed_to),
-            .timestamp = std.time.timestamp(),
+            .timestamp = time.unixSeconds(),
         }, .{}, metadata_buf.writer());
 
         try self.db.insertVectorWithNamespace(NAMESPACE_FEEDBACK, feedback_id, vector, metadata_buf.items);

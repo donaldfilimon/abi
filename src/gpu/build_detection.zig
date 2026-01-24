@@ -89,7 +89,7 @@ pub const GpuCapabilities = struct {
         self.has_vulkan = try self.checkVulkanInstallation();
 
         // Check for AMD GPU with ROCm
-        const has_rocm = try self.checkRocmInstallation();
+        _ = try self.checkRocmInstallation();
 
         // OpenGL is typically available
         self.has_opengl = true;

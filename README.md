@@ -5,7 +5,7 @@ tags: []
 
 # ABI Framework
 >
-> **Codebase Status:** Synced with repository as of 2026-01-23.
+> **Codebase Status:** Synced with repository as of 2026-01-24.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
@@ -47,7 +47,8 @@ tags: []
 | **AI Runtime** | LLM inference (Llama-CPP parity), agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, diagnostics | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **GPU Backends** | CUDA, Vulkan, Metal, WebGPU with unified API, graceful degradation | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU Backends** | CUDA, Vulkan, Metal, WebGPU, FPGA with unified API, graceful degradation | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **FPGA Acceleration** | LLM MatMul, Attention, KV-Cache kernels for AMD Alveo/Intel Agilex | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **GPU Sync & Cache** | Event‑based synchronization (SyncEvent) and fast‑path kernel descriptor cache (KernelRing) | ![In‑Progress](https://img.shields.io/badge/-In%20Progress-yellow) |
 | **Distributed Network** | Node discovery, Raft consensus, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
@@ -65,6 +66,91 @@ tags: []
 - [Monitoring Guide](docs/monitoring.md) - Observability and metrics
 
 </details>
+
+## Quick Start
+
+> **Codebase Status:** Synced with repository as of 2026-01-24.
+
+### Prerequisites
+
+| Requirement | Version | Status |
+|------------|---------|--------|
+| Zig | 0.16.x | ![Required](https://img.shields.io/badge/-Required-red) |
+| Git | Any | ![Required](https://img.shields.io/badge/-Required-red) |
+| GPU Drivers | Latest | ![Optional](https://img.shields.io/badge/-Optional-yellow) |
+
+### Build and Run the CLI
+
+```bash
+zig build
+zig build run -- --help
+zig build run -- --version
+```
+
+### Run Tests and Benchmarks
+
+```bash
+zig build test                    # Run all tests
+zig build test --summary all      # Run tests with detailed output
+zig test src/runtime/engine/engine.zig     # Test single file (new path)
+zig test src/tests/mod.zig --test-filter "pattern"  # Filter tests
+zig build test -Denable-gpu=true -Denable-network=true  # Test with features
+zig build benchmarks              # Run performance benchmarks
+```
+
+### CLI Commands
+
+#### General
+
+```bash
+zig build run -- --help           # Show all commands
+zig build run -- --version        # Show version info
+zig build run -- system-info       # System and framework status
+```
+
+#### Database
+
+```bash
+zig build run -- db stats
+zig build run -- db add --id 1 --embed "text to embed"
+zig build run -- db backup --path backup.db
+zig build run -- db restore --path backup.db
+```
+
+#### AI & Agents
+
+```bash
+zig build run -- agent                          # Interactive agent
+zig build run -- agent --message "Hello"          # Single message
+zig build run -- agent --persona coder           # Use specific persona
+```
+
+#### GPU
+
+```bash
+zig build run -- gpu backends                  # List backends
+zig build run -- gpu devices                   # List devices
+zig build run -- gpu summary                   # GPU summary
+```
+
+#### Training
+
+```bash
+zig build run -- train run --epochs 10          # Run training
+zig build run -- train info                     # Show config
+zig build run -- train resume ./model.ckpt       # Resume from checkpoint
+```
+
+#### Explore codebase
+
+```bash
+zig build run -- explore "fn init" --level quick
+zig build run -- explore "pub fn" --level thorough
+```
+
+---
+
+For more detailed guides, see [docs/intro.md](docs/intro.md).
 
 ## What's New (2026.01)
 

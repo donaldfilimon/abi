@@ -117,6 +117,57 @@ const HistoryEntry = struct {
     timestamp: i64,
 };
 
+/// Match type for completion scoring
+const MatchType = enum {
+    exact_prefix, // Exact prefix match (highest priority)
+    fuzzy, // Fuzzy character match
+    history_recent, // Recently used command
+    substring, // Substring match (lowest priority)
+
+    fn indicator(self: MatchType) []const u8 {
+        return switch (self) {
+            .exact_prefix => "≡",
+            .fuzzy => "≈",
+            .history_recent => "↺",
+            .substring => "⊂",
+        };
+    }
+};
+
+/// Completion suggestion with ranking score
+const CompletionSuggestion = struct {
+    item_index: usize, // Index into MenuItems array
+    score: u32, // Ranking score (higher = better)
+    match_type: MatchType, // How the match was found
+};
+
+/// Completion state for the TUI
+const CompletionState = struct {
+    suggestions: std.ArrayListUnmanaged(CompletionSuggestion),
+    selected_suggestion: usize, // Index into suggestions array
+    active: bool, // Whether dropdown is shown
+    max_visible: usize, // Max suggestions to show (default: 5)
+
+    fn init() CompletionState {
+        return .{
+            .suggestions = .empty,
+            .selected_suggestion = 0,
+            .active = false,
+            .max_visible = 5,
+        };
+    }
+
+    fn deinit(self: *CompletionState, allocator: std.mem.Allocator) void {
+        self.suggestions.deinit(allocator);
+    }
+
+    fn clear(self: *CompletionState) void {
+        self.suggestions.clearRetainingCapacity();
+        self.selected_suggestion = 0;
+        self.active = false;
+    }
+};
+
 const TuiState = struct {
     allocator: std.mem.Allocator,
     terminal: *tui.Terminal,
@@ -138,6 +189,8 @@ const TuiState = struct {
     notification: ?[]const u8,
     notification_level: tui.Toast.Level,
     notification_time: i64,
+    // Tab completion state
+    completion: CompletionState,
 
     fn init(allocator: std.mem.Allocator, terminal: *tui.Terminal, framework: *abi.Framework) !TuiState {
         var state = TuiState{
@@ -160,6 +213,7 @@ const TuiState = struct {
             .notification = null,
             .notification_level = .info,
             .notification_time = 0,
+            .completion = CompletionState.init(),
         };
         // Initialize with all items
         try state.resetFilter();
@@ -169,6 +223,7 @@ const TuiState = struct {
     fn deinit(self: *TuiState) void {
         self.filtered_indices.deinit(self.allocator);
         self.history.deinit(self.allocator);
+        self.completion.deinit(self.allocator);
     }
 
     fn theme(self: *const TuiState) *const tui.Theme {
@@ -298,6 +353,85 @@ const TuiState = struct {
         }
     }
 
+    /// Generate completion suggestions based on current search query
+    fn updateCompletions(self: *TuiState) !void {
+        self.completion.clear();
+
+        const query = self.search_buffer[0..self.search_len];
+        if (query.len == 0) {
+            self.completion.active = false;
+            return;
+        }
+
+        // Score all items
+        for (self.items, 0..) |*item, i| {
+            if (calculateCompletionScore(item, query, self.history.items)) |suggestion| {
+                var s = suggestion;
+                s.item_index = i;
+                try self.completion.suggestions.append(self.allocator, s);
+            }
+        }
+
+        // Sort by score (highest first)
+        std.mem.sort(
+            CompletionSuggestion,
+            self.completion.suggestions.items,
+            {},
+            suggestionCompare,
+        );
+
+        // Activate if we have suggestions
+        self.completion.active = self.completion.suggestions.items.len > 0;
+        self.completion.selected_suggestion = 0;
+    }
+
+    /// Cycle to next completion suggestion
+    fn nextCompletion(self: *TuiState) void {
+        if (!self.completion.active or self.completion.suggestions.items.len == 0) return;
+        self.completion.selected_suggestion += 1;
+        if (self.completion.selected_suggestion >= self.completion.suggestions.items.len) {
+            self.completion.selected_suggestion = 0;
+        }
+    }
+
+    /// Cycle to previous completion suggestion
+    fn prevCompletion(self: *TuiState) void {
+        if (!self.completion.active or self.completion.suggestions.items.len == 0) return;
+        if (self.completion.selected_suggestion == 0) {
+            self.completion.selected_suggestion = self.completion.suggestions.items.len - 1;
+        } else {
+            self.completion.selected_suggestion -= 1;
+        }
+    }
+
+    /// Accept current completion suggestion
+    fn acceptCompletion(self: *TuiState) !void {
+        if (!self.completion.active or self.completion.suggestions.items.len == 0) return;
+
+        const suggestion = self.completion.suggestions.items[self.completion.selected_suggestion];
+        const item = &self.items[suggestion.item_index];
+
+        // Copy label to search buffer
+        const label = item.label;
+        const copy_len = @min(label.len, self.search_buffer.len);
+        @memcpy(self.search_buffer[0..copy_len], label[0..copy_len]);
+        self.search_len = copy_len;
+
+        // Update filter and select the completed item
+        try self.applyFilter();
+
+        // Find the item in filtered results and select it
+        for (self.filtered_indices.items, 0..) |idx, i| {
+            if (idx == suggestion.item_index) {
+                self.selected = i;
+                break;
+            }
+        }
+
+        // Hide completions after accepting
+        self.completion.clear();
+    }
+
     fn handleMouseClick(self: *TuiState, row: u16) bool {
         // Account for header (4 rows: title, border, blank, category header)
         const header_rows: u16 = 4;
@@ -388,32 +522,28 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
         return;
     }
 
+    // NOTE: Removed explicit TTY check using std.os.isatty which is not available on Windows.
+    // The `terminal.enter()` call below will gracefully handle non‑interactive environments
+    // and provide the same fallback command list when a real terminal cannot be used.
+
     var terminal = tui.Terminal.init(allocator);
     defer terminal.deinit();
 
+    // Attempt to enter the TUI. Preserve detailed error information for debugging.
     terminal.enter() catch |err| {
-        const err_msg = switch (err) {
-            error.ConsoleUnavailable, error.ConsoleModeFailed => blk: {
-                utils.output.printError("Interactive TUI requires a real terminal/console.", .{});
-                utils.output.printInfo("This command needs to run in a proper terminal window.", .{});
-                std.debug.print("\nAvailable commands (run individually):\n", .{});
-                std.debug.print("  abi llm list                    - List supported LLM formats\n", .{});
-                std.debug.print("  abi llm demo                    - Demo LLM interface (no model needed)\n", .{});
-                std.debug.print("  abi bench all                   - Run all benchmarks\n", .{});
-                std.debug.print("  abi system-info                 - Show system information\n", .{});
-                std.debug.print("  abi config show                 - Show current configuration\n", .{});
-                std.debug.print("  abi db stats                    - Show database statistics\n", .{});
-                std.debug.print("  abi gpu backends                - List GPU backends\n", .{});
-                std.debug.print("  abi task list                   - List tasks\n", .{});
-                std.debug.print("  abi --list-features             - Show available features\n", .{});
-                break :blk true;
-            },
-            else => blk: {
-                utils.output.printError("Failed to initialize terminal: {t}", .{err});
-                break :blk false;
-            },
-        };
-        _ = err_msg;
+        // Log the specific error using the {t} formatter for clarity.
+        utils.output.printError("Failed to start interactive TUI: {t}", .{err});
+        utils.output.printInfo("Falling back to command list display.", .{});
+        std.debug.print("\nAvailable commands (run individually):\n", .{});
+        std.debug.print("  abi llm list                    - List supported LLM formats\n", .{});
+        std.debug.print("  abi llm demo                    - Demo LLM interface (no model needed)\n", .{});
+        std.debug.print("  abi bench all                   - Run all benchmarks\n", .{});
+        std.debug.print("  abi system-info                 - Show system information\n", .{});
+        std.debug.print("  abi config show                 - Show current configuration\n", .{});
+        std.debug.print("  abi db stats                    - Show database statistics\n", .{});
+        std.debug.print("  abi gpu backends                - List GPU backends\n", .{});
+        std.debug.print("  abi task list                   - List tasks\n", .{});
+        std.debug.print("  abi --list-features             - Show available features\n", .{});
         return;
     };
     defer terminal.exit() catch {};
@@ -476,6 +606,7 @@ fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
                 state.show_history = false;
             } else if (state.search_len > 0) {
                 state.search_len = 0;
+                state.completion.clear();
                 try state.resetFilter();
             }
         },
@@ -593,8 +724,23 @@ fn handleSearchKey(state: *TuiState, key: tui.Key) !bool {
         .ctrl_c => return true,
         .escape => {
             state.search_mode = false;
+            state.completion.clear();
+        },
+        .tab => {
+            // Tab completion
+            if (state.completion.active) {
+                state.nextCompletion();
+            } else {
+                try state.updateCompletions();
+            }
         },
         .enter => {
+            // Accept completion if active, otherwise execute selected
+            if (state.completion.active) {
+                try state.acceptCompletion();
+                return false; // Stay in search mode
+            }
+
             state.search_mode = false;
             // Execute selected if any
             if (state.selectedItem()) |item| {
@@ -613,6 +759,7 @@ fn handleSearchKey(state: *TuiState, key: tui.Key) !bool {
             if (state.search_len > 0) {
                 state.search_len -= 1;
                 try state.applyFilter();
+                try state.updateCompletions();
             }
         },
         .character => {
@@ -621,11 +768,26 @@ fn handleSearchKey(state: *TuiState, key: tui.Key) !bool {
                     state.search_buffer[state.search_len] = ch;
                     state.search_len += 1;
                     try state.applyFilter();
+                    try state.updateCompletions();
                 }
             }
         },
-        .up => state.moveUp(),
-        .down => state.moveDown(),
+        .up => {
+            // Navigate completions with arrow keys
+            if (state.completion.active) {
+                state.prevCompletion();
+            } else {
+                state.moveUp();
+            }
+        },
+        .down => {
+            // Navigate completions with arrow keys
+            if (state.completion.active) {
+                state.nextCompletion();
+            } else {
+                state.moveDown();
+            }
+        },
         else => {},
     }
     return false;
@@ -656,6 +818,11 @@ fn renderFrame(state: *TuiState) !void {
     // Search bar (if active or has content)
     if (state.search_mode or state.search_len > 0) {
         try renderSearchBar(term, state, width);
+
+        // Render completion dropdown if active
+        if (state.search_mode and state.completion.active) {
+            try renderCompletionDropdown(term, state, width);
+        }
     }
 
     // History panel (if shown)
@@ -1076,6 +1243,144 @@ fn renderSearchBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     try term.write("\n");
 }
 
+fn renderCompletionDropdown(term: *tui.Terminal, state: *TuiState, width: usize) !void {
+    if (!state.completion.active) return;
+
+    const theme = state.theme();
+    const suggestions = state.completion.suggestions.items;
+    const max_show = @min(state.completion.max_visible, suggestions.len);
+
+    if (max_show == 0) return;
+
+    const dropdown_width = @min(50, width - 8);
+
+    // Top border of dropdown
+    try term.write(theme.border);
+    try term.write(box.v);
+    try term.write(theme.reset);
+    try term.write("   ");
+    try term.write(theme.text_dim);
+    try term.write("╭");
+    try writeRepeat(term, "─", dropdown_width);
+    try term.write("╮");
+    try term.write(theme.reset);
+
+    const remaining = width -| (4 + dropdown_width + 2);
+    try writeRepeat(term, " ", remaining);
+    try term.write(theme.border);
+    try term.write(box.v);
+    try term.write(theme.reset);
+    try term.write("\n");
+
+    // Suggestions
+    for (0..max_show) |i| {
+        const suggestion = suggestions[i];
+        const item = state.items[suggestion.item_index];
+        const is_selected = i == state.completion.selected_suggestion;
+
+        try term.write(theme.border);
+        try term.write(box.v);
+        try term.write(theme.reset);
+        try term.write("   ");
+        try term.write(theme.text_dim);
+        try term.write("│");
+        try term.write(theme.reset);
+
+        if (is_selected) {
+            try term.write(theme.selection_bg);
+            try term.write(theme.selection_fg);
+            try term.write(" ▸ ");
+        } else {
+            try term.write("   ");
+        }
+
+        // Match type indicator
+        try term.write(theme.text_muted);
+        try term.write(suggestion.match_type.indicator());
+        try term.write(" ");
+        try term.write(theme.reset);
+
+        if (is_selected) {
+            try term.write(theme.selection_bg);
+            try term.write(theme.selection_fg);
+        }
+
+        // Label with category color
+        try term.write(item.categoryColor(theme));
+        if (is_selected) try term.write(theme.bold);
+        const label_max = @min(item.label.len, 18);
+        try term.write(item.label[0..label_max]);
+        try term.write(theme.reset);
+
+        if (is_selected) {
+            try term.write(theme.selection_bg);
+            try term.write(theme.selection_fg);
+        }
+
+        // Padding after label
+        const label_pad = 18 -| label_max;
+        try writeRepeat(term, " ", label_pad);
+
+        // Short description
+        try term.write(theme.text_dim);
+        const desc_max = @min(item.description.len, dropdown_width - 28);
+        try term.write(item.description[0..desc_max]);
+        try term.write(theme.reset);
+
+        // Fill rest of dropdown line
+        const used_in_dropdown = 5 + label_max + label_pad + desc_max;
+        if (used_in_dropdown < dropdown_width) {
+            try writeRepeat(term, " ", dropdown_width - used_in_dropdown);
+        }
+
+        try term.write(theme.text_dim);
+        try term.write("│");
+        try term.write(theme.reset);
+
+        const final_pad = width -| (4 + dropdown_width + 2);
+        try writeRepeat(term, " ", final_pad);
+
+        try term.write(theme.border);
+        try term.write(box.v);
+        try term.write(theme.reset);
+        try term.write("\n");
+    }
+
+    // Bottom border with count hint
+    try term.write(theme.border);
+    try term.write(box.v);
+    try term.write(theme.reset);
+    try term.write("   ");
+    try term.write(theme.text_dim);
+    try term.write("╰");
+
+    // Show count if truncated
+    if (suggestions.len > max_show) {
+        var count_buf: [16]u8 = undefined;
+        const count_str = std.fmt.bufPrint(&count_buf, " {d}/{d} ", .{
+            max_show,
+            suggestions.len,
+        }) catch "";
+        const hint_len = count_str.len;
+        const bar_len = (dropdown_width -| hint_len) / 2;
+        try writeRepeat(term, "─", bar_len);
+        try term.write(count_str);
+        try writeRepeat(term, "─", dropdown_width -| bar_len -| hint_len);
+    } else {
+        try writeRepeat(term, "─", dropdown_width);
+    }
+
+    try term.write("╯");
+    try term.write(theme.reset);
+
+    const remaining2 = width -| (4 + dropdown_width + 2);
+    try writeRepeat(term, " ", remaining2);
+    try term.write(theme.border);
+    try term.write(box.v);
+    try term.write(theme.reset);
+    try term.write("\n");
+}
+
 fn renderMenuItems(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     const theme = state.theme();
     const items = state.items;
@@ -1266,6 +1571,12 @@ fn renderHelpBar(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     if (state.search_mode) {
         try term.write(theme.text_dim);
         try term.write("Type to filter │ ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("Tab");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Complete │ ");
         try term.write(theme.reset);
         try term.write(theme.accent);
         try term.write("Enter");
@@ -1548,6 +1859,105 @@ fn toLower(c: u8) u8 {
     return c;
 }
 
+/// Check if haystack starts with needle (case-insensitive)
+fn startsWithIgnoreCase(haystack: []const u8, needle: []const u8) bool {
+    if (needle.len > haystack.len) return false;
+    for (needle, 0..) |nc, i| {
+        if (toLower(haystack[i]) != toLower(nc)) return false;
+    }
+    return true;
+}
+
+/// Fuzzy match: returns score if all query characters appear in order
+/// Higher score = better match (consecutive chars, early positions)
+fn fuzzyMatch(label: []const u8, query: []const u8) ?u32 {
+    if (query.len == 0) return null;
+    if (query.len > label.len) return null;
+
+    var score: u32 = 500; // Base fuzzy score
+    var query_idx: usize = 0;
+    var last_match_pos: usize = 0;
+    var consecutive_bonus: u32 = 0;
+
+    for (label, 0..) |lc, label_idx| {
+        if (query_idx >= query.len) break;
+
+        if (toLower(lc) == toLower(query[query_idx])) {
+            // Bonus for consecutive matches
+            if (label_idx == last_match_pos + 1 and label_idx > 0) {
+                consecutive_bonus += 20;
+            }
+            // Bonus for early matches
+            if (label_idx < 3) {
+                score += 30 - @as(u32, @intCast(label_idx)) * 10;
+            }
+            last_match_pos = label_idx;
+            query_idx += 1;
+        }
+    }
+
+    // All query characters must be found
+    if (query_idx < query.len) return null;
+
+    return score + consecutive_bonus;
+}
+
+/// Calculate completion score for a menu item
+fn calculateCompletionScore(item: *const MenuItem, query: []const u8, history_items: []const HistoryEntry) ?CompletionSuggestion {
+    const label = item.label;
+
+    // Check for exact prefix match (highest priority)
+    if (startsWithIgnoreCase(label, query)) {
+        // Check if recently used
+        const is_recent = isRecentlyUsed(item, history_items);
+        return CompletionSuggestion{
+            .item_index = 0, // Will be set by caller
+            .score = if (is_recent) 1100 else 1000,
+            .match_type = if (is_recent) .history_recent else .exact_prefix,
+        };
+    }
+
+    // Check for fuzzy match
+    if (fuzzyMatch(label, query)) |fuzzy_score| {
+        return CompletionSuggestion{
+            .item_index = 0,
+            .score = fuzzy_score,
+            .match_type = .fuzzy,
+        };
+    }
+
+    // Check for substring match in label or description
+    if (containsIgnoreCase(label, query) or containsIgnoreCase(item.description, query)) {
+        return CompletionSuggestion{
+            .item_index = 0,
+            .score = 200,
+            .match_type = .substring,
+        };
+    }
+
+    return null;
+}
+
+/// Check if an item was recently used
+fn isRecentlyUsed(item: *const MenuItem, history_items: []const HistoryEntry) bool {
+    switch (item.action) {
+        .command => |cmd| {
+            // Check recent history (last 5 items)
+            const check_count = @min(history_items.len, 5);
+            for (history_items[history_items.len - check_count ..]) |entry| {
+                if (entry.command == cmd) return true;
+            }
+        },
+        else => {},
+    }
+    return false;
+}
+
+/// Comparison function for sorting suggestions (higher score first)
+fn suggestionCompare(_: void, a: CompletionSuggestion, b: CompletionSuggestion) bool {
+    return a.score > b.score;
+}
+
 fn printHelp() void {
     std.debug.print(
         \\{s}Usage:{s} abi tui
@@ -1565,6 +1975,7 @@ fn printHelp() void {
         \\  Enter           Run the selected command
         \\  1-9             Quick launch (numbered items)
         \\  /               Search/filter commands
+        \\  Tab             Autocomplete in search mode
         \\  Esc             Clear search / Exit modes
         \\  q, Ctrl+C       Exit the TUI launcher
         \\

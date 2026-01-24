@@ -72,7 +72,11 @@ pub const OpType = enum {
     fused_layer_norm_gelu,
     fused_linear_relu,
     fused_linear_gelu,
+    fused_linear_silu,
     dot_product,
+    // Attention-related fusions
+    fused_attention_qk, // Q*K^T + scale + softmax
+    fused_attention_sv, // softmax(QK) * V
 
     /// Check if operation is element-wise.
     pub fn isElementWise(self: OpType) bool {
@@ -80,6 +84,18 @@ pub const OpType = enum {
             .add, .sub, .mul, .div, .neg, .abs, .sqrt, .rsqrt, .exp, .log, .pow, .max, .min, .clamp, .relu, .leaky_relu, .sigmoid, .tanh, .gelu, .gelu_fast, .silu, .copy => true,
             else => false,
         };
+    }
+
+    /// Check if operation is commonly fused.
+    pub fn isFusable(self: OpType) bool {
+        return self.isElementWise() or self.isActivation() or self.isNormalization() or
+            self == .matmul or self == .softmax;
+    }
+
+    /// Check if operation is part of attention mechanism.
+    pub fn isAttentionRelated(self: OpType) bool {
+        return self == .matmul or self == .softmax or self == .fused_attention_qk or
+            self == .fused_attention_sv;
     }
 
     /// Check if operation is a reduction.
@@ -126,6 +142,12 @@ pub const OpType = enum {
             .fused_add_relu => 2,
             .fused_add_gelu => 17,
             .fused_mul_add => 2,
+            .fused_linear_relu => 3,
+            .fused_linear_gelu => 18,
+            .fused_linear_silu => 6,
+            .fused_attention_qk => 20, // Matmul + scale + softmax
+            .fused_attention_sv => 10, // Softmax * Value
+            .dot_product => 2,
             else => 4,
         };
     }
@@ -141,6 +163,9 @@ pub const OpType = enum {
             .rms_norm => 12,
             .fused_add_relu, .fused_add_gelu => 12, // 2 reads + 1 write (no intermediate)
             .fused_mul_add => 16, // 3 reads + 1 write
+            .fused_linear_relu, .fused_linear_gelu, .fused_linear_silu => 20, // Matmul result + bias + activation result
+            .fused_attention_qk => 24, // Q*K^T result + scaled result + softmax result
+            .fused_attention_sv => 16, // softmax result + V multiplication result
             else => 8,
         };
     }
@@ -294,6 +319,9 @@ pub const FusionOptimizer = struct {
         // Pass 4: Detect reduction patterns (e.g., dot product)
         try self.detectReductionPatterns();
 
+        // Pass 5: Detect attention-related patterns (new)
+        try self.detectAttentionPatterns();
+
         self.stats.patterns_detected = self.patterns.items.len;
     }
 
@@ -347,6 +375,46 @@ pub const FusionOptimizer = struct {
     // Private fusion detection methods
     // ========================================================================
 
+    /// Check if a sequence of operations represents a known fusion pattern
+    fn isCommonFusionPattern(self: *const Self, start_idx: usize) bool {
+        const node = &self.nodes.items[start_idx];
+
+        // Check for element-wise + activation patterns
+        if (node.op.isElementWise()) {
+            // Pattern: element-wise operation followed by activation
+            if (self.detectElementWiseActivation(start_idx)) {
+                return true;
+            }
+
+            // Pattern: normalization followed by activation
+            if (node.op.isNormalization()) {
+                if (self.detectNormActivation(start_idx)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// Detect element-wise operation followed by activation function
+    fn detectElementWiseActivation(self: *const Self, ew_idx: usize) bool {
+        const ew_node = &self.nodes.items[ew_idx];
+        const consumer_idx = self.findSingleConsumer(ew_node.output, ew_idx) orelse return false;
+        const consumer = &self.nodes.items[consumer_idx];
+
+        return consumer.op.isActivation() and !consumer.fused;
+    }
+
+    /// Detect normalization followed by activation
+    fn detectNormActivation(self: *const Self, norm_idx: usize) bool {
+        const norm_node = &self.nodes.items[norm_idx];
+        const consumer_idx = self.findSingleConsumer(norm_node.output, norm_idx) orelse return false;
+        const consumer = &self.nodes.items[consumer_idx];
+
+        return consumer.op.isActivation() and !consumer.fused;
+    }
+
     fn detectElementWiseChains(self: *Self) !void {
         for (self.nodes.items, 0..) |*node, i| {
             if (node.fused or !node.op.isElementWise()) continue;
@@ -355,6 +423,12 @@ pub const FusionOptimizer = struct {
             var chain: [8]u32 = undefined;
             var chain_len: u8 = 1;
             chain[0] = @intCast(i);
+
+            // Special pattern detection for common sequences
+            if (self.isCommonFusionPattern(i)) {
+                // Skip individual chain detection for known patterns
+                continue;
+            }
 
             var current_output = node.output;
             var current_idx = i;
@@ -443,6 +517,7 @@ pub const FusionOptimizer = struct {
                 const fused_op: OpType = switch (next_node.op) {
                     .relu => .fused_linear_relu,
                     .gelu, .gelu_fast => .fused_linear_gelu,
+                    .silu => .fused_linear_silu,
                     else => continue,
                 };
 
@@ -497,6 +572,74 @@ pub const FusionOptimizer = struct {
                 .chain = .{ @intCast(i), @intCast(consumer_idx.?), 0, 0, 0, 0, 0, 0 },
                 .chain_len = 2,
             });
+        }
+    }
+
+    /// Detect attention-related patterns (Q*K^T, scale, softmax, dropout, V multiplication)
+    fn detectAttentionPatterns(self: *Self) !void {
+        // Look for Q*K^T pattern followed by scaling and softmax
+        for (self.nodes.items, 0..) |*node, i| {
+            if (node.fused or node.op != .matmul) continue;
+
+            // Check if this looks like Q*K^T (transposed key matrix)
+            // This is difficult to detect precisely without more context, so we'll look for
+            // patterns that resemble attention mechanisms
+
+            // Look for scale operation after matmul
+            const next_idx = self.findSingleConsumer(node.output, i);
+            if (next_idx == null) continue;
+
+            const next_node = &self.nodes.items[next_idx.?];
+            // Scale could be implemented as mul with a scalar
+            if (next_node.op == .mul and !next_node.fused) {
+                // Check if one operand is a scalar (constant)
+                // This is simplified - in practice we might look for specific constant values
+
+                // Look for softmax after scale
+                const softmax_idx = self.findSingleConsumer(next_node.output, next_idx.?);
+                if (softmax_idx == null) continue;
+
+                const softmax_node = &self.nodes.items[softmax_idx.?];
+                if (softmax_node.op == .softmax and !softmax_node.fused) {
+                    // Found basic attention pattern: matmul -> scale -> softmax
+                    const bandwidth_saved = node.element_count * 8 * 2; // Two intermediates eliminated
+
+                    try self.patterns.append(self.allocator, .{
+                        .first_op_idx = @intCast(i),
+                        .last_op_idx = @intCast(softmax_idx.?),
+                        .fused_op = .fused_attention_qk,
+                        .speedup = 1.8, // Significant speedup from fusing attention operations
+                        .bandwidth_saved = bandwidth_saved,
+                        .chain = .{ @intCast(i), @intCast(next_idx.?), @intCast(softmax_idx.?), 0, 0, 0, 0, 0 },
+                        .chain_len = 3,
+                    });
+                }
+            }
+        }
+
+        // Look for more complex attention patterns including value multiplication
+        for (self.nodes.items, 0..) |*node, i| {
+            if (node.fused or node.op != .softmax) continue;
+
+            // Look for value multiplication after softmax
+            const next_idx = self.findSingleConsumer(node.output, i);
+            if (next_idx == null) continue;
+
+            const next_node = &self.nodes.items[next_idx.?];
+            if (next_node.op == .matmul and !next_node.fused) {
+                // Found attention pattern with value projection: softmax(QK) * V
+                const bandwidth_saved = node.element_count * 8; // One intermediate eliminated
+
+                try self.patterns.append(self.allocator, .{
+                    .first_op_idx = @intCast(i),
+                    .last_op_idx = @intCast(next_idx.?),
+                    .fused_op = .fused_attention_sv,
+                    .speedup = 1.4,
+                    .bandwidth_saved = bandwidth_saved,
+                    .chain = .{ @intCast(i), @intCast(next_idx.?), 0, 0, 0, 0, 0, 0 },
+                    .chain_len = 2,
+                });
+            }
         }
     }
 
