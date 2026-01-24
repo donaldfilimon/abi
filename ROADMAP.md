@@ -103,7 +103,13 @@
   - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
   - [x] Modular codebase structure (completed 2026-01-17)
   - [x] Vulkan backend consolidation documentation – completed (see `docs/plans/2026-01-24-vulkan-consolidation.md`)
- - [ ] Mega GPU + TUI + Self-Learning Agent Upgrade – see `docs/plans/2026-01-23-mega-gpu-tui-agent-upgrade.md`
+ - [x] Mega GPU + TUI + Self-Learning Agent Upgrade – COMPLETE (2026-01-24)
+   - [x] Cross-backend GPU coordinator (`src/gpu/mega/coordinator.zig`)
+   - [x] Learning-based scheduler with Q-learning (`src/gpu/mega/scheduler.zig`)
+   - [x] GPU monitor TUI widget (`tools/cli/tui/gpu_monitor.zig`)
+   - [x] Agent status panel (`tools/cli/tui/agent_panel.zig`)
+   - [x] GPU-aware agent integration (`src/ai/gpu_agent.zig`)
+   - [x] Interactive dashboard command (`tools/cli/commands/gpu_dashboard.zig`)
 
 ### Testing
 - [x] Expanded test suite
