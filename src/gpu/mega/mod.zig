@@ -82,6 +82,7 @@ pub const ReplayBuffer = scheduler.ReplayBuffer;
 pub const init = Coordinator.init;
 
 test {
-    // Run all tests in the coordinator module
+    // Run all tests in submodules
     _ = coordinator;
+    _ = scheduler;
 }
