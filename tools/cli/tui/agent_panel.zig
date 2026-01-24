@@ -4,6 +4,7 @@
 //! and real-time performance metrics.
 
 const std = @import("std");
+const abi = @import("abi");
 const terminal = @import("terminal.zig");
 const themes = @import("themes.zig");
 const widgets = @import("widgets.zig");
@@ -195,7 +196,7 @@ pub const AgentPanel = struct {
             const workloads = [_][]const u8{ "MatMul", "Attention", "FFN", "Embed" };
 
             try self.recordDecision(.{
-                .timestamp = std.time.milliTimestamp(),
+                .timestamp = abi.utils.unixMs(),
                 .workload_type = workloads[self.update_counter % 4],
                 .selected_backend = backends[(self.update_counter / 5) % 4],
                 .actual_time_ms = 50 + (self.update_counter % 100),
@@ -438,7 +439,10 @@ pub const AgentPanel = struct {
             } else {
                 try self.term.write(self.theme.@"error");
             }
-            const reward_str = std.fmt.bufPrint(&buf, " {d:+.2}", .{decision.reward}) catch "";
+            const reward_str = if (decision.reward >= 0)
+                std.fmt.bufPrint(&buf, " +{d:.2}", .{decision.reward}) catch ""
+            else
+                std.fmt.bufPrint(&buf, " {d:.2}", .{decision.reward}) catch "";
             try self.term.write(reward_str);
             try self.term.write(self.theme.reset);
 

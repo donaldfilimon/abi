@@ -34,6 +34,7 @@ const command_infos = [_]CommandInfo{
     .{ .name = "agent", .description = "Run AI agent (interactive or one-shot)" },
     .{ .name = "bench", .description = "Run performance benchmarks (all, simd, memory, ai, quick)" },
     .{ .name = "gpu", .description = "GPU commands (backends, devices, summary, default)" },
+    .{ .name = "gpu-dashboard", .description = "Interactive GPU + Agent monitoring dashboard" },
     .{ .name = "network", .description = "Manage network registry (list, register, status)" },
     .{ .name = "system-info", .description = "Show system and framework status" },
     .{ .name = "multi-agent", .description = "Run multi-agent workflows" },
@@ -190,6 +191,10 @@ fn runCommand(
     }
     if (std.mem.eql(u8, command, "gpu")) {
         try commands.gpu.run(allocator, args);
+        return true;
+    }
+    if (std.mem.eql(u8, command, "gpu-dashboard")) {
+        try commands.gpu_dashboard.run(allocator, io, args);
         return true;
     }
     if (std.mem.eql(u8, command, "network")) {
