@@ -2,7 +2,7 @@
 
 This file provides guidance for AI agents (Claude, GPT, Gemini, Copilot, and others) working with the ABI framework codebase.
 
-> **Codebase Status:** Synced with repository as of 2026-01-23. Build: `zig build test --summary all` passes 194/198 tests.
+> **Codebase Status:** Synced with repository as of 2026-01-24. Build: `zig build test --summary all` passes 194/198 tests.
 > **Core Mandates:** See [PROMPT.md](PROMPT.md) for strict requirements and KPIs.
 
 ## Project Overview
