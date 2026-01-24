@@ -61,14 +61,16 @@ test "WDBX distributed workflow integration" {
     try version_b.update(allocator, "node-b", timestamp + 100);
 
     const comparison = version_a.compare(&version_b);
-    std.debug.print("✓ Version vector comparison: {s}\n", .{@tagName(comparison)});
+    // Use {t} format specifier instead of @tagName (Zig 0.16)
+    std.debug.print("✓ Version vector comparison: {t}\n", .{comparison});
 
     // Should be concurrent (different nodes)
     try std.testing.expect(comparison == .concurrent);
 
     // 4. Test conflict resolution types
     const conflict_type = Distributed.BlockConflict.ConflictType.timestamp_conflict;
-    std.debug.print("✓ Block conflict type: {s}\n", .{@tagName(conflict_type)});
+    // Use {t} format specifier instead of @tagName (Zig 0.16)
+    std.debug.print("✓ Block conflict type: {t}\n", .{conflict_type});
 
     // 5. Test sync states
     const sync_state = Distributed.SyncState.synchronized;

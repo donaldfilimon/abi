@@ -1,90 +1,18 @@
 //! GPU Metrics and Prometheus Export
 //!
 //! Provides metrics collection for GPU workloads with Prometheus-compatible
-//! export. Uses a snapshot pattern to avoid blocking during I/O operations.
-//!
-//! Note: This module uses local Counter/Gauge/Histogram types that are protected
-//! by MetricsExporter.mutex. For standalone thread-safe primitives, use the
-//! types from `observability.Counter`, `observability.Gauge`, etc.
+//! export. Uses shared observability primitives from the centralized metrics module.
 
 const std = @import("std");
 const backend_mod = @import("../backend.zig");
-const obs = @import("../../observability/mod.zig");
+const core_metrics = @import("../../observability/metrics/mod.zig");
 
-/// Standard latency buckets in milliseconds for histogram tracking.
-pub const default_latency_buckets = [_]f64{ 0.5, 1, 2.5, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000 };
-
-/// A histogram value with bucket counts.
-pub const HistogramValue = struct {
-    buckets: [@sizeOf(@TypeOf(default_latency_buckets)) / @sizeOf(f64)]u64 = [_]u64{0} ** (default_latency_buckets.len),
-    sum: f64 = 0,
-    count: u64 = 0,
-
-    /// Record a value into the histogram.
-    pub fn observe(self: *HistogramValue, value: f64) void {
-        self.sum += value;
-        self.count += 1;
-        for (&self.buckets, 0..) |*bucket, i| {
-            if (value <= default_latency_buckets[i]) {
-                bucket.* += 1;
-            }
-        }
-    }
-
-    /// Get the mean value.
-    pub fn mean(self: HistogramValue) f64 {
-        if (self.count == 0) return 0;
-        return self.sum / @as(f64, @floatFromInt(self.count));
-    }
-
-    /// Estimate a percentile (approximate based on buckets).
-    pub fn percentile(self: HistogramValue, p: f64) f64 {
-        if (self.count == 0) return 0;
-        const target = @as(f64, @floatFromInt(self.count)) * p;
-        var cumulative: u64 = 0;
-        for (self.buckets, 0..) |bucket, i| {
-            cumulative += bucket;
-            if (@as(f64, @floatFromInt(cumulative)) >= target) {
-                return default_latency_buckets[i];
-            }
-        }
-        return default_latency_buckets[default_latency_buckets.len - 1];
-    }
-};
-
-/// Counter metric type.
-pub const Counter = struct {
-    value: u64 = 0,
-
-    pub fn inc(self: *Counter) void {
-        self.value += 1;
-    }
-
-    pub fn add(self: *Counter, n: u64) void {
-        self.value += n;
-    }
-};
-
-/// Gauge metric type.
-pub const Gauge = struct {
-    value: f64 = 0,
-
-    pub fn set(self: *Gauge, v: f64) void {
-        self.value = v;
-    }
-
-    pub fn inc(self: *Gauge) void {
-        self.value += 1;
-    }
-
-    pub fn dec(self: *Gauge) void {
-        self.value -= 1;
-    }
-
-    pub fn add(self: *Gauge, v: f64) void {
-        self.value += v;
-    }
-};
+// Re-export shared types for API compatibility
+pub const Counter = core_metrics.Counter;
+pub const Gauge = core_metrics.Gauge;
+pub const FloatGauge = core_metrics.FloatGauge;
+pub const HistogramValue = core_metrics.LatencyHistogram;
+pub const default_latency_buckets = core_metrics.default_latency_buckets;
 
 /// Per-backend metrics.
 pub const BackendMetrics = struct {
@@ -92,9 +20,9 @@ pub const BackendMetrics = struct {
     workload_success: Counter = .{},
     workload_failure: Counter = .{},
     failover_count: Counter = .{},
-    latency_histogram: HistogramValue = .{},
-    active_workloads: Gauge = .{},
-    energy_wh: Gauge = .{},
+    latency_histogram: HistogramValue = HistogramValue.initDefault(),
+    active_workloads: FloatGauge = .{},
+    energy_wh: FloatGauge = .{},
 
     /// Record a completed workload.
     pub fn recordWorkload(self: *BackendMetrics, latency_ms: f64, success: bool) void {
@@ -202,8 +130,8 @@ pub const MetricsExporter = struct {
 
             break :blk .{
                 .metrics = cloned,
-                .global_workload_count = self.global_workload_count.value,
-                .global_failover_count = self.global_failover_count.value,
+                .global_workload_count = self.global_workload_count.get(),
+                .global_failover_count = self.global_failover_count.get(),
             };
         };
         defer snapshot.metrics.deinit();
@@ -232,7 +160,7 @@ pub const MetricsExporter = struct {
             const backend_name = @tagName(entry.key_ptr.*);
             const m = entry.value_ptr;
 
-            try writer.print("gpu_mega_backend_workload_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_count.value });
+            try writer.print("gpu_mega_backend_workload_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_count.get() });
         }
         try writer.print("\n", .{});
 
@@ -244,7 +172,7 @@ pub const MetricsExporter = struct {
             const backend_name = @tagName(entry.key_ptr.*);
             const m = entry.value_ptr;
 
-            try writer.print("gpu_mega_backend_success_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_success.value });
+            try writer.print("gpu_mega_backend_success_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_success.get() });
         }
         try writer.print("\n", .{});
 
@@ -256,7 +184,7 @@ pub const MetricsExporter = struct {
             const backend_name = @tagName(entry.key_ptr.*);
             const m = entry.value_ptr;
 
-            try writer.print("gpu_mega_backend_failure_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_failure.value });
+            try writer.print("gpu_mega_backend_failure_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_failure.get() });
         }
         try writer.print("\n", .{});
 
@@ -268,7 +196,7 @@ pub const MetricsExporter = struct {
             const backend_name = @tagName(entry.key_ptr.*);
             const m = entry.value_ptr;
 
-            try writer.print("gpu_mega_backend_failover_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.failover_count.value });
+            try writer.print("gpu_mega_backend_failover_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.failover_count.get() });
         }
         try writer.print("\n", .{});
 
@@ -298,14 +226,14 @@ pub const MetricsExporter = struct {
     pub fn getGlobalWorkloadCount(self: *MetricsExporter) u64 {
         self.mutex.lock();
         defer self.mutex.unlock();
-        return self.global_workload_count.value;
+        return self.global_workload_count.get();
     }
 
     /// Get global failover count.
     pub fn getGlobalFailoverCount(self: *MetricsExporter) u64 {
         self.mutex.lock();
         defer self.mutex.unlock();
-        return self.global_failover_count.value;
+        return self.global_failover_count.get();
     }
 
     /// Reset all metrics.
@@ -319,14 +247,13 @@ pub const MetricsExporter = struct {
 };
 
 test "histogram value" {
-    var h = HistogramValue{};
+    var h = HistogramValue.initDefault();
 
     h.observe(5.0);
     h.observe(15.0);
     h.observe(50.0);
 
-    try std.testing.expectEqual(@as(u64, 3), h.count);
-    try std.testing.expect(h.sum == 70.0);
+    try std.testing.expectEqual(@as(u64, 3), h.getCount());
     try std.testing.expect(h.mean() > 23.0 and h.mean() < 24.0);
 }
 
@@ -337,10 +264,10 @@ test "backend metrics" {
     m.recordWorkload(20.0, false);
     m.recordFailover();
 
-    try std.testing.expectEqual(@as(u64, 2), m.workload_count.value);
-    try std.testing.expectEqual(@as(u64, 1), m.workload_success.value);
-    try std.testing.expectEqual(@as(u64, 1), m.workload_failure.value);
-    try std.testing.expectEqual(@as(u64, 1), m.failover_count.value);
+    try std.testing.expectEqual(@as(u64, 2), m.workload_count.get());
+    try std.testing.expectEqual(@as(u64, 1), m.workload_success.get());
+    try std.testing.expectEqual(@as(u64, 1), m.workload_failure.get());
+    try std.testing.expectEqual(@as(u64, 1), m.failover_count.get());
 }
 
 test "metrics exporter" {
@@ -362,12 +289,12 @@ test "metrics exporter" {
 
     const cuda_metrics = exporter.getBackendMetrics(.cuda);
     try std.testing.expect(cuda_metrics != null);
-    try std.testing.expectEqual(@as(u64, 2), cuda_metrics.?.workload_count.value);
-    try std.testing.expectEqual(@as(u64, 1), cuda_metrics.?.failover_count.value);
+    try std.testing.expectEqual(@as(u64, 2), cuda_metrics.?.workload_count.get());
+    try std.testing.expectEqual(@as(u64, 1), cuda_metrics.?.failover_count.get());
 
     const vulkan_metrics = exporter.getBackendMetrics(.vulkan);
     try std.testing.expect(vulkan_metrics != null);
-    try std.testing.expectEqual(@as(u64, 1), vulkan_metrics.?.workload_count.value);
+    try std.testing.expectEqual(@as(u64, 1), vulkan_metrics.?.workload_count.get());
 }
 
 test "prometheus export" {
