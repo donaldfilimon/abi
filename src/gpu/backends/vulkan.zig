@@ -1372,3 +1372,18 @@ pub const ShaderCache = struct {};
 /// Command pool stub for future pooling implementation.
 /// Currently a placeholder to satisfy imports.
 pub const CommandPool = struct {};
+
+// ============================================================================
+// Top-Level VTable Factory Export
+// ============================================================================
+
+/// Creates a Vulkan backend instance wrapped in the VTable interface.
+///
+/// This is the main entry point for creating a Vulkan backend. It wraps
+/// the internal vulkan_vtable implementation for external consumers.
+///
+/// Returns BackendError.NotAvailable if Vulkan driver cannot be loaded.
+/// Returns BackendError.InitFailed if Vulkan initialization fails.
+pub fn createVulkanVTable(allocator: std.mem.Allocator) interface.BackendError!interface.Backend {
+    return vulkan_vtable.createVulkanVTable(allocator);
+}
