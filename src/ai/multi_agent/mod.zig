@@ -44,13 +44,13 @@ pub const Coordinator = struct {
     /// Returns the combined output of each agent concatenated.
     pub fn runTask(self: *Coordinator, task: []const u8) ![]u8 {
         if (self.agents.items.len == 0) return error.NoAgents;
-        var builder = std.ArrayList(u8).init(self.allocator);
-        defer builder.deinit();
+        var builder: std.ArrayListUnmanaged(u8) = .{};
+        defer builder.deinit(self.allocator);
         for (self.agents.items) |ag| {
             const response = try ag.handle(task);
-            try builder.appendSlice(response);
-            try builder.appendSlice("\n---\n");
+            try builder.appendSlice(self.allocator, response);
+            try builder.appendSlice(self.allocator, "\n---\n");
         }
-        return builder.toOwnedSlice();
+        return builder.toOwnedSlice(self.allocator);
     }
 };

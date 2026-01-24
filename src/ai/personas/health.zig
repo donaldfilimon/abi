@@ -99,11 +99,11 @@ pub const HealthChecker = struct {
     /// Reference to load balancer.
     load_balancer: ?*loadbalancer.PersonaLoadBalancer = null,
     /// Health history per persona.
-    history: std.AutoHashMapUnmanaged(types.PersonaType, std.ArrayList(HealthHistoryEntry)),
+    history: std.AutoHashMapUnmanaged(types.PersonaType, std.ArrayListUnmanaged(HealthHistoryEntry)),
     /// Last check results.
     last_results: std.AutoHashMapUnmanaged(types.PersonaType, HealthCheckResult),
     /// Custom health check functions.
-    custom_checks: std.ArrayList(CustomHealthCheck),
+    custom_checks: std.ArrayListUnmanaged(CustomHealthCheck),
     mutex: std.Thread.Mutex,
 
     const Self = @This();
@@ -131,7 +131,7 @@ pub const HealthChecker = struct {
             .load_balancer = null,
             .history = .{},
             .last_results = .{},
-            .custom_checks = std.ArrayList(CustomHealthCheck).init(allocator),
+            .custom_checks = .{},
             .mutex = .{},
         };
     }
@@ -156,11 +156,11 @@ pub const HealthChecker = struct {
 
         var it = self.history.valueIterator();
         while (it.next()) |list| {
-            list.deinit();
+            list.deinit(self.allocator);
         }
         self.history.deinit(self.allocator);
         self.last_results.deinit(self.allocator);
-        self.custom_checks.deinit();
+        self.custom_checks.deinit(self.allocator);
     }
 
     /// Register a persona for health checking.
@@ -169,7 +169,7 @@ pub const HealthChecker = struct {
         defer self.mutex.unlock();
 
         if (!self.history.contains(persona_type)) {
-            try self.history.put(self.allocator, persona_type, std.ArrayList(HealthHistoryEntry).init(self.allocator));
+            try self.history.put(self.allocator, persona_type, .{});
         }
     }
 
@@ -178,7 +178,7 @@ pub const HealthChecker = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        try self.custom_checks.append(.{
+        try self.custom_checks.append(self.allocator, .{
             .name = name,
             .check_fn = check_fn,
             .weight = weight,
@@ -267,7 +267,7 @@ pub const HealthChecker = struct {
             if (history_list.items.len >= self.config.history_size) {
                 _ = history_list.orderedRemove(0);
             }
-            try history_list.append(.{
+            try history_list.append(self.allocator, .{
                 .timestamp = now,
                 .score = score,
                 .status = status,
@@ -284,27 +284,27 @@ pub const HealthChecker = struct {
 
     /// Check all registered personas.
     pub fn checkAll(self: *Self) ![]HealthCheckResult {
-        var results = std.ArrayList(HealthCheckResult).init(self.allocator);
-        errdefer results.deinit();
+        var results: std.ArrayListUnmanaged(HealthCheckResult) = .{};
+        errdefer results.deinit(self.allocator);
 
         // Get list of personas
         self.mutex.lock();
-        var persona_list = std.ArrayList(types.PersonaType).init(self.allocator);
-        defer persona_list.deinit();
+        var persona_list: std.ArrayListUnmanaged(types.PersonaType) = .{};
+        defer persona_list.deinit(self.allocator);
 
         var it = self.history.keyIterator();
         while (it.next()) |key| {
-            try persona_list.append(key.*);
+            try persona_list.append(self.allocator, key.*);
         }
         self.mutex.unlock();
 
         // Check each persona
         for (persona_list.items) |persona| {
             const result = try self.checkPersona(persona);
-            try results.append(result);
+            try results.append(self.allocator, result);
         }
 
-        return results.toOwnedSlice();
+        return results.toOwnedSlice(self.allocator);
     }
 
     /// Get last health check result for a persona.

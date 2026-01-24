@@ -861,6 +861,57 @@ pub const WalWriter = struct {
 };
 
 // ============================================================================
+// Unified Storage API (with backward compatibility)
+// ============================================================================
+
+const storage_v1 = @import("storage.zig");
+
+/// Unified save function - always uses v2 format
+pub fn saveDatabase(
+    allocator: std.mem.Allocator,
+    db: *database.Database,
+    path: []const u8,
+) !void {
+    return saveDatabaseV2(allocator, db, path, .{});
+}
+
+/// Unified save function with custom config - always uses v2 format
+pub fn saveDatabaseWithConfig(
+    allocator: std.mem.Allocator,
+    db: *database.Database,
+    path: []const u8,
+    config: StorageV2Config,
+) !void {
+    return saveDatabaseV2(allocator, db, path, config);
+}
+
+/// Unified load function - auto-detects format (v2 or legacy v1)
+pub fn loadDatabase(
+    allocator: std.mem.Allocator,
+    path: []const u8,
+) !database.Database {
+    return loadDatabaseWithConfig(allocator, path, .{});
+}
+
+/// Unified load function with config - auto-detects format (v2 or legacy v1)
+pub fn loadDatabaseWithConfig(
+    allocator: std.mem.Allocator,
+    path: []const u8,
+    config: StorageV2Config,
+) !database.Database {
+    // Try v2 format first
+    if (loadDatabaseV2(allocator, path, config)) |db| {
+        return db;
+    } else |err| {
+        // Fall back to v1 format for legacy files
+        if (err == StorageV2Error.InvalidMagic) {
+            return storage_v1.loadDatabase(allocator, path);
+        }
+        return err;
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 

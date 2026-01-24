@@ -206,13 +206,13 @@ pub const PersonaEmbeddingIndex = struct {
         self.stats.cache_hits += 1;
 
         // Calculate similarities for all cached personas
-        var scored = std.ArrayList(struct { persona: types.PersonaType, score: f32 }).init(allocator);
-        defer scored.deinit();
+        var scored: std.ArrayListUnmanaged(struct { persona: types.PersonaType, score: f32 }) = .{};
+        defer scored.deinit(allocator);
 
         var it = self.persona_vectors.iterator();
         while (it.next()) |entry| {
             const similarity = cosineSimilarity(query_vector, entry.value_ptr.*);
-            try scored.append(.{ .persona = entry.key_ptr.*, .score = similarity });
+            try scored.append(allocator, .{ .persona = entry.key_ptr.*, .score = similarity });
         }
 
         // Sort by score descending
@@ -262,14 +262,14 @@ pub const PersonaEmbeddingIndex = struct {
         const vector = try self.embeddings_ctx.embed(content);
 
         // Build metadata JSON
-        var metadata_buf = std.ArrayList(u8).init(self.allocator);
-        defer metadata_buf.deinit();
+        var metadata_buf: std.ArrayListUnmanaged(u8) = .{};
+        defer metadata_buf.deinit(self.allocator);
 
         try std.json.stringify(.{
             .persona = @tagName(persona_used),
             .score = success_score,
             .timestamp = time.unixSeconds(),
-        }, .{}, metadata_buf.writer());
+        }, .{}, metadata_buf.writer(self.allocator));
 
         try self.db.insertVectorWithNamespace(NAMESPACE_CONVERSATIONS, conversation_id, vector, metadata_buf.items);
 
@@ -286,14 +286,14 @@ pub const PersonaEmbeddingIndex = struct {
     ) !void {
         const vector = try self.embeddings_ctx.embed(original_query);
 
-        var metadata_buf = std.ArrayList(u8).init(self.allocator);
-        defer metadata_buf.deinit();
+        var metadata_buf: std.ArrayListUnmanaged(u8) = .{};
+        defer metadata_buf.deinit(self.allocator);
 
         try std.json.stringify(.{
             .correct = @tagName(correct_persona),
             .was_routed = @tagName(was_routed_to),
             .timestamp = time.unixSeconds(),
-        }, .{}, metadata_buf.writer());
+        }, .{}, metadata_buf.writer(self.allocator));
 
         try self.db.insertVectorWithNamespace(NAMESPACE_FEEDBACK, feedback_id, vector, metadata_buf.items);
     }

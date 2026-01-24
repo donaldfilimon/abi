@@ -1,7 +1,7 @@
 //! Training checkpoint storage and persistence helpers.
 const std = @import("std");
 const builtin = @import("builtin");
-const binary = @import("../../shared/utils_combined.zig").binary;
+const binary = @import("../../shared/utils.zig").binary;
 const time = @import("../../shared/time.zig");
 const windows = std.os.windows;
 const posix = std.posix;

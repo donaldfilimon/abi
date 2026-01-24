@@ -179,8 +179,8 @@ pub const LearningExperience = struct {
 /// Priority experience replay buffer with importance sampling
 pub const ExperienceBuffer = struct {
     allocator: std.mem.Allocator,
-    experiences: std.ArrayList(LearningExperience),
-    priorities: std.ArrayList(f32),
+    experiences: std.ArrayListUnmanaged(LearningExperience),
+    priorities: std.ArrayListUnmanaged(f32),
     capacity: usize,
     total_priority: f64,
     alpha: f32, // Priority exponent
@@ -193,8 +193,8 @@ pub const ExperienceBuffer = struct {
     pub fn init(allocator: std.mem.Allocator, capacity: usize) Self {
         return .{
             .allocator = allocator,
-            .experiences = std.ArrayList(LearningExperience).init(allocator),
-            .priorities = std.ArrayList(f32).init(allocator),
+            .experiences = .{},
+            .priorities = .{},
             .capacity = capacity,
             .total_priority = 0,
             .alpha = 0.6,
@@ -208,8 +208,8 @@ pub const ExperienceBuffer = struct {
         for (self.experiences.items) |*exp| {
             exp.deinit(self.allocator);
         }
-        self.experiences.deinit();
-        self.priorities.deinit();
+        self.experiences.deinit(self.allocator);
+        self.priorities.deinit(self.allocator);
     }
 
     /// Add experience with initial priority
@@ -242,8 +242,8 @@ pub const ExperienceBuffer = struct {
         exp_copy.id = self.next_id;
         self.next_id += 1;
 
-        try self.experiences.append(exp_copy);
-        try self.priorities.append(max_priority);
+        try self.experiences.append(self.allocator, exp_copy);
+        try self.priorities.append(self.allocator, max_priority);
         self.total_priority += std.math.pow(f64, max_priority, self.alpha);
     }
 
@@ -578,8 +578,8 @@ pub const DocumentTrainer = struct {
 
     /// Parse document structure
     pub fn parseDocument(self: *const Self, content: []const u8, doc_type: DocumentType) ![]DocumentElement {
-        var elements = std.ArrayList(DocumentElement).init(self.allocator);
-        errdefer elements.deinit();
+        var elements: std.ArrayListUnmanaged(DocumentElement) = .{};
+        errdefer elements.deinit(self.allocator);
 
         // Simplified parsing - production would use proper parsers
         switch (doc_type) {
@@ -597,7 +597,7 @@ pub const DocumentTrainer = struct {
                         break :blk .paragraph;
                     };
 
-                    try elements.append(.{
+                    try elements.append(self.allocator, .{
                         .element_type = elem_type,
                         .content = line,
                         .position = .{ .x = 0, .y = y, .w = 1, .h = 0.05 },
@@ -608,7 +608,7 @@ pub const DocumentTrainer = struct {
             },
             else => {
                 // Generic text extraction
-                try elements.append(.{
+                try elements.append(self.allocator, .{
                     .element_type = .paragraph,
                     .content = content,
                     .position = .{ .x = 0, .y = 0, .w = 1, .h = 1 },
@@ -617,7 +617,7 @@ pub const DocumentTrainer = struct {
             },
         }
 
-        return elements.toOwnedSlice();
+        return elements.toOwnedSlice(self.allocator);
     }
 
     /// Train on document understanding task

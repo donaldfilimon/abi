@@ -345,7 +345,7 @@ pub const GpuConfig = struct {
 // ============================================================================
 
 pub const Context = struct {
-    pub fn init(_: std.mem.Allocator, _: config_module.GpuConfig) Error!*Context {
+    pub fn init(_: std.mem.Allocator, _: config_module.GpuConfig) !*Context {
         return error.GpuDisabled;
     }
 

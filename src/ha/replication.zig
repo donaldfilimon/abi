@@ -7,7 +7,7 @@
 //! - Lag monitoring
 
 const std = @import("std");
-const time = @import("../shared/utils_combined.zig");
+const time = @import("../shared/utils.zig");
 const platform_time = @import("../shared/time.zig");
 
 /// Replication configuration

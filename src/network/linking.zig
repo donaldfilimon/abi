@@ -32,7 +32,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const shared_utils = @import("../shared/utils_combined.zig");
+const shared_utils = @import("../shared/utils.zig");
 
 // Sub-module imports (inline content from original sub-modules)
 

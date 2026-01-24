@@ -120,8 +120,8 @@ pub const CodeGenerator = struct {
         language: classifier.Language,
         options: GenerationOptions,
     ) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result: std.ArrayListUnmanaged(u8) = .{};
+        errdefer result.deinit(self.allocator);
 
         // Process line by line
         var lines = std.mem.splitScalar(u8, code, '\n');
@@ -129,7 +129,7 @@ pub const CodeGenerator = struct {
 
         while (lines.next()) |line| {
             if (!first) {
-                try result.append('\n');
+                try result.append(self.allocator, '\n');
             }
             first = false;
 
@@ -139,20 +139,20 @@ pub const CodeGenerator = struct {
             // Apply line length limit if needed
             if (options.max_line_length > 0 and trimmed.len > options.max_line_length) {
                 // For now, just truncate - in production would wrap intelligently
-                try result.appendSlice(trimmed[0..options.max_line_length]);
+                try result.appendSlice(self.allocator, trimmed[0..options.max_line_length]);
             } else {
-                try result.appendSlice(trimmed);
+                try result.appendSlice(self.allocator, trimmed);
             }
         }
 
         // Ensure trailing newline
         if (result.items.len > 0 and result.items[result.items.len - 1] != '\n') {
-            try result.append('\n');
+            try result.append(self.allocator, '\n');
         }
 
         _ = language; // Would use for language-specific formatting
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Count lines of code (excluding blanks and comments).
@@ -184,8 +184,8 @@ pub const CodeGenerator = struct {
     ) !CodeBlock {
         const opts = options orelse self.config.default_options;
 
-        var code = std.ArrayList(u8).init(self.allocator);
-        errdefer code.deinit();
+        var code: std.ArrayListUnmanaged(u8) = .{};
+        errdefer code.deinit(self.allocator);
 
         const indent = opts.indent_style.getString();
 
@@ -193,165 +193,167 @@ pub const CodeGenerator = struct {
             .zig => {
                 // Generate Zig function
                 if (opts.include_docs) {
-                    try code.appendSlice("/// TODO: Add documentation\n");
+                    try code.appendSlice(self.allocator, "/// TODO: Add documentation\n");
                 }
-                try code.appendSlice("pub fn ");
-                try code.appendSlice(name);
-                try code.append('(');
+                try code.appendSlice(self.allocator, "pub fn ");
+                try code.appendSlice(self.allocator, name);
+                try code.append(self.allocator, '(');
                 for (params, 0..) |param, i| {
-                    if (i > 0) try code.appendSlice(", ");
-                    try code.appendSlice(param);
+                    if (i > 0) try code.appendSlice(self.allocator, ", ");
+                    try code.appendSlice(self.allocator, param);
                 }
-                try code.append(')');
+                try code.append(self.allocator, ')');
                 if (return_type) |rt| {
-                    try code.append(' ');
-                    try code.appendSlice(rt);
+                    try code.append(self.allocator, ' ');
+                    try code.appendSlice(self.allocator, rt);
                 } else {
-                    try code.appendSlice(" void");
+                    try code.appendSlice(self.allocator, " void");
                 }
-                try code.appendSlice(" {\n");
-                try code.appendSlice(indent);
-                try code.appendSlice("// TODO: Implement\n");
-                try code.appendSlice("}\n");
+                try code.appendSlice(self.allocator, " {\n");
+                try code.appendSlice(self.allocator, indent);
+                try code.appendSlice(self.allocator, "// TODO: Implement\n");
+                try code.appendSlice(self.allocator, "}\n");
             },
             .python => {
                 if (opts.include_docs) {
-                    try code.appendSlice("def ");
-                    try code.appendSlice(name);
-                    try code.append('(');
+                    try code.appendSlice(self.allocator, "def ");
+                    try code.appendSlice(self.allocator, name);
+                    try code.append(self.allocator, '(');
                     for (params, 0..) |param, i| {
-                        if (i > 0) try code.appendSlice(", ");
-                        try code.appendSlice(param);
+                        if (i > 0) try code.appendSlice(self.allocator, ", ");
+                        try code.appendSlice(self.allocator, param);
                     }
-                    try code.appendSlice("):\n");
-                    try code.appendSlice(indent);
-                    try code.appendSlice("\"\"\"TODO: Add documentation.\"\"\"\n");
+                    try code.appendSlice(self.allocator, "):\n");
+                    try code.appendSlice(self.allocator, indent);
+                    try code.appendSlice(self.allocator, "\"\"\"TODO: Add documentation.\"\"\"\n");
                 } else {
-                    try code.appendSlice("def ");
-                    try code.appendSlice(name);
-                    try code.append('(');
+                    try code.appendSlice(self.allocator, "def ");
+                    try code.appendSlice(self.allocator, name);
+                    try code.append(self.allocator, '(');
                     for (params, 0..) |param, i| {
-                        if (i > 0) try code.appendSlice(", ");
-                        try code.appendSlice(param);
+                        if (i > 0) try code.appendSlice(self.allocator, ", ");
+                        try code.appendSlice(self.allocator, param);
                     }
-                    try code.appendSlice("):\n");
+                    try code.appendSlice(self.allocator, "):\n");
                 }
-                try code.appendSlice(indent);
-                try code.appendSlice("pass  # TODO: Implement\n");
+                try code.appendSlice(self.allocator, indent);
+                try code.appendSlice(self.allocator, "pass  # TODO: Implement\n");
             },
             .javascript, .typescript => {
                 if (opts.include_docs) {
-                    try code.appendSlice("/**\n * TODO: Add documentation\n */\n");
+                    try code.appendSlice(self.allocator, "/**\n * TODO: Add documentation\n */\n");
                 }
                 if (language == .typescript and opts.include_types) {
-                    try code.appendSlice("function ");
-                    try code.appendSlice(name);
-                    try code.append('(');
+                    try code.appendSlice(self.allocator, "function ");
+                    try code.appendSlice(self.allocator, name);
+                    try code.append(self.allocator, '(');
                     for (params, 0..) |param, i| {
-                        if (i > 0) try code.appendSlice(", ");
-                        try code.appendSlice(param);
-                        try code.appendSlice(": any");
+                        if (i > 0) try code.appendSlice(self.allocator, ", ");
+                        try code.appendSlice(self.allocator, param);
+                        try code.appendSlice(self.allocator, ": any");
                     }
-                    try code.appendSlice("): ");
-                    try code.appendSlice(return_type orelse "void");
+                    try code.appendSlice(self.allocator, "): ");
+                    try code.appendSlice(self.allocator, return_type orelse "void");
                 } else {
-                    try code.appendSlice("function ");
-                    try code.appendSlice(name);
-                    try code.append('(');
+                    try code.appendSlice(self.allocator, "function ");
+                    try code.appendSlice(self.allocator, name);
+                    try code.append(self.allocator, '(');
                     for (params, 0..) |param, i| {
-                        if (i > 0) try code.appendSlice(", ");
-                        try code.appendSlice(param);
+                        if (i > 0) try code.appendSlice(self.allocator, ", ");
+                        try code.appendSlice(self.allocator, param);
                     }
-                    try code.append(')');
+                    try code.append(self.allocator, ')');
                 }
-                try code.appendSlice(" {\n");
-                try code.appendSlice(indent);
-                try code.appendSlice("// TODO: Implement\n");
-                try code.appendSlice("}\n");
+                try code.appendSlice(self.allocator, " {\n");
+                try code.appendSlice(self.allocator, indent);
+                try code.appendSlice(self.allocator, "// TODO: Implement\n");
+                try code.appendSlice(self.allocator, "}\n");
             },
             .rust => {
                 if (opts.include_docs) {
-                    try code.appendSlice("/// TODO: Add documentation\n");
+                    try code.appendSlice(self.allocator, "/// TODO: Add documentation\n");
                 }
-                try code.appendSlice("fn ");
-                try code.appendSlice(name);
-                try code.append('(');
+                try code.appendSlice(self.allocator, "fn ");
+                try code.appendSlice(self.allocator, name);
+                try code.append(self.allocator, '(');
                 for (params, 0..) |param, i| {
-                    if (i > 0) try code.appendSlice(", ");
-                    try code.appendSlice(param);
+                    if (i > 0) try code.appendSlice(self.allocator, ", ");
+                    try code.appendSlice(self.allocator, param);
                 }
-                try code.appendSlice(") ");
+                try code.appendSlice(self.allocator, ") ");
                 if (return_type) |rt| {
-                    try code.appendSlice("-> ");
-                    try code.appendSlice(rt);
-                    try code.append(' ');
+                    try code.appendSlice(self.allocator, "-> ");
+                    try code.appendSlice(self.allocator, rt);
+                    try code.append(self.allocator, ' ');
                 }
-                try code.appendSlice("{\n");
-                try code.appendSlice(indent);
-                try code.appendSlice("// TODO: Implement\n");
-                try code.appendSlice(indent);
-                try code.appendSlice("todo!()\n");
-                try code.appendSlice("}\n");
+                try code.appendSlice(self.allocator, "{\n");
+                try code.appendSlice(self.allocator, indent);
+                try code.appendSlice(self.allocator, "// TODO: Implement\n");
+                try code.appendSlice(self.allocator, indent);
+                try code.appendSlice(self.allocator, "todo!()\n");
+                try code.appendSlice(self.allocator, "}\n");
             },
             .go => {
                 if (opts.include_docs) {
-                    try code.appendSlice("// ");
-                    try code.appendSlice(name);
-                    try code.appendSlice(" TODO: Add documentation\n");
+                    try code.appendSlice(self.allocator, "// ");
+                    try code.appendSlice(self.allocator, name);
+                    try code.appendSlice(self.allocator, " TODO: Add documentation\n");
                 }
-                try code.appendSlice("func ");
-                try code.appendSlice(name);
-                try code.append('(');
+                try code.appendSlice(self.allocator, "func ");
+                try code.appendSlice(self.allocator, name);
+                try code.append(self.allocator, '(');
                 for (params, 0..) |param, i| {
-                    if (i > 0) try code.appendSlice(", ");
-                    try code.appendSlice(param);
+                    if (i > 0) try code.appendSlice(self.allocator, ", ");
+                    try code.appendSlice(self.allocator, param);
                 }
-                try code.append(')');
+                try code.append(self.allocator, ')');
                 if (return_type) |rt| {
-                    try code.append(' ');
-                    try code.appendSlice(rt);
+                    try code.append(self.allocator, ' ');
+                    try code.appendSlice(self.allocator, rt);
                 }
-                try code.appendSlice(" {\n");
-                try code.appendSlice(indent);
-                try code.appendSlice("// TODO: Implement\n");
-                try code.appendSlice("}\n");
+                try code.appendSlice(self.allocator, " {\n");
+                try code.appendSlice(self.allocator, indent);
+                try code.appendSlice(self.allocator, "// TODO: Implement\n");
+                try code.appendSlice(self.allocator, "}\n");
             },
             else => {
                 // Generic template
-                try code.appendSlice("// Function: ");
-                try code.appendSlice(name);
-                try code.appendSlice("\n// TODO: Implement for ");
-                try code.appendSlice(@tagName(language));
-                try code.append('\n');
+                try code.appendSlice(self.allocator, "// Function: ");
+                try code.appendSlice(self.allocator, name);
+                try code.appendSlice(self.allocator, "\n// TODO: Implement for ");
+                try code.appendSlice(self.allocator, @tagName(language));
+                try code.append(self.allocator, '\n');
             },
         }
 
+        // Calculate loc before toOwnedSlice invalidates items
+        const loc = self.countLoc(code.items);
         return .{
             .language = language,
-            .code = try code.toOwnedSlice(),
-            .loc = self.countLoc(code.items),
+            .code = try code.toOwnedSlice(self.allocator),
+            .loc = loc,
         };
     }
 
     /// Wrap code with markdown code block markers.
     pub fn wrapInMarkdown(
         self: *Self,
-        code: []const u8,
+        input_code: []const u8,
         language: classifier.Language,
     ) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result: std.ArrayListUnmanaged(u8) = .{};
+        errdefer result.deinit(self.allocator);
 
-        try result.appendSlice("```");
-        try result.appendSlice(self.getLanguageName(language));
-        try result.append('\n');
-        try result.appendSlice(code);
-        if (code.len > 0 and code[code.len - 1] != '\n') {
-            try result.append('\n');
+        try result.appendSlice(self.allocator, "```");
+        try result.appendSlice(self.allocator, self.getLanguageName(language));
+        try result.append(self.allocator, '\n');
+        try result.appendSlice(self.allocator, input_code);
+        if (input_code.len > 0 and input_code[input_code.len - 1] != '\n') {
+            try result.append(self.allocator, '\n');
         }
-        try result.appendSlice("```\n");
+        try result.appendSlice(self.allocator, "```\n");
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Get the markdown language identifier.
@@ -432,8 +434,8 @@ pub fn extractCodeBlocks(
     allocator: std.mem.Allocator,
     content: []const u8,
 ) ![]CodeBlock {
-    var blocks = std.ArrayList(CodeBlock).init(allocator);
-    errdefer blocks.deinit();
+    var blocks: std.ArrayListUnmanaged(CodeBlock) = .{};
+    errdefer blocks.deinit(allocator);
 
     var i: usize = 0;
     while (i < content.len) {
@@ -452,11 +454,11 @@ pub fn extractCodeBlocks(
             if (std.mem.indexOf(u8, content[lang_end + 1 ..], "```")) |end_offset| {
                 const code_start = lang_end + 1;
                 const code_end = lang_end + 1 + end_offset;
-                const code = std.mem.trim(u8, content[code_start..code_end], "\n");
+                const extracted_code = std.mem.trim(u8, content[code_start..code_end], "\n");
 
-                try blocks.append(.{
+                try blocks.append(allocator, .{
                     .language = language,
-                    .code = code,
+                    .code = extracted_code,
                 });
 
                 i = code_end + 3;
@@ -468,7 +470,7 @@ pub fn extractCodeBlocks(
         }
     }
 
-    return blocks.toOwnedSlice();
+    return blocks.toOwnedSlice(allocator);
 }
 
 /// Detect language from a string identifier.

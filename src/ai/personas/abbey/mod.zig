@@ -154,27 +154,27 @@ pub const AbbeyPersona = struct {
         const legacy_resp = try self.engine.process(request.content);
 
         // Step 5: Build the enhanced response
-        var content_builder = std.ArrayList(u8).init(self.allocator);
-        errdefer content_builder.deinit();
+        var content_builder: std.ArrayListUnmanaged(u8) = .{};
+        errdefer content_builder.deinit(self.allocator);
 
         // Add empathy prefix if configured and applicable
         if (self.config.emotion_adaptation and empathy_injection.prefix.len > 0) {
-            try content_builder.appendSlice(empathy_injection.prefix);
+            try content_builder.appendSlice(self.allocator, empathy_injection.prefix);
         }
 
         // Add main content
-        try content_builder.appendSlice(legacy_resp.content);
+        try content_builder.appendSlice(self.allocator, legacy_resp.content);
 
         // Add empathy suffix if applicable
         if (self.config.emotion_adaptation and empathy_injection.suffix.len > 0) {
-            try content_builder.appendSlice(empathy_injection.suffix);
+            try content_builder.appendSlice(self.allocator, empathy_injection.suffix);
         }
 
         const elapsed_ms = timer.read() / std.time.ns_per_ms;
 
         // Build response
         var response = types.PersonaResponse{
-            .content = try content_builder.toOwnedSlice(),
+            .content = try content_builder.toOwnedSlice(self.allocator),
             .persona = .abbey,
             .confidence = legacy_resp.confidence.score,
             .emotional_tone = emotional_response.primary_emotion,

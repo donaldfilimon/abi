@@ -79,7 +79,7 @@ pub const ReasoningChain = struct {
     /// The original query being reasoned about.
     query: []const u8,
     /// Ordered list of reasoning steps.
-    steps: std.ArrayList(ReasoningStep),
+    steps: std.ArrayListUnmanaged(ReasoningStep),
     /// Overall confidence in the chain.
     overall_confidence: f32,
     /// Final conclusion/answer.
@@ -94,10 +94,10 @@ pub const ReasoningChain = struct {
     const Self = @This();
 
     /// Initialize a new reasoning chain.
-    pub fn init(allocator: std.mem.Allocator, query: []const u8) Self {
+    pub fn init(_: std.mem.Allocator, query: []const u8) Self {
         return .{
             .query = query,
-            .steps = std.ArrayList(ReasoningStep).init(allocator),
+            .steps = .{},
             .overall_confidence = 1.0,
             .conclusion = null,
             .reasoning_time_ms = 0,
@@ -113,13 +113,13 @@ pub const ReasoningChain = struct {
             allocator.free(step.explanation);
             if (step.evidence) |ev| allocator.free(ev);
         }
-        self.steps.deinit();
+        self.steps.deinit(allocator);
         if (self.conclusion) |c| allocator.free(c);
     }
 
     /// Add a step to the chain.
-    pub fn addStep(self: *Self, step: ReasoningStep) !void {
-        try self.steps.append(step);
+    pub fn addStep(self: *Self, allocator: std.mem.Allocator, step: ReasoningStep) !void {
+        try self.steps.append(allocator, step);
         // Update overall confidence (product of step confidences)
         self.overall_confidence = @min(self.overall_confidence, step.confidence);
     }
@@ -229,7 +229,7 @@ pub const ReasoningEngine = struct {
         chain.emotional_context = emotional_context;
 
         // Step 1: Understand the query
-        try chain.addStep(.{
+        try chain.addStep(self.allocator, .{
             .step_number = 1,
             .title = try self.allocator.dupe(u8, "Understanding the question"),
             .explanation = try self.allocator.dupe(u8, "Analyzing the query to identify key components and intent."),
@@ -241,13 +241,13 @@ pub const ReasoningEngine = struct {
         if (chain.emotion_aware) {
             if (emotional_context) |emo| {
                 const emo_step = try self.createEmotionalStep(emo, chain.stepCount() + 1);
-                try chain.addStep(emo_step);
+                try chain.addStep(self.allocator, emo_step);
             }
         }
 
         // Step 3: Recall relevant context
         if (context.relevant_history.len > 0 or context.domain_knowledge.len > 0) {
-            try chain.addStep(.{
+            try chain.addStep(self.allocator, .{
                 .step_number = chain.stepCount() + 1,
                 .title = try self.allocator.dupe(u8, "Recalling relevant context"),
                 .explanation = try self.allocator.dupe(u8, "Drawing from conversation history and domain knowledge."),
@@ -257,7 +257,7 @@ pub const ReasoningEngine = struct {
         }
 
         // Step 4: Analyze the problem
-        try chain.addStep(.{
+        try chain.addStep(self.allocator, .{
             .step_number = chain.stepCount() + 1,
             .title = try self.allocator.dupe(u8, "Analyzing the problem"),
             .explanation = try self.allocator.dupe(u8, "Breaking down the problem into manageable components."),
@@ -266,7 +266,7 @@ pub const ReasoningEngine = struct {
         });
 
         // Step 5: Formulate approach
-        try chain.addStep(.{
+        try chain.addStep(self.allocator, .{
             .step_number = chain.stepCount() + 1,
             .title = try self.allocator.dupe(u8, "Formulating approach"),
             .explanation = try self.allocator.dupe(u8, "Determining the best method to address this query."),
@@ -281,25 +281,25 @@ pub const ReasoningEngine = struct {
 
     /// Create a reasoning step for emotional consideration.
     fn createEmotionalStep(self: *Self, emo: emotion.EmotionalResponse, step_num: usize) !ReasoningStep {
-        var explanation_buf = std.ArrayList(u8).init(self.allocator);
-        defer explanation_buf.deinit();
+        var explanation_buf: std.ArrayListUnmanaged(u8) = .{};
+        defer explanation_buf.deinit(self.allocator);
 
-        try explanation_buf.appendSlice("User appears to be feeling ");
-        try explanation_buf.appendSlice(@tagName(emo.primary_emotion));
-        try explanation_buf.appendSlice(". ");
+        try explanation_buf.appendSlice(self.allocator, "User appears to be feeling ");
+        try explanation_buf.appendSlice(self.allocator, @tagName(emo.primary_emotion));
+        try explanation_buf.appendSlice(self.allocator, ". ");
 
         if (emo.needs_special_care) {
-            try explanation_buf.appendSlice("Special care needed. ");
+            try explanation_buf.appendSlice(self.allocator, "Special care needed. ");
         }
 
-        try explanation_buf.appendSlice("Adjusting response tone to be ");
-        try explanation_buf.appendSlice(emo.suggested_tone.getDescription());
-        try explanation_buf.appendSlice(".");
+        try explanation_buf.appendSlice(self.allocator, "Adjusting response tone to be ");
+        try explanation_buf.appendSlice(self.allocator, emo.suggested_tone.getDescription());
+        try explanation_buf.appendSlice(self.allocator, ".");
 
         return .{
             .step_number = step_num,
             .title = try self.allocator.dupe(u8, "Considering emotional context"),
-            .explanation = try explanation_buf.toOwnedSlice(),
+            .explanation = try explanation_buf.toOwnedSlice(self.allocator),
             .confidence = 0.9,
             .reasoning_type = .emotional_consideration,
         };
@@ -307,42 +307,42 @@ pub const ReasoningEngine = struct {
 
     /// Format reasoning steps for output.
     pub fn formatSteps(self: *Self, chain: *const ReasoningChain) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
+        var result: std.Io.Writer.Allocating = .init(self.allocator);
         errdefer result.deinit();
 
         switch (self.config.output_format) {
             .detailed => {
                 for (chain.steps.items) |step| {
-                    try std.fmt.format(result.writer(), "**Step {d}: {s}**\n", .{ step.step_number, step.title });
-                    try result.appendSlice(step.explanation);
-                    try result.appendSlice("\n\n");
+                    try result.writer.print("**Step {d}: {s}**\n", .{ step.step_number, step.title });
+                    try result.writer.writeAll(step.explanation);
+                    try result.writer.writeAll("\n\n");
                 }
             },
             .summary => {
-                try result.appendSlice("Reasoning: ");
+                try result.writer.writeAll("Reasoning: ");
                 for (chain.steps.items, 0..) |step, i| {
-                    try result.appendSlice(step.title);
+                    try result.writer.writeAll(step.title);
                     if (i < chain.steps.items.len - 1) {
-                        try result.appendSlice(" -> ");
+                        try result.writer.writeAll(" -> ");
                     }
                 }
-                try result.append('\n');
+                try result.writer.writeByte('\n');
             },
             .bullet_points => {
                 for (chain.steps.items) |step| {
-                    try std.fmt.format(result.writer(), "- {s}\n", .{step.title});
+                    try result.writer.print("- {s}\n", .{step.title});
                 }
             },
             .conclusion_only => {
                 if (chain.conclusion) |conclusion| {
-                    try result.appendSlice(conclusion);
+                    try result.writer.writeAll(conclusion);
                 }
             },
         }
 
         // Add confidence indicator
         if (self.config.output_format != .conclusion_only) {
-            try std.fmt.format(result.writer(), "\nConfidence: {d:.0}%\n", .{chain.overall_confidence * 100});
+            try result.writer.print("\nConfidence: {d:.0}%\n", .{chain.overall_confidence * 100});
         }
 
         return result.toOwnedSlice();
@@ -481,7 +481,7 @@ test "reasoning chain confidence" {
     var chain = ReasoningChain.init(std.testing.allocator, "test");
     defer chain.deinit(std.testing.allocator);
 
-    try chain.addStep(.{
+    try chain.addStep(std.testing.allocator, .{
         .step_number = 1,
         .title = try std.testing.allocator.dupe(u8, "Step 1"),
         .explanation = try std.testing.allocator.dupe(u8, "Explanation"),
@@ -489,7 +489,7 @@ test "reasoning chain confidence" {
         .reasoning_type = .decomposition,
     });
 
-    try chain.addStep(.{
+    try chain.addStep(std.testing.allocator, .{
         .step_number = 2,
         .title = try std.testing.allocator.dupe(u8, "Step 2"),
         .explanation = try std.testing.allocator.dupe(u8, "Explanation"),

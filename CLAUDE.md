@@ -166,8 +166,7 @@ src/
 │   ├── platform.zig     # Platform detection
 │   ├── plugins.zig      # Plugin registry primitives
 │   ├── simd.zig         # SIMD vector operations
-│   ├── utils.zig        # Base utilities (time, math, string)
-│   └── utils_combined.zig  # Unified re-export of all utils sub-modules
+│   └── utils.zig        # Unified utilities (time, math, string, crypto, http, json, etc.)
 ├── tasks.zig            # Centralized task management
 ├── web/                 # Web/HTTP utilities
 └── tests/               # Integration test suite
@@ -176,7 +175,7 @@ src/
 **Import guidance:**
 - **Public API**: Always use `@import("abi")` - never import files directly
 - **Feature Modules**: Access via `abi.gpu`, `abi.ai`, `abi.database`, etc.
-- **Shared Utilities**: Import from `src/shared/utils_combined.zig` for all utils sub-modules, or specific files for targeted imports
+- **Shared Utilities**: Import from `src/shared/utils.zig` for all utils sub-modules, or specific files for targeted imports
 - **Internal AI**: Implementation files import from `../../core/mod.zig` for types
 
 **Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility. The AI module has extensive sub-feature stubs (`src/ai/*/stub.zig`) for agents, embeddings, llm, vision, training, etc.
@@ -435,6 +434,7 @@ Connectors require corresponding environment variables (see Environment Variable
 ## Reference
 
 - [README.md](README.md) - Project overview
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow and contribution guidelines
 - [API_REFERENCE.md](API_REFERENCE.md) - Public API reference
 - [docs/troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
 - [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 patterns

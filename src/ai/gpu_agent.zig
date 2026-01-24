@@ -367,7 +367,7 @@ pub const GpuAgent = struct {
     learning_scheduler: if (gpu_available) ?*gpu_mod.mega.LearningScheduler else ?*anyopaque,
 
     // Response buffer for building responses
-    response_buffer: std.ArrayList(u8),
+    response_buffer: std.ArrayListUnmanaged(u8),
 
     // Configuration
     default_timeout_ms: u64,
@@ -387,7 +387,7 @@ pub const GpuAgent = struct {
             .gpu_enabled = gpu_available,
             .gpu_coordinator = null,
             .learning_scheduler = null,
-            .response_buffer = std.ArrayList(u8).init(allocator),
+            .response_buffer = .{},
             .default_timeout_ms = 30000,
             .enable_learning = true,
         };
@@ -429,7 +429,7 @@ pub const GpuAgent = struct {
             }
         }
 
-        self.response_buffer.deinit();
+        self.response_buffer.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -590,15 +590,15 @@ pub const GpuAgent = struct {
     /// Generate response content (placeholder implementation).
     fn generateResponse(self: *GpuAgent, request: GpuAwareRequest) !void {
         // Build a response indicating the workload was processed
-        try self.response_buffer.appendSlice("[");
-        try self.response_buffer.appendSlice(request.workload_type.name());
-        try self.response_buffer.appendSlice("] Response for: ");
+        try self.response_buffer.appendSlice(self.allocator, "[");
+        try self.response_buffer.appendSlice(self.allocator, request.workload_type.name());
+        try self.response_buffer.appendSlice(self.allocator, "] Response for: ");
 
         const max_preview = @min(50, request.prompt.len);
-        try self.response_buffer.appendSlice(request.prompt[0..max_preview]);
+        try self.response_buffer.appendSlice(self.allocator, request.prompt[0..max_preview]);
 
         if (request.prompt.len > 50) {
-            try self.response_buffer.appendSlice("...");
+            try self.response_buffer.appendSlice(self.allocator, "...");
         }
     }
 

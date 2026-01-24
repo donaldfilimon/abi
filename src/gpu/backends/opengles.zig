@@ -411,7 +411,7 @@ pub fn allocateDeviceMemoryWithHint(size: usize, hint: BufferUsageHint) OpenGles
         .allocator = allocator,
     };
 
-    std.log.debug("OpenGL ES buffer allocated with hint {s}: ID={}, size={B}", .{ @tagName(hint), buffer_id, size });
+    std.log.debug("OpenGL ES buffer allocated with hint {t}: ID={}, size={B}", .{ hint, buffer_id, size });
     return opengles_buffer;
 }
 

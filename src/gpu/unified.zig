@@ -73,11 +73,16 @@ pub const MetricsCollector = metrics_mod.MetricsCollector;
 pub const MetricsSummary = metrics_mod.Summary;
 pub const KernelMetrics = metrics_mod.KernelMetrics;
 
-// Re-export dispatcher types
+// Re-export dispatcher types (canonical definitions)
 pub const KernelDispatcher = dispatcher_mod.KernelDispatcher;
 pub const DispatchError = dispatcher_mod.DispatchError;
-pub const DispatcherLaunchConfig = dispatcher_mod.LaunchConfig;
-pub const DispatcherExecutionResult = dispatcher_mod.ExecutionResult;
+pub const LaunchConfig = dispatcher_mod.LaunchConfig;
+pub const ExecutionResult = dispatcher_mod.ExecutionResult;
+pub const KernelArgs = dispatcher_mod.KernelArgs;
+
+// Aliases for backward compatibility
+pub const DispatcherLaunchConfig = LaunchConfig;
+pub const DispatcherExecutionResult = ExecutionResult;
 
 /// Load balance strategy for multi-GPU.
 pub const LoadBalanceStrategy = enum {
@@ -109,52 +114,11 @@ pub const GpuConfig = struct {
     load_balance_strategy: LoadBalanceStrategy = .memory_aware,
 };
 
-/// Execution result with timing and statistics.
-pub const ExecutionResult = struct {
-    /// Execution time in nanoseconds.
-    execution_time_ns: u64,
-    /// Number of elements processed.
-    elements_processed: usize,
-    /// Bytes transferred.
-    bytes_transferred: usize,
-    /// Backend used for execution.
-    backend: Backend,
-    /// Device used for execution.
-    device_id: u32,
-
-    /// Get throughput in GB/s.
-    pub fn throughputGBps(self: ExecutionResult) f64 {
-        if (self.execution_time_ns == 0) return 0;
-        const bytes_per_sec = @as(f64, @floatFromInt(self.bytes_transferred)) /
-            (@as(f64, @floatFromInt(self.execution_time_ns)) / 1_000_000_000.0);
-        return bytes_per_sec / (1024 * 1024 * 1024);
-    }
-
-    /// Get elements per second.
-    pub fn elementsPerSecond(self: ExecutionResult) f64 {
-        if (self.execution_time_ns == 0) return 0;
-        return @as(f64, @floatFromInt(self.elements_processed)) /
-            (@as(f64, @floatFromInt(self.execution_time_ns)) / 1_000_000_000.0);
-    }
-};
-
 /// Matrix dimensions for matrix operations.
 pub const MatrixDims = struct {
     m: usize,
     n: usize,
     k: usize,
-};
-
-/// Kernel launch configuration.
-pub const LaunchConfig = struct {
-    /// Global work size (total threads).
-    global_size: [3]u32 = .{ 1, 1, 1 },
-    /// Local work size (workgroup/block size).
-    local_size: ?[3]u32 = null,
-    /// Stream to launch on (null = default).
-    stream: ?*Stream = null,
-    /// Shared memory size in bytes.
-    shared_memory: u32 = 0,
 };
 
 /// Compiled kernel handle.

@@ -44,6 +44,8 @@ pub const RouteError = error{
     InternalError,
     JsonParseError,
     DatabaseError,
+    OutOfMemory,
+    WriteFailed,
 };
 
 /// Route handler function type.
@@ -61,7 +63,7 @@ pub const RouteContext = struct {
     /// Request headers.
     headers: std.StringHashMap([]const u8),
     /// Response body buffer.
-    response_body: std.ArrayList(u8),
+    response_body: std.ArrayListUnmanaged(u8),
     /// Response status.
     response_status: u16 = 200,
     /// Response content type.
@@ -78,7 +80,7 @@ pub const RouteContext = struct {
             .path_params = std.StringHashMap([]const u8).init(allocator),
             .query_params = std.StringHashMap([]const u8).init(allocator),
             .headers = std.StringHashMap([]const u8).init(allocator),
-            .response_body = std.ArrayList(u8).init(allocator),
+            .response_body = std.ArrayListUnmanaged(u8).empty,
             .chat_handler = handler,
         };
     }
@@ -87,12 +89,12 @@ pub const RouteContext = struct {
         self.path_params.deinit();
         self.query_params.deinit();
         self.headers.deinit();
-        self.response_body.deinit();
+        self.response_body.deinit(self.allocator);
     }
 
     /// Write response body.
     pub fn write(self: *RouteContext, data: []const u8) !void {
-        try self.response_body.appendSlice(data);
+        try self.response_body.appendSlice(self.allocator, data);
     }
 
     /// Set response status.
@@ -182,11 +184,11 @@ fn handleHealthCheck(ctx: *RouteContext) RouteError!void {
         try response_obj.put("overall_status", std.json.Value{ .string = status_str });
     }
 
-    var output = std.ArrayList(u8).init(ctx.allocator);
+    var output: std.Io.Writer.Allocating = .init(ctx.allocator);
     defer output.deinit();
 
-    try std.json.stringify(std.json.Value{ .object = response_obj }, .{}, output.writer());
-    try ctx.writeJson(output.items);
+    try std.json.Stringify.value(std.json.Value{ .object = response_obj }, .{}, &output.writer);
+    try ctx.writeJson(try output.toOwnedSlice());
 }
 
 /// All persona API routes.
@@ -286,7 +288,7 @@ pub const Router = struct {
 
         return RouteResult{
             .status = ctx.response_status,
-            .body = try ctx.response_body.toOwnedSlice(),
+            .body = try ctx.response_body.toOwnedSlice(self.allocator),
             .content_type = ctx.response_content_type,
         };
     }
@@ -306,10 +308,10 @@ pub const RouteResult = struct {
 
 /// Generate OpenAPI documentation for routes.
 pub fn generateOpenApiSpec(allocator: std.mem.Allocator) ![]const u8 {
-    var spec = std.ArrayList(u8).init(allocator);
+    var spec: std.Io.Writer.Allocating = .init(allocator);
     errdefer spec.deinit();
 
-    try spec.appendSlice(
+    try spec.writer.writeAll(
         \\{
         \\  "openapi": "3.0.0",
         \\  "info": {
@@ -322,7 +324,7 @@ pub fn generateOpenApiSpec(allocator: std.mem.Allocator) ![]const u8 {
     );
 
     for (ROUTES, 0..) |route, i| {
-        if (i > 0) try spec.appendSlice(",\n");
+        if (i > 0) try spec.writer.writeAll(",\n");
 
         const method_str = switch (route.method) {
             .GET => "get",
@@ -334,7 +336,7 @@ pub fn generateOpenApiSpec(allocator: std.mem.Allocator) ![]const u8 {
             .HEAD => "head",
         };
 
-        try std.fmt.format(spec.writer(),
+        try spec.writer.print(
             \\    "{s}": {{
             \\      "{s}": {{
             \\        "summary": "{s}",
@@ -348,7 +350,7 @@ pub fn generateOpenApiSpec(allocator: std.mem.Allocator) ![]const u8 {
         , .{ route.path, method_str, route.description });
     }
 
-    try spec.appendSlice(
+    try spec.writer.writeAll(
         \\
         \\  }
         \\}

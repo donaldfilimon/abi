@@ -78,8 +78,9 @@ pub const SourceType = enum {
 
 /// Result of a knowledge retrieval operation.
 pub const RetrievalResult = struct {
+    allocator: std.mem.Allocator,
     /// Retrieved knowledge fragments.
-    fragments: std.ArrayList(KnowledgeFragment),
+    fragments: std.ArrayListUnmanaged(KnowledgeFragment),
     /// Query that was used.
     query: []const u8,
     /// Total fragments found before filtering.
@@ -93,7 +94,8 @@ pub const RetrievalResult = struct {
 
     pub fn init(allocator: std.mem.Allocator, query: []const u8) Self {
         return .{
-            .fragments = std.ArrayList(KnowledgeFragment).init(allocator),
+            .allocator = allocator,
+            .fragments = .{},
             .query = query,
             .total_found = 0,
             .retrieval_time_ms = 0,
@@ -102,7 +104,7 @@ pub const RetrievalResult = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.fragments.deinit();
+        self.fragments.deinit(self.allocator);
     }
 
     /// Get the most relevant fragment.
@@ -279,19 +281,19 @@ pub const KnowledgeRetriever = struct {
 pub const KnowledgeBase = struct {
     allocator: std.mem.Allocator,
     /// Stored knowledge fragments.
-    fragments: std.ArrayList(KnowledgeFragment),
+    fragments: std.ArrayListUnmanaged(KnowledgeFragment),
 
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
-            .fragments = std.ArrayList(KnowledgeFragment).init(allocator),
+            .fragments = .{},
         };
     }
 
     pub fn deinit(self: *Self) void {
-        self.fragments.deinit();
+        self.fragments.deinit(self.allocator);
     }
 
     /// Search for relevant fragments.
@@ -302,8 +304,8 @@ pub const KnowledgeBase = struct {
         domain: ?classifier.Domain,
         limit: usize,
     ) ![]KnowledgeFragment {
-        var results = std.ArrayList(KnowledgeFragment).init(allocator);
-        errdefer results.deinit();
+        var results: std.ArrayListUnmanaged(KnowledgeFragment) = .{};
+        errdefer results.deinit(allocator);
 
         // In production, this would use vector similarity search via WDBX
         // For now, we do simple keyword matching
@@ -318,13 +320,13 @@ pub const KnowledgeBase = struct {
             if (relevance > 0.1) {
                 var scored_frag = frag;
                 scored_frag.relevance = relevance;
-                try results.append(scored_frag);
+                try results.append(allocator, scored_frag);
             }
 
             if (results.items.len >= limit) break;
         }
 
-        return results.toOwnedSlice();
+        return results.toOwnedSlice(allocator);
     }
 
     /// Get fragments by domain.
@@ -334,22 +336,22 @@ pub const KnowledgeBase = struct {
         domain: classifier.Domain,
         limit: usize,
     ) ![]KnowledgeFragment {
-        var results = std.ArrayList(KnowledgeFragment).init(allocator);
-        errdefer results.deinit();
+        var results: std.ArrayListUnmanaged(KnowledgeFragment) = .{};
+        errdefer results.deinit(allocator);
 
         for (self.fragments.items) |frag| {
             if (frag.domain == domain) {
-                try results.append(frag);
+                try results.append(allocator, frag);
                 if (results.items.len >= limit) break;
             }
         }
 
-        return results.toOwnedSlice();
+        return results.toOwnedSlice(allocator);
     }
 
     /// Add a fragment to the knowledge base.
     pub fn add(self: *Self, fragment: KnowledgeFragment) !void {
-        try self.fragments.append(fragment);
+        try self.fragments.append(self.allocator, fragment);
     }
 
     /// Calculate simple relevance score.
@@ -379,27 +381,27 @@ pub fn formatKnowledgeForResponse(
     fragments: []const KnowledgeFragment,
     include_sources: bool,
 ) ![]const u8 {
-    var result = std.ArrayList(u8).init(allocator);
-    errdefer result.deinit();
+    var result: std.ArrayListUnmanaged(u8) = .{};
+    errdefer result.deinit(allocator);
 
     for (fragments, 0..) |frag, i| {
         // Add content
-        try result.appendSlice(frag.content);
+        try result.appendSlice(allocator, frag.content);
 
         // Add source attribution if requested
         if (include_sources) {
-            try result.appendSlice(" [");
-            try result.appendSlice(frag.source.name);
-            try result.append(']');
+            try result.appendSlice(allocator, " [");
+            try result.appendSlice(allocator, frag.source.name);
+            try result.append(allocator, ']');
         }
 
         // Add separator if not last
         if (i < fragments.len - 1) {
-            try result.appendSlice("\n\n");
+            try result.appendSlice(allocator, "\n\n");
         }
     }
 
-    return result.toOwnedSlice();
+    return result.toOwnedSlice(allocator);
 }
 
 // Tests

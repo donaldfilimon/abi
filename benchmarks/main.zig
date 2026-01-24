@@ -53,36 +53,39 @@ const Args = struct {
     json: bool = false,
 };
 
-fn parseArgs(allocator: std.mem.Allocator) Args {
-    var args = Args{};
+fn parseArgs(allocator: std.mem.Allocator, init_args: std.process.Args) Args {
+    var args_result = Args{};
 
     // Get command line arguments using Zig 0.16 API
-    var arg_iter = std.process.args();
-    _ = arg_iter.skip(); // Skip program name
+    var argv_iter = init_args.iterateAllocator(allocator) catch return args_result;
+    defer argv_iter.deinit();
 
-    while (arg_iter.next()) |arg| {
+    // Skip program name (first arg)
+    _ = argv_iter.next();
+
+    while (argv_iter.next()) |arg| {
         if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
             printHelp();
             std.process.exit(0);
         } else if (std.mem.eql(u8, arg, "--verbose") or std.mem.eql(u8, arg, "-v")) {
-            args.verbose = true;
+            args_result.verbose = true;
         } else if (std.mem.eql(u8, arg, "--quick") or std.mem.eql(u8, arg, "-q")) {
-            args.quick = true;
-            args.suite = .quick;
+            args_result.quick = true;
+            args_result.suite = .quick;
         } else if (std.mem.eql(u8, arg, "--json")) {
-            args.json = true;
+            args_result.json = true;
         } else if (std.mem.startsWith(u8, arg, "--suite=")) {
             const suite_name = arg["--suite=".len..];
-            args.suite = parseSuite(suite_name);
+            args_result.suite = parseSuite(suite_name);
         } else if (std.mem.startsWith(u8, arg, "--output=")) {
-            args.output_json = allocator.dupe(u8, arg["--output=".len..]) catch null;
+            args_result.output_json = allocator.dupe(u8, arg["--output=".len..]) catch null;
         } else if (!std.mem.startsWith(u8, arg, "-")) {
             // Positional argument - treat as suite name
-            args.suite = parseSuite(arg);
+            args_result.suite = parseSuite(arg);
         }
     }
 
-    return args;
+    return args_result;
 }
 
 fn parseSuite(name: []const u8) BenchmarkSuite {
@@ -217,12 +220,12 @@ fn writeJsonReport(
     try writer.writeAll("\n  ]\n}\n");
 }
 
-pub fn main() !void {
+pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const args = parseArgs(allocator);
+    const args = parseArgs(allocator, init.args);
 
     printHeader();
 

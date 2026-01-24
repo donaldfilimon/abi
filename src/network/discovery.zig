@@ -7,7 +7,7 @@
 //! - discovery_types.zig: Type definitions, config, errors, and utilities
 
 const std = @import("std");
-const time = @import("../shared/utils_combined.zig");
+const time = @import("../shared/utils.zig");
 const registry = @import("registry.zig");
 
 // Import types from submodule

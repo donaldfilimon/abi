@@ -239,9 +239,9 @@ test "Enhanced routing with hysteresis" {
         if (router.previous_persona != null) {
             // In enhanced routing, previous persona gets +0.2 weight
             // This should bias toward staying with same persona if scores are close
-            std.log.info("Routing decision: {s} (prev: {?s})", .{
-                @tagName(decision.base_decision.selected_persona),
-                if (router.previous_persona) |p| @tagName(p) else "none",
+            std.log.info("Routing decision: {t} (prev: {?t})", .{
+                decision.base_decision.selected_persona,
+                router.previous_persona,
             });
         }
     }

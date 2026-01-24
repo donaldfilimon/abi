@@ -26,19 +26,114 @@ pub const Error = LlmError;
 
 // Stub types
 pub const DType = enum { f32, f16, q4_0, q8_0 };
-pub const TensorInfo = struct {};
+pub const TensorInfo = struct {
+    name: []const u8 = "",
+    dims: [4]u32 = .{ 0, 0, 0, 0 },
+    n_dims: usize = 0,
+    tensor_type: DType = .f32,
+};
 pub const GgufHeader = struct {};
 pub const GgufMetadata = struct {};
-pub const GgufFile = struct {};
+pub const TensorEntry = struct {
+    value_ptr: *const TensorInfo,
+};
+pub const TensorIterator = struct {
+    pub fn next(_: *TensorIterator) ?TensorEntry {
+        return null;
+    }
+};
+pub const TensorMap = struct {
+    pub fn iterator(_: *const TensorMap) TensorIterator {
+        return .{};
+    }
+};
+pub const GgufFile = struct {
+    tensors: TensorMap = .{},
+
+    pub fn open(_: std.mem.Allocator, _: []const u8) LlmError!GgufFile {
+        return error.LlmDisabled;
+    }
+    pub fn close(_: *GgufFile) void {}
+    pub fn deinit(_: *GgufFile) void {}
+    pub fn printSummaryDebug(_: *const GgufFile) void {}
+};
 pub const MappedFile = struct {};
 pub const Tensor = struct {};
 pub const Q4_0Block = struct {};
 pub const Q8_0Block = struct {};
-pub const BpeTokenizer = struct {};
+pub const BpeTokenizer = struct {
+    pub fn init(_: std.mem.Allocator) BpeTokenizer {
+        return .{};
+    }
+    pub fn deinit(_: *BpeTokenizer) void {}
+    pub fn encode(_: *const BpeTokenizer, _: std.mem.Allocator, _: []const u8) LlmError![]u32 {
+        return error.LlmDisabled;
+    }
+    pub fn decode(_: *const BpeTokenizer, _: std.mem.Allocator, _: []const u32) LlmError![]u8 {
+        return error.LlmDisabled;
+    }
+};
+pub const Tokenizer = BpeTokenizer;
 pub const Vocab = struct {};
-pub const Model = struct {};
-pub const ModelConfig = struct {};
+pub const ModelInfo = struct {
+    model_name: []const u8 = "",
+    architecture: []const u8 = "",
+    vocab_size: u32 = 0,
+    context_length: u32 = 0,
+    num_layers: u32 = 0,
+    n_layers: u32 = 0,
+    hidden_size: u32 = 0,
+    num_heads: u32 = 0,
+    n_heads: u32 = 0,
+    n_kv_heads: u32 = 0,
+    dim: u32 = 0,
+    max_seq_len: u32 = 0,
+    current_pos: u32 = 0,
+    kv_cache_memory: u64 = 0,
+    weights_memory: u64 = 0,
+};
+pub const Model = struct {
+    pub fn load(_: std.mem.Allocator, _: []const u8) LlmError!Model {
+        return error.LlmDisabled;
+    }
+    pub fn deinit(_: *Model) void {}
+    pub fn generate(_: *Model, _: []const u32, _: GeneratorConfig) LlmError![]u32 {
+        return error.LlmDisabled;
+    }
+    pub fn generateText(_: *Model, _: std.mem.Allocator, _: []const u8) LlmError![]u8 {
+        return error.LlmDisabled;
+    }
+    pub fn info(_: *const Model) ModelInfo {
+        return .{};
+    }
+    pub fn encode(_: *Model, _: []const u8) LlmError![]u32 {
+        return error.LlmDisabled;
+    }
+    pub fn decode(_: *Model, _: []const u32) LlmError![]u8 {
+        return error.LlmDisabled;
+    }
+};
+pub const ModelConfig = struct {
+    pub fn fromGguf(_: *const GgufFile) ModelConfig {
+        return .{};
+    }
+    pub fn estimateMemory(_: ModelConfig) u64 {
+        return 0;
+    }
+    pub fn estimateParameters(_: ModelConfig) u64 {
+        return 0;
+    }
+};
 pub const Generator = struct {};
+pub const GeneratorConfig = struct {
+    max_tokens: u32 = 256,
+    stop_tokens: []const u32 = &[_]u32{2},
+    temperature: f32 = 0.7,
+    top_k: u32 = 40,
+    top_p: f32 = 0.9,
+    repetition_penalty: f32 = 1.1,
+    seed: u64 = 0,
+};
 pub const Sampler = struct {};
 pub const SamplerConfig = struct {};
 pub const KvCache = struct {};
@@ -266,6 +361,9 @@ pub const io = struct {
     pub const GgufHeader = stub_root.GgufHeader;
     pub const GgufMetadata = stub_root.GgufMetadata;
     pub const TensorInfo = stub_root.TensorInfo;
+    pub const gguf = struct {
+        pub const GgufFile = stub_root.GgufFile;
+    };
 };
 const stub_root = @This();
 
@@ -278,7 +376,12 @@ pub const tensor = struct {
 
 pub const tokenizer = struct {
     pub const BpeTokenizer = stub_root.BpeTokenizer;
+    pub const Tokenizer = stub_root.Tokenizer;
     pub const Vocab = stub_root.Vocab;
+
+    pub fn loadFromGguf(_: std.mem.Allocator, _: *const stub_root.GgufFile) LlmError!stub_root.Tokenizer {
+        return error.LlmDisabled;
+    }
 };
 
 pub const model = struct {
@@ -288,6 +391,7 @@ pub const model = struct {
 
 pub const generation = struct {
     pub const Generator = stub_root.Generator;
+    pub const GeneratorConfig = stub_root.GeneratorConfig;
     pub const Sampler = stub_root.Sampler;
     pub const SamplerConfig = stub_root.SamplerConfig;
     pub const StreamingGenerator = stub_root.StreamingGenerator;
@@ -306,7 +410,11 @@ pub const cache = struct {
     pub const KvCache = stub_root.KvCache;
 };
 
-pub const ops = struct {};
+pub const ops = struct {
+    pub fn matrixMultiply(_: anytype, _: anytype, _: anytype, _: usize, _: usize, _: usize) void {}
+    pub fn softmax(_: anytype) void {}
+    pub fn rmsnorm(_: anytype, _: anytype, _: f32) void {}
+};
 
 pub const parallel = struct {
     pub const ParallelStrategy = stub_root.ParallelStrategy;

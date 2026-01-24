@@ -185,8 +185,8 @@ pub const EmpathyInjector = struct {
         const include_empathy = emotional_response.empathy_level >= self.config.min_acknowledgment_threshold;
 
         // Build prefix
-        var prefix_builder = std.ArrayList(u8).init(self.allocator);
-        errdefer prefix_builder.deinit();
+        var prefix_builder: std.ArrayListUnmanaged(u8) = .{};
+        errdefer prefix_builder.deinit(self.allocator);
 
         if (include_empathy) {
             // Check user preferences
@@ -195,18 +195,18 @@ pub const EmpathyInjector = struct {
             if (!prefers_brevity) {
                 // Add acknowledgment
                 if (template.acknowledgment.len > 0) {
-                    try prefix_builder.appendSlice(template.acknowledgment);
-                    try prefix_builder.appendSlice(" ");
+                    try prefix_builder.appendSlice(self.allocator, template.acknowledgment);
+                    try prefix_builder.appendSlice(self.allocator, " ");
                 }
 
                 // Add transition
                 if (self.config.include_transitions and template.transition.len > 0) {
-                    try prefix_builder.appendSlice(template.transition);
+                    try prefix_builder.appendSlice(self.allocator, template.transition);
                 }
             } else {
                 // Brief acknowledgment for users who prefer brevity
                 if (emotional_response.needs_special_care and template.validate_explicitly) {
-                    try prefix_builder.appendSlice("I understand. ");
+                    try prefix_builder.appendSlice(self.allocator, "I understand. ");
                 }
             }
         }
@@ -217,14 +217,14 @@ pub const EmpathyInjector = struct {
         }
 
         // Build suffix
-        var suffix_builder = std.ArrayList(u8).init(self.allocator);
-        errdefer suffix_builder.deinit();
+        var suffix_builder: std.ArrayListUnmanaged(u8) = .{};
+        errdefer suffix_builder.deinit(self.allocator);
 
         if (include_empathy and self.config.include_encouragement) {
             const prefers_brevity = if (user_preferences) |prefs| prefs.prefers_brevity else false;
             if (!prefers_brevity and template.encouragement.len > 0) {
-                try suffix_builder.appendSlice(" ");
-                try suffix_builder.appendSlice(template.encouragement);
+                try suffix_builder.appendSlice(self.allocator, " ");
+                try suffix_builder.appendSlice(self.allocator, template.encouragement);
             }
         }
 
@@ -232,8 +232,8 @@ pub const EmpathyInjector = struct {
         const temp_adj = self.calculateTemperatureAdjustment(emotional_response);
 
         return .{
-            .prefix = try prefix_builder.toOwnedSlice(),
-            .suffix = try suffix_builder.toOwnedSlice(),
+            .prefix = try prefix_builder.toOwnedSlice(self.allocator),
+            .suffix = try suffix_builder.toOwnedSlice(self.allocator),
             .temperature_adjustment = temp_adj,
             .includes_acknowledgment = include_empathy and template.acknowledgment.len > 0,
         };
@@ -291,27 +291,27 @@ pub const EmpathyInjector = struct {
         template: []const u8,
         context: AcknowledgmentContext,
     ) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result: std.ArrayListUnmanaged(u8) = .{};
+        errdefer result.deinit(self.allocator);
 
         var i: usize = 0;
         while (i < template.len) {
             if (std.mem.startsWith(u8, template[i..], "{emotion}")) {
-                try result.appendSlice(context.emotion_name);
+                try result.appendSlice(self.allocator, context.emotion_name);
                 i += 9;
             } else if (std.mem.startsWith(u8, template[i..], "{topic}")) {
-                try result.appendSlice(context.topic orelse "this");
+                try result.appendSlice(self.allocator, context.topic orelse "this");
                 i += 7;
             } else if (std.mem.startsWith(u8, template[i..], "{user_name}")) {
-                try result.appendSlice(context.user_name orelse "");
+                try result.appendSlice(self.allocator, context.user_name orelse "");
                 i += 11;
             } else {
-                try result.append(template[i]);
+                try result.append(self.allocator, template[i]);
                 i += 1;
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 };
 

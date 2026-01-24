@@ -90,8 +90,8 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     }
 
     // Perform replacement
-    var new_content = std.ArrayList(u8).init(ctx.allocator);
-    defer new_content.deinit();
+    var new_content: std.ArrayListUnmanaged(u8) = .{};
+    defer new_content.deinit(ctx.allocator);
 
     var replacements: usize = 0;
     var last_end: usize = 0;
@@ -101,10 +101,10 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
         const pos = search_start + rel_pos;
 
         // Append content before match
-        new_content.appendSlice(content[last_end..pos]) catch return error.OutOfMemory;
+        new_content.appendSlice(ctx.allocator, content[last_end..pos]) catch return error.OutOfMemory;
 
         // Append replacement
-        new_content.appendSlice(new_string) catch return error.OutOfMemory;
+        new_content.appendSlice(ctx.allocator, new_string) catch return error.OutOfMemory;
 
         last_end = pos + old_string.len;
         search_start = last_end;
@@ -114,7 +114,7 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     }
 
     // Append remaining content
-    new_content.appendSlice(content[last_end..]) catch return error.OutOfMemory;
+    new_content.appendSlice(ctx.allocator, content[last_end..]) catch return error.OutOfMemory;
 
     // Write file
     const file = std.io.cwd().createFile(full_path, .{}) catch |err| {
@@ -210,34 +210,34 @@ fn executeInsertLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     defer ctx.allocator.free(file_content);
 
     // Split into lines
-    var lines = std.ArrayList([]const u8).init(ctx.allocator);
-    defer lines.deinit();
+    var lines: std.ArrayListUnmanaged([]const u8) = .{};
+    defer lines.deinit(ctx.allocator);
 
     var iter = std.mem.splitScalar(u8, file_content, '\n');
     while (iter.next()) |l| {
-        lines.append(l) catch return error.OutOfMemory;
+        lines.append(ctx.allocator, l) catch return error.OutOfMemory;
     }
 
     // Insert at position (1-indexed)
     const insert_pos = @min(line_num - 1, lines.items.len);
 
     // Build new content
-    var new_content = std.ArrayList(u8).init(ctx.allocator);
-    defer new_content.deinit();
+    var new_content: std.ArrayListUnmanaged(u8) = .{};
+    defer new_content.deinit(ctx.allocator);
 
     for (lines.items[0..insert_pos]) |l| {
-        new_content.appendSlice(l) catch return error.OutOfMemory;
-        new_content.append('\n') catch return error.OutOfMemory;
+        new_content.appendSlice(ctx.allocator, l) catch return error.OutOfMemory;
+        new_content.append(ctx.allocator, '\n') catch return error.OutOfMemory;
     }
 
-    new_content.appendSlice(content) catch return error.OutOfMemory;
+    new_content.appendSlice(ctx.allocator, content) catch return error.OutOfMemory;
     if (content.len == 0 or content[content.len - 1] != '\n') {
-        new_content.append('\n') catch return error.OutOfMemory;
+        new_content.append(ctx.allocator, '\n') catch return error.OutOfMemory;
     }
 
     for (lines.items[insert_pos..]) |l| {
-        new_content.appendSlice(l) catch return error.OutOfMemory;
-        new_content.append('\n') catch return error.OutOfMemory;
+        new_content.appendSlice(ctx.allocator, l) catch return error.OutOfMemory;
+        new_content.append(ctx.allocator, '\n') catch return error.OutOfMemory;
     }
 
     // Remove trailing newline if original file didn't have one
@@ -343,12 +343,12 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     defer ctx.allocator.free(file_content);
 
     // Split into lines
-    var lines = std.ArrayList([]const u8).init(ctx.allocator);
-    defer lines.deinit();
+    var lines: std.ArrayListUnmanaged([]const u8) = .{};
+    defer lines.deinit(ctx.allocator);
 
     var iter = std.mem.splitScalar(u8, file_content, '\n');
     while (iter.next()) |l| {
-        lines.append(l) catch return error.OutOfMemory;
+        lines.append(ctx.allocator, l) catch return error.OutOfMemory;
     }
 
     // Validate line numbers
@@ -360,14 +360,14 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     const actual_end = @min(end_line, lines.items.len);
 
     // Build new content (skip deleted lines)
-    var new_content = std.ArrayList(u8).init(ctx.allocator);
-    defer new_content.deinit();
+    var new_content: std.ArrayListUnmanaged(u8) = .{};
+    defer new_content.deinit(ctx.allocator);
 
-    for (lines.items, 1..) |l, line_num| {
-        if (line_num >= start_line and line_num <= actual_end) continue;
+    for (lines.items, 1..) |l, cur_line_num| {
+        if (cur_line_num >= start_line and cur_line_num <= actual_end) continue;
 
-        new_content.appendSlice(l) catch return error.OutOfMemory;
-        new_content.append('\n') catch return error.OutOfMemory;
+        new_content.appendSlice(ctx.allocator, l) catch return error.OutOfMemory;
+        new_content.append(ctx.allocator, '\n') catch return error.OutOfMemory;
     }
 
     // Remove trailing newline if original file didn't have one

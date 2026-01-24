@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const http_utils = @import("../shared/utils_combined.zig").http;
+const http_utils = @import("../shared/utils.zig").http;
 pub const HttpError = http_utils.HttpError;
 
 pub const Response = struct {

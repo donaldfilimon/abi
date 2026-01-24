@@ -57,7 +57,7 @@ pub const LatencyPercentiles = struct {
 /// Sliding window for latency samples.
 pub const LatencyWindow = struct {
     allocator: std.mem.Allocator,
-    samples: std.ArrayList(u64),
+    samples: std.ArrayListUnmanaged(u64),
     max_samples: usize,
     sorted_cache: ?[]u64 = null,
     cache_valid: bool = false,
@@ -67,7 +67,7 @@ pub const LatencyWindow = struct {
     pub fn init(allocator: std.mem.Allocator, max_samples: usize) Self {
         return .{
             .allocator = allocator,
-            .samples = std.ArrayList(u64).init(allocator),
+            .samples = .{},
             .max_samples = max_samples,
         };
     }
@@ -83,7 +83,7 @@ pub const LatencyWindow = struct {
         if (self.samples.items.len >= self.max_samples) {
             _ = self.samples.orderedRemove(0);
         }
-        try self.samples.append(latency_ms);
+        try self.samples.append(self.allocator, latency_ms);
         self.cache_valid = false;
     }
 
@@ -348,17 +348,17 @@ pub const PersonaStats = struct {
 
     /// Format as a human-readable string.
     pub fn format(self: PersonaStats, allocator: std.mem.Allocator) ![]const u8 {
-        var buf = std.ArrayList(u8).init(allocator);
+        var buf: std.Io.Writer.Allocating = .init(allocator);
         errdefer buf.deinit();
 
-        try std.fmt.format(buf.writer(), "Requests: {d}, Success Rate: {d:.1}%, Errors: {d}", .{
+        try buf.writer.print("Requests: {d}, Success Rate: {d:.1}%, Errors: {d}", .{
             self.total_requests,
             self.success_rate * 100.0,
             self.error_count,
         });
 
         if (self.latency) |lat| {
-            try std.fmt.format(buf.writer(), ", Latency P50: {d:.0}ms, P99: {d:.0}ms", .{
+            try buf.writer.print(", Latency P50: {d:.0}ms, P99: {d:.0}ms", .{
                 lat.p50,
                 lat.p99,
             });
