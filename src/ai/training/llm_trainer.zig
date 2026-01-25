@@ -342,8 +342,7 @@ pub const LlamaTrainer = struct {
         input_ids: []const u32,
         labels: []const u32,
     ) !StepMetrics {
-        _ = input_ids;
-        const seq_len = self.config.max_seq_len;
+        const seq_len: u32 = @intCast(input_ids.len);
 
         // Ensure model is prepared for training
         if (self.model.activations == null) {
@@ -355,19 +354,19 @@ pub const LlamaTrainer = struct {
         const logits = try self.allocator.alloc(f32, token_count * vocab_size);
         defer self.allocator.free(logits);
 
-        // Initialize logits with small random values
-        var rng = std.Random.DefaultPrng.init(self.stats.global_step);
-        for (logits) |*l| {
-            l.* = rng.random().floatNorm(f32) * 0.1;
-        }
+        // Forward pass through the model (real computation)
+        try self.model.forward(input_ids, logits);
 
-        // Compute loss
+        // Compute loss using CrossEntropy
         const loss = try self.loss_fn.forward(logits, labels);
 
-        // Backward pass (compute gradients)
+        // Backward pass (compute gradients through loss function)
         const d_logits = try self.allocator.alloc(f32, logits.len);
         defer self.allocator.free(d_logits);
         self.loss_fn.backward(d_logits);
+
+        // Backward pass through the model (gradient computation)
+        try self.model.backward(d_logits, input_ids);
 
         // Compute accuracy
         var correct: u64 = 0;

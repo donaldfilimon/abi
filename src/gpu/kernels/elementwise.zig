@@ -40,13 +40,10 @@ pub fn buildVectorAddKernelSIMD(allocator: std.mem.Allocator, vector_width: u32)
     const gid = builder.globalInvocationId();
     const base_idx = try gid.x();
 
-    // Calculate vectorized indices
-    var statements = std.ArrayList(*const dsl.Stmt).init(allocator);
-    defer statements.deinit();
-
+    // Generate vectorized bounds-checked assignments
     var i: u32 = 0;
     while (i < vector_width) : (i += 1) {
-        const idx = try builder.add(base_idx, try builder.intLiteral(@intCast(i)));
+        const idx = try builder.add(base_idx, try builder.u32Lit(@intCast(i)));
 
         // Bounds check: if (idx < n)
         const condition = try builder.lt(idx, try n.toExpr());
@@ -58,14 +55,8 @@ pub fn buildVectorAddKernelSIMD(allocator: std.mem.Allocator, vector_width: u32)
         const c_idx = try c.at(idx);
 
         const assign_stmt = try builder.assignStmt(c_idx, sum);
-        const if_stmt = try builder.ifStmt(condition, &[_]*const dsl.Stmt{assign_stmt}, null);
-
-        try statements.append(if_stmt);
-    }
-
-    // Add all statements to the kernel
-    for (statements.items) |stmt| {
-        try builder.addStmt(stmt);
+        // ifStmt adds directly to the builder's statement list
+        try builder.ifStmt(condition, &[_]*const dsl.Stmt{assign_stmt}, null);
     }
 
     const ir = try allocator.create(KernelIR);

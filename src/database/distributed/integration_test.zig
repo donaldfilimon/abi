@@ -35,7 +35,9 @@ test "WDBX distributed workflow integration" {
     // 2. Test shard key computation (distributed placement logic)
     const tenant_id: u64 = 1001;
     const session_id = "test-session-xyz";
-    const timestamp = std.time.timestamp();
+    // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
+    var timer = std.time.Timer.start() catch unreachable;
+    const timestamp: i64 = @intCast(timer.read());
 
     // Create shard key for placement decision
     const shard_key = Distributed.ShardKey.fromConversation(

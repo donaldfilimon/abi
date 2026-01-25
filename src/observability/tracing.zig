@@ -14,6 +14,10 @@ const utils = @import("../shared/utils.zig");
 pub const TraceId = [16]u8;
 pub const SpanId = [8]u8;
 
+/// Global counter for trace ID uniqueness (ensures no duplicates even with same timer value)
+var global_trace_counter: std.atomic.Value(u64) = .{ .raw = 0 };
+var global_span_counter: std.atomic.Value(u64) = .{ .raw = 0 };
+
 pub const SpanKind = enum {
     internal,
     server,
@@ -191,7 +195,14 @@ pub const Span = struct {
 
     pub fn generateTraceId() TraceId {
         var trace_id: TraceId = undefined;
-        std.crypto.random.bytes(&trace_id);
+        // Use DefaultPrng with combined timer + atomic counter for uniqueness
+        // The counter ensures unique seeds even if timer has low resolution
+        const counter = global_trace_counter.fetchAdd(1, .monotonic);
+        var prng = std.Random.DefaultPrng.init(blk: {
+            var timer = std.time.Timer.start() catch break :blk counter;
+            break :blk timer.read() ^ counter;
+        });
+        prng.fill(&trace_id);
         // Ensure not all zero
         if (trace_id[0] == 0) trace_id[0] = 1;
         return trace_id;
@@ -199,7 +210,13 @@ pub const Span = struct {
 
     pub fn generateSpanId() SpanId {
         var span_id: SpanId = undefined;
-        std.crypto.random.bytes(&span_id);
+        // Use DefaultPrng with combined timer + atomic counter for uniqueness
+        const counter = global_span_counter.fetchAdd(1, .monotonic);
+        var prng = std.Random.DefaultPrng.init(blk: {
+            var timer = std.time.Timer.start() catch break :blk counter;
+            break :blk timer.read() ^ counter;
+        });
+        prng.fill(&span_id);
         return span_id;
     }
 };

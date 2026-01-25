@@ -172,7 +172,22 @@ pub fn compareMatmul(
     if (build_options.enable_gpu) {
         const abi = @import("abi");
 
-        if (abi.gpu.Gpu.init(allocator, .{})) |*gpu_ctx| {
+        var gpu_instance_storage: abi.gpu.Gpu = abi.gpu.Gpu.init(allocator, .{}) catch {
+            return ComparisonResult{
+                .operation = "matmul",
+                .data_size = size,
+                .cpu_time_ns = cpu_time_ns,
+                .gpu_time_ns = 0,
+                .speedup = 0,
+                .gpu_efficiency = 0,
+                .cpu_throughput_gbps = cpu_throughput,
+                .gpu_throughput_gbps = 0,
+                .gpu_available = false,
+                .breakeven_estimated = false,
+            };
+        };
+        {
+            var gpu_ctx = &gpu_instance_storage;
             defer gpu_ctx.deinit();
 
             if (gpu_ctx.isAvailable()) {
@@ -219,7 +234,7 @@ pub fn compareMatmul(
                     }
                 }
             }
-        } else |_| {}
+        }
     }
 
     const speedup = if (gpu_available and gpu_time_ns > 0) cpu_time_ns / gpu_time_ns else 0;

@@ -27,6 +27,18 @@ pub const AiConfig = struct {
     /// Multi-persona assistant settings.
     personas: ?PersonasConfig = null,
 
+    /// Enable automatic model discovery from standard paths.
+    auto_discover: bool = false,
+
+    /// Custom model search paths (in addition to standard paths).
+    model_paths: []const []const u8 = &.{},
+
+    /// Enable adaptive configuration based on system capabilities.
+    adaptive_config: bool = true,
+
+    /// Run warm-up diagnostics on model load.
+    warmup_diagnostics: bool = false,
+
     pub fn defaults() AiConfig {
         return .{
             .llm = if (build_options.enable_llm) LlmConfig.defaults() else null,
@@ -34,6 +46,15 @@ pub const AiConfig = struct {
             .agents = AgentsConfig.defaults(),
             .training = null, // Training not enabled by default
             .personas = if (build_options.enable_ai) .{} else null,
+            .auto_discover = true, // Enable auto-discovery by default
+        };
+    }
+
+    /// Configuration with auto-discovery enabled.
+    pub fn withAutoDiscovery() AiConfig {
+        return .{
+            .auto_discover = true,
+            .adaptive_config = true,
         };
     }
 

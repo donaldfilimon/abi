@@ -633,7 +633,16 @@ pub const BatchMatMulKernel = struct {
         const batch_size = batch_activations.len;
 
         if (metrics) |m| {
-            const start_time = std.time.nanoTimestamp();
+            // Use Timer for Zig 0.16 compatibility (no std.time.nanoTimestamp())
+            var timer = std.time.Timer.start() catch {
+                // If timer fails, execute without timing
+                for (batch_activations, batch_outputs, 0..) |activations, output, i| {
+                    const weights = if (batch_weights) |bw| bw[i] else self.allocator.alloc(u8, 0) catch unreachable;
+                    defer if (batch_weights != null) {};
+                    try self.executeSingleHead(activations, weights, output);
+                }
+                return;
+            };
 
             // FPGA would have specialized pipeline for batch processing
 
@@ -644,7 +653,7 @@ pub const BatchMatMulKernel = struct {
                 try self.executeSingleHead(activations, weights, output);
             }
 
-            m.execution_time_ns = std.time.nanoTimestamp() - start_time;
+            m.execution_time_ns = @intCast(timer.read());
             m.total_flops = @as(u64, batch_size) * 2 * self.config.m * self.config.n * self.config.k;
         } else {
             for (batch_activations, batch_outputs, 0..) |activations, output, i| {

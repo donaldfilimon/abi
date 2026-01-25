@@ -145,16 +145,16 @@ test "database chaos: search returns correct results after partial writes" {
     const dims: usize = 64;
 
     // Insert some vectors without chaos to establish baseline
-    var baseline_vecs = std.ArrayList([]f32).init(allocator);
+    var baseline_vecs: std.ArrayListUnmanaged([]f32) = .empty;
     defer {
         for (baseline_vecs.items) |v| allocator.free(v);
-        baseline_vecs.deinit();
+        baseline_vecs.deinit(allocator);
     }
 
     var i: u64 = 0;
     while (i < 20) : (i += 1) {
         const vec = try generateRandomVector(&rng, dims, allocator);
-        try baseline_vecs.append(vec);
+        try baseline_vecs.append(allocator, vec);
         try database.insert(&handle, i, vec, null);
     }
 

@@ -15,6 +15,7 @@ const tui = @import("../tui/mod.zig");
 
 const train_subcommands = [_][]const u8{
     "run",
+    "new",
     "llm",
     "resume",
     "monitor",
@@ -33,6 +34,11 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     if (std.mem.eql(u8, command, "run")) {
         try runTrain(allocator, args[1..]);
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "new")) {
+        try runNewModel(allocator, args[1..]);
         return;
     }
 
@@ -301,6 +307,472 @@ fn runTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             });
         }
     }
+}
+
+fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printNewHelp();
+        return;
+    }
+
+    // Check if LLM feature is enabled
+    if (!abi.ai.llm.isEnabled()) {
+        std.debug.print("Error: LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
+        return;
+    }
+
+    // Default model configuration (tiny model for training from scratch)
+    var hidden_dim: u32 = 256;
+    var num_layers: u32 = 4;
+    var num_heads: u32 = 4;
+    var intermediate_dim: u32 = 512;
+    var vocab_size: u32 = 32000;
+    var max_seq_len: u32 = 128;
+
+    // Training config
+    var epochs: u32 = 1;
+    var batch_size: u32 = 4;
+    var learning_rate: f32 = 1e-4;
+    var warmup_steps: u32 = 100;
+    var weight_decay: f32 = 0.01;
+    var gradient_clip: f32 = 1.0;
+    var grad_accum_steps: u32 = 1;
+    var checkpoint_interval: u32 = 0;
+    var checkpoint_path: ?[]const u8 = null;
+    var max_checkpoints: u32 = 3;
+    var log_interval: u32 = 10;
+    var export_gguf_path: ?[]const u8 = null;
+    var export_gguf_name: ?[]const u8 = null;
+    var dataset_path: ?[]const u8 = null;
+    var dataset_format: DatasetFormat = .text;
+    var dataset_max_tokens: usize = 0;
+
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = args[i];
+        i += 1;
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--hidden-dim")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                hidden_dim = std.fmt.parseInt(u32, val, 10) catch 256;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--num-layers")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                num_layers = std.fmt.parseInt(u32, val, 10) catch 4;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--num-heads")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                num_heads = std.fmt.parseInt(u32, val, 10) catch 4;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--intermediate-dim")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                intermediate_dim = std.fmt.parseInt(u32, val, 10) catch 512;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--vocab-size")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                vocab_size = std.fmt.parseInt(u32, val, 10) catch 32000;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--max-seq-len")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                max_seq_len = std.fmt.parseInt(u32, val, 10) catch 128;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &[_][]const u8{ "--epochs", "-e" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                epochs = std.fmt.parseInt(u32, val, 10) catch 1;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &[_][]const u8{ "--batch-size", "-b" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                batch_size = std.fmt.parseInt(u32, val, 10) catch 4;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &[_][]const u8{ "--learning-rate", "--lr" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                learning_rate = std.fmt.parseFloat(f32, val) catch 1e-4;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--warmup-steps")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                warmup_steps = std.fmt.parseInt(u32, val, 10) catch 100;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--weight-decay")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                weight_decay = std.fmt.parseFloat(f32, val) catch 0.01;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--gradient-clip")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                gradient_clip = std.fmt.parseFloat(f32, val) catch 1.0;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (utils.args.matchesAny(arg, &[_][]const u8{ "--grad-accum", "--gradient-accumulation" })) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                grad_accum_steps = std.fmt.parseInt(u32, val, 10) catch 1;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--checkpoint-interval")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                checkpoint_interval = std.fmt.parseInt(u32, val, 10) catch 0;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--checkpoint-path")) {
+            if (i < args.len) {
+                checkpoint_path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--max-checkpoints")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                max_checkpoints = std.fmt.parseInt(u32, val, 10) catch 3;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--log-interval")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                log_interval = std.fmt.parseInt(u32, val, 10) catch 10;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--export-gguf")) {
+            if (i < args.len) {
+                export_gguf_path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--export-name")) {
+            if (i < args.len) {
+                export_gguf_name = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-path")) {
+            if (i < args.len) {
+                dataset_path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-format")) {
+            if (i < args.len) {
+                dataset_format = parseDatasetFormat(std.mem.sliceTo(args[i], 0));
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--dataset-max-tokens")) {
+            if (i < args.len) {
+                const val = std.mem.sliceTo(args[i], 0);
+                dataset_max_tokens = std.fmt.parseInt(usize, val, 10) catch 0;
+                i += 1;
+            }
+            continue;
+        }
+    }
+
+    // Create model config
+    const model_config = abi.ai.TrainableModelConfig{
+        .hidden_dim = hidden_dim,
+        .num_layers = num_layers,
+        .num_heads = num_heads,
+        .num_kv_heads = num_heads, // No GQA for simplicity
+        .intermediate_dim = intermediate_dim,
+        .vocab_size = vocab_size,
+        .max_seq_len = max_seq_len,
+    };
+
+    const num_params = model_config.numParams();
+
+    // Print configuration
+    std.debug.print("New Transformer Model Configuration\n", .{});
+    std.debug.print("====================================\n", .{});
+    std.debug.print("Architecture:\n", .{});
+    std.debug.print("  Hidden dim:       {d}\n", .{hidden_dim});
+    std.debug.print("  Num layers:       {d}\n", .{num_layers});
+    std.debug.print("  Num heads:        {d}\n", .{num_heads});
+    std.debug.print("  Intermediate dim: {d}\n", .{intermediate_dim});
+    std.debug.print("  Vocab size:       {d}\n", .{vocab_size});
+    std.debug.print("  Max seq len:      {d}\n", .{max_seq_len});
+    std.debug.print("  Parameters:       {d} ({d:.2} MB)\n", .{
+        num_params,
+        @as(f64, @floatFromInt(num_params * 4)) / (1024 * 1024),
+    });
+    std.debug.print("\nTraining:\n", .{});
+    std.debug.print("  Epochs:           {d}\n", .{epochs});
+    std.debug.print("  Batch size:       {d}\n", .{batch_size});
+    std.debug.print("  Learning rate:    {e:.2}\n", .{learning_rate});
+    std.debug.print("  Warmup steps:     {d}\n", .{warmup_steps});
+    std.debug.print("  Weight decay:     {d:.4}\n", .{weight_decay});
+    std.debug.print("  Gradient clip:    {d:.2}\n", .{gradient_clip});
+    std.debug.print("  Grad accumulation:{d}\n", .{grad_accum_steps});
+    if (dataset_path) |path| {
+        std.debug.print("  Dataset:          {s}\n", .{path});
+        std.debug.print("  Dataset format:   {s}\n", .{@tagName(dataset_format)});
+    } else {
+        std.debug.print("  Dataset:          (synthetic)\n", .{});
+    }
+    if (export_gguf_path) |path| {
+        std.debug.print("  Export GGUF:      {s}\n", .{path});
+    }
+    std.debug.print("\n", .{});
+
+    // Create model from scratch
+    std.debug.print("Initializing model with random weights...\n", .{});
+    var model = abi.ai.TrainableModel.init(allocator, model_config) catch |err| {
+        std.debug.print("Error initializing model: {t}\n", .{err});
+        return;
+    };
+    defer model.deinit();
+
+    std.debug.print("Model initialized: {d} parameters\n\n", .{num_params});
+
+    // Prepare training tokens
+    var train_tokens: []u32 = &.{};
+    defer if (train_tokens.len > 0) allocator.free(train_tokens);
+
+    if (dataset_path) |path| {
+        // Load dataset if provided
+        std.debug.print("Loading dataset from {s}...\n", .{path});
+
+        // For text format without tokenizer, we need to create synthetic tokens
+        // based on byte values (simple character-level encoding)
+        if (dataset_format == .text) {
+            const text = readTextFile(allocator, path) catch |err| {
+                std.debug.print("Error reading dataset: {t}\n", .{err});
+                return;
+            };
+            defer allocator.free(text);
+
+            // Simple byte-level tokenization
+            train_tokens = allocator.alloc(u32, text.len) catch |err| {
+                std.debug.print("Error allocating tokens: {t}\n", .{err});
+                return;
+            };
+            for (text, 0..) |byte, idx| {
+                train_tokens[idx] = @as(u32, byte) % vocab_size;
+            }
+
+            if (dataset_max_tokens > 0 and train_tokens.len > dataset_max_tokens) {
+                const trimmed = allocator.alloc(u32, dataset_max_tokens) catch |err| {
+                    std.debug.print("Error trimming tokens: {t}\n", .{err});
+                    return;
+                };
+                @memcpy(trimmed, train_tokens[0..dataset_max_tokens]);
+                allocator.free(train_tokens);
+                train_tokens = trimmed;
+            }
+        } else if (dataset_format == .tokenbin) {
+            train_tokens = abi.ai.readTokenBinFile(allocator, path) catch |err| {
+                std.debug.print("Error reading tokenbin: {t}\n", .{err});
+                return;
+            };
+            if (dataset_max_tokens > 0 and train_tokens.len > dataset_max_tokens) {
+                const trimmed = allocator.alloc(u32, dataset_max_tokens) catch |err| {
+                    std.debug.print("Error trimming tokens: {t}\n", .{err});
+                    return;
+                };
+                @memcpy(trimmed, train_tokens[0..dataset_max_tokens]);
+                allocator.free(train_tokens);
+                train_tokens = trimmed;
+            }
+        } else {
+            std.debug.print("Error: JSONL format requires a tokenizer (use --dataset-format text or tokenbin)\n", .{});
+            return;
+        }
+
+        std.debug.print("Loaded {d} tokens\n\n", .{train_tokens.len});
+    } else {
+        // Generate synthetic training data
+        const num_tokens = @as(usize, max_seq_len) * batch_size * 10;
+        train_tokens = allocator.alloc(u32, num_tokens) catch |err| {
+            std.debug.print("Error allocating synthetic tokens: {t}\n", .{err});
+            return;
+        };
+
+        var rng = std.Random.DefaultPrng.init(42);
+        for (train_tokens) |*t| {
+            t.* = rng.random().intRangeLessThan(u32, 0, vocab_size);
+        }
+        std.debug.print("Generated {d} synthetic tokens for training\n\n", .{num_tokens});
+    }
+
+    // Clamp tokens to vocab size
+    clampTokens(train_tokens, vocab_size);
+
+    // Create LLM training config
+    var llm_config = abi.ai.LlmTrainingConfig{
+        .epochs = epochs,
+        .batch_size = batch_size,
+        .max_seq_len = max_seq_len,
+        .learning_rate = learning_rate,
+        .warmup_steps = warmup_steps,
+        .weight_decay = weight_decay,
+        .max_grad_norm = gradient_clip,
+        .grad_accum_steps = grad_accum_steps,
+        .checkpoint_interval = checkpoint_interval,
+        .checkpoint_path = checkpoint_path,
+        .max_checkpoints = max_checkpoints,
+        .log_interval = log_interval,
+        .log_dir = "logs",
+        .enable_metrics_stream = true,
+    };
+
+    if (export_gguf_path) |path| {
+        llm_config.export_gguf_path = path;
+    }
+    if (export_gguf_name) |name| {
+        llm_config.export_name = name;
+    }
+
+    std.debug.print("Starting training from scratch...\n", .{});
+    var timer = std.time.Timer.start() catch {
+        std.debug.print("Error: Failed to start timer\n", .{});
+        return;
+    };
+
+    const report = abi.ai.training.llm_trainer.trainLlm(allocator, &model, llm_config, train_tokens) catch |err| {
+        std.debug.print("Training failed: {t}\n", .{err});
+        return;
+    };
+
+    const elapsed_ns = timer.read();
+    const elapsed_s = @as(f64, @floatFromInt(elapsed_ns)) / 1e9;
+
+    std.debug.print("\nTraining Complete\n", .{});
+    std.debug.print("=================\n", .{});
+    std.debug.print("Final loss:       {d:.6}\n", .{report.final_loss});
+    std.debug.print("Final accuracy:   {d:.2}%\n", .{report.final_accuracy * 100});
+    std.debug.print("Total steps:      {d}\n", .{report.total_steps});
+    std.debug.print("Tokens processed: {d}\n", .{report.total_tokens});
+    std.debug.print("Wall time:        {d:.2}s\n", .{elapsed_s});
+    std.debug.print("Checkpoints saved:{d}\n", .{report.checkpoints_saved});
+    if (export_gguf_path) |path| {
+        std.debug.print("Model exported to:{s}\n", .{path});
+    }
+}
+
+fn printNewHelp() void {
+    const help_text =
+        \\Usage: abi train new [options]
+        \\
+        \\Create and train a new transformer model from scratch.
+        \\
+        \\Architecture options:
+        \\  --hidden-dim <n>       Hidden dimension (default: 256)
+        \\  --num-layers <n>       Number of layers (default: 4)
+        \\  --num-heads <n>        Number of attention heads (default: 4)
+        \\  --intermediate-dim <n> FFN intermediate dim (default: 512)
+        \\  --vocab-size <n>       Vocabulary size (default: 32000)
+        \\  --max-seq-len <n>      Maximum sequence length (default: 128)
+        \\
+        \\Training options:
+        \\  -e, --epochs <n>       Number of epochs (default: 1)
+        \\  -b, --batch-size <n>   Batch size (default: 4)
+        \\  --lr, --learning-rate  Learning rate (default: 1e-4)
+        \\  --warmup-steps <n>     Warmup steps (default: 100)
+        \\  --weight-decay <f>     Weight decay (default: 0.01)
+        \\  --gradient-clip <f>    Gradient clip norm (default: 1.0)
+        \\  --grad-accum <n>       Gradient accumulation (default: 1)
+        \\  --log-interval <n>     Log every N steps (default: 10)
+        \\
+        \\Checkpointing:
+        \\  --checkpoint-interval  Steps between checkpoints
+        \\  --checkpoint-path      Path to save checkpoints
+        \\  --max-checkpoints      Max checkpoints to keep (default: 3)
+        \\
+        \\Dataset:
+        \\  --dataset-path <path>  Local dataset file (text or tokenbin)
+        \\  --dataset-format       text, tokenbin (default: text)
+        \\  --dataset-max-tokens   Limit tokens for training
+        \\
+        \\Export:
+        \\  --export-gguf <path>   Export trained model as GGUF
+        \\  --export-name <name>   Model name in GGUF metadata
+        \\
+        \\Examples:
+        \\  abi train new --epochs 5
+        \\  abi train new --hidden-dim 512 --num-layers 8 --num-heads 8
+        \\  abi train new --dataset-path data.txt --epochs 10
+        \\  abi train new --export-gguf model.gguf --export-name my-model
+        \\
+    ;
+    std.debug.print("{s}", .{help_text});
 }
 
 fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -1165,6 +1637,7 @@ fn printHelp() void {
         \\
         \\Commands:
         \\  run [options]           Run basic training with specified configuration
+        \\  new [options]           Create and train a new transformer from scratch
         \\  llm <model> [options]   Train LLM from GGUF model file
         \\  resume <checkpoint>     Resume training from a checkpoint file
         \\  monitor [run-id]        Monitor training progress (TUI dashboard)
@@ -1225,6 +1698,8 @@ fn printHelp() void {
         \\Examples:
         \\  abi train run --epochs 10 --batch-size 32
         \\  abi train run -e 5 -b 16 --optimizer adam --lr 0.0001
+        \\  abi train new --hidden-dim 256 --num-layers 4 --epochs 5
+        \\  abi train new --dataset-path data.txt --export-gguf model.gguf
         \\  abi train llm model.gguf --epochs 1 --batch-size 4 --lr 1e-5
         \\  abi train llm model.gguf --grad-accum 8 --max-seq-len 512 --use-gpu
         \\  abi train llm model.gguf --checkpoint-interval 100 --checkpoint-path ./ckpt

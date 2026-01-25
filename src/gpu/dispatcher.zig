@@ -106,6 +106,8 @@ pub const LaunchConfig = struct {
     local_size: ?[3]u32 = null,
     /// Shared memory size in bytes.
     shared_memory: u32 = 0,
+    /// Optional stream handle for async execution.
+    stream: ?*anyopaque = null,
 
     /// Calculate grid dimensions from global size and local size.
     pub fn gridDimensions(self: *const LaunchConfig) [3]u32 {

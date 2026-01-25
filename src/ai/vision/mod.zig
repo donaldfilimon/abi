@@ -54,6 +54,12 @@ pub const pooling = @import("pooling.zig");
 /// Batch normalization
 pub const batchnorm = @import("batchnorm.zig");
 
+/// Vision Transformer (ViT) for image encoding
+pub const vit = @import("vit.zig");
+
+/// Multi-modal fusion and contrastive learning
+pub const multimodal = @import("multimodal.zig");
+
 // ============================================================================
 // Image Type Re-exports
 // ============================================================================
@@ -143,6 +149,54 @@ pub const BatchNorm2D = batchnorm.BatchNorm2D;
 
 /// Gradients from BatchNorm backward pass
 pub const BatchNormGradients = batchnorm.BatchNormGradients;
+
+/// Vision Transformer model
+pub const VisionTransformer = vit.VisionTransformer;
+
+/// Vision Transformer configuration
+pub const ViTConfig = vit.ViTConfig;
+
+/// Patch embedding layer for ViT
+pub const PatchEmbedding = vit.PatchEmbedding;
+
+/// Multi-head self-attention
+pub const MultiHeadAttention = vit.MultiHeadAttention;
+
+/// Transformer encoder block
+pub const TransformerBlock = vit.TransformerBlock;
+
+/// Layer normalization
+pub const ViTLayerNorm = vit.LayerNorm;
+
+/// MLP block (feed-forward network)
+pub const ViTMLP = vit.MLP;
+
+/// GELU activation function
+pub const gelu = vit.gelu;
+
+/// CLIP-style contrastive learning model
+pub const CLIPModel = multimodal.CLIPModel;
+
+/// Multi-modal configuration
+pub const MultiModalConfig = multimodal.MultiModalConfig;
+
+/// Contrastive loss for aligning embeddings
+pub const ContrastiveLoss = multimodal.ContrastiveLoss;
+
+/// Cross-modal attention layer
+pub const CrossAttention = multimodal.CrossAttention;
+
+/// Text encoder for multi-modal learning
+pub const TextEncoder = multimodal.TextEncoder;
+
+/// Text embedding layer
+pub const TextEmbedding = multimodal.TextEmbedding;
+
+/// Fusion block for bidirectional cross-attention
+pub const FusionBlock = multimodal.FusionBlock;
+
+/// Unified embedding space for multi-modal retrieval
+pub const UnifiedEmbeddingSpace = multimodal.UnifiedEmbeddingSpace;
 
 // ============================================================================
 // Normalization Constants
@@ -283,4 +337,6 @@ test {
     _ = conv;
     _ = pooling;
     _ = batchnorm;
+    _ = vit;
+    _ = multimodal;
 }

@@ -13,6 +13,8 @@ const property = @import("mod.zig");
 const generators = @import("generators.zig");
 const abi = @import("abi");
 const runtime = abi.runtime;
+// Priority is exported from concurrency submodule
+const Priority = runtime.concurrency.Priority;
 
 const forAll = property.forAll;
 const forAllWithAllocator = property.forAllWithAllocator;
@@ -555,12 +557,13 @@ test "PriorityQueue: dequeue returns highest priority first" {
 
     const result = forAllWithAllocator(Params, std.testing.allocator, gen, TestConfig, struct {
         fn check(params: Params, allocator: std.mem.Allocator) bool {
-            var pq = runtime.PriorityQueue(u64).init(allocator, .{}) catch return false;
+            // PriorityQueue.init doesn't return error union in Zig 0.16
+            var pq = runtime.PriorityQueue(u64).init(allocator, .{});
             defer pq.deinit();
 
             // Insert with priorities
             for (0..params.count) |i| {
-                const priority: runtime.Priority = switch (params.priorities[i] % 4) {
+                const priority: Priority = switch (params.priorities[i] % 4) {
                     0 => .critical,
                     1 => .high,
                     2 => .normal,

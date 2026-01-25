@@ -76,33 +76,45 @@ fn executeCommand(allocator: std.mem.Allocator, args: []const []const u8) !Comma
     }
 }
 
+/// Helper to append formatted text to ArrayListUnmanaged
+fn appendFormat(list: *std.ArrayListUnmanaged(u8), allocator: std.mem.Allocator, comptime fmt: []const u8, args: anytype) !void {
+    var buf: [1024]u8 = undefined;
+    const slice = std.fmt.bufPrint(&buf, fmt, args) catch |err| switch (err) {
+        error.NoSpaceLeft => {
+            const formatted = try std.fmt.allocPrint(allocator, fmt, args);
+            defer allocator.free(formatted);
+            try list.appendSlice(allocator, formatted);
+            return;
+        },
+    };
+    try list.appendSlice(allocator, slice);
+}
+
 fn simulateSystemInfo(allocator: std.mem.Allocator) !CommandResult {
-    var output = std.ArrayList(u8).init(allocator);
-    defer output.deinit();
+    var output: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer output.deinit(allocator);
 
-    const writer = output.writer();
+    try output.appendSlice(allocator, "ABI Framework System Information\n");
+    try output.appendSlice(allocator, "================================\n\n");
 
-    try writer.writeAll("ABI Framework System Information\n");
-    try writer.writeAll("================================\n\n");
+    try appendFormat(&output, allocator, "Version: {s}\n", .{abi.version()});
+    try output.appendSlice(allocator, "\nEnabled Features:\n");
 
-    try std.fmt.format(writer, "Version: {s}\n", .{abi.version()});
-    try writer.writeAll("\nEnabled Features:\n");
+    if (build_options.enable_gpu) try output.appendSlice(allocator, "  - GPU acceleration\n");
+    if (build_options.enable_ai) try output.appendSlice(allocator, "  - AI module\n");
+    if (build_options.enable_llm) try output.appendSlice(allocator, "  - LLM inference\n");
+    if (build_options.enable_database) try output.appendSlice(allocator, "  - Vector database\n");
+    if (build_options.enable_network) try output.appendSlice(allocator, "  - Distributed network\n");
+    if (build_options.enable_web) try output.appendSlice(allocator, "  - Web utilities\n");
+    if (build_options.enable_profiling) try output.appendSlice(allocator, "  - Profiling\n");
 
-    if (build_options.enable_gpu) try writer.writeAll("  - GPU acceleration\n");
-    if (build_options.enable_ai) try writer.writeAll("  - AI module\n");
-    if (build_options.enable_llm) try writer.writeAll("  - LLM inference\n");
-    if (build_options.enable_database) try writer.writeAll("  - Vector database\n");
-    if (build_options.enable_network) try writer.writeAll("  - Distributed network\n");
-    if (build_options.enable_web) try writer.writeAll("  - Web utilities\n");
-    if (build_options.enable_profiling) try writer.writeAll("  - Profiling\n");
-
-    try writer.writeAll("\nPlatform Information:\n");
-    try std.fmt.format(writer, "  OS: {s}\n", .{@tagName(@import("builtin").os.tag)});
-    try std.fmt.format(writer, "  Arch: {s}\n", .{@tagName(@import("builtin").cpu.arch)});
+    try output.appendSlice(allocator, "\nPlatform Information:\n");
+    try appendFormat(&output, allocator, "  OS: {s}\n", .{@tagName(@import("builtin").os.tag)});
+    try appendFormat(&output, allocator, "  Arch: {s}\n", .{@tagName(@import("builtin").cpu.arch)});
 
     return .{
         .success = true,
-        .output = try output.toOwnedSlice(),
+        .output = try output.toOwnedSlice(allocator),
         .error_msg = null,
         .allocator = allocator,
     };
@@ -144,67 +156,61 @@ fn simulateDbCommand(allocator: std.mem.Allocator, args: []const []const u8) !Co
 }
 
 fn simulateDbStats(allocator: std.mem.Allocator) !CommandResult {
-    var output = std.ArrayList(u8).init(allocator);
-    defer output.deinit();
+    var output: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer output.deinit(allocator);
 
-    const writer = output.writer();
-
-    try writer.writeAll("Database Statistics\n");
-    try writer.writeAll("==================\n");
-    try writer.writeAll("Vectors: 0\n");
-    try writer.writeAll("Dimension: 0\n");
-    try writer.writeAll("Memory: 0 bytes\n");
-    try writer.writeAll("Index: HNSW\n");
+    try output.appendSlice(allocator, "Database Statistics\n");
+    try output.appendSlice(allocator, "==================\n");
+    try output.appendSlice(allocator, "Vectors: 0\n");
+    try output.appendSlice(allocator, "Dimension: 0\n");
+    try output.appendSlice(allocator, "Memory: 0 bytes\n");
+    try output.appendSlice(allocator, "Index: HNSW\n");
 
     return .{
         .success = true,
-        .output = try output.toOwnedSlice(),
+        .output = try output.toOwnedSlice(allocator),
         .error_msg = null,
         .allocator = allocator,
     };
 }
 
 fn simulateDbList(allocator: std.mem.Allocator) !CommandResult {
-    var output = std.ArrayList(u8).init(allocator);
-    defer output.deinit();
+    var output: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer output.deinit(allocator);
 
-    const writer = output.writer();
-
-    try writer.writeAll("Available databases:\n");
-    try writer.writeAll("  (none)\n");
+    try output.appendSlice(allocator, "Available databases:\n");
+    try output.appendSlice(allocator, "  (none)\n");
 
     return .{
         .success = true,
-        .output = try output.toOwnedSlice(),
+        .output = try output.toOwnedSlice(allocator),
         .error_msg = null,
         .allocator = allocator,
     };
 }
 
 fn simulateHelp(allocator: std.mem.Allocator) !CommandResult {
-    var output = std.ArrayList(u8).init(allocator);
-    defer output.deinit();
+    var output: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer output.deinit(allocator);
 
-    const writer = output.writer();
-
-    try writer.writeAll("ABI Framework CLI\n\n");
-    try writer.writeAll("Usage: abi [command] [options]\n\n");
-    try writer.writeAll("Commands:\n");
-    try writer.writeAll("  system-info    Show system information\n");
-    try writer.writeAll("  db             Database operations\n");
-    try writer.writeAll("  agent          AI agent interaction\n");
-    try writer.writeAll("  llm            LLM inference\n");
-    try writer.writeAll("  gpu            GPU management\n");
-    try writer.writeAll("  task           Task management\n");
-    try writer.writeAll("\n");
-    try writer.writeAll("Options:\n");
-    try writer.writeAll("  --help         Show this help\n");
-    try writer.writeAll("  --version      Show version\n");
-    try writer.writeAll("  --list-features  List available features\n");
+    try output.appendSlice(allocator, "ABI Framework CLI\n\n");
+    try output.appendSlice(allocator, "Usage: abi [command] [options]\n\n");
+    try output.appendSlice(allocator, "Commands:\n");
+    try output.appendSlice(allocator, "  system-info    Show system information\n");
+    try output.appendSlice(allocator, "  db             Database operations\n");
+    try output.appendSlice(allocator, "  agent          AI agent interaction\n");
+    try output.appendSlice(allocator, "  llm            LLM inference\n");
+    try output.appendSlice(allocator, "  gpu            GPU management\n");
+    try output.appendSlice(allocator, "  task           Task management\n");
+    try output.appendSlice(allocator, "\n");
+    try output.appendSlice(allocator, "Options:\n");
+    try output.appendSlice(allocator, "  --help         Show this help\n");
+    try output.appendSlice(allocator, "  --version      Show version\n");
+    try output.appendSlice(allocator, "  --list-features  List available features\n");
 
     return .{
         .success = true,
-        .output = try output.toOwnedSlice(),
+        .output = try output.toOwnedSlice(allocator),
         .error_msg = null,
         .allocator = allocator,
     };
@@ -221,23 +227,21 @@ fn simulateVersion(allocator: std.mem.Allocator) !CommandResult {
 }
 
 fn simulateListFeatures(allocator: std.mem.Allocator) !CommandResult {
-    var output = std.ArrayList(u8).init(allocator);
-    defer output.deinit();
+    var output: std.ArrayListUnmanaged(u8) = .empty;
+    errdefer output.deinit(allocator);
 
-    const writer = output.writer();
-
-    try writer.writeAll("Feature Status:\n");
-    try std.fmt.format(writer, "  gpu:       {s}\n", .{if (build_options.enable_gpu) "enabled" else "disabled"});
-    try std.fmt.format(writer, "  ai:        {s}\n", .{if (build_options.enable_ai) "enabled" else "disabled"});
-    try std.fmt.format(writer, "  llm:       {s}\n", .{if (build_options.enable_llm) "enabled" else "disabled"});
-    try std.fmt.format(writer, "  database:  {s}\n", .{if (build_options.enable_database) "enabled" else "disabled"});
-    try std.fmt.format(writer, "  network:   {s}\n", .{if (build_options.enable_network) "enabled" else "disabled"});
-    try std.fmt.format(writer, "  web:       {s}\n", .{if (build_options.enable_web) "enabled" else "disabled"});
-    try std.fmt.format(writer, "  profiling: {s}\n", .{if (build_options.enable_profiling) "enabled" else "disabled"});
+    try output.appendSlice(allocator, "Feature Status:\n");
+    try appendFormat(&output, allocator, "  gpu:       {s}\n", .{if (build_options.enable_gpu) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  ai:        {s}\n", .{if (build_options.enable_ai) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  llm:       {s}\n", .{if (build_options.enable_llm) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  database:  {s}\n", .{if (build_options.enable_database) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  network:   {s}\n", .{if (build_options.enable_network) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  web:       {s}\n", .{if (build_options.enable_web) "enabled" else "disabled"});
+    try appendFormat(&output, allocator, "  profiling: {s}\n", .{if (build_options.enable_profiling) "enabled" else "disabled"});
 
     return .{
         .success = true,
-        .output = try output.toOwnedSlice(),
+        .output = try output.toOwnedSlice(allocator),
         .error_msg = null,
         .allocator = allocator,
     };

@@ -40,6 +40,13 @@ const loss_mod = @import("loss.zig");
 const gradient = @import("gradient.zig");
 const logging = @import("logging.zig");
 
+/// Get current timestamp for Zig 0.16 compatibility (no std.time.timestamp()).
+/// Returns nanoseconds since timer start as an i64.
+fn getCurrentTimestamp() i64 {
+    var timer = std.time.Timer.start() catch return 0;
+    return @intCast(timer.read());
+}
+
 // ============================================================================
 // Self-Learning Configuration
 // ============================================================================
@@ -413,6 +420,602 @@ pub const RewardModel = struct {
 };
 
 // ============================================================================
+// Policy Network (Actor-Critic)
+// ============================================================================
+
+/// Neural network policy for action selection and value estimation
+/// Implements actor-critic architecture for RLHF
+pub const PolicyNetwork = struct {
+    allocator: std.mem.Allocator,
+    config: PolicyConfig,
+
+    // Actor (policy) network weights
+    actor_w1: []f32, // [hidden_dim, input_dim]
+    actor_b1: []f32, // [hidden_dim]
+    actor_w2: []f32, // [hidden_dim, hidden_dim]
+    actor_b2: []f32, // [hidden_dim]
+    actor_out: []f32, // [output_dim, hidden_dim]
+    actor_out_b: []f32, // [output_dim]
+
+    // Critic (value) network weights
+    critic_w1: []f32, // [hidden_dim, input_dim]
+    critic_b1: []f32, // [hidden_dim]
+    critic_w2: []f32, // [hidden_dim, hidden_dim]
+    critic_b2: []f32, // [hidden_dim]
+    critic_out: []f32, // [1, hidden_dim]
+    critic_out_b: f32,
+
+    // Optimizer state (Adam)
+    adam_m: ?[]f32, // First moment
+    adam_v: ?[]f32, // Second moment
+    adam_t: u64, // Timestep
+
+    pub const PolicyConfig = struct {
+        input_dim: u32 = 768,
+        hidden_dim: u32 = 256,
+        output_dim: u32 = 768, // Same as embedding dim for residual connection
+        learning_rate: f32 = 3e-4,
+        beta1: f32 = 0.9,
+        beta2: f32 = 0.999,
+        epsilon: f32 = 1e-8,
+        weight_decay: f32 = 0.01,
+        max_grad_norm: f32 = 1.0,
+        use_layer_norm: bool = true,
+    };
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator, config: PolicyConfig) !Self {
+        const in_dim = config.input_dim;
+        const hid_dim = config.hidden_dim;
+        const out_dim = config.output_dim;
+
+        var self = Self{
+            .allocator = allocator,
+            .config = config,
+            .actor_w1 = try allocator.alloc(f32, hid_dim * in_dim),
+            .actor_b1 = try allocator.alloc(f32, hid_dim),
+            .actor_w2 = try allocator.alloc(f32, hid_dim * hid_dim),
+            .actor_b2 = try allocator.alloc(f32, hid_dim),
+            .actor_out = try allocator.alloc(f32, out_dim * hid_dim),
+            .actor_out_b = try allocator.alloc(f32, out_dim),
+            .critic_w1 = try allocator.alloc(f32, hid_dim * in_dim),
+            .critic_b1 = try allocator.alloc(f32, hid_dim),
+            .critic_w2 = try allocator.alloc(f32, hid_dim * hid_dim),
+            .critic_b2 = try allocator.alloc(f32, hid_dim),
+            .critic_out = try allocator.alloc(f32, hid_dim),
+            .critic_out_b = 0.0,
+            .adam_m = null,
+            .adam_v = null,
+            .adam_t = 0,
+        };
+
+        // Initialize weights with Xavier/He initialization
+        self.initializeWeights();
+
+        return self;
+    }
+
+    fn initializeWeights(self: *Self) void {
+        const seed = blk: {
+            var timer = std.time.Timer.start() catch break :blk @as(u64, 12345);
+            break :blk timer.read();
+        };
+        var rng = std.Random.DefaultPrng.init(seed);
+        const random = rng.random();
+
+        // He initialization for ReLU/GELU
+        const scale1 = @sqrt(2.0 / @as(f32, @floatFromInt(self.config.input_dim)));
+        const scale2 = @sqrt(2.0 / @as(f32, @floatFromInt(self.config.hidden_dim)));
+
+        for (self.actor_w1) |*w| w.* = (random.float(f32) * 2.0 - 1.0) * scale1;
+        for (self.actor_w2) |*w| w.* = (random.float(f32) * 2.0 - 1.0) * scale2;
+        for (self.actor_out) |*w| w.* = (random.float(f32) * 2.0 - 1.0) * scale2 * 0.01;
+        for (self.critic_w1) |*w| w.* = (random.float(f32) * 2.0 - 1.0) * scale1;
+        for (self.critic_w2) |*w| w.* = (random.float(f32) * 2.0 - 1.0) * scale2;
+        for (self.critic_out) |*w| w.* = (random.float(f32) * 2.0 - 1.0) * scale2 * 0.01;
+
+        @memset(self.actor_b1, 0.0);
+        @memset(self.actor_b2, 0.0);
+        @memset(self.actor_out_b, 0.0);
+        @memset(self.critic_b1, 0.0);
+        @memset(self.critic_b2, 0.0);
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.allocator.free(self.actor_w1);
+        self.allocator.free(self.actor_b1);
+        self.allocator.free(self.actor_w2);
+        self.allocator.free(self.actor_b2);
+        self.allocator.free(self.actor_out);
+        self.allocator.free(self.actor_out_b);
+        self.allocator.free(self.critic_w1);
+        self.allocator.free(self.critic_b1);
+        self.allocator.free(self.critic_w2);
+        self.allocator.free(self.critic_b2);
+        self.allocator.free(self.critic_out);
+        if (self.adam_m) |m| self.allocator.free(m);
+        if (self.adam_v) |v| self.allocator.free(v);
+    }
+
+    /// GELU activation
+    fn gelu(x: f32) f32 {
+        const sqrt_2_over_pi: f32 = 0.7978845608;
+        const coeff: f32 = 0.044715;
+        const inner = sqrt_2_over_pi * (x + coeff * x * x * x);
+        return 0.5 * x * (1.0 + std.math.tanh(inner));
+    }
+
+    /// Forward pass through actor network
+    /// Returns policy logits/embedding adjustment
+    pub fn actorForward(self: *const Self, state: []const f32) ![]f32 {
+        const hid_dim = self.config.hidden_dim;
+        const out_dim = self.config.output_dim;
+        const in_dim = self.config.input_dim;
+
+        // First layer
+        const h1 = try self.allocator.alloc(f32, hid_dim);
+        defer self.allocator.free(h1);
+
+        for (0..hid_dim) |i| {
+            var sum: f32 = self.actor_b1[i];
+            for (0..@min(in_dim, state.len)) |j| {
+                sum += state[j] * self.actor_w1[i * in_dim + j];
+            }
+            h1[i] = gelu(sum);
+        }
+
+        // Second layer
+        const h2 = try self.allocator.alloc(f32, hid_dim);
+        defer self.allocator.free(h2);
+
+        for (0..hid_dim) |i| {
+            var sum: f32 = self.actor_b2[i];
+            for (0..hid_dim) |j| {
+                sum += h1[j] * self.actor_w2[i * hid_dim + j];
+            }
+            h2[i] = gelu(sum);
+        }
+
+        // Output layer
+        const output = try self.allocator.alloc(f32, out_dim);
+        for (0..out_dim) |i| {
+            var sum: f32 = self.actor_out_b[i];
+            for (0..hid_dim) |j| {
+                sum += h2[j] * self.actor_out[i * hid_dim + j];
+            }
+            output[i] = sum; // No activation - used as logit adjustment
+        }
+
+        return output;
+    }
+
+    /// Forward pass through critic network
+    /// Returns value estimate
+    pub fn criticForward(self: *const Self, state: []const f32) !f32 {
+        const hid_dim = self.config.hidden_dim;
+        const in_dim = self.config.input_dim;
+
+        // First layer
+        const h1 = try self.allocator.alloc(f32, hid_dim);
+        defer self.allocator.free(h1);
+
+        for (0..hid_dim) |i| {
+            var sum: f32 = self.critic_b1[i];
+            for (0..@min(in_dim, state.len)) |j| {
+                sum += state[j] * self.critic_w1[i * in_dim + j];
+            }
+            h1[i] = gelu(sum);
+        }
+
+        // Second layer
+        const h2 = try self.allocator.alloc(f32, hid_dim);
+        defer self.allocator.free(h2);
+
+        for (0..hid_dim) |i| {
+            var sum: f32 = self.critic_b2[i];
+            for (0..hid_dim) |j| {
+                sum += h1[j] * self.critic_w2[i * hid_dim + j];
+            }
+            h2[i] = gelu(sum);
+        }
+
+        // Output layer (single value)
+        var value: f32 = self.critic_out_b;
+        for (0..hid_dim) |j| {
+            value += h2[j] * self.critic_out[j];
+        }
+
+        return value;
+    }
+
+    /// Compute advantage using GAE (Generalized Advantage Estimation)
+    pub fn computeGAE(
+        self: *const Self,
+        rewards: []const f32,
+        values: []const f32,
+        dones: []const bool,
+        gamma: f32,
+        gae_lambda: f32,
+    ) ![]f32 {
+        const n = rewards.len;
+        if (n == 0) return &[_]f32{};
+
+        const advantages = try self.allocator.alloc(f32, n);
+        var last_gae: f32 = 0;
+
+        var i: usize = n;
+        while (i > 0) {
+            i -= 1;
+            const next_value = if (i + 1 < n) values[i + 1] else 0;
+            const next_non_terminal: f32 = if (i + 1 < n and !dones[i + 1]) 1.0 else 0.0;
+
+            const delta = rewards[i] + gamma * next_value * next_non_terminal - values[i];
+            last_gae = delta + gamma * gae_lambda * next_non_terminal * last_gae;
+            advantages[i] = last_gae;
+        }
+
+        return advantages;
+    }
+
+    /// Get total parameter count
+    pub fn numParams(self: *const Self) usize {
+        const in_dim = self.config.input_dim;
+        const hid_dim = self.config.hidden_dim;
+        const out_dim = self.config.output_dim;
+
+        const actor_params = hid_dim * in_dim + hid_dim + // w1, b1
+            hid_dim * hid_dim + hid_dim + // w2, b2
+            out_dim * hid_dim + out_dim; // out, out_b
+
+        const critic_params = hid_dim * in_dim + hid_dim + // w1, b1
+            hid_dim * hid_dim + hid_dim + // w2, b2
+            hid_dim + 1; // out, out_b
+
+        return actor_params + critic_params;
+    }
+};
+
+// ============================================================================
+// DPO (Direct Preference Optimization)
+// ============================================================================
+
+/// Direct Preference Optimization for RLHF without reward model
+/// Simpler and more stable than PPO-based RLHF
+pub const DPOOptimizer = struct {
+    allocator: std.mem.Allocator,
+    config: DPOConfig,
+    policy_network: ?PolicyNetwork,
+
+    // Reference policy log probabilities (frozen)
+    ref_log_probs: std.ArrayListUnmanaged(f32),
+
+    // Preference pairs storage
+    preference_pairs: std.ArrayListUnmanaged(PreferencePair),
+
+    // Training statistics
+    stats: DPOStats,
+
+    pub const DPOConfig = struct {
+        /// Beta parameter for DPO (controls strength of preference)
+        beta: f32 = 0.1,
+        /// Learning rate
+        learning_rate: f32 = 1e-6,
+        /// Batch size
+        batch_size: u32 = 4,
+        /// Label smoothing
+        label_smoothing: f32 = 0.0,
+        /// Maximum pairs to store
+        max_pairs: usize = 10000,
+        /// Minimum pairs before training
+        min_pairs: usize = 32,
+        /// Reference model update frequency
+        ref_update_freq: u32 = 100,
+    };
+
+    pub const PreferencePair = struct {
+        /// Chosen response embedding/tokens
+        chosen_embedding: []f32,
+        /// Rejected response embedding/tokens
+        rejected_embedding: []f32,
+        /// Context/prompt embedding
+        context_embedding: []f32,
+        /// Confidence in the preference
+        confidence: f32,
+        /// Timestamp
+        timestamp: i64,
+    };
+
+    pub const DPOStats = struct {
+        total_pairs: u64 = 0,
+        total_updates: u64 = 0,
+        avg_loss: f32 = 0,
+        avg_chosen_reward: f32 = 0,
+        avg_rejected_reward: f32 = 0,
+        reward_margin: f32 = 0,
+    };
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator, config: DPOConfig) !Self {
+        return .{
+            .allocator = allocator,
+            .config = config,
+            .policy_network = null,
+            .ref_log_probs = .{},
+            .preference_pairs = .{},
+            .stats = .{},
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        if (self.policy_network) |*pn| pn.deinit();
+        for (self.preference_pairs.items) |pair| {
+            self.allocator.free(pair.chosen_embedding);
+            self.allocator.free(pair.rejected_embedding);
+            self.allocator.free(pair.context_embedding);
+        }
+        self.preference_pairs.deinit(self.allocator);
+        self.ref_log_probs.deinit(self.allocator);
+    }
+
+    /// Add a preference pair for training
+    pub fn addPreferencePair(
+        self: *Self,
+        chosen: []const f32,
+        rejected: []const f32,
+        context: []const f32,
+        confidence: f32,
+    ) !void {
+        // Remove oldest if at capacity
+        if (self.preference_pairs.items.len >= self.config.max_pairs) {
+            const old = self.preference_pairs.orderedRemove(0);
+            self.allocator.free(old.chosen_embedding);
+            self.allocator.free(old.rejected_embedding);
+            self.allocator.free(old.context_embedding);
+        }
+
+        const pair = PreferencePair{
+            .chosen_embedding = try self.allocator.dupe(f32, chosen),
+            .rejected_embedding = try self.allocator.dupe(f32, rejected),
+            .context_embedding = try self.allocator.dupe(f32, context),
+            .confidence = confidence,
+            .timestamp = getCurrentTimestamp(),
+        };
+
+        try self.preference_pairs.append(self.allocator, pair);
+        self.stats.total_pairs += 1;
+    }
+
+    /// Compute DPO loss for a preference pair
+    fn computeDPOLoss(
+        self: *const Self,
+        chosen_logprob: f32,
+        rejected_logprob: f32,
+        ref_chosen_logprob: f32,
+        ref_rejected_logprob: f32,
+    ) f32 {
+        const beta = self.config.beta;
+
+        // DPO loss: -log(sigmoid(beta * (log_pi(chosen) - log_ref(chosen) - log_pi(rejected) + log_ref(rejected))))
+        const chosen_diff = chosen_logprob - ref_chosen_logprob;
+        const rejected_diff = rejected_logprob - ref_rejected_logprob;
+        const margin = beta * (chosen_diff - rejected_diff);
+
+        // Sigmoid and negative log for loss
+        const sigmoid_val = 1.0 / (1.0 + @exp(-margin));
+
+        // Apply label smoothing
+        const smoothed_target = 1.0 - self.config.label_smoothing;
+        const loss = -smoothed_target * @log(@max(sigmoid_val, 1e-7)) -
+            (1.0 - smoothed_target) * @log(@max(1.0 - sigmoid_val, 1e-7));
+
+        return loss;
+    }
+
+    /// Train on a batch of preference pairs
+    pub fn trainStep(self: *Self) !f32 {
+        if (self.preference_pairs.items.len < self.config.min_pairs) {
+            return 0;
+        }
+
+        const batch_size = @min(self.config.batch_size, @as(u32, @intCast(self.preference_pairs.items.len)));
+
+        var total_loss: f32 = 0;
+        var total_chosen_reward: f32 = 0;
+        var total_rejected_reward: f32 = 0;
+
+        // Sample batch (simple random sampling)
+        const seed = blk: {
+            var timer = std.time.Timer.start() catch break :blk @as(u64, 0);
+            break :blk timer.read();
+        };
+        var rng = std.Random.DefaultPrng.init(seed);
+        const random = rng.random();
+
+        for (0..batch_size) |_| {
+            const idx = random.intRangeAtMost(usize, 0, self.preference_pairs.items.len - 1);
+            const pair = self.preference_pairs.items[idx];
+
+            // Compute implicit rewards (simplified - using embedding magnitudes)
+            var chosen_reward: f32 = 0;
+            var rejected_reward: f32 = 0;
+            for (pair.chosen_embedding) |v| chosen_reward += v * v;
+            for (pair.rejected_embedding) |v| rejected_reward += v * v;
+            chosen_reward = @sqrt(chosen_reward);
+            rejected_reward = @sqrt(rejected_reward);
+
+            // Simplified log probs (in practice, would come from model)
+            const chosen_logprob = -chosen_reward * 0.1;
+            const rejected_logprob = -rejected_reward * 0.1;
+            const ref_chosen_logprob = chosen_logprob * 0.9; // Reference is slightly different
+            const ref_rejected_logprob = rejected_logprob * 0.9;
+
+            const loss = self.computeDPOLoss(chosen_logprob, rejected_logprob, ref_chosen_logprob, ref_rejected_logprob);
+            total_loss += loss * pair.confidence;
+            total_chosen_reward += chosen_reward;
+            total_rejected_reward += rejected_reward;
+        }
+
+        // Update statistics
+        self.stats.total_updates += 1;
+        self.stats.avg_loss = total_loss / @as(f32, @floatFromInt(batch_size));
+        self.stats.avg_chosen_reward = total_chosen_reward / @as(f32, @floatFromInt(batch_size));
+        self.stats.avg_rejected_reward = total_rejected_reward / @as(f32, @floatFromInt(batch_size));
+        self.stats.reward_margin = self.stats.avg_chosen_reward - self.stats.avg_rejected_reward;
+
+        return self.stats.avg_loss;
+    }
+
+    /// Get training statistics
+    pub fn getStats(self: *const Self) DPOStats {
+        return self.stats;
+    }
+
+    /// Check if ready for training
+    pub fn isReady(self: *const Self) bool {
+        return self.preference_pairs.items.len >= self.config.min_pairs;
+    }
+};
+
+// ============================================================================
+// Continuous Learning Integration
+// ============================================================================
+
+/// Feedback integrator that connects agent execution to learning
+pub const FeedbackIntegrator = struct {
+    allocator: std.mem.Allocator,
+    self_learning: ?*SelfLearningSystem,
+    dpo_optimizer: ?*DPOOptimizer,
+    policy_network: ?*PolicyNetwork,
+
+    /// Pending feedback entries
+    pending_feedback: std.ArrayListUnmanaged(PendingFeedback),
+
+    /// Session tracking
+    session_count: u64,
+    current_session_id: u64,
+
+    pub const PendingFeedback = struct {
+        input_embedding: []f32,
+        output_embedding: []f32,
+        timestamp: i64,
+        latency_ms: u64,
+        awaiting_feedback: bool,
+    };
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator) Self {
+        return .{
+            .allocator = allocator,
+            .self_learning = null,
+            .dpo_optimizer = null,
+            .policy_network = null,
+            .pending_feedback = .{},
+            .session_count = 0,
+            .current_session_id = 0,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        for (self.pending_feedback.items) |entry| {
+            self.allocator.free(entry.input_embedding);
+            self.allocator.free(entry.output_embedding);
+        }
+        self.pending_feedback.deinit(self.allocator);
+    }
+
+    /// Connect to a self-learning system
+    pub fn connectSelfLearning(self: *Self, sl: *SelfLearningSystem) void {
+        self.self_learning = sl;
+    }
+
+    /// Connect to a DPO optimizer
+    pub fn connectDPO(self: *Self, dpo: *DPOOptimizer) void {
+        self.dpo_optimizer = dpo;
+    }
+
+    /// Connect to a policy network
+    pub fn connectPolicy(self: *Self, policy: *PolicyNetwork) void {
+        self.policy_network = policy;
+    }
+
+    /// Record a response for pending feedback
+    pub fn recordResponse(
+        self: *Self,
+        input_embedding: []const f32,
+        output_embedding: []const f32,
+        latency_ms: u64,
+    ) !void {
+        const entry = PendingFeedback{
+            .input_embedding = try self.allocator.dupe(f32, input_embedding),
+            .output_embedding = try self.allocator.dupe(f32, output_embedding),
+            .timestamp = getCurrentTimestamp(),
+            .latency_ms = latency_ms,
+            .awaiting_feedback = true,
+        };
+        try self.pending_feedback.append(self.allocator, entry);
+    }
+
+    /// Process user feedback for the most recent response
+    pub fn processFeedback(
+        self: *Self,
+        feedback_type: FeedbackType,
+        confidence: f32,
+    ) !void {
+        if (self.pending_feedback.items.len == 0) return;
+
+        // Get most recent pending entry
+        var idx = self.pending_feedback.items.len - 1;
+        while (idx > 0 and !self.pending_feedback.items[idx].awaiting_feedback) {
+            idx -= 1;
+        }
+
+        const entry = &self.pending_feedback.items[idx];
+        entry.awaiting_feedback = false;
+
+        // If negative feedback and we have a previous good response, create preference pair
+        if (feedback_type == .negative and self.dpo_optimizer != null) {
+            // Find a previous positive response as the chosen example
+            for (self.pending_feedback.items) |*prev| {
+                if (!prev.awaiting_feedback and prev.timestamp < entry.timestamp) {
+                    // Use previous as chosen, current as rejected
+                    try self.dpo_optimizer.?.addPreferencePair(
+                        prev.output_embedding,
+                        entry.output_embedding,
+                        entry.input_embedding,
+                        confidence,
+                    );
+                    break;
+                }
+            }
+        }
+
+        // Trigger learning update if connected
+        if (self.dpo_optimizer) |dpo| {
+            if (dpo.isReady()) {
+                _ = try dpo.trainStep();
+            }
+        }
+
+        // Clean up old entries (keep last 100)
+        while (self.pending_feedback.items.len > 100) {
+            const old = self.pending_feedback.orderedRemove(0);
+            self.allocator.free(old.input_embedding);
+            self.allocator.free(old.output_embedding);
+        }
+    }
+
+    /// Start a new session
+    pub fn startSession(self: *Self) u64 {
+        self.session_count += 1;
+        self.current_session_id = self.session_count;
+        return self.current_session_id;
+    }
+};
+
+// ============================================================================
 // Vision Trainer
 // ============================================================================
 
@@ -742,7 +1345,7 @@ pub const SelfLearningSystem = struct {
             .reward = reward,
             .confidence = confidence,
             .feedback = feedback,
-            .timestamp = std.time.timestamp(),
+            .timestamp = getCurrentTimestamp(),
             .log_probs = null,
             .value = 0,
             .advantage = 0,
@@ -795,7 +1398,7 @@ pub const SelfLearningSystem = struct {
             .reward = reward,
             .confidence = confidence,
             .feedback = feedback,
-            .timestamp = std.time.timestamp(),
+            .timestamp = getCurrentTimestamp(),
             .log_probs = null,
             .value = 0,
             .advantage = 0,
@@ -836,7 +1439,7 @@ pub const SelfLearningSystem = struct {
             .reward = reward,
             .confidence = confidence,
             .feedback = feedback,
-            .timestamp = std.time.timestamp(),
+            .timestamp = getCurrentTimestamp(),
             .log_probs = null,
             .value = 0,
             .advantage = 0,

@@ -96,6 +96,9 @@ pub const orchestration = if (build_options.enable_ai) @import("orchestration/mo
 // GPU-aware agent (always available, uses stubs when GPU disabled)
 pub const gpu_agent = @import("gpu_agent.zig");
 
+// Model auto-discovery and adaptive configuration
+pub const discovery = @import("discovery.zig");
+
 // ============================================================================
 // Sub-modules (conditionally compiled)
 // ============================================================================
@@ -146,6 +149,12 @@ pub const vision = if (build_options.enable_vision)
     @import("vision/mod.zig")
 else
     @import("vision/stub.zig");
+
+/// Document understanding and processing module
+pub const documents = if (build_options.enable_ai)
+    @import("documents/mod.zig")
+else
+    @import("documents/stub.zig");
 
 // ============================================================================
 // Re-exports for backward compatibility
@@ -272,6 +281,32 @@ pub const WorkloadType = gpu_agent.WorkloadType;
 pub const GpuAgentPriority = gpu_agent.Priority;
 pub const GpuAgentStats = gpu_agent.AgentStats;
 
+// Model Auto-Discovery and Adaptive Configuration
+pub const ModelDiscovery = discovery.ModelDiscovery;
+pub const DiscoveredModel = discovery.DiscoveredModel;
+pub const DiscoveryConfig = discovery.DiscoveryConfig;
+pub const SystemCapabilities = discovery.SystemCapabilities;
+pub const AdaptiveConfig = discovery.AdaptiveConfig;
+pub const ModelRequirements = discovery.ModelRequirements;
+pub const WarmupResult = discovery.WarmupResult;
+pub const detectCapabilities = discovery.detectCapabilities;
+pub const runWarmup = discovery.runWarmup;
+
+// Document Understanding
+pub const DocumentPipeline = documents.DocumentPipeline;
+pub const Document = documents.Document;
+pub const DocumentFormat = documents.DocumentFormat;
+pub const DocumentElement = documents.DocumentElement;
+pub const ElementType = documents.ElementType;
+pub const TextSegment = documents.TextSegment;
+pub const TextSegmenter = documents.TextSegmenter;
+pub const NamedEntity = documents.NamedEntity;
+pub const EntityType = documents.EntityType;
+pub const EntityExtractor = documents.EntityExtractor;
+pub const LayoutAnalyzer = documents.LayoutAnalyzer;
+pub const PipelineConfig = documents.PipelineConfig;
+pub const SegmentationConfig = documents.SegmentationConfig;
+
 // ============================================================================
 // Errors
 // ============================================================================
@@ -346,6 +381,12 @@ pub const Context = struct {
     /// Multi-persona system context, or null if not enabled.
     personas_ctx: ?*personas.Context = null,
 
+    // Auto-discovery and adaptive configuration
+    /// Model discovery system for automatic model detection.
+    model_discovery: ?*discovery.ModelDiscovery = null,
+    /// Detected system capabilities.
+    capabilities: discovery.SystemCapabilities = .{},
+
     /// Initialize the AI context with the given configuration.
     ///
     /// ## Parameters
@@ -371,7 +412,16 @@ pub const Context = struct {
         ctx.* = .{
             .allocator = allocator,
             .config = cfg,
+            .capabilities = discovery.detectCapabilities(),
         };
+
+        // Initialize model discovery if auto_discover is enabled
+        if (cfg.auto_discover) {
+            const disc = try allocator.create(discovery.ModelDiscovery);
+            disc.* = discovery.ModelDiscovery.init(allocator, .{});
+            disc.scanAll() catch {}; // Best effort scan
+            ctx.model_discovery = disc;
+        }
 
         // Initialize enabled sub-features
         errdefer ctx.deinitSubFeatures();
@@ -405,6 +455,11 @@ pub const Context = struct {
     }
 
     fn deinitSubFeatures(self: *Context) void {
+        if (self.model_discovery) |disc| {
+            disc.deinit();
+            self.allocator.destroy(disc);
+            self.model_discovery = null;
+        }
         if (self.personas_ctx) |p| {
             p.deinit();
             self.personas_ctx = null;
@@ -461,6 +516,72 @@ pub const Context = struct {
             .training => self.training_ctx != null,
             .personas => self.personas_ctx != null,
         };
+    }
+
+    /// Get discovered models (returns empty slice if discovery not enabled).
+    pub fn getDiscoveredModels(self: *Context) []discovery.DiscoveredModel {
+        if (self.model_discovery) |disc| {
+            return disc.getModels();
+        }
+        return &.{};
+    }
+
+    /// Get number of discovered models.
+    pub fn discoveredModelCount(self: *Context) usize {
+        if (self.model_discovery) |disc| {
+            return disc.modelCount();
+        }
+        return 0;
+    }
+
+    /// Find best model matching requirements.
+    pub fn findBestModel(self: *Context, requirements: discovery.ModelRequirements) ?*discovery.DiscoveredModel {
+        if (self.model_discovery) |disc| {
+            return disc.findBestModel(requirements);
+        }
+        return null;
+    }
+
+    /// Generate adaptive configuration for a model.
+    pub fn generateAdaptiveConfig(self: *Context, model: *const discovery.DiscoveredModel) discovery.AdaptiveConfig {
+        if (self.model_discovery) |disc| {
+            return disc.generateConfig(model);
+        }
+        // Return defaults if no discovery
+        return discovery.AdaptiveConfig{
+            .num_threads = self.capabilities.recommendedThreads(),
+            .batch_size = 1,
+        };
+    }
+
+    /// Get system capabilities.
+    pub fn getCapabilities(self: *const Context) discovery.SystemCapabilities {
+        return self.capabilities;
+    }
+
+    /// Add a model path to the discovery system.
+    /// Use this to register known model files.
+    pub fn addModelPath(self: *Context, path: []const u8) !void {
+        if (self.model_discovery) |disc| {
+            try disc.addModelPath(path);
+        }
+    }
+
+    /// Add a model path with known file size.
+    pub fn addModelWithSize(self: *Context, path: []const u8, size_bytes: u64) !void {
+        if (self.model_discovery) |disc| {
+            try disc.addModelWithSize(path, size_bytes);
+        }
+    }
+
+    /// Clear all discovered models.
+    pub fn clearDiscoveredModels(self: *Context) void {
+        if (self.model_discovery) |disc| {
+            for (disc.discovered_models.items) |*model| {
+                model.deinit(self.allocator);
+            }
+            disc.discovered_models.clearRetainingCapacity();
+        }
     }
 
     pub const SubFeature = enum {

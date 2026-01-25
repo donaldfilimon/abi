@@ -47,7 +47,8 @@ pub const Coordinator = struct {
         var builder: std.ArrayListUnmanaged(u8) = .{};
         defer builder.deinit(self.allocator);
         for (self.agents.items) |ag| {
-            const response = try ag.handle(task);
+            const response = try ag.process(task, self.allocator);
+            defer self.allocator.free(response);
             try builder.appendSlice(self.allocator, response);
             try builder.appendSlice(self.allocator, "\n---\n");
         }

@@ -514,6 +514,7 @@ pub const Gpu = struct {
             .bytes_transferred = a.getSize() + b.getSize() + result.getSize(),
             .backend = device.backend,
             .device_id = device.id,
+            .gpu_executed = true,
         };
     }
 
@@ -613,6 +614,7 @@ pub const Gpu = struct {
             .bytes_transferred = a.getSize() + b.getSize() + result.getSize(),
             .backend = device.backend,
             .device_id = device.id,
+            .gpu_executed = true,
         };
     }
 
@@ -813,6 +815,7 @@ pub const Gpu = struct {
             .bytes_transferred = input.getSize() + output.getSize(),
             .backend = device.backend,
             .device_id = device.id,
+            .gpu_executed = true,
         };
     }
 
@@ -871,6 +874,7 @@ pub const Gpu = struct {
             .bytes_transferred = 0,
             .backend = device.backend,
             .device_id = device.id,
+            .gpu_executed = true,
         };
     }
 

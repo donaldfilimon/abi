@@ -292,8 +292,8 @@ test "CRC32 detects single bit changes" {
 fn rleCompress(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
     if (data.len == 0) return try allocator.dupe(u8, data);
 
-    var result = std.ArrayList(u8).init(allocator);
-    errdefer result.deinit();
+    var result: std.ArrayList(u8) = .empty;
+    errdefer result.deinit(allocator);
 
     var i: usize = 0;
     while (i < data.len) {
@@ -305,28 +305,28 @@ fn rleCompress(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
             count += 1;
         }
 
-        try result.append(count);
-        try result.append(byte);
+        try result.append(allocator, count);
+        try result.append(allocator, byte);
         i += count;
     }
 
-    return try result.toOwnedSlice();
+    return try result.toOwnedSlice(allocator);
 }
 
 fn rleDecompress(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
-    var result = std.ArrayList(u8).init(allocator);
-    errdefer result.deinit();
+    var result: std.ArrayList(u8) = .empty;
+    errdefer result.deinit(allocator);
 
     var i: usize = 0;
     while (i + 1 < data.len) {
         const count = data[i];
         const byte = data[i + 1];
 
-        try result.appendNTimes(byte, count);
+        try result.appendNTimes(allocator, byte, count);
         i += 2;
     }
 
-    return try result.toOwnedSlice();
+    return try result.toOwnedSlice(allocator);
 }
 
 test "RLE compression roundtrip" {
@@ -603,7 +603,11 @@ fn recordGen() Generator(VectorRecord) {
                 }
 
                 const meta_len = prng.random().intRangeAtMost(usize, 0, @min(size, 50));
-                const metadata = std.heap.page_allocator.alloc(u8, meta_len) catch &.{};
+                const metadata = std.heap.page_allocator.alloc(u8, meta_len) catch {
+                    result.metadata = &.{};
+                    result.metadata_len = 0;
+                    return result;
+                };
                 for (metadata) |*c| {
                     c.* = prng.random().intRangeAtMost(u8, 32, 126);
                 }

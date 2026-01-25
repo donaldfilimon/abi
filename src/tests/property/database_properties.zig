@@ -90,7 +90,7 @@ test "cosine similarity is bounded in [-1, 1]" {
 
     const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
         fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
-            const cos = abi.shared.simd.cosineSimilarity(&pair.a, &pair.b);
+            const cos = abi.simd.cosineSimilarity(&pair.a, &pair.b);
 
             // Handle edge cases
             if (std.math.isNan(cos)) return false;
@@ -107,7 +107,7 @@ test "identical vectors have cosine similarity 1.0" {
 
     const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
         fn check(vec: [VECTOR_DIM]f32) bool {
-            const cos = abi.shared.simd.cosineSimilarity(&vec, &vec);
+            const cos = abi.simd.cosineSimilarity(&vec, &vec);
             return assert.approxEqual(cos, 1.0, EPSILON);
         }
     }.check);
@@ -125,7 +125,7 @@ test "negated vectors have cosine similarity -1.0" {
                 n.* = -v;
             }
 
-            const cos = abi.shared.simd.cosineSimilarity(&vec, &neg);
+            const cos = abi.simd.cosineSimilarity(&vec, &neg);
             return assert.approxEqual(cos, -1.0, EPSILON);
         }
     }.check);
@@ -142,7 +142,7 @@ test "L2 distance is a valid metric (non-negative)" {
 
     const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
         fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
-            const dist = abi.shared.simd.l2Distance(&pair.a, &pair.b);
+            const dist = abi.simd.l2Distance(&pair.a, &pair.b);
             return dist >= 0.0;
         }
     }.check);
@@ -155,8 +155,8 @@ test "L2 distance is symmetric" {
 
     const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
         fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
-            const dist_ab = abi.shared.simd.l2Distance(&pair.a, &pair.b);
-            const dist_ba = abi.shared.simd.l2Distance(&pair.b, &pair.a);
+            const dist_ab = abi.simd.l2Distance(&pair.a, &pair.b);
+            const dist_ba = abi.simd.l2Distance(&pair.b, &pair.a);
             return assert.approxEqual(dist_ab, dist_ba, EPSILON);
         }
     }.check);
@@ -169,7 +169,7 @@ test "L2 distance of vector with itself is zero" {
 
     const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
         fn check(vec: [VECTOR_DIM]f32) bool {
-            const dist = abi.shared.simd.l2Distance(&vec, &vec);
+            const dist = abi.simd.l2Distance(&vec, &vec);
             return assert.approxEqual(dist, 0.0, EPSILON);
         }
     }.check);
@@ -182,9 +182,9 @@ test "triangle inequality holds for L2 distance" {
 
     const result = forAll(property.VectorTriple(VECTOR_DIM), gen, TestConfig, struct {
         fn check(triple: property.VectorTriple(VECTOR_DIM)) bool {
-            const dist_ac = abi.shared.simd.l2Distance(&triple.a, &triple.c);
-            const dist_ab = abi.shared.simd.l2Distance(&triple.a, &triple.b);
-            const dist_bc = abi.shared.simd.l2Distance(&triple.b, &triple.c);
+            const dist_ac = abi.simd.l2Distance(&triple.a, &triple.c);
+            const dist_ab = abi.simd.l2Distance(&triple.a, &triple.b);
+            const dist_bc = abi.simd.l2Distance(&triple.b, &triple.c);
 
             // Allow tolerance for floating point
             return dist_ac <= dist_ab + dist_bc + EPSILON;
@@ -235,13 +235,13 @@ const DatabaseModel = struct {
         const allocator = self.allocator;
 
         // Collect all vectors with their distances
-        var results = std.ArrayList(SearchResult).init(allocator);
-        defer results.deinit();
+        var results: std.ArrayList(SearchResult) = .empty;
+        defer results.deinit(allocator);
 
         var iter = self.vectors.iterator();
         while (iter.next()) |entry| {
-            const dist = abi.shared.simd.l2Distance(&query, entry.value_ptr);
-            try results.append(.{ .id = entry.key_ptr.*, .distance = dist });
+            const dist = abi.simd.l2Distance(&query, entry.value_ptr);
+            try results.append(allocator, .{ .id = entry.key_ptr.*, .distance = dist });
         }
 
         // Sort by distance
@@ -480,13 +480,14 @@ test "batch cosine similarities are bounded" {
     const result = forAll(BatchTest, gen, TestConfig, struct {
         fn check(batch: BatchTest) bool {
             // Convert to slice of slices
+            // Use indexed loop to avoid pointer capture issues in Zig 0.16
             var vec_slices: [5][]const f32 = undefined;
-            for (&vec_slices, batch.vectors) |*slice, *vec| {
-                slice.* = vec;
+            for (0..5) |i| {
+                vec_slices[i] = &batch.vectors[i];
             }
 
             var similarities: [5]f32 = undefined;
-            abi.shared.simd.batchCosineSimilarity(&batch.query, &vec_slices, &similarities);
+            abi.simd.batchCosineSimilarity(&batch.query, &vec_slices, &similarities);
 
             for (similarities) |sim| {
                 if (std.math.isNan(sim)) return false;

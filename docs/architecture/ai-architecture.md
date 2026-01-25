@@ -57,6 +57,7 @@ The AI module (`abi.ai`) is a comprehensive, modular AI system built in pure Zig
 src/ai/
 ├── mod.zig                 # Public API entry point
 ├── stub.zig                # Disabled feature stub
+├── shared_stub.zig         # Shared stub utilities
 ├── agent.zig               # Main Agent implementation
 ├── gpu_agent.zig           # GPU-aware agent with RL scheduling
 ├── model_registry.zig      # Model registration and discovery
@@ -115,10 +116,14 @@ src/ai/
 │   └── stub.zig            # Disabled stub
 │
 ├── tools/                  # Agent tools
-│   ├── mod.zig             # Tool registry
-│   ├── subagent.zig        # Sub-agent spawning
-│   ├── discord.zig         # Discord tools
-│   └── os.zig              # OS/shell tools
+│   ├── mod.zig             # Tool registry and exports
+│   ├── tool.zig            # Tool, ToolRegistry, Parameter types
+│   ├── task.zig            # TaskTool, Subagent spawning
+│   ├── discord.zig         # Discord integration tools
+│   ├── os_tools.zig        # OS/shell tools (system_info, etc.)
+│   ├── file_tools.zig      # File system tools
+│   ├── search_tools.zig    # Code search tools
+│   └── edit_tools.zig      # File editing tools
 │
 ├── memory/                 # Conversation memory
 │   ├── mod.zig             # Memory types and manager
@@ -136,8 +141,10 @@ src/ai/
 │   ├── llm_checkpoint.zig  # LLM-specific checkpoints
 │   ├── gradient.zig        # Gradient accumulation
 │   ├── loss.zig            # Loss functions
-│   ├── trainable_model.zig # Trainable model wrapper
+│   ├── trainable_model.zig # Trainable LLM model with forward/backward
 │   ├── llm_trainer.zig     # LLM training loop
+│   ├── vision_trainer.zig  # Vision Transformer (ViT) training
+│   ├── multimodal_trainer.zig # CLIP-style multimodal training
 │   ├── data_loader.zig     # Batch data loading
 │   ├── lora.zig            # LoRA adapters
 │   ├── mixed_precision.zig # FP16/FP32 mixed precision
@@ -169,18 +176,23 @@ src/ai/
 │   ├── discord.zig         # Discord bot
 │   ├── custom_framework.zig # Custom AI builder
 │   ├── neural/             # Neural components
+│   │   ├── mod.zig         # Neural module exports
 │   │   ├── tensor.zig      # Tensor operations
 │   │   ├── layers.zig      # Linear, Embedding, LayerNorm
 │   │   ├── attention.zig   # Multi-head attention
-│   │   └── learning.zig    # Online learning
+│   │   ├── learning.zig    # Online learning
+│   │   └── gpu_ops.zig     # GPU operations for neural components
 │   ├── memory/             # Three-tier memory
+│   │   ├── mod.zig         # Memory module exports
 │   │   ├── episodic.zig    # Episode storage
 │   │   ├── semantic.zig    # Knowledge graph
 │   │   └── working.zig     # Working memory
 │   └── advanced/           # Advanced cognition
+│       ├── mod.zig              # Advanced module exports
+│       ├── advanced.zig         # Advanced features aggregator
 │       ├── meta_learning.zig    # Task adaptation
 │       ├── theory_of_mind.zig   # User modeling
-│       ├── compositional.zig    # Problem decomposition
+│       ├── compositional_reasoning.zig  # Problem decomposition
 │       └── self_reflection.zig  # Self-evaluation
 │
 ├── personas/               # Multi-persona system
@@ -206,10 +218,14 @@ src/ai/
 │   │   ├── knowledge.zig   # Knowledge retrieval
 │   │   ├── code.zig        # Code generation
 │   │   └── facts.zig       # Fact checking
-│   └── embeddings/         # Persona embeddings
-│       ├── persona_index.zig
-│       ├── learning.zig
-│       └── seed_data.zig
+│   ├── embeddings/         # Persona embeddings
+│   │   ├── mod.zig
+│   │   ├── persona_index.zig
+│   │   ├── learning.zig
+│   │   └── seed_data.zig
+│   ├── routing/            # Enhanced routing
+│   │   └── enhanced.zig    # Enhanced routing strategies
+│   └── tests/              # Persona integration tests
 │
 ├── explore/                # Codebase exploration
 │   ├── mod.zig             # Explore entry point
@@ -223,7 +239,8 @@ src/ai/
 │   ├── ast.zig             # AST parsing
 │   ├── parallel.zig        # Parallel exploration
 │   ├── callgraph.zig       # Function call graphs
-│   └── dependency.zig      # Module dependencies
+│   ├── dependency.zig      # Module dependencies
+│   └── explore_test.zig    # Explore module tests
 │
 ├── multi_agent/            # Multi-agent coordination
 │   ├── mod.zig             # Coordinator
@@ -234,20 +251,37 @@ src/ai/
 │   └── stub.zig            # Disabled stub
 │
 ├── streaming/              # Streaming utilities
-│   └── mod.zig             # StreamingGenerator
+│   ├── mod.zig             # StreamingGenerator exports
+│   ├── generator.zig       # Core streaming generator
+│   ├── buffer.zig          # Streaming buffer management
+│   ├── backpressure.zig    # Backpressure handling
+│   ├── sse.zig             # Server-Sent Events support
+│   └── stub.zig            # Disabled stub
 │
 ├── transformer/            # Transformer architecture
 │   └── mod.zig             # TransformerModel
 │
 ├── prompts/                # Prompt management
-│   └── mod.zig             # PromptBuilder, Persona
+│   ├── mod.zig             # Public exports
+│   ├── builder.zig         # PromptBuilder utility
+│   ├── personas.zig        # Persona-aware prompt generation
+│   └── ralph.zig           # Ralph-specific prompt system
 │
 ├── templates/              # Template system
-│   └── mod.zig             # Template rendering
+│   ├── mod.zig             # Public exports
+│   ├── parser.zig          # Template parsing
+│   ├── renderer.zig        # Template rendering engine
+│   ├── library.zig         # Template library management
+│   └── stub.zig            # Disabled stub
 │
 ├── eval/                   # Model evaluation
 │   ├── mod.zig             # Evaluation framework
-│   └── stub.zig            # Disabled stub
+│   ├── stub.zig            # Disabled stub
+│   ├── metrics.zig         # Evaluation metrics
+│   ├── bleu.zig            # BLEU score calculation
+│   ├── rouge.zig           # ROUGE score calculation
+│   ├── perplexity.zig      # Perplexity measurement
+│   └── tokenizer.zig       # Eval tokenizer utilities
 │
 ├── federated/              # Federated learning
 │   └── mod.zig             # Coordinator, aggregation
@@ -263,7 +297,10 @@ src/ai/
 │
 └── database/               # AI-specific database
     ├── mod.zig             # WDBX integration
-    └── wdbx.zig            # Token dataset format
+    ├── stub.zig            # Disabled stub
+    ├── wdbx.zig            # Token dataset format
+    ├── convert.zig         # Data format conversion
+    └── export.zig          # GGUF export utilities
 ```
 
 ---
@@ -420,6 +457,16 @@ The agent system provides conversational AI with tool integration.
 | `GpuAgent` | RL-based GPU scheduling |
 | `MultiAgentCoordinator` | Multi-agent orchestration |
 
+### Agent Backends
+
+| Backend | Description |
+|---------|-------------|
+| `echo` | Testing backend that echoes input |
+| `openai` | OpenAI API integration |
+| `ollama` | Local Ollama server |
+| `huggingface` | HuggingFace API |
+| `local` | Local LLM inference using LLM engine |
+
 ### Tool System
 
 ```zig
@@ -431,12 +478,19 @@ defer registry.deinit();
 // Register built-in tools
 try tools.registerOsTools(&registry);
 try tools.registerDiscordTools(&registry);
+try tools.registerFileTools(&registry);
+try tools.registerSearchTools(&registry);
+try tools.registerEditTools(&registry);
+
+// Or register all code agent tools at once
+try tools.registerCodeAgentTools(&registry);
 
 // Register custom tool
-try registry.register(tools.Tool{
+try registry.register(&tools.Tool{
     .name = "calculator",
     .description = "Performs math calculations",
-    .handler = calculatorHandler,
+    .parameters = &[_]tools.Parameter{},
+    .execute = calculatorHandler,
 });
 ```
 
@@ -487,6 +541,19 @@ The memory module provides multiple strategies for conversation history manageme
 | `SlidingWindowMemory` | Token-aware context management |
 | `SummarizingMemory` | Compress old context into summaries |
 | `LongTermMemory` | Vector retrieval for relevant past |
+| `hybrid` | Combines sliding window + long-term retrieval |
+
+### Memory Configuration
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `primary_type` | `.sliding_window` | Primary memory strategy |
+| `short_term_capacity` | 50 | Message limit for short-term |
+| `sliding_window_tokens` | 4000 | Token limit for sliding window |
+| `system_reserve` | 500 | Reserved tokens for system message |
+| `enable_long_term` | false | Enable vector-based retrieval |
+| `auto_store_long_term` | true | Auto-store to long-term memory |
+| `long_term_importance_threshold` | 0.6 | Importance threshold for storage |
 
 ### Usage
 
@@ -495,13 +562,23 @@ const memory = abi.ai.memory;
 
 var manager = memory.MemoryManager.init(allocator, .{
     .short_term_capacity = 100,
-    .max_tokens = 8000,
+    .sliding_window_tokens = 8000,
     .enable_long_term = true,
 });
 defer manager.deinit();
 
-try manager.addMessage(memory.Message.user("Hello!"));
-const context = try manager.getContext(4000); // Get up to 4000 tokens
+// Add messages using convenience methods
+try manager.addUserMessage("Hello!");
+try manager.addAssistantMessage("Hi there!");
+
+// Or add generic messages
+try manager.add(memory.Message.user("How are you?"));
+
+// Get context up to max tokens
+const context = try manager.getContext(4000);
+
+// Retrieve relevant messages from long-term memory
+const relevant = try manager.retrieveRelevant("greeting patterns", 5);
 ```
 
 ---
@@ -549,14 +626,103 @@ The training module provides neural network training with modern optimizations.
 |---------|-------------|
 | **Optimizers** | SGD, Adam, AdamW with momentum |
 | **LR Schedules** | Constant, cosine, warmup_cosine, step, polynomial, cosine_warm_restarts |
-| **Gradient Clipping** | Max norm clipping |
+| **Gradient Clipping** | Max norm clipping with NaN/Inf detection |
 | **Mixed Precision** | FP16/FP32 with loss scaling |
 | **LoRA** | Low-rank adaptation for efficient fine-tuning |
 | **Checkpointing** | Periodic saves with max checkpoint limit |
 | **Early Stopping** | Patience-based convergence detection |
 | **Logging** | TensorBoard/W&B metric logging |
+| **Multi-Model** | LLM, Vision (ViT), Multimodal (CLIP) training |
 
-### Usage
+### Multi-Model Training
+
+The training module supports three model architectures:
+
+| Model | File | Description |
+|-------|------|-------------|
+| **LLM** | `trainable_model.zig` | Language model with forward/backward, gradient management |
+| **ViT** | `vision_trainer.zig` | Vision Transformer for image classification |
+| **CLIP** | `multimodal_trainer.zig` | Contrastive learning for image-text alignment |
+
+#### TrainableModel (LLM)
+
+```zig
+const training = abi.ai.training;
+
+var model = try training.TrainableModel.init(allocator, config, base_model);
+defer model.deinit();
+
+// Training step with gradient clipping
+const result = try model.trainStepWithClipping(
+    input_ids,
+    target_ids,
+    learning_rate,
+    max_grad_norm,
+    loss_scale,
+);
+
+// Access gradient metrics
+const grad_norm = model.computeGradientNorm();
+const has_nans = model.hasNonFiniteGradients();
+```
+
+#### TrainableViTModel (Vision)
+
+```zig
+const vit = training.vision_trainer;
+
+var model = try vit.TrainableViTModel.init(allocator, .{
+    .vit_config = .{
+        .image_size = 224,
+        .patch_size = 16,
+        .hidden_size = 768,
+        .num_layers = 12,
+        .num_heads = 12,
+    },
+    .num_classes = 1000,
+});
+defer model.deinit();
+
+// Forward pass returns class logits
+const logits = try model.forward(image_patches);
+
+// Training with gradient clipping
+model.zeroGradients();
+// ... compute gradients ...
+const grad_norm = model.clipGradients(1.0);
+try model.applySgdUpdate(0.001);
+```
+
+#### TrainableCLIPModel (Multimodal)
+
+```zig
+const clip = training.multimodal_trainer;
+
+var model = try clip.TrainableCLIPModel.init(allocator, .{
+    .vision_config = vit_config,
+    .text_hidden_size = 512,
+    .text_vocab_size = 49408,
+    .projection_dim = 512,
+    .temperature = 0.07,
+    .learnable_temperature = true,
+});
+defer model.deinit();
+
+// Encode images and text
+const image_emb = try model.encodeImages(images);
+const text_emb = try model.encodeText(tokens);
+
+// Contrastive loss (InfoNCE)
+const loss = model.computeContrastiveLoss(
+    image_emb,
+    text_emb,
+    batch_size,
+    d_image_emb,
+    d_text_emb,
+);
+```
+
+### LLM Training Usage
 
 ```zig
 const training = abi.ai.training;

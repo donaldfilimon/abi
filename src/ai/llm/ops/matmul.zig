@@ -181,6 +181,26 @@ pub fn matrixVectorMultiply(a: []const f32, x: []const f32, y: []f32, m: u32, k:
     }
 }
 
+/// Matrix-vector multiplication with transposed matrix: y = A^T @ x
+/// A: [K, M] stored, but treated as [M, K] transposed, x: [K], y: [M]
+/// This computes y[j] = sum_i A[i, j] * x[i] for transposed semantics.
+/// In practice for LLM: weights are [vocab_size, hidden_dim] and we want hidden @ weights^T
+pub fn matrixVectorMultiplyTransposed(
+    a: []const f32, // [M, K] original, but treated as transposed [K, M]
+    x: []const f32, // [K]
+    y: []f32, // [M]
+    m: u32, // output dimension
+    k: u32, // input dimension
+) void {
+    @memset(y, 0);
+    // For transposed: output[j] = sum_i input[i] * weight[j, i]
+    // where weight is stored as [M, K] row-major
+    for (0..m) |j| {
+        const row_start = j * k;
+        y[j] = dotProduct(a[row_start .. row_start + k], x);
+    }
+}
+
 /// Add bias to each row: y[i] += bias[i % bias.len]
 pub fn addBias(y: []f32, bias: []const f32) void {
     for (y, 0..) |*val, i| {

@@ -21,7 +21,9 @@ test "shard key computation from conversation" {
 
     const tenant_id: u64 = 1001;
     const session_id = "session-xyz-789";
-    const timestamp = std.time.timestamp();
+    // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
+    var timer = std.time.Timer.start() catch unreachable;
+    const timestamp: i64 = @intCast(timer.read());
 
     // Create test embedding (simplified)
     const embedding = [_]f32{ 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8 };
@@ -381,11 +383,13 @@ test "research alignment: intelligent sharding strategy" {
     try ring.addNode("research-node-3", 0.6);
 
     // Test placement demonstrates research concepts
+    // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
+    var research_timer = std.time.Timer.start() catch unreachable;
     const research_key = ShardKey{
         .tenant_id = 9999,
         .session_hash = 0x123456789ABCDEF0,
         .semantic_cluster_hash = 0xFEDCBA9876543210,
-        .timestamp = std.time.timestamp(),
+        .timestamp = @intCast(research_timer.read()),
     };
 
     const placement_hash = research_key.computeHash();

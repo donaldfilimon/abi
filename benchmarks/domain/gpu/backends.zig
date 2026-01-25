@@ -109,32 +109,32 @@ fn detectAvailableBackends(allocator: std.mem.Allocator) ![]gpu_mod.Backend {
         return &.{};
     }
 
-    var backends = std.ArrayList(gpu_mod.Backend).init(allocator);
-    errdefer backends.deinit();
+    var backends = std.ArrayListUnmanaged(gpu_mod.Backend).empty;
+    errdefer backends.deinit(allocator);
 
     // Check each backend's availability
     // Note: This uses compile-time flags; runtime detection would need driver probing
 
     if (comptime build_options.gpu_cuda) {
-        try backends.append(.cuda);
+        try backends.append(allocator, .cuda);
     }
     if (comptime build_options.gpu_vulkan) {
-        try backends.append(.vulkan);
+        try backends.append(allocator, .vulkan);
     }
     if (comptime build_options.gpu_metal) {
-        try backends.append(.metal);
+        try backends.append(allocator, .metal);
     }
     if (comptime build_options.gpu_webgpu) {
-        try backends.append(.webgpu);
+        try backends.append(allocator, .webgpu);
     }
     if (comptime build_options.gpu_opengl) {
-        try backends.append(.opengl);
+        try backends.append(allocator, .opengl);
     }
 
     // Always include stdgpu as fallback
-    try backends.append(.stdgpu);
+    try backends.append(allocator, .stdgpu);
 
-    return backends.toOwnedSlice();
+    return backends.toOwnedSlice(allocator);
 }
 
 /// Print backend detection results
@@ -326,13 +326,13 @@ fn backendComparison(
     for (config.matrix_sizes[0..@min(2, config.matrix_sizes.len)]) |size| {
         std.debug.print("\n  Matrix size: {d}x{d}\n", .{ size, size });
 
-        var results = std.ArrayList(BackendBenchResult).init(allocator);
-        defer results.deinit();
+        var results = std.ArrayListUnmanaged(BackendBenchResult).empty;
+        defer results.deinit(allocator);
 
         // Test each backend
         for (backends) |backend| {
             const result = runBackendBenchmark(allocator, backend, "matmul", size, config);
-            try results.append(result);
+            try results.append(allocator, result);
 
             if (result.success) {
                 std.debug.print("    {s}: {d:.2} GFLOPS\n", .{ @tagName(backend), result.gflops });

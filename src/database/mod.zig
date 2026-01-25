@@ -118,6 +118,9 @@ pub const scann = @import("scann.zig");
 // Parallel search utilities
 pub const parallel_search = @import("parallel_search.zig");
 
+// Parallel HNSW index building
+pub const parallel_hnsw = @import("parallel_hnsw.zig");
+
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
 pub const SearchResult = wdbx.SearchResult;
@@ -261,6 +264,11 @@ pub const ParallelWorkQueue = parallel_search.ParallelWorkQueue;
 pub const BatchSearchResult = parallel_search.BatchSearchResult;
 pub const ParallelSearchStats = parallel_search.ParallelSearchStats;
 pub const batchCosineDistances = parallel_search.batchCosineDistances;
+
+// Parallel HNSW builder exports
+pub const ParallelHnswBuilder = parallel_hnsw.ParallelHnswBuilder;
+pub const ParallelBuildConfig = parallel_hnsw.ParallelBuildConfig;
+pub const ParallelBuildStats = parallel_hnsw.ParallelBuildStats;
 
 pub const BlockExchangeManager = distributed.BlockExchangeManager;
 pub const BlockExchangeError = distributed.BlockExchangeError;

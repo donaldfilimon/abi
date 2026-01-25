@@ -26,6 +26,7 @@ pub const backward = @import("backward/mod.zig");
 // Re-exports for convenience
 pub const matrixMultiply = matmul.matrixMultiply;
 pub const matrixMultiplyTransposed = matmul.matrixMultiplyTransposed;
+pub const matrixVectorMultiplyTransposed = matmul.matrixVectorMultiplyTransposed;
 
 pub const quantizedMatmulQ4 = matmul_quant.quantizedMatmulQ4;
 pub const quantizedMatmulQ8 = matmul_quant.quantizedMatmulQ8;

@@ -96,11 +96,7 @@ test "e2e: agent with tool registry" {
     var agent = try abi.ai.createAgent(allocator, "tool-agent");
     defer agent.deinit();
 
-    // Register mock tools
-    const tool_registry = agent.getToolRegistry();
-    _ = tool_registry;
-
-    // The agent should be able to use registered tools
+    // The agent should be properly initialized with its name
     try std.testing.expectEqualStrings("tool-agent", agent.config.name);
 }
 
@@ -230,14 +226,14 @@ test "e2e: agent multi-turn conversation" {
         .{ .user = "What did I ask first?", .expected_contains = "first" },
     };
 
-    var context_builder = std.ArrayList(u8).init(allocator);
-    defer context_builder.deinit();
+    var context_builder: std.ArrayListUnmanaged(u8) = .empty;
+    defer context_builder.deinit(allocator);
 
     for (turns) |turn| {
         // Append user message to context
-        try context_builder.appendSlice("User: ");
-        try context_builder.appendSlice(turn.user);
-        try context_builder.appendSlice("\n");
+        try context_builder.appendSlice(allocator, "User: ");
+        try context_builder.appendSlice(allocator, turn.user);
+        try context_builder.appendSlice(allocator, "\n");
 
         // Generate response
         const context = if (context_builder.items.len > 0) context_builder.items else null;
@@ -245,9 +241,9 @@ test "e2e: agent multi-turn conversation" {
         defer allocator.free(response);
 
         // Append response to context
-        try context_builder.appendSlice("Assistant: ");
-        try context_builder.appendSlice(response);
-        try context_builder.appendSlice("\n");
+        try context_builder.appendSlice(allocator, "Assistant: ");
+        try context_builder.appendSlice(allocator, response);
+        try context_builder.appendSlice(allocator, "\n");
 
         // Verify response contains expected content (based on our mock implementation)
         try std.testing.expect(response.len > 0);
@@ -270,8 +266,8 @@ test "e2e: agent context window management" {
     defer ctx.deinit();
 
     // Simulate a long conversation that would exceed context limits
-    var context = std.ArrayList(u8).init(allocator);
-    defer context.deinit();
+    var context: std.ArrayListUnmanaged(u8) = .empty;
+    defer context.deinit(allocator);
 
     const max_context_size: usize = 4096;
 
@@ -282,11 +278,11 @@ test "e2e: agent context window management" {
         const response = try generateMockAgentResponse(allocator, query, context.items);
         defer allocator.free(response);
 
-        try context.appendSlice("User: ");
-        try context.appendSlice(query);
-        try context.appendSlice("\nAssistant: ");
-        try context.appendSlice(response);
-        try context.appendSlice("\n");
+        try context.appendSlice(allocator, "User: ");
+        try context.appendSlice(allocator, query);
+        try context.appendSlice(allocator, "\nAssistant: ");
+        try context.appendSlice(allocator, response);
+        try context.appendSlice(allocator, "\n");
     }
 
     // Verify we handled multiple turns

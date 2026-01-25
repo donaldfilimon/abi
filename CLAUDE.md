@@ -67,8 +67,8 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | File system operations | Use `std.Io.Dir.cwd()` instead of deprecated `std.fs.cwd()` (Zig 0.16) |
 | Reserved keywords | Escape with `@"error"` syntax, not bare `error` |
 | Feature disabled errors | Rebuild with `-Denable-<feature>=true` |
-| GPU backend conflicts | Enable only one GPU backend at a time |
-| WASM limitations | `database`, `network`, `gpu` features auto-disabled for WASM targets |
+| GPU backend conflicts | Prefer one primary backend; CUDA+Vulkan may cause issues |
+| WASM limitations | `database`, `network`, `gpu` auto-disabled; no `std.Io.Threaded` |
 | libc linking | CLI and examples require libc for environment variable access |
 | Import paths | Always use `@import("abi")` for public API, not direct file paths |
 | Stub/Real module sync | Changes to `mod.zig` must be mirrored in `stub.zig` with identical signatures |
@@ -79,10 +79,8 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | HTTP Server init | Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()` |
 | Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
 | Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
-| WASM limitations | `database`, `network`, `gpu` auto-disabled; no `std.Io.Threaded` |
 | GPU (CUDA) | Requires NVIDIA drivers + toolkit; use Vulkan or `stdgpu` fallback |
 | GPU (Metal) | macOS only; use Vulkan on other platforms |
-| libc linking | CLI and examples require libc; build with default settings |
 
 ## Feature Flags
 
@@ -348,12 +346,14 @@ The `src/runtime/concurrency/` module provides lock-free data structures for hig
 
 ```zig
 // Example: Using the MPMC queue
-const mpmc = @import("abi").runtime.concurrency.mpmc_queue;
-var queue = try mpmc.BoundedQueue(u64).init(allocator, 1024);
+const concurrency = @import("abi").runtime.concurrency;
+var queue = try concurrency.MpmcQueue(u64).init(allocator, 1024);
 defer queue.deinit();
 
 try queue.push(42);
-const value = queue.pop(); // Returns ?u64
+if (queue.pop()) |value| {
+    // Process value
+}
 ```
 
 ## Test Infrastructure
@@ -567,6 +567,19 @@ zig build -Denable-scripting=true        # Enable embedded scripting backends
 ```
 
 These flags are integrated into `build_options` and must have corresponding stub implementations in `stub.zig` to keep API parity.
+
+## Code Style
+
+| Rule | Convention |
+|------|------------|
+| Indentation | 4 spaces, no tabs |
+| Line length | Under 100 characters |
+| Types | `PascalCase` |
+| Functions/Variables | `camelCase` |
+| Imports | Explicit only (no `usingnamespace`) |
+| Error handling | `!` return types, specific error enums |
+| Cleanup | Prefer `defer`/`errdefer` |
+| ArrayList | Prefer `std.ArrayListUnmanaged` with explicit allocator passing |
 
 ## Post-Edit Checklist
 

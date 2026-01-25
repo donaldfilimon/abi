@@ -426,7 +426,9 @@ pub const OtelTracer = struct {
         const counter = self.trace_id_counter.fetchAdd(1, .monotonic);
         @memset(&trace_id, 0);
         std.mem.writeInt(u64, trace_id[0..8], counter, .big);
-        std.mem.writeInt(u64, trace_id[8..16], time.unixSeconds(), .big);
+        // Use unsigned cast for writeInt compatibility
+        const unix_seconds: u64 = @bitCast(time.unixSeconds());
+        std.mem.writeInt(u64, trace_id[8..16], unix_seconds, .big);
         return trace_id;
     }
 
@@ -577,8 +579,8 @@ pub fn createOtelResource(allocator: std.mem.Allocator, service_name: []const u8
 pub fn formatTraceId(trace_id: [16]u8) [32]u8 {
     var result: [32]u8 = undefined;
     for (trace_id, 0..) |byte, i| {
-        const high = byte >> 4;
-        const low = byte & 0x0F;
+        const high: u4 = @truncate(byte >> 4);
+        const low: u4 = @truncate(byte & 0x0F);
         result[i * 2] = hexChar(high);
         result[i * 2 + 1] = hexChar(low);
     }
@@ -588,8 +590,8 @@ pub fn formatTraceId(trace_id: [16]u8) [32]u8 {
 pub fn formatSpanId(span_id: [8]u8) [16]u8 {
     var result: [16]u8 = undefined;
     for (span_id, 0..) |byte, i| {
-        const high = byte >> 4;
-        const low = byte & 0x0F;
+        const high: u4 = @truncate(byte >> 4);
+        const low: u4 = @truncate(byte & 0x0F);
         result[i * 2] = hexChar(high);
         result[i * 2 + 1] = hexChar(low);
     }

@@ -105,10 +105,27 @@ pub const SelfLearningConfig = self_learning.SelfLearningConfig;
 pub const LearningExperience = self_learning.LearningExperience;
 pub const ExperienceBuffer = self_learning.ExperienceBuffer;
 pub const RewardModel = self_learning.RewardModel;
-pub const VisionTrainer = self_learning.VisionTrainer;
+pub const SelfLearningVisionTrainer = self_learning.VisionTrainer;
 pub const DocumentTrainer = self_learning.DocumentTrainer;
 pub const ExperienceType = self_learning.ExperienceType;
 pub const FeedbackType = self_learning.FeedbackType;
+
+// Vision Transformer training exports
+pub const vision_trainer = @import("vision_trainer.zig");
+pub const TrainableViTModel = vision_trainer.TrainableViTModel;
+pub const TrainableViTConfig = vision_trainer.TrainableViTConfig;
+pub const TrainableViTWeights = vision_trainer.TrainableViTWeights;
+pub const TrainableViTLayerWeights = vision_trainer.TrainableViTLayerWeights;
+pub const ViTActivationCache = vision_trainer.ViTActivationCache;
+pub const VisionTrainingError = vision_trainer.VisionTrainingError;
+
+// Multimodal (CLIP-style) training exports
+pub const multimodal_trainer = @import("multimodal_trainer.zig");
+pub const TrainableCLIPModel = multimodal_trainer.TrainableCLIPModel;
+pub const CLIPTrainingConfig = multimodal_trainer.CLIPTrainingConfig;
+pub const TrainableTextEncoderWeights = multimodal_trainer.TrainableTextEncoderWeights;
+pub const TextTransformerLayerWeights = multimodal_trainer.TextTransformerLayerWeights;
+pub const MultimodalTrainingError = multimodal_trainer.MultimodalTrainingError;
 
 pub const TrainingError = error{
     InvalidConfiguration,

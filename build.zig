@@ -235,6 +235,7 @@ fn buildTargets(
     b: *std.Build,
     targets: []const BuildTarget,
     abi_module: *std.Build.Module,
+    build_opts: *std.Build.Module,
     target: std.Build.ResolvedTarget,
     optimize: std.builtin.OptimizeMode,
     aggregate: ?*std.Build.Step,
@@ -253,6 +254,7 @@ fn buildTargets(
             }),
         });
         exe.root_module.addImport("abi", abi_module);
+        exe.root_module.addImport("build_options", build_opts);
 
         // Apply performance optimizations
         applyPerformanceTweaks(exe, exe_optimize);
@@ -367,7 +369,7 @@ pub fn build(b: *std.Build) void {
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
     // Examples and benchmarks (table-driven)
-    buildTargets(b, &example_targets, abi_module, target, optimize, b.step("examples", "Build all examples"), false);
+    buildTargets(b, &example_targets, abi_module, build_opts, target, optimize, b.step("examples", "Build all examples"), false);
 
     // ---------------------------------------------------------------------------
     // CLI smoke-test step (runs all example commands sequentially)
@@ -386,7 +388,7 @@ pub fn build(b: *std.Build) void {
     // ---------------------------------------------------------------------------
     const full_check_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\full_check.bat" });
     b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks").dependOn(&full_check_cmd.step);
-    buildTargets(b, &benchmark_targets, abi_module, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
+    buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
 
     // Tests
     if (pathExists("src/tests/mod.zig")) {

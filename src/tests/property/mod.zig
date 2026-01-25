@@ -38,7 +38,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const time = abi.shared.time;
+const time = abi.utils.time;
 
 // Re-export submodules
 pub const generators = @import("generators.zig");
@@ -169,7 +169,7 @@ pub fn forAll(
     config: PropertyConfig,
     predicate: *const fn (T) bool,
 ) PropertyResult {
-    const seed = config.seed orelse @as(u64, @intCast(time.unixMilliseconds()));
+    const seed = config.seed orelse @as(u64, @intCast(time.getSeed()));
     var prng = std.Random.DefaultPrng.init(seed);
 
     var iterations: u32 = 0;
@@ -221,7 +221,7 @@ pub fn forAllWithAllocator(
     config: PropertyConfig,
     predicate: *const fn (T, std.mem.Allocator) bool,
 ) PropertyResult {
-    const seed = config.seed orelse @as(u64, @intCast(time.unixMilliseconds()));
+    const seed = config.seed orelse @as(u64, @intCast(time.getSeed()));
     var prng = std.Random.DefaultPrng.init(seed);
 
     var iterations: u32 = 0;

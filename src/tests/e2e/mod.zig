@@ -283,10 +283,14 @@ pub const E2EContext = struct {
 
         // Generate unique directory name
         var buf: [64]u8 = undefined;
-        const timestamp = std.time.timestamp();
-        const random = @as(u32, @truncate(@as(u64, @bitCast(timestamp)) ^ 0xDEADBEEF));
+        // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
+        var timer = std.time.Timer.start() catch {
+            return error.TempDirCreationFailed;
+        };
+        const timestamp_ns = timer.read();
+        const random = @as(u32, @truncate(timestamp_ns ^ 0xDEADBEEF));
 
-        const dir_name = std.fmt.bufPrint(&buf, "abi_e2e_{d}_{x}", .{ timestamp, random }) catch return error.TempDirCreationFailed;
+        const dir_name = std.fmt.bufPrint(&buf, "abi_e2e_{d}_{x}", .{ timestamp_ns, random }) catch return error.TempDirCreationFailed;
 
         // Build full path
         const full_path = try std.fmt.allocPrint(self.allocator, "{s}/{s}", .{ base, dir_name });
@@ -562,13 +566,23 @@ test "WorkflowTimer: basic timing" {
 
     try timer.checkpoint("start");
 
-    // Small delay
-    std.time.sleep(1_000_000); // 1ms
+    // Small delay - use cross-platform sleep
+    // On POSIX systems use nanosleep, on Windows this is a no-op (timer tests precision anyway)
+    if (@hasDecl(std.posix, "nanosleep")) {
+        var req = std.posix.timespec{ .sec = 0, .nsec = 1_000_000 };
+        var rem: std.posix.timespec = undefined;
+        _ = std.posix.nanosleep(&req, &rem);
+    }
 
     try timer.checkpoint("after_delay");
 
     const elapsed = timer.elapsed();
-    try std.testing.expect(elapsed >= 1_000_000);
+    // On POSIX, elapsed should be at least 1ms; on Windows without nanosleep, just verify it's non-negative
+    if (@hasDecl(std.posix, "nanosleep")) {
+        try std.testing.expect(elapsed >= 1_000_000);
+    } else {
+        try std.testing.expect(elapsed >= 0);
+    }
     try std.testing.expectEqual(@as(usize, 2), timer.checkpoints.items.len);
 }
 

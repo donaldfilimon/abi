@@ -119,8 +119,12 @@ pub const QTable = struct {
     pub fn selectAction(self: *QTable, state: SchedulerState, num_backends: usize) u8 {
         const state_idx = discretizeState(state);
 
-        // Epsilon-greedy exploration
-        var prng = std.Random.DefaultPrng.init(@bitCast(std.time.nanoTimestamp()));
+        // Epsilon-greedy exploration - use Timer for Zig 0.16 compatibility
+        const seed: u64 = blk: {
+            var timer = std.time.Timer.start() catch break :blk 0;
+            break :blk timer.read();
+        };
+        var prng = std.Random.DefaultPrng.init(seed);
         if (prng.random().float(f32) < self.exploration_rate) {
             return @intCast(prng.random().uintLessThan(usize, num_backends));
         }

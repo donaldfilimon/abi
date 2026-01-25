@@ -253,7 +253,10 @@ pub const ChaosContext = struct {
     }
 
     fn recordFault(self: *Self, fault_type: FaultType, module: ?[]const u8, config_idx: usize) void {
-        const now = std.time.nanoTimestamp();
+        const now = blk: {
+            var timer = std.time.Timer.start() catch break :blk 0;
+            break :blk @as(i128, timer.read());
+        };
 
         self.stats.faults_injected += 1;
         self.stats.faults_by_type[@intFromEnum(fault_type)] += 1;
@@ -414,6 +417,7 @@ pub const FailingAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
+                .remap = remap,
                 .free = free,
             },
         };
@@ -439,6 +443,17 @@ pub const FailingAllocator = struct {
         }
 
         return self.backing.rawResize(buf, buf_align, new_len, ret_addr);
+    }
+
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *Self = @ptrCast(@alignCast(ctx));
+
+        // Check if we should fail this remap (expansion)
+        if (new_len > memory.len and self.chaos.shouldFault(.memory_allocation_failure)) {
+            return null;
+        }
+
+        return self.backing.rawRemap(memory, alignment, new_len, ret_addr);
     }
 
     fn free(ctx: *anyopaque, buf: []u8, buf_align: std.mem.Alignment, ret_addr: usize) void {
@@ -657,7 +672,10 @@ pub fn runWithChaos(
 
     chaos.enable();
 
-    const start_time = std.time.nanoTimestamp();
+    const start_time = blk: {
+        var timer = std.time.Timer.start() catch break :blk 0;
+        break :blk @as(i128, timer.read());
+    };
     var test_error: ?anyerror = null;
 
     test_fn(&chaos) catch |err| {
@@ -665,7 +683,10 @@ pub fn runWithChaos(
     };
 
     chaos.disable();
-    const end_time = std.time.nanoTimestamp();
+    const end_time = blk: {
+        var timer = std.time.Timer.start() catch break :blk 0;
+        break :blk @as(i128, timer.read());
+    };
 
     return .{
         .success = test_error == null,

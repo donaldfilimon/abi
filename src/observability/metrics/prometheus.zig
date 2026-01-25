@@ -6,35 +6,49 @@ const std = @import("std");
 const primitives = @import("primitives.zig");
 
 pub const MetricWriter = struct {
-    output: std.ArrayList(u8),
+    output: std.ArrayListUnmanaged(u8),
+    allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) MetricWriter {
-        return .{ .output = std.ArrayList(u8).init(allocator) };
+        return .{ .output = .empty, .allocator = allocator };
     }
 
     pub fn deinit(self: *MetricWriter) void {
-        self.output.deinit();
+        self.output.deinit(self.allocator);
+    }
+
+    /// Helper to append formatted text
+    fn appendFormatted(self: *MetricWriter, comptime fmt: []const u8, args: anytype) !void {
+        var buf: [1024]u8 = undefined;
+        const slice = std.fmt.bufPrint(&buf, fmt, args) catch |err| switch (err) {
+            error.NoSpaceLeft => {
+                // Fallback: allocate for large format strings
+                const formatted = try std.fmt.allocPrint(self.allocator, fmt, args);
+                defer self.allocator.free(formatted);
+                try self.output.appendSlice(self.allocator, formatted);
+                return;
+            },
+        };
+        try self.output.appendSlice(self.allocator, slice);
     }
 
     pub fn writeCounter(self: *MetricWriter, name: []const u8, help: []const u8, value: u64, labels: ?[]const u8) !void {
-        const writer = self.output.writer();
-        try writer.print("# HELP {s} {s}\n", .{ name, help });
-        try writer.print("# TYPE {s} counter\n", .{name});
+        try self.appendFormatted("# HELP {s} {s}\n", .{ name, help });
+        try self.appendFormatted("# TYPE {s} counter\n", .{name});
         if (labels) |l| {
-            try writer.print("{s}{{{s}}} {d}\n\n", .{ name, l, value });
+            try self.appendFormatted("{s}{{{s}}} {d}\n\n", .{ name, l, value });
         } else {
-            try writer.print("{s} {d}\n\n", .{ name, value });
+            try self.appendFormatted("{s} {d}\n\n", .{ name, value });
         }
     }
 
     pub fn writeGauge(self: *MetricWriter, name: []const u8, help: []const u8, value: anytype, labels: ?[]const u8) !void {
-        const writer = self.output.writer();
-        try writer.print("# HELP {s} {s}\n", .{ name, help });
-        try writer.print("# TYPE {s} gauge\n", .{name});
+        try self.appendFormatted("# HELP {s} {s}\n", .{ name, help });
+        try self.appendFormatted("# TYPE {s} gauge\n", .{name});
         if (labels) |l| {
-            try writer.print("{s}{{{s}}} {d}\n\n", .{ name, l, value });
+            try self.appendFormatted("{s}{{{s}}} {d}\n\n", .{ name, l, value });
         } else {
-            try writer.print("{s} {d}\n\n", .{ name, value });
+            try self.appendFormatted("{s} {d}\n\n", .{ name, value });
         }
     }
 
@@ -49,9 +63,8 @@ pub const MetricWriter = struct {
         histogram.mutex.lock();
         defer histogram.mutex.unlock();
 
-        const writer = self.output.writer();
-        try writer.print("# HELP {s} {s}\n", .{ name, help });
-        try writer.print("# TYPE {s} histogram\n", .{name});
+        try self.appendFormatted("# HELP {s} {s}\n", .{ name, help });
+        try self.appendFormatted("# TYPE {s} histogram\n", .{name});
 
         const label_prefix = if (labels) |l| l else "";
         const comma = if (labels != null) "," else "";
@@ -59,19 +72,19 @@ pub const MetricWriter = struct {
         var cumulative: u64 = 0;
         for (histogram.buckets, 0..) |bucket, i| {
             cumulative += bucket;
-            try writer.print("{s}_bucket{{{s}{s}le=\"{d}\"}} {d}\n", .{
+            try self.appendFormatted("{s}_bucket{{{s}{s}le=\"{d}\"}} {d}\n", .{
                 name, label_prefix, comma, histogram.bucket_bounds[i], cumulative,
             });
         }
-        try writer.print("{s}_bucket{{{s}{s}le=\"+Inf\"}} {d}\n", .{
+        try self.appendFormatted("{s}_bucket{{{s}{s}le=\"+Inf\"}} {d}\n", .{
             name, label_prefix, comma, histogram.count,
         });
-        try writer.print("{s}_sum{{{s}}} {d}\n", .{ name, label_prefix, histogram.sum });
-        try writer.print("{s}_count{{{s}}} {d}\n\n", .{ name, label_prefix, histogram.count });
+        try self.appendFormatted("{s}_sum{{{s}}} {d}\n", .{ name, label_prefix, histogram.sum });
+        try self.appendFormatted("{s}_count{{{s}}} {d}\n\n", .{ name, label_prefix, histogram.count });
     }
 
     pub fn finish(self: *MetricWriter) ![]u8 {
-        return try self.output.toOwnedSlice();
+        return try self.output.toOwnedSlice(self.allocator);
     }
 
     pub fn clear(self: *MetricWriter) void {
