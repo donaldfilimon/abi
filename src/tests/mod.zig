@@ -63,6 +63,18 @@ comptime {
     if (build_options.enable_web) {
         _ = @import("web_test.zig");
     }
+
+    // Cross-module integration tests
+    _ = @import("integration_test.zig");
+
+    // Concurrency stress tests (lock-free primitives)
+    _ = @import("concurrency_stress_test.zig");
+
+    // Quantized kernel correctness tests (CPU reference implementations)
+    _ = @import("quantized_kernels_test.zig");
+
+    // Integration test infrastructure (fixtures, mocks, cross-module tests)
+    _ = @import("integration/mod.zig");
 }
 
 // Connector tests
@@ -89,6 +101,18 @@ pub const e2e_llm_test = @import("e2e_llm_test.zig");
 pub const e2e_database_test = @import("e2e_database_test.zig");
 pub const e2e_personas_test = @import("e2e_personas_test.zig");
 pub const error_handling_test = @import("error_handling_test.zig");
+
+// Cross-module integration tests
+pub const integration_test = @import("integration_test.zig");
+
+// Concurrency stress tests (64+ thread high-contention scenarios)
+pub const concurrency_stress_test = @import("concurrency_stress_test.zig");
+
+// Quantized kernel correctness tests (CPU reference implementations)
+pub const quantized_kernels_test = @import("quantized_kernels_test.zig");
+
+// Integration test infrastructure
+pub const integration = @import("integration/mod.zig");
 
 pub const Generator = proptest.Generator;
 pub const Generators = proptest.Generators;

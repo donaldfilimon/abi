@@ -177,10 +177,11 @@ pub const Context = struct {
 
     /// Shutdown the runtime context.
     pub fn deinit(self: *Context) void {
+        const allocator = self.allocator;
         if (self.engine_ptr) |e| {
             e.deinit();
+            allocator.destroy(e);
         }
-        const allocator = self.allocator;
         allocator.destroy(self);
     }
 

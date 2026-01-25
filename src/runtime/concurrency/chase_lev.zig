@@ -34,6 +34,7 @@
 //! ```
 
 const std = @import("std");
+const platform_time = @import("../../shared/time.zig");
 
 /// Minimum capacity (must be power of 2)
 const MIN_CAPACITY: usize = 16;
@@ -265,7 +266,7 @@ pub fn WorkStealingScheduler(comptime Task: type) type {
                 .allocator = allocator,
                 .worker_deques = deques,
                 .worker_count = worker_count,
-                .rng = std.Random.DefaultPrng.init(@intCast(std.time.timestamp())),
+                .rng = std.Random.DefaultPrng.init(platform_time.getSeed()),
             };
         }
 

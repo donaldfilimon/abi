@@ -38,6 +38,7 @@
 //! - Cache put: ~100ns (hash + lock + insert)
 
 const std = @import("std");
+const platform_time = @import("../../shared/time.zig");
 
 /// Configuration for the result cache.
 pub const CacheConfig = struct {
@@ -57,10 +58,10 @@ pub const CacheConfig = struct {
 fn CacheEntry(comptime V: type) type {
     return struct {
         value: V,
-        /// Timestamp when entry was created
-        created_ns: i128,
+        /// Timestamp when entry was created (monotonic ns from app start)
+        created_ns: i64,
         /// Last access timestamp for LRU
-        last_access_ns: std.atomic.Value(i128),
+        last_access_ns: std.atomic.Value(i64),
         /// Access count for frequency-based eviction
         access_count: std.atomic.Value(u32),
     };
@@ -165,9 +166,9 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
 
             // Check TTL
             if (self.config.ttl_ms > 0) {
-                const now = std.time.nanoTimestamp();
+                const now = @as(i64, @intCast(platform_time.timestampNs()));
                 const age_ms = @divFloor(now - entry.created_ns, std.time.ns_per_ms);
-                if (age_ms > @as(i128, @intCast(self.config.ttl_ms))) {
+                if (age_ms > @as(i64, @intCast(self.config.ttl_ms))) {
                     // Expired
                     _ = shard.map.remove(key);
                     shard.entry_count -= 1;
@@ -184,7 +185,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
             }
 
             // Update access metadata
-            const now = std.time.nanoTimestamp();
+            const now = @as(i64, @intCast(platform_time.timestampNs()));
             entry.last_access_ns.store(now, .release);
             _ = entry.access_count.fetchAdd(1, .monotonic);
 
@@ -205,7 +206,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
             shard.mutex.lock();
             defer shard.mutex.unlock();
 
-            const now = std.time.nanoTimestamp();
+            const now = @as(i64, @intCast(platform_time.timestampNs()));
 
             // Check if we need to evict
             const max_per_shard = self.config.max_entries / self.config.shard_count;
@@ -216,7 +217,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
             const entry = Entry{
                 .value = value,
                 .created_ns = now,
-                .last_access_ns = std.atomic.Value(i128).init(now),
+                .last_access_ns = std.atomic.Value(i64).init(now),
                 .access_count = std.atomic.Value(u32).init(1),
             };
 
@@ -297,7 +298,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
         fn evictFromShard(self: *Self, shard: *Shard) void {
             // Find oldest entries
             var oldest_keys: [16]?K = .{null} ** 16;
-            var oldest_times: [16]i128 = .{std.math.maxInt(i128)} ** 16;
+            var oldest_times: [16]i64 = .{std.math.maxInt(i64)} ** 16;
             const batch_size = @min(self.config.eviction_batch, 16);
 
             var iter = shard.map.iterator();
