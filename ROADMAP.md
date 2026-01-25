@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-25.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -88,6 +88,23 @@ tags: [planning, roadmap]
   - [x] Arena allocator improvements (ScopedArena)
   - [x] Memory pools for hot paths (SlabAllocator with size classes)
   - [x] Zero-copy optimizations (ZeroCopyBuffer)
+- [x] Lock-free concurrency - COMPLETE (2026-01-25)
+  - [x] Chase-Lev work-stealing deque (`src/runtime/concurrency/chase_lev.zig`)
+  - [x] Epoch-based memory reclamation (`src/runtime/concurrency/epoch.zig`)
+  - [x] Lock-free MPMC queue (`src/runtime/concurrency/mpmc_queue.zig`)
+  - [x] NUMA-aware work stealing policy (`src/runtime/engine/steal_policy.zig`)
+  - [x] Result caching with TTL (`src/runtime/engine/result_cache.zig`)
+- [x] Quantized CUDA kernels - COMPLETE (2026-01-25)
+  - [x] Q4_0 matrix-vector multiplication with fused dequantization
+  - [x] Q8_0 matrix-vector multiplication with fused dequantization
+  - [x] Fused SwiGLU activation kernel
+  - [x] RMSNorm scale kernel
+  - [x] High-level `compileKernel()` API for NVRTC
+- [x] Parallel search utilities - COMPLETE (2026-01-25)
+  - [x] SIMD-accelerated batch cosine distances
+  - [x] ParallelSearchExecutor for batch queries
+  - [x] ParallelBeamState for concurrent HNSW traversal
+  - [x] ParallelWorkQueue for thread-safe work distribution
 
 ### Developer Experience
     - [x] Enhanced CLI

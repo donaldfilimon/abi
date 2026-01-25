@@ -3,7 +3,7 @@ title: "GEMINI"
 tags: [ai, agents, gemini]
 ---
 # GEMINI.md
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-25.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Gemini-Agent_Guide-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini Guide"/>
@@ -36,6 +36,12 @@ zig build run -- llm generate "Hello" --max 60
 
 **ABI Framework** is a Zig 0.16 framework for modular AI services, GPU compute, and vector databases.
 
+**Key Features:**
+- **Lock-free Concurrency**: Chase-Lev deque, epoch reclamation, MPMC queues, NUMA-aware stealing
+- **Quantized Inference**: Q4/Q8 CUDA kernels with 4x/2x memory savings
+- **Result Caching**: Sharded LRU with TTL support for task memoization
+- **Parallel Search**: SIMD-accelerated HNSW batch queries
+
 ### Architecture
 
 The codebase uses a domain-driven modular structure with unified configuration and compile-time feature gating:
@@ -53,7 +59,7 @@ src/
 ├── network/             # Distributed compute and Raft
 ├── observability/       # Metrics, tracing, monitoring
 ├── registry/            # Plugin registry (lifecycle, plugins)
-├── runtime/             # Task engine
+├── runtime/             # Task engine, concurrency primitives, work stealing
 ├── shared/              # Utils and helpers
 ├── tasks/               # Task management (persistence, querying, lifecycle)
 └── web/                 # Web/HTTP utilities
@@ -113,6 +119,42 @@ const build_options = struct{
 ```
 
 **Stub-Real Sync:** Changes to `src/<feature>/mod.zig` must be propagated to its `stub.zig`. The CI parity checker will report mismatches.
+
+## New Runtime Types (2026-01-25)
+
+### Lock-free Concurrency
+```zig
+const runtime = @import("abi").runtime;
+
+// Chase-Lev work-stealing deque
+var deque = runtime.ChaseLevDeque(Task).init(allocator);
+
+// Epoch-based reclamation (ABA-safe)
+var epoch = runtime.EpochReclamation(Node).init(allocator);
+
+// MPMC bounded queue
+var queue = try runtime.MpmcQueue(Msg).init(allocator, 1024);
+
+// Result caching with TTL
+var cache = try runtime.ResultCache(K, V).init(allocator, .{});
+
+// NUMA-aware work stealing
+var policy = try runtime.NumaStealPolicy.init(allocator, null, 8, .{});
+```
+
+### Quantized CUDA Kernels
+```zig
+const cuda = @import("abi").gpu.cuda;
+
+var quant = try cuda.QuantizedKernelModule.init(allocator);
+defer quant.deinit();
+
+// Q4_0/Q8_0 matrix-vector multiplication
+try quant.q4Matmul(a_ptr, x_ptr, y_ptr, m, k, stream);
+
+// Configuration
+const config = cuda.QuantConfig.forInference();
+```
 
 ## Gotchas for Gemini
 * **Stub‑Real Sync** – Changes to `src/<feature>/mod.zig` must be propagated to its `stub.zig`.

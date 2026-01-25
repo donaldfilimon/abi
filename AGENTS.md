@@ -3,12 +3,12 @@ title: "AGENTS"
 tags: [ai, agents, development]
 ---
 # AGENTS.md
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-25.
 
 <p align="center">
   <img src="https://img.shields.io/badge/AI_Agents-Guide-purple?style=for-the-badge" alt="AI Agents Guide"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
-  <img src="https://img.shields.io/badge/Tests-194%2F198-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Tests-280%2F284-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 This file provides guidance for AI agents (Claude, GPT, Gemini, Copilot, and others) working with the ABI framework codebase.
@@ -22,6 +22,8 @@ This file provides guidance for AI agents (Claude, GPT, Gemini, Copilot, and oth
 - **WDBX Memory**: Block-chained conversational memory with MVCC and version vectors
 - **Distributed Architecture**: Raft consensus, intelligent sharding, block exchange
 - **GPU Acceleration**: VTable-based backends (CUDA, Vulkan, Metal, FPGA)
+- **Lock-free Concurrency**: Chase-Lev deque, epoch reclamation, MPMC queues
+- **Quantized Inference**: Q4/Q8 CUDA kernels with fused dequantization
 
 ## Essential Commands
 
@@ -29,7 +31,7 @@ This file provides guidance for AI agents (Claude, GPT, Gemini, Copilot, and oth
 ```bash
 # Build and test everything
 zig build                              # Build project
-zig build test --summary all           # Run all tests (194/198 must pass)
+zig build test --summary all           # Run all tests (280/284 must pass)
 zig fmt --check .                      # Check formatting (always run zig fmt . after edits)
 
 # Single file testing
@@ -47,7 +49,7 @@ zig build run -- --help                # CLI help
 ```bash
 # Must run after every edit
 zig fmt .                              # Format all files (ALWAYS)
-zig build test --summary all           # Regression test (194/198 baseline)
+zig build test --summary all           # Regression test (280/284 baseline)
 zig build typecheck                    # Type checking without running tests
 ```
 
@@ -186,6 +188,58 @@ pub const MyBackend = struct {
 // - H_t: Integrity (cryptographic hash)
 ```
 
+### Runtime Concurrency (NEW)
+```zig
+// Lock-free primitives: src/runtime/concurrency/
+const runtime = @import("abi").runtime;
+
+// Chase-Lev work-stealing deque (lock-free, ABA-safe)
+var deque = runtime.ChaseLevDeque(Task).init(allocator);
+deque.pushBottom(task);           // Owner pushes
+const stolen = deque.steal();     // Thieves steal from top
+
+// Epoch-based memory reclamation
+var epoch = runtime.EpochReclamation(Node).init(allocator);
+const guard = epoch.pin();        // Enter critical section
+defer guard.unpin();
+
+// MPMC queue (bounded, lock-free)
+var queue = try runtime.MpmcQueue(Message).init(allocator, 1024);
+try queue.push(msg);
+const msg = queue.pop();
+
+// Result caching with TTL
+var cache = try runtime.ResultCache(K, V).init(allocator, .{ .max_entries = 10000 });
+try cache.put(key, value, ttl_ns);
+const hit = cache.get(key);
+
+// NUMA-aware work stealing
+var policy = try runtime.NumaStealPolicy.init(allocator, topology, worker_count, .{});
+const victim = policy.selectVictim(worker_id, &rng);
+```
+
+### Quantized CUDA Kernels (NEW)
+```zig
+// GPU-accelerated quantized inference: src/gpu/backends/cuda/quantized_kernels.zig
+const cuda = @import("abi").gpu.cuda;
+
+// Initialize quantized kernel module
+var quant = try cuda.QuantizedKernelModule.init(allocator);
+defer quant.deinit();
+
+// Q4_0 matrix-vector multiplication (4x memory savings)
+try quant.q4Matmul(a_quant_ptr, x_ptr, y_ptr, m, k, stream);
+
+// Q8_0 matrix-vector multiplication (2x memory savings)
+try quant.q8Matmul(a_quant_ptr, x_ptr, y_ptr, m, k, stream);
+
+// Fused SwiGLU activation
+try quant.fusedSwiglu(gate_ptr, up_ptr, n, stream);
+
+// Configuration
+const config = cuda.QuantConfig.forInference();  // Optimized defaults
+```
+
 ### Distributed Components
 ```zig
 // Sharding: src/database/distributed/shard_manager.zig
@@ -193,7 +247,7 @@ pub const MyBackend = struct {
 // - Consistent hashing ring for placement
 // - Locality-aware replication
 
-// Block Exchange: src/database/distributed/block_exchange.zig  
+// Block Exchange: src/database/distributed/block_exchange.zig
 // - Version vectors for causal consistency
 // - Anti-entropy synchronization
 // - MVCC conflict resolution
@@ -230,7 +284,7 @@ zig build benchmarks         # Full benchmark suite
 ## Quality Gates (Non-Negotiable)
 
 1. **✅ zig fmt .** - No formatting diffs
-2. **✅ zig build test --summary all** - 194/198 tests must pass (regression)
+2. **✅ zig build test --summary all** - 280/284 tests must pass (regression)
 3. **✅ GeneralPurposeAllocator in tests** - Zero memory leaks
 4. **✅ Parent module export pattern** - For nested modules
 5. **✅ Performance benchmarks** - Before/after critical changes
@@ -247,4 +301,4 @@ zig build benchmarks         # Full benchmark suite
 | Build project | `zig build` |
 | Run CLI | `zig build run -- --help` |
 
-**Remember**: This codebase implements research-mandated WDBX architecture. All changes must align with research documents and maintain 194/198 test pass rate.
+**Remember**: This codebase implements research-mandated WDBX architecture. All changes must align with research documents and maintain 280/284 test pass rate.

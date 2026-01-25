@@ -3,20 +3,20 @@ title: "PLAN"
 tags: [planning, sprint, development]
 ---
 # Current Development Focus
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-25.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Sprint-Complete-success?style=for-the-badge" alt="Sprint Complete"/>
-  <img src="https://img.shields.io/badge/Status-Ready_for_Next-blue?style=for-the-badge" alt="Ready"/>
+  <img src="https://img.shields.io/badge/Sprint-Active-blue?style=for-the-badge" alt="Sprint Active"/>
+  <img src="https://img.shields.io/badge/Tests-280%2F284-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 ## This Sprint
 
-Active development on remaining queued items:
+Active development focus:
 
-1. ~~**Python bindings expansion**~~ - DONE: Streaming FFI, training API, pyproject.toml, observability module
-2. ~~**npm package for WASM bindings**~~ - DONE: @abi-framework/wasm v0.4.0
-3. ~~**VS Code extension**~~ - DONE: Build/test commands, AI chat sidebar, GPU status panel, task provider, diagnostics, status bar, 15 snippets
+1. **Performance optimization** - Benchmark new concurrency primitives under load
+2. **Documentation** - API docs for new runtime types (ChaseLevDeque, ResultCache, etc.)
+3. **Test coverage** - Add integration tests for quantized CUDA kernels
 
 ---
 
@@ -24,12 +24,20 @@ Active development on remaining queued items:
 
 Ready to start when current work completes:
 
-_(Queue cleared - all items moved to active sprint)_
+- **Metal backend** - Quantized kernels port for Apple Silicon
+- **WebGPU quantized** - WASM-compatible quantized inference
+- **Parallel HNSW** - Multi-threaded index building
 
 ---
 
 ## Recently Completed
 
+- **Lock-free concurrency primitives** - Chase-Lev deque, epoch reclamation, MPMC queue, NUMA-aware work stealing (2026-01-25)
+- **Quantized CUDA kernels** - Q4/Q8 matrix-vector multiplication with fused dequantization, SwiGLU, RMSNorm (2026-01-25)
+- **Result caching** - Sharded LRU cache with TTL support for task memoization (2026-01-25)
+- **Parallel search** - SIMD-accelerated batch HNSW queries with ParallelSearchExecutor (2026-01-25)
+- **GPU memory pool** - LLM-optimized memory pooling with size classes (2026-01-25)
+- **CLI Zig 0.16 fixes** - Environment variable access, plugins command, profile command (2026-01-25)
 - **Rust bindings** - Complete FFI bindings with safe wrappers for Framework, SIMD, VectorDatabase, GPU modules (2026-01-24)
 - **Go bindings** - cgo bindings with SIMD, database, GPU modules and examples (2026-01-24)
 - **CLI improvements** - Plugin management, profile/settings command, PowerShell completions (2026-01-24)
