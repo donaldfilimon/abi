@@ -314,13 +314,26 @@ var server: std.http.Server = .init(
 
 | Command | Purpose |
 |---------|---------|
-| `db` | Database operations (add, search, stats, backup, restore) |
-| `agent` | AI agent interaction (interactive, one-shot, personas) |
-| `llm` | LLM inference (chat, generate, info, download) |
-| `train` | Training pipeline (run, info, resume) |
-| `gpu` | GPU management (backends, devices, summary) |
+| `db` | Database operations (add, query, stats, optimize, backup, restore, serve) |
+| `agent` | AI agent interaction (interactive, one-shot, 13 personas) |
+| `llm` | LLM inference (chat, generate, info, bench, download, list) |
+| `train` | Training pipeline (run, llm, resume, monitor, info) |
+| `gpu` | GPU management (backends, devices, summary, default, status) |
+| `gpu-dashboard` | Interactive GPU + Agent monitoring TUI |
+| `bench` | Benchmarks (all, simd, memory, ai, quick, concurrency) |
+| `simd` | SIMD performance demonstration |
 | `task` | Task management (add, list, done, stats) |
-| `tui` | Interactive TUI launcher |
+| `tui` | Interactive TUI command launcher with themes |
+| `explore` | Codebase search (quick/medium/thorough/deep levels) |
+| `embed` | Generate embeddings (openai, ollama, mistral, cohere) |
+| `config` | Configuration management (init, show, validate) |
+| `network` | Network registry (list, register, status) |
+| `multi-agent` | Multi-agent coordinator workflows |
+| `plugins` | Plugin management (list, enable, disable, info) |
+| `profile` | User profile and settings |
+| `discord` | Discord bot operations |
+| `convert` | Dataset conversion (tokenbin, text, jsonl, wdbx) |
+| `completions` | Shell completions (bash, zsh, fish, powershell) |
 | `system-info` | Framework and feature status |
 
 ### LLM CLI Examples

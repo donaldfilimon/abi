@@ -33,20 +33,21 @@ fn printHelp() void {
         \\Commands:
         \\  stats                    Show database statistics
         \\  add --id <n> --embed <t> Add embedding with ID
-        \\  search --embed <text>    Search for similar embeddings
+        \\  query --embed <text>     Query for similar embeddings
+        \\  optimize                 Optimize database indices
         \\  backup --path <file>     Backup database to file
         \\  restore --path <file>    Restore database from backup
+        \\  serve [--addr <h:p>]     Start database server
         \\  help                     Show this help message
         \\
         \\Options:
         \\  --path <path>            Database file path (default: wdbx_data)
-        \\  --dimensions <n>         Vector dimensions (default: 384)
-        \\  --metric <type>          Distance metric: cosine, euclidean, dot
+        \\  --top-k <n>              Number of results to return (default: 10)
         \\
         \\Examples:
         \\  abi db stats
         \\  abi db add --id 1 --embed "Hello world"
-        \\  abi db search --embed "similar text" --top 5
+        \\  abi db query --embed "similar text" --top-k 5
         \\  abi db backup --path backup.db
         \\
     ;
