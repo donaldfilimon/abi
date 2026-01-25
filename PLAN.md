@@ -30,6 +30,9 @@ _(Queue cleared - all items moved to active sprint)_
 
 ## Recently Completed
 
+- **Rust bindings** - Complete FFI bindings with safe wrappers for Framework, SIMD, VectorDatabase, GPU modules (2026-01-24)
+- **Go bindings** - cgo bindings with SIMD, database, GPU modules and examples (2026-01-24)
+- **CLI improvements** - Plugin management, profile/settings command, PowerShell completions (2026-01-24)
 - **VS Code extension enhancements** - Diagnostics provider, status bar with quick actions, 15 Zig snippets for ABI patterns (2026-01-24)
 - **Python observability module** - Metrics (Counter/Gauge/Histogram), distributed tracing, profiler, health checks with 57 tests (2026-01-24)
 - **E2E Testing** - Comprehensive tests for Python (149 tests), WASM (51 tests), VS Code extension (5 suites) (2026-01-24)

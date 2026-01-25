@@ -93,8 +93,10 @@ tags: [planning, roadmap]
     - [x] Enhanced CLI
       - [x] Interactive mode improvements
       - [x] Configuration file support
-      - [x] Shell completion (bash, zsh, fish)
+      - [x] Shell completion (bash, zsh, fish, PowerShell)
       - [x] Interactive TUI command launcher (cross-platform)
+      - [x] Plugin management command (list, enable, disable, search)
+      - [x] Profile/settings management (api-keys, preferences)
     - [x] Tooling
       - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
       - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
@@ -157,9 +159,11 @@ tags: [planning, roadmap]
 
 ### Ecosystem
 - [x] Language bindings
-  - [x] Python bindings (foundation)
+  - [x] Python bindings (foundation + observability module)
   - [x] JavaScript/WASM bindings
   - [x] C API (bindings/c/abi.h)
+  - [x] Rust bindings (FFI with safe wrappers) - COMPLETE (2026-01-24)
+  - [x] Go bindings (cgo with SIMD/database/GPU) - COMPLETE (2026-01-24)
 - [x] Package manager integration
   - [x] Zig package registry (build.zig.zon with fingerprint)
   - [x] Homebrew formula (Formula/abi.rb)
