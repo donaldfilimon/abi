@@ -75,6 +75,23 @@ comptime {
 
     // Integration test infrastructure (fixtures, mocks, cross-module tests)
     _ = @import("integration/mod.zig");
+
+    // Observability module comprehensive tests
+    if (build_options.enable_profiling) {
+        _ = @import("observability_test.zig");
+    }
+
+    // Stress test infrastructure (HA, observability, database stress tests)
+    _ = @import("stress/mod.zig");
+
+    // Chaos testing framework (production-grade reliability testing)
+    _ = @import("chaos/mod.zig");
+
+    // Property-based testing infrastructure (comprehensive property tests)
+    _ = @import("property/mod.zig");
+
+    // E2E workflow tests (complete user workflow validation)
+    _ = @import("e2e/mod.zig");
 }
 
 // Connector tests
@@ -113,6 +130,21 @@ pub const quantized_kernels_test = @import("quantized_kernels_test.zig");
 
 // Integration test infrastructure
 pub const integration = @import("integration/mod.zig");
+
+// Observability module comprehensive tests
+pub const observability_test = if (build_options.enable_profiling) @import("observability_test.zig") else struct {};
+
+// Stress test infrastructure (production-grade stress tests)
+pub const stress = @import("stress/mod.zig");
+
+// Chaos testing framework (production-grade reliability testing)
+pub const chaos = @import("chaos/mod.zig");
+
+// Property-based testing infrastructure (comprehensive property tests)
+pub const property = @import("property/mod.zig");
+
+// E2E workflow tests (complete user workflow validation)
+pub const e2e = @import("e2e/mod.zig");
 
 pub const Generator = proptest.Generator;
 pub const Generators = proptest.Generators;

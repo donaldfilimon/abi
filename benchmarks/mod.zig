@@ -12,14 +12,8 @@ const std = @import("std");
 pub const domains = struct {
     pub const ai = @import("domain/ai/mod.zig");
     pub const database = @import("domain/database/mod.zig");
-    // GPU and network domains not yet implemented
-    pub const gpu = struct {
-        pub const backends = struct {
-            pub const mod = struct {};
-        };
-        pub const kernels = struct {};
-        pub const memory = struct {};
-    };
+    pub const gpu = @import("domain/gpu/mod.zig");
+    // Network domain not yet implemented
     pub const network = struct {};
 };
 
@@ -46,12 +40,8 @@ pub const infrastructure = struct {
 // Competitive benchmarks (FAISS, LLM, vector DB comparisons)
 pub const competitive = @import("competitive/mod.zig");
 
-// System benchmarks (framework, CI, industry standards)
-pub const system = struct {
-    pub const framework = @import("system/framework.zig");
-    pub const ci_integration = @import("system/ci_integration.zig");
-    pub const industry_standard = @import("system/industry_standard.zig");
-};
+// System benchmarks (framework, CI, industry standards, baseline persistence)
+pub const system = @import("system/mod.zig");
 
 // Core utilities (config, vectors, distance, runner)
 pub const core = @import("core/mod.zig");
@@ -81,6 +71,7 @@ pub fn runAllBenchmarks(allocator: std.mem.Allocator) !void {
     std.debug.print("Domain Benchmarks:\n", .{});
     try domains.ai.runAllBenchmarks(allocator, .standard);
     try domains.database.runAllBenchmarks(allocator, .standard);
+    try domains.gpu.runAllBenchmarks(allocator, .standard);
 
     // Run infrastructure benchmarks
     std.debug.print("\nInfrastructure Benchmarks:\n", .{});
@@ -103,6 +94,15 @@ pub const AnnDataset = core.config.AnnDataset;
 pub const VectorDistribution = core.vectors.VectorDistribution;
 pub const generateVector = core.vectors.generateVector;
 pub const freeVector = core.vectors.freeVector;
+
+// Baseline persistence exports
+pub const BaselineStore = system.BaselineStore;
+pub const BenchmarkResult = system.BenchmarkResult;
+pub const ComparisonResult = system.ComparisonResult;
+pub const RegressionReport = system.RegressionReport;
+pub const ComparisonConfig = system.ComparisonConfig;
+pub const compareAll = system.compareAll;
+pub const compareAllWithConfig = system.compareAllWithConfig;
 
 test "benchmark modules compile" {
     _ = domains;

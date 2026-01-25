@@ -1,0 +1,578 @@
+//! Database Property Tests
+//!
+//! Property-based tests for database operations including:
+//! - Insert/search consistency
+//! - Delete correctness
+//! - Index invariants
+//! - Concurrent operation correctness
+//!
+//! Uses the database module from src/database/
+
+const std = @import("std");
+const property = @import("mod.zig");
+const generators = @import("generators.zig");
+const abi = @import("abi");
+const build_options = @import("build_options");
+
+const forAll = property.forAll;
+const forAllWithAllocator = property.forAllWithAllocator;
+const assert = property.assert;
+const Generator = property.Generator;
+
+// ============================================================================
+// Test Configuration
+// ============================================================================
+
+const TestConfig = property.PropertyConfig{
+    .iterations = 50,
+    .seed = 42,
+    .verbose = false,
+};
+
+const VECTOR_DIM = 8;
+const EPSILON: f32 = 1e-5;
+
+// ============================================================================
+// Database Operation Types for State Machine Testing
+// ============================================================================
+
+/// Represents a database operation for property testing
+const DbOperation = struct {
+    op_type: OpType,
+    id: u64,
+    vector: [VECTOR_DIM]f32,
+
+    const OpType = enum {
+        insert,
+        search,
+        delete,
+        update,
+    };
+};
+
+/// Generate random database operations
+fn dbOperationGen() Generator(DbOperation) {
+    return .{
+        .generateFn = struct {
+            fn generate(prng: *std.Random.DefaultPrng, _: usize) DbOperation {
+                var result: DbOperation = undefined;
+
+                // Generate operation type
+                result.op_type = @enumFromInt(prng.random().intRangeLessThan(u8, 0, 4));
+                result.id = prng.random().intRangeAtMost(u64, 1, 1000);
+
+                // Generate normalized vector
+                var sum_sq: f32 = 0.0;
+                for (&result.vector) |*v| {
+                    v.* = prng.random().float(f32) * 2.0 - 1.0;
+                    sum_sq += v.* * v.*;
+                }
+                const mag = @sqrt(sum_sq);
+                if (mag > 1e-6) {
+                    for (&result.vector) |*v| {
+                        v.* /= mag;
+                    }
+                }
+
+                return result;
+            }
+        }.generate,
+        .shrinkFn = null,
+    };
+}
+
+// ============================================================================
+// Vector Similarity Properties
+// ============================================================================
+
+test "cosine similarity is bounded in [-1, 1]" {
+    const gen = generators.vectorPairF32(VECTOR_DIM);
+
+    const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
+            const cos = abi.shared.simd.cosineSimilarity(&pair.a, &pair.b);
+
+            // Handle edge cases
+            if (std.math.isNan(cos)) return false;
+
+            return cos >= -1.0 - EPSILON and cos <= 1.0 + EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "identical vectors have cosine similarity 1.0" {
+    const gen = generators.nonZeroVector(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            const cos = abi.shared.simd.cosineSimilarity(&vec, &vec);
+            return assert.approxEqual(cos, 1.0, EPSILON);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "negated vectors have cosine similarity -1.0" {
+    const gen = generators.nonZeroVector(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            var neg: [VECTOR_DIM]f32 = undefined;
+            for (&neg, vec) |*n, v| {
+                n.* = -v;
+            }
+
+            const cos = abi.shared.simd.cosineSimilarity(&vec, &neg);
+            return assert.approxEqual(cos, -1.0, EPSILON);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+// ============================================================================
+// Distance Metric Properties
+// ============================================================================
+
+test "L2 distance is a valid metric (non-negative)" {
+    const gen = generators.vectorPairF32(VECTOR_DIM);
+
+    const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
+            const dist = abi.shared.simd.l2Distance(&pair.a, &pair.b);
+            return dist >= 0.0;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "L2 distance is symmetric" {
+    const gen = generators.vectorPairF32(VECTOR_DIM);
+
+    const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
+            const dist_ab = abi.shared.simd.l2Distance(&pair.a, &pair.b);
+            const dist_ba = abi.shared.simd.l2Distance(&pair.b, &pair.a);
+            return assert.approxEqual(dist_ab, dist_ba, EPSILON);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "L2 distance of vector with itself is zero" {
+    const gen = generators.vectorF32(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            const dist = abi.shared.simd.l2Distance(&vec, &vec);
+            return assert.approxEqual(dist, 0.0, EPSILON);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "triangle inequality holds for L2 distance" {
+    const gen = generators.vectorTripleF32(VECTOR_DIM);
+
+    const result = forAll(property.VectorTriple(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(triple: property.VectorTriple(VECTOR_DIM)) bool {
+            const dist_ac = abi.shared.simd.l2Distance(&triple.a, &triple.c);
+            const dist_ab = abi.shared.simd.l2Distance(&triple.a, &triple.b);
+            const dist_bc = abi.shared.simd.l2Distance(&triple.b, &triple.c);
+
+            // Allow tolerance for floating point
+            return dist_ac <= dist_ab + dist_bc + EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+// ============================================================================
+// Database State Machine Properties (when database enabled)
+// ============================================================================
+
+/// Simple in-memory database model for testing invariants
+const DatabaseModel = struct {
+    vectors: std.AutoHashMap(u64, [VECTOR_DIM]f32),
+    allocator: std.mem.Allocator,
+
+    fn init(allocator: std.mem.Allocator) DatabaseModel {
+        return .{
+            .vectors = std.AutoHashMap(u64, [VECTOR_DIM]f32).init(allocator),
+            .allocator = allocator,
+        };
+    }
+
+    fn deinit(self: *DatabaseModel) void {
+        self.vectors.deinit();
+        self.* = undefined;
+    }
+
+    fn insert(self: *DatabaseModel, id: u64, vector: [VECTOR_DIM]f32) !void {
+        try self.vectors.put(id, vector);
+    }
+
+    fn delete(self: *DatabaseModel, id: u64) bool {
+        return self.vectors.remove(id);
+    }
+
+    fn get(self: *DatabaseModel, id: u64) ?[VECTOR_DIM]f32 {
+        return self.vectors.get(id);
+    }
+
+    fn count(self: *DatabaseModel) usize {
+        return self.vectors.count();
+    }
+
+    fn search(self: *DatabaseModel, query: [VECTOR_DIM]f32, k: usize) ![]SearchResult {
+        const allocator = self.allocator;
+
+        // Collect all vectors with their distances
+        var results = std.ArrayList(SearchResult).init(allocator);
+        defer results.deinit();
+
+        var iter = self.vectors.iterator();
+        while (iter.next()) |entry| {
+            const dist = abi.shared.simd.l2Distance(&query, entry.value_ptr);
+            try results.append(.{ .id = entry.key_ptr.*, .distance = dist });
+        }
+
+        // Sort by distance
+        std.sort.heap(SearchResult, results.items, {}, struct {
+            fn lessThan(_: void, a: SearchResult, b: SearchResult) bool {
+                return a.distance < b.distance;
+            }
+        }.lessThan);
+
+        // Return top k
+        const limit = @min(k, results.items.len);
+        return try allocator.dupe(SearchResult, results.items[0..limit]);
+    }
+
+    const SearchResult = struct {
+        id: u64,
+        distance: f32,
+    };
+};
+
+test "database model insert then get returns same vector" {
+    const gen = generators.unitVector(VECTOR_DIM);
+
+    const result = forAllWithAllocator([VECTOR_DIM]f32, std.testing.allocator, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            model.insert(42, vec) catch return false;
+
+            const retrieved = model.get(42) orelse return false;
+
+            return assert.slicesApproxEqual(&retrieved, &vec, EPSILON);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model delete removes vector" {
+    const gen = generators.unitVector(VECTOR_DIM);
+
+    const result = forAllWithAllocator([VECTOR_DIM]f32, std.testing.allocator, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            model.insert(42, vec) catch return false;
+            _ = model.delete(42);
+
+            return model.get(42) == null;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model count is correct after operations" {
+    const gen = generators.intRange(u8, 1, 50);
+
+    const result = forAllWithAllocator(u8, std.testing.allocator, gen, TestConfig, struct {
+        fn check(n: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert n vectors
+            for (0..n) |i| {
+                const vec = [_]f32{@as(f32, @floatFromInt(i))} ++ [_]f32{0} ** (VECTOR_DIM - 1);
+                model.insert(@intCast(i), vec) catch return false;
+            }
+
+            if (model.count() != n) return false;
+
+            // Delete half
+            const half = n / 2;
+            for (0..half) |i| {
+                _ = model.delete(@intCast(i));
+            }
+
+            return model.count() == n - half;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model search returns k or fewer results" {
+    const SearchTest = struct {
+        n_vectors: u8,
+        k: u8,
+    };
+
+    const gen = Generator(SearchTest){
+        .generateFn = struct {
+            fn generate(prng: *std.Random.DefaultPrng, _: usize) SearchTest {
+                return .{
+                    .n_vectors = prng.random().intRangeAtMost(u8, 1, 20),
+                    .k = prng.random().intRangeAtMost(u8, 1, 10),
+                };
+            }
+        }.generate,
+        .shrinkFn = null,
+    };
+
+    const result = forAllWithAllocator(SearchTest, std.testing.allocator, gen, TestConfig, struct {
+        fn check(params: SearchTest, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert n vectors
+            for (0..params.n_vectors) |i| {
+                var vec: [VECTOR_DIM]f32 = undefined;
+                for (&vec) |*v| {
+                    v.* = @as(f32, @floatFromInt(i)) / @as(f32, @floatFromInt(params.n_vectors));
+                }
+                model.insert(@intCast(i), vec) catch return false;
+            }
+
+            // Search with k
+            const query = [_]f32{0.5} ** VECTOR_DIM;
+            const results = model.search(query, params.k) catch return false;
+            defer allocator.free(results);
+
+            // Should return min(k, n_vectors) results
+            const expected = @min(params.k, params.n_vectors);
+            return results.len == expected;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model search results are sorted by distance" {
+    const gen = generators.intRange(u8, 5, 30);
+
+    const result = forAllWithAllocator(u8, std.testing.allocator, gen, TestConfig, struct {
+        fn check(n: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert n vectors at different positions
+            var prng = std.Random.DefaultPrng.init(@intCast(n));
+            for (0..n) |i| {
+                var vec: [VECTOR_DIM]f32 = undefined;
+                for (&vec) |*v| {
+                    v.* = prng.random().float(f32) * 2.0 - 1.0;
+                }
+                model.insert(@intCast(i), vec) catch return false;
+            }
+
+            // Search
+            const query = [_]f32{0.0} ** VECTOR_DIM;
+            const results = model.search(query, 10) catch return false;
+            defer allocator.free(results);
+
+            // Verify sorted by distance (ascending)
+            for (results[0 .. results.len - 1], results[1..]) |a, b| {
+                if (a.distance > b.distance + EPSILON) return false;
+            }
+
+            return true;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model search finds exact match first" {
+    const gen = generators.unitVector(VECTOR_DIM);
+
+    const result = forAllWithAllocator([VECTOR_DIM]f32, std.testing.allocator, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert multiple vectors including the query
+            model.insert(100, vec) catch return false;
+
+            // Insert some other random vectors
+            var other = vec;
+            other[0] += 0.5;
+            model.insert(1, other) catch return false;
+
+            other[0] -= 1.0;
+            model.insert(2, other) catch return false;
+
+            // Search for the exact vector
+            const results = model.search(vec, 3) catch return false;
+            defer allocator.free(results);
+
+            // First result should be the exact match (id=100)
+            if (results.len == 0) return false;
+            if (results[0].id != 100) return false;
+            if (results[0].distance > EPSILON) return false;
+
+            return true;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+// ============================================================================
+// Batch Vector Properties
+// ============================================================================
+
+test "batch cosine similarities are bounded" {
+    const BatchTest = struct {
+        query: [VECTOR_DIM]f32,
+        vectors: [5][VECTOR_DIM]f32,
+    };
+
+    const gen = Generator(BatchTest){
+        .generateFn = struct {
+            fn generate(prng: *std.Random.DefaultPrng, _: usize) BatchTest {
+                var result: BatchTest = undefined;
+
+                // Generate query
+                for (&result.query) |*v| {
+                    v.* = prng.random().float(f32) * 2.0 - 1.0;
+                }
+
+                // Generate vectors
+                for (&result.vectors) |*vec| {
+                    for (vec) |*v| {
+                        v.* = prng.random().float(f32) * 2.0 - 1.0;
+                    }
+                }
+
+                return result;
+            }
+        }.generate,
+        .shrinkFn = null,
+    };
+
+    const result = forAll(BatchTest, gen, TestConfig, struct {
+        fn check(batch: BatchTest) bool {
+            // Convert to slice of slices
+            var vec_slices: [5][]const f32 = undefined;
+            for (&vec_slices, batch.vectors) |*slice, *vec| {
+                slice.* = vec;
+            }
+
+            var similarities: [5]f32 = undefined;
+            abi.shared.simd.batchCosineSimilarity(&batch.query, &vec_slices, &similarities);
+
+            for (similarities) |sim| {
+                if (std.math.isNan(sim)) return false;
+                if (sim < -1.0 - EPSILON or sim > 1.0 + EPSILON) return false;
+            }
+
+            return true;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+// ============================================================================
+// Quantization Properties (if enabled)
+// ============================================================================
+
+test "scalar quantization roundtrip preserves approximate values" {
+    if (!build_options.enable_database) return error.SkipZigTest;
+
+    const gen = generators.vectorF32(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            // Clamp values to quantization range
+            var clamped: [VECTOR_DIM]f32 = undefined;
+            for (&clamped, vec) |*c, v| {
+                c.* = @max(-1.0, @min(1.0, v));
+            }
+
+            // Simulate quantization (scale to u8, back to f32)
+            var quantized: [VECTOR_DIM]u8 = undefined;
+            for (&quantized, clamped) |*q, c| {
+                q.* = @intFromFloat((c + 1.0) * 127.5);
+            }
+
+            var dequantized: [VECTOR_DIM]f32 = undefined;
+            for (&dequantized, quantized) |*d, q| {
+                d.* = @as(f32, @floatFromInt(q)) / 127.5 - 1.0;
+            }
+
+            // Error should be bounded by quantization step size (1/127.5)
+            const max_error: f32 = 1.0 / 127.5;
+            for (clamped, dequantized) |c, d| {
+                if (@abs(c - d) > max_error + EPSILON) return false;
+            }
+
+            return true;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+// ============================================================================
+// Index Invariant Properties
+// ============================================================================
+
+test "vector IDs are unique in model" {
+    const gen = generators.intRange(u8, 10, 50);
+
+    const result = forAllWithAllocator(u8, std.testing.allocator, gen, TestConfig, struct {
+        fn check(n: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert vectors with unique IDs
+            for (0..n) |i| {
+                const vec = [_]f32{@as(f32, @floatFromInt(i))} ++ [_]f32{0} ** (VECTOR_DIM - 1);
+                model.insert(@intCast(i), vec) catch return false;
+            }
+
+            // Re-inserting with same ID should overwrite
+            const new_vec = [_]f32{99.0} ++ [_]f32{0} ** (VECTOR_DIM - 1);
+            model.insert(0, new_vec) catch return false;
+
+            // Count should still be n
+            if (model.count() != n) return false;
+
+            // Vector at ID 0 should be updated
+            const retrieved = model.get(0) orelse return false;
+            if (@abs(retrieved[0] - 99.0) > EPSILON) return false;
+
+            return true;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}

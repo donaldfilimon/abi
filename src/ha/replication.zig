@@ -321,7 +321,7 @@ pub const ReplicationManager = struct {
         defer self.mutex.unlock();
 
         if (self.replicas.getPtr(node_id)) |node| {
-            node.last_heartbeat = @as(i64, time.time.timestampSec());
+            node.last_heartbeat = time.time.timestampSec();
             node.sequence_number = sequence;
 
             // Calculate lag

@@ -318,13 +318,13 @@ pub const PitrManager = struct {
         for (self.recovery_points.items) |point| {
             if (point.sequence == sequence) {
                 self.emitEvent(.{ .recovery_started = .{
-                    .target_timestamp = point.timestamp,
+                    .target_timestamp = @intCast(point.timestamp),
                 } });
 
                 // In real implementation, replay to this point
 
                 self.emitEvent(.{ .recovery_completed = .{
-                    .target_timestamp = point.timestamp,
+                    .target_timestamp = @intCast(point.timestamp),
                     .operations_replayed = point.operation_count,
                 } });
                 return;

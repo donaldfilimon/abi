@@ -29,6 +29,7 @@ const crypto = @import("infrastructure/crypto.zig");
 // Consolidated domain modules
 const database = @import("domain/database/mod.zig");
 const ai = @import("domain/ai/mod.zig");
+const gpu_bench = @import("domain/gpu/mod.zig");
 
 // Core utilities
 const core = @import("core/mod.zig");
@@ -42,6 +43,7 @@ const BenchmarkSuite = enum {
     network,
     crypto,
     ai,
+    gpu,
     quick,
 };
 
@@ -96,6 +98,7 @@ fn parseSuite(name: []const u8) BenchmarkSuite {
     if (std.mem.eql(u8, name, "network")) return .network;
     if (std.mem.eql(u8, name, "crypto")) return .crypto;
     if (std.mem.eql(u8, name, "ai")) return .ai;
+    if (std.mem.eql(u8, name, "gpu")) return .gpu;
     if (std.mem.eql(u8, name, "quick")) return .quick;
     if (std.mem.eql(u8, name, "all")) return .all;
     return .all; // Default to all if unknown
@@ -110,7 +113,7 @@ fn printHelp() void {
         \\Options:
         \\  --suite=<name>    Run specific benchmark suite
         \\                    Available: all, simd, memory, concurrency,
-        \\                               database, network, crypto, ai, quick
+        \\                               database, network, crypto, ai, gpu, quick
         \\  --output=<file>   Output results to JSON file
         \\  --json            Output results as JSON to stdout
         \\  --verbose, -v     Show verbose output
@@ -125,12 +128,14 @@ fn printHelp() void {
         \\  network       HTTP/Network operations (parsing, JSON, WebSocket)
         \\  crypto        Cryptographic operations (hashing, encryption, KDF)
         \\  ai            AI/ML inference (GEMM, attention, activations, LLM metrics)
+        \\  gpu           GPU kernel operations (matmul, vector ops, reductions, memory)
         \\  quick         Fast subset for continuous integration
         \\  all           Run all benchmark suites (default)
         \\
         \\Examples:
         \\  benchmarks                         # Run all benchmarks
         \\  benchmarks --suite=simd            # Run only SIMD benchmarks
+        \\  benchmarks --suite=gpu             # Run only GPU benchmarks
         \\  benchmarks --quick                 # Run quick CI benchmarks
         \\  benchmarks --suite=ai --verbose    # AI benchmarks with details
         \\
@@ -256,6 +261,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
             printSuiteHeader("AI/ML Inference");
             try ai.runAllBenchmarks(allocator, .standard);
+
+            printSuiteHeader("GPU Kernel Operations");
+            try gpu_bench.runAllBenchmarks(allocator, .standard);
         },
         .simd => {
             printSuiteHeader("SIMD/Vector Operations");
@@ -284,6 +292,10 @@ pub fn main(init: std.process.Init.Minimal) !void {
         .ai => {
             printSuiteHeader("AI/ML Inference");
             try ai.runAllBenchmarks(allocator, .standard);
+        },
+        .gpu => {
+            printSuiteHeader("GPU Kernel Operations");
+            try gpu_bench.runAllBenchmarks(allocator, .standard);
         },
         .quick => {
             printSuiteHeader("Quick Benchmark Suite (CI Mode)");
@@ -315,6 +327,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
             // AI - quick config
             try ai.runAllBenchmarks(allocator, .quick);
+
+            // GPU - quick config
+            try gpu_bench.runAllBenchmarks(allocator, .quick);
         },
     }
 
@@ -337,5 +352,6 @@ test "benchmark imports" {
     _ = network;
     _ = crypto;
     _ = ai;
+    _ = gpu_bench;
     _ = core;
 }
