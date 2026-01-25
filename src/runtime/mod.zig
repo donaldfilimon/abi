@@ -120,6 +120,26 @@ pub const ShardedMap = concurrency.ShardedMap;
 pub const PriorityQueue = concurrency.PriorityQueue;
 pub const Backoff = concurrency.Backoff;
 
+// New lock-free concurrency primitives
+pub const ChaseLevDeque = concurrency.ChaseLevDeque;
+pub const WorkStealingScheduler = concurrency.WorkStealingScheduler;
+pub const EpochReclamation = concurrency.EpochReclamation;
+pub const LockFreeStackEBR = concurrency.LockFreeStackEBR;
+pub const MpmcQueue = concurrency.MpmcQueue;
+pub const BlockingMpmcQueue = concurrency.BlockingMpmcQueue;
+
+// Result caching for fast-path task completion
+pub const ResultCache = engine.ResultCache;
+pub const CacheConfig = engine.CacheConfig;
+pub const CacheStats = engine.CacheStats;
+pub const Memoize = engine.Memoize;
+
+// Work-stealing policies
+pub const NumaStealPolicy = engine.NumaStealPolicy;
+pub const RoundRobinStealPolicy = engine.RoundRobinStealPolicy;
+pub const StealPolicyConfig = engine.StealPolicyConfig;
+pub const StealStats = engine.StealStats;
+
 // ============================================================================
 // Memory Types (re-exported for convenience)
 // ============================================================================
@@ -240,4 +260,27 @@ test "submodules are accessible" {
     _ = scheduling.TaskGroup;
     _ = concurrency.WorkStealingQueue;
     _ = memory.MemoryPool;
+}
+
+test "new concurrency types accessible" {
+    _ = ChaseLevDeque;
+    _ = WorkStealingScheduler;
+    _ = EpochReclamation;
+    _ = LockFreeStackEBR;
+    _ = MpmcQueue;
+    _ = BlockingMpmcQueue;
+}
+
+test "result cache types accessible" {
+    _ = ResultCache;
+    _ = CacheConfig;
+    _ = CacheStats;
+    _ = Memoize;
+}
+
+test "steal policy types accessible" {
+    _ = NumaStealPolicy;
+    _ = RoundRobinStealPolicy;
+    _ = StealPolicyConfig;
+    _ = StealStats;
 }

@@ -74,18 +74,10 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | HTTP Server init | Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()` |
 | Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
 | Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
-
-## Known Limitations
-
-| Platform/Feature | Limitation | Workaround |
-|------------------|------------|------------|
-| **WASM** | `database`, `network`, `gpu` auto-disabled | Use browser/JS equivalents |
-| **WASM** | No `std.Io.Threaded` support | Single-threaded execution only |
-| **GPU (CUDA)** | Requires NVIDIA drivers + toolkit | Use Vulkan or `stdgpu` fallback |
-| **GPU (Metal)** | macOS only | Use Vulkan on other platforms |
-| **GPU (multi-backend)** | Some backend combinations conflict | Enable one primary backend |
-| **Network** | No socket support in WASM | Use fetch API via JS interop |
-| **libc** | CLI/examples require libc linking | Build with default settings |
+| WASM limitations | `database`, `network`, `gpu` auto-disabled; no `std.Io.Threaded` |
+| GPU (CUDA) | Requires NVIDIA drivers + toolkit; use Vulkan or `stdgpu` fallback |
+| GPU (Metal) | macOS only; use Vulkan on other platforms |
+| libc linking | CLI and examples require libc; build with default settings |
 
 ## Feature Flags
 
@@ -260,6 +252,7 @@ defer framework.deinit();
   ```
 - Unit tests live in library files and `src/tests/mod.zig`
 - Run filtered tests with `zig test file.zig --test-filter "pattern"`
+- For tests requiring I/O, initialize `std.Io.Threaded` in test setup (see Zig 0.16 Patterns)
 
 ## Zig 0.16 Patterns
 
@@ -431,19 +424,47 @@ var client = try ollama.Client.init(allocator, .{ .host = "http://127.0.0.1:1143
 
 Connectors require corresponding environment variables (see Environment Variables section).
 
+## Language Bindings
+
+| Language | Location | Build | Notes |
+|----------|----------|-------|-------|
+| **Rust** | `bindings/rust/` | `cargo build` | Safe wrappers; SIMD works without native lib |
+| **Go** | `bindings/go/` | `go build ./...` | cgo bindings; requires native lib |
+| **Python** | `bindings/python/` | `pip install -e .` | Streaming FFI, training API, observability |
+| **WASM** | `bindings/wasm/` | `zig build wasm && npm run build` | @abi-framework/wasm package |
+| **C** | `bindings/c/` | Headers only | FFI integration headers |
+
+**Prerequisites**: All bindings except pure-Rust SIMD require the native library (`zig build`) first.
+
+## VS Code Extension
+
+The `vscode-abi/` directory contains a VS Code extension:
+- **Commands**: Build, test, run examples
+- **AI Chat**: Sidebar webview for agent interaction
+- **GPU Status**: Tree view with device monitoring
+- **Tasks**: Custom task provider for common operations
+- **Snippets**: 15 Zig snippets for ABI patterns
+- **Diagnostics**: Compilation error highlighting
+
+Build: `cd vscode-abi && npm install && npm run compile`
+
+## Adding a New Feature Module
+
+1. Create the module directory under `src/<feature>/`
+2. Create `mod.zig` (real implementation) and `stub.zig` (disabled placeholder)
+3. Both files must export identical public APIs; stub returns `error.<Feature>Disabled`
+4. Add feature flag in `build.zig` (`-Denable-<feature>`)
+5. Register in `src/registry/` if it needs runtime toggling
+6. Add entry to `src/config.zig` Config struct if it needs configuration
+7. Update `src/abi.zig` to conditionally import via `if (build_options.enable_<feature>)`
+
 ## Reference
 
-- [README.md](README.md) - Project overview
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow and contribution guidelines
-- [API_REFERENCE.md](API_REFERENCE.md) - Public API reference
-- [docs/troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
-- [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 patterns
-- [docs/todo.md](docs/todo.md) - Development TODO & Zig 0.16 environment init
-- [docs/agents.md](docs/agents.md) - Agents guide with environment setup
-- [docs/gpu.md](docs/gpu.md) - GPU backend details
-- [docs/ai.md](docs/ai.md) - AI module guide
-- [docs/cloud-deployment.md](docs/cloud-deployment.md) - Cloud function deployment
-- [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security findings and recommendations
+Key documentation (all in `docs/`):
+- [migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 I/O patterns (critical)
+- [troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
+- [gpu.md](docs/gpu.md) - GPU backend details
+- [ai.md](docs/ai.md) - AI module and agents guide
 
 ## Experimental Feature Flags
 
@@ -464,4 +485,11 @@ After making changes, always run:
 zig fmt .                        # Format code
 zig build test --summary all     # Run all tests
 zig build lint                   # Verify formatting passes CI
+```
+
+If modifying a feature module's public API, verify both enabled and disabled builds compile:
+
+```bash
+zig build -Denable-<feature>=true   # Real module
+zig build -Denable-<feature>=false  # Stub module
 ```

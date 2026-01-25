@@ -7,22 +7,41 @@
 //!
 //! - `WorkStealingQueue` - Owner pushes/pops from back, thieves steal from front
 //! - `WorkQueue` - Simple FIFO queue with mutex
-//! - `LockFreeQueue` - CAS-based queue
-//! - `LockFreeStack` - CAS-based stack
+//! - `LockFreeQueue` - CAS-based queue (SPSC)
+//! - `LockFreeStack` - CAS-based stack (WARNING: ABA susceptible)
+//! - `LockFreeStackEBR` - ABA-safe stack with epoch-based reclamation
+//! - `ChaseLevDeque` - Lock-free work-stealing deque (Chase-Lev algorithm)
+//! - `MpmcQueue` - Lock-free multi-producer multi-consumer queue
 //! - `ShardedMap` - Partitioned map reducing contention
 //! - `PriorityQueue` - Lock-free priority queue for task scheduling
 //! - `Backoff` - Exponential backoff for spin-wait loops
+//! - `EpochReclamation` - Safe memory reclamation for lock-free structures
 
 const std = @import("std");
 
 // Local imports (implementation files)
 pub const lockfree = @import("lockfree.zig");
 pub const priority_queue = @import("priority_queue.zig");
+pub const epoch = @import("epoch.zig");
+pub const chase_lev = @import("chase_lev.zig");
+pub const mpmc = @import("mpmc_queue.zig");
 
 // Lock-free structures
 pub const LockFreeQueue = lockfree.LockFreeQueue;
 pub const LockFreeStack = lockfree.LockFreeStack;
 pub const ShardedMap = lockfree.ShardedMap;
+
+// Epoch-based reclamation (ABA-safe)
+pub const EpochReclamation = epoch.EpochReclamation;
+pub const LockFreeStackEBR = epoch.LockFreeStackEBR;
+
+// Chase-Lev work-stealing deque
+pub const ChaseLevDeque = chase_lev.ChaseLevDeque;
+pub const WorkStealingScheduler = chase_lev.WorkStealingScheduler;
+
+// MPMC queue
+pub const MpmcQueue = mpmc.MpmcQueue;
+pub const BlockingMpmcQueue = mpmc.BlockingMpmcQueue;
 
 // Priority queue
 pub const Priority = priority_queue.Priority;

@@ -267,3 +267,67 @@ pub fn checkResult(result: CuResult) error{ CudaError, InvalidValue, OutOfMemory
         else => error.CudaError,
     };
 }
+
+// ============================================================================
+// High-Level Kernel Launch API
+// ============================================================================
+
+/// Error type for kernel operations.
+pub const KernelError = error{
+    NotLoaded,
+    NotAvailable,
+    LaunchFailed,
+    OutOfMemory,
+};
+
+/// Launch a CUDA kernel with the given configuration.
+pub fn launchKernel(
+    kernel: *anyopaque,
+    gridDimX: u32,
+    gridDimY: u32,
+    gridDimZ: u32,
+    blockDimX: u32,
+    blockDimY: u32,
+    blockDimZ: u32,
+    sharedMemBytes: u32,
+    stream: ?*anyopaque,
+    args: []const usize,
+) KernelError!void {
+    const funcs = getFunctions() orelse return error.NotLoaded;
+    const launch_fn = funcs.kernel.cuLaunchKernel orelse return error.NotAvailable;
+
+    // Convert usize args to ?*anyopaque array for CUDA API
+    const allocator = std.heap.page_allocator;
+    const arg_ptrs = allocator.alloc(?*anyopaque, args.len) catch return error.OutOfMemory;
+    defer allocator.free(arg_ptrs);
+
+    for (args, 0..) |*arg, i| {
+        arg_ptrs[i] = @ptrCast(@constCast(arg));
+    }
+
+    const result = launch_fn(
+        kernel,
+        gridDimX,
+        gridDimY,
+        gridDimZ,
+        blockDimX,
+        blockDimY,
+        blockDimZ,
+        sharedMemBytes,
+        stream,
+        arg_ptrs.ptr,
+        null,
+    );
+
+    if (result != .success) {
+        return error.LaunchFailed;
+    }
+}
+
+/// Unload a CUDA module.
+pub fn unloadModule(module: *anyopaque) void {
+    const funcs = getFunctions() orelse return;
+    if (funcs.kernel.cuModuleUnload) |unload_fn| {
+        _ = unload_fn(module);
+    }
+}

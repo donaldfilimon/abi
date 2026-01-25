@@ -7,6 +7,7 @@
 //! - RMSNorm (Root Mean Square Layer Normalization)
 //! - Activation functions (SiLU, GELU, softmax)
 //! - GPU-accelerated operations with CPU fallback
+//! - GPU memory pooling for efficient buffer reuse
 //! - Backward pass operations for training
 
 const std = @import("std");
@@ -19,6 +20,7 @@ pub const rmsnorm = @import("rmsnorm.zig");
 pub const activations = @import("activations.zig");
 pub const ffn = @import("ffn.zig");
 pub const gpu = @import("gpu.zig");
+pub const gpu_memory_pool = @import("gpu_memory_pool.zig");
 pub const backward = @import("backward/mod.zig");
 
 // Re-exports for convenience
@@ -50,6 +52,12 @@ pub const GpuOpsContext = gpu.GpuOpsContext;
 pub const GpuStats = gpu.GpuStats;
 pub const createGpuContext = gpu.createContext;
 
+// GPU memory pool re-exports
+pub const LlmMemoryPool = gpu_memory_pool.LlmMemoryPool;
+pub const PooledBuffer = gpu_memory_pool.PooledBuffer;
+pub const PoolConfig = gpu_memory_pool.PoolConfig;
+pub const PoolStats = gpu_memory_pool.PoolStats;
+
 // Backward pass re-exports
 pub const matmulBackward = backward.matmulBackward;
 pub const matrixVectorBackward = backward.matrixVectorBackward;
@@ -70,5 +78,6 @@ test "ops module imports" {
     _ = activations;
     _ = ffn;
     _ = gpu;
+    _ = gpu_memory_pool;
     _ = backward;
 }

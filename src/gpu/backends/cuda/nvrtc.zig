@@ -285,3 +285,60 @@ fn loadNvrtcFunctions() bool {
 
     return true;
 }
+
+// ============================================================================
+// High-Level Compilation API
+// ============================================================================
+
+const loader = @import("loader.zig");
+
+/// Result of compiling a kernel, containing module and function handles.
+pub const KernelResult = struct {
+    module: *anyopaque,
+    kernel: *anyopaque,
+};
+
+/// Check if NVRTC is available for runtime compilation.
+pub fn isAvailable() bool {
+    return nvrtc_lib != null or tryLoadNvrtc();
+}
+
+/// Compile CUDA kernel source and return ready-to-use module and function handles.
+/// This is a convenience wrapper around compileToPTX + module loading.
+pub fn compileKernel(source: []const u8, kernel_name: []const u8) !KernelResult {
+    const allocator = std.heap.page_allocator;
+
+    // Compile to PTX
+    const compile_result = try compileToPTX(allocator, source, kernel_name, .{});
+    defer allocator.free(compile_result.ptx);
+    defer if (compile_result.log.len > 0) allocator.free(compile_result.log);
+
+    // Get CUDA function pointers
+    const cuda_fns = loader.getFunctions() orelse return NvrtcError.CompilationFailed;
+    const module_load_fn = cuda_fns.kernel.cuModuleLoadData orelse return NvrtcError.CompilationFailed;
+    const get_fn = cuda_fns.kernel.cuModuleGetFunction orelse return NvrtcError.CompilationFailed;
+
+    // Load PTX into a module
+    var module: ?*anyopaque = null;
+    if (module_load_fn(&module, compile_result.ptx.ptr) != .success) {
+        return NvrtcError.CompilationFailed;
+    }
+
+    // Get the kernel function
+    var kernel: ?*anyopaque = null;
+    const kernel_name_z = try allocator.dupeZ(u8, kernel_name);
+    defer allocator.free(kernel_name_z);
+
+    if (get_fn(&kernel, module, kernel_name_z.ptr) != .success) {
+        // Cleanup module on failure
+        if (cuda_fns.kernel.cuModuleUnload) |unload_fn| {
+            _ = unload_fn(module);
+        }
+        return NvrtcError.CompilationFailed;
+    }
+
+    return KernelResult{
+        .module = module.?,
+        .kernel = kernel.?,
+    };
+}

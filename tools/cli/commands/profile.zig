@@ -6,6 +6,22 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 
+// libc import for environment access - required for Zig 0.16
+const c = @cImport(@cInclude("stdlib.h"));
+
+/// Get environment variable (owned memory) - Zig 0.16 compatible.
+fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) ?[]u8 {
+    const name_z = allocator.dupeZ(u8, name) catch return null;
+    defer allocator.free(name_z);
+
+    const value_ptr = c.getenv(name_z.ptr);
+    if (value_ptr) |ptr| {
+        const value = std.mem.span(ptr);
+        return allocator.dupe(u8, value) catch null;
+    }
+    return null;
+}
+
 /// Profile configuration
 const Profile = struct {
     name: []const u8 = "default",
@@ -98,16 +114,10 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn getConfigPath(allocator: std.mem.Allocator) ![]const u8 {
-    // Get home directory
-    const home = std.process.getEnvVarOwned(allocator, "HOME") catch |err| switch (err) {
-        error.EnvironmentVariableNotFound => {
-            // Try USERPROFILE on Windows
-            return std.process.getEnvVarOwned(allocator, "USERPROFILE") catch {
-                return error.NoHomeDirectory;
-            };
-        },
-        else => return err,
-    };
+    // Get home directory (try HOME, then USERPROFILE for Windows)
+    const home = getEnvOwned(allocator, "HOME") orelse
+        getEnvOwned(allocator, "USERPROFILE") orelse
+        return error.NoHomeDirectory;
     defer allocator.free(home);
 
     return std.fmt.allocPrint(allocator, "{s}/.abi/config.json", .{home});
@@ -117,13 +127,13 @@ fn showCurrentProfile(allocator: std.mem.Allocator) !void {
     utils.output.printHeader("Current Profile");
 
     // Check environment for API keys
-    const openai_key = std.process.getEnvVarOwned(allocator, "ABI_OPENAI_API_KEY") catch null;
+    const openai_key = getEnvOwned(allocator, "ABI_OPENAI_API_KEY");
     defer if (openai_key) |k| allocator.free(k);
 
-    const anthropic_key = std.process.getEnvVarOwned(allocator, "ABI_ANTHROPIC_API_KEY") catch null;
+    const anthropic_key = getEnvOwned(allocator, "ABI_ANTHROPIC_API_KEY");
     defer if (anthropic_key) |k| allocator.free(k);
 
-    const hf_token = std.process.getEnvVarOwned(allocator, "ABI_HF_API_TOKEN") catch null;
+    const hf_token = getEnvOwned(allocator, "ABI_HF_API_TOKEN");
     defer if (hf_token) |t| allocator.free(t);
 
     std.debug.print("\n", .{});
@@ -262,7 +272,6 @@ fn handleApiKey(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !vo
 }
 
 fn showApiKeyStatus(allocator: std.mem.Allocator) !void {
-    _ = allocator;
     utils.output.printHeader("API Key Status");
 
     const providers = [_]struct { name: []const u8, env_var: []const u8 }{
@@ -276,7 +285,7 @@ fn showApiKeyStatus(allocator: std.mem.Allocator) !void {
     std.debug.print("{s}\n", .{"-" ** 60});
 
     for (providers) |p| {
-        const status = std.process.getEnvVarOwned(allocator, p.env_var) catch null;
+        const status = getEnvOwned(allocator, p.env_var);
         defer if (status) |s| allocator.free(s);
 
         const status_str = if (status != null) "configured" else "not set";
@@ -314,11 +323,18 @@ fn setApiKey(allocator: std.mem.Allocator, provider: []const u8, key: []const u8
 
 fn removeApiKey(allocator: std.mem.Allocator, provider: []const u8) !void {
     _ = allocator;
+    // Convert provider name to uppercase
+    var upper_buf: [32]u8 = undefined;
+    const upper_provider = if (provider.len <= upper_buf.len)
+        std.ascii.upperString(&upper_buf, provider)
+    else
+        provider;
+
     utils.output.printInfo("To remove the API key, unset the environment variable:", .{});
     std.debug.print("\n  # Linux/macOS:\n", .{});
-    std.debug.print("  unset ABI_{s}_API_KEY\n", .{std.ascii.upperString(provider)});
+    std.debug.print("  unset ABI_{s}_API_KEY\n", .{upper_provider});
     std.debug.print("\n  # Windows PowerShell:\n", .{});
-    std.debug.print("  Remove-Item Env:ABI_{s}_API_KEY\n", .{std.ascii.upperString(provider)});
+    std.debug.print("  Remove-Item Env:ABI_{s}_API_KEY\n", .{upper_provider});
 }
 
 fn exportProfile(allocator: std.mem.Allocator, path: ?[]const u8) !void {

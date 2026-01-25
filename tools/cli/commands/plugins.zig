@@ -3,8 +3,38 @@
 //! Manage framework plugins: list, enable, disable, info.
 
 const std = @import("std");
-const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+
+// Plugin system types (local stubs until full plugin registry is implemented)
+const PluginInfo = struct {
+    name: []const u8,
+    description: []const u8,
+    version: []const u8 = "1.0.0",
+    author: []const u8 = "ABI Team",
+    enabled: bool,
+    dependencies: []const []const u8 = &.{},
+    config_schema: ?[]const u8 = null,
+};
+
+// Built-in plugin registry (static for now)
+const builtin_plugins = [_]PluginInfo{
+    .{ .name = "openai-connector", .description = "OpenAI API integration", .enabled = true },
+    .{ .name = "ollama-connector", .description = "Ollama local LLM integration", .enabled = true },
+    .{ .name = "anthropic-connector", .description = "Anthropic Claude API integration", .enabled = true },
+    .{ .name = "huggingface-connector", .description = "HuggingFace model hub", .enabled = true },
+    .{ .name = "discord-bot", .description = "Discord bot framework", .enabled = false },
+};
+
+fn getPlugins() []const PluginInfo {
+    return &builtin_plugins;
+}
+
+fn getPlugin(name: []const u8) ?PluginInfo {
+    for (builtin_plugins) |plugin| {
+        if (std.mem.eql(u8, plugin.name, name)) return plugin;
+    }
+    return null;
+}
 
 /// Entry point for the plugins command.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -55,8 +85,8 @@ fn listPlugins(allocator: std.mem.Allocator) !void {
     _ = allocator;
     utils.output.printHeader("Installed Plugins");
 
-    // Get plugins from shared registry
-    const plugins = abi.shared.plugins.getAll();
+    // Get plugins from local registry
+    const plugins = getPlugins();
 
     if (plugins.len == 0) {
         utils.output.printInfo("No plugins installed", .{});
@@ -81,7 +111,7 @@ fn listPlugins(allocator: std.mem.Allocator) !void {
 
 fn showPluginInfo(allocator: std.mem.Allocator, name: []const u8) !void {
     _ = allocator;
-    const plugin_opt = abi.shared.plugins.get(name);
+    const plugin_opt = getPlugin(name);
 
     if (plugin_opt) |plugin| {
         utils.output.printHeader("Plugin Information");
@@ -111,21 +141,25 @@ fn showPluginInfo(allocator: std.mem.Allocator, name: []const u8) !void {
 
 fn enablePlugin(allocator: std.mem.Allocator, name: []const u8) !void {
     _ = allocator;
-    if (abi.shared.plugins.enable(name)) {
-        utils.output.printSuccess("Plugin '{s}' enabled", .{name});
+    // Plugin enable/disable is not implemented yet (static registry)
+    if (getPlugin(name) != null) {
+        utils.output.printInfo("Plugin '{s}' found but runtime toggling not yet implemented", .{name});
+        utils.output.printInfo("Plugins are configured at compile-time via build options", .{});
     } else {
-        utils.output.printError("Failed to enable plugin: {s}", .{name});
-        utils.output.printInfo("Plugin may not exist or have missing dependencies", .{});
+        utils.output.printError("Plugin not found: {s}", .{name});
+        utils.output.printInfo("Use 'abi plugins search' to find available plugins", .{});
     }
 }
 
 fn disablePlugin(allocator: std.mem.Allocator, name: []const u8) !void {
     _ = allocator;
-    if (abi.shared.plugins.disable(name)) {
-        utils.output.printSuccess("Plugin '{s}' disabled", .{name});
+    // Plugin enable/disable is not implemented yet (static registry)
+    if (getPlugin(name) != null) {
+        utils.output.printInfo("Plugin '{s}' found but runtime toggling not yet implemented", .{name});
+        utils.output.printInfo("Plugins are configured at compile-time via build options", .{});
     } else {
-        utils.output.printError("Failed to disable plugin: {s}", .{name});
-        utils.output.printInfo("Plugin may not exist or be required by other plugins", .{});
+        utils.output.printError("Plugin not found: {s}", .{name});
+        utils.output.printInfo("Use 'abi plugins list' to see installed plugins", .{});
     }
 }
 

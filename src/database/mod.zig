@@ -115,6 +115,9 @@ pub const distributed = @import("distributed/mod.zig");
 pub const diskann = @import("diskann.zig");
 pub const scann = @import("scann.zig");
 
+// Parallel search utilities
+pub const parallel_search = @import("parallel_search.zig");
+
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
 pub const SearchResult = wdbx.SearchResult;
@@ -249,6 +252,15 @@ pub const ScaNNConfig = scann.ScaNNConfig;
 pub const QuantizationType = scann.QuantizationType;
 pub const AVQCodebook = scann.AVQCodebook;
 pub const ScaNNStats = scann.IndexStats;
+
+// Parallel search exports
+pub const ParallelSearchConfig = parallel_search.ParallelSearchConfig;
+pub const ParallelSearchExecutor = parallel_search.ParallelSearchExecutor;
+pub const ParallelBeamState = parallel_search.ParallelBeamState;
+pub const ParallelWorkQueue = parallel_search.ParallelWorkQueue;
+pub const BatchSearchResult = parallel_search.BatchSearchResult;
+pub const ParallelSearchStats = parallel_search.ParallelSearchStats;
+pub const batchCosineDistances = parallel_search.batchCosineDistances;
 
 pub const BlockExchangeManager = distributed.BlockExchangeManager;
 pub const BlockExchangeError = distributed.BlockExchangeError;
