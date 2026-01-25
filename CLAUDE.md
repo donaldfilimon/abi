@@ -26,6 +26,11 @@ zig build run -- --help                # CLI help
 zig test src/runtime/engine/engine.zig
 zig test src/tests/mod.zig --test-filter "pattern"
 
+# Test categories
+zig test src/tests/stress/mod.zig               # Stress tests
+zig test src/tests/integration/mod.zig          # Integration tests
+zig test src/tests/e2e/mod.zig                  # End-to-end tests
+
 # Feature-gated builds
 zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true
 zig build -Dgpu-backend=cuda,vulkan         # GPU backends (comma-separated)
@@ -119,13 +124,26 @@ src/
 ├── ai/                  # AI module with sub-features
 │   ├── mod.zig          # AI public API
 │   ├── stub.zig         # Stub when AI disabled
-│   ├── core/            # Integrated core types and configuration
-│   ├── implementation/  # Consolidated AI implementation layer
+│   ├── abbey/           # Abbey persona subsystem (advanced, memory, neural)
 │   ├── agents/          # Agent runtime
+│   ├── core/            # Integrated core types and configuration
 │   ├── embeddings/      # Vector embeddings
+│   ├── eval/            # Model evaluation and benchmarking
+│   ├── explore/         # Codebase exploration
+│   ├── federated/       # Federated learning
 │   ├── llm/             # Local LLM inference (streaming, tokenization)
+│   ├── memory/          # Agent memory systems
+│   ├── multi_agent/     # Multi-agent coordination
 │   ├── orchestration/   # Multi-model routing, ensemble, fallback
-│   └── training/        # Training pipelines
+│   ├── personas/        # AI persona definitions (abbey, abi, aviva, etc.)
+│   ├── prompts/         # Prompt management
+│   ├── rag/             # Retrieval-augmented generation
+│   ├── streaming/       # Streaming response handling
+│   ├── templates/       # Template system
+│   ├── tools/           # Agent tools
+│   ├── training/        # Training pipelines
+│   ├── transformer/     # Transformer architecture
+│   └── vision/          # Vision/image processing
 ├── cloud/               # Cloud function adapters (AWS Lambda, Azure, GCP)
 ├── connectors/          # API connectors (OpenAI, Ollama, Anthropic, HuggingFace)
 ├── database/            # Vector database (WDBX with HNSW/IVF-PQ)
@@ -148,7 +166,7 @@ src/
 ├── runtime/             # Always-on infrastructure
 │   ├── engine/          # Work-stealing task execution
 │   ├── scheduling/      # Futures, cancellation, task groups
-│   ├── concurrency/     # Lock-free primitives
+│   ├── concurrency/     # Lock-free primitives (see Concurrency Primitives)
 │   └── memory/          # Memory pools and allocators
 ├── shared/              # Consolidated shared components
 │   ├── legacy/          # Legacy core utilities
@@ -161,7 +179,13 @@ src/
 │   └── utils.zig        # Unified utilities (time, math, string, crypto, http, json, etc.)
 ├── tasks.zig            # Centralized task management
 ├── web/                 # Web/HTTP utilities
-└── tests/               # Integration test suite
+└── tests/               # Comprehensive test suite
+    ├── mod.zig          # Test entry point
+    ├── chaos/           # Chaos testing (fault injection, recovery)
+    ├── e2e/             # End-to-end tests
+    ├── integration/     # Integration tests
+    ├── property/        # Property-based testing
+    └── stress/          # Stress tests (concurrency, load)
 ```
 
 **Import guidance:**
@@ -309,6 +333,55 @@ var server: std.http.Server = .init(
     &connection_writer.interface,  // connection_writer = stream.writer(io, &send_buffer)
 );
 ```
+
+## Concurrency Primitives
+
+The `src/runtime/concurrency/` module provides lock-free data structures for high-performance concurrent code:
+
+| Primitive | File | Description |
+|-----------|------|-------------|
+| Chase-Lev Deque | `chase_lev.zig` | Work-stealing deque for task scheduling |
+| Epoch-Based Reclamation | `epoch.zig` | Safe memory reclamation for lock-free structures |
+| Lock-Free Primitives | `lockfree.zig` | Atomic operations and CAS utilities |
+| MPMC Queue | `mpmc_queue.zig` | Multi-producer multi-consumer bounded queue |
+| Priority Queue | `priority_queue.zig` | Concurrent priority queue |
+
+```zig
+// Example: Using the MPMC queue
+const mpmc = @import("abi").runtime.concurrency.mpmc_queue;
+var queue = try mpmc.BoundedQueue(u64).init(allocator, 1024);
+defer queue.deinit();
+
+try queue.push(42);
+const value = queue.pop(); // Returns ?u64
+```
+
+## Test Infrastructure
+
+The `src/tests/` directory contains a comprehensive test suite:
+
+```bash
+# Run all tests
+zig build test --summary all
+
+# Run specific test categories
+zig test src/tests/integration/mod.zig          # Integration tests
+zig test src/tests/stress/mod.zig               # Stress tests
+zig test src/tests/property/mod.zig             # Property-based tests
+zig test src/tests/e2e/mod.zig                  # End-to-end tests
+zig test src/tests/chaos/mod.zig                # Chaos/fault injection tests
+
+# Run with filter
+zig test src/tests/mod.zig --test-filter "database"
+```
+
+| Directory | Purpose |
+|-----------|---------|
+| `chaos/` | Fault injection, recovery testing |
+| `e2e/` | Full system end-to-end tests |
+| `integration/` | Cross-module integration tests |
+| `property/` | Property-based/fuzzing tests |
+| `stress/` | High-load concurrency stress tests |
 
 ## CLI Commands
 
@@ -478,6 +551,11 @@ Key documentation (all in `docs/`):
 - [troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
 - [gpu.md](docs/gpu.md) - GPU backend details
 - [ai.md](docs/ai.md) - AI module and agents guide
+- [agents.md](docs/agents.md) - Agent personas and interaction
+- [database.md](docs/database.md) - Vector database (WDBX) usage
+- [network.md](docs/network.md) - Distributed compute and Raft consensus
+- [benchmarking.md](docs/benchmarking.md) - Performance benchmarking guide
+- [cli-testing.md](docs/cli-testing.md) - CLI test procedures
 
 ## Experimental Feature Flags
 
