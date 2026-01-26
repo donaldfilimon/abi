@@ -51,6 +51,7 @@ const command_infos = [_]CommandInfo{
     .{ .name = "plugins", .description = "Plugin management (list, enable, disable, info)" },
     .{ .name = "profile", .description = "User profile and settings management" },
     .{ .name = "completions", .description = "Generate shell completions (bash, zsh, fish, powershell)" },
+    // .{ .name = "toolchain", .description = "Build and install Zig/ZLS from master (install, update, status)" }, // TODO: Fix Zig 0.16
     .{ .name = "version", .description = "Show framework version" },
     .{ .name = "help", .description = "Show help (use: abi help <command>)" },
 };
@@ -263,6 +264,11 @@ fn runCommand(
         try commands.profile.run(allocator, args);
         return true;
     }
+    // TODO: Fix Zig 0.16 compatibility in toolchain.zig then uncomment:
+    // if (std.mem.eql(u8, command, "toolchain")) {
+    //     try commands.toolchain.run(allocator, args);
+    //     return true;
+    // }
 
     return false;
 }
