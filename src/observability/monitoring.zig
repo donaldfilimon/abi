@@ -627,3 +627,49 @@ pub const StatsDClient = struct {
 pub fn createClient(allocator: std.mem.Allocator, host: []const u8, port: u16) !StatsDClient {
     return StatsDClient.init(allocator, .{ .host = host, .port = port });
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "alert severity toString" {
+    try std.testing.expectEqualStrings("info", AlertSeverity.info.toString());
+    try std.testing.expectEqualStrings("warning", AlertSeverity.warning.toString());
+    try std.testing.expectEqualStrings("critical", AlertSeverity.critical.toString());
+}
+
+test "alert severity toInt ordering" {
+    // Critical should have highest value
+    try std.testing.expect(AlertSeverity.critical.toInt() > AlertSeverity.warning.toInt());
+    try std.testing.expect(AlertSeverity.warning.toInt() > AlertSeverity.info.toInt());
+}
+
+test "alert state toString" {
+    try std.testing.expectEqualStrings("inactive", AlertState.inactive.toString());
+    try std.testing.expectEqualStrings("pending", AlertState.pending.toString());
+    try std.testing.expectEqualStrings("firing", AlertState.firing.toString());
+    try std.testing.expectEqualStrings("resolved", AlertState.resolved.toString());
+}
+
+test "alert condition evaluate greater_than" {
+    try std.testing.expect(AlertCondition.greater_than.evaluate(10.0, 5.0));
+    try std.testing.expect(!AlertCondition.greater_than.evaluate(5.0, 10.0));
+    try std.testing.expect(!AlertCondition.greater_than.evaluate(5.0, 5.0));
+}
+
+test "alert condition evaluate less_than" {
+    try std.testing.expect(AlertCondition.less_than.evaluate(5.0, 10.0));
+    try std.testing.expect(!AlertCondition.less_than.evaluate(10.0, 5.0));
+    try std.testing.expect(!AlertCondition.less_than.evaluate(5.0, 5.0));
+}
+
+test "alert condition evaluate equal" {
+    try std.testing.expect(AlertCondition.equal.evaluate(5.0, 5.0));
+    try std.testing.expect(AlertCondition.equal.evaluate(5.00001, 5.00002)); // Within tolerance
+    try std.testing.expect(!AlertCondition.equal.evaluate(5.0, 6.0));
+}
+
+test "alert condition evaluate not_equal" {
+    try std.testing.expect(AlertCondition.not_equal.evaluate(5.0, 6.0));
+    try std.testing.expect(!AlertCondition.not_equal.evaluate(5.0, 5.0));
+}
