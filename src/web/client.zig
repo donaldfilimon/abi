@@ -128,3 +128,40 @@ fn readAllAlloc(
     }
     return list.toOwnedSlice(allocator) catch return error.ResponseTooLarge;
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "request options default values" {
+    const options = RequestOptions{};
+    try std.testing.expectEqual(@as(usize, 1024 * 1024), options.max_response_bytes);
+    try std.testing.expectEqualStrings("abi-http", options.user_agent);
+    try std.testing.expect(options.follow_redirects);
+    try std.testing.expectEqual(@as(u16, 3), options.redirect_limit);
+    try std.testing.expectEqual(@as(?[]const u8, null), options.content_type);
+}
+
+test "request options custom values" {
+    const options = RequestOptions{
+        .max_response_bytes = 2048,
+        .user_agent = "custom-agent",
+        .follow_redirects = false,
+        .redirect_limit = 5,
+        .content_type = "text/plain",
+    };
+    try std.testing.expectEqual(@as(usize, 2048), options.max_response_bytes);
+    try std.testing.expectEqualStrings("custom-agent", options.user_agent);
+    try std.testing.expect(!options.follow_redirects);
+    try std.testing.expectEqual(@as(u16, 5), options.redirect_limit);
+    try std.testing.expectEqualStrings("text/plain", options.content_type.?);
+}
+
+test "response struct" {
+    const response = Response{
+        .status = 200,
+        .body = "OK",
+    };
+    try std.testing.expectEqual(@as(u16, 200), response.status);
+    try std.testing.expectEqualStrings("OK", response.body);
+}
