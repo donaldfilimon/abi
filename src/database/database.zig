@@ -700,7 +700,16 @@ pub const Database = struct {
             self.cached_norms.items.len == self.records.items.len;
 
         // Single-pass: compute similarity and maintain top-k in-place
+        // Prefetch distance for better cache performance on large datasets
+        const prefetch_distance: usize = 4;
+
         for (self.records.items, 0..) |record, idx| {
+            // Prefetch upcoming vectors to hide memory latency
+            if (idx + prefetch_distance < self.records.items.len) {
+                const future_record = &self.records.items[idx + prefetch_distance];
+                @prefetch(future_record.vector.ptr, .{ .rw = .read, .locality = 3, .cache = .data });
+            }
+
             if (record.vector.len != qlen) continue;
 
             // Use optimized similarity with pre-computed norms
