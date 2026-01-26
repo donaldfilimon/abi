@@ -47,3 +47,42 @@ pub const PluginRegistry = struct {
         return null;
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "plugin registry init and deinit" {
+    const allocator = std.testing.allocator;
+    var registry = PluginRegistry.init(allocator);
+    defer registry.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), registry.plugins.items.len);
+}
+
+test "plugin registry register" {
+    const allocator = std.testing.allocator;
+    var registry = PluginRegistry.init(allocator);
+    defer registry.deinit();
+
+    try registry.register("test-plugin", "/path/to/plugin", "feature-x");
+    try std.testing.expectEqual(@as(usize, 1), registry.plugins.items.len);
+    try std.testing.expectEqualStrings("test-plugin", registry.plugins.items[0].name);
+}
+
+test "plugin registry findByName" {
+    const allocator = std.testing.allocator;
+    var registry = PluginRegistry.init(allocator);
+    defer registry.deinit();
+
+    try registry.register("plugin-a", "/path/a", "feature-a");
+    try registry.register("plugin-b", "/path/b", "feature-b");
+
+    const found = registry.findByName("plugin-b");
+    try std.testing.expect(found != null);
+    try std.testing.expectEqualStrings("plugin-b", found.?.name);
+    try std.testing.expectEqualStrings("/path/b", found.?.path);
+
+    const not_found = registry.findByName("nonexistent");
+    try std.testing.expect(not_found == null);
+}
