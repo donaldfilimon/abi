@@ -30,6 +30,9 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
+- **Memory leak fix in QueryUnderstanding** - Fixed freeParsedQuery() to properly free target_paths strings and slices (2026-01-26)
+- **SIMD performance optimizations** - Optimized vectorReduce with @reduce(), added batchCosineSimilarityPrecomputed() for pre-computed norms (2026-01-26)
+- **Toolchain CLI fix** - Temporarily disabled toolchain command due to Zig 0.16 API incompatibilities (2026-01-26)
 - **Docker Compose deployment** - Added docker-compose.yml with standard and GPU service variants, Ollama integration, health checks, and .dockerignore for optimized builds (2026-01-26)
 - **Test coverage improvements** - Added inline tests for multi_agent coordinator, observability monitoring (alerting), web client, OpenAI connector, HuggingFace connector, logging, plugins, network registry, and network linking modules (2026-01-26)
 - **Zig 0.16 format specifier compliance** - Replaced `@tagName()` with `{t}` format specifier in CLI, GPU modules, and examples for Zig 0.16 best practices (2026-01-26)
