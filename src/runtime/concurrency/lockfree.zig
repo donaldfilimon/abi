@@ -131,6 +131,11 @@ pub fn LockFreeStack(comptime T: type) type {
     };
 }
 
+/// Re-export the ABA-safe lock-free stack from the epoch module.
+/// Use this instead of LockFreeStack for production use with high concurrency.
+/// See `epoch.zig` for the implementation and usage documentation.
+pub const LockFreeStackEBR = @import("epoch.zig").LockFreeStackEBR;
+
 pub fn ShardedMap(
     comptime K: type,
     comptime V: type,
