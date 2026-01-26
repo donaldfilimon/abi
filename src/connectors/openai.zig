@@ -283,3 +283,46 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     const config = try loadFromEnv(allocator);
     return try Client.init(allocator, config);
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "chat completion request default values" {
+    const messages = [_]Message{.{
+        .role = .user,
+        .content = "Hello",
+    }};
+    const request = ChatCompletionRequest{
+        .model = "gpt-4",
+        .messages = &messages,
+    };
+    try std.testing.expectEqual(@as(f32, 0.7), request.temperature);
+    try std.testing.expectEqual(@as(?u32, null), request.max_tokens);
+    try std.testing.expect(!request.stream);
+}
+
+test "usage struct" {
+    const usage = Usage{
+        .prompt_tokens = 10,
+        .completion_tokens = 20,
+        .total_tokens = 30,
+    };
+    try std.testing.expectEqual(@as(u32, 10), usage.prompt_tokens);
+    try std.testing.expectEqual(@as(u32, 20), usage.completion_tokens);
+    try std.testing.expectEqual(@as(u32, 30), usage.total_tokens);
+}
+
+test "streaming delta default values" {
+    const delta = StreamingDelta{};
+    try std.testing.expectEqual(@as(?[]const u8, null), delta.role);
+    try std.testing.expectEqual(@as(?[]const u8, null), delta.content);
+}
+
+test "streaming choice default finish_reason" {
+    const choice = StreamingChoice{
+        .index = 0,
+        .delta = null,
+    };
+    try std.testing.expectEqual(@as(?[]const u8, null), choice.finish_reason);
+}
