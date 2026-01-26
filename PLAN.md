@@ -30,7 +30,7 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
-- **Test coverage improvements** - Added inline tests for multi_agent coordinator, observability monitoring (alerting), web client, OpenAI connector, HuggingFace connector, logging, and plugins modules (2026-01-26)
+- **Test coverage improvements** - Added inline tests for multi_agent coordinator, observability monitoring (alerting), web client, OpenAI connector, HuggingFace connector, logging, plugins, network registry, and network linking modules (2026-01-26)
 - **Zig 0.16 format specifier compliance** - Replaced `@tagName()` with `{t}` format specifier in CLI, GPU modules, and examples for Zig 0.16 best practices (2026-01-26)
 - **Vision and CLIP CLI training commands** - Added `abi train vision` for ViT image classification and `abi train clip` for CLIP multimodal training with full architecture configuration, training loops, and help documentation (2026-01-26)
 - **abi-dev-agents Claude Code plugin** - Created 6 specialized agents for ABI development: abi-planner, abi-explorer, abi-architect, abi-code-explorer, abi-code-reviewer, abi-issue-analyzer with Zig 0.16 and ABI pattern expertise (2026-01-25)
