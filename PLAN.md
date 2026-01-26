@@ -30,6 +30,7 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
+- **build.zig.zon version field fix** - Restored missing required `.version` field that was breaking all Zig 0.16 builds (2026-01-26)
 - **Database search prefetching** - Added @prefetch hints to search loop for better cache performance on large datasets (2026-01-26)
 - **Engine use-after-free fix** - Fixed critical bug in executeTask/executeTaskInline where node.id was used after node destruction (2026-01-26)
 - **LockFreeStackEBR re-export** - Added ABA-safe lock-free stack re-export from epoch module for production use (2026-01-26)
