@@ -1,0 +1,122 @@
+# ABI Framework Docker Compose
+#
+# Usage:
+#   docker compose up -d              # Start ABI service
+#   docker compose up -d --build      # Rebuild and start
+#   docker compose --profile gpu up   # Start with GPU support
+#   docker compose logs -f abi        # View logs
+#   docker compose exec abi sh        # Shell into container
+
+services:
+  # Standard ABI service
+  abi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        ENABLE_GPU: "false"
+        ENABLE_AI: "true"
+        ENABLE_DATABASE: "true"
+        ENABLE_NETWORK: "true"
+        OPTIMIZE: "ReleaseFast"
+    image: abi:latest
+    container_name: abi
+    volumes:
+      - abi-data:/data
+    environment:
+      - ABI_DATA_DIR=/data
+      - ABI_OPENAI_API_KEY=${ABI_OPENAI_API_KEY:-}
+      - ABI_ANTHROPIC_API_KEY=${ABI_ANTHROPIC_API_KEY:-}
+      - ABI_OLLAMA_HOST=${ABI_OLLAMA_HOST:-http://ollama:11434}
+      - ABI_HF_API_TOKEN=${ABI_HF_API_TOKEN:-}
+    ports:
+      - "8080:8080"  # HTTP API
+      - "9090:9090"  # Metrics
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/abi", "system-info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # GPU-enabled ABI service
+  abi-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: gpu-runtime
+      args:
+        ENABLE_GPU: "true"
+        ENABLE_AI: "true"
+        ENABLE_DATABASE: "true"
+        ENABLE_NETWORK: "true"
+        GPU_BACKEND: "cuda"
+        OPTIMIZE: "ReleaseFast"
+    image: abi:gpu
+    container_name: abi-gpu
+    profiles:
+      - gpu
+    volumes:
+      - abi-data:/data
+    environment:
+      - ABI_DATA_DIR=/data
+      - ABI_OPENAI_API_KEY=${ABI_OPENAI_API_KEY:-}
+      - ABI_ANTHROPIC_API_KEY=${ABI_ANTHROPIC_API_KEY:-}
+      - ABI_OLLAMA_HOST=${ABI_OLLAMA_HOST:-http://ollama:11434}
+      - ABI_HF_API_TOKEN=${ABI_HF_API_TOKEN:-}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    ports:
+      - "8080:8080"
+      - "9090:9090"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Ollama for local LLM inference
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    profiles:
+      - ollama
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  # Ollama with GPU support
+  ollama-gpu:
+    image: ollama/ollama:latest
+    container_name: ollama-gpu
+    profiles:
+      - ollama-gpu
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  abi-data:
+    driver: local
+  ollama-models:
+    driver: local
+
+networks:
+  default:
+    name: abi-network
