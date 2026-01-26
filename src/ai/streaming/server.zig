@@ -153,13 +153,20 @@ pub const StreamingServer = struct {
             &connection_writer.interface,
         );
 
+        // Create connection context for streaming
+        var conn_ctx = ConnectionContext{
+            .io = io,
+            .stream = stream,
+            .send_buffer = &send_buffer,
+        };
+
         while (true) {
             var request = http_server.receiveHead() catch |err| switch (err) {
                 error.HttpConnectionClosing => return,
                 else => return err,
             };
 
-            self.dispatchRequest(&request, io, stream) catch |err| {
+            self.dispatchRequest(&request, &conn_ctx) catch |err| {
                 std.debug.print("Streaming request error: {t}\n", .{err});
                 const error_body = if (err == StreamingServerError.Unauthorized)
                     "{\"error\":{\"message\":\"unauthorized\",\"type\":\"authentication_error\"}}"
@@ -175,12 +182,42 @@ pub const StreamingServer = struct {
         }
     }
 
+    /// Connection context for streaming responses
+    const ConnectionContext = struct {
+        io: std.Io,
+        stream: std.Io.net.Stream,
+        send_buffer: *[8192]u8,
+
+        /// Write raw bytes to connection using the writer interface
+        pub fn write(self: *ConnectionContext, data: []const u8) !void {
+            // Get writer and write all bytes (handles partial writes)
+            var writer = self.stream.writer(self.io, self.send_buffer);
+            try writer.interface.writeAll(data);
+        }
+
+        /// Flush is a no-op for stream writers (writeAll ensures delivery)
+        pub fn flush(_: *ConnectionContext) !void {
+            // writeAll ensures all bytes are written, no explicit flush needed
+        }
+
+        /// Write SSE headers to start streaming response
+        pub fn writeSseHeaders(self: *ConnectionContext) !void {
+            const headers =
+                "HTTP/1.1 200 OK\r\n" ++
+                "Content-Type: text/event-stream\r\n" ++
+                "Cache-Control: no-cache\r\n" ++
+                "Connection: keep-alive\r\n" ++
+                "Access-Control-Allow-Origin: *\r\n" ++
+                "\r\n";
+            try self.write(headers);
+        }
+    };
+
     /// Dispatch request to appropriate handler
     fn dispatchRequest(
         self: *Self,
         request: *std.http.Server.Request,
-        io: std.Io,
-        stream: std.Io.net.Stream,
+        conn_ctx: *ConnectionContext,
     ) !void {
         const target = request.head.target;
         const path = splitTarget(target).path;
@@ -198,17 +235,17 @@ pub const StreamingServer = struct {
 
         // OpenAI-compatible endpoint
         if (self.config.enable_openai_compat and std.mem.eql(u8, path, "/v1/chat/completions")) {
-            return self.handleOpenAIChatCompletions(request);
+            return self.handleOpenAIChatCompletions(request, conn_ctx);
         }
 
         // Custom ABI streaming endpoint
         if (std.mem.eql(u8, path, "/api/stream")) {
-            return self.handleStreamRequest(request);
+            return self.handleStreamRequest(request, conn_ctx);
         }
 
         // WebSocket upgrade
         if (self.config.enable_websocket and std.mem.eql(u8, path, "/api/stream/ws")) {
-            return self.handleWebSocketUpgrade(request, io, stream);
+            return self.handleWebSocketUpgrade(request, conn_ctx);
         }
 
         // Models list (OpenAI-compatible)
@@ -224,7 +261,7 @@ pub const StreamingServer = struct {
     }
 
     /// Handle OpenAI-compatible chat completions
-    fn handleOpenAIChatCompletions(self: *Self, request: *std.http.Server.Request) !void {
+    fn handleOpenAIChatCompletions(self: *Self, request: *std.http.Server.Request, conn_ctx: *ConnectionContext) !void {
         if (request.head.method != .POST) {
             return self.respondJson(
                 request,
@@ -243,31 +280,37 @@ pub const StreamingServer = struct {
 
         // Check if streaming is requested
         if (chat_request.stream) {
-            return self.streamOpenAIResponse(request, chat_request);
+            return self.streamOpenAIResponse(conn_ctx, chat_request);
         } else {
             return self.nonStreamingOpenAIResponse(request, chat_request);
         }
     }
 
-    /// Stream OpenAI-format response
+    /// Stream OpenAI-format response with true SSE streaming
     ///
-    /// TODO: Full SSE streaming requires passing the connection writer through.
-    /// For now, this falls back to non-streaming response to ensure compilation.
-    /// Proper SSE streaming will be implemented in a follow-up update.
+    /// Implements Server-Sent Events (SSE) streaming for real-time token delivery.
+    /// Writes HTTP headers directly to the connection, then streams each token
+    /// as a separate SSE event in OpenAI-compatible format.
     fn streamOpenAIResponse(
         self: *Self,
-        request: *std.http.Server.Request,
+        conn_ctx: *ConnectionContext,
         chat_request: formats.openai.ChatCompletionRequest,
     ) !void {
         // Check concurrent stream limit
         const current = self.active_streams.fetchAdd(1, .seq_cst);
         if (current >= self.config.max_concurrent_streams) {
             _ = self.active_streams.fetchSub(1, .seq_cst);
-            return self.respondJson(
-                request,
-                "{\"error\":{\"message\":\"too many concurrent streams\",\"type\":\"rate_limit_error\"}}",
-                .too_many_requests,
-            );
+            // For rate limit errors, we can't use respondJson as we don't have request
+            // Write error response directly
+            const error_response =
+                "HTTP/1.1 429 Too Many Requests\r\n" ++
+                "Content-Type: application/json\r\n" ++
+                "Content-Length: 71\r\n" ++
+                "\r\n" ++
+                "{\"error\":{\"message\":\"too many concurrent streams\",\"type\":\"rate_limit_error\"}}";
+            try conn_ctx.write(error_response);
+            try conn_ctx.flush();
+            return;
         }
         defer _ = self.active_streams.fetchSub(1, .seq_cst);
 
@@ -276,27 +319,39 @@ pub const StreamingServer = struct {
         const prompt = try chat_request.formatPrompt(self.allocator);
         defer self.allocator.free(prompt);
 
-        // Collect all tokens into complete response
-        var result = std.ArrayListUnmanaged(u8).empty;
-        defer result.deinit(self.allocator);
+        // Write SSE headers to start streaming
+        try conn_ctx.writeSseHeaders();
 
+        // Stream tokens as SSE events
         var stream_iter = try backend.streamTokens(prompt, chat_request.toGenerationConfig());
         defer stream_iter.deinit();
 
+        var token_index: u32 = 0;
         while (try stream_iter.next()) |token| {
-            try result.appendSlice(self.allocator, token.text);
+            // Format as OpenAI streaming chunk (SSE data payload)
+            const chunk_json = try formats.openai.formatStreamChunk(
+                self.allocator,
+                token.text,
+                chat_request.model,
+                token_index,
+                token.is_end,
+            );
+            defer self.allocator.free(chunk_json);
+
+            // Write SSE event directly (simpler format for OpenAI compat)
+            // Format: "data: {json}\n\n"
+            try conn_ctx.write("data: ");
+            try conn_ctx.write(chunk_json);
+            try conn_ctx.write("\n\n");
+            try conn_ctx.flush();
+
+            token_index += 1;
             if (token.is_end) break;
         }
 
-        // Format as complete OpenAI response
-        const response_json = try formats.openai.formatResponse(
-            self.allocator,
-            result.items,
-            chat_request.model,
-        );
-        defer self.allocator.free(response_json);
-
-        try self.respondJson(request, response_json, .ok);
+        // Send final [DONE] message per OpenAI spec
+        try conn_ctx.write("data: [DONE]\n\n");
+        try conn_ctx.flush();
     }
 
     /// Non-streaming OpenAI response
@@ -324,18 +379,21 @@ pub const StreamingServer = struct {
         return self.respondJson(request, response_body, .ok);
     }
 
-    /// Handle custom ABI streaming request
+    /// Handle custom ABI streaming request with true SSE streaming
     ///
-    /// TODO: Full SSE streaming requires passing the connection writer through.
-    /// For now, this falls back to non-streaming response to ensure compilation.
-    /// Proper SSE streaming will be implemented in a follow-up update.
-    fn handleStreamRequest(self: *Self, request: *std.http.Server.Request) !void {
+    /// Implements Server-Sent Events (SSE) streaming for the custom ABI endpoint.
+    /// Each token is delivered as a separate SSE event in real-time.
+    fn handleStreamRequest(self: *Self, request: *std.http.Server.Request, conn_ctx: *ConnectionContext) !void {
         if (request.head.method != .POST) {
-            return self.respondJson(
-                request,
-                "{\"error\":\"method not allowed\"}",
-                .method_not_allowed,
-            );
+            const error_response =
+                "HTTP/1.1 405 Method Not Allowed\r\n" ++
+                "Content-Type: application/json\r\n" ++
+                "Content-Length: 29\r\n" ++
+                "\r\n" ++
+                "{\"error\":\"method not allowed\"}";
+            try conn_ctx.write(error_response);
+            try conn_ctx.flush();
+            return;
         }
 
         const body = try self.readRequestBody(request);
@@ -349,59 +407,79 @@ pub const StreamingServer = struct {
         const current = self.active_streams.fetchAdd(1, .seq_cst);
         if (current >= self.config.max_concurrent_streams) {
             _ = self.active_streams.fetchSub(1, .seq_cst);
-            return self.respondJson(
-                request,
-                "{\"error\":\"too many concurrent streams\"}",
-                .too_many_requests,
-            );
+            const error_response =
+                "HTTP/1.1 429 Too Many Requests\r\n" ++
+                "Content-Type: application/json\r\n" ++
+                "Content-Length: 35\r\n" ++
+                "\r\n" ++
+                "{\"error\":\"too many concurrent streams\"}";
+            try conn_ctx.write(error_response);
+            try conn_ctx.flush();
+            return;
         }
         defer _ = self.active_streams.fetchSub(1, .seq_cst);
 
-        // Get backend and stream - collect all tokens
+        // Write SSE headers to start streaming
+        try conn_ctx.writeSseHeaders();
+
+        // Initialize SSE encoder
+        var sse_encoder = sse.SseEncoder.init(self.allocator, .{
+            .include_id = true,
+            .event_prefix = "abi.",
+        });
+        defer sse_encoder.deinit();
+
+        // Get backend and stream tokens
         const backend_type = stream_request.backend orelse self.config.default_backend;
         const backend = try self.backend_router.getBackend(backend_type);
-
-        var result = std.ArrayListUnmanaged(u8).empty;
-        defer result.deinit(self.allocator);
 
         var stream_iter = try backend.streamTokens(stream_request.prompt, stream_request.config);
         defer stream_iter.deinit();
 
+        // Send start event
+        const start_event = mod.StreamEvent.startEvent();
+        const start_sse = try sse_encoder.encode(start_event);
+        defer self.allocator.free(start_sse);
+        try conn_ctx.write(start_sse);
+        try conn_ctx.flush();
+
+        // Stream tokens as SSE events
         while (try stream_iter.next()) |token| {
-            try result.appendSlice(self.allocator, token.text);
+            // Create token event with text
+            const token_event = mod.StreamEvent{
+                .event_type = .token,
+                .token = .{
+                    .id = @intCast(token.id orelse 0),
+                    .text = token.text,
+                    .is_end = token.is_end,
+                },
+            };
+
+            // Encode and write SSE event
+            const sse_data = try sse_encoder.encode(token_event);
+            defer self.allocator.free(sse_data);
+
+            try conn_ctx.write(sse_data);
+            try conn_ctx.flush();
+
             if (token.is_end) break;
         }
 
-        // Return as JSON response
-        var json_response = std.ArrayListUnmanaged(u8).empty;
-        defer json_response.deinit(self.allocator);
-
-        try json_response.appendSlice(self.allocator, "{\"text\":\"");
-        // Escape JSON string
-        for (result.items) |c| {
-            switch (c) {
-                '"' => try json_response.appendSlice(self.allocator, "\\\""),
-                '\\' => try json_response.appendSlice(self.allocator, "\\\\"),
-                '\n' => try json_response.appendSlice(self.allocator, "\\n"),
-                '\r' => try json_response.appendSlice(self.allocator, "\\r"),
-                '\t' => try json_response.appendSlice(self.allocator, "\\t"),
-                else => try json_response.append(self.allocator, c),
-            }
-        }
-        try json_response.appendSlice(self.allocator, "\"}");
-
-        try self.respondJson(request, json_response.items, .ok);
+        // Send end event
+        const end_event = mod.StreamEvent.endEvent();
+        const end_sse = try sse_encoder.encode(end_event);
+        defer self.allocator.free(end_sse);
+        try conn_ctx.write(end_sse);
+        try conn_ctx.flush();
     }
 
     /// Handle WebSocket upgrade
     fn handleWebSocketUpgrade(
         self: *Self,
         request: *std.http.Server.Request,
-        io: std.Io,
-        stream: std.Io.net.Stream,
+        conn_ctx: *ConnectionContext,
     ) !void {
-        _ = io;
-        _ = stream;
+        _ = conn_ctx; // WebSocket uses request.respond() for upgrade
 
         // Check for WebSocket upgrade headers
         const upgrade_header = findHeaderInBuffer(request.head_buffer, "upgrade");
