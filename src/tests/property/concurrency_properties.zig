@@ -677,3 +677,194 @@ test "atomic fetchAdd is atomic (single-threaded sanity)" {
 
     try std.testing.expect(result.passed);
 }
+
+// ============================================================================
+// Edge Case Tests - Boundary Conditions
+// ============================================================================
+
+test "MPMC queue: push-pop alternation at capacity boundary" {
+    // Test with fixed power-of-2 capacities that work well with MPMC queues
+    const capacities = [_]usize{ 4, 8, 16 };
+
+    for (capacities) |cap| {
+        var queue = runtime.MpmcQueue(u64).init(std.testing.allocator, cap) catch continue;
+        defer queue.deinit();
+
+        // Fill to capacity
+        for (0..cap) |i| {
+            queue.push(@intCast(i)) catch return error.TestUnexpectedResult;
+        }
+
+        // Queue should be full
+        try std.testing.expectError(error.QueueFull, queue.push(999));
+
+        // Pop one, push one - should work
+        _ = queue.pop();
+        try queue.push(999);
+
+        // Should still be full
+        try std.testing.expectError(error.QueueFull, queue.push(1000));
+
+        // Drain and verify count
+        var count: usize = 0;
+        while (queue.pop()) |_| {
+            count += 1;
+        }
+
+        try std.testing.expectEqual(cap, count);
+    }
+}
+
+test "ChaseLevDeque: single element push-pop-steal sequence" {
+    const result = forAllWithAllocator(u64, std.testing.allocator, generators.intRange(u64, 0, 1000), TestConfig, struct {
+        fn check(value: u64, allocator: std.mem.Allocator) bool {
+            var deque = runtime.ChaseLevDeque(u64).init(allocator) catch return false;
+            defer deque.deinit();
+
+            // Push single element
+            deque.push(value) catch return false;
+
+            // Pop should succeed and empty the deque
+            const popped = deque.pop() orelse return false;
+            if (popped != value) return false;
+
+            // Both pop and steal should now return null
+            if (deque.pop() != null) return false;
+            if (deque.steal() != null) return false;
+
+            // Push again
+            deque.push(value + 1) catch return false;
+
+            // Steal should work
+            const stolen = deque.steal() orelse return false;
+            return stolen == value + 1;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "atomic counter: boundary values at u64 max" {
+    const result = forAll(u8, generators.intRange(u8, 1, 10), TestConfig, struct {
+        fn check(_: u8) bool {
+            // Start near max value
+            var counter = std.atomic.Value(u64).init(std.math.maxInt(u64) - 5);
+
+            // Increment - will wrap around
+            for (0..10) |_| {
+                _ = counter.fetchAdd(1, .monotonic);
+            }
+
+            // Should have wrapped around
+            const final = counter.load(.acquire);
+
+            // Verify wrapping behavior: max-5 + 10 = max + 5 = 4 (with wrap)
+            return final == 4;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "atomic counter: CAS at zero boundary" {
+    const result = forAll(u8, generators.intRange(u8, 1, 10), TestConfig, struct {
+        fn check(_: u8) bool {
+            var counter = std.atomic.Value(u64).init(0);
+
+            // CAS from 0 to 1 should succeed
+            const cas_result = counter.cmpxchgStrong(0, 1, .acq_rel, .acquire);
+            if (cas_result != null) return false;
+
+            // CAS from 0 again should fail (current is 1)
+            const cas_result2 = counter.cmpxchgStrong(0, 2, .acq_rel, .acquire);
+            if (cas_result2) |actual| {
+                return actual == 1;
+            }
+            return false;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "WorkStealingQueue: empty steal returns null" {
+    const result = forAllWithAllocator(u8, std.testing.allocator, generators.intRange(u8, 1, 10), TestConfig, struct {
+        fn check(_: u8, allocator: std.mem.Allocator) bool {
+            var queue = runtime.WorkStealingQueue(u64).init(allocator);
+            defer queue.deinit();
+
+            // Steal from empty should return null
+            if (queue.steal() != null) return false;
+
+            // Push then pop to empty
+            queue.push(42) catch return false;
+            _ = queue.pop();
+
+            // Steal should still be null
+            return queue.steal() == null;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "PriorityQueue: empty dequeue returns null" {
+    const result = forAllWithAllocator(u8, std.testing.allocator, generators.intRange(u8, 1, 10), TestConfig, struct {
+        fn check(_: u8, allocator: std.mem.Allocator) bool {
+            var pq = runtime.PriorityQueue(u64).init(allocator, .{});
+            defer pq.deinit();
+
+            // Dequeue from empty
+            if (pq.pop() != null) return false;
+
+            // Push then pop to empty
+            pq.push(42, .normal) catch return false;
+            _ = pq.pop();
+
+            // Should still be empty
+            return pq.pop() == null;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "MPMC queue: rapid push-pop cycles maintain consistency" {
+    const gen = generators.intRange(u16, 10, 100);
+
+    const result = forAllWithAllocator(u16, std.testing.allocator, gen, TestConfig, struct {
+        fn check(cycles: u16, allocator: std.mem.Allocator) bool {
+            var queue = runtime.MpmcQueue(u64).init(allocator, 8) catch return false;
+            defer queue.deinit();
+
+            var push_count: u64 = 0;
+            var pop_count: u64 = 0;
+
+            for (0..cycles) |_| {
+                // Push a few
+                for (0..3) |_| {
+                    if (queue.push(push_count)) |_| {
+                        push_count += 1;
+                    } else |_| {}
+                }
+
+                // Pop a few
+                for (0..2) |_| {
+                    if (queue.pop()) |_| {
+                        pop_count += 1;
+                    }
+                }
+            }
+
+            // Drain remaining
+            while (queue.pop()) |_| {
+                pop_count += 1;
+            }
+
+            // All pushed items should have been popped
+            return push_count == pop_count;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}

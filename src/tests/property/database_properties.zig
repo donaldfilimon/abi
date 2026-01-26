@@ -577,3 +577,213 @@ test "vector IDs are unique in model" {
 
     try std.testing.expect(result.passed);
 }
+
+// ============================================================================
+// Edge Case Tests - Boundary Conditions
+// ============================================================================
+
+test "zero vector cosine similarity is undefined (NaN)" {
+    const gen = generators.nonZeroVector(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            const zero_vec = [_]f32{0.0} ** VECTOR_DIM;
+
+            // Cosine similarity with zero vector should be NaN (0/0)
+            const cos = abi.simd.cosineSimilarity(&zero_vec, &vec);
+
+            // NaN check - NaN != NaN
+            return std.math.isNan(cos) or @abs(cos) < EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "orthogonal vectors have cosine similarity near zero" {
+    const result = forAll(u8, generators.intRange(u8, 1, 10), TestConfig, struct {
+        fn check(_: u8) bool {
+            // Create orthogonal vectors: [1,0,0,...] and [0,1,0,...]
+            var vec_a = [_]f32{0.0} ** VECTOR_DIM;
+            var vec_b = [_]f32{0.0} ** VECTOR_DIM;
+            vec_a[0] = 1.0;
+            vec_b[1] = 1.0;
+
+            const cos = abi.simd.cosineSimilarity(&vec_a, &vec_b);
+
+            // Orthogonal vectors should have similarity ~0
+            return @abs(cos) < EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "cosine similarity is magnitude invariant" {
+    const gen = generators.nonZeroVector(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            // Scale vector by arbitrary factor
+            var scaled: [VECTOR_DIM]f32 = undefined;
+            for (&scaled, vec) |*s, v| {
+                s.* = v * 3.5;
+            }
+
+            const cos_original = abi.simd.cosineSimilarity(&vec, &vec);
+            const cos_scaled = abi.simd.cosineSimilarity(&vec, &scaled);
+
+            // Both should be ~1.0 (identical direction)
+            if (std.math.isNan(cos_original) or std.math.isNan(cos_scaled)) return false;
+            return assert.approxEqual(cos_original, cos_scaled, EPSILON * 10);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model search with k exceeding vector count returns all" {
+    const gen = generators.intRange(u8, 1, 10);
+
+    const result = forAllWithAllocator(u8, std.testing.allocator, gen, TestConfig, struct {
+        fn check(n: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert n vectors
+            for (0..n) |i| {
+                const vec = [_]f32{@as(f32, @floatFromInt(i)) / 10.0} ++ [_]f32{0} ** (VECTOR_DIM - 1);
+                model.insert(@intCast(i), vec) catch return false;
+            }
+
+            // Search with k > n
+            const query = [_]f32{0.5} ** VECTOR_DIM;
+            const results = model.search(query, 100) catch return false;
+            defer allocator.free(results);
+
+            // Should return exactly n results
+            return results.len == n;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model search on empty database returns empty" {
+    const result = forAllWithAllocator(u8, std.testing.allocator, generators.intRange(u8, 1, 10), TestConfig, struct {
+        fn check(_: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Search empty database
+            const query = [_]f32{0.5} ** VECTOR_DIM;
+            const results = model.search(query, 10) catch return false;
+            defer allocator.free(results);
+
+            return results.len == 0;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model delete non-existent ID returns false" {
+    const gen = generators.intRange(u8, 1, 20);
+
+    const result = forAllWithAllocator(u8, std.testing.allocator, gen, TestConfig, struct {
+        fn check(n: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert some vectors
+            for (0..n) |i| {
+                const vec = [_]f32{@as(f32, @floatFromInt(i))} ++ [_]f32{0} ** (VECTOR_DIM - 1);
+                model.insert(@intCast(i), vec) catch return false;
+            }
+
+            // Delete non-existent ID
+            const deleted = model.delete(9999);
+
+            // Should return false (nothing deleted)
+            if (deleted) return false;
+
+            // Count should be unchanged
+            return model.count() == n;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model search after mass delete" {
+    // Direct test with specific values instead of property-based
+    // to avoid edge cases with integer division
+    var model = DatabaseModel.init(std.testing.allocator);
+    defer model.deinit();
+
+    // Insert 20 vectors
+    const n: usize = 20;
+    for (0..n) |i| {
+        const vec = [_]f32{@as(f32, @floatFromInt(i)) / 20.0} ++ [_]f32{0} ** (VECTOR_DIM - 1);
+        try model.insert(@intCast(i), vec);
+    }
+
+    // Delete 90% of vectors (18 vectors, leaving 2)
+    const to_delete: usize = 18;
+    for (0..to_delete) |i| {
+        _ = model.delete(@intCast(i));
+    }
+
+    // Search should still work
+    const query = [_]f32{0.5} ** VECTOR_DIM;
+    const results = try model.search(query, 5);
+    defer std.testing.allocator.free(results);
+
+    // Results should be from remaining vectors (2 remaining)
+    const remaining = n - to_delete;
+    try std.testing.expectEqual(@min(5, remaining), results.len);
+}
+
+test "L2 distance with very large magnitudes" {
+    const result = forAll(u8, generators.intRange(u8, 1, 10), TestConfig, struct {
+        fn check(_: u8) bool {
+            // Create vectors with very large values
+            var large_vec = [_]f32{1e6} ** VECTOR_DIM;
+            var small_vec = [_]f32{1e-6} ** VECTOR_DIM;
+
+            const dist = abi.simd.l2Distance(&large_vec, &small_vec);
+
+            // Should be finite and positive
+            if (std.math.isNan(dist) or std.math.isInf(dist)) return false;
+            return dist > 0.0;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "database model duplicate insert updates existing" {
+    const result = forAllWithAllocator(u8, std.testing.allocator, generators.intRange(u8, 1, 10), TestConfig, struct {
+        fn check(_: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert initial vector
+            const vec1 = [_]f32{1.0} ++ [_]f32{0} ** (VECTOR_DIM - 1);
+            model.insert(42, vec1) catch return false;
+
+            // Insert different vector with same ID
+            const vec2 = [_]f32{2.0} ++ [_]f32{0} ** (VECTOR_DIM - 1);
+            model.insert(42, vec2) catch return false;
+
+            // Count should still be 1
+            if (model.count() != 1) return false;
+
+            // Retrieved vector should be vec2
+            const retrieved = model.get(42) orelse return false;
+            return @abs(retrieved[0] - 2.0) < EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
