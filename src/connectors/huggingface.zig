@@ -208,3 +208,45 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     const config = try loadFromEnv(allocator);
     return try Client.init(allocator, config);
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "parameters struct default values" {
+    const params = Parameters{};
+    try std.testing.expectEqual(@as(?u32, null), params.top_k);
+    try std.testing.expectEqual(@as(?f32, null), params.top_p);
+    try std.testing.expectEqual(@as(?f32, null), params.temperature);
+    try std.testing.expectEqual(@as(?u32, null), params.max_new_tokens);
+    try std.testing.expectEqual(@as(?bool, null), params.return_full_text);
+}
+
+test "parameters struct custom values" {
+    const params = Parameters{
+        .top_k = 50,
+        .top_p = 0.9,
+        .temperature = 0.7,
+        .max_new_tokens = 100,
+        .return_full_text = true,
+    };
+    try std.testing.expectEqual(@as(?u32, 50), params.top_k);
+    try std.testing.expectEqual(@as(?f32, 0.9), params.top_p);
+    try std.testing.expectEqual(@as(?f32, 0.7), params.temperature);
+    try std.testing.expectEqual(@as(?u32, 100), params.max_new_tokens);
+    try std.testing.expectEqual(@as(?bool, true), params.return_full_text);
+}
+
+test "inference request default values" {
+    const request = InferenceRequest{};
+    try std.testing.expectEqual(@as(?[]const u8, null), request.inputs);
+    try std.testing.expectEqual(@as(?Parameters, null), request.parameters);
+}
+
+test "text generation request" {
+    const request = TextGenerationRequest{
+        .inputs = "Hello, world!",
+    };
+    try std.testing.expectEqualStrings("Hello, world!", request.inputs);
+    try std.testing.expectEqual(@as(?Parameters, null), request.parameters);
+}
