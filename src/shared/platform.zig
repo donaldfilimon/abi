@@ -28,12 +28,15 @@ pub const Arch = enum {
 };
 
 /// Whether the current target supports threading
-const is_threaded_target = builtin.target.os.tag != .freestanding and
+/// On freestanding/WASM targets, threading APIs are not available.
+pub const is_threaded_target = builtin.target.os.tag != .freestanding and
     builtin.target.cpu.arch != .wasm32 and
     builtin.target.cpu.arch != .wasm64;
 
-/// Get CPU count in a WASM-safe manner
-fn getCpuCountSafe() usize {
+/// Get CPU count in a WASM-safe manner.
+/// Returns 1 on freestanding/WASM targets where std.Thread is unavailable.
+/// Use this instead of std.Thread.getCpuCount() for cross-platform compatibility.
+pub fn getCpuCountSafe() usize {
     if (comptime !is_threaded_target) {
         return 1;
     }

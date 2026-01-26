@@ -8,6 +8,11 @@ const builtin = @import("builtin");
 const numa = @import("numa.zig");
 const concurrency = @import("../concurrency/mod.zig");
 
+/// Whether threading is available on this target
+const is_threaded_target = builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64;
+
 // Import types from submodule
 pub const engine_types = @import("types.zig");
 
@@ -254,7 +259,10 @@ fn computeWorkerCount(config: EngineConfig) usize {
     if (config.worker_count) |count| {
         return count;
     }
-    const cpu_count = std.Thread.getCpuCount() catch 1;
+    const cpu_count: usize = if (comptime is_threaded_target)
+        std.Thread.getCpuCount() catch 1
+    else
+        1;
     if (cpu_count <= 1) {
         return 1;
     }
@@ -282,7 +290,10 @@ fn buildCpuIds(
         return list.toOwnedSlice(allocator);
     }
 
-    const cpu_count = std.Thread.getCpuCount() catch 1;
+    const cpu_count: usize = if (comptime is_threaded_target)
+        std.Thread.getCpuCount() catch 1
+    else
+        1;
     const ids = try allocator.alloc(usize, cpu_count);
     var i: usize = 0;
     while (i < ids.len) {

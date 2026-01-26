@@ -33,11 +33,17 @@
 //! good load balancing even with variable insertion costs.
 
 const std = @import("std");
+const builtin = @import("builtin");
 const hnsw = @import("hnsw.zig");
 const index_mod = @import("index.zig");
 const simd = @import("../shared/simd.zig");
 const ChaseLevDeque = @import("../runtime/concurrency/chase_lev.zig").ChaseLevDeque;
 const WorkStealingScheduler = @import("../runtime/concurrency/chase_lev.zig").WorkStealingScheduler;
+
+/// Whether threading is available on this target
+const is_threaded_target = builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64;
 
 // ============================================================================
 // Configuration
@@ -543,7 +549,10 @@ pub const ParallelHnswBuilder = struct {
 
     pub fn init(allocator: std.mem.Allocator, config: ParallelBuildConfig) ParallelHnswBuilder {
         const count = config.thread_count orelse blk: {
-            const cpu_count = std.Thread.getCpuCount() catch 4;
+            const cpu_count: usize = if (comptime is_threaded_target)
+                std.Thread.getCpuCount() catch 4
+            else
+                1;
             break :blk @max(1, cpu_count);
         };
 

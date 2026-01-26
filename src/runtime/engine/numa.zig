@@ -245,6 +245,11 @@ fn getCoreCount(allocator: std.mem.Allocator, io: std.Io) !usize {
         return max_cpu + 1;
     } else if (comptime builtin.os.tag == .windows) {
         return std.Thread.getCpuCount();
+    } else if (comptime builtin.os.tag == .freestanding or
+        builtin.cpu.arch == .wasm32 or
+        builtin.cpu.arch == .wasm64)
+    {
+        return 1; // WASM/freestanding doesn't support threading
     } else {
         return std.Thread.getCpuCount();
     }

@@ -21,12 +21,22 @@ const windows = if (builtin.os.tag == .windows) std.os.windows else struct {};
 const linux = if (builtin.os.tag == .linux) std.os.linux else struct {};
 
 // libc imports for cross-platform compatibility (Zig 0.16)
-const libc = @cImport({
-    @cInclude("stdlib.h");
-    if (builtin.os.tag == .windows) {
-        @cInclude("windows.h");
-    }
-});
+// Not available on freestanding/WASM targets
+const libc = if (builtin.os.tag != .freestanding and
+    builtin.cpu.arch != .wasm32 and
+    builtin.cpu.arch != .wasm64)
+    @cImport({
+        @cInclude("stdlib.h");
+        if (builtin.os.tag == .windows) {
+            @cInclude("windows.h");
+        }
+    })
+else
+    struct {
+        pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+            return null;
+        }
+    };
 
 // Helper to get environment variable via libc (Zig 0.16 compatible)
 fn getenvC(name: []const u8) ?[]const u8 {
@@ -317,7 +327,11 @@ pub fn getOsVersion(allocator: std.mem.Allocator) ![]u8 {
 }
 
 /// Get CPU core count
+/// Returns 1 on WASM/freestanding targets where threading is unavailable.
 pub fn getCpuCount() u32 {
+    if (comptime is_wasm or builtin.os.tag == .freestanding) {
+        return 1;
+    }
     const count = std.Thread.getCpuCount() catch 1;
     return @intCast(@max(1, @min(count, std.math.maxInt(u32))));
 }

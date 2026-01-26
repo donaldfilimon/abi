@@ -12,7 +12,13 @@
 //! - Batch distance: SIMD/GPU acceleration for candidate evaluation
 
 const std = @import("std");
+const builtin = @import("builtin");
 const simd = @import("../shared/simd.zig");
+
+/// Whether threading is available on this target
+const is_threaded_target = builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64;
 
 /// Configuration for parallel search.
 pub const ParallelSearchConfig = struct {
@@ -251,7 +257,11 @@ pub const ParallelSearchExecutor = struct {
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, config: ParallelSearchConfig) ParallelSearchExecutor {
-        const count = config.thread_count orelse @max(1, std.Thread.getCpuCount() catch 4);
+        const cpu_count: usize = if (comptime is_threaded_target)
+            std.Thread.getCpuCount() catch 4
+        else
+            1;
+        const count = config.thread_count orelse @max(1, cpu_count);
         return .{
             .config = config,
             .thread_count = count,

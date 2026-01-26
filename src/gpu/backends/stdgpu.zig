@@ -10,6 +10,11 @@ const builtin = @import("builtin");
 const types = @import("../kernel_types.zig");
 const interface = @import("../interface.zig");
 
+/// Whether threading is available on this target
+const is_threaded_target = builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64;
+
 // Module-level function aliases for use in VTable wrapper
 const stdgpu = @This();
 
@@ -263,7 +268,10 @@ pub const DeviceInfo = struct {
 
 pub fn getDeviceInfo() DeviceInfo {
     // Detect CPU capabilities for the software backend
-    const cpu_count = std.Thread.getCpuCount() catch 1;
+    const cpu_count: usize = if (comptime is_threaded_target)
+        std.Thread.getCpuCount() catch 1
+    else
+        1;
 
     return DeviceInfo{
         .name = "StdGPU Software Backend",

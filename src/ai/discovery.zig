@@ -37,6 +37,11 @@ else
         }
     };
 
+/// Whether threading is available on this target
+const is_threaded_target = builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64;
+
 /// Get environment variable value (platform-independent via libc)
 /// Returns null on WASM/freestanding targets where environment variables are unavailable.
 fn getEnv(name: [:0]const u8) ?[]const u8 {
@@ -568,7 +573,11 @@ pub fn detectCapabilities() SystemCapabilities {
     }
 
     // CPU cores - use a safe default
-    caps.cpu_cores = @as(u32, @intCast(std.Thread.getCpuCount() catch 4));
+    const cpu_count: usize = if (comptime is_threaded_target)
+        std.Thread.getCpuCount() catch 4
+    else
+        1;
+    caps.cpu_cores = @as(u32, @intCast(cpu_count));
 
     // Memory detection (platform-specific)
     // For now, use conservative defaults

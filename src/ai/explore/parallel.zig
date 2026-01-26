@@ -1,5 +1,11 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const ExploreConfig = @import("config.zig").ExploreConfig;
+
+/// Whether threading is available on this target
+const is_threaded_target = builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64;
 const ExploreResult = @import("results.zig").ExploreResult;
 const FileStats = @import("fs.zig").FileStats;
 const SearchPattern = @import("search.zig").SearchPattern;
@@ -33,7 +39,10 @@ pub const ParallelExplorer = struct {
     }
 
     pub fn explore(self: *ParallelExplorer, files: []const FileStats) !void {
-        const cpu_count = std.Thread.getCpuCount() catch 1;
+        const cpu_count: usize = if (comptime is_threaded_target)
+            std.Thread.getCpuCount() catch 1
+        else
+            1;
         const worker_count = self.config.worker_count orelse cpu_count;
         const effective_workers = @min(worker_count, files.len);
 
