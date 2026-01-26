@@ -30,7 +30,7 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
-- **Partial WASM support fix** - Added WASM-safe guards for @cImport in discovery.zig and getCpuCountSafe() in platform.zig (2026-01-26)
+- **Complete WASM support** - Fixed all getCpuCount calls across 9 files with WASM/freestanding guards; WASM build now passes (2026-01-26)
 - **gendocs module paths fix** - Updated gendocs tool to use correct paths after config module refactoring; all 22 modules now generate docs (2026-01-26)
 - **build.zig.zon version field fix** - Restored missing required `.version` field that was breaking all Zig 0.16 builds (2026-01-26)
 - **Database search prefetching** - Added @prefetch hints to search loop for better cache performance on large datasets (2026-01-26)
