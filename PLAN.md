@@ -30,6 +30,7 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
+- **gendocs module paths fix** - Updated gendocs tool to use correct paths after config module refactoring; all 22 modules now generate docs (2026-01-26)
 - **build.zig.zon version field fix** - Restored missing required `.version` field that was breaking all Zig 0.16 builds (2026-01-26)
 - **Database search prefetching** - Added @prefetch hints to search loop for better cache performance on large datasets (2026-01-26)
 - **Engine use-after-free fix** - Fixed critical bug in executeTask/executeTaskInline where node.id was used after node destruction (2026-01-26)
