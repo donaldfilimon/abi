@@ -43,7 +43,7 @@ pub const WorkerArena = struct {
     }
 
     pub fn reset(self: *WorkerArena) void {
-        self.arena.reset(.retain_capacity);
+        _ = self.arena.reset(.retain_capacity);
     }
 
     pub fn deinit(self: *WorkerArena) void {
@@ -183,11 +183,22 @@ pub const SlabAllocator = struct {
         }
     }
 
+    /// Binary search for optimal size class (O(log n) vs O(n) linear scan).
     fn findSizeClass(size: usize) ?usize {
-        for (SIZE_CLASSES, 0..) |class_size, i| {
-            if (size <= class_size) return i;
+        // Binary search for first size class >= size
+        var left: usize = 0;
+        var right: usize = SIZE_CLASSES.len;
+
+        while (left < right) {
+            const mid = left + (right - left) / 2;
+            if (SIZE_CLASSES[mid] < size) {
+                left = mid + 1;
+            } else {
+                right = mid;
+            }
         }
-        return null;
+
+        return if (left < SIZE_CLASSES.len) left else null;
     }
 
     pub fn alloc(self: *SlabAllocator, size: usize) ?[]u8 {
@@ -335,7 +346,7 @@ pub const ScopedArena = struct {
     }
 
     pub fn restore(self: *ScopedArena) void {
-        self.arena.reset(.retain_capacity);
+        _ = self.arena.reset(.retain_capacity);
         self.checkpoint = null;
     }
 

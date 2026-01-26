@@ -166,15 +166,18 @@ pub const GpuMemoryPool = struct {
         return buffer;
     }
 
+    /// Free a buffer from the pool.
+    /// Uses swapRemove for O(1) removal (order not preserved, which is fine for pools).
     pub fn free(self: *GpuMemoryPool, buffer: *GpuBuffer) bool {
-        var i: usize = 0;
-        while (i < self.buffers.items.len) : (i += 1) {
-            if (self.buffers.items[i] == buffer) {
+        // Linear search to find buffer - could be optimized with hash map for very large pools
+        for (self.buffers.items, 0..) |buf, i| {
+            if (buf == buffer) {
                 std.debug.assert(self.total_size >= buffer.size);
                 self.total_size -= buffer.size;
                 buffer.deinit();
                 self.allocator.destroy(buffer);
-                _ = self.buffers.orderedRemove(i);
+                // Use swapRemove for O(1) removal instead of orderedRemove O(n)
+                _ = self.buffers.swapRemove(i);
                 return true;
             }
         }

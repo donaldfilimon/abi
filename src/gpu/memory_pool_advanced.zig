@@ -688,14 +688,23 @@ pub const AdvancedMemoryPool = struct {
     }
 
     // Internal helpers
+    /// Binary search for optimal size class (O(log n) vs O(n) linear scan).
     fn findSizeClass(self: *const AdvancedMemoryPool, size: usize) ?usize {
         _ = self;
-        for (SIZE_CLASSES, 0..) |class_size, i| {
-            if (size <= class_size) {
-                return i;
+        // Binary search for first size class >= size
+        var left: usize = 0;
+        var right: usize = SIZE_CLASSES.len;
+
+        while (left < right) {
+            const mid = left + (right - left) / 2;
+            if (SIZE_CLASSES[mid] < size) {
+                left = mid + 1;
+            } else {
+                right = mid;
             }
         }
-        return null;
+
+        return if (left < SIZE_CLASSES.len) left else null;
     }
 
     fn shouldCoalesce(self: *const AdvancedMemoryPool) bool {
