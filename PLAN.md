@@ -30,6 +30,8 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
+- **LockFreeStackEBR re-export** - Added ABA-safe lock-free stack re-export from epoch module for production use (2026-01-26)
+- **HNSW SearchStatePool improvements** - Safe type casting with overflow error, exponential backoff in CAS loop to reduce CPU contention (2026-01-26)
 - **Memory leak fix in QueryUnderstanding** - Fixed freeParsedQuery() to properly free target_paths strings and slices (2026-01-26)
 - **SIMD performance optimizations** - Optimized vectorReduce with @reduce(), added batchCosineSimilarityPrecomputed() for pre-computed norms (2026-01-26)
 - **Toolchain CLI fix** - Temporarily disabled toolchain command due to Zig 0.16 API incompatibilities (2026-01-26)
