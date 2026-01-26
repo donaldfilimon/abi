@@ -68,10 +68,8 @@ pub fn vectorDot(a: []const f32, b: []const f32) f32 {
             vec_sum += va * vb;
         }
 
-        const sums: [VectorSize]f32 = vec_sum;
-        for (sums) |s| {
-            dot_sum += s;
-        }
+        // Use @reduce for efficient horizontal sum (Zig 0.16+)
+        dot_sum += @reduce(.Add, vec_sum);
     }
 
     while (i < len) : (i += 1) {
@@ -99,10 +97,8 @@ pub fn vectorL2Norm(v: []const f32) f32 {
             vec_sum += vv * vv;
         }
 
-        const sums: [VectorSize]f32 = vec_sum;
-        for (sums) |s| {
-            norm_sum += s;
-        }
+        // Use @reduce for efficient horizontal sum (Zig 0.16+)
+        norm_sum += @reduce(.Add, vec_sum);
     }
 
     while (i < len) : (i += 1) {
@@ -496,15 +492,32 @@ pub fn logSoftmaxInPlace(data: []f32) void {
     // log_softmax(x)_i = x_i - max(x) - log(sum(exp(x - max(x))))
     const max_val = maxValue(data);
 
-    // Compute sum of exp(x - max)
-    var log_sum: f32 = 0.0;
-    for (data) |x| {
-        log_sum += @exp(x - max_val);
-    }
-    log_sum = @log(log_sum);
-
-    // Apply log-softmax in-place
+    // Compute sum of exp(x - max) using SIMD
+    var exp_sum: f32 = 0.0;
     var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const max_vec: Vec = @splat(max_val);
+        var sum_vec: Vec = @splat(0.0);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const x: Vec = data[i..][0..VectorSize].*;
+            sum_vec += @exp(x - max_vec);
+        }
+
+        exp_sum = @reduce(.Add, sum_vec);
+    }
+
+    // Scalar tail for exp sum
+    while (i < data.len) : (i += 1) {
+        exp_sum += @exp(data[i] - max_val);
+    }
+
+    const log_sum = @log(exp_sum);
+
+    // Apply log-softmax in-place using SIMD
+    i = 0;
 
     if (comptime VectorSize > 1) {
         const Vec = @Vector(VectorSize, f32);
