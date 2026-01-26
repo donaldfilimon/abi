@@ -297,16 +297,25 @@ pub const QueryUnderstanding = struct {
         return patterns.toOwnedSlice(self.allocator);
     }
 
-    pub fn freeParsedQuery(_: *QueryUnderstanding, parsed: *const ParsedQuery) void {
+    /// Free all allocations associated with a parsed query
+    /// Call this when done with a ParsedQuery returned from parse()
+    pub fn freeParsedQuery(self: *QueryUnderstanding, parsed: ParsedQuery) void {
+        // Free patterns array (strings are static literals, only free the array)
         if (parsed.patterns.len > 0) {
-            // Note: patterns array is owned, but strings are static literals, so only free the array
+            self.allocator.free(parsed.patterns);
+        }
+
+        // Free target paths - these were duplicated with allocator.dupe()
+        for (parsed.target_paths) |path| {
+            self.allocator.free(path);
         }
         if (parsed.target_paths.len > 0) {
-            // For target paths, we allocated path strings too - need to free them
-            // But we only have a const pointer, so we can't actually free them here
+            self.allocator.free(parsed.target_paths);
         }
+
+        // Free file extensions array (strings are static literals, only free the array)
         if (parsed.file_extensions.len > 0) {
-            // File extensions are static string literals, only free the array
+            self.allocator.free(parsed.file_extensions);
         }
     }
 };
