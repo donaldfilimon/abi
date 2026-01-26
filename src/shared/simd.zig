@@ -170,6 +170,34 @@ pub fn batchCosineSimilarity(
     batchCosineSimilarityFast(query, query_norm, vectors, results);
 }
 
+/// Batch cosine similarity with pre-computed norms for maximum performance
+/// Use this when database vector norms are pre-computed and stored
+/// @param query Query vector (must not be empty)
+/// @param query_norm Pre-computed L2 norm of query (must be > 0)
+/// @param vectors Array of database vectors
+/// @param vector_norms Pre-computed L2 norms of database vectors (same length as vectors)
+/// @param results Output array (must have same length as vectors, caller-owned)
+pub fn batchCosineSimilarityPrecomputed(
+    query: []const f32,
+    query_norm: f32,
+    vectors: []const []const f32,
+    vector_norms: []const f32,
+    results: []f32,
+) void {
+    std.debug.assert(query.len > 0);
+    std.debug.assert(query_norm > 0.0);
+    std.debug.assert(vectors.len == results.len);
+    std.debug.assert(vectors.len == vector_norms.len);
+
+    for (vectors, vector_norms, results) |vector, vec_norm, *result| {
+        const dot = vectorDot(query, vector);
+        result.* = if (query_norm > 0 and vec_norm > 0)
+            dot / (query_norm * vec_norm)
+        else
+            0;
+    }
+}
+
 /// Batch dot‑product computation.
 /// Computes the dot product of a single `query` vector against each vector in `vectors`.
 /// Results are stored in the `results` slice, which must have the same length as `vectors`.
@@ -209,17 +237,11 @@ pub fn vectorReduce(op: enum { sum, max, min }, v: []const f32) f32 {
             }
         }
 
-        const results: [VectorSize]f32 = vec_result;
+        // Use @reduce for efficient horizontal reduction (Zig 0.16+)
         switch (op) {
-            .sum => {
-                for (results) |r| result += r;
-            },
-            .max => {
-                for (results) |r| result = @max(result, r);
-            },
-            .min => {
-                for (results) |r| result = @min(result, r);
-            },
+            .sum => result += @reduce(.Add, vec_result),
+            .max => result = @max(result, @reduce(.Max, vec_result)),
+            .min => result = @min(result, @reduce(.Min, vec_result)),
         }
     }
 
