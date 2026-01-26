@@ -185,6 +185,17 @@ pub const LlamaTrainer = training.LlamaTrainer;
 pub const loadCheckpoint = training.loadCheckpoint;
 pub const saveCheckpoint = training.saveCheckpoint;
 
+// Vision training types
+pub const TrainableViTModel = training.TrainableViTModel;
+pub const TrainableViTConfig = training.TrainableViTConfig;
+pub const TrainableViTWeights = training.TrainableViTWeights;
+pub const VisionTrainingError = training.VisionTrainingError;
+
+// CLIP/Multimodal training types
+pub const TrainableCLIPModel = training.TrainableCLIPModel;
+pub const CLIPTrainingConfig = training.CLIPTrainingConfig;
+pub const MultimodalTrainingError = training.MultimodalTrainingError;
+
 // Data loading
 pub const TokenizedDataset = training.TokenizedDataset;
 pub const DataLoader = training.DataLoader;
