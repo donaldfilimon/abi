@@ -21,6 +21,19 @@ Unified observability with metrics, tracing, and profiling.
 
 ## API
 
+### `pub const Gauge`
+
+<sup>**type**</sup>
+
+Gauge metric - a value that can increase or decrease.
+Uses atomic i64 for thread-safe operations.
+
+### `pub const FloatGauge`
+
+<sup>**type**</sup>
+
+Float gauge metric - for f64 values requiring mutex protection.
+
 ---
 
 *Generated automatically by `zig build gendocs`*

@@ -75,6 +75,46 @@ Generate text from a prompt
 
 Generate with streaming callback (per-token)
 
+This is the simple callback-based streaming API. For more control,
+use `createStreamingResponse()` which returns an iterator.
+
+### `pub fn createStreamingResponse(`
+
+<sup>**fn**</sup>
+
+Generate with streaming using advanced configuration.
+
+This function provides more control over streaming behavior through
+the `StreamingConfig` struct. It returns a `StreamingResponse` iterator
+that can be used for pull-based streaming.
+
+## Example
+
+```zig
+var response = try engine.createStreamingResponse(prompt, .{
+.max_tokens = 100,
+.temperature = 0.8,
+.on_token = myCallback,
+});
+defer response.deinit();
+
+while (try response.next()) |event| {
+if (event.text) |text| {
+try stdout.writeAll(text);
+}
+if (event.is_final) break;
+}
+```
+
+### `pub fn generateStreamingWithConfig(`
+
+<sup>**fn**</sup>
+
+Generate with streaming callbacks using advanced configuration.
+
+This is a convenience function that sets up streaming with callbacks
+and iterates through all tokens automatically.
+
 ### `pub fn tokenize(self: *Engine, allocator: std.mem.Allocator, text: []const u8) ![]u32`
 
 <sup>**fn**</sup>

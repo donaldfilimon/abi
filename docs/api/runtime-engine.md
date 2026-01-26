@@ -14,6 +14,7 @@ This module provides the core task execution engine with:
 - `EngineConfig` - Engine configuration options
 - NUMA-aware task scheduling
 - Result handling and task lifecycle
+- `ResultCache` - High-performance result caching for fast-path completion
 
 Note: On WASM/freestanding targets without thread support, the engine
 provides stub implementations that return appropriate errors.

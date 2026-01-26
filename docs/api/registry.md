@@ -37,23 +37,17 @@ if (reg.isEnabled(.gpu)) {
 
 ## API
 
-### `pub const RegistrationMode`
-
-<sup>**type**</sup>
-
-Registration mode determines how features are discovered and managed.
-
-### `pub const FeatureRegistration`
-
-<sup>**type**</sup>
-
-Feature registration entry with lifecycle management.
-
 ### `pub const Registry`
 
 <sup>**type**</sup>
 
 Central registry managing feature lifecycle across all registration modes.
+
+### `pub const Error`
+
+<sup>**const**</sup>
+
+Error type for Registry operations (alias for backward compatibility).
 
 ### `pub fn init(allocator: std.mem.Allocator) Registry`
 
@@ -100,6 +94,18 @@ Initialize a registered feature. For runtime_toggle and dynamic modes.
 
 Shutdown a feature, releasing resources.
 
+### `pub fn enableFeature(self: *Registry, feature: Feature) Error!void`
+
+<sup>**fn**</sup>
+
+Enable a runtime-toggleable feature.
+
+### `pub fn disableFeature(self: *Registry, feature: Feature) Error!void`
+
+<sup>**fn**</sup>
+
+Disable a runtime-toggleable feature. Deinitializes if currently initialized.
+
 ### `pub fn isRegistered(self: *const Registry, feature: Feature) bool`
 
 <sup>**fn**</sup>
@@ -132,18 +138,6 @@ Get the registration mode for a feature.
 
 Get the context for a feature. Returns error if not initialized.
 
-### `pub fn enableFeature(self: *Registry, feature: Feature) Error!void`
-
-<sup>**fn**</sup>
-
-Enable a runtime-toggleable feature.
-
-### `pub fn disableFeature(self: *Registry, feature: Feature) Error!void`
-
-<sup>**fn**</sup>
-
-Disable a runtime-toggleable feature. Deinitializes if currently initialized.
-
 ### `pub fn listFeatures(self: *const Registry, allocator: std.mem.Allocator) Error![]Feature`
 
 <sup>**fn**</sup>
@@ -155,18 +149,6 @@ Get list of all registered features.
 <sup>**fn**</sup>
 
 Get count of registered features.
-
-### `pub fn isFeatureCompiledIn(comptime feature: Feature) bool`
-
-<sup>**fn**</sup>
-
-Check if a feature is compiled in via build_options.
-
-### `pub fn getParentFeature(feature: Feature) ?Feature`
-
-<sup>**fn**</sup>
-
-Get parent feature for sub-features.
 
 ---
 

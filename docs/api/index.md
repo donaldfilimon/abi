@@ -1,15 +1,4 @@
----
-title: "API Reference"
-tags: [api, reference, documentation]
----
 # ABI Framework API Reference
-> **Codebase Status:** Synced with repository as of 2026-01-24.
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Docs-Auto--Generated-blue?style=for-the-badge" alt="Auto-Generated"/>
-  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
-  <img src="https://img.shields.io/badge/Modules-20+-success?style=for-the-badge" alt="Modules"/>
-</p>
 
 > Comprehensive API documentation auto-generated from source code
 
@@ -19,39 +8,46 @@ tags: [api, reference, documentation]
 
 | Module | Description |
 |--------|-------------|
-| [abi](../api_abi.md) | Main framework entry point and public API |
-| [framework](../api_framework.md) | Framework orchestration and lifecycle management |
-| [runtime](../api_runtime.md) | Runtime infrastructure (engine, scheduling, memory) |
-| [runtime-engine](../api_runtime-engine.md) | Work-stealing task execution engine |
-| [runtime-scheduling](../api_runtime-scheduling.md) | Futures, cancellation, and task groups |
-| [runtime-memory](../api_runtime-memory.md) | Memory pools and custom allocators |
-| [runtime-concurrency](../api_runtime-concurrency.md) | Lock-free concurrent primitives |
-| [gpu](../api_gpu.md) | GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU) |
-| [ai](../api_ai.md) | AI module with agents, LLM, embeddings, and training |
-| [ai-agents](../api_ai-agents.md) | Agent runtime and orchestration |
-| [ai-embeddings](../api_ai-embeddings.md) | Vector embeddings generation |
-| [ai-llm](../api_ai-llm.md) | Local LLM inference |
-| [ai-training](../api_ai-training.md) | Training pipelines and fine-tuning |
-| [connectors](../api_connectors.md) | API connectors (OpenAI, Ollama, Anthropic, HuggingFace) |
-| [database](../api_database.md) | Vector database (WDBX with HNSW/IVF-PQ) |
-| [network](../api_network.md) | Distributed compute and Raft consensus |
-| [ha](../api_ha.md) | High availability (backup, PITR, replication) |
-| [observability](../api_observability.md) | Metrics, tracing, and monitoring |
-| [registry](../api_registry.md) | Plugin registry (comptime, runtime, dynamic) |
-| [web](../api_web.md) | Web utilities and HTTP support |
-| [security](../api_security.md) | TLS, mTLS, API keys, and RBAC |
+| [abi](../api/abi.md) | Main framework entry point and public API |
+| [config](../api/config.md) | Unified configuration system with builder pattern |
+| [framework](../api/framework.md) | Framework orchestration and lifecycle management |
+| [runtime](../api/runtime.md) | Runtime infrastructure (engine, scheduling, memory) |
+| [runtime-engine](../api/runtime-engine.md) | Work-stealing task execution engine |
+| [runtime-scheduling](../api/runtime-scheduling.md) | Futures, cancellation, and task groups |
+| [runtime-memory](../api/runtime-memory.md) | Memory pools and custom allocators |
+| [runtime-concurrency](../api/runtime-concurrency.md) | Lock-free concurrent primitives |
+| [gpu](../api/gpu.md) | GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU) |
+| [ai](../api/ai.md) | AI module with agents, LLM, embeddings, and training |
+| [ai-agents](../api/ai-agents.md) | Agent runtime and orchestration |
+| [ai-embeddings](../api/ai-embeddings.md) | Vector embeddings generation |
+| [ai-llm](../api/ai-llm.md) | Local LLM inference |
+| [ai-training](../api/ai-training.md) | Training pipelines and fine-tuning |
+| [connectors](../api/connectors.md) | API connectors (OpenAI, Ollama, Anthropic, HuggingFace) |
+| [database](../api/database.md) | Vector database (WDBX with HNSW/IVF-PQ) |
+| [network](../api/network.md) | Distributed compute and Raft consensus |
+| [ha](../api/ha.md) | High availability (backup, PITR, replication) |
+| [observability](../api/observability.md) | Metrics, tracing, and monitoring |
+| [registry](../api/registry.md) | Plugin registry (comptime, runtime, dynamic) |
+| [web](../api/web.md) | Web utilities and HTTP support |
+| [security](../api/security.md) | TLS, mTLS, API keys, and RBAC |
 
 ---
 
 ## Core Framework
 
-### [abi](../api_abi.md)
+### [abi](../api/abi.md)
 
 Main framework entry point and public API
 
 **Source:** [`src/abi.zig`](../../src/abi.zig)
 
-### [framework](../api_framework.md)
+### [config](../api/config.md)
+
+Unified configuration system with builder pattern
+
+**Source:** [`src/config/mod.zig`](../../src/config/mod.zig)
+
+### [framework](../api/framework.md)
 
 Framework orchestration and lifecycle management
 
@@ -59,37 +55,37 @@ Framework orchestration and lifecycle management
 
 ## Compute & Runtime
 
-### [runtime](../api_runtime.md)
+### [runtime](../api/runtime.md)
 
 Runtime infrastructure (engine, scheduling, memory)
 
 **Source:** [`src/runtime/mod.zig`](../../src/runtime/mod.zig)
 
-### [runtime-engine](../api_runtime-engine.md)
+### [runtime-engine](../api/runtime-engine.md)
 
 Work-stealing task execution engine
 
 **Source:** [`src/runtime/engine/mod.zig`](../../src/runtime/engine/mod.zig)
 
-### [runtime-scheduling](../api_runtime-scheduling.md)
+### [runtime-scheduling](../api/runtime-scheduling.md)
 
 Futures, cancellation, and task groups
 
 **Source:** [`src/runtime/scheduling/mod.zig`](../../src/runtime/scheduling/mod.zig)
 
-### [runtime-memory](../api_runtime-memory.md)
+### [runtime-memory](../api/runtime-memory.md)
 
 Memory pools and custom allocators
 
 **Source:** [`src/runtime/memory/mod.zig`](../../src/runtime/memory/mod.zig)
 
-### [runtime-concurrency](../api_runtime-concurrency.md)
+### [runtime-concurrency](../api/runtime-concurrency.md)
 
 Lock-free concurrent primitives
 
 **Source:** [`src/runtime/concurrency/mod.zig`](../../src/runtime/concurrency/mod.zig)
 
-### [gpu](../api_gpu.md)
+### [gpu](../api/gpu.md)
 
 GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU)
 
@@ -97,37 +93,37 @@ GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU)
 
 ## AI & Machine Learning
 
-### [ai](../api_ai.md)
+### [ai](../api/ai.md)
 
 AI module with agents, LLM, embeddings, and training
 
 **Source:** [`src/ai/mod.zig`](../../src/ai/mod.zig)
 
-### [ai-agents](../api_ai-agents.md)
+### [ai-agents](../api/ai-agents.md)
 
 Agent runtime and orchestration
 
 **Source:** [`src/ai/agents/mod.zig`](../../src/ai/agents/mod.zig)
 
-### [ai-embeddings](../api_ai-embeddings.md)
+### [ai-embeddings](../api/ai-embeddings.md)
 
 Vector embeddings generation
 
 **Source:** [`src/ai/embeddings/mod.zig`](../../src/ai/embeddings/mod.zig)
 
-### [ai-llm](../api_ai-llm.md)
+### [ai-llm](../api/ai-llm.md)
 
 Local LLM inference
 
 **Source:** [`src/ai/llm/mod.zig`](../../src/ai/llm/mod.zig)
 
-### [ai-training](../api_ai-training.md)
+### [ai-training](../api/ai-training.md)
 
 Training pipelines and fine-tuning
 
 **Source:** [`src/ai/training/mod.zig`](../../src/ai/training/mod.zig)
 
-### [connectors](../api_connectors.md)
+### [connectors](../api/connectors.md)
 
 API connectors (OpenAI, Ollama, Anthropic, HuggingFace)
 
@@ -135,7 +131,7 @@ API connectors (OpenAI, Ollama, Anthropic, HuggingFace)
 
 ## Data & Storage
 
-### [database](../api_database.md)
+### [database](../api/database.md)
 
 Vector database (WDBX with HNSW/IVF-PQ)
 
@@ -143,31 +139,31 @@ Vector database (WDBX with HNSW/IVF-PQ)
 
 ## Infrastructure
 
-### [network](../api_network.md)
+### [network](../api/network.md)
 
 Distributed compute and Raft consensus
 
 **Source:** [`src/network/mod.zig`](../../src/network/mod.zig)
 
-### [ha](../api_ha.md)
+### [ha](../api/ha.md)
 
 High availability (backup, PITR, replication)
 
 **Source:** [`src/ha/mod.zig`](../../src/ha/mod.zig)
 
-### [observability](../api_observability.md)
+### [observability](../api/observability.md)
 
 Metrics, tracing, and monitoring
 
 **Source:** [`src/observability/mod.zig`](../../src/observability/mod.zig)
 
-### [registry](../api_registry.md)
+### [registry](../api/registry.md)
 
 Plugin registry (comptime, runtime, dynamic)
 
 **Source:** [`src/registry/mod.zig`](../../src/registry/mod.zig)
 
-### [web](../api_web.md)
+### [web](../api/web.md)
 
 Web utilities and HTTP support
 
@@ -175,7 +171,7 @@ Web utilities and HTTP support
 
 ## Utilities
 
-### [security](../api_security.md)
+### [security](../api/security.md)
 
 TLS, mTLS, API keys, and RBAC
 

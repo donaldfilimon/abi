@@ -46,9 +46,8 @@ const Module = struct {
 const modules = [_]Module{
     // Core Framework
     .{ .path = "src/abi.zig", .name = "abi", .category = .core, .description = "Main framework entry point and public API" },
-    .{ .path = "src/config.zig", .name = "config", .category = .core, .description = "Unified configuration system with builder pattern" },
+    .{ .path = "src/config/mod.zig", .name = "config", .category = .core, .description = "Unified configuration system with builder pattern" },
     .{ .path = "src/framework.zig", .name = "framework", .category = .core, .description = "Framework orchestration and lifecycle management" },
-    .{ .path = "src/tasks.zig", .name = "tasks", .category = .core, .description = "Centralized task management system" },
 
     // Compute & Runtime
     .{ .path = "src/runtime/mod.zig", .name = "runtime", .category = .compute, .description = "Runtime infrastructure (engine, scheduling, memory)" },
