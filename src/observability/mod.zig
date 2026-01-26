@@ -560,9 +560,7 @@ pub const Context = struct {
     }
 
     pub fn startSpan(self: *Context, name: []const u8) !Span {
-        _ = self;
-        const allocator = std.heap.page_allocator;
-        return try Span.start(allocator, name, null, null, .internal);
+        return try Span.start(self.allocator, name, null, null, .internal);
     }
 };
 

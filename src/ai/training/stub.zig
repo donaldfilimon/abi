@@ -314,7 +314,7 @@ pub fn readTokenBinFile(_: std.mem.Allocator, _: []const u8) Error![]u32 {
     return error.TrainingDisabled;
 }
 
-pub fn writeTokenBinFile(_: []const u8, _: []const u32) Error!void {
+pub fn writeTokenBinFile(_: std.mem.Allocator, _: []const u8, _: []const u32) Error!void {
     return error.TrainingDisabled;
 }
 

@@ -196,8 +196,7 @@ pub const SharedBufferStats = struct {
     ref_count: u32,
 };
 
-pub fn zeroCopySlice(src: []const u8) !ZeroCopyBuffer {
-    const allocator = std.heap.page_allocator;
+pub fn zeroCopySlice(allocator: std.mem.Allocator, src: []const u8) !ZeroCopyBuffer {
     return try ZeroCopyBuffer.fromBytes(allocator, src);
 }
 

@@ -451,30 +451,35 @@ pub fn loadFromEnvironment(allocator: std.mem.Allocator) !AbbeyConfig {
     var config = AbbeyConfig{};
 
     // Load LLM configuration from environment
-    if (getEnv("ABI_ABBEY_LLM_BACKEND")) |backend_str| {
+    if (getEnv(allocator, "ABI_ABBEY_LLM_BACKEND")) |backend_str| {
+        defer allocator.free(backend_str);
         config.llm.backend = parseBackend(backend_str) orelse .echo;
     }
 
-    if (getEnv("ABI_ABBEY_MODEL")) |model| {
+    if (getEnv(allocator, "ABI_ABBEY_MODEL")) |model| {
+        // Transfer ownership - caller is responsible for freeing via config.deinit()
         config.llm.model = model;
     }
 
-    if (getEnv("OPENAI_API_KEY") orelse getEnv("ABI_OPENAI_API_KEY")) |key| {
-        config.llm.api_key = try allocator.dupe(u8, key);
+    if (getEnv(allocator, "OPENAI_API_KEY") orelse getEnv(allocator, "ABI_OPENAI_API_KEY")) |key| {
+        // Transfer ownership - caller is responsible for freeing via config.deinit()
+        config.llm.api_key = key;
         if (config.llm.backend == .echo) {
             config.llm.backend = .openai;
         }
     }
 
     // Load server configuration
-    if (getEnv("ABI_ABBEY_SERVER_PORT")) |port_str| {
+    if (getEnv(allocator, "ABI_ABBEY_SERVER_PORT")) |port_str| {
+        defer allocator.free(port_str);
         config.server.port = std.fmt.parseInt(u16, port_str, 10) catch 8080;
         config.server.enabled = true;
     }
 
     // Load Discord configuration
-    if (getEnv("DISCORD_BOT_TOKEN") orelse getEnv("ABI_DISCORD_TOKEN")) |token| {
-        config.discord.bot_token = try allocator.dupe(u8, token);
+    if (getEnv(allocator, "DISCORD_BOT_TOKEN") orelse getEnv(allocator, "ABI_DISCORD_TOKEN")) |token| {
+        // Transfer ownership - caller is responsible for freeing via config.deinit()
+        config.discord.bot_token = token;
         config.discord.enabled = true;
     }
 
@@ -482,8 +487,8 @@ pub fn loadFromEnvironment(allocator: std.mem.Allocator) !AbbeyConfig {
     return config;
 }
 
-fn getEnv(key: []const u8) ?[]const u8 {
-    return std.process.getEnvVarOwned(std.heap.page_allocator, key) catch null;
+fn getEnv(allocator: std.mem.Allocator, key: []const u8) ?[]const u8 {
+    return std.process.getEnvVarOwned(allocator, key) catch null;
 }
 
 fn parseBackend(str: []const u8) ?LLMConfig.Backend {

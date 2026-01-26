@@ -75,6 +75,31 @@ pub fn jsonEscape(content: []const u8) JsonEscape {
     return .{ .content = content };
 }
 
+/// Append JSON-escaped content directly to an ArrayList.
+/// This is more efficient than allocating a new string when building JSON incrementally.
+pub fn appendJsonEscaped(
+    allocator: std.mem.Allocator,
+    list: *std.ArrayListUnmanaged(u8),
+    content: []const u8,
+) !void {
+    for (content) |c| {
+        switch (c) {
+            '"' => try list.appendSlice(allocator, "\\\""),
+            '\\' => try list.appendSlice(allocator, "\\\\"),
+            '\n' => try list.appendSlice(allocator, "\\n"),
+            '\r' => try list.appendSlice(allocator, "\\r"),
+            '\t' => try list.appendSlice(allocator, "\\t"),
+            0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
+                // Escape control characters as \uXXXX
+                var buf: [6]u8 = undefined;
+                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
+                try list.appendSlice(allocator, &buf);
+            },
+            else => try list.append(allocator, c),
+        }
+    }
+}
+
 pub const JsonError = error{
     InvalidJson,
     MissingField,

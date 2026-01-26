@@ -64,7 +64,7 @@ pub const WdbxTokenDataset = struct {
         }) catch |err| return mapWdbxError(err);
         errdefer db_wdbx.closeDatabase(&handle);
 
-        if (fileExists(path)) {
+        if (fileExists(allocator, path)) {
             db_wdbx.restore(&handle, path) catch |err| switch (err) {
                 error.FileNotFound => {},
                 else => return mapWdbxError(err),
@@ -142,7 +142,7 @@ pub const WdbxTokenDataset = struct {
     ) DatasetError!void {
         const tokens = try self.collectTokens(max_tokens);
         defer self.allocator.free(tokens);
-        try writeTokenBinFile(path, tokens);
+        try writeTokenBinFile(self.allocator, path, tokens);
     }
 
     pub fn ingestText(
@@ -277,8 +277,8 @@ pub fn readTokenBinFile(allocator: std.mem.Allocator, path: []const u8) DatasetE
     return tokens;
 }
 
-pub fn writeTokenBinFile(path: []const u8, tokens: []const u32) DatasetError!void {
-    var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{ .environ = std.process.Environ.empty });
+pub fn writeTokenBinFile(allocator: std.mem.Allocator, path: []const u8, tokens: []const u32) DatasetError!void {
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -315,8 +315,8 @@ fn computeNextId(allocator: std.mem.Allocator, handle: *db_wdbx.DatabaseHandle) 
     return max_id + 1;
 }
 
-fn fileExists(path: []const u8) bool {
-    var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{ .environ = std.process.Environ.empty });
+fn fileExists(allocator: std.mem.Allocator, path: []const u8) bool {
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 

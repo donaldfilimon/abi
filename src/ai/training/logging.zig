@@ -153,7 +153,7 @@ const TensorboardLogger = struct {
         const wall_time = @as(f64, @floatFromInt(time.unixSeconds()));
         const payload = try encodeEvent(self.allocator, wall_time, step, tag, value);
         defer self.allocator.free(payload);
-        try writeTfRecord(self.io, self.file, payload);
+        try writeTfRecord(self.allocator, self.io, self.file, payload);
     }
 };
 
@@ -485,10 +485,10 @@ fn encodeEvent(
     return event_writer.toOwnedSlice();
 }
 
-fn writeTfRecord(io: std.Io, file: std.Io.File, payload: []const u8) !void {
+fn writeTfRecord(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File, payload: []const u8) !void {
     // Build the TFRecord in a buffer for Zig 0.16 compatibility
     var record_buf: std.ArrayListUnmanaged(u8) = .empty;
-    defer record_buf.deinit(std.heap.page_allocator);
+    defer record_buf.deinit(allocator);
 
     // Length (8 bytes little-endian)
     var len_bytes: [8]u8 = undefined;
@@ -501,10 +501,10 @@ fn writeTfRecord(io: std.Io, file: std.Io.File, payload: []const u8) !void {
     var data_crc_bytes: [4]u8 = undefined;
     std.mem.writeInt(u32, &data_crc_bytes, data_crc, .little);
 
-    try record_buf.appendSlice(std.heap.page_allocator, &len_bytes);
-    try record_buf.appendSlice(std.heap.page_allocator, &len_crc_bytes);
-    try record_buf.appendSlice(std.heap.page_allocator, payload);
-    try record_buf.appendSlice(std.heap.page_allocator, &data_crc_bytes);
+    try record_buf.appendSlice(allocator, &len_bytes);
+    try record_buf.appendSlice(allocator, &len_crc_bytes);
+    try record_buf.appendSlice(allocator, payload);
+    try record_buf.appendSlice(allocator, &data_crc_bytes);
 
     // Write using writeStreamingAll for Zig 0.16 compatibility
     try file.writeStreamingAll(io, record_buf.items);

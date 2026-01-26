@@ -334,9 +334,9 @@ test "concurrent sharded map stress test" {
             fn worker(map_ptr: *ShardedMap(u32, u32, 8), tid: usize, success_ptr: *std.atomic.Value(usize)) !void {
                 var idx: u32 = 0;
                 while (idx < ops_per_thread) : (idx += 1) {
-                    const key = tid * 1000 + idx;
+                    const key: u32 = @intCast(tid * 1000 + idx);
                     try map_ptr.put(key, key * 2);
-                    success_ptr.fetchAdd(1, .monotonic);
+                    _ = success_ptr.fetchAdd(1, .monotonic);
 
                     const val = map_ptr.get(key);
                     try std.testing.expect(val != null);

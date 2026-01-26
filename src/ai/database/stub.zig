@@ -39,7 +39,7 @@ pub fn readTokenBinFile(_: std.mem.Allocator, _: []const u8) ![]u32 {
     return error.AiDisabled;
 }
 
-pub fn writeTokenBinFile(_: []const u8, _: []const u32) !void {
+pub fn writeTokenBinFile(_: std.mem.Allocator, _: []const u8, _: []const u32) !void {
     return error.AiDisabled;
 }
 

@@ -1037,12 +1037,12 @@ pub const FileMode = struct {
 };
 
 /// Set file permissions (POSIX only)
-pub fn chmod(path: []const u8, mode: u32) !void {
+pub fn chmod(allocator: std.mem.Allocator, path: []const u8, mode: u32) !void {
     if (comptime is_wasm) return error.Unsupported;
     if (comptime builtin.os.tag == .windows) return; // No-op on Windows
 
-    const path_z = try std.fs.path.joinZ(std.heap.page_allocator, &.{path});
-    defer std.heap.page_allocator.free(path_z);
+    const path_z = try std.fs.path.joinZ(allocator, &.{path});
+    defer allocator.free(path_z);
 
     const result = posix.system.chmod(path_z, @intCast(mode));
     if (result != 0) {

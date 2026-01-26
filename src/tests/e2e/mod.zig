@@ -51,6 +51,7 @@ pub const ai_agent = @import("ai_agent_e2e.zig");
 pub const distributed = @import("distributed_e2e.zig");
 pub const gpu_pipeline = @import("gpu_pipeline_e2e.zig");
 pub const cli = @import("cli_e2e.zig");
+pub const llm_training = @import("llm_training_e2e.zig");
 
 // Force-reference test modules to include them in test build
 comptime {
@@ -59,6 +60,7 @@ comptime {
     _ = distributed;
     _ = gpu_pipeline;
     _ = cli;
+    _ = llm_training;
 }
 
 // ============================================================================
