@@ -30,6 +30,8 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
+- **Database search prefetching** - Added @prefetch hints to search loop for better cache performance on large datasets (2026-01-26)
+- **Engine use-after-free fix** - Fixed critical bug in executeTask/executeTaskInline where node.id was used after node destruction (2026-01-26)
 - **LockFreeStackEBR re-export** - Added ABA-safe lock-free stack re-export from epoch module for production use (2026-01-26)
 - **HNSW SearchStatePool improvements** - Safe type casting with overflow error, exponential backoff in CAS loop to reduce CPU contention (2026-01-26)
 - **Memory leak fix in QueryUnderstanding** - Fixed freeParsedQuery() to properly free target_paths strings and slices (2026-01-26)
