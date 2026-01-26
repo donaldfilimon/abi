@@ -30,6 +30,8 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
+- **Zig 0.16 format specifier compliance** - Replaced `@tagName()` with `{t}` format specifier in CLI, GPU modules, and examples for Zig 0.16 best practices (2026-01-26)
+- **Multi-agent coordinator tests** - Added inline tests for Coordinator init/deinit and error handling (2026-01-26)
 - **Vision and CLIP CLI training commands** - Added `abi train vision` for ViT image classification and `abi train clip` for CLIP multimodal training with full architecture configuration, training loops, and help documentation (2026-01-26)
 - **abi-dev-agents Claude Code plugin** - Created 6 specialized agents for ABI development: abi-planner, abi-explorer, abi-architect, abi-code-explorer, abi-code-reviewer, abi-issue-analyzer with Zig 0.16 and ABI pattern expertise (2026-01-25)
 - **AI architecture refinements** - Updated documentation with multi-model training (ViT, CLIP), gradient management APIs, training architecture diagrams (2026-01-25)
