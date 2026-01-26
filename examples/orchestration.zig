@@ -165,7 +165,7 @@ fn taskBasedRouting(allocator: std.mem.Allocator) !void {
         const result = try orchestrator.route(p.text, task_type);
 
         std.debug.print("Prompt: \"{s}\"\n", .{p.text});
-        std.debug.print("  Task: {s}\n", .{@tagName(task_type)});
+        std.debug.print("  Task: {t}\n", .{task_type});
         std.debug.print("  Routed to: {s}\n", .{result.model_id});
     }
 
