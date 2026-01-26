@@ -42,10 +42,17 @@ zig build run -- --disable-ai llm info    # Disable feature for this run
 
 # Additional build targets
 zig build benchmarks                   # Run comprehensive benchmarks
+zig build bench-all                    # Run all benchmark suites
 zig build gendocs                      # Generate API documentation
+zig build docs-site                    # Generate documentation website
 zig build wasm                         # Build WASM bindings
 zig build check-wasm                   # Check WASM compilation
 zig build examples                     # Build all examples
+zig build cli-tests                    # Run CLI command smoke tests
+zig build full-check                   # Format + tests + CLI smoke + benchmarks
+zig build profile                      # Build with performance profiling
+zig build check-perf                   # Run performance verification
+zig build mobile                       # Build for mobile targets (Android/iOS)
 
 # Run examples
 zig build run-hello                    # Run hello example
@@ -95,6 +102,7 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | `-Denable-explore` | true | Codebase exploration (requires `-Denable-ai`) |
 | `-Denable-llm` | true | Local LLM inference (requires `-Denable-ai`) |
 | `-Denable-vision` | true | Vision/image processing (requires `-Denable-ai`) |
+| `-Denable-mobile` | false | Mobile cross-compilation (Android/iOS) |
 
 ### GPU Backends
 
@@ -118,19 +126,37 @@ Flat domain structure with unified configuration. Each domain has `mod.zig` (ent
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
 ├── config.zig           # Unified configuration system (single Config struct)
+├── config/              # Modular configuration system
+│   ├── mod.zig          # Config entry point
+│   ├── ai.zig           # AI-specific configuration
+│   ├── cloud.zig        # Cloud provider configuration
+│   ├── database.zig     # Database configuration
+│   ├── gpu.zig          # GPU configuration
+│   ├── network.zig      # Network configuration
+│   ├── observability.zig # Observability configuration
+│   ├── plugin.zig       # Plugin configuration
+│   └── web.zig          # Web configuration
+├── cpu.zig              # CPU fallback for GPU operations
+├── flags.zig            # Feature flags management
 ├── framework.zig        # Framework orchestration with builder pattern
+├── io.zig               # I/O utilities
 ├── ai/                  # AI module with sub-features
 │   ├── mod.zig          # AI public API
 │   ├── stub.zig         # Stub when AI disabled
 │   ├── abbey/           # Abbey persona subsystem (advanced, memory, neural)
 │   ├── agents/          # Agent runtime
 │   ├── core/            # Integrated core types and configuration
+│   ├── database/        # Database-related AI functionality (convert, export, wdbx)
+│   ├── discovery.zig    # AI model/capability discovery
+│   ├── documents/       # Document handling and processing
 │   ├── embeddings/      # Vector embeddings
 │   ├── eval/            # Model evaluation and benchmarking
 │   ├── explore/         # Codebase exploration
 │   ├── federated/       # Federated learning
+│   ├── gpu_agent.zig    # GPU-specific agent implementation
 │   ├── llm/             # Local LLM inference (streaming, tokenization)
 │   ├── memory/          # Agent memory systems
+│   ├── model_registry.zig # Model registry functionality
 │   ├── multi_agent/     # Multi-agent coordination
 │   ├── orchestration/   # Multi-model routing, ensemble, fallback
 │   ├── personas/        # AI persona definitions (abbey, abi, aviva, etc.)
@@ -225,7 +251,11 @@ This pattern reduces each backend from ~1,000+ lines to ~50-100 lines while keep
 
 **Table-driven build system:** `build.zig` uses arrays of `BuildTarget` structs to define examples and benchmarks. When adding new examples or benchmarks, add them to the appropriate array (`example_targets` or `benchmark_targets`) rather than duplicating build code. The `buildTargets()` function handles compilation uniformly.
 
-### Configuration System (`src/config.zig`)
+### Configuration System
+
+Two-level configuration architecture:
+- **`src/config.zig`**: Unified `Config` struct with builder pattern for framework initialization
+- **`src/config/`**: Modular per-feature configs (ai.zig, gpu.zig, database.zig, etc.)
 
 Single `Config` struct with optional feature configs and builder pattern:
 
@@ -408,6 +438,7 @@ zig test src/tests/mod.zig --test-filter "database"
 | `convert` | Dataset conversion (tokenbin, text, jsonl, wdbx) |
 | `completions` | Shell completions (bash, zsh, fish, powershell) |
 | `system-info` | Framework and feature status |
+| `toolchain` | Zig toolchain management (temporarily disabled for Zig 0.16 migration) |
 
 ### LLM CLI Examples
 
@@ -547,6 +578,7 @@ Build: `cd vscode-abi && npm install && npm run compile`
 ## Reference
 
 Key documentation (all in `docs/`):
+- [PLAN.md](PLAN.md) - Development roadmap and sprint status
 - [migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 I/O patterns (critical)
 - [troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
 - [gpu.md](docs/gpu.md) - GPU backend details

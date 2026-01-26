@@ -31,8 +31,6 @@
 
 ## Why ABI?
 
-## Why ABI?
-
 <table>
 <tr>
 <td width="33%" valign="top">
@@ -425,26 +423,13 @@ zig build -Dgpu-backend=auto
 |:---------|:------------|
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
 | [API Reference](API_REFERENCE.md) | Public API summary |
-| [Introduction](docs/intro.md) | Architecture overview |
+| [Quickstart](QUICKSTART.md) | Getting started guide |
 | [AI Guide](docs/ai.md) | LLM, agents, training |
 | [GPU Guide](docs/gpu.md) | Multi-backend GPU acceleration |
 | [Database Guide](docs/database.md) | WDBX vector database |
 | [Network Guide](docs/network.md) | Distributed compute |
 | [Migration Guide](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues |
-
----
-
-| Resource | Description |
-|----------|-------------|
-| [**Online Docs**](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
-| [**API Reference**](API_REFERENCE.md) | Complete public API |
-| [**Quickstart**](QUICKSTART.md) | Getting started guide |
-| [**AI Guide**](docs/ai.md) | LLM, agents, training |
-| [**GPU Guide**](docs/gpu.md) | Multi-backend GPU |
-| [**Database Guide**](docs/database.md) | WDBX vector database |
-| [**Network Guide**](docs/network.md) | Distributed compute |
-| [**Troubleshooting**](docs/troubleshooting.md) | Common issues |
 
 ```bash
 # Run all tests
@@ -509,8 +494,6 @@ We welcome contributions! Please see:
 </div>
 
 ---
-
-<div align="center">
 
 <div align="center">
 

@@ -58,10 +58,23 @@ tmp/
 temp/
 *.tmp
 probe_error.txt
+probe_*.txt
 test_build.zig
 build_options.zig
 src/build_options.zig
 abi.json
+
+# Debug/test output files
+test_log.txt
+test_output.txt
+test_full.txt
+web_error.txt
+network_error.txt
+build_errors.txt
+build_full*.txt
+wasm_build_log.txt
+wasm_install_log.txt
+training_data.txt
 
 # Claude Code local settings
 .claude/

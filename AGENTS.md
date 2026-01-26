@@ -3,12 +3,12 @@ title: "AGENTS"
 tags: [ai, agents, development]
 ---
 # AGENTS.md
-> **Codebase Status:** Synced with repository as of 2026-01-25.
+> **Codebase Status:** Synced with repository as of 2026-01-26.
 
 <p align="center">
   <img src="https://img.shields.io/badge/AI_Agents-Guide-purple?style=for-the-badge" alt="AI Agents Guide"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
-  <img src="https://img.shields.io/badge/Tests-280%2F284-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Tests-762%2F767-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 This file provides guidance for AI agents (Claude, GPT, Gemini, Copilot, and others) working with the ABI framework codebase.
@@ -31,7 +31,7 @@ This file provides guidance for AI agents (Claude, GPT, Gemini, Copilot, and oth
 ```bash
 # Build and test everything
 zig build                              # Build project
-zig build test --summary all           # Run all tests (280/284 must pass)
+zig build test --summary all           # Run all tests (762/767 baseline)
 zig fmt --check .                      # Check formatting (always run zig fmt . after edits)
 
 # Single file testing
@@ -49,7 +49,7 @@ zig build run -- --help                # CLI help
 ```bash
 # Must run after every edit
 zig fmt .                              # Format all files (ALWAYS)
-zig build test --summary all           # Regression test (280/284 baseline)
+zig build test --summary all           # Regression test (762/767 baseline)
 zig build typecheck                    # Type checking without running tests
 ```
 
@@ -284,7 +284,7 @@ zig build benchmarks         # Full benchmark suite
 ## Quality Gates (Non-Negotiable)
 
 1. **✅ zig fmt .** - No formatting diffs
-2. **✅ zig build test --summary all** - 280/284 tests must pass (regression)
+2. **✅ zig build test --summary all** - 762/767 tests must pass (regression)
 3. **✅ GeneralPurposeAllocator in tests** - Zero memory leaks
 4. **✅ Parent module export pattern** - For nested modules
 5. **✅ Performance benchmarks** - Before/after critical changes
@@ -301,4 +301,4 @@ zig build benchmarks         # Full benchmark suite
 | Build project | `zig build` |
 | Run CLI | `zig build run -- --help` |
 
-**Remember**: This codebase implements research-mandated WDBX architecture. All changes must align with research documents and maintain 280/284 test pass rate.
+**Remember**: This codebase implements research-mandated WDBX architecture. All changes must align with research documents and maintain 762/767 test pass rate.

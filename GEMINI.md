@@ -3,7 +3,7 @@ title: "GEMINI"
 tags: [ai, agents, gemini]
 ---
 # GEMINI.md
-> **Codebase Status:** Synced with repository as of 2026-01-25.
+> **Codebase Status:** Synced with repository as of 2026-01-26.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Gemini-Agent_Guide-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini Guide"/>
@@ -49,9 +49,19 @@ The codebase uses a domain-driven modular structure with unified configuration a
 ```
 src/
 ├── abi.zig              # Public API entry point
+├── config.zig           # Unified configuration system
 ├── framework.zig        # Framework orchestration
+├── cpu.zig              # CPU fallback for GPU operations
+├── flags.zig            # Feature flags management
+├── io.zig               # I/O utilities
 ├── config/              # Domain-specific configs (gpu, ai, database, etc.)
 ├── ai/                  # AI module (core, implementation, gpu_interface)
+│   ├── database/        # Database-related AI functionality
+│   ├── discovery.zig    # AI model/capability discovery
+│   ├── documents/       # Document handling
+│   ├── gpu_agent.zig    # GPU-specific agent
+│   └── model_registry.zig # Model registry
+├── cloud/               # Cloud function adapters (AWS, Azure, GCP)
 ├── connectors/          # External API connectors
 ├── database/            # Vector database (WDBX)
 ├── gpu/                 # GPU acceleration (backends)
@@ -61,7 +71,7 @@ src/
 ├── registry/            # Plugin registry (lifecycle, plugins)
 ├── runtime/             # Task engine, concurrency primitives, work stealing
 ├── shared/              # Utils and helpers
-├── tasks/               # Task management (persistence, querying, lifecycle)
+├── tasks.zig            # Centralized task management
 └── web/                 # Web/HTTP utilities
 ```
 
