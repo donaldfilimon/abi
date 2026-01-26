@@ -326,8 +326,24 @@ pub const StreamingServer = struct {
         var stream_iter = try backend.streamTokens(prompt, chat_request.toGenerationConfig());
         defer stream_iter.deinit();
 
+        // Initialize heartbeat timer
+        var heartbeat_timer = std.time.Timer.start() catch null;
+        const heartbeat_interval_ns: u64 = self.config.heartbeat_interval_ms * 1_000_000;
+
         var token_index: u32 = 0;
         while (try stream_iter.next()) |token| {
+            // Check if heartbeat is needed (before sending token)
+            if (self.config.heartbeat_interval_ms > 0) {
+                if (heartbeat_timer) |*timer| {
+                    if (timer.read() >= heartbeat_interval_ns) {
+                        // Send SSE comment as heartbeat (keeps connection alive)
+                        try conn_ctx.write(": heartbeat\n\n");
+                        try conn_ctx.flush();
+                        timer.reset();
+                    }
+                }
+            }
+
             // Format as OpenAI streaming chunk (SSE data payload)
             const chunk_json = try formats.openai.formatStreamChunk(
                 self.allocator,
@@ -436,6 +452,10 @@ pub const StreamingServer = struct {
         var stream_iter = try backend.streamTokens(stream_request.prompt, stream_request.config);
         defer stream_iter.deinit();
 
+        // Initialize heartbeat timer
+        var heartbeat_timer = std.time.Timer.start() catch null;
+        const heartbeat_interval_ns: u64 = self.config.heartbeat_interval_ms * 1_000_000;
+
         // Send start event
         const start_event = mod.StreamEvent.startEvent();
         const start_sse = try sse_encoder.encode(start_event);
@@ -445,6 +465,20 @@ pub const StreamingServer = struct {
 
         // Stream tokens as SSE events
         while (try stream_iter.next()) |token| {
+            // Check if heartbeat is needed (before sending token)
+            if (self.config.heartbeat_interval_ms > 0) {
+                if (heartbeat_timer) |*timer| {
+                    if (timer.read() >= heartbeat_interval_ns) {
+                        // Send SSE heartbeat comment (keeps connection alive)
+                        const heartbeat_data = try sse_encoder.encodeHeartbeat();
+                        defer self.allocator.free(heartbeat_data);
+                        try conn_ctx.write(heartbeat_data);
+                        try conn_ctx.flush();
+                        timer.reset();
+                    }
+                }
+            }
+
             // Create token event with text
             const token_event = mod.StreamEvent{
                 .event_type = .token,
@@ -938,6 +972,27 @@ test "streaming server config defaults" {
     try std.testing.expect(config.auth_token == null);
     try std.testing.expect(config.enable_openai_compat);
     try std.testing.expect(config.enable_websocket);
+}
+
+test "heartbeat configuration" {
+    // Default heartbeat interval is 15 seconds
+    const default_config = ServerConfig{};
+    try std.testing.expectEqual(@as(u64, 15000), default_config.heartbeat_interval_ms);
+
+    // Custom heartbeat interval
+    const custom_config = ServerConfig{ .heartbeat_interval_ms = 5000 };
+    try std.testing.expectEqual(@as(u64, 5000), custom_config.heartbeat_interval_ms);
+
+    // Heartbeat can be disabled by setting to 0
+    const disabled_config = ServerConfig{ .heartbeat_interval_ms = 0 };
+    try std.testing.expectEqual(@as(u64, 0), disabled_config.heartbeat_interval_ms);
+}
+
+test "heartbeat interval conversion to nanoseconds" {
+    // Verify the nanosecond conversion used in streaming loops
+    const interval_ms: u64 = 15000;
+    const interval_ns: u64 = interval_ms * 1_000_000;
+    try std.testing.expectEqual(@as(u64, 15_000_000_000), interval_ns);
 }
 
 test "split target" {

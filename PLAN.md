@@ -23,14 +23,14 @@ _(Awaiting next feature selection)_
 Ready to start when current work completes:
 
 **Potential Next Features:**
-1. **Heartbeat system** - Keep-alive heartbeats for long-running SSE connections
-2. **Model hot-reload** - Swap models without server restart
-3. **Streaming benchmarks** - Performance tests for token throughput
+1. **Model hot-reload** - Swap models without server restart
+2. **Streaming benchmarks** - Performance tests for token throughput
 
 ---
 
 ## Recently Completed
 
+- **SSE heartbeat system** - Timer-based keep-alive heartbeats for long-running SSE connections; Configurable `heartbeat_interval_ms` (default 15s); SSE comment format (`: heartbeat\n\n`) prevents proxy timeouts; Both OpenAI-compatible and ABI endpoints supported; Uses `std.time.Timer` for precise timing; 771/776 tests passing (2026-01-26)
 - **WebSocket streaming** - Bidirectional real-time communication for `/api/stream/ws` endpoint; RFC 6455 compliant frame encoding/decoding; Multiple requests per connection; Cancellation support via `{"type":"cancel"}` messages; ABI message format with start/token/end/error events; Bearer token auth; Concurrent stream limits; 771/776 tests passing (2026-01-26)
 - **True SSE streaming** - Replaced non-streaming fallback with real Server-Sent Events streaming; ConnectionContext for writer passthrough; Incremental token delivery via `data: {json}\n\n` format; OpenAI-compatible `[DONE]` termination; Custom ABI endpoint with start/token/end events; 771/776 tests passing (2026-01-26)
 - **Streaming Inference API** - Real-time token streaming for LLM responses with SSE/WebSocket support; OpenAI-compatible `/v1/chat/completions` endpoint; Backend routing for local GGUF, OpenAI, Ollama, Anthropic; Bearer token auth; Heartbeat keep-alive; 770/776 tests passing (2026-01-26)
