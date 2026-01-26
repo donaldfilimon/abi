@@ -55,9 +55,12 @@ pub const SearchState = struct {
     }
 
     /// Ensure capacity for expected search size.
+    /// Returns error.Overflow if expected_size exceeds maximum supported capacity.
     pub fn ensureCapacity(self: *SearchState, allocator: std.mem.Allocator, expected_size: usize) !void {
-        try self.candidates.ensureTotalCapacity(allocator, @intCast(expected_size));
-        try self.visited.ensureTotalCapacity(allocator, @intCast(expected_size));
+        // Validate size fits in u32 for hash map capacity (max ~4B entries)
+        const capped_size: u32 = std.math.cast(u32, expected_size) orelse return error.Overflow;
+        try self.candidates.ensureTotalCapacity(allocator, capped_size);
+        try self.visited.ensureTotalCapacity(allocator, capped_size);
         try self.queue.ensureTotalCapacity(allocator, expected_size);
         try self.results_buffer.ensureTotalCapacity(allocator, expected_size);
     }
@@ -98,8 +101,14 @@ pub const SearchStatePool = struct {
 
     /// Acquire a search state from the pool.
     /// Returns null if no states available (caller should allocate temporary state).
+    /// Uses exponential backoff to reduce contention under high concurrency.
     pub fn acquire(self: *SearchStatePool) ?*SearchState {
-        while (true) {
+        var backoff: u8 = 1;
+        const max_backoff: u8 = 32;
+        const max_retries: u8 = 100;
+        var retries: u8 = 0;
+
+        while (retries < max_retries) : (retries += 1) {
             const current = self.available.load(.acquire);
             if (current == 0) return null;
 
@@ -109,13 +118,21 @@ pub const SearchStatePool = struct {
 
             const new_mask = current & ~(@as(u64, 1) << @intCast(bit_idx));
             if (self.available.cmpxchgWeak(current, new_mask, .acq_rel, .acquire)) |_| {
-                continue; // CAS failed, retry
+                // CAS failed - apply exponential backoff to reduce contention
+                for (0..backoff) |_| {
+                    std.atomic.spinLoopHint();
+                }
+                backoff = @min(backoff *| 2, max_backoff);
+                continue;
             }
 
             const state = &self.states[bit_idx];
             state.reset();
             return state;
         }
+
+        // Max retries exceeded - return null to let caller handle
+        return null;
     }
 
     /// Release a search state back to the pool.
