@@ -57,3 +57,24 @@ pub const ScopedTimer = struct {
         std.debug.print("[timer] {s}: {d} ns\n", .{ self.label, elapsed });
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "log level ordering" {
+    // Verify log levels are defined in increasing severity order
+    try std.testing.expectEqual(@intFromEnum(Level.trace), 0);
+    try std.testing.expectEqual(@intFromEnum(Level.debug), 1);
+    try std.testing.expectEqual(@intFromEnum(Level.info), 2);
+    try std.testing.expectEqual(@intFromEnum(Level.warn), 3);
+    try std.testing.expectEqual(@intFromEnum(Level.err), 4);
+}
+
+test "scoped timer start returns timer" {
+    const timer = ScopedTimer.start("test");
+    try std.testing.expect(timer != null);
+    if (timer) |t| {
+        try std.testing.expectEqualStrings("test", t.label);
+    }
+}
