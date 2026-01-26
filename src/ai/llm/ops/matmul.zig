@@ -43,6 +43,9 @@ pub fn matrixMultiply(
 }
 
 /// Inner block multiplication kernel.
+/// Note: For non-transposed B, elements aren't contiguous, so SIMD vectorization
+/// on the k-dimension is limited. Consider using matrixMultiplyTransposed for
+/// better SIMD efficiency when possible.
 fn blockMultiply(
     a: []const f32,
     b: []const f32,
@@ -63,21 +66,16 @@ fn blockMultiply(
             var sum: f32 = c[@as(usize, ii) * n + jj];
 
             var kk = k_start;
-            // Try SIMD vectorization for inner loop
-            if (comptime hasSimd()) {
-                while (kk + 8 <= k_end) : (kk += 8) {
-                    const a_base = @as(usize, ii) * k + kk;
-                    const b_base = @as(usize, kk) * n + jj;
+            // Manual unrolling for non-contiguous access pattern
+            // (B is strided by n, so @Vector can't help here)
+            while (kk + 4 <= k_end) : (kk += 4) {
+                const a_base = @as(usize, ii) * k + kk;
+                const b_base = @as(usize, kk) * n + jj;
 
-                    sum += a[a_base + 0] * b[b_base + 0 * n];
-                    sum += a[a_base + 1] * b[b_base + 1 * n];
-                    sum += a[a_base + 2] * b[b_base + 2 * n];
-                    sum += a[a_base + 3] * b[b_base + 3 * n];
-                    sum += a[a_base + 4] * b[b_base + 4 * n];
-                    sum += a[a_base + 5] * b[b_base + 5 * n];
-                    sum += a[a_base + 6] * b[b_base + 6 * n];
-                    sum += a[a_base + 7] * b[b_base + 7 * n];
-                }
+                sum += a[a_base + 0] * b[b_base + 0 * n];
+                sum += a[a_base + 1] * b[b_base + 1 * n];
+                sum += a[a_base + 2] * b[b_base + 2 * n];
+                sum += a[a_base + 3] * b[b_base + 3 * n];
             }
 
             // Handle remaining elements
@@ -143,25 +141,28 @@ fn blockMultiplyTransposed(
     }
 }
 
-/// SIMD-optimized dot product.
+/// SIMD vector length for this platform (auto-detected).
+const VectorSize = std.simd.suggestVectorLength(f32) orelse 4;
+
+/// SIMD-optimized dot product using @Vector.
 pub fn dotProduct(a: []const f32, b: []const f32) f32 {
     const len = @min(a.len, b.len);
     var sum: f32 = 0;
-
-    // Vector length for SIMD
-    const vec_len = 8;
     var i: usize = 0;
 
-    // Process 8 elements at a time with manual unrolling
-    while (i + vec_len <= len) : (i += vec_len) {
-        sum += a[i + 0] * b[i + 0];
-        sum += a[i + 1] * b[i + 1];
-        sum += a[i + 2] * b[i + 2];
-        sum += a[i + 3] * b[i + 3];
-        sum += a[i + 4] * b[i + 4];
-        sum += a[i + 5] * b[i + 5];
-        sum += a[i + 6] * b[i + 6];
-        sum += a[i + 7] * b[i + 7];
+    // Use @Vector for true SIMD acceleration
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_sum: Vec = @splat(0.0);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            vec_sum += va * vb;
+        }
+
+        // Horizontal sum using @reduce (efficient on modern CPUs)
+        sum = @reduce(.Add, vec_sum);
     }
 
     // Handle remaining elements
@@ -208,13 +209,7 @@ pub fn addBias(y: []f32, bias: []const f32) void {
     }
 }
 
-/// Check if SIMD operations are available.
-fn hasSimd() bool {
-    return switch (builtin.cpu.arch) {
-        .x86_64, .x86, .aarch64 => true,
-        else => false,
-    };
-}
+// Note: hasSimd() removed - using comptime VectorSize check instead
 
 test "matrix multiplication basic" {
     // 2x3 @ 3x2 = 2x2
