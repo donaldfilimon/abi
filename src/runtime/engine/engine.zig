@@ -474,14 +474,20 @@ fn popTask(state: *EngineState, worker_index: usize) ?*TaskNode {
 }
 
 fn executeTask(state: *EngineState, node: *TaskNode) void {
+    // Save task ID before executing - node may be destroyed after execute
+    const task_id = node.id;
+
     const result = node.execute(state.allocator, node.payload) catch |err| {
-        storeTaskError(state, node.id, err);
+        storeTaskError(state, task_id, err);
         destroyTaskNode(state, node);
         return;
     };
+
+    // Destroy node BEFORE using task_id (not node.id) to avoid use-after-free
     destroyTaskNode(state, node);
-    storeResultBlob(state, node.id, result) catch |err| {
-        std.log.err("Failed to store result for task {d}: {t}", .{ node.id, err });
+
+    storeResultBlob(state, task_id, result) catch |err| {
+        std.log.err("Failed to store result for task {d}: {t}", .{ task_id, err });
         if (result.kind == .value or result.kind == .owned_slice) {
             state.allocator.free(result.bytes);
         }
@@ -490,12 +496,18 @@ fn executeTask(state: *EngineState, node: *TaskNode) void {
 }
 
 fn executeTaskInline(state: *EngineState, node: *TaskNode) !void {
+    // Save task ID before executing - node may be destroyed after execute
+    const task_id = node.id;
+
     const result = node.execute(state.allocator, node.payload) catch |err| {
         destroyTaskNode(state, node);
         return err;
     };
+
+    // Destroy node BEFORE using task_id (not node.id) to avoid use-after-free
     destroyTaskNode(state, node);
-    storeResultBlob(state, node.id, result) catch |err| {
+
+    storeResultBlob(state, task_id, result) catch |err| {
         if (result.kind == .value or result.kind == .owned_slice) {
             state.allocator.free(result.bytes);
         }
