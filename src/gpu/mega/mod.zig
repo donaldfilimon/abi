@@ -39,7 +39,7 @@
 //!
 //! // Get scheduling decision
 //! const decision = coordinator.schedule(profile);
-//! std.debug.print("Scheduled to {s} backend\n", .{@tagName(decision.backend_type)});
+//! std.debug.print("Scheduled to {t} backend\n", .{decision.backend_type});
 //!
 //! // Execute workload and record outcome
 //! const start = std.time.milliTimestamp();

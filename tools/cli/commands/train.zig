@@ -595,7 +595,7 @@ fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("  Grad accumulation:{d}\n", .{grad_accum_steps});
     if (dataset_path) |path| {
         std.debug.print("  Dataset:          {s}\n", .{path});
-        std.debug.print("  Dataset format:   {s}\n", .{@tagName(dataset_format)});
+        std.debug.print("  Dataset format:   {t}\n", .{dataset_format});
     } else {
         std.debug.print("  Dataset:          (synthetic)\n", .{});
     }
@@ -1088,7 +1088,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         std.debug.print("Checkpoint path:  {s}\n", .{path});
     }
     std.debug.print("Use GPU:          {}\n", .{use_gpu});
-    std.debug.print("Dataset format:   {s}\n", .{@tagName(dataset_format)});
+    std.debug.print("Dataset format:   {t}\n", .{dataset_format});
     if (dataset_url) |url| {
         std.debug.print("Dataset URL:      {s}\n", .{url});
     }

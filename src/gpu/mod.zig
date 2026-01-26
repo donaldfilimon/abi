@@ -78,7 +78,7 @@
 //!
 //! // Check device capabilities
 //! const health = try g.getHealth();
-//! std.debug.print("Backend: {s}\n", .{@tagName(health.backend)});
+//! std.debug.print("Backend: {t}\n", .{health.backend});
 //! std.debug.print("Memory: {} MB\n", .{health.memory_total / (1024 * 1024)});
 //! ```
 //!

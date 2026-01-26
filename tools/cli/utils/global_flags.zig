@@ -118,10 +118,8 @@ pub const ValidationError = struct {
 
     /// Print a user-friendly error message.
     pub fn print(self: ValidationError) void {
-        const feature_name = @tagName(self.feature);
-
         std.debug.print("\n", .{});
-        std.debug.print("Error: Cannot enable feature '{s}'\n", .{feature_name});
+        std.debug.print("Error: Cannot enable feature '{t}'\n", .{self.feature});
         std.debug.print("\n", .{});
 
         switch (self.reason) {
@@ -129,7 +127,7 @@ pub const ValidationError = struct {
                 std.debug.print("Reason: Feature not compiled into this build.\n", .{});
                 std.debug.print("\n", .{});
                 std.debug.print("Solution: Rebuild with:\n", .{});
-                std.debug.print("  zig build -Denable-{s}=true\n", .{feature_name});
+                std.debug.print("  zig build -Denable-{t}=true\n", .{self.feature});
             },
             .dependency_missing => {
                 std.debug.print("Reason: Required dependency not available.\n", .{});

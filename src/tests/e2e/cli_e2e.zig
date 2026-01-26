@@ -109,8 +109,8 @@ fn simulateSystemInfo(allocator: std.mem.Allocator) !CommandResult {
     if (build_options.enable_profiling) try output.appendSlice(allocator, "  - Profiling\n");
 
     try output.appendSlice(allocator, "\nPlatform Information:\n");
-    try appendFormat(&output, allocator, "  OS: {s}\n", .{@tagName(@import("builtin").os.tag)});
-    try appendFormat(&output, allocator, "  Arch: {s}\n", .{@tagName(@import("builtin").cpu.arch)});
+    try appendFormat(&output, allocator, "  OS: {t}\n", .{@import("builtin").os.tag});
+    try appendFormat(&output, allocator, "  Arch: {t}\n", .{@import("builtin").cpu.arch});
 
     return .{
         .success = true,
