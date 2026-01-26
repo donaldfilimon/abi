@@ -226,11 +226,11 @@ pub const KernelCache = struct {
         common_kernels: []const CommonKernel,
         compiler: *const fn ([]const u8, KernelSourceType, CompileOptions) KernelError![]u8,
     ) !void {
-        var prefetch_sources = std.ArrayList(PrefetchSource).init(self.allocator);
-        defer prefetch_sources.deinit();
+        var prefetch_sources = std.ArrayListUnmanaged(PrefetchSource).empty;
+        defer prefetch_sources.deinit(self.allocator);
 
         for (common_kernels) |kernel| {
-            try prefetch_sources.append(.{
+            try prefetch_sources.append(self.allocator, .{
                 .source = kernel.source,
                 .source_type = kernel.source_type,
                 .entry_point = kernel.entry_point,

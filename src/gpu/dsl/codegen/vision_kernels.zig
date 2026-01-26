@@ -17,14 +17,14 @@ pub const VisionKernels = struct {
         const allocator = g.allocator;
 
         // Define kernel parameters
-        var params = std.ArrayList(kernel.Parameter).init(allocator);
-        defer params.deinit();
+        var params = std.ArrayListUnmanaged(kernel.Parameter).empty;
+        defer params.deinit(allocator);
 
-        try params.append(.{ .name = "input", .type = .{ .tensor = .{ .element = .f32, .dims = 4 } }, .access = .read_only });
-        try params.append(.{ .name = "weights", .type = .{ .tensor = .{ .element = .f32, .dims = 4 } }, .access = .read_only });
-        try params.append(.{ .name = "output", .type = .{ .tensor = .{ .element = .f32, .dims = 4 } }, .access = .write_only });
+        try params.append(allocator, .{ .name = "input", .type = .{ .tensor = .{ .element = .f32, .dims = 4 } }, .access = .read_only });
+        try params.append(allocator, .{ .name = "weights", .type = .{ .tensor = .{ .element = .f32, .dims = 4 } }, .access = .read_only });
+        try params.append(allocator, .{ .name = "output", .type = .{ .tensor = .{ .element = .f32, .dims = 4 } }, .access = .write_only });
         if (options.has_bias) {
-            try params.append(.{ .name = "bias", .type = .{ .tensor = .{ .element = .f32, .dims = 1 } }, .access = .read_only });
+            try params.append(allocator, .{ .name = "bias", .type = .{ .tensor = .{ .element = .f32, .dims = 1 } }, .access = .read_only });
         }
 
         // Write the kernel body manually for high-performance patterns

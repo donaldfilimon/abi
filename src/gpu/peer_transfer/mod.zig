@@ -227,7 +227,7 @@ pub const PeerTransferManager = struct {
     allocator: std.mem.Allocator,
     device_group: *DeviceGroup,
     capabilities: std.AutoHashMap(u64, TransferCapability),
-    active_transfers: std.ArrayList(TransferHandle),
+    active_transfers: std.ArrayListUnmanaged(TransferHandle),
     recovery_strategy: RecoveryStrategy,
     stats: TransferStats,
     mutex: std.Thread.Mutex,
@@ -244,7 +244,7 @@ pub const PeerTransferManager = struct {
             .allocator = allocator,
             .device_group = device_group,
             .capabilities = std.AutoHashMap(u64, TransferCapability).init(allocator),
-            .active_transfers = std.ArrayList(TransferHandle).init(allocator),
+            .active_transfers = .{},
             .recovery_strategy = .retry_with_fallback,
             .stats = .{},
             .mutex = .{},
@@ -262,7 +262,7 @@ pub const PeerTransferManager = struct {
     pub fn deinit(self: *Self) void {
         self.host_staged_backend.deinit();
         self.capabilities.deinit();
-        self.active_transfers.deinit();
+        self.active_transfers.deinit(self.allocator);
         self.* = undefined;
     }
 

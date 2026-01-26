@@ -422,68 +422,68 @@ pub const Sanitizer = struct {
 
     /// Sanitize string for HTML output (prevent XSS)
     pub fn sanitizeHtml(self: *Sanitizer, input: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(self.allocator);
 
         for (input) |c| {
             switch (c) {
-                '<' => try result.appendSlice("&lt;"),
-                '>' => try result.appendSlice("&gt;"),
-                '&' => try result.appendSlice("&amp;"),
-                '"' => try result.appendSlice("&quot;"),
-                '\'' => try result.appendSlice("&#x27;"),
-                '/' => try result.appendSlice("&#x2F;"),
-                '`' => try result.appendSlice("&#x60;"),
-                '=' => try result.appendSlice("&#x3D;"),
-                else => try result.append(c),
+                '<' => try result.appendSlice(self.allocator, "&lt;"),
+                '>' => try result.appendSlice(self.allocator, "&gt;"),
+                '&' => try result.appendSlice(self.allocator, "&amp;"),
+                '"' => try result.appendSlice(self.allocator, "&quot;"),
+                '\'' => try result.appendSlice(self.allocator, "&#x27;"),
+                '/' => try result.appendSlice(self.allocator, "&#x2F;"),
+                '`' => try result.appendSlice(self.allocator, "&#x60;"),
+                '=' => try result.appendSlice(self.allocator, "&#x3D;"),
+                else => try result.append(self.allocator, c),
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Sanitize string for SQL (escape single quotes)
     pub fn sanitizeSql(self: *Sanitizer, input: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(self.allocator);
 
         for (input) |c| {
             switch (c) {
-                '\'' => try result.appendSlice("''"),
-                '\\' => try result.appendSlice("\\\\"),
-                0 => try result.appendSlice("\\0"),
-                '\n' => try result.appendSlice("\\n"),
-                '\r' => try result.appendSlice("\\r"),
-                else => try result.append(c),
+                '\'' => try result.appendSlice(self.allocator, "''"),
+                '\\' => try result.appendSlice(self.allocator, "\\\\"),
+                0 => try result.appendSlice(self.allocator, "\\0"),
+                '\n' => try result.appendSlice(self.allocator, "\\n"),
+                '\r' => try result.appendSlice(self.allocator, "\\r"),
+                else => try result.append(self.allocator, c),
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Sanitize string for shell commands
     pub fn sanitizeShell(self: *Sanitizer, input: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(self.allocator);
 
         // Wrap in single quotes and escape existing single quotes
-        try result.append('\'');
+        try result.append(self.allocator, '\'');
         for (input) |c| {
             if (c == '\'') {
-                try result.appendSlice("'\\''");
+                try result.appendSlice(self.allocator, "'\\''");
             } else {
-                try result.append(c);
+                try result.append(self.allocator, c);
             }
         }
-        try result.append('\'');
+        try result.append(self.allocator, '\'');
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Sanitize filename (remove path components and dangerous chars)
     pub fn sanitizeFilename(self: *Sanitizer, input: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(self.allocator);
 
         // Find the actual filename (after last path separator)
         var start: usize = 0;
@@ -498,15 +498,15 @@ pub const Sanitizer = struct {
         // Remove dangerous characters
         for (filename) |c| {
             if (isValidFilenameChar(c)) {
-                try result.append(c);
+                try result.append(self.allocator, c);
             } else {
-                try result.append('_');
+                try result.append(self.allocator, '_');
             }
         }
 
         // Don't allow empty result
         if (result.items.len == 0) {
-            try result.appendSlice("unnamed");
+            try result.appendSlice(self.allocator, "unnamed");
         }
 
         // Don't allow special names
@@ -519,38 +519,38 @@ pub const Sanitizer = struct {
 
         for (dangerous_names) |name| {
             if (std.ascii.eqlIgnoreCase(result.items, name)) {
-                try result.appendSlice("_safe");
+                try result.appendSlice(self.allocator, "_safe");
                 break;
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Sanitize URL path component
     pub fn sanitizeUrlPath(self: *Sanitizer, input: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(self.allocator);
 
         for (input) |c| {
             if (isValidUrlPathChar(c)) {
-                try result.append(c);
+                try result.append(self.allocator, c);
             } else {
                 // Percent-encode
-                try result.append('%');
+                try result.append(self.allocator, '%');
                 const hex = "0123456789ABCDEF";
-                try result.append(hex[c >> 4]);
-                try result.append(hex[c & 0x0F]);
+                try result.append(self.allocator, hex[c >> 4]);
+                try result.append(self.allocator, hex[c & 0x0F]);
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Remove all HTML tags from input
     pub fn stripHtmlTags(self: *Sanitizer, input: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(self.allocator);
 
         var in_tag = false;
         for (input) |c| {
@@ -559,28 +559,28 @@ pub const Sanitizer = struct {
             } else if (c == '>') {
                 in_tag = false;
             } else if (!in_tag) {
-                try result.append(c);
+                try result.append(self.allocator, c);
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Normalize whitespace (collapse multiple spaces, trim)
     pub fn normalizeWhitespace(self: *Sanitizer, input: []const u8) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(self.allocator);
 
         var last_was_space = true; // Trim leading
         for (input) |c| {
             const is_space = std.ascii.isWhitespace(c);
             if (is_space) {
                 if (!last_was_space) {
-                    try result.append(' ');
+                    try result.append(self.allocator, ' ');
                     last_was_space = true;
                 }
             } else {
-                try result.append(c);
+                try result.append(self.allocator, c);
                 last_was_space = false;
             }
         }
@@ -590,7 +590,7 @@ pub const Sanitizer = struct {
             _ = result.pop();
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 };
 

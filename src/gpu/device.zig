@@ -619,8 +619,8 @@ pub const DeviceSelectionCriteria = struct {
 /// Returns a slice of Device structs. **Caller owns the returned memory**
 /// and must free it with `allocator.free(devices)` when done.
 pub fn enumerateAllDevices(allocator: std.mem.Allocator) ![]Device {
-    var devices = std.ArrayList(Device).init(allocator);
-    errdefer devices.deinit();
+    var devices = std.ArrayListUnmanaged(Device).empty;
+    errdefer devices.deinit(allocator);
 
     var device_id: u32 = 0;
 
@@ -633,11 +633,11 @@ pub fn enumerateAllDevices(allocator: std.mem.Allocator) ![]Device {
             var dev_copy = dev;
             dev_copy.id = device_id;
             device_id += 1;
-            try devices.append(dev_copy);
+            try devices.append(allocator, dev_copy);
         }
     }
 
-    return devices.toOwnedSlice();
+    return devices.toOwnedSlice(allocator);
 }
 
 /// Enumerate devices for a specific backend.

@@ -982,20 +982,20 @@ pub fn generatePassword(allocator: std.mem.Allocator, length: usize, options: Ge
     if (length < 8) return error.PasswordTooShort;
     if (length > 128) return error.PasswordTooLong;
 
-    var charset = std.ArrayList(u8).init(allocator);
-    defer charset.deinit();
+    var charset = std.ArrayListUnmanaged(u8).empty;
+    defer charset.deinit(allocator);
 
     if (options.include_lowercase) {
-        try charset.appendSlice("abcdefghijklmnopqrstuvwxyz");
+        try charset.appendSlice(allocator, "abcdefghijklmnopqrstuvwxyz");
     }
     if (options.include_uppercase) {
-        try charset.appendSlice("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+        try charset.appendSlice(allocator, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     }
     if (options.include_digits) {
-        try charset.appendSlice("0123456789");
+        try charset.appendSlice(allocator, "0123456789");
     }
     if (options.include_special) {
-        try charset.appendSlice("!@#$%^&*()_+-=[]{}|;:,.<>?");
+        try charset.appendSlice(allocator, "!@#$%^&*()_+-=[]{}|;:,.<>?");
     }
 
     if (charset.items.len == 0) {

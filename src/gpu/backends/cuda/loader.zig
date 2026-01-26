@@ -149,8 +149,8 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
     load_attempted = true;
 
     // Platform‑specific library names; honour a CUDA_PATH env var if set.
-    var lib_paths = std.ArrayList([]const u8).init(allocator);
-    defer lib_paths.deinit();
+    var lib_paths = std.ArrayListUnmanaged([]const u8).empty;
+    defer lib_paths.deinit(allocator);
 
     // Optional custom path via environment variable (e.g., "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.0\\bin\\nvcuda.dll")
     if (std.process.getEnvVarOwned(allocator, "CUDA_PATH")) |custom_path| {
@@ -163,7 +163,7 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
         };
         if (file_name.len > 0) {
             const full = std.fs.path.join(allocator, &.{ custom_path, file_name }) catch "";
-            if (full.len > 0) _ = lib_paths.append(full) catch {};
+            if (full.len > 0) _ = lib_paths.append(allocator, full) catch {};
         }
     } else |_| {}
 
@@ -173,7 +173,7 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
         .linux => &.{ "libcuda.so.1", "libcuda.so" },
         else => return error.PlatformNotSupported,
     };
-    for (default_names) |n| _ = lib_paths.append(n) catch {};
+    for (default_names) |n| _ = lib_paths.append(allocator, n) catch {};
 
     // Attempt to open each candidate name.
     for (lib_paths.items) |name| {

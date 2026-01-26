@@ -105,21 +105,17 @@ pub const QueueStats = struct {
 pub const WorkloadQueue = struct {
     allocator: std.mem.Allocator,
     config: QueueConfig,
-    queues: [5]std.ArrayList(QueuedWorkload),
+    queues: [5]std.ArrayListUnmanaged(QueuedWorkload),
     stats: QueueStats,
     next_id: u64,
     mutex: std.Thread.Mutex,
 
     pub fn init(allocator: std.mem.Allocator, config: QueueConfig) !*WorkloadQueue {
         const self = try allocator.create(WorkloadQueue);
-        var queues: [5]std.ArrayList(QueuedWorkload) = undefined;
-        for (&queues) |*q| {
-            q.* = std.ArrayList(QueuedWorkload).init(allocator);
-        }
         self.* = .{
             .allocator = allocator,
             .config = config,
-            .queues = queues,
+            .queues = [_]std.ArrayListUnmanaged(QueuedWorkload){.{}} ** 5,
             .stats = .{},
             .next_id = 1,
             .mutex = .{},
@@ -129,7 +125,7 @@ pub const WorkloadQueue = struct {
 
     pub fn deinit(self: *WorkloadQueue) void {
         for (&self.queues) |*q| {
-            q.deinit();
+            q.deinit(self.allocator);
         }
         self.allocator.destroy(self);
     }
@@ -162,7 +158,7 @@ pub const WorkloadQueue = struct {
         };
 
         const priority_idx = @intFromEnum(options.priority);
-        try self.queues[priority_idx].append(workload);
+        try self.queues[priority_idx].append(self.allocator, workload);
         self.stats.total_enqueued += 1;
         self.stats.current_depth += 1;
         self.stats.priority_counts[priority_idx] += 1;
@@ -290,7 +286,7 @@ pub const WorkloadQueue = struct {
                     const workload = queue.orderedRemove(0);
                     self.stats.priority_counts[priority_idx] -|= 1;
                     const new_priority = priority_idx - 1;
-                    self.queues[new_priority].append(workload) catch {};
+                    self.queues[new_priority].append(self.allocator, workload) catch {};
                     self.stats.priority_counts[new_priority] += 1;
                 }
             }

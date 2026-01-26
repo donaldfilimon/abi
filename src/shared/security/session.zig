@@ -408,36 +408,36 @@ pub const SessionManager = struct {
 
     /// Get session cookie header value
     pub fn getCookieHeader(self: *SessionManager, session: *const Session) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
-        try std.fmt.format(buffer.writer(), "{s}={s}", .{
+        try std.fmt.format(buffer.writer(self.allocator), "{s}={s}", .{
             self.config.cookie_name,
             session.id,
         });
 
         if (self.config.cookie_domain) |domain| {
-            try std.fmt.format(buffer.writer(), "; Domain={s}", .{domain});
+            try std.fmt.format(buffer.writer(self.allocator), "; Domain={s}", .{domain});
         }
 
-        try std.fmt.format(buffer.writer(), "; Path={s}", .{self.config.cookie_path});
+        try std.fmt.format(buffer.writer(self.allocator), "; Path={s}", .{self.config.cookie_path});
 
         if (self.config.http_only) {
-            try buffer.appendSlice("; HttpOnly");
+            try buffer.appendSlice(self.allocator, "; HttpOnly");
         }
 
         if (self.config.secure_cookie) {
-            try buffer.appendSlice("; Secure");
+            try buffer.appendSlice(self.allocator, "; Secure");
         }
 
-        try std.fmt.format(buffer.writer(), "; SameSite={s}", .{self.config.same_site.toString()});
+        try std.fmt.format(buffer.writer(self.allocator), "; SameSite={s}", .{self.config.same_site.toString()});
 
         const max_age = session.expires_at - time.unixSeconds();
         if (max_age > 0) {
-            try std.fmt.format(buffer.writer(), "; Max-Age={d}", .{max_age});
+            try std.fmt.format(buffer.writer(self.allocator), "; Max-Age={d}", .{max_age});
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
     /// Get statistics
@@ -452,14 +452,14 @@ pub const SessionManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var to_remove = std.ArrayList([]const u8).init(self.allocator);
-        defer to_remove.deinit();
+        var to_remove = std.ArrayListUnmanaged([]const u8).empty;
+        defer to_remove.deinit(self.allocator);
 
         var it = self.sessions.iterator();
         while (it.next()) |entry| {
             const session = entry.value_ptr.*;
             if (!session.is_valid or session.isExpired() or session.isIdle(self.config.idle_timeout)) {
-                to_remove.append(entry.key_ptr.*) catch continue;
+                to_remove.append(self.allocator, entry.key_ptr.*) catch continue;
             }
         }
 

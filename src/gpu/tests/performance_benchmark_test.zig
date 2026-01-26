@@ -177,7 +177,7 @@ test "GPU dispatcher: concurrent execution performance" {
     const concurrent_threads = 4;
     const executions_per_thread = 100;
 
-    var threads = std.ArrayList(std.Thread).init(allocator);
+    var threads = std.ArrayListUnmanaged(std.Thread).empty;
     defer {
         for (threads.items) |*t| {
             t.*.join();
@@ -201,7 +201,7 @@ test "GPU dispatcher: concurrent execution performance" {
                 e.fetchAdd(local_errors, .monotonic);
             }
         }.run, .{ &ctx, &atomic_error_count, kernel_handle, config, args, executions_per_thread });
-        try threads.append(thread);
+        try threads.append(allocator, thread);
     }
 
     // Wait for all threads

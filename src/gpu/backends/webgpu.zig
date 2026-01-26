@@ -577,8 +577,8 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         return &[_]Device{};
     }
 
-    var devices = std.ArrayList(Device).init(allocator);
-    errdefer devices.deinit();
+    var devices = std.ArrayListUnmanaged(Device).empty;
+    errdefer devices.deinit(allocator);
 
     // WebGPU typically exposes one logical device
     // In a real implementation, we'd query the adapter for properties
@@ -586,7 +586,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
     const name = try allocator.dupe(u8, "WebGPU Device");
     errdefer allocator.free(name);
 
-    try devices.append(.{
+    try devices.append(allocator, .{
         .id = 0,
         .backend = .webgpu,
         .name = name,
@@ -605,7 +605,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         .clock_mhz = null,
     });
 
-    return devices.toOwnedSlice();
+    return devices.toOwnedSlice(allocator);
 }
 
 /// Check if WebGPU is available (library loaded and initialized)

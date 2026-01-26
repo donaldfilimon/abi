@@ -150,8 +150,8 @@ pub const VirtualNode = struct {
 pub const HashRing = struct {
     allocator: std.mem.Allocator,
     config: ShardConfig,
-    virtual_nodes: std.ArrayList(VirtualNode),
-    sorted_positions: std.ArrayList(u64), // Sorted hash positions for binary search
+    virtual_nodes: std.ArrayListUnmanaged(VirtualNode),
+    sorted_positions: std.ArrayListUnmanaged(u64), // Sorted hash positions for binary search
 
     const Self = @This();
 
@@ -160,8 +160,8 @@ pub const HashRing = struct {
         const ring = Self{
             .allocator = allocator,
             .config = config,
-            .virtual_nodes = std.ArrayList(VirtualNode).init(allocator),
-            .sorted_positions = std.ArrayList(u64).init(allocator),
+            .virtual_nodes = .empty,
+            .sorted_positions = .empty,
         };
 
         return ring;
@@ -171,8 +171,8 @@ pub const HashRing = struct {
         for (self.virtual_nodes.items) |*node| {
             node.deinit(self.allocator);
         }
-        self.virtual_nodes.deinit();
-        self.sorted_positions.deinit();
+        self.virtual_nodes.deinit(self.allocator);
+        self.sorted_positions.deinit(self.allocator);
     }
 
     /// Add a physical node to the hash ring
@@ -185,7 +185,7 @@ pub const HashRing = struct {
 
             const vnode = try VirtualNode.init(self.allocator, try self.allocator.dupe(u8, node_id), position_hash, capacity_score);
 
-            try self.virtual_nodes.append(vnode);
+            try self.virtual_nodes.append(self.allocator, vnode);
         }
 
         // Re-sort positions
@@ -222,10 +222,10 @@ pub const HashRing = struct {
         const primary_vnode = self.virtual_nodes.items[idx];
 
         // Collect replica set (including primary)
-        var replica_set = std.ArrayList([]const u8).init(self.allocator);
-        defer replica_set.deinit();
+        var replica_set = std.ArrayListUnmanaged([]const u8).empty;
+        defer replica_set.deinit(self.allocator);
 
-        try replica_set.append(primary_vnode.physical_node);
+        try replica_set.append(self.allocator, primary_vnode.physical_node);
 
         // Find additional replicas for redundancy
         var replica_count: usize = 1;
@@ -238,7 +238,7 @@ pub const HashRing = struct {
 
             // Skip if same physical node (already have replica)
             if (!std.mem.eql(u8, replica_vnode.physical_node, primary_vnode.physical_node)) {
-                try replica_set.append(replica_vnode.physical_node);
+                try replica_set.append(self.allocator, replica_vnode.physical_node);
                 replica_count += 1;
             }
 
@@ -250,7 +250,7 @@ pub const HashRing = struct {
             std.log.warn("HashRing: Could only find {d} distinct nodes for replication factor {d}", .{ replica_count, self.config.replication_factor });
         }
 
-        const replica_slice = try replica_set.toOwnedSlice();
+        const replica_slice = try replica_set.toOwnedSlice(self.allocator);
 
         return ShardId{
             .hash = key_hash,
@@ -283,7 +283,7 @@ pub const HashRing = struct {
 
         // Collect positions
         for (self.virtual_nodes.items) |vnode| {
-            try self.sorted_positions.append(vnode.hash_position);
+            try self.sorted_positions.append(self.allocator, vnode.hash_position);
         }
 
         // Sort positions

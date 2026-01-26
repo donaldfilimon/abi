@@ -199,36 +199,36 @@ pub const GpuCapabilities = struct {
     }
 
     fn generateRecommendations(self: *GpuCapabilities) !void {
-        var backends = std.ArrayList([]const u8).init(self.allocator);
-        errdefer backends.deinit();
+        var backends = std.ArrayListUnmanaged([]const u8).empty;
+        errdefer backends.deinit(self.allocator);
 
         // Priority order based on performance and availability
         const target = builtin.target;
 
         if (target.os.tag == .macos) {
             // macOS: Metal first, then Vulkan via MoltenVK, then std.gpu
-            if (self.has_metal) try backends.append("metal");
-            if (self.has_vulkan) try backends.append("vulkan");
-            try backends.append("stdgpu");
+            if (self.has_metal) try backends.append(self.allocator, "metal");
+            if (self.has_vulkan) try backends.append(self.allocator, "vulkan");
+            try backends.append(self.allocator, "stdgpu");
         } else if (target.os.tag == .windows) {
             // Windows: CUDA first (if NVIDIA), then Vulkan, then OpenGL
-            if (self.has_cuda) try backends.append("cuda");
-            if (self.has_vulkan) try backends.append("vulkan");
-            if (self.has_opengl) try backends.append("opengl");
-            try backends.append("stdgpu");
+            if (self.has_cuda) try backends.append(self.allocator, "cuda");
+            if (self.has_vulkan) try backends.append(self.allocator, "vulkan");
+            if (self.has_opengl) try backends.append(self.allocator, "opengl");
+            try backends.append(self.allocator, "stdgpu");
         } else if (target.os.tag == .linux) {
             // Linux: CUDA first, then Vulkan, then OpenGL
-            if (self.has_cuda) try backends.append("cuda");
-            if (self.has_vulkan) try backends.append("vulkan");
-            if (self.has_opengl) try backends.append("opengl");
-            try backends.append("stdgpu");
+            if (self.has_cuda) try backends.append(self.allocator, "cuda");
+            if (self.has_vulkan) try backends.append(self.allocator, "vulkan");
+            if (self.has_opengl) try backends.append(self.allocator, "opengl");
+            try backends.append(self.allocator, "stdgpu");
         } else {
             // Generic: Vulkan first, then std.gpu
-            if (self.has_vulkan) try backends.append("vulkan");
-            try backends.append("stdgpu");
+            if (self.has_vulkan) try backends.append(self.allocator, "vulkan");
+            try backends.append(self.allocator, "stdgpu");
         }
 
-        self.recommended_backends = try backends.toOwnedSlice();
+        self.recommended_backends = try backends.toOwnedSlice(self.allocator);
     }
 
     /// Print capability detection results
@@ -263,20 +263,20 @@ pub const GpuCapabilities = struct {
 
     /// Get build flags for detected capabilities
     pub fn getBuildFlags(self: *const GpuCapabilities, allocator: std.mem.Allocator) ![]const u8 {
-        var flags = std.ArrayList(u8).init(allocator);
-        errdefer flags.deinit();
+        var flags = std.ArrayListUnmanaged(u8).empty;
+        errdefer flags.deinit(allocator);
 
         // Add -Dgpu-backend= flags
-        try flags.appendSlice("-Dgpu-backend=");
+        try flags.appendSlice(allocator, "-Dgpu-backend=");
         for (self.recommended_backends, 0..) |backend, i| {
-            if (i > 0) try flags.append(',');
-            try flags.appendSlice(backend);
+            if (i > 0) try flags.append(allocator, ',');
+            try flags.appendSlice(allocator, backend);
         }
 
         // Add enable-gpu flag
-        try flags.appendSlice(" -Denable-gpu=true");
+        try flags.appendSlice(allocator, " -Denable-gpu=true");
 
-        return flags.toOwnedSlice();
+        return flags.toOwnedSlice(allocator);
     }
 };
 

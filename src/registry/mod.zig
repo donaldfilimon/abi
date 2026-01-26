@@ -198,15 +198,15 @@ pub const Registry = struct {
 
     /// Get list of all registered features.
     pub fn listFeatures(self: *const Registry, allocator: std.mem.Allocator) Error![]Feature {
-        var list = std.ArrayList(Feature).init(allocator);
-        errdefer list.deinit();
+        var list = std.ArrayListUnmanaged(Feature).empty;
+        errdefer list.deinit(allocator);
 
         var iter = self.registrations.keyIterator();
         while (iter.next()) |feature| {
-            try list.append(feature.*);
+            try list.append(allocator, feature.*);
         }
 
-        return list.toOwnedSlice();
+        return list.toOwnedSlice(allocator);
     }
 
     /// Get count of registered features.

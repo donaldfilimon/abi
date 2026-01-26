@@ -510,19 +510,19 @@ pub const AuditLogger = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        defer buffer.deinit(allocator);
 
-        try buffer.appendSlice("[\n");
+        try buffer.appendSlice(allocator, "[\n");
 
         for (self.events.items, 0..) |event, i| {
-            if (i > 0) try buffer.appendSlice(",\n");
-            try self.eventToJson(&buffer, &event);
+            if (i > 0) try buffer.appendSlice(allocator, ",\n");
+            try self.eventToJson(allocator, &buffer, &event);
         }
 
-        try buffer.appendSlice("\n]");
+        try buffer.appendSlice(allocator, "\n]");
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     /// Get audit statistics
@@ -629,18 +629,18 @@ pub const AuditLogger = struct {
         return result;
     }
 
-    fn eventToJson(self: *AuditLogger, buffer: *std.ArrayList(u8), event: *const AuditEvent) !void {
+    fn eventToJson(self: *AuditLogger, allocator: std.mem.Allocator, buffer: *std.ArrayListUnmanaged(u8), event: *const AuditEvent) !void {
         _ = self;
-        try buffer.appendSlice("  {");
-        try std.fmt.format(buffer.writer(), "\"id\":\"{s}\",", .{event.id});
-        try std.fmt.format(buffer.writer(), "\"timestamp\":{d},", .{event.timestamp});
-        try std.fmt.format(buffer.writer(), "\"severity\":\"{s}\",", .{event.severity.toString()});
-        try std.fmt.format(buffer.writer(), "\"category\":\"{s}\",", .{event.category.toString()});
-        try std.fmt.format(buffer.writer(), "\"event_type\":\"{s}\",", .{event.event_type});
-        try std.fmt.format(buffer.writer(), "\"outcome\":\"{s}\",", .{event.outcome.toString()});
-        try std.fmt.format(buffer.writer(), "\"message\":\"{s}\",", .{event.message});
-        try std.fmt.format(buffer.writer(), "\"source\":\"{s}\"", .{event.source});
-        try buffer.appendSlice("}");
+        try buffer.appendSlice(allocator, "  {");
+        try std.fmt.format(buffer.writer(allocator), "\"id\":\"{s}\",", .{event.id});
+        try std.fmt.format(buffer.writer(allocator), "\"timestamp\":{d},", .{event.timestamp});
+        try std.fmt.format(buffer.writer(allocator), "\"severity\":\"{s}\",", .{event.severity.toString()});
+        try std.fmt.format(buffer.writer(allocator), "\"category\":\"{s}\",", .{event.category.toString()});
+        try std.fmt.format(buffer.writer(allocator), "\"event_type\":\"{s}\",", .{event.event_type});
+        try std.fmt.format(buffer.writer(allocator), "\"outcome\":\"{s}\",", .{event.outcome.toString()});
+        try std.fmt.format(buffer.writer(allocator), "\"message\":\"{s}\",", .{event.message});
+        try std.fmt.format(buffer.writer(allocator), "\"source\":\"{s}\"", .{event.source});
+        try buffer.appendSlice(allocator, "}");
     }
 };
 

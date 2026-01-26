@@ -89,25 +89,25 @@ pub const EncryptedHeader = struct {
     aad_length: u32 = 0,
 
     pub fn serialize(self: EncryptedHeader, allocator: std.mem.Allocator) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(allocator);
 
-        try buffer.appendSlice(&self.magic);
-        try buffer.append(@intFromEnum(self.algorithm));
-        try buffer.append(@intCast(self.nonce.len));
-        try buffer.appendSlice(self.nonce);
+        try buffer.appendSlice(allocator, &self.magic);
+        try buffer.append(allocator, @intFromEnum(self.algorithm));
+        try buffer.append(allocator, @intCast(self.nonce.len));
+        try buffer.appendSlice(allocator, self.nonce);
 
         if (self.salt) |salt| {
-            try buffer.append(1); // Has salt
-            try buffer.appendSlice(&salt);
+            try buffer.append(allocator, 1); // Has salt
+            try buffer.appendSlice(allocator, &salt);
         } else {
-            try buffer.append(0); // No salt
+            try buffer.append(allocator, 0); // No salt
         }
 
         const aad_bytes = std.mem.asBytes(&self.aad_length);
-        try buffer.appendSlice(aad_bytes);
+        try buffer.appendSlice(allocator, aad_bytes);
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     pub fn deserialize(data: []const u8) !EncryptedHeader {
@@ -324,22 +324,22 @@ pub const Encryptor = struct {
 
     /// Serialize encrypted data to bytes
     pub fn serialize(self: *Encryptor, encrypted: EncryptedData) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
         // Header
         const header_bytes = try encrypted.header.serialize(self.allocator);
         defer self.allocator.free(header_bytes);
-        try buffer.appendSlice(header_bytes);
+        try buffer.appendSlice(self.allocator, header_bytes);
 
         // Tag
         const tag_size = encrypted.header.algorithm.tagSize();
-        try buffer.appendSlice(encrypted.tag[0..tag_size]);
+        try buffer.appendSlice(self.allocator, encrypted.tag[0..tag_size]);
 
         // Ciphertext
-        try buffer.appendSlice(encrypted.ciphertext);
+        try buffer.appendSlice(self.allocator, encrypted.ciphertext);
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
     /// Deserialize encrypted data from bytes

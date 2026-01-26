@@ -240,10 +240,10 @@ test "consistent hashing properties" {
     };
 
     // Record initial placements
-    var initial_placements = std.ArrayList([]const u8).init(allocator);
+    var initial_placements = std.ArrayListUnmanaged([]const u8).empty;
     defer {
         for (initial_placements.items) |node| allocator.free(node);
-        initial_placements.deinit();
+        initial_placements.deinit(allocator);
     }
 
     for (test_hashes) |hash| {
@@ -251,7 +251,7 @@ test "consistent hashing properties" {
         defer allocator.free(shard.replica_set);
 
         const primary = try allocator.dupe(u8, shard.getPrimaryNode());
-        try initial_placements.append(primary);
+        try initial_placements.append(allocator, primary);
     }
 
     // Add new node (simulating cluster expansion)

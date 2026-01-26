@@ -658,11 +658,11 @@ pub const SecretsManager = struct {
         }
 
         // Build new content
-        var new_content = std.ArrayList(u8).init(self.allocator);
-        defer new_content.deinit();
+        var new_content = std.ArrayListUnmanaged(u8).empty;
+        defer new_content.deinit(self.allocator);
 
-        try new_content.appendSlice(content[0..remove_start]);
-        try new_content.appendSlice(content[remove_end..]);
+        try new_content.appendSlice(self.allocator, content[0..remove_start]);
+        try new_content.appendSlice(self.allocator, content[remove_end..]);
 
         // Write back (Zig 0.16 I/O API)
         var write_file = std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true }) catch return error.FileWriteFailed;

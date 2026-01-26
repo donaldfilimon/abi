@@ -295,17 +295,17 @@ pub const DiskANNIndex = struct {
 
     // In-memory graph for small datasets
     // For large datasets, this would be disk-backed
-    graph: std.ArrayList(std.ArrayList(u32)),
+    graph: std.ArrayListUnmanaged(std.ArrayListUnmanaged(u32)),
 
     // PQ codes for all vectors
-    pq_codes: std.ArrayList([]u8),
+    pq_codes: std.ArrayListUnmanaged([]u8),
 
     // Full vectors (for build and optional reranking)
-    vectors: std.ArrayList([]f32),
+    vectors: std.ArrayListUnmanaged([]f32),
 
     // Node cache for disk-based access
     node_cache: std.AutoHashMap(u32, DiskNode),
-    cache_order: std.ArrayList(u32),
+    cache_order: std.ArrayListUnmanaged(u32),
 
     // Statistics
     stats: IndexStats = .{},
@@ -314,32 +314,32 @@ pub const DiskANNIndex = struct {
         return DiskANNIndex{
             .config = config,
             .allocator = allocator,
-            .graph = std.ArrayList(std.ArrayList(u32)).init(allocator),
-            .pq_codes = std.ArrayList([]u8).init(allocator),
-            .vectors = std.ArrayList([]f32).init(allocator),
+            .graph = .empty,
+            .pq_codes = .empty,
+            .vectors = .empty,
             .node_cache = std.AutoHashMap(u32, DiskNode).init(allocator),
-            .cache_order = std.ArrayList(u32).init(allocator),
+            .cache_order = .empty,
         };
     }
 
     pub fn deinit(self: *DiskANNIndex) void {
         // Free graph
         for (self.graph.items) |*adj_list| {
-            adj_list.deinit();
+            adj_list.deinit(self.allocator);
         }
-        self.graph.deinit();
+        self.graph.deinit(self.allocator);
 
         // Free PQ codes
         for (self.pq_codes.items) |codes| {
             self.allocator.free(codes);
         }
-        self.pq_codes.deinit();
+        self.pq_codes.deinit(self.allocator);
 
         // Free vectors
         for (self.vectors.items) |vec| {
             self.allocator.free(vec);
         }
-        self.vectors.deinit();
+        self.vectors.deinit(self.allocator);
 
         // Free codebook
         if (self.codebook) |*cb| {
@@ -347,7 +347,7 @@ pub const DiskANNIndex = struct {
         }
 
         self.node_cache.deinit();
-        self.cache_order.deinit();
+        self.cache_order.deinit(self.allocator);
     }
 
     /// Build index from vectors using Vamana algorithm
@@ -375,15 +375,15 @@ pub const DiskANNIndex = struct {
             // Store full vector
             const vec_copy = try self.allocator.alloc(f32, dim);
             @memcpy(vec_copy, vec_slice);
-            try self.vectors.append(vec_copy);
+            try self.vectors.append(self.allocator, vec_copy);
 
             // Encode with PQ
             const codes = try self.allocator.alloc(u8, self.config.pq_subspaces);
             self.codebook.?.encode(vec_slice, codes);
-            try self.pq_codes.append(codes);
+            try self.pq_codes.append(self.allocator, codes);
 
             // Initialize empty adjacency list
-            try self.graph.append(std.ArrayList(u32).init(self.allocator));
+            try self.graph.append(self.allocator, .empty);
         }
 
         self.num_vectors = num_vectors;
@@ -487,13 +487,13 @@ pub const DiskANNIndex = struct {
         try candidates.add(.{ .id = self.entry_point, .distance = entry_dist });
         try visited.put(self.entry_point, {});
 
-        var result_list = std.ArrayList(SearchCandidate).init(self.allocator);
+        var result_list = std.ArrayListUnmanaged(SearchCandidate).empty;
 
         while (candidates.count() > 0) {
             const current = candidates.remove();
 
             // Add to results
-            try result_list.append(current);
+            try result_list.append(self.allocator, current);
             if (result_list.items.len >= list_size) break;
 
             // Expand neighbors
@@ -511,7 +511,7 @@ pub const DiskANNIndex = struct {
             }
         }
 
-        return try result_list.toOwnedSlice();
+        return try result_list.toOwnedSlice(self.allocator);
     }
 
     /// Robust pruning with alpha-RNG criterion
@@ -521,7 +521,7 @@ pub const DiskANNIndex = struct {
         candidates: []const SearchCandidate,
         alpha: f32,
     ) ![]u32 {
-        var pruned = std.ArrayList(u32).init(self.allocator);
+        var pruned = std.ArrayListUnmanaged(u32).empty;
         const max_degree = self.config.max_degree;
 
         for (candidates) |candidate| {
@@ -544,22 +544,22 @@ pub const DiskANNIndex = struct {
             }
 
             if (!dominated) {
-                try pruned.append(candidate.id);
+                try pruned.append(self.allocator, candidate.id);
             }
         }
 
-        return try pruned.toOwnedSlice();
+        return try pruned.toOwnedSlice(self.allocator);
     }
 
     /// Add bidirectional edges to graph
     fn addEdges(self: *DiskANNIndex, node_id: u32, neighbors: []const u32) !void {
         for (neighbors) |neighbor_id| {
             // Add forward edge
-            try self.graph.items[node_id].append(neighbor_id);
+            try self.graph.items[node_id].append(self.allocator, neighbor_id);
 
             // Add backward edge (with degree check)
             if (self.graph.items[neighbor_id].items.len < self.config.max_degree) {
-                try self.graph.items[neighbor_id].append(node_id);
+                try self.graph.items[neighbor_id].append(self.allocator, node_id);
             }
         }
     }
@@ -583,13 +583,13 @@ pub const DiskANNIndex = struct {
         defer self.allocator.free(candidates);
 
         // Rerank with exact distances
-        var reranked = std.ArrayList(index_mod.IndexResult).init(self.allocator);
+        var reranked = std.ArrayListUnmanaged(index_mod.IndexResult).empty;
 
         for (candidates) |candidate| {
             if (reranked.items.len >= k) break;
 
             const exact_dist = computeL2DistanceSquared(query, self.vectors.items[candidate.id]);
-            try reranked.append(.{
+            try reranked.append(self.allocator, .{
                 .id = candidate.id,
                 .distance = @sqrt(exact_dist),
                 .metadata = null,
@@ -604,7 +604,7 @@ pub const DiskANNIndex = struct {
         }.lessThan);
 
         self.stats.queries_processed += 1;
-        return try reranked.toOwnedSlice();
+        return try reranked.toOwnedSlice(self.allocator);
     }
 
     /// Beam search with prefetching (optimized for disk access)

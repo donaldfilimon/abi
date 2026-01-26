@@ -386,14 +386,14 @@ const WorkerState = struct {
         var visited = std.AutoHashMap(u32, void).init(self.allocator);
         defer visited.deinit();
 
-        var queue = std.ArrayList(u32).init(self.allocator);
-        defer queue.deinit();
+        var queue = std.ArrayListUnmanaged(u32).empty;
+        defer queue.deinit(self.allocator);
 
         // Start with entry point
         const entry_dist = self.computeDistance(node_id, entry);
         try candidates.put(entry, entry_dist);
         try visited.put(entry, {});
-        try queue.append(entry);
+        try queue.append(self.allocator, entry);
 
         var head: usize = 0;
         while (head < queue.items.len and candidates.count() < self.ef_construction) : (head += 1) {
@@ -405,7 +405,7 @@ const WorkerState = struct {
                     try visited.put(neighbor, {});
                     const dist = self.computeDistance(node_id, neighbor);
                     try candidates.put(neighbor, dist);
-                    try queue.append(neighbor);
+                    try queue.append(self.allocator, neighbor);
                 }
             }
         }
@@ -464,13 +464,13 @@ const WorkerState = struct {
         m_val: usize,
     ) ![]u32 {
         const Pair = struct { id: u32, dist: f32 };
-        var sorted = std.ArrayList(Pair).init(self.allocator);
-        defer sorted.deinit();
+        var sorted = std.ArrayListUnmanaged(Pair).empty;
+        defer sorted.deinit(self.allocator);
 
         var it = candidates.iterator();
         while (it.next()) |entry| {
             if (entry.key_ptr.* != node_id) {
-                try sorted.append(.{ .id = entry.key_ptr.*, .dist = entry.value_ptr.* });
+                try sorted.append(self.allocator, .{ .id = entry.key_ptr.*, .dist = entry.value_ptr.* });
             }
         }
 
@@ -482,8 +482,8 @@ const WorkerState = struct {
         }.lessThan);
 
         // Select with diversity heuristic
-        var selected = std.ArrayList(u32).init(self.allocator);
-        errdefer selected.deinit();
+        var selected = std.ArrayListUnmanaged(u32).empty;
+        errdefer selected.deinit(self.allocator);
 
         for (sorted.items) |candidate| {
             if (selected.items.len >= m_val) break;
@@ -501,7 +501,7 @@ const WorkerState = struct {
             }
 
             if (should_add) {
-                try selected.append(candidate.id);
+                try selected.append(self.allocator, candidate.id);
             }
         }
 
@@ -519,12 +519,12 @@ const WorkerState = struct {
                 }
 
                 if (!already_added) {
-                    try selected.append(candidate.id);
+                    try selected.append(self.allocator, candidate.id);
                 }
             }
         }
 
-        return selected.toOwnedSlice();
+        return selected.toOwnedSlice(self.allocator);
     }
 
     /// Compute distance between two nodes.

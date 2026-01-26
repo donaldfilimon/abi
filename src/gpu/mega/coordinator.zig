@@ -148,9 +148,9 @@ pub const ScheduleDecision = struct {
 /// Cross-Backend Coordinator for unified GPU orchestration.
 pub const Coordinator = struct {
     allocator: std.mem.Allocator,
-    backends: std.ArrayList(BackendInstance),
+    backends: std.ArrayListUnmanaged(BackendInstance),
     device_groups: std.AutoHashMap(backend_mod.Backend, *multi_device.DeviceGroup),
-    scheduling_history: std.ArrayList(SchedulingRecord),
+    scheduling_history: std.ArrayListUnmanaged(SchedulingRecord),
     stats: CoordinatorStats,
     next_decision_id: u64,
     mutex: std.Thread.Mutex,
@@ -193,9 +193,9 @@ pub const Coordinator = struct {
 
         self.* = .{
             .allocator = allocator,
-            .backends = std.ArrayList(BackendInstance).init(allocator),
+            .backends = .{},
             .device_groups = std.AutoHashMap(backend_mod.Backend, *multi_device.DeviceGroup).init(allocator),
-            .scheduling_history = std.ArrayList(SchedulingRecord).init(allocator),
+            .scheduling_history = .{},
             .stats = .{},
             .next_decision_id = 1,
             .mutex = .{},
@@ -217,8 +217,8 @@ pub const Coordinator = struct {
         }
         self.device_groups.deinit();
 
-        self.backends.deinit();
-        self.scheduling_history.deinit();
+        self.backends.deinit(self.allocator);
+        self.scheduling_history.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -245,14 +245,14 @@ pub const Coordinator = struct {
         for (backend_configs) |cfg| {
             if (cfg.check_fn()) {
                 const instance = createBackendInstance(cfg.backend, cfg.priority);
-                try self.backends.append(instance);
+                try self.backends.append(self.allocator, instance);
             }
         }
 
         // Always ensure at least CPU fallback is available
         if (self.backends.items.len == 0) {
             const fallback = createBackendInstance(.stdgpu, 1);
-            try self.backends.append(fallback);
+            try self.backends.append(self.allocator, fallback);
         }
     }
 
@@ -348,7 +348,7 @@ pub const Coordinator = struct {
             .timestamp = std.time.milliTimestamp(),
         };
 
-        try self.scheduling_history.append(record);
+        try self.scheduling_history.append(self.allocator, record);
 
         // Update statistics
         if (success) {

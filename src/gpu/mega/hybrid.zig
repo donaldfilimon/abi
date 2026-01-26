@@ -243,7 +243,7 @@ pub const HybridCoordinator = struct {
     fpga_memory_available_mb: u64,
 
     // Performance history for learning
-    routing_history: std.ArrayList(RoutingRecord),
+    routing_history: std.ArrayListUnmanaged(RoutingRecord),
     stats: HybridStats,
     mutex: std.Thread.Mutex,
 
@@ -278,7 +278,7 @@ pub const HybridCoordinator = struct {
             .fpga_available = detectFpgaAvailable(),
             .gpu_memory_available_mb = if (detectGpuAvailable()) 8192 else 0,
             .fpga_memory_available_mb = if (detectFpgaAvailable()) 4096 else 0,
-            .routing_history = std.ArrayList(RoutingRecord).init(allocator),
+            .routing_history = .{},
             .stats = .{},
             .mutex = .{},
         };
@@ -289,7 +289,7 @@ pub const HybridCoordinator = struct {
     /// Deinitialize the coordinator
     pub fn deinit(self: *HybridCoordinator) void {
         self.mega_coordinator.deinit();
-        self.routing_history.deinit();
+        self.routing_history.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -362,7 +362,7 @@ pub const HybridCoordinator = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        try self.routing_history.append(.{
+        try self.routing_history.append(self.allocator, .{
             .workload = workload,
             .decision = decision,
             .actual_latency_ns = actual_latency_ns,

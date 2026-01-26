@@ -274,10 +274,10 @@ pub fn collectWithContext(
 
 /// Format diagnostics as a string for logging/display.
 pub fn formatToString(allocator: std.mem.Allocator, info: DiagnosticsInfo) ![]u8 {
-    var buffer = std.ArrayList(u8).init(allocator);
-    errdefer buffer.deinit();
-    try info.format("", .{}, buffer.writer());
-    return buffer.toOwnedSlice();
+    var buffer = std.ArrayListUnmanaged(u8).empty;
+    errdefer buffer.deinit(allocator);
+    try info.format("", .{}, buffer.writer(allocator));
+    return buffer.toOwnedSlice(allocator);
 }
 
 // ============================================================================

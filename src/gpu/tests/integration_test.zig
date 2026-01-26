@@ -167,12 +167,12 @@ test "multi-GPU scheduling: round-robin load balancing" {
     try std.testing.expect(device_count >= 1);
 
     // Test round-robin selection
-    var selected_devices = std.ArrayList(DeviceId).init(allocator);
-    defer selected_devices.deinit();
+    var selected_devices = std.ArrayListUnmanaged(DeviceId).empty;
+    defer selected_devices.deinit(allocator);
 
     for (0..device_count * 3) |_| {
         const device_id = group.selectDevice(1024);
-        try selected_devices.append(device_id);
+        try selected_devices.append(allocator, device_id);
     }
 
     // Should cycle through available devices

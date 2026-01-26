@@ -338,8 +338,8 @@ pub const RateLimiter = struct {
         const now = time.unixSeconds();
         const window = @as(i64, self.config.window_seconds);
 
-        var to_remove = std.ArrayList([]const u8).init(self.allocator);
-        defer to_remove.deinit();
+        var to_remove = std.ArrayListUnmanaged([]const u8).empty;
+        defer to_remove.deinit(self.allocator);
 
         var it = self.buckets.iterator();
         while (it.next()) |entry| {
@@ -347,7 +347,7 @@ pub const RateLimiter = struct {
 
             // Remove if no activity for 2 windows and not banned
             if (bucket.last_update < now - window * 2 and bucket.ban_until == null) {
-                to_remove.append(entry.key_ptr.*) catch continue;
+                to_remove.append(self.allocator, entry.key_ptr.*) catch continue;
             }
         }
 

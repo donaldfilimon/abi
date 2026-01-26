@@ -211,7 +211,7 @@ pub const BlockExchangeManager = struct {
     anti_entropy_interval: i64,
 
     // Conflict resolution registry
-    conflicts: std.ArrayList(BlockConflict),
+    conflicts: std.ArrayListUnmanaged(BlockConflict),
 
     const Self = @This();
 
@@ -234,7 +234,7 @@ pub const BlockExchangeManager = struct {
             .version_vectors = std.AutoHashMap(u64, VersionVector).init(allocator),
             .last_anti_entropy = time.unixSeconds(),
             .anti_entropy_interval = anti_entropy_interval_s,
-            .conflicts = std.ArrayList(BlockConflict).init(allocator),
+            .conflicts = .empty,
         };
     }
 
@@ -252,7 +252,7 @@ pub const BlockExchangeManager = struct {
         for (self.conflicts.items) |*conflict| {
             conflict.deinit(self.allocator);
         }
-        self.conflicts.deinit();
+        self.conflicts.deinit(self.allocator);
 
         self.sync_states.deinit();
     }
@@ -337,8 +337,8 @@ pub const BlockExchangeManager = struct {
 
         // Get local blocks in requested time range
         // In real implementation, would query block chain storage
-        var blocks = std.ArrayList(block_chain.ConversationBlock).init(self.allocator);
-        defer blocks.deinit();
+        var blocks = std.ArrayListUnmanaged(block_chain.ConversationBlock).empty;
+        defer blocks.deinit(self.allocator);
 
         // Get local version vector
         const local_vector = try self.getOrCreateVersionVector(request.shard_id.hash);
@@ -349,7 +349,7 @@ pub const BlockExchangeManager = struct {
         try response_vector.merge(self.allocator, local_vector);
 
         const response = SyncResponse{
-            .blocks = try blocks.toOwnedSlice(),
+            .blocks = try blocks.toOwnedSlice(self.allocator),
             .has_more = false,
             .next_timestamp = null,
             .version_vector = response_vector,
@@ -401,7 +401,7 @@ pub const BlockExchangeManager = struct {
         remote_blocks: []const block_chain.ConversationBlock,
         remote_version: *const VersionVector,
     ) ![]BlockConflict {
-        var conflicts = std.ArrayList(BlockConflict).init(self.allocator);
+        var conflicts = std.ArrayListUnmanaged(BlockConflict).empty;
 
         // Simple conflict detection: check for same block ID with different content
         for (local_blocks) |local_block| {
@@ -420,14 +420,14 @@ pub const BlockExchangeManager = struct {
                             .conflict_type = determineConflictType(&local_block, &remote_block),
                         };
 
-                        try conflicts.append(conflict);
-                        try self.conflicts.append(conflict);
+                        try conflicts.append(self.allocator, conflict);
+                        try self.conflicts.append(self.allocator, conflict);
                     }
                 }
             }
         }
 
-        return conflicts.toOwnedSlice();
+        return conflicts.toOwnedSlice(self.allocator);
     }
 
     /// Resolve conflicts using MVCC and version vectors

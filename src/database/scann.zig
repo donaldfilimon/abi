@@ -94,26 +94,26 @@ pub const Partition = struct {
     /// Centroid vector
     centroid: []f32,
     /// Vector IDs in this partition
-    member_ids: std.ArrayList(u32),
+    member_ids: std.ArrayListUnmanaged(u32),
     /// Quantized vectors (for fast distance computation)
-    quantized_vectors: std.ArrayList([]u8),
+    quantized_vectors: std.ArrayListUnmanaged([]u8),
 
     pub fn init(allocator: std.mem.Allocator, id: u32, dim: u32) !Partition {
         return Partition{
             .id = id,
             .centroid = try allocator.alloc(f32, dim),
-            .member_ids = std.ArrayList(u32).init(allocator),
-            .quantized_vectors = std.ArrayList([]u8).init(allocator),
+            .member_ids = .empty,
+            .quantized_vectors = .empty,
         };
     }
 
     pub fn deinit(self: *Partition, allocator: std.mem.Allocator) void {
         allocator.free(self.centroid);
-        self.member_ids.deinit();
+        self.member_ids.deinit(allocator);
         for (self.quantized_vectors.items) |qv| {
             allocator.free(qv);
         }
-        self.quantized_vectors.deinit();
+        self.quantized_vectors.deinit(allocator);
     }
 };
 
@@ -372,7 +372,7 @@ pub const ScaNNIndex = struct {
     num_vectors: u32 = 0,
 
     // Partitioning
-    partitions: std.ArrayList(Partition),
+    partitions: std.ArrayListUnmanaged(Partition),
     partition_centroids: ?[]f32 = null,
 
     // Quantization
@@ -380,10 +380,10 @@ pub const ScaNNIndex = struct {
     avq_codebook: ?AVQCodebook = null,
 
     // Full vectors for reranking
-    vectors: std.ArrayList([]f32),
+    vectors: std.ArrayListUnmanaged([]f32),
 
     // Mapping from vector ID to partition
-    vector_to_partition: std.ArrayList(u32),
+    vector_to_partition: std.ArrayListUnmanaged(u32),
 
     // Statistics
     stats: IndexStats = .{},
@@ -392,9 +392,9 @@ pub const ScaNNIndex = struct {
         return ScaNNIndex{
             .config = config,
             .allocator = allocator,
-            .partitions = std.ArrayList(Partition).init(allocator),
-            .vectors = std.ArrayList([]f32).init(allocator),
-            .vector_to_partition = std.ArrayList(u32).init(allocator),
+            .partitions = .empty,
+            .vectors = .empty,
+            .vector_to_partition = .empty,
         };
     }
 
@@ -403,7 +403,7 @@ pub const ScaNNIndex = struct {
         for (self.partitions.items) |*p| {
             p.deinit(self.allocator);
         }
-        self.partitions.deinit();
+        self.partitions.deinit(self.allocator);
 
         if (self.partition_centroids) |pc| {
             self.allocator.free(pc);
@@ -423,9 +423,9 @@ pub const ScaNNIndex = struct {
         for (self.vectors.items) |vec| {
             self.allocator.free(vec);
         }
-        self.vectors.deinit();
+        self.vectors.deinit(self.allocator);
 
-        self.vector_to_partition.deinit();
+        self.vector_to_partition.deinit(self.allocator);
     }
 
     /// Build index from vectors
@@ -439,7 +439,7 @@ pub const ScaNNIndex = struct {
         for (0..num_vectors) |i| {
             const vec_copy = try self.allocator.alloc(f32, dim);
             @memcpy(vec_copy, vectors[i * dim ..][0..dim]);
-            try self.vectors.append(vec_copy);
+            try self.vectors.append(self.allocator, vec_copy);
         }
         self.num_vectors = num_vectors;
 
@@ -469,7 +469,7 @@ pub const ScaNNIndex = struct {
 
         for (0..num_partitions) |i| {
             const partition = try Partition.init(self.allocator, @intCast(i), dim);
-            try self.partitions.append(partition);
+            try self.partitions.append(self.allocator, partition);
         }
 
         // Initialize partition centroids (k-means++)
@@ -609,8 +609,8 @@ pub const ScaNNIndex = struct {
                 }
             }
 
-            try self.partitions.items[min_p].member_ids.append(@intCast(i));
-            try self.vector_to_partition.append(min_p);
+            try self.partitions.items[min_p].member_ids.append(self.allocator, @intCast(i));
+            try self.vector_to_partition.append(self.allocator, min_p);
 
             // Copy centroid
             @memcpy(self.partitions.items[min_p].centroid, self.partition_centroids.?[min_p * dim ..][0..dim]);
@@ -680,7 +680,7 @@ pub const ScaNNIndex = struct {
                     else => try self.allocator.alloc(u8, 0),
                 };
 
-                try partition.quantized_vectors.append(qvec);
+                try partition.quantized_vectors.append(self.allocator, qvec);
             }
         }
     }
@@ -698,15 +698,15 @@ pub const ScaNNIndex = struct {
         defer self.allocator.free(partition_candidates);
 
         // Phase 2: Search within partitions using quantized distances
-        var candidates = std.ArrayList(SearchCandidate).init(self.allocator);
-        defer candidates.deinit();
+        var candidates = std.ArrayListUnmanaged(SearchCandidate).empty;
+        defer candidates.deinit(self.allocator);
 
         for (partition_candidates) |p_idx| {
             const partition = &self.partitions.items[p_idx];
 
             for (partition.member_ids.items, partition.quantized_vectors.items) |vec_id, qvec| {
                 const approx_dist = self.computeQuantizedDistance(query, qvec);
-                try candidates.append(.{
+                try candidates.append(self.allocator, .{
                     .id = vec_id,
                     .distance = approx_dist,
                 });
@@ -722,13 +722,13 @@ pub const ScaNNIndex = struct {
 
         // Phase 3: Rerank top candidates with exact distances
         const rerank_count = @min(candidates.items.len, k * self.config.rerank_factor);
-        var results = std.ArrayList(index_mod.IndexResult).init(self.allocator);
+        var results = std.ArrayListUnmanaged(index_mod.IndexResult).empty;
 
         for (candidates.items[0..rerank_count]) |candidate| {
             const vec = self.vectors.items[candidate.id];
             const exact_dist = computeL2DistanceSquared(query, vec);
 
-            try results.append(.{
+            try results.append(self.allocator, .{
                 .id = candidate.id,
                 .distance = @sqrt(exact_dist),
                 .metadata = null,

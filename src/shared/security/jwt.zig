@@ -599,49 +599,49 @@ pub const JwtManager = struct {
     }
 
     fn claimsToJson(self: *JwtManager, claims: Claims) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
-        try buffer.append('{');
+        try buffer.append(self.allocator, '{');
 
         var first = true;
 
         if (claims.sub) |sub| {
-            if (!first) try buffer.append(',');
-            try std.fmt.format(buffer.writer(), "\"sub\":\"{s}\"", .{sub});
+            if (!first) try buffer.append(self.allocator, ',');
+            try std.fmt.format(buffer.writer(self.allocator), "\"sub\":\"{s}\"", .{sub});
             first = false;
         }
         if (claims.iss) |iss| {
-            if (!first) try buffer.append(',');
-            try std.fmt.format(buffer.writer(), "\"iss\":\"{s}\"", .{iss});
+            if (!first) try buffer.append(self.allocator, ',');
+            try std.fmt.format(buffer.writer(self.allocator), "\"iss\":\"{s}\"", .{iss});
             first = false;
         }
         if (claims.aud) |aud| {
-            if (!first) try buffer.append(',');
-            try std.fmt.format(buffer.writer(), "\"aud\":\"{s}\"", .{aud});
+            if (!first) try buffer.append(self.allocator, ',');
+            try std.fmt.format(buffer.writer(self.allocator), "\"aud\":\"{s}\"", .{aud});
             first = false;
         }
         if (claims.jti) |jti| {
-            if (!first) try buffer.append(',');
+            if (!first) try buffer.append(self.allocator, ',');
             // Encode jti as hex since it may be binary
             var hex_buf: [64]u8 = undefined;
             const hex = std.fmt.bufPrint(&hex_buf, "{}", .{std.fmt.fmtSliceHexLower(jti)}) catch jti;
-            try std.fmt.format(buffer.writer(), "\"jti\":\"{s}\"", .{hex});
+            try std.fmt.format(buffer.writer(self.allocator), "\"jti\":\"{s}\"", .{hex});
             first = false;
         }
         if (claims.exp) |exp| {
-            if (!first) try buffer.append(',');
-            try std.fmt.format(buffer.writer(), "\"exp\":{d}", .{exp});
+            if (!first) try buffer.append(self.allocator, ',');
+            try std.fmt.format(buffer.writer(self.allocator), "\"exp\":{d}", .{exp});
             first = false;
         }
         if (claims.nbf) |nbf| {
-            if (!first) try buffer.append(',');
-            try std.fmt.format(buffer.writer(), "\"nbf\":{d}", .{nbf});
+            if (!first) try buffer.append(self.allocator, ',');
+            try std.fmt.format(buffer.writer(self.allocator), "\"nbf\":{d}", .{nbf});
             first = false;
         }
         if (claims.iat) |iat| {
-            if (!first) try buffer.append(',');
-            try std.fmt.format(buffer.writer(), "\"iat\":{d}", .{iat});
+            if (!first) try buffer.append(self.allocator, ',');
+            try std.fmt.format(buffer.writer(self.allocator), "\"iat\":{d}", .{iat});
             first = false;
         }
 
@@ -649,8 +649,8 @@ pub const JwtManager = struct {
         if (claims.custom) |custom| {
             var it = custom.iterator();
             while (it.next()) |entry| {
-                if (!first) try buffer.append(',');
-                try std.fmt.format(buffer.writer(), "\"{s}\":\"{s}\"", .{
+                if (!first) try buffer.append(self.allocator, ',');
+                try std.fmt.format(buffer.writer(self.allocator), "\"{s}\":\"{s}\"", .{
                     entry.key_ptr.*,
                     entry.value_ptr.*,
                 });
@@ -658,21 +658,21 @@ pub const JwtManager = struct {
             }
         }
 
-        try buffer.append('}');
+        try buffer.append(self.allocator, '}');
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
     fn cleanupBlacklist(self: *JwtManager) !void {
         const now = time.unixSeconds();
-        var to_remove = std.ArrayList([]const u8).init(self.allocator);
-        defer to_remove.deinit();
+        var to_remove = std.ArrayListUnmanaged([]const u8).empty;
+        defer to_remove.deinit(self.allocator);
 
         // Find expired entries
         var it = self.blacklist.iterator();
         while (it.next()) |entry| {
             if (entry.value_ptr.* < now) {
-                try to_remove.append(entry.key_ptr.*);
+                try to_remove.append(self.allocator, entry.key_ptr.*);
             }
         }
 

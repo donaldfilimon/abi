@@ -292,7 +292,7 @@ test "CRC32 detects single bit changes" {
 fn rleCompress(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
     if (data.len == 0) return try allocator.dupe(u8, data);
 
-    var result: std.ArrayList(u8) = .empty;
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     var i: usize = 0;
@@ -314,7 +314,7 @@ fn rleCompress(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
 }
 
 fn rleDecompress(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
-    var result: std.ArrayList(u8) = .empty;
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     var i: usize = 0;

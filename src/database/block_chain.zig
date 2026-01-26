@@ -238,15 +238,15 @@ pub const BlockChain = struct {
 
     /// Traverse chain backward from current head
     pub fn traverseBackward(self: *const Self, max_blocks: usize) ![]const u64 {
-        var result = std.ArrayList(u64).init(self.allocator);
-        defer result.deinit();
+        var result = std.ArrayListUnmanaged(u64).empty;
+        defer result.deinit(self.allocator);
 
         var current = self.current_head;
         var count: usize = 0;
 
         while (current != null and count < max_blocks) {
             if (self.blocks.get(current.?)) |block| {
-                try result.append(current.?);
+                try result.append(self.allocator, current.?);
                 current = block.parent_block_id;
                 count += 1;
             } else {
@@ -254,13 +254,13 @@ pub const BlockChain = struct {
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Traverse chain with skip pointers (logarithmic efficiency)
     pub fn traverseWithSkips(self: *const Self, max_blocks: usize) ![]const u64 {
-        var result = std.ArrayList(u64).init(self.allocator);
-        defer result.deinit();
+        var result = std.ArrayListUnmanaged(u64).empty;
+        defer result.deinit(self.allocator);
 
         var current = self.current_head;
         var visited = std.AutoHashMap(u64, void).init(self.allocator);
@@ -270,7 +270,7 @@ pub const BlockChain = struct {
             if (self.blocks.get(current.?)) |block| {
                 // Add current block
                 if (!visited.contains(current.?)) {
-                    try result.append(current.?);
+                    try result.append(self.allocator, current.?);
                     try visited.put(current.?, {});
                 }
 
@@ -285,7 +285,7 @@ pub const BlockChain = struct {
             }
         }
 
-        return result.toOwnedSlice();
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Calculate skip pointer based on chain length
@@ -488,19 +488,19 @@ pub const MvccStore = struct {
         const chain = try self.getChain(session_id);
         const read_ts = self.read_timestamps.get(session_id) orelse time.unixSeconds();
 
-        var visible = std.ArrayList(u64).init(self.allocator);
-        defer visible.deinit();
+        var visible = std.ArrayListUnmanaged(u64).empty;
+        defer visible.deinit(self.allocator);
 
         var iter = chain.blocks.keyIterator();
         while (iter.next()) |block_id| {
             if (chain.blocks.get(block_id.*)) |block| {
                 if (block.isVisible(read_ts)) {
-                    try visible.append(block_id.*);
+                    try visible.append(self.allocator, block_id.*);
                 }
             }
         }
 
-        return visible.toOwnedSlice();
+        return visible.toOwnedSlice(self.allocator);
     }
 };
 

@@ -137,10 +137,10 @@ pub const MetricsExporter = struct {
         defer snapshot.metrics.deinit();
 
         // Build output without holding lock
-        var output = std.ArrayList(u8).init(allocator);
-        errdefer output.deinit();
+        var output = std.ArrayListUnmanaged(u8).empty;
+        errdefer output.deinit(allocator);
 
-        const writer = output.writer();
+        const writer = output.writer(allocator);
 
         // Global metrics
         try writer.print("# HELP gpu_mega_workload_total Total workloads processed\n", .{});
@@ -219,7 +219,7 @@ pub const MetricsExporter = struct {
             try writer.print("gpu_mega_backend_latency_ms_count{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.latency_histogram.count });
         }
 
-        return try output.toOwnedSlice();
+        return try output.toOwnedSlice(allocator);
     }
 
     /// Get global workload count.

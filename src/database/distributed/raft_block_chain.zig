@@ -238,10 +238,10 @@ pub const DistributedBlockChain = struct {
     /// Serialize block config for Raft log
     fn serializeBlockConfig(self: *Self, config: block_chain.BlockConfig) ![]const u8 {
         // Simplified serialization - would need proper serialization in real impl
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        defer buffer.deinit(self.allocator);
 
-        const writer = buffer.writer();
+        const writer = buffer.writer(self.allocator);
 
         // Write dimension
         try writer.writeIntLittle(u32, @intCast(config.query_embedding.len));
@@ -262,7 +262,7 @@ pub const DistributedBlockChain = struct {
         const timestamp = time.unixSeconds();
         try writer.writeIntLittle(i64, timestamp);
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
     /// Deserialize block config from Raft log

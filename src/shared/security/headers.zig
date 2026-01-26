@@ -235,35 +235,35 @@ pub const SecurityHeaders = struct {
 
     /// Generate all security headers
     pub fn getHeaders(self: *SecurityHeaders) ![]Header {
-        var headers = std.ArrayList(Header).init(self.allocator);
-        errdefer headers.deinit();
+        var headers = std.ArrayListUnmanaged(Header).empty;
+        errdefer headers.deinit(self.allocator);
 
         if (!self.config.enabled) {
-            return headers.toOwnedSlice();
+            return headers.toOwnedSlice(self.allocator);
         }
 
         // Content-Security-Policy
         if (self.config.csp.enabled) {
             const csp = try self.buildCsp();
-            try headers.append(.{ .name = "Content-Security-Policy", .value = csp });
+            try headers.append(self.allocator, .{ .name = "Content-Security-Policy", .value = csp });
         }
 
         // X-Frame-Options
-        try headers.append(.{
+        try headers.append(self.allocator, .{
             .name = "X-Frame-Options",
             .value = self.config.frame_options.toString(),
         });
 
         // X-Content-Type-Options
         if (self.config.nosniff) {
-            try headers.append(.{
+            try headers.append(self.allocator, .{
                 .name = "X-Content-Type-Options",
                 .value = "nosniff",
             });
         }
 
         // X-XSS-Protection
-        try headers.append(.{
+        try headers.append(self.allocator, .{
             .name = "X-XSS-Protection",
             .value = self.config.xss_protection.toString(),
         });
@@ -271,11 +271,11 @@ pub const SecurityHeaders = struct {
         // Strict-Transport-Security
         if (self.config.hsts.enabled) {
             const hsts = try self.buildHsts();
-            try headers.append(.{ .name = "Strict-Transport-Security", .value = hsts });
+            try headers.append(self.allocator, .{ .name = "Strict-Transport-Security", .value = hsts });
         }
 
         // Referrer-Policy
-        try headers.append(.{
+        try headers.append(self.allocator, .{
             .name = "Referrer-Policy",
             .value = self.config.referrer_policy.toString(),
         });
@@ -283,21 +283,21 @@ pub const SecurityHeaders = struct {
         // Permissions-Policy
         if (self.config.permissions_policy.enabled) {
             const pp = try self.buildPermissionsPolicy();
-            try headers.append(.{ .name = "Permissions-Policy", .value = pp });
+            try headers.append(self.allocator, .{ .name = "Permissions-Policy", .value = pp });
         }
 
         // Cross-Origin policies
         if (self.config.coep) |coep| {
-            try headers.append(.{ .name = "Cross-Origin-Embedder-Policy", .value = coep });
+            try headers.append(self.allocator, .{ .name = "Cross-Origin-Embedder-Policy", .value = coep });
         }
         if (self.config.coop) |coop| {
-            try headers.append(.{ .name = "Cross-Origin-Opener-Policy", .value = coop });
+            try headers.append(self.allocator, .{ .name = "Cross-Origin-Opener-Policy", .value = coop });
         }
         if (self.config.corp) |corp| {
-            try headers.append(.{ .name = "Cross-Origin-Resource-Policy", .value = corp });
+            try headers.append(self.allocator, .{ .name = "Cross-Origin-Resource-Policy", .value = corp });
         }
 
-        return headers.toOwnedSlice();
+        return headers.toOwnedSlice(self.allocator);
     }
 
     /// Get headers that should be removed
@@ -360,8 +360,8 @@ pub const SecurityHeaders = struct {
     // Private helpers
 
     fn buildCsp(self: *SecurityHeaders) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
         const csp = self.config.csp;
 
@@ -380,19 +380,19 @@ pub const SecurityHeaders = struct {
         try self.appendDirective(&buffer, "frame-ancestors", csp.frame_ancestors);
 
         if (csp.upgrade_insecure_requests) {
-            try buffer.appendSlice("upgrade-insecure-requests; ");
+            try buffer.appendSlice(self.allocator, "upgrade-insecure-requests; ");
         }
 
         if (csp.block_all_mixed_content) {
-            try buffer.appendSlice("block-all-mixed-content; ");
+            try buffer.appendSlice(self.allocator, "block-all-mixed-content; ");
         }
 
         if (csp.report_uri) |uri| {
-            try std.fmt.format(buffer.writer(), "report-uri {s}; ", .{uri});
+            try std.fmt.format(buffer.writer(self.allocator), "report-uri {s}; ", .{uri});
         }
 
         if (csp.report_to) |endpoint| {
-            try std.fmt.format(buffer.writer(), "report-to {s}; ", .{endpoint});
+            try std.fmt.format(buffer.writer(self.allocator), "report-to {s}; ", .{endpoint});
         }
 
         // Remove trailing "; "
@@ -400,48 +400,47 @@ pub const SecurityHeaders = struct {
             buffer.shrinkRetainingCapacity(buffer.items.len - 2);
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
-    fn appendDirective(self: *SecurityHeaders, buffer: *std.ArrayList(u8), name: []const u8, sources: []const []const u8) !void {
-        _ = self;
+    fn appendDirective(self: *SecurityHeaders, buffer: *std.ArrayListUnmanaged(u8), name: []const u8, sources: []const []const u8) !void {
         if (sources.len == 0) return;
 
-        try buffer.appendSlice(name);
-        try buffer.append(' ');
+        try buffer.appendSlice(self.allocator, name);
+        try buffer.append(self.allocator, ' ');
 
         for (sources, 0..) |src, i| {
-            if (i > 0) try buffer.append(' ');
-            try buffer.appendSlice(src);
+            if (i > 0) try buffer.append(self.allocator, ' ');
+            try buffer.appendSlice(self.allocator, src);
         }
 
-        try buffer.appendSlice("; ");
+        try buffer.appendSlice(self.allocator, "; ");
     }
 
     fn buildHsts(self: *SecurityHeaders) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
-        try std.fmt.format(buffer.writer(), "max-age={d}", .{self.config.hsts.max_age});
+        try std.fmt.format(buffer.writer(self.allocator), "max-age={d}", .{self.config.hsts.max_age});
 
         if (self.config.hsts.include_subdomains) {
-            try buffer.appendSlice("; includeSubDomains");
+            try buffer.appendSlice(self.allocator, "; includeSubDomains");
         }
 
         if (self.config.hsts.preload) {
-            try buffer.appendSlice("; preload");
+            try buffer.appendSlice(self.allocator, "; preload");
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
     fn buildPermissionsPolicy(self: *SecurityHeaders) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
         const pp = self.config.permissions_policy;
 
-        try std.fmt.format(buffer.writer(),
+        try std.fmt.format(buffer.writer(self.allocator),
             \\accelerometer={s}, ambient-light-sensor={s}, autoplay={s}, battery={s}, camera={s}, display-capture={s}, document-domain={s}, encrypted-media={s}, fullscreen={s}, geolocation={s}, gyroscope={s}, magnetometer={s}, microphone={s}, midi={s}, payment={s}, picture-in-picture={s}, usb={s}, web-share={s}, xr-spatial-tracking={s}
         , .{
             pp.accelerometer,
@@ -465,7 +464,7 @@ pub const SecurityHeaders = struct {
             pp.xr_spatial_tracking,
         });
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 };
 

@@ -854,7 +854,7 @@ pub const UnifiedEmbeddingSpace = struct {
     embedding_dim: u32,
 
     /// Store embeddings with their modality type
-    embeddings: std.ArrayList(EmbeddingEntry),
+    embeddings: std.ArrayListUnmanaged(EmbeddingEntry),
 
     pub const Modality = enum {
         image,
@@ -875,7 +875,7 @@ pub const UnifiedEmbeddingSpace = struct {
         return .{
             .allocator = allocator,
             .embedding_dim = embedding_dim,
-            .embeddings = std.ArrayList(EmbeddingEntry).init(allocator),
+            .embeddings = .{},
         };
     }
 
@@ -884,7 +884,7 @@ pub const UnifiedEmbeddingSpace = struct {
             self.allocator.free(entry.embedding);
             if (entry.metadata) |meta| self.allocator.free(meta);
         }
-        self.embeddings.deinit();
+        self.embeddings.deinit(self.allocator);
     }
 
     /// Add an embedding to the space
@@ -902,7 +902,7 @@ pub const UnifiedEmbeddingSpace = struct {
 
         const meta_copy = if (metadata) |m| try self.allocator.dupe(u8, m) else null;
 
-        try self.embeddings.append(.{
+        try self.embeddings.append(self.allocator, .{
             .id = id,
             .modality = modality,
             .embedding = embed_copy,
@@ -928,8 +928,8 @@ pub const UnifiedEmbeddingSpace = struct {
             score: f32,
         };
 
-        var scores = std.ArrayList(Scored).init(self.allocator);
-        defer scores.deinit();
+        var scores = std.ArrayListUnmanaged(Scored).empty;
+        defer scores.deinit(self.allocator);
 
         for (self.embeddings.items, 0..) |entry, idx| {
             if (filter_modality) |mod| {
@@ -937,7 +937,7 @@ pub const UnifiedEmbeddingSpace = struct {
             }
 
             const sim = ContrastiveLoss.cosineSimilarity(query, entry.embedding);
-            try scores.append(.{ .idx = idx, .score = sim });
+            try scores.append(self.allocator, .{ .idx = idx, .score = sim });
         }
 
         // Sort by similarity (descending)

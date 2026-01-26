@@ -11,12 +11,12 @@ test "distributed computation: basic node discovery" {
 
     // Simulate node registry
     var node_registry = struct {
-        nodes: std.ArrayList([]const u8),
+        nodes: std.ArrayListUnmanaged([]const u8),
         allocator: std.mem.Allocator,
 
         pub fn init(alloc: std.mem.Allocator) @This() {
             return .{
-                .nodes = std.ArrayList([]const u8){},
+                .nodes = .{},
                 .allocator = alloc,
             };
         }
@@ -55,12 +55,12 @@ test "distributed computation: task distribution" {
 
     // Simulate basic scheduler
     var scheduler = struct {
-        allocations: std.ArrayList(usize),
+        allocations: std.ArrayListUnmanaged(usize),
         allocator: std.mem.Allocator,
 
         pub fn init(alloc: std.mem.Allocator) @This() {
             return .{
-                .allocations = std.ArrayList(usize){},
+                .allocations = .{},
                 .allocator = alloc,
             };
         }
@@ -104,12 +104,12 @@ test "distributed computation: consistency validation" {
     const allocator = std.testing.allocator;
 
     var consistency_check = struct {
-        results: std.ArrayList(bool),
+        results: std.ArrayListUnmanaged(bool),
         allocator: std.mem.Allocator,
 
         pub fn init(alloc: std.mem.Allocator) @This() {
             return .{
-                .results = std.ArrayList(bool){},
+                .results = .{},
                 .allocator = alloc,
             };
         }

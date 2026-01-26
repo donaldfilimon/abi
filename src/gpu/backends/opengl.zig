@@ -663,8 +663,8 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         return &[_]Device{};
     }
 
-    var devices = std.ArrayList(Device).init(allocator);
-    errdefer devices.deinit();
+    var devices = std.ArrayListUnmanaged(Device).empty;
+    errdefer devices.deinit(allocator);
 
     // OpenGL typically exposes one device per context
     if (opengl_initialized) {
@@ -672,7 +672,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         const name = try allocator.dupe(u8, "OpenGL Device");
         errdefer allocator.free(name);
 
-        try devices.append(.{
+        try devices.append(allocator, .{
             .id = 0,
             .backend = .opengl,
             .name = name,
@@ -692,7 +692,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         });
     }
 
-    return devices.toOwnedSlice();
+    return devices.toOwnedSlice(allocator);
 }
 
 /// Check if OpenGL compute is available on this system

@@ -175,11 +175,11 @@ pub const CorsHandler = struct {
 
     /// Get CORS response headers
     pub fn getResponseHeaders(self: *CorsHandler, origin: []const u8, is_preflight: bool) ![]CorsHeader {
-        var headers = std.ArrayList(CorsHeader).init(self.allocator);
-        errdefer headers.deinit();
+        var headers = std.ArrayListUnmanaged(CorsHeader).empty;
+        errdefer headers.deinit(self.allocator);
 
         if (!self.config.enabled) {
-            return headers.toOwnedSlice();
+            return headers.toOwnedSlice(self.allocator);
         }
 
         // Access-Control-Allow-Origin
@@ -192,7 +192,7 @@ pub const CorsHandler = struct {
             else
                 try self.allocator.dupe(u8, origin);
 
-            try headers.append(.{
+            try headers.append(self.allocator, .{
                 .name = "Access-Control-Allow-Origin",
                 .value = allow_origin,
             });
@@ -200,7 +200,7 @@ pub const CorsHandler = struct {
 
         // Vary header
         if (self.config.vary_origin and !self.hasWildcard()) {
-            try headers.append(.{
+            try headers.append(self.allocator, .{
                 .name = "Vary",
                 .value = try self.allocator.dupe(u8, "Origin"),
             });
@@ -208,7 +208,7 @@ pub const CorsHandler = struct {
 
         // Allow credentials
         if (self.config.allow_credentials) {
-            try headers.append(.{
+            try headers.append(self.allocator, .{
                 .name = "Access-Control-Allow-Credentials",
                 .value = try self.allocator.dupe(u8, "true"),
             });
@@ -217,26 +217,26 @@ pub const CorsHandler = struct {
         // Preflight-specific headers
         if (is_preflight) {
             // Allow methods
-            try headers.append(.{
+            try headers.append(self.allocator, .{
                 .name = "Access-Control-Allow-Methods",
                 .value = try self.buildMethodsList(),
             });
 
             // Allow headers
-            try headers.append(.{
+            try headers.append(self.allocator, .{
                 .name = "Access-Control-Allow-Headers",
                 .value = try self.buildHeadersList(),
             });
 
             // Max age
-            try headers.append(.{
+            try headers.append(self.allocator, .{
                 .name = "Access-Control-Max-Age",
                 .value = try std.fmt.allocPrint(self.allocator, "{d}", .{self.config.max_age}),
             });
 
             // Private network access
             if (self.config.private_network_access) {
-                try headers.append(.{
+                try headers.append(self.allocator, .{
                     .name = "Access-Control-Allow-Private-Network",
                     .value = try self.allocator.dupe(u8, "true"),
                 });
@@ -245,13 +245,13 @@ pub const CorsHandler = struct {
 
         // Exposed headers (for actual requests)
         if (!is_preflight and self.config.exposed_headers.len > 0) {
-            try headers.append(.{
+            try headers.append(self.allocator, .{
                 .name = "Access-Control-Expose-Headers",
                 .value = try self.buildExposedHeadersList(),
             });
         }
 
-        return headers.toOwnedSlice();
+        return headers.toOwnedSlice(self.allocator);
     }
 
     /// Free headers allocated by getResponseHeaders
@@ -272,39 +272,39 @@ pub const CorsHandler = struct {
     }
 
     fn buildMethodsList(self: *CorsHandler) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
         for (self.config.allowed_methods, 0..) |method, i| {
-            if (i > 0) try buffer.appendSlice(", ");
-            try buffer.appendSlice(method.toString());
+            if (i > 0) try buffer.appendSlice(self.allocator, ", ");
+            try buffer.appendSlice(self.allocator, method.toString());
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
     fn buildHeadersList(self: *CorsHandler) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
         for (self.config.allowed_headers, 0..) |header, i| {
-            if (i > 0) try buffer.appendSlice(", ");
-            try buffer.appendSlice(header);
+            if (i > 0) try buffer.appendSlice(self.allocator, ", ");
+            try buffer.appendSlice(self.allocator, header);
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 
     fn buildExposedHeadersList(self: *CorsHandler) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(self.allocator);
-        errdefer buffer.deinit();
+        var buffer = std.ArrayListUnmanaged(u8).empty;
+        errdefer buffer.deinit(self.allocator);
 
         for (self.config.exposed_headers, 0..) |header, i| {
-            if (i > 0) try buffer.appendSlice(", ");
-            try buffer.appendSlice(header);
+            if (i > 0) try buffer.appendSlice(self.allocator, ", ");
+            try buffer.appendSlice(self.allocator, header);
         }
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(self.allocator);
     }
 };
 

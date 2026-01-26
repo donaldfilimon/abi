@@ -1226,12 +1226,12 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         return &[_]Device{};
     }
 
-    var devices = std.ArrayList(Device).init(allocator);
+    var devices = std.ArrayListUnmanaged(Device).empty;
     errdefer {
         for (devices.items) |dev| {
             allocator.free(dev.name);
         }
-        devices.deinit();
+        devices.deinit(allocator);
     }
 
     // Initialize Metal if not already done
@@ -1259,7 +1259,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
                 const mtl_device = get_obj_fn(device_array, sel_objectAtIndex, i);
                 if (mtl_device != null) {
                     const dev_info = queryDeviceInfo(mtl_device, allocator, i) catch continue;
-                    try devices.append(dev_info);
+                    try devices.append(allocator, dev_info);
                 }
             }
 
@@ -1269,7 +1269,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
             }
 
             if (devices.items.len > 0) {
-                return devices.toOwnedSlice();
+                return devices.toOwnedSlice(allocator);
             }
         }
     }
@@ -1302,10 +1302,10 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
                 .clock_mhz = null,
             }};
         };
-        try devices.append(dev_info);
+        try devices.append(allocator, dev_info);
     }
 
-    return devices.toOwnedSlice();
+    return devices.toOwnedSlice(allocator);
 }
 
 /// Get detailed information about the current default Metal device.

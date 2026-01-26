@@ -235,7 +235,7 @@ const DatabaseModel = struct {
         const allocator = self.allocator;
 
         // Collect all vectors with their distances
-        var results: std.ArrayList(SearchResult) = .empty;
+        var results = std.ArrayListUnmanaged(SearchResult).empty;
         defer results.deinit(allocator);
 
         var iter = self.vectors.iterator();

@@ -92,9 +92,9 @@ pub const FailoverManager = struct {
     allocator: std.mem.Allocator,
     policy: FailoverPolicy,
     health: std.AutoHashMap(backend_mod.Backend, BackendHealth),
-    priority_order: std.ArrayList(backend_mod.Backend),
+    priority_order: std.ArrayListUnmanaged(backend_mod.Backend),
     current_primary: ?backend_mod.Backend,
-    events: std.ArrayList(FailoverEvent),
+    events: std.ArrayListUnmanaged(FailoverEvent),
     stats: FailoverStats,
     mutex: std.Thread.Mutex,
 
@@ -106,9 +106,9 @@ pub const FailoverManager = struct {
             .allocator = allocator,
             .policy = policy,
             .health = std.AutoHashMap(backend_mod.Backend, BackendHealth).init(allocator),
-            .priority_order = std.ArrayList(backend_mod.Backend).init(allocator),
+            .priority_order = .{},
             .current_primary = null,
-            .events = std.ArrayList(FailoverEvent).init(allocator),
+            .events = .{},
             .stats = .{},
             .mutex = .{},
         };
@@ -117,8 +117,8 @@ pub const FailoverManager = struct {
 
     pub fn deinit(self: *FailoverManager) void {
         self.health.deinit();
-        self.priority_order.deinit();
-        self.events.deinit();
+        self.priority_order.deinit(self.allocator);
+        self.events.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -127,7 +127,7 @@ pub const FailoverManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
         try self.health.put(backend, .{ .backend = backend });
-        try self.priority_order.append(backend);
+        try self.priority_order.append(self.allocator, backend);
         self.stats.backends_available += 1;
         if (self.current_primary == null) {
             self.current_primary = backend;
@@ -252,7 +252,7 @@ pub const FailoverManager = struct {
         if (self.events.items.len >= max_events) {
             _ = self.events.orderedRemove(0);
         }
-        self.events.append(.{
+        self.events.append(self.allocator, .{
             .timestamp = std.time.milliTimestamp(),
             .from_backend = from,
             .to_backend = to,

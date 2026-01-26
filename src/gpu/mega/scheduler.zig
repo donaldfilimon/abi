@@ -171,21 +171,21 @@ pub const QTable = struct {
 /// Experience replay buffer for storing and sampling past experiences.
 pub const ReplayBuffer = struct {
     allocator: std.mem.Allocator,
-    buffer: std.ArrayList(Experience),
+    buffer: std.ArrayListUnmanaged(Experience),
     capacity: usize,
 
     /// Initialize replay buffer with given capacity.
     pub fn init(allocator: std.mem.Allocator, capacity: usize) ReplayBuffer {
         return .{
             .allocator = allocator,
-            .buffer = std.ArrayList(Experience).init(allocator),
+            .buffer = .{},
             .capacity = capacity,
         };
     }
 
     /// Deinitialize and free buffer memory.
     pub fn deinit(self: *ReplayBuffer) void {
-        self.buffer.deinit();
+        self.buffer.deinit(self.allocator);
     }
 
     /// Add experience to buffer, removing oldest if at capacity.
@@ -196,7 +196,7 @@ pub const ReplayBuffer = struct {
             std.mem.copyForwards(Experience, items[0 .. self.capacity - 1], items[1..]);
             self.buffer.shrinkRetainingCapacity(self.capacity - 1);
         }
-        try self.buffer.append(exp);
+        try self.buffer.append(self.allocator, exp);
     }
 
     /// Sample a batch of experiences (returns most recent batch_size items).
@@ -232,7 +232,7 @@ pub const LearningScheduler = struct {
     q_table: QTable,
     replay_buffer: ReplayBuffer,
     coord: *coordinator.Coordinator,
-    episode_rewards: std.ArrayList(f32),
+    episode_rewards: std.ArrayListUnmanaged(f32),
     current_episode_reward: f32,
 
     /// Initialize learning scheduler with coordinator.
@@ -243,7 +243,7 @@ pub const LearningScheduler = struct {
             .q_table = QTable.init(),
             .replay_buffer = ReplayBuffer.init(allocator, 10000),
             .coord = coord,
-            .episode_rewards = std.ArrayList(f32).init(allocator),
+            .episode_rewards = .{},
             .current_episode_reward = 0,
         };
         return self;
@@ -252,7 +252,7 @@ pub const LearningScheduler = struct {
     /// Deinitialize scheduler and free resources.
     pub fn deinit(self: *LearningScheduler) void {
         self.replay_buffer.deinit();
-        self.episode_rewards.deinit();
+        self.episode_rewards.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -346,7 +346,7 @@ pub const LearningScheduler = struct {
 
     /// End current episode and record total reward.
     pub fn endEpisode(self: *LearningScheduler) !void {
-        try self.episode_rewards.append(self.current_episode_reward);
+        try self.episode_rewards.append(self.allocator, self.current_episode_reward);
         self.current_episode_reward = 0;
     }
 
