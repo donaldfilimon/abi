@@ -102,3 +102,31 @@ pub const LinkManager = struct {
 
 // The real implementations should be copied from the original files. This
 // placeholder ensures the module compiles for the purpose of this consolidation.
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "encryption type key size" {
+    try std.testing.expectEqual(@as(usize, 0), EncryptionType.none.keySize());
+    try std.testing.expectEqual(@as(usize, 32), EncryptionType.tls_1_3.keySize());
+    try std.testing.expectEqual(@as(usize, 32), EncryptionType.chacha20_poly1305.keySize());
+    try std.testing.expectEqual(@as(usize, 32), EncryptionType.aes_256_gcm.keySize());
+}
+
+test "internet config default values" {
+    const config = InternetConfig{};
+    try std.testing.expectEqual(InternetConfig.Protocol.quic, config.protocol);
+    try std.testing.expectEqualStrings("0.0.0.0", config.bind_address);
+}
+
+test "thunderbolt config default values" {
+    const config = ThunderboltConfig{};
+    try std.testing.expect(config.dma_enabled);
+    try std.testing.expectEqual(@as(usize, 4 * 1024 * 1024), config.max_dma_size);
+}
+
+test "link config default transport" {
+    const config = LinkConfig{};
+    try std.testing.expectEqual(TransportType.auto, config.transport);
+}
