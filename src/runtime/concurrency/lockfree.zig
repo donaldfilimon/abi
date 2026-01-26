@@ -152,13 +152,19 @@ pub fn ShardedMap(
 
         allocator: std.mem.Allocator,
         shards: [shard_count]Shard,
+        /// Atomic counter for O(1) count() operations
+        total_count: std.atomic.Value(usize),
 
         pub fn init(allocator: std.mem.Allocator) @This() {
             var shards: [shard_count]Shard = undefined;
             for (&shards) |*shard| {
                 shard.* = .{ .mutex = .{}, .map = .{} };
             }
-            return .{ .allocator = allocator, .shards = shards };
+            return .{
+                .allocator = allocator,
+                .shards = shards,
+                .total_count = std.atomic.Value(usize).init(0),
+            };
         }
 
         pub fn deinit(self: *@This()) void {
@@ -186,7 +192,14 @@ pub fn ShardedMap(
             var shard = &self.shards[index];
             shard.mutex.lock();
             defer shard.mutex.unlock();
+
+            const existed = shard.map.contains(key);
             try shard.map.put(self.allocator, key, value);
+
+            // Only increment if key is new
+            if (!existed) {
+                _ = self.total_count.fetchAdd(1, .release);
+            }
         }
 
         pub fn remove(self: *@This(), key: K) bool {
@@ -194,7 +207,12 @@ pub fn ShardedMap(
             var shard = &self.shards[index];
             shard.mutex.lock();
             defer shard.mutex.unlock();
-            return shard.map.remove(key);
+
+            const removed = shard.map.remove(key);
+            if (removed) {
+                _ = self.total_count.fetchSub(1, .release);
+            }
+            return removed;
         }
 
         /// Atomically fetch and remove a key-value pair
@@ -203,10 +221,23 @@ pub fn ShardedMap(
             var shard = &self.shards[index];
             shard.mutex.lock();
             defer shard.mutex.unlock();
-            return shard.map.fetchRemove(key);
+
+            const result = shard.map.fetchRemove(key);
+            if (result != null) {
+                _ = self.total_count.fetchSub(1, .release);
+            }
+            return result;
         }
 
+        /// O(1) count operation using atomic counter.
+        /// Note: May be slightly stale in concurrent scenarios but avoids lock contention.
         pub fn count(self: *@This()) usize {
+            return self.total_count.load(.acquire);
+        }
+
+        /// Exact count by iterating all shards (slower but precise).
+        /// Use when exact count is required after concurrent modifications.
+        pub fn countExact(self: *@This()) usize {
             var total: usize = 0;
             for (&self.shards) |*shard| {
                 shard.mutex.lock();
@@ -227,6 +258,17 @@ pub fn ShardedMap(
                 }
                 shard.map.clearRetainingCapacity();
             }
+            self.total_count.store(0, .release);
+        }
+
+        /// Clear all entries without cleanup
+        pub fn clear(self: *@This()) void {
+            for (&self.shards) |*shard| {
+                shard.mutex.lock();
+                defer shard.mutex.unlock();
+                shard.map.clearRetainingCapacity();
+            }
+            self.total_count.store(0, .release);
         }
     };
 }
