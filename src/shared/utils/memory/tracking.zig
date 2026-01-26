@@ -111,6 +111,7 @@ pub const TrackingAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
+                .remap = remap,
                 .free = free,
             },
         };
@@ -200,8 +201,8 @@ pub const TrackingAllocator = struct {
         return self.history.items;
     }
 
-    // Allocator vtable implementations
-    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    // Allocator vtable implementations (Zig 0.16 API with std.mem.Alignment)
+    fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const ptr = self.backing_allocator.rawAlloc(len, ptr_align, ret_addr);
 
@@ -213,7 +214,7 @@ pub const TrackingAllocator = struct {
             const info = AllocationInfo{
                 .address = address,
                 .size = len,
-                .alignment = ptr_align,
+                .alignment = @intFromEnum(ptr_align),
                 .timestamp = if (self.config.capture_timing) 0 else null,
                 .is_active = true,
                 .source_file = null,
@@ -241,7 +242,7 @@ pub const TrackingAllocator = struct {
         return ptr;
     }
 
-    fn resize(ctx: *anyopaque, memory: []u8, ptr_align: u8, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const result = self.backing_allocator.rawResize(memory, ptr_align, new_len, ret_addr);
 
@@ -273,7 +274,50 @@ pub const TrackingAllocator = struct {
         return result;
     }
 
-    fn free(ctx: *anyopaque, memory: []u8, ptr_align: u8, ret_addr: usize) void {
+    fn remap(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *Self = @ptrCast(@alignCast(ctx));
+        const result = self.backing_allocator.rawRemap(memory, ptr_align, new_len, ret_addr);
+
+        if (result) |new_ptr| {
+            self.mutex.lock();
+            defer self.mutex.unlock();
+
+            const old_address = @intFromPtr(memory.ptr);
+            const new_address = @intFromPtr(new_ptr);
+
+            // Update tracking if address changed
+            if (old_address != new_address) {
+                if (self.allocations.fetchRemove(old_address)) |kv| {
+                    var info = kv.value;
+                    info.address = new_address;
+                    info.size = new_len;
+                    self.allocations.put(self.backing_allocator, new_address, info) catch {};
+                }
+            } else if (self.allocations.getPtr(old_address)) |info| {
+                // Same address, just update size
+                const old_size = info.size;
+                info.size = new_len;
+
+                if (new_len > old_size) {
+                    const diff = new_len - old_size;
+                    self.stats.current_bytes += diff;
+                    self.stats.total_bytes_allocated += diff;
+                } else {
+                    const diff = old_size - new_len;
+                    self.stats.current_bytes -= diff;
+                    self.stats.total_bytes_freed += diff;
+                }
+            }
+
+            if (self.stats.current_bytes > self.stats.peak_bytes) {
+                self.stats.peak_bytes = self.stats.current_bytes;
+            }
+        }
+
+        return result;
+    }
+
+    fn free(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *Self = @ptrCast(@alignCast(ctx));
         const address = @intFromPtr(memory.ptr);
 

@@ -54,6 +54,12 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const abi = @import("abi");
+
+// Memory tracking for peak usage (via abi.utils.memory)
+pub const TrackingAllocator = abi.utils.memory.TrackingAllocator;
+pub const TrackingConfig = abi.utils.memory.tracking.TrackingConfig;
+pub const TrackingStats = abi.utils.memory.tracking.TrackingStats;
 
 // Core infrastructure
 pub const profiles = @import("profiles.zig");
@@ -93,8 +99,53 @@ comptime {
 // Stress Test Runner
 // ============================================================================
 
-/// Run a stress test function with the given profile and collect results
+/// Run a stress test function with the given profile and collect results.
+/// Uses TrackingAllocator to measure peak memory usage during the test.
 pub fn runStressTest(
+    comptime name: []const u8,
+    profile: StressProfile,
+    allocator: std.mem.Allocator,
+    comptime test_fn: fn (StressProfile, std.mem.Allocator) anyerror!void,
+) StressResult {
+    // Create tracking allocator to measure peak memory
+    var tracker = TrackingAllocator.init(allocator, .{});
+    defer tracker.deinit();
+    const tracked_allocator = tracker.allocator();
+
+    const timer = Timer.start();
+
+    var passed = true;
+    var error_message: ?[]const u8 = null;
+
+    test_fn(profile, tracked_allocator) catch |err| {
+        passed = false;
+        error_message = @errorName(err);
+    };
+
+    const duration_ns = timer.read();
+
+    // Get memory stats including peak usage
+    const mem_stats = tracker.getStats();
+
+    return .{
+        .profile_name = name,
+        .operations_completed = profile.operations,
+        .operations_failed = if (passed) 0 else 1,
+        .duration_ns = duration_ns,
+        .peak_memory_bytes = mem_stats.peak_bytes,
+        .ops_per_second = @as(f64, @floatFromInt(profile.operations)) / (@as(f64, @floatFromInt(duration_ns)) / 1_000_000_000.0),
+        .avg_latency_ns = duration_ns / profile.operations,
+        .p50_latency_ns = 0,
+        .p95_latency_ns = 0,
+        .p99_latency_ns = 0,
+        .max_latency_ns = 0,
+        .passed = passed,
+        .error_message = error_message,
+    };
+}
+
+/// Run a stress test without memory tracking (for tests that manage their own allocator).
+pub fn runStressTestNoTracking(
     comptime name: []const u8,
     profile: StressProfile,
     allocator: std.mem.Allocator,
@@ -117,7 +168,7 @@ pub fn runStressTest(
         .operations_completed = profile.operations,
         .operations_failed = if (passed) 0 else 1,
         .duration_ns = duration_ns,
-        .peak_memory_bytes = 0, // TODO: Track peak memory
+        .peak_memory_bytes = 0, // Not tracked
         .ops_per_second = @as(f64, @floatFromInt(profile.operations)) / (@as(f64, @floatFromInt(duration_ns)) / 1_000_000_000.0),
         .avg_latency_ns = duration_ns / profile.operations,
         .p50_latency_ns = 0,
@@ -197,4 +248,48 @@ test "stress: ops per thread calculation" {
     };
 
     try std.testing.expectEqual(@as(u64, 100), profile.opsPerThread());
+}
+
+test "stress: peak memory tracking" {
+    const allocator = std.testing.allocator;
+
+    // Create a test function that allocates memory
+    const test_fn = struct {
+        fn run(_: StressProfile, test_allocator: std.mem.Allocator) !void {
+            // Allocate some memory to track
+            const buf1 = try test_allocator.alloc(u8, 1024);
+            defer test_allocator.free(buf1);
+
+            const buf2 = try test_allocator.alloc(u8, 2048);
+            defer test_allocator.free(buf2);
+
+            // Peak should be 1024 + 2048 = 3072 bytes
+        }
+    }.run;
+
+    const profile = StressProfile.quick;
+    const result = runStressTest("memory_test", profile, allocator, test_fn);
+
+    // Peak memory should be at least 3072 bytes (the sum of both allocations)
+    try std.testing.expect(result.peak_memory_bytes >= 3072);
+    try std.testing.expect(result.passed);
+}
+
+test "stress: tracking allocator stats" {
+    const allocator = std.testing.allocator;
+
+    var tracker = TrackingAllocator.init(allocator, .{});
+    defer tracker.deinit();
+    const tracked = tracker.allocator();
+
+    // Allocate and free
+    const buf = try tracked.alloc(u8, 512);
+    const stats1 = tracker.getStats();
+    try std.testing.expectEqual(@as(u64, 512), stats1.current_bytes);
+    try std.testing.expectEqual(@as(u64, 512), stats1.peak_bytes);
+
+    tracked.free(buf);
+    const stats2 = tracker.getStats();
+    try std.testing.expectEqual(@as(u64, 0), stats2.current_bytes);
+    try std.testing.expectEqual(@as(u64, 512), stats2.peak_bytes); // Peak preserved
 }

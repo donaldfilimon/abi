@@ -62,6 +62,13 @@ pub const TrainingPanel = struct {
     last_file_pos: u64,
     running: bool,
 
+    // Help overlay state
+    show_help: bool,
+
+    // Run switching state (for history mode)
+    available_runs: std.ArrayListUnmanaged([]const u8),
+    current_run_index: usize,
+
     pub fn init(allocator: std.mem.Allocator, theme: *const themes.Theme, config: PanelConfig) TrainingPanel {
         const path = std.fmt.allocPrint(allocator, "{s}/metrics.jsonl", .{config.log_dir}) catch config.log_dir;
         const owns = path.ptr != config.log_dir.ptr;
@@ -77,6 +84,9 @@ pub const TrainingPanel = struct {
             .running = true,
             .metrics_path = path,
             .owns_metrics_path = owns,
+            .show_help = false,
+            .available_runs = .empty,
+            .current_run_index = 0,
         };
     }
 
@@ -84,10 +94,20 @@ pub const TrainingPanel = struct {
         if (self.owns_metrics_path) {
             self.allocator.free(self.metrics_path);
         }
+        // Free run names
+        for (self.available_runs.items) |run_name| {
+            self.allocator.free(run_name);
+        }
+        self.available_runs.deinit(self.allocator);
     }
 
     /// Render the full panel to a writer
     pub fn render(self: *TrainingPanel, writer: anytype) !void {
+        if (self.show_help) {
+            try self.renderHelpOverlay(writer);
+            return;
+        }
+
         try self.renderHeader(writer);
         try self.renderDivider(writer, .top);
 
@@ -100,6 +120,107 @@ pub const TrainingPanel = struct {
         try self.renderDivider(writer, .bottom);
 
         try self.renderFooter(writer);
+    }
+
+    /// Render the help overlay
+    fn renderHelpOverlay(self: *TrainingPanel, writer: anytype) !void {
+        const help_width = 50;
+
+        // Top border
+        try writer.print("{s}╭", .{self.theme.primary});
+        try self.writeRepeat(writer, "─", help_width - 2);
+        try writer.print("╮{s}\n", .{self.theme.reset});
+
+        // Title
+        try writer.print("{s}│{s}  {s}Training Panel Help{s}", .{
+            self.theme.primary,
+            self.theme.reset,
+            self.theme.bold,
+            self.theme.reset,
+        });
+        try self.writeRepeat(writer, " ", help_width - 23);
+        try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
+
+        // Divider
+        try writer.print("{s}├", .{self.theme.primary});
+        try self.writeRepeat(writer, "─", help_width - 2);
+        try writer.print("┤{s}\n", .{self.theme.reset});
+
+        // Help entries
+        const help_entries = [_]struct { key: []const u8, desc: []const u8 }{
+            .{ .key = "r", .desc = "Refresh metrics display" },
+            .{ .key = "h", .desc = "Toggle history/live mode" },
+            .{ .key = "q / Esc", .desc = "Quit the panel" },
+            .{ .key = "← / →", .desc = "Switch runs (history mode)" },
+            .{ .key = "?", .desc = "Toggle this help overlay" },
+            .{ .key = "Ctrl+C", .desc = "Force quit" },
+        };
+
+        for (help_entries) |entry| {
+            try writer.print("{s}│{s}  {s}{s: <12}{s} {s}", .{
+                self.theme.primary,
+                self.theme.reset,
+                self.theme.bold,
+                entry.key,
+                self.theme.reset,
+                entry.desc,
+            });
+            const content_len = 14 + entry.desc.len;
+            if (content_len < help_width - 2) {
+                try self.writeRepeat(writer, " ", help_width - 2 - content_len);
+            }
+            try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
+        }
+
+        // Empty line
+        try writer.print("{s}│{s}", .{ self.theme.primary, self.theme.reset });
+        try self.writeRepeat(writer, " ", help_width - 2);
+        try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
+
+        // Mode info
+        try writer.print("{s}│{s}  {s}Current Mode:{s} {s}", .{
+            self.theme.primary,
+            self.theme.reset,
+            self.theme.bold,
+            self.theme.reset,
+            self.mode.label(),
+        });
+        const mode_len = 16 + self.mode.label().len;
+        if (mode_len < help_width - 2) {
+            try self.writeRepeat(writer, " ", help_width - 2 - mode_len);
+        }
+        try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
+
+        // Run count
+        const run_count = self.available_runs.items.len;
+        if (run_count > 0) {
+            try writer.print("{s}│{s}  {s}Available Runs:{s} {d}", .{
+                self.theme.primary,
+                self.theme.reset,
+                self.theme.bold,
+                self.theme.reset,
+                run_count,
+            });
+            try self.writeRepeat(writer, " ", help_width - 22);
+            try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
+        }
+
+        // Bottom border
+        try writer.print("{s}├", .{self.theme.primary});
+        try self.writeRepeat(writer, "─", help_width - 2);
+        try writer.print("┤{s}\n", .{self.theme.reset});
+
+        // Footer
+        try writer.print("{s}│{s}  Press any key to close", .{
+            self.theme.primary,
+            self.theme.reset,
+        });
+        try self.writeRepeat(writer, " ", help_width - 27);
+        try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
+
+        try writer.print("{s}╰", .{self.theme.primary});
+        try self.writeRepeat(writer, "─", help_width - 2);
+        try writer.print("╯{s}\n", .{self.theme.reset});
     }
 
     // =========================================================================
@@ -413,6 +534,12 @@ pub const TrainingPanel = struct {
 
     /// Handle a key event, returns true if should quit
     fn handleKeyEvent(self: *TrainingPanel, key: events.Key) bool {
+        // If help overlay is showing, any key closes it
+        if (self.show_help) {
+            self.show_help = false;
+            return false;
+        }
+
         switch (key.code) {
             .ctrl_c => return true,
             .escape => return true,
@@ -425,10 +552,17 @@ pub const TrainingPanel = struct {
                                 _ = self.pollMetrics() catch {};
                             },
                             .help => {
-                                // TODO: Show help overlay
+                                self.show_help = true;
                             },
-                            .next_run, .prev_run => {
-                                // TODO: Implement run switching in history mode
+                            .next_run => {
+                                if (self.mode == .history) {
+                                    self.switchToNextRun();
+                                }
+                            },
+                            .prev_run => {
+                                if (self.mode == .history) {
+                                    self.switchToPrevRun();
+                                }
                             },
                         }
                     }
@@ -436,17 +570,106 @@ pub const TrainingPanel = struct {
             },
             .left => {
                 if (self.mode == .history) {
-                    // Previous run
+                    self.switchToPrevRun();
                 }
             },
             .right => {
                 if (self.mode == .history) {
-                    // Next run
+                    self.switchToNextRun();
                 }
             },
             else => {},
         }
         return false;
+    }
+
+    /// Switch to the next run in history mode
+    fn switchToNextRun(self: *TrainingPanel) void {
+        if (self.available_runs.items.len == 0) {
+            self.scanAvailableRuns() catch return;
+        }
+        if (self.available_runs.items.len == 0) return;
+
+        self.current_run_index = (self.current_run_index + 1) % self.available_runs.items.len;
+        self.loadRunAtIndex(self.current_run_index);
+    }
+
+    /// Switch to the previous run in history mode
+    fn switchToPrevRun(self: *TrainingPanel) void {
+        if (self.available_runs.items.len == 0) {
+            self.scanAvailableRuns() catch return;
+        }
+        if (self.available_runs.items.len == 0) return;
+
+        if (self.current_run_index == 0) {
+            self.current_run_index = self.available_runs.items.len - 1;
+        } else {
+            self.current_run_index -= 1;
+        }
+        self.loadRunAtIndex(self.current_run_index);
+    }
+
+    /// Load metrics from run at given index
+    fn loadRunAtIndex(self: *TrainingPanel, index: usize) void {
+        if (index >= self.available_runs.items.len) return;
+
+        const run_name = self.available_runs.items[index];
+
+        // Reset metrics
+        self.training_metrics = metrics.TrainingMetrics{};
+        self.last_file_pos = 0;
+
+        // Build path to run's metrics file
+        const run_path = std.fmt.allocPrint(self.allocator, "{s}/{s}/metrics.jsonl", .{
+            self.config.log_dir,
+            run_name,
+        }) catch return;
+        defer self.allocator.free(run_path);
+
+        self.loadMetricsFile(run_path) catch {};
+    }
+
+    /// Scan log directory for available training runs
+    fn scanAvailableRuns(self: *TrainingPanel) !void {
+        // Clear existing runs
+        for (self.available_runs.items) |run_name| {
+            self.allocator.free(run_name);
+        }
+        self.available_runs.clearRetainingCapacity();
+
+        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        // Open log directory
+        var dir = std.Io.Dir.cwd().openDir(io, self.config.log_dir, .{ .iterate = true }) catch return;
+        defer dir.close(io);
+
+        // Iterate through subdirectories
+        var iter = dir.iterate();
+        while (true) {
+            const maybe_entry = iter.next(io) catch break;
+            const entry = maybe_entry orelse break;
+
+            if (entry.kind == .directory) {
+                // Check if directory has a metrics.jsonl file
+                const metrics_path = std.fmt.allocPrint(self.allocator, "{s}/{s}/metrics.jsonl", .{
+                    self.config.log_dir,
+                    entry.name,
+                }) catch continue;
+                defer self.allocator.free(metrics_path);
+
+                // Try to stat the file to verify it exists
+                _ = std.Io.Dir.cwd().statFile(io, metrics_path, .{}) catch continue;
+
+                // Add to available runs
+                const name_copy = self.allocator.dupe(u8, entry.name) catch continue;
+                self.available_runs.append(self.allocator, name_copy) catch {
+                    self.allocator.free(name_copy);
+                    continue;
+                };
+            }
+        }
     }
 
     // =========================================================================
@@ -553,4 +776,21 @@ test "TrainingPanel handles keys" {
     try std.testing.expectEqual(TrainingPanel.Action.refresh, panel.handleKey('r'));
     try std.testing.expectEqual(TrainingPanel.Action.refresh, panel.handleKey('h'));
     try std.testing.expectEqual(Mode.history, panel.mode);
+}
+
+test "TrainingPanel help overlay toggle" {
+    const theme = &themes.themes.default;
+
+    var panel = TrainingPanel.init(std.testing.allocator, theme, .{});
+    defer panel.deinit();
+
+    // Help starts hidden
+    try std.testing.expect(!panel.show_help);
+
+    // Pressing '?' should return help action
+    try std.testing.expectEqual(TrainingPanel.Action.help, panel.handleKey('?'));
+
+    // Verify initial state for run switching
+    try std.testing.expectEqual(@as(usize, 0), panel.available_runs.items.len);
+    try std.testing.expectEqual(@as(usize, 0), panel.current_run_index);
 }
