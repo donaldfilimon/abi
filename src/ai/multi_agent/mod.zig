@@ -55,3 +55,26 @@ pub const Coordinator = struct {
         return builder.toOwnedSlice(self.allocator);
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "coordinator init and deinit" {
+    const allocator = std.testing.allocator;
+    var coord = Coordinator.init(allocator);
+    defer coord.deinit();
+
+    // Coordinator starts with no agents
+    try std.testing.expectEqual(@as(usize, 0), coord.agents.items.len);
+}
+
+test "coordinator runTask with no agents returns error" {
+    const allocator = std.testing.allocator;
+    var coord = Coordinator.init(allocator);
+    defer coord.deinit();
+
+    // Running task with no agents should return NoAgents error
+    const result = coord.runTask("test task");
+    try std.testing.expectError(error.NoAgents, result);
+}
