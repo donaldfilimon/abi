@@ -27,13 +27,26 @@ pub const Arch = enum {
     other,
 };
 
+/// Whether the current target supports threading
+const is_threaded_target = builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64;
+
+/// Get CPU count in a WASM-safe manner
+fn getCpuCountSafe() usize {
+    if (comptime !is_threaded_target) {
+        return 1;
+    }
+    return std.Thread.getCpuCount() catch 1;
+}
+
 pub const PlatformInfo = struct {
     os: Os,
     arch: Arch,
     max_threads: u32,
 
     pub fn detect() PlatformInfo {
-        const thread_count = std.Thread.getCpuCount() catch 1;
+        const thread_count = getCpuCountSafe();
         const bounded_threads = @max(thread_count, 1);
         const capped_threads = @min(bounded_threads, @as(usize, std.math.maxInt(u32)));
         return .{

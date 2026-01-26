@@ -21,13 +21,31 @@
 //! 5. `%LOCALAPPDATA%\abi\models\` - User local data (Windows)
 
 const std = @import("std");
+const builtin = @import("builtin");
 const build_options = @import("build_options");
 
 // libc import for environment access - required for Zig 0.16
-const c = @cImport(@cInclude("stdlib.h"));
+// Not available on freestanding/WASM targets
+const c = if (builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64)
+    @cImport(@cInclude("stdlib.h"))
+else
+    struct {
+        pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+            return null;
+        }
+    };
 
 /// Get environment variable value (platform-independent via libc)
+/// Returns null on WASM/freestanding targets where environment variables are unavailable.
 fn getEnv(name: [:0]const u8) ?[]const u8 {
+    if (builtin.target.os.tag == .freestanding or
+        builtin.target.cpu.arch == .wasm32 or
+        builtin.target.cpu.arch == .wasm64)
+    {
+        return null; // Environment variables not available on WASM
+    }
     const value_ptr = c.getenv(name.ptr);
     if (value_ptr) |ptr| {
         return std.mem.span(ptr);
