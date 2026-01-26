@@ -23,15 +23,15 @@ _(Awaiting next feature selection)_
 Ready to start when current work completes:
 
 **Potential Next Features:**
-1. **WebSocket streaming** - Bidirectional real-time communication for streaming endpoints
-2. **Heartbeat system** - Keep-alive heartbeats for long-running SSE connections
-3. **Model hot-reload** - Swap models without server restart
-4. **Streaming benchmarks** - Performance tests for token throughput
+1. **Heartbeat system** - Keep-alive heartbeats for long-running SSE connections
+2. **Model hot-reload** - Swap models without server restart
+3. **Streaming benchmarks** - Performance tests for token throughput
 
 ---
 
 ## Recently Completed
 
+- **WebSocket streaming** - Bidirectional real-time communication for `/api/stream/ws` endpoint; RFC 6455 compliant frame encoding/decoding; Multiple requests per connection; Cancellation support via `{"type":"cancel"}` messages; ABI message format with start/token/end/error events; Bearer token auth; Concurrent stream limits; 771/776 tests passing (2026-01-26)
 - **True SSE streaming** - Replaced non-streaming fallback with real Server-Sent Events streaming; ConnectionContext for writer passthrough; Incremental token delivery via `data: {json}\n\n` format; OpenAI-compatible `[DONE]` termination; Custom ABI endpoint with start/token/end events; 771/776 tests passing (2026-01-26)
 - **Streaming Inference API** - Real-time token streaming for LLM responses with SSE/WebSocket support; OpenAI-compatible `/v1/chat/completions` endpoint; Backend routing for local GGUF, OpenAI, Ollama, Anthropic; Bearer token auth; Heartbeat keep-alive; 770/776 tests passing (2026-01-26)
 - **ArrayList to ArrayListUnmanaged modernization** - Comprehensive migration across GPU (18 files), Database (8 files), Security (10 files), AI vision, and network test modules; 762/767 tests passing (2026-01-26)

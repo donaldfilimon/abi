@@ -112,7 +112,7 @@ pub const WebSocketHandler = struct {
     }
 
     /// Parse a WebSocket frame from data
-    fn parseFrame(self: *Self, data: []const u8) !struct { frame: Frame, header_size: usize, payload_len: usize } {
+    pub fn parseFrame(self: *Self, data: []const u8) !struct { frame: Frame, header_size: usize, payload_len: usize } {
         if (data.len < 2) return error.IncompleteFrame;
 
         const byte0 = data[0];

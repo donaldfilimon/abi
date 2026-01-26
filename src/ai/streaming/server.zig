@@ -479,8 +479,6 @@ pub const StreamingServer = struct {
         request: *std.http.Server.Request,
         conn_ctx: *ConnectionContext,
     ) !void {
-        _ = conn_ctx; // WebSocket uses request.respond() for upgrade
-
         // Check for WebSocket upgrade headers
         const upgrade_header = findHeaderInBuffer(request.head_buffer, "upgrade");
         if (upgrade_header == null or !std.ascii.eqlIgnoreCase(upgrade_header.?, "websocket")) {
@@ -516,32 +514,204 @@ pub const StreamingServer = struct {
             .extra_headers = &upgrade_headers,
         });
 
-        // Handle WebSocket connection
-        try self.handleWebSocketConnection(request, self.allocator);
+        // Handle WebSocket connection using the existing connection context
+        try self.handleWebSocketConnection(conn_ctx, self.allocator);
     }
 
     /// Handle WebSocket connection after upgrade
+    ///
+    /// Implements bidirectional streaming over WebSocket:
+    /// - Client sends: `{"prompt":"...", "backend":"local", "max_tokens":100}`
+    /// - Server streams: `{"type":"start|token|end|error", "data":"..."}`
+    /// - Client can cancel: `{"type":"cancel"}`
     fn handleWebSocketConnection(
         self: *Self,
-        request: *std.http.Server.Request,
+        conn_ctx: *ConnectionContext,
         allocator: std.mem.Allocator,
     ) !void {
-        var ws_handler = try websocket.WebSocketHandler.init(allocator, .{
-            .on_message = struct {
-                fn callback(handler: *websocket.WebSocketHandler, data: []const u8) void {
-                    // Parse message and stream response
-                    _ = handler;
-                    _ = data;
-                    // Implementation would parse JSON, get backend, stream tokens back
-                }
-            }.callback,
-        });
+        var ws_handler = try websocket.WebSocketHandler.init(allocator, .{});
         defer ws_handler.deinit();
+        ws_handler.state = .open;
 
-        _ = self;
-        _ = request;
-        // Read and process WebSocket frames
-        // This would be a loop reading frames and dispatching to the handler
+        // Track cancellation state across messages
+        var cancel_requested = std.atomic.Value(bool).init(false);
+
+        // Frame read buffer
+        var frame_buffer: [65536]u8 = undefined;
+
+        while (ws_handler.state == .open) {
+            // Read data from connection
+            var reader = conn_ctx.stream.reader(conn_ctx.io, conn_ctx.send_buffer);
+            const bytes_read = reader.interface.readSliceShort(&frame_buffer) catch |err| {
+                // Connection closed or error
+                if (err == error.EndOfStream) break;
+                if (self.config.auth_token != null) {
+                    // Silently close on read errors for authenticated connections
+                    break;
+                }
+                continue;
+            };
+
+            if (bytes_read == 0) break;
+
+            // Parse WebSocket frame
+            const parse_result = ws_handler.parseFrame(frame_buffer[0..bytes_read]) catch |err| {
+                // Send protocol error and close
+                const close_frame = try ws_handler.sendClose(.protocol_error, "invalid frame");
+                defer allocator.free(close_frame);
+                try conn_ctx.write(close_frame);
+                std.debug.print("WebSocket parse error: {t}\n", .{err});
+                break;
+            };
+            defer allocator.free(parse_result.frame.payload);
+
+            const frame = parse_result.frame;
+
+            switch (frame.opcode) {
+                .text => {
+                    // Handle JSON message
+                    try self.handleWebSocketMessage(
+                        conn_ctx,
+                        &ws_handler,
+                        allocator,
+                        frame.payload,
+                        &cancel_requested,
+                    );
+                },
+                .binary => {
+                    // Binary not supported for this API
+                    const error_msg = try websocket.createStreamingMessage(allocator, "error", "binary messages not supported");
+                    defer allocator.free(error_msg);
+                    const error_frame = try ws_handler.sendText(error_msg);
+                    defer allocator.free(error_frame);
+                    try conn_ctx.write(error_frame);
+                },
+                .close => {
+                    // Echo close frame and exit
+                    const close_frame = try ws_handler.sendClose(.normal, "");
+                    defer allocator.free(close_frame);
+                    try conn_ctx.write(close_frame);
+                    ws_handler.state = .closed;
+                    break;
+                },
+                .ping => {
+                    // Respond with pong
+                    const pong_frame = try ws_handler.encodeFrame(.pong, frame.payload, true);
+                    defer allocator.free(pong_frame);
+                    try conn_ctx.write(pong_frame);
+                },
+                .pong => {
+                    // Heartbeat response - ignore
+                },
+                else => {
+                    // Unknown opcode
+                },
+            }
+        }
+    }
+
+    /// Handle a WebSocket JSON message
+    fn handleWebSocketMessage(
+        self: *Self,
+        conn_ctx: *ConnectionContext,
+        ws_handler: *websocket.WebSocketHandler,
+        allocator: std.mem.Allocator,
+        payload: []const u8,
+        cancel_requested: *std.atomic.Value(bool),
+    ) !void {
+        // Check for cancel message
+        if (extractJsonString(payload, "type")) |msg_type| {
+            if (std.mem.eql(u8, msg_type, "cancel")) {
+                cancel_requested.store(true, .seq_cst);
+                const cancel_msg = try websocket.createStreamingMessage(allocator, "cancelled", "");
+                defer allocator.free(cancel_msg);
+                const cancel_frame = try ws_handler.sendText(cancel_msg);
+                defer allocator.free(cancel_frame);
+                try conn_ctx.write(cancel_frame);
+                return;
+            }
+        }
+
+        // Parse as stream request
+        const stream_request = parseAbiStreamRequest(allocator, payload) catch {
+            const error_msg = try websocket.createStreamingMessage(allocator, "error", "invalid request format");
+            defer allocator.free(error_msg);
+            const error_frame = try ws_handler.sendText(error_msg);
+            defer allocator.free(error_frame);
+            try conn_ctx.write(error_frame);
+            return;
+        };
+        defer stream_request.deinit(allocator);
+
+        // Reset cancel flag for new request
+        cancel_requested.store(false, .seq_cst);
+
+        // Check concurrent stream limit
+        const current = self.active_streams.fetchAdd(1, .seq_cst);
+        if (current >= self.config.max_concurrent_streams) {
+            _ = self.active_streams.fetchSub(1, .seq_cst);
+            const error_msg = try websocket.createStreamingMessage(allocator, "error", "too many concurrent streams");
+            defer allocator.free(error_msg);
+            const error_frame = try ws_handler.sendText(error_msg);
+            defer allocator.free(error_frame);
+            try conn_ctx.write(error_frame);
+            return;
+        }
+        defer _ = self.active_streams.fetchSub(1, .seq_cst);
+
+        // Get backend and start streaming
+        const backend_type = stream_request.backend orelse self.config.default_backend;
+        const backend = self.backend_router.getBackend(backend_type) catch {
+            const error_msg = try websocket.createStreamingMessage(allocator, "error", "backend unavailable");
+            defer allocator.free(error_msg);
+            const error_frame = try ws_handler.sendText(error_msg);
+            defer allocator.free(error_frame);
+            try conn_ctx.write(error_frame);
+            return;
+        };
+
+        var stream_iter = backend.streamTokens(stream_request.prompt, stream_request.config) catch {
+            const error_msg = try websocket.createStreamingMessage(allocator, "error", "failed to start stream");
+            defer allocator.free(error_msg);
+            const error_frame = try ws_handler.sendText(error_msg);
+            defer allocator.free(error_frame);
+            try conn_ctx.write(error_frame);
+            return;
+        };
+        defer stream_iter.deinit();
+
+        // Send start event
+        const start_msg = try websocket.createStreamingMessage(allocator, "start", "");
+        defer allocator.free(start_msg);
+        const start_frame = try ws_handler.sendText(start_msg);
+        defer allocator.free(start_frame);
+        try conn_ctx.write(start_frame);
+
+        // Stream tokens
+        while (stream_iter.next() catch null) |token| {
+            // Check for cancellation
+            if (cancel_requested.load(.seq_cst)) {
+                break;
+            }
+
+            // Send token event
+            const token_msg = try websocket.createStreamingMessage(allocator, "token", token.text);
+            defer allocator.free(token_msg);
+            const token_frame = try ws_handler.sendText(token_msg);
+            defer allocator.free(token_frame);
+            try conn_ctx.write(token_frame);
+
+            if (token.is_end) break;
+        }
+
+        // Send end event (unless cancelled)
+        if (!cancel_requested.load(.seq_cst)) {
+            const end_msg = try websocket.createStreamingMessage(allocator, "end", "");
+            defer allocator.free(end_msg);
+            const end_frame = try ws_handler.sendText(end_msg);
+            defer allocator.free(end_frame);
+            try conn_ctx.write(end_frame);
+        }
     }
 
     /// Handle models list (OpenAI-compatible)
@@ -788,4 +958,52 @@ test "extract json int" {
     const max_tokens = extractJsonInt(json, "max_tokens");
     try std.testing.expect(max_tokens != null);
     try std.testing.expectEqual(@as(i64, 1024), max_tokens.?);
+}
+
+test "websocket message parsing - cancel message" {
+    // Test that cancel messages are correctly identified
+    const cancel_json = "{\"type\":\"cancel\"}";
+    const msg_type = extractJsonString(cancel_json, "type");
+    try std.testing.expect(msg_type != null);
+    try std.testing.expectEqualStrings("cancel", msg_type.?);
+}
+
+test "websocket message parsing - stream request" {
+    const allocator = std.testing.allocator;
+
+    const request_json = "{\"prompt\":\"Hello world\",\"backend\":\"local\",\"max_tokens\":100}";
+    const request = try parseAbiStreamRequest(allocator, request_json);
+    defer request.deinit(allocator);
+
+    try std.testing.expectEqualStrings("Hello world", request.prompt);
+    try std.testing.expectEqual(backends.BackendType.local, request.backend.?);
+    try std.testing.expectEqual(@as(u32, 100), request.config.max_tokens);
+}
+
+test "websocket handler initialization" {
+    const allocator = std.testing.allocator;
+
+    var handler = try websocket.WebSocketHandler.init(allocator, .{});
+    defer handler.deinit();
+
+    try std.testing.expectEqual(websocket.ConnectionState.connecting, handler.state);
+}
+
+test "websocket frame encoding for streaming" {
+    const allocator = std.testing.allocator;
+
+    var handler = try websocket.WebSocketHandler.init(allocator, .{});
+    defer handler.deinit();
+
+    // Encode a token message
+    const msg = try websocket.createStreamingMessage(allocator, "token", "hello");
+    defer allocator.free(msg);
+
+    const frame = try handler.sendText(msg);
+    defer allocator.free(frame);
+
+    // Verify frame structure: FIN + text opcode = 0x81
+    try std.testing.expectEqual(@as(u8, 0x81), frame[0]);
+    // Payload length should be > 0
+    try std.testing.expect(frame[1] > 0);
 }
