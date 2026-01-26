@@ -83,6 +83,8 @@ pub fn ParallelWorkQueue(comptime T: type) type {
 }
 
 /// Compute cosine distances for a batch of candidates using SIMD.
+/// For better performance with repeated queries, use batchCosineDistancesWithNorms
+/// with pre-computed candidate norms.
 pub fn batchCosineDistances(
     query: []const f32,
     query_norm: f32,
@@ -109,6 +111,51 @@ pub fn batchCosineDistances(
         } else {
             distances[i] = 1.0;
         }
+    }
+}
+
+/// Compute cosine distances with pre-computed candidate norms.
+/// This is faster when candidate norms are cached/pre-computed.
+/// @param query Query vector
+/// @param query_norm Pre-computed L2 norm of query
+/// @param candidates Slice of candidate vectors
+/// @param candidate_norms Pre-computed L2 norms for each candidate (same length as candidates)
+/// @param distances Output distances (cosine distance = 1 - similarity)
+pub fn batchCosineDistancesWithNorms(
+    query: []const f32,
+    query_norm: f32,
+    candidates: []const []const f32,
+    candidate_norms: []const f32,
+    distances: []f32,
+) void {
+    if (query_norm == 0.0) {
+        @memset(distances, 1.0);
+        return;
+    }
+
+    const inv_query_norm = 1.0 / query_norm;
+    const len = @min(candidates.len, @min(candidate_norms.len, distances.len));
+
+    for (0..len) |i| {
+        const cand_norm = candidate_norms[i];
+
+        if (cand_norm > 0.0) {
+            // Use SIMD dot product only (norm already computed)
+            const dot = simd.vectorDot(query, candidates[i]);
+            const similarity = dot * inv_query_norm / cand_norm;
+            distances[i] = 1.0 - similarity;
+        } else {
+            distances[i] = 1.0;
+        }
+    }
+}
+
+/// Pre-compute L2 norms for a batch of vectors.
+/// Useful for caching norms of database vectors.
+pub fn precomputeNorms(vectors: []const []const f32, norms: []f32) void {
+    const len = @min(vectors.len, norms.len);
+    for (0..len) |i| {
+        norms[i] = simd.vectorL2Norm(vectors[i]);
     }
 }
 

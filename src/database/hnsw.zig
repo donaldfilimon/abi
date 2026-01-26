@@ -129,51 +129,49 @@ pub const SearchStatePool = struct {
 };
 
 // ============================================================================
-// Distance Cache - LRU cache for frequently computed distances
+// Distance Cache - Hash-based cache for frequently computed distances
 // ============================================================================
 
-/// LRU distance cache to avoid redundant similarity computations.
-/// Uses packed u64 keys combining two u32 node IDs.
+/// Hash-based distance cache for O(1) lookups of similarity computations.
+/// Uses packed u64 keys combining two u32 node IDs with FIFO eviction.
 pub const DistanceCache = struct {
-    entries: []CacheEntry,
-    head: u32,
-    size: u32,
+    /// Hash map for O(1) lookups
+    map: std.AutoHashMapUnmanaged(u64, f32),
+    /// FIFO queue for eviction order
+    eviction_queue: []u64,
+    /// Current position in eviction queue
+    queue_head: usize,
+    /// Number of items in cache
+    size: usize,
+    /// Maximum capacity
+    capacity: usize,
+    /// Hit counter for statistics
     hits: u64,
+    /// Miss counter for statistics
     misses: u64,
-
-    const CacheEntry = struct {
-        key: u64,
-        distance: f32,
-        prev: u32,
-        next: u32,
-        valid: bool,
-    };
-
-    const INVALID_IDX = std.math.maxInt(u32);
+    /// Allocator for internal structures
+    allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, capacity: usize) !DistanceCache {
         const cap = @max(capacity, 16);
-        const entries = try allocator.alloc(CacheEntry, cap);
-        for (entries, 0..) |*entry, i| {
-            entry.* = .{
-                .key = 0,
-                .distance = 0,
-                .prev = if (i == 0) INVALID_IDX else @intCast(i - 1),
-                .next = if (i == cap - 1) INVALID_IDX else @intCast(i + 1),
-                .valid = false,
-            };
-        }
+        const eviction_queue = try allocator.alloc(u64, cap);
+        @memset(eviction_queue, 0);
+
         return .{
-            .entries = entries,
-            .head = 0,
+            .map = .empty,
+            .eviction_queue = eviction_queue,
+            .queue_head = 0,
             .size = 0,
+            .capacity = cap,
             .hits = 0,
             .misses = 0,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *DistanceCache, allocator: std.mem.Allocator) void {
-        allocator.free(self.entries);
+        self.map.deinit(allocator);
+        allocator.free(self.eviction_queue);
     }
 
     /// Create a cache key from two node IDs (order-independent).
@@ -183,53 +181,49 @@ pub const DistanceCache = struct {
         return (@as(u64, hi) << 32) | @as(u64, lo);
     }
 
-    /// Get cached distance between two nodes.
+    /// Get cached distance between two nodes. O(1) average case.
     pub fn get(self: *DistanceCache, a: u32, b: u32) ?f32 {
         const key = makeKey(a, b);
 
-        // Linear search (could use hash table for larger caches)
-        for (self.entries[0..self.size]) |*entry| {
-            if (entry.valid and entry.key == key) {
-                self.hits += 1;
-                return entry.distance;
-            }
+        if (self.map.get(key)) |distance| {
+            self.hits += 1;
+            return distance;
         }
         self.misses += 1;
         return null;
     }
 
-    /// Store distance in cache with LRU eviction.
+    /// Store distance in cache with FIFO eviction. O(1) average case.
     pub fn put(self: *DistanceCache, a: u32, b: u32, distance: f32) void {
         const key = makeKey(a, b);
 
-        if (self.size < self.entries.len) {
-            // Cache not full, add new entry
-            const idx = self.size;
-            self.entries[idx] = .{
-                .key = key,
-                .distance = distance,
-                .prev = INVALID_IDX,
-                .next = INVALID_IDX,
-                .valid = true,
-            };
-            self.size += 1;
-        } else {
-            // Evict oldest entry (simple FIFO for now)
-            const idx = self.head;
-            self.entries[idx].key = key;
-            self.entries[idx].distance = distance;
-            self.entries[idx].valid = true;
-            self.head = (self.head + 1) % @as(u32, @intCast(self.entries.len));
+        // Check if key already exists
+        if (self.map.contains(key)) {
+            // Update existing entry
+            self.map.put(self.allocator, key, distance) catch return;
+            return;
         }
+
+        // Evict if at capacity
+        if (self.size >= self.capacity) {
+            const evict_key = self.eviction_queue[self.queue_head];
+            _ = self.map.remove(evict_key);
+            self.size -= 1;
+        }
+
+        // Insert new entry
+        self.map.put(self.allocator, key, distance) catch return;
+        self.eviction_queue[self.queue_head] = key;
+        self.queue_head = (self.queue_head + 1) % self.capacity;
+        self.size += 1;
     }
 
     /// Clear all cached entries.
     pub fn clear(self: *DistanceCache) void {
-        for (self.entries) |*entry| {
-            entry.valid = false;
-        }
+        self.map.clearRetainingCapacity();
+        @memset(self.eviction_queue, 0);
         self.size = 0;
-        self.head = 0;
+        self.queue_head = 0;
     }
 
     /// Get cache statistics.

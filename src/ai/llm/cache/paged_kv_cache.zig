@@ -68,6 +68,14 @@ pub const KvPage = struct {
         if (self.isFull(page_size)) return false;
 
         const offset = @as(usize, self.num_tokens) * kv_dim;
+
+        // Prefetch next cache line for upcoming writes (if there's room for more tokens)
+        if (self.num_tokens + 1 < page_size) {
+            const next_offset = offset + kv_dim;
+            @prefetch(self.k_data.ptr + next_offset, .{ .rw = .write, .locality = 3 });
+            @prefetch(self.v_data.ptr + next_offset, .{ .rw = .write, .locality = 3 });
+        }
+
         @memcpy(self.k_data[offset .. offset + kv_dim], k);
         @memcpy(self.v_data[offset .. offset + kv_dim], v);
         self.num_tokens += 1;
@@ -75,16 +83,32 @@ pub const KvPage = struct {
     }
 
     /// Get K at position within page.
+    /// Prefetches next position for sequential access patterns.
     pub fn getK(self: *const KvPage, pos: u32, kv_dim: u32) ?[]const f32 {
         if (pos >= self.num_tokens) return null;
         const offset = @as(usize, pos) * kv_dim;
+
+        // Prefetch next K for sequential attention patterns
+        if (pos + 1 < self.num_tokens) {
+            const next_offset = offset + kv_dim;
+            @prefetch(self.k_data.ptr + next_offset, .{ .rw = .read, .locality = 3 });
+        }
+
         return self.k_data[offset .. offset + kv_dim];
     }
 
     /// Get V at position within page.
+    /// Prefetches next position for sequential access patterns.
     pub fn getV(self: *const KvPage, pos: u32, kv_dim: u32) ?[]const f32 {
         if (pos >= self.num_tokens) return null;
         const offset = @as(usize, pos) * kv_dim;
+
+        // Prefetch next V for sequential attention patterns
+        if (pos + 1 < self.num_tokens) {
+            const next_offset = offset + kv_dim;
+            @prefetch(self.v_data.ptr + next_offset, .{ .rw = .read, .locality = 3 });
+        }
+
         return self.v_data[offset .. offset + kv_dim];
     }
 };
