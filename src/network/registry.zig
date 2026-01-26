@@ -102,3 +102,70 @@ pub const NodeRegistry = struct {
         return self.id_index.get(id);
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "node registry init and deinit" {
+    const allocator = std.testing.allocator;
+    var registry = NodeRegistry.init(allocator);
+    defer registry.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), registry.nodes.items.len);
+}
+
+test "node registry register" {
+    const allocator = std.testing.allocator;
+    var registry = NodeRegistry.init(allocator);
+    defer registry.deinit();
+
+    try registry.register("node-1", "192.168.1.1:8080");
+    try std.testing.expectEqual(@as(usize, 1), registry.nodes.items.len);
+    try std.testing.expectEqualStrings("node-1", registry.nodes.items[0].id);
+    try std.testing.expectEqual(NodeStatus.healthy, registry.nodes.items[0].status);
+}
+
+test "node registry unregister" {
+    const allocator = std.testing.allocator;
+    var registry = NodeRegistry.init(allocator);
+    defer registry.deinit();
+
+    try registry.register("node-1", "192.168.1.1:8080");
+    try std.testing.expectEqual(@as(usize, 1), registry.nodes.items.len);
+
+    const removed = registry.unregister("node-1");
+    try std.testing.expect(removed);
+    try std.testing.expectEqual(@as(usize, 0), registry.nodes.items.len);
+
+    const not_found = registry.unregister("nonexistent");
+    try std.testing.expect(!not_found);
+}
+
+test "node registry setStatus" {
+    const allocator = std.testing.allocator;
+    var registry = NodeRegistry.init(allocator);
+    defer registry.deinit();
+
+    try registry.register("node-1", "192.168.1.1:8080");
+    try std.testing.expectEqual(NodeStatus.healthy, registry.nodes.items[0].status);
+
+    const updated = registry.setStatus("node-1", .degraded);
+    try std.testing.expect(updated);
+    try std.testing.expectEqual(NodeStatus.degraded, registry.nodes.items[0].status);
+
+    const not_found = registry.setStatus("nonexistent", .offline);
+    try std.testing.expect(!not_found);
+}
+
+test "node registry list" {
+    const allocator = std.testing.allocator;
+    var registry = NodeRegistry.init(allocator);
+    defer registry.deinit();
+
+    try registry.register("node-1", "192.168.1.1:8080");
+    try registry.register("node-2", "192.168.1.2:8080");
+
+    const nodes = registry.list();
+    try std.testing.expectEqual(@as(usize, 2), nodes.len);
+}
