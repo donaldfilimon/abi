@@ -38,6 +38,46 @@ pub const generator = struct {
     pub const createChunkedStream = stub_root.createChunkedStream;
 };
 
+// Streaming server stubs
+pub const server = struct {
+    pub const StreamingServer = stub_root.StreamingServer;
+    pub const ServerConfig = stub_root.ServerConfig;
+    pub const StreamingServerError = stub_root.StreamingServerError;
+};
+
+pub const websocket = struct {
+    pub const WebSocketHandler = stub_root.WebSocketHandler;
+    pub const WebSocketConfig = stub_root.WebSocketConfig;
+    pub const Opcode = stub_root.WebSocketOpcode;
+    pub const CloseCode = stub_root.WebSocketCloseCode;
+    pub const computeAcceptKey = stub_root.computeWebSocketAcceptKey;
+};
+
+pub const backends = struct {
+    pub const BackendType = stub_root.BackendType;
+    pub const BackendRouter = stub_root.BackendRouter;
+    pub const Backend = stub_root.Backend;
+    pub const GenerationConfig = stub_root.BackendGenerationConfig;
+};
+
+pub const formats = struct {
+    pub const openai = stub_root.formats_openai;
+};
+
+// Re-exports for top-level access
+pub const StreamingServer = stub_root.StreamingServer;
+pub const ServerConfig = stub_root.ServerConfig;
+pub const StreamingServerError = stub_root.StreamingServerError;
+pub const WebSocketHandler = stub_root.WebSocketHandler;
+pub const WebSocketConfig = stub_root.WebSocketConfig;
+pub const WebSocketOpcode = stub_root.WebSocketOpcode;
+pub const WebSocketCloseCode = stub_root.WebSocketCloseCode;
+pub const computeWebSocketAcceptKey = stub_root.computeWebSocketAcceptKey;
+pub const BackendType = stub_root.BackendType;
+pub const BackendRouter = stub_root.BackendRouter;
+pub const Backend = stub_root.Backend;
+pub const BackendGenerationConfig = stub_root.BackendGenerationConfig;
+
 /// Stub SSE event.
 pub const SseEvent = struct {
     event: ?[]const u8 = null,
@@ -537,3 +577,217 @@ pub fn createSseStream(allocator: std.mem.Allocator, chunks: []const []const u8)
     _ = chunks;
     return error.StreamingDisabled;
 }
+
+// ============================================================================
+// Streaming Server Stubs (new in streaming inference API)
+// ============================================================================
+
+/// Stub streaming server error.
+pub const StreamingServerError = error{
+    StreamingDisabled,
+    InvalidAddress,
+    InvalidRequest,
+    Unauthorized,
+    BackendError,
+};
+
+/// Stub server config.
+pub const ServerConfig = struct {
+    address: []const u8 = "127.0.0.1:8080",
+    auth_token: ?[]const u8 = null,
+    allow_health_without_auth: bool = true,
+    default_backend: BackendType = .local,
+    heartbeat_interval_ms: u64 = 15000,
+    max_concurrent_streams: u32 = 100,
+    enable_openai_compat: bool = true,
+    enable_websocket: bool = true,
+};
+
+/// Stub streaming server.
+pub const StreamingServer = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, config: ServerConfig) !StreamingServer {
+        _ = config;
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *StreamingServer) void {
+        self.* = undefined;
+    }
+
+    pub fn serve(self: *StreamingServer) !void {
+        _ = self;
+        return error.StreamingDisabled;
+    }
+};
+
+/// Stub WebSocket opcode.
+pub const WebSocketOpcode = enum(u4) {
+    continuation = 0x0,
+    text = 0x1,
+    binary = 0x2,
+    close = 0x8,
+    ping = 0x9,
+    pong = 0xA,
+};
+
+/// Stub WebSocket close code.
+pub const WebSocketCloseCode = enum(u16) {
+    normal = 1000,
+    going_away = 1001,
+    protocol_error = 1002,
+    _,
+};
+
+/// Stub WebSocket config.
+pub const WebSocketConfig = struct {
+    max_message_size: usize = 16 * 1024 * 1024,
+    ping_interval_ms: u64 = 30000,
+    enable_compression: bool = false,
+};
+
+/// Stub WebSocket handler.
+pub const WebSocketHandler = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, config: WebSocketConfig) !WebSocketHandler {
+        _ = config;
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *WebSocketHandler) void {
+        self.* = undefined;
+    }
+
+    pub fn sendText(self: *WebSocketHandler, text: []const u8) ![]u8 {
+        _ = self;
+        _ = text;
+        return error.StreamingDisabled;
+    }
+};
+
+/// Stub compute WebSocket accept key.
+pub fn computeWebSocketAcceptKey(allocator: std.mem.Allocator, client_key: []const u8) ![]u8 {
+    _ = allocator;
+    _ = client_key;
+    return error.StreamingDisabled;
+}
+
+/// Stub backend type.
+pub const BackendType = enum {
+    local,
+    openai,
+    ollama,
+    anthropic,
+
+    pub fn fromString(s: []const u8) ?BackendType {
+        if (std.mem.eql(u8, s, "local")) return .local;
+        if (std.mem.eql(u8, s, "openai")) return .openai;
+        if (std.mem.eql(u8, s, "ollama")) return .ollama;
+        if (std.mem.eql(u8, s, "anthropic")) return .anthropic;
+        return null;
+    }
+};
+
+/// Stub backend generation config.
+pub const BackendGenerationConfig = struct {
+    max_tokens: u32 = 1024,
+    temperature: f32 = 0.7,
+    top_p: f32 = 0.9,
+    top_k: u32 = 0,
+    model: ?[]const u8 = null,
+};
+
+/// Stub backend.
+pub const Backend = struct {
+    allocator: std.mem.Allocator,
+    backend_type: BackendType,
+
+    pub fn init(allocator: std.mem.Allocator, backend_type: BackendType) !Backend {
+        return .{ .allocator = allocator, .backend_type = backend_type };
+    }
+
+    pub fn deinit(self: *Backend) void {
+        self.* = undefined;
+    }
+
+    pub fn generate(self: *Backend, prompt: []const u8, config: BackendGenerationConfig) ![]u8 {
+        _ = self;
+        _ = prompt;
+        _ = config;
+        return error.StreamingDisabled;
+    }
+};
+
+/// Stub backend router.
+pub const BackendRouter = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) !BackendRouter {
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *BackendRouter) void {
+        self.* = undefined;
+    }
+
+    pub fn getBackend(self: *BackendRouter, backend_type: BackendType) !*Backend {
+        _ = self;
+        _ = backend_type;
+        return error.StreamingDisabled;
+    }
+
+    pub fn listModelsJson(self: *BackendRouter, allocator: std.mem.Allocator) ![]u8 {
+        _ = self;
+        _ = allocator;
+        return error.StreamingDisabled;
+    }
+};
+
+/// Stub OpenAI formats module.
+pub const formats_openai = struct {
+    pub const Role = enum { system, user, assistant, tool };
+    pub const ChatMessage = struct { role: Role, content: []const u8 };
+
+    pub const ChatCompletionRequest = struct {
+        model: []const u8,
+        messages: []ChatMessage,
+        max_tokens: u32 = 1024,
+        temperature: f32 = 0.7,
+        stream: bool = false,
+
+        pub fn deinit(self: *const ChatCompletionRequest, allocator: std.mem.Allocator) void {
+            _ = self;
+            _ = allocator;
+        }
+    };
+
+    pub fn parseRequest(allocator: std.mem.Allocator, json: []const u8) !ChatCompletionRequest {
+        _ = allocator;
+        _ = json;
+        return error.StreamingDisabled;
+    }
+
+    pub fn formatStreamChunk(
+        allocator: std.mem.Allocator,
+        content: []const u8,
+        model: []const u8,
+        index: u32,
+        is_end: bool,
+    ) ![]u8 {
+        _ = allocator;
+        _ = content;
+        _ = model;
+        _ = index;
+        _ = is_end;
+        return error.StreamingDisabled;
+    }
+
+    pub fn formatResponse(allocator: std.mem.Allocator, content: []const u8, model: []const u8) ![]u8 {
+        _ = allocator;
+        _ = content;
+        _ = model;
+        return error.StreamingDisabled;
+    }
+};

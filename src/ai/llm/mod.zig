@@ -260,7 +260,7 @@ pub const Engine = struct {
         const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
 
         // Encode prompt to tokens
-        const tok = if (m.tok) |*t| t else return LlmError.TokenizationFailed;
+        const tok = if (m.tokenizer) |*t| t else return LlmError.TokenizationFailed;
         const prompt_tokens = try tok.encode(self.allocator, prompt);
         defer self.allocator.free(prompt_tokens);
 
@@ -312,7 +312,7 @@ pub const Engine = struct {
         const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
 
         // Get tokenizer
-        const tok = if (m.tok) |*t| t else return LlmError.TokenizationFailed;
+        const tok = if (m.tokenizer) |*t| t else return LlmError.TokenizationFailed;
 
         // Encode prompt to tokens
         const prompt_tokens = try tok.encode(self.allocator, prompt);

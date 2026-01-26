@@ -565,9 +565,9 @@ pub const StreamingResponse = struct {
             .forward_fn = &struct {
                 fn forward(m: *anyopaque, token: u32, pos: u32) StreamingError![]f32 {
                     const model_ptr: Ptr = @ptrCast(@alignCast(m));
-                    return model_ptr.forward(token, pos) catch |e| switch (e) {
-                        error.OutOfMemory => return StreamingError.OutOfMemory,
-                        else => return StreamingError.InvalidState,
+                    return model_ptr.forward(token, pos) catch |e| {
+                        // Map allocation errors, treat other errors as invalid state
+                        return if (e == error.OutOfMemory) StreamingError.OutOfMemory else StreamingError.InvalidState;
                     };
                 }
             }.forward,

@@ -11,6 +11,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 3. Review existing changes before adding new ones to avoid conflicts or duplicating work
 4. If there are many staged/unstaged changes, ask the user about their status before proceeding
 
+## TL;DR for Common Tasks
+
+```bash
+# Most common workflow
+zig build test --summary all && zig fmt .   # Test + format (always run before commits)
+
+# Single file test (faster iteration)
+zig test src/path/to/file.zig --test-filter "specific test"
+
+# Build with specific features
+zig build -Denable-ai=true -Dgpu-backend=vulkan
+```
+
 ## Quick Reference
 
 ```bash
@@ -88,6 +101,8 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
 | GPU (CUDA) | Requires NVIDIA drivers + toolkit; use Vulkan or `stdgpu` fallback |
 | GPU (Metal) | macOS only; use Vulkan on other platforms |
+| WASM getCpuCount | Use `getCpuCount()` only with WASM/freestanding guards; 9+ files affected |
+| Streaming API | Use `src/ai/streaming/` for real-time LLM responses; backend selection via config |
 
 ## Feature Flags
 
@@ -306,6 +321,16 @@ defer framework.deinit();
 - Run filtered tests with `zig test file.zig --test-filter "pattern"`
 - For tests requiring I/O, initialize `std.Io.Threaded` in test setup (see Zig 0.16 Patterns)
 
+### Multi-Model Training
+The training module supports LLM, Vision (ViT), and Multimodal (CLIP) models:
+```bash
+zig build run -- train llm --epochs 10 --batch 32     # LLM training
+zig build run -- train vision --model vit            # ViT image classification
+zig build run -- train clip                          # CLIP multimodal training
+```
+
+Key features: gradient clipping, mixed precision (FP16/BF16), contrastive learning, checkpoint resume.
+
 ## Zig 0.16 Patterns
 
 > See [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) for comprehensive examples.
@@ -386,6 +411,31 @@ if (queue.pop()) |value| {
 }
 ```
 
+## GPU Memory Pool
+
+The GPU module includes an optimized memory pool for LLM workloads:
+
+```zig
+const gpu = @import("abi").gpu;
+var pool = try gpu.MemoryPool.init(allocator, .{
+    .strategy = .best_fit,  // or .first_fit
+    .auto_defrag = true,
+    .size_classes = &.{ 4096, 16384, 65536 },  // Common LLM buffer sizes
+});
+defer pool.deinit();
+
+const buffer = try pool.allocate(32768);
+defer pool.free(buffer);
+
+// Check fragmentation
+const stats = pool.getStats();
+if (stats.fragmentation_ratio > 0.3) {
+    try pool.defragment();
+}
+```
+
+**Features:** best-fit allocation, buffer splitting, fragmentation tracking, auto-defragmentation.
+
 ## Test Infrastructure
 
 The `src/tests/` directory contains a comprehensive test suite:
@@ -419,7 +469,7 @@ zig test src/tests/mod.zig --test-filter "database"
 |---------|---------|
 | `db` | Database operations (add, query, stats, optimize, backup, restore, serve) |
 | `agent` | AI agent interaction (interactive, one-shot, 13 personas) |
-| `llm` | LLM inference (chat, generate, info, bench, download, list) |
+| `llm` | LLM inference (chat, generate, serve, info, bench, download, list) |
 | `train` | Training pipeline (run, llm, resume, monitor, info) |
 | `gpu` | GPU management (backends, devices, summary, default, status) |
 | `gpu-dashboard` | Interactive GPU + Agent monitoring TUI |
@@ -457,6 +507,30 @@ The LLM feature (`src/ai/llm/`) provides local GGUF model inference with:
 - **GPU Acceleration**: CUDA kernels for softmax, RMSNorm, SiLU with CPU fallback
 - **Sampling**: Greedy, top-k, top-p, temperature, tail-free, mirostat (v1/v2)
 - **Export**: GGUF writer for trained model export
+
+### Streaming Inference API
+
+The streaming module (`src/ai/streaming/`) provides real-time token streaming:
+
+```bash
+# Start streaming server with a local GGUF model
+zig build run -- llm serve -m ./models/llama-7b.gguf --preload
+
+# With authentication and custom address
+zig build run -- llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token my-secret
+```
+
+**Endpoints:**
+- `POST /v1/chat/completions` - OpenAI-compatible chat completions
+- `POST /api/stream` - Custom ABI streaming endpoint
+- `GET /health` - Health check
+
+**Features:**
+- **SSE/WebSocket** support for real-time responses
+- **Backend routing**: local GGUF, OpenAI, Ollama, Anthropic
+- **Bearer token auth** with configurable validation
+- **Heartbeat keep-alive** for long-running connections
+- **Model preloading** to reduce first-request latency
 
 ## Environment Variables
 
@@ -565,6 +639,23 @@ The `vscode-abi/` directory contains a VS Code extension:
 
 Build: `cd vscode-abi && npm install && npm run compile`
 
+## Docker Deployment
+
+A `docker-compose.yml` is provided for containerized deployments:
+
+```bash
+# Standard deployment
+docker compose up -d abi
+
+# GPU-enabled deployment (requires NVIDIA Container Toolkit)
+docker compose up -d abi-gpu
+
+# With Ollama for local LLM inference
+docker compose --profile ollama up -d
+```
+
+The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster builds.
+
 ## Adding a New Feature Module
 
 1. Create the module directory under `src/<feature>/`
@@ -612,6 +703,18 @@ These flags are integrated into `build_options` and must have corresponding stub
 | Error handling | `!` return types, specific error enums |
 | Cleanup | Prefer `defer`/`errdefer` |
 | ArrayList | Prefer `std.ArrayListUnmanaged` with explicit allocator passing |
+
+## Quick File Navigation
+
+| Task | Key Files |
+|------|-----------|
+| Add new CLI command | `tools/cli/commands/` + register in `tools/cli/main.zig` |
+| Add new feature module | `src/<feature>/mod.zig` + `src/<feature>/stub.zig` + `build.zig` |
+| Add new connector | `src/connectors/<provider>.zig` |
+| Add new GPU backend | `src/gpu/backends/` + `src/gpu/dsl/codegen/configs/` |
+| Modify public API | `src/abi.zig` (entry point) |
+| Add new example | `examples/` + add to `example_targets` in `build.zig` |
+| Add new test category | `src/tests/<category>/mod.zig` + import in `src/tests/mod.zig` |
 
 ## Post-Edit Checklist
 

@@ -6,12 +6,39 @@
 //! - Backpressure control for flow management
 //! - Token buffering strategies
 //! - Stream transformations
+//! - HTTP streaming server with SSE and WebSocket
+//! - OpenAI-compatible API endpoints
+//! - Backend routing (local GGUF, OpenAI, Ollama, Anthropic)
 
 const std = @import("std");
 pub const sse = @import("sse.zig");
 pub const backpressure = @import("backpressure.zig");
 pub const buffer = @import("buffer.zig");
 pub const generator = @import("generator.zig");
+
+// Streaming inference server
+pub const server = @import("server.zig");
+pub const websocket = @import("websocket.zig");
+pub const backends = @import("backends/mod.zig");
+pub const formats = @import("formats/mod.zig");
+
+// Server types
+pub const StreamingServer = server.StreamingServer;
+pub const ServerConfig = server.ServerConfig;
+pub const StreamingServerError = server.StreamingServerError;
+
+// WebSocket types
+pub const WebSocketHandler = websocket.WebSocketHandler;
+pub const WebSocketConfig = websocket.WebSocketConfig;
+pub const WebSocketOpcode = websocket.Opcode;
+pub const WebSocketCloseCode = websocket.CloseCode;
+pub const computeWebSocketAcceptKey = websocket.computeAcceptKey;
+
+// Backend types
+pub const BackendType = backends.BackendType;
+pub const BackendRouter = backends.BackendRouter;
+pub const Backend = backends.Backend;
+pub const BackendGenerationConfig = backends.GenerationConfig;
 
 // Basic generator types (from generator.zig)
 pub const StreamingGenerator = generator.StreamingGenerator;

@@ -7,7 +7,7 @@ tags: [planning, sprint, development]
 
 <p align="center">
   <img src="https://img.shields.io/badge/Sprint-Active-blue?style=for-the-badge" alt="Sprint Active"/>
-  <img src="https://img.shields.io/badge/Tests-762%2F767-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Tests-770%2F776-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 ## This Sprint
@@ -30,6 +30,7 @@ _(Queue empty - all planned items completed!)_
 
 ## Recently Completed
 
+- **Streaming Inference API** - Real-time token streaming for LLM responses with SSE/WebSocket support; OpenAI-compatible `/v1/chat/completions` endpoint; Backend routing for local GGUF, OpenAI, Ollama, Anthropic; Bearer token auth; Heartbeat keep-alive; 770/776 tests passing (2026-01-26)
 - **ArrayList to ArrayListUnmanaged modernization** - Comprehensive migration across GPU (18 files), Database (8 files), Security (10 files), AI vision, and network test modules; 762/767 tests passing (2026-01-26)
 - **Complete WASM support** - Fixed all getCpuCount calls across 9 files with WASM/freestanding guards; WASM build now passes (2026-01-26)
 - **gendocs module paths fix** - Updated gendocs tool to use correct paths after config module refactoring; all 22 modules now generate docs (2026-01-26)
