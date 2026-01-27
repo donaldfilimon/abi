@@ -9,6 +9,7 @@ pub const training_metrics = @import("training_metrics.zig");
 pub const ring_buffer = @import("ring_buffer.zig");
 pub const percentile_tracker = @import("percentile_tracker.zig");
 pub const model_panel = @import("model_panel.zig");
+pub const streaming_dashboard = @import("streaming_dashboard.zig");
 
 pub const Key = events.Key;
 pub const KeyCode = events.KeyCode;
@@ -63,3 +64,6 @@ pub const PercentileTracker = percentile_tracker.PercentileTracker;
 
 // Model Management Panel
 pub const ModelManagementPanel = model_panel.ModelManagementPanel;
+
+// Streaming Dashboard
+pub const StreamingDashboard = streaming_dashboard.StreamingDashboard;
