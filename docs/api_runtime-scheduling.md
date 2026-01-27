@@ -1,24 +1,5 @@
-# runtime-scheduling API Reference
+# Deprecated API Reference
 
-> Futures, cancellation, and task groups
+This API reference has moved to [`docs/api/runtime-scheduling.md`](./api/runtime-scheduling.md).
 
-**Source:** [`src/runtime/scheduling/mod.zig`](../../src/runtime/scheduling/mod.zig)
-
----
-
-Scheduling Abstractions for Runtime
-
-This module provides async execution primitives including:
-
-- `Future` / `Promise` - Async results with chaining
-- `CancellationToken` - Cooperative cancellation
-- `TaskGroup` - Hierarchical task organization
-- `AsyncRuntime` - High-level async task execution
-
----
-
-## API
-
----
-
-*Generated automatically by `zig build gendocs`*
+Please update any bookmarks or links to use the canonical location.
