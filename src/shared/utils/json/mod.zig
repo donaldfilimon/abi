@@ -15,6 +15,11 @@ pub fn escapeString(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
             '\n' => try escaped.appendSlice(allocator, "\\n"),
             '\r' => try escaped.appendSlice(allocator, "\\r"),
             '\t' => try escaped.appendSlice(allocator, "\\t"),
+            0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
+                var buf: [6]u8 = undefined;
+                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
+                try escaped.appendSlice(allocator, &buf);
+            },
             else => try escaped.append(allocator, c),
         }
     }
@@ -252,4 +257,19 @@ test "parse optional fields" {
 
     const missing = parseOptionalStringField(object, "missing", allocator);
     try std.testing.expect(missing == null);
+}
+
+test "escape string control characters" {
+    const allocator = std.testing.allocator;
+    const input = &[_]u8{ 'a', 0x01, 0x1F, 'b' };
+
+    const escaped = try escapeString(allocator, input);
+    defer allocator.free(escaped);
+
+    try std.testing.expectEqualStrings("\"a\\u0001\\u001fb\"", escaped);
+
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, escaped, .{});
+    defer parsed.deinit();
+
+    try std.testing.expectEqualSlices(u8, input, parsed.value.string);
 }
