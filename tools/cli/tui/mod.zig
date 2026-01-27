@@ -7,6 +7,7 @@ pub const agent_panel = @import("agent_panel.zig");
 pub const training_panel = @import("training_panel.zig");
 pub const training_metrics = @import("training_metrics.zig");
 pub const ring_buffer = @import("ring_buffer.zig");
+pub const percentile_tracker = @import("percentile_tracker.zig");
 
 pub const Key = events.Key;
 pub const KeyCode = events.KeyCode;
@@ -57,3 +58,4 @@ pub const builtinThemes = themes.themes;
 
 // Data Structures for Dashboards
 pub const RingBuffer = ring_buffer.RingBuffer;
+pub const PercentileTracker = percentile_tracker.PercentileTracker;
