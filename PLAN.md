@@ -12,18 +12,24 @@ tags: [planning, sprint, development]
 
 ## This Sprint
 
-🎉 **Sprint Complete!** Ready for next sprint planning.
+**Focus: Documentation & Stream Reliability**
 
-_(Awaiting next feature selection)_
+### In Progress
+- [ ] **Stream error recovery** - Graceful handling of disconnections, reconnection logic, observability for failures
+- [ ] **Streaming integration tests** - E2E tests with fault injection for SSE/WebSocket endpoints
+
+### Completed This Sprint
+- [x] **Streaming documentation** - Comprehensive guide for SSE/WebSocket streaming API (`docs/streaming.md`)
+- [x] **Model management guide** - Documentation for downloading, caching, hot-reload (`docs/models.md`)
 
 ---
 
-## Queued
+## Blocked
 
-Ready to start when current work completes:
+Waiting on external dependencies:
 
-**Potential Next Features:**
-_(Awaiting next feature selection)_
+- **Native HTTP downloads** - Deferred until Zig 0.16 `std.Io.File.Writer` API stabilizes; currently falls back to curl/wget instructions
+- **Toolchain CLI** - Disabled due to Zig 0.16 API incompatibilities in `toolchain.zig`
 
 ---
 
