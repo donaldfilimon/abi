@@ -6,12 +6,14 @@
 //! - Bearer token authentication
 //! - OpenAI-compatible API endpoints
 //! - Custom ABI endpoints
+//! - Admin endpoints for model hot-reload
 //!
 //! Endpoints:
 //! - POST /v1/chat/completions - OpenAI-compatible chat completions
 //! - POST /api/stream - Custom ABI streaming endpoint
 //! - GET  /api/stream/ws - WebSocket upgrade for streaming
 //! - GET  /health - Health check endpoint
+//! - POST /admin/reload - Hot-reload model without server restart
 
 const std = @import("std");
 const mod = @import("mod.zig");
@@ -31,10 +33,14 @@ pub const StreamingServerError = std.mem.Allocator.Error || error{
     WebSocketError,
     RequestTooLarge,
     UnsupportedBackend,
+    ModelReloadFailed,
+    ModelReloadTimeout,
 };
 
 const max_body_bytes = 1024 * 1024; // 1MB max request body
 const heartbeat_interval_ms: u64 = 15000; // 15 second heartbeats
+const admin_reload_drain_timeout_ns: u64 = 30_000_000_000; // 30 second drain timeout
+const admin_reload_poll_interval_ns: u64 = 100_000_000; // 100ms poll interval
 
 /// Server configuration
 pub const ServerConfig = struct {
@@ -251,6 +257,11 @@ pub const StreamingServer = struct {
         // Models list (OpenAI-compatible)
         if (self.config.enable_openai_compat and std.mem.eql(u8, path, "/v1/models")) {
             return self.handleModelsList(request);
+        }
+
+        // Admin model reload endpoint (no auth required)
+        if (std.mem.eql(u8, path, "/admin/reload")) {
+            return self.handleAdminReload(request);
         }
 
         return self.respondJson(
@@ -755,6 +766,92 @@ pub const StreamingServer = struct {
         return self.respondJson(request, models_json, .ok);
     }
 
+    /// Handle admin model hot-reload
+    ///
+    /// Waits for active streams to drain (up to 30s timeout), then reloads
+    /// the model from the specified path. If the new model fails to load,
+    /// the server continues without a model (no rollback).
+    ///
+    /// Request: POST /admin/reload {"model_path": "/path/to/model.gguf"}
+    /// Response: {"status": "ok", "message": "model reloaded successfully"}
+    fn handleAdminReload(self: *Self, request: *std.http.Server.Request) !void {
+        // Only accept POST method
+        if (request.head.method != .POST) {
+            return self.respondJson(
+                request,
+                "{\"error\":{\"message\":\"method not allowed\",\"type\":\"invalid_request_error\"}}",
+                .method_not_allowed,
+            );
+        }
+
+        // Parse request body
+        const body = try self.readRequestBody(request);
+        defer self.allocator.free(body);
+
+        // Extract model_path from JSON
+        const model_path = extractJsonString(body, "model_path") orelse {
+            return self.respondJson(
+                request,
+                "{\"error\":{\"message\":\"missing model_path field\",\"type\":\"invalid_request_error\"}}",
+                .bad_request,
+            );
+        };
+
+        // Wait for active streams to drain
+        var timer = std.time.Timer.start() catch {
+            // Timer failed - proceed with reload anyway
+            return self.performModelReload(request, model_path);
+        };
+
+        while (self.active_streams.load(.seq_cst) > 0) {
+            if (timer.read() >= admin_reload_drain_timeout_ns) {
+                return self.respondJson(
+                    request,
+                    "{\"error\":{\"message\":\"timeout waiting for active streams to drain\",\"type\":\"timeout_error\"}}",
+                    .request_timeout,
+                );
+            }
+            // Brief delay to avoid pure busy-waiting (Zig 0.16 compatible)
+            const poll_timer = std.time.Timer.start() catch continue;
+            var pt = poll_timer;
+            while (pt.read() < admin_reload_poll_interval_ns) {
+                std.atomic.spinLoopHint();
+            }
+        }
+
+        return self.performModelReload(request, model_path);
+    }
+
+    /// Perform the actual model reload on the local backend
+    fn performModelReload(self: *Self, request: *std.http.Server.Request, model_path: []const u8) !void {
+        // Get local backend from router
+        const backend = self.backend_router.getBackend(.local) catch {
+            return self.respondJson(
+                request,
+                "{\"error\":{\"message\":\"local backend unavailable\",\"type\":\"backend_error\"}}",
+                .internal_server_error,
+            );
+        };
+
+        // Attempt to load new model
+        // Note: LocalBackend.loadModel() -> Engine.loadModelImpl() already unloads old model
+        backend.impl.local.loadModel(model_path) catch {
+            // Per requirements: leave server without model on failure (no rollback)
+            return self.respondJson(
+                request,
+                "{\"error\":{\"message\":\"model reload failed\",\"type\":\"model_error\"}}",
+                .internal_server_error,
+            );
+        };
+
+        // Success
+        return self.respondJson(
+            request,
+            "{\"status\":\"ok\",\"message\":\"model reloaded successfully\"}",
+            .ok,
+        );
+    }
+
     /// Validate bearer token authentication
     fn validateAuth(self: *Self, request: *std.http.Server.Request) StreamingServerError!void {
         const expected_token = self.config.auth_token orelse return;
@@ -1061,4 +1158,26 @@ test "websocket frame encoding for streaming" {
     try std.testing.expectEqual(@as(u8, 0x81), frame[0]);
     // Payload length should be > 0
     try std.testing.expect(frame[1] > 0);
+}
+
+test "admin reload request parsing" {
+    // Test JSON parsing for reload endpoint
+    const json = "{\"model_path\":\"/path/to/model.gguf\"}";
+    const model_path = extractJsonString(json, "model_path");
+    try std.testing.expect(model_path != null);
+    try std.testing.expectEqualStrings("/path/to/model.gguf", model_path.?);
+}
+
+test "admin reload missing model_path" {
+    // Test that missing model_path is detected
+    const json = "{\"other_field\":\"value\"}";
+    const model_path = extractJsonString(json, "model_path");
+    try std.testing.expect(model_path == null);
+}
+
+test "admin reload error types" {
+    // Test that new error types are available
+    const err1: StreamingServerError = StreamingServerError.ModelReloadFailed;
+    const err2: StreamingServerError = StreamingServerError.ModelReloadTimeout;
+    try std.testing.expect(err1 != err2);
 }

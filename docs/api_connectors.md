@@ -1,17 +1,5 @@
-# connectors API Reference
+# Deprecated API Reference
 
-> API connectors (OpenAI, Ollama, Anthropic, HuggingFace)
+This API reference has moved to [`docs/api/connectors.md`](./api/connectors.md).
 
-**Source:** [`src/connectors/mod.zig`](../../src/connectors/mod.zig)
-
----
-
-Connector configuration loaders and auth helpers.
-
----
-
-## API
-
----
-
-*Generated automatically by `zig build gendocs`*
+Please update any bookmarks or links to use the canonical location.

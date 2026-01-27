@@ -246,6 +246,58 @@ pub const LLMBenchConfig = struct {
 };
 
 // ============================================================================
+// Streaming Benchmark Configuration
+// ============================================================================
+
+/// Configuration for streaming inference benchmarks
+pub const StreamingBenchConfig = struct {
+    /// Number of tokens to generate per run
+    tokens_per_run: []const usize = &.{ 32, 64, 128, 256, 512 },
+    /// Number of warmup iterations
+    warmup_iterations: usize = 10,
+    /// Number of benchmark iterations per configuration
+    iterations: usize = 100,
+    /// Simulated token delay range (nanoseconds) for mock generator
+    min_token_delay_ns: u64 = 1_000_000, // 1ms
+    max_token_delay_ns: u64 = 50_000_000, // 50ms
+    /// Whether to benchmark SSE encoding overhead
+    bench_sse_encoding: bool = true,
+    /// Whether to benchmark WebSocket framing overhead
+    bench_ws_framing: bool = true,
+    /// Random seed for reproducibility
+    seed: u64 = 42,
+
+    /// Quick configuration for CI
+    pub const quick = StreamingBenchConfig{
+        .tokens_per_run = &.{ 32, 64 },
+        .warmup_iterations = 5,
+        .iterations = 50,
+        .min_token_delay_ns = 1_000_000,
+        .max_token_delay_ns = 10_000_000,
+    };
+
+    /// Standard configuration for development
+    pub const standard = StreamingBenchConfig{
+        .tokens_per_run = &.{ 32, 64, 128, 256 },
+        .warmup_iterations = 10,
+        .iterations = 100,
+        .min_token_delay_ns = 1_000_000,
+        .max_token_delay_ns = 30_000_000,
+    };
+
+    /// Comprehensive configuration for full benchmarking
+    pub const comprehensive = StreamingBenchConfig{
+        .tokens_per_run = &.{ 32, 64, 128, 256, 512, 1024 },
+        .warmup_iterations = 20,
+        .iterations = 200,
+        .min_token_delay_ns = 500_000,
+        .max_token_delay_ns = 100_000_000,
+        .bench_sse_encoding = true,
+        .bench_ws_framing = true,
+    };
+};
+
+// ============================================================================
 // Memory Profiling Configuration
 // ============================================================================
 
@@ -378,6 +430,14 @@ pub fn getLLMConfig(profile: []const u8) LLMBenchConfig {
     return LLMBenchConfig.standard;
 }
 
+/// Get streaming benchmark configuration based on profile name
+pub fn getStreamingConfig(profile: []const u8) StreamingBenchConfig {
+    if (std.mem.eql(u8, profile, "quick")) return StreamingBenchConfig.quick;
+    if (std.mem.eql(u8, profile, "standard")) return StreamingBenchConfig.standard;
+    if (std.mem.eql(u8, profile, "comprehensive")) return StreamingBenchConfig.comprehensive;
+    return StreamingBenchConfig.standard;
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -406,4 +466,13 @@ test "ann dataset info" {
 test "quantization levels" {
     try std.testing.expectEqual(@as(usize, 32), LLMBenchConfig.QuantizationLevel.fp32.bitsPerWeight());
     try std.testing.expectEqual(@as(usize, 4), LLMBenchConfig.QuantizationLevel.int4.bitsPerWeight());
+}
+
+test "streaming config presets" {
+    const quick = StreamingBenchConfig.quick;
+    const comprehensive = StreamingBenchConfig.comprehensive;
+
+    try std.testing.expect(quick.iterations < comprehensive.iterations);
+    try std.testing.expect(quick.warmup_iterations < comprehensive.warmup_iterations);
+    try std.testing.expect(quick.tokens_per_run.len < comprehensive.tokens_per_run.len);
 }

@@ -292,6 +292,9 @@ pub const WorkloadType = gpu_agent.WorkloadType;
 pub const GpuAgentPriority = gpu_agent.Priority;
 pub const GpuAgentStats = gpu_agent.AgentStats;
 
+// Model Management
+pub const models = if (build_options.enable_ai) @import("models/mod.zig") else @import("models/stub.zig");
+
 // Model Auto-Discovery and Adaptive Configuration
 pub const ModelDiscovery = discovery.ModelDiscovery;
 pub const DiscoveredModel = discovery.DiscoveredModel;
