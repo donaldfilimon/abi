@@ -18,6 +18,7 @@ const embed = @import("embed.zig");
 const explore = @import("explore.zig");
 const gpu = @import("gpu.zig");
 const llm = @import("llm.zig");
+const model = @import("model.zig");
 const network = @import("network.zig");
 const simd = @import("simd.zig");
 const system_info = @import("system_info.zig");
@@ -83,6 +84,7 @@ const Command = enum {
     explore,
     gpu,
     llm,
+    model,
     network,
     simd,
     system_info,
@@ -1191,6 +1193,7 @@ fn commandName(cmd: Command) []const u8 {
         .explore => "explore",
         .gpu => "gpu",
         .llm => "llm",
+        .model => "model",
         .network => "network",
         .simd => "simd",
         .system_info => "system-info",
@@ -1660,6 +1663,7 @@ fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
         .explore => try explore.run(allocator, empty_args),
         .gpu => try gpu.run(allocator, empty_args),
         .llm => try llm.run(allocator, empty_args),
+        .model => try model.run(allocator, empty_args),
         .network => try network.run(allocator, empty_args),
         .simd => try simd.run(allocator, empty_args),
         .system_info => try system_info.run(allocator, empty_args),
@@ -1723,6 +1727,15 @@ fn menuItemsExtended() []const MenuItem {
             .usage = "abi embed [--provider <name>] <text>",
             .examples = &[_][]const u8{ "abi embed \"hello world\"", "abi embed --provider openai \"text\"" },
             .related = &[_][]const u8{ "db", "llm" },
+        },
+        .{
+            .label = "Model",
+            .description = "Model management (download, cache, switch)",
+            .action = .{ .command = .model },
+            .category = .ai,
+            .usage = "abi model <subcommand> [options]",
+            .examples = &[_][]const u8{ "abi model list", "abi model download llama-7b", "abi model info mistral" },
+            .related = &[_][]const u8{ "llm", "agent", "embed" },
         },
 
         // Data (shortcuts 4-5)
