@@ -34,7 +34,6 @@ defaults:
 
 # Exclude from processing
 exclude:
-  - plans/
   - diagrams/
   - "*.bak"
   - Gemfile
