@@ -283,14 +283,11 @@ pub const Downloader = struct {
         return error.DownloadDisabled;
     }
 
-    /// Format Range header value for resume.
-    fn formatRangeHeader(start_byte: u64) []const u8 {
-        // Static buffer for range header (reused across calls)
-        const S = struct {
-            var buf: [32]u8 = undefined;
-        };
-        const len = std.fmt.bufPrint(&S.buf, "bytes={d}-", .{start_byte}) catch return "bytes=0-";
-        return S.buf[0..len];
+    /// Format Range header value for resume using a caller-provided buffer.
+    /// Thread-safe: the caller owns the buffer, so there is no shared mutable state.
+    fn formatRangeHeader(start_byte: u64, buf: []u8) []const u8 {
+        const len = std.fmt.bufPrint(buf, "bytes={d}-", .{start_byte}) catch return "bytes=0-";
+        return buf[0..len];
     }
 
     /// Parse a URL into components.
@@ -499,4 +496,15 @@ test "formatDuration" {
 
     const hours = formatDuration(3665);
     try std.testing.expect(std.mem.indexOf(u8, &hours, "1h 1m") != null);
+}
+
+test "formatRangeHeader uses caller buffer" {
+    var buf_one: [32]u8 = undefined;
+    var buf_two: [32]u8 = undefined;
+
+    const header_one = Downloader.formatRangeHeader(128, &buf_one);
+    const header_two = Downloader.formatRangeHeader(4096, &buf_two);
+
+    try std.testing.expectEqualStrings("bytes=128-", header_one);
+    try std.testing.expectEqualStrings("bytes=4096-", header_two);
 }
