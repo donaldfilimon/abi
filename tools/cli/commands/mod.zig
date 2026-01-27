@@ -13,6 +13,7 @@ pub const explore = @import("explore.zig");
 pub const gpu = @import("gpu.zig");
 pub const gpu_dashboard = @import("gpu_dashboard.zig");
 pub const llm = @import("llm.zig");
+pub const model = @import("model.zig");
 pub const network = @import("network.zig");
 pub const simd = @import("simd.zig");
 pub const system_info = @import("system_info.zig");

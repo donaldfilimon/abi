@@ -43,6 +43,7 @@ const command_infos = [_]CommandInfo{
     .{ .name = "config", .description = "Configuration management (init, show, validate)" },
     .{ .name = "discord", .description = "Discord bot operations (status, guilds, send, commands)" },
     .{ .name = "llm", .description = "LLM inference (info, generate, chat, bench, download)" },
+    .{ .name = "model", .description = "Model management (list, download, remove, search)" },
     .{ .name = "embed", .description = "Generate embeddings from text (openai, mistral, cohere, ollama)" },
     .{ .name = "train", .description = "Training pipeline (run, resume, info)" },
     .{ .name = "convert", .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)" },
@@ -230,6 +231,10 @@ fn runCommand(
     }
     if (std.mem.eql(u8, command, "llm")) {
         try commands.llm.run(allocator, args);
+        return true;
+    }
+    if (std.mem.eql(u8, command, "model")) {
+        try commands.model.run(allocator, args);
         return true;
     }
     if (std.mem.eql(u8, command, "embed")) {

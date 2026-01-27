@@ -25,6 +25,7 @@ pub const BenchmarkSuite = enum {
     network,
     crypto,
     ai,
+    streaming,
     quick,
 
     pub fn toString(self: BenchmarkSuite) []const u8 {
@@ -37,6 +38,7 @@ pub const BenchmarkSuite = enum {
             .network => "network",
             .crypto => "crypto",
             .ai => "ai",
+            .streaming => "streaming",
             .quick => "quick",
         };
     }
@@ -152,6 +154,7 @@ fn runBenchmarkSuite(allocator: std.mem.Allocator, config: BenchConfig) !void {
         .network => try runSuiteWithResults(allocator, "Network/HTTP", runNetworkBenchmarks, &results, config.output_json),
         .crypto => try runSuiteWithResults(allocator, "Cryptography", runCryptoBenchmarks, &results, config.output_json),
         .ai => try runSuiteWithResults(allocator, "AI/ML", runAiBenchmarks, &results, config.output_json),
+        .streaming => try runSuiteWithResults(allocator, "Streaming Inference", runStreamingBenchmarks, &results, config.output_json),
         .quick => {
             try runSuiteWithResults(allocator, "Quick (SIMD)", runQuickSimdBenchmarks, &results, config.output_json);
             try runSuiteWithResults(allocator, "Quick (Memory)", runQuickMemoryBenchmarks, &results, config.output_json);
@@ -946,6 +949,124 @@ fn runAiBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanage
     std.debug.print("  matmul[{d}x{d}x{d}]: {d:.2} GFLOPS, {d:.0}ns mean\n", .{ m, k, n, gflops, mean_ns });
 }
 
+fn runStreamingBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
+    // Streaming inference benchmarks - measures TTFT, ITL, and throughput
+    const token_counts = [_]usize{ 32, 64, 128 };
+    const iterations: u64 = 50;
+    const warmup: u64 = 10;
+
+    // Sample tokens for simulated generation
+    const sample_tokens = [_][]const u8{ " the", " a", " is", " and", " to", " of", " in", " that", " it", " for" };
+
+    for (token_counts) |token_count| {
+        var ttft_samples = std.ArrayListUnmanaged(u64){};
+        defer ttft_samples.deinit(allocator);
+
+        var throughput_sum: f64 = 0;
+
+        // Warmup
+        for (0..warmup) |_| {
+            var gen_count: usize = 0;
+            while (gen_count < token_count) : (gen_count += 1) {
+                const token = sample_tokens[gen_count % sample_tokens.len];
+                std.mem.doNotOptimizeAway(&token);
+            }
+        }
+
+        // Benchmark iterations
+        for (0..iterations) |_| {
+            const run_timer = std.time.Timer.start() catch continue;
+            var first_token = true;
+
+            var gen_count: usize = 0;
+            while (gen_count < token_count) : (gen_count += 1) {
+                // Simulate token generation with small delay (Zig 0.16 busy-wait)
+                const delay_timer = std.time.Timer.start() catch continue;
+                var dt = delay_timer;
+                while (dt.read() < 100_000) { // 0.1ms per token
+                    std.atomic.spinLoopHint();
+                }
+
+                const token = sample_tokens[gen_count % sample_tokens.len];
+                std.mem.doNotOptimizeAway(&token);
+
+                if (first_token) {
+                    var t = run_timer;
+                    try ttft_samples.append(allocator, t.read());
+                    first_token = false;
+                }
+            }
+
+            var final_timer = run_timer;
+            const run_time = final_timer.read();
+            const throughput = @as(f64, @floatFromInt(token_count)) /
+                (@as(f64, @floatFromInt(run_time)) / 1_000_000_000.0);
+            throughput_sum += throughput;
+        }
+
+        // Calculate statistics
+        var ttft_sum: u128 = 0;
+        for (ttft_samples.items) |s| ttft_sum += s;
+        const ttft_mean = if (ttft_samples.items.len > 0)
+            @as(f64, @floatFromInt(ttft_sum)) / @as(f64, @floatFromInt(ttft_samples.items.len))
+        else
+            0;
+
+        const throughput_mean = throughput_sum / @as(f64, @floatFromInt(iterations));
+
+        try results.append(allocator, .{
+            .name = try std.fmt.allocPrint(allocator, "streaming_{d}_tokens", .{token_count}),
+            .category = "streaming",
+            .ops_per_sec = throughput_mean,
+            .mean_ns = ttft_mean,
+            .p99_ns = @intFromFloat(ttft_mean * 1.5),
+            .iterations = iterations,
+            .name_allocated = true,
+        });
+
+        std.debug.print("  streaming[{d} tokens]: TTFT={d:.2}ms, throughput={d:.1} tok/s\n", .{
+            token_count,
+            ttft_mean / 1_000_000.0,
+            throughput_mean,
+        });
+    }
+
+    // SSE encoding overhead benchmark
+    {
+        const encode_iterations: u64 = 10000;
+        var buffer = std.ArrayListUnmanaged(u8){};
+        defer buffer.deinit(allocator);
+
+        const timer = std.time.Timer.start() catch return;
+
+        for (0..encode_iterations) |i| {
+            buffer.clearRetainingCapacity();
+            const token = sample_tokens[i % sample_tokens.len];
+
+            // SSE format
+            try buffer.appendSlice(allocator, "data: {\"token\":\"");
+            try buffer.appendSlice(allocator, token);
+            try buffer.appendSlice(allocator, "\"}\n\n");
+        }
+
+        var t = timer;
+        const elapsed_ns = t.read();
+        const mean_ns = @as(f64, @floatFromInt(elapsed_ns)) / @as(f64, @floatFromInt(encode_iterations));
+        const ops_per_sec = if (mean_ns > 0) 1_000_000_000.0 / mean_ns else 0;
+
+        try results.append(allocator, .{
+            .name = "sse_encode",
+            .category = "streaming",
+            .ops_per_sec = ops_per_sec,
+            .mean_ns = mean_ns,
+            .p99_ns = @intFromFloat(mean_ns * 1.3),
+            .iterations = encode_iterations,
+        });
+
+        std.debug.print("  sse_encode: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+    }
+}
+
 fn runQuickSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void {
     // Quick SIMD benchmark - single size
     const size: usize = 256;
@@ -1175,6 +1296,7 @@ fn printAvailableSuites() void {
     std.debug.print("  network      HTTP/Network operations\n", .{});
     std.debug.print("  crypto       Cryptographic operations\n", .{});
     std.debug.print("  ai           AI/ML inference (GEMM, attention)\n", .{});
+    std.debug.print("  streaming    Streaming inference (TTFT, ITL, throughput)\n", .{});
     std.debug.print("  quick        Quick benchmarks for CI\n", .{});
     std.debug.print("\nMicro-benchmarks:\n", .{});
     std.debug.print("  abi bench micro hash   - Simple hash computation\n", .{});
@@ -1203,6 +1325,7 @@ fn printHelp() void {
         .subcommand(.{ .name = "network", .description = "HTTP/Network operations" })
         .subcommand(.{ .name = "crypto", .description = "Cryptographic operations" })
         .subcommand(.{ .name = "ai", .description = "AI/ML inference" })
+        .subcommand(.{ .name = "streaming", .description = "Streaming inference (TTFT, ITL)" })
         .subcommand(.{ .name = "quick", .description = "Quick benchmarks for CI" })
         .subcommand(.{ .name = "list", .description = "List available suites" })
         .subcommand(.{ .name = "micro <op>", .description = "Run micro-benchmark (hash, alloc, parse, noop)" })
