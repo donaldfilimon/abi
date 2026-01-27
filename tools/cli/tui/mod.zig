@@ -6,6 +6,7 @@ pub const gpu_monitor = @import("gpu_monitor.zig");
 pub const agent_panel = @import("agent_panel.zig");
 pub const training_panel = @import("training_panel.zig");
 pub const training_metrics = @import("training_metrics.zig");
+pub const ring_buffer = @import("ring_buffer.zig");
 
 pub const Key = events.Key;
 pub const KeyCode = events.KeyCode;
@@ -53,3 +54,6 @@ pub const MetricsParser = training_metrics.MetricsParser;
 pub const Theme = themes.Theme;
 pub const ThemeManager = themes.ThemeManager;
 pub const builtinThemes = themes.themes;
+
+// Data Structures for Dashboards
+pub const RingBuffer = ring_buffer.RingBuffer;
