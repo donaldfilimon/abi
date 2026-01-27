@@ -23,13 +23,16 @@ _(Awaiting next feature selection)_
 Ready to start when current work completes:
 
 **Potential Next Features:**
-1. **Model hot-reload** - Swap models without server restart
-2. **Streaming benchmarks** - Performance tests for token throughput
+_(Awaiting next feature selection)_
 
 ---
 
 ## Recently Completed
 
+- **Model download infrastructure** - Enhanced `abi model download` with progress display infrastructure; `DownloadResult` struct (path, checksum, was_resumed, verified); `DownloadConfig` with resume/checksum options; Detailed multi-line ANSI progress bar (size, speed, ETA); `--no-verify` flag for checksum skip; Graceful fallback to curl/wget instructions; Native HTTP deferred until Zig 0.16 File I/O stabilizes; 771/776 tests passing (2026-01-26)
+- **Model management CLI** - Download, cache, and manage GGUF models locally; `abi model` command with list/info/download/remove/search/path subcommands; HuggingFace shorthand (`TheBloke/Model:Q4_K_M`); Resolves download URLs; Manager tracks cached models with metadata; Platform-aware cache directories (`~/.abi/models/`); Inline tests; 771/776 tests passing (2026-01-26)
+- **Streaming benchmarks** - Performance tests for streaming inference pipeline; Measures TTFT (Time To First Token), inter-token latency (P50/P90/P99), throughput (tok/s), SSE encoding overhead, WebSocket framing overhead; MockTokenGenerator with 4 patterns (constant_rate, variable_rate, burst, warmup); `abi bench streaming` CLI command; Quick/standard/comprehensive presets; 771/776 tests passing (2026-01-26)
+- **Model hot-reload** - Swap GGUF models without server restart via `POST /admin/reload`; Waits for active streams to drain (30s timeout); No authentication required; No rollback on failure (leaves server without model); Uses existing `Engine.loadModelImpl()` which handles unload-before-load; 771/776 tests passing (2026-01-26)
 - **SSE heartbeat system** - Timer-based keep-alive heartbeats for long-running SSE connections; Configurable `heartbeat_interval_ms` (default 15s); SSE comment format (`: heartbeat\n\n`) prevents proxy timeouts; Both OpenAI-compatible and ABI endpoints supported; Uses `std.time.Timer` for precise timing; 771/776 tests passing (2026-01-26)
 - **WebSocket streaming** - Bidirectional real-time communication for `/api/stream/ws` endpoint; RFC 6455 compliant frame encoding/decoding; Multiple requests per connection; Cancellation support via `{"type":"cancel"}` messages; ABI message format with start/token/end/error events; Bearer token auth; Concurrent stream limits; 771/776 tests passing (2026-01-26)
 - **True SSE streaming** - Replaced non-streaming fallback with real Server-Sent Events streaming; ConnectionContext for writer passthrough; Incremental token delivery via `data: {json}\n\n` format; OpenAI-compatible `[DONE]` termination; Custom ABI endpoint with start/token/end events; 771/776 tests passing (2026-01-26)
