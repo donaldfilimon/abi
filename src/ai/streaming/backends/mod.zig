@@ -202,23 +202,42 @@ pub const BackendRouter = struct {
     allocator: std.mem.Allocator,
     backends: std.EnumArray(BackendType, ?Backend),
     default_backend: BackendType,
+    recovery: ?*Recovery,
 
     const Self = @This();
+    const Recovery = @import("../recovery.zig").StreamRecovery;
+    const RecoveryConfig = @import("../recovery.zig").RecoveryConfig;
 
     pub fn init(allocator: std.mem.Allocator) !Self {
+        return initWithRecovery(allocator, null);
+    }
+
+    /// Initialize with optional recovery support.
+    pub fn initWithRecovery(allocator: std.mem.Allocator, recovery_config: ?RecoveryConfig) !Self {
         var backends = std.EnumArray(BackendType, ?Backend).initFill(null);
 
         // Initialize local backend by default
         backends.set(.local, try Backend.init(allocator, .local));
 
+        var recovery: ?*Recovery = null;
+        if (recovery_config) |cfg| {
+            recovery = try allocator.create(Recovery);
+            recovery.?.* = try Recovery.init(allocator, cfg);
+        }
+
         return .{
             .allocator = allocator,
             .backends = backends,
             .default_backend = .local,
+            .recovery = recovery,
         };
     }
 
     pub fn deinit(self: *Self) void {
+        if (self.recovery) |r| {
+            r.deinit();
+            self.allocator.destroy(r);
+        }
         var iter = self.backends.iterator();
         while (iter.next()) |entry| {
             if (entry.value.*) |*backend| {
@@ -226,6 +245,33 @@ pub const BackendRouter = struct {
             }
         }
         self.* = undefined;
+    }
+
+    /// Get recovery manager (if enabled).
+    pub fn getRecovery(self: *Self) ?*Recovery {
+        return self.recovery;
+    }
+
+    /// Check if a backend is available (circuit breaker check).
+    pub fn isBackendAvailable(self: *Self, backend_type: BackendType) bool {
+        if (self.recovery) |r| {
+            return r.isBackendAvailable(backend_type);
+        }
+        return true;
+    }
+
+    /// Record a successful operation.
+    pub fn recordSuccess(self: *Self, backend_type: BackendType) void {
+        if (self.recovery) |r| {
+            r.recordSuccess(backend_type);
+        }
+    }
+
+    /// Record a failed operation.
+    pub fn recordFailure(self: *Self, backend_type: BackendType) void {
+        if (self.recovery) |r| {
+            r.recordFailure(backend_type);
+        }
     }
 
     /// Get backend by type (lazy initialization)
@@ -247,6 +293,56 @@ pub const BackendRouter = struct {
     /// Set default backend
     pub fn setDefaultBackend(self: *Self, backend_type: BackendType) void {
         self.default_backend = backend_type;
+    }
+
+    /// Stream tokens with recovery protection.
+    ///
+    /// Checks circuit breaker before calling backend and records success/failure.
+    /// Returns error.CircuitBreakerOpen if the backend's circuit is open.
+    pub fn streamTokensWithRecovery(
+        self: *Self,
+        backend_type: BackendType,
+        prompt: []const u8,
+        config: GenerationConfig,
+    ) !TokenStream {
+        // Check circuit breaker
+        if (!self.isBackendAvailable(backend_type)) {
+            return error.CircuitBreakerOpen;
+        }
+
+        // Record metrics on stream start
+        if (self.recovery) |r| {
+            if (r.getMetrics()) |m| {
+                const metrics_type = @import("../metrics.zig").BackendType;
+                m.recordStreamStart(@enumFromInt(@intFromEnum(backend_type)));
+                _ = metrics_type;
+            }
+        }
+
+        const backend = try self.getBackend(backend_type);
+        return backend.streamTokens(prompt, config);
+    }
+
+    /// Find an available backend, trying fallbacks if primary is unavailable.
+    pub fn findAvailableBackend(self: *Self, preferred: BackendType) ?BackendType {
+        // Try preferred first
+        if (self.isBackendAvailable(preferred)) {
+            return preferred;
+        }
+
+        // Try fallback order: local -> ollama -> openai -> anthropic
+        const fallback_order = [_]BackendType{ .local, .ollama, .openai, .anthropic };
+        for (fallback_order) |backend_type| {
+            if (backend_type != preferred and self.isBackendAvailable(backend_type)) {
+                // Emit failover event if recovery is enabled
+                if (self.recovery) |r| {
+                    r.emitFailoverEvent(preferred, backend_type, "circuit breaker open");
+                }
+                return backend_type;
+            }
+        }
+
+        return null;
     }
 
     /// List available models as JSON

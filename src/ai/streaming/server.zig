@@ -23,6 +23,9 @@ const backends = @import("backends/mod.zig");
 const formats = @import("formats/mod.zig");
 const net_utils = @import("../../shared/utils.zig").net;
 const json_utils = @import("../../shared/utils.zig").json;
+const recovery = @import("recovery.zig");
+const RecoveryConfig = recovery.RecoveryConfig;
+const RecoveryEvent = recovery.RecoveryEvent;
 
 pub const StreamingServerError = std.mem.Allocator.Error || error{
     InvalidAddress,
@@ -35,6 +38,7 @@ pub const StreamingServerError = std.mem.Allocator.Error || error{
     UnsupportedBackend,
     ModelReloadFailed,
     ModelReloadTimeout,
+    CircuitBreakerOpen,
 };
 
 const max_body_bytes = 1024 * 1024; // 1MB max request body
@@ -64,6 +68,10 @@ pub const ServerConfig = struct {
     default_model_path: ?[]const u8 = null,
     /// Pre-load model on server start (reduces first-request latency)
     preload_model: bool = false,
+    /// Enable error recovery (circuit breakers, retry, session caching)
+    enable_recovery: bool = true,
+    /// Recovery configuration (only used if enable_recovery is true)
+    recovery_config: RecoveryConfig = .{},
 };
 
 /// Streaming inference server
@@ -81,7 +89,12 @@ pub const StreamingServer = struct {
     /// the model will be loaded during initialization. Otherwise, the model
     /// will be loaded lazily on the first request.
     pub fn init(allocator: std.mem.Allocator, config: ServerConfig) !Self {
-        var backend_router = try backends.BackendRouter.init(allocator);
+        // Initialize backend router with optional recovery support
+        const recovery_cfg: ?RecoveryConfig = if (config.enable_recovery)
+            config.recovery_config
+        else
+            null;
+        var backend_router = try backends.BackendRouter.initWithRecovery(allocator, recovery_cfg);
         errdefer backend_router.deinit();
 
         // Configure local backend with model path if provided
@@ -219,6 +232,31 @@ pub const StreamingServer = struct {
         }
     };
 
+    /// Send a recovery event as an SSE message.
+    fn sendRecoveryEvent(self: *Self, conn_ctx: *ConnectionContext, event: RecoveryEvent) void {
+        const json = event.toJson(self.allocator) catch return;
+        defer self.allocator.free(json);
+
+        // Format as SSE event
+        conn_ctx.write("event: recovery\ndata: ") catch return;
+        conn_ctx.write(json) catch return;
+        conn_ctx.write("\n\n") catch return;
+        conn_ctx.flush() catch return;
+    }
+
+    /// Check circuit breaker and find available backend.
+    fn getAvailableBackend(self: *Self, preferred: backends.BackendType) !*backends.Backend {
+        // Check circuit breaker if recovery is enabled
+        if (!self.backend_router.isBackendAvailable(preferred)) {
+            // Try to find a fallback backend
+            if (self.backend_router.findAvailableBackend(preferred)) |fallback| {
+                return self.backend_router.getBackend(fallback);
+            }
+            return error.CircuitBreakerOpen;
+        }
+        return self.backend_router.getBackend(preferred);
+    }
+
     /// Dispatch request to appropriate handler
     fn dispatchRequest(
         self: *Self,
@@ -325,8 +363,22 @@ pub const StreamingServer = struct {
         }
         defer _ = self.active_streams.fetchSub(1, .seq_cst);
 
-        // Get backend and start streaming
-        const backend = try self.backend_router.getBackend(self.config.default_backend);
+        // Get backend (with circuit breaker check if recovery enabled)
+        const backend = self.getAvailableBackend(self.config.default_backend) catch |err| {
+            if (err == error.CircuitBreakerOpen) {
+                const error_response =
+                    "HTTP/1.1 503 Service Unavailable\r\n" ++
+                    "Content-Type: application/json\r\n" ++
+                    "Retry-After: 30\r\n" ++
+                    "Content-Length: 78\r\n" ++
+                    "\r\n" ++
+                    "{\"error\":{\"message\":\"backend temporarily unavailable\",\"type\":\"service_unavailable_error\"}}";
+                try conn_ctx.write(error_response);
+                try conn_ctx.flush();
+                return;
+            }
+            return err;
+        };
         const prompt = try chat_request.formatPrompt(self.allocator);
         defer self.allocator.free(prompt);
 
@@ -334,7 +386,13 @@ pub const StreamingServer = struct {
         try conn_ctx.writeSseHeaders();
 
         // Stream tokens as SSE events
-        var stream_iter = try backend.streamTokens(prompt, chat_request.toGenerationConfig());
+        var stream_iter = backend.streamTokens(prompt, chat_request.toGenerationConfig()) catch |err| {
+            self.backend_router.recordFailure(self.config.default_backend);
+            // Send error event to client
+            try conn_ctx.write("event: error\ndata: {\"type\":\"stream_error\",\"message\":\"failed to start stream\"}\n\n");
+            try conn_ctx.flush();
+            return err;
+        };
         defer stream_iter.deinit();
 
         // Initialize heartbeat timer
@@ -379,6 +437,9 @@ pub const StreamingServer = struct {
         // Send final [DONE] message per OpenAI spec
         try conn_ctx.write("data: [DONE]\n\n");
         try conn_ctx.flush();
+
+        // Record successful stream completion
+        self.backend_router.recordSuccess(self.config.default_backend);
     }
 
     /// Non-streaming OpenAI response

@@ -9,6 +9,8 @@
 //! - HTTP streaming server with SSE and WebSocket
 //! - OpenAI-compatible API endpoints
 //! - Backend routing (local GGUF, OpenAI, Ollama, Anthropic)
+//! - Error recovery with circuit breakers and retry logic
+//! - Session caching for reconnection recovery
 
 const std = @import("std");
 pub const sse = @import("sse.zig");
@@ -21,6 +23,13 @@ pub const server = @import("server.zig");
 pub const websocket = @import("websocket.zig");
 pub const backends = @import("backends/mod.zig");
 pub const formats = @import("formats/mod.zig");
+
+// Error recovery and resilience
+pub const recovery = @import("recovery.zig");
+pub const circuit_breaker = @import("circuit_breaker.zig");
+pub const retry_config = @import("retry_config.zig");
+pub const session_cache = @import("session_cache.zig");
+pub const streaming_metrics = @import("metrics.zig");
 
 // Server types
 pub const StreamingServer = server.StreamingServer;
@@ -39,6 +48,22 @@ pub const BackendType = backends.BackendType;
 pub const BackendRouter = backends.BackendRouter;
 pub const Backend = backends.Backend;
 pub const BackendGenerationConfig = backends.GenerationConfig;
+
+// Recovery types
+pub const StreamRecovery = recovery.StreamRecovery;
+pub const RecoveryConfig = recovery.RecoveryConfig;
+pub const RecoveryEvent = recovery.RecoveryEvent;
+pub const RecoveryCallback = recovery.RecoveryCallback;
+pub const CircuitBreaker = circuit_breaker.CircuitBreaker;
+pub const CircuitBreakerConfig = circuit_breaker.CircuitBreakerConfig;
+pub const CircuitState = circuit_breaker.CircuitState;
+pub const StreamingRetryConfig = retry_config.StreamingRetryConfig;
+pub const StreamingRetryableErrors = retry_config.StreamingRetryableErrors;
+pub const SessionCache = session_cache.SessionCache;
+pub const SessionCacheConfig = session_cache.SessionCacheConfig;
+pub const CachedToken = session_cache.CachedToken;
+pub const StreamingMetrics = streaming_metrics.StreamingMetrics;
+pub const StreamingMetricsConfig = streaming_metrics.StreamingMetricsConfig;
 
 // Basic generator types (from generator.zig)
 pub const StreamingGenerator = generator.StreamingGenerator;

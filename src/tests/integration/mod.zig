@@ -60,6 +60,7 @@ comptime {
     _ = @import("ha_network_test.zig");
     _ = @import("cloud_lifecycle_test.zig");
     _ = @import("full_stack_test.zig");
+    _ = @import("streaming_recovery.zig");
 }
 
 // ============================================================================
