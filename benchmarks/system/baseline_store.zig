@@ -44,6 +44,13 @@
 //!     const change = try store.compareToBaseline(current_result);
 //! }
 //! ```
+//!
+//! ## Note (Zig 0.16)
+//!
+//! This module currently uses `std.fs.cwd()` which is deprecated in Zig 0.16.
+//! For production use, the caller should provide an I/O context via `std.Io.Threaded`.
+//! The current implementation works but should be updated when the benchmark
+//! infrastructure is refactored.
 
 const std = @import("std");
 
