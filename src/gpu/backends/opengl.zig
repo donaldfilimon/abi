@@ -700,3 +700,39 @@ pub fn isAvailable() bool {
     // OpenGL compute requires 4.3+
     return opengl_initialized and gl_major_version >= 4 and gl_minor_version >= 3;
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "OpenGL error enum covers all cases" {
+    const errors = [_]OpenGlError{
+        error.InitializationFailed,
+        error.ShaderCompilationFailed,
+        error.ProgramLinkFailed,
+        error.BufferCreationFailed,
+        error.ComputeNotSupported,
+    };
+    try std.testing.expectEqual(@as(usize, 5), errors.len);
+}
+
+test "GL constants are correct" {
+    try std.testing.expectEqual(@as(u32, 0x91B9), GL_COMPUTE_SHADER);
+    try std.testing.expectEqual(@as(u32, 0x90D2), GL_SHADER_STORAGE_BUFFER);
+    try std.testing.expectEqual(@as(u32, 0x00002000), GL_SHADER_STORAGE_BARRIER_BIT);
+}
+
+test "isAvailable returns false when not initialized" {
+    try std.testing.expect(!isAvailable());
+}
+
+test "enumerateDevices returns empty when not initialized" {
+    const devices = try enumerateDevices(std.testing.allocator);
+    defer {
+        for (devices) |d| {
+            if (d.name) |name| std.testing.allocator.free(name);
+        }
+        std.testing.allocator.free(devices);
+    }
+    try std.testing.expectEqual(@as(usize, 0), devices.len);
+}

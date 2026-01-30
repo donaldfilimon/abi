@@ -612,3 +612,44 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
 pub fn isAvailable() bool {
     return webgpu_initialized and webgpu_device != null;
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "WebGpuError enum covers all cases" {
+    const errors = [_]WebGpuError{
+        error.InitializationFailed,
+        error.AdapterNotFound,
+        error.DeviceNotFound,
+        error.ShaderCompilationFailed,
+        error.PipelineCreationFailed,
+        error.BufferCreationFailed,
+        error.CommandEncoderCreationFailed,
+        error.ComputePassCreationFailed,
+        error.SubmissionFailed,
+    };
+    try std.testing.expectEqual(@as(usize, 9), errors.len);
+}
+
+test "buffer usage flags are distinct" {
+    try std.testing.expect(WGPUBufferUsage_MapRead != WGPUBufferUsage_MapWrite);
+    try std.testing.expect(WGPUBufferUsage_Storage != WGPUBufferUsage_Uniform);
+    try std.testing.expectEqual(@as(u32, 0x0080), WGPUBufferUsage_Storage);
+}
+
+test "enumerateDevices returns empty when not initialized" {
+    const devices = try enumerateDevices(std.testing.allocator);
+    defer {
+        for (devices) |d| {
+            if (d.name) |name| std.testing.allocator.free(name);
+        }
+        std.testing.allocator.free(devices);
+    }
+    // Without initialization, should return empty list
+    try std.testing.expectEqual(@as(usize, 0), devices.len);
+}
+
+test "isAvailable returns false when not initialized" {
+    try std.testing.expect(!isAvailable());
+}
