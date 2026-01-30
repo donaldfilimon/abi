@@ -35,6 +35,7 @@ Waiting on external dependencies:
 
 ## Recently Completed
 
+- **Documentation cleanup** - Removed 23 redundant files: 21 deprecated api_*.md redirects, performance.md stub, gpu-backends.md duplicate; Added standardized error module (src/shared/errors.zig) with ResourceError, IoError, FeatureError, ConfigError, AuthError sets; Added inline tests to config/loader.zig and platform/detection.zig; 787/792 tests passing (2026-01-30)
 - **Zig 0.16 pattern modernization** - Replaced @tagName() with {t} format specifier in print statements, converted std.ArrayList to ArrayListUnmanaged in docgen, updated std.json.stringify to std.json.fmt API; 787/792 tests passing (2026-01-30)
 - **Configuration loader with env vars** - New ConfigLoader for runtime configuration via environment variables (ABI_GPU_BACKEND, ABI_LLM_MODEL_PATH, etc.); documented in CLAUDE.md; 787/792 tests passing (2026-01-30)
 - **Build system improvements** - Fixed pathExists() for Zig 0.16 using C stat(); synced package version to 0.4.0 across build.zig, build.zig.zon, and all source files; cross-platform cli-tests and full-check build steps; 787/792 tests passing (2026-01-30)
