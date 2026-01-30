@@ -1329,3 +1329,44 @@ pub const DeviceInfo = struct {
     max_threads_per_threadgroup: u32,
     has_unified_memory: bool,
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "MetalError enum covers all cases" {
+    const errors = [_]MetalError{
+        error.InitializationFailed,
+        error.DeviceNotFound,
+        error.CommandQueueCreationFailed,
+        error.LibraryCreationFailed,
+        error.FunctionNotFound,
+        error.PipelineCreationFailed,
+        error.BufferCreationFailed,
+        error.CommandBufferCreationFailed,
+        error.ComputeEncoderCreationFailed,
+        error.ObjcRuntimeUnavailable,
+    };
+    try std.testing.expectEqual(@as(usize, 10), errors.len);
+}
+
+test "isAvailable returns false when not initialized" {
+    try std.testing.expect(!isAvailable());
+}
+
+test "getDeviceInfo returns null when not initialized" {
+    const info = getDeviceInfo();
+    try std.testing.expect(info == null);
+}
+
+test "DeviceInfo struct has correct fields" {
+    const info = DeviceInfo{
+        .name = "Test Device",
+        .total_memory = 8 * 1024 * 1024 * 1024,
+        .max_buffer_length = 256 * 1024 * 1024,
+        .max_threads_per_threadgroup = 1024,
+        .has_unified_memory = true,
+    };
+    try std.testing.expectEqualStrings("Test Device", info.name);
+    try std.testing.expect(info.has_unified_memory);
+}

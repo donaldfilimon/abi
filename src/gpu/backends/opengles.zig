@@ -748,3 +748,33 @@ pub fn setBufferAllocator(allocator: std.mem.Allocator) void {
 pub fn getVersion() struct { major: i32, minor: i32 } {
     return .{ .major = gles_major_version, .minor = gles_minor_version };
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "OpenGlesError enum covers all cases" {
+    const errors = [_]OpenGlesError{
+        error.LibraryNotFound,
+        error.FunctionLoadFailed,
+        error.InitializationFailed,
+        error.VersionNotSupported,
+        error.ShaderCompilationFailed,
+        error.ProgramLinkFailed,
+        error.BufferCreationFailed,
+        error.ComputeNotSupported,
+    };
+    try std.testing.expectEqual(@as(usize, 8), errors.len);
+}
+
+test "GL ES constants are correct" {
+    try std.testing.expectEqual(@as(u32, 0x91B9), GL_COMPUTE_SHADER);
+    try std.testing.expectEqual(@as(u32, 0), GL_NO_ERROR);
+}
+
+test "getVersion returns initialized values" {
+    const version = getVersion();
+    // Before init, should be 0
+    try std.testing.expectEqual(@as(i32, 0), version.major);
+    try std.testing.expectEqual(@as(i32, 0), version.minor);
+}
