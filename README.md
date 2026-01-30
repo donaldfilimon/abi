@@ -62,7 +62,7 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 |:--------|:------------|:------:|
 | **AI Runtime** | LLM inference with Llama-CPP parity, agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, real-time analytics | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **GPU Acceleration** | CUDA, Vulkan, Metal, WebGPU, FPGA with unified API and auto-fallback | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU Acceleration** | CUDA, Vulkan, Metal (Accelerate/AMX), WebGPU, FPGA with unified API | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
