@@ -125,6 +125,9 @@ pub const SecretsConfig = struct {
     required_secrets: []const []const u8 = &.{},
     /// Secret validation rules
     validation_rules: []const ValidationRule = &.{},
+    /// If true, fails initialization when no master key is provided.
+    /// Set to true for production deployments to prevent data loss.
+    require_master_key: bool = false,
 };
 
 /// Validation rule for secrets
@@ -174,6 +177,8 @@ pub const SecretsManager = struct {
     pub fn init(allocator: std.mem.Allocator, config: SecretsConfig) !SecretsManager {
         // Derive or use provided master key
         var master_key: [32]u8 = undefined;
+        var using_random_key = false;
+
         if (config.master_key) |key| {
             master_key = key;
         } else {
@@ -188,10 +193,18 @@ pub const SecretsManager = struct {
                     std.crypto.kdf.hkdf.HkdfSha256.expand(&master_key, &prk, "master-key");
                 }
             } else {
+                // Fail if production mode requires master key
+                if (config.require_master_key) {
+                    std.log.err("No master key provided. Set ABI_MASTER_KEY environment variable or provide master_key in config.", .{});
+                    return error.MasterKeyRequired;
+                }
                 // Generate random key (not recommended for production)
+                std.log.warn("Using randomly generated master key - encrypted secrets will be lost on restart!", .{});
                 crypto.random.bytes(&master_key);
+                using_random_key = true;
             }
         }
+        _ = using_random_key; // Suppress unused warning
 
         var manager = SecretsManager{
             .allocator = allocator,
@@ -848,6 +861,8 @@ pub const SecretsError = error{
     NotImplemented,
     OutOfMemory,
     FileWriteFailed,
+    /// No master key provided when require_master_key is true
+    MasterKeyRequired,
 };
 
 // Tests
