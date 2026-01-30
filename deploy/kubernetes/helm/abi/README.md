@@ -3,7 +3,7 @@ title: "Helm Chart"
 tags: [kubernetes, helm, deployment]
 ---
 # ABI Helm Chart
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Kubernetes-1.25+-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes"/>
