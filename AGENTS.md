@@ -4,7 +4,7 @@
 - `src/` contains the core Zig 0.16 implementation. Nested modules should import dependencies via their parent `mod.zig` (parent exports, child imports).
 - `tests/` holds integration-style tests; unit tests also live alongside code as `*_test.zig`.
 - `benchmarks/` contains performance suites; `examples/` has runnable samples.
-- `docs/`, `www/`, and `tools/` host documentation, site assets, and developer tooling. Model data lives in `models/`.
+- `docs/` and `tools/` host documentation and developer tooling.
 
 ## Build, Test, and Development Commands
 - `zig build` — build the project.
@@ -29,7 +29,7 @@
 ## Commit & Pull Request Guidelines
 - Commit messages follow Conventional Commits with optional scopes, e.g. `feat(metal): add unified memory` or `docs: update README`.
 - Common types in history: `feat`, `fix`, `docs`, `chore`, `ci`, `security`, `refactor`, `test`.
-- PRs should include a clear description, linked issues (if any), passing tests, and formatted code. Add benchmarks for performance-sensitive changes and screenshots for `www/` updates.
+- PRs should include a clear description, linked issues (if any), passing tests, and formatted code. Add benchmarks for performance-sensitive changes.
 
 ## References
 - Architecture and contribution details: `docs/intro.md`, `CONTRIBUTING.md`.

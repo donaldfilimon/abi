@@ -58,8 +58,7 @@ zig build benchmarks                   # Run comprehensive benchmarks
 zig build bench-all                    # Run all benchmark suites
 zig build gendocs                      # Generate API documentation
 zig build docs-site                    # Generate documentation website
-zig build wasm                         # Build WASM bindings
-zig build check-wasm                   # Check WASM compilation
+zig build check-wasm                   # Check WASM compilation (standalone binary)
 zig build examples                     # Build all examples
 zig build cli-tests                    # Run CLI command smoke tests
 zig build full-check                   # Format + tests + CLI smoke + benchmarks
@@ -676,30 +675,6 @@ var client = try ollama.Client.init(allocator, .{ .host = "http://127.0.0.1:1143
 ```
 
 Connectors require corresponding environment variables (see Environment Variables section).
-
-## Language Bindings
-
-| Language | Location | Build | Notes |
-|----------|----------|-------|-------|
-| **Rust** | `bindings/rust/` | `cargo build` | Safe wrappers; SIMD works without native lib |
-| **Go** | `bindings/go/` | `go build ./...` | cgo bindings; requires native lib |
-| **Python** | `bindings/python/` | `pip install -e .` | Streaming FFI, training API, observability |
-| **WASM** | `bindings/wasm/` | `zig build wasm && npm run build` | @abi-framework/wasm package |
-| **C** | `bindings/c/` | Headers only | FFI integration headers |
-
-**Prerequisites**: All bindings except pure-Rust SIMD require the native library (`zig build`) first.
-
-## VS Code Extension
-
-The `vscode-abi/` directory contains a VS Code extension:
-- **Commands**: Build, test, run examples
-- **AI Chat**: Sidebar webview for agent interaction
-- **GPU Status**: Tree view with device monitoring
-- **Tasks**: Custom task provider for common operations
-- **Snippets**: 15 Zig snippets for ABI patterns
-- **Diagnostics**: Compilation error highlighting
-
-Build: `cd vscode-abi && npm install && npm run compile`
 
 ## Docker Deployment
 
