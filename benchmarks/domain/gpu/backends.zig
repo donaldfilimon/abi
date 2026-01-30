@@ -295,14 +295,24 @@ fn gpuVsCpuComparison(
                 const gpu_gflops = @as(f64, @floatFromInt(flops)) / (gpu_time_ns / 1e9) / 1e9;
                 const speedup = cpu_time_ns / gpu_time_ns;
 
-                std.debug.print("  matmul_gpu_{d}x{d} ({t}): {d:.2} GFLOPS ({d:.2} ms) - {d:.1}x speedup\n", .{
-                    size,
-                    size,
-                    gpu_ctx.getBackend() orelse .none,
-                    gpu_gflops,
-                    gpu_time_ns / 1e6,
-                    speedup,
-                });
+                if (gpu_ctx.getBackend()) |backend| {
+                    std.debug.print("  matmul_gpu_{d}x{d} ({t}): {d:.2} GFLOPS ({d:.2} ms) - {d:.1}x speedup\n", .{
+                        size,
+                        size,
+                        backend,
+                        gpu_gflops,
+                        gpu_time_ns / 1e6,
+                        speedup,
+                    });
+                } else {
+                    std.debug.print("  matmul_gpu_{d}x{d} (unknown): {d:.2} GFLOPS ({d:.2} ms) - {d:.1}x speedup\n", .{
+                        size,
+                        size,
+                        gpu_gflops,
+                        gpu_time_ns / 1e6,
+                        speedup,
+                    });
+                }
             }
         }
     }
