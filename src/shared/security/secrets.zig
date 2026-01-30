@@ -177,8 +177,6 @@ pub const SecretsManager = struct {
     pub fn init(allocator: std.mem.Allocator, config: SecretsConfig) !SecretsManager {
         // Derive or use provided master key
         var master_key: [32]u8 = undefined;
-        var using_random_key = false;
-
         if (config.master_key) |key| {
             master_key = key;
         } else {
@@ -201,10 +199,8 @@ pub const SecretsManager = struct {
                 // Generate random key (not recommended for production)
                 std.log.warn("Using randomly generated master key - encrypted secrets will be lost on restart!", .{});
                 crypto.random.bytes(&master_key);
-                using_random_key = true;
             }
         }
-        _ = using_random_key; // Suppress unused warning
 
         var manager = SecretsManager{
             .allocator = allocator,
