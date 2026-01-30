@@ -420,11 +420,44 @@ zig build -Dgpu-backend=auto
 
 ---
 
+## C Bindings
+
+Use ABI from C, Rust, Go, Python, or any language with C FFI:
+
+```c
+#include <abi.h>
+
+int main() {
+    abi_framework_t fw = NULL;
+    abi_init(&fw);
+
+    // SIMD operations
+    float a[] = {1, 2, 3, 4}, b[] = {4, 3, 2, 1};
+    float dot = abi_simd_vector_dot(a, b, 4);  // = 20
+
+    // Vector database
+    abi_database_t db = NULL;
+    abi_database_config_t cfg = { "vectors", 384, 1000 };
+    abi_database_create(&cfg, &db);
+    abi_database_insert(db, 1, embedding, 384);
+
+    abi_shutdown(fw);
+    return 0;
+}
+```
+
+Build: `cd bindings/c && zig build` produces `libabi.dylib` and `libabi_static.a`.
+
+See [bindings/c/README.md](bindings/c/README.md) for full API reference.
+
+---
+
 ## Documentation
 
 | Resource | Description |
 |:---------|:------------|
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
+| [C Bindings](bindings/c/README.md) | C FFI API reference |
 | [API Reference](API_REFERENCE.md) | Public API summary |
 | [Quickstart](QUICKSTART.md) | Getting started guide |
 | [Deployment Guide](docs/deployment.md) | Production deployment |
@@ -474,6 +507,7 @@ zig build lint
 |:----------|:------:|
 | Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
