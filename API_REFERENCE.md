@@ -3,7 +3,7 @@ title: "API_REFERENCE"
 tags: []
 ---
 # API Reference
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>
@@ -465,41 +465,28 @@ See [Runtime Guide](docs/compute.md) for detailed usage.
 
 ## GPU API
 
+### Supported Backends
+
+| Backend | Platform | Build Flag | Description |
+|---------|----------|------------|-------------|
+| `auto` | All | `-Dgpu-backend=auto` | Auto-detect best available |
+| `metal` | macOS | `-Dgpu-backend=metal` | Apple Metal + Accelerate |
+| `cuda` | Linux/Windows | `-Dgpu-backend=cuda` | NVIDIA CUDA |
+| `vulkan` | All | `-Dgpu-backend=vulkan` | Vulkan compute |
+| `stdgpu` | All | `-Dgpu-backend=stdgpu` | Software fallback |
+| `webgpu` | WASM | `-Dgpu-backend=webgpu` | WebGPU for browsers |
+| `opengl` | All | `-Dgpu-backend=opengl` | OpenGL compute |
+| `fpga` | Specialized | `-Dgpu-backend=fpga` | FPGA acceleration |
+| `none` | All | `-Dgpu-backend=none` | Disable GPU |
+
+Multiple backends: `-Dgpu-backend=cuda,vulkan`
+
 ### Device Enumeration
 
-- `abi.gpu.device.enumerateAllDevices(allocator)` -> `![]Device` - Enumerate all GPU devices
-- `abi.gpu.device.enumerateDevicesForBackend(allocator, backend)` -> `![]Device` - Per-backend enumeration
-- `abi.gpu.device.selectBestDevice(allocator, criteria)` -> `!?Device` - Select device by criteria
-- `abi.gpu.device.DeviceSelectionCriteria` - Selection criteria struct
-  - `.prefer_discrete: bool` - Prefer discrete GPUs
-  - `.min_memory_gb: u64` - Minimum memory requirement
-  - `.required_features: []const DeviceFeature` - Required capabilities
-
-### Backend Auto-Detection
-
-- `abi.gpu.backend_factory.detectAvailableBackends(allocator)` -> `![]Backend` - List available backends
-- `abi.gpu.backend_factory.selectBestBackendWithFallback(allocator, options)` -> `!?Backend` - Select with fallback
-- `abi.gpu.backend_factory.selectBackendWithFeatures(allocator, options)` -> `!?Backend` - Feature-based selection
-- `abi.gpu.backend_factory.SelectionOptions` - Backend selection options
-  - `.preferred: ?Backend` - Preferred backend
-  - `.fallback_chain: []const Backend` - Fallback order
-  - `.required_features: []const BackendFeature` - Required features
-  - `.fallback_to_cpu: bool` - Allow CPU fallback
-
-### Execution Coordinator
-
-- `abi.gpu.ExecutionCoordinator.init(allocator, config)` -> `!ExecutionCoordinator` - Initialize coordinator
-- `abi.gpu.ExecutionCoordinator.deinit()` - Clean up resources
-- `abi.gpu.ExecutionCoordinator.vectorAdd(a, b, result)` -> `!ExecutionMethod` - Auto-select method
-- `abi.gpu.ExecutionCoordinator.vectorAddWithMethod(a, b, result, method)` -> `!ExecutionMethod` - Force method
-- `abi.gpu.ExecutionMethod` - Execution method enum: `.gpu`, `.simd`, `.scalar`, `.failed`
-
-**Example**:
 ```zig
 const device = abi.gpu.device;
-const exec = abi.gpu.execution_coordinator;
 
-// Enumerate devices
+// Enumerate all devices
 const devices = try device.enumerateAllDevices(allocator);
 defer allocator.free(devices);
 
@@ -508,14 +495,82 @@ const best = try device.selectBestDevice(allocator, .{
     .prefer_discrete = true,
     .min_memory_gb = 4,
 });
+```
 
-// Use execution coordinator for automatic fallback
-var coordinator = try exec.ExecutionCoordinator.init(allocator, .{});
+### Backend Factory
+
+```zig
+const factory = abi.gpu.backend_factory;
+
+// Detect available backends
+const backends = try factory.detectAvailableBackends(allocator);
+
+// Select with fallback chain
+const backend = try factory.selectBestBackendWithFallback(allocator, .{
+    .preferred = .cuda,
+    .fallback_chain = &.{ .vulkan, .metal, .stdgpu },
+    .fallback_to_cpu = true,
+});
+```
+
+### Execution Coordinator (Auto-Fallback)
+
+```zig
+var coordinator = try abi.gpu.ExecutionCoordinator.init(allocator, .{});
 defer coordinator.deinit();
 
-var result = [_]f32{0} ** 8;
+var result: [8]f32 = undefined;
 const method = try coordinator.vectorAdd(&input_a, &input_b, &result);
 // method is .gpu, .simd, or .scalar depending on availability
+```
+
+### Metal Backend (macOS)
+
+Apple Silicon optimizations with Accelerate framework and unified memory:
+
+```zig
+const metal = abi.gpu.backends.metal;
+
+// Accelerate framework (AMX-accelerated)
+if (metal.hasAccelerate()) {
+    const acc = metal.accelerate;
+    acc.vblas.sgemm(M, N, K, 1.0, a_ptr, lda, b_ptr, ldb, 0.0, c_ptr, ldc);
+    acc.vdsp.vadd(a_ptr, b_ptr, c_ptr, n);
+    acc.neural.softmax(input, output, size);
+}
+
+// Unified memory (zero-copy CPU/GPU sharing)
+if (metal.hasUnifiedMemory()) {
+    var umm = try metal.unified_memory.UnifiedMemoryManager.init(allocator);
+    defer umm.deinit();
+
+    var tensor = try umm.allocateTensor(f32, &.{1024, 768}, .shared);
+    defer umm.freeTensor(&tensor);
+
+    try umm.synchronize(&tensor, .cpu_to_gpu);
+}
+```
+
+### CUDA Backend
+
+```zig
+const cuda = abi.gpu.backends.cuda;
+
+// Initialize with allocator
+try cuda.init(allocator);
+defer cuda.deinit();
+
+// Memory operations
+const device_mem = try cuda.allocateDeviceMemory(size);
+defer cuda.freeDeviceMemory(device_mem);
+
+try cuda.memcpyHostToDevice(device_mem, host_ptr, size);
+try cuda.memcpyDeviceToHost(host_ptr, device_mem, size);
+
+// Kernel execution
+const kernel = try cuda.compileKernel(allocator, source);
+defer cuda.destroyKernel(allocator, kernel);
+try cuda.launchKernel(allocator, kernel, config, args);
 ```
 
 See [GPU Guide](docs/gpu.md) for detailed usage.
@@ -580,6 +635,73 @@ std.debug.print("Agent: {s}\n", .{response});
 ```
 
 See [AI Guide](docs/ai.md) for detailed usage.
+
+## Streaming API
+
+Real-time token streaming for LLM inference:
+
+### Server
+
+```bash
+# Start streaming server
+zig build run -- llm serve -m ./model.gguf --preload
+
+# With authentication
+zig build run -- llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token my-secret
+```
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/v1/chat/completions` | OpenAI-compatible (SSE) |
+| POST | `/api/stream` | Custom ABI streaming (SSE) |
+| WS | `/api/stream/ws` | WebSocket with cancellation |
+| POST | `/admin/reload` | Hot-reload model |
+| GET | `/health` | Health check |
+
+### Client Example
+
+```zig
+const streaming = abi.ai.streaming;
+
+var client = try streaming.Client.init(allocator, .{
+    .endpoint = "http://localhost:8080",
+    .auth_token = "my-secret",
+});
+defer client.deinit();
+
+// Stream completion
+var stream = try client.streamCompletion(.{
+    .prompt = "Explain quantum computing",
+    .max_tokens = 500,
+});
+defer stream.deinit();
+
+while (try stream.next()) |token| {
+    std.debug.print("{s}", .{token});
+}
+```
+
+### Circuit Breaker (Error Recovery)
+
+```zig
+const recovery = abi.ai.streaming.recovery;
+
+var breaker = recovery.CircuitBreaker.init(.{
+    .failure_threshold = 5,
+    .reset_timeout_ms = 30000,
+    .half_open_requests = 3,
+});
+
+// Automatic retry with exponential backoff
+const result = try recovery.withRetry(allocator, operation, .{
+    .max_retries = 3,
+    .initial_delay_ms = 100,
+    .max_delay_ms = 5000,
+    .backoff_multiplier = 2.0,
+});
+```
 
 ## Personas API
 

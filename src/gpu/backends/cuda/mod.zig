@@ -76,18 +76,20 @@ var cuda_initialized = false;
 var cuda_context: ?CudaContext = null;
 var use_native: bool = false;
 var init_mutex = std.Thread.Mutex{};
+var cached_allocator: ?std.mem.Allocator = null;
 
 /// Initialize the CUDA backend and create context.
 /// Returns CudaError if CUDA driver is not available or initialization fails.
-pub fn init() CudaError!void {
+pub fn init(allocator: std.mem.Allocator) CudaError!void {
     init_mutex.lock();
     defer init_mutex.unlock();
 
     if (cuda_initialized) return;
 
-    const cuda_available = tryLoadCuda();
+    cached_allocator = allocator;
+    const cuda_available = tryLoadCuda(allocator);
     if (cuda_available) {
-        if (loadCudaFunctions()) {
+        if (loadCudaFunctions(allocator)) {
             const funcs = cuda_loader.getFunctions() orelse {
                 std.log.warn("CUDA functions not loaded, using simulation mode", .{});
                 return initSimulationMode();
@@ -320,12 +322,12 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) !void {
 }
 
 /// Check if CUDA is available
-fn tryLoadCuda() bool {
-    return cuda_loader.isAvailable();
+fn tryLoadCuda(allocator: std.mem.Allocator) bool {
+    return cuda_loader.isAvailableWithAlloc(allocator);
 }
 
 /// Load CUDA functions using consolidated loader
-fn loadCudaFunctions() bool {
-    const funcs = cuda_loader.load() catch return false;
+fn loadCudaFunctions(allocator: std.mem.Allocator) bool {
+    const funcs = cuda_loader.load(allocator) catch return false;
     return funcs.core.cuInit != null and funcs.core.cuDeviceGetCount != null;
 }

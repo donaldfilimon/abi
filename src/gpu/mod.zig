@@ -153,6 +153,17 @@ pub const dsl = @import("dsl/mod.zig");
 pub const interface = @import("interface.zig");
 pub const cuda_loader = @import("backends/cuda/loader.zig");
 
+// Platform detection
+pub const platform = @import("platform.zig");
+pub const PlatformCapabilities = platform.PlatformCapabilities;
+pub const BackendSupport = platform.BackendSupport;
+pub const GpuVendor = platform.GpuVendor;
+pub const isCudaSupported = platform.isCudaSupported;
+pub const isMetalSupported = platform.isMetalSupported;
+pub const isVulkanSupported = platform.isVulkanSupported;
+pub const isWebGpuSupported = platform.isWebGpuSupported;
+pub const platformDescription = platform.platformDescription;
+
 // Modular backend abstraction layer
 pub const backend_factory = @import("backend_factory.zig");
 pub const dispatcher = @import("dispatcher.zig");
@@ -248,6 +259,8 @@ comptime {
         _ = @import("std_gpu_kernels.zig");
         // Mega GPU orchestration tests
         _ = @import("mega/mod.zig");
+        // Platform detection tests
+        _ = @import("platform.zig");
     }
 }
 
@@ -262,6 +275,7 @@ var gpu_lifecycle = SimpleModuleLifecycle{};
 
 var cuda_backend_init_lock = std.Thread.Mutex{};
 var cuda_backend_initialized = false;
+var cached_gpu_allocator: ?std.mem.Allocator = null;
 
 pub const MemoryError = memory.MemoryError;
 pub const BufferFlags = memory.BufferFlags;
@@ -396,9 +410,10 @@ pub const Stmt = dsl.Stmt;
 pub const CodegenError = dsl.CodegenError;
 pub const GeneratedSource = dsl.GeneratedSource;
 
-pub fn init(_: std.mem.Allocator) GpuError!void {
+pub fn init(allocator: std.mem.Allocator) GpuError!void {
     if (!moduleEnabled()) return error.GpuDisabled;
 
+    cached_gpu_allocator = allocator;
     gpu_lifecycle.init(initCudaComponents) catch {
         return error.GpuDisabled;
     };
@@ -411,8 +426,9 @@ fn initCudaComponents() !void {
 
         if (!cuda_backend_initialized) {
             const cuda_module = @import("backends/cuda/mod.zig");
+            const allocator = cached_gpu_allocator orelse return error.OutOfMemory;
 
-            cuda_module.init() catch |err| {
+            cuda_module.init(allocator) catch |err| {
                 std.log.warn("CUDA backend initialization failed: {t}. Using fallback mode.", .{err});
             };
 
@@ -423,7 +439,7 @@ fn initCudaComponents() !void {
                 };
 
                 const cuda_memory = @import("backends/cuda/memory.zig");
-                cuda_memory.init() catch |err| {
+                cuda_memory.init(allocator) catch |err| {
                     std.log.warn("CUDA memory initialization failed: {t}", .{err});
                 };
             }
