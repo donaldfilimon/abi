@@ -69,10 +69,19 @@ temp/
 *.tmp
 probe_error.txt
 probe_*.txt
+probe_*.zig
 test_build.zig
 build_options.zig
 src/build_options.zig
 abi.json
+
+# One-time migration/fix scripts
+fix_*.py
+migrate*.sh
+test-models/
+
+# Static libraries (build artifacts)
+*.a
 
 # Debug/test output files
 test_log.txt
@@ -88,6 +97,9 @@ training_data.txt
 
 # Claude Code local settings
 .claude/
+
+# ABI local user state
+.abi/
 
 # Backup files created by CLI
 backups/

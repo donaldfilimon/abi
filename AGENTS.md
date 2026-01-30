@@ -4,7 +4,7 @@
 - `src/` contains the core Zig 0.16 implementation. Nested modules should import dependencies via their parent `mod.zig` (parent exports, child imports).
 - `tests/` holds integration-style tests; unit tests also live alongside code as `*_test.zig`.
 - `benchmarks/` contains performance suites; `examples/` has runnable samples.
-- `docs/`, `www/`, and `tools/` host documentation, site assets, and developer tooling. Model data lives in `models/` and `test-models/`.
+- `docs/`, `www/`, and `tools/` host documentation, site assets, and developer tooling. Model data lives in `models/`.
 
 ## Build, Test, and Development Commands
 - `zig build` — build the project.
