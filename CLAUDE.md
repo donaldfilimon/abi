@@ -100,7 +100,7 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
 | Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
 | GPU (CUDA) | Requires NVIDIA drivers + toolkit; use Vulkan or `stdgpu` fallback |
-| GPU (Metal) | macOS only; use Vulkan on other platforms |
+| GPU (Metal) | macOS only; includes Accelerate framework (AMX) and unified memory support |
 | WASM getCpuCount | Use `getCpuCount()` only with WASM/freestanding guards; 9+ files affected |
 | Streaming API | Use `src/ai/streaming/` for real-time LLM responses; backend selection via config |
 
