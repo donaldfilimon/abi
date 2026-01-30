@@ -22,8 +22,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var framework = try abi.init(allocator, abi.FrameworkOptions{});
     defer abi.shutdown(&framework);
 
-    const platform = abi.platform.platform;
-    const info = platform.PlatformInfo.detect();
+    const info = abi.platform.getPlatformInfo();
 
     utils.output.printHeader("System Information");
 
