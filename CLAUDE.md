@@ -151,10 +151,13 @@ src/
 │   ├── observability.zig # Observability configuration
 │   ├── plugin.zig       # Plugin configuration
 │   └── web.zig          # Web configuration
-├── cpu.zig              # CPU fallback for GPU operations
 ├── flags.zig            # Feature flags management
 ├── framework.zig        # Framework orchestration with builder pattern
-├── io.zig               # I/O utilities
+├── platform/            # Platform detection and abstraction
+│   ├── mod.zig          # Platform entry point
+│   ├── cpu.zig          # CPU fallback for GPU operations
+│   ├── detection.zig    # OS/arch detection with SIMD support
+│   └── stub.zig         # Stub for minimal builds
 ├── ai/                  # AI module with sub-features
 │   ├── mod.zig          # AI public API
 │   ├── stub.zig         # Stub when AI disabled
@@ -208,11 +211,13 @@ src/
 │   ├── concurrency/     # Lock-free primitives (see Concurrency Primitives)
 │   └── memory/          # Memory pools and allocators
 ├── shared/              # Consolidated shared components
+│   ├── mod.zig          # Shared utilities entry point
+│   ├── io.zig           # I/O utilities
 │   ├── legacy/          # Legacy core utilities
 │   ├── security/        # TLS, mTLS, API keys, RBAC
 │   ├── utils/           # Sub-modules (config, crypto, json, net, etc.)
 │   ├── logging.zig      # Logging
-│   ├── platform.zig     # Platform detection
+│   ├── platform.zig     # Legacy platform detection (use platform/ instead)
 │   ├── plugins.zig      # Plugin registry primitives
 │   ├── simd.zig         # SIMD vector operations
 │   └── utils.zig        # Unified utilities (time, math, string, crypto, http, json, etc.)
@@ -230,7 +235,8 @@ src/
 **Import guidance:**
 - **Public API**: Always use `@import("abi")` - never import files directly
 - **Feature Modules**: Access via `abi.gpu`, `abi.ai`, `abi.database`, etc.
-- **Shared Utilities**: Import from `src/shared/utils.zig` for all utils sub-modules, or specific files for targeted imports
+- **Platform Detection**: Use `abi.platform` for OS/arch detection, CPU features
+- **Shared Utilities**: Use `abi.shared` for consolidated utilities, or import from `src/shared/mod.zig` for all sub-modules
 - **Internal AI**: Implementation files import from `../../core/mod.zig` for types
 
 **Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility. The AI module has extensive sub-feature stubs (`src/ai/*/stub.zig`) for agents, embeddings, llm, vision, training, etc.
