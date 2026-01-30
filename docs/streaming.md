@@ -586,6 +586,6 @@ curl http://localhost:8080/health | jq '.active_streams'
 ## See Also
 
 - [AI Guide](ai.md) - Full AI module documentation
-- [LLM Guide](api_ai-llm.md) - LLM inference API reference
+- [LLM Guide](api/ai-llm.md) - LLM inference API reference
 - [Model Management](models.md) - Downloading and managing models
 - [Benchmarking Guide](benchmarking.md) - Performance testing

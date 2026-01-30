@@ -1,26 +1,3 @@
-# observability API Reference
+# API Reference Moved
 
-> Metrics, tracing, and monitoring
-
-**Source:** [`src/observability/mod.zig`](../../src/observability/mod.zig)
-
----
-
-Observability Module
-
-Unified observability with metrics, tracing, and profiling.
-
-## Features
-- Metrics collection and export (Prometheus, OpenTelemetry, StatsD)
-- Distributed tracing
-- Performance profiling
-- Circuit breakers and error aggregation
-- Alerting rules and notifications
-
----
-
-## API
-
----
-
-*Generated automatically by `zig build gendocs`*
+This page has moved to [api/observability.md](api/observability.md).

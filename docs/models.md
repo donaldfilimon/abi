@@ -550,5 +550,5 @@ abi model path --set /mnt/shared/models
 
 - [AI Guide](ai.md) - Full AI module documentation
 - [Streaming Guide](streaming.md) - Real-time inference with SSE/WebSocket
-- [LLM Guide](api_ai-llm.md) - LLM inference API reference
+- [LLM Guide](api/ai-llm.md) - LLM inference API reference
 - [CLI Reference](../CLAUDE.md#cli-commands) - Full CLI documentation
