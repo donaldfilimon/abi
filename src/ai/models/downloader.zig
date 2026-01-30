@@ -70,27 +70,31 @@ pub const DownloadProgress = struct {
 
     /// Format progress as a human-readable string.
     pub fn format(self: DownloadProgress) [64]u8 {
-        var buf: [64]u8 = undefined;
-        const downloaded_mb = @as(f64, @floatFromInt(self.downloaded_bytes)) / (1024 * 1024);
-        const total_mb = @as(f64, @floatFromInt(self.total_bytes)) / (1024 * 1024);
-        const speed_mb = @as(f64, @floatFromInt(self.speed_bytes_per_sec)) / (1024 * 1024);
-
-        if (self.total_bytes > 0) {
-            _ = std.fmt.bufPrint(&buf, "{d:.1} / {d:.1} MB ({d}%) - {d:.1} MB/s", .{
-                downloaded_mb,
-                total_mb,
-                self.percent,
-                speed_mb,
-            }) catch {};
-        } else {
-            _ = std.fmt.bufPrint(&buf, "{d:.1} MB - {d:.1} MB/s", .{
-                downloaded_mb,
-                speed_mb,
-            }) catch {};
-        }
+        var buf = std.mem.zeroes([64]u8);
+        formatProgressInto(&buf, self);
         return buf;
     }
 };
+
+fn formatProgressInto(buf: []u8, progress: DownloadProgress) void {
+    const downloaded_mb = @as(f64, @floatFromInt(progress.downloaded_bytes)) / (1024 * 1024);
+    const total_mb = @as(f64, @floatFromInt(progress.total_bytes)) / (1024 * 1024);
+    const speed_mb = @as(f64, @floatFromInt(progress.speed_bytes_per_sec)) / (1024 * 1024);
+
+    if (progress.total_bytes > 0) {
+        safeBufPrint(buf, "{d:.1} / {d:.1} MB ({d}%) - {d:.1} MB/s", .{
+            downloaded_mb,
+            total_mb,
+            progress.percent,
+            speed_mb,
+        });
+    } else {
+        safeBufPrint(buf, "{d:.1} MB - {d:.1} MB/s", .{
+            downloaded_mb,
+            speed_mb,
+        });
+    }
+}
 
 /// Download error types.
 pub const DownloadError = error{
@@ -283,14 +287,11 @@ pub const Downloader = struct {
         return error.DownloadDisabled;
     }
 
-    /// Format Range header value for resume.
-    fn formatRangeHeader(start_byte: u64) []const u8 {
-        // Static buffer for range header (reused across calls)
-        const S = struct {
-            var buf: [32]u8 = undefined;
-        };
-        const len = std.fmt.bufPrint(&S.buf, "bytes={d}-", .{start_byte}) catch return "bytes=0-";
-        return S.buf[0..len];
+    /// Format Range header value for resume using a caller-provided buffer.
+    /// Thread-safe: the caller owns the buffer, so there is no shared mutable state.
+    fn formatRangeHeader(start_byte: u64, buf: []u8) []const u8 {
+        const len = std.fmt.bufPrint(buf, "bytes={d}-", .{start_byte}) catch return "bytes=0-";
+        return buf[0..len];
     }
 
     /// Parse a URL into components.
@@ -385,7 +386,13 @@ fn extractFilenameFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]cons
 
 /// Format bytes as human-readable string.
 pub fn formatBytes(bytes: u64) [32]u8 {
-    var buf: [32]u8 = undefined;
+    var buf = std.mem.zeroes([32]u8);
+
+    formatBytesInto(&buf, bytes);
+    return buf;
+}
+
+fn formatBytesInto(buf: []u8, bytes: u64) void {
     const kb: f64 = 1024;
     const mb: f64 = kb * 1024;
     const gb: f64 = mb * 1024;
@@ -393,35 +400,53 @@ pub fn formatBytes(bytes: u64) [32]u8 {
     const b = @as(f64, @floatFromInt(bytes));
 
     if (b >= gb) {
-        _ = std.fmt.bufPrint(&buf, "{d:.2} GB", .{b / gb}) catch {};
+        safeBufPrint(buf, "{d:.2} GB", .{b / gb});
     } else if (b >= mb) {
-        _ = std.fmt.bufPrint(&buf, "{d:.2} MB", .{b / mb}) catch {};
+        safeBufPrint(buf, "{d:.2} MB", .{b / mb});
     } else if (b >= kb) {
-        _ = std.fmt.bufPrint(&buf, "{d:.2} KB", .{b / kb}) catch {};
+        safeBufPrint(buf, "{d:.2} KB", .{b / kb});
     } else {
-        _ = std.fmt.bufPrint(&buf, "{d} B", .{bytes}) catch {};
+        safeBufPrint(buf, "{d} B", .{bytes});
     }
-
-    return buf;
 }
 
 /// Format duration in seconds as human-readable string.
 pub fn formatDuration(seconds: u32) [16]u8 {
-    var buf: [16]u8 = undefined;
+    var buf = std.mem.zeroes([16]u8);
 
+    formatDurationInto(&buf, seconds);
+    return buf;
+}
+
+fn formatDurationInto(buf: []u8, seconds: u32) void {
     if (seconds >= 3600) {
         const hours = seconds / 3600;
         const mins = (seconds % 3600) / 60;
-        _ = std.fmt.bufPrint(&buf, "{d}h {d}m", .{ hours, mins }) catch {};
+        safeBufPrint(buf, "{d}h {d}m", .{ hours, mins });
     } else if (seconds >= 60) {
         const mins = seconds / 60;
         const secs = seconds % 60;
-        _ = std.fmt.bufPrint(&buf, "{d}m {d}s", .{ mins, secs }) catch {};
+        safeBufPrint(buf, "{d}m {d}s", .{ mins, secs });
     } else {
-        _ = std.fmt.bufPrint(&buf, "{d}s", .{seconds}) catch {};
+        safeBufPrint(buf, "{d}s", .{seconds});
     }
+}
 
-    return buf;
+fn safeBufPrint(buf: []u8, comptime fmt: []const u8, args: anytype) void {
+    if (std.fmt.bufPrint(buf, fmt, args)) |_| {
+        return;
+    } else |_| {
+        writeFallback(buf);
+    }
+}
+
+fn writeFallback(buf: []u8) void {
+    const fallback = "n/a";
+    if (buf.len == 0) {
+        return;
+    }
+    const len = @min(buf.len, fallback.len);
+    std.mem.copyForwards(u8, buf[0..len], fallback[0..len]);
 }
 
 // ============================================================================
@@ -499,4 +524,15 @@ test "formatDuration" {
 
     const hours = formatDuration(3665);
     try std.testing.expect(std.mem.indexOf(u8, &hours, "1h 1m") != null);
+}
+
+test "formatRangeHeader uses caller buffer" {
+    var buf_one: [32]u8 = undefined;
+    var buf_two: [32]u8 = undefined;
+
+    const header_one = Downloader.formatRangeHeader(128, &buf_one);
+    const header_two = Downloader.formatRangeHeader(4096, &buf_two);
+
+    try std.testing.expectEqualStrings("bytes=128-", header_one);
+    try std.testing.expectEqualStrings("bytes=4096-", header_two);
 }

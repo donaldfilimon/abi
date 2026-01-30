@@ -1,6 +1,0 @@
-{
-  "duration_sec": 0.07,
-  "benchmarks": [
-    {"name": "matmul_64x64x64", "category": "ai", "ops_per_sec": 1539.72, "mean_ns": 649468.00, "iterations": 100}
-  ]
-}

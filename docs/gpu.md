@@ -3,7 +3,7 @@ title: "gpu"
 tags: []
 ---
 # GPU Acceleration
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-GPU-green?style=for-the-badge&logo=nvidia&logoColor=white" alt="GPU Module"/>
@@ -501,9 +501,43 @@ ABI supports 8 GPU backends with comprehensive implementations:
 <details>
 <summary><strong>Metal (Apple Silicon)</strong></summary>
 
-- **Platform**: macOS/iOS
-- **Features**: Objective-C runtime bindings, compute kernels
-- **Best for**: Apple hardware optimization
+- **Platform**: macOS/iOS/tvOS
+- **Features**:
+  - Objective-C runtime bindings and compute kernels
+  - **Accelerate Framework Integration** (NEW):
+    - vBLAS: AMX-accelerated matrix operations (sgemm, sgemv, sdot)
+    - vDSP: Vectorized signal processing (vadd, vmul, vsum, vmax)
+    - vForce: Math functions (exp, log, sqrt, tanh)
+    - Neural primitives: softmax, rmsnorm, silu, gelu
+  - **Unified Memory Support** (NEW):
+    - Zero-copy CPU/GPU data sharing
+    - 16KB page-aligned allocations
+    - Automatic coherency management
+  - Q4/Q8 quantized inference kernels
+- **Best for**: Apple Silicon M1/M2/M3 optimization, neural network training
+
+```zig
+// Example: Using Accelerate on Apple Silicon
+const metal = @import("abi").gpu.backends.metal;
+
+// Check for unified memory (Apple Silicon)
+if (metal.hasUnifiedMemory()) {
+    // Zero-copy operations possible
+    var manager = try metal.UnifiedMemoryManager.init(allocator, .{});
+    defer manager.deinit();
+
+    const buffer = try manager.alloc(f32, 1024);
+    defer manager.free(buffer);
+
+    // CPU and GPU share this memory without copies
+}
+
+// Use Accelerate for matrix operations (AMX-accelerated)
+if (metal.hasAccelerate()) {
+    try metal.accelerate.sgemm(.no_trans, .no_trans, m, n, k,
+        1.0, a, lda, b, ldb, 0.0, c, ldc);
+}
+```
 </details>
 
 <details>

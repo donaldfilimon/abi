@@ -3,7 +3,7 @@ title: "GEMINI"
 tags: [ai, agents, gemini]
 ---
 # GEMINI.md
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Gemini-Agent_Guide-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini Guide"/>
@@ -164,6 +164,28 @@ try quant.q4Matmul(a_ptr, x_ptr, y_ptr, m, k, stream);
 
 // Configuration
 const config = cuda.QuantConfig.forInference();
+```
+
+### Stream Error Recovery (2026-01-30)
+```zig
+const streaming = @import("abi").ai.streaming;
+
+// Per-backend circuit breakers
+var recovery = try streaming.StreamRecovery.init(allocator, .{});
+defer recovery.deinit();
+
+// Check if backend is available (circuit closed)
+if (recovery.isBackendAvailable(.openai)) {
+    // Safe to use
+}
+
+// Record outcomes to update circuit state
+recovery.recordSuccess(.local);
+recovery.recordFailure(.openai);  // Opens circuit after threshold
+
+// Session caching for SSE Last-Event-ID reconnection
+var cache = streaming.SessionCache.init(allocator, .{});
+try cache.storeToken("session", 1, "Hello", .local, hash);
 ```
 
 ## Gotchas for Gemini

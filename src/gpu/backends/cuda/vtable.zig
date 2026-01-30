@@ -48,7 +48,7 @@ pub const CudaBackend = struct {
         }
 
         // Try to load CUDA driver
-        const functions = loader.load() catch {
+        const functions = loader.load(allocator) catch {
             return interface.BackendError.NotAvailable;
         };
 

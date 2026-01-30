@@ -3,7 +3,7 @@ title: "TODO"
 tags: [development, tracking]
 ---
 # Project TODO List
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-All_Complete-success?style=for-the-badge" alt="All Complete"/>
@@ -85,23 +85,27 @@ The major architecture redesign has been completed successfully:
 | Test Suite | ✅ | All 51 tests pass |
 | Build Pipeline | ✅ | Full build succeeds (21/21 steps) |
 
-**New Architecture:**
+**New Architecture (updated 2026-01-30):**
 ```
 src/
 ├── abi.zig              # Public API entry point
-├── config.zig           # Unified configuration (Builder pattern)
+├── config/              # Unified configuration (Builder pattern)
 ├── framework.zig        # Framework orchestration
+├── platform/            # Platform detection (NEW: mod.zig, detection.zig, cpu.zig)
 ├── runtime/             # Always-on infrastructure
-├── gpu/                 # GPU acceleration (moved from compute/)
+├── gpu/                 # GPU acceleration
 ├── ai/                  # AI features (llm, embeddings, agents, training)
 ├── database/            # Vector database
 ├── network/             # Distributed networking
 ├── observability/       # Metrics, tracing, logging
 ├── web/                 # Web utilities
-├── internal/            # Internal utilities (from shared/)
-├── core/                # Core I/O and collections
-├── compute/             # Runtime and concurrency (GPU removed)
-└── features/            # Legacy feature modules (being migrated)
+├── shared/              # Shared utilities (mod.zig, io.zig, security/, utils/)
+├── connectors/          # External API connectors
+├── cloud/               # Cloud function adapters
+├── ha/                  # High availability
+├── registry/            # Feature registry
+├── tasks/               # Task management
+└── tests/               # Test infrastructure
 ```
 
 ## Remaining Work

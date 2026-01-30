@@ -3,24 +3,24 @@ title: "PLAN"
 tags: [planning, sprint, development]
 ---
 # Current Development Focus
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Sprint-Active-blue?style=for-the-badge" alt="Sprint Active"/>
-  <img src="https://img.shields.io/badge/Tests-771%2F776-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Sprint-Complete-success?style=for-the-badge" alt="Sprint Complete"/>
+  <img src="https://img.shields.io/badge/Tests-787%2F792-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 ## This Sprint
 
-**Focus: Documentation & Stream Reliability**
-
-### In Progress
-- [ ] **Stream error recovery** - Graceful handling of disconnections, reconnection logic, observability for failures
-- [ ] **Streaming integration tests** - E2E tests with fault injection for SSE/WebSocket endpoints
+**Focus: Documentation & Stream Reliability - COMPLETE**
 
 ### Completed This Sprint
+- [x] **Stream error recovery** - Per-backend circuit breakers, exponential backoff retry, session caching, recovery events
+- [x] **Streaming integration tests** - E2E tests with fault injection for circuit breaker, session cache, metrics
+- [x] **Security hardening** - JWT none algorithm warning, master key requirement option, secure API key wiping
 - [x] **Streaming documentation** - Comprehensive guide for SSE/WebSocket streaming API (`docs/streaming.md`)
 - [x] **Model management guide** - Documentation for downloading, caching, hot-reload (`docs/models.md`)
+- [x] **Metal backend enhancements** - Accelerate framework (vBLAS/vDSP/vForce), unified memory manager, zero-copy tensors
 
 ---
 
@@ -35,6 +35,13 @@ Waiting on external dependencies:
 
 ## Recently Completed
 
+- **src/ restructure (partial)** - Created `src/platform/` module with unified platform detection (mod.zig, detection.zig, cpu.zig, stub.zig), created `src/shared/mod.zig` to consolidate utilities, moved io.zig to shared/, updated CLAUDE.md architecture diagram; 787/792 tests passing (2026-01-30)
+- **GPU platform detection** - Centralized platform detection for all GPU backends (`src/gpu/platform.zig`), PlatformCapabilities for runtime feature detection, BackendSupport for compile-time availability, isCudaSupported/isMetalSupported/isVulkanSupported helpers; 787/792 tests passing (2026-01-30)
+- **CUDA Zig 0.16 compatibility** - Fixed CUDA loader to work without deprecated `std.process.getEnvVarOwned` API, added allocator parameter throughout CUDA initialization chain, updated memory/mod/vtable modules to pass allocators correctly; 787/792 tests passing (2026-01-30)
+- **Metal backend enhancements** - Accelerate framework integration (vBLAS/vDSP/vForce for AMX-accelerated ops), unified memory manager for zero-copy CPU/GPU sharing, UnifiedTensor type, storage mode selection, neural network primitives (softmax, rmsnorm, silu, gelu); 787/792 tests passing (2026-01-30)
+- **Stream error recovery implementation** - Per-backend circuit breakers (closed/open/half_open states), exponential backoff retry with jitter, LRU session token caching for reconnection, comprehensive streaming metrics, recovery event callbacks, BackendRouter with recovery-aware routing, 503 with Retry-After when circuit open; 787/792 tests passing (2026-01-30)
+- **Security hardening** - JWT none algorithm runtime warning, require_master_key config option for production, secure API key wiping with secureZero(); Addresses security audit findings H-1, H-2, M-1 (2026-01-30)
+- **Zig 0.16 compilation fixes** - Fixed std.time.sleep() with Timer-based busy-wait in tests, fixed linux.getpid()/getppid() with proper platform detection for macOS/BSD (2026-01-30)
 - **Model download infrastructure** - Enhanced `abi model download` with progress display infrastructure; `DownloadResult` struct (path, checksum, was_resumed, verified); `DownloadConfig` with resume/checksum options; Detailed multi-line ANSI progress bar (size, speed, ETA); `--no-verify` flag for checksum skip; Graceful fallback to curl/wget instructions; Native HTTP deferred until Zig 0.16 File I/O stabilizes; 771/776 tests passing (2026-01-26)
 - **Model management CLI** - Download, cache, and manage GGUF models locally; `abi model` command with list/info/download/remove/search/path subcommands; HuggingFace shorthand (`TheBloke/Model:Q4_K_M`); Resolves download URLs; Manager tracks cached models with metadata; Platform-aware cache directories (`~/.abi/models/`); Inline tests; 771/776 tests passing (2026-01-26)
 - **Streaming benchmarks** - Performance tests for streaming inference pipeline; Measures TTFT (Time To First Token), inter-token latency (P50/P90/P99), throughput (tok/s), SSE encoding overhead, WebSocket framing overhead; MockTokenGenerator with 4 patterns (constant_rate, variable_rate, burst, warmup); `abi bench streaming` CLI command; Quick/standard/comprehensive presets; 771/776 tests passing (2026-01-26)

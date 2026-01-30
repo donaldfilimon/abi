@@ -127,6 +127,7 @@ pub const CudaFunctions = struct {
 var cuda_lib: ?std.DynLib = null;
 var cuda_functions: CudaFunctions = .{};
 var load_attempted: bool = false;
+var cached_allocator: ?std.mem.Allocator = null;
 
 // Helper to lookup a symbol from the optional library.
 fn bind(comptime T: type, name: []const u8) ?T {
@@ -153,8 +154,14 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
     defer lib_paths.deinit(allocator);
 
     // Optional custom path via environment variable (e.g., "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.0\\bin\\nvcuda.dll")
-    if (std.process.getEnvVarOwned(allocator, "CUDA_PATH")) |custom_path| {
-        defer allocator.free(custom_path);
+    // Use comptime-conditional access to avoid runtime environment lookup in restricted contexts
+    const cuda_path_opt: ?[]const u8 = blk: {
+        // In Zig 0.16, environment access requires std.process.Environ which needs I/O backend
+        // For library loading, we skip env var lookup and rely on system paths
+        // Users can set LD_LIBRARY_PATH or PATH instead
+        break :blk null;
+    };
+    if (cuda_path_opt) |custom_path| {
         // Append the file name for the appropriate OS.
         const file_name = switch (builtin.os.tag) {
             .windows => "nvcuda.dll",
@@ -165,7 +172,7 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
             const full = std.fs.path.join(allocator, &.{ custom_path, file_name }) catch "";
             if (full.len > 0) _ = lib_paths.append(allocator, full) catch {};
         }
-    } else |_| {}
+    }
 
     // Default library names per platform.
     const default_names = switch (builtin.os.tag) {
@@ -243,10 +250,20 @@ pub fn unload() void {
     load_attempted = false;
 }
 
-/// Check if CUDA is available
+/// Check if CUDA is available (without triggering load)
 pub fn isAvailable() bool {
+    // If already loaded, check the result
+    if (load_attempted) {
+        return cuda_lib != null and cuda_functions.core.cuInit != null;
+    }
+    // Not loaded yet - return false (caller should call load() with allocator first)
+    return false;
+}
+
+/// Check if CUDA is available, attempting to load if necessary
+pub fn isAvailableWithAlloc(allocator: std.mem.Allocator) bool {
     if (!load_attempted) {
-        _ = load() catch return false;
+        _ = load(allocator) catch return false;
     }
     return cuda_lib != null and cuda_functions.core.cuInit != null;
 }

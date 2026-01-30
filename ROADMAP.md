@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -105,6 +105,12 @@ tags: [planning, roadmap]
   - [x] ParallelSearchExecutor for batch queries
   - [x] ParallelBeamState for concurrent HNSW traversal
   - [x] ParallelWorkQueue for thread-safe work distribution
+- [x] Metal backend enhancements - COMPLETE (2026-01-30)
+  - [x] Accelerate framework integration (vBLAS, vDSP, vForce)
+  - [x] AMX-accelerated matrix operations (sgemm, sgemv, sdot)
+  - [x] Unified memory manager for zero-copy CPU/GPU sharing
+  - [x] UnifiedTensor type with automatic sync barriers
+  - [x] Neural network primitives (softmax, rmsnorm, silu, gelu)
 
 ### Developer Experience
     - [x] Enhanced CLI
@@ -248,15 +254,17 @@ See CONTRIBUTING.md for details.
 
 ## Version Timeline
 
-| Version | Target Quarter | Status | Notes |
-|----------|---------------|---------|-------|
-| 0.2.2 | 2025-12-27 | Released | Zig 0.16 modernization |
-| 0.3.0 | Q1 2026 | Complete | GPU backends, AI features |
-| 0.4.0 | Q2 2026 | Complete | Performance, DX, documentation |
-| 0.5.0 | Q3 2026 | Complete | Distributed systems, HA |
-| 0.6.0 | Q4 2026 | Complete | Llama-CPP parity, Modular architecture refactor |
+| Version | Original Target | Completed | Notes |
+|----------|----------------|-----------|-------|
+| 0.2.2 | 2025-12-27 | 2025-12-27 | Zig 0.16 modernization |
+| 0.3.0 | Q1 2026 | 2026-01-23 | GPU backends, AI features |
+| 0.4.0 | Q2 2026 | 2026-01-25 | Performance, DX, documentation |
+| 0.5.0 | Q3 2026 | 2026-01-26 | Distributed systems, HA |
+| 0.6.0 | Q4 2026 | 2026-01-30 | Llama-CPP parity, streaming recovery |
 
-*Last updated: January 24, 2026*
+> **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
+
+*Last updated: January 30, 2026*
 
 ## Zig 0.16 Migration Status
 

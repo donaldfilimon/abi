@@ -9,7 +9,7 @@
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-1921_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-787_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
@@ -42,7 +42,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 1,921+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 787+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -62,7 +62,7 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 |:--------|:------------|:------:|
 | **AI Runtime** | LLM inference with Llama-CPP parity, agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, real-time analytics | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **GPU Acceleration** | CUDA, Vulkan, Metal, WebGPU, FPGA with unified API and auto-fallback | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU Acceleration** | CUDA, Vulkan, Metal (Accelerate/AMX), WebGPU, FPGA with unified API | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
@@ -424,10 +424,12 @@ zig build -Dgpu-backend=auto
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
 | [API Reference](API_REFERENCE.md) | Public API summary |
 | [Quickstart](QUICKSTART.md) | Getting started guide |
+| [Deployment Guide](docs/deployment.md) | Production deployment |
 | [AI Guide](docs/ai.md) | LLM, agents, training |
 | [GPU Guide](docs/gpu.md) | Multi-backend GPU acceleration |
 | [Database Guide](docs/database.md) | WDBX vector database |
 | [Network Guide](docs/network.md) | Distributed compute |
+| [Streaming Guide](docs/streaming.md) | SSE/WebSocket streaming |
 | [Migration Guide](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues |
 

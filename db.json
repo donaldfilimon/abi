@@ -1,8 +1,0 @@
-{
-  "duration_sec": 0.12,
-  "benchmarks": [
-    {"name": "hnsw_insert_128d", "category": "database", "ops_per_sec": 5959475.57, "mean_ns": 167.80, "iterations": 1000},
-    {"name": "hnsw_search_1k_128d", "category": "database", "ops_per_sec": 5160.39, "mean_ns": 193783.80, "iterations": 500},
-    {"name": "euclidean_distance_128d", "category": "database", "ops_per_sec": 6091135.57, "mean_ns": 164.17, "iterations": 100000}
-  ]
-}

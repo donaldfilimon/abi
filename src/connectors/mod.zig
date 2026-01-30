@@ -63,6 +63,8 @@ pub const AuthHeader = struct {
     }
 
     pub fn deinit(self: *AuthHeader, allocator: std.mem.Allocator) void {
+        // Securely wipe auth token before freeing to prevent memory forensics
+        std.crypto.utils.secureZero(u8, self.value);
         allocator.free(self.value);
         self.* = undefined;
     }

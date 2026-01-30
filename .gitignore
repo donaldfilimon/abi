@@ -36,6 +36,16 @@ venv/
 *.test
 *.bench
 coverage/
+# Benchmark output JSON files (root-level only)
+/ai.json
+/all.json
+/conc.json
+/crypto.json
+/db.json
+/mem.json
+/net.json
+/quick.json
+/simd.json
 
 # Logs
 *.log
