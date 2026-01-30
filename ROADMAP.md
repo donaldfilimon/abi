@@ -248,13 +248,15 @@ See CONTRIBUTING.md for details.
 
 ## Version Timeline
 
-| Version | Target Quarter | Status | Notes |
-|----------|---------------|---------|-------|
-| 0.2.2 | 2025-12-27 | Released | Zig 0.16 modernization |
-| 0.3.0 | Q1 2026 | Complete | GPU backends, AI features |
-| 0.4.0 | Q2 2026 | Complete | Performance, DX, documentation |
-| 0.5.0 | Q3 2026 | Complete | Distributed systems, HA |
-| 0.6.0 | Q4 2026 | Complete | Llama-CPP parity, Modular architecture refactor |
+| Version | Original Target | Completed | Notes |
+|----------|----------------|-----------|-------|
+| 0.2.2 | 2025-12-27 | 2025-12-27 | Zig 0.16 modernization |
+| 0.3.0 | Q1 2026 | 2026-01-23 | GPU backends, AI features |
+| 0.4.0 | Q2 2026 | 2026-01-25 | Performance, DX, documentation |
+| 0.5.0 | Q3 2026 | 2026-01-26 | Distributed systems, HA |
+| 0.6.0 | Q4 2026 | 2026-01-30 | Llama-CPP parity, streaming recovery |
+
+> **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
 
 *Last updated: January 30, 2026*
 
