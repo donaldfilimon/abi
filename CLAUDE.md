@@ -93,7 +93,7 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | libc linking | CLI and examples require libc for environment variable access |
 | Import paths | Always use `@import("abi")` for public API, not direct file paths |
 | Stub/Real module sync | Changes to `mod.zig` must be mirrored in `stub.zig` with identical signatures |
-| Format specifiers | Use `{t}` for errors/enums, not `@errorName()`/`@tagName()` |
+| Format specifiers | Use `{t}` for printing errors/enums. `@tagName()`/`@errorName()` valid for returning `[]const u8` |
 | ArrayListUnmanaged | Use `.empty` not `.init()` for unmanaged variants |
 | Timer API | Use `std.time.Timer.start()` not `std.time.Instant.now()` |
 | Sleep API | Use `std.Io.Clock.Duration.sleep()` not `std.time.sleep()` |
@@ -104,6 +104,8 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | GPU (Metal) | macOS only; includes Accelerate framework (AMX) and unified memory support |
 | WASM getCpuCount | Use `getCpuCount()` only with WASM/freestanding guards; 9+ files affected |
 | Streaming API | Use `src/ai/streaming/` for real-time LLM responses; backend selection via config |
+| Test module imports | Use `abi.shared.module` not `@import("../path")` - tests can't import outside module path |
+| Implementation plans | Save to `docs/plans/YYYY-MM-DD-<name>.md` with standard header for tracking |
 
 ## Feature Flags
 
