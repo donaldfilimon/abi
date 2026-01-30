@@ -35,6 +35,8 @@ Waiting on external dependencies:
 
 ## Recently Completed
 
+- **GPU platform detection** - Centralized platform detection for all GPU backends (`src/gpu/platform.zig`), PlatformCapabilities for runtime feature detection, BackendSupport for compile-time availability, isCudaSupported/isMetalSupported/isVulkanSupported helpers; 787/792 tests passing (2026-01-30)
+- **CUDA Zig 0.16 compatibility** - Fixed CUDA loader to work without deprecated `std.process.getEnvVarOwned` API, added allocator parameter throughout CUDA initialization chain, updated memory/mod/vtable modules to pass allocators correctly; 787/792 tests passing (2026-01-30)
 - **Metal backend enhancements** - Accelerate framework integration (vBLAS/vDSP/vForce for AMX-accelerated ops), unified memory manager for zero-copy CPU/GPU sharing, UnifiedTensor type, storage mode selection, neural network primitives (softmax, rmsnorm, silu, gelu); 787/792 tests passing (2026-01-30)
 - **Stream error recovery implementation** - Per-backend circuit breakers (closed/open/half_open states), exponential backoff retry with jitter, LRU session token caching for reconnection, comprehensive streaming metrics, recovery event callbacks, BackendRouter with recovery-aware routing, 503 with Retry-After when circuit open; 787/792 tests passing (2026-01-30)
 - **Security hardening** - JWT none algorithm runtime warning, require_master_key config option for production, secure API key wiping with secureZero(); Addresses security audit findings H-1, H-2, M-1 (2026-01-30)
