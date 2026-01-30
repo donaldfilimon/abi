@@ -56,6 +56,12 @@ jobs:
           zig build run -- system-info
           zig build run -- gpu backends
 
+      - name: Feature flag builds
+        run: |
+          zig build -Denable-ai=false
+          zig build -Denable-gpu=false
+          zig build -Denable-database=false
+
   lint:
     runs-on: ubuntu-latest
     steps:
