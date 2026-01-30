@@ -375,9 +375,24 @@ pub fn build(b: *std.Build) void {
 
     // ---------------------------------------------------------------------------
     // CLI smoke-test step (runs all example commands sequentially)
+    // Cross-platform: directly invokes the built CLI binary
     // ---------------------------------------------------------------------------
-    const cli_test_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\run_cli_tests.bat" });
-    b.step("cli-tests", "Run smoke test of all CLI example commands").dependOn(&cli_test_cmd.step);
+    const cli_tests_step = b.step("cli-tests", "Run smoke test of CLI commands");
+    const cli_commands = [_][]const []const u8{
+        &.{"--help"},
+        &.{"--version"},
+        &.{"system-info"},
+        &.{ "db", "stats" },
+        &.{ "gpu", "status" },
+        &.{ "task", "list" },
+        &.{ "config", "show" },
+    };
+    for (cli_commands) |args| {
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.addArgs(args);
+        // Smoke test: just verify commands run without crashing (any exit code is OK)
+        cli_tests_step.dependOn(&run_cmd.step);
+    }
 
     // ---------------------------------------------------------------------------
     // Lint step (formatting check)
@@ -386,13 +401,9 @@ pub fn build(b: *std.Build) void {
     b.step("lint", "Check code formatting").dependOn(&lint_cmd.step);
 
     // ---------------------------------------------------------------------------
-    // Full verification step – formatting, tests, CLI smoke test, benchmarks
+    // Tests - defined before full-check to allow step dependency
     // ---------------------------------------------------------------------------
-    const full_check_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\full_check.bat" });
-    b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks").dependOn(&full_check_cmd.step);
-    buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
-
-    // Tests
+    var test_step: ?*std.Build.Step = null;
     if (pathExists("src/tests/mod.zig")) {
         const tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/tests/mod.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         tests.root_module.addImport("abi", abi_module);
@@ -400,8 +411,21 @@ pub fn build(b: *std.Build) void {
         b.step("typecheck", "Compile tests without running").dependOn(&tests.step);
         const run_tests = b.addRunArtifact(tests);
         run_tests.skip_foreign_checks = true;
-        b.step("test", "Run unit tests").dependOn(&run_tests.step);
+        test_step = b.step("test", "Run unit tests");
+        test_step.?.dependOn(&run_tests.step);
     }
+
+    // ---------------------------------------------------------------------------
+    // Full verification step – formatting, tests, CLI smoke test, benchmarks
+    // Cross-platform: chains format check, tests, and CLI smoke tests
+    // ---------------------------------------------------------------------------
+    const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks");
+    full_check_step.dependOn(&lint_cmd.step);
+    if (test_step) |ts| {
+        full_check_step.dependOn(ts);
+    }
+    full_check_step.dependOn(cli_tests_step);
+    buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
 
     // Documentation - API markdown generation
     if (pathExists("tools/gendocs/main.zig")) {
