@@ -426,7 +426,7 @@ test "http request lifecycle" {
     var request = try HttpRequest.init(allocator, .get, "https://example.com");
     defer request.deinit();
 
-    try request.setHeader("User-Agent", "abi/0.1.1");
+    try request.setHeader("User-Agent", "abi/0.4.0");
     try std.testing.expectEqual(Method.get, request.method);
 }
 

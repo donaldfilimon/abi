@@ -156,7 +156,7 @@ pub const Fuzzer = proptest.Fuzzer;
 pub const forAll = proptest.forAll;
 
 test "abi version returns build package version" {
-    try std.testing.expectEqualStrings("0.1.1", abi.version());
+    try std.testing.expectEqualStrings("0.4.0", abi.version());
 }
 
 test "abi exports required symbols" {

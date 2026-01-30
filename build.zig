@@ -220,6 +220,8 @@ const example_targets = [_]BuildTarget{
     .{ .name = "example-train-ava", .step_name = "run-train-ava", .description = "Train Ava assistant from gpt-oss", .source_path = "examples/train_ava.zig" },
     .{ .name = "example-concurrency", .step_name = "run-concurrency", .description = "Run concurrency primitives example", .source_path = "examples/concurrency.zig" },
     .{ .name = "example-observability", .step_name = "run-observability", .description = "Run observability example", .source_path = "examples/observability.zig" },
+    // GPU example disabled pending unified_buffer.zig fix (backend type mismatch)
+    // .{ .name = "example-gpu", .step_name = "run-gpu", .description = "Run GPU example", .source_path = "examples/gpu.zig" },
 };
 
 const benchmark_targets = [_]BuildTarget{
@@ -228,9 +230,14 @@ const benchmark_targets = [_]BuildTarget{
 };
 
 fn pathExists(path: []const u8) bool {
-    const file = std.Io.Dir.cwd().openFile(std.Options.debug_io, path, .{}) catch return false;
-    file.close(std.Options.debug_io);
-    return true;
+    // Use @cImport for build-time file existence check
+    const c = @cImport({
+        @cInclude("sys/stat.h");
+    });
+    var buf: [4096]u8 = undefined;
+    const path_z = std.fmt.bufPrintZ(&buf, "{s}", .{path}) catch return false;
+    var stat_buf: c.struct_stat = undefined;
+    return c.stat(path_z.ptr, &stat_buf) == 0;
 }
 
 fn buildTargets(
@@ -284,7 +291,7 @@ fn buildTargets(
 
 fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Module {
     var opts = b.addOptions();
-    opts.addOption([]const u8, "package_version", "0.1.1");
+    opts.addOption([]const u8, "package_version", "0.4.0");
     opts.addOption(bool, "enable_gpu", options.enable_gpu);
     opts.addOption(bool, "enable_ai", options.enable_ai);
     opts.addOption(bool, "enable_explore", options.enable_explore);
