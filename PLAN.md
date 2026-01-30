@@ -35,6 +35,7 @@ Waiting on external dependencies:
 
 ## Recently Completed
 
+- **src/ restructure (partial)** - Created `src/platform/` module with unified platform detection (mod.zig, detection.zig, cpu.zig, stub.zig), created `src/shared/mod.zig` to consolidate utilities, moved io.zig to shared/, updated CLAUDE.md architecture diagram; 787/792 tests passing (2026-01-30)
 - **GPU platform detection** - Centralized platform detection for all GPU backends (`src/gpu/platform.zig`), PlatformCapabilities for runtime feature detection, BackendSupport for compile-time availability, isCudaSupported/isMetalSupported/isVulkanSupported helpers; 787/792 tests passing (2026-01-30)
 - **CUDA Zig 0.16 compatibility** - Fixed CUDA loader to work without deprecated `std.process.getEnvVarOwned` API, added allocator parameter throughout CUDA initialization chain, updated memory/mod/vtable modules to pass allocators correctly; 787/792 tests passing (2026-01-30)
 - **Metal backend enhancements** - Accelerate framework integration (vBLAS/vDSP/vForce for AMX-accelerated ops), unified memory manager for zero-copy CPU/GPU sharing, UnifiedTensor type, storage mode selection, neural network primitives (softmax, rmsnorm, silu, gelu); 787/792 tests passing (2026-01-30)
