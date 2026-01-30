@@ -151,7 +151,7 @@ fn printBackendDetection(backends: []const gpu_mod.Backend) void {
     std.debug.print("  Available backends: ", .{});
     for (backends, 0..) |backend, i| {
         if (i > 0) std.debug.print(", ", .{});
-        std.debug.print("{s}", .{@tagName(backend)});
+        std.debug.print("{t}", .{backend});
     }
     std.debug.print("\n", .{});
 }
@@ -295,11 +295,10 @@ fn gpuVsCpuComparison(
                 const gpu_gflops = @as(f64, @floatFromInt(flops)) / (gpu_time_ns / 1e9) / 1e9;
                 const speedup = cpu_time_ns / gpu_time_ns;
 
-                const backend_name = if (gpu_ctx.getBackend()) |b| @tagName(b) else "unknown";
-                std.debug.print("  matmul_gpu_{d}x{d} ({s}): {d:.2} GFLOPS ({d:.2} ms) - {d:.1}x speedup\n", .{
+                std.debug.print("  matmul_gpu_{d}x{d} ({t}): {d:.2} GFLOPS ({d:.2} ms) - {d:.1}x speedup\n", .{
                     size,
                     size,
-                    backend_name,
+                    gpu_ctx.getBackend() orelse .none,
                     gpu_gflops,
                     gpu_time_ns / 1e6,
                     speedup,
@@ -335,9 +334,9 @@ fn backendComparison(
             try results.append(allocator, result);
 
             if (result.success) {
-                std.debug.print("    {s}: {d:.2} GFLOPS\n", .{ @tagName(backend), result.gflops });
+                std.debug.print("    {t}: {d:.2} GFLOPS\n", .{ backend, result.gflops });
             } else {
-                std.debug.print("    {s}: {s}\n", .{ @tagName(backend), result.error_message orelse "failed" });
+                std.debug.print("    {t}: {s}\n", .{ backend, result.error_message orelse "failed" });
             }
         }
 
@@ -352,7 +351,7 @@ fn backendComparison(
         }
 
         if (fastest) |f| {
-            std.debug.print("    Fastest: {s}\n", .{@tagName(f.backend)});
+            std.debug.print("    Fastest: {t}\n", .{f.backend});
         }
     }
 }
