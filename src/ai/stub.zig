@@ -27,6 +27,7 @@ pub const database = @import("database/stub.zig");
 pub const vision = @import("vision/stub.zig");
 pub const orchestration = @import("orchestration/stub.zig");
 pub const multi_agent = @import("multi_agent/stub.zig");
+pub const models = @import("models/stub.zig");
 
 // Multi-agent re-exports
 pub const MultiAgentCoordinator = multi_agent.Coordinator;
@@ -225,15 +226,74 @@ pub const TransformerConfig = transformer.TransformerConfig;
 pub const TransformerModel = transformer.TransformerModel;
 
 pub const streaming = struct {
+    const Self = @This();
+
     pub const StreamingGenerator = struct {};
     pub const StreamToken = struct {};
     pub const StreamState = enum { idle, generating, done };
     pub const GenerationConfig = struct {};
+
+    // Backend types (stub) - must be defined before ServerConfig
+    pub const BackendType = enum { local, openai, ollama, anthropic };
+    pub const BackendRouter = struct {};
+    pub const Backend = struct {};
+
+    // Recovery config stub
+    pub const RecoveryConfig = struct {
+        max_retries: u32 = 3,
+        base_delay_ms: u64 = 1000,
+        max_delay_ms: u64 = 30000,
+    };
+
+    // Server types (stub) - must match streaming/server.zig ServerConfig
+    pub const ServerConfig = struct {
+        address: []const u8 = "127.0.0.1:8080",
+        auth_token: ?[]const u8 = null,
+        allow_health_without_auth: bool = true,
+        default_backend: Self.BackendType = .local,
+        heartbeat_interval_ms: u64 = 15000,
+        max_concurrent_streams: u32 = 100,
+        enable_openai_compat: bool = true,
+        enable_websocket: bool = true,
+        default_model_path: ?[]const u8 = null,
+        preload_model: bool = false,
+        enable_recovery: bool = true,
+        recovery_config: Self.RecoveryConfig = .{},
+    };
+    pub const StreamingServer = struct {
+        allocator: std.mem.Allocator,
+
+        pub fn init(allocator: std.mem.Allocator, _: Self.ServerConfig) !Self.StreamingServer {
+            return .{ .allocator = allocator };
+        }
+
+        pub fn deinit(_: *Self.StreamingServer) void {}
+
+        pub fn serve(_: *Self.StreamingServer) !void {
+            return error.StreamingDisabled;
+        }
+    };
+    pub const StreamingServerError = error{
+        StreamingDisabled,
+        BindFailed,
+        AcceptFailed,
+        AuthenticationFailed,
+    };
+
+    // Recovery types (stub)
+    pub const StreamRecovery = struct {};
+    pub const CircuitBreaker = struct {};
+    pub const SessionCache = struct {};
+    pub const StreamingMetrics = struct {};
 };
 pub const StreamingGenerator = streaming.StreamingGenerator;
 pub const StreamToken = streaming.StreamToken;
 pub const StreamState = streaming.StreamState;
 pub const GenerationConfig = streaming.GenerationConfig;
+pub const ServerConfig = streaming.ServerConfig;
+pub const StreamingServer = streaming.StreamingServer;
+pub const StreamingServerError = streaming.StreamingServerError;
+pub const BackendType = streaming.BackendType;
 
 pub const LlmEngine = struct {};
 pub const LlmModel = struct {};

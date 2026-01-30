@@ -27,12 +27,37 @@ pub fn isEnabled() bool {
 
 pub const ManagerConfig = struct {
     cache_dir: ?[]const u8 = null,
+    auto_scan: bool = true,
+    extensions: []const []const u8 = &.{ ".gguf", ".bin", ".safetensors" },
+};
+
+/// Model format enum (stub).
+pub const ModelFormat = enum {
+    gguf,
+    safetensors,
+    bin,
+    pytorch,
+    unknown,
+};
+
+/// Quantization type enum (stub).
+pub const QuantizationType = enum {
+    q4_0,
+    q4_1,
+    q5_0,
+    q5_1,
+    q8_0,
+    f16,
+    f32,
+    unknown,
 };
 
 pub const CachedModel = struct {
     path: []const u8,
     name: []const u8,
     size_bytes: u64,
+    format: ModelFormat = .unknown,
+    quantization: ?QuantizationType = null,
     source_url: ?[]const u8 = null,
     downloaded_at: i64 = 0,
     checksum: ?[]const u8 = null,
@@ -61,9 +86,22 @@ pub const Manager = struct {
         return &.{};
     }
 
-    pub fn getModel(self: *Manager, name: []const u8) Error!*CachedModel {
+    pub fn modelCount(self: *Manager) usize {
+        _ = self;
+        return 0;
+    }
+
+    pub fn getModel(self: *Manager, name: []const u8) ?*CachedModel {
         _ = self;
         _ = name;
+        return null;
+    }
+
+    pub fn addModel(self: *Manager, path: []const u8, size_bytes: u64, source_url: ?[]const u8) Error!*CachedModel {
+        _ = self;
+        _ = path;
+        _ = size_bytes;
+        _ = source_url;
         return error.ModelsDisabled;
     }
 
@@ -99,6 +137,8 @@ pub const DownloadConfig = struct {
     output_path: ?[]const u8 = null,
     progress_callback: ?*const fn (DownloadProgress) void = null,
     resume_download: bool = true,
+    verify_checksum: bool = true,
+    expected_checksum: ?[]const u8 = null,
 };
 
 pub const DownloadProgress = struct {
@@ -106,6 +146,7 @@ pub const DownloadProgress = struct {
     downloaded_bytes: u64,
     speed_bytes_per_sec: u64,
     eta_seconds: ?u32,
+    percent: u8,
 };
 
 pub const DownloadError = error{
@@ -113,6 +154,16 @@ pub const DownloadError = error{
     NetworkError,
     FileSystemError,
     ModelsDisabled,
+};
+
+/// Download result containing path and metadata.
+pub const DownloadResult = struct {
+    path: []const u8,
+    checksum: ?[]const u8,
+    was_resumed: bool,
+    verified: bool,
+    bytes_downloaded: u64,
+    checksum_verified: bool,
 };
 
 pub const Downloader = struct {
@@ -128,6 +179,14 @@ pub const Downloader = struct {
 
     pub fn download(self: *Downloader, url: []const u8, config: DownloadConfig) DownloadError![]const u8 {
         _ = self;
+        _ = url;
+        _ = config;
+        return error.ModelsDisabled;
+    }
+
+    pub fn downloadWithIo(self: *Downloader, io: anytype, url: []const u8, config: DownloadConfig) DownloadError!DownloadResult {
+        _ = self;
+        _ = io;
         _ = url;
         _ = config;
         return error.ModelsDisabled;
@@ -174,6 +233,16 @@ pub const SearchResult = struct {
     }
 };
 
+/// Parsed model specification.
+pub const ModelSpec = struct {
+    /// Model ID (author/model-name).
+    model_id: []const u8,
+    /// Explicit filename if provided.
+    filename: ?[]const u8,
+    /// Quantization hint if provided (e.g., "Q4_K_M").
+    quantization_hint: ?[]const u8,
+};
+
 pub const HuggingFaceClient = struct {
     allocator: std.mem.Allocator,
 
@@ -204,6 +273,37 @@ pub const HuggingFaceClient = struct {
         _ = filename;
         return error.ModelsDisabled;
     }
+
+    /// Build a filename from a quantization hint for a model.
+    pub fn buildFilenameFromHint(self: *HuggingFaceClient, model_id: []const u8, quant_hint: []const u8) Error![]const u8 {
+        _ = self;
+        _ = model_id;
+        _ = quant_hint;
+        return error.ModelsDisabled;
+    }
+
+    /// Parse a model spec like "TheBloke/Model:Q4_K_M" into components.
+    pub fn parseModelSpec(spec: []const u8) ModelSpec {
+        return .{
+            .model_id = spec,
+            .filename = null,
+            .quantization_hint = null,
+        };
+    }
+
+    /// Get common quantization types and their descriptions.
+    pub fn getQuantizationInfo() []const QuantInfo {
+        return &.{
+            .{ .name = "Q4_K_M", .bits = 4.5, .desc = "Medium quality" },
+        };
+    }
+};
+
+/// Quantization information.
+pub const QuantInfo = struct {
+    name: []const u8,
+    bits: f32,
+    desc: []const u8,
 };
 
 pub const huggingface = struct {
