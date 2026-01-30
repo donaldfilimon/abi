@@ -163,11 +163,15 @@ pub const DownloadError = error{
 
 /// Download result containing path and metadata.
 pub const DownloadResult = struct {
+    /// Path to the downloaded file.
     path: []const u8,
-    checksum: ?[]const u8,
-    was_resumed: bool,
-    verified: bool,
+    /// Total bytes downloaded.
     bytes_downloaded: u64,
+    /// SHA256 checksum of the downloaded file (hex string).
+    checksum: [64]u8,
+    /// Whether the download was resumed.
+    was_resumed: bool,
+    /// Whether checksum was verified successfully.
     checksum_verified: bool,
 };
 

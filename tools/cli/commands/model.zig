@@ -620,7 +620,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
         const size_mb = @as(f64, @floatFromInt(download_result.bytes_downloaded)) / (1024 * 1024);
         std.debug.print("{s}File:{s} {s}\n", .{ colors.dim, colors.reset, download_result.path });
         std.debug.print("{s}Size:{s} {d:.2} MB\n", .{ colors.dim, colors.reset, size_mb });
-        std.debug.print("{s}SHA256:{s} {s}\n", .{ colors.dim, colors.reset, download_result.checksum orelse "(not computed)" });
+        std.debug.print("{s}SHA256:{s} {s}\n", .{ colors.dim, colors.reset, &download_result.checksum });
 
         if (download_result.was_resumed) {
             std.debug.print("{s}(Download was resumed from partial file){s}\n", .{ colors.yellow, colors.reset });
