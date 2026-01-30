@@ -583,6 +583,18 @@ try cache.storeToken("session-id", event_id, "token", .local, prompt_hash);
 
 ## Environment Variables
 
+### Configuration Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ABI_GPU_BACKEND` | `auto` | GPU backend (auto, cuda, vulkan, metal, none) |
+| `ABI_LLM_MODEL_PATH` | - | Path to LLM model file |
+| `ABI_LLM_TEMPERATURE` | `0.7` | LLM sampling temperature |
+| `ABI_LLM_MAX_TOKENS` | `2048` | Maximum tokens for LLM generation |
+| `ABI_DB_PATH` | `abi.db` | Database file path |
+
+### API Keys
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ABI_OPENAI_API_KEY` | - | OpenAI API key |
@@ -592,6 +604,21 @@ try cache.storeToken("session-id", event_id, "token", .local, prompt_hash);
 | `ABI_ANTHROPIC_API_KEY` | - | Anthropic/Claude API key |
 | `ABI_MASTER_KEY` | - | 32-byte key for secrets encryption (required in production) |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
+
+### Using ConfigLoader
+
+```zig
+const config_mod = @import("abi").config;
+
+// Load config with environment variable overrides
+var loader = config_mod.ConfigLoader.init(allocator);
+defer loader.deinit();
+const config = try loader.load();
+
+// Or merge with a base config
+const base = config_mod.Config.minimal();
+const config_merged = try loader.loadWithBase(base);
+```
 
 ## Security Considerations
 
