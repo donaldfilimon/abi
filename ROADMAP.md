@@ -105,6 +105,12 @@ tags: [planning, roadmap]
   - [x] ParallelSearchExecutor for batch queries
   - [x] ParallelBeamState for concurrent HNSW traversal
   - [x] ParallelWorkQueue for thread-safe work distribution
+- [x] Metal backend enhancements - COMPLETE (2026-01-30)
+  - [x] Accelerate framework integration (vBLAS, vDSP, vForce)
+  - [x] AMX-accelerated matrix operations (sgemm, sgemv, sdot)
+  - [x] Unified memory manager for zero-copy CPU/GPU sharing
+  - [x] UnifiedTensor type with automatic sync barriers
+  - [x] Neural network primitives (softmax, rmsnorm, silu, gelu)
 
 ### Developer Experience
     - [x] Enhanced CLI

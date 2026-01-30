@@ -20,6 +20,7 @@ tags: [planning, sprint, development]
 - [x] **Security hardening** - JWT none algorithm warning, master key requirement option, secure API key wiping
 - [x] **Streaming documentation** - Comprehensive guide for SSE/WebSocket streaming API (`docs/streaming.md`)
 - [x] **Model management guide** - Documentation for downloading, caching, hot-reload (`docs/models.md`)
+- [x] **Metal backend enhancements** - Accelerate framework (vBLAS/vDSP/vForce), unified memory manager, zero-copy tensors
 
 ---
 
@@ -34,6 +35,7 @@ Waiting on external dependencies:
 
 ## Recently Completed
 
+- **Metal backend enhancements** - Accelerate framework integration (vBLAS/vDSP/vForce for AMX-accelerated ops), unified memory manager for zero-copy CPU/GPU sharing, UnifiedTensor type, storage mode selection, neural network primitives (softmax, rmsnorm, silu, gelu); 787/792 tests passing (2026-01-30)
 - **Stream error recovery implementation** - Per-backend circuit breakers (closed/open/half_open states), exponential backoff retry with jitter, LRU session token caching for reconnection, comprehensive streaming metrics, recovery event callbacks, BackendRouter with recovery-aware routing, 503 with Retry-After when circuit open; 787/792 tests passing (2026-01-30)
 - **Security hardening** - JWT none algorithm runtime warning, require_master_key config option for production, secure API key wiping with secureZero(); Addresses security audit findings H-1, H-2, M-1 (2026-01-30)
 - **Zig 0.16 compilation fixes** - Fixed std.time.sleep() with Timer-based busy-wait in tests, fixed linux.getpid()/getppid() with proper platform detection for macOS/BSD (2026-01-30)
