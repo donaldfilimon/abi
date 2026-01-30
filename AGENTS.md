@@ -11,6 +11,8 @@
 - `zig build test --summary all` — run the full test suite (baseline around 787/792).
 - `zig test src/path/to/file.zig --test-filter "pattern"` — run a focused test.
 - `zig fmt .` — format all Zig files (required after edits).
+- `zig build cli-tests` — run CLI command smoke tests.
+- `zig build full-check` — format + tests + CLI smoke tests.
 - `zig build bench-competitive` / `zig build benchmarks` — performance validation.
 - `zig build run -- --help` — run the CLI entry point.
 

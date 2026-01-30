@@ -17,6 +17,8 @@ This file gives the Gemini agent guidance on interacting with the ABI framework.
 ```bash
 zig build                             # Build the framework
 zig build test --summary all          # Run all tests (regression)
+zig build cli-tests                   # Run CLI command smoke tests
+zig build full-check                  # Format + tests + CLI smoke tests
 zig fmt .                             # Format after edits
 zig build run -- --help               # CLI help
 
