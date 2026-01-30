@@ -36,6 +36,8 @@ comptime {
     }
     // Cross-platform OS features tests
     _ = @import("os_test.zig");
+    // Shared utilities tests (via abi module)
+    _ = abi.shared.errors;
     // High Availability module tests
     _ = @import("ha_test.zig");
     // Stub parity verification tests
