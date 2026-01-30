@@ -368,3 +368,13 @@ Runtime module fully consolidated from compute/:
 - [x] CLI runtime flags (--list-features, --enable-*, --disable-*)
 - [x] Comptime feature validation for CLI flags
 - [x] Default Ollama model updated to gpt-oss
+
+### Platform Module Restructure (Complete - 2026-01-30)
+Created dedicated platform detection module:
+- [x] Unified platform detection (src/platform/mod.zig)
+- [x] OS/arch detection with SIMD support (src/platform/detection.zig)
+- [x] CPU detection utilities (src/platform/cpu.zig)
+- [x] Stub for minimal builds (src/platform/stub.zig)
+- [x] Shared module consolidation (src/shared/mod.zig)
+- [x] I/O utilities moved to shared (src/shared/io.zig)
+- [x] Updated abi.zig exports (platform, shared)

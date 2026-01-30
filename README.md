@@ -307,6 +307,7 @@ abi/
 │   ├── abi.zig           # Public API entry point
 │   ├── config.zig        # Unified configuration
 │   ├── framework.zig     # Lifecycle orchestration
+│   ├── platform/         # Platform detection (OS, arch, CPU)
 │   │
 │   ├── ai/               # AI Module
 │   │   ├── llm/          # Local LLM inference (Llama-CPP parity)
@@ -330,6 +331,8 @@ abi/
 │   │
 │   ├── network/          # Distributed Compute
 │   │   └── raft/         # Consensus protocol
+│   │
+│   ├── shared/           # Shared utilities (security, io, utils)
 │   │
 │   └── observability/    # Metrics & Tracing
 │

@@ -48,31 +48,25 @@ The codebase uses a domain-driven modular structure with unified configuration a
 
 ```
 src/
-├── abi.zig              # Public API entry point
-├── config.zig           # Unified configuration system
-├── framework.zig        # Framework orchestration
-├── cpu.zig              # CPU fallback for GPU operations
-├── flags.zig            # Feature flags management
-├── io.zig               # I/O utilities
-├── config/              # Domain-specific configs (gpu, ai, database, etc.)
-├── ai/                  # AI module (core, implementation, gpu_interface)
-│   ├── database/        # Database-related AI functionality
-│   ├── discovery.zig    # AI model/capability discovery
-│   ├── documents/       # Document handling
-│   ├── gpu_agent.zig    # GPU-specific agent
-│   └── model_registry.zig # Model registry
-├── cloud/               # Cloud function adapters (AWS, Azure, GCP)
+├── abi.zig              # Public API entry point: init(), shutdown(), version()
+├── config.zig           # Unified configuration system (single Config struct)
+├── config/              # Modular configuration system
+├── framework.zig        # Framework orchestration with builder pattern
+├── platform/            # Platform detection (NEW: mod.zig, detection.zig, cpu.zig)
+├── runtime/             # Always-on infrastructure
+├── gpu/                 # GPU acceleration
+├── ai/                  # AI features (llm, embeddings, agents, training)
+├── database/            # Vector database
+├── network/             # Distributed networking
+├── observability/       # Metrics, tracing, logging
+├── web/                 # Web utilities
+├── shared/              # Shared utilities (mod.zig, io.zig, security/, utils/)
 ├── connectors/          # External API connectors
-├── database/            # Vector database (WDBX)
-├── gpu/                 # GPU acceleration (backends)
-├── ha/                  # High Availability
-├── network/             # Distributed compute and Raft
-├── observability/       # Metrics, tracing, monitoring
-├── registry/            # Plugin registry (lifecycle, plugins)
-├── runtime/             # Task engine, concurrency primitives, work stealing
-├── shared/              # Utils and helpers
-├── tasks.zig            # Centralized task management
-└── web/                 # Web/HTTP utilities
+├── cloud/               # Cloud function adapters
+├── ha/                  # High availability
+├── registry/            # Feature registry
+├── tasks/               # Task management
+└── tests/               # Test infrastructure
 ```
 
 ## Zig 0.16 Patterns (CRITICAL)
