@@ -9,7 +9,7 @@
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-1921_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-787_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
@@ -42,7 +42,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 1,921+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 787+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">

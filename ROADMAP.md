@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -256,7 +256,7 @@ See CONTRIBUTING.md for details.
 | 0.5.0 | Q3 2026 | Complete | Distributed systems, HA |
 | 0.6.0 | Q4 2026 | Complete | Llama-CPP parity, Modular architecture refactor |
 
-*Last updated: January 24, 2026*
+*Last updated: January 30, 2026*
 
 ## Zig 0.16 Migration Status
 

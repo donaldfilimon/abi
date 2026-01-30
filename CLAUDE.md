@@ -470,7 +470,8 @@ zig test src/tests/mod.zig --test-filter "database"
 | `db` | Database operations (add, query, stats, optimize, backup, restore, serve) |
 | `agent` | AI agent interaction (interactive, one-shot, 13 personas) |
 | `llm` | LLM inference (chat, generate, serve, info, bench, download, list) |
-| `train` | Training pipeline (run, llm, resume, monitor, info) |
+| `model` | Model management (list, info, download, remove, search, path) |
+| `train` | Training pipeline (run, llm, vision, clip, resume, monitor, info) |
 | `gpu` | GPU management (backends, devices, summary, default, status) |
 | `gpu-dashboard` | Interactive GPU + Agent monitoring TUI |
 | `bench` | Benchmarks (all, simd, memory, ai, quick, concurrency) |
@@ -489,6 +490,19 @@ zig test src/tests/mod.zig --test-filter "database"
 | `completions` | Shell completions (bash, zsh, fish, powershell) |
 | `system-info` | Framework and feature status |
 | `toolchain` | Zig toolchain management (temporarily disabled for Zig 0.16 migration) |
+
+### Model Management
+
+```bash
+zig build run -- model list                          # List cached models
+zig build run -- model info llama-7b                 # Show model details
+zig build run -- model download TheBloke/Model:Q4_K_M  # Download from HuggingFace
+zig build run -- model remove llama-7b               # Remove cached model
+zig build run -- model search llama                  # Search HuggingFace models
+zig build run -- model path llama-7b                 # Get local model path
+```
+
+Models are cached in platform-aware directories (`~/.abi/models/` on Unix, `%APPDATA%\abi\models\` on Windows). The HuggingFace shorthand format is `TheBloke/Model:QuantType`.
 
 ### LLM CLI Examples
 
@@ -521,8 +535,10 @@ zig build run -- llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token my-secre
 ```
 
 **Endpoints:**
-- `POST /v1/chat/completions` - OpenAI-compatible chat completions
-- `POST /api/stream` - Custom ABI streaming endpoint
+- `POST /v1/chat/completions` - OpenAI-compatible chat completions (SSE)
+- `POST /api/stream` - Custom ABI streaming endpoint (SSE)
+- `GET /api/stream/ws` - WebSocket streaming (bidirectional, supports cancellation)
+- `POST /admin/reload` - Hot-reload model without restart
 - `GET /health` - Health check
 
 **Features:**
@@ -541,7 +557,21 @@ zig build run -- llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token my-secre
 | `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
 | `ABI_HF_API_TOKEN` | - | HuggingFace token |
 | `ABI_ANTHROPIC_API_KEY` | - | Anthropic/Claude API key |
+| `ABI_MASTER_KEY` | - | 32-byte key for secrets encryption (required in production) |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
+
+## Security Considerations
+
+| Setting | Default | Production Recommendation |
+|---------|---------|---------------------------|
+| JWT `allow_none_algorithm` | false | Keep false (logs warning if enabled) |
+| Secrets `require_master_key` | false | Set true for production |
+| Rate limiting | off | Enable for public APIs |
+
+**Critical for production:**
+1. Set `ABI_MASTER_KEY` environment variable (32+ bytes)
+2. Enable rate limiting on public endpoints
+3. Review `docs/SECURITY_AUDIT.md` for known issues
 
 ## Platform Notes
 
@@ -677,6 +707,8 @@ Key documentation (all in `docs/`):
 - [agents.md](docs/agents.md) - Agent personas and interaction
 - [database.md](docs/database.md) - Vector database (WDBX) usage
 - [network.md](docs/network.md) - Distributed compute and Raft consensus
+- [streaming.md](docs/streaming.md) - SSE/WebSocket streaming API
+- [models.md](docs/models.md) - Model download, caching, and hot-reload
 - [benchmarking.md](docs/benchmarking.md) - Performance benchmarking guide
 - [cli-testing.md](docs/cli-testing.md) - CLI test procedures
 
@@ -715,6 +747,8 @@ These flags are integrated into `build_options` and must have corresponding stub
 | Modify public API | `src/abi.zig` (entry point) |
 | Add new example | `examples/` + add to `example_targets` in `build.zig` |
 | Add new test category | `src/tests/<category>/mod.zig` + import in `src/tests/mod.zig` |
+| Streaming API changes | `src/ai/streaming/` (server, backends, handlers) |
+| Model management | `src/ai/llm/model_manager.zig` + `tools/cli/commands/model.zig` |
 
 ## Post-Edit Checklist
 
