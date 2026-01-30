@@ -88,6 +88,8 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | Feature disabled errors | Rebuild with `-Denable-<feature>=true` |
 | GPU backend conflicts | Prefer one primary backend; CUDA+Vulkan may cause issues |
 | WASM limitations | `database`, `network`, `gpu` auto-disabled; no `std.Io.Threaded` |
+| WASM build targets | Use `pathExists()` from build.zig for conditional compilation; WASM bindings may be absent |
+| build.zig file checks | Use existing `pathExists()` helper, not `std.fs.cwd()` or `LazyPath.getPath3()` |
 | libc linking | CLI and examples require libc for environment variable access |
 | Import paths | Always use `@import("abi")` for public API, not direct file paths |
 | Stub/Real module sync | Changes to `mod.zig` must be mirrored in `stub.zig` with identical signatures |
@@ -707,6 +709,7 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 
 Key documentation (all in `docs/`):
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
+- [docs/plans/archive/](docs/plans/archive/) - Completed implementation plans (28 archived)
 - [deployment.md](docs/deployment.md) - Production deployment guide
 - [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security audit findings and status
 - [migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 I/O patterns (critical)
@@ -774,4 +777,14 @@ If modifying a feature module's public API, verify both enabled and disabled bui
 ```bash
 zig build -Denable-<feature>=true   # Real module
 zig build -Denable-<feature>=false  # Stub module
+```
+
+### GPU Backend Verification
+
+When modifying GPU code, verify all backends compile:
+
+```bash
+for backend in auto metal vulkan cuda stdgpu webgpu opengl fpga none; do
+  zig build -Dgpu-backend=$backend || echo "FAIL: $backend"
+done
 ```
