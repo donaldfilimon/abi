@@ -630,7 +630,12 @@ pub fn getpid() Pid {
         return libc.GetCurrentProcessId();
     }
 
-    return @intCast(linux.getpid());
+    if (comptime builtin.os.tag == .linux) {
+        return @intCast(std.os.linux.getpid());
+    }
+
+    // POSIX fallback (macOS, BSD, etc.)
+    return std.c.getpid();
 }
 
 /// Get parent process ID
@@ -642,7 +647,12 @@ pub fn getppid() Pid {
         return 0;
     }
 
-    return @intCast(linux.getppid());
+    if (comptime builtin.os.tag == .linux) {
+        return @intCast(std.os.linux.getppid());
+    }
+
+    // POSIX fallback (macOS, BSD, etc.)
+    return std.c.getppid();
 }
 
 /// Signal types (cross-platform subset)
