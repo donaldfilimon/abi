@@ -35,7 +35,7 @@ Waiting on external dependencies:
 
 ## Recently Completed
 
-- **Codebase cleanup** - Removed unnecessary files for fresh start: bindings/ (Rust, Go, Python, WASM, C), vscode-abi/, www/, models/, .serena/, migration scripts (probe_*.zig, fix_*.py, migrate*.sh), tools/migrate_0_16/; Updated .gitignore to prevent re-adding; Updated documentation (CLAUDE.md, AGENTS.md, ROADMAP.md, TODO.md); 787/792 tests passing (2026-01-30)
+- **Codebase cleanup** - Removed unnecessary files for fresh start: bindings/ (Rust, Go, Python, WASM, C), vscode-abi/, www/, models/, .serena/, migration scripts (probe_*.zig, fix_*.py, migrate*.sh), tools/migrate_0_16/; Archived all 28 plan documents to `docs/plans/archive/`; Fixed WASM build targets to gracefully no-op when bindings missing; Updated .gitignore; Updated documentation (CLAUDE.md, AGENTS.md, ROADMAP.md, TODO.md); 787/792 tests passing (2026-01-30)
 - **AI stub parity complete** - Full stub/real API parity for `-Denable-ai=false` builds; Added TrainableViTConfig, TrainableViTModel, CLIPTrainingConfig, TrainableCLIPModel, VisionTrainingError, MultimodalTrainingError stubs; Fixed DownloadResult.checksum type (`[64]u8` vs optional); All feature flag combinations now compile; 787/792 tests passing (2026-01-30)
 - **src/ restructure (partial)** - Created `src/platform/` module with unified platform detection (mod.zig, detection.zig, cpu.zig, stub.zig), created `src/shared/mod.zig` to consolidate utilities, moved io.zig to shared/, updated CLAUDE.md architecture diagram; 787/792 tests passing (2026-01-30)
 - **GPU platform detection** - Centralized platform detection for all GPU backends (`src/gpu/platform.zig`), PlatformCapabilities for runtime feature detection, BackendSupport for compile-time availability, isCudaSupported/isMetalSupported/isVulkanSupported helpers; 787/792 tests passing (2026-01-30)
@@ -113,6 +113,5 @@ Waiting on external dependencies:
 ## Quick Links
 
 - [ROADMAP.md](ROADMAP.md) - Full project roadmap
-- [docs/plans/](docs/plans/) - Active implementation plans
-- [docs/plans/archive/](docs/plans/archive/) - Completed plans
+- [docs/plans/archive/](docs/plans/archive/) - Archived implementation plans
 - [CLAUDE.md](CLAUDE.md) - Development guidelines
