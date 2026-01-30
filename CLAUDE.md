@@ -547,6 +547,32 @@ zig build run -- llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token my-secre
 - **Bearer token auth** with configurable validation
 - **Heartbeat keep-alive** for long-running connections
 - **Model preloading** to reduce first-request latency
+- **Circuit breakers**: Per-backend failure isolation with automatic recovery
+- **Session caching**: Resume interrupted streams via SSE Last-Event-ID
+
+**Stream Recovery (Circuit Breaker Pattern):**
+```zig
+const streaming = @import("abi").ai.streaming;
+
+// Initialize recovery with circuit breakers
+var recovery = try streaming.StreamRecovery.init(allocator, .{
+    .circuit_breaker = .{ .failure_threshold = 5 },
+});
+defer recovery.deinit();
+
+// Check backend availability before use
+if (recovery.isBackendAvailable(.openai)) {
+    // Backend circuit is closed, safe to use
+}
+
+// Record outcomes to update circuit state
+recovery.recordSuccess(.openai);
+recovery.recordFailure(.openai);  // Opens circuit after threshold
+
+// Session cache for reconnection
+var cache = streaming.SessionCache.init(allocator, .{});
+try cache.storeToken("session-id", event_id, "token", .local, prompt_hash);
+```
 
 ## Environment Variables
 

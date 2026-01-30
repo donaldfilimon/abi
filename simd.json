@@ -1,9 +1,0 @@
-{
-  "duration_sec": 0.08,
-  "benchmarks": [
-    {"name": "dot_product_64", "category": "simd", "ops_per_sec": 12583364.79, "mean_ns": 79.47, "iterations": 10000},
-    {"name": "dot_product_256", "category": "simd", "ops_per_sec": 2718129.93, "mean_ns": 367.90, "iterations": 10000},
-    {"name": "dot_product_1024", "category": "simd", "ops_per_sec": 690999.05, "mean_ns": 1447.18, "iterations": 10000},
-    {"name": "dot_product_4096", "category": "simd", "ops_per_sec": 173569.23, "mean_ns": 5761.39, "iterations": 10000}
-  ]
-}
