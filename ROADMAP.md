@@ -181,12 +181,12 @@ tags: [planning, roadmap]
   - [x] Multi-region support (src/features/ha/replication.zig - ReplicationManager)
 
 ### Ecosystem
-- [x] Language bindings
-  - [x] Python bindings (foundation + observability module)
-  - [x] JavaScript/WASM bindings
-  - [x] C API (bindings/c/abi.h)
-  - [x] Rust bindings (FFI with safe wrappers) - COMPLETE (2026-01-24)
-  - [x] Go bindings (cgo with SIMD/database/GPU) - COMPLETE (2026-01-24)
+- [ ] Language bindings (removed for reimplementation - 2026-01-30)
+  - [ ] Python bindings
+  - [ ] JavaScript/WASM bindings
+  - [ ] C API headers
+  - [ ] Rust bindings
+  - [ ] Go bindings
 - [x] Package manager integration
   - [x] Zig package registry (build.zig.zon with fingerprint)
   - [x] Homebrew formula (Formula/abi.rb)
@@ -341,7 +341,7 @@ All Llama-CPP parity tasks have been completed. See TODO.md for details:
 - [x] Sampling strategies (src/features/ai/llm/generation/sampler.zig)
 - [x] Async token streaming (src/features/ai/llm/generation/streaming.zig)
 - [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
-- [x] C-compatible API (bindings/c/abi_llm.zig)
+- [ ] C-compatible API (bindings removed - to be recreated)
 - [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
 
 ### Modular Codebase Refactor (Complete - 2026-01-17)

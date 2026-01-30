@@ -58,7 +58,7 @@ The following high-level items are still open in **[ROADMAP.md](ROADMAP.md)**. T
 | Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/features/ai/llm/generation/sampler.zig` |
 | Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/features/ai/llm/generation/streaming.zig` |
 | CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
-| Library API | ✅ | C-compatible API (llama_model_*, llama_context_*, tokenize, generate). | `bindings/c/abi_llm.zig` |
+| Library API | ⚠️ | C-compatible API (removed for reimplementation). | `bindings/` (to be recreated) |
 | Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/tests/llm_reference_vectors.zig` |
 | Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/features/ai/training/` |
 | Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/features/ai/training/trainable_model.zig` |
