@@ -91,6 +91,11 @@ pub const Manager = struct {
         return 0;
     }
 
+    pub fn totalCacheSize(self: *Manager) u64 {
+        _ = self;
+        return 0;
+    }
+
     pub fn getModel(self: *Manager, name: []const u8) ?*CachedModel {
         _ = self;
         _ = name;
@@ -295,6 +300,14 @@ pub const HuggingFaceClient = struct {
     pub fn getQuantizationInfo() []const QuantInfo {
         return &.{
             .{ .name = "Q4_K_M", .bits = 4.5, .desc = "Medium quality" },
+        };
+    }
+
+    /// Get list of popular GGUF model authors.
+    pub fn getPopularAuthors() []const []const u8 {
+        return &.{
+            "TheBloke",
+            "bartowski",
         };
     }
 };
