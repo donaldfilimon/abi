@@ -3,7 +3,7 @@ title: "intro"
 tags: []
 ---
 # Introduction
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 > **Quick Start**: See [Quickstart Guide](../QUICKSTART.md) for immediate setup examples.
 > **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for AI agent coding patterns and build commands.
@@ -45,8 +45,11 @@ The framework uses a flat domain structure with top-level feature modules:
 │  src/observability/   │    - Memory management         │
 │  src/web/             │                                │
 ├───────────────────────┴─────────────────────────────────┤
+│          Platform Detection (src/platform/)             │
+│     OS/Arch Detection, CPU Info, SIMD Capabilities     │
+├─────────────────────────────────────────────────────────┤
 │               Shared Utilities (src/shared/)            │
-│     Platform Abstractions, SIMD, Crypto, Logging       │
+│            Security, I/O, SIMD, Crypto, Logging        │
 └─────────────────────────────────────────────────────────┘
 ```
 
