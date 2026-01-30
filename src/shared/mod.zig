@@ -12,6 +12,7 @@ pub const simd = @import("simd.zig");
 pub const utils = @import("utils.zig");
 pub const os = @import("os.zig");
 pub const time = @import("time.zig");
+pub const io = @import("io.zig");
 pub const stub_common = @import("stub_common.zig");
 
 // Security sub-module
