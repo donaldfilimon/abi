@@ -27,6 +27,8 @@ tags: []
 | Build | `zig build` |
 | Test | `zig build test --summary all` |
 | Format | `zig fmt .` |
+| CLI Smoke Test | `zig build cli-tests` |
+| Full Check | `zig build full-check` |
 | Single File Test | `zig test src/path/to/file.zig` |
 
 ## Workflow

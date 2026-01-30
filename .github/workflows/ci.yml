@@ -51,10 +51,7 @@ jobs:
         run: zig build -Dgpu-backend=metal
 
       - name: CLI smoke test
-        run: |
-          zig build run -- --help
-          zig build run -- system-info
-          zig build run -- gpu backends
+        run: zig build cli-tests
 
       - name: Feature flag builds
         run: |
