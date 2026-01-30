@@ -424,10 +424,12 @@ zig build -Dgpu-backend=auto
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
 | [API Reference](API_REFERENCE.md) | Public API summary |
 | [Quickstart](QUICKSTART.md) | Getting started guide |
+| [Deployment Guide](docs/deployment.md) | Production deployment |
 | [AI Guide](docs/ai.md) | LLM, agents, training |
 | [GPU Guide](docs/gpu.md) | Multi-backend GPU acceleration |
 | [Database Guide](docs/database.md) | WDBX vector database |
 | [Network Guide](docs/network.md) | Distributed compute |
+| [Streaming Guide](docs/streaming.md) | SSE/WebSocket streaming |
 | [Migration Guide](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues |
 
