@@ -477,25 +477,31 @@ pub fn build(b: *std.Build) void {
         b.step("check-perf", "Run performance verification tool").dependOn(&check_perf_run.step);
     }
 
-    // WASM
-    const wasm_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
-    var wasm_opts = options;
-    wasm_opts.enable_database = false;
-    wasm_opts.enable_network = false;
-    wasm_opts.enable_gpu = false;
-    wasm_opts.enable_profiling = false;
-    wasm_opts.enable_web = false;
-    wasm_opts.gpu_backends = &.{};
+    // WASM - only build if bindings exist (removed for reimplementation)
+    if (pathExists("bindings/wasm/abi_wasm.zig")) {
+        const wasm_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
+        var wasm_opts = options;
+        wasm_opts.enable_database = false;
+        wasm_opts.enable_network = false;
+        wasm_opts.enable_gpu = false;
+        wasm_opts.enable_profiling = false;
+        wasm_opts.enable_web = false;
+        wasm_opts.gpu_backends = &.{};
 
-    const wasm_build_opts = createBuildOptionsModule(b, wasm_opts);
-    const abi_wasm = b.addModule("abi-wasm", .{ .root_source_file = b.path("src/abi.zig"), .target = wasm_target, .optimize = optimize });
-    abi_wasm.addImport("build_options", wasm_build_opts);
+        const wasm_build_opts = createBuildOptionsModule(b, wasm_opts);
+        const abi_wasm = b.addModule("abi-wasm", .{ .root_source_file = b.path("src/abi.zig"), .target = wasm_target, .optimize = optimize });
+        abi_wasm.addImport("build_options", wasm_build_opts);
 
-    const wasm_lib = b.addExecutable(.{ .name = "abi", .root_module = b.createModule(.{ .root_source_file = b.path("bindings/wasm/abi_wasm.zig"), .target = wasm_target, .optimize = optimize }) });
-    wasm_lib.entry = .disabled;
-    wasm_lib.rdynamic = true;
-    wasm_lib.root_module.addImport("abi", abi_wasm);
+        const wasm_lib = b.addExecutable(.{ .name = "abi", .root_module = b.createModule(.{ .root_source_file = b.path("bindings/wasm/abi_wasm.zig"), .target = wasm_target, .optimize = optimize }) });
+        wasm_lib.entry = .disabled;
+        wasm_lib.rdynamic = true;
+        wasm_lib.root_module.addImport("abi", abi_wasm);
 
-    b.step("check-wasm", "Check WASM compilation").dependOn(&wasm_lib.step);
-    b.step("wasm", "Build WASM bindings").dependOn(&b.addInstallArtifact(wasm_lib, .{ .dest_dir = .{ .override = .{ .custom = "wasm" } } }).step);
+        b.step("check-wasm", "Check WASM compilation").dependOn(&wasm_lib.step);
+        b.step("wasm", "Build WASM bindings").dependOn(&b.addInstallArtifact(wasm_lib, .{ .dest_dir = .{ .override = .{ .custom = "wasm" } } }).step);
+    } else {
+        // WASM bindings not available - steps are no-ops
+        _ = b.step("check-wasm", "Check WASM compilation (bindings not available)");
+        _ = b.step("wasm", "Build WASM bindings (bindings not available)");
+    }
 }
