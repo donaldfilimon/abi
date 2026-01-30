@@ -700,6 +700,8 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 
 Key documentation (all in `docs/`):
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
+- [deployment.md](docs/deployment.md) - Production deployment guide
+- [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security audit findings and status
 - [migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 I/O patterns (critical)
 - [troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
 - [gpu.md](docs/gpu.md) - GPU backend details
