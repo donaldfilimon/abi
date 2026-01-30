@@ -6,6 +6,7 @@
 const std = @import("std");
 
 // Core shared utilities
+pub const errors = @import("errors.zig");
 pub const logging = @import("logging.zig");
 pub const plugins = @import("plugins.zig");
 pub const simd = @import("simd.zig");

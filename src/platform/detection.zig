@@ -118,3 +118,32 @@ test "platform detection reports at least one thread" {
     const info = PlatformInfo.detect();
     try std.testing.expect(info.max_threads >= 1);
 }
+
+test "Os.current returns valid OS" {
+    const os = Os.current();
+    // Should map to a valid enum value on any supported platform
+    try std.testing.expect(@intFromEnum(os) <= @intFromEnum(Os.other));
+}
+
+test "Arch.current returns valid architecture" {
+    const arch = Arch.current();
+    try std.testing.expect(@intFromEnum(arch) <= @intFromEnum(Arch.other));
+}
+
+test "Arch.hasSimd returns correct values" {
+    try std.testing.expect(Arch.x86_64.hasSimd());
+    try std.testing.expect(Arch.aarch64.hasSimd());
+    try std.testing.expect(Arch.wasm32.hasSimd());
+    try std.testing.expect(!Arch.other.hasSimd());
+}
+
+test "getCpuCountSafe returns at least 1" {
+    const count = getCpuCountSafe();
+    try std.testing.expect(count >= 1);
+}
+
+test "PlatformInfo fields are consistent" {
+    const info = PlatformInfo.detect();
+    try std.testing.expectEqual(Os.current(), info.os);
+    try std.testing.expectEqual(Arch.current(), info.arch);
+}

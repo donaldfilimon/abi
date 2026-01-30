@@ -182,3 +182,30 @@ test "parseGpuBackend" {
     try std.testing.expectEqual(GpuConfig.Backend.vulkan, ConfigLoader.parseGpuBackend("vulkan").?);
     try std.testing.expect(ConfigLoader.parseGpuBackend("invalid") == null);
 }
+
+test "parseGpuBackend handles all valid backends" {
+    const backends = [_][]const u8{ "auto", "cuda", "vulkan", "metal", "webgpu", "opengl", "none" };
+    for (backends) |backend| {
+        const result = ConfigLoader.parseGpuBackend(backend);
+        try std.testing.expect(result != null);
+    }
+}
+
+test "ConfigLoader handles missing env vars gracefully" {
+    var loader = ConfigLoader.init(std.testing.allocator);
+    defer loader.deinit();
+
+    const config = try loader.load();
+    // Should use defaults when env vars are not set
+    if (build_options.enable_gpu) {
+        try std.testing.expect(config.gpu != null);
+    }
+}
+
+test "ConfigLoader defaults are valid" {
+    var loader = ConfigLoader.init(std.testing.allocator);
+    defer loader.deinit();
+
+    const config = try loader.load();
+    try mod.validate(config);
+}
