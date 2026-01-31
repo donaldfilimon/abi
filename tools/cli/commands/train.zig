@@ -12,6 +12,7 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 const tui = @import("../tui/mod.zig");
+const cli_io = utils.io_backend;
 
 const train_subcommands = [_][]const u8{
     "run",
@@ -2255,7 +2256,7 @@ fn defaultDatasetCachePath(allocator: std.mem.Allocator, url: []const u8) ![]con
         if (tail.len > 0) name = tail;
     }
 
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
     std.Io.Dir.cwd().createDirPath(io, "datasets") catch {};
@@ -2280,7 +2281,7 @@ fn downloadToFile(allocator: std.mem.Allocator, url: []const u8, path: []const u
         return error.PayloadTooLarge;
     }
 
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -2330,7 +2331,7 @@ fn loadTokensFromPath(
 }
 
 fn readTextFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -2422,7 +2423,7 @@ fn clampTokens(tokens: []u32, vocab_size: u32) void {
 }
 
 fn fileExists(path: []const u8) bool {
-    var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(std.heap.page_allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

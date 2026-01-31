@@ -13,6 +13,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 // libc import for environment and process access - required for Zig 0.16
 const c = @cImport({
@@ -390,7 +391,7 @@ fn ensureDir(allocator: std.mem.Allocator, path: []const u8) !void {
 }
 
 fn dirExists(allocator: std.mem.Allocator, path: []const u8) !bool {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -403,7 +404,7 @@ fn dirExists(allocator: std.mem.Allocator, path: []const u8) !bool {
 }
 
 fn fileExists(allocator: std.mem.Allocator, path: []const u8) !bool {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

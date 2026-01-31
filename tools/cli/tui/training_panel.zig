@@ -18,6 +18,7 @@ const events = @import("events.zig");
 const themes = @import("themes.zig");
 const widgets = @import("widgets.zig");
 const metrics = @import("training_metrics.zig");
+const cli_io = @import("../utils/io_backend.zig");
 
 // ===============================================================================
 // Types
@@ -637,7 +638,7 @@ pub const TrainingPanel = struct {
         }
         self.available_runs.clearRetainingCapacity();
 
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = cli_io.initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -678,7 +679,7 @@ pub const TrainingPanel = struct {
 
     /// Load metrics from a JSONL file
     pub fn loadMetricsFile(self: *TrainingPanel, path: []const u8) !void {
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = cli_io.initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -704,7 +705,7 @@ pub const TrainingPanel = struct {
     pub fn pollMetrics(self: *TrainingPanel) !bool {
         const log_path = self.buildMetricsPath();
 
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = cli_io.initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 

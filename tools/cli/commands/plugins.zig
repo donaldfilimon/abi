@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 // libc import for environment access - required for Zig 0.16
 const c = @cImport(@cInclude("stdlib.h"));
@@ -106,7 +107,7 @@ fn loadPluginState(allocator: std.mem.Allocator) !PluginState {
     defer allocator.free(config_path);
 
     // Initialize I/O backend for Zig 0.16
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -162,7 +163,7 @@ fn savePluginState(allocator: std.mem.Allocator, state: *const PluginState) !voi
     try json_buf.appendSlice(allocator, "}}\n");
 
     // Initialize I/O backend for Zig 0.16
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
