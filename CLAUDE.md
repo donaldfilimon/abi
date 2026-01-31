@@ -143,8 +143,7 @@ Flat domain structure with unified configuration. Each domain has `mod.zig` (ent
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
-├── config/              # Unified configuration system (Config + Builder)
-├── config/              # Modular configuration system
+├── config/              # Unified configuration system (Config + Builder + per-feature configs)
 │   ├── mod.zig          # Config entry point
 │   ├── ai.zig           # AI-specific configuration
 │   ├── cloud.zig        # Cloud provider configuration
@@ -178,6 +177,7 @@ src/
 │   ├── llm/             # Local LLM inference (streaming, tokenization)
 │   ├── memory/          # Agent memory systems
 │   ├── model_registry.zig # Model registry functionality
+│   ├── models/          # Model download, caching, HuggingFace integration
 │   ├── multi_agent/     # Multi-agent coordination
 │   ├── orchestration/   # Multi-model routing, ensemble, fallback
 │   ├── personas/        # AI persona definitions (abbey, abi, aviva, etc.)
@@ -190,7 +190,7 @@ src/
 │   ├── transformer/     # Transformer architecture
 │   └── vision/          # Vision/image processing
 ├── cloud/               # Cloud function adapters (AWS Lambda, Azure, GCP)
-├── connectors/          # API connectors (OpenAI, Ollama, Anthropic, HuggingFace)
+├── connectors/          # API connectors (OpenAI, Ollama, Anthropic, HuggingFace, Mistral, Cohere, Discord)
 ├── database/            # Vector database (WDBX with HNSW/IVF-PQ)
 ├── gpu/                 # GPU acceleration (Vulkan, CUDA, Metal, etc.)
 │   ├── kernels/         # Split kernel implementations (elementwise, matrix, etc.)
@@ -224,7 +224,13 @@ src/
 │   ├── plugins.zig      # Plugin registry primitives
 │   ├── simd.zig         # SIMD vector operations
 │   └── utils.zig        # Unified utilities (time, math, string, crypto, http, json, etc.)
-├── tasks.zig            # Centralized task management
+├── tasks/               # Task management system (personal, roadmap, distributed jobs)
+│   ├── mod.zig          # Task Manager entry point
+│   ├── types.zig        # Task, Priority, Status, Category types
+│   ├── persistence.zig  # JSON file persistence
+│   ├── querying.zig     # Filtering and sorting
+│   ├── lifecycle.zig    # Task state transitions
+│   └── roadmap.zig      # Roadmap integration
 ├── web/                 # Web/HTTP utilities
 └── tests/               # Comprehensive test suite
     ├── mod.zig          # Test entry point
@@ -474,6 +480,79 @@ zig test src/tests/mod.zig --test-filter "database"
 | `property/` | Property-based/fuzzing tests |
 | `stress/` | High-load concurrency stress tests |
 
+## Task Management
+
+The `src/tasks/` module provides unified task tracking for personal tasks, project roadmap items, and distributed compute jobs:
+
+```zig
+const tasks = @import("abi").tasks;
+
+// Initialize task manager
+var manager = try tasks.Manager.init(allocator, .{
+    .storage_path = ".abi/tasks.json",
+    .auto_save = true,
+});
+defer manager.deinit();
+
+// Add a task
+const id = try manager.add("Fix authentication bug", .{
+    .priority = .high,
+    .category = .bug,
+    .description = "Users unable to login with OAuth",
+});
+
+// Update task status
+try manager.start(id);    // Mark as in_progress
+try manager.complete(id); // Mark as completed
+
+// Query tasks
+const high_priority = try manager.list(allocator, .{
+    .priority = .high,
+    .status = .pending,
+    .sort_by = .priority,
+});
+defer allocator.free(high_priority);
+
+// Get statistics
+const stats = manager.getStats();
+std.debug.print("Completed: {d}/{d}\n", .{stats.completed, stats.total});
+```
+
+**Features:** Priority levels (critical/high/normal/low), categories (feature/bug/docs/test/refactor), status tracking, due dates, task dependencies (blocked_by), JSON persistence, roadmap import.
+
+## Model Management
+
+The `src/ai/models/` module provides model download, caching, and HuggingFace integration:
+
+```zig
+const models = @import("abi").ai.models;
+
+// Initialize model manager
+var manager = try models.Manager.init(allocator, .{});
+defer manager.deinit();
+
+// List cached models
+const cached = manager.listModels();
+for (cached) |model| {
+    std.debug.print("{s}: {d} MB\n", .{model.name, model.size_bytes / 1024 / 1024});
+}
+
+// Download a model from HuggingFace (shorthand format)
+try manager.download("TheBloke/Llama-2-7B-GGUF:Q4_K_M", .{
+    .progress_callback = progressFn,
+    .verify_checksum = true,
+});
+
+// Get model path for inference
+const path = try manager.getModelPath("llama-2-7b-q4");
+```
+
+**Cache directories:**
+- Linux/macOS: `~/.abi/models/`
+- Windows: `%LOCALAPPDATA%\abi\models\`
+
+**HuggingFace shorthand:** `Owner/Repo:QuantType` (e.g., `TheBloke/Llama-2-7B-GGUF:Q4_K_M`)
+
 ## CLI Commands
 
 | Command | Purpose |
@@ -606,6 +685,8 @@ try cache.storeToken("session-id", event_id, "token", .local, prompt_hash);
 | `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
 | `ABI_HF_API_TOKEN` | - | HuggingFace token |
 | `ABI_ANTHROPIC_API_KEY` | - | Anthropic/Claude API key |
+| `ABI_MISTRAL_API_KEY` | - | Mistral AI API key |
+| `ABI_COHERE_API_KEY` | - | Cohere API key |
 | `ABI_MASTER_KEY` | - | 32-byte key for secrets encryption (required in production) |
 | `DISCORD_BOT_TOKEN` | - | Discord bot token |
 
@@ -705,7 +786,25 @@ const response = try client.chat("Hello", .{});
 // Ollama (local)
 const ollama = @import("abi").connectors.ollama;
 var client = try ollama.Client.init(allocator, .{ .host = "http://127.0.0.1:11434" });
+
+// Anthropic (Claude)
+const anthropic = @import("abi").connectors.anthropic;
+var client = try anthropic.Client.init(allocator, .{});
+
+// Mistral
+const mistral = @import("abi").connectors.mistral;
+var client = try mistral.Client.init(allocator, .{});
+
+// Cohere
+const cohere = @import("abi").connectors.cohere;
+var client = try cohere.Client.init(allocator, .{});
+
+// HuggingFace
+const huggingface = @import("abi").connectors.huggingface;
+var client = try huggingface.Client.init(allocator, .{});
 ```
+
+**Available connectors:** OpenAI, Ollama, Anthropic, HuggingFace, Mistral, Cohere, Discord
 
 Connectors require corresponding environment variables (see Environment Variables section).
 
@@ -788,7 +887,8 @@ These flags are integrated into `build_options` and must have corresponding stub
 | Add new example | `examples/` + add to `example_targets` in `build.zig` |
 | Add new test category | `src/tests/<category>/mod.zig` + import in `src/tests/mod.zig` |
 | Streaming API changes | `src/ai/streaming/` (server, backends, handlers) |
-| Model management | `src/ai/llm/model_manager.zig` + `tools/cli/commands/model.zig` |
+| Model management | `src/ai/models/` + `tools/cli/commands/model.zig` |
+| Task management | `src/tasks/` + `tools/cli/commands/task.zig` |
 
 ## Post-Edit Checklist
 
