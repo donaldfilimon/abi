@@ -69,10 +69,15 @@ pub fn parseJsonLimited(comptime T: type, allocator: Allocator, input: []const u
 
 ### Low Priority (L)
 
-#### L-1: Error Messages May Leak Internal Information
+#### L-1: Error Messages May Leak Internal Information ✅ FIXED
 **File:** `src/web/routes/personas.zig`
 
-Error responses include raw error names via `@errorName(err)`.
+~~Error responses include raw error names via `@errorName(err)`.~~
+
+**Status:** Fixed in commit 0703d3d4
+- Added `safeErrorMessage()` function to map internal errors to safe messages
+- API handlers now log actual errors server-side while returning sanitized messages
+- Common errors mapped to user-friendly messages
 
 #### L-2: Circuit Breaker Failure Records Unbounded Growth
 **File:** `src/network/circuit_breaker.zig` (line 347)
