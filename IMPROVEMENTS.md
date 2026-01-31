@@ -24,27 +24,15 @@ This document catalogs all identified improvement opportunities in the ABI Frame
 
 ### Medium Priority (M)
 
-#### M-2: HTTP Response Size Limit Needs Upper Bounds Validation
+#### M-2: HTTP Response Size Limit Needs Upper Bounds Validation ✅ FIXED
 **File:** `src/web/client.zig`
 
-The default `max_response_bytes` is 1MB but can be overridden without upper bounds validation.
+~~The default `max_response_bytes` is 1MB but can be overridden without upper bounds validation.~~
 
-**Risk:** Memory exhaustion from extremely large upstream API responses.
-
-**Recommendation:**
-```zig
-pub const RequestOptions = struct {
-    max_response_bytes: usize = 1024 * 1024,  // 1MB default
-    
-    pub fn validate(self: RequestOptions) !RequestOptions {
-        const MAX_ALLOWED = 100 * 1024 * 1024; // 100MB hard limit
-        if (self.max_response_bytes > MAX_ALLOWED) {
-            return error.ResponseSizeLimitExceeded;
-        }
-        return self;
-    }
-};
-```
+**Status:** Fixed in commit 401f9a7f
+- Added `MAX_ALLOWED_RESPONSE_BYTES` constant (100MB hard limit)
+- Added `effectiveMaxResponseBytes()` method to enforce the cap
+- All requests now use the capped value
 
 #### M-3: Chat Handler Missing Request Rate Limiting
 **Files:** `src/web/handlers/chat.zig`, `src/web/routes/personas.zig`
@@ -56,15 +44,15 @@ The persona chat API handlers process requests without built-in rate limiting.
 2. Add per-user and per-IP rate limiting
 3. Return `429 Too Many Requests` with `Retry-After` headers
 
-#### M-4: Secure Channel Handshake Implementations Are Placeholders
+#### M-4: Secure Channel Handshake Implementations Are Placeholders ⚠️ DOCUMENTED
 **File:** `src/network/linking/secure_channel.zig` (lines 427-482)
 
 The Noise XX, WireGuard, and TLS handshake implementations derive keys from local public keys only, without actual key exchange.
 
-**Recommendation:**
-1. Mark as non-production ready in documentation
-2. Implement proper X25519 key exchange
-3. Add integration tests verifying peer authentication
+**Status:** Partially addressed in commit 401f9a7f
+- ✅ Added prominent WARNING documentation to all placeholder handshakes
+- ❌ Proper X25519 key exchange still needs implementation
+- ❌ Integration tests for peer authentication still needed
 
 #### M-5: JSON Parsing Without Depth Limits
 **Files:** `src/web/handlers/chat.zig`, `src/connectors/*.zig`
@@ -131,21 +119,15 @@ metrics.record(value) catch |err| {
 };
 ```
 
-#### H-2: GPU Example Disabled Due to Backend Type Mismatch
+#### H-2: GPU Example Disabled Due to Backend Type Mismatch ✅ FIXED
 **File:** `build.zig` (line 224), `examples/gpu.zig`
 
-The GPU example is commented out due to a type mismatch in `src/gpu/unified_buffer.zig`.
+~~The GPU example is commented out due to a type mismatch in `src/gpu/unified_buffer.zig`.~~
 
-**Root Cause:**
-```zig
-// unified_buffer.zig line 374
-try self.backend.copyFromDevice(dst, src);
-```
-
-The `backend` field stores a `Backend` enum, but `copyFromDevice` is called as a method on it, which doesn't exist.
-
-**Recommendation:**
-Fix the backend API call to use the proper backend vtable or dispatcher.
+**Status:** Fixed in commit dbf86fa2
+- `toHost()` and `toHostAsync()` now use direct memory copy
+- Matches the approach used in `toDevice()`
+- GPU example re-enabled in build.zig
 
 #### H-3: Unreachable/Panic Usage
 **Impact:** 64 occurrences across 32 files
@@ -415,9 +397,9 @@ Add examples for:
 ## 7. Quick Wins (Low Effort, High Impact)
 
 1. **Add logging to `catch {}` blocks** - Helps debugging
-2. **Enable GPU example** - Fix the type mismatch bug
-3. **Add response size hard limit** - Security improvement
-4. **Document placeholder implementations** - Prevent misuse
+2. ~~**Enable GPU example**~~ ✅ Fixed - Type mismatch bug resolved
+3. ~~**Add response size hard limit**~~ ✅ Fixed - 100MB hard limit added
+4. ~~**Document placeholder implementations**~~ ✅ Done - Secure channel warnings added
 5. **Add parity tests for stubs** - Prevent API drift
 
 ---
@@ -425,10 +407,10 @@ Add examples for:
 ## 8. Recommended Priority Order
 
 ### Immediate (This Sprint)
-1. Fix GPU example backend type mismatch
+1. ~~Fix GPU example backend type mismatch~~ ✅ DONE
 2. Add logging to critical `catch {}` blocks
-3. Implement HTTP response size hard limit
-4. Document placeholder secure channel implementations
+3. ~~Implement HTTP response size hard limit~~ ✅ DONE
+4. ~~Document placeholder secure channel implementations~~ ✅ DONE
 
 ### Short-term (Next 2 Sprints)
 1. Integrate rate limiting into HTTP handlers
