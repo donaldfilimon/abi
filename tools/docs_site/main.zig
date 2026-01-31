@@ -35,7 +35,7 @@ const ArgsError = error{
     ShowHelp,
 };
 
-pub fn main() !void {
+pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const status = gpa.deinit();
@@ -45,8 +45,9 @@ pub fn main() !void {
     }
     const allocator = gpa.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const args = try init.args.toSlice(arena.allocator());
 
     const config = parseArgs(args) catch |err| {
         if (err == error.ShowHelp) return;
@@ -55,7 +56,7 @@ pub fn main() !void {
         return err;
     };
 
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = init.environ });
     defer io_backend.deinit();
     const io = io_backend.io();
 
