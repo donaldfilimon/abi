@@ -183,7 +183,7 @@ fn writeJsonReport(
     try writer.writeAll("{\n  \"metadata\": {\n    \"suite\": ");
     try std.json.Stringify.encodeJsonString(meta.suite, .{}, writer);
     try writer.print(
-        ",\n    \"quick\": {s},\n    \"duration_ns\": {d},\n    \"duration_sec\": {d:.4},\n    \"benchmarks\": {d}\n  },\n  \"benchmarks\": [\n",
+        ",\n    \"quick\": {s},\n    \"duration_ns\": {d},\n    \"duration_sec\": {d:.4},\n    \"benchmarks\": {d}\n  }},\n  \"benchmarks\": [\n",
         .{
             if (meta.quick) "true" else "false",
             meta.duration_ns,
@@ -198,9 +198,8 @@ fn writeJsonReport(
         try std.json.Stringify.encodeJsonString(result.config.name, .{}, writer);
         try writer.writeAll(",\"category\":");
         try std.json.Stringify.encodeJsonString(result.config.category, .{}, writer);
-        try std.fmt.format(
-            writer,
-            ",\"iterations\":{d},\"mean_ns\":{d:.2},\"median_ns\":{d:.2},\"std_dev_ns\":{d:.2},\"min_ns\":{d},\"max_ns\":{d},\"p50_ns\":{d},\"p90_ns\":{d},\"p95_ns\":{d},\"p99_ns\":{d},\"ops_per_sec\":{d:.2},\"bytes_per_op\":{d},\"throughput_mb_s\":{d:.2},\"memory_allocated\":{d},\"memory_freed\":{d}}",
+        try writer.print(
+            ",\"iterations\":{d},\"mean_ns\":{d:.2},\"median_ns\":{d:.2},\"std_dev_ns\":{d:.2},\"min_ns\":{d},\"max_ns\":{d},\"p50_ns\":{d},\"p90_ns\":{d},\"p95_ns\":{d},\"p99_ns\":{d},\"ops_per_sec\":{d:.2},\"bytes_per_op\":{d},\"throughput_mb_s\":{d:.2},\"memory_allocated\":{d},\"memory_freed\":{d}}}",
             .{
                 result.stats.iterations,
                 result.stats.mean_ns,
