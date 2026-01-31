@@ -277,17 +277,31 @@ pub fn getTempDir(allocator: std.mem.Allocator) ![]u8 {
     return allocator.dupe(u8, "/tmp");
 }
 
+fn initThreadedIo(allocator: std.mem.Allocator) !std.Io.Threaded {
+    const options: std.Io.Threaded.InitOptions = .{ .environ = std.process.Environ.empty };
+    const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
+    if (@typeInfo(Result) == .error_union) {
+        return try std.Io.Threaded.init(allocator, options);
+    }
+    return std.Io.Threaded.init(allocator, options);
+}
+
 /// Get the current working directory
 pub fn getCurrentDir(allocator: std.mem.Allocator) ![]u8 {
     if (comptime is_wasm) {
         return allocator.dupe(u8, "/");
     }
 
-    var buffer: [std.fs.max_path_bytes]u8 = undefined;
-    const cwd = std.posix.getcwd(&buffer) catch {
+    var io_backend = initThreadedIo(allocator) catch {
         return allocator.dupe(u8, ".");
     };
-    return allocator.dupe(u8, cwd);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const cwd = std.process.currentPathAlloc(io, allocator) catch {
+        return allocator.dupe(u8, ".");
+    };
+    return cwd[0..cwd.len];
 }
 
 /// Get OS name string
