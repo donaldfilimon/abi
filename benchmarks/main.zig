@@ -176,7 +176,7 @@ const BenchJsonMeta = struct {
 };
 
 fn writeJsonReport(
-    writer: anytype,
+    writer: *std.Io.Writer,
     results: []const framework.BenchResult,
     meta: BenchJsonMeta,
 ) !void {
@@ -373,7 +373,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
             if (args.json) {
                 var stdout_buffer: [4096]u8 = undefined;
                 var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
-                try writeJsonReport(stdout_writer, collector.results.items, meta);
+                try writeJsonReport(&stdout_writer.interface, collector.results.items, meta);
                 try stdout_writer.flush();
             }
 
@@ -382,7 +382,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
                 defer file.close(io);
                 var file_buffer: [4096]u8 = undefined;
                 var file_writer = file.writer(io, &file_buffer);
-                try writeJsonReport(file_writer, collector.results.items, meta);
+                try writeJsonReport(&file_writer.interface, collector.results.items, meta);
                 try file_writer.flush();
             }
         }
