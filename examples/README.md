@@ -6,7 +6,7 @@ tags: [examples, tutorials, getting-started]
 > **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Examples-10+-blue?style=for-the-badge" alt="10+ Examples"/>
+  <img src="https://img.shields.io/badge/Examples-15+-blue?style=for-the-badge" alt="15+ Examples"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
   <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
 </p>
@@ -22,7 +22,7 @@ Basic framework initialization and version check.
 **Run:**
 
 ```bash
-zig run examples/hello.zig
+zig build run-hello
 ```
 
 ### database.zig
@@ -32,7 +32,7 @@ Vector database operations including insert, search, and statistics.
 **Run:**
 
 ```bash
-zig run examples/database.zig
+zig build run-database
 ```
 
 ### agent.zig
@@ -47,7 +47,7 @@ AI agent usage with conversational chat interface. Demonstrates the `Agent.chat(
 **Run:**
 
 ```bash
-zig run examples/agent.zig -Denable-ai=true
+zig build run-agent -Denable-ai=true
 ```
 
 ### compute.zig
@@ -57,7 +57,17 @@ Compute engine task execution and result handling.
 **Run:**
 
 ```bash
-zig run examples/compute.zig
+zig build run-compute
+```
+
+### concurrency.zig
+
+Lock-free concurrency primitives (MPMC queue, Chase-Lev deque).
+
+**Run:**
+
+```bash
+zig build run-concurrency
 ```
 
 ### gpu.zig
@@ -67,7 +77,7 @@ GPU acceleration and SIMD operations.
 **Run:**
 
 ```bash
-zig run examples/gpu.zig -Denable-gpu=true
+zig build run-gpu -Denable-gpu=true
 ```
 
 ### network.zig
@@ -77,7 +87,17 @@ Network cluster setup and node management.
 **Run:**
 
 ```bash
-zig run examples/network.zig -Denable-network=true
+zig build run-network -Denable-network=true
+```
+
+### observability.zig
+
+Metrics collection and histogram reporting.
+
+**Run:**
+
+```bash
+zig build run-observability -Denable-profiling=true
 ```
 
 ### discord.zig
@@ -106,7 +126,17 @@ Model training with optimizers, checkpointing, and metrics.
 **Run:**
 
 ```bash
-zig run examples/training.zig -Denable-ai=true
+zig build run-training -Denable-ai=true
+```
+
+### training/train_demo.zig
+
+Synthetic LLM training demo using generated token data (no external files).
+
+**Run:**
+
+```bash
+zig build run-train-demo -Denable-ai=true
 ```
 
 ### llm.zig
@@ -123,6 +153,16 @@ Local LLM inference with GGUF models.
 
 ```bash
 zig build run-llm -- path/to/model.gguf
+```
+
+### orchestration.zig
+
+Multi-model routing, fallback, and ensemble orchestration.
+
+**Run:**
+
+```bash
+zig build run-orchestration -Denable-ai=true
 ```
 
 ### train_ava.zig
@@ -162,7 +202,7 @@ High Availability features for production deployments.
 **Run:**
 
 ```bash
-zig run examples/ha.zig -Denable-database=true
+zig build run-ha -Denable-database=true
 ```
 
 ## Building Examples
@@ -177,11 +217,15 @@ zig build examples
 zig build run-hello
 zig build run-database
 zig build run-compute
+zig build run-concurrency
 zig build run-gpu
 zig build run-network
+zig build run-observability
 zig build run-discord
 zig build run-training
+zig build run-train-demo
 zig build run-llm
+zig build run-orchestration
 zig build run-train-ava
 zig build run-ha
 ```
@@ -200,14 +244,18 @@ zig build benchmarks
 1. **Start with `hello.zig`** - Learn basic framework initialization
 2. **Try `database.zig`** - Understand vector storage and search
 3. **Explore `compute.zig`** - Learn about task execution
-4. **Check `agent.zig`** - See AI integration
-5. **Review `gpu.zig`** - Understand GPU acceleration
-6. **Study `network.zig`** - Learn distributed computing
-7. **Check `discord.zig`** - Discord bot integration
-8. **Explore `training.zig`** - Model training and checkpointing
-9. **Try `llm.zig`** - Local LLM inference
-10. **Study `ha.zig`** - High availability features
-11. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
+4. **Review `concurrency.zig`** - See lock-free data structures
+5. **Check `agent.zig`** - See AI integration
+6. **Review `gpu.zig`** - Understand GPU acceleration
+7. **Study `network.zig`** - Learn distributed computing
+8. **Explore `observability.zig`** - Metrics and histograms
+9. **Check `discord.zig`** - Discord bot integration
+10. **Explore `training.zig`** - Model training and checkpointing
+11. **Run `train_demo.zig`** - Synthetic LLM training demo
+12. **Try `llm.zig`** - Local LLM inference
+13. **Explore `orchestration.zig`** - Multi-model routing and fallback
+14. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
+15. **Study `ha.zig`** - High availability features
 
 ## Common Patterns
 
