@@ -334,5 +334,5 @@ fn writeAssetPath(writer: anytype, base_url: []const u8, path: []const u8) !void
 fn writeFile(io: std.Io, path: []const u8, content: []const u8) !void {
     var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
     defer file.close(io);
-    try file.writer(io).writeAll(content);
+    try file.writeStreamingAll(io, content);
 }
