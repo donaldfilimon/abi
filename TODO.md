@@ -6,8 +6,8 @@ tags: [development, tracking]
 > **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Status-All_Complete-success?style=for-the-badge" alt="All Complete"/>
-  <img src="https://img.shields.io/badge/TODOs-0_Remaining-green?style=for-the-badge" alt="0 TODOs"/>
+  <img src="https://img.shields.io/badge/Code_TODOs-Complete-success?style=for-the-badge" alt="Code TODOs Complete"/>
+  <img src="https://img.shields.io/badge/Future_Work-5_Items-blue?style=for-the-badge" alt="5 Future Items"/>
 </p>
 
 > **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
@@ -24,7 +24,7 @@ All previously tracked code-level TODOs have been completed:
 - ✅ `explore_test.zig` - Placeholder query string fixed
 - ✅ `streaming.zig` - Metadata counting implemented
 
-Note: `src/features/ai/explore/query.zig` contains intentional TODO/FIXME pattern strings used for code search functionality.
+Note: `src/ai/explore/query.zig` contains intentional TODO/FIXME pattern strings used for code search functionality.
 
 ## Roadmap TODOs
 
@@ -50,18 +50,18 @@ The following high-level items are still open in **[ROADMAP.md](ROADMAP.md)**. T
 
 | Area | Status | Description | Target File(s) |
 |------|--------|-------------|----------------|
-| Model I/O | ✅ | GGUF loader, metadata parsing, `load_model` API. | `src/features/ai/llm/io/gguf.zig` |
-| Quantization | ✅ | Q4_0, Q4_1, Q8_0 tensor decoders with roundtrip tests. | `src/features/ai/llm/tensor/quantized.zig` |
-| Tokenizer | ✅ | BPE and SentencePiece (Viterbi) implemented. | `src/features/ai/llm/tokenizer/` |
-| CPU Inference | ✅ | MatMul, attention, RMSNorm kernels with SIMD. | `src/features/ai/llm/ops/` |
-| GPU Backends | ✅ | CUDA/cuBLAS matmul + activation kernels (softmax, RMSNorm, SiLU). | `src/features/ai/llm/ops/gpu.zig` |
-| Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/features/ai/llm/generation/sampler.zig` |
-| Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/features/ai/llm/generation/streaming.zig` |
+| Model I/O | ✅ | GGUF loader, metadata parsing, `load_model` API. | `src/ai/llm/io/gguf.zig` |
+| Quantization | ✅ | Q4_0, Q4_1, Q8_0 tensor decoders with roundtrip tests. | `src/ai/llm/tensor/quantized.zig` |
+| Tokenizer | ✅ | BPE and SentencePiece (Viterbi) implemented. | `src/ai/llm/tokenizer/` |
+| CPU Inference | ✅ | MatMul, attention, RMSNorm kernels with SIMD. | `src/ai/llm/ops/` |
+| GPU Backends | ✅ | CUDA/cuBLAS matmul + activation kernels (softmax, RMSNorm, SiLU). | `src/ai/llm/ops/gpu.zig` |
+| Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/ai/llm/generation/sampler.zig` |
+| Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/ai/llm/generation/streaming.zig` |
 | CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
 | Library API | ✅ | C-compatible API with headers and Zig exports. | `bindings/c/` |
 | Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/tests/llm_reference_vectors.zig` |
-| Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/features/ai/training/` |
-| Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/features/ai/training/trainable_model.zig` |
+| Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/ai/training/` |
+| Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/ai/training/trainable_model.zig` |
 
 **Legend:** ✅ Complete | ⚠️ Partial | ❌ Not Started
 
@@ -122,14 +122,14 @@ All major implementation tasks are complete. See ROADMAP.md for future enhanceme
 | FPGA KV-Cache Kernels | Hierarchical BRAM/HBM/DDR cache, paged attention, prefix caching. | `src/gpu/backends/fpga/kernels/kv_cache_kernels.zig` |
 | DiskANN Index | Billion-scale disk-based ANN with Vamana graph, PQ compression. | `src/database/diskann.zig` |
 | ScaNN Index | Learned quantization with AVQ, dimension weighting, two-phase search. | `src/database/scann.zig` |
-| Flash Attention | Memory-efficient tiled attention with online softmax normalization. O(N) memory. | `src/features/ai/llm/ops/attention.zig` |
+| Flash Attention | Memory-efficient tiled attention with online softmax normalization. O(N) memory. | `src/ai/llm/ops/attention.zig` |
 | Fused Attention Kernel | Single CUDA kernel for Q*K^T, softmax, V in one pass. Includes tiled variant. | `src/gpu/backends/cuda/llm_kernels.zig` |
 | Interactive TUI CLI | Cross-platform terminal UI for selecting CLI commands. | `tools/cli/tui/`, `tools/cli/commands/tui.zig` |
-| Paged Attention | Block-based KV cache with on-demand allocation, sequence forking, prefix sharing. | `src/features/ai/llm/cache/paged_kv_cache.zig` |
-| GPU Backward Ops | cuBLAS-accelerated matmul backward with auto CPU fallback. | `src/features/ai/llm/ops/backward/gpu_backward.zig` |
-| GPU Unified Inference | CUDA kernels wired into GpuOpsContext with auto CPU fallback. | `src/features/ai/llm/ops/gpu.zig` |
-| Q5_0/Q5_1 Quantization | 5-bit quantization with symmetric/asymmetric modes. | `src/features/ai/llm/tensor/quantized.zig` |
-| GGUF Export | Export trained weights to llama.cpp-compatible GGUF. | `src/features/ai/llm/io/gguf_writer.zig` |
+| Paged Attention | Block-based KV cache with on-demand allocation, sequence forking, prefix sharing. | `src/ai/llm/cache/paged_kv_cache.zig` |
+| GPU Backward Ops | cuBLAS-accelerated matmul backward with auto CPU fallback. | `src/ai/llm/ops/backward/gpu_backward.zig` |
+| GPU Unified Inference | CUDA kernels wired into GpuOpsContext with auto CPU fallback. | `src/ai/llm/ops/gpu.zig` |
+| Q5_0/Q5_1 Quantization | 5-bit quantization with symmetric/asymmetric modes. | `src/ai/llm/tensor/quantized.zig` |
+| GGUF Export | Export trained weights to llama.cpp-compatible GGUF. | `src/ai/llm/io/gguf_writer.zig` |
 | CUDA Kernels | Softmax, RMSNorm, SiLU, elementwise ops, fused attention for GPU. | `src/gpu/backends/cuda/llm_kernels.zig` |
 | Reference Vectors | MatMul, attention, GeLU, LayerNorm, cross-entropy tests. | `src/tests/llm_reference_vectors.zig` |
 
@@ -172,23 +172,6 @@ This section aggregates all high‑level and implementation‑level tasks that a
 | Commercial Support | SLA offerings, priority support, custom development |
 | Cloud Integration | AWS Lambda, Google Cloud Functions, Azure Functions |
 
-### Llama‑CPP Parity Overview (✅)
-
-| Area | Description |
-|------|-------------|
-| Model I/O | GGUF loader, metadata parsing, `load_model` API |
-| Quantization | Q4_0, Q4_1, Q8_0, Q5_0, Q5_1 tensor decoders |
-| Tokenizer | BPE and SentencePiece (Viterbi) |
-| CPU Inference | MatMul, attention, RMSNorm kernels with SIMD |
-| GPU Backends | CUDA/cuBLAS kernels for matmul, activation, softmax, RMSNorm, SiLU |
-| Sampling | Top‑k, top‑p, temperature, tail‑free, mirostat (v1/v2) |
-| Streaming | Async SSE streaming, callbacks, cancellation |
-| CLI | Full llama‑cpp CLI parity (info, generate, chat, bench) |
-| Library API | C‑compatible API (llama_model_*, llama_context_*, tokenize, generate) |
-| Tests & Benchmarks | Reference vectors for Q4/Q5/Q8, softmax, RMSNorm, SiLU, MatMul, attention |
-| Training | Backward ops, loss, trainable model, LoRA, mixed precision |
-| Gradient Checkpointing | Memory‑efficient training with selective activation storage |
-
 ### Miscellaneous Implementation TODOs
 
 * ~~Review any remaining `TODO:`/`FIXME:` markers in the source tree and document them here.~~ ✅ All code-level TODOs complete.
@@ -201,13 +184,14 @@ All feature stubs have been updated to match real implementations and tested wit
 
 | Feature | Stub File | Status | Notes |
 |---------|-----------|--------|-------|
-| AI | `src/features/ai/stub.zig` | ✅ | Fixed SessionData, SessionMeta, PromptBuilder, TrainingConfig, TrainingReport, TrainingResult, Checkpoint, TrainableModelConfig, TrainableModel |
-| LLM | `src/features/ai/llm/stub.zig` | ✅ | Added matrixMultiply to ops, GgufFile.printSummaryDebug |
+| AI | `src/ai/stub.zig` | ✅ | Full AI feature stub with all sub-module placeholders |
+| LLM | `src/ai/llm/stub.zig` | ✅ | Added matrixMultiply to ops, GgufFile.printSummaryDebug |
 | GPU | `src/gpu/stub.zig` | ✅ | Added backendAvailability export |
 | Network | `src/network/stub.zig` | ✅ | Added touch(), setStatus(), fixed NodeInfo.last_seen_ms, corrected NodeStatus enum |
 | Database | `src/database/stub.zig` | ✅ | Verified (no changes needed) |
-| Web | `src/shared/web/stub.zig` | ✅ | Verified (no changes needed) |
-| Profiling | `src/compute/profiling/stub.zig` | ✅ | Verified (no changes needed) |
+| Web | `src/web/stub.zig` | ✅ | Web utilities stub |
+| Platform | `src/platform/stub.zig` | ✅ | Platform detection stub |
+| Observability | `src/observability/stub.zig` | ✅ | Metrics and tracing stub |
 
 **Build Verification:**
 - ✅ `zig build -Denable-ai=false` - Passes

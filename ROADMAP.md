@@ -172,13 +172,13 @@ tags: [planning, roadmap]
 
 ### High Availability
 - [x] Failover mechanisms
-  - [x] Automatic failover (src/features/ha/mod.zig - HaManager with auto_failover)
+  - [x] Automatic failover (src/ha/mod.zig - HaManager with auto_failover)
   - [x] Health checks (src/network/loadbalancer.zig - NodeState)
-  - [x] Circuit breakers (src/features/monitoring/mod.zig - CircuitBreakerMetrics)
+  - [x] Circuit breakers (src/observability/mod.zig - CircuitBreakerMetrics)
 - [x] Disaster recovery
-  - [x] Backup orchestration (src/features/ha/backup.zig - BackupOrchestrator)
-  - [x] Point-in-time recovery (src/features/ha/pitr.zig - PitrManager)
-  - [x] Multi-region support (src/features/ha/replication.zig - ReplicationManager)
+  - [x] Backup orchestration (src/ha/backup.zig - BackupOrchestrator)
+  - [x] Point-in-time recovery (src/ha/pitr.zig - PitrManager)
+  - [x] Multi-region support (src/ha/replication.zig - ReplicationManager)
 
 ### Ecosystem
 - [ ] Language bindings (removed for reimplementation - 2026-01-30)
@@ -302,7 +302,19 @@ All feature-gated stubs have been audited and updated for API parity:
  - [0.2.0](CHANGELOG_CONSOLIDATED.md#020---2025-12-24) - High-performance compute runtime
  - [0.1.0](CHANGELOG_CONSOLIDATED.md#010---2025-12-24) - Initial release
 
-## Expanded Roadmap Details
+## Related Documentation
+
+For detailed implementation notes, see:
+- [CLAUDE.md](CLAUDE.md) - Developer guidelines and architecture reference
+- [docs/troubleshooting.md](docs/troubleshooting.md) - Debugging and GDB/LLDB support
+- [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 migration guide
+- [docs/research/](docs/research/) - Research partnerships and publications
+- [docs/governance/](docs/governance/) - RFC process and community governance
+- [docs/education/](docs/education/) - Training courses and certification
+- [docs/commercial/](docs/commercial/) - Enterprise support and SLA offerings
+
+## Implementation History
+
 ### Tooling (Q2 2026) COMPLETE
 - **Debugger integration** - GDB/LLDB support documented in docs/troubleshooting.md.
 - **Performance profiler** - MetricsCollector and GPU Profiler implemented.
@@ -333,13 +345,13 @@ All feature-gated stubs have been audited and updated for API parity:
 
 ### Llama-CPP Parity (Complete)
 All Llama-CPP parity tasks have been completed. See TODO.md for details:
-- [x] GGUF loader and metadata parsing (src/features/ai/llm/io/gguf.zig)
-- [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/features/ai/llm/tensor/quantized.zig)
-- [x] BPE/SentencePiece tokenizer (src/features/ai/llm/tokenizer/)
-- [x] CPU inference kernels with SIMD (src/features/ai/llm/ops/)
-- [x] GPU backend with CUDA kernels (src/features/ai/llm/ops/gpu.zig)
-- [x] Sampling strategies (src/features/ai/llm/generation/sampler.zig)
-- [x] Async token streaming (src/features/ai/llm/generation/streaming.zig)
+- [x] GGUF loader and metadata parsing (src/ai/llm/io/gguf.zig)
+- [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/ai/llm/tensor/quantized.zig)
+- [x] BPE/SentencePiece tokenizer (src/ai/llm/tokenizer/)
+- [x] CPU inference kernels with SIMD (src/ai/llm/ops/)
+- [x] GPU backend with CUDA kernels (src/ai/llm/ops/gpu.zig)
+- [x] Sampling strategies (src/ai/llm/generation/sampler.zig)
+- [x] Async token streaming (src/ai/llm/generation/streaming.zig)
 - [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
 - [ ] C-compatible API (bindings removed - to be recreated)
 - [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)

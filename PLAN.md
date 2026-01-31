@@ -28,8 +28,23 @@ tags: [planning, sprint, development]
 
 Waiting on external dependencies:
 
-- **Native HTTP downloads** - Deferred until Zig 0.16 `std.Io.File.Writer` API stabilizes; currently falls back to curl/wget instructions
-- **Toolchain CLI** - Disabled due to Zig 0.16 API incompatibilities in `toolchain.zig`
+| Item | Blocker | Workaround |
+|------|---------|------------|
+| Native HTTP downloads | Zig 0.16 `std.Io.File.Writer` API unstable | Falls back to curl/wget instructions |
+| Toolchain CLI | Zig 0.16 API incompatibilities | Command disabled; manual zig installation |
+
+**Note:** These will be re-evaluated when Zig 0.16.1+ releases with I/O API stabilization.
+
+---
+
+## Next Sprint Preview
+
+Potential focus areas for upcoming work:
+
+- [ ] Language bindings reimplementation (Python, Rust, Go, JS/WASM, C headers)
+- [ ] ASIC exploration research (long-term)
+- [ ] Additional competitive benchmarks
+- [ ] Community contribution tooling
 
 ---
 

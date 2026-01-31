@@ -126,6 +126,17 @@ pub const Manager = struct {
         _ = path;
         return error.ModelsDisabled;
     }
+
+    pub fn scanCacheDirWithIo(self: *Manager, io: anytype) Error!void {
+        _ = self;
+        _ = io;
+        return error.ModelsDisabled;
+    }
+
+    pub fn scanCacheDir(self: *Manager) Error!void {
+        _ = self;
+        return error.ModelsDisabled;
+    }
 };
 
 pub const manager = struct {

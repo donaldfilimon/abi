@@ -67,6 +67,7 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Interactive CLI** | TUI launcher, GPU dashboard, training monitor | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Streaming API** | SSE/WebSocket inference, circuit breakers, session recovery | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ---
 
@@ -446,7 +447,10 @@ int main() {
 }
 ```
 
-Build: `cd bindings/c && zig build` produces `libabi.dylib` and `libabi_static.a`.
+Build: `cd bindings/c && zig build` produces:
+- macOS: `libabi.dylib` / `libabi_static.a`
+- Linux: `libabi.so` / `libabi_static.a`
+- Windows: `abi.dll` / `abi_static.lib`
 
 See [bindings/c/README.md](bindings/c/README.md) for full API reference.
 
@@ -513,7 +517,7 @@ zig build lint
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
-See [ROADMAP.md](ROADMAP.md) for upcoming features.
+See [PLAN.md](PLAN.md) for current sprint status and [ROADMAP.md](ROADMAP.md) for version history.
 
 ---
 
