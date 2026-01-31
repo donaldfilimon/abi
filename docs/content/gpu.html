@@ -1,0 +1,22 @@
+<p>
+The GPU module provides a unified backend interface for acceleration. Backends
+can be selected at build time and discovered at runtime.
+</p>
+
+<h2>Backend selection</h2>
+<pre><code>zig build -Dgpu-backend=vulkan
+zig build -Dgpu-backend=cuda,vulkan
+zig build -Dgpu-backend=none
+</code></pre>
+
+<h2>Runtime behavior</h2>
+<ul>
+    <li>Automatic fallback to CPU when a backend is unavailable</li>
+    <li>Explicit backend selection via ABI_GPU_BACKEND</li>
+    <li>Memory pools tuned for large model workloads</li>
+</ul>
+
+<h2>GPU health checks</h2>
+<pre><code>zig build run -- gpu status
+zig build run -- gpu devices
+</code></pre>

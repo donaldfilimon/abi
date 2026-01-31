@@ -451,11 +451,19 @@ pub fn build(b: *std.Build) void {
     }
 
     // Documentation - Static site generation
-    if (pathExists("tools/docgen/main.zig")) {
-        const docgen = b.addExecutable(.{ .name = "docgen", .root_module = b.createModule(.{ .root_source_file = b.path("tools/docgen/main.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
-        const run_docgen = b.addRunArtifact(docgen);
-        if (b.args) |args| run_docgen.addArgs(args);
-        b.step("docs-site", "Generate documentation website").dependOn(&run_docgen.step);
+    if (pathExists("tools/docs_site/main.zig")) {
+        const docs_site = b.addExecutable(.{
+            .name = "docs-site",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tools/docs_site/main.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            }),
+        });
+        const run_docs_site = b.addRunArtifact(docs_site);
+        if (b.args) |args| run_docs_site.addArgs(args);
+        b.step("docs-site", "Generate documentation website").dependOn(&run_docs_site.step);
     }
 
     // Profile build
