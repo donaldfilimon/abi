@@ -57,7 +57,7 @@ zig build run -- --disable-ai llm info    # Disable feature for this run
 zig build benchmarks                   # Run comprehensive benchmarks
 zig build bench-all                    # Run all benchmark suites
 zig build gendocs                      # Generate API documentation
-zig build docs-site                    # Generate documentation website
+zig build docs-site                    # Generate documentation website (zig-out/docs-site/)
 zig build check-wasm                   # Check WASM compilation (standalone binary)
 zig build examples                     # Build all examples
 zig build cli-tests                    # Run CLI command smoke tests

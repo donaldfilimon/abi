@@ -18,7 +18,7 @@ Index of developer tools and internal utilities.
 | Path | Purpose |
 | --- | --- |
 | `tools/cli/` | ABI CLI implementation (commands, TUI, utils, tests) |
-| `tools/docgen/` | Documentation generator templates + driver |
+| `tools/docgen/` | Documentation generator templates + driver (outputs to `zig-out/docs-site/`) |
 | `tools/gendocs/` | Doc generation entry point (zig build gendocs) |
 | `tools/benchmark-dashboard/` | Benchmark visualization UI + data |
 | `tools/perf/` | Perf checks and microbench helpers |

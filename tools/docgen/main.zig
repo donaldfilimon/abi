@@ -4,7 +4,7 @@
 //! documentation into a styled HTML website.
 //!
 //! Usage:
-//!   zig build docs-site           # Generate HTML site
+//!   zig build docs-site           # Generate HTML site (zig-out/docs-site)
 //!
 
 const std = @import("std");
@@ -16,10 +16,10 @@ const Allocator = std.mem.Allocator;
 
 const Config = struct {
     input_dir: []const u8 = "docs",
-    output_dir: []const u8 = "docs_html",
+    output_dir: []const u8 = "zig-out/docs-site",
     base_url: []const u8 = "/abi",
     site_title: []const u8 = "ABI Framework Documentation",
-    version: []const u8 = "0.16.0",
+    version: []const u8 = "0.4.0",
 };
 
 // =============================================================================
