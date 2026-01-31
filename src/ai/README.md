@@ -20,26 +20,37 @@ tags: []
 //! | Module | Description |
 //! |--------|-------------|
 //! | `mod.zig` | Public API entry point with Context struct |
-//! | `llm/` | LLM inference (local GGUF, Ollama, OpenAI) |
-//! | `agents/` | Autonomous agent system |
+//! | `core/` | Shared AI types, config, and utilities |
+//! | `llm/` | Local LLM inference engine (GGUF) |
 //! | `embeddings/` | Embedding generation |
-//! | `training/` | Training pipelines |
+//! | `agents/` + `agent.zig` | Agent runtime + simple agent API |
+//! | `memory/` | Memory systems (short/long-term, summaries) |
+//! | `training/` | Training pipelines and checkpoints |
+//! | `personas/` | Multi-persona profiles and configs |
+//! | `streaming/` | SSE/WebSocket streaming responses |
+//! | `orchestration/` | Multi-model routing, fallback, ensembles |
+//! | `rag/` | Retrieval-augmented generation |
+//! | `explore/` | Codebase exploration tooling |
+//! | `documents/` | Document parsing and layout analysis |
+//! | `models/` + `model_registry.zig` | Model registry + downloads |
+//! | `vision/` | Vision models (ViT) + preprocessing |
+//! | `eval/` | Metrics (BLEU/ROUGE/perplexity) |
+//! | `templates/` + `prompts/` | Prompt templates and builders |
+//! | `tools/` | Agent tools (filesystem, discord, OS, search) |
+//! | `abbey/` | Abbey persona subsystem |
 //!
 //! ## Architecture
 //!
-//! This module uses the wrapper pattern - thin wrappers in `src/ai/` delegate
-//! to full implementations in `src/features/ai/`:
+//! `src/ai/mod.zig` is the public API and framework integration layer.
+//! Sub-modules live directly under `src/ai/` and are compiled in-place
+//! (no legacy wrapper indirection).
 //!
-//! ```
-//! src/ai/mod.zig (wrapper)
-//!        ↓
-//! src/features/ai/mod.zig (implementation)
-//!        ↓
-//! ├── agent.zig    - Agent runtime
-//! ├── llm/         - LLM connectors
-//! ├── embeddings/  - Embedding models
-//! └── training/    - Training loops
-//! ```
+//! Feature gating:
+//! - `-Denable-ai` toggles the AI module
+//! - `-Denable-llm`, `-Denable-vision`, `-Denable-explore` toggle sub-features
+//!
+//! When a feature is disabled, `src/ai/stub.zig` (and per-submodule stubs
+//! like `llm/stub.zig`) provide API-compatible no-op implementations.
 //!
 //! ## Usage
 //!
@@ -47,7 +58,7 @@ tags: []
 //! const abi = @import("abi");
 //!
 //! // Initialize framework with AI
-//! var fw = try abi.init(allocator, .{
+//! var fw = try abi.initWithConfig(allocator, .{
 //!     .ai = .{
 //!         .llm = .{ .model_path = "./models/llama.gguf" },
 //!         .embeddings = .{},
@@ -78,6 +89,7 @@ tags: []
 //!
 //! Sub-features:
 //! - `-Denable-llm=true` - LLM inference (requires `-Denable-ai`)
+//! - `-Denable-vision=true` - Vision processing (requires `-Denable-ai`)
 //! - `-Denable-explore=true` - Codebase exploration (requires `-Denable-ai`)
 //!
 //! ## See Also
