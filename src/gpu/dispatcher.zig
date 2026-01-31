@@ -319,9 +319,16 @@ pub const KernelDispatcher = struct {
             std.log.err("Failed to build kernel IR for {s}: {}", .{ name, err });
             return DispatchError.KernelCompilationFailed;
         };
+        errdefer {
+            ir.deinit(self.allocator);
+            self.allocator.destroy(@constCast(ir));
+        }
 
         // Compile the IR to the target backend
-        return self.compileKernel(ir);
+        const handle = try self.compileKernel(ir);
+        ir.deinit(self.allocator);
+        self.allocator.destroy(@constCast(ir));
+        return handle;
     }
 
     /// Compile a custom kernel from IR.
