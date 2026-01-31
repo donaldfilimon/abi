@@ -19,26 +19,40 @@ tags: []
 //!
 //! | Module | Description |
 //! |--------|-------------|
-//! | `mod.zig` | Public API entry point with Context struct |
-//! | `llm/` | LLM inference (local GGUF, Ollama, OpenAI) |
-//! | `agents/` | Autonomous agent system |
+//! | `mod.zig` | Public API entry point with `Context` struct |
+//! | `stub.zig` | Feature-disabled stubs for API parity |
+//! | `core/` | Shared AI types and configuration |
+//! | `llm/` | Local LLM inference (GGUF, tokenization, sampling) |
 //! | `embeddings/` | Embedding generation |
-//! | `training/` | Training pipelines |
+//! | `agents/` | Autonomous agent runtime |
+//! | `personas/` | Multi-persona assistant system |
+//! | `orchestration/` | Multi-model routing and ensemble logic |
+//! | `streaming/` | SSE/WebSocket streaming inference |
+//! | `models/` | Model management + downloads |
+//! | `documents/` | Document parsing + understanding |
+//! | `rag/` | Retrieval-augmented generation pipeline |
+//! | `templates/` | Prompt/template rendering |
+//! | `explore/` | Codebase exploration tooling |
+//! | `memory/` | Conversation memory systems |
+//! | `prompts/` | Prompt builders and persona prompts |
+//! | `tools/` | Agent tool registry and helpers |
+//! | `vision/` | Vision processing and ViT training |
 //!
 //! ## Architecture
 //!
-//! This module uses the wrapper pattern - thin wrappers in `src/ai/` delegate
-//! to full implementations in `src/features/ai/`:
+//! The AI module is implemented directly in `src/ai/` (no `features/ai` bridge).
+//! Feature gating is handled via `stub.zig` and submodule-specific stubs:
 //!
 //! ```
-//! src/ai/mod.zig (wrapper)
-//!        ↓
-//! src/features/ai/mod.zig (implementation)
-//!        ↓
-//! ├── agent.zig    - Agent runtime
-//! ├── llm/         - LLM connectors
-//! ├── embeddings/  - Embedding models
-//! └── training/    - Training loops
+//! src/ai/
+//! ├── mod.zig          # Public API + Context
+//! ├── stub.zig         # Feature-disabled stubs
+//! ├── llm/             # Local GGUF inference
+//! ├── agents/          # Agent runtime
+//! ├── embeddings/      # Embedding generation
+//! ├── training/        # Training pipelines
+//! ├── streaming/       # SSE/WebSocket streaming
+//! └── orchestration/   # Multi-model routing
 //! ```
 //!
 //! ## Usage

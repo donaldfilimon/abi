@@ -862,7 +862,7 @@ Flat domain structure (modular architecture):
 | `src/web/` | HTTP helpers and web utilities | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/shared/` | SIMD, platform helpers | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
 
-> **Backward Compatibility**: Re-exports in `abi.zig` maintain API compatibility with the previous `features/` and `compute/` structure.
+> **Backward Compatibility**: Re-exports in `abi.zig` preserve API compatibility with older module layouts.
 
 ## See Also
 

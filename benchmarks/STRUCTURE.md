@@ -2,17 +2,23 @@
 
 ```
 benchmarks/
-├── README.md                     # This file
+├── README.md                     # Benchmark suite overview
 ├── STRUCTURE.md                  # Directory structure overview
 ├── main.zig                      # Main benchmark runner
 ├── mod.zig                       # Root benchmark module (exports all suites)
 ├── run.zig                       # CLI wrapper
 ├── run_competitive.zig           # Competitive benchmark runner
 │
+├── baselines/                    # Stored benchmark baselines
+│   ├── branches/
+│   ├── main/
+│   ├── releases/
+│   └── README.md
+│
 ├── competitive/                  # Industry comparison benchmarks
 │   ├── mod.zig                   # Competitive benchmark module
 │   ├── faiss_comparison.zig      # vs Facebook FAISS
-│   ├── llm_comparison.zig        # vs Other LLM frameworks  
+│   ├── llm_comparison.zig        # vs Other LLM frameworks
 │   └── vector_db_comparison.zig  # vs Vector databases
 │
 ├── core/                         # Core framework benchmarks
@@ -24,44 +30,39 @@ benchmarks/
 ├── domain/                       # Domain-specific benchmarks
 │   ├── ai/                       # AI/ML benchmarks
 │   │   ├── mod.zig
-│   │   ├── embeddings.zig         # Embedding generation
+│   │   ├── fpga_kernels.zig      # FPGA kernel comparisons
 │   │   ├── kernels.zig           # Compute kernels
-│   │   └── llm_metrics.zig       # LLM metrics (tokens/sec, etc.)
+│   │   ├── llm_metrics.zig       # LLM metrics (tokens/sec, etc.)
+│   │   └── streaming.zig         # Streaming inference benchmarks
 │   │
 │   ├── database/                 # Database benchmarks
 │   │   ├── mod.zig
 │   │   ├── ann_benchmarks.zig    # ANN algorithms
 │   │   ├── hnsw.zig              # HNSW performance
-│   │   └── operations.zig         # CRUD operations
+│   │   └── operations.zig        # CRUD operations
 │   │
-│   ├── gpu/                      # GPU benchmarks
-│   │   ├── mod.zig
-│   │   ├── backends.zig          # Backend comparisons
-│   │   ├── kernels.zig           # Kernel performance
-│   │   └── memory.zig            # Memory transfer
-│   │
-│   └── network/                  # Network benchmarks
+│   └── gpu/                      # GPU benchmarks
 │       ├── mod.zig
-│       ├── http.zig              # HTTP operations
-│       └── rpc.zig               # RPC performance
+│       ├── backends.zig          # Backend comparisons
+│       ├── gpu_vs_cpu.zig        # GPU vs CPU comparisons
+│       └── kernels.zig           # Kernel performance
 │
 ├── infrastructure/               # Infrastructure benchmarks
+│   ├── mod.zig
 │   ├── concurrency.zig           # Concurrency patterns
 │   ├── crypto.zig                # Cryptographic operations
+│   ├── gpu_backends.zig          # GPU backend detection
 │   ├── memory.zig                # Memory management
+│   ├── network.zig               # HTTP/Network benchmarks
 │   └── simd.zig                  # SIMD/vectorization
 │
-├── system/                       # System/integration benchmarks
-│   ├── ci_integration.zig        # CI/CD integration tests
-│   ├── framework.zig             # Framework initialization
-│   ├── industry_standard.zig     # Industry standard compliance
-│   └── integration.zig           # Integration tests
-│
-└── utilities/                    # Benchmark utilities
-    ├── reporter.zig              # Result reporting
-    ├── runner.zig                # Benchmark runner utilities
-    ├── statistics.zig            # Statistical analysis
-    └── validator.zig             # Result validation
+└── system/                       # System/integration benchmarks
+    ├── mod.zig
+    ├── baseline_comparator.zig   # Baseline comparisons
+    ├── baseline_store.zig        # Baseline storage
+    ├── ci_integration.zig        # CI/CD integration tests
+    ├── framework.zig             # Framework initialization
+    └── industry_standard.zig     # Industry standard compliance
 ```
 
 ## Purpose of Each Directory
@@ -81,9 +82,10 @@ Measure fundamental framework operations:
 
 ### `domain/` - Feature-Specific Benchmarks
 Domain-specific performance testing:
-- **AI/ML**: Embedding generation, compute kernels, LLM metrics
+- **AI/ML**: Kernels, LLM metrics, streaming, FPGA comparisons
 - **Database**: ANN algorithms, HNSW, CRUD operations
-We use `domain/ai/` instead of `ai/` at root level for consistency with other domains like `domain/database/`.
+- **GPU**: Backend comparisons, kernel throughput, GPU vs CPU
+We use `domain/ai/` instead of `ai/` at root level for consistency with other domains.
 
 ### `infrastructure/` - System Infrastructure
 Infrastructure component performance:
@@ -91,20 +93,21 @@ Infrastructure component performance:
 - Cryptographic operations
 - Memory management strategies
 - SIMD/vectorization effectiveness
+- Network/HTTP microbenchmarks
+- GPU backend detection checks
 
 ### `system/` - Integration & Compliance
 System-level and compliance testing:
 - CI/CD integration performance
 - Framework startup/shutdown
 - Industry standard compliance
-- End-to-end integration
+- Baseline comparison + persistence
 
-### `utilities/` - Benchmarking Tools
-Reusable benchmarking utilities:
-- Result reporting and formatting
-- Benchmark runner orchestration
-- Statistical analysis
-- Result validation
+### `baselines/` - Stored Results
+Historical benchmark snapshots used for regression detection:
+- Branch/local baselines
+- Mainline baselines
+- Release snapshots
 
 ## Benchmark Types
 
@@ -120,7 +123,8 @@ Reusable benchmarking utilities:
 - Core framework operation → `core/`
 - AI/ML operation → `domain/ai/`
 - Database operation → `domain/database/`
-- System operation → `infrastructure/` or `system/`
+- GPU operation → `domain/gpu/`
+- System/infrastructure operation → `infrastructure/` or `system/`
 
 ### 2. Create Benchmark File
 ```zig
@@ -203,6 +207,9 @@ zig build benchmarks
 zig run benchmarks/core/mod.zig
 zig run benchmarks/domain/ai/mod.zig
 zig run benchmarks/domain/database/mod.zig
+zig run benchmarks/domain/gpu/mod.zig
+zig run benchmarks/infrastructure/mod.zig
+zig run benchmarks/system/mod.zig
 ```
 
 ### Competitive Benchmarks
@@ -212,7 +219,7 @@ zig build bench-competitive
 
 ### Individual Benchmark
 ```bash
-zig run benchmarks/domain/ai/embeddings.zig
+zig run benchmarks/domain/ai/kernels.zig
 ```
 
 ## Output Formats
@@ -241,11 +248,9 @@ zig build benchmarks -- --format=json --tag=git-$(git rev-parse --short HEAD)
 ## Performance Baselines
 
 Baseline files are stored in `benchmarks/baselines/`:
-- `baselines/latest.json` - Most recent results
-- `baselines/release-*.json` - Release snapshots
-- `baselines/regression-*.json` - Regression test results
+- `baselines/branches/` - Per-branch snapshots
+- `baselines/main/` - Mainline snapshots
+- `baselines/releases/` - Release snapshots
 
-Compare against baseline:
-```bash
-node scripts/compare-baseline.js benchmarks/baselines/latest.json current_results.json
-```
+Compare against baseline using the helpers in
+`benchmarks/system/baseline_comparator.zig` and `baseline_store.zig`.
