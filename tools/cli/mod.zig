@@ -95,7 +95,7 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
     }
 
     // Initialize shared I/O backend for Zig 0.16
-    var io_backend = cli_io.initIoBackend(allocator, environ);
+    var io_backend = cli_io.initIoBackendWithEnv(allocator, environ);
     defer io_backend.deinit();
     const io = io_backend.io();
 
