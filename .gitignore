@@ -4,6 +4,7 @@ zig-out/
 docs_html/
 build/
 .zig-cache/
+.zig/
 
 # Documentation build artifacts
 docs-src/build/
