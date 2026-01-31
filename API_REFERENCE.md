@@ -3,7 +3,7 @@ title: "API_REFERENCE"
 tags: []
 ---
 # API Reference
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>
@@ -12,7 +12,7 @@ tags: []
 </p>
 
 <p align="center">
-  <a href="docs/intro.md">Documentation Index</a> |
+  <a href="docs/README.md">Documentation</a> |
   <a href="CONTRIBUTING.md">Coding Patterns</a> |
   <a href="CLAUDE.md">Development Guide</a>
 </p>
@@ -851,7 +851,7 @@ Flat domain structure (modular architecture):
 | Module | Description | Status |
 |--------|-------------|--------|
 | `src/abi.zig` | Public API entry point | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/config.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/config/mod.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/framework.zig` | Framework orchestration | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/runtime/` | Scheduler, memory, concurrency | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/gpu/` | GPU backends and unified API | ![Feature](https://img.shields.io/badge/-Feature-green) |
@@ -871,7 +871,7 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Guides
-- [Introduction](docs/intro.md) — Architecture overview
+- [Documentation](docs/README.md) — Documentation site source
 - [Framework Guide](docs/framework.md) — Configuration and lifecycle
 - [Compute Guide](docs/compute.md) — Task execution
 - [AI Guide](docs/ai.md) — LLM connectors and agents
@@ -894,5 +894,5 @@ Flat domain structure (modular architecture):
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="docs/intro.md">Full Documentation →</a>
+  <a href="docs/README.md">Full Documentation →</a>
 </p>

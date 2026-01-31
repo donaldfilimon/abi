@@ -3,7 +3,7 @@ title: "TODO"
 tags: [development, tracking]
 ---
 # Project TODO List
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Code_TODOs-Complete-success?style=for-the-badge" alt="Code TODOs Complete"/>
@@ -71,7 +71,7 @@ The major architecture redesign has been completed successfully:
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Unified Configuration | ✅ | Created `src/config.zig` with Builder pattern configuration system |
+| Unified Configuration | ✅ | Created `src/config/mod.zig` with Builder pattern configuration system |
 | Framework Orchestration | ✅ | Created `src/framework.zig` for lifecycle and feature coordination |
 | Runtime Infrastructure | ✅ | Created `src/runtime/` for always-on infrastructure components |
 | GPU Module | ✅ | Moved GPU from `src/compute/gpu/` to `src/gpu/` (primary location) |
@@ -85,7 +85,7 @@ The major architecture redesign has been completed successfully:
 | Test Suite | ✅ | All 51 tests pass |
 | Build Pipeline | ✅ | Full build succeeds (21/21 steps) |
 
-**New Architecture (updated 2026-01-30):**
+**New Architecture (updated 2026-01-31):**
 ```
 src/
 ├── abi.zig              # Public API entry point

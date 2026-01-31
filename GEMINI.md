@@ -3,7 +3,7 @@ title: "GEMINI"
 tags: [ai, agents, gemini]
 ---
 # GEMINI.md
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Gemini-Agent_Guide-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini Guide"/>
@@ -51,7 +51,7 @@ The codebase uses a domain-driven modular structure with unified configuration a
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
-├── config.zig           # Unified configuration system (single Config struct)
+├── config/              # Unified configuration system (Config + Builder)
 ├── config/              # Modular configuration system
 ├── framework.zig        # Framework orchestration with builder pattern
 ├── platform/            # Platform detection (NEW: mod.zig, detection.zig, cpu.zig)

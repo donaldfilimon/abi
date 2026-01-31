@@ -102,12 +102,11 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize with builder pattern
-    const config = abi.Config.init()
-        .withAI(true)
-        .withGPU(true)
-        .withDatabase(true);
-
-    var framework = try abi.Framework.init(allocator, config);
+    var framework = try abi.Framework.builder(allocator)
+        .withAiDefaults()
+        .withGpuDefaults()
+        .withDatabaseDefaults()
+        .build();
     defer framework.deinit();
 
     std.debug.print("ABI v{s} ready!\n", .{abi.version()});
@@ -306,7 +305,7 @@ abi --disable-ai system-info  # Disable feature for command
 abi/
 ├── src/
 │   ├── abi.zig           # Public API entry point
-│   ├── config.zig        # Unified configuration
+│   ├── config/           # Unified configuration
 │   ├── framework.zig     # Lifecycle orchestration
 │   ├── platform/         # Platform detection (OS, arch, CPU)
 │   │

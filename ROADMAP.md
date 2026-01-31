@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -264,7 +264,7 @@ See CONTRIBUTING.md for details.
 
 > **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
 
-*Last updated: January 30, 2026*
+*Last updated: January 31, 2026*
 
 ## Zig 0.16 Migration Status
 
@@ -358,7 +358,7 @@ All Llama-CPP parity tasks have been completed. See TODO.md for details:
 
 ### Modular Codebase Refactor (Complete - 2026-01-17)
 Major architecture redesign completed with 51/51 tests passing, 21/21 build steps:
-- [x] Unified configuration system with Builder pattern (src/config.zig)
+- [x] Unified configuration system with Builder pattern (src/config/mod.zig)
 - [x] Framework orchestration for lifecycle management (src/framework.zig)
 - [x] Runtime infrastructure for always-on components (src/runtime/)
 - [x] GPU module moved to top-level (src/gpu/)
