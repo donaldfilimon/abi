@@ -1,0 +1,30 @@
+<p>
+The CLI is the primary entry point for running services and utilities. Build it
+with Zig, then run commands through the build system or the installed binary.
+</p>
+
+<h2>Run the CLI</h2>
+<pre><code>zig build run -- --help
+zig build run -- system-info
+</code></pre>
+
+<h2>Common commands</h2>
+<pre><code>zig build run -- db stats
+zig build run -- llm chat --model llama-7b
+zig build run -- gpu status
+</code></pre>
+
+<h2>Global patterns</h2>
+<ul>
+    <li>Use <code>zig build run --</code> to pass CLI arguments</li>
+    <li>Set environment variables to override defaults</li>
+    <li>Prefer feature flags at build time to trim the binary</li>
+</ul>
+
+<h2>Examples as commands</h2>
+<p>
+Examples are wired into the build system. Run them without manual compilation:
+</p>
+<pre><code>zig build run-hello
+zig build run-gpu
+</code></pre>

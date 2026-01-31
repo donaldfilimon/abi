@@ -1,0 +1,34 @@
+<p>
+ABI is a high performance AI and systems framework written in Zig. It combines
+runtime infrastructure, AI tooling, GPU acceleration, and a vector database
+under a single build and configuration system.
+</p>
+
+<h2>What you can build</h2>
+<ul>
+    <li>Local LLM inference and streaming services</li>
+    <li>GPU accelerated compute pipelines and kernel workflows</li>
+    <li>Vector search services and data conversion tools</li>
+    <li>Distributed compute with node discovery and coordination</li>
+</ul>
+
+<h2>Design goals</h2>
+<ul>
+    <li>Single runtime with feature flags instead of separate binaries</li>
+    <li>Fast startup and predictable resource usage</li>
+    <li>Clear API boundaries with stubbed modules when disabled</li>
+    <li>Operational defaults that are safe and observable</li>
+</ul>
+
+<h2>Quick build</h2>
+<pre><code>zig build
+zig build run -- --help
+zig build run-hello
+</code></pre>
+
+<h2>How the docs are organized</h2>
+<p>
+Start with Getting Started, then move through the Core topics. Module pages
+describe feature specific behavior. Operations covers deployment and runtime
+health. Reference pages capture API access and examples.
+</p>
