@@ -38,7 +38,7 @@ zig build benchmarks -- --verbose
 | `benchmarks/` | Suite entry points (`main.zig`, `run.zig`, `mod.zig`) |
 | `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
 | `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
-| `benchmarks/industry_standard.zig` | Industry-standard baseline harness |
+| `benchmarks/system/industry_standard.zig` | Industry-standard baseline harness |
 | `benchmarks/*` | Individual suite implementations (simd, memory, gpu, network, ai) |
 
 ---
@@ -162,7 +162,7 @@ Compare ABI performance against industry-standard implementations:
 zig build bench-competitive
 
 # With custom dataset size
-zig build run-competitive -- --vectors=100000 --dims=768
+zig build bench-competitive -- --vectors=100000 --dims=768
 ```
 
 ### Available Comparisons
