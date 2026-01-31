@@ -623,7 +623,7 @@ pub const explore = struct {
         duration_ms: u64 = 0,
 
         pub fn deinit(_: *@This()) void {}
-        pub fn format(_: *@This(), _: E.OutputFormat, _: std.io.AnyWriter) !void {}
+        pub fn format(_: *@This(), _: E.OutputFormat, _: anytype) !void {}
         pub fn formatHuman(_: *@This(), _: anytype) void {}
         pub fn formatJson(_: *@This(), _: anytype) void {}
         pub fn formatJSON(_: *@This(), _: anytype) void {}

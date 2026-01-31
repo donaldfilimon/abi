@@ -14,7 +14,13 @@
 //! // ... use allocator ...
 //! const stats = tracker.getStats();
 //! if (tracker.detectLeaks()) {
-//!     tracker.dumpLeaks(std.io.getStdErr().writer());
+//!     var io_backend = std.Io.Threaded.init(std.testing.allocator, .{
+//!         .environ = std.process.Environ.empty,
+//!     });
+//!     defer io_backend.deinit();
+//!     var stderr_buffer: [4096]u8 = undefined;
+//!     var stderr_writer = std.Io.File.stderr().writer(io_backend.io(), &stderr_buffer);
+//!     tracker.dumpLeaks(&stderr_writer);
 //! }
 //! ```
 

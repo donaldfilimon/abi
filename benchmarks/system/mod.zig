@@ -35,7 +35,13 @@
 //! defer report.deinit(allocator);
 //!
 //! if (report.hasRegressions()) {
-//!     try report.format(std.io.getStdErr().writer());
+//!     var io_backend = std.Io.Threaded.init(allocator, .{
+//!         .environ = std.process.Environ.empty,
+//!     });
+//!     defer io_backend.deinit();
+//!     var stderr_buffer: [4096]u8 = undefined;
+//!     var stderr_writer = std.Io.File.stderr().writer(io_backend.io(), &stderr_buffer);
+//!     try report.format(&stderr_writer);
 //! }
 //! ```
 //!

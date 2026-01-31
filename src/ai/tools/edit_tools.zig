@@ -17,6 +17,15 @@ const Parameter = tool.Parameter;
 const ParameterType = tool.ParameterType;
 const ToolExecutionError = tool.ToolExecutionError;
 
+fn initIoBackend(allocator: std.mem.Allocator) ToolExecutionError!std.Io.Threaded {
+    const options: std.Io.Threaded.InitOptions = .{ .environ = std.process.Environ.empty };
+    const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
+    if (@typeInfo(Result) == .error_union) {
+        return std.Io.Threaded.init(allocator, options) catch error.ExecutionFailed;
+    }
+    return std.Io.Threaded.init(allocator, options);
+}
+
 // ============================================================================
 // Edit Tool (String Replacement)
 // ============================================================================
@@ -63,9 +72,16 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
         std.fs.path.join(ctx.allocator, &[_][]const u8{ ctx.working_directory, path }) catch return error.OutOfMemory;
     defer ctx.allocator.free(full_path);
 
+    var io_backend = initIoBackend(ctx.allocator) catch |err| {
+        const msg = std.fmt.allocPrint(ctx.allocator, "Failed to initialize I/O: {t}", .{err}) catch return error.OutOfMemory;
+        return ToolResult.fromError(ctx.allocator, msg);
+    };
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
     // Read file
     const max_size = 10 * 1024 * 1024; // 10MB max
-    const content = std.io.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
+    const content = std.Io.Dir.cwd().readFileAlloc(io, full_path, ctx.allocator, .limited(max_size)) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to read file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -117,13 +133,13 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     new_content.appendSlice(ctx.allocator, content[last_end..]) catch return error.OutOfMemory;
 
     // Write file
-    const file = std.io.cwd().createFile(full_path, .{}) catch |err| {
+    var file = std.Io.Dir.cwd().createFile(io, full_path, .{ .truncate = true }) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
-    defer file.close();
+    defer file.close(io);
 
-    file.writeAll(new_content.items) catch |err| {
+    file.writeStreamingAll(io, new_content.items) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write to file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -201,9 +217,16 @@ fn executeInsertLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
         std.fs.path.join(ctx.allocator, &[_][]const u8{ ctx.working_directory, path }) catch return error.OutOfMemory;
     defer ctx.allocator.free(full_path);
 
+    var io_backend = initIoBackend(ctx.allocator) catch |err| {
+        const msg = std.fmt.allocPrint(ctx.allocator, "Failed to initialize I/O: {t}", .{err}) catch return error.OutOfMemory;
+        return ToolResult.fromError(ctx.allocator, msg);
+    };
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
     // Read file
     const max_size = 10 * 1024 * 1024; // 10MB max
-    const file_content = std.io.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
+    const file_content = std.Io.Dir.cwd().readFileAlloc(io, full_path, ctx.allocator, .limited(max_size)) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to read file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -246,13 +269,13 @@ fn executeInsertLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     }
 
     // Write file
-    const file = std.io.cwd().createFile(full_path, .{}) catch |err| {
+    var file = std.Io.Dir.cwd().createFile(io, full_path, .{ .truncate = true }) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
-    defer file.close();
+    defer file.close(io);
 
-    file.writeAll(new_content.items) catch |err| {
+    file.writeStreamingAll(io, new_content.items) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write to file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -334,9 +357,16 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
         std.fs.path.join(ctx.allocator, &[_][]const u8{ ctx.working_directory, path }) catch return error.OutOfMemory;
     defer ctx.allocator.free(full_path);
 
+    var io_backend = initIoBackend(ctx.allocator) catch |err| {
+        const msg = std.fmt.allocPrint(ctx.allocator, "Failed to initialize I/O: {t}", .{err}) catch return error.OutOfMemory;
+        return ToolResult.fromError(ctx.allocator, msg);
+    };
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
     // Read file
     const max_size = 10 * 1024 * 1024; // 10MB max
-    const file_content = std.io.cwd().readFileAlloc(ctx.allocator, full_path, max_size) catch |err| {
+    const file_content = std.Io.Dir.cwd().readFileAlloc(io, full_path, ctx.allocator, .limited(max_size)) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to read file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
@@ -376,13 +406,13 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
     }
 
     // Write file
-    const file = std.io.cwd().createFile(full_path, .{}) catch |err| {
+    var file = std.Io.Dir.cwd().createFile(io, full_path, .{ .truncate = true }) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };
-    defer file.close();
+    defer file.close(io);
 
-    file.writeAll(new_content.items) catch |err| {
+    file.writeStreamingAll(io, new_content.items) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Failed to write to file '{s}': {t}", .{ path, err }) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };

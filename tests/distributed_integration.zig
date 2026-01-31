@@ -8,7 +8,13 @@
 const std = @import("std");
 
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
+    var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{
+        .environ = std.process.Environ.empty,
+    });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+    var stdout_buffer: [4096]u8 = undefined;
+    var stdout = std.Io.File.stdout().writer(io, &stdout_buffer);
 
     try stdout.print("=== Distributed WDBX Integration Test ===\n", .{});
 
@@ -35,4 +41,5 @@ pub fn main() !void {
 
     try stdout.print("\n🎯 OVERALL COMPLETION: ~80%\n", .{});
     try stdout.print("   Core infrastructure complete, needs final integration.\n", .{});
+    try stdout.flush();
 }

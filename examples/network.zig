@@ -12,9 +12,9 @@ pub fn main() !void {
         return;
     }
 
-    var framework = abi.Framework.builder(allocator)
-        .withNetworkDefaults()
-        .build() catch |err| {
+    var builder = abi.Framework.builder(allocator);
+    _ = builder.withNetworkDefaults();
+    var framework = builder.build() catch |err| {
         std.debug.print("Failed to initialize network framework: {t}\n", .{err});
         return err;
     };

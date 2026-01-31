@@ -17,9 +17,9 @@ pub fn main() !void {
     std.debug.print("=== ABI High Availability Example ===\n\n", .{});
 
     // Initialize framework
-    var framework = abi.Framework.builder(allocator)
-        .withDatabaseDefaults()
-        .build() catch |err| {
+    var builder = abi.Framework.builder(allocator);
+    _ = builder.withDatabaseDefaults();
+    var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
         return err;
     };

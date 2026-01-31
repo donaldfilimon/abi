@@ -22,9 +22,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     // Initialize framework
-    var framework = abi.Framework.builder(allocator)
-        .withAiDefaults()
-        .build() catch |err| {
+    var builder = abi.Framework.builder(allocator);
+    _ = builder.withAiDefaults();
+    var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
         return err;
     };

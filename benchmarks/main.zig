@@ -363,19 +363,28 @@ pub fn main(init: std.process.Init.Minimal) !void {
             .duration_sec = duration_sec,
         };
 
-        if (args.json) {
-            try writeJsonReport(std.io.getStdOut().writer(), collector.results.items, meta);
-        }
-
-        if (args.output_json) |path| {
+        if (args.json or args.output_json != null) {
             var io_backend = try initThreadedIo(allocator, .{
                 .environ = std.process.Environ.empty,
             });
             defer io_backend.deinit();
             const io = io_backend.io();
-            var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
-            defer file.close(io);
-            try writeJsonReport(file.writer(io), collector.results.items, meta);
+
+            if (args.json) {
+                var stdout_buffer: [4096]u8 = undefined;
+                var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
+                try writeJsonReport(stdout_writer, collector.results.items, meta);
+                try stdout_writer.flush();
+            }
+
+            if (args.output_json) |path| {
+                var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+                defer file.close(io);
+                var file_buffer: [4096]u8 = undefined;
+                var file_writer = file.writer(io, &file_buffer);
+                try writeJsonReport(file_writer, collector.results.items, meta);
+                try file_writer.flush();
+            }
         }
     }
 

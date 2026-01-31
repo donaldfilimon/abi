@@ -236,10 +236,10 @@ pub const ErrorContext = struct {
 
     /// Log error context at error level
     pub fn log(self: ErrorContext) void {
-        var buf: [512]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&buf);
-        self.format(fbs.writer()) catch return;
-        std.log.err("{s}", .{fbs.getWritten()});
+        const allocator = std.heap.page_allocator;
+        const msg = self.formatToString(allocator) catch return;
+        defer allocator.free(msg);
+        std.log.err("{s}", .{msg});
     }
 };
 

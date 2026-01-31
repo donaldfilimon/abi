@@ -267,16 +267,19 @@ pub const DistributedBlockChain = struct {
 
     /// Deserialize block config from Raft log
     fn deserializeBlockConfig(self: *Self, data: []const u8) !block_chain.BlockConfig {
-        var stream = std.io.fixedBufferStream(data);
-        const reader = stream.reader();
+        var offset: usize = 0;
 
         // Read dimension
-        const dim = try reader.readIntLittle(u32);
+        if (data.len < offset + @sizeOf(u32)) return error.InvalidData;
+        const dim = std.mem.readIntLittle(u32, data[offset..][0..@sizeOf(u32)]);
+        offset += @sizeOf(u32);
 
         // Read embedding
-        const embedding_len = try reader.readIntLittle(u32);
-        _ = data[stream.pos..][0..embedding_len]; // embedding_bytes unused
-        stream.pos += embedding_len;
+        if (data.len < offset + @sizeOf(u32)) return error.InvalidData;
+        const embedding_len = std.mem.readIntLittle(u32, data[offset..][0..@sizeOf(u32)]);
+        offset += @sizeOf(u32);
+        if (data.len < offset + embedding_len) return error.InvalidData;
+        offset += embedding_len;
 
         // Convert bytes back to floats (simplified)
         const embedding = try self.allocator.alloc(f32, dim);
@@ -286,8 +289,12 @@ pub const DistributedBlockChain = struct {
         @memset(embedding, 0.1);
 
         // Read persona tag
-        const persona_raw = try reader.readIntLittle(u8);
-        const blend_raw = try reader.readIntLittle(u32);
+        if (data.len < offset + @sizeOf(u8)) return error.InvalidData;
+        const persona_raw = data[offset];
+        offset += @sizeOf(u8);
+        if (data.len < offset + @sizeOf(u32)) return error.InvalidData;
+        const blend_raw = std.mem.readIntLittle(u32, data[offset..][0..@sizeOf(u32)]);
+        offset += @sizeOf(u32);
 
         const persona_tag = block_chain.PersonaTag{
             .primary_persona = @enumFromInt(persona_raw),
@@ -295,7 +302,9 @@ pub const DistributedBlockChain = struct {
         };
 
         // Read intent
-        const intent_raw = try reader.readIntLittle(u8);
+        if (data.len < offset + @sizeOf(u8)) return error.InvalidData;
+        const intent_raw = data[offset];
+        offset += @sizeOf(u8);
 
         return block_chain.BlockConfig{
             .query_embedding = embedding,

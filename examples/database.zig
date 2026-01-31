@@ -6,9 +6,9 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.Framework.builder(allocator)
-        .withDatabaseDefaults()
-        .build();
+    var builder = abi.Framework.builder(allocator);
+    _ = builder.withDatabaseDefaults();
+    var framework = try builder.build();
     defer framework.deinit();
 
     if (!abi.database.isEnabled()) {

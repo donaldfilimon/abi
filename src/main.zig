@@ -73,20 +73,21 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     defer io_backend.deinit();
 
     // Build a fully‑featured framework using the builder pattern.
-    var framework = try abi.Framework.builder(allocator)
-        .withGpuDefaults()
-        .withAiDefaults()
-        .withDatabaseDefaults()
-        .withWebDefaults()
-        .withNetworkDefaults()
-        .withObservabilityDefaults()
-        .withIo(io_backend.io)
-        .build() catch |err| {
+    var builder = abi.Framework.builder(allocator);
+    _ = builder.withGpuDefaults();
+    _ = builder.withAiDefaults();
+    _ = builder.withDatabaseDefaults();
+    _ = builder.withWebDefaults();
+    _ = builder.withNetworkDefaults();
+    _ = builder.withObservabilityDefaults();
+    _ = builder.withIo(io_backend.io);
+    var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
         std.debug.print("Running with minimal features...\n", .{});
 
         // Minimal framework – builder without any feature defaults.
-        var minimal_framework = try abi.Framework.builder(allocator).build();
+        var minimal_builder = abi.Framework.builder(allocator);
+        var minimal_framework = try minimal_builder.build();
         defer abi.shutdown(&minimal_framework);
 
         std.debug.print("Minimal framework initialized successfully\n", .{});
