@@ -1,4 +1,5 @@
 # Registry Module
+> **Last reviewed:** 2026-01-31
 
 The feature registry system provides a unified interface for feature registration and lifecycle management.
 

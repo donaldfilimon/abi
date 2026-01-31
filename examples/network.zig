@@ -12,33 +12,33 @@ pub fn main() !void {
         return;
     }
 
-    var framework = abi.initWithConfig(allocator, .{
-        .network = .{},
-    }) catch |err| {
-        std.debug.print("Failed to initialize network framework: {}\n", .{err});
+    var framework = abi.Framework.builder(allocator)
+        .withNetworkDefaults()
+        .build() catch |err| {
+        std.debug.print("Failed to initialize network framework: {t}\n", .{err});
         return err;
     };
     defer framework.deinit();
 
     // Explicitly initialize the network subsystem before accessing the registry.
     abi.network.init(allocator) catch |err| {
-        std.debug.print("Network init failed: {}\n", .{err});
+        std.debug.print("Network init failed: {t}\n", .{err});
         return err;
     };
     defer abi.network.deinit();
 
     const registry = abi.network.defaultRegistry() catch |err| {
-        std.debug.print("Failed to get default registry: {}\n", .{err});
+        std.debug.print("Failed to get default registry: {t}\n", .{err});
         return err;
     };
 
     // Register nodes
     registry.register("node-1", "localhost:8080") catch |err| {
-        std.debug.print("Failed to register node-1: {}\n", .{err});
+        std.debug.print("Failed to register node-1: {t}\n", .{err});
         return err;
     };
     registry.register("node-2", "localhost:8081") catch |err| {
-        std.debug.print("Failed to register node-2: {}\n", .{err});
+        std.debug.print("Failed to register node-2: {t}\n", .{err});
         return err;
     };
 

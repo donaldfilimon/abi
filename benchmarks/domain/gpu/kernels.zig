@@ -374,6 +374,11 @@ fn benchmarkMatmul(
 ) !void {
     std.debug.print("\n[Matrix Multiplication Benchmarks]\n", .{});
 
+    const gpu_available = mod.hasHardwareGpu(allocator);
+    if (build_options.enable_gpu and !gpu_available) {
+        std.debug.print("  [GPU SKIP] No hardware GPU detected; skipping GPU matmul benchmarks.\n", .{});
+    }
+
     for (config.matrix_sizes) |size| {
         const matrix_size = size * size;
 
@@ -483,7 +488,7 @@ fn benchmarkMatmul(
         }
 
         // GPU matmul (if available)
-        if (build_options.enable_gpu) {
+        if (build_options.enable_gpu and gpu_available) {
             var name_buf: [64]u8 = undefined;
             const name = std.fmt.bufPrint(&name_buf, "matmul_gpu_{d}x{d}", .{ size, size }) catch "matmul_gpu";
 

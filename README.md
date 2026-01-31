@@ -305,7 +305,7 @@ abi --disable-ai system-info  # Disable feature for command
 abi/
 ├── src/
 │   ├── abi.zig           # Public API entry point
-│   ├── config.zig        # Unified configuration
+│   ├── config/           # Unified configuration
 │   ├── framework.zig     # Lifecycle orchestration
 │   ├── platform/         # Platform detection (OS, arch, CPU)
 │   │
@@ -420,11 +420,13 @@ zig build -Dgpu-backend=auto
 
 ---
 
-## C Bindings (Reintroduction Planned)
+## Language Bindings (In Progress)
 
-C bindings were removed during the 2026-01-30 cleanup and are being
-reintroduced as part of the language bindings roadmap. Track progress in
-[ROADMAP.md](ROADMAP.md) under **Language bindings**.
+C bindings and additional language integrations are being reintroduced. The prior
+`bindings/` directory was removed during the Zig 0.16 migration and is slated for
+rebuild. Track status in [ROADMAP.md](ROADMAP.md) and [TODO.md](TODO.md).
+
+For now, use the Zig API directly or the CLI (`zig build run -- --help`).
 
 ---
 
@@ -432,23 +434,20 @@ reintroduced as part of the language bindings roadmap. Track progress in
 
 | Resource | Description |
 |:---------|:------------|
-| [Online Docs](https://donaldfilimon.github.io/abi/) | Published documentation site |
-| [Docs Source](docs/README.md) | Docs build and layout |
-| [API Overview](docs/content/api.html) | High-level API reference |
-| [Getting Started](docs/content/getting-started.html) | First steps and setup |
-| [Configuration](docs/content/configuration.html) | Config system overview |
-| [Architecture](docs/content/architecture.html) | System structure |
+| [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
+| [Docs Index](docs/content/index.html) | Offline docs landing page |
+| [API Reference](API_REFERENCE.md) | Public API summary |
+| [Quickstart](QUICKSTART.md) | Getting started guide |
+| [Deployment Guide](DEPLOYMENT_GUIDE.md) | Production deployment |
+| [Configuration](docs/content/configuration.html) | Config and feature flags |
+| [CLI Guide](docs/content/cli.html) | Command reference and usage |
 | [AI Guide](docs/content/ai.html) | LLM, agents, training |
 | [GPU Guide](docs/content/gpu.html) | Multi-backend GPU acceleration |
 | [Database Guide](docs/content/database.html) | WDBX vector database |
 | [Network Guide](docs/content/network.html) | Distributed compute |
-| [Deployment Guide](docs/content/deployment.html) | Production deployment |
-| [Observability Guide](docs/content/observability.html) | Metrics and profiling |
-| [Security Guide](docs/content/security.html) | Security model |
-| [Examples Guide](docs/content/examples.html) | Example walkthroughs |
-| [API Reference](API_REFERENCE.md) | Public API summary |
-| [Quickstart](QUICKSTART.md) | Getting started guide |
-| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and conventions |
+| [Observability Guide](docs/content/observability.html) | Metrics and tracing |
+| [Security Guide](docs/content/security.html) | Security practices |
+| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
 
 ```bash
 # Run all tests
@@ -488,7 +487,7 @@ zig build lint
 |:----------|:------:|
 | Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| C Library Bindings | ![Planned](https://img.shields.io/badge/-Planned-yellow) |
+| C Library Bindings | ![In Progress](https://img.shields.io/badge/-In%20Progress-yellow) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |

@@ -35,7 +35,7 @@ pub fn main() !void {
                 return;
             },
             else => {
-                std.debug.print("Failed to create Discord client: {}\n", .{err});
+                std.debug.print("Failed to create Discord client: {t}\n", .{err});
                 return;
             },
         }
@@ -48,7 +48,7 @@ pub fn main() !void {
     // Get bot user information
     std.debug.print("--- Bot Information ---\n", .{});
     const user = client.getCurrentUser() catch |err| {
-        std.debug.print("Failed to get bot user: {}\n", .{err});
+        std.debug.print("Failed to get bot user: {t}\n", .{err});
         return;
     };
 
@@ -64,7 +64,7 @@ pub fn main() !void {
     // List guilds the bot is in
     std.debug.print("--- Guilds ---\n", .{});
     const guilds = client.getCurrentUserGuilds() catch |err| {
-        std.debug.print("Failed to get guilds: {}\n", .{err});
+        std.debug.print("Failed to get guilds: {t}\n", .{err});
         return;
     };
     defer allocator.free(guilds);
@@ -83,7 +83,7 @@ pub fn main() !void {
     // Get gateway information
     std.debug.print("--- Gateway Info ---\n", .{});
     const gateway_url = client.getGateway() catch |err| {
-        std.debug.print("Failed to get gateway: {}\n", .{err});
+        std.debug.print("Failed to get gateway: {t}\n", .{err});
         return;
     };
     defer allocator.free(gateway_url);
@@ -91,7 +91,7 @@ pub fn main() !void {
 
     // Get gateway bot info (includes shard recommendations)
     const gateway_bot = client.getGatewayBot() catch |err| {
-        std.debug.print("Failed to get gateway bot info: {}\n", .{err});
+        std.debug.print("Failed to get gateway bot info: {t}\n", .{err});
         return;
     };
     defer allocator.free(gateway_bot.url);

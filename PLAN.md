@@ -18,8 +18,8 @@ tags: [planning, sprint, development]
 - [x] **Stream error recovery** - Per-backend circuit breakers, exponential backoff retry, session caching, recovery events
 - [x] **Streaming integration tests** - E2E tests with fault injection for circuit breaker, session cache, metrics
 - [x] **Security hardening** - JWT none algorithm warning, master key requirement option, secure API key wiping
-- [x] **Streaming documentation** - SSE/WebSocket streaming guide (docs site: `docs/content/api.html`)
-- [x] **Model management guide** - Downloading, caching, hot-reload (docs site: `docs/content/ai.html`)
+- [x] **Streaming documentation** - Comprehensive guide for SSE/WebSocket streaming API (`docs/content/api.html`)
+- [x] **Model management guide** - Documentation for downloading, caching, hot-reload (`docs/content/cli.html`)
 - [x] **Metal backend enhancements** - Accelerate framework (vBLAS/vDSP/vForce), unified memory manager, zero-copy tensors
 
 ---

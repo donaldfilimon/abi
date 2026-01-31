@@ -357,7 +357,7 @@ Document how to tune for:
 - GPU vs CPU workloads
 
 #### L-4: Troubleshooting Expansion
-Expand troubleshooting guidance in the docs site with:
+Expand `CLAUDE.md` (Debugging section) with:
 - Common error scenarios
 - Debug techniques
 - Performance profiling

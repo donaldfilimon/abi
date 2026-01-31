@@ -67,7 +67,7 @@ const command_names = blk: {
 };
 
 /// Main entry point with args from Zig 0.16 Init.Minimal
-pub fn mainWithArgs(proc_args: std.process.Args) !void {
+pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -95,7 +95,7 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
     }
 
     // Initialize shared I/O backend for Zig 0.16
-    var io_backend = cli_io.initIoBackend(allocator);
+    var io_backend = cli_io.initIoBackendWithEnv(allocator, environ);
     defer io_backend.deinit();
     const io = io_backend.io();
 

@@ -187,6 +187,7 @@ pub const QueuedLaunch = struct {
 /// Kernel dispatcher - manages kernel compilation, caching, and execution.
 pub const KernelDispatcher = struct {
     allocator: std.mem.Allocator,
+    ir_arena: std.heap.ArenaAllocator,
     backend: Backend,
     device: *const Device,
 
@@ -229,6 +230,7 @@ pub const KernelDispatcher = struct {
     ) !Self {
         var self = Self{
             .allocator = allocator,
+            .ir_arena = std.heap.ArenaAllocator.init(allocator),
             .backend = backend,
             .device = device,
             .kernel_cache = .empty,
@@ -289,6 +291,9 @@ pub const KernelDispatcher = struct {
             _ = entry;
         }
         self.builtin_ir_cache.deinit(self.allocator);
+
+        // Free arena-allocated IR and AST memory
+        self.ir_arena.deinit();
     }
 
     /// Check if cuBLAS is available for optimized BLAS operations.
@@ -315,13 +320,20 @@ pub const KernelDispatcher = struct {
         self.cache_misses += 1;
 
         // Build the kernel IR using builtin_kernels module
-        const ir = builtin_kernels.buildKernelIR(self.allocator, kernel_type) catch |err| {
+        const ir = builtin_kernels.buildKernelIR(self.ir_arena.allocator(), kernel_type) catch |err| {
             std.log.err("Failed to build kernel IR for {s}: {}", .{ name, err });
             return DispatchError.KernelCompilationFailed;
         };
+        errdefer {
+            ir.deinit(self.allocator);
+            self.allocator.destroy(@constCast(ir));
+        }
 
         // Compile the IR to the target backend
-        return self.compileKernel(ir);
+        const handle = try self.compileKernel(ir);
+        ir.deinit(self.allocator);
+        self.allocator.destroy(@constCast(ir));
+        return handle;
     }
 
     /// Compile a custom kernel from IR.

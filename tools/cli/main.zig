@@ -27,5 +27,5 @@ const std = @import("std");
 const cli = @import("cli");
 
 pub fn main(init: std.process.Init.Minimal) !void {
-    return cli.mainWithArgs(init.args);
+    return cli.mainWithArgs(init.args, init.environ);
 }

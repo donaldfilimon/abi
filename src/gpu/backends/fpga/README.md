@@ -2,7 +2,7 @@
 
 > **Status:** Phase 2 Complete (LLM Kernels Integrated)
 > **Version:** 0.2.0
-> **Last Updated:** January 24, 2026
+> **Last Updated:** January 31, 2026
 
 ## Overview
 
@@ -349,7 +349,8 @@ v++ -l -t hw --platform xilinx_u250_gen3x16_xdma_4_1_202210_1 \
 ## References
 
 - [ABI GPU Documentation](../../../../docs/content/gpu.html)
-- [FPGA/ASIC Roadmap](../../../../ROADMAP.md)
-- [Hybrid GPU-FPGA Architecture](../../../../ROADMAP.md)
+- [FPGA/ASIC Research](../../../../docs/research/hardware-acceleration-fpga-asic.md)
+- [FPGA Inference Acceleration](../../../../docs/research/fpga-inference-acceleration.md)
+- [Hybrid GPU-FPGA Architecture](../../../../docs/research/hybrid-gpu-fpga-architecture.md)
 - [AMD Vitis Documentation](https://docs.xilinx.com/r/en-US/ug1393-vitis-application-acceleration)
 - [Intel oneAPI FPGA](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fpga.html)

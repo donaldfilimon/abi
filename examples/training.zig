@@ -21,11 +21,13 @@ pub fn main() !void {
         return;
     }
 
-    // Initialize framework
-    var framework = abi.initWithConfig(allocator, .{
-        .ai = .{ .training = .{} },
-    }) catch |err| {
-        std.debug.print("Framework initialization failed: {}\n", .{err});
+    // Initialize framework with training enabled
+    var ai_config = abi.config.AiConfig.defaults();
+    ai_config.training = .{};
+    var framework = abi.Framework.builder(allocator)
+        .withAi(ai_config)
+        .build() catch |err| {
+        std.debug.print("Framework initialization failed: {t}\n", .{err});
         return err;
     };
     defer framework.deinit();
@@ -57,7 +59,7 @@ pub fn main() !void {
     std.debug.print("\n--- Starting Training ---\n", .{});
 
     var result = abi.ai.trainWithResult(allocator, config) catch |err| {
-        std.debug.print("Training failed: {}\n", .{err});
+        std.debug.print("Training failed: {t}\n", .{err});
         return err;
     };
     defer result.deinit();

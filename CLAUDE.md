@@ -143,7 +143,7 @@ Flat domain structure with unified configuration. Each domain has `mod.zig` (ent
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
-├── config.zig           # Unified configuration system (single Config struct)
+├── config/              # Unified configuration system (Config + Builder)
 ├── config/              # Modular configuration system
 │   ├── mod.zig          # Config entry point
 │   ├── ai.zig           # AI-specific configuration
@@ -278,7 +278,7 @@ This pattern reduces each backend from ~1,000+ lines to ~50-100 lines while keep
 ### Configuration System
 
 Two-level configuration architecture:
-- **`src/config.zig`**: Unified `Config` struct with builder pattern for framework initialization
+- **`src/config/mod.zig`**: Unified `Config` struct with builder pattern for framework initialization
 - **`src/config/`**: Modular per-feature configs (ai.zig, gpu.zig, database.zig, etc.)
 
 Single `Config` struct with optional feature configs and builder pattern:
@@ -295,10 +295,12 @@ pub const Config = struct {
 };
 
 // Builder pattern usage
-const config = abi.Config.init()
-    .withAI(true)
-    .withGPU(true)
-    .withDatabase(true);
+var builder = abi.config.Builder.init(allocator);
+const config = builder
+    .withAiDefaults()
+    .withGpuDefaults()
+    .withDatabaseDefaults()
+    .build();
 
 var framework = try abi.Framework.init(allocator, config);
 defer framework.deinit();
@@ -351,7 +353,7 @@ Zig 0.16 requires explicit I/O backend initialization for file and network opera
 ```zig
 // Initialize once, use for all file/network operations
 var io_backend = std.Io.Threaded.init(allocator, .{
-    .environ = std.process.Environ.empty,  // .empty for library, .init() for CLI
+ .environ = std.process.Environ.empty,  // .empty for library, init.environ for CLI
 });
 defer io_backend.deinit();
 const io = io_backend.io();
@@ -731,7 +733,7 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 3. Both files must export identical public APIs; stub returns `error.<Feature>Disabled`
 4. Add feature flag in `build.zig` (`-Denable-<feature>`)
 5. Register in `src/registry/` if it needs runtime toggling
-6. Add entry to `src/config.zig` Config struct if it needs configuration
+6. Add entry to `src/config/mod.zig` Config struct if it needs configuration
 7. Update `src/abi.zig` to conditionally import via `if (build_options.enable_<feature>)`
 
 ## Reference
@@ -739,16 +741,16 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 Key documentation:
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
 - [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) - Production deployment guide
-- [SECURITY.md](SECURITY.md) - Security policy and reporting
-- [docs/README.md](docs/README.md) - Documentation layout and entry points
-- [docs/content/gpu.html](docs/content/gpu.html) - GPU backend details
-- [docs/content/ai.html](docs/content/ai.html) - AI module and agents guide
-- [API_REFERENCE.md](API_REFERENCE.md) - API overview and personas
-- [docs/content/database.html](docs/content/database.html) - Vector database (WDBX) usage
-- [docs/content/network.html](docs/content/network.html) - Distributed compute and Raft consensus
-- [docs/content/api.html](docs/content/api.html) - SSE/WebSocket streaming API overview
-- [benchmarks/README.md](benchmarks/README.md) - Performance benchmarking guide
-- [scripts/run_cli_tests.sh](scripts/run_cli_tests.sh) - CLI test procedures
+- [SECURITY.md](SECURITY.md) - Security practices and reporting
+- [Docs Index](docs/content/index.html) - Offline docs landing page
+- [GPU Guide](docs/content/gpu.html) - GPU backend details
+- [AI Guide](docs/content/ai.html) - AI module and agents guide
+- [Database Guide](docs/content/database.html) - Vector database (WDBX) usage
+- [Network Guide](docs/content/network.html) - Distributed compute and Raft consensus
+- [API Guide](docs/content/api.html) - SSE/WebSocket streaming API
+- [CLI Guide](docs/content/cli.html) - Model management and CLI usage
+- [Benchmarks](benchmarks/README.md) - Performance benchmarking guide
+- [CLI Tests](scripts/run_cli_tests.sh) - CLI test procedures
 
 ## Experimental Feature Flags
 

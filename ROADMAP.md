@@ -121,7 +121,7 @@ tags: [planning, roadmap]
       - [x] Plugin management command (list, enable, disable, search)
       - [x] Profile/settings management (api-keys, preferences)
     - [x] Tooling
-      - [x] Debugger integration (GDB/LLDB support documented in docs site)
+      - [x] Debugger integration (GDB/LLDB support documented in CLAUDE.md)
       - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
       - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
     - [x] Vulkan backend consolidation
@@ -305,14 +305,20 @@ All feature-gated stubs have been audited and updated for API parity:
 ## Related Documentation
 
 For detailed implementation notes, see:
-- [CLAUDE.md](CLAUDE.md) - Developer guidelines and architecture reference
-- [docs/README.md](docs/README.md) - Documentation build and layout
-- [Documentation Site](https://donaldfilimon.github.io/abi/) - Published docs
+- [CLAUDE.md](CLAUDE.md) - Developer guidelines and debugging
+- [Docs Index](docs/content/index.html) - Offline docs landing page
+- [Architecture](docs/content/architecture.html) - System overview
+- [AI Guide](docs/content/ai.html) - LLM, agents, training
+- [GPU Guide](docs/content/gpu.html) - GPU backends and tuning
+- [Database Guide](docs/content/database.html) - WDBX and vector search
+- [Network Guide](docs/content/network.html) - Distributed compute and Raft
+- [Observability Guide](docs/content/observability.html) - Metrics and tracing
+- [Security Guide](docs/content/security.html) - Security practices
 
 ## Implementation History
 
 ### Tooling (Q2 2026) COMPLETE
-- **Debugger integration** - GDB/LLDB support documented in docs site.
+- **Debugger integration** - GDB/LLDB support documented in CLAUDE.md.
 - **Performance profiler** - MetricsCollector and GPU Profiler implemented.
 - **Memory leak detector** - TrackingAllocator with leak detection implemented.
 ### Documentation (Q2 2026)
@@ -354,7 +360,7 @@ All Llama-CPP parity tasks have been completed. See TODO.md for details:
 
 ### Modular Codebase Refactor (Complete - 2026-01-17)
 Major architecture redesign completed with 51/51 tests passing, 21/21 build steps:
-- [x] Unified configuration system with Builder pattern (src/config.zig)
+- [x] Unified configuration system with Builder pattern (src/config/mod.zig)
 - [x] Framework orchestration for lifecycle management (src/framework.zig)
 - [x] Runtime infrastructure for always-on components (src/runtime/)
 - [x] GPU module moved to top-level (src/gpu/)

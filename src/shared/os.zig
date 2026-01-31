@@ -283,13 +283,13 @@ pub fn getCurrentDir(allocator: std.mem.Allocator) ![]u8 {
         return allocator.dupe(u8, "/");
     }
 
-    // Zig 0.16 moved current-working-directory APIs behind `std.Io`.
-    // Create a minimal I/O backend just for this call.
     const io_opts: std.Io.Threaded.InitOptions = .{ .environ = std.process.Environ.empty };
     var io_backend: std.Io.Threaded = undefined;
     const InitResult = @TypeOf(std.Io.Threaded.init(allocator, io_opts));
     if (@typeInfo(InitResult) == .error_union) {
-        io_backend = try std.Io.Threaded.init(allocator, io_opts);
+        io_backend = std.Io.Threaded.init(allocator, io_opts) catch {
+            return allocator.dupe(u8, ".");
+        };
     } else {
         io_backend = std.Io.Threaded.init(allocator, io_opts);
     }
@@ -297,10 +297,10 @@ pub fn getCurrentDir(allocator: std.mem.Allocator) ![]u8 {
     const io = io_backend.io();
 
     var buffer: [std.fs.max_path_bytes]u8 = undefined;
-    const n = std.process.currentPath(io, &buffer) catch {
+    const cwd_len = std.process.currentPath(io, &buffer) catch {
         return allocator.dupe(u8, ".");
     };
-    return allocator.dupe(u8, buffer[0..n]);
+    return allocator.dupe(u8, buffer[0..cwd_len]);
 }
 
 /// Get OS name string

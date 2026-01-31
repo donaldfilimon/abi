@@ -176,14 +176,6 @@ pub const KernelBuilder = struct {
             self.required_features.dynamic_shared_memory = true;
         }
 
-        const ptr_type = try self.allocType(.{
-            .ptr = .{
-                .pointee = try self.allocType(element_type),
-                .address_space = .workgroup,
-            },
-        });
-        _ = ptr_type;
-
         return self.newValue(element_type, var_name);
     }
 
@@ -679,12 +671,6 @@ pub const KernelBuilder = struct {
             .builtin = builtin,
             .builder = self,
         };
-    }
-
-    fn allocType(self: *Self, ty: types.Type) !*const types.Type {
-        const ptr = try self.allocator.create(types.Type);
-        ptr.* = ty;
-        return ptr;
     }
 };
 

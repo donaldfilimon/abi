@@ -20,37 +20,22 @@ tags: []
 //! | Module | Description |
 //! |--------|-------------|
 //! | `mod.zig` | Public API entry point with Context struct |
-//! | `core/` | Shared AI types, config, and utilities |
-//! | `llm/` | Local LLM inference engine (GGUF) |
+//! | `llm/` | Local LLM inference (GGUF), tokenizers, sampling |
 //! | `embeddings/` | Embedding generation |
-//! | `agents/` + `agent.zig` | Agent runtime + simple agent API |
-//! | `memory/` | Memory systems (short/long-term, summaries) |
-//! | `training/` | Training pipelines and checkpoints |
-//! | `personas/` | Multi-persona profiles and configs |
-//! | `streaming/` | SSE/WebSocket streaming responses |
-//! | `orchestration/` | Multi-model routing, fallback, ensembles |
+//! | `agents/` | Agent runtime and tool use |
+//! | `training/` | Training pipelines (LLM, vision, multimodal) |
+//! | `streaming/` | SSE/WebSocket streaming server |
+//! | `orchestration/` | Multi-model routing, ensemble, fallback |
 //! | `rag/` | Retrieval-augmented generation |
-//! | `explore/` | Codebase exploration tooling |
-//! | `documents/` | Document parsing and layout analysis |
-//! | `models/` + `model_registry.zig` | Model registry + downloads |
-//! | `vision/` | Vision models (ViT) + preprocessing |
-//! | `eval/` | Metrics (BLEU/ROUGE/perplexity) |
-//! | `templates/` + `prompts/` | Prompt templates and builders |
-//! | `tools/` | Agent tools (filesystem, discord, OS, search) |
-//! | `abbey/` | Abbey persona subsystem |
+//! | `documents/` | Document parsing, segmentation, entities |
+//! | `memory/` | Agent memory + persistence |
+//! | `models/` | Model management and downloads |
+//! | `explore/` | Codebase exploration |
 //!
 //! ## Architecture
 //!
-//! `src/ai/mod.zig` is the public API and framework integration layer.
-//! Sub-modules live directly under `src/ai/` and are compiled in-place
-//! (no legacy wrapper indirection).
-//!
-//! Feature gating:
-//! - `-Denable-ai` toggles the AI module
-//! - `-Denable-llm`, `-Denable-vision`, `-Denable-explore` toggle sub-features
-//!
-//! When a feature is disabled, `src/ai/stub.zig` (and per-submodule stubs
-//! like `llm/stub.zig`) provide API-compatible no-op implementations.
+//! This module is a primary feature module. The implementation lives directly in
+//! `src/ai/` with a feature-gated stub in `src/ai/stub.zig` for disabled builds.
 //!
 //! ## Usage
 //!
@@ -58,7 +43,7 @@ tags: []
 //! const abi = @import("abi");
 //!
 //! // Initialize framework with AI
-//! var fw = try abi.initWithConfig(allocator, .{
+//! var fw = try abi.init(allocator, .{
 //!     .ai = .{
 //!         .llm = .{ .model_path = "./models/llama.gguf" },
 //!         .embeddings = .{},
@@ -79,9 +64,9 @@ tags: []
 //! | Connector | Description | Config |
 //! |-----------|-------------|--------|
 //! | Local GGUF | Load local GGUF models | `model_path` |
-//! | Ollama | Connect to Ollama server | `ABI_OLLAMA_HOST` env |
-//! | OpenAI | OpenAI API | `ABI_OPENAI_API_KEY` env |
-//! | HuggingFace | HuggingFace API | `ABI_HF_API_TOKEN` env |
+//! | Ollama | Connect to Ollama server | `OLLAMA_HOST` env |
+//! | OpenAI | OpenAI API | `OPENAI_API_KEY` env |
+//! | HuggingFace | HuggingFace API | `HF_API_TOKEN` env |
 //!
 //! ## Build Options
 //!
@@ -95,7 +80,7 @@ tags: []
 //! ## See Also
 //!
 //! - [AI Documentation](../../docs/content/ai.html)
-//! - [API Reference](../../API_REFERENCE.md)
+//! - [API Reference](../../docs/content/api.html)
 //! - [Training Guide](../../docs/content/ai.html)
 
 

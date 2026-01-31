@@ -48,7 +48,7 @@ The following high-level items remain open in **[ROADMAP.md](ROADMAP.md)**.
 | Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/ai/llm/generation/sampler.zig` |
 | Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/ai/llm/generation/streaming.zig` |
 | CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
-| Library API | ⚠️ | C-compatible API reimplementation (bindings removed). | `ROADMAP.md` |
+| Library API | ⚠️ | C-compatible API bindings removed for rework; reimplementation pending. | `bindings/` (planned) |
 | Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/tests/llm_reference_vectors.zig` |
 | Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/ai/training/` |
 | Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/ai/training/trainable_model.zig` |
@@ -61,7 +61,7 @@ The major architecture redesign has been completed successfully:
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Unified Configuration | ✅ | Created `src/config.zig` with Builder pattern configuration system |
+| Unified Configuration | ✅ | Created `src/config/mod.zig` with Builder pattern configuration system |
 | Framework Orchestration | ✅ | Created `src/framework.zig` for lifecycle and feature coordination |
 | Runtime Infrastructure | ✅ | Created `src/runtime/` for always-on infrastructure components |
 | GPU Module | ✅ | Moved GPU from `src/compute/gpu/` to `src/gpu/` (primary location) |

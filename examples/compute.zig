@@ -6,8 +6,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = abi.initWithConfig(allocator, abi.Config.minimal()) catch |err| {
-        std.debug.print("Failed to initialize framework: {}\n", .{err});
+    var framework = abi.Framework.initMinimal(allocator) catch |err| {
+        std.debug.print("Failed to initialize framework: {t}\n", .{err});
         return err;
     };
     defer framework.deinit();

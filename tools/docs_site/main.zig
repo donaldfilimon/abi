@@ -35,7 +35,7 @@ const ArgsError = error{
     ShowHelp,
 };
 
-pub fn main() !void {
+pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const status = gpa.deinit();
@@ -45,8 +45,9 @@ pub fn main() !void {
     }
     const allocator = gpa.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const args = try init.args.toSlice(arena.allocator());
 
     const config = parseArgs(args) catch |err| {
         if (err == error.ShowHelp) return;
@@ -55,14 +56,14 @@ pub fn main() !void {
         return err;
     };
 
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = init.environ });
     defer io_backend.deinit();
     const io = io_backend.io();
 
     try buildSite(allocator, io, config);
 }
 
-fn parseArgs(args: [][]const u8) ArgsError!BuildConfig {
+fn parseArgs(args: []const [:0]const u8) ArgsError!BuildConfig {
     var config = BuildConfig{
         .source_dir = "docs",
         .out_dir = "zig-out/docs",
@@ -124,7 +125,7 @@ fn buildSite(allocator: std.mem.Allocator, io: std.Io, config: BuildConfig) !voi
     defer parsed.deinit();
     const manifest = parsed.value;
 
-    try std.Io.Dir.cwd().makePath(io, config.out_dir);
+    try std.Io.Dir.cwd().createDirPath(io, config.out_dir);
     try copyAssets(allocator, io, config.source_dir, config.out_dir);
 
     for (manifest.pages) |page| {
@@ -148,7 +149,7 @@ fn copyDirRecursive(allocator: std.mem.Allocator, io: std.Io, src: []const u8, d
     var dir = std.Io.Dir.cwd().openDir(io, src, .{ .iterate = true }) catch return error.FileNotFound;
     defer dir.close(io);
 
-    try std.Io.Dir.cwd().makePath(io, dest);
+    try std.Io.Dir.cwd().createDirPath(io, dest);
 
     var iter = dir.iterate();
     while (true) {
@@ -335,5 +336,7 @@ fn writeAssetPath(writer: anytype, base_url: []const u8, path: []const u8) !void
 fn writeFile(io: std.Io, path: []const u8, content: []const u8) !void {
     var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
     defer file.close(io);
-    try file.writer(io).writeAll(content);
+    var buffer: [8192]u8 = undefined;
+    var writer = file.writer(io, &buffer);
+    try writer.interface.writeAll(content);
 }

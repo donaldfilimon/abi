@@ -12,7 +12,7 @@ tags: []
 </p>
 
 <p align="center">
-  <a href="docs/content/index.html">Documentation Index</a> |
+  <a href="docs/README.md">Documentation</a> |
   <a href="CONTRIBUTING.md">Coding Patterns</a> |
   <a href="CLAUDE.md">Development Guide</a>
 </p>
@@ -453,7 +453,7 @@ const result = try abi.runtime.runTask(&engine, u32, computeTask, 1000);
 std.debug.print("Result: {d}\n", .{result});
 ```
 
-See [Runtime Guide](src/runtime/README.md) for detailed usage.
+See the [Architecture Guide](docs/content/architecture.html) for detailed usage.
 
 **Timeout Semantics**:
 
@@ -573,7 +573,7 @@ defer cuda.destroyKernel(allocator, kernel);
 try cuda.launchKernel(allocator, kernel, config, args);
 ```
 
-See [GPU Guide](docs/content/gpu.html) for detailed usage.
+See the [GPU Guide](docs/content/gpu.html) for detailed usage.
 
 ## Network API
 
@@ -605,7 +605,7 @@ _ = net_ctx;
 // Network features available through context
 ```
 
-See [Network Guide](docs/content/network.html) for detailed usage.
+See the [Network Guide](docs/content/network.html) for detailed usage.
 
 ## AI & Agent API
 
@@ -634,7 +634,7 @@ defer allocator.free(response);
 std.debug.print("Agent: {s}\n", .{response});
 ```
 
-See [AI Guide](docs/content/ai.html) for detailed usage.
+See the [AI Guide](docs/content/ai.html) for detailed usage.
 
 ## Streaming API
 
@@ -850,8 +850,7 @@ Flat domain structure (modular architecture):
 | Module | Description | Status |
 |--------|-------------|--------|
 | `src/abi.zig` | Public API entry point | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/flags.zig` | Feature flags and build toggles | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/config/` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/config/mod.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/framework.zig` | Framework orchestration | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/platform/` | Platform detection and CPU probing | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/registry/` | Feature registry | ![Core](https://img.shields.io/badge/-Core-blue) |
@@ -869,8 +868,7 @@ Flat domain structure (modular architecture):
 | `src/tasks/` | Task management | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/tests/` | Test infrastructure | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
 
-> **Backward Compatibility**: `abi.zig` preserves legacy aliases and shared/legacy
-> re-exports for older import paths.
+> **Backward Compatibility**: Re-exports in `abi.zig` maintain API compatibility with the previous module layout.
 
 ## See Also
 
@@ -879,11 +877,11 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Guides
-- [Architecture](docs/content/architecture.html) — System overview
-- [Configuration](docs/content/configuration.html) — Configuration and lifecycle
-- [Runtime Guide](src/runtime/README.md) — Task execution
-- [AI Guide](docs/content/ai.html) — LLM connectors and agents
-- [GPU Guide](docs/content/gpu.html) — GPU backends
+- [Documentation](docs/README.md) — Documentation site source
+- [Framework Guide](docs/framework.md) — Configuration and lifecycle
+- [Compute Guide](docs/compute.md) — Task execution
+- [AI Guide](docs/ai.md) — LLM connectors and agents
+- [GPU Guide](docs/gpu.md) — GPU backends
 
 </td>
 <td>
@@ -902,5 +900,5 @@ Flat domain structure (modular architecture):
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="docs/content/index.html">Full Documentation →</a>
+  <a href="docs/README.md">Full Documentation →</a>
 </p>

@@ -45,7 +45,7 @@ fn basicOrchestration(allocator: std.mem.Allocator) !void {
         .enable_fallback = true,
         .max_concurrent_requests = 10,
     }) catch |err| {
-        std.debug.print("Failed to create orchestrator: {}\n", .{err});
+        std.debug.print("Failed to create orchestrator: {t}\n", .{err});
         return;
     };
     defer orchestrator.deinit();
@@ -108,7 +108,7 @@ fn taskBasedRouting(allocator: std.mem.Allocator) !void {
         .strategy = .task_based,
         .enable_fallback = true,
     }) catch |err| {
-        std.debug.print("Failed to create orchestrator: {}\n", .{err});
+        std.debug.print("Failed to create orchestrator: {t}\n", .{err});
         return;
     };
     defer orchestrator.deinit();
@@ -182,7 +182,7 @@ fn fallbackDemo(allocator: std.mem.Allocator) !void {
         .enable_fallback = true,
         .max_retries = 3,
     }) catch |err| {
-        std.debug.print("Failed to create orchestrator: {}\n", .{err});
+        std.debug.print("Failed to create orchestrator: {t}\n", .{err});
         return;
     };
     defer orchestrator.deinit();
