@@ -195,13 +195,11 @@ fn writePage(
     const nav_html = try buildNav(allocator, manifest, page.slug);
     defer allocator.free(nav_html);
 
-    var html = std.ArrayList(u8).init(allocator);
-    defer html.deinit();
-    const writer = html.writer();
+    var html_writer: std.Io.Writer.Allocating = .init(allocator);
+    defer html_writer.deinit();
+    try writeDocument(&html_writer.writer, manifest, page, nav_html, page_body);
 
-    try writeDocument(writer, manifest, page, nav_html, page_body);
-
-    const rendered = try html.toOwnedSlice();
+    const rendered = try html_writer.toOwnedSlice();
     defer allocator.free(rendered);
 
     try writeFile(io, output_path, rendered);
@@ -263,8 +261,9 @@ fn writeDocument(
 }
 
 fn buildNav(allocator: std.mem.Allocator, manifest: Manifest, active_slug: []const u8) ![]const u8 {
-    var nav = std.ArrayList(u8).init(allocator);
-    const writer = nav.writer();
+    var nav_writer: std.Io.Writer.Allocating = .init(allocator);
+    defer nav_writer.deinit();
+    const writer = &nav_writer.writer;
 
     var current_section: ?[]const u8 = null;
     for (manifest.pages) |page| {
@@ -292,7 +291,7 @@ fn buildNav(allocator: std.mem.Allocator, manifest: Manifest, active_slug: []con
     if (current_section != null) {
         try writer.writeAll("        </ul>\n      </div>\n");
     }
-    return nav.toOwnedSlice();
+    return nav_writer.toOwnedSlice();
 }
 
 fn writeEscaped(writer: anytype, text: []const u8) !void {
