@@ -230,14 +230,10 @@ const benchmark_targets = [_]BuildTarget{
 };
 
 fn pathExists(path: []const u8) bool {
-    // Use @cImport for build-time file existence check
-    const c = @cImport({
-        @cInclude("sys/stat.h");
-    });
-    var buf: [4096]u8 = undefined;
-    const path_z = std.fmt.bufPrintZ(&buf, "{s}", .{path}) catch return false;
-    var stat_buf: c.struct_stat = undefined;
-    return c.stat(path_z.ptr, &stat_buf) == 0;
+    // Build scripts should avoid `@cImport` to keep builds working in environments
+    // without libc headers (common in minimal containers / CI runners).
+    std.fs.cwd().access(path, .{}) catch return false;
+    return true;
 }
 
 fn buildTargets(
