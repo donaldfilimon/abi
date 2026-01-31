@@ -169,6 +169,11 @@ fn gpuVsCpuComparison(
         return;
     }
 
+    if (!mod.hasHardwareGpu(allocator)) {
+        std.debug.print("  No hardware GPU detected - skipping comparison\n", .{});
+        return;
+    }
+
     // Matrix multiplication comparison
     for (config.matrix_sizes[0..@min(3, config.matrix_sizes.len)]) |size| {
         const matrix_size = size * size;

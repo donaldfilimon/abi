@@ -362,28 +362,6 @@ fn formatSize(size: usize) struct { value: f64, unit: []const u8 } {
     }
 }
 
-/// Detect if a real (non-emulated) GPU device is available.
-fn hasHardwareGpu(allocator: std.mem.Allocator) bool {
-    if (!build_options.enable_gpu) return false;
-
-    const abi = @import("abi");
-    var gpu_ctx = abi.gpu.Gpu.init(allocator, .{}) catch return false;
-    defer gpu_ctx.deinit();
-
-    if (!gpu_ctx.isAvailable()) return false;
-
-    for (gpu_ctx.listDevices()) |device| {
-        if (!device.is_emulated and
-            device.device_type != .cpu and
-            device.supportsFeature(.compute_shaders))
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 // ============================================================================
 // Benchmark Functions
 // ============================================================================
@@ -396,7 +374,7 @@ fn benchmarkMatmul(
 ) !void {
     std.debug.print("\n[Matrix Multiplication Benchmarks]\n", .{});
 
-    const gpu_available = hasHardwareGpu(allocator);
+    const gpu_available = mod.hasHardwareGpu(allocator);
     if (build_options.enable_gpu and !gpu_available) {
         std.debug.print("  [GPU SKIP] No hardware GPU detected; skipping GPU matmul benchmarks.\n", .{});
     }

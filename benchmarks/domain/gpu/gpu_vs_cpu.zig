@@ -164,12 +164,14 @@ pub fn compareMatmul(
     const cpu_time_ns = @as(f64, @floatFromInt(cpu_total)) / @as(f64, @floatFromInt(cpu_iters));
     const cpu_throughput = @as(f64, @floatFromInt(bytes)) / (cpu_time_ns / 1e9) / 1e9;
 
+    const hardware_gpu = mod.hasHardwareGpu(allocator);
+
     // GPU benchmark (if available)
     var gpu_time_ns: f64 = 0;
     var gpu_throughput: f64 = 0;
     var gpu_available = false;
 
-    if (build_options.enable_gpu) {
+    if (build_options.enable_gpu and hardware_gpu) {
         const abi = @import("abi");
 
         var gpu_instance_storage: abi.gpu.Gpu = abi.gpu.Gpu.init(allocator, .{}) catch {
