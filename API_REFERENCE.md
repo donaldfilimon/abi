@@ -3,7 +3,7 @@ title: "API_REFERENCE"
 tags: []
 ---
 # API Reference
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>
@@ -12,7 +12,7 @@ tags: []
 </p>
 
 <p align="center">
-  <a href="docs/intro.md">Documentation Index</a> |
+  <a href="docs/content/index.html">Documentation Index</a> |
   <a href="CONTRIBUTING.md">Coding Patterns</a> |
   <a href="CLAUDE.md">Development Guide</a>
 </p>
@@ -453,7 +453,7 @@ const result = try abi.runtime.runTask(&engine, u32, computeTask, 1000);
 std.debug.print("Result: {d}\n", .{result});
 ```
 
-See [Runtime Guide](docs/compute.md) for detailed usage.
+See [Architecture Guide](docs/content/architecture.html) for detailed usage.
 
 **Timeout Semantics**:
 
@@ -573,7 +573,7 @@ defer cuda.destroyKernel(allocator, kernel);
 try cuda.launchKernel(allocator, kernel, config, args);
 ```
 
-See [GPU Guide](docs/gpu.md) for detailed usage.
+See [GPU Guide](docs/content/gpu.html) for detailed usage.
 
 ## Network API
 
@@ -605,7 +605,7 @@ _ = net_ctx;
 // Network features available through context
 ```
 
-See [Network Guide](docs/network.md) for detailed usage.
+See [Network Guide](docs/content/network.html) for detailed usage.
 
 ## AI & Agent API
 
@@ -634,7 +634,7 @@ defer allocator.free(response);
 std.debug.print("Agent: {s}\n", .{response});
 ```
 
-See [AI Guide](docs/ai.md) for detailed usage.
+See [AI Guide](docs/content/ai.html) for detailed usage.
 
 ## Streaming API
 
@@ -791,8 +791,7 @@ const abbey_response = try orchestrator.processWithPersona(.abbey, .{
 });
 ```
 
-See [Personas API Reference](docs/api/personas.md) for complete documentation.
-See [Personas Tutorial](docs/tutorials/personas.md) for getting started guide.
+See [AI Guide](docs/content/ai.html) for persona overview and usage details.
 
 ## Connectors API
 
@@ -871,11 +870,11 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Guides
-- [Introduction](docs/intro.md) — Architecture overview
-- [Framework Guide](docs/framework.md) — Configuration and lifecycle
-- [Compute Guide](docs/compute.md) — Task execution
-- [AI Guide](docs/ai.md) — LLM connectors and agents
-- [GPU Guide](docs/gpu.md) — GPU backends
+- [Architecture](docs/content/architecture.html) — Architecture overview
+- [Configuration](docs/content/configuration.html) — Configuration and lifecycle
+- [Runtime Overview](docs/content/architecture.html) — Task execution
+- [AI Guide](docs/content/ai.html) — LLM connectors and agents
+- [GPU Guide](docs/content/gpu.html) — GPU backends
 
 </td>
 <td>
@@ -894,5 +893,5 @@ Flat domain structure (modular architecture):
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="docs/intro.md">Full Documentation →</a>
+  <a href="docs/content/index.html">Full Documentation →</a>
 </p>

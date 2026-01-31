@@ -28,7 +28,7 @@ pub fn main() !void {
     defer agent.deinit();
 
     const user_input = "Hello, how are you today?";
-    // Using the chat() method (alias for process()) as documented in docs/ai.md
+    // Using the chat() method (alias for process()) as documented in docs/content/ai.html
     const response = agent.chat(user_input, allocator) catch |err| {
         std.debug.print("Failed to chat with agent: {}\n", .{err});
         return err;

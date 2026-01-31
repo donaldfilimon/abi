@@ -3,7 +3,7 @@ title: "Source Directory"
 tags: [source, architecture, modules]
 ---
 # Source Directory
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Architecture-Modular-blue?style=for-the-badge" alt="Modular"/>
@@ -153,4 +153,4 @@ pub fn isEnabled() bool {
 - [CLAUDE.md](../CLAUDE.md) - Full project documentation
 - [API Reference](../API_REFERENCE.md)
 - [Docs Map](../docs/README.md) - Documentation layout and entry points
-- [docs/intro.md](../docs/intro.md) - Architecture overview
+- [Architecture Guide](../docs/content/architecture.html) - Architecture overview

@@ -3,7 +3,7 @@ title: "Benchmark Suite"
 tags: [benchmarks, performance, testing]
 ---
 # ABI Benchmark Suite
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Benchmarks-Comprehensive-blue?style=for-the-badge" alt="Benchmarks"/>
@@ -38,7 +38,7 @@ zig build benchmarks -- --verbose
 | `benchmarks/` | Suite entry points (`main.zig`, `run.zig`, `mod.zig`) |
 | `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
 | `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
-| `benchmarks/industry_standard.zig` | Industry-standard baseline harness |
+| `benchmarks/system/industry_standard.zig` | Industry-standard baseline harness |
 | `benchmarks/*` | Individual suite implementations (simd, memory, gpu, network, ai) |
 
 ---
@@ -162,7 +162,7 @@ Compare ABI performance against industry-standard implementations:
 zig build bench-competitive
 
 # With custom dataset size
-zig build run-competitive -- --vectors=100000 --dims=768
+zig build bench-competitive -- --vectors=100000 --dims=768
 ```
 
 ### Available Comparisons
@@ -234,14 +234,15 @@ zig build benchmarks -- --json > benchmark_results.json
 
 ## Performance Baseline
 
-The framework maintains a performance baseline in `docs/PERFORMANCE_BASELINE.md`. To update after significant changes:
+The framework maintains performance baselines under `benchmarks/baselines/`. To update after significant changes:
 
 ```bash
-# Generate new baseline
-zig build benchmarks -- --json > docs/baseline_new.json
+# Generate JSON results
+zig build benchmarks -- --json > benchmarks/baselines/branches/local.json
 
-# Compare with existing
-diff docs/PERFORMANCE_BASELINE.md docs/baseline_new.json
+# Compare against stored baselines
+zig build check-perf
+zig build benchmarks -- --json | ./zig-out/bin/abi-check-perf
 ```
 
 ---
@@ -295,6 +296,6 @@ zig build benchmarks -Denable-database=true -Denable-gpu=true
 
 ## See Also
 
-- [docs/PERFORMANCE_BASELINE.md](../docs/PERFORMANCE_BASELINE.md) - Reference performance metrics
-- [docs/gpu.md](../docs/gpu.md) - GPU-specific benchmarking
+- [benchmarks/baselines/README.md](baselines/README.md) - Baseline format and usage
+- [docs/content/gpu.html](../docs/content/gpu.html) - GPU-specific benchmarking
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines

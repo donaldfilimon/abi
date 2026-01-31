@@ -1,7 +1,7 @@
 //! FPGA Kernel Definitions
 //!
 //! Defines the hardware kernels available on the FPGA bitstream.
-//! Based on 'docs/research/fpga-inference-acceleration.md'.
+//! Based on internal FPGA research notes (see ROADMAP.md for status).
 
 pub const KernelID = enum(u32) {
     QuantizedMatMul = 1,

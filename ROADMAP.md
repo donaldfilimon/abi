@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -121,21 +121,18 @@ tags: [planning, roadmap]
       - [x] Plugin management command (list, enable, disable, search)
       - [x] Profile/settings management (api-keys, preferences)
     - [x] Tooling
-      - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
+      - [x] Debugger integration (GDB/LLDB support documented in CLAUDE.md)
       - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
       - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
     - [x] Vulkan backend consolidation
       - [x] Merged Vulkan split files into a single module (`vulkan.zig`)
 
 ### Documentation
-- [x] Comprehensive API docs
-  - [x] Auto-generated API reference (tools/gendocs.zig, docs/api/)
-  - [x] Tutorial series (docs/tutorials/getting-started.md, docs/tutorials/vector-database.md)
-- [x] Video recordings (scripts complete in docs/tutorials/videos/)
-- [x] Architecture diagrams
-  - [x] System architecture (docs/diagrams/system-architecture.md)
-  - [x] Component interactions (docs/diagrams/gpu-architecture.md)
-  - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
+- [x] Docs site sources in `docs/content/`
+  - [x] API overview (docs/content/api.html)
+  - [x] Getting started and module guides (docs/content/*)
+- [ ] Tutorials and video walkthroughs (to be reintroduced)
+- [ ] Architecture diagrams (to be reintroduced)
   - [x] Modular codebase structure (completed 2026-01-17)
   - [x] Vulkan backend consolidation documentation – completed
  - [x] Mega GPU Orchestration + TUI + Learning Agent Upgrade – COMPLETE (2026-01-24)
@@ -210,26 +207,26 @@ tags: [planning, roadmap]
   - [x] Enhanced persona routing (`src/ai/personas/routing/enhanced.zig`)
   - [x] Distributed WDBX conversation blocks (`src/database/distributed/`)
   - [x] MVCC with version vectors for causal consistency
-- [x] Academic collaborations - COMPLETE (2026-01-24)
-  - [x] Research partnerships (docs/research/partnerships.md)
-  - [x] Paper publications (docs/research/publications.md)
-  - [x] Conference presentations (docs/research/conferences.md)
+- [ ] Academic collaborations (docs removed; reintroduction planned)
+  - [ ] Research partnerships (docs/research/ TBD)
+  - [ ] Paper publications (docs/research/ TBD)
+  - [ ] Conference presentations (docs/research/ TBD)
 
 ### Community & Growth
-- [x] Community governance - COMPLETE (2026-01-24)
-  - [x] RFC process (docs/governance/RFC_PROCESS.md)
-  - [x] Voting mechanism (docs/governance/VOTING.md)
-  - [x] Contribution recognition (docs/governance/RECOGNITION.md)
-- [x] Education - COMPLETE (2026-01-24)
-  - [x] Training courses (docs/education/courses/)
-  - [x] Certification program (docs/education/certification/)
-  - [x] University partnerships (docs/education/partnerships/)
+- [ ] Community governance (docs removed; reintroduction planned)
+  - [ ] RFC process (docs/governance/ TBD)
+  - [ ] Voting mechanism (docs/governance/ TBD)
+  - [ ] Contribution recognition (docs/governance/ TBD)
+- [ ] Education (docs removed; reintroduction planned)
+  - [ ] Training courses (docs/education/ TBD)
+  - [ ] Certification program (docs/education/ TBD)
+  - [ ] University partnerships (docs/education/ TBD)
 
 ### Enterprise Features
-- [x] Commercial support - COMPLETE (2026-01-24)
-  - [x] SLA offerings (docs/commercial/support/sla.md)
-  - [x] Priority support (docs/commercial/enterprise/priority-support.md)
-  - [x] Custom development (docs/commercial/enterprise/custom-dev.md)
+- [ ] Commercial support (docs removed; reintroduction planned)
+  - [ ] SLA offerings (docs/commercial/ TBD)
+  - [ ] Priority support (docs/commercial/ TBD)
+  - [ ] Custom development (docs/commercial/ TBD)
 - [x] Cloud integration - COMPLETE (2026-01)
   - [x] AWS Lambda (`src/cloud/aws_lambda.zig`)
   - [x] Google Cloud Functions (`src/cloud/gcp_functions.zig`)
@@ -264,7 +261,7 @@ See CONTRIBUTING.md for details.
 
 > **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
 
-*Last updated: January 30, 2026*
+*Last updated: January 31, 2026*
 
 ## Zig 0.16 Migration Status
 
@@ -306,17 +303,14 @@ All feature-gated stubs have been audited and updated for API parity:
 
 For detailed implementation notes, see:
 - [CLAUDE.md](CLAUDE.md) - Developer guidelines and architecture reference
-- [docs/troubleshooting.md](docs/troubleshooting.md) - Debugging and GDB/LLDB support
-- [CLAUDE.md](CLAUDE.md) - Zig 0.16 patterns and developer guidance
-- [docs/research/](docs/research/) - Research partnerships and publications
-- [docs/governance/](docs/governance/) - RFC process and community governance
-- [docs/education/](docs/education/) - Training courses and certification
-- [docs/commercial/](docs/commercial/) - Enterprise support and SLA offerings
+- [docs/README.md](docs/README.md) - Documentation layout and entry points
+- [docs/content/index.html](docs/content/index.html) - Documentation site entry point
+- [benchmarks/README.md](benchmarks/README.md) - Benchmark suite overview
 
 ## Implementation History
 
 ### Tooling (Q2 2026) COMPLETE
-- **Debugger integration** - GDB/LLDB support documented in docs/troubleshooting.md.
+- **Debugger integration** - GDB/LLDB support documented in CLAUDE.md.
 - **Performance profiler** - MetricsCollector and GPU Profiler implemented.
 - **Memory leak detector** - TrackingAllocator with leak detection implemented.
 ### Documentation (Q2 2026)
@@ -333,12 +327,12 @@ For detailed implementation notes, see:
 - **Hardware acceleration** – FPGA backend complete (AMD Alveo, Intel Agilex); FPGA Phase 2 LLM kernels complete (MatMul, Attention, KV-Cache); ASIC exploration future work.
 - **AI-optimized workloads** – Enhanced persona routing, distributed WDBX, MVCC consistency complete.
 - **Novel index structures** – DiskANN and ScaNN implementations complete (`src/database/diskann.zig`, `src/database/scann.zig`).
-- **Academic collaborations** – COMPLETE (2026-01-24). Research partnerships, publication guidelines, and conference framework in `docs/research/`.
-### Community & Growth - COMPLETE (2026-01-24)
-- **Community governance** – RFC process, voting mechanisms, and contributor recognition implemented in `docs/governance/`.
-- **Education** – Training courses, certification program, and university partnerships available in `docs/education/`.
-### Enterprise Features - COMPLETE (2026-01-24)
-- **Commercial support** – SLA offerings, priority support, and custom development services documented in `docs/commercial/`.
+- **Academic collaborations** – Docs removed; reintroduction planned (docs/research/ TBD).
+### Community & Growth
+- **Community governance** – Docs removed; reintroduction planned (docs/governance/ TBD).
+- **Education** – Docs removed; reintroduction planned (docs/education/ TBD).
+### Enterprise Features
+- **Commercial support** – Docs removed; reintroduction planned (docs/commercial/ TBD).
 - **Cloud integration** – Deploy ABI on AWS Lambda, Google Cloud Functions, and Azure Functions.
 
 ## Version 0.6.0 - Q4 2026 COMPLETE

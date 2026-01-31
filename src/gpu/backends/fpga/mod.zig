@@ -1,7 +1,7 @@
 //! FPGA Backend Module
 //!
 //! Provides support for FPGA-based acceleration of AI workloads.
-//! Implementation follows the research in docs/research/fpga-inference-acceleration.md.
+//! Implementation follows internal FPGA research notes (see ROADMAP.md).
 //! Currently supports simulation mode for development and testing.
 //!
 //! Phase 1 (Complete): Distance kernels, VTable, memory management

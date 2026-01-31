@@ -423,36 +423,8 @@ zig build -Dgpu-backend=auto
 
 ## C Bindings
 
-Use ABI from C, Rust, Go, Python, or any language with C FFI:
-
-```c
-#include <abi.h>
-
-int main() {
-    abi_framework_t fw = NULL;
-    abi_init(&fw);
-
-    // SIMD operations
-    float a[] = {1, 2, 3, 4}, b[] = {4, 3, 2, 1};
-    float dot = abi_simd_vector_dot(a, b, 4);  // = 20
-
-    // Vector database
-    abi_database_t db = NULL;
-    abi_database_config_t cfg = { "vectors", 384, 1000 };
-    abi_database_create(&cfg, &db);
-    abi_database_insert(db, 1, embedding, 384);
-
-    abi_shutdown(fw);
-    return 0;
-}
-```
-
-Build: `cd bindings/c && zig build` produces:
-- macOS: `libabi.dylib` / `libabi_static.a`
-- Linux: `libabi.so` / `libabi_static.a`
-- Windows: `abi.dll` / `abi_static.lib`
-
-See [bindings/c/README.md](bindings/c/README.md) for full API reference.
+C bindings are temporarily removed during the Zig 0.16 transition and will be
+reintroduced with updated headers and examples. Track progress in [ROADMAP.md](ROADMAP.md).
 
 ---
 
@@ -464,14 +436,14 @@ See [bindings/c/README.md](bindings/c/README.md) for full API reference.
 | [C Bindings](bindings/c/README.md) | C FFI API reference |
 | [API Reference](API_REFERENCE.md) | Public API summary |
 | [Quickstart](QUICKSTART.md) | Getting started guide |
-| [Deployment Guide](docs/deployment.md) | Production deployment |
-| [AI Guide](docs/ai.md) | LLM, agents, training |
-| [GPU Guide](docs/gpu.md) | Multi-backend GPU acceleration |
-| [Database Guide](docs/database.md) | WDBX vector database |
-| [Network Guide](docs/network.md) | Distributed compute |
-| [Streaming Guide](docs/streaming.md) | SSE/WebSocket streaming |
+| [Deployment Guide](DEPLOYMENT_GUIDE.md) | Production deployment |
+| [AI Guide](docs/content/ai.html) | LLM, agents, training |
+| [GPU Guide](docs/content/gpu.html) | Multi-backend GPU acceleration |
+| [Database Guide](docs/content/database.html) | WDBX vector database |
+| [Network Guide](docs/content/network.html) | Distributed compute |
+| [API Overview](docs/content/api.html) | Public API and endpoints |
 | [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues |
+| [Docs Map](docs/README.md) | Documentation layout and entry points |
 
 ```bash
 # Run all tests
