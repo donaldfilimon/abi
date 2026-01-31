@@ -192,7 +192,7 @@ pub const Downloader = struct {
                 }
                 // Wait before retry with exponential backoff
                 const delay_ms = @as(u64, 1000) * (@as(u64, 1) << @intCast(retries));
-                std.time.sleep(delay_ms * std.time.ns_per_ms);
+                shared_utils.sleepMs(delay_ms);
             }
         }
 
