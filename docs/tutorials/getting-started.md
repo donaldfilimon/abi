@@ -302,7 +302,7 @@ Compare the resulting binary sizes.
 ## Next Steps
 
 - [Tutorial 2: Vector Database](vector-database.md) - Store and search vectors
-- [API Reference](../API_REFERENCE.md) - Complete API docs
+- [API Reference](../../API_REFERENCE.md) - Complete API docs
 - [AI Guide](../ai.md) - Connect to LLMs
 - [GPU Guide](../gpu.md) - Accelerate compute
 

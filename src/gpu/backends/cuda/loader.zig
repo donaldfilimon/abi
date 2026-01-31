@@ -5,6 +5,18 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+// libc import for environment access (Zig 0.16 compatible)
+const c = if (builtin.target.os.tag != .freestanding and
+    builtin.target.cpu.arch != .wasm32 and
+    builtin.target.cpu.arch != .wasm64)
+    @cImport(@cInclude("stdlib.h"))
+else
+    struct {
+        pub fn getenv(_: [*:0]const u8) ?[*:0]const u8 {
+            return null;
+        }
+    };
+
 pub const CuResult = enum(i32) {
     success = 0,
     invalid_value = 1,
@@ -43,6 +55,14 @@ pub const CuMemcpyDtoDAsyncFn = *const fn (u64, u64, usize, ?*anyopaque) callcon
 pub const CuStreamCreateFn = *const fn (*?*anyopaque, u32) callconv(.c) CuResult;
 pub const CuStreamDestroyFn = *const fn (?*anyopaque) callconv(.c) CuResult;
 pub const CuStreamSynchronizeFn = *const fn (?*anyopaque) callconv(.c) CuResult;
+pub const CuStreamWaitEventFn = *const fn (?*anyopaque, ?*anyopaque, u32) callconv(.c) CuResult;
+
+// Event function types
+pub const CuEventCreateFn = *const fn (*?*anyopaque, u32) callconv(.c) CuResult;
+pub const CuEventDestroyFn = *const fn (?*anyopaque) callconv(.c) CuResult;
+pub const CuEventRecordFn = *const fn (?*anyopaque, ?*anyopaque) callconv(.c) CuResult;
+pub const CuEventSynchronizeFn = *const fn (?*anyopaque) callconv(.c) CuResult;
+pub const CuEventElapsedTimeFn = *const fn (*f32, ?*anyopaque, ?*anyopaque) callconv(.c) CuResult;
 
 // Module/kernel function types
 pub const CuModuleLoadDataFn = *const fn (*?*anyopaque, *const anyopaque) callconv(.c) CuResult;
@@ -97,6 +117,16 @@ pub const StreamFunctions = struct {
     cuStreamCreate: ?CuStreamCreateFn = null,
     cuStreamDestroy: ?CuStreamDestroyFn = null,
     cuStreamSynchronize: ?CuStreamSynchronizeFn = null,
+    cuStreamWaitEvent: ?CuStreamWaitEventFn = null,
+};
+
+/// All CUDA event functions
+pub const EventFunctions = struct {
+    cuEventCreate: ?CuEventCreateFn = null,
+    cuEventDestroy: ?CuEventDestroyFn = null,
+    cuEventRecord: ?CuEventRecordFn = null,
+    cuEventSynchronize: ?CuEventSynchronizeFn = null,
+    cuEventElapsedTime: ?CuEventElapsedTimeFn = null,
 };
 
 /// All CUDA kernel functions
@@ -119,6 +149,7 @@ pub const CudaFunctions = struct {
     core: CoreFunctions = .{},
     memory: MemoryFunctions = .{},
     stream: StreamFunctions = .{},
+    event: EventFunctions = .{},
     kernel: KernelFunctions = .{},
     device: DeviceFunctions = .{},
 };
@@ -127,7 +158,6 @@ pub const CudaFunctions = struct {
 var cuda_lib: ?std.DynLib = null;
 var cuda_functions: CudaFunctions = .{};
 var load_attempted: bool = false;
-var cached_allocator: ?std.mem.Allocator = null;
 
 // Helper to lookup a symbol from the optional library.
 fn bind(comptime T: type, name: []const u8) ?T {
@@ -135,6 +165,72 @@ fn bind(comptime T: type, name: []const u8) ?T {
         return lib.lookup(T, name);
     }
     return null;
+}
+
+fn getEnv(name: [:0]const u8) ?[]const u8 {
+    if (builtin.target.os.tag == .freestanding or
+        builtin.target.cpu.arch == .wasm32 or
+        builtin.target.cpu.arch == .wasm64)
+    {
+        return null;
+    }
+    const value_ptr = c.getenv(name.ptr);
+    if (value_ptr) |ptr| {
+        return std.mem.span(ptr);
+    }
+    return null;
+}
+
+fn appendOwnedPath(
+    allocator: std.mem.Allocator,
+    lib_paths: *std.ArrayListUnmanaged([]const u8),
+    owned_paths: *std.ArrayListUnmanaged([]u8),
+    full: []u8,
+) void {
+    if (owned_paths.append(allocator, full)) |_| {
+        if (lib_paths.append(allocator, full)) |_| {
+            return;
+        }
+        if (owned_paths.items.len > 0) {
+            owned_paths.items.len -= 1;
+        }
+        allocator.free(full);
+        return;
+    }
+    allocator.free(full);
+}
+
+fn appendEnvCandidates(
+    allocator: std.mem.Allocator,
+    lib_paths: *std.ArrayListUnmanaged([]const u8),
+    owned_paths: *std.ArrayListUnmanaged([]u8),
+    base_path: []const u8,
+) void {
+    if (base_path.len == 0) return;
+
+    const file_names = switch (builtin.os.tag) {
+        .windows => &.{"nvcuda.dll"},
+        .linux => &.{ "libcuda.so.1", "libcuda.so" },
+        else => &.{},
+    };
+    if (file_names.len == 0) return;
+
+    const subdirs = switch (builtin.os.tag) {
+        .windows => &.{ "", "bin" },
+        .linux => &.{ "", "lib64", "lib" },
+        else => &.{""},
+    };
+
+    for (subdirs) |subdir| {
+        for (file_names) |file_name| {
+            const parts = if (subdir.len == 0)
+                &.{ base_path, file_name }
+            else
+                &.{ base_path, subdir, file_name };
+            const full = std.fs.path.join(allocator, parts) catch continue;
+            appendOwnedPath(allocator, lib_paths, owned_paths, full);
+        }
+    }
 }
 
 /// Errors that can occur while loading the CUDA driver.
@@ -152,26 +248,23 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
     // Platform‑specific library names; honour a CUDA_PATH env var if set.
     var lib_paths = std.ArrayListUnmanaged([]const u8).empty;
     defer lib_paths.deinit(allocator);
-
-    // Optional custom path via environment variable (e.g., "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v12.0\\bin\\nvcuda.dll")
-    // Use comptime-conditional access to avoid runtime environment lookup in restricted contexts
-    const cuda_path_opt: ?[]const u8 = blk: {
-        // In Zig 0.16, environment access requires std.process.Environ which needs I/O backend
-        // For library loading, we skip env var lookup and rely on system paths
-        // Users can set LD_LIBRARY_PATH or PATH instead
-        break :blk null;
-    };
-    if (cuda_path_opt) |custom_path| {
-        // Append the file name for the appropriate OS.
-        const file_name = switch (builtin.os.tag) {
-            .windows => "nvcuda.dll",
-            .linux => "libcuda.so",
-            else => "",
-        };
-        if (file_name.len > 0) {
-            const full = std.fs.path.join(allocator, &.{ custom_path, file_name }) catch "";
-            if (full.len > 0) _ = lib_paths.append(allocator, full) catch {};
+    var owned_paths = std.ArrayListUnmanaged([]u8).empty;
+    defer {
+        for (owned_paths.items) |owned| {
+            allocator.free(owned);
         }
+        owned_paths.deinit(allocator);
+    }
+
+    // Optional custom paths via environment variables
+    if (getEnv("CUDA_PATH")) |custom_path| {
+        appendEnvCandidates(allocator, &lib_paths, &owned_paths, custom_path);
+    }
+    if (getEnv("CUDA_HOME")) |custom_path| {
+        appendEnvCandidates(allocator, &lib_paths, &owned_paths, custom_path);
+    }
+    if (getEnv("CUDA_ROOT")) |custom_path| {
+        appendEnvCandidates(allocator, &lib_paths, &owned_paths, custom_path);
     }
 
     // Default library names per platform.
@@ -225,6 +318,14 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
     cuda_functions.stream.cuStreamCreate = bind(CuStreamCreateFn, "cuStreamCreate");
     cuda_functions.stream.cuStreamDestroy = bind(CuStreamDestroyFn, "cuStreamDestroy_v2");
     cuda_functions.stream.cuStreamSynchronize = bind(CuStreamSynchronizeFn, "cuStreamSynchronize");
+    cuda_functions.stream.cuStreamWaitEvent = bind(CuStreamWaitEventFn, "cuStreamWaitEvent");
+
+    // Load event symbols.
+    cuda_functions.event.cuEventCreate = bind(CuEventCreateFn, "cuEventCreate");
+    cuda_functions.event.cuEventDestroy = bind(CuEventDestroyFn, "cuEventDestroy");
+    cuda_functions.event.cuEventRecord = bind(CuEventRecordFn, "cuEventRecord");
+    cuda_functions.event.cuEventSynchronize = bind(CuEventSynchronizeFn, "cuEventSynchronize");
+    cuda_functions.event.cuEventElapsedTime = bind(CuEventElapsedTimeFn, "cuEventElapsedTime");
 
     // Load kernel symbols.
     cuda_functions.kernel.cuModuleLoadData = bind(CuModuleLoadDataFn, "cuModuleLoadData");
@@ -313,13 +414,23 @@ pub fn launchKernel(
     const funcs = getFunctions() orelse return error.NotLoaded;
     const launch_fn = funcs.kernel.cuLaunchKernel orelse return error.NotAvailable;
 
-    // Convert usize args to ?*anyopaque array for CUDA API
-    const allocator = std.heap.page_allocator;
-    const arg_ptrs = allocator.alloc(?*anyopaque, args.len) catch return error.OutOfMemory;
-    defer allocator.free(arg_ptrs);
+    // Convert usize args to ?*anyopaque array for CUDA API.
+    // Use a small stack buffer to avoid heap allocation for common cases.
+    var stack_args: [16]?*anyopaque = undefined;
+    var arg_ptrs: []?*anyopaque = undefined;
+    var heap_allocated = false;
 
-    for (args, 0..) |*arg, i| {
-        arg_ptrs[i] = @ptrCast(@constCast(arg));
+    if (args.len <= stack_args.len) {
+        arg_ptrs = stack_args[0..args.len];
+    } else {
+        const allocator = std.heap.page_allocator;
+        arg_ptrs = allocator.alloc(?*anyopaque, args.len) catch return error.OutOfMemory;
+        heap_allocated = true;
+    }
+    defer if (heap_allocated) std.heap.page_allocator.free(arg_ptrs);
+
+    for (args, 0..) |_, i| {
+        arg_ptrs[i] = @ptrCast(@constCast(&args[i]));
     }
 
     const result = launch_fn(

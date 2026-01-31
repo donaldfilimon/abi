@@ -4,6 +4,7 @@ tags: [performance, benchmarks, testing]
 ---
 # ABI Framework Benchmarking Guide
 > **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [API Reference](api/index.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Performance-Benchmarks-orange?style=for-the-badge" alt="Benchmarks"/>

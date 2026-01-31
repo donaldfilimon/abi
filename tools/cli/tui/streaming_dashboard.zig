@@ -10,6 +10,7 @@
 //! Part of the TUI/CLI enhancement suite.
 
 const std = @import("std");
+const abi = @import("abi");
 const terminal = @import("terminal.zig");
 const themes = @import("themes.zig");
 const events = @import("events.zig");
@@ -101,7 +102,7 @@ pub const StreamingDashboard = struct {
 
         pub fn init(method: []const u8, path: []const u8, status: u16, latency: u32, tokens: u32) RequestLogEntry {
             var entry = RequestLogEntry{
-                .timestamp = std.time.milliTimestamp(),
+                .timestamp = abi.utils.unixMs(),
                 .method = undefined,
                 .method_len = @intCast(@min(method.len, 8)),
                 .path = undefined,
@@ -170,7 +171,7 @@ pub const StreamingDashboard = struct {
 
     /// Poll metrics from the streaming server
     pub fn pollMetrics(self: *Self) !void {
-        const now = std.time.milliTimestamp();
+        const now = abi.utils.unixMs();
 
         // Check if enough time has passed
         if (now - self.last_poll < @as(i64, @intCast(self.poll_interval_ms))) {
@@ -178,9 +179,104 @@ pub const StreamingDashboard = struct {
         }
         self.last_poll = now;
 
-        // TODO: Connect to src/ai/streaming/server.zig
-        // Poll /health and /metrics endpoints
-        // For now, maintain current state
+        const has_scheme = std.mem.startsWith(u8, self.server_endpoint, "http://") or
+            std.mem.startsWith(u8, self.server_endpoint, "https://");
+        const base_url = if (has_scheme)
+            self.server_endpoint
+        else
+            try std.fmt.allocPrint(self.allocator, "http://{s}", .{self.server_endpoint});
+        defer if (!has_scheme) self.allocator.free(base_url);
+
+        const health_url = try std.fmt.allocPrint(self.allocator, "{s}/health", .{base_url});
+        defer self.allocator.free(health_url);
+        const metrics_url = try std.fmt.allocPrint(self.allocator, "{s}/metrics", .{base_url});
+        defer self.allocator.free(metrics_url);
+
+        var client = try abi.web.HttpClient.init(self.allocator);
+        defer client.deinit();
+
+        const health_response = client.getWithOptions(health_url, .{ .max_response_bytes = 4096 }) catch {
+            self.server_status = .offline;
+            return;
+        };
+        defer client.freeResponse(health_response);
+
+        if (health_response.status != 200) {
+            self.server_status = .offline;
+            return;
+        }
+        self.server_status = .online;
+
+        const metrics_response = client.getWithOptions(metrics_url, .{ .max_response_bytes = 64 * 1024 }) catch {
+            self.server_status = .degraded;
+            return;
+        };
+        defer client.freeResponse(metrics_response);
+
+        if (metrics_response.status != 200) {
+            self.server_status = .degraded;
+            return;
+        }
+
+        const MetricsResponse = struct {
+            status: ?[]const u8 = null,
+            uptime_ms: ?u64 = null,
+            active_streams: ?u32 = null,
+            max_streams: ?u32 = null,
+            queue_depth: ?u32 = null,
+            total_tokens: ?u64 = null,
+            total_requests: ?u64 = null,
+            total_errors: ?u64 = null,
+            ttft_ms_p50: ?u32 = null,
+            ttft_ms_p95: ?u32 = null,
+            ttft_ms_p99: ?u32 = null,
+            throughput_tps: ?f64 = null,
+        };
+
+        const parsed = std.json.parseFromSlice(MetricsResponse, self.allocator, metrics_response.body, .{}) catch {
+            self.server_status = .degraded;
+            return;
+        };
+        defer parsed.deinit();
+
+        const metrics = parsed.value;
+        if (metrics.status) |status| {
+            if (!std.mem.eql(u8, status, "ok")) {
+                self.server_status = .degraded;
+            }
+        }
+
+        if (metrics.uptime_ms) |uptime| {
+            self.uptime_ms = @intCast(uptime);
+        }
+        if (metrics.active_streams) |active| {
+            const clamped: u16 = if (active > std.math.maxInt(u16))
+                std.math.maxInt(u16)
+            else
+                @intCast(active);
+            self.recordConnections(clamped);
+        }
+        if (metrics.max_streams) |max_conn| {
+            self.max_connections = max_conn;
+        }
+        if (metrics.queue_depth) |depth| {
+            self.queue_depth = depth;
+        }
+        if (metrics.total_tokens) |total| {
+            self.total_tokens = total;
+        }
+        if (metrics.total_requests) |total| {
+            self.total_requests = total;
+        }
+        if (metrics.total_errors) |errors| {
+            self.error_count = @intCast(errors);
+        }
+        if (metrics.ttft_ms_p50) |p50| {
+            self.recordTtft(p50);
+        }
+        if (metrics.throughput_tps) |rate| {
+            self.recordThroughput(@floatCast(rate));
+        }
     }
 
     /// Record a new TTFT sample

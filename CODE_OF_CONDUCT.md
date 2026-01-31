@@ -18,5 +18,4 @@ https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
 ## See Also
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
-- [CONTACTS.md](CONTACTS.md) - Maintainer contact information
-
+- [MAINTAINERS.md](docs/governance/MAINTAINERS.md) - Maintainer contact information

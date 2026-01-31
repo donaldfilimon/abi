@@ -3,7 +3,7 @@ title: "2026-01-17-src-refactoring"
 tags: []
 ---
 # ABI Framework `src/` Directory Refactoring Plan
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 **Date:** 2026-01-17  
 **Status:** ✅ COMPLETE (Phases 1-6 implemented, Phase 7 deferred)  

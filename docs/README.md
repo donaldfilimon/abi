@@ -1,9 +1,10 @@
 ---
-title: "README"
-tags: []
+title: "Documentation Map"
+tags: [documentation, map, navigation]
 ---
 # Documentation Map
 > **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [Quickstart](../QUICKSTART.md)
 
 A guide to the docs layout and primary entry points.
 

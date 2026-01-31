@@ -49,7 +49,7 @@ fn parseGpuBackends(b: *std.Build, enable_gpu: bool, enable_web: bool) []const G
 
     if (has_legacy) std.log.warn("Legacy GPU flags are deprecated. Use -Dgpu-backend=cuda,vulkan instead.", .{});
 
-    const backend_count = 11;
+    const backend_count = @typeInfo(GpuBackend).Enum.fields.len;
     var buffer: [backend_count]GpuBackend = undefined;
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;

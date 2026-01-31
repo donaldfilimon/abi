@@ -320,9 +320,7 @@ fn runRemove(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             return;
         };
 
-        std.debug.print("Model removed from catalog.\n", .{});
-        std.debug.print("\nNote: To delete the file, manually remove:\n", .{});
-        std.debug.print("  {s}\n", .{model.path});
+        std.debug.print("Model removed from catalog and deleted from disk.\n", .{});
     } else {
         std.debug.print("Model not found: {s}\n", .{model_name});
         std.debug.print("\nUse 'abi model list' to see available models.\n", .{});
@@ -407,33 +405,7 @@ fn scanModelDirectories(allocator: std.mem.Allocator, manager: *abi.ai.models.Ma
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    // Get cache directory
-    const cache_dir = manager.getCacheDir();
-
-    // Scan directory for models
-    var dir = std.Io.Dir.cwd().openDir(io, cache_dir, .{ .iterate = true }) catch return;
-    defer dir.close(io);
-
-    var iter = dir.iterate();
-    while (true) {
-        const entry = iter.next(io) catch break;
-        if (entry == null) break;
-        const e = entry.?;
-
-        if (e.kind != .file) continue;
-
-        // Check for GGUF extension
-        if (!std.mem.endsWith(u8, e.name, ".gguf")) continue;
-
-        // Build full path
-        const full_path = std.fs.path.join(allocator, &.{ cache_dir, e.name }) catch continue;
-        defer allocator.free(full_path);
-
-        // Get file size (approximate via stat would be needed)
-        const size: u64 = 0; // Placeholder
-
-        _ = manager.addModel(full_path, size, null) catch continue;
-    }
+    manager.scanCacheDirWithIo(io) catch {};
 }
 
 fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {

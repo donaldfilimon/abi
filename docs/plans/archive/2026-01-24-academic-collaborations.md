@@ -393,14 +393,12 @@ Research publications based on or using ABI.
 
 ## Entry Format
 
-```markdown
 ### [Paper Title](link)
 - **Authors:** Name1, Name2
 - **Venue:** Conference/Journal
 - **Year:** YYYY
 - **Abstract:** Brief summary
 - **Code:** [link if available]
-```
 
 ## Categories
 
@@ -563,14 +561,12 @@ Create `docs/research/talks/README.md`:
 
 ## Entry Format
 
-```markdown
 ### [Talk Title](link-to-slides)
 - **Speaker:** Your Name
 - **Event:** Conference/Meetup
 - **Date:** YYYY-MM-DD
 - **Video:** [link if available]
 - **Abstract:** Brief description
-```
 ```
 
 **Step 4: Create talk template**

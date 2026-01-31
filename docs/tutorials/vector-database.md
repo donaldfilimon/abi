@@ -408,7 +408,7 @@ pub fn main() !void {
 - Backups stored in `backups/` directory only
 - Path traversal (`../`) blocked
 - Absolute paths rejected
-- See [Security Guide](../SECURITY.md) for details
+- See [Security Guide](../../SECURITY.md) for details
 
 ---
 
@@ -570,7 +570,7 @@ Build a tool that:
 
 - [AI Guide](../ai.md) - Generate real embeddings with LLMs
 - [Database Guide](../database.md) - Advanced WDBX features
-- [API Reference](../API_REFERENCE.md) - Complete database API
+- [API Reference](../../API_REFERENCE.md) - Complete database API
 
 ## Additional Resources
 

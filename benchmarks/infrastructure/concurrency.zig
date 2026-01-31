@@ -468,6 +468,9 @@ fn benchWorkStealing(allocator: std.mem.Allocator, thread_count: usize, total_wo
         done: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     };
 
+    const initial_work_per_thread: usize = 100;
+    const target_work: u64 = @intCast(@min(total_work, thread_count * initial_work_per_thread));
+
     const queues = try allocator.alloc(WorkStealingDeque(u64, 4096), thread_count);
     defer allocator.free(queues);
 
@@ -486,7 +489,7 @@ fn benchWorkStealing(allocator: std.mem.Allocator, thread_count: usize, total_wo
             var my_queue = &s.queues[my_id];
 
             // Push some initial work
-            for (0..100) |i| {
+            for (0..initial_work_per_thread) |i| {
                 _ = my_queue.push(i);
             }
 
@@ -516,7 +519,7 @@ fn benchWorkStealing(allocator: std.mem.Allocator, thread_count: usize, total_wo
     }
 
     // Wait for enough work using spinloop
-    while (state.counter.load(.acquire) < total_work) {
+    while (state.counter.load(.acquire) < target_work) {
         std.atomic.spinLoopHint();
     }
 

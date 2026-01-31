@@ -3,9 +3,9 @@ title: "roadmap-2026-01-pre-overhaul"
 tags: []
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-18.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
-> **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
+> **Developer Guide**: See [CONTRIBUTING.md](../../CONTRIBUTING.md) for coding patterns and [CLAUDE.md](../../CLAUDE.md) for development guidelines.
 >
 > This document tracks planned features, improvements, and milestones for ABI framework.
 
@@ -195,7 +195,7 @@ tags: []
 4. Submit PR with clear description
 5. Participate in code review
 
-See CONTRIBUTING.md for details.
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) for details.
 
 ## Version Timeline
 
@@ -240,10 +240,10 @@ All feature-gated stubs have been audited and updated for API parity:
 
 ## Changelog History
 
- - [0.2.2](CHANGELOG_CONSOLIDATED.md#022---2025-12-27) - Zig 0.16 modernization
- - [0.2.1](CHANGELOG_CONSOLIDATED.md#021---2025-12-27) - Security fixes, memory safety
- - [0.2.0](CHANGELOG_CONSOLIDATED.md#020---2025-12-24) - High-performance compute runtime
- - [0.1.0](CHANGELOG_CONSOLIDATED.md#010---2025-12-24) - Initial release
+ - [0.2.2](../../CHANGELOG_CONSOLIDATED.md#022---2025-12-27) - Zig 0.16 modernization
+ - [0.2.1](../../CHANGELOG_CONSOLIDATED.md#021---2025-12-27) - Security fixes, memory safety
+ - [0.2.0](../../CHANGELOG_CONSOLIDATED.md#020---2025-12-24) - High-performance compute runtime
+ - [0.1.0](../../CHANGELOG_CONSOLIDATED.md#010---2025-12-24) - Initial release
 
 ## Expanded Roadmap Details
 ### Tooling (Q2 2026) COMPLETE
@@ -309,4 +309,3 @@ Runtime module fully consolidated from compute/:
 - [x] CLI runtime flags (--list-features, --enable-*, --disable-*)
 - [x] Comptime feature validation for CLI flags
 - [x] Default Ollama model updated to gpt-oss
-

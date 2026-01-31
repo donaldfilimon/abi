@@ -4,6 +4,7 @@
 //! asynchronous kernel execution.
 
 const std = @import("std");
+const loader = @import("loader.zig");
 
 pub const StreamError = error{
     CreationFailed,
@@ -33,18 +34,18 @@ const CUresult = enum(i32) {
     error_launch_mismatch = 720,
 };
 
-const CUstream = *anyopaque;
-const CUevent = *anyopaque;
+const CUstream = ?*anyopaque;
+const CUevent = ?*anyopaque;
 
-const CuStreamCreateFn = *const fn (*CUstream, u32) callconv(.c) CUresult;
-const CuStreamDestroyFn = *const fn (CUstream) callconv(.c) CUresult;
-const CuStreamSynchronizeFn = *const fn (CUstream) callconv(.c) CUresult;
-const CuStreamWaitEventFn = *const fn (CUstream, CUevent, u32) callconv(.c) CUresult;
-const CuEventCreateFn = *const fn (*CUevent, u32) callconv(.c) CUresult;
-const CuEventDestroyFn = *const fn (CUevent) callconv(.c) CUresult;
-const CuEventRecordFn = *const fn (CUevent, CUstream) callconv(.c) CUresult;
-const CuEventSynchronizeFn = *const fn (CUevent) callconv(.c) CUresult;
-const CuEventElapsedTimeFn = *const fn (*f32, CUevent, CUevent) callconv(.c) CUresult;
+const CuStreamCreateFn = loader.CuStreamCreateFn;
+const CuStreamDestroyFn = loader.CuStreamDestroyFn;
+const CuStreamSynchronizeFn = loader.CuStreamSynchronizeFn;
+const CuStreamWaitEventFn = loader.CuStreamWaitEventFn;
+const CuEventCreateFn = loader.CuEventCreateFn;
+const CuEventDestroyFn = loader.CuEventDestroyFn;
+const CuEventRecordFn = loader.CuEventRecordFn;
+const CuEventSynchronizeFn = loader.CuEventSynchronizeFn;
+const CuEventElapsedTimeFn = loader.CuEventElapsedTimeFn;
 
 var cuStreamCreate: ?CuStreamCreateFn = null;
 var cuStreamDestroy: ?CuStreamDestroyFn = null;
@@ -56,7 +57,6 @@ var cuEventRecord: ?CuEventRecordFn = null;
 var cuEventSynchronize: ?CuEventSynchronizeFn = null;
 var cuEventElapsedTime: ?CuEventElapsedTimeFn = null;
 
-var cuda_lib: ?std.DynLib = null;
 var initialized = false;
 
 fn checkResult(result: CUresult) StreamError!void {
@@ -76,41 +76,40 @@ fn checkResult(result: CUresult) StreamError!void {
 pub fn init() !void {
     if (initialized) return;
 
-    const lib_names = [_][]const u8{ "nvcuda.dll", "libcuda.so.1", "libcuda.so" };
-    for (lib_names) |name| {
-        if (std.DynLib.open(name)) |lib| {
-            cuda_lib = lib;
-            break;
-        } else |_| {}
-    }
+    const funcs = loader.getFunctions() orelse loader.load(std.heap.page_allocator) catch return StreamError.InitializationFailed;
 
-    if (cuda_lib == null) {
+    cuStreamCreate = funcs.stream.cuStreamCreate;
+    cuStreamDestroy = funcs.stream.cuStreamDestroy;
+    cuStreamSynchronize = funcs.stream.cuStreamSynchronize;
+    cuStreamWaitEvent = funcs.stream.cuStreamWaitEvent;
+    cuEventCreate = funcs.event.cuEventCreate;
+    cuEventDestroy = funcs.event.cuEventDestroy;
+    cuEventRecord = funcs.event.cuEventRecord;
+    cuEventSynchronize = funcs.event.cuEventSynchronize;
+    cuEventElapsedTime = funcs.event.cuEventElapsedTime;
+
+    if (cuStreamCreate == null or cuStreamDestroy == null or cuStreamSynchronize == null) {
         return StreamError.InitializationFailed;
     }
-
-    cuStreamCreate = cuda_lib.?.lookup(CuStreamCreateFn, "cuStreamCreate") orelse return StreamError.InitializationFailed;
-    cuStreamDestroy = cuda_lib.?.lookup(CuStreamDestroyFn, "cuStreamDestroy") orelse return StreamError.InitializationFailed;
-    cuStreamSynchronize = cuda_lib.?.lookup(CuStreamSynchronizeFn, "cuStreamSynchronize") orelse return StreamError.InitializationFailed;
-    cuStreamWaitEvent = cuda_lib.?.lookup(CuStreamWaitEventFn, "cuStreamWaitEvent") orelse return StreamError.InitializationFailed;
-    cuEventCreate = cuda_lib.?.lookup(CuEventCreateFn, "cuEventCreate") orelse return StreamError.InitializationFailed;
-    cuEventDestroy = cuda_lib.?.lookup(CuEventDestroyFn, "cuEventDestroy") orelse return StreamError.InitializationFailed;
-    cuEventRecord = cuda_lib.?.lookup(CuEventRecordFn, "cuEventRecord") orelse return StreamError.InitializationFailed;
-    cuEventSynchronize = cuda_lib.?.lookup(CuEventSynchronizeFn, "cuEventSynchronize") orelse return StreamError.InitializationFailed;
-    cuEventElapsedTime = cuda_lib.?.lookup(CuEventElapsedTimeFn, "cuEventElapsedTime") orelse return StreamError.InitializationFailed;
 
     initialized = true;
 }
 
 pub fn deinit() void {
-    if (cuda_lib) |*lib| {
-        lib.close();
-    }
-    cuda_lib = null;
+    cuStreamCreate = null;
+    cuStreamDestroy = null;
+    cuStreamSynchronize = null;
+    cuStreamWaitEvent = null;
+    cuEventCreate = null;
+    cuEventDestroy = null;
+    cuEventRecord = null;
+    cuEventSynchronize = null;
+    cuEventElapsedTime = null;
     initialized = false;
 }
 
 pub const CudaStream = struct {
-    handle: ?CUstream,
+    handle: CUstream,
     device_id: i32,
 
     pub fn create(device_id: i32) StreamError!CudaStream {
@@ -171,7 +170,7 @@ pub const CudaStream = struct {
 };
 
 pub const CudaEvent = struct {
-    handle: ?CUevent,
+    handle: CUevent,
 
     pub fn create() StreamError!CudaEvent {
         if (!initialized) {

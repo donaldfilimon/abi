@@ -334,6 +334,10 @@ pub fn runOperationsBenchmarks(allocator: std.mem.Allocator, config: core.config
         const queries = try core.vectors.normalized(allocator, @min(100, config.query_iterations), dim);
         defer core.vectors.free(allocator, queries);
 
+        const query_limit: usize = if (size >= 10000) @min(3, queries.len) else queries.len;
+        const query_slice = queries[0..query_limit];
+        const ef_search: usize = if (size >= 10000) 32 else 64;
+
         for (config.k_values[0..@min(4, config.k_values.len)]) |k| {
             var name_buf: [64]u8 = undefined;
             const name = std.fmt.bufPrint(&name_buf, "query_{d}_k{d}", .{ size, k }) catch "query";
@@ -347,11 +351,17 @@ pub fn runOperationsBenchmarks(allocator: std.mem.Allocator, config: core.config
                     .max_iterations = 50,
                 },
                 struct {
-                    fn bench(a: std.mem.Allocator, vecs: [][]f32, qs: [][]f32, kval: usize) !u64 {
-                        return try benchQueryLatency(a, vecs, qs, kval, 64);
+                    fn bench(
+                        a: std.mem.Allocator,
+                        vecs: [][]f32,
+                        qs: [][]f32,
+                        kval: usize,
+                        ef: usize,
+                    ) !u64 {
+                        return try benchQueryLatency(a, vecs, qs, kval, ef);
                     }
                 }.bench,
-                .{ allocator, vectors, queries, k },
+                .{ allocator, vectors, query_slice, k, ef_search },
             );
 
             std.debug.print("  {s}: {d:.0} queries/sec, {d:.0}ns/query\n", .{

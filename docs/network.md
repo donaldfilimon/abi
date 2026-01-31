@@ -1,9 +1,10 @@
 ---
-title: "network"
-tags: []
+title: "Network & Distributed Compute"
+tags: [network, distributed, cluster]
 ---
 # Network & Distributed Compute
 > **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [API Reference](api/index.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-Network-blue?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Network Module"/>
@@ -203,4 +204,3 @@ zig build run -- network status                 # Show network status
   <a href="docs-index.md">Documentation Index</a> •
   <a href="monitoring.md">Monitoring Guide →</a>
 </p>
-

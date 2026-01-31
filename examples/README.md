@@ -3,7 +3,7 @@ title: "Examples"
 tags: [examples, tutorials, getting-started]
 ---
 # ABI Framework Examples
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Examples-10+-blue?style=for-the-badge" alt="10+ Examples"/>
@@ -254,10 +254,9 @@ All examples follow these Zig 0.16 best practices:
 
 ## Need Help?
 
-See the [Documentation Index](docs/intro.md) for comprehensive guides, or check API_REFERENCE.md for detailed API information.
+See the [Documentation Index](../docs/docs-index.md) for comprehensive guides, or check API_REFERENCE.md for detailed API information.
 
 ## See Also
 
 - [API Reference](../API_REFERENCE.md) - Detailed API information
 - [Documentation Index](../docs/intro.md) - Comprehensive guides
-

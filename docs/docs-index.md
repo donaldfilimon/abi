@@ -4,10 +4,11 @@ tags: [documentation, index, navigation]
 ---
 # ABI Framework Documentation
 > **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Map](README.md) · [Introduction](intro.md) · [Quickstart](../QUICKSTART.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Docs-Complete-success?style=for-the-badge" alt="Docs Complete"/>
-  <img src="https://img.shields.io/badge/Last_Updated-2026.01-blue?style=for-the-badge" alt="Last Updated"/>
+  <img src="https://img.shields.io/badge/Last_Updated-2026.01.30-blue?style=for-the-badge" alt="Last Updated"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
 </p>
 
@@ -38,7 +39,7 @@ tags: [documentation, index, navigation]
 |----------|-------------|--------|
 | [Zig 0.16 Migration](migration/zig-0.16-migration.md) | Migration patterns and best practices | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Performance Baseline](PERFORMANCE_BASELINE.md) | Benchmark measurements | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| [Performance Results](performance.md) | Updated benchmark table and analysis | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| [Benchmarking Guide](benchmarking.md) | Running benchmark suites and interpreting output | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [GPU Backend Details](gpu-backend-improvements.md) | Implementation specifics | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Feature Flags](feature-flags.md) | Build configuration guide | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions | ![Complete](https://img.shields.io/badge/-Complete-success) |

@@ -228,7 +228,7 @@ pub const Span = struct {
 pub const Tracer = struct {
     allocator: std.mem.Allocator,
     service_name: []const u8,
-    tracer_version: []const u8 = "0.3.0",
+    tracer_version: []const u8 = "0.4.0",
     schema_url: ?[]const u8 = null,
 
     pub fn init(allocator: std.mem.Allocator, service_name: []const u8) !Tracer {

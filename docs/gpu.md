@@ -1,9 +1,10 @@
 ---
-title: "gpu"
-tags: []
+title: "GPU Acceleration"
+tags: [gpu, acceleration, compute]
 ---
 # GPU Acceleration
 > **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [API Reference](api/index.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-GPU-green?style=for-the-badge&logo=nvidia&logoColor=white" alt="GPU Module"/>
@@ -819,4 +820,3 @@ When GPU unavailable, `stdgpu` provides AVX/SSE/NEON accelerated operations:
   <a href="docs-index.md">Documentation Index</a> •
   <a href="database.md">Database Guide →</a>
 </p>
-

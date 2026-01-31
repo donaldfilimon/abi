@@ -1,13 +1,10 @@
 ---
-title: "intro"
-tags: []
+title: "Introduction"
+tags: [introduction, overview]
 ---
 # Introduction
 > **Codebase Status:** Synced with repository as of 2026-01-30.
-
-> **Quick Start**: See [Quickstart Guide](../QUICKSTART.md) for immediate setup examples.
-> **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for AI agent coding patterns and build commands.
-> **Full Reference**: See [Documentation Index](docs-index.md) for complete documentation listing.
+> **Quick Links:** [Quickstart](../QUICKSTART.md) · [Contributing](../CONTRIBUTING.md) · [Documentation Index](docs-index.md)
 
 Welcome to **ABI**, a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling.
 
@@ -167,4 +164,3 @@ pub fn main() !void {
 - [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API compatibility notes
 - [TODO List](../TODO.md) - Pending implementations (see [Claude‑Code Massive TODO](../TODO.md#claude-code-massive-todo))
 - [ROADMAP](../ROADMAP.md) - Upcoming milestones
-

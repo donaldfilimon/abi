@@ -292,6 +292,10 @@ pub fn runHnswBenchmarks(allocator: std.mem.Allocator, config: core.config.Datab
             const queries = try core.vectors.generateNormalized(allocator, @min(100, config.query_iterations), dim, config.seed +% 1000);
             defer core.vectors.free(allocator, queries);
 
+            const query_limit: usize = if (size >= 10000) @min(3, queries.len) else queries.len;
+            const query_slice = queries[0..query_limit];
+            const ef_search: usize = if (size >= 10000) 32 else 64;
+
             // Build benchmark
             {
                 var name_buf: [64]u8 = undefined;
@@ -345,17 +349,23 @@ pub fn runHnswBenchmarks(allocator: std.mem.Allocator, config: core.config.Datab
                             .max_iterations = 100,
                         },
                         struct {
-                            fn bench(a: std.mem.Allocator, idx: *EuclideanHNSW, qs: [][]f32, kval: usize) !u64 {
-                                const res = try benchSearch(a, idx, qs, kval, 64);
+                            fn bench(
+                                a: std.mem.Allocator,
+                                idx: *EuclideanHNSW,
+                                qs: [][]f32,
+                                kval: usize,
+                                ef: usize,
+                            ) !u64 {
+                                const res = try benchSearch(a, idx, qs, kval, ef);
                                 return res.results_count;
                             }
                         }.bench,
-                        .{ allocator, build_result.index, queries, k },
+                        .{ allocator, build_result.index, query_slice, k, ef_search },
                     );
 
                     std.debug.print("  {s}: {d:.0} queries/sec\n", .{
                         name,
-                        search_result.stats.opsPerSecond() * @as(f64, @floatFromInt(queries.len)),
+                        search_result.stats.opsPerSecond() * @as(f64, @floatFromInt(query_slice.len)),
                     });
                 }
             }

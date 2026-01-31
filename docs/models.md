@@ -1,9 +1,10 @@
 ---
-title: "models"
+title: "Model Management"
 tags: [ai, models, gguf, huggingface, download, cache]
 ---
 # Model Management
 > **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [API Reference](api/index.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-Models-orange?style=for-the-badge&logo=huggingface&logoColor=white" alt="Models Module"/>
@@ -550,5 +551,5 @@ abi model path --set /mnt/shared/models
 
 - [AI Guide](ai.md) - Full AI module documentation
 - [Streaming Guide](streaming.md) - Real-time inference with SSE/WebSocket
-- [LLM Guide](api_ai-llm.md) - LLM inference API reference
+- [LLM Guide](api/ai-llm.md) - LLM inference API reference
 - [CLI Reference](../CLAUDE.md#cli-commands) - Full CLI documentation

@@ -44,24 +44,24 @@ pub const DatabaseBenchConfig = struct {
     /// Quick configuration for CI
     pub const quick = DatabaseBenchConfig{
         .dimensions = &.{ 128, 256 },
-        .dataset_sizes = &.{ 1000, 5000 },
+        .dataset_sizes = &.{ 500, 2000 },
         .batch_sizes = &.{ 1, 100 },
         .k_values = &.{ 1, 10 },
-        .query_iterations = 100,
+        .query_iterations = 20,
         .hnsw_ef_search = &.{ 32, 64 },
         .test_concurrent = false,
-        .min_time_ns = 100_000_000,
+        .min_time_ns = 50_000_000,
     };
 
     /// Standard configuration for development
     pub const standard = DatabaseBenchConfig{
         .dimensions = &.{ 128, 256, 512 },
-        .dataset_sizes = &.{ 1000, 10000 },
+        .dataset_sizes = &.{ 1000, 5000 },
         .batch_sizes = &.{ 1, 10, 100 },
         .k_values = &.{ 1, 10, 50 },
-        .query_iterations = 500,
+        .query_iterations = 50,
         .hnsw_ef_search = &.{ 32, 64, 128 },
-        .min_time_ns = 500_000_000,
+        .min_time_ns = 300_000_000,
     };
 
     /// Comprehensive configuration for full benchmarking
