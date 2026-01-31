@@ -33,6 +33,7 @@ A guide to the docs layout and primary entry points.
 
 - Use relative links within `docs/`.
 - Keep API reference pages under `docs/api/`.
+- Canonical API docs live in `docs/api/`; avoid creating `docs/api_*.md` duplicates (use redirects if legacy links exist).
 - Prefer short, topic-first filenames (e.g., `gpu.md`, `ai-training.md`).
 
 ---

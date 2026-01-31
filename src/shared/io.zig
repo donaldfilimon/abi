@@ -9,7 +9,8 @@
 //!
 //! Usage pattern (in `main.zig` or wherever the program entry lives):
 //! ```zig
-//! const IoBackend = @import("io").IoBackend;
+//! const abi = @import("abi");
+//! const IoBackend = abi.shared.io.IoBackend;
 //! var backend = try IoBackend.init(allocator);
 //! defer backend.deinit();
 //! // Pass `backend.io` down to the framework or any subsystem that
@@ -27,8 +28,22 @@ pub const IoBackend = struct {
     /// `std.Io` implementation.
     allocator: std.mem.Allocator,
 
+    /// Owns the underlying Zig 0.16 I/O backend.
+    /// Keeping this alive ensures `io` remains valid for the backend lifetime.
+    backend: std.Io.Threaded,
+
     /// The `std.Io` instance that is passed to lower‑level modules.
     io: std.Io,
+
+    fn initThreaded(allocator: std.mem.Allocator, options: anytype) !std.Io.Threaded {
+        // Zig 0.16 dev snapshots have shifted whether `std.Io.Threaded.init` returns
+        // `Threaded` or `!Threaded`. Support both shapes for robustness.
+        const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
+        if (@typeInfo(Result) == .error_union) {
+            return try std.Io.Threaded.init(allocator, options);
+        }
+        return std.Io.Threaded.init(allocator, options);
+    }
 
     /// Initialise a new I/O backend.
     /// For library usage we use an empty environment; a CLI can pass a
@@ -38,23 +53,19 @@ pub const IoBackend = struct {
         // This works for both library and CLI contexts.  If a CLI needs
         // environment variables you can replace `.empty` with
         // `std.process.Environ.init(allocator)` and pass that instead.
-        var backend = try std.Io.Threaded.init(allocator, .{
-            .environ = std.process.Environ.empty,
-        });
-        // No explicit deinit for Threaded is required in Zig 0.16,
-        // but we keep the function signature for future‑proofing.
+        var backend = try initThreaded(allocator, .{ .environ = std.process.Environ.empty });
+        errdefer backend.deinit();
+
         return .{
             .allocator = allocator,
+            .backend = backend,
             .io = backend.io(),
         };
     }
 
     /// De‑initialise the backend.
-    /// Currently a no‑op because the underlying Threaded backend does not
-    /// expose a deinit method, but keeping the function makes future
-    /// migrations easier.
     pub fn deinit(self: *IoBackend) void {
-        // Placeholder for any future cleanup required by the Io subsystem.
-        _ = self;
+        self.backend.deinit();
+        self.* = undefined;
     }
 };

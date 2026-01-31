@@ -424,12 +424,22 @@ pub const SecureChannel = struct {
         try self.performHandshake();
     }
 
+    /// Noise XX pattern handshake.
+    ///
+    /// **WARNING: PLACEHOLDER IMPLEMENTATION - NOT FOR PRODUCTION USE**
+    ///
+    /// This is a simplified placeholder that derives keys from local public key only.
+    /// A real Noise XX implementation requires:
+    /// 1. Actual key exchange with the remote peer
+    /// 2. Ephemeral key generation and exchange
+    /// 3. Proper Noise pattern state machine
+    ///
+    /// Do NOT use this for securing sensitive communications until a proper
+    /// Noise Protocol implementation is added.
     fn noiseXXHandshake(self: *SecureChannel) ChannelError!void {
-        // Noise XX pattern: -> e, <- e, ee, s, es, -> s, se
         const kp = self.local_keypair orelse return error.NoKeyPair;
 
-        // Generate ephemeral keys and derive session keys
-        // This is a simplified implementation
+        // PLACEHOLDER: Derives keys from local public key only - NO ACTUAL KEY EXCHANGE
         var hash = std.crypto.hash.Blake2b256.init(.{});
         hash.update(&kp.public_key);
         hash.update("noise-xx-handshake");
@@ -438,11 +448,22 @@ pub const SecureChannel = struct {
         @memcpy(&self.recv_key, &self.send_key);
     }
 
+    /// WireGuard-style handshake.
+    ///
+    /// **WARNING: PLACEHOLDER IMPLEMENTATION - NOT FOR PRODUCTION USE**
+    ///
+    /// This is a simplified placeholder that derives keys locally without peer exchange.
+    /// A real WireGuard implementation requires:
+    /// 1. Noise_IKpsk2 handshake pattern
+    /// 2. Peer public key exchange
+    /// 3. Cookie/MAC computation for DoS protection
+    ///
+    /// Do NOT use this for securing sensitive communications until a proper
+    /// WireGuard implementation is added.
     fn wireguardHandshake(self: *SecureChannel) ChannelError!void {
-        // WireGuard-style handshake
         const kp = self.local_keypair orelse return error.NoKeyPair;
 
-        // Derive keys using HKDF-style derivation
+        // PLACEHOLDER: Derives keys locally - NO ACTUAL KEY EXCHANGE
         var hash = std.crypto.hash.Blake2b256.init(.{});
         hash.update(&kp.public_key);
         hash.update("wireguard-handshake");
@@ -455,10 +476,23 @@ pub const SecureChannel = struct {
         @memcpy(&self.recv_key, &self.send_key);
     }
 
+    /// TLS handshake.
+    ///
+    /// **WARNING: PLACEHOLDER IMPLEMENTATION - NOT FOR PRODUCTION USE**
+    ///
+    /// This is a simplified placeholder that does NOT perform actual TLS negotiation.
+    /// A real TLS implementation requires:
+    /// 1. Full TLS handshake state machine
+    /// 2. Certificate validation
+    /// 3. Cipher suite negotiation
+    /// 4. Use of a proper TLS library (e.g., OpenSSL, BoringSSL, s2n)
+    ///
+    /// Do NOT use this for securing sensitive communications. Use a real TLS
+    /// library for production deployments.
     fn tlsHandshake(self: *SecureChannel) ChannelError!void {
-        // TLS handshake (simplified - real impl would use TLS library)
         const kp = self.local_keypair orelse return error.NoKeyPair;
 
+        // PLACEHOLDER: Derives keys locally - NO ACTUAL TLS NEGOTIATION
         var hash = std.crypto.hash.Blake2b256.init(.{});
         hash.update(&kp.public_key);
         hash.update("tls-handshake");
@@ -467,12 +501,22 @@ pub const SecureChannel = struct {
         @memcpy(&self.recv_key, &self.send_key);
     }
 
+    /// Custom X25519-based handshake.
+    ///
+    /// **WARNING: PLACEHOLDER IMPLEMENTATION - NOT FOR PRODUCTION USE**
+    ///
+    /// This is a simplified placeholder that derives keys from local public key only.
+    /// A real implementation requires:
+    /// 1. X25519 Diffie-Hellman key exchange with peer
+    /// 2. Nonce/session ID exchange
+    /// 3. Proper key derivation function (HKDF)
+    ///
+    /// Do NOT use this for securing sensitive communications until proper
+    /// X25519 key exchange is implemented.
     fn customHandshake(self: *SecureChannel) ChannelError!void {
-        // X25519 key exchange
         const kp = self.local_keypair orelse return error.NoKeyPair;
 
-        // For now, derive symmetric keys from our public key
-        // Real implementation would exchange keys with peer
+        // PLACEHOLDER: Derives keys from local public key only - NO PEER EXCHANGE
         var hash = std.crypto.hash.Blake2b256.init(.{});
         hash.update(&kp.public_key);
         hash.update("custom-handshake");

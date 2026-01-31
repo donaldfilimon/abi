@@ -9,12 +9,23 @@ pub const Response = struct {
 };
 
 pub const RequestOptions = struct {
+    /// Maximum bytes to read from response body. Default: 1MB.
+    /// Hard limit: 100MB to prevent memory exhaustion attacks.
     max_response_bytes: usize = 1024 * 1024,
     user_agent: []const u8 = "abi-http",
     follow_redirects: bool = true,
     redirect_limit: u16 = 3,
     content_type: ?[]const u8 = null,
     extra_headers: []const std.http.Header = &.{},
+
+    /// Hard upper limit for response size (100MB).
+    /// This cannot be exceeded even if max_response_bytes is set higher.
+    pub const MAX_ALLOWED_RESPONSE_BYTES: usize = 100 * 1024 * 1024;
+
+    /// Returns the effective max response bytes, capped at the hard limit.
+    pub fn effectiveMaxResponseBytes(self: RequestOptions) usize {
+        return @min(self.max_response_bytes, MAX_ALLOWED_RESPONSE_BYTES);
+    }
 };
 
 pub const HttpClient = struct {
@@ -96,7 +107,7 @@ pub const HttpClient = struct {
         const response_body = try readAllAlloc(
             reader,
             self.allocator,
-            options.max_response_bytes,
+            options.effectiveMaxResponseBytes(),
         );
         return .{
             .status = @intFromEnum(response.head.status),
@@ -164,4 +175,18 @@ test "response struct" {
     };
     try std.testing.expectEqual(@as(u16, 200), response.status);
     try std.testing.expectEqualStrings("OK", response.body);
+}
+
+test "request options effective max response bytes" {
+    // Default should be 1MB
+    const default_options = RequestOptions{};
+    try std.testing.expectEqual(@as(usize, 1024 * 1024), default_options.effectiveMaxResponseBytes());
+
+    // Custom value under limit should be used
+    const small_options = RequestOptions{ .max_response_bytes = 2048 };
+    try std.testing.expectEqual(@as(usize, 2048), small_options.effectiveMaxResponseBytes());
+
+    // Value exceeding hard limit should be capped
+    const large_options = RequestOptions{ .max_response_bytes = 200 * 1024 * 1024 };
+    try std.testing.expectEqual(RequestOptions.MAX_ALLOWED_RESPONSE_BYTES, large_options.effectiveMaxResponseBytes());
 }

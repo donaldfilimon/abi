@@ -28,7 +28,7 @@ Note: `src/ai/explore/query.zig` contains intentional TODO/FIXME pattern strings
 
 ## Roadmap TODOs
 
-The following high-level items are still open in **[ROADMAP.md](ROADMAP.md)**. They are added here to surface future work for the team.
+The following high-level items were tracked in **[ROADMAP.md](ROADMAP.md)**. Items that remain future work are explicitly marked.
 
 | File | Line | Description |
 |------|------|-------------|
@@ -40,11 +40,11 @@ The following high-level items are still open in **[ROADMAP.md](ROADMAP.md)**. T
 | `ROADMAP.md` | 130-133 | ~~High Availability: Disaster recovery (backup orchestration, point-in-time recovery, multi-region support)~~ ✅ Complete |
 | `ROADMAP.md` | 140-143 | ~~Ecosystem: Package manager integration (Zig registry ✅, Homebrew formula ✅, Docker images ✅)~~ ✅ Complete |
 | `ROADMAP.md` | 148-151 | ~~Research & Innovation: FPGA Phase 2 kernels~~ ✅ Complete, ~~Novel index structures (DiskANN, ScaNN)~~ ✅ Complete, ASIC exploration (future) |
-| `ROADMAP.md` | 152-155 | Academic collaborations (research partnerships, paper publications, conference presentations) |
-| `ROADMAP.md` | 158-161 | Community governance: RFC process, voting mechanism, contribution recognition |
-| `ROADMAP.md` | 162-165 | Education: Training courses, certification program, university partnerships |
-| `ROADMAP.md` | 168-171 | Commercial support: SLA offerings, priority support, custom development |
-| `ROADMAP.md` | 172-175 | Cloud integration: AWS Lambda, Google Cloud Functions, Azure Functions |
+| `ROADMAP.md` | 152-155 | ~~Academic collaborations (research partnerships, paper publications, conference presentations)~~ ✅ Complete (docs/research/) |
+| `ROADMAP.md` | 158-161 | ~~Community governance: RFC process, voting mechanism, contribution recognition~~ ✅ Complete (docs/governance/) |
+| `ROADMAP.md` | 162-165 | ~~Education: Training courses, certification program, university partnerships~~ ✅ Complete (docs/education/) |
+| `ROADMAP.md` | 168-171 | ~~Commercial support: SLA offerings, priority support, custom development~~ ✅ Complete (docs/commercial/) |
+| `ROADMAP.md` | 172-175 | ~~Cloud integration: AWS Lambda, Google Cloud Functions, Azure Functions~~ ✅ Complete (src/cloud/) |
 
 ## Llama-CPP Parity Tasks (Zig 0.16)
 

@@ -220,8 +220,7 @@ const example_targets = [_]BuildTarget{
     .{ .name = "example-train-ava", .step_name = "run-train-ava", .description = "Train Ava assistant from gpt-oss", .source_path = "examples/train_ava.zig" },
     .{ .name = "example-concurrency", .step_name = "run-concurrency", .description = "Run concurrency primitives example", .source_path = "examples/concurrency.zig" },
     .{ .name = "example-observability", .step_name = "run-observability", .description = "Run observability example", .source_path = "examples/observability.zig" },
-    // GPU example disabled pending unified_buffer.zig fix (backend type mismatch)
-    // .{ .name = "example-gpu", .step_name = "run-gpu", .description = "Run GPU example", .source_path = "examples/gpu.zig" },
+    .{ .name = "example-gpu", .step_name = "run-gpu", .description = "Run GPU example", .source_path = "examples/gpu.zig" },
 };
 
 const benchmark_targets = [_]BuildTarget{
@@ -230,14 +229,23 @@ const benchmark_targets = [_]BuildTarget{
 };
 
 fn pathExists(path: []const u8) bool {
-    // Use @cImport for build-time file existence check
-    const c = @cImport({
-        @cInclude("sys/stat.h");
-    });
-    var buf: [4096]u8 = undefined;
-    const path_z = std.fmt.bufPrintZ(&buf, "{s}", .{path}) catch return false;
-    var stat_buf: c.struct_stat = undefined;
-    return c.stat(path_z.ptr, &stat_buf) == 0;
+    // Build scripts should avoid `@cImport` to keep builds working in environments
+    // without libc headers (common in minimal containers / CI runners).
+    //
+    // Zig 0.16 deprecated `std.fs.cwd()` in favor of the new `std.Io` APIs.
+    const io_opts: std.Io.Threaded.InitOptions = .{ .environ = std.process.Environ.empty };
+    var io_backend: std.Io.Threaded = undefined;
+    const InitResult = @TypeOf(std.Io.Threaded.init(std.heap.page_allocator, io_opts));
+    if (@typeInfo(InitResult) == .error_union) {
+        io_backend = std.Io.Threaded.init(std.heap.page_allocator, io_opts) catch return false;
+    } else {
+        io_backend = std.Io.Threaded.init(std.heap.page_allocator, io_opts);
+    }
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    _ = std.Io.Dir.cwd().statFile(io, path, .{}) catch return false;
+    return true;
 }
 
 fn buildTargets(
