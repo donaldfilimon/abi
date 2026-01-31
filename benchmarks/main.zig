@@ -225,12 +225,31 @@ fn writeJsonReport(
     try writer.writeAll("\n  ]\n}\n");
 }
 
+fn initThreadedIo(allocator: std.mem.Allocator, options: anytype) !std.Io.Threaded {
+    const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
+    if (@typeInfo(Result) == .error_union) {
+        return try std.Io.Threaded.init(allocator, options);
+    }
+    return std.Io.Threaded.init(allocator, options);
+}
+
 pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     const args = parseArgs(allocator, init.args);
+    defer if (args.output_json) |path| allocator.free(path);
+
+    var collector_storage: ?framework.BenchCollector = null;
+    if (args.json or args.output_json != null) {
+        collector_storage = framework.BenchCollector.init(allocator);
+        framework.setGlobalCollector(&collector_storage.?);
+    }
+    defer if (collector_storage) |*collector| {
+        framework.setGlobalCollector(null);
+        collector.deinit();
+    };
 
     printHeader();
 
@@ -335,6 +354,30 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     const elapsed_ns = timer.read();
     const duration_sec = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0;
+
+    if (collector_storage) |*collector| {
+        const meta = BenchJsonMeta{
+            .suite = @tagName(args.suite),
+            .quick = args.suite == .quick,
+            .duration_ns = elapsed_ns,
+            .duration_sec = duration_sec,
+        };
+
+        if (args.json) {
+            try writeJsonReport(std.io.getStdOut().writer(), collector.results.items, meta);
+        }
+
+        if (args.output_json) |path| {
+            var io_backend = try initThreadedIo(allocator, .{
+                .environ = std.process.Environ.empty,
+            });
+            defer io_backend.deinit();
+            const io = io_backend.io();
+            var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+            defer file.close(io);
+            try writeJsonReport(file.writer(io), collector.results.items, meta);
+        }
+    }
 
     std.debug.print("\n", .{});
     std.debug.print("================================================================================\n", .{});

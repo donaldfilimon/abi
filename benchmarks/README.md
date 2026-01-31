@@ -3,7 +3,7 @@ title: "Benchmark Suite"
 tags: [benchmarks, performance, testing]
 ---
 # ABI Benchmark Suite
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Benchmarks-Comprehensive-blue?style=for-the-badge" alt="Benchmarks"/>
@@ -18,6 +18,9 @@ Comprehensive performance benchmarks for the ABI framework, measuring throughput
 ```bash
 # Run all benchmark suites
 zig build benchmarks
+
+# Run all benchmark suites (including competitive)
+zig build bench-all
 
 # Run specific suite
 zig build benchmarks -- --suite=simd
@@ -37,9 +40,10 @@ zig build benchmarks -- --verbose
 | --- | --- |
 | `benchmarks/` | Suite entry points (`main.zig`, `run.zig`, `mod.zig`) |
 | `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
-| `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
-| `benchmarks/industry_standard.zig` | Industry-standard baseline harness |
-| `benchmarks/*` | Individual suite implementations (simd, memory, gpu, network, ai) |
+| `benchmarks/domain/` | Feature-specific suites (ai, database, gpu) |
+| `benchmarks/infrastructure/` | SIMD, memory, concurrency, crypto, network |
+| `benchmarks/system/` | Framework, CI, baseline store/comparator |
+| `benchmarks/baselines/` | Baseline JSON storage (main/branches/releases) |
 
 ---
 
@@ -54,13 +58,14 @@ zig build benchmarks -- --verbose
 | **network** | HTTP/JSON parsing | req/sec, parse time (ns) |
 | **crypto** | Hash/encrypt ops | MB/sec, cycles/byte |
 | **ai** | GEMM/attention | GFLOPS, memory bandwidth |
-| **quick** | Fast verification | subset of all suites |
+| **gpu** | GPU kernels | kernel time (ns), throughput |
+| **quick** | Fast verification | CI-friendly subset |
 
 ---
 
 ## Suite Details
 
-### SIMD Suite (`simd.zig`)
+### SIMD Suite (`infrastructure/simd.zig`)
 
 Tests vectorized operations using SIMD intrinsics:
 - Dot product (single/batch)
@@ -73,7 +78,7 @@ Tests vectorized operations using SIMD intrinsics:
 zig build benchmarks -- --suite=simd
 ```
 
-### Memory Suite (`memory.zig`)
+### Memory Suite (`infrastructure/memory.zig`)
 
 Measures allocator performance:
 - General purpose allocator throughput
@@ -86,7 +91,7 @@ Measures allocator performance:
 zig build benchmarks -- --suite=memory
 ```
 
-### Concurrency Suite (`concurrency.zig`)
+### Concurrency Suite (`infrastructure/concurrency.zig`)
 
 Tests lock-free data structures:
 - Lock-free queue throughput
@@ -99,7 +104,7 @@ Tests lock-free data structures:
 zig build benchmarks -- --suite=concurrency
 ```
 
-### Database Suite (`database.zig`)
+### Database Suite (`domain/database/`)
 
 WDBX vector database benchmarks:
 - Vector insertion (single/batch)
@@ -113,7 +118,7 @@ WDBX vector database benchmarks:
 zig build benchmarks -- --suite=database
 ```
 
-### Network Suite (`network.zig`)
+### Network Suite (`infrastructure/network.zig`)
 
 Network protocol benchmarks:
 - HTTP header parsing
@@ -125,7 +130,7 @@ Network protocol benchmarks:
 zig build benchmarks -- --suite=network
 ```
 
-### Crypto Suite (`crypto.zig`)
+### Crypto Suite (`infrastructure/crypto.zig`)
 
 Cryptographic operation benchmarks:
 - SHA-256/SHA-512 hashing
@@ -138,7 +143,7 @@ Cryptographic operation benchmarks:
 zig build benchmarks -- --suite=crypto
 ```
 
-### AI Suite (`ai.zig`)
+### AI Suite (`domain/ai/`)
 
 Machine learning operation benchmarks:
 - GEMM (General Matrix Multiply)
@@ -149,6 +154,17 @@ Machine learning operation benchmarks:
 
 ```bash
 zig build benchmarks -- --suite=ai
+```
+
+### GPU Suite (`domain/gpu/`)
+
+GPU kernel benchmarks:
+- Matmul, vector ops, reductions
+- Backend comparisons
+- GPU vs CPU comparisons
+
+```bash
+zig build benchmarks -- --suite=gpu
 ```
 
 ---
@@ -162,7 +178,7 @@ Compare ABI performance against industry-standard implementations:
 zig build bench-competitive
 
 # With custom dataset size
-zig build run-competitive -- --vectors=100000 --dims=768
+zig build bench-competitive -- --vectors=100000 --dims=768
 ```
 
 ### Available Comparisons
@@ -185,11 +201,11 @@ Results are output as JSON for easy integration with CI/CD pipelines.
 zig build benchmarks -- [OPTIONS]
 
 OPTIONS:
-  --suite=<name>    Run specific suite (simd, memory, concurrency, database, network, crypto, ai)
+  --suite=<name>    Run specific suite (simd, memory, concurrency, database, network, crypto, ai, gpu)
   --quick           Run with reduced iterations
   --verbose         Show detailed output
-  --json            Output results as JSON
-  --iterations=<n>  Override default iteration count
+  --json            Output results as JSON to stdout
+  --output=<file>   Write JSON report to a file
 ```
 
 ### Examples
@@ -205,7 +221,7 @@ zig build benchmarks -- --suite=database --iterations=10000
 zig build benchmarks -- --quick
 
 # JSON output for CI integration
-zig build benchmarks -- --json > benchmark_results.json
+zig build benchmarks -- --output=benchmark_results.json
 ```
 
 ---
@@ -232,16 +248,15 @@ zig build benchmarks -- --json > benchmark_results.json
 
 ---
 
-## Performance Baseline
+## Performance Baselines
 
-The framework maintains a performance baseline in `docs/PERFORMANCE_BASELINE.md`. To update after significant changes:
+Baseline reports are stored under `benchmarks/baselines/` (see `benchmarks/baselines/README.md`).
+After significant changes, generate a fresh JSON report and store it under the
+appropriate branch or release directory:
 
 ```bash
-# Generate new baseline
-zig build benchmarks -- --json > docs/baseline_new.json
-
-# Compare with existing
-diff docs/PERFORMANCE_BASELINE.md docs/baseline_new.json
+# Generate a new baseline report
+zig build benchmarks -- --output=benchmarks/baselines/branches/my_branch.json
 ```
 
 ---
