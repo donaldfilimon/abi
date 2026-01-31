@@ -234,7 +234,7 @@ fn pathExists(path: []const u8) bool {
     // without libc headers (common in minimal containers / CI runners).
     //
     // Zig 0.16 deprecated `std.fs.cwd()` in favor of the new `std.Io` APIs.
-    const io_opts = .{ .environ = std.process.Environ.empty };
+    const io_opts: std.Io.Threaded.InitOptions = .{ .environ = std.process.Environ.empty };
     var io_backend: std.Io.Threaded = undefined;
     const InitResult = @TypeOf(std.Io.Threaded.init(std.heap.page_allocator, io_opts));
     if (@typeInfo(InitResult) == .error_union) {
