@@ -202,6 +202,9 @@ pub const TrainableModel = struct {
 pub const Batch = struct {
     input_ids: []const u32 = &.{},
     labels: []const u32 = &.{},
+    attention_mask: ?[]const u8 = null,
+    batch_size: u32 = 0,
+    seq_len: u32 = 0,
 };
 pub const BatchIterator = struct {
     pub fn init(_: std.mem.Allocator, _: *const TokenizedDataset, _: u32, _: u32, _: bool) Error!BatchIterator {
@@ -212,6 +215,9 @@ pub const BatchIterator = struct {
         return null;
     }
     pub fn reset(_: *BatchIterator) void {}
+    pub fn numBatches(_: *const BatchIterator) usize {
+        return 0;
+    }
 };
 
 pub const TokenizedDataset = struct {
@@ -236,6 +242,99 @@ pub const TokenizedDataset = struct {
         return BatchIterator.init(allocator, undefined, batch_size, seq_len, shuffle);
     }
 };
+
+pub const DataLoader = struct {
+    allocator: std.mem.Allocator,
+    dataset: TokenizedDataset,
+    batch_size: u32,
+    seq_len: u32,
+    shuffle: bool,
+    drop_last: bool,
+
+    pub const Config = struct {
+        batch_size: u32 = 4,
+        seq_len: u32 = 512,
+        shuffle: bool = true,
+        drop_last: bool = true,
+    };
+
+    pub fn init(allocator: std.mem.Allocator, dataset: TokenizedDataset, config: Config) DataLoader {
+        return .{
+            .allocator = allocator,
+            .dataset = dataset,
+            .batch_size = config.batch_size,
+            .seq_len = config.seq_len,
+            .shuffle = config.shuffle,
+            .drop_last = config.drop_last,
+        };
+    }
+
+    pub fn deinit(_: *DataLoader) void {}
+
+    pub fn iterator(_: *const DataLoader) !BatchIterator {
+        return error.TrainingDisabled;
+    }
+
+    pub fn numBatches(_: *const DataLoader) usize {
+        return 0;
+    }
+
+    pub fn numTokens(_: *const DataLoader) usize {
+        return 0;
+    }
+};
+
+pub const SequencePacker = struct {
+    allocator: std.mem.Allocator,
+    max_seq_len: u32,
+    pad_token_id: u32,
+
+    pub fn init(allocator: std.mem.Allocator, max_seq_len: u32, pad_token_id: u32) SequencePacker {
+        return .{
+            .allocator = allocator,
+            .max_seq_len = max_seq_len,
+            .pad_token_id = pad_token_id,
+        };
+    }
+
+    pub fn deinit(_: *SequencePacker) void {}
+
+    pub fn addSequence(_: *SequencePacker, _: []const u32) !void {
+        return error.TrainingDisabled;
+    }
+
+    pub fn pack(_: *SequencePacker, _: u32) !PackedBatch {
+        return error.TrainingDisabled;
+    }
+
+    pub const PackedBatch = struct {
+        allocator: std.mem.Allocator,
+        tokens: []u32 = &.{},
+        attention_mask: []u8 = &.{},
+        batch_size: u32 = 0,
+        seq_len: u32 = 0,
+        num_batches: u32 = 0,
+
+        pub fn deinit(_: *PackedBatch) void {}
+
+        pub fn getBatch(_: *const PackedBatch, _: u32) Batch {
+            return .{};
+        }
+    };
+};
+
+pub const InstructionSample = struct {
+    instruction: []const u8,
+    input: ?[]const u8,
+    output: []const u8,
+};
+
+pub fn parseInstructionDataset(
+    _: std.mem.Allocator,
+    _: []const u8,
+) !std.ArrayListUnmanaged(InstructionSample) {
+    return error.TrainingDisabled;
+}
 
 pub const WdbxTokenDataset = struct {
     pub fn init(_: std.mem.Allocator, _: []const u8) Error!WdbxTokenDataset {

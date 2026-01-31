@@ -4,7 +4,7 @@ tags: []
 ---
 //! # AI
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-31.
+//! > **Codebase Status:** Synced with repository as of 2026-01-30.
 //!
 //! AI module providing LLM inference, agents, embeddings, and training capabilities.
 //!
@@ -19,38 +19,41 @@ tags: []
 //!
 //! | Module | Description |
 //! |--------|-------------|
-//! | `mod.zig` | Public API entry point with Context struct |
-//! | `core/` | Shared AI types, config, and utilities |
-//! | `llm/` | Local LLM inference engine (GGUF) |
+//! | `mod.zig` | Public API entry point with `Context` struct |
+//! | `stub.zig` | Feature-disabled stubs for API parity |
+//! | `core/` | Shared AI types and configuration |
+//! | `llm/` | Local LLM inference (GGUF, tokenization, sampling) |
 //! | `embeddings/` | Embedding generation |
-//! | `agents/` + `agent.zig` | Agent runtime + simple agent API |
-//! | `memory/` | Memory systems (short/long-term, summaries) |
-//! | `training/` | Training pipelines and checkpoints |
-//! | `personas/` | Multi-persona profiles and configs |
-//! | `streaming/` | SSE/WebSocket streaming responses |
-//! | `orchestration/` | Multi-model routing, fallback, ensembles |
-//! | `rag/` | Retrieval-augmented generation |
+//! | `agents/` | Autonomous agent runtime |
+//! | `personas/` | Multi-persona assistant system |
+//! | `orchestration/` | Multi-model routing and ensemble logic |
+//! | `streaming/` | SSE/WebSocket streaming inference |
+//! | `models/` | Model management + downloads |
+//! | `documents/` | Document parsing + understanding |
+//! | `rag/` | Retrieval-augmented generation pipeline |
+//! | `templates/` | Prompt/template rendering |
 //! | `explore/` | Codebase exploration tooling |
-//! | `documents/` | Document parsing and layout analysis |
-//! | `models/` + `model_registry.zig` | Model registry + downloads |
-//! | `vision/` | Vision models (ViT) + preprocessing |
-//! | `eval/` | Metrics (BLEU/ROUGE/perplexity) |
-//! | `templates/` + `prompts/` | Prompt templates and builders |
-//! | `tools/` | Agent tools (filesystem, discord, OS, search) |
-//! | `abbey/` | Abbey persona subsystem |
+//! | `memory/` | Conversation memory systems |
+//! | `prompts/` | Prompt builders and persona prompts |
+//! | `tools/` | Agent tool registry and helpers |
+//! | `vision/` | Vision processing and ViT training |
 //!
 //! ## Architecture
 //!
-//! `src/ai/mod.zig` is the public API and framework integration layer.
-//! Sub-modules live directly under `src/ai/` and are compiled in-place
-//! (no legacy wrapper indirection).
+//! The AI module is implemented directly in `src/ai/` (no `features/ai` bridge).
+//! Feature gating is handled via `stub.zig` and submodule-specific stubs:
 //!
-//! Feature gating:
-//! - `-Denable-ai` toggles the AI module
-//! - `-Denable-llm`, `-Denable-vision`, `-Denable-explore` toggle sub-features
-//!
-//! When a feature is disabled, `src/ai/stub.zig` (and per-submodule stubs
-//! like `llm/stub.zig`) provide API-compatible no-op implementations.
+//! ```
+//! src/ai/
+//! ├── mod.zig          # Public API + Context
+//! ├── stub.zig         # Feature-disabled stubs
+//! ├── llm/             # Local GGUF inference
+//! ├── agents/          # Agent runtime
+//! ├── embeddings/      # Embedding generation
+//! ├── training/        # Training pipelines
+//! ├── streaming/       # SSE/WebSocket streaming
+//! └── orchestration/   # Multi-model routing
+//! ```
 //!
 //! ## Usage
 //!
@@ -58,7 +61,7 @@ tags: []
 //! const abi = @import("abi");
 //!
 //! // Initialize framework with AI
-//! var fw = try abi.initWithConfig(allocator, .{
+//! var fw = try abi.init(allocator, .{
 //!     .ai = .{
 //!         .llm = .{ .model_path = "./models/llama.gguf" },
 //!         .embeddings = .{},
@@ -79,9 +82,9 @@ tags: []
 //! | Connector | Description | Config |
 //! |-----------|-------------|--------|
 //! | Local GGUF | Load local GGUF models | `model_path` |
-//! | Ollama | Connect to Ollama server | `ABI_OLLAMA_HOST` env |
-//! | OpenAI | OpenAI API | `ABI_OPENAI_API_KEY` env |
-//! | HuggingFace | HuggingFace API | `ABI_HF_API_TOKEN` env |
+//! | Ollama | Connect to Ollama server | `OLLAMA_HOST` env |
+//! | OpenAI | OpenAI API | `OPENAI_API_KEY` env |
+//! | HuggingFace | HuggingFace API | `HF_API_TOKEN` env |
 //!
 //! ## Build Options
 //!
@@ -89,13 +92,12 @@ tags: []
 //!
 //! Sub-features:
 //! - `-Denable-llm=true` - LLM inference (requires `-Denable-ai`)
-//! - `-Denable-vision=true` - Vision processing (requires `-Denable-ai`)
 //! - `-Denable-explore=true` - Codebase exploration (requires `-Denable-ai`)
 //!
 //! ## See Also
 //!
-//! - [AI Documentation](../../docs/content/ai.html)
-//! - [API Reference](../../API_REFERENCE.md)
-//! - [Training Guide](../../docs/content/ai.html)
+//! - [AI Documentation](../../docs/ai.md)
+//! - [API Reference](../../docs/ai.md#api-reference)
+//! - [Training Guide](../../docs/ai.md#training)
 
 

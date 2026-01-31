@@ -12,7 +12,7 @@ tags: []
 </p>
 
 <p align="center">
-  <a href="docs/content/index.html">Documentation Index</a> |
+  <a href="docs/intro.md">Documentation Index</a> |
   <a href="CONTRIBUTING.md">Coding Patterns</a> |
   <a href="CLAUDE.md">Development Guide</a>
 </p>
@@ -869,8 +869,7 @@ Flat domain structure (modular architecture):
 | `src/tasks/` | Task management | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/tests/` | Test infrastructure | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
 
-> **Backward Compatibility**: `abi.zig` preserves legacy aliases and shared/legacy
-> re-exports for older import paths.
+> **Backward Compatibility**: Re-exports in `abi.zig` preserve API compatibility with older module layouts.
 
 ## See Also
 
@@ -902,5 +901,5 @@ Flat domain structure (modular architecture):
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="docs/content/index.html">Full Documentation →</a>
+  <a href="docs/intro.md">Full Documentation →</a>
 </p>

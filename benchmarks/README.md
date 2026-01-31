@@ -36,14 +36,17 @@ zig build benchmarks -- --verbose
 | Path | Purpose |
 | --- | --- |
 | `benchmarks/` | Suite entry points (`main.zig`, `run.zig`, `mod.zig`) |
-| `benchmarks/core/` | Core framework benchmarks (config, vectors, distance) |
-| `benchmarks/infrastructure/` | SIMD, memory, concurrency, network, crypto, GPU availability |
-| `benchmarks/domain/` | Domain benchmarks (ai, database, gpu) |
-| `benchmarks/system/` | Framework init, CI integration, baseline utilities |
+| `benchmarks/core/` | Core utilities (config, vectors, distance) |
+| `benchmarks/domain/` | Feature-domain suites (ai, database, gpu) |
+| `benchmarks/infrastructure/` | Infra suites (concurrency, crypto, memory, simd, network) |
+| `benchmarks/system/` | System/integration baselines (framework, CI, baselines) |
 | `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
 | `benchmarks/baselines/` | Regression baselines and comparisons |
 | `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
+<<<<<<< HEAD
 | `benchmarks/system/industry_standard.zig` | Industry-standard baseline harness |
+=======
+>>>>>>> origin/cursor/ai-module-source-organization-0282
 
 ---
 
@@ -51,6 +54,7 @@ zig build benchmarks -- --verbose
 
 | Suite | Purpose | Key Metrics |
 |-------|---------|-------------|
+<<<<<<< HEAD
 | **simd** | Vector operations | ops/sec, throughput (GB/s) |
 | **memory** | Allocator patterns | allocs/sec, fragmentation % |
 | **concurrency** | Lock-free structures | ops/sec, contention ratio |
@@ -59,13 +63,23 @@ zig build benchmarks -- --verbose
 | **crypto** | Hash/encrypt ops | MB/sec, cycles/byte |
 | **ai** | GEMM/attention | GFLOPS, memory bandwidth |
 | **gpu** | Kernel and backend checks | throughput, availability |
+=======
+| **simd** | Vector operations (`infrastructure/simd.zig`) | ops/sec, throughput (GB/s) |
+| **memory** | Allocator patterns (`infrastructure/memory.zig`) | allocs/sec, fragmentation % |
+| **concurrency** | Lock-free structures (`infrastructure/concurrency.zig`) | ops/sec, contention ratio |
+| **database** | WDBX ops (`domain/database/*.zig`) | insert/search latency (μs) |
+| **network** | HTTP/JSON parsing (`infrastructure/network.zig`) | req/sec, parse time (ns) |
+| **crypto** | Hash/encrypt ops (`infrastructure/crypto.zig`) | MB/sec, cycles/byte |
+| **ai** | Kernels + LLM metrics (`domain/ai/*.zig`) | GFLOPS, tokens/sec |
+| **gpu** | Backend kernels (`domain/gpu/*.zig`) | ops/sec, transfer MB/s |
+>>>>>>> origin/cursor/ai-module-source-organization-0282
 | **quick** | Fast verification | subset of all suites |
 
 ---
 
 ## Suite Details
 
-### SIMD Suite (`simd.zig`)
+### SIMD Suite (`infrastructure/simd.zig`)
 
 Tests vectorized operations using SIMD intrinsics:
 - Dot product (single/batch)
@@ -78,7 +92,7 @@ Tests vectorized operations using SIMD intrinsics:
 zig build benchmarks -- --suite=simd
 ```
 
-### Memory Suite (`memory.zig`)
+### Memory Suite (`infrastructure/memory.zig`)
 
 Measures allocator performance:
 - General purpose allocator throughput
@@ -91,7 +105,7 @@ Measures allocator performance:
 zig build benchmarks -- --suite=memory
 ```
 
-### Concurrency Suite (`concurrency.zig`)
+### Concurrency Suite (`infrastructure/concurrency.zig`)
 
 Tests lock-free data structures:
 - Lock-free queue throughput
@@ -104,7 +118,7 @@ Tests lock-free data structures:
 zig build benchmarks -- --suite=concurrency
 ```
 
-### Database Suite (`database.zig`)
+### Database Suite (`domain/database/operations.zig`)
 
 WDBX vector database benchmarks:
 - Vector insertion (single/batch)
@@ -118,7 +132,7 @@ WDBX vector database benchmarks:
 zig build benchmarks -- --suite=database
 ```
 
-### Network Suite (`network.zig`)
+### Network Suite (`infrastructure/network.zig`)
 
 Network protocol benchmarks:
 - HTTP header parsing
@@ -130,7 +144,7 @@ Network protocol benchmarks:
 zig build benchmarks -- --suite=network
 ```
 
-### Crypto Suite (`crypto.zig`)
+### Crypto Suite (`infrastructure/crypto.zig`)
 
 Cryptographic operation benchmarks:
 - SHA-256/SHA-512 hashing
@@ -143,7 +157,7 @@ Cryptographic operation benchmarks:
 zig build benchmarks -- --suite=crypto
 ```
 
-### AI Suite (`ai.zig`)
+### AI Suite (`domain/ai/kernels.zig`, `domain/ai/llm_metrics.zig`)
 
 Machine learning operation benchmarks:
 - GEMM (General Matrix Multiply)
@@ -156,12 +170,21 @@ Machine learning operation benchmarks:
 zig build benchmarks -- --suite=ai
 ```
 
+<<<<<<< HEAD
 ### GPU Suite (`gpu.zig`)
 
 GPU-related benchmarks:
 - Backend availability checks
 - Kernel throughput comparisons
 - GPU vs CPU baselines
+=======
+### GPU Suite (`domain/gpu/backends.zig`, `domain/gpu/kernels.zig`)
+
+GPU backend and kernel benchmarks:
+- Backend comparison (throughput + latency)
+- Kernel execution (matmul, elementwise, reductions)
+- GPU vs CPU comparisons
+>>>>>>> origin/cursor/ai-module-source-organization-0282
 
 ```bash
 zig build benchmarks -- --suite=gpu
@@ -202,7 +225,11 @@ zig build benchmarks -- [OPTIONS]
 
 OPTIONS:
   --suite=<name>    Run specific suite (simd, memory, concurrency, database, network, crypto, ai, gpu)
+<<<<<<< HEAD
   --quick           Run quick subset for CI
+=======
+  --quick           Run with reduced iterations
+>>>>>>> origin/cursor/ai-module-source-organization-0282
   --verbose         Show detailed output
   --json            Output results as JSON to stdout
   --output=<file>   Output results as JSON to a file

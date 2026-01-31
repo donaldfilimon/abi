@@ -24,10 +24,15 @@ pub const embeddings = @import("embeddings/stub.zig");
 pub const agents = @import("agents/stub.zig");
 pub const training = @import("training/stub.zig");
 pub const database = @import("database/stub.zig");
+pub const documents = @import("documents/stub.zig");
 pub const vision = @import("vision/stub.zig");
 pub const orchestration = @import("orchestration/stub.zig");
 pub const multi_agent = @import("multi_agent/stub.zig");
 pub const models = @import("models/stub.zig");
+pub const personas = @import("personas/stub.zig");
+pub const rag = @import("rag/stub.zig");
+pub const templates = @import("templates/stub.zig");
+pub const eval = @import("eval/stub.zig");
 
 // Multi-agent re-exports
 pub const MultiAgentCoordinator = multi_agent.Coordinator;
@@ -102,18 +107,51 @@ pub const agent = struct {
 
 // Model registry module stub
 pub const model_registry = struct {
-    pub const ModelInfo = struct {};
-    pub const ModelRegistry = struct {};
+    pub const ModelRegistryError = error{
+        DuplicateModel,
+    };
+
+    pub const ModelInfo = struct {
+        name: []const u8 = "",
+        parameters: u64 = 0,
+        description: []const u8 = "",
+    };
+
+    pub const ModelRegistry = struct {
+        pub fn init(_: std.mem.Allocator) ModelRegistry {
+            return .{};
+        }
+
+        pub fn deinit(_: *ModelRegistry) void {}
+
+        pub fn register(_: *ModelRegistry, _: ModelInfo) ModelRegistryError!void {}
+
+        pub fn find(_: *ModelRegistry, _: []const u8) ?ModelInfo {
+            return null;
+        }
+
+        pub fn update(_: *ModelRegistry, _: ModelInfo) !bool {
+            return false;
+        }
+
+        pub fn remove(_: *ModelRegistry, _: []const u8) bool {
+            return false;
+        }
+
+        pub fn list(_: *ModelRegistry) []const ModelInfo {
+            return &.{};
+        }
+
+        pub fn count(_: *ModelRegistry) usize {
+            return 0;
+        }
+    };
 };
 
 // Stub types
 pub const Agent = struct {};
-pub const ModelRegistry = struct {
-    pub fn init(_: std.mem.Allocator) ModelRegistry {
-        return .{};
-    }
-};
-pub const ModelInfo = struct {};
+pub const ModelRegistry = model_registry.ModelRegistry;
+pub const ModelInfo = model_registry.ModelInfo;
 pub const TrainingConfig = training.TrainingConfig;
 pub const TrainingReport = training.TrainingReport;
 pub const TrainingResult = training.TrainingResult;
@@ -126,6 +164,11 @@ pub const LlmTrainingConfig = training.LlmTrainingConfig;
 pub const LlamaTrainer = training.LlamaTrainer;
 pub const TrainableModel = training.TrainableModel;
 pub const TokenizedDataset = training.TokenizedDataset;
+pub const DataLoader = training.DataLoader;
+pub const BatchIterator = training.BatchIterator;
+pub const Batch = training.Batch;
+pub const SequencePacker = training.SequencePacker;
+pub const parseInstructionDataset = training.parseInstructionDataset;
 pub const WdbxTokenDataset = database.WdbxTokenDataset;
 pub const TokenBlock = training.TokenBlock;
 pub const encodeTokenBlock = training.encodeTokenBlock;
@@ -232,6 +275,48 @@ pub const TrainableViTModel = struct {
 
     /// Apply SGD update.
     pub fn applySgdUpdate(_: *TrainableViTModel, _: f32) void {}
+};
+
+/// Trainable Vision Transformer layer weights (stub).
+pub const TrainableViTLayerWeights = struct {
+    pub fn init(_: std.mem.Allocator, _: vision.ViTConfig) !TrainableViTLayerWeights {
+        return error.VisionDisabled;
+    }
+
+    pub fn deinit(_: *TrainableViTLayerWeights) void {}
+
+    pub fn zeroGradients(_: *TrainableViTLayerWeights) void {}
+};
+
+/// Trainable Vision Transformer weights (stub).
+pub const TrainableViTWeights = struct {
+    allocator: std.mem.Allocator,
+    patch_proj: []f32 = &.{},
+    d_patch_proj: []f32 = &.{},
+    pos_embed: []f32 = &.{},
+    d_pos_embed: []f32 = &.{},
+    cls_token: ?[]f32 = null,
+    d_cls_token: ?[]f32 = null,
+    layers: []TrainableViTLayerWeights = &.{},
+    final_ln_weight: []f32 = &.{},
+    final_ln_bias: []f32 = &.{},
+    d_final_ln_weight: []f32 = &.{},
+    d_final_ln_bias: []f32 = &.{},
+    classifier_weight: ?[]f32 = null,
+    classifier_bias: ?[]f32 = null,
+    d_classifier_weight: ?[]f32 = null,
+    d_classifier_bias: ?[]f32 = null,
+    projection_weight: ?[]f32 = null,
+    d_projection_weight: ?[]f32 = null,
+
+    pub fn init(allocator: std.mem.Allocator, _: TrainableViTConfig) !TrainableViTWeights {
+        _ = allocator;
+        return error.VisionDisabled;
+    }
+
+    pub fn deinit(_: *TrainableViTWeights) void {}
+
+    pub fn zeroGradients(_: *TrainableViTWeights) void {}
 };
 
 /// Multimodal training error type (stub).
@@ -473,11 +558,11 @@ pub const StreamingServer = streaming.StreamingServer;
 pub const StreamingServerError = streaming.StreamingServerError;
 pub const BackendType = streaming.BackendType;
 
-pub const LlmEngine = struct {};
-pub const LlmModel = struct {};
-pub const LlmConfig = struct {};
-pub const GgufFile = struct {};
-pub const BpeTokenizer = struct {};
+pub const LlmEngine = llm.Engine;
+pub const LlmModel = llm.Model;
+pub const LlmConfig = llm.InferenceConfig;
+pub const GgufFile = llm.GgufFile;
+pub const BpeTokenizer = llm.BpeTokenizer;
 
 pub const prompts = struct {
     const Self = @This();
@@ -773,10 +858,492 @@ pub const memory = struct {
     pub const SessionConfig = persistence.SessionConfig;
     pub const PersistenceError = persistence.PersistenceError;
 };
-pub const federated = struct {};
-pub const rag = struct {};
-pub const templates = struct {};
-pub const eval = struct {};
+pub const federated = struct {
+    pub const NodeInfo = struct {
+        id: []const u8 = "",
+        last_update: i64 = 0,
+    };
+
+    pub const Registry = struct {
+        allocator: std.mem.Allocator,
+        nodes: std.ArrayListUnmanaged(NodeInfo) = .empty,
+
+        pub fn init(allocator: std.mem.Allocator) Registry {
+            return .{ .allocator = allocator };
+        }
+
+        pub fn deinit(_: *Registry) void {}
+
+        pub fn touch(_: *Registry, _: []const u8) !void {
+            return error.AiDisabled;
+        }
+
+        pub fn remove(_: *Registry, _: []const u8) bool {
+            return false;
+        }
+
+        pub fn list(_: *const Registry) []const NodeInfo {
+            return &.{};
+        }
+
+        pub fn count(_: *const Registry) usize {
+            return 0;
+        }
+
+        pub fn prune(_: *Registry, _: i64) usize {
+            return 0;
+        }
+    };
+
+    pub const CoordinatorError = error{
+        InsufficientUpdates,
+        InvalidUpdate,
+    };
+
+    pub const AggregationStrategy = enum {
+        mean,
+        weighted_mean,
+    };
+
+    pub const ModelUpdateView = struct {
+        node_id: []const u8,
+        step: u64,
+        weights: []const f32,
+        sample_count: u32 = 1,
+    };
+
+    pub const ModelUpdate = struct {
+        node_id: []const u8,
+        step: u64,
+        timestamp: u64 = 0,
+        weights: []f32,
+        sample_count: u32 = 0,
+
+        pub fn deinit(_: *ModelUpdate, _: std.mem.Allocator) void {}
+    };
+
+    pub const CoordinatorConfig = struct {
+        min_updates: usize = 1,
+        max_updates: usize = 64,
+        max_staleness_seconds: u64 = 300,
+        strategy: AggregationStrategy = .mean,
+    };
+
+    pub const Coordinator = struct {
+        allocator: std.mem.Allocator,
+        registry: Registry,
+        updates: std.ArrayListUnmanaged(ModelUpdate) = .empty,
+        global_weights: []f32 = &.{},
+        scratch: []f32 = &.{},
+        config: CoordinatorConfig = .{},
+        current_step: u64 = 0,
+
+        pub fn init(
+            allocator: std.mem.Allocator,
+            config: CoordinatorConfig,
+            _: usize,
+        ) !Coordinator {
+            return .{
+                .allocator = allocator,
+                .registry = Registry.init(allocator),
+                .config = config,
+            };
+        }
+
+        pub fn deinit(_: *Coordinator) void {}
+
+        pub fn registerNode(_: *Coordinator, _: []const u8) !void {
+            return error.AiDisabled;
+        }
+
+        pub fn submitUpdate(_: *Coordinator, _: ModelUpdateView) !void {
+            return error.AiDisabled;
+        }
+
+        pub fn aggregate(_: *Coordinator) CoordinatorError![]const f32 {
+            return error.InsufficientUpdates;
+        }
+
+        pub fn globalWeights(_: *const Coordinator) []const f32 {
+            return &.{};
+        }
+
+        pub fn step(_: *const Coordinator) u64 {
+            return 0;
+        }
+    };
+};
+
+pub const discovery = struct {
+    pub const DiscoveryConfig = struct {
+        custom_paths: []const []const u8 = &.{},
+        recursive: bool = true,
+        max_depth: u32 = 5,
+        extensions: []const []const u8 = &.{ ".gguf", ".bin", ".safetensors" },
+        validate_files: bool = false,
+        validation_timeout_ms: u32 = 0,
+    };
+
+    pub const DiscoveredModel = struct {
+        path: []const u8 = "",
+        name: []const u8 = "",
+        size_bytes: u64 = 0,
+        format: ModelFormat = .unknown,
+        estimated_params: ?u64 = null,
+        quantization: ?QuantizationType = null,
+        validated: bool = false,
+        modified_time: i128 = 0,
+
+        pub fn deinit(_: *DiscoveredModel, _: std.mem.Allocator) void {}
+    };
+
+    pub const ModelFormat = enum {
+        gguf,
+        safetensors,
+        pytorch_bin,
+        onnx,
+        unknown,
+
+        pub fn fromExtension(_: []const u8) ModelFormat {
+            return .unknown;
+        }
+    };
+
+    pub const QuantizationType = enum {
+        f32,
+        f16,
+        q8_0,
+        q8_1,
+        q5_0,
+        q5_1,
+        q4_0,
+        q4_1,
+        q4_k_m,
+        q4_k_s,
+        q5_k_m,
+        q5_k_s,
+        q6_k,
+        q2_k,
+        q3_k_m,
+        q3_k_s,
+        iq2_xxs,
+        iq2_xs,
+        iq3_xxs,
+        unknown,
+
+        pub fn bitsPerWeight(_: QuantizationType) f32 {
+            return 0.0;
+        }
+    };
+
+    pub const SystemCapabilities = struct {
+        cpu_cores: u32 = 1,
+        total_ram_bytes: u64 = 0,
+        available_ram_bytes: u64 = 0,
+        gpu_available: bool = false,
+        gpu_memory_bytes: u64 = 0,
+        gpu_compute_capability: ?f32 = null,
+        avx2_available: bool = false,
+        avx512_available: bool = false,
+        neon_available: bool = false,
+        os: std.Target.Os.Tag = .linux,
+        arch: std.Target.Cpu.Arch = .x86_64,
+
+        pub fn maxModelSize(_: SystemCapabilities) u64 {
+            return 0;
+        }
+
+        pub fn recommendedThreads(_: SystemCapabilities) u32 {
+            return 1;
+        }
+
+        pub fn recommendedBatchSize(_: SystemCapabilities, _: u64) u32 {
+            return 1;
+        }
+    };
+
+    pub const AdaptiveConfig = struct {
+        num_threads: u32 = 1,
+        batch_size: u32 = 1,
+        context_length: u32 = 2048,
+        use_gpu: bool = false,
+        use_mmap: bool = true,
+        mlock: bool = false,
+        kv_cache_type: KvCacheType = .standard,
+        flash_attention: bool = false,
+        tensor_parallel: u32 = 1,
+        prefill_chunk_size: u32 = 512,
+
+        pub const KvCacheType = enum {
+            standard,
+            sliding_window,
+            paged,
+        };
+    };
+
+    pub const ModelRequirements = struct {
+        min_ram_bytes: u64 = 0,
+        min_gpu_memory_bytes: u64 = 0,
+        min_compute_capability: f32 = 0,
+        requires_avx2: bool = false,
+        requires_avx512: bool = false,
+        recommended_context: u32 = 2048,
+    };
+
+    pub const WarmupResult = struct {
+        load_time_ms: u64 = 0,
+        first_inference_ms: u64 = 0,
+        tokens_per_second: f32 = 0,
+        memory_usage_bytes: u64 = 0,
+        success: bool = false,
+        error_message: ?[]const u8 = null,
+        recommended_config: ?AdaptiveConfig = null,
+    };
+
+    pub const ModelDiscovery = struct {
+        allocator: std.mem.Allocator,
+        config: DiscoveryConfig,
+        discovered_models: std.ArrayListUnmanaged(DiscoveredModel) = .empty,
+        capabilities: SystemCapabilities = .{},
+
+        pub fn init(allocator: std.mem.Allocator, config: DiscoveryConfig) ModelDiscovery {
+            return .{
+                .allocator = allocator,
+                .config = config,
+                .discovered_models = .empty,
+                .capabilities = detectCapabilities(),
+            };
+        }
+
+        pub fn deinit(_: *ModelDiscovery) void {}
+
+        pub fn scanAll(_: *ModelDiscovery) !void {
+            return error.AiDisabled;
+        }
+
+        pub fn scanPath(_: *ModelDiscovery, _: []const u8) !void {
+            return error.AiDisabled;
+        }
+
+        pub fn addModelPath(_: *ModelDiscovery, _: []const u8) !void {
+            return error.AiDisabled;
+        }
+
+        pub fn addModelWithSize(_: *ModelDiscovery, _: []const u8, _: u64) !void {
+            return error.AiDisabled;
+        }
+
+        pub fn findBestModel(_: *ModelDiscovery, _: ModelRequirements) ?*DiscoveredModel {
+            return null;
+        }
+
+        pub fn generateConfig(_: *ModelDiscovery, _: *const DiscoveredModel) AdaptiveConfig {
+            return .{};
+        }
+
+        pub fn getModels(_: *ModelDiscovery) []DiscoveredModel {
+            return &.{};
+        }
+
+        pub fn modelCount(_: *ModelDiscovery) usize {
+            return 0;
+        }
+    };
+
+    pub fn detectCapabilities() SystemCapabilities {
+        return .{};
+    }
+
+    pub fn runWarmup(_: std.mem.Allocator, _: []const u8, _: AdaptiveConfig) WarmupResult {
+        return .{};
+    }
+};
+
+pub const gpu_agent = struct {
+    pub const WorkloadType = enum {
+        inference,
+        training,
+        embedding,
+        fine_tuning,
+        batch_inference,
+
+        pub fn gpuIntensive(self: WorkloadType) bool {
+            return switch (self) {
+                .training, .fine_tuning => true,
+                .inference, .embedding, .batch_inference => false,
+            };
+        }
+
+        pub fn memoryIntensive(self: WorkloadType) bool {
+            return switch (self) {
+                .training, .fine_tuning, .batch_inference => true,
+                .inference, .embedding => false,
+            };
+        }
+
+        pub fn name(self: WorkloadType) []const u8 {
+            return switch (self) {
+                .inference => "Inference",
+                .training => "Training",
+                .embedding => "Embedding",
+                .fine_tuning => "FineTuning",
+                .batch_inference => "BatchInference",
+            };
+        }
+    };
+
+    pub const Priority = enum {
+        low,
+        normal,
+        high,
+        critical,
+
+        pub fn weight(self: Priority) f32 {
+            return switch (self) {
+                .low => 0.25,
+                .normal => 1.0,
+                .high => 2.0,
+                .critical => 4.0,
+            };
+        }
+
+        pub fn name(self: Priority) []const u8 {
+            return switch (self) {
+                .low => "Low",
+                .normal => "Normal",
+                .high => "High",
+                .critical => "Critical",
+            };
+        }
+    };
+
+    pub const GpuAwareRequest = struct {
+        prompt: []const u8,
+        workload_type: WorkloadType,
+        priority: Priority = .normal,
+        max_tokens: u32 = 1024,
+        temperature: f32 = 0.7,
+        memory_hint_mb: ?u64 = null,
+        preferred_backend: ?[]const u8 = null,
+        model_id: ?[]const u8 = null,
+        stream: bool = false,
+        timeout_ms: u64 = 0,
+    };
+
+    pub const GpuAwareResponse = struct {
+        content: []const u8 = "",
+        tokens_generated: u32 = 0,
+        latency_ms: u64 = 0,
+        gpu_backend_used: []const u8 = "cpu",
+        gpu_memory_used_mb: u64 = 0,
+        scheduling_confidence: f32 = 0.0,
+        energy_estimate_wh: ?f32 = null,
+        device_id: u32 = 0,
+        truncated: bool = false,
+        error_message: ?[]const u8 = null,
+    };
+
+    pub const AgentStats = struct {
+        total_requests: u64 = 0,
+        gpu_accelerated: u64 = 0,
+        cpu_fallback: u64 = 0,
+        total_tokens: u64 = 0,
+        total_latency_ms: u64 = 0,
+        learning_episodes: u64 = 0,
+        avg_scheduling_confidence: f32 = 0,
+        avg_latency_ms: f32 = 0,
+        failed_requests: u64 = 0,
+        total_gpu_memory_mb: u64 = 0,
+
+        pub fn updateConfidence(_: *AgentStats, _: f32) void {}
+
+        pub fn updateLatency(_: *AgentStats, _: u64) void {}
+
+        pub fn successRate(_: AgentStats) f32 {
+            return 0.0;
+        }
+
+        pub fn gpuUtilizationRate(_: AgentStats) f32 {
+            return 0.0;
+        }
+
+        pub fn avgTokensPerRequest(_: AgentStats) f32 {
+            return 0.0;
+        }
+    };
+
+    pub const GpuAgent = struct {
+        allocator: std.mem.Allocator,
+        stats: AgentStats = .{},
+        gpu_enabled: bool = false,
+        gpu_coordinator: ?*anyopaque = null,
+        learning_scheduler: ?*anyopaque = null,
+        response_buffer: std.ArrayListUnmanaged(u8) = .empty,
+        default_timeout_ms: u64 = 30000,
+        enable_learning: bool = false,
+
+        pub fn init(_: std.mem.Allocator) !*GpuAgent {
+            return error.AiDisabled;
+        }
+
+        pub fn initWithConfig(
+            _: std.mem.Allocator,
+            _: struct {
+                default_timeout_ms: u64 = 30000,
+                enable_learning: bool = true,
+            },
+        ) !*GpuAgent {
+            return error.AiDisabled;
+        }
+
+        pub fn deinit(_: *GpuAgent) void {}
+
+        pub fn process(_: *GpuAgent, _: GpuAwareRequest) !GpuAwareResponse {
+            return error.AiDisabled;
+        }
+
+        pub fn getStats(self: *const GpuAgent) AgentStats {
+            return self.stats;
+        }
+
+        pub fn isGpuEnabled(_: *const GpuAgent) bool {
+            return false;
+        }
+
+        pub fn isLearningEnabled(_: *const GpuAgent) bool {
+            return false;
+        }
+
+        pub fn endEpisode(_: *GpuAgent) void {}
+
+        pub fn resetStats(self: *GpuAgent) void {
+            self.stats = .{};
+        }
+
+        pub fn getBackendsSummary(_: *GpuAgent, _: std.mem.Allocator) ![]const BackendInfo {
+            return error.AiDisabled;
+        }
+
+        pub fn getLearningStats(_: *GpuAgent) ?LearningStatsInfo {
+            return null;
+        }
+
+        pub const BackendInfo = struct {
+            name: []const u8 = "",
+            device_count: u32 = 0,
+            total_memory_mb: u64 = 0,
+            available_memory_mb: u64 = 0,
+            is_healthy: bool = false,
+        };
+
+        pub const LearningStatsInfo = struct {
+            episodes: usize = 0,
+            avg_episode_reward: f32 = 0,
+            exploration_rate: f32 = 0,
+            replay_buffer_size: usize = 0,
+        };
+    };
+};
 
 // Orchestration - Multi-model coordination (stub re-exports)
 pub const Orchestrator = orchestration.Orchestrator;
@@ -793,8 +1360,42 @@ pub const ModelBackend = orchestration.ModelBackend;
 pub const ModelCapability = orchestration.Capability;
 pub const OrchestrationModelConfig = orchestration.ModelConfig;
 
+// GPU-Aware Agent types
+pub const GpuAgent = gpu_agent.GpuAgent;
+pub const GpuAwareRequest = gpu_agent.GpuAwareRequest;
+pub const GpuAwareResponse = gpu_agent.GpuAwareResponse;
+pub const WorkloadType = gpu_agent.WorkloadType;
+pub const GpuAgentPriority = gpu_agent.Priority;
+pub const GpuAgentStats = gpu_agent.AgentStats;
+
+// Model Auto-Discovery and Adaptive Configuration
+pub const ModelDiscovery = discovery.ModelDiscovery;
+pub const DiscoveredModel = discovery.DiscoveredModel;
+pub const DiscoveryConfig = discovery.DiscoveryConfig;
+pub const SystemCapabilities = discovery.SystemCapabilities;
+pub const AdaptiveConfig = discovery.AdaptiveConfig;
+pub const ModelRequirements = discovery.ModelRequirements;
+pub const WarmupResult = discovery.WarmupResult;
+pub const detectCapabilities = discovery.detectCapabilities;
+pub const runWarmup = discovery.runWarmup;
+
+// Document Understanding
+pub const DocumentPipeline = documents.DocumentPipeline;
+pub const Document = documents.Document;
+pub const DocumentFormat = documents.DocumentFormat;
+pub const DocumentElement = documents.DocumentElement;
+pub const ElementType = documents.ElementType;
+pub const TextSegment = documents.TextSegment;
+pub const TextSegmenter = documents.TextSegmenter;
+pub const NamedEntity = documents.NamedEntity;
+pub const EntityType = documents.EntityType;
+pub const EntityExtractor = documents.EntityExtractor;
+pub const LayoutAnalyzer = documents.LayoutAnalyzer;
+pub const PipelineConfig = documents.PipelineConfig;
+pub const SegmentationConfig = documents.SegmentationConfig;
+
 pub const Context = struct {
-    pub const SubFeature = enum { llm, embeddings, agents, training };
+    pub const SubFeature = enum { llm, embeddings, agents, training, personas };
 
     pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) Error!*Context {
         return error.AiDisabled;
@@ -818,9 +1419,43 @@ pub const Context = struct {
         return error.AiDisabled;
     }
 
+    pub fn getPersonas(_: *Context) Error!*personas.Context {
+        return error.AiDisabled;
+    }
+
     pub fn isSubFeatureEnabled(_: *Context, _: SubFeature) bool {
         return false;
     }
+
+    pub fn getDiscoveredModels(_: *Context) []discovery.DiscoveredModel {
+        return &.{};
+    }
+
+    pub fn discoveredModelCount(_: *Context) usize {
+        return 0;
+    }
+
+    pub fn findBestModel(_: *Context, _: discovery.ModelRequirements) ?*discovery.DiscoveredModel {
+        return null;
+    }
+
+    pub fn generateAdaptiveConfig(_: *Context, _: *const discovery.DiscoveredModel) discovery.AdaptiveConfig {
+        return .{};
+    }
+
+    pub fn getCapabilities(_: *const Context) discovery.SystemCapabilities {
+        return .{};
+    }
+
+    pub fn addModelPath(_: *Context, _: []const u8) !void {
+        return error.AiDisabled;
+    }
+
+    pub fn addModelWithSize(_: *Context, _: []const u8, _: u64) !void {
+        return error.AiDisabled;
+    }
+
+    pub fn clearDiscoveredModels(_: *Context) void {}
 };
 
 pub fn isEnabled() bool {
