@@ -470,7 +470,7 @@ See [bindings/c/README.md](bindings/c/README.md) for full API reference.
 | [Database Guide](docs/database.md) | WDBX vector database |
 | [Network Guide](docs/network.md) | Distributed compute |
 | [Streaming Guide](docs/streaming.md) | SSE/WebSocket streaming |
-| [Migration Guide](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
+| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues |
 
 ```bash

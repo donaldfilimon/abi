@@ -73,7 +73,7 @@ src/
 
 ## Zig 0.16 Patterns (CRITICAL)
 
-> See `docs/migration/zig-0.16-migration.md` for comprehensive examples.
+See `CLAUDE.md` for current Zig 0.16 patterns and examples.
 
 ### I/O Backend Initialization
 

@@ -282,7 +282,7 @@ zig build run -- agent --info
 - [AI Module Guide](ai.md) - Full AI module documentation
 - [Explore Guide](explore.md) - Codebase exploration with AI
 - [Framework Guide](framework.md) - Configuration and initialization
-- [Zig 0.16 Migration](migration/zig-0.16-migration.md) - Full migration guide
+- [Developer Guide](../CLAUDE.md) - Zig 0.16 patterns and project conventions
 
 ---
 
@@ -290,4 +290,3 @@ zig build run -- agent --info
   <a href="docs-index.md">&larr; Documentation Index</a> &bull;
   <a href="ai.md">AI Guide &rarr;</a>
 </p>
-

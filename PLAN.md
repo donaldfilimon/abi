@@ -116,7 +116,7 @@ Potential focus areas for upcoming work:
 - **VS Code extension** - Build/test integration, AI chat sidebar webview, GPU status tree view, custom task provider (2026-01-24)
 - **npm WASM package** - @abi-framework/wasm v0.4.0 with updated README (2026-01-24)
 - **Python bindings expansion** - Streaming FFI layer, training API with context manager, pyproject.toml for PyPI (2026-01-24)
-- **Mega GPU + TUI + Self-Learning Agent Upgrade** - Full Q-learning scheduler, cross-backend coordinator, TUI widgets, dashboard command (2026-01-24)
+- **Mega GPU Orchestration + TUI + Learning Agent Upgrade** - Full Q-learning scheduler, cross-backend coordinator, TUI widgets, dashboard command (2026-01-24)
 - **Vulkan backend consolidation** - Single `vulkan.zig` module (1,387 lines) with VTable, types, init, cache stubs (2026-01-24)
 - **SIMD and std.gpu expansion** - Integer @Vector ops, FMA, element-wise ops, subgroup operations, vector type utilities (2026-01-24)
 - **GPU performance refactor** - Memory pool best-fit allocation, lock-free metrics, adaptive tiling for matrix ops, auto-apply kernel fusion (2026-01-24)

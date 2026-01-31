@@ -43,7 +43,7 @@ pub const Response = struct {
 };
 
 pub fn parseMethod(text: []const u8) ?Method {
-    comptime std.debug.assert(@typeInfo(Method) == .Enum);
+    comptime std.debug.assert(@typeInfo(Method) == .@"enum");
     comptime std.debug.assert(std.enums.values(Method).len == 7); // All HTTP methods covered
 
     if (std.ascii.eqlIgnoreCase(text, "GET")) return .get;

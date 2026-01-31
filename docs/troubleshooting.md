@@ -320,7 +320,7 @@ const content = try std.Io.Dir.cwd().readFileAlloc(
 defer allocator.free(content);
 ```
 
-See [Zig 0.16 Migration Guide](migration/zig-0.16-migration.md) for full details.
+See [CLAUDE.md](../CLAUDE.md) for Zig 0.16 patterns and examples.
 
 ---
 
@@ -597,6 +597,5 @@ If your issue isn't covered here:
 
 - [Framework](framework.md) - Configuration options
 - [Monitoring](monitoring.md) - Debugging with metrics
-- [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API changes
+- [Developer Guide](../CLAUDE.md) - Zig 0.16 patterns and API conventions
 - [Performance Baseline](PERFORMANCE_BASELINE.md) - Expected performance
-

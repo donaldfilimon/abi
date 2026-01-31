@@ -193,7 +193,7 @@ See [TODO.md](../TODO.md) for the comprehensive project task list.
 
 ### Quick Links
 
-- [Zig 0.16 Migration Guide](migration/zig-0.16-migration.md) - Full migration documentation
+- [Developer Guide](../CLAUDE.md) - Zig 0.16 patterns and project conventions
 - [Framework Guide](framework.md) - Configuration and initialization
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
@@ -202,4 +202,3 @@ See [TODO.md](../TODO.md) for the comprehensive project task list.
 <p align="center">
   <a href="docs-index.md">&larr; Documentation Index</a>
 </p>
-

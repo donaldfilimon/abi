@@ -138,7 +138,7 @@ tags: [planning, roadmap]
   - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
   - [x] Modular codebase structure (completed 2026-01-17)
   - [x] Vulkan backend consolidation documentation – completed
- - [x] Mega GPU + TUI + Self-Learning Agent Upgrade – COMPLETE (2026-01-24)
+ - [x] Mega GPU Orchestration + TUI + Learning Agent Upgrade – COMPLETE (2026-01-24)
    - [x] Cross-backend GPU coordinator (`src/gpu/mega/coordinator.zig`)
    - [x] Learning-based scheduler with Q-learning (`src/gpu/mega/scheduler.zig`)
    - [x] GPU monitor TUI widget (`tools/cli/tui/gpu_monitor.zig`)
@@ -281,7 +281,7 @@ All Zig 0.16 API migrations are complete:
 - [x] CI/CD pinned to Zig 0.16.x
 - [x] Feature stub API parity (2026-01-17)
 
-See `docs/migration/zig-0.16-migration.md` for detailed migration guide.
+See `CLAUDE.md` for current Zig 0.16 I/O patterns and examples.
 
 ### Code Quality & Refactoring (2026-01-17)
 
@@ -307,7 +307,7 @@ All feature-gated stubs have been audited and updated for API parity:
 For detailed implementation notes, see:
 - [CLAUDE.md](CLAUDE.md) - Developer guidelines and architecture reference
 - [docs/troubleshooting.md](docs/troubleshooting.md) - Debugging and GDB/LLDB support
-- [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 migration guide
+- [CLAUDE.md](CLAUDE.md) - Zig 0.16 patterns and developer guidance
 - [docs/research/](docs/research/) - Research partnerships and publications
 - [docs/governance/](docs/governance/) - RFC process and community governance
 - [docs/education/](docs/education/) - Training courses and certification

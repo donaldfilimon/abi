@@ -342,7 +342,7 @@ Key features: gradient clipping, mixed precision (FP16/BF16), contrastive learni
 
 ## Zig 0.16 Patterns
 
-> See [docs/migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) for comprehensive examples.
+Current patterns are documented below; additional examples live in `examples/`.
 
 ### I/O Backend Initialization (CRITICAL)
 
@@ -736,12 +736,10 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 
 ## Reference
 
-Key documentation (all in `docs/`):
-- [PLAN.md](PLAN.md) - Development roadmap and sprint status
+Key documentation:
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
 - [deployment.md](docs/deployment.md) - Production deployment guide
 - [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security audit findings and status
-- [migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 I/O patterns (critical)
 - [troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
 - [gpu.md](docs/gpu.md) - GPU backend details
 - [ai.md](docs/ai.md) - AI module and agents guide

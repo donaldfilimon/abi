@@ -37,7 +37,6 @@ tags: [documentation, index, navigation]
 
 | Document | Description | Status |
 |----------|-------------|--------|
-| [Zig 0.16 Migration](migration/zig-0.16-migration.md) | Migration patterns and best practices | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Performance Baseline](PERFORMANCE_BASELINE.md) | Benchmark measurements | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [Benchmarking Guide](benchmarking.md) | Running benchmark suites and interpreting output | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | [GPU Backend Details](gpu-backend-improvements.md) | Implementation specifics | ![Complete](https://img.shields.io/badge/-Complete-success) |
