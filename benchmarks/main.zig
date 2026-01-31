@@ -182,8 +182,7 @@ fn writeJsonReport(
 ) !void {
     try writer.writeAll("{\n  \"metadata\": {\n    \"suite\": ");
     try std.json.Stringify.encodeJsonString(meta.suite, .{}, writer);
-    try std.fmt.format(
-        writer,
+    try writer.print(
         ",\n    \"quick\": {s},\n    \"duration_ns\": {d},\n    \"duration_sec\": {d:.4},\n    \"benchmarks\": {d}\n  },\n  \"benchmarks\": [\n",
         .{
             if (meta.quick) "true" else "false",
