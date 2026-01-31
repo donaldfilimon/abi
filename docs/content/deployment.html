@@ -1,0 +1,25 @@
+<p>
+ABI can run as a local CLI, a long running service, or inside containers. The
+deployment path depends on which modules you enable.
+</p>
+
+<h2>Docker</h2>
+<pre><code>docker compose up -d abi
+docker compose up -d abi-gpu
+</code></pre>
+
+<h2>Feature tuning</h2>
+<p>
+Trim unused modules at build time and keep runtime configuration minimal for
+production. Use environment variables to keep secrets out of config files.
+</p>
+<pre><code>zig build -Denable-ai=true -Denable-network=false
+export ABI_MASTER_KEY="change-me"
+</code></pre>
+
+<h2>Operational checklist</h2>
+<ul>
+    <li>Pin GPU backends to known compatible drivers</li>
+    <li>Store model and database files on fast disks</li>
+    <li>Enable observability before exposing public endpoints</li>
+</ul>

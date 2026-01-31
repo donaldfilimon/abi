@@ -220,8 +220,7 @@ const example_targets = [_]BuildTarget{
     .{ .name = "example-train-ava", .step_name = "run-train-ava", .description = "Train Ava assistant from gpt-oss", .source_path = "examples/train_ava.zig" },
     .{ .name = "example-concurrency", .step_name = "run-concurrency", .description = "Run concurrency primitives example", .source_path = "examples/concurrency.zig" },
     .{ .name = "example-observability", .step_name = "run-observability", .description = "Run observability example", .source_path = "examples/observability.zig" },
-    // GPU example disabled pending unified_buffer.zig fix (backend type mismatch)
-    // .{ .name = "example-gpu", .step_name = "run-gpu", .description = "Run GPU example", .source_path = "examples/gpu.zig" },
+    .{ .name = "example-gpu", .step_name = "run-gpu", .description = "Run GPU example", .source_path = "examples/gpu.zig" },
 };
 
 const benchmark_targets = [_]BuildTarget{
@@ -452,11 +451,19 @@ pub fn build(b: *std.Build) void {
     }
 
     // Documentation - Static site generation
-    if (pathExists("tools/docgen/main.zig")) {
-        const docgen = b.addExecutable(.{ .name = "docgen", .root_module = b.createModule(.{ .root_source_file = b.path("tools/docgen/main.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
-        const run_docgen = b.addRunArtifact(docgen);
-        if (b.args) |args| run_docgen.addArgs(args);
-        b.step("docs-site", "Generate documentation website").dependOn(&run_docgen.step);
+    if (pathExists("tools/docs_site/main.zig")) {
+        const docs_site = b.addExecutable(.{
+            .name = "docs-site",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tools/docs_site/main.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            }),
+        });
+        const run_docs_site = b.addRunArtifact(docs_site);
+        if (b.args) |args| run_docs_site.addArgs(args);
+        b.step("docs-site", "Generate documentation website").dependOn(&run_docs_site.step);
     }
 
     // Profile build

@@ -2,6 +2,8 @@
 
 ## Project Structure & Module Organization
 - `src/` contains the core Zig 0.16 implementation. Nested modules should import dependencies via their parent `mod.zig` (parent exports, child imports).
+- Public API imports should use `@import("abi")` (avoid direct file paths).
+- When changing a feature module's public API, update both `mod.zig` and `stub.zig`.
 - `tests/` holds integration-style tests; unit tests also live alongside code as `*_test.zig`.
 - `benchmarks/` contains performance suites; `examples/` has runnable samples.
 - `docs/` and `tools/` host documentation and developer tooling.
@@ -15,6 +17,11 @@
 - `zig build full-check` — format + tests + CLI smoke tests.
 - `zig build bench-competitive` / `zig build benchmarks` — performance validation.
 - `zig build run -- --help` — run the CLI entry point.
+
+## Change Management
+- Run `git status` and `git diff --stat` before edits to review existing work.
+- Avoid reverting unrelated changes; ask if large or unclear diffs exist.
+- Use package managers to add new dependencies (latest versions).
 
 ## Coding Style & Naming Conventions
 - Indentation: 4 spaces, no tabs; keep lines under ~100 chars.

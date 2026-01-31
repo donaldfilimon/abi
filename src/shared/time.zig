@@ -128,6 +128,21 @@ pub fn nowMilliseconds() i64 {
     return nowMs();
 }
 
+/// Injectable time provider for tests and deterministic clocks.
+pub const TimeProvider = struct {
+    ctx: ?*anyopaque = null,
+    nowMsFn: *const fn (?*anyopaque) i64 = defaultNowMs,
+
+    pub fn nowMs(self: TimeProvider) i64 {
+        return self.nowMsFn(self.ctx);
+    }
+};
+
+fn defaultNowMs(ctx: ?*anyopaque) i64 {
+    _ = ctx;
+    return nowMs();
+}
+
 /// Sleep for a specified number of nanoseconds.
 /// On WASM, this is a no-op (can't block in WASM).
 pub fn sleepNs(ns: u64) void {

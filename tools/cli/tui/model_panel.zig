@@ -16,6 +16,7 @@ const events = @import("events.zig");
 const widgets = @import("widgets.zig");
 const box = widgets.box;
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
+const cli_io = @import("../utils/io_backend.zig");
 
 /// Model Management Panel for viewing and managing AI models
 pub const ModelManagementPanel = struct {
@@ -170,9 +171,7 @@ pub const ModelManagementPanel = struct {
         var manager = try abi.ai.models.Manager.init(self.allocator, .{ .auto_scan = false });
         defer manager.deinit();
 
-        var io_backend = std.Io.Threaded.init(self.allocator, .{
-            .environ = std.process.Environ.empty,
-        });
+        var io_backend = cli_io.initIoBackend(self.allocator);
         defer io_backend.deinit();
 
         manager.scanCacheDirWithIo(io_backend.io()) catch {};

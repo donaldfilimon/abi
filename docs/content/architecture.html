@@ -1,0 +1,27 @@
+<p>
+ABI is structured around feature modules that expose stable APIs. Modules can be
+enabled or disabled at build time without changing the public surface.
+</p>
+
+<h2>Module layout</h2>
+<ul>
+    <li>Core runtime: scheduling, concurrency, memory</li>
+    <li>AI module: agents, LLMs, streaming, training</li>
+    <li>GPU module: backend selection and kernel execution</li>
+    <li>Database module: vector storage and indexing</li>
+    <li>Network module: distributed compute and coordination</li>
+</ul>
+
+<h2>Stub pattern</h2>
+<p>
+Each feature module has a real implementation and a stub. When a feature is
+disabled, the stub keeps APIs intact and returns a feature disabled error. This
+keeps builds predictable and avoids conditional imports in user code.
+</p>
+
+<h2>Configuration and registry</h2>
+<p>
+The Config struct drives framework initialization. A registry layer handles
+feature lifecycle and validation, ensuring modules are started in the correct
+order and shut down cleanly.
+</p>

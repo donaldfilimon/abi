@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const shared_utils = abi.shared.utils;
 const utils = @import("../utils/mod.zig");
 
 // Type aliases for cleaner code
@@ -77,7 +78,7 @@ fn runAction(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     var progress = output.ProgressBar.start(count, "Processing");
     for (0..count) |i| {
         // Simulate work
-        std.time.sleep(100 * std.time.ns_per_ms);
+        shared_utils.sleepMs(100);
         progress.update(i + 1);
     }
 

@@ -1,40 +1,25 @@
----
-title: "Documentation Map"
-tags: [documentation, map, navigation]
----
-# Documentation Map
-> **Codebase Status:** Synced with repository as of 2026-01-30.
-> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [Quickstart](../QUICKSTART.md)
+# Documentation
 
-A guide to the docs layout and primary entry points.
+This directory is the source for the ABI documentation site.
 
-## Entry Points
+## Build
 
-- **Docs index**: `docs/docs-index.md` — curated table of contents
-- **Getting started**: `docs/intro.md` and `docs/tutorials/getting-started.md`
-- **API reference**: `docs/api/index.md`
-- **Architecture**: `docs/architecture/overview.md`
-- **Development patterns**: `CLAUDE.md`
+Generate the site with the custom Zig pipeline:
 
-## Directory Layout
+```
+zig build docs-site
+```
 
-| Path | Purpose |
-| --- | --- |
-| `docs/api/` | API reference pages (generated + curated) |
-| `docs/architecture/` | Architecture overviews and interfaces |
-| `docs/analysis/` | Deep-dive analysis and internal research notes |
-| `docs/diagrams/` | System and dataflow diagrams |
-| `docs/research/` | Long-form research notes and whitepapers |
-| `docs/tutorials/` | Guided walkthroughs and code examples |
-| `docs/training/` | Training and fine-tuning guides |
-| `docs/assets/` | Static assets for docs (CSS/JS) |
+Output is written to:
 
-## Conventions
+```
+zig-out/docs/
+```
 
-- Use relative links within `docs/`.
-- Keep API reference pages under `docs/api/`.
-- Prefer short, topic-first filenames (e.g., `gpu.md`, `ai-training.md`).
+MkDocs is no longer used for this site.
 
----
+## Layout
 
-Back to [docs index](docs-index.md).
+- `site.json` defines navigation and page metadata.
+- `content/` holds HTML fragments for each page.
+- `assets/` holds CSS and JavaScript.

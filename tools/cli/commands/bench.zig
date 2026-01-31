@@ -14,6 +14,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 /// Benchmark suite selection
 pub const BenchmarkSuite = enum {
@@ -1248,7 +1249,7 @@ fn outputJson(allocator: std.mem.Allocator, results: []const BenchResult, durati
 
     if (output_file) |path| {
         // Write to file
-        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = cli_io.initIoBackend(allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 

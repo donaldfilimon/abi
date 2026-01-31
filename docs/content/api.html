@@ -1,0 +1,23 @@
+<p>
+The public API surface is exposed through a single import. Feature modules are
+available as fields on the root module and follow stable naming patterns.
+</p>
+
+<h2>Import pattern</h2>
+<pre><code>const abi = @import("abi");
+</code></pre>
+
+<h2>Module access</h2>
+<ul>
+    <li><code>abi.ai</code> for AI and streaming</li>
+    <li><code>abi.gpu</code> for GPU backends</li>
+    <li><code>abi.database</code> for WDBX vectors</li>
+    <li><code>abi.network</code> for distributed compute</li>
+    <li><code>abi.shared</code> for shared utilities</li>
+</ul>
+
+<h2>Reference details</h2>
+<p>
+For a full API listing, see the repository level API_REFERENCE.md which is kept
+in sync with public exports.
+</p>

@@ -1,0 +1,24 @@
+<p>
+The database module implements WDBX, a vector database optimized for similarity
+search and embedding workflows. It supports multiple indexing strategies and
+batch ingestion.
+</p>
+
+<h2>Core operations</h2>
+<ul>
+    <li>Insert vectors with metadata</li>
+    <li>Similarity search with configurable distance metrics</li>
+    <li>Index rebuilds and optimization commands</li>
+</ul>
+
+<h2>CLI examples</h2>
+<pre><code>zig build run -- db add --file vectors.jsonl
+zig build run -- db query --text "hello world"
+zig build run -- db stats
+</code></pre>
+
+<h2>Backups</h2>
+<p>
+Use the CLI to create and restore snapshots before large migrations. Keep
+database paths on fast local storage when possible.
+</p>

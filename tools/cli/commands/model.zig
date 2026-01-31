@@ -15,6 +15,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 const model_subcommands = [_][]const u8{
     "list",
@@ -399,9 +400,7 @@ fn runPath(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
 fn scanModelDirectories(allocator: std.mem.Allocator, manager: *abi.ai.models.Manager) void {
     // Initialize I/O backend for directory scanning
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -453,9 +452,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
     std.debug.print("{s}Output:{s} {s}\n\n", .{ colors.dim, colors.reset, filename });
 
     // Initialize I/O backend for HTTP download
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

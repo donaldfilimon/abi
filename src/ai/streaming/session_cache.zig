@@ -36,6 +36,9 @@ pub const SessionCacheConfig = struct {
 
     /// Cleanup interval for expired sessions (milliseconds).
     cleanup_interval_ms: u64 = 60_000, // 1 minute
+
+    /// Optional time provider for deterministic tests.
+    time_provider: ?platform_time.TimeProvider = null,
 };
 
 /// A cached token with its event ID and timestamp.
@@ -88,17 +91,20 @@ pub const SessionCache = struct {
     sessions: std.StringHashMapUnmanaged(*SessionEntry),
     mutex: std.Thread.Mutex,
     last_cleanup_ms: i64,
+    time_provider: platform_time.TimeProvider,
 
     const Self = @This();
 
     /// Initialize a new session cache.
     pub fn init(allocator: std.mem.Allocator, config: SessionCacheConfig) Self {
+        const time_provider = config.time_provider orelse platform_time.TimeProvider{};
         return .{
             .allocator = allocator,
             .config = config,
             .sessions = .{},
             .mutex = .{},
-            .last_cleanup_ms = platform_time.nowMs(),
+            .last_cleanup_ms = time_provider.nowMs(),
+            .time_provider = time_provider,
         };
     }
 
@@ -128,7 +134,7 @@ pub const SessionCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = platform_time.nowMs();
+        const now = self.time_provider.nowMs();
 
         // Maybe run cleanup
         self.maybeCleanupLocked(now);
@@ -147,7 +153,7 @@ pub const SessionCache = struct {
 
             entry.* = .{
                 .session_id = try self.allocator.dupe(u8, session_id),
-                .tokens = .{},
+                .tokens = .empty,
                 .created_at_ms = now,
                 .last_accessed_ms = now,
                 .backend_type = backend_type,
@@ -190,7 +196,7 @@ pub const SessionCache = struct {
         const entry = self.sessions.get(session_id) orelse return null;
 
         // Check if expired
-        const now = platform_time.nowMs();
+        const now = self.time_provider.nowMs();
         const ttl: i64 = @intCast(self.config.ttl_ms);
         if (now - entry.created_at_ms > ttl) {
             return null;
@@ -226,7 +232,7 @@ pub const SessionCache = struct {
         const entry = self.sessions.get(session_id) orelse return null;
 
         // Check if expired
-        const now = platform_time.nowMs();
+        const now = self.time_provider.nowMs();
         const ttl: i64 = @intCast(self.config.ttl_ms);
         if (now - entry.created_at_ms > ttl) {
             return null;
@@ -259,7 +265,7 @@ pub const SessionCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = platform_time.nowMs();
+        const now = self.time_provider.nowMs();
         var total_tokens: usize = 0;
         var oldest_age: i64 = 0;
 
@@ -284,7 +290,7 @@ pub const SessionCache = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = platform_time.nowMs();
+        const now = self.time_provider.nowMs();
         self.forceCleanupLocked(now);
     }
 
@@ -299,7 +305,7 @@ pub const SessionCache = struct {
 
     fn forceCleanupLocked(self: *Self, now: i64) void {
         const ttl: i64 = @intCast(self.config.ttl_ms);
-        var to_remove = std.ArrayListUnmanaged([]const u8){};
+        var to_remove = std.ArrayListUnmanaged([]const u8).empty;
         defer to_remove.deinit(self.allocator);
 
         var iter = self.sessions.iterator();
@@ -348,6 +354,22 @@ pub fn hashPrompt(prompt: []const u8) u64 {
 // ============================================================================
 // Tests
 // ============================================================================
+
+const TestClock = struct {
+    now_ms: i64 = 0,
+
+    fn nowMs(ctx: ?*anyopaque) i64 {
+        const clock: *TestClock = @ptrCast(@alignCast(ctx.?));
+        return clock.now_ms;
+    }
+};
+
+fn testTimeProvider(clock: *TestClock) platform_time.TimeProvider {
+    return .{
+        .ctx = @ptrCast(clock),
+        .nowMsFn = TestClock.nowMs,
+    };
+}
 
 test "SessionCache basic store and retrieve" {
     const allocator = std.testing.allocator;
@@ -423,16 +445,18 @@ test "SessionCache per-session token limit" {
 test "SessionCache session eviction" {
     const allocator = std.testing.allocator;
 
+    var clock = TestClock{};
     var cache = SessionCache.init(allocator, .{
         .max_sessions = 2,
+        .time_provider = testTimeProvider(&clock),
     });
     defer cache.deinit();
 
     // Store 3 sessions - should evict oldest
     try cache.storeToken("session-1", 1, "A", .local, 0);
-    std.time.sleep(1 * std.time.ns_per_ms);
+    clock.now_ms += 1;
     try cache.storeToken("session-2", 1, "B", .local, 0);
-    std.time.sleep(1 * std.time.ns_per_ms);
+    clock.now_ms += 1;
     try cache.storeToken("session-3", 1, "C", .local, 0);
 
     // session-1 should be evicted
