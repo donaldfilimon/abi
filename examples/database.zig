@@ -6,11 +6,10 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{
-        .enable_database = true,
-        .enable_gpu = false,
+    var framework = try abi.initWithConfig(allocator, .{
+        .database = .{},
     });
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     if (!abi.database.isEnabled()) {
         std.debug.print("Database feature is disabled. Enable with -Denable-database=true\n", .{});

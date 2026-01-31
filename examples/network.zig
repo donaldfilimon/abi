@@ -12,14 +12,13 @@ pub fn main() !void {
         return;
     }
 
-    var framework = abi.init(allocator, abi.FrameworkOptions{
-        .enable_network = true,
-        .enable_gpu = false,
+    var framework = abi.initWithConfig(allocator, .{
+        .network = .{},
     }) catch |err| {
         std.debug.print("Failed to initialize network framework: {}\n", .{err});
         return err;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // Explicitly initialize the network subsystem before accessing the registry.
     abi.network.init(allocator) catch |err| {
