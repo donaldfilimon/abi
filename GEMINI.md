@@ -51,7 +51,7 @@ The codebase uses a domain-driven modular structure with unified configuration a
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
-├── config.zig           # Unified configuration system (single Config struct)
+├── config/              # Unified configuration system (Config + Builder)
 ├── config/              # Modular configuration system
 ├── framework.zig        # Framework orchestration with builder pattern
 ├── platform/            # Platform detection (NEW: mod.zig, detection.zig, cpu.zig)

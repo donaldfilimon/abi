@@ -63,7 +63,7 @@ zig build run-compute
 
 ### concurrency.zig
 
-Lock-free queue, work-stealing, and task execution primitives.
+Lock-free concurrency primitives (MPMC queue, Chase-Lev deque).
 
 **Run:**
 
@@ -93,22 +93,12 @@ zig build run-network
 
 ### observability.zig
 
-Metrics, tracing, and profiling hooks.
+Metrics and tracing primitives (counters, gauges, histograms).
 
 **Run:**
 
 ```bash
 zig build run-observability
-```
-
-### orchestration.zig
-
-Multi-model routing and fallback orchestration.
-
-**Run:**
-
-```bash
-zig build run-orchestration
 ```
 
 ### discord.zig
@@ -152,7 +142,7 @@ zig build run-training
 
 ### training/train_demo.zig
 
-End-to-end training demo using synthetic data.
+Focused LLM training demo with smaller defaults.
 
 **Run:**
 
@@ -184,6 +174,16 @@ Multi-model routing with ensemble and fallback policies.
 
 ```bash
 zig build -Denable-ai=true run-orchestration
+```
+
+### orchestration.zig
+
+Multi-model orchestration (routing, fallback, ensemble).
+
+**Run:**
+
+```bash
+zig build run-orchestration
 ```
 
 ### train_ava.zig
@@ -249,8 +249,9 @@ zig build run-orchestration
 zig build run-training
 zig build run-train-demo
 zig build run-llm
-zig build run-train-demo
+zig build run-orchestration
 zig build run-train-ava
+zig build run-observability
 zig build run-ha
 ```
 
@@ -268,18 +269,18 @@ zig build benchmarks
 1. **Start with `hello.zig`** - Learn basic framework initialization
 2. **Try `database.zig`** - Understand vector storage and search
 3. **Explore `compute.zig`** - Learn about task execution
-4. **Study `concurrency.zig`** - See lock-free primitives in action
+4. **Review `concurrency.zig`** - Lock-free primitives and queues
 5. **Check `agent.zig`** - See AI integration
 6. **Review `gpu.zig`** - Understand GPU acceleration
 7. **Study `network.zig`** - Learn distributed computing
-8. **Inspect `observability.zig`** - Metrics and tracing basics
-9. **Explore `orchestration.zig`** - Multi-model routing and fallback
-10. **Check `discord.zig`** - Discord bot integration
-11. **Explore `training.zig`** - Model training and checkpointing
-12. **Run `training/train_demo.zig`** - End-to-end training demo
-13. **Try `llm.zig`** - Local LLM inference
-14. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
-15. **Study `ha.zig`** - High availability features
+8. **Check `observability.zig`** - Metrics and tracing fundamentals
+9. **Check `discord.zig`** - Discord bot integration
+10. **Explore `training.zig`** - Model training and checkpointing
+11. **Try `training/train_demo.zig`** - Focused LLM training demo
+12. **Try `llm.zig`** - Local LLM inference
+13. **Study `orchestration.zig`** - Multi-model routing and fallback
+14. **Study `ha.zig`** - High availability features
+15. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
 
 ## Common Patterns
 
@@ -288,16 +289,21 @@ All examples follow these Zig 0.16 best practices:
 1. **Allocator Setup (Zig 0.16):**
 
    ```zig
-   var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-   defer _ = gpa.deinit();
-   const allocator = gpa.allocator();
+   pub fn main() !void {
+       var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+       defer _ = gpa.deinit();
+       const allocator = gpa.allocator();
+       // ... your code
+   }
    ```
 
 2. **Framework Initialization:**
 
    ```zig
-   var framework = try abi.init(allocator, abi.FrameworkOptions{});
-   defer abi.shutdown(&framework);
+   var framework = try abi.Framework.builder(allocator)
+       .withDefaults()
+       .build();
+   defer framework.deinit();
    ```
 
 3. **Error Handling:**
@@ -324,10 +330,9 @@ All examples follow these Zig 0.16 best practices:
 
 ## Need Help?
 
-See the [documentation site](../docs/content/index.html) for comprehensive guides,
-or check API_REFERENCE.md for detailed API information.
+See the [Documentation README](../docs/README.md) for guides, or check API_REFERENCE.md for detailed API information.
 
 ## See Also
 
 - [API Reference](../API_REFERENCE.md) - Detailed API information
-- [Docs Index](../docs/content/index.html) - Comprehensive guides
+- [Documentation README](../docs/README.md) - Documentation site source

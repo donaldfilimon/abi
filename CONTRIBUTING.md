@@ -17,7 +17,7 @@ tags: []
 
 ---
 
-> **Before You Start**: Please review the [Architecture Documentation](docs/content/architecture.html) to understand the system design.
+> **Before You Start**: Please review the [Documentation README](docs/README.md) to understand the system design.
 
 ## Quick Reference
 

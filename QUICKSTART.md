@@ -12,7 +12,7 @@ tags: []
 </p>
 
 > **Getting Started Fast** — This guide gets you running in under 5 minutes.
-> For comprehensive guides, see the [docs index](docs/content/index.html).
+> For comprehensive guides, see [docs/README.md](docs/README.md).
 
 ---
 
@@ -101,37 +101,41 @@ zig build run -- explore "pub fn" --level thorough
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
     // Unified Config with builder pattern
-    const config = abi.Config.init()
-        .withAI(true)
-        .withGPU(true)
-        .withDatabase(true);
-
-    var framework = try abi.Framework.init(allocator, config);
+    var framework = try abi.Framework.builder(allocator)
+        .withAiDefaults()
+        .withGpuDefaults()
+        .withDatabaseDefaults()
+        .build();
     defer framework.deinit();
 
     std.debug.print("ABI v{s} initialized\n", .{abi.version()});
 
     // Access feature modules through the framework
-    if (framework.ai()) |ai| {
+    if (framework.isEnabled(.ai)) {
+        const ai = try framework.getAi();
         _ = ai; // Use AI features
     }
 }
 ```
 
-**Backward-compatible initialization**:
+**Simple initialization**:
 ```zig
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{});
-    defer abi.shutdown(&framework);
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     std.debug.print("ABI v{s} initialized\n", .{abi.version()});
 }
@@ -143,11 +147,13 @@ pub fn main(init: std.process.Init) !void {
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{});
-    defer abi.shutdown(&framework);
+    var framework = try abi.Framework.initMinimal(allocator);
+    defer framework.deinit();
 
     var engine = try abi.runtime.createEngine(allocator, .{});
     defer engine.deinit();
@@ -173,13 +179,15 @@ pub fn main(init: std.process.Init) !void {
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init) !void {
-    const allocator = init.gpa;
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{
-        .enable_ai = true,
-    });
-    defer abi.shutdown(&framework);
+    var framework = try abi.Framework.builder(allocator)
+        .withAiDefaults()
+        .build();
+    defer framework.deinit();
 
     var agent = try abi.ai.Agent.init(allocator, .{
         .name = "assistant",
@@ -202,9 +210,9 @@ Flat domain structure with modular architecture:
 | Module | Description | Status | Docs |
 |--------|-------------|--------|------|
 | `src/abi.zig` | Public API entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
-| `src/config.zig` | Unified configuration system | ![Ready](https://img.shields.io/badge/-Ready-success) | [Configuration Guide](docs/content/configuration.html) |
-| `src/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Architecture Guide](docs/content/architecture.html) |
-| `src/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Architecture Guide](docs/content/architecture.html) |
+| `src/config/mod.zig` | Unified configuration system | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
+| `src/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Framework Guide](docs/framework.md) |
+| `src/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Compute Guide](docs/compute.md) |
 
 ### Feature Modules
 
@@ -229,7 +237,7 @@ Flat domain structure with modular architecture:
 <td width="50%">
 
 ### Learn More
-- [Architecture](docs/content/architecture.html) — System overview
+- [Documentation](docs/README.md) — Documentation site source
 - [API Reference](API_REFERENCE.md) — API documentation
 - [Examples](examples/) — Code samples
 
@@ -249,5 +257,5 @@ Flat domain structure with modular architecture:
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="docs/content/index.html">Full Documentation →</a>
+  <a href="docs/README.md">Full Documentation →</a>
 </p>

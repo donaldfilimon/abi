@@ -18,10 +18,10 @@ pub fn main() !void {
     std.debug.print("=== ABI GPU Example ===\n\n", .{});
 
     // Initialize framework
-    var framework = abi.initWithConfig(allocator, .{
-        .gpu = .{},
-    }) catch |err| {
-        std.debug.print("Framework initialization failed: {}\n", .{err});
+    var framework = abi.Framework.builder(allocator)
+        .withGpuDefaults()
+        .build() catch |err| {
+        std.debug.print("Framework initialization failed: {t}\n", .{err});
         return err;
     };
     defer framework.deinit();
@@ -39,7 +39,7 @@ pub fn main() !void {
     std.debug.print("\n--- Device Discovery ---\n", .{});
 
     const backends = abi.gpu.availableBackends(allocator) catch |err| {
-        std.debug.print("Failed to enumerate GPU backends: {}\n", .{err});
+        std.debug.print("Failed to enumerate GPU backends: {t}\n", .{err});
         return err;
     };
     defer allocator.free(backends);
@@ -51,7 +51,7 @@ pub fn main() !void {
     }
 
     const devices = abi.gpu.listDevices(allocator) catch |err| {
-        std.debug.print("Failed to list GPU devices: {}\n", .{err});
+        std.debug.print("Failed to list GPU devices: {t}\n", .{err});
         return err;
     };
     defer allocator.free(devices);
@@ -69,7 +69,7 @@ pub fn main() !void {
         .enable_profiling = true,
         .memory_mode = .automatic,
     }) catch |err| {
-        std.debug.print("Unified GPU init failed: {}\n", .{err});
+        std.debug.print("Unified GPU init failed: {t}\n", .{err});
         return;
     };
     defer gpu.deinit();
@@ -90,25 +90,25 @@ pub fn main() !void {
     const b_data = [_]f32{ 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0 };
 
     const a = gpu.createBufferFromSlice(f32, &a_data, .{}) catch |err| {
-        std.debug.print("Failed to create buffer A: {}\n", .{err});
+        std.debug.print("Failed to create buffer A: {t}\n", .{err});
         return;
     };
     defer gpu.destroyBuffer(a);
 
     const b = gpu.createBufferFromSlice(f32, &b_data, .{}) catch |err| {
-        std.debug.print("Failed to create buffer B: {}\n", .{err});
+        std.debug.print("Failed to create buffer B: {t}\n", .{err});
         return;
     };
     defer gpu.destroyBuffer(b);
 
     const result = gpu.createBuffer(a_data.len * @sizeOf(f32), .{}) catch |err| {
-        std.debug.print("Failed to create result buffer: {}\n", .{err});
+        std.debug.print("Failed to create result buffer: {t}\n", .{err});
         return;
     };
     defer gpu.destroyBuffer(result);
 
     const vec_result = gpu.vectorAdd(a, b, result) catch |err| {
-        std.debug.print("vectorAdd failed: {}\n", .{err});
+        std.debug.print("vectorAdd failed: {t}\n", .{err});
         return;
     };
 
@@ -120,7 +120,7 @@ pub fn main() !void {
     // Read and display results
     var output: [8]f32 = undefined;
     result.read(f32, &output) catch |err| {
-        std.debug.print("Failed to read result: {}\n", .{err});
+        std.debug.print("Failed to read result: {t}\n", .{err});
         return;
     };
 
@@ -140,7 +140,7 @@ pub fn main() !void {
     std.debug.print("\n--- Reduce Sum ---\n", .{});
 
     const sum_result = gpu.reduceSum(a) catch |err| {
-        std.debug.print("reduceSum failed: {}\n", .{err});
+        std.debug.print("reduceSum failed: {t}\n", .{err});
         return;
     };
 
@@ -153,7 +153,7 @@ pub fn main() !void {
     std.debug.print("\n--- Dot Product ---\n", .{});
 
     const dot_result = gpu.dotProduct(a, b) catch |err| {
-        std.debug.print("dotProduct failed: {}\n", .{err});
+        std.debug.print("dotProduct failed: {t}\n", .{err});
         return;
     };
 

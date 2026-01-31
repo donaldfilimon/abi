@@ -12,7 +12,7 @@ tags: []
 </p>
 
 <p align="center">
-  <a href="docs/content/index.html">Documentation Index</a> |
+  <a href="docs/README.md">Documentation</a> |
   <a href="CONTRIBUTING.md">Coding Patterns</a> |
   <a href="CLAUDE.md">Development Guide</a>
 </p>
@@ -850,8 +850,7 @@ Flat domain structure (modular architecture):
 | Module | Description | Status |
 |--------|-------------|--------|
 | `src/abi.zig` | Public API entry point | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/flags.zig` | Feature flags and build toggles | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/config/` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/config/mod.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/framework.zig` | Framework orchestration | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/platform/` | Platform detection and CPU probing | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/registry/` | Feature registry | ![Core](https://img.shields.io/badge/-Core-blue) |
@@ -878,13 +877,11 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Guides
-- [Architecture](docs/content/architecture.html) — System overview
-- [Configuration](docs/content/configuration.html) — Config and lifecycle
-- [AI Guide](docs/content/ai.html) — LLM connectors and agents
-- [GPU Guide](docs/content/gpu.html) — GPU backends
-- [Database Guide](docs/content/database.html) — Vector database
-- [Network Guide](docs/content/network.html) — Distributed compute
-- [Observability Guide](docs/content/observability.html) — Metrics and tracing
+- [Documentation](docs/README.md) — Documentation site source
+- [Framework Guide](docs/framework.md) — Configuration and lifecycle
+- [Compute Guide](docs/compute.md) — Task execution
+- [AI Guide](docs/ai.md) — LLM connectors and agents
+- [GPU Guide](docs/gpu.md) — GPU backends
 
 </td>
 <td>
@@ -903,5 +900,5 @@ Flat domain structure (modular architecture):
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="docs/content/index.html">Full Documentation →</a>
+  <a href="docs/README.md">Full Documentation →</a>
 </p>

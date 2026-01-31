@@ -33,4 +33,4 @@ zig build benchmarks
 
 ---
 
-See also: `benchmarks/README.md`, `docs/content/index.html`.
+See also: `benchmarks/README.md`, `docs/README.md`.

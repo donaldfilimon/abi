@@ -11,16 +11,16 @@ pub fn main() !void {
         return;
     }
 
-    var framework = try abi.initWithConfig(allocator, .{
-        .ai = .{ .agents = .{} },
-    });
+    var framework = try abi.Framework.builder(allocator)
+        .withAiDefaults()
+        .build();
     defer framework.deinit();
 
     var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "example-agent",
         .temperature = 0.7,
     }) catch |err| {
-        std.debug.print("Failed to create AI agent: {}\n", .{err});
+        std.debug.print("Failed to create AI agent: {t}\n", .{err});
         std.debug.print("AI feature may not be properly configured\n", .{});
         return err;
     };
@@ -29,7 +29,7 @@ pub fn main() !void {
     const user_input = "Hello, how are you today?";
     // Using the chat() method (alias for process()) as documented in docs/content/ai.html
     const response = agent.chat(user_input, allocator) catch |err| {
-        std.debug.print("Failed to chat with agent: {}\n", .{err});
+        std.debug.print("Failed to chat with agent: {t}\n", .{err});
         return err;
     };
     defer allocator.free(response);

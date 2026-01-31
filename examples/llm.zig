@@ -22,10 +22,10 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     // Initialize framework
-    var framework = abi.initWithConfig(allocator, .{
-        .ai = .{ .llm = .{} },
-    }) catch |err| {
-        std.debug.print("Framework initialization failed: {}\n", .{err});
+    var framework = abi.Framework.builder(allocator)
+        .withAiDefaults()
+        .build() catch |err| {
+        std.debug.print("Framework initialization failed: {t}\n", .{err});
         return err;
     };
     defer framework.deinit();
@@ -49,7 +49,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     // Try to load model (will fail gracefully if not found)
     var model = abi.ai.llm.Model.load(allocator, model_path) catch |err| {
-        std.debug.print("\nModel not found or failed to load: {}\n", .{err});
+        std.debug.print("\nModel not found or failed to load: {t}\n", .{err});
         std.debug.print("\nTo use this example:\n", .{});
         std.debug.print("  1. Download a GGUF model (e.g., from HuggingFace)\n", .{});
         std.debug.print("  2. Run: zig build run-llm -- path/to/model.gguf\n", .{});
@@ -77,7 +77,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     std.debug.print("\n--- Tokenization ---\n", .{});
     const test_text = "Hello, world! How are you today?";
     const tokens = model.encode(test_text) catch |err| {
-        std.debug.print("Tokenization failed: {}\n", .{err});
+        std.debug.print("Tokenization failed: {t}\n", .{err});
         return err;
     };
     defer allocator.free(tokens);
@@ -91,7 +91,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     // Decode back
     const decoded = model.decode(tokens) catch |err| {
-        std.debug.print("Detokenization failed: {}\n", .{err});
+        std.debug.print("Detokenization failed: {t}\n", .{err});
         return err;
     };
     defer allocator.free(decoded);
@@ -114,21 +114,21 @@ pub fn main(init: std.process.Init.Minimal) !void {
     };
 
     const prompt_tokens = model.encode(prompt) catch |err| {
-        std.debug.print("Prompt encoding failed: {}\n", .{err});
+        std.debug.print("Prompt encoding failed: {t}\n", .{err});
         return err;
     };
     defer allocator.free(prompt_tokens);
 
     var timer = std.time.Timer.start() catch null;
     const output_tokens = model.generate(prompt_tokens, gen_config) catch |err| {
-        std.debug.print("Generation failed: {}\n", .{err});
+        std.debug.print("Generation failed: {t}\n", .{err});
         return err;
     };
     const elapsed_ns = if (timer) |*t| t.read() else 0;
     defer allocator.free(output_tokens);
 
     const output_text = model.decode(output_tokens) catch |err| {
-        std.debug.print("Decoding failed: {}\n", .{err});
+        std.debug.print("Decoding failed: {t}\n", .{err});
         return err;
     };
     defer allocator.free(output_text);

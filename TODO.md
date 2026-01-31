@@ -61,7 +61,7 @@ The major architecture redesign has been completed successfully:
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Unified Configuration | ✅ | Created `src/config.zig` with Builder pattern configuration system |
+| Unified Configuration | ✅ | Created `src/config/mod.zig` with Builder pattern configuration system |
 | Framework Orchestration | ✅ | Created `src/framework.zig` for lifecycle and feature coordination |
 | Runtime Infrastructure | ✅ | Created `src/runtime/` for always-on infrastructure components |
 | GPU Module | ✅ | Moved GPU from `src/compute/gpu/` to `src/gpu/` (primary location) |

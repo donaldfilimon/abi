@@ -19,6 +19,9 @@ Comprehensive performance benchmarks for the ABI framework, measuring throughput
 # Run all benchmark suites
 zig build benchmarks
 
+# Run all benchmark suites (including competitive)
+zig build bench-all
+
 # Run specific suite
 zig build benchmarks -- --suite=simd
 
@@ -41,11 +44,10 @@ zig build benchmarks -- --verbose
 | `benchmarks/infrastructure/` | Infrastructure suites (simd, memory, concurrency, crypto, network) |
 | `benchmarks/system/` | System/integration suites (framework, CI, baselines, standards) |
 | `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
-| `benchmarks/baselines/` | Baseline storage and comparisons |
-| `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
-| `benchmarks/system/industry_standard.zig` | Industry-standard baseline harness |
-| `benchmarks/system/` | Baseline storage + CI regression integration |
-| `benchmarks/*` | Individual suite implementations (simd, memory, gpu, network, ai) |
+| `benchmarks/domain/` | Feature-specific suites (ai, database, gpu) |
+| `benchmarks/infrastructure/` | SIMD, memory, concurrency, crypto, network |
+| `benchmarks/system/` | Framework, CI, baseline store/comparator |
+| `benchmarks/baselines/` | Baseline JSON storage (main/branches/releases) |
 
 ---
 
@@ -61,8 +63,8 @@ zig build benchmarks -- --verbose
 | **network** | HTTP/JSON parsing | req/sec, parse time (ns) |
 | **crypto** | Hash/encrypt ops | MB/sec, cycles/byte |
 | **ai** | GEMM/attention | GFLOPS, memory bandwidth |
-| **gpu** | GPU kernel ops | GFLOPS, bandwidth, launch overhead |
-| **quick** | Fast verification | subset of all suites |
+| **gpu** | GPU kernels | kernel time (ns), throughput |
+| **quick** | Fast verification | CI-friendly subset |
 
 ---
 
@@ -159,12 +161,12 @@ Machine learning operation benchmarks:
 zig build benchmarks -- --suite=ai
 ```
 
-### GPU Suite (`domain/gpu/mod.zig`)
+### GPU Suite (`domain/gpu/`)
 
-GPU kernel and memory benchmarks:
-- MatMul, reductions, vector ops
-- Device memory bandwidth
-- Kernel launch overhead
+GPU kernel benchmarks:
+- Matmul, vector ops, reductions
+- Backend comparisons
+- GPU vs CPU comparisons
 
 ```bash
 zig build benchmarks -- --suite=gpu
@@ -208,9 +210,8 @@ OPTIONS:
   --quick           Run with reduced iterations
 >>>>>>> origin/cursor/ai-module-source-organization-0282
   --verbose         Show detailed output
-  --output=<file>   Output results as JSON file
-  --json            Output results as JSON
-  --iterations=<n>  Override default iteration count
+  --json            Output results as JSON to stdout
+  --output=<file>   Write JSON report to a file
 ```
 
 ### Examples
@@ -226,9 +227,6 @@ zig build benchmarks -- --suite=database
 zig build benchmarks -- --quick
 
 # JSON output for CI integration
-zig build benchmarks -- --json > benchmark_results.json
-
-# Write JSON output to a file
 zig build benchmarks -- --output=benchmark_results.json
 ```
 
@@ -256,17 +254,15 @@ zig build benchmarks -- --output=benchmark_results.json
 
 ---
 
-## Performance Baseline
+## Performance Baselines
 
-The framework maintains performance baselines in `benchmarks/baselines/`. To update after
-significant changes:
+Baseline reports are stored under `benchmarks/baselines/` (see `benchmarks/baselines/README.md`).
+After significant changes, generate a fresh JSON report and store it under the
+appropriate branch or release directory:
 
 ```bash
-# Generate new baseline output
-zig build benchmarks -- --json > baseline_new.json
-
-# Compare with existing baselines
-# (see benchmarks/baselines/README.md for layout)
+# Generate a new baseline report
+zig build benchmarks -- --output=benchmarks/baselines/branches/my_branch.json
 ```
 
 ---

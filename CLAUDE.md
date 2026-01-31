@@ -143,7 +143,7 @@ Flat domain structure with unified configuration. Each domain has `mod.zig` (ent
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
-├── config.zig           # Unified configuration system (single Config struct)
+├── config/              # Unified configuration system (Config + Builder)
 ├── config/              # Modular configuration system
 │   ├── mod.zig          # Config entry point
 │   ├── ai.zig           # AI-specific configuration
@@ -278,7 +278,7 @@ This pattern reduces each backend from ~1,000+ lines to ~50-100 lines while keep
 ### Configuration System
 
 Two-level configuration architecture:
-- **`src/config.zig`**: Unified `Config` struct with builder pattern for framework initialization
+- **`src/config/mod.zig`**: Unified `Config` struct with builder pattern for framework initialization
 - **`src/config/`**: Modular per-feature configs (ai.zig, gpu.zig, database.zig, etc.)
 
 Single `Config` struct with optional feature configs and builder pattern:
@@ -295,10 +295,12 @@ pub const Config = struct {
 };
 
 // Builder pattern usage
-const config = abi.Config.init()
-    .withAI(true)
-    .withGPU(true)
-    .withDatabase(true);
+var builder = abi.config.Builder.init(allocator);
+const config = builder
+    .withAiDefaults()
+    .withGpuDefaults()
+    .withDatabaseDefaults()
+    .build();
 
 var framework = try abi.Framework.init(allocator, config);
 defer framework.deinit();
@@ -731,7 +733,7 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 3. Both files must export identical public APIs; stub returns `error.<Feature>Disabled`
 4. Add feature flag in `build.zig` (`-Denable-<feature>`)
 5. Register in `src/registry/` if it needs runtime toggling
-6. Add entry to `src/config.zig` Config struct if it needs configuration
+6. Add entry to `src/config/mod.zig` Config struct if it needs configuration
 7. Update `src/abi.zig` to conditionally import via `if (build_options.enable_<feature>)`
 
 ## Reference

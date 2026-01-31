@@ -360,7 +360,7 @@ All Llama-CPP parity tasks have been completed. See TODO.md for details:
 
 ### Modular Codebase Refactor (Complete - 2026-01-17)
 Major architecture redesign completed with 51/51 tests passing, 21/21 build steps:
-- [x] Unified configuration system with Builder pattern (src/config.zig)
+- [x] Unified configuration system with Builder pattern (src/config/mod.zig)
 - [x] Framework orchestration for lifecycle management (src/framework.zig)
 - [x] Runtime infrastructure for always-on components (src/runtime/)
 - [x] GPU module moved to top-level (src/gpu/)
