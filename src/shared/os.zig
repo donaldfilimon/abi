@@ -283,11 +283,14 @@ pub fn getCurrentDir(allocator: std.mem.Allocator) ![]u8 {
         return allocator.dupe(u8, "/");
     }
 
-    var buffer: [std.fs.max_path_bytes]u8 = undefined;
-    const cwd = std.posix.getcwd(&buffer) catch {
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const cwd = std.process.currentPathAlloc(io, allocator) catch {
         return allocator.dupe(u8, ".");
     };
-    return allocator.dupe(u8, cwd);
+    return cwd[0..];
 }
 
 /// Get OS name string
