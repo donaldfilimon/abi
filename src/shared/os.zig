@@ -283,15 +283,24 @@ pub fn getCurrentDir(allocator: std.mem.Allocator) ![]u8 {
         return allocator.dupe(u8, "/");
     }
 
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    const io_opts: std.Io.Threaded.InitOptions = .{ .environ = std.process.Environ.empty };
+    var io_backend: std.Io.Threaded = undefined;
+    const InitResult = @TypeOf(std.Io.Threaded.init(allocator, io_opts));
+    if (@typeInfo(InitResult) == .error_union) {
+        io_backend = std.Io.Threaded.init(allocator, io_opts) catch {
+            return allocator.dupe(u8, ".");
+        };
+    } else {
+        io_backend = std.Io.Threaded.init(allocator, io_opts);
+    }
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    const cwd_z = std.process.currentPathAlloc(io, allocator) catch {
+    var buffer: [std.fs.max_path_bytes]u8 = undefined;
+    const cwd_len = std.process.currentPath(io, &buffer) catch {
         return allocator.dupe(u8, ".");
     };
-    defer allocator.free(cwd_z);
-    return allocator.dupe(u8, cwd_z);
+    return allocator.dupe(u8, buffer[0..cwd_len]);
 }
 
 /// Get OS name string

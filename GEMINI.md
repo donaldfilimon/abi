@@ -82,7 +82,7 @@ Zig 0.16 requires explicit I/O backend initialization for file and network opera
 ```zig
 // Initialize once, use for all file/network operations
 var io_backend = std.Io.Threaded.init(allocator, .{
-    .environ = std.process.Environ.empty,  // .empty for library, .init() for CLI
+    .environ = std.process.Environ.empty,  // .empty for library, init.environ for CLI
 });
 defer io_backend.deinit();
 const io = io_backend.io();

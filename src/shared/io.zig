@@ -50,9 +50,9 @@ pub const IoBackend = struct {
     /// populated environment if needed.
     pub fn init(allocator: std.mem.Allocator) !IoBackend {
         // Initialise the threaded I/O backend with an empty environment.
-        // This works for both library and CLI contexts.  If a CLI needs
-        // environment variables you can replace `.empty` with
-        // `std.process.Environ.init(allocator)` and pass that instead.
+        // This works for both library and CLI contexts. If a CLI needs
+        // environment variables you can pass `init.environ` from
+        // `std.process.Init.Minimal` instead of `.empty`.
         var backend = try initThreaded(allocator, .{ .environ = std.process.Environ.empty });
         errdefer backend.deinit();
 

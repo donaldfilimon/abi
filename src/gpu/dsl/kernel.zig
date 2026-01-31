@@ -8,6 +8,9 @@ const types = @import("types.zig");
 const expr = @import("expr.zig");
 const stmt = @import("stmt.zig");
 
+const ExprSet = std.AutoHashMapUnmanaged(*const expr.Expr, void);
+const StmtSet = std.AutoHashMapUnmanaged(*const stmt.Stmt, void);
+
 /// Key for tracking binding uniqueness.
 const BindingKey = struct {
     group: u32,
@@ -203,7 +206,233 @@ pub const KernelIR = struct {
 
         return result;
     }
+
+    /// Deinitialize kernel IR allocations.
+    /// This does not free name strings, which are treated as external.
+    pub fn deinit(self: *const KernelIR, allocator: std.mem.Allocator) void {
+        var expr_seen: ExprSet = .empty;
+        defer expr_seen.deinit(allocator);
+        var stmt_seen: StmtSet = .empty;
+        defer stmt_seen.deinit(allocator);
+
+        for (self.body) |statement| {
+            deinitStmt(allocator, statement, &stmt_seen, &expr_seen);
+        }
+
+        for (self.functions) |func| {
+            for (func.body) |statement| {
+                deinitStmt(allocator, statement, &stmt_seen, &expr_seen);
+            }
+            if (func.body.len > 0) {
+                allocator.free(func.body);
+            }
+            if (func.params.len > 0) {
+                allocator.free(func.params);
+            }
+        }
+
+        if (self.body.len > 0) {
+            allocator.free(self.body);
+        }
+        if (self.functions.len > 0) {
+            allocator.free(self.functions);
+        }
+        if (self.buffers.len > 0) {
+            allocator.free(self.buffers);
+        }
+        if (self.uniforms.len > 0) {
+            allocator.free(self.uniforms);
+        }
+        if (self.push_constants.len > 0) {
+            allocator.free(self.push_constants);
+        }
+        if (self.shared_memory.len > 0) {
+            allocator.free(self.shared_memory);
+        }
+    }
 };
+
+fn deinitStmt(
+    allocator: std.mem.Allocator,
+    node: *const stmt.Stmt,
+    stmt_seen: *StmtSet,
+    expr_seen: *ExprSet,
+) void {
+    if (stmt_seen.contains(node)) {
+        return;
+    }
+    stmt_seen.put(allocator, node, {}) catch return;
+
+    switch (node.*) {
+        .var_decl => |decl| {
+            if (decl.init) |init_expr| {
+                deinitExpr(allocator, init_expr, expr_seen);
+            }
+        },
+        .assign => |assign| {
+            deinitExpr(allocator, assign.target, expr_seen);
+            deinitExpr(allocator, assign.value, expr_seen);
+        },
+        .compound_assign => |assign| {
+            deinitExpr(allocator, assign.target, expr_seen);
+            deinitExpr(allocator, assign.value, expr_seen);
+        },
+        .if_ => |if_stmt| {
+            deinitExpr(allocator, if_stmt.condition, expr_seen);
+            for (if_stmt.then_body) |statement| {
+                deinitStmt(allocator, statement, stmt_seen, expr_seen);
+            }
+            if (if_stmt.then_body.len > 0) {
+                allocator.free(if_stmt.then_body);
+            }
+            if (if_stmt.else_body) |else_body| {
+                for (else_body) |statement| {
+                    deinitStmt(allocator, statement, stmt_seen, expr_seen);
+                }
+                if (else_body.len > 0) {
+                    allocator.free(else_body);
+                }
+            }
+        },
+        .for_ => |for_stmt| {
+            if (for_stmt.init) |init_stmt| {
+                deinitStmt(allocator, init_stmt, stmt_seen, expr_seen);
+            }
+            if (for_stmt.condition) |condition| {
+                deinitExpr(allocator, condition, expr_seen);
+            }
+            if (for_stmt.update) |update_stmt| {
+                deinitStmt(allocator, update_stmt, stmt_seen, expr_seen);
+            }
+            for (for_stmt.body) |statement| {
+                deinitStmt(allocator, statement, stmt_seen, expr_seen);
+            }
+            if (for_stmt.body.len > 0) {
+                allocator.free(for_stmt.body);
+            }
+        },
+        .while_ => |while_stmt| {
+            deinitExpr(allocator, while_stmt.condition, expr_seen);
+            for (while_stmt.body) |statement| {
+                deinitStmt(allocator, statement, stmt_seen, expr_seen);
+            }
+            if (while_stmt.body.len > 0) {
+                allocator.free(while_stmt.body);
+            }
+        },
+        .do_while => |do_while| {
+            for (do_while.body) |statement| {
+                deinitStmt(allocator, statement, stmt_seen, expr_seen);
+            }
+            if (do_while.body.len > 0) {
+                allocator.free(do_while.body);
+            }
+            deinitExpr(allocator, do_while.condition, expr_seen);
+        },
+        .return_ => |ret| {
+            if (ret.value) |value| {
+                deinitExpr(allocator, value, expr_seen);
+            }
+        },
+        .break_, .continue_, .discard => {},
+        .expr_stmt => |expression| {
+            deinitExpr(allocator, expression, expr_seen);
+        },
+        .block => |block| {
+            for (block.statements) |statement| {
+                deinitStmt(allocator, statement, stmt_seen, expr_seen);
+            }
+            if (block.statements.len > 0) {
+                allocator.free(block.statements);
+            }
+        },
+        .switch_ => |switch_stmt| {
+            deinitExpr(allocator, switch_stmt.selector, expr_seen);
+            for (switch_stmt.cases) |case_item| {
+                for (case_item.body) |statement| {
+                    deinitStmt(allocator, statement, stmt_seen, expr_seen);
+                }
+                if (case_item.body.len > 0) {
+                    allocator.free(case_item.body);
+                }
+            }
+            if (switch_stmt.default) |default_body| {
+                for (default_body) |statement| {
+                    deinitStmt(allocator, statement, stmt_seen, expr_seen);
+                }
+                if (default_body.len > 0) {
+                    allocator.free(default_body);
+                }
+            }
+            if (switch_stmt.cases.len > 0) {
+                allocator.free(switch_stmt.cases);
+            }
+        },
+    }
+
+    allocator.destroy(@constCast(node));
+}
+
+fn deinitExpr(
+    allocator: std.mem.Allocator,
+    node: *const expr.Expr,
+    expr_seen: *ExprSet,
+) void {
+    if (expr_seen.contains(node)) {
+        return;
+    }
+    expr_seen.put(allocator, node, {}) catch return;
+
+    switch (node.*) {
+        .literal, .ref => {},
+        .unary => |unary| {
+            deinitExpr(allocator, unary.operand, expr_seen);
+        },
+        .binary => |binary| {
+            deinitExpr(allocator, binary.left, expr_seen);
+            deinitExpr(allocator, binary.right, expr_seen);
+        },
+        .call => |call| {
+            for (call.args) |arg| {
+                deinitExpr(allocator, arg, expr_seen);
+            }
+            if (call.args.len > 0) {
+                allocator.free(call.args);
+            }
+        },
+        .vector_construct => |vector_construct| {
+            for (vector_construct.components) |component| {
+                deinitExpr(allocator, component, expr_seen);
+            }
+            if (vector_construct.components.len > 0) {
+                allocator.free(vector_construct.components);
+            }
+        },
+        .index => |index_expr| {
+            deinitExpr(allocator, index_expr.base, expr_seen);
+            deinitExpr(allocator, index_expr.index, expr_seen);
+        },
+        .field => |field_expr| {
+            deinitExpr(allocator, field_expr.base, expr_seen);
+        },
+        .cast => |cast_expr| {
+            deinitExpr(allocator, cast_expr.operand, expr_seen);
+        },
+        .select => |select_expr| {
+            deinitExpr(allocator, select_expr.condition, expr_seen);
+            deinitExpr(allocator, select_expr.true_value, expr_seen);
+            deinitExpr(allocator, select_expr.false_value, expr_seen);
+        },
+        .swizzle => |swizzle| {
+            deinitExpr(allocator, swizzle.base, expr_seen);
+            if (swizzle.components.len > 0) {
+                allocator.free(swizzle.components);
+            }
+        },
+    }
+
+    allocator.destroy(@constCast(node));
+}
 
 /// Feature flags for kernel requirements.
 pub const FeatureFlags = packed struct {
