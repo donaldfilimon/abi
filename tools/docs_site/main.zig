@@ -338,5 +338,5 @@ fn writeFile(io: std.Io, path: []const u8, content: []const u8) !void {
     defer file.close(io);
     var buffer: [8192]u8 = undefined;
     var writer = file.writer(io, &buffer);
-    try writer.writeAll(content);
+    try writer.interface.writeAll(content);
 }
