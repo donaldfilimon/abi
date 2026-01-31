@@ -137,7 +137,7 @@ tags: [planning, roadmap]
   - [x] Component interactions (docs/diagrams/gpu-architecture.md)
   - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
   - [x] Modular codebase structure (completed 2026-01-17)
-  - [x] Vulkan backend consolidation documentation – completed (see `docs/plans/2026-01-24-vulkan-consolidation.md`)
+  - [x] Vulkan backend consolidation documentation – completed
  - [x] Mega GPU + TUI + Self-Learning Agent Upgrade – COMPLETE (2026-01-24)
    - [x] Cross-backend GPU coordinator (`src/gpu/mega/coordinator.zig`)
    - [x] Learning-based scheduler with Q-learning (`src/gpu/mega/scheduler.zig`)

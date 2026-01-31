@@ -105,7 +105,7 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | WASM getCpuCount | Use `getCpuCount()` only with WASM/freestanding guards; 9+ files affected |
 | Streaming API | Use `src/ai/streaming/` for real-time LLM responses; backend selection via config |
 | Test module imports | Use `abi.shared.module` not `@import("../path")` - tests can't import outside module path |
-| Implementation plans | Save to `docs/plans/YYYY-MM-DD-<name>.md` with standard header for tracking |
+| Implementation plans | Track in `PLAN.md` with date-stamped sections |
 
 ## Feature Flags
 
@@ -738,7 +738,7 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 
 Key documentation (all in `docs/`):
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
-- [docs/plans/](docs/plans/) - Implementation plans
+- [PLAN.md](PLAN.md) - Development roadmap and sprint status
 - [deployment.md](docs/deployment.md) - Production deployment guide
 - [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security audit findings and status
 - [migration/zig-0.16-migration.md](docs/migration/zig-0.16-migration.md) - Zig 0.16 I/O patterns (critical)

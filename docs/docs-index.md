@@ -52,15 +52,12 @@ tags: [documentation, index, navigation]
 | [Abbey-Aviva Framework](research/abbey-aviva-abi-wdbx-framework.md) | Multi-persona AI architecture whitepaper | ![Research](https://img.shields.io/badge/-Research-blueviolet) |
 | [FPGA/ASIC Analysis](research/hardware-acceleration-fpga-asic.md) | Hardware acceleration research | ![Research](https://img.shields.io/badge/-Research-blueviolet) |
 
-## Implementation Plans
+## Planning
 
-Current planning documents:
+Planning and sprint status now live in the top-level roadmap:
 
-| Plan | Description | Status |
-|------|-------------|--------|
-| [C Bindings Reimplementation](plans/2026-01-30-c-bindings-reimplementation.md) | ABI C bindings rebuild | ![Active](https://img.shields.io/badge/-Active-yellow) |
-| [Codebase Improvement](plans/2026-01-30-codebase-improvement.md) | Reliability, performance, cleanup | ![Active](https://img.shields.io/badge/-Active-yellow) |
-| [Production Readiness](plans/2026-01-30-production-readiness.md) | Deployment and ops hardening | ![Active](https://img.shields.io/badge/-Active-yellow) |
+- [PLAN.md](../PLAN.md) — Current sprint focus and status
+- [ROADMAP.md](../ROADMAP.md) — Upcoming milestones
 
 ## Developer Resources
 

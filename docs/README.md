@@ -25,7 +25,6 @@ A guide to the docs layout and primary entry points.
 | `docs/analysis/` | Deep-dive analysis and internal research notes |
 | `docs/diagrams/` | System and dataflow diagrams |
 | `docs/migration/` | Version migration guides |
-| `docs/plans/` | Planning docs (active + archived) |
 | `docs/research/` | Long-form research notes and whitepapers |
 | `docs/tutorials/` | Guided walkthroughs and code examples |
 | `docs/training/` | Training and fine-tuning guides |

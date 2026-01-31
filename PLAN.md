@@ -134,5 +134,4 @@ Potential focus areas for upcoming work:
 ## Quick Links
 
 - [ROADMAP.md](ROADMAP.md) - Full project roadmap
-- [docs/plans/](docs/plans/) - Implementation plans
 - [CLAUDE.md](CLAUDE.md) - Development guidelines
