@@ -315,7 +315,9 @@ pub const KernelDispatcher = struct {
         self.cache_misses += 1;
 
         // Build the kernel IR using builtin_kernels module
-        const ir = builtin_kernels.buildKernelIR(self.allocator, kernel_type) catch |err| {
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
+        const ir = builtin_kernels.buildKernelIR(arena.allocator(), kernel_type) catch |err| {
             std.log.err("Failed to build kernel IR for {s}: {}", .{ name, err });
             return DispatchError.KernelCompilationFailed;
         };
