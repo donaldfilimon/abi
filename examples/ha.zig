@@ -17,14 +17,13 @@ pub fn main() !void {
     std.debug.print("=== ABI High Availability Example ===\n\n", .{});
 
     // Initialize framework
-    var framework = abi.init(allocator, abi.FrameworkOptions{
-        .enable_database = true,
-        .enable_gpu = false,
+    var framework = abi.initWithConfig(allocator, .{
+        .database = .{},
     }) catch |err| {
         std.debug.print("Framework initialization failed: {}\n", .{err});
         return err;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // === HA Manager Setup ===
     std.debug.print("--- HA Manager Setup ---\n", .{});

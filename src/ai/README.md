@@ -21,48 +21,36 @@ tags: []
 //! |--------|-------------|
 //! | `mod.zig` | Public API entry point with Context struct |
 //! | `core/` | Shared AI types, config, and utilities |
-//! | `llm/` | LLM inference (local GGUF, tokenizers, sampling) |
+//! | `llm/` | Local LLM inference engine (GGUF) |
 //! | `embeddings/` | Embedding generation |
-//! | `agents/` | Autonomous agent system |
-//! | `training/` | Training pipelines and trainers |
-//! | `personas/` | Multi-persona assistant layer |
-//! | `orchestration/` | Multi-model routing, fallback, and ensembles |
-//! | `multi_agent/` | Multi-agent coordination |
-//! | `rag/` | Retrieval-augmented generation pipeline |
-//! | `templates/` | Prompt template management |
-//! | `eval/` | Evaluation and metrics |
-//! | `explore/` | Codebase exploration (feature gated) |
-//! | `models/` | Model registry and download utilities |
-//! | `streaming/` | Streaming generation + server |
-//! | `memory/` | Memory stores and summarization |
-//! | `documents/` | Document understanding pipeline |
-//! | `vision/` | Vision/image processing |
-//! | `tools/` | Tool registry and built-in tools |
-//! | `prompts/` | Prompt builders and persona formats |
+//! | `agents/` + `agent.zig` | Agent runtime + simple agent API |
+//! | `memory/` | Memory systems (short/long-term, summaries) |
+//! | `training/` | Training pipelines and checkpoints |
+//! | `personas/` | Multi-persona profiles and configs |
+//! | `streaming/` | SSE/WebSocket streaming responses |
+//! | `orchestration/` | Multi-model routing, fallback, ensembles |
+//! | `rag/` | Retrieval-augmented generation |
+//! | `explore/` | Codebase exploration tooling |
+//! | `documents/` | Document parsing and layout analysis |
+//! | `models/` + `model_registry.zig` | Model registry + downloads |
+//! | `vision/` | Vision models (ViT) + preprocessing |
+//! | `eval/` | Metrics (BLEU/ROUGE/perplexity) |
+//! | `templates/` + `prompts/` | Prompt templates and builders |
+//! | `tools/` | Agent tools (filesystem, discord, OS, search) |
 //! | `abbey/` | Abbey persona subsystem |
-//! | `federated/` | Federated coordination and training |
-//! | `discovery.zig` | Model discovery and adaptive configuration |
-//! | `gpu_agent.zig` | GPU-aware agent scheduling |
 //!
 //! ## Architecture
 //!
-//! AI functionality lives directly under `src/ai/` (no indirection through a
-//! legacy `features/` tree). The module exposes a stable public API in `mod.zig`
-//! and organizes implementation by sub-feature:
+//! `src/ai/mod.zig` is the public API and framework integration layer.
+//! Sub-modules live directly under `src/ai/` and are compiled in-place
+//! (no legacy wrapper indirection).
 //!
-//! ```
-//! src/ai/
-//! ├── mod.zig          - Public API entry point + Context
-//! ├── core/            - Shared AI types and config
-//! ├── llm/             - LLM inference engine
-//! ├── embeddings/      - Embedding generation
-//! ├── agents/          - Agent runtime
-//! ├── training/        - Training pipelines
-//! ├── personas/        - Multi-persona assistant system
-//! ├── orchestration/   - Multi-model routing and fallback
-//! ├── rag/             - Retrieval-augmented generation
-//! └── streaming/       - Streaming output and server helpers
-//! ```
+//! Feature gating:
+//! - `-Denable-ai` toggles the AI module
+//! - `-Denable-llm`, `-Denable-vision`, `-Denable-explore` toggle sub-features
+//!
+//! When a feature is disabled, `src/ai/stub.zig` (and per-submodule stubs
+//! like `llm/stub.zig`) provide API-compatible no-op implementations.
 //!
 //! ## Usage
 //!
@@ -70,7 +58,7 @@ tags: []
 //! const abi = @import("abi");
 //!
 //! // Initialize framework with AI
-//! var fw = try abi.init(allocator, .{
+//! var fw = try abi.initWithConfig(allocator, .{
 //!     .ai = .{
 //!         .llm = .{ .model_path = "./models/llama.gguf" },
 //!         .embeddings = .{},
@@ -101,7 +89,7 @@ tags: []
 //!
 //! Sub-features:
 //! - `-Denable-llm=true` - LLM inference (requires `-Denable-ai`)
-//! - `-Denable-vision=true` - Vision/image processing (requires `-Denable-ai`)
+//! - `-Denable-vision=true` - Vision processing (requires `-Denable-ai`)
 //! - `-Denable-explore=true` - Codebase exploration (requires `-Denable-ai`)
 //!
 //! ## See Also

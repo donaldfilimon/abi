@@ -8,10 +8,7 @@ benchmarks/
 ├── mod.zig                       # Root benchmark module (exports all suites)
 ├── run.zig                       # Legacy CLI wrapper
 ├── run_competitive.zig           # Competitive benchmark runner
-├── baselines/                    # Stored baselines for CI/compare
-│   ├── branches/
-│   ├── main/
-│   └── releases/
+├── baselines/                    # Baseline snapshots and helpers
 │
 ├── competitive/                  # Industry comparison benchmarks
 │   ├── mod.zig                   # Competitive benchmark module
@@ -28,10 +25,10 @@ benchmarks/
 ├── domain/                       # Domain-specific benchmarks
 │   ├── ai/                       # AI/ML benchmarks
 │   │   ├── mod.zig
-│   │   ├── fpga_kernels.zig      # FPGA kernel measurements
+│   │   ├── fpga_kernels.zig      # FPGA kernel benchmarks
 │   │   ├── kernels.zig           # Compute kernels
 │   │   ├── llm_metrics.zig       # LLM metrics (tokens/sec, etc.)
-│   │   └── streaming.zig         # Streaming overhead
+│   │   └── streaming.zig         # Streaming benchmarks
 │   │
 │   ├── database/                 # Database benchmarks
 │   │   ├── mod.zig
@@ -49,15 +46,15 @@ benchmarks/
 │   ├── mod.zig
 │   ├── concurrency.zig           # Concurrency patterns
 │   ├── crypto.zig                # Cryptographic operations
-│   ├── gpu_backends.zig          # Backend selection overhead
+│   ├── gpu_backends.zig          # Backend availability checks
 │   ├── memory.zig                # Memory management
-│   ├── network.zig               # Network operations
+│   ├── network.zig               # Network stack benchmarks
 │   └── simd.zig                  # SIMD/vectorization
 │
 └── system/                       # System/integration benchmarks
     ├── mod.zig
-    ├── baseline_comparator.zig   # Baseline comparison helpers
-    ├── baseline_store.zig        # Baseline storage helpers
+    ├── baseline_comparator.zig   # Baseline comparisons
+    ├── baseline_store.zig        # Baseline persistence
     ├── ci_integration.zig        # CI/CD integration tests
     ├── framework.zig             # Framework initialization
     └── industry_standard.zig     # Industry standard compliance
@@ -83,18 +80,18 @@ Measure fundamental framework operations:
 
 ### `domain/` - Feature-Specific Benchmarks
 Domain-specific performance testing:
-- **AI/ML**: Compute kernels, LLM metrics, streaming overhead, FPGA kernels
+- **AI/ML**: compute kernels, LLM metrics, streaming
 - **Database**: ANN algorithms, HNSW, CRUD operations
-- **GPU**: Backend comparisons, GPU vs CPU, kernel performance
-We use `domain/ai/` instead of `ai/` at root level for consistency with other domains like `domain/database/`.
+- **GPU**: backend comparisons, GPU vs CPU
+We use `domain/ai/` and `domain/gpu/` instead of top-level `ai/`/`gpu/` for consistency.
 
 ### `infrastructure/` - System Infrastructure
 Infrastructure component performance:
 - Concurrency and parallelism
 - Cryptographic operations
+- GPU backend availability
 - Memory management strategies
-- Network operations
-- GPU backend selection overhead
+- Network stack benchmarks
 - SIMD/vectorization effectiveness
 
 ### `system/` - Integration & Compliance
@@ -102,7 +99,7 @@ System-level and compliance testing:
 - CI/CD integration performance
 - Framework startup/shutdown
 - Industry standard compliance
-- Baseline storage and comparison
+- Baseline storage/comparison
 
 ## Benchmark Types
 
@@ -202,6 +199,7 @@ zig build benchmarks
 zig run benchmarks/core/mod.zig
 zig run benchmarks/domain/ai/mod.zig
 zig run benchmarks/domain/database/mod.zig
+zig run benchmarks/domain/gpu/mod.zig
 ```
 
 ### Competitive Benchmarks

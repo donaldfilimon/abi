@@ -6,7 +6,7 @@ tags: [examples, tutorials, getting-started]
 > **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Examples-15+-blue?style=for-the-badge" alt="15+ Examples"/>
+  <img src="https://img.shields.io/badge/Examples-14-blue?style=for-the-badge" alt="14 Examples"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
   <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
 </p>
@@ -47,7 +47,7 @@ AI agent usage with conversational chat interface. Demonstrates the `Agent.chat(
 **Run:**
 
 ```bash
-zig build run-agent -Denable-ai=true
+zig build run-agent
 ```
 
 ### compute.zig
@@ -77,7 +77,7 @@ GPU acceleration and SIMD operations.
 **Run:**
 
 ```bash
-zig build run-gpu -Denable-gpu=true
+zig build run-gpu
 ```
 
 ### network.zig
@@ -87,17 +87,27 @@ Network cluster setup and node management.
 **Run:**
 
 ```bash
-zig build run-network -Denable-network=true
+zig build run-network
 ```
 
 ### observability.zig
 
-Metrics collection and histogram reporting.
+Metrics and tracing demonstration (counters, gauges, histograms).
 
 **Run:**
 
 ```bash
-zig build run-observability -Denable-profiling=true
+zig build run-observability
+```
+
+### orchestration.zig
+
+Multi-model orchestration with routing, fallback, and ensembles.
+
+**Run:**
+
+```bash
+zig build run-orchestration
 ```
 
 ### discord.zig
@@ -126,17 +136,17 @@ Model training with optimizers, checkpointing, and metrics.
 **Run:**
 
 ```bash
-zig build run-training -Denable-ai=true
+zig build run-training
 ```
 
 ### training/train_demo.zig
 
-Synthetic LLM training demo using generated token data (no external files).
+Minimal LLM training walkthrough with a tiny dataset.
 
 **Run:**
 
 ```bash
-zig build run-train-demo -Denable-ai=true
+zig build run-train-demo
 ```
 
 ### llm.zig
@@ -202,7 +212,7 @@ High Availability features for production deployments.
 **Run:**
 
 ```bash
-zig build run-ha -Denable-database=true
+zig build run-ha
 ```
 
 ## Building Examples
@@ -216,11 +226,13 @@ zig build examples
 # Run a specific example
 zig build run-hello
 zig build run-database
+zig build run-agent
 zig build run-compute
 zig build run-concurrency
 zig build run-gpu
 zig build run-network
 zig build run-observability
+zig build run-orchestration
 zig build run-discord
 zig build run-training
 zig build run-train-demo
@@ -244,37 +256,40 @@ zig build benchmarks
 1. **Start with `hello.zig`** - Learn basic framework initialization
 2. **Try `database.zig`** - Understand vector storage and search
 3. **Explore `compute.zig`** - Learn about task execution
-4. **Review `concurrency.zig`** - See lock-free data structures
+4. **Check `concurrency.zig`** - Lock-free primitives in practice
 5. **Check `agent.zig`** - See AI integration
 6. **Review `gpu.zig`** - Understand GPU acceleration
 7. **Study `network.zig`** - Learn distributed computing
-8. **Explore `observability.zig`** - Metrics and histograms
-9. **Check `discord.zig`** - Discord bot integration
+8. **Explore `observability.zig`** - Metrics and tracing basics
+9. **Study `orchestration.zig`** - Multi-model routing
 10. **Explore `training.zig`** - Model training and checkpointing
-11. **Run `train_demo.zig`** - Synthetic LLM training demo
+11. **Try `training/train_demo.zig`** - Minimal training walkthrough
 12. **Try `llm.zig`** - Local LLM inference
-13. **Explore `orchestration.zig`** - Multi-model routing and fallback
+13. **Study `ha.zig`** - High availability features
 14. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
-15. **Study `ha.zig`** - High availability features
 
 ## Common Patterns
 
 All examples follow these Zig 0.16 best practices:
 
-1. **Modern Main Signature (Zig 0.16):**
+1. **Main Signature (Zig 0.16):**
 
    ```zig
-   pub fn main(init: std.process.Init) !void {
-       const allocator = init.gpa;
+   pub fn main() !void {
+       var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+       defer _ = gpa.deinit();
+       const allocator = gpa.allocator();
        // ... your code
    }
    ```
 
-2. **Framework Initialization:**
+2. **Framework Initialization (Config-based):**
 
    ```zig
-   var framework = try abi.init(allocator, abi.FrameworkOptions{});
-   defer abi.shutdown(&framework);
+   var framework = try abi.initWithConfig(allocator, .{
+       .ai = .{ .agents = .{} },
+   });
+   defer framework.deinit();
    ```
 
 3. **Error Handling:**

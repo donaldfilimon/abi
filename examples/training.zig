@@ -22,14 +22,13 @@ pub fn main() !void {
     }
 
     // Initialize framework
-    var framework = abi.init(allocator, abi.FrameworkOptions{
-        .enable_ai = true,
-        .enable_gpu = false,
+    var framework = abi.initWithConfig(allocator, .{
+        .ai = .{ .training = .{} },
     }) catch |err| {
         std.debug.print("Framework initialization failed: {}\n", .{err});
         return err;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // === Training Configuration ===
     std.debug.print("--- Training Configuration ---\n", .{});
