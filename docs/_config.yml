@@ -35,6 +35,7 @@ defaults:
 # Exclude from processing
 exclude:
   - diagrams/
+  - plans/
   - "*.bak"
   - Gemfile
   - Gemfile.lock
