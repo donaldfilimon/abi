@@ -20,26 +20,23 @@ tags: []
 //! | Module | Description |
 //! |--------|-------------|
 //! | `mod.zig` | Public API entry point with Context struct |
-//! | `llm/` | LLM inference (local GGUF, Ollama, OpenAI) |
-//! | `agents/` | Autonomous agent system |
+//! | `llm/` | Local LLM inference (GGUF), tokenizers, sampling |
 //! | `embeddings/` | Embedding generation |
-//! | `training/` | Training pipelines |
+//! | `agents/` | Agent runtime and tool use |
+//! | `training/` | Training pipelines (LLM, vision, multimodal) |
+//! | `streaming/` | SSE/WebSocket streaming server |
+//! | `orchestration/` | Multi-model routing, ensemble, fallback |
+//! | `rag/` | Retrieval-augmented generation |
+//! | `documents/` | Document parsing, segmentation, entities |
+//! | `memory/` | Agent memory + persistence |
+//! | `models/` | Model management and downloads |
+//! | `explore/` | Codebase exploration |
 //!
 //! ## Architecture
 //!
-//! This module uses the wrapper pattern - thin wrappers in `src/ai/` delegate
-//! to full implementations in `src/features/ai/`:
-//!
-//! ```
-//! src/ai/mod.zig (wrapper)
-//!        ↓
-//! src/features/ai/mod.zig (implementation)
-//!        ↓
-//! ├── agent.zig    - Agent runtime
-//! ├── llm/         - LLM connectors
-//! ├── embeddings/  - Embedding models
-//! └── training/    - Training loops
-//! ```
+//! The AI module is fully contained under `src/ai/`, with feature-gated submodules
+//! and stub counterparts for disabled builds. `mod.zig` re-exports the stable API
+//! and provides the `Context` struct for Framework integration.
 //!
 //! ## Usage
 //!
@@ -78,6 +75,7 @@ tags: []
 //!
 //! Sub-features:
 //! - `-Denable-llm=true` - LLM inference (requires `-Denable-ai`)
+//! - `-Denable-vision=true` - Vision processing (requires `-Denable-ai`)
 //! - `-Denable-explore=true` - Codebase exploration (requires `-Denable-ai`)
 //!
 //! ## See Also

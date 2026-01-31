@@ -9,6 +9,12 @@ benchmarks/
 ├── run.zig                       # CLI wrapper
 ├── run_competitive.zig           # Competitive benchmark runner
 │
+├── baselines/                    # Stored baseline results
+│   ├── README.md
+│   ├── branches/
+│   ├── main/
+│   └── releases/
+│
 ├── competitive/                  # Industry comparison benchmarks
 │   ├── mod.zig                   # Competitive benchmark module
 │   ├── faiss_comparison.zig      # vs Facebook FAISS
@@ -24,9 +30,10 @@ benchmarks/
 ├── domain/                       # Domain-specific benchmarks
 │   ├── ai/                       # AI/ML benchmarks
 │   │   ├── mod.zig
-│   │   ├── embeddings.zig         # Embedding generation
 │   │   ├── kernels.zig           # Compute kernels
-│   │   └── llm_metrics.zig       # LLM metrics (tokens/sec, etc.)
+│   │   ├── llm_metrics.zig       # LLM metrics (tokens/sec, etc.)
+│   │   ├── streaming.zig         # Streaming benchmarks
+│   │   └── fpga_kernels.zig      # FPGA kernel comparisons
 │   │
 │   ├── database/                 # Database benchmarks
 │   │   ├── mod.zig
@@ -37,31 +44,25 @@ benchmarks/
 │   ├── gpu/                      # GPU benchmarks
 │   │   ├── mod.zig
 │   │   ├── backends.zig          # Backend comparisons
-│   │   ├── kernels.zig           # Kernel performance
-│   │   └── memory.zig            # Memory transfer
-│   │
-│   └── network/                  # Network benchmarks
-│       ├── mod.zig
-│       ├── http.zig              # HTTP operations
-│       └── rpc.zig               # RPC performance
+│   │   ├── gpu_vs_cpu.zig        # GPU vs CPU comparisons
+│   │   └── kernels.zig           # Kernel performance
 │
 ├── infrastructure/               # Infrastructure benchmarks
+│   ├── mod.zig                   # Infrastructure benchmark module
 │   ├── concurrency.zig           # Concurrency patterns
 │   ├── crypto.zig                # Cryptographic operations
+│   ├── gpu_backends.zig          # Backend availability checks
 │   ├── memory.zig                # Memory management
+│   ├── network.zig               # Network parsing/JSON
 │   └── simd.zig                  # SIMD/vectorization
 │
 ├── system/                       # System/integration benchmarks
-│   ├── ci_integration.zig        # CI/CD integration tests
+│   ├── mod.zig                   # System benchmark module
 │   ├── framework.zig             # Framework initialization
+│   ├── ci_integration.zig        # CI/CD integration tests
 │   ├── industry_standard.zig     # Industry standard compliance
-│   └── integration.zig           # Integration tests
-│
-└── utilities/                    # Benchmark utilities
-    ├── reporter.zig              # Result reporting
-    ├── runner.zig                # Benchmark runner utilities
-    ├── statistics.zig            # Statistical analysis
-    └── validator.zig             # Result validation
+│   ├── baseline_store.zig        # Baseline persistence
+│   └── baseline_comparator.zig   # Baseline comparisons
 ```
 
 ## Purpose of Each Directory
@@ -72,17 +73,20 @@ Compare ABI Framework against industry-standard implementations:
 - **LLM frameworks**: Inference speed comparisons
 - **Vector databases**: QPS and latency comparisons
 
+### `baselines/` - Baseline Storage
+Stores benchmark snapshots for releases, branches, and regression tracking.
+
 ### `core/` - Framework Core Performance
 Measure fundamental framework operations:
 - Configuration loading speed
 - Vector math operations
 - Distance/similarity calculations
-- Memory allocation patterns
 
 ### `domain/` - Feature-Specific Benchmarks
 Domain-specific performance testing:
-- **AI/ML**: Embedding generation, compute kernels, LLM metrics
+- **AI/ML**: Compute kernels, streaming, LLM metrics, FPGA comparisons
 - **Database**: ANN algorithms, HNSW, CRUD operations
+- **GPU**: Backend comparisons, GPU vs CPU, kernel throughput
 We use `domain/ai/` instead of `ai/` at root level for consistency with other domains like `domain/database/`.
 
 ### `infrastructure/` - System Infrastructure
@@ -90,6 +94,7 @@ Infrastructure component performance:
 - Concurrency and parallelism
 - Cryptographic operations
 - Memory management strategies
+- Network parsing/JSON throughput
 - SIMD/vectorization effectiveness
 
 ### `system/` - Integration & Compliance
@@ -97,14 +102,7 @@ System-level and compliance testing:
 - CI/CD integration performance
 - Framework startup/shutdown
 - Industry standard compliance
-- End-to-end integration
-
-### `utilities/` - Benchmarking Tools
-Reusable benchmarking utilities:
-- Result reporting and formatting
-- Benchmark runner orchestration
-- Statistical analysis
-- Result validation
+- Baseline storage and comparisons
 
 ## Benchmark Types
 
@@ -151,8 +149,8 @@ pub fn run(allocator: std.mem.Allocator) !void {
 ```zig
 // benchmarks/domain/ai/mod.zig
 pub const suites = .{
-    @import("embeddings.zig").suite,
     @import("kernels.zig").suite,
+    @import("llm_metrics.zig").suite,
     @import("new_benchmark.zig").suite,  // Add new benchmark
 };
 ```
@@ -212,7 +210,7 @@ zig build bench-competitive
 
 ### Individual Benchmark
 ```bash
-zig run benchmarks/domain/ai/embeddings.zig
+zig run benchmarks/domain/ai/kernels.zig
 ```
 
 ## Output Formats

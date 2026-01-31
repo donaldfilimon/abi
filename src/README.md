@@ -15,29 +15,30 @@ Core source modules of the ABI framework organized by function.
 
 ## Structure
 
-The codebase uses a modular architecture with top-level modules that re-export
-from their implementation directories while adding Framework integration via
-Context structs.
+The codebase uses a modular architecture with top-level modules that expose
+stable APIs and Context structs for Framework integration.
 
 | Directory | Description |
 |-----------|-------------|
 | `abi.zig` | Public API entry point with curated re-exports |
 | `config.zig` | Unified configuration system (struct literal + builder APIs) |
 | `framework.zig` | Framework orchestration and lifecycle management |
-| `registry/` | Plugin registry system (comptime, runtime-toggle, dynamic modes) |
+| `flags.zig` | Feature flag definitions |
+| `config/` | Modular configuration per feature |
+| `registry/` | Feature registry system (comptime, runtime-toggle, dynamic modes) |
 | `runtime/` | Always-on infrastructure (engine, scheduling, concurrency, memory) |
-| `gpu/` | GPU acceleration with unified multi-backend API |
-| `ai/` | AI module with sub-features (llm, embeddings, agents, training) |
-| `database/` | Vector database (primary implementation) |
-| `network/` | Distributed compute (primary implementation) |
-| `observability/` | Metrics, tracing, profiling (consolidated from features/monitoring) |
-| `web/` | Web/HTTP utilities (primary implementation) |
-| `tasks/` | Task management system (roadmap, tracking) |
-| `core/` | Core infrastructure, hardware helpers |
-| `compute/` | Legacy re-exports (backward compat - use `runtime/` instead) |
-| `features/` | Legacy feature implementations (ai, connectors, ha) |
+| `platform/` | Platform detection and CPU feature abstraction |
 | `shared/` | Cross-cutting utilities (logging, platform, utils) |
-| `tests/` | Test utilities, property-based testing, stub parity verification |
+| `ai/` | AI module with sub-features (llm, embeddings, agents, training) |
+| `gpu/` | GPU acceleration with unified multi-backend API |
+| `database/` | Vector database |
+| `network/` | Distributed compute |
+| `observability/` | Metrics, tracing, profiling |
+| `web/` | Web/HTTP utilities |
+| `cloud/` | Cloud provider adapters |
+| `connectors/` | External provider connectors (OpenAI, Ollama, etc.) |
+| `ha/` | High availability (backup, PITR, replication) |
+| `tasks/` | Task management system (roadmap, tracking) |
 
 ## Module Hierarchy
 
@@ -46,6 +47,18 @@ src/
 ├── abi.zig              # Public API
 ├── config.zig           # Unified configuration
 ├── framework.zig        # Framework orchestration
+├── flags.zig            # Feature flags
+│
+├── config/              # Modular configuration
+│   ├── mod.zig
+│   ├── ai.zig
+│   ├── cloud.zig
+│   ├── database.zig
+│   ├── gpu.zig
+│   ├── network.zig
+│   ├── observability.zig
+│   ├── plugin.zig
+│   └── web.zig
 │
 ├── registry/            # Feature registry system
 │   ├── mod.zig          # Public API facade with Registry struct
@@ -53,60 +66,73 @@ src/
 │   ├── registration.zig # registerComptime, registerRuntimeToggle, registerDynamic
 │   └── lifecycle.zig    # initFeature, deinitFeature, enable/disable
 │
-├── runtime/             # Always-on infrastructure (CONSOLIDATED)
+├── runtime/             # Always-on infrastructure
 │   ├── mod.zig          # Unified entry point
 │   ├── engine/          # Work-stealing task execution
 │   ├── scheduling/      # Futures, cancellation, task groups
 │   ├── concurrency/     # Lock-free data structures
-│   ├── memory/          # Arena allocators, pools
-│   └── workload.zig     # Workload detection
+│   └── memory/          # Allocators, pools
 │
-├── gpu/                 # GPU acceleration
-│   ├── mod.zig          # Unified GPU API with backends, DSL, profiling
-│   └── stub.zig         # Feature-disabled stub
+├── platform/            # Platform detection and abstraction
+│   ├── mod.zig
+│   ├── cpu.zig
+│   ├── detection.zig
+│   └── stub.zig
+│
+├── shared/              # Cross-cutting concerns
+│   ├── mod.zig
+│   ├── logging.zig
+│   ├── platform.zig
+│   ├── plugins.zig
+│   ├── security/
+│   └── utils/
 │
 ├── ai/                  # AI module
-│   ├── mod.zig          # Re-exports from features/ai + Context
-│   ├── llm/             # LLM inference sub-feature
-│   ├── embeddings/      # Embeddings generation sub-feature
-│   ├── agents/          # Agent runtime sub-feature
-│   └── training/        # Training pipelines sub-feature
+│   ├── mod.zig
+│   ├── llm/
+│   ├── embeddings/
+│   ├── agents/
+│   ├── training/
+│   ├── streaming/
+│   ├── rag/
+│   ├── documents/
+│   └── ...
+│
+├── gpu/                 # GPU acceleration
+│   ├── mod.zig
+│   └── stub.zig
 │
 ├── database/            # Vector database
-│   ├── mod.zig          # Primary implementation with Context
-│   └── stub.zig         # Feature-disabled stub
+│   ├── mod.zig
+│   └── stub.zig
 │
 ├── network/             # Distributed compute
-│   ├── mod.zig          # Primary implementation with Context
-│   └── stub.zig         # Feature-disabled stub
+│   ├── mod.zig
+│   └── stub.zig
 │
 ├── observability/       # Metrics and tracing
-│   ├── mod.zig          # Re-exports + Context
-│   └── stub.zig         # Feature-disabled stub
+│   ├── mod.zig
+│   └── stub.zig
 │
 ├── web/                 # Web utilities
-│   ├── mod.zig          # Primary implementation with Context
-│   └── stub.zig         # Feature-disabled stub
+│   ├── mod.zig
+│   └── stub.zig
 │
-├── tasks/               # Task management
-│   ├── mod.zig          # Task manager, roadmap, tracking
-│   └── types.zig        # Task and milestone types
+├── cloud/               # Cloud provider adapters
+│   ├── mod.zig
+│   └── ...
 │
-├── compute/             # Legacy re-exports (backward compat)
-│   └── mod.zig          # Re-exports from runtime/ for compatibility
+├── connectors/          # External provider connectors
+│   ├── mod.zig
+│   └── ...
 │
-├── features/            # Legacy feature implementations
-│   ├── ai/              # AI (LLM, embeddings, RAG) - still active
-│   ├── connectors/      # API connectors - still active
-│   └── ha/              # High availability - still active
+├── ha/                  # High availability
+│   ├── mod.zig
+│   └── ...
 │
-└── shared/              # Cross-cutting concerns
-    ├── logging/         # Logging infrastructure
-    ├── observability/   # Tracing, metrics
-    ├── platform/        # OS abstractions
-    ├── plugins/         # Plugin system
-    ├── security/        # API keys, auth
-    └── utils/           # General utilities
+└── tasks/               # Task management
+    ├── mod.zig
+    └── types.zig
 ```
 
 ## Key Entry Points
