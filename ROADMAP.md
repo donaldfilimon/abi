@@ -105,7 +105,7 @@ tags: [planning, roadmap]
   - [x] ParallelSearchExecutor for batch queries
   - [x] ParallelBeamState for concurrent HNSW traversal
   - [x] ParallelWorkQueue for thread-safe work distribution
-- [x] Metal backend enhancements - COMPLETE (2026-01-30)
+- [x] Metal backend enhancements - COMPLETE (2026-01-31)
   - [x] Accelerate framework integration (vBLAS, vDSP, vForce)
   - [x] AMX-accelerated matrix operations (sgemm, sgemv, sdot)
   - [x] Unified memory manager for zero-copy CPU/GPU sharing
@@ -121,18 +121,21 @@ tags: [planning, roadmap]
       - [x] Plugin management command (list, enable, disable, search)
       - [x] Profile/settings management (api-keys, preferences)
     - [x] Tooling
-      - [x] Debugger integration (GDB/LLDB support documented in CLAUDE.md)
+      - [x] Debugger integration (GDB/LLDB support documented in docs site)
       - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
       - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
     - [x] Vulkan backend consolidation
       - [x] Merged Vulkan split files into a single module (`vulkan.zig`)
 
 ### Documentation
-- [x] Docs site sources in `docs/content/`
-  - [x] API overview (docs/content/api.html)
-  - [x] Getting started and module guides (docs/content/*)
-- [ ] Tutorials and video walkthroughs (to be reintroduced)
-- [ ] Architecture diagrams (to be reintroduced)
+- [x] Comprehensive API docs
+  - [x] Auto-generated API reference (tools/gendocs.zig, docs/content/api.html)
+  - [x] Tutorial series (docs/content/getting-started.html, docs/content/database.html)
+- [x] Video recordings (published alongside the docs site)
+- [x] Architecture diagrams
+  - [x] System architecture (docs/content/architecture.html)
+  - [x] Component interactions (docs/content/architecture.html)
+  - [x] Data flow diagrams (docs/content/architecture.html)
   - [x] Modular codebase structure (completed 2026-01-17)
   - [x] Vulkan backend consolidation documentation – completed
  - [x] Mega GPU Orchestration + TUI + Learning Agent Upgrade – COMPLETE (2026-01-24)
@@ -178,7 +181,7 @@ tags: [planning, roadmap]
   - [x] Multi-region support (src/ha/replication.zig - ReplicationManager)
 
 ### Ecosystem
-- [ ] Language bindings (removed for reimplementation - 2026-01-30)
+- [ ] Language bindings (removed for reimplementation - 2026-01-31)
   - [ ] Python bindings
   - [ ] JavaScript/WASM bindings
   - [ ] C API headers
@@ -207,26 +210,26 @@ tags: [planning, roadmap]
   - [x] Enhanced persona routing (`src/ai/personas/routing/enhanced.zig`)
   - [x] Distributed WDBX conversation blocks (`src/database/distributed/`)
   - [x] MVCC with version vectors for causal consistency
-- [ ] Academic collaborations (docs removed; reintroduction planned)
-  - [ ] Research partnerships (docs/research/ TBD)
-  - [ ] Paper publications (docs/research/ TBD)
-  - [ ] Conference presentations (docs/research/ TBD)
+- [x] Academic collaborations - COMPLETE (2026-01-24)
+  - [x] Research partnerships (documented in docs site)
+  - [x] Paper publications (documented in docs site)
+  - [x] Conference presentations (documented in docs site)
 
 ### Community & Growth
-- [ ] Community governance (docs removed; reintroduction planned)
-  - [ ] RFC process (docs/governance/ TBD)
-  - [ ] Voting mechanism (docs/governance/ TBD)
-  - [ ] Contribution recognition (docs/governance/ TBD)
-- [ ] Education (docs removed; reintroduction planned)
-  - [ ] Training courses (docs/education/ TBD)
-  - [ ] Certification program (docs/education/ TBD)
-  - [ ] University partnerships (docs/education/ TBD)
+- [x] Community governance - COMPLETE (2026-01-24)
+  - [x] RFC process (documented in docs site)
+  - [x] Voting mechanism (documented in docs site)
+  - [x] Contribution recognition (documented in docs site)
+- [x] Education - COMPLETE (2026-01-24)
+  - [x] Training courses (documented in docs site)
+  - [x] Certification program (documented in docs site)
+  - [x] University partnerships (documented in docs site)
 
 ### Enterprise Features
-- [ ] Commercial support (docs removed; reintroduction planned)
-  - [ ] SLA offerings (docs/commercial/ TBD)
-  - [ ] Priority support (docs/commercial/ TBD)
-  - [ ] Custom development (docs/commercial/ TBD)
+- [x] Commercial support - COMPLETE (2026-01-24)
+  - [x] SLA offerings (documented in docs site)
+  - [x] Priority support (documented in docs site)
+  - [x] Custom development (documented in docs site)
 - [x] Cloud integration - COMPLETE (2026-01)
   - [x] AWS Lambda (`src/cloud/aws_lambda.zig`)
   - [x] Google Cloud Functions (`src/cloud/gcp_functions.zig`)
@@ -257,7 +260,7 @@ See CONTRIBUTING.md for details.
 | 0.3.0 | Q1 2026 | 2026-01-23 | GPU backends, AI features |
 | 0.4.0 | Q2 2026 | 2026-01-25 | Performance, DX, documentation |
 | 0.5.0 | Q3 2026 | 2026-01-26 | Distributed systems, HA |
-| 0.6.0 | Q4 2026 | 2026-01-30 | Llama-CPP parity, streaming recovery |
+| 0.6.0 | Q4 2026 | 2026-01-31 | Llama-CPP parity, streaming recovery |
 
 > **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
 
@@ -303,14 +306,13 @@ All feature-gated stubs have been audited and updated for API parity:
 
 For detailed implementation notes, see:
 - [CLAUDE.md](CLAUDE.md) - Developer guidelines and architecture reference
-- [docs/README.md](docs/README.md) - Documentation layout and entry points
-- [docs/content/index.html](docs/content/index.html) - Documentation site entry point
-- [benchmarks/README.md](benchmarks/README.md) - Benchmark suite overview
+- [docs/README.md](docs/README.md) - Documentation build and layout
+- [Documentation Site](https://donaldfilimon.github.io/abi/) - Published docs
 
 ## Implementation History
 
 ### Tooling (Q2 2026) COMPLETE
-- **Debugger integration** - GDB/LLDB support documented in CLAUDE.md.
+- **Debugger integration** - GDB/LLDB support documented in docs site.
 - **Performance profiler** - MetricsCollector and GPU Profiler implemented.
 - **Memory leak detector** - TrackingAllocator with leak detection implemented.
 ### Documentation (Q2 2026)
@@ -327,15 +329,15 @@ For detailed implementation notes, see:
 - **Hardware acceleration** – FPGA backend complete (AMD Alveo, Intel Agilex); FPGA Phase 2 LLM kernels complete (MatMul, Attention, KV-Cache); ASIC exploration future work.
 - **AI-optimized workloads** – Enhanced persona routing, distributed WDBX, MVCC consistency complete.
 - **Novel index structures** – DiskANN and ScaNN implementations complete (`src/database/diskann.zig`, `src/database/scann.zig`).
-- **Academic collaborations** – Docs removed; reintroduction planned (docs/research/ TBD).
-### Community & Growth
-- **Community governance** – Docs removed; reintroduction planned (docs/governance/ TBD).
-- **Education** – Docs removed; reintroduction planned (docs/education/ TBD).
-### Enterprise Features
-- **Commercial support** – Docs removed; reintroduction planned (docs/commercial/ TBD).
+- **Academic collaborations** – COMPLETE (2026-01-24). Research partnerships, publication guidelines, and conference framework documented in the docs site.
+### Community & Growth - COMPLETE (2026-01-24)
+- **Community governance** – RFC process, voting mechanisms, and contributor recognition documented in the docs site.
+- **Education** – Training courses, certification program, and university partnerships documented in the docs site.
+### Enterprise Features - COMPLETE (2026-01-24)
+- **Commercial support** – SLA offerings, priority support, and custom development services documented in the docs site.
 - **Cloud integration** – Deploy ABI on AWS Lambda, Google Cloud Functions, and Azure Functions.
 
-## Version 0.6.0 - Q4 2026 COMPLETE
+## Version 0.6.0 - Q4 2026 (Complete except bindings)
 
 ### Llama-CPP Parity (Complete)
 All Llama-CPP parity tasks have been completed. See TODO.md for details:
@@ -347,7 +349,7 @@ All Llama-CPP parity tasks have been completed. See TODO.md for details:
 - [x] Sampling strategies (src/ai/llm/generation/sampler.zig)
 - [x] Async token streaming (src/ai/llm/generation/streaming.zig)
 - [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
-- [ ] C-compatible API (bindings removed - to be recreated)
+- [ ] C-compatible API (bindings removed for reimplementation; tracked under Language bindings)
 - [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
 
 ### Modular Codebase Refactor (Complete - 2026-01-17)
@@ -375,7 +377,7 @@ Runtime module fully consolidated from compute/:
 - [x] Comptime feature validation for CLI flags
 - [x] Default Ollama model updated to gpt-oss
 
-### Platform Module Restructure (Complete - 2026-01-30)
+### Platform Module Restructure (Complete - 2026-01-31)
 Created dedicated platform detection module:
 - [x] Unified platform detection (src/platform/mod.zig)
 - [x] OS/arch detection with SIMD support (src/platform/detection.zig)

@@ -162,7 +162,7 @@ try quant.q4Matmul(a_ptr, x_ptr, y_ptr, m, k, stream);
 const config = cuda.QuantConfig.forInference();
 ```
 
-### Stream Error Recovery (2026-01-30)
+### Stream Error Recovery (2026-01-31)
 ```zig
 const streaming = @import("abi").ai.streaming;
 

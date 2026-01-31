@@ -12,7 +12,7 @@ tags: []
 </p>
 
 > **Getting Started Fast** — This guide gets you running in under 5 minutes.
-> For comprehensive guides, see [docs/content/index.html](docs/content/index.html).
+> For comprehensive guides, see [docs/content/getting-started.html](docs/content/getting-started.html).
 
 ---
 
@@ -202,9 +202,9 @@ Flat domain structure with modular architecture:
 | Module | Description | Status | Docs |
 |--------|-------------|--------|------|
 | `src/abi.zig` | Public API entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
-| `src/config.zig` | Unified configuration system | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
-| `src/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Configuration Guide](docs/content/configuration.html) |
-| `src/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Architecture Guide](docs/content/architecture.html) |
+| `src/config/` | Unified configuration system | ![Ready](https://img.shields.io/badge/-Ready-success) | [Configuration](docs/content/configuration.html) |
+| `src/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Architecture](docs/content/architecture.html) |
+| `src/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Runtime README](src/runtime/README.md) |
 
 ### Feature Modules
 

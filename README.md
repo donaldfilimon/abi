@@ -102,12 +102,11 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize with builder pattern
-    const config = abi.Config.init()
-        .withAI(true)
-        .withGPU(true)
-        .withDatabase(true);
-
-    var framework = try abi.Framework.init(allocator, config);
+    var framework = try abi.Framework.builder(allocator)
+        .withAiDefaults()
+        .withGpuDefaults()
+        .withDatabaseDefaults()
+        .build();
     defer framework.deinit();
 
     std.debug.print("ABI v{s} ready!\n", .{abi.version()});
@@ -421,10 +420,11 @@ zig build -Dgpu-backend=auto
 
 ---
 
-## C Bindings
+## C Bindings (Reintroduction Planned)
 
-C bindings are temporarily removed during the Zig 0.16 transition and will be
-reintroduced with updated headers and examples. Track progress in [ROADMAP.md](ROADMAP.md).
+C bindings were removed during the 2026-01-30 cleanup and are being
+reintroduced as part of the language bindings roadmap. Track progress in
+[ROADMAP.md](ROADMAP.md) under **Language bindings**.
 
 ---
 
@@ -432,18 +432,23 @@ reintroduced with updated headers and examples. Track progress in [ROADMAP.md](R
 
 | Resource | Description |
 |:---------|:------------|
-| [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
-| [C Bindings](bindings/c/README.md) | C FFI API reference |
-| [API Reference](API_REFERENCE.md) | Public API summary |
-| [Quickstart](QUICKSTART.md) | Getting started guide |
-| [Deployment Guide](DEPLOYMENT_GUIDE.md) | Production deployment |
+| [Online Docs](https://donaldfilimon.github.io/abi/) | Published documentation site |
+| [Docs Source](docs/README.md) | Docs build and layout |
+| [API Overview](docs/content/api.html) | High-level API reference |
+| [Getting Started](docs/content/getting-started.html) | First steps and setup |
+| [Configuration](docs/content/configuration.html) | Config system overview |
+| [Architecture](docs/content/architecture.html) | System structure |
 | [AI Guide](docs/content/ai.html) | LLM, agents, training |
 | [GPU Guide](docs/content/gpu.html) | Multi-backend GPU acceleration |
 | [Database Guide](docs/content/database.html) | WDBX vector database |
 | [Network Guide](docs/content/network.html) | Distributed compute |
-| [API Overview](docs/content/api.html) | Public API and endpoints |
-| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
-| [Docs Map](docs/README.md) | Documentation layout and entry points |
+| [Deployment Guide](docs/content/deployment.html) | Production deployment |
+| [Observability Guide](docs/content/observability.html) | Metrics and profiling |
+| [Security Guide](docs/content/security.html) | Security model |
+| [Examples Guide](docs/content/examples.html) | Example walkthroughs |
+| [API Reference](API_REFERENCE.md) | Public API summary |
+| [Quickstart](QUICKSTART.md) | Getting started guide |
+| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and conventions |
 
 ```bash
 # Run all tests
@@ -483,7 +488,7 @@ zig build lint
 |:----------|:------:|
 | Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| C Library Bindings | ![Planned](https://img.shields.io/badge/-Planned-yellow) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |

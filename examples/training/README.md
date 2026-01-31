@@ -327,5 +327,5 @@ defer lora_model.deinit();
 
 - [API Reference](../../API_REFERENCE.md) - Full API documentation
 - [AI Module Guide](../../docs/content/ai.html) - AI subsystem details
-- [Docs Map](../../docs/README.md) - Documentation entry points
+- [Documentation Site](https://donaldfilimon.github.io/abi/) - Guides and reference
 

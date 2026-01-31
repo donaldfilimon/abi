@@ -19,3 +19,4 @@ https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [SECURITY.md](SECURITY.md) - Security reporting
+- [Contributing](docs/content/contributing.html) - Maintainer contact information

@@ -453,7 +453,7 @@ const result = try abi.runtime.runTask(&engine, u32, computeTask, 1000);
 std.debug.print("Result: {d}\n", .{result});
 ```
 
-See [Architecture Guide](docs/content/architecture.html) for detailed usage.
+See [Runtime Guide](src/runtime/README.md) for detailed usage.
 
 **Timeout Semantics**:
 
@@ -791,7 +791,7 @@ const abbey_response = try orchestrator.processWithPersona(.abbey, .{
 });
 ```
 
-See [AI Guide](docs/content/ai.html) for persona overview and usage details.
+See [AI Guide](docs/content/ai.html) for persona capabilities and routing.
 
 ## Connectors API
 
@@ -879,9 +879,9 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Guides
-- [Architecture](docs/content/architecture.html) — Architecture overview
+- [Architecture](docs/content/architecture.html) — System overview
 - [Configuration](docs/content/configuration.html) — Configuration and lifecycle
-- [Runtime Overview](docs/content/architecture.html) — Task execution
+- [Runtime Guide](src/runtime/README.md) — Task execution
 - [AI Guide](docs/content/ai.html) — LLM connectors and agents
 - [GPU Guide](docs/content/gpu.html) — GPU backends
 
