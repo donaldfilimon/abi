@@ -496,16 +496,15 @@ pub fn build(b: *std.Build) void {
         mobile_step.dependOn(&b.addInstallArtifact(abi_ios, .{ .dest_dir = .{ .override = .{ .custom = "mobile/ios" } } }).step);
     }
 
-    // Performance Verification Tool
+    // Performance Verification Tool (build only - requires piped input to run)
+    // Usage: zig build bench-competitive -- --json | ./zig-out/bin/abi-check-perf
     if (pathExists("tools/perf/check.zig")) {
         const check_perf_exe = b.addExecutable(.{
             .name = "abi-check-perf",
             .root_module = b.createModule(.{ .root_source_file = b.path("tools/perf/check.zig"), .target = target, .optimize = .ReleaseSafe }),
         });
-        b.installArtifact(check_perf_exe);
-        const check_perf_run = b.addRunArtifact(check_perf_exe);
-        if (b.args) |args| check_perf_run.addArgs(args);
-        b.step("check-perf", "Run performance verification tool").dependOn(&check_perf_run.step);
+        const install_check_perf = b.addInstallArtifact(check_perf_exe, .{});
+        b.step("check-perf", "Build performance verification tool (pipe benchmark JSON to run)").dependOn(&install_check_perf.step);
     }
 
     // WASM - only build if bindings exist (removed for reimplementation)
