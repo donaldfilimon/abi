@@ -6,11 +6,10 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{
-        .enable_database = true,
-        .enable_gpu = false,
-    });
-    defer abi.shutdown(&framework);
+    var framework = try abi.Framework.builder(allocator)
+        .withDatabaseDefaults()
+        .build();
+    defer framework.deinit();
 
     if (!abi.database.isEnabled()) {
         std.debug.print("Database feature is disabled. Enable with -Denable-database=true\n", .{});
@@ -18,7 +17,7 @@ pub fn main() !void {
     }
 
     var handle = abi.database.openOrCreate(allocator, "example") catch |err| {
-        std.debug.print("Failed to open/create database: {}\n", .{err});
+        std.debug.print("Failed to open/create database: {t}\n", .{err});
         return err;
     };
     defer abi.database.close(&handle);
@@ -32,7 +31,7 @@ pub fn main() !void {
 
     for (test_vectors, 1..) |vec, i| {
         abi.database.insert(&handle, @intCast(i), &vec, null) catch |err| {
-            std.debug.print("Failed to insert vector {}: {}\n", .{ i, err });
+            std.debug.print("Failed to insert vector {}: {t}\n", .{ i, err });
             return err;
         };
     }
@@ -41,7 +40,7 @@ pub fn main() !void {
     // Perform similarity search
     const query = [_]f32{ 1.0, 0.0, 0.0 };
     const results = abi.database.search(&handle, allocator, &query, 2) catch |err| {
-        std.debug.print("Failed to search database: {}\n", .{err});
+        std.debug.print("Failed to search database: {t}\n", .{err});
         return err;
     };
     defer allocator.free(results);

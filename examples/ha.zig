@@ -17,14 +17,13 @@ pub fn main() !void {
     std.debug.print("=== ABI High Availability Example ===\n\n", .{});
 
     // Initialize framework
-    var framework = abi.init(allocator, abi.FrameworkOptions{
-        .enable_database = true,
-        .enable_gpu = false,
-    }) catch |err| {
-        std.debug.print("Framework initialization failed: {}\n", .{err});
+    var framework = abi.Framework.builder(allocator)
+        .withDatabaseDefaults()
+        .build() catch |err| {
+        std.debug.print("Framework initialization failed: {t}\n", .{err});
         return err;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // === HA Manager Setup ===
     std.debug.print("--- HA Manager Setup ---\n", .{});
@@ -50,7 +49,7 @@ pub fn main() !void {
     std.debug.print("\n--- Starting HA Services ---\n", .{});
 
     ha_manager.start() catch |err| {
-        std.debug.print("Failed to start HA services: {}\n", .{err});
+        std.debug.print("Failed to start HA services: {t}\n", .{err});
         return err;
     };
 
@@ -68,18 +67,18 @@ pub fn main() !void {
 
     // Simulate capturing operations
     pitr.captureOperation(.insert, "user:1", "Alice", null) catch |err| {
-        std.debug.print("Failed to capture operation: {}\n", .{err});
+        std.debug.print("Failed to capture operation: {t}\n", .{err});
     };
     pitr.captureOperation(.update, "user:1", "Alice Smith", "Alice") catch |err| {
-        std.debug.print("Failed to capture operation: {}\n", .{err});
+        std.debug.print("Failed to capture operation: {t}\n", .{err});
     };
     pitr.captureOperation(.insert, "user:2", "Bob", null) catch |err| {
-        std.debug.print("Failed to capture operation: {}\n", .{err});
+        std.debug.print("Failed to capture operation: {t}\n", .{err});
     };
 
     // Create checkpoint
     const seq = pitr.createCheckpoint() catch |err| {
-        std.debug.print("Failed to create checkpoint: {}\n", .{err});
+        std.debug.print("Failed to create checkpoint: {t}\n", .{err});
         return err;
     };
     std.debug.print("Checkpoint created: sequence={d}\n", .{seq});
@@ -108,7 +107,7 @@ pub fn main() !void {
 
     // Trigger manual backup
     const backup_id = backup.triggerBackup() catch |err| {
-        std.debug.print("Failed to trigger backup: {}\n", .{err});
+        std.debug.print("Failed to trigger backup: {t}\n", .{err});
         return err;
     };
     std.debug.print("Backup triggered: ID={d}\n", .{backup_id});

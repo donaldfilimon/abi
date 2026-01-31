@@ -157,14 +157,18 @@ pub fn main(init: std.process.Init.Minimal) !void {
     std.debug.print("\n", .{});
 
     // Initialize framework
-    var framework = abi.init(allocator, abi.FrameworkOptions{
-        .enable_ai = true,
-        .enable_gpu = config.use_gpu,
-    }) catch |err| {
+    var ai_config = abi.config.AiConfig.defaults();
+    ai_config.training = .{};
+    var builder = abi.Framework.builder(allocator);
+    _ = builder.withAi(ai_config);
+    if (config.use_gpu) {
+        _ = builder.withGpuDefaults();
+    }
+    var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
         return;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // Load base model
     std.debug.print("Loading base model: {s}...\n", .{config.base_model});

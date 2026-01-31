@@ -6,10 +6,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{
-        .enable_gpu = false,
-    });
-    defer abi.shutdown(&framework);
+    var framework = try abi.Framework.initMinimal(allocator);
+    defer framework.deinit();
 
     std.debug.print("ABI Framework v{s}\n", .{abi.version()});
     std.debug.print("Framework initialized successfully\n", .{});
