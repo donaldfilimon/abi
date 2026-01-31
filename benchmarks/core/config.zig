@@ -55,13 +55,13 @@ pub const DatabaseBenchConfig = struct {
 
     /// Standard configuration for development
     pub const standard = DatabaseBenchConfig{
-        .dimensions = &.{ 128, 256, 512 },
-        .dataset_sizes = &.{ 1000, 5000 },
-        .batch_sizes = &.{ 1, 10, 100 },
-        .k_values = &.{ 1, 10, 50 },
-        .query_iterations = 50,
-        .hnsw_ef_search = &.{ 32, 64, 128 },
-        .min_time_ns = 300_000_000,
+        .dimensions = &.{ 128, 256 },
+        .dataset_sizes = &.{ 1000, 2000 },
+        .batch_sizes = &.{ 1, 100 },
+        .k_values = &.{ 1, 10 },
+        .query_iterations = 20,
+        .hnsw_ef_search = &.{ 32, 64 },
+        .min_time_ns = 100_000_000,
     };
 
     /// Comprehensive configuration for full benchmarking
@@ -131,15 +131,15 @@ pub const AIBenchConfig = struct {
 
     /// Standard configuration for development
     pub const standard = AIBenchConfig{
-        .hidden_sizes = &.{ 256, 512, 768, 1024 },
-        .seq_lengths = &.{ 32, 64, 128, 256 },
-        .batch_sizes = &.{ 1, 4, 8 },
-        .num_heads = &.{ 8, 12 },
-        .vocab_sizes = &.{ 32000, 50257 },
-        .matrix_sizes = &.{ 128, 256, 512 },
-        .activation_sizes = &.{ 256, 1024, 4096 },
-        .min_time_ns = 500_000_000,
-        .warmup_iterations = 500,
+        .hidden_sizes = &.{ 256, 512, 768 },
+        .seq_lengths = &.{ 64, 128 },
+        .batch_sizes = &.{ 1, 4 },
+        .num_heads = &.{8},
+        .vocab_sizes = &.{32000},
+        .matrix_sizes = &.{ 128, 256 },
+        .activation_sizes = &.{ 256, 1024 },
+        .min_time_ns = 100_000_000,
+        .warmup_iterations = 100,
     };
 
     /// Comprehensive configuration for full benchmarking

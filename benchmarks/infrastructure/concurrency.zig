@@ -16,11 +16,11 @@ const framework = @import("../system/framework.zig");
 
 /// Concurrency benchmark configuration
 pub const ConcurrencyBenchConfig = struct {
-    thread_counts: []const usize = &.{ 1, 2, 4, 8, 16 },
-    operations_per_thread: usize = 100_000,
+    thread_counts: []const usize = &.{ 1, 2, 4 },
+    operations_per_thread: usize = 10_000,
     queue_size: usize = 1024,
     work_item_size: usize = 64,
-    contention_levels: []const ContentionLevel = &.{ .low, .medium, .high },
+    contention_levels: []const ContentionLevel = &.{ .low, .high },
 };
 
 pub const ContentionLevel = enum {

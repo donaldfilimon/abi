@@ -40,13 +40,13 @@ pub const Statistics = struct {
 /// Benchmark configuration
 pub const BenchConfig = struct {
     /// Minimum time to run the benchmark (nanoseconds)
-    min_time_ns: u64 = 1_000_000_000, // 1 second
+    min_time_ns: u64 = 100_000_000, // 100ms (was 1s - too slow)
     /// Maximum iterations regardless of time
-    max_iterations: u64 = 10_000_000,
+    max_iterations: u64 = 1_000_000,
     /// Minimum iterations to run
     min_iterations: u64 = 10,
     /// Number of warm-up iterations
-    warmup_iterations: u64 = 100,
+    warmup_iterations: u64 = 50,
     /// Whether to remove statistical outliers
     remove_outliers: bool = true,
     /// Outlier threshold (number of standard deviations)
