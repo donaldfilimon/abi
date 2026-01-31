@@ -165,6 +165,16 @@ Local LLM inference with GGUF models.
 zig build run-llm -- path/to/model.gguf
 ```
 
+### orchestration.zig
+
+Multi-model routing, fallback, and ensemble orchestration.
+
+**Run:**
+
+```bash
+zig build run-orchestration -Denable-ai=true
+```
+
 ### train_ava.zig
 
 Train the Ava assistant model based on gpt-oss.
@@ -227,6 +237,7 @@ zig build run-discord
 zig build run-training
 zig build run-train-demo
 zig build run-llm
+zig build run-orchestration
 zig build run-train-ava
 zig build run-ha
 ```

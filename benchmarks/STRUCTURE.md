@@ -6,7 +6,7 @@ benchmarks/
 ├── STRUCTURE.md                  # Directory structure overview
 ├── main.zig                      # Main benchmark runner
 ├── mod.zig                       # Root benchmark module (exports all suites)
-├── run.zig                       # CLI wrapper
+├── run.zig                       # Legacy CLI wrapper
 ├── run_competitive.zig           # Competitive benchmark runner
 ├── baselines/                    # Baseline snapshots and helpers
 │
@@ -68,6 +68,9 @@ Compare ABI Framework against industry-standard implementations:
 - **LLM frameworks**: Inference speed comparisons
 - **Vector databases**: QPS and latency comparisons
 
+### `baselines/` - Stored Benchmarks
+Baseline snapshots for branches, main, and releases used by CI comparison tools.
+
 ### `core/` - Framework Core Performance
 Measure fundamental framework operations:
 - Configuration loading speed
@@ -112,6 +115,7 @@ System-level and compliance testing:
 - Core framework operation → `core/`
 - AI/ML operation → `domain/ai/`
 - Database operation → `domain/database/`
+- GPU operation → `domain/gpu/`
 - System operation → `infrastructure/` or `system/`
 
 ### 2. Create Benchmark File
@@ -215,30 +219,28 @@ zig run benchmarks/domain/ai/kernels.zig
 zig build benchmarks  # Default format
 ```
 
-### JSON
+### JSON (stdout)
 ```bash
-zig build benchmarks -- --format=json > results.json
+zig build benchmarks -- --json > results.json
 ```
 
-### CSV
+### JSON (file output)
 ```bash
-zig build benchmarks -- --format=csv > results.csv
+zig build benchmarks -- --output=results.json
 ```
 
 ### CI Integration
 ```bash
-# With version tagging
-zig build benchmarks -- --format=json --tag=git-$(git rev-parse --short HEAD)
+# With version tagging in the filename
+zig build benchmarks -- --output=benchmarks/baselines/branches/git-$(git rev-parse --short HEAD).json
 ```
 
 ## Performance Baselines
 
 Baseline files are stored in `benchmarks/baselines/`:
-- `baselines/latest.json` - Most recent results
-- `baselines/release-*.json` - Release snapshots
-- `baselines/regression-*.json` - Regression test results
+- `baselines/branches/` - Per-branch snapshots
+- `baselines/main/` - Mainline snapshots
+- `baselines/releases/` - Release snapshots
 
-Compare against baseline:
-```bash
-node scripts/compare-baseline.js benchmarks/baselines/latest.json current_results.json
-```
+Baseline helpers live in `benchmarks/system/` (see `baseline_store.zig` and
+`baseline_comparator.zig`) and are used by CI integration benchmarks.

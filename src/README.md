@@ -30,7 +30,7 @@ Context structs.
 | `runtime/` | Always-on infrastructure (engine, scheduling, concurrency, memory) |
 | `shared/` | Cross-cutting utilities (logging, platform, utils) |
 | `gpu/` | GPU acceleration with unified multi-backend API |
-| `ai/` | AI module with sub-features (llm, embeddings, agents, training) |
+| `ai/` | AI module with sub-features (llm, embeddings, agents, training, etc.) |
 | `database/` | Vector database (primary implementation) |
 | `network/` | Distributed compute (primary implementation) |
 | `observability/` | Metrics, tracing, profiling |

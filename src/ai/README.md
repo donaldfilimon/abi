@@ -79,9 +79,9 @@ tags: []
 //! | Connector | Description | Config |
 //! |-----------|-------------|--------|
 //! | Local GGUF | Load local GGUF models | `model_path` |
-//! | Ollama | Connect to Ollama server | `OLLAMA_HOST` env |
-//! | OpenAI | OpenAI API | `OPENAI_API_KEY` env |
-//! | HuggingFace | HuggingFace API | `HF_API_TOKEN` env |
+//! | Ollama | Connect to Ollama server | `ABI_OLLAMA_HOST` env |
+//! | OpenAI | OpenAI API | `ABI_OPENAI_API_KEY` env |
+//! | HuggingFace | HuggingFace API | `ABI_HF_API_TOKEN` env |
 //!
 //! ## Build Options
 //!
