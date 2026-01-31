@@ -514,7 +514,7 @@ pub const Gpu = struct {
             .bytes_transferred = a.getSize() + b.getSize() + result.getSize(),
             .backend = device.backend,
             .device_id = device.id,
-            .gpu_executed = true,
+            .gpu_executed = gpu_executed,
         };
     }
 
@@ -614,7 +614,7 @@ pub const Gpu = struct {
             .bytes_transferred = a.getSize() + b.getSize() + result.getSize(),
             .backend = device.backend,
             .device_id = device.id,
-            .gpu_executed = true,
+            .gpu_executed = gpu_executed,
         };
     }
 
@@ -678,6 +678,7 @@ pub const Gpu = struct {
                 .bytes_transferred = input.getSize(),
                 .backend = device.backend,
                 .device_id = device.id,
+                .gpu_executed = gpu_executed,
             },
         };
     }
@@ -745,6 +746,7 @@ pub const Gpu = struct {
                 .bytes_transferred = a.getSize() + b.getSize(),
                 .backend = device.backend,
                 .device_id = device.id,
+                .gpu_executed = gpu_executed,
             },
         };
     }
@@ -815,7 +817,7 @@ pub const Gpu = struct {
             .bytes_transferred = input.getSize() + output.getSize(),
             .backend = device.backend,
             .device_id = device.id,
-            .gpu_executed = true,
+            .gpu_executed = gpu_executed,
         };
     }
 
@@ -1185,6 +1187,7 @@ test "ExecutionResult throughput" {
         .bytes_transferred = 1024 * 1024 * 1024, // 1 GB
         .backend = .cuda,
         .device_id = 0,
+        .gpu_executed = true,
     };
 
     try std.testing.expectApproxEqAbs(@as(f64, 1.0), result.throughputGBps(), 0.01);

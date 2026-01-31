@@ -225,7 +225,7 @@ fn writeJsonReport(
     try writer.writeAll("\n  ]\n}\n");
 }
 
-fn initThreadedIo(allocator: std.mem.Allocator, options: anytype) !std.Io.Threaded {
+fn initThreadedIo(allocator: std.mem.Allocator, options: std.Io.Threaded.InitOptions) !std.Io.Threaded {
     const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
     if (@typeInfo(Result) == .error_union) {
         return try std.Io.Threaded.init(allocator, options);
