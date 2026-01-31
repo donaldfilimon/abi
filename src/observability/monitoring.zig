@@ -520,7 +520,7 @@ pub const PrometheusExporter = struct {
 
         try output.appendSlice(allocator, "# HELP abi_build_info Build information\n");
         try output.appendSlice(allocator, "# TYPE abi_build_info gauge\n");
-        try output.appendSlice(allocator, "abi_build_info{version=\"0.3.0\",commit=\"unknown\"} 1\n\n");
+        try output.appendSlice(allocator, "abi_build_info{version=\"0.4.0\",commit=\"unknown\"} 1\n\n");
 
         return output.toOwnedSlice(allocator);
     }

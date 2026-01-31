@@ -52,18 +52,15 @@ tags: [documentation, index, navigation]
 | [Abbey-Aviva Framework](research/abbey-aviva-abi-wdbx-framework.md) | Multi-persona AI architecture whitepaper | ![Research](https://img.shields.io/badge/-Research-blueviolet) |
 | [FPGA/ASIC Analysis](research/hardware-acceleration-fpga-asic.md) | Hardware acceleration research | ![Research](https://img.shields.io/badge/-Research-blueviolet) |
 
-## Implementation Plans (Archived)
+## Implementation Plans
 
-All implementation plans have been archived to [plans/archive/](plans/archive/). Key completed work:
+Current planning documents:
 
 | Plan | Description | Status |
 |------|-------------|--------|
-| [Eval Module](plans/archive/2026-01-17-eval-module-improvements.md) | Eval improvements | ![Completed](https://img.shields.io/badge/-Completed-success) |
-| [GPU Backend](plans/archive/2026-01-17-gpu-backend-completion.md) | GPU backend completion | ![Completed](https://img.shields.io/badge/-Completed-success) |
-| [Task Management](plans/archive/2026-01-17-task-management-system.md) | Task system design | ![Completed](https://img.shields.io/badge/-Completed-success) |
-| [GPU Codegen Consolidation](plans/archive/2026-01-22-gpu-codegen-consolidation.md) | GPU codegen refactoring | ![Completed](https://img.shields.io/badge/-Completed-success) |
-| [Vulkan Consolidation](plans/archive/2026-01-24-vulkan-consolidation.md) | Vulkan backend consolidation | ![Completed](https://img.shields.io/badge/-Completed-success) |
-| [Mega GPU + TUI + Agent](plans/archive/2026-01-24-mega-gpu-tui-agent-upgrade.md) | Cross-backend GPU + self-learning agent | ![Completed](https://img.shields.io/badge/-Completed-success) |
+| [C Bindings Reimplementation](plans/2026-01-30-c-bindings-reimplementation.md) | ABI C bindings rebuild | ![Active](https://img.shields.io/badge/-Active-yellow) |
+| [Codebase Improvement](plans/2026-01-30-codebase-improvement.md) | Reliability, performance, cleanup | ![Active](https://img.shields.io/badge/-Active-yellow) |
+| [Production Readiness](plans/2026-01-30-production-readiness.md) | Deployment and ops hardening | ![Active](https://img.shields.io/badge/-Active-yellow) |
 
 ## Developer Resources
 

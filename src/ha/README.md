@@ -246,4 +246,4 @@ All public methods on `HaManager` are thread-safe and use internal mutex for syn
 ## See Also
 
 - [docs/deployment.md](/docs/deployment.md) - Production deployment guide
-- [docs/plans/archive/](docs/plans/archive/) - Implementation details and design decisions
+- [docs/plans/](docs/plans/) - Implementation plans and design decisions

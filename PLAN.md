@@ -56,7 +56,7 @@ Potential focus areas for upcoming work:
 - **Configuration loader with env vars** - New ConfigLoader for runtime configuration via environment variables (ABI_GPU_BACKEND, ABI_LLM_MODEL_PATH, etc.); documented in CLAUDE.md; 787/792 tests passing (2026-01-30)
 - **Build system improvements** - Fixed pathExists() for Zig 0.16 using C stat(); synced package version to 0.4.0 across build.zig, build.zig.zon, and all source files; cross-platform cli-tests and full-check build steps; 787/792 tests passing (2026-01-30)
 - **C-compatible library bindings** - Complete FFI layer with headers (abi.h, abi_types.h, abi_errors.h), Zig exports (errors, framework, simd, database, gpu, agent), shared/static library build, C examples; Llama-CPP Library API parity now 100% complete; 787/792 tests passing (2026-01-30)
-- **Codebase cleanup** - Removed unnecessary files for fresh start: bindings/ (Rust, Go, Python, WASM, C), vscode-abi/, www/, models/, .serena/, migration scripts (probe_*.zig, fix_*.py, migrate*.sh), tools/migrate_0_16/; Archived all 28 plan documents to `docs/plans/archive/`; Fixed WASM build targets to gracefully no-op when bindings missing; Updated .gitignore; Updated documentation (CLAUDE.md, AGENTS.md, ROADMAP.md, TODO.md); 787/792 tests passing (2026-01-30)
+- **Codebase cleanup** - Removed unnecessary files for fresh start: bindings/ (Rust, Go, Python, WASM, C), vscode-abi/, www/, models/, .serena/, migration scripts (probe_*.zig, fix_*.py, migrate*.sh), tools/migrate_0_16/; Removed legacy plan archives; Fixed WASM build targets to gracefully no-op when bindings missing; Updated .gitignore; Updated documentation (CLAUDE.md, AGENTS.md, ROADMAP.md, TODO.md); 787/792 tests passing (2026-01-30)
 - **AI stub parity complete** - Full stub/real API parity for `-Denable-ai=false` builds; Added TrainableViTConfig, TrainableViTModel, CLIPTrainingConfig, TrainableCLIPModel, VisionTrainingError, MultimodalTrainingError stubs; Fixed DownloadResult.checksum type (`[64]u8` vs optional); All feature flag combinations now compile; 787/792 tests passing (2026-01-30)
 - **src/ restructure (partial)** - Created `src/platform/` module with unified platform detection (mod.zig, detection.zig, cpu.zig, stub.zig), created `src/shared/mod.zig` to consolidate utilities, moved io.zig to shared/, updated CLAUDE.md architecture diagram; 787/792 tests passing (2026-01-30)
 - **GPU platform detection** - Centralized platform detection for all GPU backends (`src/gpu/platform.zig`), PlatformCapabilities for runtime feature detection, BackendSupport for compile-time availability, isCudaSupported/isMetalSupported/isVulkanSupported helpers; 787/792 tests passing (2026-01-30)
@@ -134,5 +134,5 @@ Potential focus areas for upcoming work:
 ## Quick Links
 
 - [ROADMAP.md](ROADMAP.md) - Full project roadmap
-- [docs/plans/archive/](docs/plans/archive/) - Archived implementation plans
+- [docs/plans/](docs/plans/) - Implementation plans
 - [CLAUDE.md](CLAUDE.md) - Development guidelines
