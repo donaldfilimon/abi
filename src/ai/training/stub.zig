@@ -2,6 +2,7 @@
 
 const std = @import("std");
 const config_module = @import("../../config/mod.zig");
+const vision = @import("../vision/stub.zig");
 
 pub const Error = error{
     TrainingDisabled,
@@ -199,6 +200,173 @@ pub const TrainableModel = struct {
     }
 };
 
+/// Configuration for trainable ViT model (stub).
+pub const TrainableViTConfig = struct {
+    /// Vision Transformer architecture config
+    vit_config: vision.ViTConfig = .{},
+    /// Number of output classes (for classification)
+    num_classes: u32 = 1000,
+    /// Projection dimension for contrastive learning (0 = disabled)
+    projection_dim: u32 = 0,
+    /// Dropout rate during training
+    dropout: f32 = 0.1,
+    /// Label smoothing for classification
+    label_smoothing: f32 = 0.1,
+    /// Enable gradient checkpointing
+    gradient_checkpointing: bool = false,
+
+    /// Compute total number of trainable parameters (stub returns 0).
+    pub fn numParams(_: TrainableViTConfig) usize {
+        return 0;
+    }
+};
+
+/// Vision Transformer training error type (stub).
+pub const VisionTrainingError = error{
+    InvalidImageSize,
+    InvalidBatchSize,
+    ConfigMismatch,
+    NoActivationCache,
+    OutOfMemory,
+    VisionDisabled,
+};
+
+/// Trainable Vision Transformer weights (stub).
+pub const TrainableViTWeights = struct {
+    allocator: std.mem.Allocator,
+    config: TrainableViTConfig,
+
+    pub fn init(_: std.mem.Allocator, _: TrainableViTConfig) VisionTrainingError!TrainableViTWeights {
+        return error.VisionDisabled;
+    }
+
+    pub fn deinit(_: *TrainableViTWeights) void {}
+
+    pub fn zeroGradients(_: *TrainableViTWeights) void {}
+};
+
+/// Trainable Vision Transformer model (stub).
+pub const TrainableViTModel = struct {
+    allocator: std.mem.Allocator,
+    config: TrainableViTConfig,
+
+    pub fn init(_: std.mem.Allocator, _: TrainableViTConfig) VisionTrainingError!TrainableViTModel {
+        return error.VisionDisabled;
+    }
+
+    pub fn deinit(_: *TrainableViTModel) void {}
+
+    pub fn forward(_: *TrainableViTModel, _: []const f32, _: u32, _: []f32) VisionTrainingError!void {
+        return error.VisionDisabled;
+    }
+
+    pub fn backward(_: *TrainableViTModel, _: []const f32, _: u32) VisionTrainingError!void {
+        return error.VisionDisabled;
+    }
+
+    pub fn getGradients(_: *const TrainableViTModel) ?*anyopaque {
+        return null;
+    }
+
+    pub fn applyGradients(_: *TrainableViTModel, _: f32) VisionTrainingError!void {
+        return error.VisionDisabled;
+    }
+
+    pub fn zeroGradients(_: *TrainableViTModel) void {}
+
+    pub fn computeGradientNorm(_: *const TrainableViTModel) f32 {
+        return 0.0;
+    }
+
+    pub fn clipGradients(_: *TrainableViTModel, _: f32) f32 {
+        return 0.0;
+    }
+
+    pub fn applySgdUpdate(_: *TrainableViTModel, _: f32) void {}
+};
+
+/// Multimodal training error type (stub).
+pub const MultimodalTrainingError = error{
+    InvalidBatchSize,
+    DimensionMismatch,
+    NoActivationCache,
+    OutOfMemory,
+    InvalidTemperature,
+    MultimodalDisabled,
+};
+
+/// Configuration for CLIP-style multimodal model (stub).
+pub const CLIPTrainingConfig = struct {
+    /// Vision encoder configuration
+    vision_config: TrainableViTConfig = .{},
+    /// Text hidden dimension
+    text_hidden_size: u32 = 512,
+    /// Text vocabulary size
+    text_vocab_size: u32 = 49408,
+    /// Text max sequence length
+    text_max_len: u32 = 77,
+    /// Number of text transformer layers
+    text_num_layers: u32 = 12,
+    /// Number of text attention heads
+    text_num_heads: u32 = 8,
+    /// Shared embedding dimension for contrastive learning
+    projection_dim: u32 = 512,
+    /// Temperature for contrastive loss
+    temperature: f32 = 0.07,
+    /// Whether temperature is learnable
+    learnable_temperature: bool = true,
+    /// Label smoothing for contrastive loss
+    label_smoothing: f32 = 0.0,
+
+    /// Compute total number of trainable parameters (stub returns 0).
+    pub fn numParams(_: CLIPTrainingConfig) usize {
+        return 0;
+    }
+};
+
+/// Trainable CLIP multimodal model (stub).
+pub const TrainableCLIPModel = struct {
+    allocator: std.mem.Allocator,
+    config: CLIPTrainingConfig,
+
+    pub fn init(_: std.mem.Allocator, _: CLIPTrainingConfig) MultimodalTrainingError!TrainableCLIPModel {
+        return error.MultimodalDisabled;
+    }
+
+    pub fn deinit(_: *TrainableCLIPModel) void {}
+
+    pub fn encodeImages(_: *TrainableCLIPModel, _: []const f32, _: u32, _: []f32) MultimodalTrainingError!void {
+        return error.MultimodalDisabled;
+    }
+
+    pub fn encodeText(_: *TrainableCLIPModel, _: []const u32, _: u32, _: []f32) MultimodalTrainingError!void {
+        return error.MultimodalDisabled;
+    }
+
+    pub fn computeContrastiveLoss(
+        _: *TrainableCLIPModel,
+        _: []const f32,
+        _: []const f32,
+        _: u32,
+        _: []f32,
+        _: []f32,
+    ) f32 {
+        return 0.0;
+    }
+
+    pub fn zeroGradients(_: *TrainableCLIPModel) void {}
+
+    pub fn computeGradientNorm(_: *const TrainableCLIPModel) f32 {
+        return 0.0;
+    }
+
+    pub fn applySgdUpdate(_: *TrainableCLIPModel, _: f32) void {}
+
+    pub fn getTemperature(_: *const TrainableCLIPModel) f32 {
+        return 0.07;
+    }
+};
+
 pub const Batch = struct {
     input_ids: []const u32 = &.{},
     labels: []const u32 = &.{},
@@ -271,7 +439,7 @@ pub const DataLoader = struct {
 
     pub fn deinit(_: *DataLoader) void {}
 
-    pub fn iterator(_: *const DataLoader) !BatchIterator {
+    pub fn iterator(_: *const DataLoader) Error!BatchIterator {
         return error.TrainingDisabled;
     }
 
@@ -290,27 +458,23 @@ pub const SequencePacker = struct {
     pad_token_id: u32,
 
     pub fn init(allocator: std.mem.Allocator, max_seq_len: u32, pad_token_id: u32) SequencePacker {
-        return .{
-            .allocator = allocator,
-            .max_seq_len = max_seq_len,
-            .pad_token_id = pad_token_id,
-        };
+        return .{ .allocator = allocator, .max_seq_len = max_seq_len, .pad_token_id = pad_token_id };
     }
 
     pub fn deinit(_: *SequencePacker) void {}
 
-    pub fn addSequence(_: *SequencePacker, _: []const u32) !void {
+    pub fn addSequence(_: *SequencePacker, _: []const u32) Error!void {
         return error.TrainingDisabled;
     }
 
-    pub fn pack(_: *SequencePacker, _: u32) !PackedBatch {
+    pub fn pack(_: *SequencePacker, _: u32) Error!PackedBatch {
         return error.TrainingDisabled;
     }
 
     pub const PackedBatch = struct {
         allocator: std.mem.Allocator,
-        tokens: []u32 = &.{},
-        attention_mask: []u8 = &.{},
+        tokens: []u32 = @constCast(&[_]u32{}),
+        attention_mask: []u8 = @constCast(&[_]u8{}),
         batch_size: u32 = 0,
         seq_len: u32 = 0,
         num_batches: u32 = 0,
@@ -324,15 +488,15 @@ pub const SequencePacker = struct {
 };
 
 pub const InstructionSample = struct {
-    instruction: []const u8,
-    input: ?[]const u8,
-    output: []const u8,
+    instruction: []const u8 = "",
+    input: ?[]const u8 = null,
+    output: []const u8 = "",
 };
 
 pub fn parseInstructionDataset(
     _: std.mem.Allocator,
     _: []const u8,
-) !std.ArrayListUnmanaged(InstructionSample) {
+) Error!std.ArrayListUnmanaged(InstructionSample) {
     return error.TrainingDisabled;
 }
 

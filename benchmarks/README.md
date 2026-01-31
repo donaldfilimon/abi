@@ -36,17 +36,13 @@ zig build benchmarks -- --verbose
 | Path | Purpose |
 | --- | --- |
 | `benchmarks/` | Suite entry points (`main.zig`, `run.zig`, `mod.zig`) |
-| `benchmarks/core/` | Core utilities (config, vectors, distance) |
-| `benchmarks/domain/` | Feature-domain suites (ai, database, gpu) |
-| `benchmarks/infrastructure/` | Infra suites (concurrency, crypto, memory, simd, network) |
-| `benchmarks/system/` | System/integration baselines (framework, CI, baselines) |
+| `benchmarks/core/` | Shared benchmark config + vector utilities |
+| `benchmarks/domain/` | Domain suites (ai, database, gpu) |
+| `benchmarks/infrastructure/` | Infrastructure suites (simd, memory, concurrency, crypto, network) |
+| `benchmarks/system/` | System/integration suites (framework, CI, baselines, standards) |
 | `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
-| `benchmarks/baselines/` | Regression baselines and comparisons |
+| `benchmarks/baselines/` | Baseline storage and comparisons |
 | `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
-<<<<<<< HEAD
-| `benchmarks/system/industry_standard.zig` | Industry-standard baseline harness |
-=======
->>>>>>> origin/cursor/ai-module-source-organization-0282
 
 ---
 
@@ -62,17 +58,7 @@ zig build benchmarks -- --verbose
 | **network** | HTTP/JSON parsing | req/sec, parse time (ns) |
 | **crypto** | Hash/encrypt ops | MB/sec, cycles/byte |
 | **ai** | GEMM/attention | GFLOPS, memory bandwidth |
-| **gpu** | Kernel and backend checks | throughput, availability |
-=======
-| **simd** | Vector operations (`infrastructure/simd.zig`) | ops/sec, throughput (GB/s) |
-| **memory** | Allocator patterns (`infrastructure/memory.zig`) | allocs/sec, fragmentation % |
-| **concurrency** | Lock-free structures (`infrastructure/concurrency.zig`) | ops/sec, contention ratio |
-| **database** | WDBX ops (`domain/database/*.zig`) | insert/search latency (μs) |
-| **network** | HTTP/JSON parsing (`infrastructure/network.zig`) | req/sec, parse time (ns) |
-| **crypto** | Hash/encrypt ops (`infrastructure/crypto.zig`) | MB/sec, cycles/byte |
-| **ai** | Kernels + LLM metrics (`domain/ai/*.zig`) | GFLOPS, tokens/sec |
-| **gpu** | Backend kernels (`domain/gpu/*.zig`) | ops/sec, transfer MB/s |
->>>>>>> origin/cursor/ai-module-source-organization-0282
+| **gpu** | GPU kernels | throughput, latency, memory |
 | **quick** | Fast verification | subset of all suites |
 
 ---
@@ -118,7 +104,7 @@ Tests lock-free data structures:
 zig build benchmarks -- --suite=concurrency
 ```
 
-### Database Suite (`domain/database/operations.zig`)
+### Database Suite (`domain/database/`)
 
 WDBX vector database benchmarks:
 - Vector insertion (single/batch)
@@ -157,7 +143,7 @@ Cryptographic operation benchmarks:
 zig build benchmarks -- --suite=crypto
 ```
 
-### AI Suite (`domain/ai/kernels.zig`, `domain/ai/llm_metrics.zig`)
+### AI Suite (`domain/ai/`)
 
 Machine learning operation benchmarks:
 - GEMM (General Matrix Multiply)
@@ -170,21 +156,12 @@ Machine learning operation benchmarks:
 zig build benchmarks -- --suite=ai
 ```
 
-<<<<<<< HEAD
-### GPU Suite (`gpu.zig`)
-
-GPU-related benchmarks:
-- Backend availability checks
-- Kernel throughput comparisons
-- GPU vs CPU baselines
-=======
-### GPU Suite (`domain/gpu/backends.zig`, `domain/gpu/kernels.zig`)
+### GPU Suite (`domain/gpu/`)
 
 GPU backend and kernel benchmarks:
-- Backend comparison (throughput + latency)
-- Kernel execution (matmul, elementwise, reductions)
-- GPU vs CPU comparisons
->>>>>>> origin/cursor/ai-module-source-organization-0282
+- Backend comparisons and device probes
+- Kernel throughput (matmul, vector ops)
+- GPU vs CPU performance baselines
 
 ```bash
 zig build benchmarks -- --suite=gpu
@@ -225,9 +202,6 @@ zig build benchmarks -- [OPTIONS]
 
 OPTIONS:
   --suite=<name>    Run specific suite (simd, memory, concurrency, database, network, crypto, ai, gpu)
-<<<<<<< HEAD
-  --quick           Run quick subset for CI
-=======
   --quick           Run with reduced iterations
 >>>>>>> origin/cursor/ai-module-source-organization-0282
   --verbose         Show detailed output

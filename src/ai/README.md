@@ -19,41 +19,24 @@ tags: []
 //!
 //! | Module | Description |
 //! |--------|-------------|
-//! | `mod.zig` | Public API entry point with `Context` struct |
-//! | `stub.zig` | Feature-disabled stubs for API parity |
-//! | `core/` | Shared AI types and configuration |
-//! | `llm/` | Local LLM inference (GGUF, tokenization, sampling) |
+//! | `mod.zig` | Public API entry point with Context struct |
+//! | `llm/` | Local LLM inference (GGUF), tokenizers, sampling |
 //! | `embeddings/` | Embedding generation |
-//! | `agents/` | Autonomous agent runtime |
-//! | `personas/` | Multi-persona assistant system |
-//! | `orchestration/` | Multi-model routing and ensemble logic |
-//! | `streaming/` | SSE/WebSocket streaming inference |
-//! | `models/` | Model management + downloads |
-//! | `documents/` | Document parsing + understanding |
-//! | `rag/` | Retrieval-augmented generation pipeline |
-//! | `templates/` | Prompt/template rendering |
-//! | `explore/` | Codebase exploration tooling |
-//! | `memory/` | Conversation memory systems |
-//! | `prompts/` | Prompt builders and persona prompts |
-//! | `tools/` | Agent tool registry and helpers |
-//! | `vision/` | Vision processing and ViT training |
+//! | `agents/` | Agent runtime and tool use |
+//! | `training/` | Training pipelines (LLM, vision, multimodal) |
+//! | `streaming/` | SSE/WebSocket streaming server |
+//! | `orchestration/` | Multi-model routing, ensemble, fallback |
+//! | `rag/` | Retrieval-augmented generation |
+//! | `documents/` | Document parsing, segmentation, entities |
+//! | `memory/` | Agent memory + persistence |
+//! | `models/` | Model management and downloads |
+//! | `explore/` | Codebase exploration |
 //!
 //! ## Architecture
 //!
-//! The AI module is implemented directly in `src/ai/` (no `features/ai` bridge).
-//! Feature gating is handled via `stub.zig` and submodule-specific stubs:
-//!
-//! ```
-//! src/ai/
-//! ├── mod.zig          # Public API + Context
-//! ├── stub.zig         # Feature-disabled stubs
-//! ├── llm/             # Local GGUF inference
-//! ├── agents/          # Agent runtime
-//! ├── embeddings/      # Embedding generation
-//! ├── training/        # Training pipelines
-//! ├── streaming/       # SSE/WebSocket streaming
-//! └── orchestration/   # Multi-model routing
-//! ```
+//! The AI module is fully contained under `src/ai/`, with feature-gated submodules
+//! and stub counterparts for disabled builds. `mod.zig` re-exports the stable API
+//! and provides the `Context` struct for Framework integration.
 //!
 //! ## Usage
 //!
@@ -92,6 +75,7 @@ tags: []
 //!
 //! Sub-features:
 //! - `-Denable-llm=true` - LLM inference (requires `-Denable-ai`)
+//! - `-Denable-vision=true` - Vision processing (requires `-Denable-ai`)
 //! - `-Denable-explore=true` - Codebase exploration (requires `-Denable-ai`)
 //!
 //! ## See Also

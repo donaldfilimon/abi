@@ -9,11 +9,11 @@ benchmarks/
 ├── run.zig                       # CLI wrapper
 ├── run_competitive.zig           # Competitive benchmark runner
 │
-├── baselines/                    # Stored benchmark baselines
+├── baselines/                    # Stored baseline results
+│   ├── README.md
 │   ├── branches/
 │   ├── main/
-│   ├── releases/
-│   └── README.md
+│   └── releases/
 │
 ├── competitive/                  # Industry comparison benchmarks
 │   ├── mod.zig                   # Competitive benchmark module
@@ -30,10 +30,10 @@ benchmarks/
 ├── domain/                       # Domain-specific benchmarks
 │   ├── ai/                       # AI/ML benchmarks
 │   │   ├── mod.zig
-│   │   ├── fpga_kernels.zig      # FPGA kernel comparisons
 │   │   ├── kernels.zig           # Compute kernels
 │   │   ├── llm_metrics.zig       # LLM metrics (tokens/sec, etc.)
-│   │   └── streaming.zig         # Streaming inference benchmarks
+│   │   ├── streaming.zig         # Streaming benchmarks
+│   │   └── fpga_kernels.zig      # FPGA kernel comparisons
 │   │
 │   ├── database/                 # Database benchmarks
 │   │   ├── mod.zig
@@ -41,28 +41,28 @@ benchmarks/
 │   │   ├── hnsw.zig              # HNSW performance
 │   │   └── operations.zig        # CRUD operations
 │   │
-│   └── gpu/                      # GPU benchmarks
-│       ├── mod.zig
-│       ├── backends.zig          # Backend comparisons
-│       ├── gpu_vs_cpu.zig        # GPU vs CPU comparisons
-│       └── kernels.zig           # Kernel performance
+│   ├── gpu/                      # GPU benchmarks
+│   │   ├── mod.zig
+│   │   ├── backends.zig          # Backend comparisons
+│   │   ├── gpu_vs_cpu.zig        # GPU vs CPU comparisons
+│   │   └── kernels.zig           # Kernel performance
 │
 ├── infrastructure/               # Infrastructure benchmarks
-│   ├── mod.zig
+│   ├── mod.zig                   # Infrastructure benchmark module
 │   ├── concurrency.zig           # Concurrency patterns
 │   ├── crypto.zig                # Cryptographic operations
-│   ├── gpu_backends.zig          # GPU backend detection
+│   ├── gpu_backends.zig          # Backend availability checks
 │   ├── memory.zig                # Memory management
-│   ├── network.zig               # HTTP/Network benchmarks
+│   ├── network.zig               # Network parsing/JSON
 │   └── simd.zig                  # SIMD/vectorization
 │
-└── system/                       # System/integration benchmarks
-    ├── mod.zig
-    ├── baseline_comparator.zig   # Baseline comparisons
-    ├── baseline_store.zig        # Baseline storage
-    ├── ci_integration.zig        # CI/CD integration tests
-    ├── framework.zig             # Framework initialization
-    └── industry_standard.zig     # Industry standard compliance
+├── system/                       # System/integration benchmarks
+│   ├── mod.zig                   # System benchmark module
+│   ├── framework.zig             # Framework initialization
+│   ├── ci_integration.zig        # CI/CD integration tests
+│   ├── industry_standard.zig     # Industry standard compliance
+│   ├── baseline_store.zig        # Baseline persistence
+│   └── baseline_comparator.zig   # Baseline comparisons
 ```
 
 ## Purpose of Each Directory
@@ -73,25 +73,28 @@ Compare ABI Framework against industry-standard implementations:
 - **LLM frameworks**: Inference speed comparisons
 - **Vector databases**: QPS and latency comparisons
 
+### `baselines/` - Baseline Storage
+Stores benchmark snapshots for releases, branches, and regression tracking.
+
 ### `core/` - Framework Core Performance
 Measure fundamental framework operations:
 - Configuration loading speed
 - Vector math operations
 - Distance/similarity calculations
-- Memory allocation patterns
 
 ### `domain/` - Feature-Specific Benchmarks
 Domain-specific performance testing:
-- **AI/ML**: Kernels, LLM metrics, streaming, FPGA comparisons
+- **AI/ML**: Compute kernels, streaming, LLM metrics, FPGA comparisons
 - **Database**: ANN algorithms, HNSW, CRUD operations
-- **GPU**: Backend comparisons, kernel throughput, GPU vs CPU
-We use `domain/ai/` instead of `ai/` at root level for consistency with other domains.
+- **GPU**: Backend comparisons, GPU vs CPU, kernel throughput
+We use `domain/ai/` instead of `ai/` at root level for consistency with other domains like `domain/database/`.
 
 ### `infrastructure/` - System Infrastructure
 Infrastructure component performance:
 - Concurrency and parallelism
 - Cryptographic operations
 - Memory management strategies
+- Network parsing/JSON throughput
 - SIMD/vectorization effectiveness
 - Network/HTTP microbenchmarks
 - GPU backend detection checks
@@ -101,13 +104,7 @@ System-level and compliance testing:
 - CI/CD integration performance
 - Framework startup/shutdown
 - Industry standard compliance
-- Baseline comparison + persistence
-
-### `baselines/` - Stored Results
-Historical benchmark snapshots used for regression detection:
-- Branch/local baselines
-- Mainline baselines
-- Release snapshots
+- Baseline storage and comparisons
 
 ## Benchmark Types
 
@@ -155,8 +152,8 @@ pub fn run(allocator: std.mem.Allocator) !void {
 ```zig
 // benchmarks/domain/ai/mod.zig
 pub const suites = .{
-    @import("embeddings.zig").suite,
     @import("kernels.zig").suite,
+    @import("llm_metrics.zig").suite,
     @import("new_benchmark.zig").suite,  // Add new benchmark
 };
 ```

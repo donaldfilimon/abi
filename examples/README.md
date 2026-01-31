@@ -47,7 +47,7 @@ AI agent usage with conversational chat interface. Demonstrates the `Agent.chat(
 **Run:**
 
 ```bash
-zig build -Denable-ai=true run-agent
+zig build run-agent
 ```
 
 ### compute.zig
@@ -62,7 +62,7 @@ zig build run-compute
 
 ### concurrency.zig
 
-Concurrency primitives and task scheduling patterns.
+Lock-free primitives and concurrency utilities.
 
 **Run:**
 
@@ -92,7 +92,7 @@ zig build -Denable-network=true run-network
 
 ### observability.zig
 
-Metrics and tracing integration example.
+Metrics, tracing, and profiling hooks.
 
 **Run:**
 
@@ -141,12 +141,12 @@ zig build -Denable-ai=true run-training
 
 ### training/train_demo.zig
 
-Minimal LLM training demo with sample data.
+Self-contained LLM training demo with synthetic data.
 
 **Run:**
 
 ```bash
-zig build -Denable-ai=true run-train-demo
+zig build run-train-demo
 ```
 
 ### llm.zig
@@ -163,6 +163,16 @@ Local LLM inference with GGUF models.
 
 ```bash
 zig build -Denable-llm=true run-llm -- path/to/model.gguf
+```
+
+### orchestration.zig
+
+Multi-model routing with ensemble and fallback policies.
+
+**Run:**
+
+```bash
+zig build -Denable-ai=true run-orchestration
 ```
 
 ### train_ava.zig
@@ -222,6 +232,7 @@ zig build run-concurrency
 zig build run-gpu
 zig build run-network
 zig build run-observability
+zig build run-orchestration
 zig build run-discord
 zig build run-orchestration
 zig build run-training
@@ -245,15 +256,15 @@ zig build benchmarks
 1. **Start with `hello.zig`** - Learn basic framework initialization
 2. **Try `database.zig`** - Understand vector storage and search
 3. **Explore `compute.zig`** - Learn about task execution
-4. **Study `concurrency.zig`** - See lock-free primitives in action
+4. **Study `concurrency.zig`** - Lock-free primitives in action
 5. **Check `agent.zig`** - See AI integration
 6. **Review `gpu.zig`** - Understand GPU acceleration
 7. **Study `network.zig`** - Learn distributed computing
-8. **Check `observability.zig`** - Metrics and tracing basics
-9. **Check `discord.zig`** - Discord bot integration
-10. **Explore `orchestration.zig`** - Multi-model routing
+8. **Review `observability.zig`** - Metrics and tracing basics
+9. **Explore `orchestration.zig`** - Multi-model routing patterns
+10. **Check `discord.zig`** - Discord bot integration
 11. **Explore `training.zig`** - Model training and checkpointing
-12. **Run `training/train_demo.zig`** - Minimal LLM training demo
+12. **Run `training/train_demo.zig`** - End-to-end training demo
 13. **Try `llm.zig`** - Local LLM inference
 14. **Study `ha.zig`** - High availability features
 15. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
