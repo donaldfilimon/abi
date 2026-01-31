@@ -23,6 +23,7 @@ const std = @import("std");
 const abi = @import("abi");
 const commands = @import("commands/mod.zig");
 const utils = @import("utils/mod.zig");
+const cli_io = utils.io_backend;
 
 const CommandInfo = struct {
     name: []const u8,
@@ -94,9 +95,7 @@ pub fn mainWithArgs(proc_args: std.process.Args) !void {
     }
 
     // Initialize shared I/O backend for Zig 0.16
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

@@ -16,6 +16,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 pub const Provider = enum {
     openai,
@@ -150,7 +151,7 @@ fn parseFormat(str: []const u8) ?OutputFormat {
 }
 
 fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
 
     const io = io_backend.io();
@@ -280,7 +281,7 @@ fn generateLocalEmbedding(allocator: std.mem.Allocator, text: []const u8) ![]f32
 }
 
 fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []const f32, format: OutputFormat) !void {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
 
     const io = io_backend.io();

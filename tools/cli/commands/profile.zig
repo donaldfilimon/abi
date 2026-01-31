@@ -6,6 +6,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 // libc import for environment access - required for Zig 0.16
 const c = @cImport(@cInclude("stdlib.h"));
@@ -190,7 +191,7 @@ fn loadProfileStore(allocator: std.mem.Allocator) !ProfileStore {
     defer allocator.free(config_path);
 
     // Initialize I/O backend for Zig 0.16
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -292,7 +293,7 @@ fn saveProfileStore(allocator: std.mem.Allocator, store: *const ProfileStore) !v
     try json_buf.appendSlice(allocator, "}}\n");
 
     // Initialize I/O backend for Zig 0.16
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

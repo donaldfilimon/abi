@@ -21,6 +21,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 /// Session state for the interactive agent.
 const SessionState = struct {
@@ -356,7 +357,7 @@ fn runInteractive(
     std.debug.print("Persona: {s} - {s}\n", .{ persona.name, persona.description });
     std.debug.print("Type '/help' for commands, 'exit' to quit.\n\n", .{});
 
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
 
     const io = io_backend.io();

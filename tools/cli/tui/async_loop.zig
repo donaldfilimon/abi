@@ -4,6 +4,8 @@
 //! enabling dynamic updates and real-time metrics display.
 
 const std = @import("std");
+const abi = @import("abi");
+const shared_time = abi.shared.time;
 const Terminal = @import("terminal.zig").Terminal;
 const events = @import("events.zig");
 
@@ -187,7 +189,7 @@ pub const AsyncLoop = struct {
             }
 
             // Small sleep to prevent busy-waiting
-            std.time.sleep(1_000_000); // 1ms
+            shared_time.sleepMs(1);
         }
     }
 

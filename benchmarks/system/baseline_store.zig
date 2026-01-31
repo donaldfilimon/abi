@@ -47,10 +47,9 @@
 //!
 //! ## Note (Zig 0.16)
 //!
-//! This module currently uses `std.fs.cwd()` which is deprecated in Zig 0.16.
-//! For production use, the caller should provide an I/O context via `std.Io.Threaded`.
-//! The current implementation works but should be updated when the benchmark
-//! infrastructure is refactored.
+//! This module uses `std.Io.Threaded` and `std.Io.Dir.cwd()` for filesystem I/O.
+//! A shared `std.Io` instance can be threaded through if needed to avoid
+//! repeated backend initialization.
 
 const std = @import("std");
 
@@ -198,7 +197,7 @@ pub const BenchmarkResult = struct {
 
     /// Convert to JSON string
     pub fn toJsonString(self: BenchmarkResult, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         try buf.appendSlice(allocator, "{\n");
@@ -318,7 +317,7 @@ pub const BaselineStore = struct {
         benchmark_name: []const u8,
         branch: ?[]const u8,
     ) ![]u8 {
-        var path_buf = std.ArrayListUnmanaged(u8){};
+        var path_buf = std.ArrayListUnmanaged(u8).empty;
         errdefer path_buf.deinit(self.allocator);
 
         try path_buf.appendSlice(self.allocator, self.baselines_dir);
@@ -392,27 +391,17 @@ pub const BaselineStore = struct {
 
     /// Read file content using Zig 0.16 I/O
     fn readFileContent(self: *BaselineStore, path: []const u8) ![]u8 {
-        // For simplicity, use synchronous file reading
-        // In a real implementation, you might want async I/O
-        const file = std.fs.cwd().openFile(path, .{}) catch |err| switch (err) {
+        var io_backend = std.Io.Threaded.init(self.allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        return std.Io.Dir.cwd().readFileAlloc(io, path, self.allocator, .limited(10 * 1024 * 1024)) catch |err| switch (err) {
             error.FileNotFound => return error.FileNotFound,
+            error.FileTooLarge, error.StreamTooLong => return error.FileTooLarge,
             else => return error.IoError,
         };
-        defer file.close();
-
-        const stat = file.stat() catch return error.IoError;
-        if (stat.size > 10 * 1024 * 1024) return error.FileTooLarge; // 10MB limit
-
-        const content = self.allocator.alloc(u8, stat.size) catch return error.OutOfMemory;
-        errdefer self.allocator.free(content);
-
-        const bytes_read = file.readAll(content) catch return error.IoError;
-        if (bytes_read != stat.size) {
-            self.allocator.free(content);
-            return error.IoError;
-        }
-
-        return content;
     }
 
     /// Save a new baseline
@@ -420,11 +409,17 @@ pub const BaselineStore = struct {
         const file_path = try self.getBaselineFilePath(result.name, result.git_branch);
         defer self.allocator.free(file_path);
 
+        var io_backend = std.Io.Threaded.init(self.allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
         // Ensure directory exists
         const dir_end = std.mem.lastIndexOf(u8, file_path, "/") orelse return error.InvalidPath;
         const dir_path = file_path[0..dir_end];
 
-        std.fs.cwd().makePath(dir_path) catch |err| switch (err) {
+        std.Io.Dir.cwd().makePath(io, dir_path) catch |err| switch (err) {
             error.PathAlreadyExists => {},
             else => return error.IoError,
         };
@@ -437,18 +432,18 @@ pub const BaselineStore = struct {
         var tmp_path_buf: [512]u8 = undefined;
         const tmp_path = std.fmt.bufPrint(&tmp_path_buf, "{s}.tmp", .{file_path}) catch return error.PathTooLong;
 
-        const file = std.fs.cwd().createFile(tmp_path, .{ .truncate = true }) catch return error.IoError;
+        var file = std.Io.Dir.cwd().createFile(io, tmp_path, .{ .truncate = true }) catch return error.IoError;
+        errdefer {
+            file.close(io);
+            std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
+        }
 
-        file.writeAll(json_content) catch {
-            file.close();
-            std.fs.cwd().deleteFile(tmp_path) catch {};
-            return error.IoError;
-        };
-        file.close();
+        file.writeStreamingAll(io, json_content) catch return error.IoError;
+        file.close(io);
 
         // Atomic rename
-        std.fs.cwd().rename(tmp_path, file_path) catch {
-            std.fs.cwd().deleteFile(tmp_path) catch {};
+        std.Io.Dir.cwd().rename(io, tmp_path, file_path) catch {
+            std.Io.Dir.cwd().deleteFile(io, tmp_path) catch {};
             return error.IoError;
         };
     }
@@ -486,14 +481,20 @@ pub const BaselineStore = struct {
         branch: []const u8,
         allocator: std.mem.Allocator,
     ) ![]BenchmarkResult {
-        var results = std.ArrayListUnmanaged(BenchmarkResult){};
+        var io_backend = std.Io.Threaded.init(self.allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        var results = std.ArrayListUnmanaged(BenchmarkResult).empty;
         errdefer {
             for (results.items) |*r| r.deinit(allocator);
             results.deinit(allocator);
         }
 
         // Determine directory path
-        var dir_path_buf = std.ArrayListUnmanaged(u8){};
+        var dir_path_buf = std.ArrayListUnmanaged(u8).empty;
         defer dir_path_buf.deinit(self.allocator);
 
         try dir_path_buf.appendSlice(self.allocator, self.baselines_dir);
@@ -518,19 +519,19 @@ pub const BaselineStore = struct {
         const dir_path = dir_path_buf.items;
 
         // Open directory and iterate
-        var dir = std.fs.cwd().openDir(dir_path, .{ .iterate = true }) catch |err| switch (err) {
+        var dir = std.Io.Dir.cwd().openDir(io, dir_path, .{ .iterate = true }) catch |err| switch (err) {
             error.FileNotFound => return results.toOwnedSlice(allocator),
             else => return error.IoError,
         };
-        defer dir.close();
+        defer dir.close(io);
 
         var iter = dir.iterate();
-        while (iter.next() catch return error.IoError) |entry| {
+        while (iter.next(io) catch return error.IoError) |entry| {
             if (entry.kind != .file) continue;
             if (!std.mem.endsWith(u8, entry.name, ".json")) continue;
 
             // Build full path
-            var full_path_buf = std.ArrayListUnmanaged(u8){};
+            var full_path_buf = std.ArrayListUnmanaged(u8).empty;
             defer full_path_buf.deinit(self.allocator);
 
             try full_path_buf.appendSlice(self.allocator, dir_path);
@@ -563,7 +564,13 @@ pub const BaselineStore = struct {
         const file_path = try self.getBaselineFilePath(benchmark_name, branch);
         defer self.allocator.free(file_path);
 
-        std.fs.cwd().deleteFile(file_path) catch |err| switch (err) {
+        var io_backend = std.Io.Threaded.init(self.allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        std.Io.Dir.cwd().deleteFile(io, file_path) catch |err| switch (err) {
             error.FileNotFound => {}, // Already deleted, no-op
             else => return error.IoError,
         };

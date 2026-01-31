@@ -70,6 +70,9 @@ pub const CircuitBreakerConfig = struct {
 
     /// Name for logging/metrics (optional).
     name: []const u8 = "default",
+
+    /// Optional time provider for deterministic tests.
+    time_provider: ?platform_time.TimeProvider = null,
 };
 
 /// Statistics about circuit breaker behavior.
@@ -91,6 +94,7 @@ pub const CircuitStats = struct {
 /// Lock-free circuit breaker implementation.
 pub const CircuitBreaker = struct {
     config: CircuitBreakerConfig,
+    time_provider: platform_time.TimeProvider,
     state: std.atomic.Value(u8),
     failure_count: std.atomic.Value(u32),
     success_count: std.atomic.Value(u32),
@@ -108,8 +112,10 @@ pub const CircuitBreaker = struct {
 
     /// Initialize a new circuit breaker.
     pub fn init(config: CircuitBreakerConfig) Self {
+        const time_provider = config.time_provider orelse platform_time.TimeProvider{};
         return .{
             .config = config,
+            .time_provider = time_provider,
             .state = std.atomic.Value(u8).init(@intFromEnum(CircuitState.closed)),
             .failure_count = std.atomic.Value(u32).init(0),
             .success_count = std.atomic.Value(u32).init(0),
@@ -137,7 +143,7 @@ pub const CircuitBreaker = struct {
             },
             .open => {
                 // Check if timeout expired - should transition to half-open
-                const now = platform_time.nowMs();
+                const now = self.time_provider.nowMs();
                 const last_failure = self.last_failure_time_ms.load(.monotonic);
                 const timeout = @as(i64, @intCast(self.config.timeout_ms));
 
@@ -221,7 +227,7 @@ pub const CircuitBreaker = struct {
     /// In half-open state: immediately transitions back to open.
     pub fn recordFailure(self: *Self) void {
         _ = self.stats_failed.fetchAdd(1, .monotonic);
-        const now = platform_time.nowMs();
+        const now = self.time_provider.nowMs();
         self.last_failure_time_ms.store(now, .monotonic);
 
         const current_state = self.getState();
@@ -298,6 +304,22 @@ pub const CircuitBreaker = struct {
 // Tests
 // ============================================================================
 
+const TestClock = struct {
+    now_ms: i64 = 0,
+
+    fn nowMs(ctx: ?*anyopaque) i64 {
+        const clock: *TestClock = @ptrCast(@alignCast(ctx.?));
+        return clock.now_ms;
+    }
+};
+
+fn testTimeProvider(clock: *TestClock) platform_time.TimeProvider {
+    return .{
+        .ctx = @ptrCast(clock),
+        .nowMsFn = TestClock.nowMs,
+    };
+}
+
 test "CircuitBreaker initial state is closed" {
     var cb = CircuitBreaker.init(.{});
 
@@ -356,10 +378,12 @@ test "CircuitBreaker success resets failure count" {
 }
 
 test "CircuitBreaker half-open allows limited requests" {
+    var clock = TestClock{};
     var cb = CircuitBreaker.init(.{
         .failure_threshold = 1,
         .half_open_max_requests = 2,
         .timeout_ms = 1, // 1ms timeout for test
+        .time_provider = testTimeProvider(&clock),
     });
 
     // Trip to open
@@ -368,7 +392,7 @@ test "CircuitBreaker half-open allows limited requests" {
     try std.testing.expectEqual(CircuitState.open, cb.getState());
 
     // Wait for timeout
-    std.time.sleep(5 * std.time.ns_per_ms);
+    clock.now_ms += 5;
 
     // Should transition to half-open
     try std.testing.expect(cb.canAttempt());
@@ -382,11 +406,13 @@ test "CircuitBreaker half-open allows limited requests" {
 }
 
 test "CircuitBreaker half-open to closed on successes" {
+    var clock = TestClock{};
     var cb = CircuitBreaker.init(.{
         .failure_threshold = 1,
         .success_threshold = 2,
         .half_open_max_requests = 5,
         .timeout_ms = 1,
+        .time_provider = testTimeProvider(&clock),
     });
 
     // Trip to open
@@ -395,7 +421,7 @@ test "CircuitBreaker half-open to closed on successes" {
     try std.testing.expectEqual(CircuitState.open, cb.getState());
 
     // Wait for timeout
-    std.time.sleep(5 * std.time.ns_per_ms);
+    clock.now_ms += 5;
 
     // Transition to half-open
     try std.testing.expect(cb.canAttempt());
@@ -410,9 +436,11 @@ test "CircuitBreaker half-open to closed on successes" {
 }
 
 test "CircuitBreaker half-open to open on failure" {
+    var clock = TestClock{};
     var cb = CircuitBreaker.init(.{
         .failure_threshold = 1,
         .timeout_ms = 1,
+        .time_provider = testTimeProvider(&clock),
     });
 
     // Trip to open
@@ -420,7 +448,7 @@ test "CircuitBreaker half-open to open on failure" {
     cb.recordFailure();
 
     // Wait for timeout
-    std.time.sleep(5 * std.time.ns_per_ms);
+    clock.now_ms += 5;
 
     // Transition to half-open
     try std.testing.expect(cb.canAttempt());

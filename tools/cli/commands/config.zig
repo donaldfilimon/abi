@@ -3,6 +3,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 // Use the shared config module for file-based configuration (legacy format)
 const shared_config = @import("abi").utils.config;
@@ -61,7 +62,7 @@ fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const default_config = getDefaultConfigJson();
 
     // Create io backend for filesystem operations
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

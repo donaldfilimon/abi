@@ -9,6 +9,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const cli_io = utils.io_backend;
 
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
@@ -280,7 +281,7 @@ fn runEmbeddings(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
     std.debug.print("Converting embeddings: {s} -> {s} (format: {s})\n", .{ input_path.?, output_path.?, format.? });
 
     // Initialize I/O backend for Zig 0.16
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

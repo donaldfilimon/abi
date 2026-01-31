@@ -1,4 +1,5 @@
 const std = @import("std");
+const cli_io = @import("../utils/io_backend.zig");
 const builtin = @import("builtin");
 const posix = std.posix;
 const windows = std.os.windows;
@@ -139,7 +140,7 @@ pub const Terminal = struct {
     pub fn init(allocator: std.mem.Allocator) Terminal {
         var terminal: Terminal = undefined;
         terminal.allocator = allocator;
-        terminal.io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        terminal.io_backend = cli_io.initIoBackend(allocator);
         terminal.stdin_file = std.Io.File.stdin();
         terminal.stdout_file = std.Io.File.stdout();
         terminal.read_storage = undefined;
