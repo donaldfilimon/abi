@@ -1,4 +1,5 @@
 # Runtime Module
+> **Last reviewed:** 2026-01-31
 
 The runtime module provides always-on core infrastructure for task scheduling, execution, concurrency primitives, and memory management. These services are available regardless of which features are enabled.
 

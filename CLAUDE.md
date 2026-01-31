@@ -739,16 +739,16 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 Key documentation:
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
 - [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) - Production deployment guide
-- [SECURITY.md](SECURITY.md) - Security policy and reporting
-- [docs/README.md](docs/README.md) - Documentation layout and entry points
-- [docs/content/gpu.html](docs/content/gpu.html) - GPU backend details
-- [docs/content/ai.html](docs/content/ai.html) - AI module and agents guide
-- [API_REFERENCE.md](API_REFERENCE.md) - API overview and personas
-- [docs/content/database.html](docs/content/database.html) - Vector database (WDBX) usage
-- [docs/content/network.html](docs/content/network.html) - Distributed compute and Raft consensus
-- [docs/content/api.html](docs/content/api.html) - SSE/WebSocket streaming API overview
-- [benchmarks/README.md](benchmarks/README.md) - Performance benchmarking guide
-- [scripts/run_cli_tests.sh](scripts/run_cli_tests.sh) - CLI test procedures
+- [SECURITY.md](SECURITY.md) - Security practices and reporting
+- [Docs Index](docs/content/index.html) - Offline docs landing page
+- [GPU Guide](docs/content/gpu.html) - GPU backend details
+- [AI Guide](docs/content/ai.html) - AI module and agents guide
+- [Database Guide](docs/content/database.html) - Vector database (WDBX) usage
+- [Network Guide](docs/content/network.html) - Distributed compute and Raft consensus
+- [API Guide](docs/content/api.html) - SSE/WebSocket streaming API
+- [CLI Guide](docs/content/cli.html) - Model management and CLI usage
+- [Benchmarks](benchmarks/README.md) - Performance benchmarking guide
+- [CLI Tests](scripts/run_cli_tests.sh) - CLI test procedures
 
 ## Experimental Feature Flags
 

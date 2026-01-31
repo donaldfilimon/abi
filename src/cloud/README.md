@@ -1,4 +1,5 @@
 # Cloud Functions Module
+> **Last reviewed:** 2026-01-31
 
 Unified adapters for deploying ABI applications as serverless functions across major cloud providers.
 

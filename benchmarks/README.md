@@ -7,8 +7,8 @@ tags: [benchmarks, performance, testing]
 
 <p align="center">
   <img src="https://img.shields.io/badge/Benchmarks-Comprehensive-blue?style=for-the-badge" alt="Benchmarks"/>
-  <img src="https://img.shields.io/badge/WDBX-6.1M_ops%2Fsec-success?style=for-the-badge" alt="WDBX"/>
-  <img src="https://img.shields.io/badge/LLM-2.8M_tokens%2Fsec-green?style=for-the-badge" alt="LLM"/>
+  <img src="https://img.shields.io/badge/Baselines-Tracked-success?style=for-the-badge" alt="Baselines"/>
+  <img src="https://img.shields.io/badge/Suites-Multi%20Domain-green?style=for-the-badge" alt="Suites"/>
 </p>
 
 Comprehensive performance benchmarks for the ABI framework, measuring throughput, latency, and resource utilization across all major subsystems.
@@ -43,6 +43,9 @@ zig build benchmarks -- --verbose
 | `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
 | `benchmarks/baselines/` | Baseline storage and comparisons |
 | `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
+| `benchmarks/system/industry_standard.zig` | Industry-standard baseline harness |
+| `benchmarks/system/` | Baseline storage + CI regression integration |
+| `benchmarks/*` | Individual suite implementations (simd, memory, gpu, network, ai) |
 
 ---
 
@@ -58,7 +61,7 @@ zig build benchmarks -- --verbose
 | **network** | HTTP/JSON parsing | req/sec, parse time (ns) |
 | **crypto** | Hash/encrypt ops | MB/sec, cycles/byte |
 | **ai** | GEMM/attention | GFLOPS, memory bandwidth |
-| **gpu** | GPU kernels | throughput, latency, memory |
+| **gpu** | GPU kernel ops | GFLOPS, bandwidth, launch overhead |
 | **quick** | Fast verification | subset of all suites |
 
 ---
@@ -156,12 +159,12 @@ Machine learning operation benchmarks:
 zig build benchmarks -- --suite=ai
 ```
 
-### GPU Suite (`domain/gpu/`)
+### GPU Suite (`domain/gpu/mod.zig`)
 
-GPU backend and kernel benchmarks:
-- Backend comparisons and device probes
-- Kernel throughput (matmul, vector ops)
-- GPU vs CPU performance baselines
+GPU kernel and memory benchmarks:
+- MatMul, reductions, vector ops
+- Device memory bandwidth
+- Kernel launch overhead
 
 ```bash
 zig build benchmarks -- --suite=gpu
@@ -205,8 +208,9 @@ OPTIONS:
   --quick           Run with reduced iterations
 >>>>>>> origin/cursor/ai-module-source-organization-0282
   --verbose         Show detailed output
-  --json            Output results as JSON to stdout
-  --output=<file>   Output results as JSON to a file
+  --output=<file>   Output results as JSON file
+  --json            Output results as JSON
+  --iterations=<n>  Override default iteration count
 ```
 
 ### Examples
@@ -254,15 +258,15 @@ zig build benchmarks -- --output=benchmark_results.json
 
 ## Performance Baseline
 
-Baselines are stored under `benchmarks/baselines/`. See
-`benchmarks/baselines/README.md` for format and storage conventions.
+The framework maintains performance baselines in `benchmarks/baselines/`. To update after
+significant changes:
 
 ```bash
-# Generate new baseline results
-zig build benchmarks -- --output=benchmarks/baselines/branches/local.json
+# Generate new baseline output
+zig build benchmarks -- --json > baseline_new.json
 
-# Compare using the baseline comparator utilities
-zig test benchmarks/system/baseline_comparator.zig
+# Compare with existing baselines
+# (see benchmarks/baselines/README.md for layout)
 ```
 
 ---
@@ -316,6 +320,6 @@ zig build benchmarks -Denable-database=true -Denable-gpu=true
 
 ## See Also
 
-- [benchmarks/baselines/README.md](baselines/README.md) - Baseline format and workflow
-- [GPU Docs](../docs/content/gpu.html) - GPU-specific benchmarking
+- [benchmarks/baselines/README.md](baselines/README.md) - Baseline format and CI flow
+- [docs/content/gpu.html](../docs/content/gpu.html) - GPU benchmarking guide
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines

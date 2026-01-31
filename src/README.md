@@ -22,23 +22,25 @@ stable APIs and Context structs for Framework integration.
 |-----------|-------------|
 | `abi.zig` | Public API entry point with curated re-exports |
 | `config.zig` | Unified configuration system (struct literal + builder APIs) |
+| `flags.zig` | Compile-time feature flag definitions |
 | `framework.zig` | Framework orchestration and lifecycle management |
 | `flags.zig` | Feature flag definitions |
 | `config/` | Modular configuration per feature |
 | `registry/` | Feature registry system (comptime, runtime-toggle, dynamic modes) |
 | `runtime/` | Always-on infrastructure (engine, scheduling, concurrency, memory) |
-| `platform/` | Platform detection and CPU feature abstraction |
-| `shared/` | Cross-cutting utilities (logging, platform, utils) |
+| `platform/` | Platform detection and SIMD capabilities |
+| `shared/` | Cross-cutting utilities (logging, io, security, utils) |
 | `ai/` | AI module with sub-features (llm, embeddings, agents, training) |
 | `gpu/` | GPU acceleration with unified multi-backend API |
-| `database/` | Vector database |
-| `network/` | Distributed compute |
+| `database/` | Vector database (primary implementation) |
+| `network/` | Distributed compute (primary implementation) |
 | `observability/` | Metrics, tracing, profiling |
-| `web/` | Web/HTTP utilities |
-| `cloud/` | Cloud provider adapters |
-| `connectors/` | External provider connectors (OpenAI, Ollama, etc.) |
+| `web/` | Web/HTTP utilities (primary implementation) |
+| `connectors/` | External API connectors (OpenAI, Ollama, Anthropic, etc.) |
+| `cloud/` | Cloud function adapters (AWS, GCP, Azure) |
 | `ha/` | High availability (backup, PITR, replication) |
 | `tasks/` | Task management system (roadmap, tracking) |
+| `tests/` | Test utilities, property-based testing, stub parity verification |
 
 ## Module Hierarchy
 
@@ -46,6 +48,7 @@ stable APIs and Context structs for Framework integration.
 src/
 ├── abi.zig              # Public API
 ├── config.zig           # Unified configuration
+├── flags.zig            # Compile-time feature flags
 ├── framework.zig        # Framework orchestration
 ├── flags.zig            # Feature flags
 │
@@ -73,40 +76,27 @@ src/
 │   ├── concurrency/     # Lock-free data structures
 │   └── memory/          # Allocators, pools
 │
-├── platform/            # Platform detection and abstraction
-│   ├── mod.zig
-│   ├── cpu.zig
-│   ├── detection.zig
-│   └── stub.zig
+├── platform/            # Platform detection and SIMD capabilities
+│   ├── mod.zig          # Platform entry point
+│   ├── detection.zig    # OS/arch detection
+│   └── cpu.zig          # CPU feature helpers
 │
 ├── shared/              # Cross-cutting concerns
-│   ├── mod.zig
-│   ├── logging.zig
-│   ├── platform.zig
-│   ├── plugins.zig
-│   ├── security/
-│   └── utils/
+│   ├── logging.zig      # Logging infrastructure
+│   ├── io.zig           # I/O helpers
+│   ├── security/        # API keys, auth
+│   └── utils/           # General utilities
 │
 ├── ai/                  # AI module
-│   ├── mod.zig
-│   ├── llm/
-│   ├── embeddings/
-│   ├── agents/
-│   ├── training/
-│   ├── streaming/
-│   ├── rag/
-│   ├── documents/
-│   └── ...
+│   ├── mod.zig          # Re-exports + Context
+│   ├── llm/             # LLM inference sub-feature
+│   ├── embeddings/      # Embeddings generation sub-feature
+│   ├── agents/          # Agent runtime sub-feature
+│   └── training/        # Training pipelines sub-feature
 │
 ├── gpu/                 # GPU acceleration
-│   ├── mod.zig
-│   └── stub.zig
-│
-├── connectors/          # External provider connectors
-│   └── README.md        # Connector overview
-│
-├── cloud/               # Cloud function adapters
-│   └── README.md        # Cloud integration overview
+│   ├── mod.zig          # Unified GPU API with backends, DSL, profiling
+│   └── stub.zig         # Feature-disabled stub
 │
 ├── database/            # Vector database
 │   ├── mod.zig
@@ -124,21 +114,11 @@ src/
 │   ├── mod.zig
 │   └── stub.zig
 │
-├── cloud/               # Cloud provider adapters
-│   ├── mod.zig
-│   └── ...
-│
-├── connectors/          # External provider connectors
-│   ├── mod.zig
-│   └── ...
-│
+├── connectors/          # External API connectors
+├── cloud/               # Cloud function adapters
 ├── ha/                  # High availability
-│   ├── mod.zig
-│   └── ...
-│
-└── tasks/               # Task management
-    ├── mod.zig
-    └── types.zig
+├── tasks/               # Task management
+└── tests/               # Test infrastructure
 ```
 
 ## Key Entry Points
@@ -185,4 +165,4 @@ pub fn isEnabled() bool {
 - [CLAUDE.md](../CLAUDE.md) - Full project documentation
 - [API Reference](../API_REFERENCE.md)
 - [Docs Map](../docs/README.md) - Documentation layout and entry points
-- [Architecture](../docs/content/architecture.html) - Architecture overview
+- [Architecture](../docs/content/architecture.html) - System overview

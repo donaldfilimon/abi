@@ -1,4 +1,5 @@
 # Observability Module
+> **Last reviewed:** 2026-01-31
 
 Unified observability layer providing metrics collection, distributed tracing, and performance profiling.
 
@@ -221,7 +222,7 @@ See `src/config/observability.zig` for configuration options including:
 
 ## Related Documentation
 
-- **Monitoring**: See `docs/content/observability.html` for setup and concepts
+- **Monitoring**: See `docs/content/observability.html` for setup and guidance
 - **Benchmarking**: See `benchmarks/README.md` for performance profiling
 - **GPU Metrics**: GPU backends expose accelerator-specific metrics via this module
 - **Network Metrics**: Distributed compute exposes request/RPC metrics

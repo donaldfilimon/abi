@@ -4,7 +4,7 @@ tags: []
 ---
 //! # AI
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-30.
+//! > **Codebase Status:** Synced with repository as of 2026-01-31.
 //!
 //! AI module providing LLM inference, agents, embeddings, and training capabilities.
 //!
@@ -34,9 +34,8 @@ tags: []
 //!
 //! ## Architecture
 //!
-//! The AI module is fully contained under `src/ai/`, with feature-gated submodules
-//! and stub counterparts for disabled builds. `mod.zig` re-exports the stable API
-//! and provides the `Context` struct for Framework integration.
+//! This module is a primary feature module. The implementation lives directly in
+//! `src/ai/` with a feature-gated stub in `src/ai/stub.zig` for disabled builds.
 //!
 //! ## Usage
 //!
@@ -80,8 +79,8 @@ tags: []
 //!
 //! ## See Also
 //!
-//! - [AI Documentation](../../docs/ai.md)
-//! - [API Reference](../../docs/ai.md#api-reference)
-//! - [Training Guide](../../docs/ai.md#training)
+//! - [AI Documentation](../../docs/content/ai.html)
+//! - [API Reference](../../docs/content/api.html)
+//! - [Training Guide](../../docs/content/ai.html)
 
 

@@ -98,6 +98,28 @@ pub const GpuBenchConfig = struct {
     }
 };
 
+/// Detect if a real (non-emulated) GPU device is available.
+pub fn hasHardwareGpu(allocator: std.mem.Allocator) bool {
+    if (!build_options.enable_gpu) return false;
+
+    const abi = @import("abi");
+    var gpu_ctx = abi.gpu.Gpu.init(allocator, .{}) catch return false;
+    defer gpu_ctx.deinit();
+
+    if (!gpu_ctx.isAvailable()) return false;
+
+    for (gpu_ctx.listDevices()) |device| {
+        if (!device.is_emulated and
+            device.device_type != .cpu and
+            device.supportsFeature(.compute_shaders))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /// Run all GPU benchmarks
 pub fn runAllBenchmarks(allocator: std.mem.Allocator, mode: GpuBenchmarkMode) !void {
     const config = GpuBenchConfig.forMode(mode);
