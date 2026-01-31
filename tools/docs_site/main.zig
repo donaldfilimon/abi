@@ -63,7 +63,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     try buildSite(allocator, io, config);
 }
 
-fn parseArgs(args: [][]const u8) ArgsError!BuildConfig {
+fn parseArgs(args: []const [:0]const u8) ArgsError!BuildConfig {
     var config = BuildConfig{
         .source_dir = "docs",
         .out_dir = "zig-out/docs",
