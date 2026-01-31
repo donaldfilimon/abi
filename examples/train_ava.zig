@@ -344,7 +344,7 @@ fn printHelp() void {
         \\    {"document": "path/to/file.pdf", "summary": "..."}
         \\    {"document": "path/to/code.py", "explanation": "..."}
         \\
-        \\For more information, see: docs/training.md
+        \\For more information, see: docs/content/ai.html
         \\
     ;
     std.debug.print("{s}", .{help});

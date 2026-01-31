@@ -3,7 +3,7 @@ title: "Examples"
 tags: [examples, tutorials, getting-started]
 ---
 # ABI Framework Examples
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Examples-14-blue?style=for-the-badge" alt="14 Examples"/>
@@ -199,6 +199,16 @@ zig build run-train-ava -- gpt2.gguf -d data.jsonl --epochs 5 --lr 2e-5
 zig build run-train-ava -- --help
 ```
 
+### orchestration.zig
+
+Multi-model routing and orchestration workflows.
+
+**Run:**
+
+```bash
+zig build run-orchestration
+```
+
 ### ha.zig
 
 High Availability features for production deployments.
@@ -239,7 +249,9 @@ zig build run-train-demo
 zig build run-llm
 zig build run-orchestration
 zig build run-train-ava
+zig build run-orchestration
 zig build run-ha
+zig build run-observability
 ```
 
 ## Running Benchmarks
@@ -317,9 +329,10 @@ All examples follow these Zig 0.16 best practices:
 
 ## Need Help?
 
-See the [Documentation Index](../docs/docs-index.md) for comprehensive guides, or check API_REFERENCE.md for detailed API information.
+See the [Docs Map](../docs/README.md) for documentation layout, or check the
+[Docs Home](../docs/content/index.html) for the rendered site entry point.
 
 ## See Also
 
 - [API Reference](../API_REFERENCE.md) - Detailed API information
-- [Documentation Index](../docs/intro.md) - Comprehensive guides
+- [Docs Home](../docs/content/index.html) - Documentation site entry point

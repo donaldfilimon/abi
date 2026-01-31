@@ -4,7 +4,7 @@ tags: []
 ---
 //! # AI
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-30.
+//! > **Codebase Status:** Synced with repository as of 2026-01-31.
 //!
 //! AI module providing LLM inference, agents, embeddings, and training capabilities.
 //!
@@ -94,8 +94,8 @@ tags: []
 //!
 //! ## See Also
 //!
-//! - [AI Documentation](../../docs/ai.md)
-//! - [API Reference](../../docs/ai.md#api-reference)
-//! - [Training Guide](../../docs/ai.md#training)
+//! - [AI Documentation](../../docs/content/ai.html)
+//! - [API Reference](../../API_REFERENCE.md)
+//! - [Training Guide](../../docs/content/ai.html)
 
 

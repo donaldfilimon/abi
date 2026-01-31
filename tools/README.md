@@ -3,7 +3,7 @@ title: "Tools Directory"
 tags: [tools, cli, utilities]
 ---
 # Tools Directory
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Tools-Developer-blue?style=for-the-badge" alt="Developer Tools"/>
@@ -33,4 +33,4 @@ zig build benchmarks
 
 ---
 
-See also: `benchmarks/README.md`, `docs/docs-index.md`.
+See also: `benchmarks/README.md`, `docs/README.md`.

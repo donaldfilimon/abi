@@ -94,7 +94,7 @@ std.debug.print("State: {t}\n", .{state});
 
 ### 2. Security Improvements
 
-#### 2.1 Medium Severity Issues (From SECURITY_AUDIT.md)
+#### 2.1 Medium Severity Issues (From security review)
 
 **Resolved (2026-01-30)**:
 - ✅ H-1: JWT "none" algorithm → Runtime warning added
@@ -201,10 +201,10 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 ### 4. Documentation Gaps
 
 **Strong documentation overall**:
-- ✅ 25 comprehensive markdown files in `docs/`
+- ✅ Documentation site sources in `docs/content/`
 - ✅ Inline doc comments (`//!`) in most modules
 - ✅ CLAUDE.md and AGENTS.md for AI coding assistants
-- ✅ SECURITY_AUDIT.md with comprehensive security review
+- ✅ SECURITY.md with security policy and reporting
 
 **Improvement opportunities**:
 
@@ -467,7 +467,7 @@ These can be done immediately with minimal risk:
 
 ## 🔗 Related Documents
 
-- [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Comprehensive security review
+- [SECURITY.md](SECURITY.md) - Security policy and reporting
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
 - [CLAUDE.md](CLAUDE.md) - Zig 0.16 patterns and architecture guide
 - [AGENTS.md](AGENTS.md) - Repository structure and guidelines

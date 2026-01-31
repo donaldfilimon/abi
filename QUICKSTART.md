@@ -3,7 +3,7 @@ title: "QUICKSTART"
 tags: []
 ---
 # Quickstart
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
@@ -12,7 +12,7 @@ tags: []
 </p>
 
 > **Getting Started Fast** — This guide gets you running in under 5 minutes.
-> For comprehensive guides, see [docs/intro.md](docs/intro.md).
+> For comprehensive guides, see [docs/content/index.html](docs/content/index.html).
 
 ---
 
@@ -203,22 +203,22 @@ Flat domain structure with modular architecture:
 |--------|-------------|--------|------|
 | `src/abi.zig` | Public API entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
 | `src/config.zig` | Unified configuration system | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
-| `src/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Framework Guide](docs/framework.md) |
-| `src/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Compute Guide](docs/compute.md) |
+| `src/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Configuration Guide](docs/content/configuration.html) |
+| `src/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Architecture Guide](docs/content/architecture.html) |
 
 ### Feature Modules
 
 | Module | Description | Status | Docs |
 |--------|-------------|--------|------|
-| `src/gpu/` | GPU backends and unified API | ![Ready](https://img.shields.io/badge/-Ready-success) | [GPU Guide](docs/gpu.md) |
-| `src/ai/` | AI module entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
-| `src/ai/llm/` | Local LLM inference | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
-| `src/ai/embeddings/` | Vector embeddings | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
-| `src/ai/agents/` | AI agent runtime | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
-| `src/ai/training/` | Training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/ai.md) |
-| `src/database/` | WDBX vector database | ![Ready](https://img.shields.io/badge/-Ready-success) | [Database Guide](docs/database.md) |
-| `src/network/` | Distributed compute and Raft | ![Ready](https://img.shields.io/badge/-Ready-success) | [Network Guide](docs/network.md) |
-| `src/observability/` | Metrics, tracing, profiling | ![Ready](https://img.shields.io/badge/-Ready-success) | [Monitoring Guide](docs/monitoring.md) |
+| `src/gpu/` | GPU backends and unified API | ![Ready](https://img.shields.io/badge/-Ready-success) | [GPU Guide](docs/content/gpu.html) |
+| `src/ai/` | AI module entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/ai/llm/` | Local LLM inference | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/ai/embeddings/` | Vector embeddings | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/ai/agents/` | AI agent runtime | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/ai/training/` | Training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/database/` | WDBX vector database | ![Ready](https://img.shields.io/badge/-Ready-success) | [Database Guide](docs/content/database.html) |
+| `src/network/` | Distributed compute and Raft | ![Ready](https://img.shields.io/badge/-Ready-success) | [Network Guide](docs/content/network.html) |
+| `src/observability/` | Metrics, tracing, profiling | ![Ready](https://img.shields.io/badge/-Ready-success) | [Observability Guide](docs/content/observability.html) |
 | `src/web/` | HTTP helpers and web utilities | ![Ready](https://img.shields.io/badge/-Ready-success) | - |
 | `src/shared/` | Shared utilities and helpers | ![Ready](https://img.shields.io/badge/-Ready-success) | - |
 
@@ -229,7 +229,7 @@ Flat domain structure with modular architecture:
 <td width="50%">
 
 ### Learn More
-- [Introduction](docs/intro.md) — Architecture overview
+- [Architecture](docs/content/architecture.html) — Architecture overview
 - [API Reference](API_REFERENCE.md) — API documentation
 - [Examples](examples/) — Code samples
 
@@ -249,5 +249,5 @@ Flat domain structure with modular architecture:
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="docs/intro.md">Full Documentation →</a>
+  <a href="docs/content/index.html">Full Documentation →</a>
 </p>

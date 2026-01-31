@@ -3,7 +3,7 @@ title: "TODO"
 tags: [development, tracking]
 ---
 # Project TODO List
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Code_TODOs-Complete-success?style=for-the-badge" alt="Code TODOs Complete"/>
@@ -40,10 +40,10 @@ The following high-level items were tracked in **[ROADMAP.md](ROADMAP.md)**. Ite
 | `ROADMAP.md` | 130-133 | ~~High Availability: Disaster recovery (backup orchestration, point-in-time recovery, multi-region support)~~ ✅ Complete |
 | `ROADMAP.md` | 140-143 | ~~Ecosystem: Package manager integration (Zig registry ✅, Homebrew formula ✅, Docker images ✅)~~ ✅ Complete |
 | `ROADMAP.md` | 148-151 | ~~Research & Innovation: FPGA Phase 2 kernels~~ ✅ Complete, ~~Novel index structures (DiskANN, ScaNN)~~ ✅ Complete, ASIC exploration (future) |
-| `ROADMAP.md` | 152-155 | ~~Academic collaborations (research partnerships, paper publications, conference presentations)~~ ✅ Complete (docs/research/) |
-| `ROADMAP.md` | 158-161 | ~~Community governance: RFC process, voting mechanism, contribution recognition~~ ✅ Complete (docs/governance/) |
-| `ROADMAP.md` | 162-165 | ~~Education: Training courses, certification program, university partnerships~~ ✅ Complete (docs/education/) |
-| `ROADMAP.md` | 168-171 | ~~Commercial support: SLA offerings, priority support, custom development~~ ✅ Complete (docs/commercial/) |
+| `ROADMAP.md` | 152-155 | Academic collaboration docs were removed; reintroduction planned (docs/research/) |
+| `ROADMAP.md` | 158-161 | Governance docs were removed; reintroduction planned (docs/governance/) |
+| `ROADMAP.md` | 162-165 | Education docs were removed; reintroduction planned (docs/education/) |
+| `ROADMAP.md` | 168-171 | Commercial docs were removed; reintroduction planned (docs/commercial/) |
 | `ROADMAP.md` | 172-175 | ~~Cloud integration: AWS Lambda, Google Cloud Functions, Azure Functions~~ ✅ Complete (src/cloud/) |
 
 ## Llama-CPP Parity Tasks (Zig 0.16)
@@ -58,7 +58,7 @@ The following high-level items were tracked in **[ROADMAP.md](ROADMAP.md)**. Ite
 | Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/ai/llm/generation/sampler.zig` |
 | Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/ai/llm/generation/streaming.zig` |
 | CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
-| Library API | ✅ | C-compatible API with headers and Zig exports. | `bindings/c/` |
+| Library API | ❌ | C-compatible API removed; reimplementation planned. | ROADMAP.md (Language bindings) |
 | Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/tests/llm_reference_vectors.zig` |
 | Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/ai/training/` |
 | Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/ai/training/trainable_model.zig` |
