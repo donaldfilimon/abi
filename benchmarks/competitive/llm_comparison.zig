@@ -148,7 +148,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
 
     // Record Single Request Result
     const single_mean_ns = 1_000_000_000.0 / single_result.tokens_per_sec;
-    try runner.results.append(allocator, .{
+    try runner.appendResult(.{
         .config = .{
             .name = "ABI LLM Single Request",
             .category = "llm",
@@ -197,7 +197,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
 
     // Record Batch Result
     const batch_mean_ns = 1_000_000_000.0 / batch_result.total_tokens_per_sec;
-    try runner.results.append(allocator, .{
+    try runner.appendResult(.{
         .config = .{
             .name = "ABI LLM Batch Throughput",
             .category = "llm",

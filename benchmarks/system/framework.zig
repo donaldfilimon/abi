@@ -105,11 +105,16 @@ pub const BenchCollector = struct {
     }
 
     pub fn deinit(self: *BenchCollector) void {
+        for (self.results.items) |*result| {
+            freeConfigStrings(self.allocator, &result.config);
+        }
         self.results.deinit(self.allocator);
     }
 
     pub fn append(self: *BenchCollector, result: BenchResult) !void {
-        try self.results.append(self.allocator, result);
+        var owned = result;
+        owned.config = try cloneConfigStrings(self.allocator, result.config);
+        try self.results.append(self.allocator, owned);
     }
 };
 
@@ -270,6 +275,9 @@ pub const BenchmarkRunner = struct {
     }
 
     pub fn deinit(self: *BenchmarkRunner) void {
+        for (self.results.items) |*result| {
+            freeConfigStrings(self.allocator, &result.config);
+        }
         self.results.deinit(self.allocator);
     }
 
@@ -336,7 +344,7 @@ pub const BenchmarkRunner = struct {
         }
 
         const result = BenchResult{
-            .config = config,
+            .config = try cloneConfigStrings(self.allocator, config),
             .stats = stats,
             .memory_allocated = mem_allocated,
             .memory_freed = mem_freed,
@@ -389,7 +397,7 @@ pub const BenchmarkRunner = struct {
         const mem_stats = tracker.getStats();
 
         const result = BenchResult{
-            .config = config,
+            .config = try cloneConfigStrings(self.allocator, config),
             .stats = stats,
             .memory_allocated = mem_stats.allocated,
             .memory_freed = mem_stats.freed,
@@ -526,6 +534,14 @@ pub const BenchmarkRunner = struct {
         }
     }
 
+    /// Append a result with proper string ownership (clones config strings)
+    /// Use this instead of directly appending to .results to avoid double-free bugs
+    pub fn appendResult(self: *BenchmarkRunner, result: BenchResult) !void {
+        var owned = result;
+        owned.config = try cloneConfigStrings(self.allocator, result.config);
+        try self.results.append(self.allocator, owned);
+    }
+
     /// Print a formatted summary using std.debug.print
     pub fn printSummaryDebug(self: *BenchmarkRunner) void {
         std.debug.print("\n", .{});
@@ -544,6 +560,20 @@ pub const BenchmarkRunner = struct {
         std.debug.print("\n", .{});
     }
 };
+
+fn cloneConfigStrings(allocator: std.mem.Allocator, config: BenchConfig) !BenchConfig {
+    var owned = config;
+    owned.name = try allocator.dupe(u8, config.name);
+    owned.category = try allocator.dupe(u8, config.category);
+    return owned;
+}
+
+fn freeConfigStrings(allocator: std.mem.Allocator, config: *BenchConfig) void {
+    if (config.name.len > 0) allocator.free(config.name);
+    if (config.category.len > 0) allocator.free(config.category);
+    config.name = "";
+    config.category = "";
+}
 
 /// Calculate comprehensive statistics from samples
 fn calculateStatistics(

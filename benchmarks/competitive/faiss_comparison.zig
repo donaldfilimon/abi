@@ -175,7 +175,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
                     .total_time_ns = latency_ns,
                 };
 
-                try runner.results.append(allocator, .{
+                try runner.appendResult(.{
                     .config = bench_config,
                     .stats = stats,
                     .memory_allocated = 0,
