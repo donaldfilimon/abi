@@ -181,7 +181,7 @@ fn writeJsonReport(
     meta: BenchJsonMeta,
 ) !void {
     try writer.writeAll("{\n  \"metadata\": {\n    \"suite\": ");
-    try std.json.encodeJsonString(meta.suite, .{}, writer);
+    try std.json.Stringify.encodeJsonString(meta.suite, .{}, writer);
     try std.fmt.format(
         writer,
         ",\n    \"quick\": {s},\n    \"duration_ns\": {d},\n    \"duration_sec\": {d:.4},\n    \"benchmarks\": {d}\n  },\n  \"benchmarks\": [\n",
@@ -196,9 +196,9 @@ fn writeJsonReport(
     for (results, 0..) |result, idx| {
         if (idx > 0) try writer.writeAll(",\n");
         try writer.writeAll("    {\"name\":");
-        try std.json.encodeJsonString(result.config.name, .{}, writer);
+        try std.json.Stringify.encodeJsonString(result.config.name, .{}, writer);
         try writer.writeAll(",\"category\":");
-        try std.json.encodeJsonString(result.config.category, .{}, writer);
+        try std.json.Stringify.encodeJsonString(result.config.category, .{}, writer);
         try std.fmt.format(
             writer,
             ",\"iterations\":{d},\"mean_ns\":{d:.2},\"median_ns\":{d:.2},\"std_dev_ns\":{d:.2},\"min_ns\":{d},\"max_ns\":{d},\"p50_ns\":{d},\"p90_ns\":{d},\"p95_ns\":{d},\"p99_ns\":{d},\"ops_per_sec\":{d:.2},\"bytes_per_op\":{d},\"throughput_mb_s\":{d:.2},\"memory_allocated\":{d},\"memory_freed\":{d}}",
