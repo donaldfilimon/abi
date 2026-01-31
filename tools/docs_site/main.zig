@@ -125,7 +125,7 @@ fn buildSite(allocator: std.mem.Allocator, io: std.Io, config: BuildConfig) !voi
     defer parsed.deinit();
     const manifest = parsed.value;
 
-    try std.Io.Dir.cwd().makePath(io, config.out_dir);
+    try std.Io.Dir.cwd().createDirPath(io, config.out_dir);
     try copyAssets(allocator, io, config.source_dir, config.out_dir);
 
     for (manifest.pages) |page| {
@@ -149,7 +149,7 @@ fn copyDirRecursive(allocator: std.mem.Allocator, io: std.Io, src: []const u8, d
     var dir = std.Io.Dir.cwd().openDir(io, src, .{ .iterate = true }) catch return error.FileNotFound;
     defer dir.close(io);
 
-    try std.Io.Dir.cwd().makePath(io, dest);
+    try std.Io.Dir.cwd().createDirPath(io, dest);
 
     var iter = dir.iterate();
     while (true) {
