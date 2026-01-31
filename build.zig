@@ -232,7 +232,15 @@ const benchmark_targets = [_]BuildTarget{
 fn pathExists(path: []const u8) bool {
     // Build scripts should avoid `@cImport` to keep builds working in environments
     // without libc headers (common in minimal containers / CI runners).
-    std.fs.cwd().access(path, .{}) catch return false;
+    //
+    // Zig 0.16 deprecated `std.fs.cwd()` in favor of the new `std.Io` APIs.
+    var io_backend = std.Io.Threaded.init(std.heap.page_allocator, .{
+        .environ = std.process.Environ.empty,
+    }) catch return false;
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    _ = std.Io.Dir.cwd().statFile(io, path, .{}) catch return false;
     return true;
 }
 
