@@ -193,7 +193,9 @@ pub const CodeGenerator = struct {
             .zig => {
                 // Generate Zig function
                 if (opts.include_docs) {
-                    try code.appendSlice(self.allocator, "/// TODO: Add documentation\n");
+                    try code.appendSlice(self.allocator, "/// ");
+                    try code.appendSlice(self.allocator, name);
+                    try code.appendSlice(self.allocator, " generated function.\n");
                 }
                 try code.appendSlice(self.allocator, "pub fn ");
                 try code.appendSlice(self.allocator, name);
@@ -211,7 +213,7 @@ pub const CodeGenerator = struct {
                 }
                 try code.appendSlice(self.allocator, " {\n");
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "// TODO: Implement\n");
+                try code.appendSlice(self.allocator, "@panic(\"Not implemented\");\n");
                 try code.appendSlice(self.allocator, "}\n");
             },
             .python => {
@@ -225,7 +227,9 @@ pub const CodeGenerator = struct {
                     }
                     try code.appendSlice(self.allocator, "):\n");
                     try code.appendSlice(self.allocator, indent);
-                    try code.appendSlice(self.allocator, "\"\"\"TODO: Add documentation.\"\"\"\n");
+                    try code.appendSlice(self.allocator, "\"\"\"");
+                    try code.appendSlice(self.allocator, name);
+                    try code.appendSlice(self.allocator, " generated function.\"\"\"\n");
                 } else {
                     try code.appendSlice(self.allocator, "def ");
                     try code.appendSlice(self.allocator, name);
@@ -237,11 +241,13 @@ pub const CodeGenerator = struct {
                     try code.appendSlice(self.allocator, "):\n");
                 }
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "pass  # TODO: Implement\n");
+                try code.appendSlice(self.allocator, "raise NotImplementedError(\"Not implemented\")\n");
             },
             .javascript, .typescript => {
                 if (opts.include_docs) {
-                    try code.appendSlice(self.allocator, "/**\n * TODO: Add documentation\n */\n");
+                    try code.appendSlice(self.allocator, "/**\n * ");
+                    try code.appendSlice(self.allocator, name);
+                    try code.appendSlice(self.allocator, " generated function.\n */\n");
                 }
                 if (language == .typescript and opts.include_types) {
                     try code.appendSlice(self.allocator, "function ");
@@ -266,12 +272,14 @@ pub const CodeGenerator = struct {
                 }
                 try code.appendSlice(self.allocator, " {\n");
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "// TODO: Implement\n");
+                try code.appendSlice(self.allocator, "throw new Error(\"Not implemented\");\n");
                 try code.appendSlice(self.allocator, "}\n");
             },
             .rust => {
                 if (opts.include_docs) {
-                    try code.appendSlice(self.allocator, "/// TODO: Add documentation\n");
+                    try code.appendSlice(self.allocator, "/// ");
+                    try code.appendSlice(self.allocator, name);
+                    try code.appendSlice(self.allocator, " generated function.\n");
                 }
                 try code.appendSlice(self.allocator, "fn ");
                 try code.appendSlice(self.allocator, name);
@@ -288,16 +296,14 @@ pub const CodeGenerator = struct {
                 }
                 try code.appendSlice(self.allocator, "{\n");
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "// TODO: Implement\n");
-                try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "todo!()\n");
+                try code.appendSlice(self.allocator, "panic!(\"Not implemented\");\n");
                 try code.appendSlice(self.allocator, "}\n");
             },
             .go => {
                 if (opts.include_docs) {
                     try code.appendSlice(self.allocator, "// ");
                     try code.appendSlice(self.allocator, name);
-                    try code.appendSlice(self.allocator, " TODO: Add documentation\n");
+                    try code.appendSlice(self.allocator, " generated function.\n");
                 }
                 try code.appendSlice(self.allocator, "func ");
                 try code.appendSlice(self.allocator, name);
@@ -313,16 +319,16 @@ pub const CodeGenerator = struct {
                 }
                 try code.appendSlice(self.allocator, " {\n");
                 try code.appendSlice(self.allocator, indent);
-                try code.appendSlice(self.allocator, "// TODO: Implement\n");
+                try code.appendSlice(self.allocator, "panic(\"not implemented\")\n");
                 try code.appendSlice(self.allocator, "}\n");
             },
             else => {
                 // Generic template
                 try code.appendSlice(self.allocator, "// Function: ");
                 try code.appendSlice(self.allocator, name);
-                try code.appendSlice(self.allocator, "\n// TODO: Implement for ");
+                try code.appendSlice(self.allocator, "\n// Generated for ");
                 try code.appendSlice(self.allocator, @tagName(language));
-                try code.append(self.allocator, '\n');
+                try code.appendSlice(self.allocator, " - add implementation as needed.\n");
             },
         }
 
