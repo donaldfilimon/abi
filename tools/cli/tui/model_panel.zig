@@ -9,6 +9,7 @@
 //! Part of the TUI/CLI enhancement suite.
 
 const std = @import("std");
+const abi = @import("abi");
 const terminal = @import("terminal.zig");
 const themes = @import("themes.zig");
 const events = @import("events.zig");
@@ -157,7 +158,7 @@ pub const ModelManagementPanel = struct {
     /// Update panel data (poll for changes)
     pub fn update(self: *Self) !void {
         // Get current timestamp
-        const now = std.time.milliTimestamp();
+        const now = abi.utils.unixMs();
 
         // Check if enough time has passed for refresh
         if (now - self.last_refresh < @as(i64, @intCast(self.refresh_interval_ms))) {
@@ -165,8 +166,76 @@ pub const ModelManagementPanel = struct {
         }
         self.last_refresh = now;
 
-        // TODO: Poll model manager for cached models when connected to src/ai/models/
-        // For now, we use mock data or empty state
+        // Poll model manager for cached models
+        var manager = try abi.ai.models.Manager.init(self.allocator, .{ .auto_scan = false });
+        defer manager.deinit();
+
+        var io_backend = std.Io.Threaded.init(self.allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+
+        manager.scanCacheDirWithIo(io_backend.io()) catch {};
+
+        const prev_active = if (self.active_model_id) |id|
+            self.allocator.dupe(u8, id) catch null
+        else
+            null;
+        defer if (prev_active) |id| self.allocator.free(id);
+
+        self.clearModels();
+
+        for (manager.listModels()) |model| {
+            const id_copy = self.allocator.dupe(u8, model.name) catch continue;
+            const name_copy = self.allocator.dupe(u8, model.name) catch {
+                self.allocator.free(id_copy);
+                continue;
+            };
+            const path_copy = self.allocator.dupe(u8, model.path) catch {
+                self.allocator.free(id_copy);
+                self.allocator.free(name_copy);
+                continue;
+            };
+            const format_copy = self.allocator.dupe(u8, @tagName(model.format)) catch {
+                self.allocator.free(id_copy);
+                self.allocator.free(name_copy);
+                self.allocator.free(path_copy);
+                continue;
+            };
+
+            const is_active = if (prev_active) |id|
+                std.mem.eql(u8, id, model.name)
+            else
+                false;
+
+            self.cached_models.append(self.allocator, .{
+                .id = id_copy,
+                .name = name_copy,
+                .size_bytes = model.size_bytes,
+                .path = path_copy,
+                .format = format_copy,
+                .is_active = is_active,
+            }) catch {
+                self.allocator.free(id_copy);
+                self.allocator.free(name_copy);
+                self.allocator.free(path_copy);
+                self.allocator.free(format_copy);
+                continue;
+            };
+
+            if (is_active) {
+                self.active_model_id = id_copy;
+            }
+        }
+
+        if (self.active_model_id == null and self.cached_models.items.len > 0) {
+            self.cached_models.items[0].is_active = true;
+            self.active_model_id = self.cached_models.items[0].id;
+        }
+
+        if (self.selected_model >= self.cached_models.items.len) {
+            self.selected_model = if (self.cached_models.items.len > 0) self.cached_models.items.len - 1 else 0;
+        }
 
         // Update transfer rate history if we have active downloads
         if (self.active_downloads.items.len > 0) {

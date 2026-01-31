@@ -366,7 +366,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
                 .name = name,
                 .category = "memory/small",
                 .warmup_iterations = 10,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
                 .track_memory = true,
             },
             struct {
@@ -394,7 +394,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
                 .name = name,
                 .category = "memory/small",
                 .warmup_iterations = 10,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, s: usize, c: usize) !void {
@@ -417,7 +417,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
                 .name = name,
                 .category = "memory/mixed",
                 .warmup_iterations = 10,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, s: usize, c: usize) !void {
@@ -437,7 +437,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
                 .name = "variable_sizes",
                 .category = "memory/variable",
                 .warmup_iterations = 10,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, c: usize) !void {
@@ -460,7 +460,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
                 .name = name,
                 .category = "memory/arena",
                 .warmup_iterations = 100,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, s: usize, c: usize) !void {
@@ -484,7 +484,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
                 .name = "pool_64B",
                 .category = "memory/pool",
                 .warmup_iterations = 100,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, c: usize) !void {
@@ -510,7 +510,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
                 .name = name,
                 .category = "memory/fba",
                 .warmup_iterations = 100,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, s: usize, c: usize) !void {
@@ -554,7 +554,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
                 .name = name,
                 .category = "memory/threaded",
                 .warmup_iterations = 5,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
                 .max_iterations = 100,
             },
             struct {

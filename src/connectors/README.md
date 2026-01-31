@@ -4,7 +4,7 @@ tags: []
 ---
 //! # Connectors
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-23.
+//! > **Codebase Status:** Synced with repository as of 2026-01-30.
 //!
 //! Integration points to external AI services, platforms, and communication APIs.
 //!
@@ -58,6 +58,5 @@ tags: []
 //! ## See Also
 //!
 //! - [AI Module](../ai/README.md)
-//! - [Agent Documentation](../../../docs/ai.md)
-
+//! - [Agent Documentation](../../docs/ai.md)
 

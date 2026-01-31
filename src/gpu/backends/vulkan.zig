@@ -1385,3 +1385,39 @@ pub const CommandPool = struct {};
 /// Returns BackendError.NotAvailable if Vulkan driver cannot be loaded.
 /// Returns BackendError.InitFailed if Vulkan initialization fails.
 pub const createVulkanVTable = vulkan_vtable.createVulkanVTable;
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "VulkanError enum covers all cases" {
+    const errors = [_]VulkanError{
+        error.InitializationFailed,
+        error.InstanceCreationFailed,
+        error.PhysicalDeviceNotFound,
+        error.QueueFamilyNotFound,
+        error.DeviceCreationFailed,
+        error.MemoryAllocationFailed,
+        error.BufferCreationFailed,
+        error.ShaderModuleCreationFailed,
+        error.PipelineCreationFailed,
+        error.CommandPoolCreationFailed,
+        error.CommandBufferAllocationFailed,
+        error.FenceCreationFailed,
+        error.SubmissionFailed,
+        error.MemoryMapFailed,
+        error.DescriptorSetLayoutCreationFailed,
+        error.DescriptorPoolCreationFailed,
+        error.DescriptorSetAllocationFailed,
+    };
+    try std.testing.expectEqual(@as(usize, 17), errors.len);
+}
+
+test "VkResult success value is zero" {
+    try std.testing.expectEqual(@as(i32, 0), @intFromEnum(VkResult.success));
+}
+
+test "vulkan_initialized starts as false" {
+    // Can't call isAvailable directly, but we can verify the initial state
+    try std.testing.expect(!vulkan_initialized);
+}

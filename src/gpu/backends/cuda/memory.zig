@@ -39,11 +39,11 @@ fn getMemoryFuncs() ?*const cuda_loader.MemoryFunctions {
     return &funcs.memory;
 }
 
-pub fn init() !void {
+pub fn init(allocator: std.mem.Allocator) !void {
     if (initialized) return;
 
     // Use consolidated loader
-    _ = cuda_loader.load() catch return MemoryError.InitializationFailed;
+    _ = cuda_loader.load(allocator) catch return MemoryError.InitializationFailed;
 
     const mem_funcs = getMemoryFuncs() orelse return MemoryError.InitializationFailed;
     if (mem_funcs.cuMemAlloc == null or mem_funcs.cuMemFree == null) {

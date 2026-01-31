@@ -198,7 +198,7 @@ pub const Encryptor = struct {
         }
 
         // Build header
-        var header = EncryptedHeader{
+        const header = EncryptedHeader{
             .algorithm = self.config.algorithm,
             .nonce = try self.allocator.dupe(u8, nonce[0..nonce_size]),
             .aad_length = if (aad) |a| @intCast(a.len) else 0,

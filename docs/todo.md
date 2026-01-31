@@ -3,7 +3,7 @@ title: "Development TODO & Zig 0.16 Patterns"
 tags: [development, patterns, zig-0.16]
 ---
 # Development TODO & Zig 0.16 Patterns
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
@@ -193,7 +193,7 @@ See [TODO.md](../TODO.md) for the comprehensive project task list.
 
 ### Quick Links
 
-- [Zig 0.16 Migration Guide](migration/zig-0.16-migration.md) - Full migration documentation
+- [Developer Guide](../CLAUDE.md) - Zig 0.16 patterns and project conventions
 - [Framework Guide](framework.md) - Configuration and initialization
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
@@ -202,4 +202,3 @@ See [TODO.md](../TODO.md) for the comprehensive project task list.
 <p align="center">
   <a href="docs-index.md">&larr; Documentation Index</a>
 </p>
-

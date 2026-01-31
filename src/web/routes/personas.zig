@@ -122,6 +122,22 @@ pub const RouteContext = struct {
     }
 };
 
+/// Maps internal errors to safe user-facing error messages.
+/// This prevents leaking internal implementation details to API consumers.
+fn safeErrorMessage(err: anyerror) []const u8 {
+    return switch (err) {
+        error.OutOfMemory => "Service temporarily unavailable",
+        error.NotFound => "Resource not found",
+        error.InvalidInput, error.InvalidRequest => "Invalid request",
+        error.Timeout => "Request timed out",
+        error.PermissionDenied, error.Forbidden => "Permission denied",
+        error.Unauthorized => "Authentication required",
+        error.ServiceUnavailable => "Service unavailable",
+        error.RateLimited => "Rate limit exceeded",
+        else => "An internal error occurred",
+    };
+}
+
 /// Handle POST /api/v1/chat - Auto-routing chat.
 fn handlePersonaChat(ctx: *RouteContext, persona: []const u8) RouteError!void {
     _ = ctx;
@@ -143,8 +159,10 @@ fn handleAvivaChat(ctx: *RouteContext) RouteError!void {
 
 fn handleListPersonas(ctx: *RouteContext) RouteError!void {
     const response = ctx.chat_handler.listPersonas() catch |err| {
-        const err_name = @errorName(err);
-        try ctx.writeError(500, "INTERNAL_ERROR", err_name);
+        // Log the actual error server-side for debugging
+        std.log.err("listPersonas failed: {t}", .{err});
+        // Return sanitized error to client
+        try ctx.writeError(500, "INTERNAL_ERROR", safeErrorMessage(err));
         return;
     };
     try ctx.writeJson(response);
@@ -153,8 +171,10 @@ fn handleListPersonas(ctx: *RouteContext) RouteError!void {
 /// Handle GET /api/v1/personas/metrics - Get metrics.
 fn handleGetMetrics(ctx: *RouteContext) RouteError!void {
     const response = ctx.chat_handler.getMetrics() catch |err| {
-        const err_name = @errorName(err);
-        try ctx.writeError(500, "INTERNAL_ERROR", err_name);
+        // Log the actual error server-side for debugging
+        std.log.err("getMetrics failed: {t}", .{err});
+        // Return sanitized error to client
+        try ctx.writeError(500, "INTERNAL_ERROR", safeErrorMessage(err));
         return RouteError.InternalError;
     };
     try ctx.writeJson(response);

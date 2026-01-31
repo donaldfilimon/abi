@@ -4,7 +4,7 @@ tags: []
 ---
 //! # Web
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-23.
+//! > **Codebase Status:** Synced with repository as of 2026-01-30.
 //!
 //! HTTP client utilities and web integrations.
 //!
@@ -48,7 +48,5 @@ tags: []
 //!
 //! ## See Also
 //!
-//! - [HTTP Utilities](../../shared/utils/http/README.md)
-//! - [CLAUDE.md Web Section](../../../CLAUDE.md)
-
-
+//! - [HTTP Utilities](../shared/utils/README.md)
+//! - [CLAUDE.md Web Section](../../CLAUDE.md)

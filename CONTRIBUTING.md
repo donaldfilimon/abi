@@ -3,7 +3,7 @@ title: "CONTRIBUTING"
 tags: []
 ---
 # Contributing
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
@@ -27,6 +27,8 @@ tags: []
 | Build | `zig build` |
 | Test | `zig build test --summary all` |
 | Format | `zig fmt .` |
+| CLI Smoke Test | `zig build cli-tests` |
+| Full Check | `zig build full-check` |
 | Single File Test | `zig test src/path/to/file.zig` |
 
 ## Workflow

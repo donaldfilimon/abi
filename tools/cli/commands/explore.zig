@@ -116,12 +116,14 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var agent = try abi.ai.explore.ExploreAgent.init(allocator, config);
     defer agent.deinit();
 
-    const start_time = try std.time.Instant.now();
+    var timer = std.time.Timer.start() catch {
+        utils.output.printError("Timer unavailable on this platform", .{});
+        return;
+    };
     var result = try agent.explore(root_path, search_query);
     defer result.deinit();
 
-    const end_time = try std.time.Instant.now();
-    const duration_ms = @divTrunc(end_time.since(start_time), std.time.ns_per_ms);
+    const duration_ms = @divTrunc(timer.read(), std.time.ns_per_ms);
 
     switch (output_format) {
         .human => {

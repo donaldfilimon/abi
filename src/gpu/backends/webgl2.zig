@@ -90,3 +90,26 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) WebGl2E
     _ = size;
     return WebGl2Error.ComputeShadersUnavailable;
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "WebGl2Error enum covers all cases" {
+    const errors = [_]WebGl2Error{
+        error.NotSupported,
+        error.UnsupportedPlatform,
+        error.ComputeShadersUnavailable,
+    };
+    try std.testing.expectEqual(@as(usize, 3), errors.len);
+}
+
+test "compileKernel returns ComputeShadersUnavailable" {
+    const result = compileKernel(std.testing.allocator, .{ .wgsl = "" });
+    try std.testing.expectError(error.ComputeShadersUnavailable, result);
+}
+
+test "allocateDeviceMemory returns ComputeShadersUnavailable" {
+    const result = allocateDeviceMemory(1024);
+    try std.testing.expectError(error.ComputeShadersUnavailable, result);
+}

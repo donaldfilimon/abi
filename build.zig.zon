@@ -25,8 +25,7 @@
     .fingerprint = 0xd5f1a8dcca5fe58a, // Changing this has security and trust implications.
     // Tracks the earliest Zig version that the package considers to be a
     // supported use case.
-    // Updated to support Zig 0.16.0-dev.2290+200fb7c2a.
-    .minimum_zig_version = "0.16.0-dev.2290+200fb7c2a",
+    .minimum_zig_version = "0.16.0-dev.2368+380ea6fb5",
     // This field is optional.
     // Each dependency must either provide a `url` and `hash`, or a `path`.
     // `zig build --fetch` can be used to fetch all dependencies of a package, recursively.

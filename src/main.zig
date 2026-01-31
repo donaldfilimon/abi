@@ -7,8 +7,10 @@ const std = @import("std");
 // Using the file name ensures the import works even when the project build does not
 // provide a named module.
 const abi = @import("abi.zig");
-// New I/O backend helper (Zig 0.16)
-const IoBackend = @import("io").IoBackend;
+// Shared I/O backend helper (Zig 0.16)
+// Note: This intentionally references ABI's shared module so `zig run src/main.zig`
+// works without requiring the build system to define an "io" package/module.
+const IoBackend = abi.shared.io.IoBackend;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};

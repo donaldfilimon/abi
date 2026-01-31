@@ -97,6 +97,18 @@ Plugin registry for feature management.
 
 Runtime infrastructure (always available).
 
+### `pub const platform`
+
+<sup>**type**</sup>
+
+Platform detection and abstraction.
+
+### `pub const shared`
+
+<sup>**type**</sup>
+
+Shared utilities.
+
 ### `pub const gpu`
 
 <sup>**const**</sup>

@@ -14,6 +14,11 @@ pub const network_config = @import("network.zig");
 pub const observability_config = @import("observability.zig");
 pub const web_config = @import("web.zig");
 pub const plugin_config = @import("plugin.zig");
+pub const loader = @import("loader.zig");
+
+// Re-export loader types
+pub const ConfigLoader = loader.ConfigLoader;
+pub const LoadError = loader.LoadError;
 
 // Re-export all config types for convenience
 pub const GpuConfig = gpu_config.GpuConfig;

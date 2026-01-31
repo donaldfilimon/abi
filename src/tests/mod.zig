@@ -36,6 +36,8 @@ comptime {
     }
     // Cross-platform OS features tests
     _ = @import("os_test.zig");
+    // Shared utilities tests (via abi module)
+    _ = abi.shared.errors;
     // High Availability module tests
     _ = @import("ha_test.zig");
     // Stub parity verification tests
@@ -156,7 +158,7 @@ pub const Fuzzer = proptest.Fuzzer;
 pub const forAll = proptest.forAll;
 
 test "abi version returns build package version" {
-    try std.testing.expectEqualStrings("0.1.1", abi.version());
+    try std.testing.expectEqualStrings("0.4.0", abi.version());
 }
 
 test "abi exports required symbols" {

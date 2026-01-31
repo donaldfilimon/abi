@@ -1,9 +1,10 @@
 ---
-title: "streaming"
+title: "Streaming Inference API"
 tags: [ai, streaming, sse, websocket, inference]
 ---
 # Streaming Inference API
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [API Reference](api/index.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-Streaming-blue?style=for-the-badge&logo=lightning&logoColor=white" alt="Streaming Module"/>

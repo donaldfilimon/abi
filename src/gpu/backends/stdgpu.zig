@@ -908,3 +908,23 @@ test "simd softmax sums to one" {
     const sum = simdSum(&dst);
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), sum, 0.001);
 }
+
+test "GpuError enum covers all cases" {
+    const errors = [_]GpuError{
+        error.NotAvailable,
+        error.OutOfMemory,
+        error.InvalidKernel,
+        error.LaunchFailed,
+        error.BindingError,
+    };
+    try std.testing.expectEqual(@as(usize, 5), errors.len);
+}
+
+test "DeviceMemoryError enum covers all cases" {
+    const errors = [_]DeviceMemoryError{
+        error.AllocationFailed,
+        error.InvalidPointer,
+        error.OutOfDeviceMemory,
+    };
+    try std.testing.expectEqual(@as(usize, 3), errors.len);
+}

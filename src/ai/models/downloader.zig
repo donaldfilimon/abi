@@ -70,27 +70,31 @@ pub const DownloadProgress = struct {
 
     /// Format progress as a human-readable string.
     pub fn format(self: DownloadProgress) [64]u8 {
-        var buf: [64]u8 = undefined;
-        const downloaded_mb = @as(f64, @floatFromInt(self.downloaded_bytes)) / (1024 * 1024);
-        const total_mb = @as(f64, @floatFromInt(self.total_bytes)) / (1024 * 1024);
-        const speed_mb = @as(f64, @floatFromInt(self.speed_bytes_per_sec)) / (1024 * 1024);
-
-        if (self.total_bytes > 0) {
-            _ = std.fmt.bufPrint(&buf, "{d:.1} / {d:.1} MB ({d}%) - {d:.1} MB/s", .{
-                downloaded_mb,
-                total_mb,
-                self.percent,
-                speed_mb,
-            }) catch {};
-        } else {
-            _ = std.fmt.bufPrint(&buf, "{d:.1} MB - {d:.1} MB/s", .{
-                downloaded_mb,
-                speed_mb,
-            }) catch {};
-        }
+        var buf = std.mem.zeroes([64]u8);
+        formatProgressInto(&buf, self);
         return buf;
     }
 };
+
+fn formatProgressInto(buf: []u8, progress: DownloadProgress) void {
+    const downloaded_mb = @as(f64, @floatFromInt(progress.downloaded_bytes)) / (1024 * 1024);
+    const total_mb = @as(f64, @floatFromInt(progress.total_bytes)) / (1024 * 1024);
+    const speed_mb = @as(f64, @floatFromInt(progress.speed_bytes_per_sec)) / (1024 * 1024);
+
+    if (progress.total_bytes > 0) {
+        safeBufPrint(buf, "{d:.1} / {d:.1} MB ({d}%) - {d:.1} MB/s", .{
+            downloaded_mb,
+            total_mb,
+            progress.percent,
+            speed_mb,
+        });
+    } else {
+        safeBufPrint(buf, "{d:.1} MB - {d:.1} MB/s", .{
+            downloaded_mb,
+            speed_mb,
+        });
+    }
+}
 
 /// Download error types.
 pub const DownloadError = error{
@@ -259,10 +263,6 @@ pub const Downloader = struct {
 
     /// Internal download implementation with I/O backend.
     /// Performs streaming HTTP download with progress, resume, and checksum support.
-    ///
-    /// Note: Due to Zig 0.16 I/O API flux, this currently returns DownloadDisabled.
-    /// The download falls back to showing curl/wget instructions in the CLI.
-    /// Full native download will be enabled when the Zig std.Io.File API stabilizes.
     fn performDownloadWithIo(
         self: *Self,
         io: std.Io,
@@ -270,27 +270,231 @@ pub const Downloader = struct {
         output_path: []const u8,
         config: DownloadConfig,
     ) DownloadError!DownloadResult {
-        // Suppress unused parameter warnings
-        _ = self;
-        _ = io;
-        _ = url;
-        _ = output_path;
-        _ = config;
+        // Initialize HTTP client (uses provided I/O backend)
+        var client = std.http.Client{
+            .allocator = self.allocator,
+            .io = io,
+        };
+        defer client.deinit();
 
-        // TODO: Enable native HTTP download when Zig 0.16 std.Io.File.Writer API stabilizes
-        // The implementation is ready but the file writing API has incompatibilities
-        // between different Zig 0.16 builds. For now, fall back to instructions.
-        return error.DownloadDisabled;
+        const uri = std.Uri.parse(url) catch return error.InvalidUrl;
+
+        // Determine if we should resume
+        var resume_from: u64 = 0;
+        var was_resumed = false;
+        var file: std.Io.File = undefined;
+
+        if (config.resume_download) {
+            if (std.Io.Dir.cwd().openFile(io, output_path, .{ .mode = .read_write })) |existing| {
+                file = existing;
+                const stat = file.stat(io) catch {
+                    file.close(io);
+                    return error.FileReadError;
+                };
+                resume_from = stat.size;
+                was_resumed = resume_from > 0;
+            } else |err| switch (err) {
+                error.FileNotFound => {},
+                else => return error.FileCreateError,
+            }
+        }
+
+        if (resume_from == 0) {
+            file = std.Io.Dir.cwd().createFile(io, output_path, .{ .truncate = true, .read = true }) catch
+                return error.FileCreateError;
+        } else if (!config.resume_download) {
+            file = std.Io.Dir.cwd().createFile(io, output_path, .{ .truncate = true, .read = true }) catch
+                return error.FileCreateError;
+            resume_from = 0;
+            was_resumed = false;
+        }
+        defer file.close(io);
+
+        // Build request options (Range header for resume)
+        var request_options: std.http.Client.RequestOptions = .{};
+        request_options.headers.user_agent = .{ .override = "abi-model-downloader" };
+
+        var range_buf: [32]u8 = undefined;
+        var range_header: [1]std.http.Header = undefined;
+        if (resume_from > 0) {
+            const range_value = formatRangeHeader(resume_from, &range_buf);
+            range_header[0] = .{ .name = "range", .value = range_value };
+            request_options.extra_headers = range_header[0..1];
+        }
+
+        var req = client.request(.GET, uri, request_options) catch return error.ConnectionFailed;
+        defer req.deinit();
+
+        req.sendBodiless() catch return error.ConnectionFailed;
+
+        var redirect_buffer: [4096]u8 = undefined;
+        var response = req.receiveHead(&redirect_buffer) catch return error.HttpError;
+
+        // Handle server response status
+        if (response.head.status == .range_not_satisfiable and resume_from > 0) {
+            // Assume file is already fully downloaded; verify checksum if needed.
+            var hasher = Sha256.init(.{});
+            var checksum = std.mem.zeroes([64]u8);
+
+            var hash_buf: [8192]u8 = undefined;
+            var offset: u64 = 0;
+            while (offset < resume_from) {
+                const to_read = @min(hash_buf.len, @as(usize, @intCast(resume_from - offset)));
+                const n = file.readPositional(io, &.{hash_buf[0..to_read]}, offset) catch
+                    return error.FileReadError;
+                if (n == 0) break;
+                hasher.update(hash_buf[0..n]);
+                offset += @intCast(n);
+            }
+
+            const digest = hasher.finalResult();
+            checksum = std.fmt.bytesToHex(digest, .lower);
+
+            var checksum_verified = false;
+            if (config.verify_checksum and config.expected_checksum != null) {
+                checksum_verified = std.ascii.eqlIgnoreCase(config.expected_checksum.?, checksum[0..]);
+                if (!checksum_verified) return error.ChecksumMismatch;
+            }
+
+            return DownloadResult{
+                .path = output_path,
+                .bytes_downloaded = resume_from,
+                .checksum = checksum,
+                .was_resumed = true,
+                .checksum_verified = checksum_verified,
+            };
+        }
+
+        if (response.head.status != .ok and response.head.status != .partial_content) {
+            return error.ServerError;
+        }
+
+        // If server ignored Range request, restart download from scratch
+        if (resume_from > 0 and response.head.status == .ok) {
+            file.close(io);
+            file = std.Io.Dir.cwd().createFile(io, output_path, .{ .truncate = true, .read = true }) catch
+                return error.FileCreateError;
+            resume_from = 0;
+            was_resumed = false;
+        }
+
+        // Calculate total bytes if known
+        const content_length = response.head.content_length orelse 0;
+        const total_bytes: u64 = if (resume_from > 0 and response.head.status == .partial_content)
+            resume_from + content_length
+        else
+            content_length;
+
+        // Initialize SHA256 hasher (include existing bytes if resuming)
+        var hasher = Sha256.init(.{});
+        if (was_resumed) {
+            var hash_buf: [8192]u8 = undefined;
+            var offset: u64 = 0;
+            while (offset < resume_from) {
+                const to_read = @min(hash_buf.len, @as(usize, @intCast(resume_from - offset)));
+                const n = file.readPositional(io, &.{hash_buf[0..to_read]}, offset) catch
+                    return error.FileReadError;
+                if (n == 0) break;
+                hasher.update(hash_buf[0..n]);
+                offset += @intCast(n);
+            }
+        }
+
+        // Stream response body to file
+        const transfer_buffer = self.allocator.alloc(u8, config.buffer_size) catch
+            return error.OutOfMemory;
+        defer self.allocator.free(transfer_buffer);
+
+        const reader = response.reader(transfer_buffer);
+
+        var write_offset: u64 = resume_from;
+        var downloaded_total: u64 = resume_from;
+        var downloaded_session: u64 = 0;
+
+        const download_start = platform_time.now();
+        var last_activity = platform_time.now();
+
+        while (true) {
+            if (self.cancelled) return error.Cancelled;
+
+            if (config.timeout_ms > 0) {
+                const now = platform_time.now();
+                if (platform_time.elapsedMs(last_activity, now) > config.timeout_ms) {
+                    return error.Timeout;
+                }
+            }
+
+            const n = reader.readSliceShort(transfer_buffer) catch return error.ConnectionFailed;
+            if (n == 0) break;
+
+            last_activity = platform_time.now();
+
+            file.writePositionalAll(io, transfer_buffer[0..n], write_offset) catch
+                return error.FileWriteError;
+
+            write_offset += @intCast(n);
+            downloaded_total += @intCast(n);
+            downloaded_session += @intCast(n);
+
+            hasher.update(transfer_buffer[0..n]);
+
+            if (config.progress_callback) |cb| {
+                const now = platform_time.now();
+                const elapsed_ms = platform_time.elapsedMs(download_start, now);
+                const speed_bytes_per_sec = if (elapsed_ms > 0)
+                    @as(u64, @intCast((downloaded_session * 1000) / elapsed_ms))
+                else
+                    0;
+
+                const remaining_bytes: u64 = if (total_bytes > downloaded_total)
+                    total_bytes - downloaded_total
+                else
+                    0;
+                const eta_seconds: ?u32 = if (remaining_bytes > 0 and speed_bytes_per_sec > 0)
+                    @intCast(remaining_bytes / speed_bytes_per_sec)
+                else
+                    null;
+
+                const percent: u8 = if (total_bytes > 0)
+                    @intCast(@min(@as(u64, 100), (downloaded_total * 100) / total_bytes))
+                else
+                    0;
+
+                cb(.{
+                    .total_bytes = total_bytes,
+                    .downloaded_bytes = downloaded_total,
+                    .speed_bytes_per_sec = speed_bytes_per_sec,
+                    .eta_seconds = eta_seconds,
+                    .is_resuming = was_resumed,
+                    .percent = percent,
+                });
+            }
+        }
+
+        // Finalize checksum
+        const digest = hasher.finalResult();
+        const checksum = std.fmt.bytesToHex(digest, .lower);
+
+        var checksum_verified = false;
+        if (config.verify_checksum and config.expected_checksum != null) {
+            checksum_verified = std.ascii.eqlIgnoreCase(config.expected_checksum.?, checksum[0..]);
+            if (!checksum_verified) return error.ChecksumMismatch;
+        }
+
+        return DownloadResult{
+            .path = output_path,
+            .bytes_downloaded = downloaded_total,
+            .checksum = checksum,
+            .was_resumed = was_resumed,
+            .checksum_verified = checksum_verified,
+        };
     }
 
-    /// Format Range header value for resume.
-    fn formatRangeHeader(start_byte: u64) []const u8 {
-        // Static buffer for range header (reused across calls)
-        const S = struct {
-            var buf: [32]u8 = undefined;
-        };
-        const len = std.fmt.bufPrint(&S.buf, "bytes={d}-", .{start_byte}) catch return "bytes=0-";
-        return S.buf[0..len];
+    /// Format Range header value for resume using a caller-provided buffer.
+    /// Thread-safe: the caller owns the buffer, so there is no shared mutable state.
+    fn formatRangeHeader(start_byte: u64, buf: []u8) []const u8 {
+        const slice = std.fmt.bufPrint(buf, "bytes={d}-", .{start_byte}) catch return "bytes=0-";
+        return slice;
     }
 
     /// Parse a URL into components.
@@ -385,7 +589,13 @@ fn extractFilenameFromUrl(allocator: std.mem.Allocator, url: []const u8) ![]cons
 
 /// Format bytes as human-readable string.
 pub fn formatBytes(bytes: u64) [32]u8 {
-    var buf: [32]u8 = undefined;
+    var buf = std.mem.zeroes([32]u8);
+
+    formatBytesInto(&buf, bytes);
+    return buf;
+}
+
+fn formatBytesInto(buf: []u8, bytes: u64) void {
     const kb: f64 = 1024;
     const mb: f64 = kb * 1024;
     const gb: f64 = mb * 1024;
@@ -393,35 +603,53 @@ pub fn formatBytes(bytes: u64) [32]u8 {
     const b = @as(f64, @floatFromInt(bytes));
 
     if (b >= gb) {
-        _ = std.fmt.bufPrint(&buf, "{d:.2} GB", .{b / gb}) catch {};
+        safeBufPrint(buf, "{d:.2} GB", .{b / gb});
     } else if (b >= mb) {
-        _ = std.fmt.bufPrint(&buf, "{d:.2} MB", .{b / mb}) catch {};
+        safeBufPrint(buf, "{d:.2} MB", .{b / mb});
     } else if (b >= kb) {
-        _ = std.fmt.bufPrint(&buf, "{d:.2} KB", .{b / kb}) catch {};
+        safeBufPrint(buf, "{d:.2} KB", .{b / kb});
     } else {
-        _ = std.fmt.bufPrint(&buf, "{d} B", .{bytes}) catch {};
+        safeBufPrint(buf, "{d} B", .{bytes});
     }
-
-    return buf;
 }
 
 /// Format duration in seconds as human-readable string.
 pub fn formatDuration(seconds: u32) [16]u8 {
-    var buf: [16]u8 = undefined;
+    var buf = std.mem.zeroes([16]u8);
 
+    formatDurationInto(&buf, seconds);
+    return buf;
+}
+
+fn formatDurationInto(buf: []u8, seconds: u32) void {
     if (seconds >= 3600) {
         const hours = seconds / 3600;
         const mins = (seconds % 3600) / 60;
-        _ = std.fmt.bufPrint(&buf, "{d}h {d}m", .{ hours, mins }) catch {};
+        safeBufPrint(buf, "{d}h {d}m", .{ hours, mins });
     } else if (seconds >= 60) {
         const mins = seconds / 60;
         const secs = seconds % 60;
-        _ = std.fmt.bufPrint(&buf, "{d}m {d}s", .{ mins, secs }) catch {};
+        safeBufPrint(buf, "{d}m {d}s", .{ mins, secs });
     } else {
-        _ = std.fmt.bufPrint(&buf, "{d}s", .{seconds}) catch {};
+        safeBufPrint(buf, "{d}s", .{seconds});
     }
+}
 
-    return buf;
+fn safeBufPrint(buf: []u8, comptime fmt: []const u8, args: anytype) void {
+    if (std.fmt.bufPrint(buf, fmt, args)) |_| {
+        return;
+    } else |_| {
+        writeFallback(buf);
+    }
+}
+
+fn writeFallback(buf: []u8) void {
+    const fallback = "n/a";
+    if (buf.len == 0) {
+        return;
+    }
+    const len = @min(buf.len, fallback.len);
+    std.mem.copyForwards(u8, buf[0..len], fallback[0..len]);
 }
 
 // ============================================================================
@@ -499,4 +727,15 @@ test "formatDuration" {
 
     const hours = formatDuration(3665);
     try std.testing.expect(std.mem.indexOf(u8, &hours, "1h 1m") != null);
+}
+
+test "formatRangeHeader uses caller buffer" {
+    var buf_one: [32]u8 = undefined;
+    var buf_two: [32]u8 = undefined;
+
+    const header_one = Downloader.formatRangeHeader(128, &buf_one);
+    const header_two = Downloader.formatRangeHeader(4096, &buf_two);
+
+    try std.testing.expectEqualStrings("bytes=128-", header_one);
+    try std.testing.expectEqualStrings("bytes=4096-", header_two);
 }

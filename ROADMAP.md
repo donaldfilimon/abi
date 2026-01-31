@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -105,6 +105,12 @@ tags: [planning, roadmap]
   - [x] ParallelSearchExecutor for batch queries
   - [x] ParallelBeamState for concurrent HNSW traversal
   - [x] ParallelWorkQueue for thread-safe work distribution
+- [x] Metal backend enhancements - COMPLETE (2026-01-30)
+  - [x] Accelerate framework integration (vBLAS, vDSP, vForce)
+  - [x] AMX-accelerated matrix operations (sgemm, sgemv, sdot)
+  - [x] Unified memory manager for zero-copy CPU/GPU sharing
+  - [x] UnifiedTensor type with automatic sync barriers
+  - [x] Neural network primitives (softmax, rmsnorm, silu, gelu)
 
 ### Developer Experience
     - [x] Enhanced CLI
@@ -131,8 +137,8 @@ tags: [planning, roadmap]
   - [x] Component interactions (docs/diagrams/gpu-architecture.md)
   - [x] Data flow diagrams (docs/diagrams/ai-dataflow.md)
   - [x] Modular codebase structure (completed 2026-01-17)
-  - [x] Vulkan backend consolidation documentation – completed (see `docs/plans/2026-01-24-vulkan-consolidation.md`)
- - [x] Mega GPU + TUI + Self-Learning Agent Upgrade – COMPLETE (2026-01-24)
+  - [x] Vulkan backend consolidation documentation – completed
+ - [x] Mega GPU Orchestration + TUI + Learning Agent Upgrade – COMPLETE (2026-01-24)
    - [x] Cross-backend GPU coordinator (`src/gpu/mega/coordinator.zig`)
    - [x] Learning-based scheduler with Q-learning (`src/gpu/mega/scheduler.zig`)
    - [x] GPU monitor TUI widget (`tools/cli/tui/gpu_monitor.zig`)
@@ -166,21 +172,21 @@ tags: [planning, roadmap]
 
 ### High Availability
 - [x] Failover mechanisms
-  - [x] Automatic failover (src/features/ha/mod.zig - HaManager with auto_failover)
+  - [x] Automatic failover (src/ha/mod.zig - HaManager with auto_failover)
   - [x] Health checks (src/network/loadbalancer.zig - NodeState)
-  - [x] Circuit breakers (src/features/monitoring/mod.zig - CircuitBreakerMetrics)
+  - [x] Circuit breakers (src/observability/mod.zig - CircuitBreakerMetrics)
 - [x] Disaster recovery
-  - [x] Backup orchestration (src/features/ha/backup.zig - BackupOrchestrator)
-  - [x] Point-in-time recovery (src/features/ha/pitr.zig - PitrManager)
-  - [x] Multi-region support (src/features/ha/replication.zig - ReplicationManager)
+  - [x] Backup orchestration (src/ha/backup.zig - BackupOrchestrator)
+  - [x] Point-in-time recovery (src/ha/pitr.zig - PitrManager)
+  - [x] Multi-region support (src/ha/replication.zig - ReplicationManager)
 
 ### Ecosystem
-- [x] Language bindings
-  - [x] Python bindings (foundation + observability module)
-  - [x] JavaScript/WASM bindings
-  - [x] C API (bindings/c/abi.h)
-  - [x] Rust bindings (FFI with safe wrappers) - COMPLETE (2026-01-24)
-  - [x] Go bindings (cgo with SIMD/database/GPU) - COMPLETE (2026-01-24)
+- [ ] Language bindings (removed for reimplementation - 2026-01-30)
+  - [ ] Python bindings
+  - [ ] JavaScript/WASM bindings
+  - [ ] C API headers
+  - [ ] Rust bindings
+  - [ ] Go bindings
 - [x] Package manager integration
   - [x] Zig package registry (build.zig.zon with fingerprint)
   - [x] Homebrew formula (Formula/abi.rb)
@@ -248,15 +254,17 @@ See CONTRIBUTING.md for details.
 
 ## Version Timeline
 
-| Version | Target Quarter | Status | Notes |
-|----------|---------------|---------|-------|
-| 0.2.2 | 2025-12-27 | Released | Zig 0.16 modernization |
-| 0.3.0 | Q1 2026 | Complete | GPU backends, AI features |
-| 0.4.0 | Q2 2026 | Complete | Performance, DX, documentation |
-| 0.5.0 | Q3 2026 | Complete | Distributed systems, HA |
-| 0.6.0 | Q4 2026 | Complete | Llama-CPP parity, Modular architecture refactor |
+| Version | Original Target | Completed | Notes |
+|----------|----------------|-----------|-------|
+| 0.2.2 | 2025-12-27 | 2025-12-27 | Zig 0.16 modernization |
+| 0.3.0 | Q1 2026 | 2026-01-23 | GPU backends, AI features |
+| 0.4.0 | Q2 2026 | 2026-01-25 | Performance, DX, documentation |
+| 0.5.0 | Q3 2026 | 2026-01-26 | Distributed systems, HA |
+| 0.6.0 | Q4 2026 | 2026-01-30 | Llama-CPP parity, streaming recovery |
 
-*Last updated: January 24, 2026*
+> **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
+
+*Last updated: January 30, 2026*
 
 ## Zig 0.16 Migration Status
 
@@ -273,7 +281,7 @@ All Zig 0.16 API migrations are complete:
 - [x] CI/CD pinned to Zig 0.16.x
 - [x] Feature stub API parity (2026-01-17)
 
-See `docs/migration/zig-0.16-migration.md` for detailed migration guide.
+See `CLAUDE.md` for current Zig 0.16 I/O patterns and examples.
 
 ### Code Quality & Refactoring (2026-01-17)
 
@@ -294,7 +302,19 @@ All feature-gated stubs have been audited and updated for API parity:
  - [0.2.0](CHANGELOG_CONSOLIDATED.md#020---2025-12-24) - High-performance compute runtime
  - [0.1.0](CHANGELOG_CONSOLIDATED.md#010---2025-12-24) - Initial release
 
-## Expanded Roadmap Details
+## Related Documentation
+
+For detailed implementation notes, see:
+- [CLAUDE.md](CLAUDE.md) - Developer guidelines and architecture reference
+- [docs/troubleshooting.md](docs/troubleshooting.md) - Debugging and GDB/LLDB support
+- [CLAUDE.md](CLAUDE.md) - Zig 0.16 patterns and developer guidance
+- [docs/research/](docs/research/) - Research partnerships and publications
+- [docs/governance/](docs/governance/) - RFC process and community governance
+- [docs/education/](docs/education/) - Training courses and certification
+- [docs/commercial/](docs/commercial/) - Enterprise support and SLA offerings
+
+## Implementation History
+
 ### Tooling (Q2 2026) COMPLETE
 - **Debugger integration** - GDB/LLDB support documented in docs/troubleshooting.md.
 - **Performance profiler** - MetricsCollector and GPU Profiler implemented.
@@ -325,15 +345,15 @@ All feature-gated stubs have been audited and updated for API parity:
 
 ### Llama-CPP Parity (Complete)
 All Llama-CPP parity tasks have been completed. See TODO.md for details:
-- [x] GGUF loader and metadata parsing (src/features/ai/llm/io/gguf.zig)
-- [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/features/ai/llm/tensor/quantized.zig)
-- [x] BPE/SentencePiece tokenizer (src/features/ai/llm/tokenizer/)
-- [x] CPU inference kernels with SIMD (src/features/ai/llm/ops/)
-- [x] GPU backend with CUDA kernels (src/features/ai/llm/ops/gpu.zig)
-- [x] Sampling strategies (src/features/ai/llm/generation/sampler.zig)
-- [x] Async token streaming (src/features/ai/llm/generation/streaming.zig)
+- [x] GGUF loader and metadata parsing (src/ai/llm/io/gguf.zig)
+- [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/ai/llm/tensor/quantized.zig)
+- [x] BPE/SentencePiece tokenizer (src/ai/llm/tokenizer/)
+- [x] CPU inference kernels with SIMD (src/ai/llm/ops/)
+- [x] GPU backend with CUDA kernels (src/ai/llm/ops/gpu.zig)
+- [x] Sampling strategies (src/ai/llm/generation/sampler.zig)
+- [x] Async token streaming (src/ai/llm/generation/streaming.zig)
 - [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
-- [x] C-compatible API (bindings/c/abi_llm.zig)
+- [ ] C-compatible API (bindings removed - to be recreated)
 - [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
 
 ### Modular Codebase Refactor (Complete - 2026-01-17)
@@ -360,3 +380,13 @@ Runtime module fully consolidated from compute/:
 - [x] CLI runtime flags (--list-features, --enable-*, --disable-*)
 - [x] Comptime feature validation for CLI flags
 - [x] Default Ollama model updated to gpt-oss
+
+### Platform Module Restructure (Complete - 2026-01-30)
+Created dedicated platform detection module:
+- [x] Unified platform detection (src/platform/mod.zig)
+- [x] OS/arch detection with SIMD support (src/platform/detection.zig)
+- [x] CPU detection utilities (src/platform/cpu.zig)
+- [x] Stub for minimal builds (src/platform/stub.zig)
+- [x] Shared module consolidation (src/shared/mod.zig)
+- [x] I/O utilities moved to shared (src/shared/io.zig)
+- [x] Updated abi.zig exports (platform, shared)

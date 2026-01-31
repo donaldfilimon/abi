@@ -186,6 +186,11 @@ pub const JwtManager = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator, secret_key: []const u8, config: JwtConfig) JwtManager {
+        // Security warning for dangerous configuration
+        if (config.allow_none_algorithm) {
+            std.log.warn("JWT 'none' algorithm enabled - tokens can be forged without signatures! This is a security risk.", .{});
+        }
+
         return .{
             .allocator = allocator,
             .config = config,

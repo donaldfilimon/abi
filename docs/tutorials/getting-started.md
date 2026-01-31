@@ -1,5 +1,5 @@
 # Tutorial: Getting Started with ABI
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 > **Duration:** 20 minutes | **Level:** Beginner | **Video:** [Watch](videos/01-getting-started.md)
 
@@ -302,7 +302,7 @@ Compare the resulting binary sizes.
 ## Next Steps
 
 - [Tutorial 2: Vector Database](vector-database.md) - Store and search vectors
-- [API Reference](../API_REFERENCE.md) - Complete API docs
+- [API Reference](../../API_REFERENCE.md) - Complete API docs
 - [AI Guide](../ai.md) - Connect to LLMs
 - [GPU Guide](../gpu.md) - Accelerate compute
 

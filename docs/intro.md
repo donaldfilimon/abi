@@ -1,13 +1,10 @@
 ---
-title: "intro"
-tags: []
+title: "Introduction"
+tags: [introduction, overview]
 ---
 # Introduction
-> **Codebase Status:** Synced with repository as of 2026-01-24.
-
-> **Quick Start**: See [Quickstart Guide](../QUICKSTART.md) for immediate setup examples.
-> **Developer Guide**: See [CONTRIBUTING.md](../CONTRIBUTING.md) for AI agent coding patterns and build commands.
-> **Full Reference**: See [Documentation Index](docs-index.md) for complete documentation listing.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Quick Links:** [Quickstart](../QUICKSTART.md) · [Contributing](../CONTRIBUTING.md) · [Documentation Index](docs-index.md)
 
 Welcome to **ABI**, a modern Zig 0.16.x framework for modular AI services, vector search, and high-performance systems tooling.
 
@@ -45,8 +42,11 @@ The framework uses a flat domain structure with top-level feature modules:
 │  src/observability/   │    - Memory management         │
 │  src/web/             │                                │
 ├───────────────────────┴─────────────────────────────────┤
+│          Platform Detection (src/platform/)             │
+│     OS/Arch Detection, CPU Info, SIMD Capabilities     │
+├─────────────────────────────────────────────────────────┤
 │               Shared Utilities (src/shared/)            │
-│     Platform Abstractions, SIMD, Crypto, Logging       │
+│            Security, I/O, SIMD, Crypto, Logging        │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -161,7 +161,5 @@ pub fn main() !void {
 
 - [Documentation Index](docs-index.md) - Full documentation listing
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
-- [Zig 0.16 Migration](migration/zig-0.16-migration.md) - API compatibility notes
 - [TODO List](../TODO.md) - Pending implementations (see [Claude‑Code Massive TODO](../TODO.md#claude-code-massive-todo))
 - [ROADMAP](../ROADMAP.md) - Upcoming milestones
-

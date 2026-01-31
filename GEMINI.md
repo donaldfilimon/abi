@@ -3,7 +3,7 @@ title: "GEMINI"
 tags: [ai, agents, gemini]
 ---
 # GEMINI.md
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Gemini-Agent_Guide-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini Guide"/>
@@ -17,6 +17,8 @@ This file gives the Gemini agent guidance on interacting with the ABI framework.
 ```bash
 zig build                             # Build the framework
 zig build test --summary all          # Run all tests (regression)
+zig build cli-tests                   # Run CLI command smoke tests
+zig build full-check                  # Format + tests + CLI smoke tests
 zig fmt .                             # Format after edits
 zig build run -- --help               # CLI help
 
@@ -48,36 +50,30 @@ The codebase uses a domain-driven modular structure with unified configuration a
 
 ```
 src/
-├── abi.zig              # Public API entry point
-├── config.zig           # Unified configuration system
-├── framework.zig        # Framework orchestration
-├── cpu.zig              # CPU fallback for GPU operations
-├── flags.zig            # Feature flags management
-├── io.zig               # I/O utilities
-├── config/              # Domain-specific configs (gpu, ai, database, etc.)
-├── ai/                  # AI module (core, implementation, gpu_interface)
-│   ├── database/        # Database-related AI functionality
-│   ├── discovery.zig    # AI model/capability discovery
-│   ├── documents/       # Document handling
-│   ├── gpu_agent.zig    # GPU-specific agent
-│   └── model_registry.zig # Model registry
-├── cloud/               # Cloud function adapters (AWS, Azure, GCP)
+├── abi.zig              # Public API entry point: init(), shutdown(), version()
+├── config.zig           # Unified configuration system (single Config struct)
+├── config/              # Modular configuration system
+├── framework.zig        # Framework orchestration with builder pattern
+├── platform/            # Platform detection (NEW: mod.zig, detection.zig, cpu.zig)
+├── runtime/             # Always-on infrastructure
+├── gpu/                 # GPU acceleration
+├── ai/                  # AI features (llm, embeddings, agents, training)
+├── database/            # Vector database
+├── network/             # Distributed networking
+├── observability/       # Metrics, tracing, logging
+├── web/                 # Web utilities
+├── shared/              # Shared utilities (mod.zig, io.zig, security/, utils/)
 ├── connectors/          # External API connectors
-├── database/            # Vector database (WDBX)
-├── gpu/                 # GPU acceleration (backends)
-├── ha/                  # High Availability
-├── network/             # Distributed compute and Raft
-├── observability/       # Metrics, tracing, monitoring
-├── registry/            # Plugin registry (lifecycle, plugins)
-├── runtime/             # Task engine, concurrency primitives, work stealing
-├── shared/              # Utils and helpers
-├── tasks.zig            # Centralized task management
-└── web/                 # Web/HTTP utilities
+├── cloud/               # Cloud function adapters
+├── ha/                  # High availability
+├── registry/            # Feature registry
+├── tasks/               # Task management
+└── tests/               # Test infrastructure
 ```
 
 ## Zig 0.16 Patterns (CRITICAL)
 
-> See `docs/migration/zig-0.16-migration.md` for comprehensive examples.
+See `CLAUDE.md` for current Zig 0.16 patterns and examples.
 
 ### I/O Backend Initialization
 
@@ -164,6 +160,28 @@ try quant.q4Matmul(a_ptr, x_ptr, y_ptr, m, k, stream);
 
 // Configuration
 const config = cuda.QuantConfig.forInference();
+```
+
+### Stream Error Recovery (2026-01-30)
+```zig
+const streaming = @import("abi").ai.streaming;
+
+// Per-backend circuit breakers
+var recovery = try streaming.StreamRecovery.init(allocator, .{});
+defer recovery.deinit();
+
+// Check if backend is available (circuit closed)
+if (recovery.isBackendAvailable(.openai)) {
+    // Safe to use
+}
+
+// Record outcomes to update circuit state
+recovery.recordSuccess(.local);
+recovery.recordFailure(.openai);  // Opens circuit after threshold
+
+// Session caching for SSE Last-Event-ID reconnection
+var cache = streaming.SessionCache.init(allocator, .{});
+try cache.storeToken("session", 1, "Hello", .local, hash);
 ```
 
 ## Gotchas for Gemini

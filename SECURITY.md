@@ -3,7 +3,7 @@ title: "SECURITY"
 tags: [security, policy]
 ---
 # Security Policy
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Security-Priority-critical?style=for-the-badge" alt="Security Priority"/>
@@ -79,5 +79,5 @@ The CLI is minimal by design; most deployments should embed ABI as a library.
 
 ## See Also
 
-- [CONTACTS.md](CONTACTS.md) - Maintainer contact information
+- [MAINTAINERS.md](docs/governance/MAINTAINERS.md) - Maintainer contact information
 - [TODO.md](TODO.md) - Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))

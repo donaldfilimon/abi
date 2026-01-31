@@ -92,6 +92,12 @@ pub const Registry = registry.Registry;
 /// Runtime infrastructure (always available).
 pub const runtime = @import("runtime/mod.zig");
 
+/// Platform detection and abstraction.
+pub const platform = @import("platform/mod.zig");
+
+/// Shared utilities.
+pub const shared = @import("shared/mod.zig");
+
 /// GPU acceleration.
 pub const gpu = if (build_options.enable_gpu)
     @import("gpu/mod.zig")
@@ -165,10 +171,12 @@ pub const runtimeConfigFromOptions = framework.runtimeConfigFromOptions;
 // Shared utilities (direct imports from shared/)
 pub const logging = @import("shared/logging.zig");
 pub const plugins = @import("shared/plugins.zig");
-pub const platform = @import("shared/platform.zig");
 pub const simd = @import("shared/simd.zig");
 pub const utils = @import("shared/utils.zig");
 pub const os = @import("shared/os.zig");
+
+// Legacy platform re-export (use platform module instead)
+pub const legacy_platform = @import("shared/platform.zig");
 
 // SIMD functions exported directly
 pub const vectorAdd = simd.vectorAdd;
@@ -434,7 +442,7 @@ test {
 }
 
 test "abi.version returns build package version" {
-    try std.testing.expectEqualStrings("0.1.1", version());
+    try std.testing.expectEqualStrings("0.4.0", version());
 }
 
 test "framework initialization with defaults" {

@@ -3,7 +3,8 @@ title: "Explore Module"
 tags: [explore, search, codebase]
 ---
 # ABI Explore Module
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [API Reference](api/index.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-Explore-cyan?style=for-the-badge" alt="Explore"/>
@@ -401,4 +402,3 @@ const result = agent.explore(".", "query") catch |err| {
 - [Compute Engine](compute.md) - Parallel exploration execution
 - [Framework](framework.md) - Configuration options
 - [Troubleshooting](troubleshooting.md) - Search and timeout issues
-

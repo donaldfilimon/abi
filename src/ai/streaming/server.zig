@@ -13,6 +13,7 @@
 //! - POST /api/stream - Custom ABI streaming endpoint
 //! - GET  /api/stream/ws - WebSocket upgrade for streaming
 //! - GET  /health - Health check endpoint
+//! - GET  /metrics - Metrics snapshot for dashboards
 //! - POST /admin/reload - Hot-reload model without server restart
 
 const std = @import("std");
@@ -21,8 +22,13 @@ const sse = @import("sse.zig");
 const websocket = @import("websocket.zig");
 const backends = @import("backends/mod.zig");
 const formats = @import("formats/mod.zig");
-const net_utils = @import("../../shared/utils.zig").net;
-const json_utils = @import("../../shared/utils.zig").json;
+const shared_utils = @import("../../shared/utils.zig");
+const observability = @import("../../observability/mod.zig");
+const net_utils = shared_utils.net;
+const json_utils = shared_utils.json;
+const recovery = @import("recovery.zig");
+const RecoveryConfig = recovery.RecoveryConfig;
+const RecoveryEvent = recovery.RecoveryEvent;
 
 pub const StreamingServerError = std.mem.Allocator.Error || error{
     InvalidAddress,
@@ -35,6 +41,7 @@ pub const StreamingServerError = std.mem.Allocator.Error || error{
     UnsupportedBackend,
     ModelReloadFailed,
     ModelReloadTimeout,
+    CircuitBreakerOpen,
 };
 
 const max_body_bytes = 1024 * 1024; // 1MB max request body
@@ -64,6 +71,10 @@ pub const ServerConfig = struct {
     default_model_path: ?[]const u8 = null,
     /// Pre-load model on server start (reduces first-request latency)
     preload_model: bool = false,
+    /// Enable error recovery (circuit breakers, retry, session caching)
+    enable_recovery: bool = true,
+    /// Recovery configuration (only used if enable_recovery is true)
+    recovery_config: RecoveryConfig = .{},
 };
 
 /// Streaming inference server
@@ -72,6 +83,7 @@ pub const StreamingServer = struct {
     config: ServerConfig,
     backend_router: backends.BackendRouter,
     active_streams: std.atomic.Value(u32),
+    start_time_ms: i64,
 
     const Self = @This();
 
@@ -81,7 +93,12 @@ pub const StreamingServer = struct {
     /// the model will be loaded during initialization. Otherwise, the model
     /// will be loaded lazily on the first request.
     pub fn init(allocator: std.mem.Allocator, config: ServerConfig) !Self {
-        var backend_router = try backends.BackendRouter.init(allocator);
+        // Initialize backend router with optional recovery support
+        const recovery_cfg: ?RecoveryConfig = if (config.enable_recovery)
+            config.recovery_config
+        else
+            null;
+        var backend_router = try backends.BackendRouter.initWithRecovery(allocator, recovery_cfg);
         errdefer backend_router.deinit();
 
         // Configure local backend with model path if provided
@@ -105,6 +122,7 @@ pub const StreamingServer = struct {
             .config = config,
             .backend_router = backend_router,
             .active_streams = std.atomic.Value(u32).init(0),
+            .start_time_ms = shared_utils.unixMs(),
         };
     }
 
@@ -219,6 +237,36 @@ pub const StreamingServer = struct {
         }
     };
 
+    /// Send a recovery event as an SSE message.
+    fn sendRecoveryEvent(self: *Self, conn_ctx: *ConnectionContext, event: RecoveryEvent) void {
+        const json = event.toJson(self.allocator) catch return;
+        defer self.allocator.free(json);
+
+        // Format as SSE event
+        conn_ctx.write("event: recovery\ndata: ") catch return;
+        conn_ctx.write(json) catch return;
+        conn_ctx.write("\n\n") catch return;
+        conn_ctx.flush() catch return;
+    }
+
+    /// Check circuit breaker and find available backend.
+    fn getAvailableBackend(self: *Self, preferred: backends.BackendType) !*backends.Backend {
+        // Check circuit breaker if recovery is enabled
+        if (!self.backend_router.isBackendAvailable(preferred)) {
+            // Try to find a fallback backend
+            if (self.backend_router.findAvailableBackend(preferred)) |fallback| {
+                return self.backend_router.getBackend(fallback);
+            }
+            return error.CircuitBreakerOpen;
+        }
+        return self.backend_router.getBackend(preferred);
+    }
+
+    fn getMetrics(self: *Self) ?*mod.StreamingMetrics {
+        const recovery_mgr = self.backend_router.getRecovery() orelse return null;
+        return recovery_mgr.getMetrics();
+    }
+
     /// Dispatch request to appropriate handler
     fn dispatchRequest(
         self: *Self,
@@ -234,6 +282,14 @@ pub const StreamingServer = struct {
                 try self.validateAuth(request);
             }
             return self.respondJson(request, "{\"status\":\"ok\"}", .ok);
+        }
+
+        // Metrics endpoint
+        if (std.mem.eql(u8, path, "/metrics")) {
+            if (!self.config.allow_health_without_auth) {
+                try self.validateAuth(request);
+            }
+            return self.handleMetrics(request);
         }
 
         // All other endpoints require auth
@@ -325,8 +381,24 @@ pub const StreamingServer = struct {
         }
         defer _ = self.active_streams.fetchSub(1, .seq_cst);
 
-        // Get backend and start streaming
-        const backend = try self.backend_router.getBackend(self.config.default_backend);
+        // Get backend (with circuit breaker check if recovery enabled)
+        const backend = self.getAvailableBackend(self.config.default_backend) catch |err| {
+            if (err == error.CircuitBreakerOpen) {
+                const error_response =
+                    "HTTP/1.1 503 Service Unavailable\r\n" ++
+                    "Content-Type: application/json\r\n" ++
+                    "Retry-After: 30\r\n" ++
+                    "Content-Length: 78\r\n" ++
+                    "\r\n" ++
+                    "{\"error\":{\"message\":\"backend temporarily unavailable\",\"type\":\"service_unavailable_error\"}}";
+                try conn_ctx.write(error_response);
+                try conn_ctx.flush();
+                return;
+            }
+            return err;
+        };
+        const backend_type = backend.backend_type;
+        const metrics = self.getMetrics();
         const prompt = try chat_request.formatPrompt(self.allocator);
         defer self.allocator.free(prompt);
 
@@ -334,15 +406,40 @@ pub const StreamingServer = struct {
         try conn_ctx.writeSseHeaders();
 
         // Stream tokens as SSE events
-        var stream_iter = try backend.streamTokens(prompt, chat_request.toGenerationConfig());
+        if (metrics) |m| {
+            m.recordStreamStart(backend_type);
+        }
+        var stream_iter = backend.streamTokens(prompt, chat_request.toGenerationConfig()) catch |err| {
+            if (metrics) |m| {
+                m.recordStreamFailure(backend_type);
+            }
+            self.backend_router.recordFailure(backend_type);
+            // Send error event to client
+            try conn_ctx.write("event: error\ndata: {\"type\":\"stream_error\",\"message\":\"failed to start stream\"}\n\n");
+            try conn_ctx.flush();
+            return err;
+        };
         defer stream_iter.deinit();
+
+        var stream_ok = false;
+        errdefer if (!stream_ok) {
+            if (metrics) |m| {
+                m.recordStreamFailure(backend_type);
+            }
+            self.backend_router.recordFailure(backend_type);
+        };
 
         // Initialize heartbeat timer
         var heartbeat_timer = std.time.Timer.start() catch null;
         const heartbeat_interval_ns: u64 = self.config.heartbeat_interval_ms * 1_000_000;
 
+        const stream_start_ms = shared_utils.unixMs();
+        var last_token_ms = stream_start_ms;
         var token_index: u32 = 0;
-        while (try stream_iter.next()) |token| {
+        while (true) {
+            const maybe_token = stream_iter.next() catch |err| return err;
+            if (maybe_token == null) break;
+            const token = maybe_token.?;
             // Check if heartbeat is needed (before sending token)
             if (self.config.heartbeat_interval_ms > 0) {
                 if (heartbeat_timer) |*timer| {
@@ -353,6 +450,16 @@ pub const StreamingServer = struct {
                         timer.reset();
                     }
                 }
+            }
+
+            if (metrics) |m| {
+                const now_ms = shared_utils.unixMs();
+                const latency_ms: u64 = if (now_ms >= last_token_ms)
+                    @intCast(now_ms - last_token_ms)
+                else
+                    0;
+                m.recordTokenLatency(backend_type, latency_ms);
+                last_token_ms = now_ms;
             }
 
             // Format as OpenAI streaming chunk (SSE data payload)
@@ -379,6 +486,18 @@ pub const StreamingServer = struct {
         // Send final [DONE] message per OpenAI spec
         try conn_ctx.write("data: [DONE]\n\n");
         try conn_ctx.flush();
+
+        // Record successful stream completion
+        stream_ok = true;
+        if (metrics) |m| {
+            const end_ms = shared_utils.unixMs();
+            const duration_ms: u64 = if (end_ms >= stream_start_ms)
+                @intCast(end_ms - stream_start_ms)
+            else
+                0;
+            m.recordStreamComplete(backend_type, duration_ms);
+        }
+        self.backend_router.recordSuccess(backend_type);
     }
 
     /// Non-streaming OpenAI response
@@ -458,14 +577,36 @@ pub const StreamingServer = struct {
 
         // Get backend and stream tokens
         const backend_type = stream_request.backend orelse self.config.default_backend;
+        const metrics = self.getMetrics();
         const backend = try self.backend_router.getBackend(backend_type);
 
-        var stream_iter = try backend.streamTokens(stream_request.prompt, stream_request.config);
+        if (metrics) |m| {
+            m.recordStreamStart(backend_type);
+        }
+
+        var stream_iter = backend.streamTokens(stream_request.prompt, stream_request.config) catch |err| {
+            if (metrics) |m| {
+                m.recordStreamFailure(backend_type);
+            }
+            self.backend_router.recordFailure(backend_type);
+            return err;
+        };
         defer stream_iter.deinit();
+
+        var stream_ok = false;
+        errdefer if (!stream_ok) {
+            if (metrics) |m| {
+                m.recordStreamFailure(backend_type);
+            }
+            self.backend_router.recordFailure(backend_type);
+        };
 
         // Initialize heartbeat timer
         var heartbeat_timer = std.time.Timer.start() catch null;
         const heartbeat_interval_ns: u64 = self.config.heartbeat_interval_ms * 1_000_000;
+
+        const stream_start_ms = shared_utils.unixMs();
+        var last_token_ms = stream_start_ms;
 
         // Send start event
         const start_event = mod.StreamEvent.startEvent();
@@ -475,7 +616,10 @@ pub const StreamingServer = struct {
         try conn_ctx.flush();
 
         // Stream tokens as SSE events
-        while (try stream_iter.next()) |token| {
+        while (true) {
+            const maybe_token = stream_iter.next() catch |err| return err;
+            if (maybe_token == null) break;
+            const token = maybe_token.?;
             // Check if heartbeat is needed (before sending token)
             if (self.config.heartbeat_interval_ms > 0) {
                 if (heartbeat_timer) |*timer| {
@@ -488,6 +632,16 @@ pub const StreamingServer = struct {
                         timer.reset();
                     }
                 }
+            }
+
+            if (metrics) |m| {
+                const now_ms = shared_utils.unixMs();
+                const latency_ms: u64 = if (now_ms >= last_token_ms)
+                    @intCast(now_ms - last_token_ms)
+                else
+                    0;
+                m.recordTokenLatency(backend_type, latency_ms);
+                last_token_ms = now_ms;
             }
 
             // Create token event with text
@@ -516,6 +670,17 @@ pub const StreamingServer = struct {
         defer self.allocator.free(end_sse);
         try conn_ctx.write(end_sse);
         try conn_ctx.flush();
+
+        stream_ok = true;
+        if (metrics) |m| {
+            const end_ms = shared_utils.unixMs();
+            const duration_ms: u64 = if (end_ms >= stream_start_ms)
+                @intCast(end_ms - stream_start_ms)
+            else
+                0;
+            m.recordStreamComplete(backend_type, duration_ms);
+        }
+        self.backend_router.recordSuccess(backend_type);
     }
 
     /// Handle WebSocket upgrade
@@ -706,6 +871,7 @@ pub const StreamingServer = struct {
 
         // Get backend and start streaming
         const backend_type = stream_request.backend orelse self.config.default_backend;
+        const metrics = self.getMetrics();
         const backend = self.backend_router.getBackend(backend_type) catch {
             const error_msg = try websocket.createStreamingMessage(allocator, "error", "backend unavailable");
             defer allocator.free(error_msg);
@@ -715,7 +881,15 @@ pub const StreamingServer = struct {
             return;
         };
 
+        if (metrics) |m| {
+            m.recordStreamStart(backend_type);
+        }
+
         var stream_iter = backend.streamTokens(stream_request.prompt, stream_request.config) catch {
+            if (metrics) |m| {
+                m.recordStreamFailure(backend_type);
+            }
+            self.backend_router.recordFailure(backend_type);
             const error_msg = try websocket.createStreamingMessage(allocator, "error", "failed to start stream");
             defer allocator.free(error_msg);
             const error_frame = try ws_handler.sendText(error_msg);
@@ -725,6 +899,17 @@ pub const StreamingServer = struct {
         };
         defer stream_iter.deinit();
 
+        var stream_ok = false;
+        errdefer if (!stream_ok) {
+            if (metrics) |m| {
+                m.recordStreamFailure(backend_type);
+            }
+            self.backend_router.recordFailure(backend_type);
+        };
+
+        const stream_start_ms = shared_utils.unixMs();
+        var last_token_ms = stream_start_ms;
+
         // Send start event
         const start_msg = try websocket.createStreamingMessage(allocator, "start", "");
         defer allocator.free(start_msg);
@@ -733,10 +918,23 @@ pub const StreamingServer = struct {
         try conn_ctx.write(start_frame);
 
         // Stream tokens
-        while (stream_iter.next() catch null) |token| {
+        while (true) {
+            const maybe_token = stream_iter.next() catch |err| return err;
+            if (maybe_token == null) break;
+            const token = maybe_token.?;
             // Check for cancellation
             if (cancel_requested.load(.seq_cst)) {
                 break;
+            }
+
+            if (metrics) |m| {
+                const now_ms = shared_utils.unixMs();
+                const latency_ms: u64 = if (now_ms >= last_token_ms)
+                    @intCast(now_ms - last_token_ms)
+                else
+                    0;
+                m.recordTokenLatency(backend_type, latency_ms);
+                last_token_ms = now_ms;
             }
 
             // Send token event
@@ -756,7 +954,109 @@ pub const StreamingServer = struct {
             const end_frame = try ws_handler.sendText(end_msg);
             defer allocator.free(end_frame);
             try conn_ctx.write(end_frame);
+
+            if (metrics) |m| {
+                const end_ms = shared_utils.unixMs();
+                const duration_ms: u64 = if (end_ms >= stream_start_ms)
+                    @intCast(end_ms - stream_start_ms)
+                else
+                    0;
+                m.recordStreamComplete(backend_type, duration_ms);
+            }
+            self.backend_router.recordSuccess(backend_type);
+            stream_ok = true;
+        } else {
+            if (metrics) |m| {
+                m.recordStreamFailure(backend_type);
+            }
+            self.backend_router.recordFailure(backend_type);
+            stream_ok = true;
         }
+    }
+
+    /// Handle metrics endpoint
+    fn handleMetrics(self: *Self, request: *std.http.Server.Request) !void {
+        const metrics = self.getMetrics() orelse {
+            return self.respondJson(request, "{\"status\":\"disabled\"}", .service_unavailable);
+        };
+
+        const snap = metrics.snapshot();
+
+        var active_streams: u32 = 0;
+        for (snap.backend_active_streams) |count| {
+            if (count > 0) {
+                active_streams += @intCast(count);
+            }
+        }
+
+        var primary_idx: usize = 0;
+        var max_requests: u64 = 0;
+        for (snap.backend_requests, 0..) |count, i| {
+            if (count > max_requests) {
+                max_requests = count;
+                primary_idx = i;
+            }
+        }
+
+        const ttft_p50 = histogramPercentile(&metrics.backend_metrics[primary_idx].token_latency_ms, 0.50);
+        const ttft_p95 = histogramPercentile(&metrics.backend_metrics[primary_idx].token_latency_ms, 0.95);
+        const ttft_p99 = histogramPercentile(&metrics.backend_metrics[primary_idx].token_latency_ms, 0.99);
+
+        const now_ms = shared_utils.unixMs();
+        const uptime_ms: u64 = if (now_ms >= self.start_time_ms)
+            @intCast(now_ms - self.start_time_ms)
+        else
+            0;
+
+        const throughput_tps: f64 = if (uptime_ms > 0)
+            @as(f64, @floatFromInt(snap.total_tokens)) / (@as(f64, @floatFromInt(uptime_ms)) / 1000.0)
+        else
+            0.0;
+
+        var json = std.ArrayList(u8).empty;
+        defer json.deinit(self.allocator);
+
+        try json.print(
+            self.allocator,
+            "{{\"status\":\"ok\",\"uptime_ms\":{d},\"active_streams\":{d},\"max_streams\":{d}," ++
+                "\"queue_depth\":{d},\"total_tokens\":{d},\"total_requests\":{d},\"total_errors\":{d}," ++
+                "\"ttft_ms_p50\":{d},\"ttft_ms_p95\":{d},\"ttft_ms_p99\":{d},\"throughput_tps\":{d:.2}}}",
+            .{
+                uptime_ms,
+                active_streams,
+                self.config.max_concurrent_streams,
+                0,
+                snap.total_tokens,
+                snap.total_streams,
+                snap.total_errors,
+                ttft_p50,
+                ttft_p95,
+                ttft_p99,
+                throughput_tps,
+            },
+        );
+
+        return self.respondJson(request, json.items, .ok);
+    }
+
+    fn histogramPercentile(hist: *const observability.Histogram, p: f64) u64 {
+        if (hist.bounds.len == 0) return 0;
+
+        var total: u64 = 0;
+        for (hist.buckets) |count| total += count;
+        if (total == 0) return 0;
+
+        const target = @as(u64, @intFromFloat(std.math.ceil(@as(f64, @floatFromInt(total)) * p)));
+        var cumulative: u64 = 0;
+        for (hist.buckets, 0..) |count, i| {
+            cumulative += count;
+            if (cumulative >= target) {
+                if (i < hist.bounds.len) return hist.bounds[i];
+                return hist.bounds[hist.bounds.len - 1];
+            }
+        }
+
+        return hist.bounds[hist.bounds.len - 1];
     }
 
     /// Handle models list (OpenAI-compatible)

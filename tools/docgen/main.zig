@@ -4,7 +4,7 @@
 //! documentation into a styled HTML website.
 //!
 //! Usage:
-//!   zig build docs-site           # Generate HTML site
+//!   zig build docs-site           # Generate HTML site (zig-out/docs-site)
 //!
 
 const std = @import("std");
@@ -16,10 +16,10 @@ const Allocator = std.mem.Allocator;
 
 const Config = struct {
     input_dir: []const u8 = "docs",
-    output_dir: []const u8 = "docs_html",
+    output_dir: []const u8 = "zig-out/docs-site",
     base_url: []const u8 = "/abi",
     site_title: []const u8 = "ABI Framework Documentation",
-    version: []const u8 = "0.16.0",
+    version: []const u8 = "0.4.0",
 };
 
 // =============================================================================
@@ -470,14 +470,14 @@ pub fn main() !void {
     std.debug.print("📦 Assets copied\n", .{});
 
     // Search index
-    var search_index = std.ArrayList(SearchEntry).init(allocator);
+    var search_index = std.ArrayListUnmanaged(SearchEntry).empty;
     defer {
         for (search_index.items) |item| {
             allocator.free(item.title);
             allocator.free(item.path);
             allocator.free(item.content);
         }
-        search_index.deinit();
+        search_index.deinit(allocator);
     }
 
     // Process markdown files
@@ -491,7 +491,7 @@ pub fn main() !void {
     std.debug.print("   Open {s}/index.html to view\n", .{config.output_dir});
 }
 
-fn processDirectory(allocator: Allocator, io: anytype, config: Config, base: []const u8, rel: []const u8, count: *usize, search_index: *std.ArrayList(SearchEntry)) !void {
+fn processDirectory(allocator: Allocator, io: anytype, config: Config, base: []const u8, rel: []const u8, count: *usize, search_index: *std.ArrayListUnmanaged(SearchEntry)) !void {
     const path = if (rel.len > 0) try std.fmt.allocPrint(allocator, "{s}/{s}", .{ base, rel }) else base;
     defer if (rel.len > 0) allocator.free(path);
 
@@ -515,7 +515,7 @@ fn processDirectory(allocator: Allocator, io: anytype, config: Config, base: []c
     }
 }
 
-fn processMarkdownFile(allocator: Allocator, io: anytype, config: Config, dir_path: []const u8, filename: []const u8, count: *usize, search_index: *std.ArrayList(SearchEntry), rel_dir: []const u8) !void {
+fn processMarkdownFile(allocator: Allocator, io: anytype, config: Config, dir_path: []const u8, filename: []const u8, count: *usize, search_index: *std.ArrayListUnmanaged(SearchEntry), rel_dir: []const u8) !void {
     const full_path = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir_path, filename });
     defer allocator.free(full_path);
 
@@ -548,7 +548,7 @@ fn processMarkdownFile(allocator: Allocator, io: anytype, config: Config, dir_pa
     defer allocator.free(rel_path);
 
     // Add to search index
-    try search_index.append(.{
+    try search_index.append(allocator, .{
         .title = try allocator.dupe(u8, title),
         .path = try allocator.dupe(u8, rel_path),
         .content = try allocator.dupe(u8, result.text),
@@ -563,14 +563,13 @@ fn processMarkdownFile(allocator: Allocator, io: anytype, config: Config, dir_pa
 }
 
 fn writeSearchIndex(io: anytype, allocator: Allocator, output_dir: []const u8, items: []const SearchEntry) !void {
-    var list = std.ArrayList(u8).init(allocator);
-    defer list.deinit();
-
-    try std.json.stringify(items, .{ .whitespace = .indent_2 }, list.writer());
+    // Format JSON using std.json.fmt (Zig 0.16 API)
+    const json_str = try std.fmt.allocPrint(allocator, "{}", .{std.json.fmt(items, .{ .whitespace = .indent_2 })});
+    defer allocator.free(json_str);
 
     const path = try std.fmt.allocPrint(allocator, "{s}/search.json", .{output_dir});
     defer allocator.free(path);
-    try writeFile(io, allocator, path, list.items);
+    try writeFile(io, allocator, path, json_str);
     std.debug.print("🔍 Search index generated\n", .{});
 }
 

@@ -176,7 +176,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
             const insert_name = try std.fmt.allocPrint(allocator, "ABI WDBX Insert n={d} d={d}", .{ size, dim });
             const insert_mean_ns = 1_000_000_000.0 / insert_result.throughput;
 
-            try runner.results.append(allocator, .{
+            try runner.appendResult(.{
                 .config = .{
                     .name = insert_name,
                     .category = "vector_db",
@@ -215,7 +215,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
             const query_name = try std.fmt.allocPrint(allocator, "ABI WDBX Query n={d} d={d}", .{ size, dim });
             const query_mean_ns = 1_000_000_000.0 / query_result.throughput;
 
-            try runner.results.append(allocator, .{
+            try runner.appendResult(.{
                 .config = .{
                     .name = query_name,
                     .category = "vector_db",

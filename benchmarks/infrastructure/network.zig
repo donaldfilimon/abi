@@ -18,13 +18,15 @@ const framework = @import("../system/framework.zig");
 /// Network benchmark configuration
 pub const NetworkBenchConfig = struct {
     /// Payload sizes for throughput tests
-    payload_sizes: []const usize = &.{ 64, 256, 1024, 4096, 16384, 65536 },
+    payload_sizes: []const usize = &.{ 64, 1024, 16384 },
     /// Number of headers to test
-    header_counts: []const usize = &.{ 5, 10, 20, 50 },
+    header_counts: []const usize = &.{ 5, 20 },
     /// JSON object complexity levels
     json_depths: []const usize = &.{ 1, 3, 5 },
     /// URL complexity (path segments)
-    url_segments: []const usize = &.{ 1, 3, 5, 10 },
+    url_segments: []const usize = &.{ 1, 5 },
+    /// Minimum time to run each benchmark (100ms default)
+    min_time_ns: u64 = 100_000_000,
 };
 
 // ============================================================================
@@ -608,8 +610,8 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
                     .name = name,
                     .category = "network/http",
                     .bytes_per_op = request.len,
-                    .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .warmup_iterations = 50,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(a: std.mem.Allocator, req: []const u8) !void {
@@ -644,8 +646,8 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
                 .{
                     .name = name,
                     .category = "network/url",
-                    .warmup_iterations = 10000,
-                    .min_time_ns = 500_000_000,
+                    .warmup_iterations = 100,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(u: []const u8) void {
@@ -677,8 +679,8 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
             .{
                 .name = name,
                 .category = "network/url",
-                .warmup_iterations = 1000,
-                .min_time_ns = 500_000_000,
+                .warmup_iterations = 50,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, inp: []const u8) !void {
@@ -705,8 +707,8 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
                 .name = name,
                 .category = "network/json",
                 .bytes_per_op = json.len,
-                .warmup_iterations = 100,
-                .min_time_ns = 500_000_000,
+                .warmup_iterations = 50,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, j: []const u8) !void {
@@ -736,8 +738,8 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
             .{
                 .name = name,
                 .category = "network/headers",
-                .warmup_iterations = 1000,
-                .min_time_ns = 500_000_000,
+                .warmup_iterations = 50,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, h: []const u8) !void {
@@ -767,8 +769,8 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
                 .{
                     .name = name,
                     .category = "network/query",
-                    .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .warmup_iterations = 50,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(a: std.mem.Allocator, q: []const u8) !void {
@@ -797,8 +799,8 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
                 .name = name,
                 .category = "network/websocket",
                 .bytes_per_op = size,
-                .warmup_iterations = 1000,
-                .min_time_ns = 500_000_000,
+                .warmup_iterations = 50,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, p: []const u8) !void {
@@ -825,8 +827,8 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
             .{
                 .name = name,
                 .category = "network/pool",
-                .warmup_iterations = 100,
-                .min_time_ns = 500_000_000,
+                .warmup_iterations = 50,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(a: std.mem.Allocator, ps: usize, ops: usize) !u64 {

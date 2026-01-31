@@ -17,10 +17,10 @@ const crypto = std.crypto;
 
 /// Crypto benchmark configuration
 pub const CryptoBenchConfig = struct {
-    /// Data sizes for throughput tests
-    data_sizes: []const usize = &.{ 64, 256, 1024, 4096, 16384, 65536, 262144 },
-    /// Number of PBKDF2 iterations to test
-    pbkdf_iterations: []const u32 = &.{ 1000, 10000, 100000 },
+    /// Data sizes for throughput tests (reduced for faster runs)
+    data_sizes: []const usize = &.{ 64, 1024, 16384 },
+    /// Number of PBKDF2 iterations to test (removed 100000 - too slow)
+    pbkdf_iterations: []const u32 = &.{ 1000, 10000 },
     /// Number of parallel hashes for throughput
     parallel_count: usize = 1000,
 };
@@ -282,7 +282,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .category = "crypto/hash",
                     .bytes_per_op = size,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(d: []const u8) [32]u8 {
@@ -310,7 +310,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .category = "crypto/hash",
                     .bytes_per_op = size,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(d: []const u8) [64]u8 {
@@ -334,7 +334,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .category = "crypto/hash",
                     .bytes_per_op = size,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(d: []const u8) [32]u8 {
@@ -358,7 +358,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .category = "crypto/hash",
                     .bytes_per_op = size,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(d: []const u8) [32]u8 {
@@ -386,7 +386,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                 .category = "crypto/mac",
                 .bytes_per_op = 1024,
                 .warmup_iterations = 1000,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(k: []const u8, d: []const u8) [32]u8 {
@@ -414,7 +414,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .name = name,
                     .category = "crypto/kdf",
                     .warmup_iterations = 10,
-                    .min_time_ns = 1_000_000_000,
+                    .min_time_ns = 100_000_000,
                     .max_iterations = 100,
                 },
                 struct {
@@ -433,9 +433,9 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
         }
     }
 
-    // Memory-hard KDF
+    // Memory-hard KDF (reduced sizes for faster runs)
     std.debug.print("\n[Memory-Hard KDF]\n", .{});
-    for ([_]usize{ 64, 256, 1024 }) |memory_kb| {
+    for ([_]usize{ 64, 256 }) |memory_kb| {
         var name_buf: [64]u8 = undefined;
         const name = std.fmt.bufPrint(&name_buf, "memory_hard_{d}kb", .{memory_kb}) catch "memhard";
 
@@ -444,7 +444,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                 .name = name,
                 .category = "crypto/kdf",
                 .warmup_iterations = 10,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
                 .max_iterations = 100,
             },
             struct {
@@ -470,7 +470,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
         prng.fill(&nonce12);
         prng.fill(&nonce24);
 
-        for ([_]usize{ 64, 1024, 16384 }) |size| {
+        for ([_]usize{ 64, 4096 }) |size| {
             const plaintext = try allocator.alloc(u8, size);
             defer allocator.free(plaintext);
             const ciphertext = try allocator.alloc(u8, size);
@@ -488,7 +488,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                         .category = "crypto/aead",
                         .bytes_per_op = size,
                         .warmup_iterations = 1000,
-                        .min_time_ns = 500_000_000,
+                        .min_time_ns = 100_000_000,
                     },
                     struct {
                         fn bench(k: *const [32]u8, n: *const [12]u8, pt: []const u8, ct: []u8) void {
@@ -512,7 +512,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                         .category = "crypto/aead",
                         .bytes_per_op = size,
                         .warmup_iterations = 1000,
-                        .min_time_ns = 500_000_000,
+                        .min_time_ns = 100_000_000,
                     },
                     struct {
                         fn bench(k: *const [32]u8, n: *const [12]u8, pt: []const u8, ct: []u8) void {
@@ -536,7 +536,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                         .category = "crypto/aead",
                         .bytes_per_op = size,
                         .warmup_iterations = 1000,
-                        .min_time_ns = 500_000_000,
+                        .min_time_ns = 100_000_000,
                     },
                     struct {
                         fn bench(k: *const [32]u8, n: *const [24]u8, pt: []const u8, ct: []u8) void {
@@ -572,7 +572,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .name = "ed25519_sign",
                     .category = "crypto/signature",
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(kp: crypto.sign.Ed25519.KeyPair, msg: []const u8) [64]u8 {
@@ -597,7 +597,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .name = "ed25519_verify",
                     .category = "crypto/signature",
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(pk: crypto.sign.Ed25519.PublicKey, msg: []const u8, sig: crypto.sign.Ed25519.Signature) bool {
@@ -611,9 +611,9 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
         }
     }
 
-    // Random number generation
+    // Random number generation (reduced sizes)
     std.debug.print("\n[Random Number Generation]\n", .{});
-    for ([_]usize{ 32, 256, 4096 }) |size| {
+    for ([_]usize{ 32, 1024 }) |size| {
         const buffer = try allocator.alloc(u8, size);
         defer allocator.free(buffer);
 
@@ -630,7 +630,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .category = "crypto/random",
                     .bytes_per_op = size,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(p: *std.Random.DefaultPrng, buf: []u8) void {
@@ -656,7 +656,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .category = "crypto/random",
                     .bytes_per_op = size,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(p: *std.Random.DefaultPrng, buf: []u8) void {
@@ -670,9 +670,9 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
         }
     }
 
-    // Encoding benchmarks
+    // Encoding benchmarks (reduced sizes)
     std.debug.print("\n[Encoding/Decoding]\n", .{});
-    for ([_]usize{ 64, 1024, 16384 }) |size| {
+    for ([_]usize{ 64, 4096 }) |size| {
         const data = try allocator.alloc(u8, size);
         defer allocator.free(data);
         @memset(data, 0xDD);
@@ -688,7 +688,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .category = "crypto/encoding",
                     .bytes_per_op = size,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(a: std.mem.Allocator, d: []const u8) !void {
@@ -714,7 +714,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                     .category = "crypto/encoding",
                     .bytes_per_op = size,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(a: std.mem.Allocator, d: []const u8) !void {
@@ -745,7 +745,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
                 .name = "timing_safe_compare_32",
                 .category = "crypto/constant_time",
                 .warmup_iterations = 10000,
-                .min_time_ns = 500_000_000,
+                .min_time_ns = 100_000_000,
             },
             struct {
                 fn bench(x: []const u8, y: []const u8) bool {

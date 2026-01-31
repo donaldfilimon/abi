@@ -157,10 +157,9 @@ pub const MetricsExporter = struct {
 
         var iter = snapshot.metrics.iterator();
         while (iter.next()) |entry| {
-            const backend_name = @tagName(entry.key_ptr.*);
             const m = entry.value_ptr;
 
-            try writer.print("gpu_mega_backend_workload_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_count.get() });
+            try writer.print("gpu_mega_backend_workload_total{{backend=\"{t}\"}} {d}\n", .{ entry.key_ptr.*, m.workload_count.get() });
         }
         try writer.print("\n", .{});
 
@@ -169,10 +168,9 @@ pub const MetricsExporter = struct {
 
         iter = snapshot.metrics.iterator();
         while (iter.next()) |entry| {
-            const backend_name = @tagName(entry.key_ptr.*);
             const m = entry.value_ptr;
 
-            try writer.print("gpu_mega_backend_success_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_success.get() });
+            try writer.print("gpu_mega_backend_success_total{{backend=\"{t}\"}} {d}\n", .{ entry.key_ptr.*, m.workload_success.get() });
         }
         try writer.print("\n", .{});
 
@@ -181,10 +179,9 @@ pub const MetricsExporter = struct {
 
         iter = snapshot.metrics.iterator();
         while (iter.next()) |entry| {
-            const backend_name = @tagName(entry.key_ptr.*);
             const m = entry.value_ptr;
 
-            try writer.print("gpu_mega_backend_failure_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.workload_failure.get() });
+            try writer.print("gpu_mega_backend_failure_total{{backend=\"{t}\"}} {d}\n", .{ entry.key_ptr.*, m.workload_failure.get() });
         }
         try writer.print("\n", .{});
 
@@ -193,10 +190,9 @@ pub const MetricsExporter = struct {
 
         iter = snapshot.metrics.iterator();
         while (iter.next()) |entry| {
-            const backend_name = @tagName(entry.key_ptr.*);
             const m = entry.value_ptr;
 
-            try writer.print("gpu_mega_backend_failover_total{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.failover_count.get() });
+            try writer.print("gpu_mega_backend_failover_total{{backend=\"{t}\"}} {d}\n", .{ entry.key_ptr.*, m.failover_count.get() });
         }
         try writer.print("\n", .{});
 
@@ -206,17 +202,17 @@ pub const MetricsExporter = struct {
 
         iter = snapshot.metrics.iterator();
         while (iter.next()) |entry| {
-            const backend_name = @tagName(entry.key_ptr.*);
+            const backend = entry.key_ptr.*;
             const m = entry.value_ptr;
 
             var cumulative: u64 = 0;
             for (m.latency_histogram.buckets, 0..) |bucket, i| {
                 cumulative += bucket;
-                try writer.print("gpu_mega_backend_latency_ms_bucket{{backend=\"{s}\",le=\"{d}\"}} {d}\n", .{ backend_name, default_latency_buckets[i], cumulative });
+                try writer.print("gpu_mega_backend_latency_ms_bucket{{backend=\"{t}\",le=\"{d}\"}} {d}\n", .{ backend, default_latency_buckets[i], cumulative });
             }
-            try writer.print("gpu_mega_backend_latency_ms_bucket{{backend=\"{s}\",le=\"+Inf\"}} {d}\n", .{ backend_name, m.latency_histogram.count });
-            try writer.print("gpu_mega_backend_latency_ms_sum{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.latency_histogram.sum });
-            try writer.print("gpu_mega_backend_latency_ms_count{{backend=\"{s}\"}} {d}\n", .{ backend_name, m.latency_histogram.count });
+            try writer.print("gpu_mega_backend_latency_ms_bucket{{backend=\"{t}\",le=\"+Inf\"}} {d}\n", .{ backend, m.latency_histogram.count });
+            try writer.print("gpu_mega_backend_latency_ms_sum{{backend=\"{t}\"}} {d}\n", .{ backend, m.latency_histogram.sum });
+            try writer.print("gpu_mega_backend_latency_ms_count{{backend=\"{t}\"}} {d}\n", .{ backend, m.latency_histogram.count });
         }
 
         return try output.toOwnedSlice(allocator);

@@ -164,8 +164,17 @@ pub const Manager = struct {
     pub fn removeModel(self: *Self, name: []const u8) !void {
         for (self.models.items, 0..) |*model, i| {
             if (std.mem.eql(u8, model.name, name)) {
-                // Note: File deletion would require I/O backend in Zig 0.16
-                // For now, just remove from catalog
+                var io_backend = std.Io.Threaded.init(self.allocator, .{
+                    .environ = std.process.Environ.empty,
+                });
+                defer io_backend.deinit();
+                const io = io_backend.io();
+
+                deleteModelFile(io, model.path) catch |err| switch (err) {
+                    error.FileNotFound => {}, // Already deleted, still remove from catalog
+                    else => return err,
+                };
+
                 model.deinit(self.allocator);
                 _ = self.models.orderedRemove(i);
                 return;
@@ -196,18 +205,22 @@ pub const Manager = struct {
     }
 
     /// Scan cache directory for models.
-    /// Note: In Zig 0.16, file system operations require I/O backend.
-    /// This is a placeholder that requires external initialization.
     pub fn scanCacheDir(self: *Self) !void {
-        // In Zig 0.16, directory scanning requires explicit I/O backend initialization.
-        // This is typically done at the CLI layer. For library use, models should be
-        // registered manually via addModel().
-        _ = self;
+        var io_backend = std.Io.Threaded.init(self.allocator, .{
+            .environ = std.process.Environ.empty,
+        });
+        defer io_backend.deinit();
+        try self.scanCacheDirWithIo(io_backend.io());
     }
 
     /// Scan cache directory with I/O backend (Zig 0.16 compatible).
     pub fn scanCacheDirWithIo(self: *Self, io: std.Io) !void {
-        var dir = std.Io.Dir.open(io, self.cache_dir, .{ .iterate = true }) catch return;
+        var dir = blk: {
+            if (std.fs.path.isAbsolute(self.cache_dir)) {
+                break :blk std.Io.Dir.openDirAbsolute(io, self.cache_dir, .{ .iterate = true }) catch return;
+            }
+            break :blk std.Io.Dir.cwd().openDir(io, self.cache_dir, .{ .iterate = true }) catch return;
+        };
         defer dir.close(io);
 
         var iter = dir.iterate();
@@ -233,10 +246,15 @@ pub const Manager = struct {
             const full_path = std.fs.path.join(self.allocator, &.{ self.cache_dir, e.name }) catch continue;
             defer self.allocator.free(full_path);
 
-            // Get file size (would need stat call)
-            const size: u64 = 0; // Placeholder - actual size requires stat
+            // Get file size and timestamps
+            var file = dir.openFile(io, e.name, .{}) catch continue;
+            defer file.close(io);
 
-            _ = self.addModel(full_path, size, null) catch continue;
+            const stat = file.stat(io) catch continue;
+            const size: u64 = stat.size;
+
+            const model = self.addModel(full_path, size, null) catch continue;
+            model.downloaded_at = stat.mtime.toSeconds();
         }
     }
 
@@ -336,6 +354,19 @@ fn detectQuantizationFromName(name: []const u8) ?discovery.QuantizationType {
     return null;
 }
 
+fn deleteModelFile(io: std.Io, path: []const u8) !void {
+    if (std.fs.path.isAbsolute(path)) {
+        const dir_path = std.fs.path.dirname(path) orelse return error.FileNotFound;
+        const base_name = std.fs.path.basename(path);
+        var dir = std.Io.Dir.openDirAbsolute(io, dir_path, .{}) catch return;
+        defer dir.close(io);
+        try dir.deleteFile(io, base_name);
+        return;
+    }
+
+    try std.Io.Dir.cwd().deleteFile(io, path);
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -381,4 +412,31 @@ test "total cache size" {
     _ = try manager.addModel("/path/model2.gguf", 2000, null);
 
     try std.testing.expectEqual(@as(u64, 3000), manager.totalCacheSize());
+}
+
+test "remove model deletes file" {
+    if (!build_options.enable_ai) return error.SkipZigTest;
+
+    const allocator = std.testing.allocator;
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    const dir_path = tmp_dir.dir.realpathAlloc(allocator, ".") catch return;
+    defer allocator.free(dir_path);
+
+    const file_path = std.fmt.allocPrint(allocator, "{s}/model.gguf", .{dir_path}) catch return;
+    defer allocator.free(file_path);
+
+    var file = tmp_dir.dir.createFile("model.gguf", .{}) catch return;
+    defer file.close();
+    try file.writeAll("abc");
+
+    var manager = try Manager.init(allocator, .{ .auto_scan = false });
+    defer manager.deinit();
+
+    _ = try manager.addModel(file_path, 3, null);
+    try manager.removeModel("model");
+
+    const open_result = tmp_dir.dir.openFile("model.gguf", .{});
+    try std.testing.expectError(error.FileNotFound, open_result);
 }

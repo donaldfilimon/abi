@@ -1,9 +1,10 @@
 ---
-title: "models"
+title: "Model Management"
 tags: [ai, models, gguf, huggingface, download, cache]
 ---
 # Model Management
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [API Reference](api/index.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-Models-orange?style=for-the-badge&logo=huggingface&logoColor=white" alt="Models Module"/>

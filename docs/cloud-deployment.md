@@ -4,7 +4,7 @@ tags: [cloud, deployment, serverless]
 description: Deploy ABI applications as serverless functions on AWS Lambda, Google Cloud Functions, and Azure Functions
 ---
 # Cloud Deployment Guide
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/AWS-Lambda-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white" alt="AWS Lambda"/>

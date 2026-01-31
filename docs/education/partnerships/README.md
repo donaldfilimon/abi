@@ -42,10 +42,6 @@ ABI partners with universities to advance systems programming and AI education.
 3. **Agreement** - Sign partnership MOU
 4. **Launch** - Begin collaboration
 
-## Current Partners
-
-*Partner announcements coming soon!*
-
 ## Contact
 
 - Email: partnerships@abi.dev

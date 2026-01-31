@@ -3,24 +3,24 @@ title: "PLAN"
 tags: [planning, sprint, development]
 ---
 # Current Development Focus
-> **Codebase Status:** Synced with repository as of 2026-01-26.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Sprint-Active-blue?style=for-the-badge" alt="Sprint Active"/>
-  <img src="https://img.shields.io/badge/Tests-771%2F776-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Sprint-Complete-success?style=for-the-badge" alt="Sprint Complete"/>
+  <img src="https://img.shields.io/badge/Tests-787%2F792-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 ## This Sprint
 
-**Focus: Documentation & Stream Reliability**
-
-### In Progress
-- [ ] **Stream error recovery** - Graceful handling of disconnections, reconnection logic, observability for failures
-- [ ] **Streaming integration tests** - E2E tests with fault injection for SSE/WebSocket endpoints
+**Focus: Documentation & Stream Reliability - COMPLETE**
 
 ### Completed This Sprint
+- [x] **Stream error recovery** - Per-backend circuit breakers, exponential backoff retry, session caching, recovery events
+- [x] **Streaming integration tests** - E2E tests with fault injection for circuit breaker, session cache, metrics
+- [x] **Security hardening** - JWT none algorithm warning, master key requirement option, secure API key wiping
 - [x] **Streaming documentation** - Comprehensive guide for SSE/WebSocket streaming API (`docs/streaming.md`)
 - [x] **Model management guide** - Documentation for downloading, caching, hot-reload (`docs/models.md`)
+- [x] **Metal backend enhancements** - Accelerate framework (vBLAS/vDSP/vForce), unified memory manager, zero-copy tensors
 
 ---
 
@@ -28,13 +28,43 @@ tags: [planning, sprint, development]
 
 Waiting on external dependencies:
 
-- **Native HTTP downloads** - Deferred until Zig 0.16 `std.Io.File.Writer` API stabilizes; currently falls back to curl/wget instructions
-- **Toolchain CLI** - Disabled due to Zig 0.16 API incompatibilities in `toolchain.zig`
+| Item | Blocker | Workaround |
+|------|---------|------------|
+| Native HTTP downloads | Zig 0.16 `std.Io.File.Writer` API unstable | Falls back to curl/wget instructions |
+| Toolchain CLI | Zig 0.16 API incompatibilities | Command disabled; manual zig installation |
+
+**Note:** These will be re-evaluated when Zig 0.16.1+ releases with I/O API stabilization.
+
+---
+
+## Next Sprint Preview
+
+Potential focus areas for upcoming work:
+
+- [ ] Language bindings reimplementation (Python, Rust, Go, JS/WASM, C headers)
+- [ ] ASIC exploration research (long-term)
+- [ ] Additional competitive benchmarks
+- [ ] Community contribution tooling
 
 ---
 
 ## Recently Completed
 
+- **GPU backend test coverage complete** - Added inline tests to ALL GPU backends: WebGPU, OpenGL, OpenGL ES, Vulkan (17 error cases), Metal (10 error cases), WebGL2, stdgpu; Verified Metal backend works (emulated mode); All CLI commands functional including nested subcommands; Training pipeline tested; 787/792 tests passing (2026-01-30)
+- **Documentation cleanup** - Removed 23 redundant files: 21 deprecated api_*.md redirects, performance.md stub, gpu-backends.md duplicate; Added standardized error module (src/shared/errors.zig) with ResourceError, IoError, FeatureError, ConfigError, AuthError sets; Added inline tests to config/loader.zig and platform/detection.zig; 787/792 tests passing (2026-01-30)
+- **Zig 0.16 pattern modernization** - Replaced @tagName() with {t} format specifier in print statements, converted std.ArrayList to ArrayListUnmanaged in docgen, updated std.json.stringify to std.json.fmt API; 787/792 tests passing (2026-01-30)
+- **Configuration loader with env vars** - New ConfigLoader for runtime configuration via environment variables (ABI_GPU_BACKEND, ABI_LLM_MODEL_PATH, etc.); documented in CLAUDE.md; 787/792 tests passing (2026-01-30)
+- **Build system improvements** - Fixed pathExists() for Zig 0.16 using C stat(); synced package version to 0.4.0 across build.zig, build.zig.zon, and all source files; cross-platform cli-tests and full-check build steps; 787/792 tests passing (2026-01-30)
+- **C-compatible library bindings** - Complete FFI layer with headers (abi.h, abi_types.h, abi_errors.h), Zig exports (errors, framework, simd, database, gpu, agent), shared/static library build, C examples; Llama-CPP Library API parity now 100% complete; 787/792 tests passing (2026-01-30)
+- **Codebase cleanup** - Removed unnecessary files for fresh start: bindings/ (Rust, Go, Python, WASM, C), vscode-abi/, www/, models/, .serena/, migration scripts (probe_*.zig, fix_*.py, migrate*.sh), tools/migrate_0_16/; Removed legacy plan archives; Fixed WASM build targets to gracefully no-op when bindings missing; Updated .gitignore; Updated documentation (CLAUDE.md, AGENTS.md, ROADMAP.md, TODO.md); 787/792 tests passing (2026-01-30)
+- **AI stub parity complete** - Full stub/real API parity for `-Denable-ai=false` builds; Added TrainableViTConfig, TrainableViTModel, CLIPTrainingConfig, TrainableCLIPModel, VisionTrainingError, MultimodalTrainingError stubs; Fixed DownloadResult.checksum type (`[64]u8` vs optional); All feature flag combinations now compile; 787/792 tests passing (2026-01-30)
+- **src/ restructure (partial)** - Created `src/platform/` module with unified platform detection (mod.zig, detection.zig, cpu.zig, stub.zig), created `src/shared/mod.zig` to consolidate utilities, moved io.zig to shared/, updated CLAUDE.md architecture diagram; 787/792 tests passing (2026-01-30)
+- **GPU platform detection** - Centralized platform detection for all GPU backends (`src/gpu/platform.zig`), PlatformCapabilities for runtime feature detection, BackendSupport for compile-time availability, isCudaSupported/isMetalSupported/isVulkanSupported helpers; 787/792 tests passing (2026-01-30)
+- **CUDA Zig 0.16 compatibility** - Fixed CUDA loader to work without deprecated `std.process.getEnvVarOwned` API, added allocator parameter throughout CUDA initialization chain, updated memory/mod/vtable modules to pass allocators correctly; 787/792 tests passing (2026-01-30)
+- **Metal backend enhancements** - Accelerate framework integration (vBLAS/vDSP/vForce for AMX-accelerated ops), unified memory manager for zero-copy CPU/GPU sharing, UnifiedTensor type, storage mode selection, neural network primitives (softmax, rmsnorm, silu, gelu); 787/792 tests passing (2026-01-30)
+- **Stream error recovery implementation** - Per-backend circuit breakers (closed/open/half_open states), exponential backoff retry with jitter, LRU session token caching for reconnection, comprehensive streaming metrics, recovery event callbacks, BackendRouter with recovery-aware routing, 503 with Retry-After when circuit open; 787/792 tests passing (2026-01-30)
+- **Security hardening** - JWT none algorithm runtime warning, require_master_key config option for production, secure API key wiping with secureZero(); Addresses security audit findings H-1, H-2, M-1 (2026-01-30)
+- **Zig 0.16 compilation fixes** - Fixed std.time.sleep() with Timer-based busy-wait in tests, fixed linux.getpid()/getppid() with proper platform detection for macOS/BSD (2026-01-30)
 - **Model download infrastructure** - Enhanced `abi model download` with progress display infrastructure; `DownloadResult` struct (path, checksum, was_resumed, verified); `DownloadConfig` with resume/checksum options; Detailed multi-line ANSI progress bar (size, speed, ETA); `--no-verify` flag for checksum skip; Graceful fallback to curl/wget instructions; Native HTTP deferred until Zig 0.16 File I/O stabilizes; 771/776 tests passing (2026-01-26)
 - **Model management CLI** - Download, cache, and manage GGUF models locally; `abi model` command with list/info/download/remove/search/path subcommands; HuggingFace shorthand (`TheBloke/Model:Q4_K_M`); Resolves download URLs; Manager tracks cached models with metadata; Platform-aware cache directories (`~/.abi/models/`); Inline tests; 771/776 tests passing (2026-01-26)
 - **Streaming benchmarks** - Performance tests for streaming inference pipeline; Measures TTFT (Time To First Token), inter-token latency (P50/P90/P99), throughput (tok/s), SSE encoding overhead, WebSocket framing overhead; MockTokenGenerator with 4 patterns (constant_rate, variable_rate, burst, warmup); `abi bench streaming` CLI command; Quick/standard/comprehensive presets; 771/776 tests passing (2026-01-26)
@@ -86,7 +116,7 @@ Waiting on external dependencies:
 - **VS Code extension** - Build/test integration, AI chat sidebar webview, GPU status tree view, custom task provider (2026-01-24)
 - **npm WASM package** - @abi-framework/wasm v0.4.0 with updated README (2026-01-24)
 - **Python bindings expansion** - Streaming FFI layer, training API with context manager, pyproject.toml for PyPI (2026-01-24)
-- **Mega GPU + TUI + Self-Learning Agent Upgrade** - Full Q-learning scheduler, cross-backend coordinator, TUI widgets, dashboard command (2026-01-24)
+- **Mega GPU Orchestration + TUI + Learning Agent Upgrade** - Full Q-learning scheduler, cross-backend coordinator, TUI widgets, dashboard command (2026-01-24)
 - **Vulkan backend consolidation** - Single `vulkan.zig` module (1,387 lines) with VTable, types, init, cache stubs (2026-01-24)
 - **SIMD and std.gpu expansion** - Integer @Vector ops, FMA, element-wise ops, subgroup operations, vector type utilities (2026-01-24)
 - **GPU performance refactor** - Memory pool best-fit allocation, lock-free metrics, adaptive tiling for matrix ops, auto-apply kernel fusion (2026-01-24)
@@ -104,6 +134,4 @@ Waiting on external dependencies:
 ## Quick Links
 
 - [ROADMAP.md](ROADMAP.md) - Full project roadmap
-- [docs/plans/](docs/plans/) - Active implementation plans
-- [docs/plans/archive/](docs/plans/archive/) - Completed plans
 - [CLAUDE.md](CLAUDE.md) - Development guidelines

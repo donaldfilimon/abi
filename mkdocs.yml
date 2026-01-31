@@ -17,5 +17,3 @@ nav:
   - Monitoring: docs/monitoring.md
   - AI: docs/ai.md
   - API Reference: docs/api/index.md
-  - Migration:
-      - Zig 0.16 Migration: docs/migration/zig-0.16-migration.md

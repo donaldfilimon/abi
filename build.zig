@@ -49,7 +49,7 @@ fn parseGpuBackends(b: *std.Build, enable_gpu: bool, enable_web: bool) []const G
 
     if (has_legacy) std.log.warn("Legacy GPU flags are deprecated. Use -Dgpu-backend=cuda,vulkan instead.", .{});
 
-    const backend_count = 11;
+    const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
     var buffer: [backend_count]GpuBackend = undefined;
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
@@ -220,6 +220,7 @@ const example_targets = [_]BuildTarget{
     .{ .name = "example-train-ava", .step_name = "run-train-ava", .description = "Train Ava assistant from gpt-oss", .source_path = "examples/train_ava.zig" },
     .{ .name = "example-concurrency", .step_name = "run-concurrency", .description = "Run concurrency primitives example", .source_path = "examples/concurrency.zig" },
     .{ .name = "example-observability", .step_name = "run-observability", .description = "Run observability example", .source_path = "examples/observability.zig" },
+    .{ .name = "example-gpu", .step_name = "run-gpu", .description = "Run GPU example", .source_path = "examples/gpu.zig" },
 };
 
 const benchmark_targets = [_]BuildTarget{
@@ -228,8 +229,22 @@ const benchmark_targets = [_]BuildTarget{
 };
 
 fn pathExists(path: []const u8) bool {
-    const file = std.Io.Dir.cwd().openFile(std.Options.debug_io, path, .{}) catch return false;
-    file.close(std.Options.debug_io);
+    // Build scripts should avoid `@cImport` to keep builds working in environments
+    // without libc headers (common in minimal containers / CI runners).
+    //
+    // Zig 0.16 deprecated `std.fs.cwd()` in favor of the new `std.Io` APIs.
+    const io_opts: std.Io.Threaded.InitOptions = .{ .environ = std.process.Environ.empty };
+    var io_backend: std.Io.Threaded = undefined;
+    const InitResult = @TypeOf(std.Io.Threaded.init(std.heap.page_allocator, io_opts));
+    if (@typeInfo(InitResult) == .error_union) {
+        io_backend = std.Io.Threaded.init(std.heap.page_allocator, io_opts) catch return false;
+    } else {
+        io_backend = std.Io.Threaded.init(std.heap.page_allocator, io_opts);
+    }
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    _ = std.Io.Dir.cwd().statFile(io, path, .{}) catch return false;
     return true;
 }
 
@@ -284,7 +299,7 @@ fn buildTargets(
 
 fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Module {
     var opts = b.addOptions();
-    opts.addOption([]const u8, "package_version", "0.1.1");
+    opts.addOption([]const u8, "package_version", "0.4.0");
     opts.addOption(bool, "enable_gpu", options.enable_gpu);
     opts.addOption(bool, "enable_ai", options.enable_ai);
     opts.addOption(bool, "enable_explore", options.enable_explore);
@@ -375,9 +390,24 @@ pub fn build(b: *std.Build) void {
 
     // ---------------------------------------------------------------------------
     // CLI smoke-test step (runs all example commands sequentially)
+    // Cross-platform: directly invokes the built CLI binary
     // ---------------------------------------------------------------------------
-    const cli_test_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\run_cli_tests.bat" });
-    b.step("cli-tests", "Run smoke test of all CLI example commands").dependOn(&cli_test_cmd.step);
+    const cli_tests_step = b.step("cli-tests", "Run smoke test of CLI commands");
+    const cli_commands = [_][]const []const u8{
+        &.{"--help"},
+        &.{"--version"},
+        &.{"system-info"},
+        &.{ "db", "stats" },
+        &.{ "gpu", "status" },
+        &.{ "task", "list" },
+        &.{ "config", "show" },
+    };
+    for (cli_commands) |args| {
+        const run_cmd = b.addRunArtifact(exe);
+        run_cmd.addArgs(args);
+        // Smoke test: just verify commands run without crashing (any exit code is OK)
+        cli_tests_step.dependOn(&run_cmd.step);
+    }
 
     // ---------------------------------------------------------------------------
     // Lint step (formatting check)
@@ -386,13 +416,9 @@ pub fn build(b: *std.Build) void {
     b.step("lint", "Check code formatting").dependOn(&lint_cmd.step);
 
     // ---------------------------------------------------------------------------
-    // Full verification step – formatting, tests, CLI smoke test, benchmarks
+    // Tests - defined before full-check to allow step dependency
     // ---------------------------------------------------------------------------
-    const full_check_cmd = b.addSystemCommand(&[_][]const u8{ "cmd", "/c", "scripts\\full_check.bat" });
-    b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks").dependOn(&full_check_cmd.step);
-    buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
-
-    // Tests
+    var test_step: ?*std.Build.Step = null;
     if (pathExists("src/tests/mod.zig")) {
         const tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/tests/mod.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         tests.root_module.addImport("abi", abi_module);
@@ -400,8 +426,21 @@ pub fn build(b: *std.Build) void {
         b.step("typecheck", "Compile tests without running").dependOn(&tests.step);
         const run_tests = b.addRunArtifact(tests);
         run_tests.skip_foreign_checks = true;
-        b.step("test", "Run unit tests").dependOn(&run_tests.step);
+        test_step = b.step("test", "Run unit tests");
+        test_step.?.dependOn(&run_tests.step);
     }
+
+    // ---------------------------------------------------------------------------
+    // Full verification step – formatting, tests, CLI smoke test, benchmarks
+    // Cross-platform: chains format check, tests, and CLI smoke tests
+    // ---------------------------------------------------------------------------
+    const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks");
+    full_check_step.dependOn(&lint_cmd.step);
+    if (test_step) |ts| {
+        full_check_step.dependOn(ts);
+    }
+    full_check_step.dependOn(cli_tests_step);
+    buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
 
     // Documentation - API markdown generation
     if (pathExists("tools/gendocs/main.zig")) {
@@ -465,37 +504,42 @@ pub fn build(b: *std.Build) void {
         mobile_step.dependOn(&b.addInstallArtifact(abi_ios, .{ .dest_dir = .{ .override = .{ .custom = "mobile/ios" } } }).step);
     }
 
-    // Performance Verification Tool
+    // Performance Verification Tool (build only - requires piped input to run)
+    // Usage: zig build bench-competitive -- --json | ./zig-out/bin/abi-check-perf
     if (pathExists("tools/perf/check.zig")) {
         const check_perf_exe = b.addExecutable(.{
             .name = "abi-check-perf",
             .root_module = b.createModule(.{ .root_source_file = b.path("tools/perf/check.zig"), .target = target, .optimize = .ReleaseSafe }),
         });
-        b.installArtifact(check_perf_exe);
-        const check_perf_run = b.addRunArtifact(check_perf_exe);
-        if (b.args) |args| check_perf_run.addArgs(args);
-        b.step("check-perf", "Run performance verification tool").dependOn(&check_perf_run.step);
+        const install_check_perf = b.addInstallArtifact(check_perf_exe, .{});
+        b.step("check-perf", "Build performance verification tool (pipe benchmark JSON to run)").dependOn(&install_check_perf.step);
     }
 
-    // WASM
-    const wasm_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
-    var wasm_opts = options;
-    wasm_opts.enable_database = false;
-    wasm_opts.enable_network = false;
-    wasm_opts.enable_gpu = false;
-    wasm_opts.enable_profiling = false;
-    wasm_opts.enable_web = false;
-    wasm_opts.gpu_backends = &.{};
+    // WASM - only build if bindings exist (removed for reimplementation)
+    if (pathExists("bindings/wasm/abi_wasm.zig")) {
+        const wasm_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
+        var wasm_opts = options;
+        wasm_opts.enable_database = false;
+        wasm_opts.enable_network = false;
+        wasm_opts.enable_gpu = false;
+        wasm_opts.enable_profiling = false;
+        wasm_opts.enable_web = false;
+        wasm_opts.gpu_backends = &.{};
 
-    const wasm_build_opts = createBuildOptionsModule(b, wasm_opts);
-    const abi_wasm = b.addModule("abi-wasm", .{ .root_source_file = b.path("src/abi.zig"), .target = wasm_target, .optimize = optimize });
-    abi_wasm.addImport("build_options", wasm_build_opts);
+        const wasm_build_opts = createBuildOptionsModule(b, wasm_opts);
+        const abi_wasm = b.addModule("abi-wasm", .{ .root_source_file = b.path("src/abi.zig"), .target = wasm_target, .optimize = optimize });
+        abi_wasm.addImport("build_options", wasm_build_opts);
 
-    const wasm_lib = b.addExecutable(.{ .name = "abi", .root_module = b.createModule(.{ .root_source_file = b.path("bindings/wasm/abi_wasm.zig"), .target = wasm_target, .optimize = optimize }) });
-    wasm_lib.entry = .disabled;
-    wasm_lib.rdynamic = true;
-    wasm_lib.root_module.addImport("abi", abi_wasm);
+        const wasm_lib = b.addExecutable(.{ .name = "abi", .root_module = b.createModule(.{ .root_source_file = b.path("bindings/wasm/abi_wasm.zig"), .target = wasm_target, .optimize = optimize }) });
+        wasm_lib.entry = .disabled;
+        wasm_lib.rdynamic = true;
+        wasm_lib.root_module.addImport("abi", abi_wasm);
 
-    b.step("check-wasm", "Check WASM compilation").dependOn(&wasm_lib.step);
-    b.step("wasm", "Build WASM bindings").dependOn(&b.addInstallArtifact(wasm_lib, .{ .dest_dir = .{ .override = .{ .custom = "wasm" } } }).step);
+        b.step("check-wasm", "Check WASM compilation").dependOn(&wasm_lib.step);
+        b.step("wasm", "Build WASM bindings").dependOn(&b.addInstallArtifact(wasm_lib, .{ .dest_dir = .{ .override = .{ .custom = "wasm" } } }).step);
+    } else {
+        // WASM bindings not available - steps are no-ops
+        _ = b.step("check-wasm", "Check WASM compilation (bindings not available)");
+        _ = b.step("wasm", "Build WASM bindings (bindings not available)");
+    }
 }

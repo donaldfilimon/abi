@@ -1,9 +1,0 @@
-{
-  "duration_sec": 0.23,
-  "benchmarks": [
-    {"name": "alloc_free_64", "category": "memory", "ops_per_sec": 182669.09, "mean_ns": 5474.38, "iterations": 10000},
-    {"name": "alloc_free_256", "category": "memory", "ops_per_sec": 176055.72, "mean_ns": 5680.02, "iterations": 10000},
-    {"name": "alloc_free_1024", "category": "memory", "ops_per_sec": 174430.27, "mean_ns": 5732.95, "iterations": 10000},
-    {"name": "alloc_free_4096", "category": "memory", "ops_per_sec": 164751.43, "mean_ns": 6069.75, "iterations": 10000}
-  ]
-}

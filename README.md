@@ -9,7 +9,7 @@
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-1921_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-787_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
@@ -42,7 +42,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 1,921+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 787+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -62,11 +62,12 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 |:--------|:------------|:------:|
 | **AI Runtime** | LLM inference with Llama-CPP parity, agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, real-time analytics | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **GPU Acceleration** | CUDA, Vulkan, Metal, WebGPU, FPGA with unified API and auto-fallback | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU Acceleration** | CUDA, Vulkan, Metal (Accelerate/AMX), WebGPU, FPGA with unified API | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Interactive CLI** | TUI launcher, GPU dashboard, training monitor | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Streaming API** | SSE/WebSocket inference, circuit breakers, session recovery | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ---
 
@@ -307,6 +308,7 @@ abi/
 │   ├── abi.zig           # Public API entry point
 │   ├── config.zig        # Unified configuration
 │   ├── framework.zig     # Lifecycle orchestration
+│   ├── platform/         # Platform detection (OS, arch, CPU)
 │   │
 │   ├── ai/               # AI Module
 │   │   ├── llm/          # Local LLM inference (Llama-CPP parity)
@@ -330,6 +332,8 @@ abi/
 │   │
 │   ├── network/          # Distributed Compute
 │   │   └── raft/         # Consensus protocol
+│   │
+│   ├── shared/           # Shared utilities (security, io, utils)
 │   │
 │   └── observability/    # Metrics & Tracing
 │
@@ -417,18 +421,56 @@ zig build -Dgpu-backend=auto
 
 ---
 
+## C Bindings
+
+Use ABI from C, Rust, Go, Python, or any language with C FFI:
+
+```c
+#include <abi.h>
+
+int main() {
+    abi_framework_t fw = NULL;
+    abi_init(&fw);
+
+    // SIMD operations
+    float a[] = {1, 2, 3, 4}, b[] = {4, 3, 2, 1};
+    float dot = abi_simd_vector_dot(a, b, 4);  // = 20
+
+    // Vector database
+    abi_database_t db = NULL;
+    abi_database_config_t cfg = { "vectors", 384, 1000 };
+    abi_database_create(&cfg, &db);
+    abi_database_insert(db, 1, embedding, 384);
+
+    abi_shutdown(fw);
+    return 0;
+}
+```
+
+Build: `cd bindings/c && zig build` produces:
+- macOS: `libabi.dylib` / `libabi_static.a`
+- Linux: `libabi.so` / `libabi_static.a`
+- Windows: `abi.dll` / `abi_static.lib`
+
+See [bindings/c/README.md](bindings/c/README.md) for full API reference.
+
+---
+
 ## Documentation
 
 | Resource | Description |
 |:---------|:------------|
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
+| [C Bindings](bindings/c/README.md) | C FFI API reference |
 | [API Reference](API_REFERENCE.md) | Public API summary |
 | [Quickstart](QUICKSTART.md) | Getting started guide |
+| [Deployment Guide](docs/deployment.md) | Production deployment |
 | [AI Guide](docs/ai.md) | LLM, agents, training |
 | [GPU Guide](docs/gpu.md) | Multi-backend GPU acceleration |
 | [Database Guide](docs/database.md) | WDBX vector database |
 | [Network Guide](docs/network.md) | Distributed compute |
-| [Migration Guide](docs/migration/zig-0.16-migration.md) | Zig 0.16 patterns |
+| [Streaming Guide](docs/streaming.md) | SSE/WebSocket streaming |
+| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues |
 
 ```bash
@@ -469,12 +511,13 @@ zig build lint
 |:----------|:------:|
 | Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
-See [ROADMAP.md](ROADMAP.md) for upcoming features.
+See [PLAN.md](PLAN.md) for current sprint status and [ROADMAP.md](ROADMAP.md) for version history.
 
 ---
 

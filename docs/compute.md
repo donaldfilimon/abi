@@ -1,9 +1,10 @@
 ---
-title: "compute"
-tags: []
+title: "Compute Engine"
+tags: [compute, runtime, scheduler]
 ---
 # Compute Engine
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Docs:** [Documentation Index](docs-index.md) · [Introduction](intro.md) · [API Reference](api/index.md)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Module-Compute-red?style=for-the-badge&logo=speedtest&logoColor=white" alt="Compute Module"/>
@@ -183,4 +184,3 @@ const TaskGroup = abi.runtime.TaskGroup;
   <a href="docs-index.md">Documentation Index</a> •
   <a href="gpu.md">GPU Guide →</a>
 </p>
-

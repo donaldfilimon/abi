@@ -295,7 +295,7 @@ fn benchmarkDotProduct(
                     .category = "simd/dot_product",
                     .bytes_per_op = dim * @sizeOf(f32) * 2,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(va: []const f32, vb: []const f32) f32 {
@@ -324,7 +324,7 @@ fn benchmarkDotProduct(
                         .category = "simd/dot_product",
                         .bytes_per_op = dim * @sizeOf(f32) * 2,
                         .warmup_iterations = 1000,
-                        .min_time_ns = 500_000_000,
+                        .min_time_ns = 100_000_000,
                     },
                     struct {
                         fn bench(va: []const f32, vb: []const f32) f32 {
@@ -380,7 +380,7 @@ fn benchmarkVectorOps(
                         .category = "simd/vector_ops",
                         .bytes_per_op = dim * @sizeOf(f32) * 3, // 2 read + 1 write
                         .warmup_iterations = 1000,
-                        .min_time_ns = 500_000_000,
+                        .min_time_ns = 100_000_000,
                     },
                     struct {
                         fn bench(va: []const f32, vb: []const f32, out: []f32) void {
@@ -454,7 +454,7 @@ fn benchmarkDistanceCalcs(
                     .category = "simd/distance",
                     .bytes_per_op = dim * @sizeOf(f32) * 2,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(va: []const f32, vb: []const f32) f32 {
@@ -478,7 +478,7 @@ fn benchmarkDistanceCalcs(
                     .category = "simd/distance",
                     .bytes_per_op = dim * @sizeOf(f32) * 2,
                     .warmup_iterations = 1000,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(va: []const f32, vb: []const f32) f32 {
@@ -532,7 +532,7 @@ fn benchmarkMatrixMul(
                     .category = "simd/matrix",
                     .bytes_per_op = size * @sizeOf(f32) * 3,
                     .warmup_iterations = 10,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                     .max_iterations = 1000,
                 },
                 struct {
@@ -562,7 +562,7 @@ fn benchmarkMatrixMul(
                     .category = "simd/matrix",
                     .bytes_per_op = size * @sizeOf(f32) * 3,
                     .warmup_iterations = 10,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                     .max_iterations = 1000,
                 },
                 struct {
@@ -592,7 +592,7 @@ fn benchmarkMatrixMul(
                     .category = "simd/matrix",
                     .bytes_per_op = size * @sizeOf(f32) * 3,
                     .warmup_iterations = 10,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                     .max_iterations = 1000,
                 },
                 struct {
@@ -648,7 +648,7 @@ fn benchmarkMemoryBandwidth(allocator: std.mem.Allocator, runner: *framework.Ben
                     .category = "memory/bandwidth",
                     .bytes_per_op = size,
                     .warmup_iterations = 10,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(b: []const u8) u64 {
@@ -679,7 +679,7 @@ fn benchmarkMemoryBandwidth(allocator: std.mem.Allocator, runner: *framework.Ben
                     .category = "memory/bandwidth",
                     .bytes_per_op = size,
                     .warmup_iterations = 10,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(b: []u8) void {
@@ -706,7 +706,7 @@ fn benchmarkMemoryBandwidth(allocator: std.mem.Allocator, runner: *framework.Ben
                     .category = "memory/bandwidth",
                     .bytes_per_op = size * 2, // Read + Write
                     .warmup_iterations = 10,
-                    .min_time_ns = 500_000_000,
+                    .min_time_ns = 100_000_000,
                 },
                 struct {
                     fn bench(d: []u8, s: []const u8) void {

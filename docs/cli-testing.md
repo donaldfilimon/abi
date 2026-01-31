@@ -3,7 +3,7 @@ title: "CLI Smoke Test Guide"
 tags: [testing, cli, automation]
 ---
 # CLI Smoke Test Guide
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Tests-CLI_Smoke-blue?style=for-the-badge" alt="CLI Smoke"/>

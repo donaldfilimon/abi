@@ -1,6 +1,6 @@
 # AI Module Architecture
 
-> **Last Updated:** 2026-01-25
+> **Last Updated:** 2026-01-30
 > **Module Location:** `src/ai/`
 > **Primary Entry Point:** `src/ai/mod.zig`
 
@@ -1205,6 +1205,6 @@ const response = try ollama.generate("Hello");
 
 - [ai.md](../ai.md) - User-facing AI documentation
 - [agents.md](../agents.md) - Agent personas and interaction guide
-- [training.md](../training.md) - Training pipeline details
+- [Training Pipeline](../training/abbey-fine-tuning.md) - Fine-tuning and training workflow
 - [gpu.md](../gpu.md) - GPU acceleration
 - [CLAUDE.md](../../CLAUDE.md) - Development guidelines

@@ -2,7 +2,7 @@
 
 > Centralized task management system
 
-**Source:** [`src/tasks.zig`](../../src/tasks.zig)
+**Source:** [`src/tasks/mod.zig`](../../src/tasks/mod.zig)
 
 ---
 

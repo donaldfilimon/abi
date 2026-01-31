@@ -3,17 +3,17 @@ title: "Security Audit Report"
 tags: [security, audit, review]
 ---
 # Security Audit Report
-> **Codebase Status:** Synced with repository as of 2026-01-24.
+> **Codebase Status:** Synced with repository as of 2026-01-30.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Critical-0_Issues-success?style=for-the-badge" alt="Critical 0"/>
-  <img src="https://img.shields.io/badge/High-2_Issues-red?style=for-the-badge" alt="High 2"/>
-  <img src="https://img.shields.io/badge/Medium-5_Issues-orange?style=for-the-badge" alt="Medium 5"/>
+  <img src="https://img.shields.io/badge/High-0_Issues-success?style=for-the-badge" alt="High 0"/>
+  <img src="https://img.shields.io/badge/Medium-4_Issues-orange?style=for-the-badge" alt="Medium 4"/>
   <img src="https://img.shields.io/badge/Overall-Strong-success?style=for-the-badge" alt="Strong Security"/>
 </p>
 
 **Issue**: #402
-**Date**: 2026-01-23
+**Date**: 2026-01-23 (Updated 2026-01-30)
 **Auditor**: Claude Opus 4.5 (Automated Security Review)
 **Scope**: Input validation, memory safety, network security, credential handling
 
@@ -28,9 +28,17 @@ This security audit reviewed the ABI codebase focusing on input validation, memo
 | Severity | Count | Status |
 |----------|-------|--------|
 | Critical | 0 | - |
-| High | 2 | Requires attention |
-| Medium | 5 | Should address |
+| High | 0 | ✅ All resolved (2026-01-30) |
+| Medium | 4 | Should address |
 | Low | 4 | Best practice improvements |
+
+### Resolved Issues (2026-01-30)
+
+| ID | Issue | Resolution |
+|----|-------|------------|
+| H-1 | JWT "none" algorithm | Added runtime warning when enabled |
+| H-2 | Master key fallback | Added `require_master_key` config option |
+| M-1 | API key wiping | Added `secureZero()` to AuthHeader.deinit() |
 
 ---
 
