@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -121,7 +121,7 @@ tags: [planning, roadmap]
       - [x] Plugin management command (list, enable, disable, search)
       - [x] Profile/settings management (api-keys, preferences)
     - [x] Tooling
-      - [x] Debugger integration (GDB/LLDB support documented in docs/troubleshooting.md)
+      - [x] Debugger integration (GDB/LLDB support documented in CLAUDE.md)
       - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
       - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
     - [x] Vulkan backend consolidation
@@ -264,7 +264,7 @@ See CONTRIBUTING.md for details.
 
 > **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
 
-*Last updated: January 30, 2026*
+*Last updated: January 31, 2026*
 
 ## Zig 0.16 Migration Status
 
@@ -305,18 +305,20 @@ All feature-gated stubs have been audited and updated for API parity:
 ## Related Documentation
 
 For detailed implementation notes, see:
-- [CLAUDE.md](CLAUDE.md) - Developer guidelines and architecture reference
-- [docs/troubleshooting.md](docs/troubleshooting.md) - Debugging and GDB/LLDB support
-- [CLAUDE.md](CLAUDE.md) - Zig 0.16 patterns and developer guidance
-- [docs/research/](docs/research/) - Research partnerships and publications
-- [docs/governance/](docs/governance/) - RFC process and community governance
-- [docs/education/](docs/education/) - Training courses and certification
-- [docs/commercial/](docs/commercial/) - Enterprise support and SLA offerings
+- [CLAUDE.md](CLAUDE.md) - Developer guidelines and debugging
+- [Docs Index](docs/content/index.html) - Offline docs landing page
+- [Architecture](docs/content/architecture.html) - System overview
+- [AI Guide](docs/content/ai.html) - LLM, agents, training
+- [GPU Guide](docs/content/gpu.html) - GPU backends and tuning
+- [Database Guide](docs/content/database.html) - WDBX and vector search
+- [Network Guide](docs/content/network.html) - Distributed compute and Raft
+- [Observability Guide](docs/content/observability.html) - Metrics and tracing
+- [Security Guide](docs/content/security.html) - Security practices
 
 ## Implementation History
 
 ### Tooling (Q2 2026) COMPLETE
-- **Debugger integration** - GDB/LLDB support documented in docs/troubleshooting.md.
+- **Debugger integration** - GDB/LLDB support documented in CLAUDE.md.
 - **Performance profiler** - MetricsCollector and GPU Profiler implemented.
 - **Memory leak detector** - TrackingAllocator with leak detection implemented.
 ### Documentation (Q2 2026)

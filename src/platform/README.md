@@ -1,4 +1,5 @@
 # Platform Module
+> **Last reviewed:** 2026-01-31
 
 Platform detection and abstraction layer for cross-platform code.
 

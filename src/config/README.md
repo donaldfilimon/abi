@@ -1,4 +1,5 @@
 # Configuration Module
+> **Last reviewed:** 2026-01-31
 
 The configuration module (`src/config/`) provides a unified, feature-aware configuration system for the ABI framework. It manages settings for all major subsystems and supports environment variable overrides through the `ConfigLoader`.
 

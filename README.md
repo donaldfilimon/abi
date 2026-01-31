@@ -421,38 +421,13 @@ zig build -Dgpu-backend=auto
 
 ---
 
-## C Bindings
+## Language Bindings (In Progress)
 
-Use ABI from C, Rust, Go, Python, or any language with C FFI:
+C bindings and additional language integrations are being reintroduced. The prior
+`bindings/` directory was removed during the Zig 0.16 migration and is slated for
+rebuild. Track status in [ROADMAP.md](ROADMAP.md) and [TODO.md](TODO.md).
 
-```c
-#include <abi.h>
-
-int main() {
-    abi_framework_t fw = NULL;
-    abi_init(&fw);
-
-    // SIMD operations
-    float a[] = {1, 2, 3, 4}, b[] = {4, 3, 2, 1};
-    float dot = abi_simd_vector_dot(a, b, 4);  // = 20
-
-    // Vector database
-    abi_database_t db = NULL;
-    abi_database_config_t cfg = { "vectors", 384, 1000 };
-    abi_database_create(&cfg, &db);
-    abi_database_insert(db, 1, embedding, 384);
-
-    abi_shutdown(fw);
-    return 0;
-}
-```
-
-Build: `cd bindings/c && zig build` produces:
-- macOS: `libabi.dylib` / `libabi_static.a`
-- Linux: `libabi.so` / `libabi_static.a`
-- Windows: `abi.dll` / `abi_static.lib`
-
-See [bindings/c/README.md](bindings/c/README.md) for full API reference.
+For now, use the Zig API directly or the CLI (`zig build run -- --help`).
 
 ---
 
@@ -461,17 +436,19 @@ See [bindings/c/README.md](bindings/c/README.md) for full API reference.
 | Resource | Description |
 |:---------|:------------|
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
-| [C Bindings](bindings/c/README.md) | C FFI API reference |
+| [Docs Index](docs/content/index.html) | Offline docs landing page |
 | [API Reference](API_REFERENCE.md) | Public API summary |
 | [Quickstart](QUICKSTART.md) | Getting started guide |
-| [Deployment Guide](docs/deployment.md) | Production deployment |
-| [AI Guide](docs/ai.md) | LLM, agents, training |
-| [GPU Guide](docs/gpu.md) | Multi-backend GPU acceleration |
-| [Database Guide](docs/database.md) | WDBX vector database |
-| [Network Guide](docs/network.md) | Distributed compute |
-| [Streaming Guide](docs/streaming.md) | SSE/WebSocket streaming |
+| [Deployment Guide](DEPLOYMENT_GUIDE.md) | Production deployment |
+| [Configuration](docs/content/configuration.html) | Config and feature flags |
+| [CLI Guide](docs/content/cli.html) | Command reference and usage |
+| [AI Guide](docs/content/ai.html) | LLM, agents, training |
+| [GPU Guide](docs/content/gpu.html) | Multi-backend GPU acceleration |
+| [Database Guide](docs/content/database.html) | WDBX vector database |
+| [Network Guide](docs/content/network.html) | Distributed compute |
+| [Observability Guide](docs/content/observability.html) | Metrics and tracing |
+| [Security Guide](docs/content/security.html) | Security practices |
 | [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues |
 
 ```bash
 # Run all tests
@@ -511,7 +488,7 @@ zig build lint
 |:----------|:------:|
 | Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| C Library Bindings | ![In Progress](https://img.shields.io/badge/-In%20Progress-yellow) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |

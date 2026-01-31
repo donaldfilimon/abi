@@ -3,7 +3,7 @@ title: "README"
 tags: []
 ---
 # LLM Training Example
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 This directory contains examples demonstrating the ABI LLM training pipeline.
 
@@ -326,6 +326,6 @@ defer lora_model.deinit();
 ## Related Documentation
 
 - [API Reference](../../API_REFERENCE.md) - Full API documentation
-- [AI Module Guide](../../docs/ai.md) - AI subsystem details
-- [Troubleshooting](../../docs/troubleshooting.md) - Common issues
+- [AI Module Guide](../../docs/content/ai.html) - AI subsystem details
+- [Developer Guide](../../CLAUDE.md) - Debugging and common issues
 

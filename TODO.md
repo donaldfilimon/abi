@@ -3,7 +3,7 @@ title: "TODO"
 tags: [development, tracking]
 ---
 # Project TODO List
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Code_TODOs-Complete-success?style=for-the-badge" alt="Code TODOs Complete"/>
@@ -58,7 +58,7 @@ The following high-level items were tracked in **[ROADMAP.md](ROADMAP.md)**. Ite
 | Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/ai/llm/generation/sampler.zig` |
 | Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/ai/llm/generation/streaming.zig` |
 | CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
-| Library API | ✅ | C-compatible API with headers and Zig exports. | `bindings/c/` |
+| Library API | ⚠️ | C-compatible API bindings removed for rework; reimplementation pending. | `bindings/` (planned) |
 | Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/tests/llm_reference_vectors.zig` |
 | Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/ai/training/` |
 | Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/ai/training/trainable_model.zig` |

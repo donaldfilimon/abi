@@ -4,7 +4,7 @@ tags: []
 ---
 //! # AI
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-30.
+//! > **Codebase Status:** Synced with repository as of 2026-01-31.
 //!
 //! AI module providing LLM inference, agents, embeddings, and training capabilities.
 //!
@@ -27,19 +27,8 @@ tags: []
 //!
 //! ## Architecture
 //!
-//! This module uses the wrapper pattern - thin wrappers in `src/ai/` delegate
-//! to full implementations in `src/features/ai/`:
-//!
-//! ```
-//! src/ai/mod.zig (wrapper)
-//!        ↓
-//! src/features/ai/mod.zig (implementation)
-//!        ↓
-//! ├── agent.zig    - Agent runtime
-//! ├── llm/         - LLM connectors
-//! ├── embeddings/  - Embedding models
-//! └── training/    - Training loops
-//! ```
+//! This module is a primary feature module. The implementation lives directly in
+//! `src/ai/` with a feature-gated stub in `src/ai/stub.zig` for disabled builds.
 //!
 //! ## Usage
 //!
@@ -82,8 +71,8 @@ tags: []
 //!
 //! ## See Also
 //!
-//! - [AI Documentation](../../docs/ai.md)
-//! - [API Reference](../../docs/ai.md#api-reference)
-//! - [Training Guide](../../docs/ai.md#training)
+//! - [AI Documentation](../../docs/content/ai.html)
+//! - [API Reference](../../docs/content/api.html)
+//! - [Training Guide](../../docs/content/ai.html)
 
 

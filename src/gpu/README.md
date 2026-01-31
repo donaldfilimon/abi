@@ -3,7 +3,7 @@ title: "README"
 tags: []
 ---
 # GPU Module Overview
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 This directory contains the GPU acceleration layer of the ABI framework.
 
@@ -47,6 +47,6 @@ _ = try gpu.vectorAdd(a, b, result);
 
 ## See Also
 
-- [GPU Documentation](../../docs/gpu.md)
+- [GPU Documentation](../../docs/content/gpu.html)
 - [API Reference](../../API_REFERENCE.md)
 

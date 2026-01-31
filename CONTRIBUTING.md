@@ -3,7 +3,7 @@ title: "CONTRIBUTING"
 tags: []
 ---
 # Contributing
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
@@ -17,7 +17,7 @@ tags: []
 
 ---
 
-> **Before You Start**: Please review the [Architecture Documentation](docs/intro.md) to understand the system design.
+> **Before You Start**: Please review the [Architecture Documentation](docs/content/architecture.html) to understand the system design.
 
 ## Quick Reference
 

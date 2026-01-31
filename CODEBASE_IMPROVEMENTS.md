@@ -467,7 +467,7 @@ These can be done immediately with minimal risk:
 
 ## 🔗 Related Documents
 
-- [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Comprehensive security review
+- [SECURITY.md](SECURITY.md) - Comprehensive security review
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
 - [CLAUDE.md](CLAUDE.md) - Zig 0.16 patterns and architecture guide
 - [AGENTS.md](AGENTS.md) - Repository structure and guidelines

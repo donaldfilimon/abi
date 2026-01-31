@@ -3,7 +3,7 @@ title: "PLAN"
 tags: [planning, sprint, development]
 ---
 # Current Development Focus
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Sprint-Complete-success?style=for-the-badge" alt="Sprint Complete"/>
@@ -18,8 +18,8 @@ tags: [planning, sprint, development]
 - [x] **Stream error recovery** - Per-backend circuit breakers, exponential backoff retry, session caching, recovery events
 - [x] **Streaming integration tests** - E2E tests with fault injection for circuit breaker, session cache, metrics
 - [x] **Security hardening** - JWT none algorithm warning, master key requirement option, secure API key wiping
-- [x] **Streaming documentation** - Comprehensive guide for SSE/WebSocket streaming API (`docs/streaming.md`)
-- [x] **Model management guide** - Documentation for downloading, caching, hot-reload (`docs/models.md`)
+- [x] **Streaming documentation** - Comprehensive guide for SSE/WebSocket streaming API (`docs/content/api.html`)
+- [x] **Model management guide** - Documentation for downloading, caching, hot-reload (`docs/content/cli.html`)
 - [x] **Metal backend enhancements** - Accelerate framework (vBLAS/vDSP/vForce), unified memory manager, zero-copy tensors
 
 ---

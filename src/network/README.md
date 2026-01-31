@@ -4,7 +4,7 @@ tags: []
 ---
 //! # Network
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-30.
+//! > **Codebase Status:** Synced with repository as of 2026-01-31.
 //!
 //! Distributed networking primitives for service discovery, HA, and scheduling.
 //!
@@ -53,7 +53,7 @@ tags: []
 //!
 //! ## See Also
 //!
-//! - [Network Documentation](../../docs/network.md)
+//! - [Network Documentation](../../docs/content/network.html)
 //! - [API Reference](../../API_REFERENCE.md)
 
 
