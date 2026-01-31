@@ -850,18 +850,27 @@ Flat domain structure (modular architecture):
 | Module | Description | Status |
 |--------|-------------|--------|
 | `src/abi.zig` | Public API entry point | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/config.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/flags.zig` | Feature flags and build toggles | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/config/` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/framework.zig` | Framework orchestration | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/platform/` | Platform detection and CPU probing | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/registry/` | Feature registry | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/runtime/` | Scheduler, memory, concurrency | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/shared/` | Logging, security, utils | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
 | `src/gpu/` | GPU backends and unified API | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/ai/` | AI module (llm, embeddings, agents, training) | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/database/` | WDBX vector database | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/network/` | Distributed compute and Raft | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/observability/` | Metrics, tracing, profiling | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/web/` | HTTP helpers and web utilities | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/shared/` | SIMD, platform helpers | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
+| `src/cloud/` | Cloud function adapters | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/connectors/` | External API connectors | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/ha/` | High availability | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/tasks/` | Task management | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/tests/` | Test infrastructure | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
 
-> **Backward Compatibility**: Re-exports in `abi.zig` maintain API compatibility with the previous `features/` and `compute/` structure.
+> **Backward Compatibility**: `abi.zig` preserves legacy aliases and shared/legacy
+> re-exports for older import paths.
 
 ## See Also
 

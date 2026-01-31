@@ -11,11 +11,10 @@ pub fn main() !void {
         return;
     }
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{
-        .enable_ai = true,
-        .enable_gpu = false,
+    var framework = try abi.initWithConfig(allocator, .{
+        .ai = .{ .agents = .{} },
     });
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "example-agent",

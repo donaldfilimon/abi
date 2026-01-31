@@ -6,7 +6,7 @@ tags: [examples, tutorials, getting-started]
 > **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Examples-10+-blue?style=for-the-badge" alt="10+ Examples"/>
+  <img src="https://img.shields.io/badge/Examples-14-blue?style=for-the-badge" alt="14 Examples"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
   <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
 </p>
@@ -62,7 +62,7 @@ zig build run-compute
 
 ### concurrency.zig
 
-Concurrency primitives and task execution patterns.
+Lock-free concurrency primitives (MPMC queue, Chase-Lev deque).
 
 **Run:**
 
@@ -88,6 +88,26 @@ Network cluster setup and node management.
 
 ```bash
 zig build run-network
+```
+
+### observability.zig
+
+Metrics and tracing demonstration (counters, gauges, histograms).
+
+**Run:**
+
+```bash
+zig build run-observability
+```
+
+### orchestration.zig
+
+Multi-model orchestration with routing, fallback, and ensembles.
+
+**Run:**
+
+```bash
+zig build run-orchestration
 ```
 
 ### discord.zig
@@ -119,9 +139,9 @@ Model training with optimizers, checkpointing, and metrics.
 zig build run-training
 ```
 
-### train_demo.zig
+### training/train_demo.zig
 
-Minimal training demo with compact configuration defaults.
+Minimal LLM training walkthrough with a tiny dataset.
 
 **Run:**
 
@@ -143,6 +163,16 @@ Local LLM inference with GGUF models.
 
 ```bash
 zig build run-llm -- path/to/model.gguf
+```
+
+### orchestration.zig
+
+Multi-model routing, fallback, and ensemble orchestration.
+
+**Run:**
+
+```bash
+zig build run-orchestration -Denable-ai=true
 ```
 
 ### train_ava.zig
@@ -195,16 +225,6 @@ High Availability features for production deployments.
 zig build run-ha
 ```
 
-### observability.zig
-
-Metrics, tracing, and profiling instrumentation.
-
-**Run:**
-
-```bash
-zig build run-observability
-```
-
 ## Building Examples
 
 All examples are integrated into the main build system:
@@ -221,10 +241,13 @@ zig build run-compute
 zig build run-concurrency
 zig build run-gpu
 zig build run-network
+zig build run-observability
+zig build run-orchestration
 zig build run-discord
 zig build run-training
 zig build run-train-demo
 zig build run-llm
+zig build run-orchestration
 zig build run-train-ava
 zig build run-orchestration
 zig build run-ha
@@ -245,37 +268,40 @@ zig build benchmarks
 1. **Start with `hello.zig`** - Learn basic framework initialization
 2. **Try `database.zig`** - Understand vector storage and search
 3. **Explore `compute.zig`** - Learn about task execution
-4. **Practice `concurrency.zig`** - Understand lock-free primitives
+4. **Check `concurrency.zig`** - Lock-free primitives in practice
 5. **Check `agent.zig`** - See AI integration
-6. **Try `llm.zig`** - Local LLM inference
-7. **Explore `training.zig`** - Model training and checkpointing
-8. **Run `train_demo.zig`** - Minimal training walkthrough
-9. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
-10. **Study `orchestration.zig`** - Multi-model routing and fallback
-11. **Review `gpu.zig`** - Understand GPU acceleration
-12. **Study `network.zig`** - Learn distributed computing
-13. **Check `observability.zig`** - Metrics and tracing basics
-14. **Check `discord.zig`** - Discord bot integration
-15. **Study `ha.zig`** - High availability features
+6. **Review `gpu.zig`** - Understand GPU acceleration
+7. **Study `network.zig`** - Learn distributed computing
+8. **Explore `observability.zig`** - Metrics and tracing basics
+9. **Study `orchestration.zig`** - Multi-model routing
+10. **Explore `training.zig`** - Model training and checkpointing
+11. **Try `training/train_demo.zig`** - Minimal training walkthrough
+12. **Try `llm.zig`** - Local LLM inference
+13. **Study `ha.zig`** - High availability features
+14. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
 
 ## Common Patterns
 
 All examples follow these Zig 0.16 best practices:
 
-1. **Modern Main Signature (Zig 0.16):**
+1. **Main Signature (Zig 0.16):**
 
    ```zig
-   pub fn main(init: std.process.Init) !void {
-       const allocator = init.gpa;
+   pub fn main() !void {
+       var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+       defer _ = gpa.deinit();
+       const allocator = gpa.allocator();
        // ... your code
    }
    ```
 
-2. **Framework Initialization:**
+2. **Framework Initialization (Config-based):**
 
    ```zig
-   var framework = try abi.init(allocator, abi.FrameworkOptions{});
-   defer abi.shutdown(&framework);
+   var framework = try abi.initWithConfig(allocator, .{
+       .ai = .{ .agents = .{} },
+   });
+   defer framework.deinit();
    ```
 
 3. **Error Handling:**

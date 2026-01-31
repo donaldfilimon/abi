@@ -6,13 +6,11 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = abi.init(allocator, abi.FrameworkOptions{
-        .enable_gpu = false,
-    }) catch |err| {
+    var framework = abi.initWithConfig(allocator, abi.Config.minimal()) catch |err| {
         std.debug.print("Failed to initialize framework: {}\n", .{err});
         return err;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     std.debug.print("Compute runtime initialized successfully\n", .{});
 
