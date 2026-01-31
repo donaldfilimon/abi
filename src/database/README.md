@@ -4,7 +4,7 @@ tags: []
 ---
 //! # WDBX Vector Database
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-01-30.
+//! > **Codebase Status:** Synced with repository as of 2026-01-31.
 //!
 //! High-performance vector database with HNSW indexing, hybrid search, and batch operations.
 //!
@@ -76,5 +76,5 @@ tags: []
 //!
 //! ## See Also
 //!
-//! - [Database Documentation](../../docs/database.md)
+//! - [Database Documentation](../../docs/content/database.html)
 //! - [API Reference](../../API_REFERENCE.md)

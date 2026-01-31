@@ -3,7 +3,7 @@ title: "GEMINI"
 tags: [ai, agents, gemini]
 ---
 # GEMINI.md
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Gemini-Agent_Guide-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini Guide"/>
@@ -162,7 +162,7 @@ try quant.q4Matmul(a_ptr, x_ptr, y_ptr, m, k, stream);
 const config = cuda.QuantConfig.forInference();
 ```
 
-### Stream Error Recovery (2026-01-30)
+### Stream Error Recovery (2026-01-31)
 ```zig
 const streaming = @import("abi").ai.streaming;
 

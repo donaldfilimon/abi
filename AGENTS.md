@@ -41,6 +41,6 @@
 - PRs should include a clear description, linked issues (if any), passing tests, and formatted code. Add benchmarks for performance-sensitive changes.
 
 ## References
-- Architecture and contribution details: `docs/intro.md`, `CONTRIBUTING.md`.
+- Architecture and contribution details: `docs/content/architecture.html`, `CONTRIBUTING.md`.
 - Security and deployment guidance: `SECURITY.md`, `DEPLOYMENT_GUIDE.md`.
 - Agent-specific requirements: `PROMPT.md` and `CLAUDE.md`.

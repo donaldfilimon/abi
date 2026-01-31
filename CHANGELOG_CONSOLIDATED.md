@@ -3,7 +3,7 @@ title: "Changelog"
 tags: [changelog, releases, history]
 ---
 # Changelog
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=for-the-badge" alt="Version 0.4.0"/>
@@ -52,7 +52,7 @@ All GPU backends now have complete VTable implementations with full production r
 ### Documentation & Cleanup
 
 - Updated CLAUDE.md and AGENTS.md with "Common Workflows" section
-- Added comprehensive GPU backend guide (`docs/gpu-backends.md`)
+- Added comprehensive GPU backend guide (`docs/content/gpu.html`)
 - Implemented real CUDA VTable stub with loadable driver handling
 - Added OpenGL, OpenGL‑ES, WebGL2 stub support (mutually exclusive warning)
 - Introduced dedicated benchmark runner (`scripts/run_benchmarks.bat`)

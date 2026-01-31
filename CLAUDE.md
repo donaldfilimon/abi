@@ -633,7 +633,7 @@ const config_merged = try loader.loadWithBase(base);
 **Critical for production:**
 1. Set `ABI_MASTER_KEY` environment variable (32+ bytes)
 2. Enable rate limiting on public endpoints
-3. Review `docs/SECURITY_AUDIT.md` for known issues
+3. Review `SECURITY.md` for known issues
 
 ## Platform Notes
 
@@ -738,18 +738,18 @@ The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster
 
 Key documentation:
 - [PLAN.md](PLAN.md) - Development roadmap and sprint status
-- [deployment.md](docs/deployment.md) - Production deployment guide
-- [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md) - Security audit findings and status
-- [troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
-- [gpu.md](docs/gpu.md) - GPU backend details
-- [ai.md](docs/ai.md) - AI module and agents guide
-- [agents.md](docs/agents.md) - Agent personas and interaction
-- [database.md](docs/database.md) - Vector database (WDBX) usage
-- [network.md](docs/network.md) - Distributed compute and Raft consensus
-- [streaming.md](docs/streaming.md) - SSE/WebSocket streaming API
-- [models.md](docs/models.md) - Model download, caching, and hot-reload
-- [benchmarking.md](docs/benchmarking.md) - Performance benchmarking guide
-- [cli-testing.md](docs/cli-testing.md) - CLI test procedures
+- [deployment.md](docs/content/deployment.html) - Production deployment guide
+- [SECURITY.md](SECURITY.md) - Security guidance and status
+- [Documentation Site](https://donaldfilimon.github.io/abi/) - Common issues and solutions
+- [gpu.md](docs/content/gpu.html) - GPU backend details
+- [ai.md](docs/content/ai.html) - AI module and agents guide
+- [agents.md](docs/content/ai.html) - Agent personas and interaction
+- [database.md](docs/content/database.html) - Vector database (WDBX) usage
+- [network.md](docs/content/network.html) - Distributed compute and Raft consensus
+- [streaming.md](docs/content/api.html) - SSE/WebSocket streaming API
+- [models.md](docs/content/ai.html) - Model download, caching, and hot-reload
+- [benchmarking.md](benchmarks/README.md) - Performance benchmarking guide
+- [cli-testing.md](scripts/run_cli_tests.sh) - CLI test procedures
 
 ## Experimental Feature Flags
 

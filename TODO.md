@@ -3,11 +3,11 @@ title: "TODO"
 tags: [development, tracking]
 ---
 # Project TODO List
-> **Codebase Status:** Synced with repository as of 2026-01-30.
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Code_TODOs-Complete-success?style=for-the-badge" alt="Code TODOs Complete"/>
-  <img src="https://img.shields.io/badge/Future_Work-5_Items-blue?style=for-the-badge" alt="5 Future Items"/>
+  <img src="https://img.shields.io/badge/Future_Work-3_Items-blue?style=for-the-badge" alt="3 Future Items"/>
 </p>
 
 > **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
@@ -28,23 +28,13 @@ Note: `src/ai/explore/query.zig` contains intentional TODO/FIXME pattern strings
 
 ## Roadmap TODOs
 
-The following high-level items were tracked in **[ROADMAP.md](ROADMAP.md)**. Items that remain future work are explicitly marked.
+The following high-level items remain open in **[ROADMAP.md](ROADMAP.md)**.
 
 | File | Line | Description |
 |------|------|-------------|
-| `ROADMAP.md` | 86-89 | ~~Tooling: Debugger integration, Performance profiler, Memory leak detector~~ ✅ Complete |
-| `ROADMAP.md` | 92-95 | ~~Documentation: Comprehensive API docs (auto-generated, tutorials, videos)~~ ✅ Complete |
-| `ROADMAP.md` | 96-99 | ~~Documentation: Architecture diagrams (system, component, data flow)~~ ✅ Complete |
-| `ROADMAP.md` | 109 | ~~Testing: Competitive benchmarks~~ ✅ Complete |
-| `ROADMAP.md` | 125-129 | ~~High Availability: Failover mechanisms (automatic failover, health checks, circuit breakers)~~ ✅ Complete |
-| `ROADMAP.md` | 130-133 | ~~High Availability: Disaster recovery (backup orchestration, point-in-time recovery, multi-region support)~~ ✅ Complete |
-| `ROADMAP.md` | 140-143 | ~~Ecosystem: Package manager integration (Zig registry ✅, Homebrew formula ✅, Docker images ✅)~~ ✅ Complete |
-| `ROADMAP.md` | 148-151 | ~~Research & Innovation: FPGA Phase 2 kernels~~ ✅ Complete, ~~Novel index structures (DiskANN, ScaNN)~~ ✅ Complete, ASIC exploration (future) |
-| `ROADMAP.md` | 152-155 | ~~Academic collaborations (research partnerships, paper publications, conference presentations)~~ ✅ Complete (docs/research/) |
-| `ROADMAP.md` | 158-161 | ~~Community governance: RFC process, voting mechanism, contribution recognition~~ ✅ Complete (docs/governance/) |
-| `ROADMAP.md` | 162-165 | ~~Education: Training courses, certification program, university partnerships~~ ✅ Complete (docs/education/) |
-| `ROADMAP.md` | 168-171 | ~~Commercial support: SLA offerings, priority support, custom development~~ ✅ Complete (docs/commercial/) |
-| `ROADMAP.md` | 172-175 | ~~Cloud integration: AWS Lambda, Google Cloud Functions, Azure Functions~~ ✅ Complete (src/cloud/) |
+| `ROADMAP.md` | 184-189 | Language bindings reimplementation (Python, JS/WASM, C headers, Rust, Go) |
+| `ROADMAP.md` | 205 | ASIC exploration (future research) |
+| `ROADMAP.md` | 352 | C-compatible API reimplementation (bindings removed) |
 
 ## Llama-CPP Parity Tasks (Zig 0.16)
 
@@ -58,7 +48,7 @@ The following high-level items were tracked in **[ROADMAP.md](ROADMAP.md)**. Ite
 | Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/ai/llm/generation/sampler.zig` |
 | Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/ai/llm/generation/streaming.zig` |
 | CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
-| Library API | ✅ | C-compatible API with headers and Zig exports. | `bindings/c/` |
+| Library API | ⚠️ | C-compatible API reimplementation (bindings removed). | `ROADMAP.md` |
 | Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/tests/llm_reference_vectors.zig` |
 | Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/ai/training/` |
 | Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/ai/training/trainable_model.zig` |
@@ -85,7 +75,7 @@ The major architecture redesign has been completed successfully:
 | Test Suite | ✅ | All 51 tests pass |
 | Build Pipeline | ✅ | Full build succeeds (21/21 steps) |
 
-**New Architecture (updated 2026-01-30):**
+**New Architecture (updated 2026-01-31):**
 ```
 src/
 ├── abi.zig              # Public API entry point
@@ -110,7 +100,8 @@ src/
 
 ## Remaining Work
 
-All major implementation tasks are complete. See ROADMAP.md for future enhancements.
+Core implementation tasks are complete. Remaining roadmap items focus on
+language bindings and long-term research (see ROADMAP.md).
 
 ## Recently Completed
 
@@ -166,11 +157,13 @@ This section aggregates all high‑level and implementation‑level tasks that a
 | ~~Ecosystem~~ | ~~Package manager integration (Zig registry ✅, Homebrew formula ✅, Docker images ✅)~~ ✅ Complete |
 | ~~Modular Refactor~~ | ~~Unified config, Framework orchestration, top-level modules~~ ✅ Complete (2026-01-17) |
 | ~~Research & Innovation~~ | ~~FPGA Phase 2 kernels (MatMul, Attention, KV-Cache)~~ ✅ Complete (2026-01-23), ~~Novel index structures (DiskANN, ScaNN)~~ ✅ Complete (2026-01-23), ASIC exploration (future) |
-| Academic Collaboration | Research partnerships, paper publications, conference presentations |
-| Community Governance | RFC process, voting mechanism, contribution recognition |
-| Education | Training courses, certification program, university partnerships |
-| Commercial Support | SLA offerings, priority support, custom development |
-| Cloud Integration | AWS Lambda, Google Cloud Functions, Azure Functions |
+| ~~Academic Collaboration~~ | ~~Research partnerships, paper publications, conference presentations~~ ✅ Complete |
+| ~~Community Governance~~ | ~~RFC process, voting mechanism, contribution recognition~~ ✅ Complete |
+| ~~Education~~ | ~~Training courses, certification program, university partnerships~~ ✅ Complete |
+| ~~Commercial Support~~ | ~~SLA offerings, priority support, custom development~~ ✅ Complete |
+| ~~Cloud Integration~~ | ~~AWS Lambda, Google Cloud Functions, Azure Functions~~ ✅ Complete |
+| Language Bindings | Reintroduce C headers + Python/Rust/Go/JS/WASM |
+| ASIC Exploration | Long-term research program |
 
 ### Miscellaneous Implementation TODOs
 

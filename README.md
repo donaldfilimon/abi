@@ -102,12 +102,11 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize with builder pattern
-    const config = abi.Config.init()
-        .withAI(true)
-        .withGPU(true)
-        .withDatabase(true);
-
-    var framework = try abi.Framework.init(allocator, config);
+    var framework = try abi.Framework.builder(allocator)
+        .withAiDefaults()
+        .withGpuDefaults()
+        .withDatabaseDefaults()
+        .build();
     defer framework.deinit();
 
     std.debug.print("ABI v{s} ready!\n", .{abi.version()});
@@ -421,38 +420,11 @@ zig build -Dgpu-backend=auto
 
 ---
 
-## C Bindings
+## C Bindings (Reintroduction Planned)
 
-Use ABI from C, Rust, Go, Python, or any language with C FFI:
-
-```c
-#include <abi.h>
-
-int main() {
-    abi_framework_t fw = NULL;
-    abi_init(&fw);
-
-    // SIMD operations
-    float a[] = {1, 2, 3, 4}, b[] = {4, 3, 2, 1};
-    float dot = abi_simd_vector_dot(a, b, 4);  // = 20
-
-    // Vector database
-    abi_database_t db = NULL;
-    abi_database_config_t cfg = { "vectors", 384, 1000 };
-    abi_database_create(&cfg, &db);
-    abi_database_insert(db, 1, embedding, 384);
-
-    abi_shutdown(fw);
-    return 0;
-}
-```
-
-Build: `cd bindings/c && zig build` produces:
-- macOS: `libabi.dylib` / `libabi_static.a`
-- Linux: `libabi.so` / `libabi_static.a`
-- Windows: `abi.dll` / `abi_static.lib`
-
-See [bindings/c/README.md](bindings/c/README.md) for full API reference.
+C bindings were removed during the 2026-01-30 cleanup and are being
+reintroduced as part of the language bindings roadmap. Track progress in
+[ROADMAP.md](ROADMAP.md) under **Language bindings**.
 
 ---
 
@@ -460,18 +432,23 @@ See [bindings/c/README.md](bindings/c/README.md) for full API reference.
 
 | Resource | Description |
 |:---------|:------------|
-| [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
-| [C Bindings](bindings/c/README.md) | C FFI API reference |
+| [Online Docs](https://donaldfilimon.github.io/abi/) | Published documentation site |
+| [Docs Source](docs/README.md) | Docs build and layout |
+| [API Overview](docs/content/api.html) | High-level API reference |
+| [Getting Started](docs/content/getting-started.html) | First steps and setup |
+| [Configuration](docs/content/configuration.html) | Config system overview |
+| [Architecture](docs/content/architecture.html) | System structure |
+| [AI Guide](docs/content/ai.html) | LLM, agents, training |
+| [GPU Guide](docs/content/gpu.html) | Multi-backend GPU acceleration |
+| [Database Guide](docs/content/database.html) | WDBX vector database |
+| [Network Guide](docs/content/network.html) | Distributed compute |
+| [Deployment Guide](docs/content/deployment.html) | Production deployment |
+| [Observability Guide](docs/content/observability.html) | Metrics and profiling |
+| [Security Guide](docs/content/security.html) | Security model |
+| [Examples Guide](docs/content/examples.html) | Example walkthroughs |
 | [API Reference](API_REFERENCE.md) | Public API summary |
 | [Quickstart](QUICKSTART.md) | Getting started guide |
-| [Deployment Guide](docs/deployment.md) | Production deployment |
-| [AI Guide](docs/ai.md) | LLM, agents, training |
-| [GPU Guide](docs/gpu.md) | Multi-backend GPU acceleration |
-| [Database Guide](docs/database.md) | WDBX vector database |
-| [Network Guide](docs/network.md) | Distributed compute |
-| [Streaming Guide](docs/streaming.md) | SSE/WebSocket streaming |
-| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues |
+| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and conventions |
 
 ```bash
 # Run all tests
