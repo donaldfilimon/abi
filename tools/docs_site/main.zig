@@ -35,7 +35,7 @@ const ArgsError = error{
     ShowHelp,
 };
 
-pub fn main() !void {
+pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const status = gpa.deinit();
@@ -45,10 +45,13 @@ pub fn main() !void {
     }
     const allocator = gpa.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    var args_iter = init.args.iterateAllocator(allocator) catch |err| {
+        std.log.err("Failed to read args: {t}", .{err});
+        return err;
+    };
+    defer args_iter.deinit();
 
-    const config = parseArgs(args) catch |err| {
+    const config = parseArgs(&args_iter) catch |err| {
         if (err == error.ShowHelp) return;
         std.log.err("Invalid arguments: {t}", .{err});
         printUsage();
@@ -62,28 +65,24 @@ pub fn main() !void {
     try buildSite(allocator, io, config);
 }
 
-fn parseArgs(args: [][]const u8) ArgsError!BuildConfig {
+fn parseArgs(args: *std.process.Args.Iterator) ArgsError!BuildConfig {
     var config = BuildConfig{
         .source_dir = "docs",
         .out_dir = "zig-out/docs",
         .manifest_path = "docs/site.json",
     };
 
-    var i: usize = 1;
-    while (i < args.len) : (i += 1) {
-        const arg = args[i];
+    _ = args.skip();
+    while (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "--source")) {
-            i += 1;
-            if (i >= args.len) return error.MissingValue;
-            config.source_dir = args[i];
+            const value = args.next() orelse return error.MissingValue;
+            config.source_dir = value;
         } else if (std.mem.eql(u8, arg, "--out")) {
-            i += 1;
-            if (i >= args.len) return error.MissingValue;
-            config.out_dir = args[i];
+            const value = args.next() orelse return error.MissingValue;
+            config.out_dir = value;
         } else if (std.mem.eql(u8, arg, "--manifest")) {
-            i += 1;
-            if (i >= args.len) return error.MissingValue;
-            config.manifest_path = args[i];
+            const value = args.next() orelse return error.MissingValue;
+            config.manifest_path = value;
         } else if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
             printUsage();
             return error.ShowHelp;
