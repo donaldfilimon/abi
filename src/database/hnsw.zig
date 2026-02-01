@@ -47,6 +47,8 @@ pub const SearchState = struct {
         self.results_buffer.clearRetainingCapacity();
     }
 
+    /// Deallocate all backing memory for the search state.
+    /// After calling this, the SearchState should not be used.
     pub fn deinit(self: *SearchState, allocator: std.mem.Allocator) void {
         self.candidates.deinit(allocator);
         self.visited.deinit(allocator);
@@ -136,6 +138,8 @@ pub const SearchStatePool = struct {
     }
 
     /// Release a search state back to the pool.
+    /// The state is automatically reset before being returned to the pool.
+    /// Thread-safe: uses atomic operations to update availability bitmap.
     pub fn release(self: *SearchStatePool, state: *SearchState) void {
         // Find index of this state
         const idx = (@intFromPtr(state) - @intFromPtr(self.states.ptr)) / @sizeOf(SearchState);
@@ -235,7 +239,8 @@ pub const DistanceCache = struct {
         self.size += 1;
     }
 
-    /// Clear all cached entries.
+    /// Clear all cached entries while retaining allocated memory.
+    /// Hit/miss statistics are not reset by this operation.
     pub fn clear(self: *DistanceCache) void {
         self.map.clearRetainingCapacity();
         @memset(self.eviction_queue, 0);
@@ -399,6 +404,12 @@ pub const HnswIndex = struct {
     }
 
     /// Insert a new node into the HNSW graph.
+    ///
+    /// Implements the standard HNSW insertion algorithm:
+    /// 1. Determine target layer using exponential distribution
+    /// 2. Greedy descent from max_layer to target_layer + 1
+    /// 3. Layer-by-layer neighbor connection from target_layer to 0
+    /// 4. Update entry point if new node is at a higher layer
     fn insert(
         self: *HnswIndex,
         allocator: std.mem.Allocator,
@@ -462,6 +473,10 @@ pub const HnswIndex = struct {
     }
 
     /// Connect a node to its neighbors at a specific layer using proper HNSW neighbor selection.
+    ///
+    /// Uses ef_construction-based candidate expansion and heuristic pruning to select
+    /// diverse, high-quality neighbors. Updates bidirectional links and prunes existing
+    /// neighbors if they exceed m_max (or m_max0 for layer 0).
     fn connectNeighbors(
         self: *HnswIndex,
         allocator: std.mem.Allocator,
@@ -584,6 +599,11 @@ pub const HnswIndex = struct {
     }
 
     /// Select neighbors using heuristic pruning that considers both distance and diversity.
+    ///
+    /// Implements the heuristic from the HNSW paper: a candidate is only selected if it
+    /// is closer to the query than to any already-selected neighbor. This promotes
+    /// graph connectivity by preferring diverse directions over purely closest neighbors.
+    /// Falls back to closest neighbors if heuristic yields fewer than m_val results.
     fn selectNeighborsHeuristic(
         self: *HnswIndex,
         allocator: std.mem.Allocator,
@@ -810,7 +830,9 @@ pub const HnswIndex = struct {
         return results;
     }
 
-    /// Compute distance with optional caching and pre-computed query norm.
+    /// Compute cosine distance between query and vector using SIMD.
+    /// Uses pre-computed query norm to avoid redundant sqrt operations.
+    /// Returns 1.0 for zero-length vectors (maximum distance).
     inline fn computeDistance(self: *const HnswIndex, query: []const f32, query_norm: f32, vector: []const f32) f32 {
         // Use cache if available (for node-to-node distances, not query distances)
         _ = self;
@@ -823,7 +845,9 @@ pub const HnswIndex = struct {
         return 1.0 - (dot / (query_norm * vec_norm));
     }
 
-    /// Compute and cache node-to-node distance.
+    /// Compute node-to-node distance with caching support.
+    /// Checks distance cache first; on miss, computes cosine distance and stores result.
+    /// Cache keys are order-independent (distance(a,b) == distance(b,a)).
     fn computeNodeDistance(self: *const HnswIndex, records: []const index_mod.VectorRecordView, a: u32, b: u32) f32 {
         // Check cache first
         if (self.distance_cache) |cache| {
@@ -874,6 +898,8 @@ pub const HnswIndex = struct {
     }
 
     /// Get cache statistics if distance caching is enabled.
+    ///
+    /// @return Struct with hits, misses, and computed hit_rate (0.0-1.0), or null if caching disabled
     pub fn getCacheStats(self: *const HnswIndex) ?struct { hits: u64, misses: u64, hit_rate: f32 } {
         if (self.distance_cache) |cache| {
             return cache.getStats();
@@ -882,6 +908,8 @@ pub const HnswIndex = struct {
     }
 
     /// Get GPU acceleration statistics if GPU is enabled.
+    ///
+    /// @return GpuAccelStats with operation counts, timing, and throughput metrics, or null if GPU disabled
     pub fn getGpuStats(self: *const HnswIndex) ?gpu_accel.GpuAccelStats {
         if (self.gpu_accelerator) |accel| {
             return accel.getStats();
@@ -1000,6 +1028,21 @@ pub const HnswIndex = struct {
     }
 
     /// Save HNSW structure to a binary writer.
+    ///
+    /// Binary format (little-endian):
+    /// - u32: node count
+    /// - u32: m (max neighbors per node)
+    /// - u32: entry point node ID (0 if none)
+    /// - i32: max layer
+    /// - u32: ef_construction
+    /// - For each node:
+    ///   - u32: layer count
+    ///   - For each layer:
+    ///     - u32: neighbor count
+    ///     - u32[]: neighbor node IDs
+    ///
+    /// Note: SearchStatePool, DistanceCache, and GPU accelerator are not persisted.
+    /// Use enableGpuAcceleration() after loading to restore GPU support.
     pub fn save(self: HnswIndex, writer: anytype) !void {
         try writer.writeInt(u32, @intCast(self.nodes.len), .little);
         try writer.writeInt(u32, @intCast(self.m), .little);
@@ -1019,6 +1062,14 @@ pub const HnswIndex = struct {
     }
 
     /// Load HNSW structure from a binary reader.
+    ///
+    /// Reads the binary format written by save(). The loaded index does not include
+    /// SearchStatePool, DistanceCache, or GPU accelerator - these can be enabled
+    /// after loading via enableGpuAcceleration().
+    ///
+    /// @param allocator Memory allocator for graph structures
+    /// @param reader Binary reader implementing readInt()
+    /// @return Loaded HnswIndex ready for searching
     pub fn load(allocator: std.mem.Allocator, reader: anytype) !HnswIndex {
         const node_count = try reader.readInt(u32, .little);
         const m = try reader.readInt(u32, .little);
@@ -1057,6 +1108,13 @@ pub const HnswIndex = struct {
     }
 
     /// Enable GPU acceleration on a loaded index.
+    ///
+    /// Call this after loading an index from disk to enable GPU-accelerated
+    /// batch distance computation. If GPU hardware is unavailable, falls back
+    /// to SIMD acceleration.
+    ///
+    /// @param batch_threshold Minimum number of vectors to trigger GPU path
+    /// @return error.GpuDisabled if GPU feature was disabled at compile time
     pub fn enableGpuAcceleration(self: *HnswIndex, batch_threshold: usize) !void {
         if (self.gpu_accelerator != null) return; // Already enabled
 
@@ -1071,7 +1129,8 @@ pub const HnswIndex = struct {
         self.gpu_accelerator = accel;
     }
 
-    /// Disable GPU acceleration.
+    /// Disable GPU acceleration and release associated resources.
+    /// Subsequent searches will use SIMD-only distance computation.
     pub fn disableGpuAcceleration(self: *HnswIndex) void {
         if (self.gpu_accelerator) |accel| {
             accel.deinit();
