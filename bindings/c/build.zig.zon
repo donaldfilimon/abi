@@ -1,0 +1,19 @@
+.{
+    .name = .abi_c,
+    .version = "0.4.0",
+    .fingerprint = 0x5dc117bebebe3b51,
+    .minimum_zig_version = "0.16.0",
+
+    .dependencies = .{
+        .abi = .{
+            .path = "../..",
+        },
+    },
+
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "zig-out/include",
+    },
+}
