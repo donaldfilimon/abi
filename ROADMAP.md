@@ -181,10 +181,11 @@ tags: [planning, roadmap]
   - [x] Multi-region support (src/ha/replication.zig - ReplicationManager)
 
 ### Ecosystem
-- [ ] Language bindings (removed for reimplementation - 2026-01-31)
+- [ ] Language bindings (reimplementation in progress - 2026-02-01)
   - [ ] Python bindings
   - [ ] JavaScript/WASM bindings
-  - [ ] C API headers
+  - [x] C API headers (bindings/c/zig-out/include/)
+  - [x] C API implementation (bindings/c/src/abi_c.zig) - PARTIAL (2026-02-01)
   - [ ] Rust bindings
   - [ ] Go bindings
 - [x] Package manager integration

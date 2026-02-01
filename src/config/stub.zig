@@ -1,29 +1,36 @@
 const std = @import("std");
-const types = @import("types.zig");
-const loader_stub = @import("loader.zig");
+const types = @import("stubs/types.zig");
+const loader_stub = @import("stubs/loader.zig");
+const gpu_config = @import("stubs/gpu_config.zig");
+const ai_config = @import("stubs/ai_config.zig");
+const database_config = @import("stubs/database_config.zig");
+const network_config = @import("stubs/network_config.zig");
+const observability_config = @import("stubs/observability_config.zig");
+const web_config = @import("stubs/web_config.zig");
+const plugin_config = @import("stubs/plugin_config.zig");
 
 // Re-exports from submodules
-pub const GpuConfig = @import("gpu_config.zig").GpuConfig;
-pub const RecoveryConfig = @import("gpu_config.zig").RecoveryConfig;
+pub const GpuConfig = gpu_config.GpuConfig;
+pub const RecoveryConfig = gpu_config.RecoveryConfig;
 
-pub const AiConfig = @import("ai_config.zig").AiConfig;
-pub const LlmConfig = @import("ai_config.zig").LlmConfig;
-pub const EmbeddingsConfig = @import("ai_config.zig").EmbeddingsConfig;
-pub const AgentsConfig = @import("ai_config.zig").AgentsConfig;
-pub const TrainingConfig = @import("ai_config.zig").TrainingConfig;
-pub const PersonasConfig = @import("ai_config.zig").PersonasConfig;
+pub const AiConfig = ai_config.AiConfig;
+pub const LlmConfig = ai_config.LlmConfig;
+pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
+pub const AgentsConfig = ai_config.AgentsConfig;
+pub const TrainingConfig = ai_config.TrainingConfig;
+pub const PersonasConfig = ai_config.PersonasConfig;
 
-pub const DatabaseConfig = @import("database_config.zig").DatabaseConfig;
+pub const DatabaseConfig = database_config.DatabaseConfig;
 
-pub const NetworkConfig = @import("network_config.zig").NetworkConfig;
-pub const UnifiedMemoryConfig = @import("network_config.zig").UnifiedMemoryConfig;
-pub const LinkingConfig = @import("network_config.zig").LinkingConfig;
+pub const NetworkConfig = network_config.NetworkConfig;
+pub const UnifiedMemoryConfig = network_config.UnifiedMemoryConfig;
+pub const LinkingConfig = network_config.LinkingConfig;
 
-pub const ObservabilityConfig = @import("observability_config.zig").ObservabilityConfig;
+pub const ObservabilityConfig = observability_config.ObservabilityConfig;
 
-pub const WebConfig = @import("web_config.zig").WebConfig;
+pub const WebConfig = web_config.WebConfig;
 
-pub const PluginConfig = @import("plugin_config.zig").PluginConfig;
+pub const PluginConfig = plugin_config.PluginConfig;
 
 pub const ConfigLoader = loader_stub.ConfigLoader;
 pub const LoadError = types.LoadError;

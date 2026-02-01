@@ -186,7 +186,9 @@ pub const KernelIR = struct {
             if (seen_bindings.contains(key)) {
                 result.errors.duplicate_bindings = true;
             } else {
-                seen_bindings.put(std.heap.page_allocator, key, {}) catch {};
+                seen_bindings.put(std.heap.page_allocator, key, {}) catch {
+                    result.errors.memory_error = true;
+                };
             }
         }
 
@@ -195,7 +197,9 @@ pub const KernelIR = struct {
             if (seen_bindings.contains(key)) {
                 result.errors.duplicate_bindings = true;
             } else {
-                seen_bindings.put(std.heap.page_allocator, key, {}) catch {};
+                seen_bindings.put(std.heap.page_allocator, key, {}) catch {
+                    result.errors.memory_error = true;
+                };
             }
         }
 
@@ -465,6 +469,7 @@ pub const ValidationResult = struct {
         workgroup_size_zero: bool = false,
         duplicate_bindings: bool = false,
         empty_name: bool = false,
+        memory_error: bool = false,
     };
 
     pub const Warnings = struct {
@@ -474,7 +479,8 @@ pub const ValidationResult = struct {
     pub fn hasErrors(self: ValidationResult) bool {
         return self.errors.workgroup_size_zero or
             self.errors.duplicate_bindings or
-            self.errors.empty_name;
+            self.errors.empty_name or
+            self.errors.memory_error;
     }
 
     pub fn hasWarnings(self: ValidationResult) bool {

@@ -262,8 +262,12 @@ pub const AdaptiveThresholds = struct {
             0.3 * @as(f64, @floatFromInt(current_simd_threshold))));
 
         // Update thresholds
-        self.gpu_thresholds.put(self.allocator, op, smoothed_gpu_threshold) catch {};
-        self.simd_thresholds.put(self.allocator, op, smoothed_simd_threshold) catch {};
+        self.gpu_thresholds.put(self.allocator, op, smoothed_gpu_threshold) catch |err| {
+            std.log.debug("Failed to update GPU threshold for {t}: {t}", .{ op, err });
+        };
+        self.simd_thresholds.put(self.allocator, op, smoothed_simd_threshold) catch |err| {
+            std.log.debug("Failed to update SIMD threshold for {t}: {t}", .{ op, err });
+        };
     }
 
     /// Get adaptive threshold statistics

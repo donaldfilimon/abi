@@ -181,56 +181,57 @@ fn writeJsonReport(
     meta: BenchJsonMeta,
 ) !void {
     try writer.writeAll("{\n  \"metadata\": {\n    \"suite\": ");
-    try std.json.encodeJsonString(meta.suite, .{}, writer);
-    try std.fmt.format(
-        writer,
-        ",\n    \"quick\": {s},\n    \"duration_ns\": {d},\n    \"duration_sec\": {d:.4},\n    \"benchmarks\": {d}\n  },\n  \"benchmarks\": [\n",
-        .{
-            if (meta.quick) "true" else "false",
-            meta.duration_ns,
-            meta.duration_sec,
-            results.len,
-        },
-    );
+    try writer.print("{}", .{std.json.fmt(meta.suite, .{})});
+    try writer.writeAll(",\n    \"quick\": ");
+    try writer.writeAll(if (meta.quick) "true" else "false");
+    try writer.writeAll(",\n    \"duration_ns\": ");
+    try writer.print("{d}", .{meta.duration_ns});
+    try writer.writeAll(",\n    \"duration_sec\": ");
+    try writer.print("{d:.4}", .{meta.duration_sec});
+    try writer.writeAll(",\n    \"benchmarks\": ");
+    try writer.print("{d}", .{results.len});
+    try writer.writeAll("\n  },\n  \"benchmarks\": [\n");
 
     for (results, 0..) |result, idx| {
         if (idx > 0) try writer.writeAll(",\n");
         try writer.writeAll("    {\"name\":");
-        try std.json.encodeJsonString(result.config.name, .{}, writer);
+        try writer.print("{}", .{std.json.fmt(result.config.name, .{})});
         try writer.writeAll(",\"category\":");
-        try std.json.encodeJsonString(result.config.category, .{}, writer);
-        try std.fmt.format(
-            writer,
-            ",\"iterations\":{d},\"mean_ns\":{d:.2},\"median_ns\":{d:.2},\"std_dev_ns\":{d:.2},\"min_ns\":{d},\"max_ns\":{d},\"p50_ns\":{d},\"p90_ns\":{d},\"p95_ns\":{d},\"p99_ns\":{d},\"ops_per_sec\":{d:.2},\"bytes_per_op\":{d},\"throughput_mb_s\":{d:.2},\"memory_allocated\":{d},\"memory_freed\":{d}}",
-            .{
-                result.stats.iterations,
-                result.stats.mean_ns,
-                result.stats.median_ns,
-                result.stats.std_dev_ns,
-                result.stats.min_ns,
-                result.stats.max_ns,
-                result.stats.p50_ns,
-                result.stats.p90_ns,
-                result.stats.p95_ns,
-                result.stats.p99_ns,
-                result.stats.opsPerSecond(),
-                result.config.bytes_per_op,
-                result.stats.throughputMBps(result.config.bytes_per_op),
-                result.memory_allocated,
-                result.memory_freed,
-            },
-        );
+        try writer.print("{}", .{std.json.fmt(result.config.category, .{})});
+        try writer.writeAll(",\"iterations\":");
+        try writer.print("{d}", .{result.stats.iterations});
+        try writer.writeAll(",\"mean_ns\":");
+        try writer.print("{d:.2}", .{result.stats.mean_ns});
+        try writer.writeAll(",\"median_ns\":");
+        try writer.print("{d:.2}", .{result.stats.median_ns});
+        try writer.writeAll(",\"std_dev_ns\":");
+        try writer.print("{d:.2}", .{result.stats.std_dev_ns});
+        try writer.writeAll(",\"min_ns\":");
+        try writer.print("{d}", .{result.stats.min_ns});
+        try writer.writeAll(",\"max_ns\":");
+        try writer.print("{d}", .{result.stats.max_ns});
+        try writer.writeAll(",\"p50_ns\":");
+        try writer.print("{d}", .{result.stats.p50_ns});
+        try writer.writeAll(",\"p90_ns\":");
+        try writer.print("{d}", .{result.stats.p90_ns});
+        try writer.writeAll(",\"p95_ns\":");
+        try writer.print("{d}", .{result.stats.p95_ns});
+        try writer.writeAll(",\"p99_ns\":");
+        try writer.print("{d}", .{result.stats.p99_ns});
+        try writer.writeAll(",\"ops_per_sec\":");
+        try writer.print("{d:.2}", .{result.stats.opsPerSecond()});
+        try writer.writeAll(",\"bytes_per_op\":");
+        try writer.print("{d}", .{result.config.bytes_per_op});
+        try writer.writeAll(",\"throughput_mb_s\":");
+        try writer.print("{d:.2}", .{result.stats.throughputMBps(result.config.bytes_per_op)});
+        try writer.writeAll(",\"memory_allocated\":");
+        try writer.print("{d}", .{result.memory_allocated});
+        try writer.writeAll(",\"memory_freed\":");
+        try writer.print("{d}", .{result.memory_freed});
+        try writer.writeAll("}");
     }
 
     try writer.writeAll("\n  ]\n}\n");
-}
-
-fn initThreadedIo(allocator: std.mem.Allocator, options: anytype) !std.Io.Threaded {
-    const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
-    if (@typeInfo(Result) == .error_union) {
-        return try std.Io.Threaded.init(allocator, options);
-    }
-    return std.Io.Threaded.init(allocator, options);
 }
 
 pub fn main(init: std.process.Init.Minimal) !void {
@@ -355,30 +356,36 @@ pub fn main(init: std.process.Init.Minimal) !void {
     const elapsed_ns = timer.read();
     const duration_sec = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0;
 
-    if (collector_storage) |_| {
-        // const meta = BenchJsonMeta{
-        //     .suite = @tagName(args.suite),
-        //     .quick = args.suite == .quick,
-        //     .duration_ns = elapsed_ns,
-        //     .duration_sec = duration_sec,
-        // };
+    if (collector_storage) |*collector| {
+        const meta = BenchJsonMeta{
+            .suite = @tagName(args.suite),
+            .quick = args.suite == .quick,
+            .duration_ns = elapsed_ns,
+            .duration_sec = duration_sec,
+        };
 
-        if (args.json) {
-            // try writeJsonReport(std.io.getStdOut().writer(), collector.results.items, meta);
-            std.debug.print("JSON output to stdout not supported in this version due to missing std.io.getStdOut\n", .{});
-        }
-
-        if (args.output_json) |path| {
-            var io_backend = std.Io.Threaded.init(allocator, .{
-                .environ = std.process.Environ.empty,
-            });
+        if (args.json or args.output_json != null) {
+            var io_backend = std.Io.Threaded.init(allocator, .{ .environ = init.environ });
             defer io_backend.deinit();
             const io = io_backend.io();
-            var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
-            defer file.close(io);
-            // var buffer: [4096]u8 = undefined;
-            // try writeJsonReport(file.writer(io, &buffer), collector.results.items, meta);
-            std.debug.print("JSON output to file not supported in this version due to API changes\n", .{});
+
+            if (args.json) {
+                var stdout_buffer: [4096]u8 = undefined;
+                var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
+                const stdout = &stdout_writer.interface;
+                try writeJsonReport(stdout, collector.results.items, meta);
+                try stdout.flush();
+            }
+
+            if (args.output_json) |path| {
+                var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
+                defer file.close(io);
+                var buffer: [4096]u8 = undefined;
+                var writer = file.writer(io, &buffer);
+                const out = &writer.interface;
+                try writeJsonReport(out, collector.results.items, meta);
+                try out.flush();
+            }
         }
     }
 

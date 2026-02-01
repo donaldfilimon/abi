@@ -207,7 +207,9 @@ pub const ResponseBuilder = struct {
 
     /// Add a header.
     pub fn header(self: *ResponseBuilder, key: []const u8, value: []const u8) *ResponseBuilder {
-        self.response.headers.put(key, value) catch {};
+        self.response.headers.put(key, value) catch |err| {
+            std.log.warn("Failed to set header '{s}': {t}", .{ key, err });
+        };
         return self;
     }
 

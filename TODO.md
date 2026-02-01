@@ -32,9 +32,9 @@ The following high-level items remain open in **[ROADMAP.md](ROADMAP.md)**.
 
 | File | Line | Description |
 |------|------|-------------|
-| `ROADMAP.md` | 184-189 | Language bindings reimplementation (Python, JS/WASM, C headers, Rust, Go) |
+| `ROADMAP.md` | 184-189 | Language bindings reimplementation (Python, JS/WASM, Rust, Go) - C headers done! |
 | `ROADMAP.md` | 205 | ASIC exploration (future research) |
-| `ROADMAP.md` | 352 | C-compatible API reimplementation (bindings removed) |
+| `bindings/c/src/abi_c.zig` | - | C API implementation (partial - core functions done, database/GPU/agent pending) |
 
 ## Llama-CPP Parity Tasks (Zig 0.16)
 

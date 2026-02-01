@@ -718,7 +718,10 @@ pub const KernelDispatcher = struct {
         ) catch return DispatchError.ExecutionFailed;
 
         // Synchronize to ensure completion
-        bi.synchronize() catch {};
+        bi.synchronize() catch |err| {
+            std.log.warn("GPU synchronization failed: {t}", .{err});
+            return DispatchError.ExecutionFailed;
+        };
     }
 
     /// CPU fallback execution using host memory.

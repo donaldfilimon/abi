@@ -7,7 +7,7 @@ tags: [planning, sprint, development]
 
 <p align="center">
   <img src="https://img.shields.io/badge/Sprint-Complete-success?style=for-the-badge" alt="Sprint Complete"/>
-  <img src="https://img.shields.io/badge/Tests-787%2F792-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Tests-802%2F807-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 ## This Sprint
