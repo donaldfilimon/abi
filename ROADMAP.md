@@ -181,13 +181,12 @@ tags: [planning, roadmap]
   - [x] Multi-region support (src/ha/replication.zig - ReplicationManager)
 
 ### Ecosystem
-- [ ] Language bindings (reimplementation in progress - 2026-02-01)
-  - [ ] Python bindings
-  - [ ] JavaScript/WASM bindings
-  - [x] C API headers (bindings/c/zig-out/include/)
-  - [x] C API implementation (bindings/c/src/abi_c.zig) - PARTIAL (2026-02-01)
-  - [ ] Rust bindings
-  - [ ] Go bindings
+### Language Bindings (In Progress)
+- [x] **C Compatible Interface**: `libabi` shared library with C headers.
+- [x] **Python**: `ctypes` wrapper for vector database operations.
+- [ ] **JavaScript/Node**: `ffi-napi` bindings.
+- [ ] **Rust**: Native Rust crate (using bindgen or manual FFI).
+- [ ] **Go**: cgo bindings.
 - [x] Package manager integration
   - [x] Zig package registry (build.zig.zon with fingerprint)
   - [x] Homebrew formula (Formula/abi.rb)
