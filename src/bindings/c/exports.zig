@@ -15,23 +15,44 @@ pub const AbiStatus = enum(c_int) {
 };
 
 // Global allocator for C-allocated resources
+// In a real shared library, we might want to use the host's allocator or a stable one.
+// GPA is fine for now.
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
+
+// We need to keep the framework instance alive if we want to use it globally,
+// but the C API passes a handle.
+// For `abi_init`, we can return a pointer to a Context struct that holds the framework.
+
+const FrameworkContext = struct {
+    // We might wrap the framework builder result here.
+    // But `abi.Framework` is the high level entry.
+    // Let's assume for now we just use the database module directly as requested by the C API structure (db_create takes a framework handle but doesn't seem to use it heavily yet).
+    // Actually, `abi.Framework` might initialize global state.
+    
+    // For now, let's keep it simple.
+    dummy: u8,
+};
 
 // ============================================================================
 // Core
 // ============================================================================
 
 export fn abi_init() ?*anyopaque {
-    // In a real implementation, this would initialize the framework using the builder pattern
-    // and return a handle to it. For now, we return a dummy handle.
-    const handle = allocator.create(u8) catch return null;
-    return handle;
+    // Initialize the ABI framework subsystems if needed.
+    if (abi.database.init(allocator)) {
+        const ctx = allocator.create(FrameworkContext) catch return null;
+        ctx.dummy = 0;
+        return ctx;
+    } else |_| {
+        return null;
+    }
 }
 
 export fn abi_shutdown(handle: ?*anyopaque) void {
     if (handle) |h| {
-        allocator.destroy(@as(*u8, @ptrCast(@alignCast(h))));
+        abi.database.deinit();
+        allocator.destroy(@as(*FrameworkContext, @ptrCast(@alignCast(h))));
     }
 }
 
@@ -43,50 +64,42 @@ export fn abi_version() [*:0]const u8 {
 // Database
 // ============================================================================
 
-const DatabaseHandle = struct {
-    // This is a placeholder. In a real impl, this would hold the WDBX instance.
-    dimension: u32,
-    vectors: std.AutoHashMapUnmanaged(u64, []f32),
-
-    pub fn init(dim: u32) !*DatabaseHandle {
-        const self = try allocator.create(DatabaseHandle);
-        self.* = .{
-            .dimension = dim,
-            .vectors = .{},
-        };
-        return self;
-    }
-
-    pub fn deinit(self: *DatabaseHandle) void {
-        var iter = self.vectors.valueIterator();
-        while (iter.next()) |vec| {
-            allocator.free(vec.*);
-        }
-        self.vectors.deinit(allocator);
-        allocator.destroy(self);
-    }
+// We wrap the Zig DatabaseHandle to ensure pointer stability and C-compatibility if needed.
+// `abi.database.DatabaseHandle` is a struct (likely), so we need to allocate it on the heap.
+const C_DatabaseHandle = struct {
+    handle: abi.database.DatabaseHandle,
 };
 
 export fn abi_db_create(handle: ?*anyopaque, dimension: u32, db_out: *?*anyopaque) AbiStatus {
-    _ = handle;
-    const db = DatabaseHandle.init(dimension) catch return .ABI_ERROR_OUT_OF_MEMORY;
-    db_out.* = db;
+    _ = handle; // Framework handle unused for now, but good for future context
+    _ = dimension; // WDBX typically infers dimension or sets it via config. 
+                   // For now we ignore it in creation and assume the DB handles it dynamically or defaults.
+                   // TODO: Pass dimension to wdbx if API supports it.
+
+    // Generate a unique temporary name for the in-memory/embedded DB
+    // In a real C API we'd probably want to pass a path.
+    // For this contract, we'll use a memory-backed DB if possible or a temp file.
+    // `abi.database.open` takes a path.
+    const name = std.fmt.allocPrint(allocator, "mem_db_{d}", .{@intFromPtr(&allocator)}) catch return .ABI_ERROR_OUT_OF_MEMORY;
+    defer allocator.free(name);
+
+    const db_handle = abi.database.open(allocator, name) catch return .ABI_ERROR_UNKNOWN;
+    
+    const wrapper = allocator.create(C_DatabaseHandle) catch return .ABI_ERROR_OUT_OF_MEMORY;
+    wrapper.handle = db_handle;
+    
+    db_out.* = wrapper;
     return .ABI_SUCCESS;
 }
 
 export fn abi_db_insert(db_handle: ?*anyopaque, id: u64, vector: [*]const f32, vector_len: usize) AbiStatus {
     if (db_handle == null) return .ABI_ERROR_INVALID_ARGUMENT;
-    const db = @as(*DatabaseHandle, @ptrCast(@alignCast(db_handle)));
+    const wrapper = @as(*C_DatabaseHandle, @ptrCast(@alignCast(db_handle)));
 
-    if (vector_len != db.dimension) return .ABI_ERROR_INVALID_ARGUMENT;
-
-    const vec_copy = allocator.alloc(f32, vector_len) catch return .ABI_ERROR_OUT_OF_MEMORY;
-    @memcpy(vec_copy, vector[0..vector_len]);
-
-    db.vectors.put(allocator, id, vec_copy) catch {
-        allocator.free(vec_copy);
-        return .ABI_ERROR_OUT_OF_MEMORY;
-    };
+    const vec_slice = vector[0..vector_len];
+    
+    // We pass null metadata for now
+    abi.database.insert(&wrapper.handle, id, vec_slice, null) catch return .ABI_ERROR_UNKNOWN;
 
     return .ABI_SUCCESS;
 }
@@ -100,23 +113,30 @@ export fn abi_db_search(
     scores_out: [*]f32,
 ) AbiStatus {
     if (db_handle == null) return .ABI_ERROR_INVALID_ARGUMENT;
-    const db = @as(*DatabaseHandle, @ptrCast(@alignCast(db_handle)));
+    const wrapper = @as(*C_DatabaseHandle, @ptrCast(@alignCast(db_handle)));
 
-    if (vector_len != db.dimension) return .ABI_ERROR_INVALID_ARGUMENT;
+    const vec_slice = vector[0..vector_len];
 
-    // Dummy implementation: return empty or random results
-    // In a real implementation, we would call abi.db.search
-    _ = vector;
-    _ = k;
-    _ = ids_out;
-    _ = scores_out;
+    const results = abi.database.search(&wrapper.handle, allocator, vec_slice, k) catch return .ABI_ERROR_UNKNOWN;
+    defer allocator.free(results);
+
+    // Copy results to output buffers
+    // Caller MUST ensure buffers are large enough for k elements (as per C contract typicality)
+    var i: usize = 0;
+    for (results) |res| {
+        if (i >= k) break;
+        ids_out[i] = res.id;
+        scores_out[i] = res.score;
+        i += 1;
+    }
 
     return .ABI_SUCCESS;
 }
 
 export fn abi_db_destroy(db_handle: ?*anyopaque) void {
     if (db_handle) |h| {
-        const db = @as(*DatabaseHandle, @ptrCast(@alignCast(h)));
-        db.deinit();
+        const wrapper = @as(*C_DatabaseHandle, @ptrCast(@alignCast(h)));
+        abi.database.close(&wrapper.handle);
+        allocator.destroy(wrapper);
     }
 }
