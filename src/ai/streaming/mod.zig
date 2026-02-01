@@ -1,16 +1,96 @@
 //! Enhanced streaming support for AI model responses.
 //!
-//! Provides advanced streaming capabilities including:
-//! - Basic streaming generator for transformer models
-//! - Server-Sent Events (SSE) encoding/decoding
-//! - Backpressure control for flow management
-//! - Token buffering strategies
-//! - Stream transformations
-//! - HTTP streaming server with SSE and WebSocket
-//! - OpenAI-compatible API endpoints
-//! - Backend routing (local GGUF, OpenAI, Ollama, Anthropic)
-//! - Error recovery with circuit breakers and retry logic
-//! - Session caching for reconnection recovery
+//! This module provides comprehensive streaming infrastructure for real-time
+//! AI model output, including HTTP servers, protocol handlers, and resilience
+//! features for production deployments.
+//!
+//! ## Features
+//!
+//! - **Basic Streaming**: Token-by-token generation from transformer models
+//! - **SSE Protocol**: Server-Sent Events encoding/decoding for HTTP streaming
+//! - **WebSocket Support**: Bidirectional streaming with cancellation
+//! - **Backpressure Control**: Flow management to prevent memory exhaustion
+//! - **Token Buffering**: Configurable buffering strategies (FIFO, ring, etc.)
+//! - **HTTP Server**: OpenAI-compatible API with SSE and WebSocket endpoints
+//! - **Backend Routing**: Support for local GGUF, OpenAI, Ollama, Anthropic
+//! - **Circuit Breakers**: Per-backend failure isolation and recovery
+//! - **Retry Logic**: Exponential backoff with jitter for transient failures
+//! - **Session Caching**: Reconnection recovery via Last-Event-ID
+//!
+//! ## Error Handling
+//!
+//! The streaming module implements a comprehensive error handling strategy:
+//!
+//! | Error Type | Handling Strategy |
+//! |------------|-------------------|
+//! | Connection errors | Retry with exponential backoff |
+//! | Backend failures | Circuit breaker isolation + fallback |
+//! | Rate limiting | Backpressure + client notification |
+//! | Stream interruption | Session cache for resumption |
+//! | Timeout | Configurable per-token and total timeouts |
+//!
+//! ## Quick Start
+//!
+//! ### HTTP Server
+//!
+//! ```zig
+//! const streaming = @import("abi").ai.streaming;
+//!
+//! var server = try streaming.StreamingServer.init(allocator, .{
+//!     .address = "0.0.0.0:8080",
+//!     .auth_token = "secret-token",
+//!     .default_model_path = "./models/llama-7b.gguf",
+//!     .preload_model = true,
+//!     .enable_recovery = true,
+//! });
+//! defer server.deinit();
+//!
+//! try server.serve(); // Blocking
+//! ```
+//!
+//! ### Basic Generator
+//!
+//! ```zig
+//! var generator = streaming.StreamingGenerator.init(allocator, &model, .{
+//!     .max_tokens = 256,
+//!     .temperature = 0.7,
+//! });
+//! defer generator.deinit();
+//!
+//! try generator.start("Hello, world!");
+//! while (try generator.next()) |token| {
+//!     std.debug.print("{s}", .{token.text});
+//!     if (token.is_end) break;
+//! }
+//! ```
+//!
+//! ### Recovery with Circuit Breaker
+//!
+//! ```zig
+//! var recovery = try streaming.StreamRecovery.init(allocator, .{
+//!     .circuit_breaker = .{ .failure_threshold = 5 },
+//! });
+//! defer recovery.deinit();
+//!
+//! if (recovery.isBackendAvailable(.openai)) {
+//!     // Safe to make request
+//!     recovery.recordSuccess(.openai);
+//! } else {
+//!     // Circuit is open, use fallback
+//! }
+//! ```
+//!
+//! ## Endpoints (when using StreamingServer)
+//!
+//! | Endpoint | Method | Description |
+//! |----------|--------|-------------|
+//! | `/v1/chat/completions` | POST | OpenAI-compatible chat completions |
+//! | `/api/stream` | POST | Custom ABI streaming endpoint |
+//! | `/api/stream/ws` | GET | WebSocket upgrade for bidirectional streaming |
+//! | `/health` | GET | Health check (optionally unauthenticated) |
+//! | `/metrics` | GET | Prometheus-style metrics snapshot |
+//! | `/admin/reload` | POST | Hot-reload model without restart |
+//! | `/v1/models` | GET | List available models (OpenAI-compatible) |
 
 const std = @import("std");
 pub const sse = @import("sse.zig");
@@ -32,67 +112,163 @@ pub const session_cache = @import("session_cache.zig");
 pub const streaming_metrics = @import("metrics.zig");
 
 // Server types
+
+/// HTTP streaming server with SSE and WebSocket support.
 pub const StreamingServer = server.StreamingServer;
+
+/// Configuration for the streaming server.
 pub const ServerConfig = server.ServerConfig;
+
+/// Errors that can occur during server operations.
 pub const StreamingServerError = server.StreamingServerError;
 
 // WebSocket types
+
+/// Handler for WebSocket connections with streaming support.
 pub const WebSocketHandler = websocket.WebSocketHandler;
+
+/// Configuration for WebSocket behavior.
 pub const WebSocketConfig = websocket.WebSocketConfig;
+
+/// WebSocket frame opcode (text, binary, ping, pong, close).
 pub const WebSocketOpcode = websocket.Opcode;
+
+/// WebSocket close status codes.
 pub const WebSocketCloseCode = websocket.CloseCode;
+
+/// Compute the Sec-WebSocket-Accept header value for handshake.
 pub const computeWebSocketAcceptKey = websocket.computeAcceptKey;
 
 // Backend types
+
+/// Type of inference backend (local, openai, ollama, anthropic).
 pub const BackendType = backends.BackendType;
+
+/// Router for directing requests to appropriate backends.
 pub const BackendRouter = backends.BackendRouter;
+
+/// Interface to a specific inference backend.
 pub const Backend = backends.Backend;
+
+/// Generation configuration passed to backends.
 pub const BackendGenerationConfig = backends.GenerationConfig;
 
 // Recovery types
+
+/// Manager for resilient streaming with retry, circuit breakers, and caching.
 pub const StreamRecovery = recovery.StreamRecovery;
+
+/// Configuration for stream recovery behavior.
 pub const RecoveryConfig = recovery.RecoveryConfig;
+
+/// Events emitted during recovery operations.
 pub const RecoveryEvent = recovery.RecoveryEvent;
+
+/// Callback for receiving recovery event notifications.
 pub const RecoveryCallback = recovery.RecoveryCallback;
+
+/// Per-backend circuit breaker for failure isolation.
 pub const CircuitBreaker = circuit_breaker.CircuitBreaker;
+
+/// Configuration for circuit breaker thresholds and timeouts.
 pub const CircuitBreakerConfig = circuit_breaker.CircuitBreakerConfig;
+
+/// State of a circuit breaker (closed, open, half_open).
 pub const CircuitState = circuit_breaker.CircuitState;
+
+/// Configuration for retry behavior with exponential backoff.
 pub const StreamingRetryConfig = retry_config.StreamingRetryConfig;
+
+/// Specification of which errors should trigger retry.
 pub const StreamingRetryableErrors = retry_config.StreamingRetryableErrors;
+
+/// Cache for storing tokens to enable stream resumption.
 pub const SessionCache = session_cache.SessionCache;
+
+/// Configuration for session cache behavior.
 pub const SessionCacheConfig = session_cache.SessionCacheConfig;
+
+/// A cached token for stream recovery.
 pub const CachedToken = session_cache.CachedToken;
+
+/// Metrics collector for streaming operations.
 pub const StreamingMetrics = streaming_metrics.StreamingMetrics;
+
+/// Configuration for metrics collection.
 pub const StreamingMetricsConfig = streaming_metrics.StreamingMetricsConfig;
 
 // Basic generator types (from generator.zig)
+
+/// Token-by-token streaming generator for transformer models.
 pub const StreamingGenerator = generator.StreamingGenerator;
+
+/// Errors that can occur during streaming generation.
 pub const StreamingError = generator.StreamingError;
+
+/// State of a streaming generation session.
 pub const StreamState = generator.StreamState;
+
+/// Configuration for text generation parameters.
 pub const GenerationConfig = generator.GenerationConfig;
+
+/// Stream inference with a callback for each token.
 pub const streamInference = generator.streamInference;
+
+/// Format an array of stream tokens into a single string.
 pub const formatStreamOutput = generator.formatStreamOutput;
+
+/// Split tokens into chunks for batched transmission.
 pub const createChunkedStream = generator.createChunkedStream;
 
 // SSE types
+
+/// Server-Sent Event data structure.
 pub const SseEvent = sse.SseEvent;
+
+/// Encoder for converting events to SSE wire format.
 pub const SseEncoder = sse.SseEncoder;
+
+/// Decoder for parsing SSE wire format.
 pub const SseDecoder = sse.SseDecoder;
+
+/// Configuration for SSE encoding behavior.
 pub const SseConfig = sse.SseConfig;
 
 // Backpressure types
+
+/// Controller for managing flow control and backpressure.
 pub const BackpressureController = backpressure.BackpressureController;
+
+/// Strategy for handling backpressure (drop, block, buffer, sample).
 pub const BackpressureStrategy = backpressure.BackpressureStrategy;
+
+/// Configuration for backpressure thresholds.
 pub const BackpressureConfig = backpressure.BackpressureConfig;
+
+/// Current flow state (normal, throttled, blocked, recovering).
 pub const FlowState = backpressure.FlowState;
+
+/// Statistics about backpressure operations.
 pub const BackpressureStats = backpressure.BackpressureStats;
+
+/// Token bucket rate limiter for request throttling.
 pub const RateLimiter = backpressure.RateLimiter;
 
 // Buffer types
+
+/// Buffer for temporarily storing tokens during streaming.
 pub const TokenBuffer = buffer.TokenBuffer;
+
+/// Configuration for token buffer behavior.
 pub const BufferConfig = buffer.BufferConfig;
+
+/// Strategy for buffer management (fifo, lifo, ring, priority).
 pub const BufferStrategy = buffer.BufferStrategy;
+
+/// Statistics about buffer usage.
 pub const BufferStats = buffer.BufferStats;
+
+/// Buffer that coalesces multiple tokens into larger chunks.
 pub const CoalescingBuffer = buffer.CoalescingBuffer;
 
 /// Stream token from AI model.
@@ -196,6 +372,41 @@ pub const StreamStats = struct {
 };
 
 /// Enhanced streaming generator with SSE support.
+///
+/// Combines token generation with SSE encoding, backpressure control, and
+/// buffering for production-ready streaming. Suitable for use with HTTP
+/// servers and real-time client connections.
+///
+/// ## Features
+///
+/// - Automatic SSE encoding of tokens
+/// - Backpressure-aware flow control
+/// - Token buffering during throttled periods
+/// - Statistics tracking (tokens/second, total tokens, etc.)
+///
+/// ## Example
+///
+/// ```zig
+/// var gen = EnhancedStreamingGenerator.init(allocator, .{});
+/// defer gen.deinit();
+///
+/// try gen.start();
+/// while (generating) {
+///     if (try gen.emit(token)) |sse_data| {
+///         try connection.write(sse_data);
+///         allocator.free(sse_data);
+///     }
+/// }
+/// const final = try gen.complete();
+/// defer allocator.free(final);
+/// ```
+///
+/// ## Error Handling
+///
+/// - `error.AlreadyStarted`: `start()` called when already started
+/// - `error.NotStarted`: `emit()` called before `start()`
+/// - `error.Completed`: `emit()` called after `complete()`
+/// - `error.AlreadyCompleted`: `complete()` called twice
 pub const EnhancedStreamingGenerator = struct {
     allocator: std.mem.Allocator,
     sse_encoder: SseEncoder,
@@ -206,7 +417,7 @@ pub const EnhancedStreamingGenerator = struct {
     is_started: bool,
     is_completed: bool,
 
-    /// Initialize enhanced streaming generator.
+    /// Initialize enhanced streaming generator with the given configuration.
     pub fn init(allocator: std.mem.Allocator, config: StreamConfig) EnhancedStreamingGenerator {
         return .{
             .allocator = allocator,
@@ -308,6 +519,30 @@ pub const StreamConfig = struct {
 };
 
 /// Create a simple SSE stream from text chunks.
+///
+/// Encodes an array of text strings as a complete SSE event stream,
+/// suitable for sending as an HTTP response body. Includes start,
+/// token, and end events.
+///
+/// ## Parameters
+///
+/// - `allocator`: Memory allocator for the output buffer
+/// - `chunks`: Array of text chunks to encode as token events
+///
+/// ## Returns
+///
+/// Complete SSE stream as a byte array, owned by the caller.
+///
+/// ## Example
+///
+/// ```zig
+/// const chunks = &.{ "Hello", " ", "world", "!" };
+/// const sse_stream = try createSseStream(allocator, chunks);
+/// defer allocator.free(sse_stream);
+///
+/// // Send as HTTP response body with Content-Type: text/event-stream
+/// try response.write(sse_stream);
+/// ```
 pub fn createSseStream(
     allocator: std.mem.Allocator,
     chunks: []const []const u8,

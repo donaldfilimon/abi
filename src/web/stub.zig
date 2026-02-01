@@ -1,6 +1,10 @@
 //! Stub for Web feature when disabled.
 //!
 //! Mirrors the full API of mod.zig, returning error.WebDisabled for all operations.
+//! This stub is used when the web feature is disabled via `-Denable-web=false`.
+//!
+//! All functions that would perform network operations return `error.WebDisabled`.
+//! Type definitions are provided to maintain API compatibility.
 
 const std = @import("std");
 const config_module = @import("../config/mod.zig");
@@ -11,6 +15,191 @@ const config_module = @import("../config/mod.zig");
 
 pub const types = @import("stubs/types.zig");
 pub const client = @import("stubs/client.zig");
+
+// ============================================================================
+// Handlers and Routes Stubs (match mod.zig structure)
+// ============================================================================
+
+/// Stub handlers namespace for API parity.
+pub const handlers = struct {
+    pub const chat = struct {
+        pub const ChatHandler = StubChatHandler;
+        pub const ChatRequest = StubChatRequest;
+        pub const ChatResponse = StubChatResponse;
+    };
+};
+
+/// Stub routes namespace for API parity.
+pub const routes = struct {
+    pub const personas = struct {
+        pub const Router = StubRouter;
+        pub const Route = StubRoute;
+        pub const RouteContext = StubRouteContext;
+    };
+};
+
+// Re-export handler types at top level (like mod.zig)
+pub const ChatHandler = StubChatHandler;
+pub const ChatRequest = StubChatRequest;
+pub const ChatResponse = StubChatResponse;
+
+// Re-export route types at top level (like mod.zig)
+pub const PersonaRouter = StubRouter;
+pub const Route = StubRoute;
+pub const RouteContext = StubRouteContext;
+
+// ============================================================================
+// Stub Type Definitions
+// ============================================================================
+
+/// Stub chat request - matches mod.zig ChatRequest.
+pub const StubChatRequest = struct {
+    content: []const u8,
+    user_id: ?[]const u8 = null,
+    session_id: ?[]const u8 = null,
+    persona: ?[]const u8 = null,
+    context: ?[]const u8 = null,
+    max_tokens: ?u32 = null,
+    temperature: ?f32 = null,
+};
+
+/// Stub chat response - matches mod.zig ChatResponse.
+pub const StubChatResponse = struct {
+    content: []const u8,
+    persona: []const u8,
+    confidence: f32,
+    latency_ms: u64,
+    code_blocks: ?[]const StubCodeBlock = null,
+    references: ?[]const StubSource = null,
+    request_id: ?[]const u8 = null,
+};
+
+const StubCodeBlock = struct {
+    language: []const u8,
+    code: []const u8,
+};
+
+const StubSource = struct {
+    title: []const u8,
+    url: ?[]const u8 = null,
+    confidence: f32,
+};
+
+/// Stub chat handler - returns WebDisabled for all operations.
+pub const StubChatHandler = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) StubChatHandler {
+        return .{ .allocator = allocator };
+    }
+
+    pub fn handleChat(self: *StubChatHandler, request_json: []const u8) ![]const u8 {
+        _ = self;
+        _ = request_json;
+        return error.WebDisabled;
+    }
+
+    pub fn handleAbbeyChat(self: *StubChatHandler, request_json: []const u8) ![]const u8 {
+        _ = self;
+        _ = request_json;
+        return error.WebDisabled;
+    }
+
+    pub fn handleAvivaChat(self: *StubChatHandler, request_json: []const u8) ![]const u8 {
+        _ = self;
+        _ = request_json;
+        return error.WebDisabled;
+    }
+
+    pub fn listPersonas(self: *StubChatHandler) ![]const u8 {
+        _ = self;
+        return error.WebDisabled;
+    }
+
+    pub fn getMetrics(self: *StubChatHandler) ![]const u8 {
+        _ = self;
+        return error.WebDisabled;
+    }
+
+    pub fn formatError(self: *StubChatHandler, code: []const u8, message: []const u8, request_id: ?[]const u8) ![]const u8 {
+        _ = self;
+        _ = code;
+        _ = message;
+        _ = request_id;
+        return error.WebDisabled;
+    }
+};
+
+/// Stub HTTP method enum.
+pub const Method = enum {
+    GET,
+    POST,
+    PUT,
+    DELETE,
+    PATCH,
+    OPTIONS,
+    HEAD,
+};
+
+/// Stub route definition.
+pub const StubRoute = struct {
+    path: []const u8,
+    method: Method,
+    description: []const u8,
+    requires_auth: bool = false,
+};
+
+/// Stub route context.
+pub const StubRouteContext = struct {
+    allocator: std.mem.Allocator,
+    body: []const u8 = "",
+    response_status: u16 = 200,
+    response_content_type: []const u8 = "application/json",
+
+    pub fn init(allocator: std.mem.Allocator, handler: *StubChatHandler) StubRouteContext {
+        _ = handler;
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *StubRouteContext) void {
+        _ = self;
+    }
+
+    pub fn write(self: *StubRouteContext, data: []const u8) !void {
+        _ = self;
+        _ = data;
+    }
+
+    pub fn setStatus(self: *StubRouteContext, status: u16) void {
+        self.response_status = status;
+    }
+
+    pub fn setContentType(self: *StubRouteContext, content_type: []const u8) void {
+        self.response_content_type = content_type;
+    }
+};
+
+/// Stub router.
+pub const StubRouter = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, handler: *StubChatHandler) StubRouter {
+        _ = handler;
+        return .{ .allocator = allocator };
+    }
+
+    pub fn match(self: *const StubRouter, path: []const u8, method: Method) ?StubRoute {
+        _ = self;
+        _ = path;
+        _ = method;
+        return null;
+    }
+
+    pub fn getRouteDefinitions(self: *const StubRouter) []const StubRoute {
+        _ = self;
+        return &.{};
+    }
+};
 
 // ============================================================================
 // Re-exports

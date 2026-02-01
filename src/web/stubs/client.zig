@@ -1,6 +1,16 @@
+//! Client stubs for the web module when disabled.
+//!
+//! These stubs provide the same API surface as the real implementations
+//! but return `error.WebDisabled` for all operations that would perform
+//! network I/O.
+
 const std = @import("std");
 const types = @import("types.zig");
 
+/// Stub HTTP client.
+///
+/// All operations return `error.WebDisabled` to indicate the feature
+/// is not available in this build configuration.
 pub const HttpClient = struct {
     allocator: std.mem.Allocator,
 
@@ -54,6 +64,10 @@ pub const HttpClient = struct {
     }
 };
 
+/// Stub weather client.
+///
+/// All forecast operations return `error.WebDisabled` to indicate the
+/// feature is not available in this build configuration.
 pub const WeatherClient = struct {
     allocator: std.mem.Allocator,
 

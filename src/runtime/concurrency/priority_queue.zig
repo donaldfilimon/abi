@@ -1,7 +1,77 @@
-//! Priority queue for task scheduling.
+//! Priority Queue for Task Scheduling
 //!
-//! Provides priority-based scheduling with multiple priority levels
-//! and optional aging to prevent starvation.
+//! Thread-safe priority queues for task scheduling with support for
+//! multiple priority levels, aging (starvation prevention), and
+//! deadline-based scheduling.
+//!
+//! ## Available Queue Types
+//!
+//! | Queue | Use Case |
+//! |-------|----------|
+//! | `PriorityQueue` | General priority-based scheduling |
+//! | `MultilevelQueue` | Multi-level feedback scheduling (CPU-style) |
+//! | `DeadlineQueue` | Earliest-deadline-first (EDF) scheduling |
+//!
+//! ## Priority Levels
+//!
+//! Five priority levels are available (from highest to lowest):
+//!
+//! | Priority | Weight | Use Case |
+//! |----------|--------|----------|
+//! | `.critical` | 16 | System-critical tasks, immediate execution |
+//! | `.high` | 8 | Time-sensitive user operations |
+//! | `.normal` | 4 | Standard tasks (default) |
+//! | `.low` | 2 | Background processing |
+//! | `.background` | 1 | Idle-time tasks |
+//!
+//! ## Aging (Starvation Prevention)
+//!
+//! Low-priority tasks are automatically boosted over time to prevent
+//! starvation. Configure via `PriorityQueueConfig`:
+//!
+//! ```zig
+//! const config = PriorityQueueConfig{
+//!     .aging_enabled = true,
+//!     .aging_threshold = 100,  // Ticks before boost
+//!     .max_age_boost = 2,      // Max priority levels to boost
+//! };
+//! var queue = PriorityQueue(Task).init(allocator, config);
+//!
+//! // Call periodically to advance aging
+//! queue.tick();
+//! ```
+//!
+//! ## Fair Scheduling
+//!
+//! When `fair_scheduling = true` (default), tasks with the same priority
+//! are processed in FIFO order, ensuring fairness.
+//!
+//! ## Usage Example
+//!
+//! ```zig
+//! var queue = PriorityQueue(Task).init(allocator, .{});
+//! defer queue.deinit();
+//!
+//! // Push with priority
+//! try queue.push(critical_task, .critical);
+//! try queue.push(normal_task, .normal);
+//! try queue.push(background_task, .background);
+//!
+//! // Pop returns highest priority first
+//! const task = queue.pop(); // Gets critical_task
+//!
+//! // Check statistics
+//! const stats = queue.getStats();
+//! std.debug.print("Queue size: {}, Critical: {}\n", .{
+//!     stats.size,
+//!     stats.critical_count,
+//! });
+//! ```
+//!
+//! ## Thread Safety
+//!
+//! All operations are protected by a mutex. For high-contention scenarios,
+//! consider using per-worker queues with work-stealing instead.
 
 const std = @import("std");
 

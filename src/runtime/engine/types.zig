@@ -1,7 +1,55 @@
-//! Type definitions and utilities for the distributed compute engine.
+//! Type Definitions and Utilities for the Distributed Compute Engine
 //!
-//! Contains error types, configuration, result handling types,
-//! and utility structs like Backoff.
+//! This module provides core types, error definitions, and utility functions
+//! used throughout the distributed compute engine.
+//!
+//! ## Error Types
+//!
+//! Two main error sets are provided:
+//!
+//! - `EngineError`: High-level errors returned to users (timeout, queue full, etc.)
+//! - `TaskExecuteError`: Errors that can occur during task execution
+//!
+//! ## Configuration
+//!
+//! `EngineConfig` controls engine behavior:
+//!
+//! | Field | Default | Description |
+//! |-------|---------|-------------|
+//! | `max_tasks` | 1024 | Maximum in-flight tasks |
+//! | `worker_count` | null (auto) | Number of worker threads |
+//! | `numa_enabled` | false | Enable NUMA-aware scheduling |
+//! | `cpu_affinity_enabled` | false | Pin workers to specific CPUs |
+//!
+//! ## Result Handling
+//!
+//! Results are serialized into `ResultBlob` for storage:
+//!
+//! - `ResultKind.value`: Fixed-size types (ints, floats, structs)
+//! - `ResultKind.owned_slice`: Variable-length byte slices
+//! - `ResultKind.task_error`: Task execution failed with error
+//!
+//! The `encodeResult` and type-checking utilities handle serialization.
+//!
+//! ## Backoff Strategy
+//!
+//! The `Backoff` struct implements exponential backoff for spin-wait loops:
+//!
+//! ```zig
+//! var backoff = Backoff{};
+//! while (condition) {
+//!     // Do work...
+//!     if (failed) {
+//!         backoff.spin(); // Exponential backoff
+//!     } else {
+//!         backoff.reset();
+//!     }
+//! }
+//! ```
+//!
+//! Backoff phases:
+//! 1. First 16 spins: CPU spin-loop hint (pause instruction)
+//! 2. After 16 spins: Yield to OS scheduler
 
 const std = @import("std");
 

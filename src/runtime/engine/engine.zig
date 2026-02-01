@@ -1,7 +1,94 @@
-//! Minimal distributed compute engine for running synchronous tasks.
+//! Work-Stealing Distributed Compute Engine
+//!
+//! A high-performance task execution engine using work-stealing scheduling
+//! for optimal CPU utilization. This is the core runtime for executing
+//! asynchronous compute tasks across multiple worker threads.
+//!
+//! ## Architecture
+//!
+//! The engine uses a work-stealing scheduler where each worker thread has its
+//! own local queue. When a worker runs out of tasks, it "steals" work from
+//! other workers' queues, ensuring balanced load distribution.
+//!
+//! ```
+//! ┌─────────────────────────────────────────────────────┐
+//! │              DistributedComputeEngine               │
+//! ├─────────────────────────────────────────────────────┤
+//! │  ┌─────────┐  ┌─────────┐  ┌─────────┐             │
+//! │  │ Worker 0│  │ Worker 1│  │ Worker N│   ...       │
+//! │  │  Queue  │  │  Queue  │  │  Queue  │             │
+//! │  └────┬────┘  └────┬────┘  └────┬────┘             │
+//! │       │  ←steal→   │  ←steal→   │                  │
+//! │       └────────────┴────────────┘                  │
+//! │                     │                              │
+//! │              ┌──────┴──────┐                       │
+//! │              │ ShardedMap  │ (results)             │
+//! │              └─────────────┘                       │
+//! └─────────────────────────────────────────────────────┘
+//! ```
+//!
+//! ## Key Features
+//!
+//! - **Work-stealing scheduling**: Automatic load balancing across workers
+//! - **NUMA awareness**: Optional CPU affinity and topology-aware scheduling
+//! - **Lock-free queues**: Minimal contention between workers
+//! - **Sharded results**: Reduced lock contention for result storage
+//! - **Generic tasks**: Support for any callable returning any result type
+//!
+//! ## Usage
+//!
+//! ```zig
+//! const engine = @import("engine/engine.zig");
+//!
+//! // Initialize with configuration
+//! var compute = try engine.DistributedComputeEngine.init(allocator, .{
+//!     .max_tasks = 1024,
+//!     .worker_count = 4,
+//!     .numa_enabled = true,
+//! });
+//! defer compute.deinit();
+//!
+//! // Submit a task (function or struct with execute method)
+//! const task_id = try compute.submit_task(u32, myTask);
+//!
+//! // Wait for result with timeout
+//! const result = try compute.wait_for_result(u32, task_id, 5000);
+//! ```
+//!
+//! ## Task Types
+//!
+//! Tasks can be:
+//! - A function: `fn(allocator: std.mem.Allocator) !ResultType`
+//! - A struct with `execute` method: `fn(self: @This(), allocator: std.mem.Allocator) !ResultType`
+//!
+//! ## Error Handling
+//!
+//! The engine provides structured error handling:
+//! - `QueueFull`: Task queue is at capacity (increase `max_tasks`)
+//! - `Timeout`: Result not ready within timeout period
+//! - `TaskFailed`: Task execution threw an error
+//! - `UnsupportedResultType`: Result type cannot be serialized
+//!
+//! ## Thread Safety
+//!
+//! The engine is fully thread-safe:
+//! - `submit_task`: Safe to call from any thread
+//! - `wait_for_result`: Safe to call from any thread
+//! - Internal synchronization via atomics and condition variables
+//!
+//! ## Memory Management
+//!
+//! - Task payloads are owned by the engine until execution completes
+//! - For `[]const u8` results, caller receives ownership and must free
+//! - Other result types are copied; no ownership transfer
+//!
+//! ## Module Organization
 //!
 //! This module is split for maintainability:
-//! - engine_types.zig: Type definitions, errors, config, and utilities
+//! - `engine.zig`: Core engine implementation (this file)
+//! - `types.zig`: Type definitions, errors, config, and utilities
+//! - `numa.zig`: NUMA topology detection and CPU affinity
+//! - `steal_policy.zig`: Work-stealing victim selection policies
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -32,38 +119,103 @@ pub const isByteSlice = engine_types.isByteSlice;
 pub const encodeResult = engine_types.encodeResult;
 pub const callTask = engine_types.callTask;
 
+/// Worker thread state.
+/// Each worker has its own task queue for work-stealing.
 const Worker = struct {
+    /// Worker index (0 to worker_count-1)
     index: usize,
+    /// Local task queue (push/pop from back, steal from front)
     queue: concurrency.WorkStealingQueue(*TaskNode),
+    /// OS thread handle (null until started)
     thread: ?std.Thread = null,
 };
 
 /// Number of shards for the results map (reduces lock contention)
 const RESULT_SHARD_COUNT: usize = 16;
 
+/// Internal engine state.
+///
+/// This struct holds all mutable state for the engine, separated from the
+/// public interface to allow the engine handle to be copied without issues.
+///
+/// ## Synchronization Strategy
+///
+/// - `next_id`: Atomic counter for task IDs
+/// - `inflight_tasks`: Atomic counter for backpressure
+/// - `results`: Sharded map with per-shard locking
+/// - `results_cond/mutex`: Condition variable for result waiting
+/// - `work_cond/mutex`: Condition variable for worker wakeup
+/// - `stop_flag`: Atomic flag for graceful shutdown
 const EngineState = struct {
     allocator: std.mem.Allocator,
     config: EngineConfig,
+    /// Monotonically increasing task ID counter
     next_id: std.atomic.Value(TaskId) = std.atomic.Value(TaskId).init(1),
+    /// Number of tasks currently in-flight (for backpressure)
     inflight_tasks: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
     /// Sharded map for reduced lock contention under concurrent load
     results: concurrency.ShardedMap(TaskId, ResultBlob, RESULT_SHARD_COUNT),
+    /// Condition variable for threads waiting on results
     results_cond: std.Thread.Condition = .{},
-    results_mutex: std.Thread.Mutex = .{}, // Only used for condition variable signaling
+    /// Mutex for result condition variable (not for results map)
+    results_mutex: std.Thread.Mutex = .{},
+    /// Array of worker threads
     workers: []Worker,
+    /// Number of tasks pending execution
     pending_tasks: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
+    /// Mutex for worker condition variable
     work_mutex: std.Thread.Mutex = .{},
+    /// Condition variable to wake idle workers
     work_cond: std.Thread.Condition = .{},
+    /// Flag to signal workers to shut down
     stop_flag: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    /// Round-robin counter for task distribution
     next_worker: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
+    /// NUMA topology (optional, for affinity)
     topology: ?*numa.CpuTopology = null,
+    /// Whether we own the topology (and must free it)
     owns_topology: bool = false,
+    /// CPU IDs for worker affinity
     cpu_ids: ?[]usize = null,
 };
 
+/// Distributed Compute Engine
+///
+/// The main entry point for submitting and executing tasks. This struct
+/// is a lightweight handle that can be copied; all state is in `EngineState`.
+///
+/// ## Lifecycle
+///
+/// ```zig
+/// var engine = try DistributedComputeEngine.init(allocator, config);
+/// defer engine.deinit();
+///
+/// // Submit tasks...
+/// const id = try engine.submit_task(u32, myTask);
+/// const result = try engine.wait_for_result(u32, id, 1000);
+/// ```
+///
+/// ## Worker Threads
+///
+/// Workers are started during `init` and run until `deinit`. Each worker:
+/// 1. Tries to pop from its local queue
+/// 2. If empty, tries to steal from other workers
+/// 3. If no work found, sleeps on condition variable
+///
+/// ## Backpressure
+///
+/// The engine limits in-flight tasks to `config.max_tasks`. If this limit
+/// is reached, `submit_task` returns `EngineError.QueueFull`.
 pub const DistributedComputeEngine = struct {
     state: *EngineState,
 
+    /// Initialize the engine with the given configuration.
+    ///
+    /// This starts worker threads that will process tasks. The number of
+    /// workers defaults to `CPU_count - 1` if not specified.
+    ///
+    /// ## Errors
+    /// - `OutOfMemory`: Failed to allocate engine state or workers
     pub fn init(
         allocator: std.mem.Allocator,
         engine_config: EngineConfig,
@@ -187,6 +339,14 @@ pub const DistributedComputeEngine = struct {
     }
 };
 
+/// Initialize engine state and start worker threads.
+///
+/// This function:
+/// 1. Allocates and initializes EngineState
+/// 2. Sets up NUMA topology if enabled
+/// 3. Builds CPU ID list for affinity
+/// 4. Creates worker queues
+/// 5. Spawns worker threads
 fn initState(allocator: std.mem.Allocator, config: EngineConfig) !*EngineState {
     const state = try allocator.create(EngineState);
     errdefer allocator.destroy(state);
@@ -350,6 +510,13 @@ fn deinitResults(state: *EngineState) void {
     state.results.deinit();
 }
 
+/// Atomically reserve a task slot for backpressure control.
+///
+/// Returns true if a slot was reserved, false if at capacity.
+/// Uses compare-and-swap to avoid races between concurrent submitters.
+///
+/// This prevents the engine from being overwhelmed with more tasks
+/// than it can process, allowing callers to implement flow control.
 fn reserveTaskSlot(state: *EngineState) bool {
     const limit = state.config.max_tasks;
     if (limit == 0) {
@@ -437,6 +604,18 @@ fn wakeWorkers(state: *EngineState) void {
     state.work_mutex.unlock();
 }
 
+/// Worker thread main loop.
+///
+/// Each worker runs this function until the engine is shut down.
+/// The loop implements the work-stealing algorithm:
+///
+/// 1. Apply CPU affinity (if enabled)
+/// 2. Try to pop a task from local queue
+/// 3. If no local work, try to steal from other workers
+/// 4. If no work anywhere, use exponential backoff then sleep
+///
+/// The backoff strategy minimizes CPU usage when idle while still
+/// being responsive when new work arrives.
 fn workerMain(state: *EngineState, worker: *Worker) void {
     applyAffinity(state, worker.index);
     var backoff = Backoff{};
@@ -463,6 +642,14 @@ fn waitForWork(state: *EngineState) void {
     }
 }
 
+/// Try to get a task for a worker.
+///
+/// First attempts to pop from the worker's local queue (LIFO order).
+/// If local queue is empty, attempts to steal from other workers
+/// (FIFO order from victim's perspective).
+///
+/// Work-stealing ensures load balancing: busy workers don't starve
+/// idle workers, and tasks are migrated to available capacity.
 fn popTask(state: *EngineState, worker_index: usize) ?*TaskNode {
     if (state.workers[worker_index].queue.pop()) |task| {
         _ = state.pending_tasks.fetchSub(1, .acq_rel);

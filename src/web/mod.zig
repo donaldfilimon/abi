@@ -1,9 +1,103 @@
-//! Web feature helpers for HTTP and weather client access.
+//! Web Module - HTTP Client and Web Utilities
 //!
-//! This module provides:
-//! - HTTP client for making requests
-//! - Weather API client
-//! - Persona API handlers and routes
+//! This module provides HTTP client functionality, weather API integration,
+//! and persona API handlers for the ABI framework. It wraps Zig's standard
+//! library HTTP client with convenient utilities for common web operations.
+//!
+//! ## Features
+//!
+//! - **HTTP Client**: Synchronous HTTP client with configurable options
+//!   - GET and POST requests with JSON support
+//!   - Configurable timeouts, redirects, and response size limits
+//!   - Thread-safe global client with mutex protection
+//!
+//! - **Weather Client**: Integration with Open-Meteo weather API
+//!   - Coordinate-based weather forecasts
+//!   - Location validation and URL building
+//!
+//! - **Persona API**: HTTP handlers and routes for AI persona system
+//!   - Chat request/response handlers
+//!   - REST API routes with OpenAPI documentation
+//!   - Health check and metrics endpoints
+//!
+//! ## Usage Example
+//!
+//! ```zig
+//! const web = @import("abi").web;
+//!
+//! // Initialize the web module
+//! try web.init(allocator);
+//! defer web.deinit();
+//!
+//! // Make an HTTP GET request
+//! const response = try web.get(allocator, "https://api.example.com/data");
+//! defer web.freeResponse(allocator, response);
+//!
+//! if (web.isSuccessStatus(response.status)) {
+//!     // Parse JSON response
+//!     var parsed = try web.parseJsonValue(allocator, response);
+//!     defer parsed.deinit();
+//!     // Use parsed.value...
+//! }
+//! ```
+//!
+//! ## Using the Context API
+//!
+//! For Framework integration, use the Context struct:
+//!
+//! ```zig
+//! const cfg = config_module.WebConfig{};
+//! var ctx = try web.Context.init(allocator, cfg);
+//! defer ctx.deinit();
+//!
+//! const response = try ctx.get("https://api.example.com/data");
+//! defer ctx.freeResponse(response);
+//! ```
+//!
+//! ## POST Request with JSON
+//!
+//! ```zig
+//! const body = "{\"message\": \"hello\"}";
+//! const response = try web.postJson(allocator, "https://api.example.com/chat", body);
+//! defer web.freeResponse(allocator, response);
+//! ```
+//!
+//! ## Request Options
+//!
+//! ```zig
+//! const response = try web.getWithOptions(allocator, url, .{
+//!     .max_response_bytes = 10 * 1024 * 1024,  // 10MB limit
+//!     .user_agent = "my-app/1.0",
+//!     .follow_redirects = true,
+//!     .redirect_limit = 5,
+//!     .extra_headers = &.{
+//!         .{ .name = "Authorization", .value = "Bearer token" },
+//!     },
+//! });
+//! ```
+//!
+//! ## Error Handling
+//!
+//! The module uses `HttpError` for HTTP-specific errors:
+//! - `InvalidUrl`: URL parsing failed
+//! - `InvalidRequest`: Request configuration is invalid
+//! - `RequestFailed`: HTTP request failed
+//! - `ConnectionFailed`: Network connection failed
+//! - `ResponseTooLarge`: Response exceeds max_response_bytes
+//! - `Timeout`: Request timed out
+//! - `ReadFailed`: Error reading response body
+//!
+//! ## Feature Flag
+//!
+//! This module is controlled by `-Denable-web=true` (default: enabled).
+//! When disabled, all operations return `error.WebDisabled`.
+//!
+//! ## Thread Safety
+//!
+//! The global `init()`/`deinit()` functions use mutex protection for
+//! thread-safe access to the default client. The `Context` struct should
+//! be used per-thread or with external synchronization.
+
 const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../config/mod.zig");
@@ -38,12 +132,31 @@ pub const WeatherClient = weather.WeatherClient;
 pub const WeatherConfig = weather.WeatherConfig;
 pub const http = @import("../shared/utils.zig").http;
 
+/// Errors specific to the web module.
 pub const WebError = error{
+    /// The web feature is disabled in the build configuration.
+    /// Enable with `-Denable-web=true`.
     WebDisabled,
 };
 
 /// Web Context for Framework integration.
-/// Wraps the HTTP client functionality to provide a consistent interface with other modules.
+///
+/// Wraps the HTTP client functionality to provide a consistent interface
+/// with other ABI modules. This is the preferred API for Framework users
+/// as it integrates with the unified configuration system.
+///
+/// ## Example
+///
+/// ```zig
+/// var ctx = try web.Context.init(allocator, config);
+/// defer ctx.deinit();
+///
+/// const response = try ctx.get("https://api.example.com/data");
+/// defer ctx.freeResponse(response);
+///
+/// var json = try ctx.parseJsonValue(response);
+/// defer json.deinit();
+/// ```
 pub const Context = struct {
     allocator: std.mem.Allocator,
     config: config_module.WebConfig,

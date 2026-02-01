@@ -359,6 +359,8 @@ pub fn Memoize(comptime K: type, comptime V: type, comptime func: fn (K) V) type
             }
 
             const result = func(arg);
+            // Cache put is best-effort; OOM doesn't affect correctness
+            // since we already have the result to return
             self.cache.put(arg, result) catch {};
             return result;
         }
