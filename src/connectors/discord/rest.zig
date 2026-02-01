@@ -47,10 +47,18 @@ pub const Config = struct {
     intents: u32 = GatewayIntent.ALL_UNPRIVILEGED,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
+        // Securely wipe sensitive credentials before freeing to prevent memory forensics
+        std.crypto.secureZero(u8, self.bot_token);
         allocator.free(self.bot_token);
         if (self.client_id) |id| allocator.free(id);
-        if (self.client_secret) |secret| allocator.free(secret);
-        if (self.public_key) |key| allocator.free(key);
+        if (self.client_secret) |secret| {
+            std.crypto.secureZero(u8, secret);
+            allocator.free(secret);
+        }
+        if (self.public_key) |key| {
+            std.crypto.secureZero(u8, key);
+            allocator.free(key);
+        }
         self.* = undefined;
     }
 

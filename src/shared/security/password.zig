@@ -191,8 +191,8 @@ pub const HashedPassword = struct {
 
     pub fn deinit(self: *HashedPassword, allocator: std.mem.Allocator) void {
         // Securely wipe sensitive data
-        crypto.utils.secureZero(u8, @constCast(self.hash));
-        crypto.utils.secureZero(u8, @constCast(self.salt));
+        crypto.secureZero(u8, @constCast(self.hash));
+        crypto.secureZero(u8, @constCast(self.salt));
         allocator.free(self.hash);
         allocator.free(self.salt);
         allocator.free(self.params);

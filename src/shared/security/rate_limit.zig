@@ -439,7 +439,18 @@ pub const RateLimiter = struct {
         const current: u32 = @intCast(bucket.requests.items.len);
 
         if (current < limit) {
-            bucket.requests.append(self.allocator, now) catch {};
+            // If we can't track the request, deny it (fail-safe for security)
+            bucket.requests.append(self.allocator, now) catch {
+                std.debug.print("[rate_limit] Failed to track request - denying for safety\n", .{});
+                return .{
+                    .allowed = false,
+                    .remaining = 0,
+                    .limit = limit,
+                    .reset_at = now + self.config.window_seconds,
+                    .retry_after = 1, // Retry shortly
+                    .current = current,
+                };
+            };
             bucket.last_update = now;
             return .{
                 .allowed = true,

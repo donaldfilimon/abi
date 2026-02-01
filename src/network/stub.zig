@@ -74,4 +74,8 @@ pub fn init(_: std.mem.Allocator) Error!void {
     return error.NetworkDisabled;
 }
 
+pub fn initWithConfig(_: std.mem.Allocator, _: NetworkConfig) Error!void {
+    return error.NetworkDisabled;
+}
+
 pub fn deinit() void {}

@@ -1,9 +1,41 @@
+//! Ollama API connector.
+//!
+//! Provides integration with locally-running Ollama instances for LLM inference.
+//! Supports both text generation and chat completions.
+//!
+//! ## Environment Variables
+//!
+//! - `ABI_OLLAMA_HOST` or `OLLAMA_HOST`: Host URL (default: http://127.0.0.1:11434)
+//! - `ABI_OLLAMA_MODEL` or `OLLAMA_MODEL`: Default model (default: gpt-oss)
+//!
+//! ## Example
+//!
+//! ```zig
+//! const ollama = @import("abi").connectors.ollama;
+//!
+//! var client = try ollama.createClient(allocator);
+//! defer client.deinit();
+//!
+//! const response = try client.chatSimple("Hello, world!");
+//! ```
+
 const std = @import("std");
 const connectors = @import("mod.zig");
 const shared = @import("shared.zig");
 const async_http = @import("../shared/utils.zig").async_http;
 const json_utils = @import("../shared/utils.zig").json;
 
+/// Errors that can occur when interacting with the Ollama API.
+pub const OllamaError = error{
+    /// The API request failed (network error or non-2xx status).
+    ApiRequestFailed,
+    /// The API response could not be parsed.
+    InvalidResponse,
+    /// The model is not available or still loading.
+    ModelNotAvailable,
+};
+
+/// Configuration for connecting to an Ollama instance.
 pub const Config = struct {
     host: []u8,
     model: []const u8 = "llama2",
@@ -108,7 +140,10 @@ pub const Client = struct {
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
-            return error.ApiRequestFailed;
+            if (http_res.status_code == 404) {
+                return OllamaError.ModelNotAvailable;
+            }
+            return OllamaError.ApiRequestFailed;
         }
 
         return try self.decodeGenerateResponse(http_res.body);
@@ -137,7 +172,10 @@ pub const Client = struct {
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
-            return error.ApiRequestFailed;
+            if (http_res.status_code == 404) {
+                return OllamaError.ModelNotAvailable;
+            }
+            return OllamaError.ApiRequestFailed;
         }
 
         return try self.decodeChatResponse(http_res.body);

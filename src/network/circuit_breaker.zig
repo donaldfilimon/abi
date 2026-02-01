@@ -341,10 +341,13 @@ pub const CircuitBreaker = struct {
         self.stats.consecutive_successes = 0;
 
         // Record failure for windowed counting
+        // If append fails, failure_count still tracks it, but windowed counting may be incomplete
         self.failure_records.append(self.allocator, .{
             .timestamp_ms = now_ms,
             .error_code = error_code,
-        }) catch {};
+        }) catch {
+            std.debug.print("[circuit_breaker] Failed to record failure in history - windowed counting may be inaccurate\n", .{});
+        };
 
         // Clean old records outside the window
         self.cleanOldFailures(now_ms);

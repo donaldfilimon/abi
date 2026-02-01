@@ -205,10 +205,10 @@ pub const CertificateManager = struct {
         algorithm: KeyAlgorithm,
 
         pub fn deinit(self: *PrivateKey, allocator: std.mem.Allocator) void {
-            crypto.utils.secureZero(u8, @constCast(self.encrypted_data));
+            crypto.secureZero(u8, @constCast(self.encrypted_data));
             allocator.free(self.encrypted_data);
-            crypto.utils.secureZero(u8, &self.nonce);
-            crypto.utils.secureZero(u8, &self.tag);
+            crypto.secureZero(u8, &self.nonce);
+            crypto.secureZero(u8, &self.tag);
         }
     };
 

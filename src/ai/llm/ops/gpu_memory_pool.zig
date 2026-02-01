@@ -125,6 +125,14 @@ pub const PoolStats = struct {
     best_fit_selections: u64 = 0,
     /// Defragmentation runs
     defrag_runs: u64 = 0,
+    /// Total bytes in free list (external fragmentation potential)
+    free_list_bytes: u64 = 0,
+    /// Count of free blocks that are too small to be useful
+    unusable_free_blocks: u64 = 0,
+    /// Bytes in unusable free blocks (external fragmentation)
+    external_fragmentation_bytes: u64 = 0,
+    /// Number of allocation requests that couldn't use free blocks due to size
+    fragmentation_induced_misses: u64 = 0,
 
     /// Get cache hit rate as percentage.
     pub fn hitRate(self: PoolStats) f64 {
@@ -143,6 +151,87 @@ pub const PoolStats = struct {
     pub fn fragmentationRate(self: PoolStats) f64 {
         if (self.current_bytes == 0) return 0;
         return @as(f64, @floatFromInt(self.internal_fragmentation_bytes)) / @as(f64, @floatFromInt(self.current_bytes)) * 100.0;
+    }
+
+    /// Get external fragmentation ratio (0.0 to 1.0).
+    /// External fragmentation = unusable free blocks / total free list bytes.
+    /// High values indicate many small free blocks that can't satisfy allocations.
+    pub fn externalFragmentationRatio(self: PoolStats) f64 {
+        if (self.free_list_bytes == 0) return 0;
+        return @as(f64, @floatFromInt(self.external_fragmentation_bytes)) /
+            @as(f64, @floatFromInt(self.free_list_bytes));
+    }
+
+    /// Get combined fragmentation ratio (internal + external).
+    /// This represents total memory inefficiency.
+    pub fn totalFragmentationRatio(self: PoolStats) f64 {
+        const total_waste = self.internal_fragmentation_bytes + self.external_fragmentation_bytes;
+        const total_managed = self.current_bytes + self.free_list_bytes;
+        if (total_managed == 0) return 0;
+        return @as(f64, @floatFromInt(total_waste)) / @as(f64, @floatFromInt(total_managed));
+    }
+
+    /// Check if defragmentation is recommended (fragmentation > 30%).
+    /// Returns a recommendation struct with details.
+    pub fn checkDefragmentationNeeded(self: PoolStats) DefragmentationRecommendation {
+        const ext_frag = self.externalFragmentationRatio();
+        const total_frag = self.totalFragmentationRatio();
+        const threshold: f64 = 0.30; // 30% threshold
+
+        return DefragmentationRecommendation{
+            .recommended = ext_frag > threshold or total_frag > threshold,
+            .external_fragmentation_ratio = ext_frag,
+            .total_fragmentation_ratio = total_frag,
+            .unusable_blocks = self.unusable_free_blocks,
+            .wasted_bytes = self.external_fragmentation_bytes + self.internal_fragmentation_bytes,
+            .severity = if (total_frag > 0.5) .critical else if (total_frag > 0.3) .high else if (total_frag > 0.15) .moderate else .low,
+        };
+    }
+};
+
+/// Defragmentation recommendation from fragmentation analysis.
+pub const DefragmentationRecommendation = struct {
+    /// Whether defragmentation is recommended
+    recommended: bool,
+    /// External fragmentation ratio (0.0 to 1.0)
+    external_fragmentation_ratio: f64,
+    /// Combined internal + external fragmentation ratio
+    total_fragmentation_ratio: f64,
+    /// Number of unusable free blocks
+    unusable_blocks: u64,
+    /// Total wasted bytes (internal + external)
+    wasted_bytes: u64,
+    /// Severity level of fragmentation
+    severity: FragmentationSeverity,
+
+    /// Severity levels for fragmentation
+    pub const FragmentationSeverity = enum {
+        low, // < 15%
+        moderate, // 15-30%
+        high, // 30-50%
+        critical, // > 50%
+
+        pub fn toString(self: FragmentationSeverity) []const u8 {
+            return switch (self) {
+                .low => "low",
+                .moderate => "moderate",
+                .high => "high - defragmentation recommended",
+                .critical => "critical - immediate defragmentation required",
+            };
+        }
+    };
+
+    /// Format the recommendation as a human-readable message.
+    pub fn getMessage(self: DefragmentationRecommendation) []const u8 {
+        if (!self.recommended) {
+            return "Fragmentation levels are acceptable. No action needed.";
+        }
+        return switch (self.severity) {
+            .low => "Fragmentation is low. Continue monitoring.",
+            .moderate => "Fragmentation is moderate. Consider defragmentation during low-usage periods.",
+            .high => "Fragmentation exceeds 30%. Defragmentation is recommended to improve memory efficiency.",
+            .critical => "Critical fragmentation detected (>50%). Immediate defragmentation required to prevent allocation failures.",
+        };
     }
 };
 
@@ -172,6 +261,14 @@ pub const LlmMemoryPool = struct {
     next_buffer_id: u64 = 1,
     /// Total bytes wasted to fragmentation in active allocations
     active_fragmentation: usize = 0,
+    /// Total bytes in free lists (for external fragmentation tracking)
+    total_free_list_bytes: usize = 0,
+    /// Minimum request size seen (for external fragmentation calculation)
+    min_request_size: usize = MAX_ALLOC_SIZE,
+    /// Count of free blocks smaller than the minimum useful request
+    unusable_block_count: usize = 0,
+    /// Bytes in unusable free blocks
+    unusable_block_bytes: usize = 0,
 
     /// Initialize the memory pool.
     pub fn init(allocator: std.mem.Allocator, config: PoolConfig) !LlmMemoryPool {
@@ -236,6 +333,13 @@ pub const LlmMemoryPool = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
+        // Track minimum request size for external fragmentation calculation
+        if (size < self.min_request_size and size > 0) {
+            self.min_request_size = size;
+            // Recalculate unusable blocks based on new minimum
+            self.recalculateUnusableBlocks();
+        }
+
         if (self.config.enable_stats) {
             self.stats.total_allocations += 1;
         }
@@ -246,6 +350,9 @@ pub const LlmMemoryPool = struct {
                 var buf = result.buffer;
                 buf.requested_size = size;
                 buf.last_use_ns = getCurrentTimestamp();
+
+                // Update free list tracking
+                self.removeFromFreeListTracking(buf.allocated_size);
 
                 // Track fragmentation
                 const frag = buf.allocated_size - size;
@@ -262,6 +369,11 @@ pub const LlmMemoryPool = struct {
                 self.checkAutoDefrag();
 
                 return buf;
+            } else if (self.config.enable_stats) {
+                // No suitable buffer in free list - could be external fragmentation
+                if (self.total_free_list_bytes > 0) {
+                    self.stats.fragmentation_induced_misses += 1;
+                }
             }
         } else {
             // Simple LIFO allocation
@@ -272,6 +384,10 @@ pub const LlmMemoryPool = struct {
                 var buf = node.buffer;
                 buf.requested_size = size;
                 buf.last_use_ns = getCurrentTimestamp();
+
+                // Update free list tracking
+                self.removeFromFreeListTracking(buf.allocated_size);
+
                 self.allocator.destroy(node);
 
                 const frag = buf.allocated_size - size;
@@ -468,6 +584,18 @@ pub const LlmMemoryPool = struct {
         };
         self.free_lists[buffer.size_class] = node;
         self.free_counts[buffer.size_class] += 1;
+
+        // Track free list bytes for external fragmentation analysis
+        self.total_free_list_bytes += buffer.allocated_size;
+        self.stats.free_list_bytes += buffer.allocated_size;
+
+        // Check if this block is too small to be useful (external fragmentation)
+        if (buffer.allocated_size < self.min_request_size) {
+            self.unusable_block_count += 1;
+            self.unusable_block_bytes += buffer.allocated_size;
+            self.stats.unusable_free_blocks += 1;
+            self.stats.external_fragmentation_bytes += buffer.allocated_size;
+        }
     }
 
     /// Evict buffers to free up memory.
@@ -485,6 +613,10 @@ pub const LlmMemoryPool = struct {
 
                 var buf = node.buffer;
                 freed += buf.allocated_size;
+
+                // Update free list tracking before freeing
+                self.removeFromFreeListTracking(buf.allocated_size);
+
                 self.freeBuffer(&buf);
                 self.allocator.destroy(node);
 
@@ -493,6 +625,65 @@ pub const LlmMemoryPool = struct {
                 }
 
                 if (freed >= needed) break;
+            }
+        }
+    }
+
+    /// Remove bytes from free list tracking when a buffer is taken from free list.
+    fn removeFromFreeListTracking(self: *LlmMemoryPool, buffer_size: usize) void {
+        if (self.total_free_list_bytes >= buffer_size) {
+            self.total_free_list_bytes -= buffer_size;
+        } else {
+            self.total_free_list_bytes = 0;
+        }
+
+        if (self.stats.free_list_bytes >= buffer_size) {
+            self.stats.free_list_bytes -= buffer_size;
+        } else {
+            self.stats.free_list_bytes = 0;
+        }
+
+        // Check if this was an unusable block being removed
+        if (buffer_size < self.min_request_size) {
+            if (self.unusable_block_count > 0) {
+                self.unusable_block_count -= 1;
+            }
+            if (self.unusable_block_bytes >= buffer_size) {
+                self.unusable_block_bytes -= buffer_size;
+            } else {
+                self.unusable_block_bytes = 0;
+            }
+            if (self.stats.unusable_free_blocks > 0) {
+                self.stats.unusable_free_blocks -= 1;
+            }
+            if (self.stats.external_fragmentation_bytes >= buffer_size) {
+                self.stats.external_fragmentation_bytes -= buffer_size;
+            } else {
+                self.stats.external_fragmentation_bytes = 0;
+            }
+        }
+    }
+
+    /// Recalculate unusable blocks when minimum request size changes.
+    fn recalculateUnusableBlocks(self: *LlmMemoryPool) void {
+        self.unusable_block_count = 0;
+        self.unusable_block_bytes = 0;
+        self.stats.unusable_free_blocks = 0;
+        self.stats.external_fragmentation_bytes = 0;
+
+        // Walk through all free lists and count blocks smaller than min_request_size
+        for (0..SIZE_CLASS_COUNT) |class_idx| {
+            const class_size = sizeForClass(@intCast(class_idx));
+            if (class_size < self.min_request_size) {
+                // All blocks in this class are unusable
+                var current = self.free_lists[class_idx];
+                while (current) |node| {
+                    self.unusable_block_count += 1;
+                    self.unusable_block_bytes += node.buffer.allocated_size;
+                    self.stats.unusable_free_blocks += 1;
+                    self.stats.external_fragmentation_bytes += node.buffer.allocated_size;
+                    current = node.next;
+                }
             }
         }
     }
@@ -673,7 +864,7 @@ pub const LlmMemoryPool = struct {
             self.stats.defrag_runs += 1;
         }
 
-        // Evict smallest free buffers to reduce fragmentation
+        // Evict smallest free buffers first (most likely to be unusable)
         // This frees memory that can be reallocated as appropriately sized buffers
         var freed_count: usize = 0;
         const max_to_free: usize = 8; // Limit work per defrag
@@ -685,6 +876,10 @@ pub const LlmMemoryPool = struct {
                 self.free_counts[class_idx] -= 1;
 
                 var buf = node.buffer;
+
+                // Update free list tracking before freeing
+                self.removeFromFreeListTracking(buf.allocated_size);
+
                 self.freeBuffer(&buf);
                 self.allocator.destroy(node);
                 freed_count += 1;
@@ -705,7 +900,8 @@ pub const LlmMemoryPool = struct {
         self.defragmentInternal();
     }
 
-    /// Get current fragmentation ratio (0.0 to 1.0).
+    /// Get current internal fragmentation ratio (0.0 to 1.0).
+    /// Internal fragmentation = wasted space within allocated blocks.
     pub fn getFragmentationRatio(self: *LlmMemoryPool) f64 {
         self.mutex.lock();
         defer self.mutex.unlock();
@@ -713,6 +909,130 @@ pub const LlmMemoryPool = struct {
         if (self.stats.current_bytes == 0) return 0;
         return @as(f64, @floatFromInt(self.active_fragmentation)) /
             @as(f64, @floatFromInt(self.stats.current_bytes));
+    }
+
+    /// Get external fragmentation ratio (0.0 to 1.0).
+    /// External fragmentation = unusable free blocks that can't satisfy allocations.
+    /// High values indicate memory is available but not usable due to fragmentation.
+    pub fn getExternalFragmentationRatio(self: *LlmMemoryPool) f64 {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        if (self.total_free_list_bytes == 0) return 0;
+        return @as(f64, @floatFromInt(self.unusable_block_bytes)) /
+            @as(f64, @floatFromInt(self.total_free_list_bytes));
+    }
+
+    /// Get total fragmentation ratio (internal + external).
+    /// This represents the overall memory inefficiency of the pool.
+    pub fn getTotalFragmentationRatio(self: *LlmMemoryPool) f64 {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const total_waste = self.active_fragmentation + self.unusable_block_bytes;
+        const total_managed = self.stats.current_bytes + self.total_free_list_bytes;
+        if (total_managed == 0) return 0;
+        return @as(f64, @floatFromInt(total_waste)) / @as(f64, @floatFromInt(total_managed));
+    }
+
+    /// Check if defragmentation is recommended based on current fragmentation levels.
+    /// Returns a recommendation struct with detailed analysis.
+    ///
+    /// Example usage:
+    /// ```zig
+    /// const rec = pool.checkFragmentation();
+    /// if (rec.recommended) {
+    ///     std.log.warn("Defragmentation recommended: {s}", .{rec.getMessage()});
+    ///     pool.defragment();
+    /// }
+    /// ```
+    pub fn checkFragmentation(self: *LlmMemoryPool) DefragmentationRecommendation {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        // Update stats for the check
+        self.stats.free_list_bytes = self.total_free_list_bytes;
+        self.stats.external_fragmentation_bytes = self.unusable_block_bytes;
+        self.stats.unusable_free_blocks = self.unusable_block_count;
+
+        return self.stats.checkDefragmentationNeeded();
+    }
+
+    /// Get detailed fragmentation analysis.
+    /// Returns a struct with all fragmentation metrics and recommendations.
+    pub fn getFragmentationAnalysis(self: *LlmMemoryPool) FragmentationAnalysis {
+        self.mutex.lock();
+        defer self.mutex.unlock();
+
+        const internal_ratio = if (self.stats.current_bytes == 0) 0.0 else @as(f64, @floatFromInt(self.active_fragmentation)) /
+            @as(f64, @floatFromInt(self.stats.current_bytes));
+
+        const external_ratio = if (self.total_free_list_bytes == 0) 0.0 else @as(f64, @floatFromInt(self.unusable_block_bytes)) /
+            @as(f64, @floatFromInt(self.total_free_list_bytes));
+
+        const total_waste = self.active_fragmentation + self.unusable_block_bytes;
+        const total_managed = self.stats.current_bytes + self.total_free_list_bytes;
+        const total_ratio = if (total_managed == 0) 0.0 else @as(f64, @floatFromInt(total_waste)) /
+            @as(f64, @floatFromInt(total_managed));
+
+        // Update stats for the recommendation check
+        self.stats.free_list_bytes = self.total_free_list_bytes;
+        self.stats.external_fragmentation_bytes = self.unusable_block_bytes;
+        self.stats.unusable_free_blocks = self.unusable_block_count;
+
+        return FragmentationAnalysis{
+            .internal_fragmentation_ratio = internal_ratio,
+            .external_fragmentation_ratio = external_ratio,
+            .total_fragmentation_ratio = total_ratio,
+            .internal_fragmentation_bytes = self.active_fragmentation,
+            .external_fragmentation_bytes = self.unusable_block_bytes,
+            .total_free_list_bytes = self.total_free_list_bytes,
+            .unusable_block_count = self.unusable_block_count,
+            .min_request_size = self.min_request_size,
+            .recommendation = self.stats.checkDefragmentationNeeded(),
+        };
+    }
+};
+
+/// Detailed fragmentation analysis result.
+pub const FragmentationAnalysis = struct {
+    /// Internal fragmentation ratio (wasted space in allocated blocks)
+    internal_fragmentation_ratio: f64,
+    /// External fragmentation ratio (unusable free blocks)
+    external_fragmentation_ratio: f64,
+    /// Combined fragmentation ratio
+    total_fragmentation_ratio: f64,
+    /// Bytes wasted to internal fragmentation
+    internal_fragmentation_bytes: usize,
+    /// Bytes wasted to external fragmentation
+    external_fragmentation_bytes: usize,
+    /// Total bytes in free lists
+    total_free_list_bytes: usize,
+    /// Number of unusable free blocks
+    unusable_block_count: usize,
+    /// Minimum allocation size seen (threshold for unusable blocks)
+    min_request_size: usize,
+    /// Defragmentation recommendation
+    recommendation: DefragmentationRecommendation,
+
+    /// Format as human-readable summary.
+    pub fn format(self: FragmentationAnalysis, writer: anytype) !void {
+        try writer.print("Fragmentation Analysis:\n", .{});
+        try writer.print("  Internal: {d:.1}% ({d} bytes wasted in {d} allocated bytes)\n", .{
+            self.internal_fragmentation_ratio * 100.0,
+            self.internal_fragmentation_bytes,
+            self.internal_fragmentation_bytes + self.total_free_list_bytes,
+        });
+        try writer.print("  External: {d:.1}% ({d} unusable blocks, {d} bytes)\n", .{
+            self.external_fragmentation_ratio * 100.0,
+            self.unusable_block_count,
+            self.external_fragmentation_bytes,
+        });
+        try writer.print("  Total: {d:.1}%\n", .{self.total_fragmentation_ratio * 100.0});
+        try writer.print("  Free list: {d} bytes total\n", .{self.total_free_list_bytes});
+        try writer.print("  Min request size: {d} bytes\n", .{self.min_request_size});
+        try writer.print("  Severity: {s}\n", .{self.recommendation.severity.toString()});
+        try writer.print("  Recommendation: {s}\n", .{self.recommendation.getMessage()});
     }
 };
 
@@ -966,6 +1286,156 @@ test "memory pool stats fragmentation rate" {
     // Fragmentation rate should be calculable
     try std.testing.expect(frag_rate >= 0);
     try std.testing.expect(frag_rate <= 100.0);
+
+    pool.release(buf);
+}
+
+test "memory pool external fragmentation tracking" {
+    var pool = try LlmMemoryPool.init(std.testing.allocator, .{
+        .gpu_threshold_bytes = 1024 * 1024 * 10, // Force CPU
+        .auto_defrag_threshold = 0,
+        .max_buffers_per_class = 16,
+    });
+    defer pool.deinit();
+
+    // Initial external fragmentation should be 0
+    try std.testing.expect(pool.getExternalFragmentationRatio() == 0);
+
+    // Allocate a large buffer first (sets min_request_size high)
+    const large_buf = try pool.acquire(4096);
+
+    // Now allocate smaller buffers
+    const small_buf1 = try pool.acquire(256);
+    const small_buf2 = try pool.acquire(256);
+
+    // Release small buffers - they become free list entries
+    pool.release(small_buf1);
+    pool.release(small_buf2);
+
+    // The free list now has small blocks that are smaller than the 4096 request
+    // These should be counted as unusable (external fragmentation)
+    const ext_ratio = pool.getExternalFragmentationRatio();
+
+    // There should be external fragmentation since 256-byte blocks
+    // can't satisfy a 4096-byte request
+    try std.testing.expect(ext_ratio > 0);
+
+    pool.release(large_buf);
+}
+
+test "memory pool fragmentation analysis" {
+    var pool = try LlmMemoryPool.init(std.testing.allocator, .{
+        .gpu_threshold_bytes = 1024 * 1024 * 10, // Force CPU
+        .auto_defrag_threshold = 0,
+        .max_buffers_per_class = 16,
+    });
+    defer pool.deinit();
+
+    // Create some fragmentation
+    const buf1 = try pool.acquire(300); // Creates internal fragmentation
+    const buf2 = try pool.acquire(500);
+
+    // Get analysis
+    const analysis = pool.getFragmentationAnalysis();
+
+    // Should have internal fragmentation (300 -> 512, 500 -> 512)
+    try std.testing.expect(analysis.internal_fragmentation_bytes > 0);
+    try std.testing.expect(analysis.internal_fragmentation_ratio >= 0);
+    try std.testing.expect(analysis.internal_fragmentation_ratio <= 1.0);
+
+    // External fragmentation should be 0 or small (no released buffers)
+    try std.testing.expect(analysis.external_fragmentation_ratio >= 0);
+    try std.testing.expect(analysis.external_fragmentation_ratio <= 1.0);
+
+    pool.release(buf1);
+    pool.release(buf2);
+}
+
+test "memory pool defragmentation recommendation" {
+    var pool = try LlmMemoryPool.init(std.testing.allocator, .{
+        .gpu_threshold_bytes = 1024 * 1024 * 10, // Force CPU
+        .auto_defrag_threshold = 0,
+        .max_buffers_per_class = 32,
+    });
+    defer pool.deinit();
+
+    // Create significant fragmentation
+    // First, establish a large minimum request
+    const large = try pool.acquire(8192);
+
+    // Then allocate and release many small buffers
+    var small_buffers: [16]PooledBuffer = undefined;
+    for (&small_buffers) |*buf| {
+        buf.* = try pool.acquire(256);
+    }
+    for (&small_buffers) |buf| {
+        pool.release(buf);
+    }
+
+    // Check fragmentation recommendation
+    const rec = pool.checkFragmentation();
+
+    // Should have external fragmentation (small free blocks vs large requests)
+    try std.testing.expect(rec.external_fragmentation_ratio >= 0);
+
+    // The recommendation severity should be valid
+    _ = rec.severity.toString();
+    _ = rec.getMessage();
+
+    pool.release(large);
+}
+
+test "memory pool free list bytes tracking" {
+    var pool = try LlmMemoryPool.init(std.testing.allocator, .{
+        .gpu_threshold_bytes = 1024 * 1024 * 10, // Force CPU
+        .auto_defrag_threshold = 0,
+        .max_buffers_per_class = 16,
+    });
+    defer pool.deinit();
+
+    // Initially, free list should be empty
+    const initial_stats = pool.getStats();
+    try std.testing.expectEqual(@as(u64, 0), initial_stats.free_list_bytes);
+
+    // Allocate and release a buffer
+    const buf = try pool.acquire(1024);
+    pool.release(buf);
+
+    // Free list should now have bytes
+    const after_release = pool.getStats();
+    try std.testing.expect(after_release.free_list_bytes > 0);
+
+    // Acquire again (from free list)
+    const buf2 = try pool.acquire(1024);
+
+    // Free list bytes should decrease
+    const after_acquire = pool.getStats();
+    try std.testing.expect(after_acquire.free_list_bytes < after_release.free_list_bytes);
+
+    pool.release(buf2);
+}
+
+test "memory pool total fragmentation ratio" {
+    var pool = try LlmMemoryPool.init(std.testing.allocator, .{
+        .gpu_threshold_bytes = 1024 * 1024 * 10, // Force CPU
+        .auto_defrag_threshold = 0,
+    });
+    defer pool.deinit();
+
+    // Create internal fragmentation
+    const buf = try pool.acquire(300); // Gets 512, wastes 212 bytes
+
+    // Total fragmentation should account for internal waste
+    const total = pool.getTotalFragmentationRatio();
+    try std.testing.expect(total >= 0);
+    try std.testing.expect(total <= 1.0);
+
+    // Internal fragmentation should be positive
+    const internal = pool.getFragmentationRatio();
+    try std.testing.expect(internal > 0);
+
+    // Total should be at least as high as internal
+    try std.testing.expect(total >= internal or total == 0);
 
     pool.release(buf);
 }

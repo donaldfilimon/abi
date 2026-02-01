@@ -56,6 +56,9 @@ pub const ConfigLoader = struct {
 
     pub fn deinit(self: *Self) void {
         for (self.allocated_strings.items) |s| {
+            // Securely wipe strings that may contain sensitive data (paths, tokens)
+            // before freeing to prevent memory forensics
+            std.crypto.secureZero(u8, @constCast(s));
             self.allocator.free(s);
         }
         self.allocated_strings.deinit(self.allocator);

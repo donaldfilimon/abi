@@ -46,6 +46,7 @@ pub const vector_properties = @import("vector_properties.zig");
 pub const database_properties = @import("database_properties.zig");
 pub const serialization_properties = @import("serialization_properties.zig");
 pub const concurrency_properties = @import("concurrency_properties.zig");
+pub const gguf_test = @import("gguf_test.zig");
 
 // Note: Legacy proptest available at src/tests/proptest.zig
 // Import via @import("proptest.zig") from src/tests/mod.zig
@@ -419,4 +420,5 @@ comptime {
     _ = database_properties;
     _ = serialization_properties;
     _ = concurrency_properties;
+    _ = gguf_test;
 }

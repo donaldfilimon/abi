@@ -525,7 +525,7 @@ pub fn build(b: *std.Build) void {
         });
         lib.root_module.addImport("abi", abi_module);
         lib.root_module.addImport("build_options", build_opts);
-        
+
         const lib_install = b.addInstallArtifact(lib, .{});
         b.step("lib", "Build C shared library").dependOn(&lib_install.step);
     }

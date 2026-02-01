@@ -4,11 +4,58 @@
 //! when streaming backends become unhealthy. Uses lock-free atomic
 //! operations for high-performance state management.
 //!
+//! ## State Machine
+//!
+//! ```
+//!                    +------------------+
+//!                    |     CLOSED       |
+//!                    |  (normal flow)   |
+//!                    +--------+---------+
+//!                             |
+//!                  failure_count >= failure_threshold
+//!                             |
+//!                             v
+//!                    +------------------+
+//!             +----->|      OPEN        |<-----+
+//!             |      | (reject all)     |      |
+//!             |      +--------+---------+      |
+//!             |               |                |
+//!             |    timeout_ms elapsed          |
+//!             |               |                |
+//!             |               v                |
+//!             |      +------------------+      |
+//!             |      |    HALF_OPEN     |      |
+//!             |      | (test requests)  |------+
+//!             |      +--------+---------+   any failure
+//!             |               |
+//!             |    success_count >= success_threshold
+//!             |               |
+//!             +---------------+
+//!                   (reset)
+//! ```
+//!
 //! ## States
 //!
-//! - **Closed**: Normal operation, requests pass through
-//! - **Open**: Too many failures, requests rejected immediately
-//! - **Half-Open**: Testing recovery, limited requests allowed
+//! - **Closed**: Normal operation, requests pass through. Failures increment
+//!   `failure_count`. A success resets the counter. When `failure_count`
+//!   reaches `failure_threshold`, transitions to Open.
+//!
+//! - **Open**: Circuit tripped. All requests are rejected immediately with
+//!   `error.CircuitBreakerOpen`. After `timeout_ms` elapses since the last
+//!   failure, transitions to Half-Open to test recovery.
+//!
+//! - **Half-Open**: Recovery testing phase. Allows up to `half_open_max_requests`
+//!   probe requests. If `success_threshold` consecutive successes occur,
+//!   transitions back to Closed. Any single failure immediately returns to Open.
+//!
+//! ## Configuration Parameters
+//!
+//! | Parameter               | Default | Description                                       |
+//! |-------------------------|---------|---------------------------------------------------|
+//! | `failure_threshold`     | 5       | Consecutive failures to open circuit              |
+//! | `success_threshold`     | 2       | Successes in half-open to close circuit           |
+//! | `timeout_ms`            | 60000   | Time in open state before testing recovery        |
+//! | `half_open_max_requests`| 3       | Max concurrent requests allowed in half-open      |
 //!
 //! ## Usage
 //!
@@ -26,6 +73,18 @@
 //!     return error.CircuitBreakerOpen;
 //! }
 //! ```
+//!
+//! ## Error Handling
+//!
+//! When `canAttempt()` returns false, the circuit is open. Callers should:
+//! - Return `error.CircuitBreakerOpen` to propagate the rejection
+//! - Implement fallback logic (cached response, alternative backend)
+//! - Log/metric the rejection for monitoring
+//!
+//! ## Thread Safety
+//!
+//! All operations are lock-free using atomic compare-and-swap. Safe for
+//! concurrent access from multiple threads without external synchronization.
 
 const std = @import("std");
 const platform_time = @import("../../shared/time.zig");

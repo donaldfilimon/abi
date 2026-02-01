@@ -1,4 +1,35 @@
 //! Connector configuration loaders and auth helpers.
+//!
+//! This module provides unified access to various AI service connectors including:
+//!
+//! - **OpenAI**: GPT models via the Chat Completions API
+//! - **Anthropic**: Claude models via the Messages API
+//! - **Ollama**: Local LLM inference server
+//! - **HuggingFace**: Hosted inference API
+//! - **Mistral**: Mistral AI models with OpenAI-compatible API
+//! - **Cohere**: Chat, embeddings, and reranking
+//! - **Discord**: Bot integration for Discord
+//!
+//! ## Usage
+//!
+//! Each connector can be loaded from environment variables:
+//!
+//! ```zig
+//! const connectors = @import("abi").connectors;
+//!
+//! // Load and create clients
+//! if (try connectors.tryLoadOpenAI(allocator)) |config| {
+//!     var client = try connectors.openai.Client.init(allocator, config);
+//!     defer client.deinit();
+//!     // Use client...
+//! }
+//! ```
+//!
+//! ## Security
+//!
+//! All connectors securely wipe API keys from memory using `std.crypto.secureZero`
+//! before freeing to prevent memory forensics attacks.
+
 const std = @import("std");
 
 pub const openai = @import("openai.zig");
@@ -64,7 +95,7 @@ pub const AuthHeader = struct {
 
     pub fn deinit(self: *AuthHeader, allocator: std.mem.Allocator) void {
         // Securely wipe auth token before freeing to prevent memory forensics
-        std.crypto.utils.secureZero(u8, self.value);
+        std.crypto.secureZero(u8, self.value);
         allocator.free(self.value);
         self.* = undefined;
     }

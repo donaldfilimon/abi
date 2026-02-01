@@ -1,12 +1,40 @@
+//! HuggingFace Inference API connector.
+//!
+//! Provides integration with HuggingFace's hosted inference API for running
+//! models without local deployment. Supports text generation and other
+//! inference tasks.
+//!
+//! ## Environment Variables
+//!
+//! - `ABI_HF_API_TOKEN`, `HF_API_TOKEN`, or `HUGGING_FACE_HUB_TOKEN`: API token (required)
+//! - `ABI_HF_BASE_URL`: Base URL (default: https://api-inference.huggingface.co)
+//! - `ABI_HF_MODEL` or `HF_MODEL`: Default model (default: gpt2)
+//!
+//! ## Example
+//!
+//! ```zig
+//! const huggingface = @import("abi").connectors.huggingface;
+//!
+//! var client = try huggingface.createClient(allocator);
+//! defer client.deinit();
+//!
+//! const response = try client.generateTextSimple("Once upon a time");
+//! ```
+
 const std = @import("std");
 const connectors = @import("mod.zig");
 const async_http = @import("../shared/utils.zig").async_http;
 const json_utils = @import("../shared/utils.zig").json;
 
+/// Errors that can occur when interacting with the HuggingFace Inference API.
 pub const HuggingFaceError = error{
+    /// API token was not provided via environment variable.
     MissingApiToken,
+    /// The model is still loading (HTTP 503). Retry after a delay.
     ModelLoading,
+    /// The API request failed (network error or non-2xx status).
     ApiRequestFailed,
+    /// The API response could not be parsed.
     InvalidResponse,
 };
 
@@ -17,6 +45,8 @@ pub const Config = struct {
     timeout_ms: u32 = 60_000,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
+        // Securely wipe API token before freeing to prevent memory forensics
+        std.crypto.secureZero(u8, self.api_token);
         allocator.free(self.api_token);
         allocator.free(self.base_url);
         self.* = undefined;

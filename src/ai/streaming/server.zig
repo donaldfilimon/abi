@@ -200,7 +200,9 @@ pub const StreamingServer = struct {
                     .unauthorized
                 else
                     .internal_server_error;
-                self.respondJson(&request, error_body, status) catch {};
+                self.respondJson(&request, error_body, status) catch |resp_err| {
+                    std.debug.print("Streaming server: failed to send error response: {t}\n", .{resp_err});
+                };
                 return;
             };
         }

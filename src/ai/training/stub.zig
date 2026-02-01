@@ -184,6 +184,17 @@ pub const TrainableModelConfig = struct {
     rope_theta: f32 = 10000.0,
     norm_eps: f32 = 1e-5,
     tie_embeddings: bool = true,
+
+    /// Compute head dimension.
+    pub fn headDim(self: TrainableModelConfig) u32 {
+        if (self.num_heads == 0) return 0;
+        return self.hidden_dim / self.num_heads;
+    }
+
+    /// Compute total number of parameters (stub returns 0).
+    pub fn numParams(_: TrainableModelConfig) usize {
+        return 0;
+    }
 };
 pub const TrainableModel = struct {
     config: TrainableModelConfig = .{},

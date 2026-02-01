@@ -92,10 +92,10 @@ pub const SecretValue = struct {
 
     pub fn deinit(self: *SecretValue) void {
         // Securely wipe encrypted value before freeing
-        crypto.utils.secureZero(u8, @constCast(self.encrypted_value));
+        crypto.secureZero(u8, @constCast(self.encrypted_value));
         self.allocator.free(self.encrypted_value);
-        crypto.utils.secureZero(u8, &self.nonce);
-        crypto.utils.secureZero(u8, &self.tag);
+        crypto.secureZero(u8, &self.nonce);
+        crypto.secureZero(u8, &self.tag);
     }
 };
 
@@ -237,7 +237,7 @@ pub const SecretsManager = struct {
         self.io_backend.deinit();
 
         // Securely wipe master key
-        crypto.utils.secureZero(u8, &self.master_key);
+        crypto.secureZero(u8, &self.master_key);
     }
 
     /// Get a secret by name
@@ -834,7 +834,7 @@ pub const SecureString = struct {
     }
 
     pub fn deinit(self: *SecureString) void {
-        crypto.utils.secureZero(u8, self.data);
+        crypto.secureZero(u8, self.data);
         self.allocator.free(self.data);
     }
 

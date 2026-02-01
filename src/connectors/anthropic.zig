@@ -9,11 +9,17 @@ const shared = @import("shared.zig");
 const async_http = @import("../shared/utils.zig").async_http;
 const json_utils = @import("../shared/utils.zig").json;
 
+/// Errors that can occur when interacting with the Anthropic API.
 pub const AnthropicError = error{
+    /// API key was not provided via environment variable.
     MissingApiKey,
+    /// The API request failed (network error or non-2xx status).
     ApiRequestFailed,
+    /// The API response could not be parsed.
     InvalidResponse,
+    /// Rate limit exceeded (HTTP 429). Retry after backoff.
     RateLimitExceeded,
+    /// Content was filtered by Anthropic's safety systems.
     ContentFiltered,
 };
 
@@ -25,6 +31,8 @@ pub const Config = struct {
     timeout_ms: u32 = 120_000,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
+        // Securely wipe API key before freeing to prevent memory forensics
+        std.crypto.secureZero(u8, self.api_key);
         allocator.free(self.api_key);
         allocator.free(self.base_url);
         self.* = undefined;

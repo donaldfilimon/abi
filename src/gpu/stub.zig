@@ -144,7 +144,7 @@ pub const GpuConfig = config.GpuConfig;
 
 pub const Gpu = struct {
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!Gpu {
-        return stub_common.stubError(error.GpuDisabled);
+        return error.GpuDisabled;
     }
     pub fn deinit(_: *Gpu) void {}
     pub fn isAvailable(_: *const Gpu) bool {

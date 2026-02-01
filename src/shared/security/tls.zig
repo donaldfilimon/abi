@@ -153,9 +153,9 @@ pub const TlsConnection = struct {
         self.read_buffer.deinit(self.allocator);
         self.write_buffer.deinit(self.allocator);
         // Zero out sensitive data
-        crypto.utils.secureZero(u8, &self.session_key);
-        crypto.utils.secureZero(u8, &self.client_random);
-        crypto.utils.secureZero(u8, &self.server_random);
+        crypto.secureZero(u8, &self.session_key);
+        crypto.secureZero(u8, &self.client_random);
+        crypto.secureZero(u8, &self.server_random);
         self.* = undefined;
     }
 

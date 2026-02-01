@@ -518,14 +518,40 @@ pub const HnswIndex = struct {
         self.nodes[node_id].layers[layer].nodes = selected;
 
         // Update bidirectional links with proper pruning
-        for (self.nodes[node_id].layers[layer].nodes) |neighbor| {
+        const node_neighbors = self.nodes[node_id].layers[layer].nodes;
+        for (node_neighbors, 0..) |neighbor, neighbor_idx| {
             if (layer >= self.nodes[neighbor].layers.len) continue;
+
+            // Prefetch next neighbor's layer structure for the next iteration
+            if (neighbor_idx + 1 < node_neighbors.len) {
+                const next_neighbor = node_neighbors[neighbor_idx + 1];
+                if (next_neighbor < self.nodes.len and self.nodes[next_neighbor].layers.len > layer) {
+                    @prefetch(self.nodes[next_neighbor].layers[layer].nodes.ptr, .{
+                        .locality = 2,
+                        .rw = .read,
+                        .cache = .data,
+                    });
+                }
+            }
 
             var neighbor_links = std.AutoHashMapUnmanaged(u32, f32){};
             defer neighbor_links.deinit(allocator);
 
+            const existing_neighbors = self.nodes[neighbor].layers[layer].nodes;
+
+            // Prefetch vectors for existing neighbors
+            for (existing_neighbors) |existing| {
+                if (existing < records.len) {
+                    @prefetch(records[existing].vector.ptr, .{
+                        .locality = 2,
+                        .rw = .read,
+                        .cache = .data,
+                    });
+                }
+            }
+
             // Collect existing neighbors (use cached distances)
-            for (self.nodes[neighbor].layers[layer].nodes) |existing| {
+            for (existing_neighbors) |existing| {
                 const dist = self.computeNodeDistance(records, neighbor, existing);
                 try neighbor_links.put(allocator, existing, dist);
             }
@@ -591,8 +617,20 @@ pub const HnswIndex = struct {
         var selected = std.ArrayListUnmanaged(u32){};
         errdefer selected.deinit(allocator);
 
-        for (sorted.items) |candidate| {
+        for (sorted.items, 0..) |candidate, idx| {
             if (selected.items.len >= m_val) break;
+
+            // Prefetch next candidate's vector for the next iteration
+            if (idx + 1 < sorted.items.len) {
+                const next_id = sorted.items[idx + 1].id;
+                if (next_id < records.len) {
+                    @prefetch(records[next_id].vector.ptr, .{
+                        .locality = 3, // High temporal locality - will be used soon
+                        .rw = .read,
+                        .cache = .data,
+                    });
+                }
+            }
 
             // Check if this candidate is closer to node than to any selected neighbor
             var should_add = true;
@@ -920,7 +958,32 @@ pub const HnswIndex = struct {
     ) void {
         _ = self;
 
+        // Prefetch first few vectors to warm the cache
+        const prefetch_ahead: usize = 4;
+        for (0..@min(prefetch_ahead, neighbor_ids.len)) |i| {
+            const id = neighbor_ids[i];
+            if (id < records.len) {
+                @prefetch(records[id].vector.ptr, .{
+                    .locality = 2, // Moderate locality - used once per batch
+                    .rw = .read,
+                    .cache = .data,
+                });
+            }
+        }
+
         for (neighbor_ids, 0..) |id, i| {
+            // Prefetch ahead for upcoming iterations
+            if (i + prefetch_ahead < neighbor_ids.len) {
+                const future_id = neighbor_ids[i + prefetch_ahead];
+                if (future_id < records.len) {
+                    @prefetch(records[future_id].vector.ptr, .{
+                        .locality = 2,
+                        .rw = .read,
+                        .cache = .data,
+                    });
+                }
+            }
+
             if (id < records.len) {
                 const vec = records[id].vector;
                 const vec_norm = simd.vectorL2Norm(vec);

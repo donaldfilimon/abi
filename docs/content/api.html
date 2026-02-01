@@ -16,6 +16,34 @@ available as fields on the root module and follow stable naming patterns.
     <li><code>abi.shared</code> for shared utilities</li>
 </ul>
 
+<h2>Streaming API</h2>
+<p>
+The streaming module (<code>src/ai/streaming/</code>) provides real-time token streaming
+for LLM inference. Start a streaming server with:
+</p>
+<pre><code>zig build run -- llm serve -m ./models/llama-7b.gguf --preload
+</code></pre>
+
+<h3>Endpoints</h3>
+<ul>
+    <li><code>POST /v1/chat/completions</code> - OpenAI-compatible chat completions (SSE)</li>
+    <li><code>POST /api/stream</code> - Custom ABI streaming endpoint (SSE)</li>
+    <li><code>GET /api/stream/ws</code> - WebSocket streaming (bidirectional, supports cancellation)</li>
+    <li><code>POST /admin/reload</code> - Hot-reload model without restart</li>
+    <li><code>GET /health</code> - Health check</li>
+</ul>
+
+<h3>Features</h3>
+<ul>
+    <li>SSE/WebSocket support for real-time responses</li>
+    <li>Backend routing: local GGUF, OpenAI, Ollama, Anthropic</li>
+    <li>Bearer token authentication with configurable validation</li>
+    <li>Heartbeat keep-alive for long-running connections</li>
+    <li>Model preloading to reduce first-request latency</li>
+    <li>Circuit breakers: per-backend failure isolation with automatic recovery</li>
+    <li>Session caching: resume interrupted streams via SSE Last-Event-ID</li>
+</ul>
+
 <h2>Reference details</h2>
 <p>
 For a full API listing, see the repository level API_REFERENCE.md which is kept

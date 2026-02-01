@@ -11,6 +11,7 @@
 //! - **Observability**: Metrics collection across all modules
 //! - **Cloud Lifecycle**: Cloud adapter integration
 //! - **Full Stack**: All modules together
+//! - **C API**: C bindings lifecycle, feature detection, and database ops
 //!
 //! ## Running Tests
 //!
@@ -61,6 +62,7 @@ comptime {
     _ = @import("cloud_lifecycle_test.zig");
     _ = @import("full_stack_test.zig");
     _ = @import("streaming_recovery.zig");
+    _ = @import("c_api_test.zig");
 }
 
 // ============================================================================

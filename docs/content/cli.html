@@ -8,6 +8,34 @@ with Zig, then run commands through the build system or the installed binary.
 zig build run -- system-info
 </code></pre>
 
+<h2>Available commands</h2>
+<table>
+    <tr><th>Command</th><th>Purpose</th></tr>
+    <tr><td><code>db</code></td><td>Database operations (add, query, stats, optimize, backup, restore, serve)</td></tr>
+    <tr><td><code>agent</code></td><td>AI agent interaction (interactive, one-shot, 13 personas)</td></tr>
+    <tr><td><code>llm</code></td><td>LLM inference (chat, generate, serve, info, bench, download, list)</td></tr>
+    <tr><td><code>model</code></td><td>Model management (list, info, download, remove, search, path)</td></tr>
+    <tr><td><code>train</code></td><td>Training pipeline (run, llm, vision, clip, resume, monitor, info)</td></tr>
+    <tr><td><code>gpu</code></td><td>GPU management (backends, devices, summary, default, status)</td></tr>
+    <tr><td><code>gpu-dashboard</code></td><td>Interactive GPU + Agent monitoring TUI</td></tr>
+    <tr><td><code>bench</code></td><td>Benchmarks (all, simd, memory, ai, quick, concurrency)</td></tr>
+    <tr><td><code>explore</code></td><td>Codebase search (quick/medium/thorough/deep levels)</td></tr>
+    <tr><td><code>embed</code></td><td>Generate embeddings (openai, ollama, mistral, cohere)</td></tr>
+    <tr><td><code>config</code></td><td>Configuration management (init, show, validate)</td></tr>
+    <tr><td><code>network</code></td><td>Network registry (list, register, status)</td></tr>
+    <tr><td><code>plugins</code></td><td>Plugin management (list, enable, disable, info)</td></tr>
+    <tr><td><code>completions</code></td><td>Shell completions (bash, zsh, fish, powershell)</td></tr>
+</table>
+
+<h2>Model management</h2>
+<pre><code>zig build run -- model list                           # List cached models
+zig build run -- model info llama-7b                  # Show model details
+zig build run -- model download TheBloke/Model:Q4_K_M # Download from HuggingFace
+zig build run -- model remove llama-7b                # Remove cached model
+zig build run -- model search llama                   # Search HuggingFace models
+zig build run -- model path llama-7b                  # Get local model path
+</code></pre>
+
 <h2>Common commands</h2>
 <pre><code>zig build run -- db stats
 zig build run -- llm chat --model llama-7b

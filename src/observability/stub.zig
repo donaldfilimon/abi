@@ -153,3 +153,16 @@ pub fn init(_: std.mem.Allocator) Error!void {
 }
 
 pub fn deinit() void {}
+
+// ---------------------------------------------------------------------------
+// System Information Helper (Stub)
+// ---------------------------------------------------------------------------
+pub const system_info = @import("stubs/system_info.zig");
+pub const SystemInfo = system_info.SystemInfo;
+
+// ---------------------------------------------------------------------------
+// Core Metrics Module (Stub)
+// ---------------------------------------------------------------------------
+// Provides stub implementations of shared metric primitives when observability
+// is disabled. These stubs maintain API parity with the real implementation.
+pub const core_metrics = @import("stubs/core_metrics.zig");

@@ -197,9 +197,9 @@ fn writePage(
     const nav_html = try buildNav(allocator, manifest, page.slug);
     defer allocator.free(nav_html);
 
-    var html = std.ArrayList(u8).init(allocator);
+    var html = std.Io.Writer.Allocating.init(allocator);
     defer html.deinit();
-    const writer = html.writer();
+    const writer = &html.writer;
 
     try writeDocument(writer, manifest, page, nav_html, page_body);
 
@@ -265,8 +265,9 @@ fn writeDocument(
 }
 
 fn buildNav(allocator: std.mem.Allocator, manifest: Manifest, active_slug: []const u8) ![]const u8 {
-    var nav = std.ArrayList(u8).init(allocator);
-    const writer = nav.writer();
+    var nav = std.Io.Writer.Allocating.init(allocator);
+    defer nav.deinit();
+    const writer = &nav.writer;
 
     var current_section: ?[]const u8 = null;
     for (manifest.pages) |page| {

@@ -378,9 +378,9 @@ pub const EncryptedData = struct {
 
     pub fn deinit(self: *EncryptedData, allocator: std.mem.Allocator) void {
         allocator.free(self.header.nonce);
-        crypto.utils.secureZero(u8, @constCast(self.ciphertext));
+        crypto.secureZero(u8, @constCast(self.ciphertext));
         allocator.free(self.ciphertext);
-        crypto.utils.secureZero(u8, &self.tag);
+        crypto.secureZero(u8, &self.tag);
     }
 };
 
@@ -397,7 +397,7 @@ pub const KeyWrapper = struct {
     }
 
     pub fn deinit(self: *KeyWrapper) void {
-        crypto.utils.secureZero(u8, &self.master_key);
+        crypto.secureZero(u8, &self.master_key);
     }
 
     /// Wrap (encrypt) a data encryption key

@@ -253,11 +253,11 @@ pub const SecureChannel = struct {
         self.close();
 
         // Securely wipe keys
-        std.crypto.utils.secureZero(u8, &self.send_key);
-        std.crypto.utils.secureZero(u8, &self.recv_key);
+        std.crypto.secureZero(u8, &self.send_key);
+        std.crypto.secureZero(u8, &self.recv_key);
 
         if (self.local_keypair) |*kp| {
-            std.crypto.utils.secureZero(u8, &kp.secret_key);
+            std.crypto.secureZero(u8, &kp.secret_key);
         }
 
         if (self.remote_address) |addr| {
@@ -535,11 +535,11 @@ pub const SecureChannel = struct {
         hash.final(&new_key);
 
         // Securely update keys
-        std.crypto.utils.secureZero(u8, &self.send_key);
-        std.crypto.utils.secureZero(u8, &self.recv_key);
+        std.crypto.secureZero(u8, &self.send_key);
+        std.crypto.secureZero(u8, &self.recv_key);
         @memcpy(&self.send_key, &new_key);
         @memcpy(&self.recv_key, &new_key);
-        std.crypto.utils.secureZero(u8, &new_key);
+        std.crypto.secureZero(u8, &new_key);
     }
 
     fn encrypt(self: *SecureChannel, plaintext: []const u8) ChannelError![]u8 {

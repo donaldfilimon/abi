@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-01-31.
+> **Codebase Status:** Synced with repository as of 2026-02-01.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -260,11 +260,11 @@ See CONTRIBUTING.md for details.
 | 0.3.0 | Q1 2026 | 2026-01-23 | GPU backends, AI features |
 | 0.4.0 | Q2 2026 | 2026-01-25 | Performance, DX, documentation |
 | 0.5.0 | Q3 2026 | 2026-01-26 | Distributed systems, HA |
-| 0.6.0 | Q4 2026 | 2026-01-31 | Llama-CPP parity, streaming recovery |
+| 0.6.0 | Q4 2026 | 2026-02-01 | Llama-CPP parity, C API, streaming recovery |
 
 > **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
 
-*Last updated: January 31, 2026*
+*Last updated: February 1, 2026*
 
 ## Zig 0.16 Migration Status
 
@@ -343,7 +343,7 @@ For detailed implementation notes, see:
 - **Commercial support** – SLA offerings, priority support, and custom development services documented in the docs site.
 - **Cloud integration** – Deploy ABI on AWS Lambda, Google Cloud Functions, and Azure Functions.
 
-## Version 0.6.0 - Q4 2026 (Complete except bindings)
+## Version 0.6.0 - Q4 2026 (Complete)
 
 ### Llama-CPP Parity (Complete)
 All Llama-CPP parity tasks have been completed. See TODO.md for details:
@@ -355,7 +355,7 @@ All Llama-CPP parity tasks have been completed. See TODO.md for details:
 - [x] Sampling strategies (src/ai/llm/generation/sampler.zig)
 - [x] Async token streaming (src/ai/llm/generation/streaming.zig)
 - [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
-- [ ] C-compatible API (bindings removed for reimplementation; tracked under Language bindings)
+- [x] C-compatible API (`src/c_api.zig` with `abi_` prefixed functions, header generation via `zig build c-header`)
 - [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
 
 ### Modular Codebase Refactor (Complete - 2026-01-17)
@@ -392,3 +392,21 @@ Created dedicated platform detection module:
 - [x] Shared module consolidation (src/shared/mod.zig)
 - [x] I/O utilities moved to shared (src/shared/io.zig)
 - [x] Updated abi.zig exports (platform, shared)
+
+### C API & FFI Bindings (Complete - 2026-02-01)
+Full C-compatible FFI layer implemented:
+- [x] C API module (`src/c_api.zig`) with `abi_` prefixed functions
+- [x] Framework, GPU, AI, Database module bindings
+- [x] C header generation (`zig build c-header`)
+- [x] `AbiError` struct for error handling across FFI boundary
+- [x] Memory-safe string handling with proper allocation/free
+- [x] 889/894 tests passing
+
+### Stub/Real API Parity (Complete - 2026-02-01)
+All feature stubs synchronized with real module signatures:
+- [x] Network stub: `registerNode()`, `connectToNode()`, `broadcastMessage()`, `getClusterStatus()`
+- [x] Observability stub: `recordLatency()`, `getActiveAlerts()`, `getMetricsSummary()`
+- [x] AI streaming stub: `StreamRecovery`, `SessionCache`, `StreamingMetrics` types
+- [x] AI training stub: `ViTConfig`, `CLIPConfig` with matching field types
+- [x] GPU stub: `deinitialize()` return type fixed to `GpuError!void`
+- [x] All feature-disabled builds verified (`-Denable-ai=false`, `-Denable-gpu=false`, etc.)

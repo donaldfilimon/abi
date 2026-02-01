@@ -562,6 +562,36 @@ zig build run -- llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token my-secre
 - **Circuit breakers**: Per-backend failure isolation with automatic recovery
 - **Session caching**: Resume interrupted streams via SSE Last-Event-ID
 
+**Circuit Breaker Pattern:**
+
+The circuit breaker (`src/ai/streaming/circuit_breaker.zig`) prevents cascading failures by tracking backend health:
+
+```
+    CLOSED ──(failures >= threshold)──> OPEN ──(timeout)──> HALF_OPEN
+       ^                                  ^                     │
+       │                                  │                     │
+       └──(successes >= threshold)────────┴──(any failure)──────┘
+```
+
+| State | Behavior |
+|-------|----------|
+| **Closed** | Normal operation; failures increment counter, success resets it |
+| **Open** | All requests rejected with `error.CircuitBreakerOpen` |
+| **Half-Open** | Limited probe requests; success closes, failure reopens |
+
+**Configuration:**
+```zig
+var cb = CircuitBreaker.init(.{
+    .failure_threshold = 5,       // Failures to trip circuit
+    .success_threshold = 2,       // Successes to recover
+    .timeout_ms = 60_000,         // Time before recovery attempt
+    .half_open_max_requests = 3,  // Probes allowed in half-open
+});
+```
+
+**Common errors:**
+- `error.CircuitBreakerOpen` - Backend unhealthy, use fallback or retry later
+
 **Stream Recovery (Circuit Breaker Pattern):**
 ```zig
 const streaming = @import("abi").ai.streaming;

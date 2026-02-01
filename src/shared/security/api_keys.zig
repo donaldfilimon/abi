@@ -48,8 +48,8 @@ fn secureWipe(data: anytype) void {
             else => return,
         };
 
-        // Use std.crypto.utils.secureZero for guaranteed wiping
-        std.crypto.utils.secureZero(u8, @constCast(slice));
+        // Use std.crypto.secureZero for guaranteed wiping
+        std.crypto.secureZero(u8, @constCast(slice));
     }
 }
 

@@ -64,6 +64,36 @@ pub const formats = struct {
     pub const openai = stub_root.formats_openai;
 };
 
+// Error recovery and resilience stubs
+pub const recovery = struct {
+    pub const StreamRecovery = stub_root.StreamRecovery;
+    pub const RecoveryConfig = stub_root.RecoveryConfig;
+    pub const RecoveryEvent = stub_root.RecoveryEvent;
+    pub const RecoveryCallback = stub_root.RecoveryCallback;
+};
+
+pub const circuit_breaker = struct {
+    pub const CircuitBreaker = stub_root.CircuitBreaker;
+    pub const CircuitBreakerConfig = stub_root.CircuitBreakerConfig;
+    pub const CircuitState = stub_root.CircuitState;
+};
+
+pub const retry_config = struct {
+    pub const StreamingRetryConfig = stub_root.StreamingRetryConfig;
+    pub const StreamingRetryableErrors = stub_root.StreamingRetryableErrors;
+};
+
+pub const session_cache = struct {
+    pub const SessionCache = stub_root.SessionCache;
+    pub const SessionCacheConfig = stub_root.SessionCacheConfig;
+    pub const CachedToken = stub_root.CachedToken;
+};
+
+pub const streaming_metrics = struct {
+    pub const StreamingMetrics = stub_root.StreamingMetrics;
+    pub const StreamingMetricsConfig = stub_root.StreamingMetricsConfig;
+};
+
 /// Stub SSE event.
 pub const SseEvent = struct {
     event: ?[]const u8 = null,
@@ -229,6 +259,22 @@ pub const StreamToken = struct {
     is_end: bool = false,
     timestamp_ns: i128 = 0,
     sequence_index: usize = 0,
+
+    pub fn clone(self: StreamToken, allocator: std.mem.Allocator) !StreamToken {
+        return .{
+            .id = self.id,
+            .text = try allocator.dupe(u8, self.text),
+            .log_prob = self.log_prob,
+            .is_end = self.is_end,
+            .timestamp_ns = self.timestamp_ns,
+            .sequence_index = self.sequence_index,
+        };
+    }
+
+    pub fn deinit(self: *StreamToken, allocator: std.mem.Allocator) void {
+        allocator.free(self.text);
+        self.* = undefined;
+    }
 };
 
 /// Stub stream event type.
@@ -247,9 +293,13 @@ pub const StreamEvent = struct {
     token: ?StreamToken = null,
     metadata: ?[]const u8 = null,
     error_message: ?[]const u8 = null,
+    timestamp_ns: i128 = 0,
 
     pub fn tokenEvent(token: StreamToken) StreamEvent {
-        return .{ .event_type = .token, .token = token };
+        return .{
+            .event_type = .token,
+            .token = token,
+        };
     }
 
     pub fn startEvent() StreamEvent {
@@ -258,6 +308,17 @@ pub const StreamEvent = struct {
 
     pub fn endEvent() StreamEvent {
         return .{ .event_type = .end };
+    }
+
+    pub fn errorEvent(message: []const u8) StreamEvent {
+        return .{
+            .event_type = .error_event,
+            .error_message = message,
+        };
+    }
+
+    pub fn heartbeatEvent() StreamEvent {
+        return .{ .event_type = .heartbeat };
     }
 };
 
@@ -517,9 +578,25 @@ pub const StreamConfig = struct {
 
 /// Stub stream stats.
 pub const StreamStats = struct {
+    /// Total tokens generated.
     total_tokens: usize = 0,
+    /// Total characters generated.
     total_chars: usize = 0,
+    /// Tokens per second.
     tokens_per_second: f64 = 0,
+    /// Start time (elapsed ns from timer).
+    start_time_ns: u64 = 0,
+    /// End time (elapsed ns from timer).
+    end_time_ns: u64 = 0,
+    /// Number of pauses.
+    pause_count: usize = 0,
+    /// Time spent paused (ns).
+    pause_duration_ns: u64 = 0,
+
+    pub fn duration_ms(self: *const StreamStats) f64 {
+        const duration_ns = self.end_time_ns - self.start_time_ns - self.pause_duration_ns;
+        return @as(f64, @floatFromInt(duration_ns)) / 1_000_000.0;
+    }
 };
 
 /// Stub enhanced streaming generator.
@@ -546,6 +623,12 @@ pub const EnhancedStreamingGenerator = struct {
         return error.StreamingDisabled;
     }
 
+    /// Flush buffered tokens.
+    pub fn flush(self: *EnhancedStreamingGenerator) ![][]u8 {
+        _ = self;
+        return error.StreamingDisabled;
+    }
+
     pub fn complete(self: *EnhancedStreamingGenerator) ![]u8 {
         _ = self;
         return error.StreamingDisabled;
@@ -569,24 +652,47 @@ pub fn createSseStream(allocator: std.mem.Allocator, chunks: []const []const u8)
 // ============================================================================
 
 /// Stub streaming server error.
-pub const StreamingServerError = error{
+pub const StreamingServerError = std.mem.Allocator.Error || error{
     StreamingDisabled,
     InvalidAddress,
     InvalidRequest,
     Unauthorized,
     BackendError,
+    StreamError,
+    WebSocketError,
+    RequestTooLarge,
+    UnsupportedBackend,
+    ModelReloadFailed,
+    ModelReloadTimeout,
+    CircuitBreakerOpen,
 };
 
 /// Stub server config.
 pub const ServerConfig = struct {
+    /// Listen address (e.g., "127.0.0.1:8080")
     address: []const u8 = "127.0.0.1:8080",
+    /// Bearer token for authentication (null = no auth required)
     auth_token: ?[]const u8 = null,
+    /// Allow health endpoint without auth
     allow_health_without_auth: bool = true,
+    /// Default backend for inference
     default_backend: BackendType = .local,
+    /// Heartbeat interval in milliseconds (0 = disabled)
     heartbeat_interval_ms: u64 = 15000,
+    /// Maximum concurrent streams
     max_concurrent_streams: u32 = 100,
+    /// Enable OpenAI-compatible endpoints
     enable_openai_compat: bool = true,
+    /// Enable WebSocket support
     enable_websocket: bool = true,
+    /// Path to default local model (optional, for local backend)
+    default_model_path: ?[]const u8 = null,
+    /// Pre-load model on server start (reduces first-request latency)
+    preload_model: bool = false,
+    /// Enable error recovery (circuit breakers, retry, session caching)
+    enable_recovery: bool = true,
+    /// Recovery configuration (only used if enable_recovery is true)
+    recovery_config: RecoveryConfig = .{},
 };
 
 /// Stub streaming server.
@@ -776,4 +882,364 @@ pub const formats_openai = struct {
         _ = model;
         return error.StreamingDisabled;
     }
+};
+
+// ============================================================================
+// Error Recovery and Resilience Stubs
+// ============================================================================
+
+/// Stub recovery event.
+pub const RecoveryEvent = enum {
+    backend_failure,
+    backend_recovery,
+    circuit_opened,
+    circuit_closed,
+    retry_attempt,
+    retry_exhausted,
+    session_restored,
+};
+
+/// Stub recovery callback.
+pub const RecoveryCallback = *const fn (event: RecoveryEvent, backend: BackendType, context: ?*anyopaque) void;
+
+/// Stub recovery config.
+pub const RecoveryConfig = struct {
+    /// Enable recovery features.
+    enabled: bool = true,
+    /// Retry configuration.
+    retry: StreamingRetryConfig = .{},
+    /// Circuit breaker configuration (applied per-backend).
+    circuit_breaker: CircuitBreakerConfig = .{},
+    /// Session cache configuration.
+    session_cache: SessionCacheConfig = .{},
+    /// Metrics configuration.
+    metrics: StreamingMetricsConfig = .{},
+
+    /// Use local backend defaults (faster timeouts).
+    pub fn forLocalBackend() RecoveryConfig {
+        return .{
+            .retry = StreamingRetryConfig.forLocalBackend(),
+            .circuit_breaker = .{
+                .failure_threshold = 3,
+                .timeout_ms = 10_000,
+            },
+        };
+    }
+
+    /// Use external backend defaults (more tolerant).
+    pub fn forExternalBackend() RecoveryConfig {
+        return .{
+            .retry = StreamingRetryConfig.forExternalBackend(),
+            .circuit_breaker = .{
+                .failure_threshold = 5,
+                .timeout_ms = 120_000,
+            },
+        };
+    }
+};
+
+/// Stub stream recovery.
+pub const StreamRecovery = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, config: RecoveryConfig) !StreamRecovery {
+        _ = config;
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *StreamRecovery) void {
+        self.* = undefined;
+    }
+
+    pub fn isBackendAvailable(self: *StreamRecovery, backend: BackendType) bool {
+        _ = self;
+        _ = backend;
+        return false;
+    }
+
+    pub fn recordSuccess(self: *StreamRecovery, backend: BackendType) void {
+        _ = self;
+        _ = backend;
+    }
+
+    pub fn recordFailure(self: *StreamRecovery, backend: BackendType) void {
+        _ = self;
+        _ = backend;
+    }
+
+    pub fn getCircuitState(self: *StreamRecovery, backend: BackendType) CircuitState {
+        _ = self;
+        _ = backend;
+        return .open;
+    }
+};
+
+/// Stub circuit state.
+pub const CircuitState = enum {
+    closed,
+    open,
+    half_open,
+};
+
+/// Stub circuit breaker config.
+pub const CircuitBreakerConfig = struct {
+    failure_threshold: u32 = 5,
+    success_threshold: u32 = 2,
+    timeout_ms: u64 = 60_000,
+    half_open_max_requests: u32 = 3,
+};
+
+/// Stub circuit breaker.
+pub const CircuitBreaker = struct {
+    state: CircuitState = .open,
+
+    pub fn init(config: CircuitBreakerConfig) CircuitBreaker {
+        _ = config;
+        return .{};
+    }
+
+    pub fn deinit(self: *CircuitBreaker) void {
+        self.* = undefined;
+    }
+
+    pub fn allowRequest(self: *CircuitBreaker) bool {
+        _ = self;
+        return false;
+    }
+
+    pub fn recordSuccess(self: *CircuitBreaker) void {
+        _ = self;
+    }
+
+    pub fn recordFailure(self: *CircuitBreaker) void {
+        _ = self;
+    }
+
+    pub fn getState(self: *const CircuitBreaker) CircuitState {
+        return self.state;
+    }
+
+    pub fn reset(self: *CircuitBreaker) void {
+        _ = self;
+    }
+};
+
+/// Stub streaming retryable errors.
+pub const StreamingRetryableErrors = struct {
+    connection_reset: bool = true,
+    timeout: bool = true,
+    server_error: bool = true,
+    rate_limited: bool = true,
+};
+
+/// Stub base retry config.
+pub const BaseRetryConfig = struct {
+    max_retries: u32 = 3,
+    initial_delay_ns: u64 = 100_000_000,
+    max_delay_ns: u64 = 5_000_000_000,
+    multiplier: f64 = 2.0,
+    jitter: bool = true,
+    jitter_factor: f64 = 0.25,
+    total_timeout_ns: u64 = 0,
+};
+
+/// Stub streaming retry config.
+pub const StreamingRetryConfig = struct {
+    /// Base retry config for connection/backend operations.
+    base: BaseRetryConfig = .{},
+    /// Enable retry for streaming operations.
+    enabled: bool = true,
+    /// Timeout for single token generation (milliseconds).
+    token_timeout_ms: u64 = 30_000,
+    /// Timeout for entire stream (milliseconds, 0 = unlimited).
+    total_timeout_ms: u64 = 300_000,
+    /// Backend-specific timeout for initial connection (milliseconds).
+    backend_timeout_ms: u64 = 60_000,
+    /// WebSocket ping/pong timeout (milliseconds).
+    websocket_timeout_ms: u64 = 30_000,
+
+    /// Create a config optimized for local backends.
+    pub fn forLocalBackend() StreamingRetryConfig {
+        return .{
+            .base = .{
+                .max_retries = 2,
+                .initial_delay_ns = 50_000_000,
+                .max_delay_ns = 1_000_000_000,
+                .multiplier = 2.0,
+                .jitter = true,
+                .jitter_factor = 0.1,
+                .total_timeout_ns = 0,
+            },
+            .token_timeout_ms = 10_000,
+            .backend_timeout_ms = 10_000,
+        };
+    }
+
+    /// Create a config optimized for external API backends.
+    pub fn forExternalBackend() StreamingRetryConfig {
+        return .{
+            .base = .{
+                .max_retries = 3,
+                .initial_delay_ns = 200_000_000,
+                .max_delay_ns = 10_000_000_000,
+                .multiplier = 2.0,
+                .jitter = true,
+                .jitter_factor = 0.25,
+                .total_timeout_ns = 0,
+            },
+            .token_timeout_ms = 60_000,
+            .backend_timeout_ms = 120_000,
+        };
+    }
+
+    /// Convert token timeout to nanoseconds.
+    pub fn tokenTimeoutNs(self: StreamingRetryConfig) u64 {
+        return self.token_timeout_ms * std.time.ns_per_ms;
+    }
+
+    /// Convert total timeout to nanoseconds.
+    pub fn totalTimeoutNs(self: StreamingRetryConfig) u64 {
+        return self.total_timeout_ms * std.time.ns_per_ms;
+    }
+
+    /// Convert backend timeout to nanoseconds.
+    pub fn backendTimeoutNs(self: StreamingRetryConfig) u64 {
+        return self.backend_timeout_ms * std.time.ns_per_ms;
+    }
+};
+
+/// Stub cached token.
+pub const CachedToken = struct {
+    /// SSE event ID for this token.
+    event_id: u64,
+    /// Token text (owned by cache).
+    text: []const u8,
+    /// Timestamp when cached (milliseconds).
+    timestamp_ms: i64,
+};
+
+/// Stub session cache config.
+pub const SessionCacheConfig = struct {
+    /// Maximum number of sessions to cache.
+    max_sessions: usize = 100,
+    /// Maximum tokens to cache per session.
+    max_tokens_per_session: usize = 100,
+    /// Time-to-live for cached sessions (milliseconds).
+    ttl_ms: u64 = 300_000,
+    /// Cleanup interval for expired sessions (milliseconds).
+    cleanup_interval_ms: u64 = 60_000,
+};
+
+/// Stub session cache.
+pub const SessionCache = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, config: SessionCacheConfig) SessionCache {
+        _ = config;
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *SessionCache) void {
+        self.* = undefined;
+    }
+
+    pub fn storeToken(
+        self: *SessionCache,
+        session_id: []const u8,
+        event_id: u64,
+        token: []const u8,
+        backend: BackendType,
+        prompt_hash: u64,
+    ) !void {
+        _ = self;
+        _ = session_id;
+        _ = event_id;
+        _ = token;
+        _ = backend;
+        _ = prompt_hash;
+        return error.StreamingDisabled;
+    }
+
+    pub fn getTokensAfter(
+        self: *SessionCache,
+        session_id: []const u8,
+        after_event_id: u64,
+    ) ![]CachedToken {
+        _ = self;
+        _ = session_id;
+        _ = after_event_id;
+        return error.StreamingDisabled;
+    }
+
+    pub fn invalidateSession(self: *SessionCache, session_id: []const u8) void {
+        _ = self;
+        _ = session_id;
+    }
+
+    pub fn cleanup(self: *SessionCache) void {
+        _ = self;
+    }
+};
+
+/// Stub streaming metrics config.
+pub const StreamingMetricsConfig = struct {
+    /// Enable per-backend metrics.
+    enable_backend_metrics: bool = true,
+    /// Enable session cache metrics.
+    enable_cache_metrics: bool = true,
+    /// Enable recovery metrics.
+    enable_recovery_metrics: bool = true,
+};
+
+/// Stub streaming metrics.
+pub const StreamingMetrics = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator, config: StreamingMetricsConfig) StreamingMetrics {
+        _ = config;
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *StreamingMetrics) void {
+        self.* = undefined;
+    }
+
+    pub fn recordLatency(self: *StreamingMetrics, backend: BackendType, latency_ms: f64) void {
+        _ = self;
+        _ = backend;
+        _ = latency_ms;
+    }
+
+    pub fn recordTokens(self: *StreamingMetrics, backend: BackendType, count: usize) void {
+        _ = self;
+        _ = backend;
+        _ = count;
+    }
+
+    pub fn recordError(self: *StreamingMetrics, backend: BackendType, error_type: []const u8) void {
+        _ = self;
+        _ = backend;
+        _ = error_type;
+    }
+
+    pub fn getStats(self: *const StreamingMetrics, backend: BackendType) BackendMetricStats {
+        _ = self;
+        _ = backend;
+        return .{};
+    }
+
+    pub fn reset(self: *StreamingMetrics) void {
+        _ = self;
+    }
+};
+
+/// Stub backend metric stats (used by StreamingMetrics).
+pub const BackendMetricStats = struct {
+    total_requests: u64 = 0,
+    total_tokens: u64 = 0,
+    total_errors: u64 = 0,
+    avg_latency_ms: f64 = 0,
+    p50_latency_ms: f64 = 0,
+    p99_latency_ms: f64 = 0,
+    tokens_per_second: f64 = 0,
 };

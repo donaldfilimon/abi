@@ -279,7 +279,9 @@ pub const PeerConnection = struct {
 
         // Set socket options
         if (config.enable_keepalive) {
-            std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.KEEPALIVE, &std.mem.toBytes(@as(c_int, 1))) catch {};
+            std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.KEEPALIVE, &std.mem.toBytes(@as(c_int, 1))) catch |err| {
+                std.log.warn("Transport: Failed to set SO_KEEPALIVE on socket: {}", .{err});
+            };
         }
 
         // Set connect timeout via SO_RCVTIMEO/SO_SNDTIMEO
@@ -289,8 +291,12 @@ pub const PeerConnection = struct {
             .sec = @intCast(timeout_s),
             .usec = @intCast(timeout_us),
         };
-        std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.RCVTIMEO, std.mem.asBytes(&timeval)) catch {};
-        std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.SNDTIMEO, std.mem.asBytes(&timeval)) catch {};
+        std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.RCVTIMEO, std.mem.asBytes(&timeval)) catch |err| {
+            std.log.warn("Transport: Failed to set SO_RCVTIMEO on socket: {}", .{err});
+        };
+        std.posix.setsockopt(socket, std.posix.SOL.SOCKET, std.posix.SO.SNDTIMEO, std.mem.asBytes(&timeval)) catch |err| {
+            std.log.warn("Transport: Failed to set SO_SNDTIMEO on socket: {}", .{err});
+        };
 
         // Connect
         std.posix.connect(socket, &addr.any, addr.getOsSockLen()) catch {
@@ -532,7 +538,9 @@ pub const TcpTransport = struct {
             std.posix.SOL.SOCKET,
             std.posix.SO.REUSEADDR,
             &std.mem.toBytes(@as(c_int, 1)),
-        ) catch {};
+        ) catch |err| {
+            std.log.warn("Transport: Failed to set SO_REUSEADDR on listener socket: {}", .{err});
+        };
 
         // Bind
         std.posix.bind(listener, &addr.any, addr.getOsSockLen()) catch {

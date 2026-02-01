@@ -29,7 +29,7 @@ const FrameworkContext = struct {
     // But `abi.Framework` is the high level entry.
     // Let's assume for now we just use the database module directly as requested by the C API structure (db_create takes a framework handle but doesn't seem to use it heavily yet).
     // Actually, `abi.Framework` might initialize global state.
-    
+
     // For now, let's keep it simple.
     dummy: u8,
 };
@@ -72,9 +72,9 @@ const C_DatabaseHandle = struct {
 
 export fn abi_db_create(handle: ?*anyopaque, dimension: u32, db_out: *?*anyopaque) AbiStatus {
     _ = handle; // Framework handle unused for now, but good for future context
-    _ = dimension; // WDBX typically infers dimension or sets it via config. 
-                   // For now we ignore it in creation and assume the DB handles it dynamically or defaults.
-                   // TODO: Pass dimension to wdbx if API supports it.
+    _ = dimension; // WDBX typically infers dimension or sets it via config.
+    // For now we ignore it in creation and assume the DB handles it dynamically or defaults.
+    // TODO: Pass dimension to wdbx if API supports it.
 
     // Generate a unique temporary name for the in-memory/embedded DB
     // In a real C API we'd probably want to pass a path.
@@ -84,10 +84,10 @@ export fn abi_db_create(handle: ?*anyopaque, dimension: u32, db_out: *?*anyopaqu
     defer allocator.free(name);
 
     const db_handle = abi.database.open(allocator, name) catch return .ABI_ERROR_UNKNOWN;
-    
+
     const wrapper = allocator.create(C_DatabaseHandle) catch return .ABI_ERROR_OUT_OF_MEMORY;
     wrapper.handle = db_handle;
-    
+
     db_out.* = wrapper;
     return .ABI_SUCCESS;
 }
@@ -97,7 +97,7 @@ export fn abi_db_insert(db_handle: ?*anyopaque, id: u64, vector: [*]const f32, v
     const wrapper = @as(*C_DatabaseHandle, @ptrCast(@alignCast(db_handle)));
 
     const vec_slice = vector[0..vector_len];
-    
+
     // We pass null metadata for now
     abi.database.insert(&wrapper.handle, id, vec_slice, null) catch return .ABI_ERROR_UNKNOWN;
 
