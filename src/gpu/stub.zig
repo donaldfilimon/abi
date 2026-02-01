@@ -153,6 +153,114 @@ pub const MemoryInfo = struct {
 pub const MemoryMode = enum { automatic, explicit, unified };
 pub const MemoryLocation = enum { device, host };
 
+// Lock-free memory pool stubs
+pub const CACHE_LINE_SIZE: usize = 64;
+pub const INVALID_HANDLE: ResourceHandle = .{ .value = std.math.maxInt(u64) };
+
+pub const ResourceHandle = struct {
+    value: u64,
+
+    pub fn init(index: u32, generation: u32) ResourceHandle {
+        return .{ .value = (@as(u64, generation) << 32) | @as(u64, index) };
+    }
+
+    pub fn index(self: ResourceHandle) u32 {
+        return @truncate(self.value);
+    }
+
+    pub fn generation(self: ResourceHandle) u32 {
+        return @truncate(self.value >> 32);
+    }
+
+    pub fn isValid(self: ResourceHandle) bool {
+        return self.value != INVALID_HANDLE.value;
+    }
+};
+
+pub const LockFreePoolConfig = struct {
+    max_slots: u32 = 1024,
+    slot_size: usize = 65536,
+    enable_thread_local_cache: bool = true,
+    thread_local_cache_size: usize = 8,
+    preallocate: bool = false,
+};
+
+pub const LockFreePoolStats = struct {
+    total_allocations: u64 = 0,
+    total_deallocations: u64 = 0,
+    active_allocations: u64 = 0,
+    peak_allocations: u64 = 0,
+    failed_allocations: u64 = 0,
+    invalid_accesses: u64 = 0,
+
+    pub fn utilizationRatio(self: LockFreePoolStats, max_slots: usize) f64 {
+        if (max_slots == 0) return 0.0;
+        return @as(f64, @floatFromInt(self.active_allocations)) / @as(f64, @floatFromInt(max_slots));
+    }
+
+    pub fn allocationSuccessRate(self: LockFreePoolStats) f64 {
+        const total = self.total_allocations + self.failed_allocations;
+        if (total == 0) return 1.0;
+        return @as(f64, @floatFromInt(self.total_allocations)) / @as(f64, @floatFromInt(total));
+    }
+};
+
+pub const LockFreeResourcePool = struct {
+    pub fn init(_: std.mem.Allocator, _: LockFreePoolConfig) Error!LockFreeResourcePool {
+        return error.GpuDisabled;
+    }
+
+    pub fn deinit(_: *LockFreeResourcePool) void {}
+
+    pub fn allocate(_: *LockFreeResourcePool) Error!ResourceHandle {
+        return error.GpuDisabled;
+    }
+
+    pub fn free(_: *LockFreeResourcePool, _: ResourceHandle) bool {
+        return false;
+    }
+
+    pub fn get(_: *LockFreeResourcePool, _: ResourceHandle) ?*Buffer {
+        return null;
+    }
+
+    pub fn validateHandle(_: *const LockFreeResourcePool, _: ResourceHandle) bool {
+        return false;
+    }
+
+    pub fn getStats(_: *const LockFreeResourcePool) LockFreePoolStats {
+        return .{};
+    }
+
+    pub fn freeSlotCount(_: *const LockFreeResourcePool) u64 {
+        return 0;
+    }
+};
+
+pub const ConcurrentCommandPool = struct {
+    pub const CommandBuffer = struct {
+        pub fn reset(_: *CommandBuffer) void {}
+        pub fn write(_: *CommandBuffer, _: []const u8) Error!void {
+            return error.GpuDisabled;
+        }
+        pub fn getWritten(_: *const CommandBuffer) []const u8 {
+            return &.{};
+        }
+    };
+
+    pub fn init(_: std.mem.Allocator, _: usize, _: usize) Error!ConcurrentCommandPool {
+        return error.GpuDisabled;
+    }
+
+    pub fn deinit(_: *ConcurrentCommandPool) void {}
+
+    pub fn acquire(_: *ConcurrentCommandPool) ?*CommandBuffer {
+        return null;
+    }
+
+    pub fn release(_: *ConcurrentCommandPool, _: *CommandBuffer) void {}
+};
+
 pub const Stream = struct {};
 pub const StreamOptions = struct {};
 pub const StreamPriority = enum { low, normal, high };
