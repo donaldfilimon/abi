@@ -512,6 +512,24 @@ pub fn build(b: *std.Build) void {
         mobile_step.dependOn(&b.addInstallArtifact(abi_ios, .{ .dest_dir = .{ .override = .{ .custom = "mobile/ios" } } }).step);
     }
 
+    // C Library (Shared Object / DLL)
+    if (pathExists("src/bindings/c/exports.zig")) {
+        const lib = b.addLibrary(.{
+            .name = "abi",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/bindings/c/exports.zig"),
+                .target = target,
+                .optimize = optimize,
+            }),
+            .linkage = .dynamic,
+        });
+        lib.root_module.addImport("abi", abi_module);
+        lib.root_module.addImport("build_options", build_opts);
+        
+        const lib_install = b.addInstallArtifact(lib, .{});
+        b.step("lib", "Build C shared library").dependOn(&lib_install.step);
+    }
+
     // Performance Verification Tool (build only - requires piped input to run)
     // Usage: zig build bench-competitive -- --json | ./zig-out/bin/abi-check-perf
     if (pathExists("tools/perf/check.zig")) {
