@@ -22,12 +22,10 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     // Initialize framework
-    var framework = abi.Framework.builder(allocator)
+    var builder = abi.Framework.builder(allocator);
+    var framework = try builder
         .withAiDefaults()
-        .build() catch |err| {
-        std.debug.print("Framework initialization failed: {t}\n", .{err});
-        return err;
-    };
+        .build();
     defer framework.deinit();
 
     // === Model Loading Demo ===

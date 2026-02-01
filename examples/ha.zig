@@ -17,12 +17,10 @@ pub fn main() !void {
     std.debug.print("=== ABI High Availability Example ===\n\n", .{});
 
     // Initialize framework
-    var framework = abi.Framework.builder(allocator)
+    var builder = abi.Framework.builder(allocator);
+    var framework = try builder
         .withDatabaseDefaults()
-        .build() catch |err| {
-        std.debug.print("Framework initialization failed: {t}\n", .{err});
-        return err;
-    };
+        .build();
     defer framework.deinit();
 
     // === HA Manager Setup ===

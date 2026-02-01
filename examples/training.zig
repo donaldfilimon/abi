@@ -24,12 +24,10 @@ pub fn main() !void {
     // Initialize framework with training enabled
     var ai_config = abi.config.AiConfig.defaults();
     ai_config.training = .{};
-    var framework = abi.Framework.builder(allocator)
+    var builder = abi.Framework.builder(allocator);
+    var framework = try builder
         .withAi(ai_config)
-        .build() catch |err| {
-        std.debug.print("Framework initialization failed: {t}\n", .{err});
-        return err;
-    };
+        .build();
     defer framework.deinit();
 
     // === Training Configuration ===

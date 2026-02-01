@@ -11,7 +11,8 @@ pub fn main() !void {
         return;
     }
 
-    var framework = try abi.Framework.builder(allocator)
+    var builder = abi.Framework.builder(allocator);
+    var framework = try builder
         .withAiDefaults()
         .build();
     defer framework.deinit();

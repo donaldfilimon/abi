@@ -114,34 +114,52 @@ pub const UnaryFunctions = struct {
     normalize: []const u8 = "normalize",
     length: []const u8 = "length",
 
-    pub fn get(self: UnaryFunctions, op: expr.UnaryOp) []const u8 {
-        return switch (op) {
-            .abs => self.abs,
-            .sqrt => self.sqrt,
-            .sin => self.sin,
-            .cos => self.cos,
-            .tan => self.tan,
-            .asin => self.asin,
-            .acos => self.acos,
-            .atan => self.atan,
-            .sinh => self.sinh,
-            .cosh => self.cosh,
-            .tanh => self.tanh,
-            .exp => self.exp,
-            .exp2 => self.exp2,
-            .log => self.log,
-            .log2 => self.log2,
-            .log10 => self.log10,
-            .floor => self.floor,
-            .ceil => self.ceil,
-            .round => self.round,
-            .trunc => self.trunc,
-            .fract => self.fract,
-            .sign => self.sign,
-            .normalize => self.normalize,
-            .length => self.length,
-            else => "unknown",
-        };
+    /// Number of UnaryOp enum values.
+    pub const unary_op_count = @typeInfo(expr.UnaryOp).@"enum".fields.len;
+
+    /// Comptime-generated lookup table type.
+    pub const LookupTable = [unary_op_count][]const u8;
+
+    /// Build a lookup table at comptime from a UnaryFunctions config.
+    /// Call this at comptime with a known config value.
+    pub fn buildTable(comptime self: UnaryFunctions) LookupTable {
+        comptime var table: LookupTable = undefined;
+        // Initialize all entries to "unknown" for ops we don't have mappings for
+        for (&table) |*entry| {
+            entry.* = "unknown";
+        }
+        // Map supported operations
+        table[@intFromEnum(expr.UnaryOp.abs)] = self.abs;
+        table[@intFromEnum(expr.UnaryOp.sqrt)] = self.sqrt;
+        table[@intFromEnum(expr.UnaryOp.sin)] = self.sin;
+        table[@intFromEnum(expr.UnaryOp.cos)] = self.cos;
+        table[@intFromEnum(expr.UnaryOp.tan)] = self.tan;
+        table[@intFromEnum(expr.UnaryOp.asin)] = self.asin;
+        table[@intFromEnum(expr.UnaryOp.acos)] = self.acos;
+        table[@intFromEnum(expr.UnaryOp.atan)] = self.atan;
+        table[@intFromEnum(expr.UnaryOp.sinh)] = self.sinh;
+        table[@intFromEnum(expr.UnaryOp.cosh)] = self.cosh;
+        table[@intFromEnum(expr.UnaryOp.tanh)] = self.tanh;
+        table[@intFromEnum(expr.UnaryOp.exp)] = self.exp;
+        table[@intFromEnum(expr.UnaryOp.exp2)] = self.exp2;
+        table[@intFromEnum(expr.UnaryOp.log)] = self.log;
+        table[@intFromEnum(expr.UnaryOp.log2)] = self.log2;
+        table[@intFromEnum(expr.UnaryOp.log10)] = self.log10;
+        table[@intFromEnum(expr.UnaryOp.floor)] = self.floor;
+        table[@intFromEnum(expr.UnaryOp.ceil)] = self.ceil;
+        table[@intFromEnum(expr.UnaryOp.round)] = self.round;
+        table[@intFromEnum(expr.UnaryOp.trunc)] = self.trunc;
+        table[@intFromEnum(expr.UnaryOp.fract)] = self.fract;
+        table[@intFromEnum(expr.UnaryOp.sign)] = self.sign;
+        table[@intFromEnum(expr.UnaryOp.normalize)] = self.normalize;
+        table[@intFromEnum(expr.UnaryOp.length)] = self.length;
+        return table;
+    }
+
+    /// O(1) lookup using comptime-generated table.
+    pub fn get(comptime self: UnaryFunctions, op: expr.UnaryOp) []const u8 {
+        const table = comptime self.buildTable();
+        return table[@intFromEnum(op)];
     }
 };
 
@@ -157,19 +175,36 @@ pub const BinaryFunctions = struct {
     step: []const u8 = "step",
     reflect: []const u8 = "reflect",
 
-    pub fn get(self: BinaryFunctions, op: expr.BinaryOp) []const u8 {
-        return switch (op) {
-            .min => self.min,
-            .max => self.max,
-            .pow => self.pow,
-            .atan2 => self.atan2,
-            .dot => self.dot,
-            .cross => self.cross,
-            .distance => self.distance,
-            .step => self.step,
-            .reflect => self.reflect,
-            else => "unknown",
-        };
+    /// Number of BinaryOp enum values.
+    pub const binary_op_count = @typeInfo(expr.BinaryOp).@"enum".fields.len;
+
+    /// Comptime-generated lookup table type.
+    pub const LookupTable = [binary_op_count][]const u8;
+
+    /// Build a lookup table at comptime from a BinaryFunctions config.
+    pub fn buildTable(comptime self: BinaryFunctions) LookupTable {
+        comptime var table: LookupTable = undefined;
+        // Initialize all entries to "unknown" for ops we don't have mappings for
+        for (&table) |*entry| {
+            entry.* = "unknown";
+        }
+        // Map supported operations
+        table[@intFromEnum(expr.BinaryOp.min)] = self.min;
+        table[@intFromEnum(expr.BinaryOp.max)] = self.max;
+        table[@intFromEnum(expr.BinaryOp.pow)] = self.pow;
+        table[@intFromEnum(expr.BinaryOp.atan2)] = self.atan2;
+        table[@intFromEnum(expr.BinaryOp.dot)] = self.dot;
+        table[@intFromEnum(expr.BinaryOp.cross)] = self.cross;
+        table[@intFromEnum(expr.BinaryOp.distance)] = self.distance;
+        table[@intFromEnum(expr.BinaryOp.step)] = self.step;
+        table[@intFromEnum(expr.BinaryOp.reflect)] = self.reflect;
+        return table;
+    }
+
+    /// O(1) lookup using comptime-generated table.
+    pub fn get(comptime self: BinaryFunctions, op: expr.BinaryOp) []const u8 {
+        const table = comptime self.buildTable();
+        return table[@intFromEnum(op)];
     }
 };
 
@@ -200,21 +235,35 @@ pub const TypeNames = struct {
     f64_: []const u8,
     void_: []const u8,
 
-    pub fn getScalar(self: TypeNames, scalar: types.ScalarType) []const u8 {
-        return switch (scalar) {
-            .bool_ => self.bool_,
-            .i8 => self.i8_,
-            .i16 => self.i16_,
-            .i32 => self.i32_,
-            .i64 => self.i64_,
-            .u8 => self.u8_,
-            .u16 => self.u16_,
-            .u32 => self.u32_,
-            .u64 => self.u64_,
-            .f16 => self.f16_,
-            .f32 => self.f32_,
-            .f64 => self.f64_,
-        };
+    /// Number of ScalarType enum values.
+    pub const scalar_type_count = @typeInfo(types.ScalarType).@"enum".fields.len;
+
+    /// Comptime-generated lookup table type.
+    pub const LookupTable = [scalar_type_count][]const u8;
+
+    /// Build a lookup table at comptime from a TypeNames config.
+    pub fn buildTable(comptime self: TypeNames) LookupTable {
+        comptime var table: LookupTable = undefined;
+        // Map all scalar types
+        table[@intFromEnum(types.ScalarType.bool_)] = self.bool_;
+        table[@intFromEnum(types.ScalarType.i8)] = self.i8_;
+        table[@intFromEnum(types.ScalarType.i16)] = self.i16_;
+        table[@intFromEnum(types.ScalarType.i32)] = self.i32_;
+        table[@intFromEnum(types.ScalarType.i64)] = self.i64_;
+        table[@intFromEnum(types.ScalarType.u8)] = self.u8_;
+        table[@intFromEnum(types.ScalarType.u16)] = self.u16_;
+        table[@intFromEnum(types.ScalarType.u32)] = self.u32_;
+        table[@intFromEnum(types.ScalarType.u64)] = self.u64_;
+        table[@intFromEnum(types.ScalarType.f16)] = self.f16_;
+        table[@intFromEnum(types.ScalarType.f32)] = self.f32_;
+        table[@intFromEnum(types.ScalarType.f64)] = self.f64_;
+        return table;
+    }
+
+    /// O(1) lookup using comptime-generated table.
+    pub fn getScalar(comptime self: TypeNames, scalar: types.ScalarType) []const u8 {
+        const table = comptime self.buildTable();
+        return table[@intFromEnum(scalar)];
     }
 };
 
@@ -233,13 +282,35 @@ pub const VectorNaming = struct {
     /// For generic style (WGSL): format like vec{N}<{T}>
     generic_format: bool = false,
 
-    pub fn getPrefix(self: VectorNaming, element: types.ScalarType) []const u8 {
-        return switch (element) {
-            .f16, .f32, .f64 => self.float_prefix,
-            .i8, .i16, .i32, .i64 => self.int_prefix,
-            .u8, .u16, .u32, .u64 => self.uint_prefix,
-            .bool_ => self.bool_prefix,
-        };
+    /// Number of ScalarType enum values.
+    pub const scalar_type_count = @typeInfo(types.ScalarType).@"enum".fields.len;
+
+    /// Comptime-generated lookup table type.
+    pub const LookupTable = [scalar_type_count][]const u8;
+
+    /// Build a lookup table at comptime from a VectorNaming config.
+    pub fn buildTable(comptime self: VectorNaming) LookupTable {
+        comptime var table: LookupTable = undefined;
+        // Map scalar types to their vector prefixes
+        table[@intFromEnum(types.ScalarType.f16)] = self.float_prefix;
+        table[@intFromEnum(types.ScalarType.f32)] = self.float_prefix;
+        table[@intFromEnum(types.ScalarType.f64)] = self.float_prefix;
+        table[@intFromEnum(types.ScalarType.i8)] = self.int_prefix;
+        table[@intFromEnum(types.ScalarType.i16)] = self.int_prefix;
+        table[@intFromEnum(types.ScalarType.i32)] = self.int_prefix;
+        table[@intFromEnum(types.ScalarType.i64)] = self.int_prefix;
+        table[@intFromEnum(types.ScalarType.u8)] = self.uint_prefix;
+        table[@intFromEnum(types.ScalarType.u16)] = self.uint_prefix;
+        table[@intFromEnum(types.ScalarType.u32)] = self.uint_prefix;
+        table[@intFromEnum(types.ScalarType.u64)] = self.uint_prefix;
+        table[@intFromEnum(types.ScalarType.bool_)] = self.bool_prefix;
+        return table;
+    }
+
+    /// O(1) lookup using comptime-generated table.
+    pub fn getPrefix(comptime self: VectorNaming, element: types.ScalarType) []const u8 {
+        const table = comptime self.buildTable();
+        return table[@intFromEnum(element)];
     }
 };
 

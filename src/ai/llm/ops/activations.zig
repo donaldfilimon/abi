@@ -6,9 +6,37 @@
 //! - Softmax: exp(x) / sum(exp(x))
 //!
 //! Vector operations use SIMD acceleration when available.
+//!
+//! Performance note: All mathematical constants are computed at comptime
+//! to avoid runtime overhead. See the CompTimeConstants namespace.
 
 const std = @import("std");
 const simd = @import("../../../shared/simd.zig");
+
+// ============================================================================
+// Comptime Constants
+// ============================================================================
+// Pre-computed mathematical constants to avoid runtime computation.
+// These values are embedded directly in the binary at compile time.
+
+/// Mathematical constants computed at compile time for GELU and other activations.
+pub const CompTimeConstants = struct {
+    /// sqrt(2/pi) for GELU tanh approximation (evaluated at comptime)
+    pub const SQRT_2_OVER_PI: f32 = @sqrt(2.0 / std.math.pi);
+    /// GELU coefficient (0.044715)
+    pub const GELU_COEFF: f32 = 0.044715;
+    /// sqrt(2) for exact GELU using erf (evaluated at comptime)
+    pub const SQRT_2: f32 = @sqrt(2.0);
+    /// 1/sqrt(2) for exact GELU (evaluated at comptime)
+    pub const INV_SQRT_2: f32 = 1.0 / @sqrt(2.0);
+    /// Abramowitz and Stegun erf approximation coefficients
+    pub const ERF_A1: f32 = 0.254829592;
+    pub const ERF_A2: f32 = -0.284496736;
+    pub const ERF_A3: f32 = 1.421413741;
+    pub const ERF_A4: f32 = -1.453152027;
+    pub const ERF_A5: f32 = 1.061405429;
+    pub const ERF_P: f32 = 0.3275911;
+};
 
 /// SiLU (Swish) activation: x * sigmoid(x)
 /// Used in LLaMA, Mistral, and other modern LLMs.
@@ -41,11 +69,9 @@ pub fn sigmoid(x: f32) f32 {
 
 /// GELU activation (tanh approximation).
 /// GELU(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
+/// Uses comptime-evaluated constants for sqrt(2/pi) and coefficient.
 pub fn gelu(x: f32) f32 {
-    const sqrt_2_pi = 0.7978845608028654; // sqrt(2/pi)
-    const coeff = 0.044715;
-
-    const inner = sqrt_2_pi * (x + coeff * x * x * x);
+    const inner = CompTimeConstants.SQRT_2_OVER_PI * (x + CompTimeConstants.GELU_COEFF * x * x * x);
     return 0.5 * x * (1.0 + std.math.tanh(inner));
 }
 
@@ -55,28 +81,21 @@ pub fn geluInPlace(x: []f32) void {
 }
 
 /// Error function approximation (Horner's method polynomial approximation)
+/// Uses Abramowitz and Stegun approximation 7.1.26 with comptime coefficients.
 fn erf(x: f32) f32 {
-    // Abramowitz and Stegun approximation 7.1.26
-    const a1: f32 = 0.254829592;
-    const a2: f32 = -0.284496736;
-    const a3: f32 = 1.421413741;
-    const a4: f32 = -1.453152027;
-    const a5: f32 = 1.061405429;
-    const p: f32 = 0.3275911;
-
     const sign: f32 = if (x < 0) -1.0 else 1.0;
     const abs_x = @abs(x);
 
-    const t = 1.0 / (1.0 + p * abs_x);
-    const y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * @exp(-abs_x * abs_x);
+    const t = 1.0 / (1.0 + CompTimeConstants.ERF_P * abs_x);
+    const y = 1.0 - (((((CompTimeConstants.ERF_A5 * t + CompTimeConstants.ERF_A4) * t) + CompTimeConstants.ERF_A3) * t + CompTimeConstants.ERF_A2) * t + CompTimeConstants.ERF_A1) * t * @exp(-abs_x * abs_x);
 
     return sign * y;
 }
 
 /// GELU exact (slower but more accurate).
+/// Uses comptime-evaluated 1/sqrt(2) for division.
 pub fn geluExact(x: f32) f32 {
-    const sqrt_2 = 1.4142135623730951;
-    return 0.5 * x * (1.0 + erf(x / sqrt_2));
+    return 0.5 * x * (1.0 + erf(x * CompTimeConstants.INV_SQRT_2));
 }
 
 /// ReLU activation: max(0, x)

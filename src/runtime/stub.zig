@@ -6,623 +6,105 @@
 const std = @import("std");
 
 // ============================================================================
-// Errors
+// Local Stubs Imports
 // ============================================================================
 
-pub const Error = error{
-    RuntimeDisabled,
-    EngineCreationFailed,
-    TaskCreationFailed,
-    TaskGroupFailed,
-    SchedulingFailed,
-    ConcurrencyError,
-    MemoryPoolError,
-    AlreadyInitialized,
-    NotInitialized,
-    ModuleDisabled,
-    FeatureNotAvailable,
-    InvalidOperation,
-};
-
-pub const EngineError = Error;
-pub const SchedulingError = Error;
-pub const ConcurrencyError = Error;
-pub const MemoryError = Error;
+pub const types = @import("stubs/types.zig");
+pub const engine_mod = @import("stubs/engine.zig");
+pub const scheduling_mod = @import("stubs/scheduling.zig");
+pub const concurrency_mod = @import("stubs/concurrency.zig");
+pub const memory_mod = @import("stubs/memory.zig");
+pub const workload_mod = @import("stubs/workload.zig");
 
 // ============================================================================
+// Re-exports
+// ============================================================================
+
+pub const Error = types.Error;
+pub const EngineError = types.EngineError;
+pub const SchedulingError = types.SchedulingError;
+pub const ConcurrencyError = types.ConcurrencyError;
+pub const MemoryError = types.MemoryError;
+
 // Engine Types
-// ============================================================================
+pub const Engine = engine_mod.Engine;
+pub const DistributedComputeEngine = engine_mod.DistributedComputeEngine;
+pub const EngineConfig = engine_mod.EngineConfig;
+pub const EngineStats = engine_mod.EngineStats;
+pub const TaskId = engine_mod.TaskId;
+pub const ResultCache = engine_mod.ResultCache;
+pub const CacheConfig = engine_mod.CacheConfig;
+pub const CacheStats = engine_mod.CacheStats;
+pub const Memoize = engine_mod.Memoize;
+pub const NumaStealPolicy = engine_mod.NumaStealPolicy;
+pub const RoundRobinStealPolicy = engine_mod.RoundRobinStealPolicy;
+pub const StealPolicyConfig = engine_mod.StealPolicyConfig;
+pub const StealStats = engine_mod.StealStats;
+pub const BenchmarkResult = engine_mod.BenchmarkResult;
+pub const runBenchmarks = engine_mod.runBenchmarks;
 
-pub const Engine = struct {
-    pub fn init(_: std.mem.Allocator, _: EngineConfig) Error!Engine {
-        return error.RuntimeDisabled;
-    }
+// Workload Types
+pub const ExecutionContext = workload_mod.ExecutionContext;
+pub const WorkloadHints = workload_mod.WorkloadHints;
+pub const Priority = workload_mod.Priority;
+pub const WorkloadVTable = workload_mod.WorkloadVTable;
+pub const GPUWorkloadVTable = workload_mod.GPUWorkloadVTable;
+pub const ResultHandle = workload_mod.ResultHandle;
+pub const ResultVTable = workload_mod.ResultVTable;
+pub const WorkItem = workload_mod.WorkItem;
+pub const runWorkItem = workload_mod.runWorkItem;
 
-    pub fn deinit(_: *Engine) void {}
-
-    pub fn submit(_: *Engine, _: anytype) Error!TaskId {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn wait(_: *Engine, _: TaskId) Error!void {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn getStats(_: *const Engine) EngineStats {
-        return .{};
-    }
-};
-
-pub const DistributedComputeEngine = struct {
-    pub fn init(_: std.mem.Allocator, _: EngineConfig) Error!DistributedComputeEngine {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn deinit(_: *DistributedComputeEngine) void {}
-};
-
-pub const EngineConfig = struct {
-    thread_count: ?usize = null,
-    enable_work_stealing: bool = true,
-    task_queue_size: usize = 1024,
-};
-
-pub const EngineStats = struct {
-    tasks_completed: usize = 0,
-    tasks_pending: usize = 0,
-    workers_active: usize = 0,
-};
-
-pub const TaskId = u64;
-
-// Workload types
-pub const ExecutionContext = struct {};
-pub const WorkloadHints = struct {
-    priority: Priority = .normal,
-    estimated_cycles: ?u64 = null,
-};
-pub const Priority = enum { low, normal, high, critical };
-pub const WorkloadVTable = struct {};
-pub const GPUWorkloadVTable = struct {};
-pub const ResultHandle = struct {};
-pub const ResultVTable = struct {};
-pub const WorkItem = struct {};
-
-pub fn runWorkItem(_: WorkItem) Error!void {
-    return error.RuntimeDisabled;
-}
-
-// Benchmarking
-pub const BenchmarkResult = struct {
-    name: []const u8 = "",
-    iterations: usize = 0,
-    total_time_ns: u64 = 0,
-    avg_time_ns: u64 = 0,
-};
-
-pub fn runBenchmarks(_: std.mem.Allocator) Error![]BenchmarkResult {
-    return error.RuntimeDisabled;
-}
-
-// ============================================================================
 // Scheduling Types
-// ============================================================================
+pub const Future = scheduling_mod.Future;
+pub const FutureState = scheduling_mod.FutureState;
+pub const FutureResult = scheduling_mod.FutureResult;
+pub const Promise = scheduling_mod.Promise;
+pub const all = scheduling_mod.all;
+pub const race = scheduling_mod.race;
+pub const delay = scheduling_mod.delay;
+pub const CancellationToken = scheduling_mod.CancellationToken;
+pub const CancellationSource = scheduling_mod.CancellationSource;
+pub const CancellationState = scheduling_mod.CancellationState;
+pub const CancellationReason = scheduling_mod.CancellationReason;
+pub const LinkedCancellation = scheduling_mod.LinkedCancellation;
+pub const ScopedCancellation = scheduling_mod.ScopedCancellation;
+pub const TaskGroup = scheduling_mod.TaskGroup;
+pub const TaskGroupConfig = scheduling_mod.TaskGroupConfig;
+pub const TaskGroupBuilder = scheduling_mod.TaskGroupBuilder;
+pub const ScopedTaskGroup = scheduling_mod.ScopedTaskGroup;
+pub const TaskContext = scheduling_mod.TaskContext;
+pub const TaskFn = scheduling_mod.TaskFn;
+pub const TaskState = scheduling_mod.TaskState;
+pub const TaskResult = scheduling_mod.TaskResult;
+pub const TaskInfo = scheduling_mod.TaskInfo;
+pub const GroupStats = scheduling_mod.GroupStats;
+pub const parallelForEach = scheduling_mod.parallelForEach;
+pub const AsyncRuntime = scheduling_mod.AsyncRuntime;
+pub const AsyncRuntimeOptions = scheduling_mod.AsyncRuntimeOptions;
+pub const TaskHandle = scheduling_mod.TaskHandle;
+pub const AsyncTaskGroup = scheduling_mod.AsyncTaskGroup;
+pub const AsyncError = scheduling_mod.AsyncError;
 
-pub fn Future(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn get(_: *Self) Error!T {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn getState(_: *const Self) FutureState {
-            return .pending;
-        }
-
-        pub fn cancel(_: *Self) void {}
-    };
-}
-
-pub const FutureState = enum { pending, ready, cancelled, failed };
-pub const FutureResult = struct {};
-
-pub fn Promise(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn set(_: *Self, _: T) void {}
-
-        pub fn setError(_: *Self, _: anyerror) void {}
-    };
-}
-
-pub fn all(_: std.mem.Allocator, _: anytype) Error!void {
-    return error.RuntimeDisabled;
-}
-
-pub fn race(_: std.mem.Allocator, _: anytype) Error!void {
-    return error.RuntimeDisabled;
-}
-
-pub fn delay(_: u64) Error!void {
-    return error.RuntimeDisabled;
-}
-
-// Cancellation
-pub const CancellationToken = struct {
-    pub fn isCancelled(_: *const CancellationToken) bool {
-        return false;
-    }
-
-    pub fn getState(_: *const CancellationToken) CancellationState {
-        return .none;
-    }
-};
-
-pub const CancellationSource = struct {
-    pub fn init(_: std.mem.Allocator) Error!CancellationSource {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn deinit(_: *CancellationSource) void {}
-
-    pub fn cancel(_: *CancellationSource) void {}
-
-    pub fn token(_: *CancellationSource) CancellationToken {
-        return .{};
-    }
-};
-
-pub const CancellationState = enum { none, requested, acknowledged };
-pub const CancellationReason = enum { user_requested, timeout, error_occurred };
-pub const LinkedCancellation = struct {};
-pub const ScopedCancellation = struct {};
-
-// Task groups
-pub const TaskGroup = struct {
-    pub fn init(_: std.mem.Allocator, _: TaskGroupConfig) Error!TaskGroup {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn deinit(_: *TaskGroup) void {}
-
-    pub fn spawn(_: *TaskGroup, _: anytype) Error!void {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn wait(_: *TaskGroup) Error!void {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn getStats(_: *const TaskGroup) GroupStats {
-        return .{};
-    }
-};
-
-pub const TaskGroupConfig = struct {
-    max_concurrent: ?usize = null,
-    cancellation_token: ?CancellationToken = null,
-};
-
-pub const TaskGroupBuilder = struct {
-    pub fn init(_: std.mem.Allocator) TaskGroupBuilder {
-        return .{};
-    }
-
-    pub fn withMaxConcurrent(_: *TaskGroupBuilder, _: usize) *TaskGroupBuilder {
-        return undefined;
-    }
-
-    pub fn build(_: *TaskGroupBuilder) Error!TaskGroup {
-        return error.RuntimeDisabled;
-    }
-};
-
-pub const ScopedTaskGroup = struct {};
-
-pub const TaskContext = struct {
-    allocator: std.mem.Allocator,
-    cancellation_token: ?CancellationToken = null,
-};
-
-pub const TaskFn = *const fn (*TaskContext) anyerror!void;
-pub const TaskState = enum { pending, running, completed, failed, cancelled };
-pub const TaskResult = struct {};
-pub const TaskInfo = struct {
-    id: TaskId = 0,
-    state: TaskState = .pending,
-};
-pub const GroupStats = struct {
-    tasks_submitted: usize = 0,
-    tasks_completed: usize = 0,
-    tasks_failed: usize = 0,
-};
-
-pub fn parallelForEach(_: std.mem.Allocator, _: anytype, _: anytype) Error!void {
-    return error.RuntimeDisabled;
-}
-
-// Async runtime
-pub const AsyncRuntime = struct {
-    pub fn init(_: std.mem.Allocator, _: AsyncRuntimeOptions) Error!AsyncRuntime {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn deinit(_: *AsyncRuntime) void {}
-
-    pub fn spawn(_: *AsyncRuntime, _: anytype) Error!TaskHandle {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn run(_: *AsyncRuntime) Error!void {
-        return error.RuntimeDisabled;
-    }
-};
-
-pub const AsyncRuntimeOptions = struct {
-    thread_pool_size: ?usize = null,
-};
-
-pub const TaskHandle = struct {
-    id: TaskId = 0,
-
-    pub fn wait(_: *TaskHandle) Error!void {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn cancel(_: *TaskHandle) void {}
-};
-
-pub const AsyncTaskGroup = struct {};
-pub const AsyncError = Error;
-
-// ============================================================================
 // Concurrency Types
-// ============================================================================
+pub const WorkStealingQueue = concurrency_mod.WorkStealingQueue;
+pub const WorkQueue = concurrency_mod.WorkQueue;
+pub const LockFreeQueue = concurrency_mod.LockFreeQueue;
+pub const LockFreeStack = concurrency_mod.LockFreeStack;
+pub const ShardedMap = concurrency_mod.ShardedMap;
+pub const PriorityQueue = concurrency_mod.PriorityQueue;
+pub const Backoff = concurrency_mod.Backoff;
+pub const ChaseLevDeque = concurrency_mod.ChaseLevDeque;
+pub const WorkStealingScheduler = concurrency_mod.WorkStealingScheduler;
+pub const EpochReclamation = concurrency_mod.EpochReclamation;
+pub const LockFreeStackEBR = concurrency_mod.LockFreeStackEBR;
+pub const MpmcQueue = concurrency_mod.MpmcQueue;
+pub const BlockingMpmcQueue = concurrency_mod.BlockingMpmcQueue;
 
-pub fn WorkStealingQueue(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator, _: usize) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn push(_: *Self, _: T) Error!void {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn pop(_: *Self) ?T {
-            return null;
-        }
-
-        pub fn steal(_: *Self) ?T {
-            return null;
-        }
-    };
-}
-
-pub fn WorkQueue(comptime T: type) type {
-    return WorkStealingQueue(T);
-}
-
-pub fn LockFreeQueue(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator, _: usize) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn push(_: *Self, _: T) Error!void {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn pop(_: *Self) ?T {
-            return null;
-        }
-    };
-}
-
-pub fn LockFreeStack(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn push(_: *Self, _: T) Error!void {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn pop(_: *Self) ?T {
-            return null;
-        }
-    };
-}
-
-pub fn ShardedMap(comptime K: type, comptime V: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator, _: usize) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn put(_: *Self, _: K, _: V) Error!void {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn get(_: *Self, _: K) ?V {
-            return null;
-        }
-    };
-}
-
-pub fn PriorityQueue(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn push(_: *Self, _: T) Error!void {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn pop(_: *Self) ?T {
-            return null;
-        }
-    };
-}
-
-pub const Backoff = struct {
-    pub fn init() Backoff {
-        return .{};
-    }
-
-    pub fn spin(_: *Backoff) void {}
-
-    pub fn reset(_: *Backoff) void {}
-};
-
-// New lock-free concurrency primitives
-pub fn ChaseLevDeque(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator, _: usize) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn push(_: *Self, _: T) Error!void {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn pop(_: *Self) ?T {
-            return null;
-        }
-
-        pub fn steal(_: *Self) ?T {
-            return null;
-        }
-    };
-}
-
-pub const WorkStealingScheduler = struct {
-    pub fn init(_: std.mem.Allocator, _: usize) Error!WorkStealingScheduler {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn deinit(_: *WorkStealingScheduler) void {}
-
-    pub fn schedule(_: *WorkStealingScheduler, _: anytype) Error!void {
-        return error.RuntimeDisabled;
-    }
-};
-
-pub fn EpochReclamation(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn retire(_: *Self, _: *T) void {}
-
-        pub fn collect(_: *Self) void {}
-    };
-}
-
-pub fn LockFreeStackEBR(comptime T: type) type {
-    return LockFreeStack(T);
-}
-
-pub fn MpmcQueue(comptime T: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator, _: usize) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn push(_: *Self, _: T) Error!void {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn pop(_: *Self) ?T {
-            return null;
-        }
-    };
-}
-
-pub fn BlockingMpmcQueue(comptime T: type) type {
-    return MpmcQueue(T);
-}
-
-// Result caching
-pub fn ResultCache(comptime K: type, comptime V: type) type {
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator, _: CacheConfig) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn get(_: *Self, _: K) ?V {
-            return null;
-        }
-
-        pub fn put(_: *Self, _: K, _: V) Error!void {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn getStats(_: *const Self) CacheStats {
-            return .{};
-        }
-    };
-}
-
-pub const CacheConfig = struct {
-    max_entries: usize = 1024,
-    ttl_ms: ?u64 = null,
-};
-
-pub const CacheStats = struct {
-    hits: usize = 0,
-    misses: usize = 0,
-    evictions: usize = 0,
-};
-
-pub fn Memoize(comptime F: type) type {
-    _ = F;
-    return struct {
-        const Self = @This();
-
-        pub fn init(_: std.mem.Allocator, _: anytype) Error!Self {
-            return error.RuntimeDisabled;
-        }
-
-        pub fn deinit(_: *Self) void {}
-
-        pub fn call(_: *Self, _: anytype) Error!void {
-            return error.RuntimeDisabled;
-        }
-    };
-}
-
-// Work-stealing policies
-pub const NumaStealPolicy = struct {
-    pub fn init(_: StealPolicyConfig) NumaStealPolicy {
-        return .{};
-    }
-
-    pub fn selectVictim(_: *NumaStealPolicy, _: usize) ?usize {
-        return null;
-    }
-};
-
-pub const RoundRobinStealPolicy = struct {
-    pub fn init(_: StealPolicyConfig) RoundRobinStealPolicy {
-        return .{};
-    }
-
-    pub fn selectVictim(_: *RoundRobinStealPolicy, _: usize) ?usize {
-        return null;
-    }
-};
-
-pub const StealPolicyConfig = struct {
-    worker_count: usize = 1,
-    numa_aware: bool = false,
-};
-
-pub const StealStats = struct {
-    steal_attempts: usize = 0,
-    steal_successes: usize = 0,
-    steal_failures: usize = 0,
-};
-
-// ============================================================================
 // Memory Types
-// ============================================================================
-
-pub const MemoryPool = struct {
-    pub fn init(_: std.mem.Allocator, _: MemoryPoolConfig) Error!MemoryPool {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn deinit(_: *MemoryPool) void {}
-
-    pub fn alloc(_: *MemoryPool, _: usize) Error![]u8 {
-        return error.RuntimeDisabled;
-    }
-
-    pub fn free(_: *MemoryPool, _: []u8) void {}
-
-    pub fn getStats(_: *const MemoryPool) MemoryPoolStats {
-        return .{};
-    }
-};
-
-pub const MemoryPoolConfig = struct {
-    block_size: usize = 4096,
-    initial_blocks: usize = 16,
-};
-
-pub const MemoryPoolStats = struct {
-    allocated_bytes: usize = 0,
-    free_bytes: usize = 0,
-    block_count: usize = 0,
-};
-
-pub const ArenaAllocator = struct {
-    pub fn init(_: std.mem.Allocator) ArenaAllocator {
-        return .{};
-    }
-
-    pub fn deinit(_: *ArenaAllocator) void {}
-
-    pub fn allocator(_: *ArenaAllocator) std.mem.Allocator {
-        return std.heap.page_allocator;
-    }
-
-    pub fn reset(_: *ArenaAllocator) void {}
-};
+pub const MemoryPool = memory_mod.MemoryPool;
+pub const MemoryPoolConfig = memory_mod.MemoryPoolConfig;
+pub const MemoryPoolStats = memory_mod.MemoryPoolStats;
+pub const ArenaAllocator = memory_mod.ArenaAllocator;
 
 // ============================================================================
 // Runtime Context
@@ -666,23 +148,21 @@ pub const Context = struct {
 // Submodule Stubs (for API compatibility with mod.zig)
 // ============================================================================
 
-const root = @This();
-
 pub const engine = struct {
-    pub const Engine = root.Engine;
-    pub const DistributedComputeEngine = root.DistributedComputeEngine;
-    pub const EngineConfig = root.EngineConfig;
-    pub const EngineError = root.EngineError;
-    pub const TaskId = root.TaskId;
-    pub const BenchmarkResult = root.BenchmarkResult;
-    pub const ResultCache = root.ResultCache;
-    pub const CacheConfig = root.CacheConfig;
-    pub const CacheStats = root.CacheStats;
-    pub const Memoize = root.Memoize;
-    pub const NumaStealPolicy = root.NumaStealPolicy;
-    pub const RoundRobinStealPolicy = root.RoundRobinStealPolicy;
-    pub const StealPolicyConfig = root.StealPolicyConfig;
-    pub const StealStats = root.StealStats;
+    pub const Engine = engine_mod.Engine;
+    pub const DistributedComputeEngine = engine_mod.DistributedComputeEngine;
+    pub const EngineConfig = engine_mod.EngineConfig;
+    pub const EngineError = types.EngineError;
+    pub const TaskId = engine_mod.TaskId;
+    pub const BenchmarkResult = engine_mod.BenchmarkResult;
+    pub const ResultCache = engine_mod.ResultCache;
+    pub const CacheConfig = engine_mod.CacheConfig;
+    pub const CacheStats = engine_mod.CacheStats;
+    pub const Memoize = engine_mod.Memoize;
+    pub const NumaStealPolicy = engine_mod.NumaStealPolicy;
+    pub const RoundRobinStealPolicy = engine_mod.RoundRobinStealPolicy;
+    pub const StealPolicyConfig = engine_mod.StealPolicyConfig;
+    pub const StealStats = engine_mod.StealStats;
 
     pub fn createEngine(allocator: std.mem.Allocator) Error!Engine {
         _ = allocator;
@@ -702,68 +182,68 @@ pub const engine = struct {
 };
 
 pub const scheduling = struct {
-    pub const Future = root.Future;
-    pub const FutureState = root.FutureState;
-    pub const FutureResult = root.FutureResult;
-    pub const Promise = root.Promise;
-    pub const CancellationToken = root.CancellationToken;
-    pub const CancellationSource = root.CancellationSource;
-    pub const CancellationState = root.CancellationState;
-    pub const CancellationReason = root.CancellationReason;
-    pub const LinkedCancellation = root.LinkedCancellation;
-    pub const ScopedCancellation = root.ScopedCancellation;
-    pub const TaskGroup = root.TaskGroup;
-    pub const TaskGroupConfig = root.TaskGroupConfig;
-    pub const TaskGroupBuilder = root.TaskGroupBuilder;
-    pub const ScopedTaskGroup = root.ScopedTaskGroup;
-    pub const TaskContext = root.TaskContext;
-    pub const TaskFn = root.TaskFn;
-    pub const TaskState = root.TaskState;
-    pub const TaskResult = root.TaskResult;
-    pub const TaskInfo = root.TaskInfo;
-    pub const GroupStats = root.GroupStats;
-    pub const AsyncRuntime = root.AsyncRuntime;
-    pub const AsyncRuntimeOptions = root.AsyncRuntimeOptions;
-    pub const TaskHandle = root.TaskHandle;
-    pub const AsyncTaskGroup = root.AsyncTaskGroup;
-    pub const AsyncError = root.AsyncError;
+    pub const Future = scheduling_mod.Future;
+    pub const FutureState = scheduling_mod.FutureState;
+    pub const FutureResult = scheduling_mod.FutureResult;
+    pub const Promise = scheduling_mod.Promise;
+    pub const CancellationToken = scheduling_mod.CancellationToken;
+    pub const CancellationSource = scheduling_mod.CancellationSource;
+    pub const CancellationState = scheduling_mod.CancellationState;
+    pub const CancellationReason = scheduling_mod.CancellationReason;
+    pub const LinkedCancellation = scheduling_mod.LinkedCancellation;
+    pub const ScopedCancellation = scheduling_mod.ScopedCancellation;
+    pub const TaskGroup = scheduling_mod.TaskGroup;
+    pub const TaskGroupConfig = scheduling_mod.TaskGroupConfig;
+    pub const TaskGroupBuilder = scheduling_mod.TaskGroupBuilder;
+    pub const ScopedTaskGroup = scheduling_mod.ScopedTaskGroup;
+    pub const TaskContext = scheduling_mod.TaskContext;
+    pub const TaskFn = scheduling_mod.TaskFn;
+    pub const TaskState = scheduling_mod.TaskState;
+    pub const TaskResult = scheduling_mod.TaskResult;
+    pub const TaskInfo = scheduling_mod.TaskInfo;
+    pub const GroupStats = scheduling_mod.GroupStats;
+    pub const AsyncRuntime = scheduling_mod.AsyncRuntime;
+    pub const AsyncRuntimeOptions = scheduling_mod.AsyncRuntimeOptions;
+    pub const TaskHandle = scheduling_mod.TaskHandle;
+    pub const AsyncTaskGroup = scheduling_mod.AsyncTaskGroup;
+    pub const AsyncError = scheduling_mod.AsyncError;
 
-    pub const all = root.all;
-    pub const race = root.race;
-    pub const delay = root.delay;
-    pub const parallelForEach = root.parallelForEach;
+    pub const all = scheduling_mod.all;
+    pub const race = scheduling_mod.race;
+    pub const delay = scheduling_mod.delay;
+    pub const parallelForEach = scheduling_mod.parallelForEach;
 };
 
 pub const concurrency = struct {
-    pub const WorkStealingQueue = root.WorkStealingQueue;
-    pub const WorkQueue = root.WorkQueue;
-    pub const LockFreeQueue = root.LockFreeQueue;
-    pub const LockFreeStack = root.LockFreeStack;
-    pub const ShardedMap = root.ShardedMap;
-    pub const PriorityQueue = root.PriorityQueue;
-    pub const Backoff = root.Backoff;
-    pub const ChaseLevDeque = root.ChaseLevDeque;
-    pub const WorkStealingScheduler = root.WorkStealingScheduler;
-    pub const EpochReclamation = root.EpochReclamation;
-    pub const LockFreeStackEBR = root.LockFreeStackEBR;
-    pub const MpmcQueue = root.MpmcQueue;
-    pub const BlockingMpmcQueue = root.BlockingMpmcQueue;
+    pub const WorkStealingQueue = concurrency_mod.WorkStealingQueue;
+    pub const WorkQueue = concurrency_mod.WorkQueue;
+    pub const LockFreeQueue = concurrency_mod.LockFreeQueue;
+    pub const LockFreeStack = concurrency_mod.LockFreeStack;
+    pub const ShardedMap = concurrency_mod.ShardedMap;
+    pub const PriorityQueue = concurrency_mod.PriorityQueue;
+    pub const Backoff = concurrency_mod.Backoff;
+    pub const ChaseLevDeque = concurrency_mod.ChaseLevDeque;
+    pub const WorkStealingScheduler = concurrency_mod.WorkStealingScheduler;
+    pub const EpochReclamation = concurrency_mod.EpochReclamation;
+    pub const LockFreeStackEBR = concurrency_mod.LockFreeStackEBR;
+    pub const MpmcQueue = concurrency_mod.MpmcQueue;
+    pub const BlockingMpmcQueue = concurrency_mod.BlockingMpmcQueue;
 };
 
 pub const memory = struct {
-    pub const MemoryPool = root.MemoryPool;
-    pub const ArenaAllocator = root.ArenaAllocator;
+    pub const MemoryPool = memory_mod.MemoryPool;
+    pub const ArenaAllocator = memory_mod.ArenaAllocator;
 };
 
 pub const workload = struct {
-    pub const ExecutionContext = root.ExecutionContext;
-    pub const WorkloadHints = root.WorkloadHints;
-    pub const WorkloadVTable = root.WorkloadVTable;
-    pub const GPUWorkloadVTable = root.GPUWorkloadVTable;
-    pub const ResultHandle = root.ResultHandle;
-    pub const ResultVTable = root.ResultVTable;
-    pub const WorkItem = root.WorkItem;
-    pub const runWorkItem = root.runWorkItem;
+    pub const ExecutionContext = workload_mod.ExecutionContext;
+    pub const WorkloadHints = workload_mod.WorkloadHints;
+    pub const WorkloadVTable = workload_mod.WorkloadVTable;
+    pub const GPUWorkloadVTable = workload_mod.GPUWorkloadVTable;
+    pub const ResultHandle = workload_mod.ResultHandle;
+    pub const ResultVTable = workload_mod.ResultVTable;
+    pub const WorkItem = workload_mod.WorkItem;
+    pub const runWorkItem = workload_mod.runWorkItem;
 };
 
 // ============================================================================

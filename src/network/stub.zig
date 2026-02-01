@@ -3,45 +3,23 @@
 const std = @import("std");
 const config_module = @import("../config/mod.zig");
 
-pub const Error = error{
-    NetworkDisabled,
-    ConnectionFailed,
-    NodeNotFound,
-    ConsensusFailed,
-    Timeout,
-};
+// ============================================================================
+// Local Stubs Imports
+// ============================================================================
 
-pub const NetworkConfig = struct {
-    cluster_id: []const u8 = "default",
-    heartbeat_timeout_ms: u64 = 30_000,
-    max_nodes: usize = 256,
-};
-pub const NetworkState = enum { disconnected, connected };
-pub const Node = struct {};
-pub const NodeStatus = enum { healthy, degraded, offline };
-pub const NodeInfo = struct {
-    id: []const u8 = "",
-    address: []const u8 = "",
-    status: NodeStatus = .healthy,
-    last_seen_ms: i64 = 0,
-};
-pub const NodeRegistry = struct {
-    pub fn register(_: *NodeRegistry, _: []const u8, _: []const u8) Error!void {
-        return error.NetworkDisabled;
-    }
-    pub fn unregister(_: *NodeRegistry, _: []const u8) bool {
-        return false;
-    }
-    pub fn touch(_: *NodeRegistry, _: []const u8) bool {
-        return false;
-    }
-    pub fn setStatus(_: *NodeRegistry, _: []const u8, _: NodeStatus) bool {
-        return false;
-    }
-    pub fn list(_: *NodeRegistry) []const NodeInfo {
-        return &.{};
-    }
-};
+pub const types = @import("stubs/types.zig");
+
+// ============================================================================
+// Re-exports
+// ============================================================================
+
+pub const Error = types.Error;
+pub const NetworkConfig = types.NetworkConfig;
+pub const NetworkState = types.NetworkState;
+pub const Node = types.Node;
+pub const NodeStatus = types.NodeStatus;
+pub const NodeInfo = types.NodeInfo;
+pub const NodeRegistry = types.NodeRegistry;
 
 pub const Context = struct {
     pub const State = enum {

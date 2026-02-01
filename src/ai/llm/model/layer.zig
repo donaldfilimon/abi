@@ -135,7 +135,9 @@ pub const TransformerLayer = struct {
         }
     }
 
-    /// Batch forward pass for prefill.
+    /// Batch forward pass for prefill with pre-allocated buffers.
+    /// This is more efficient than calling forward() repeatedly as it avoids
+    /// per-position allocations for Q, K, V, attn_out, and ffn_out buffers.
     pub fn forwardBatch(
         self: *TransformerLayer,
         x: []f32, // [seq_len, dim]
@@ -145,19 +147,90 @@ pub const TransformerLayer = struct {
         kv_cache_layer: *cache.LayerKvCache,
         rope_cache: *const ops.rope.RopeCache,
     ) !void {
-        // Process each position (could be parallelized)
         const dim = self.config.dim;
+        const head_dim = self.config.headDim();
+        const kv_dim = self.config.kvDim();
+
+        // Pre-allocate buffers ONCE outside the loop to avoid repeated allocations
+        const q = try self.allocator.alloc(f32, dim);
+        defer self.allocator.free(q);
+        const k = try self.allocator.alloc(f32, kv_dim);
+        defer self.allocator.free(k);
+        const v = try self.allocator.alloc(f32, kv_dim);
+        defer self.allocator.free(v);
+        const attn_out = try self.allocator.alloc(f32, dim);
+        defer self.allocator.free(attn_out);
+        const ffn_out = try self.allocator.alloc(f32, dim);
+        defer self.allocator.free(ffn_out);
+
+        // Process each position reusing the pre-allocated buffers
         for (0..seq_len) |i| {
             const offset = i * dim;
             const pos = start_pos + @as(u32, @intCast(i));
+            const x_pos = x[offset .. offset + dim];
 
-            try self.forward(
-                x[offset .. offset + dim],
-                pos,
-                layer_weights,
-                kv_cache_layer,
-                rope_cache,
+            // 1. Input normalization
+            ops.rmsnorm.rmsNorm(x_pos, layer_weights.input_norm, self.hidden_scratch, self.config.norm_eps);
+
+            // 2. Compute Q, K, V projections (reusing pre-allocated buffers)
+            ops.matmul.matrixVectorMultiply(layer_weights.q_proj, self.hidden_scratch, q, dim, dim);
+            ops.matmul.matrixVectorMultiply(layer_weights.k_proj, self.hidden_scratch, k, kv_dim, dim);
+            ops.matmul.matrixVectorMultiply(layer_weights.v_proj, self.hidden_scratch, v, kv_dim, dim);
+
+            // 3. Apply RoPE to Q and K
+            for (0..self.config.n_heads) |h| {
+                const q_offset = h * head_dim;
+                ops.rope.applyRope(q[q_offset .. q_offset + head_dim], pos, rope_cache);
+            }
+
+            for (0..self.config.n_kv_heads) |h| {
+                const k_offset = h * head_dim;
+                ops.rope.applyRope(k[k_offset .. k_offset + head_dim], pos, rope_cache);
+            }
+
+            // 4. Update KV cache
+            kv_cache_layer.update(k, v, pos);
+
+            // 5. Compute attention
+            const attn_config = ops.attention.AttentionConfig.fromModel(dim, self.config.n_heads, self.config.n_kv_heads);
+
+            try ops.attention.selfAttention(
+                self.allocator,
+                q,
+                kv_cache_layer.getK(),
+                kv_cache_layer.getV(),
+                self.attn_scratch,
+                attn_config,
+                kv_cache_layer.length(),
             );
+
+            // 6. Output projection (reusing pre-allocated attn_out)
+            ops.matmul.matrixVectorMultiply(layer_weights.o_proj, self.attn_scratch, attn_out, dim, dim);
+
+            // 7. Residual connection
+            for (0..dim) |j| {
+                x_pos[j] += attn_out[j];
+            }
+
+            // 8. FFN input norm
+            ops.rmsnorm.rmsNorm(x_pos, layer_weights.post_attn_norm, self.hidden_scratch, self.config.norm_eps);
+
+            // 9. FFN (SwiGLU) - reusing pre-allocated ffn_out
+            try ops.ffn.swiglu(
+                self.allocator,
+                self.hidden_scratch,
+                layer_weights.gate_proj,
+                layer_weights.up_proj,
+                layer_weights.down_proj,
+                ffn_out,
+                dim,
+                self.config.ffn_dim,
+            );
+
+            // 10. Residual connection
+            for (0..dim) |j| {
+                x_pos[j] += ffn_out[j];
+            }
         }
     }
 };

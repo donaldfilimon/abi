@@ -5,9 +5,26 @@
 const std = @import("std");
 const config_module = @import("../config/mod.zig");
 
-pub const WebError = error{
-    WebDisabled,
-};
+// ============================================================================
+// Local Stubs Imports
+// ============================================================================
+
+pub const types = @import("stubs/types.zig");
+pub const client = @import("stubs/client.zig");
+
+// ============================================================================
+// Re-exports
+// ============================================================================
+
+pub const WebError = types.WebError;
+pub const Response = types.Response;
+pub const RequestOptions = types.RequestOptions;
+pub const WeatherConfig = types.WeatherConfig;
+pub const JsonValue = types.JsonValue;
+pub const ParsedJson = types.ParsedJson;
+
+pub const HttpClient = client.HttpClient;
+pub const WeatherClient = client.WeatherClient;
 
 /// Web Context stub for Framework integration.
 pub const Context = struct {
@@ -55,106 +72,6 @@ pub const Context = struct {
         _ = response;
         return error.WebDisabled;
     }
-};
-
-// Type stubs
-pub const JsonValue = std.json.Value;
-pub const ParsedJson = std.json.Parsed(JsonValue);
-
-pub const Response = struct {
-    status: u16,
-    body: []const u8,
-};
-
-pub const HttpClient = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator) !HttpClient {
-        _ = allocator;
-        return error.WebDisabled;
-    }
-
-    pub fn deinit(self: *HttpClient) void {
-        _ = self;
-    }
-
-    pub fn get(self: *HttpClient, url: []const u8) !Response {
-        _ = self;
-        _ = url;
-        return error.WebDisabled;
-    }
-
-    pub fn getWithOptions(self: *HttpClient, url: []const u8, options: RequestOptions) !Response {
-        _ = self;
-        _ = url;
-        _ = options;
-        return error.WebDisabled;
-    }
-
-    pub fn postJson(self: *HttpClient, url: []const u8, body: []const u8) !Response {
-        _ = self;
-        _ = url;
-        _ = body;
-        return error.WebDisabled;
-    }
-
-    pub fn requestWithOptions(
-        self: *HttpClient,
-        method: std.http.Method,
-        url: []const u8,
-        body: ?[]const u8,
-        options: RequestOptions,
-    ) !Response {
-        _ = self;
-        _ = method;
-        _ = url;
-        _ = body;
-        _ = options;
-        return error.WebDisabled;
-    }
-
-    pub fn freeResponse(self: *HttpClient, response: Response) void {
-        _ = self;
-        _ = response;
-    }
-};
-
-pub const RequestOptions = struct {
-    max_response_bytes: usize = 1024 * 1024,
-    user_agent: []const u8 = "abi-http",
-    follow_redirects: bool = true,
-    redirect_limit: u16 = 3,
-    content_type: ?[]const u8 = null,
-    extra_headers: []const std.http.Header = &.{},
-};
-
-pub const WeatherClient = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator, config: WeatherConfig) !WeatherClient {
-        _ = config;
-        return .{ .allocator = allocator };
-    }
-
-    pub fn deinit(self: *WeatherClient) void {
-        _ = self;
-    }
-
-    pub fn forecast(self: *WeatherClient, location: []const u8) !Response {
-        _ = self;
-        _ = location;
-        return error.WebDisabled;
-    }
-
-    pub fn freeResponse(self: *WeatherClient, response: Response) void {
-        _ = self;
-        _ = response;
-    }
-};
-
-pub const WeatherConfig = struct {
-    base_url: []const u8 = "https://api.open-meteo.com/v1/forecast",
-    include_current: bool = true,
 };
 
 // HTTP utilities stub

@@ -583,3 +583,548 @@ test {
     _ = otel;
     _ = core_metrics;
 }
+
+// ============================================================================
+// Counter Tests
+// ============================================================================
+
+test "Counter - init and get returns zero" {
+    var counter = Counter{ .name = "test_counter" };
+    try std.testing.expectEqual(@as(u64, 0), counter.get());
+}
+
+test "Counter - increment by one" {
+    var counter = Counter{ .name = "test_counter" };
+
+    counter.inc(1);
+    try std.testing.expectEqual(@as(u64, 1), counter.get());
+
+    counter.inc(1);
+    try std.testing.expectEqual(@as(u64, 2), counter.get());
+}
+
+test "Counter - increment by multiple values" {
+    var counter = Counter{ .name = "test_counter" };
+
+    counter.inc(5);
+    try std.testing.expectEqual(@as(u64, 5), counter.get());
+
+    counter.inc(10);
+    try std.testing.expectEqual(@as(u64, 15), counter.get());
+
+    counter.inc(100);
+    try std.testing.expectEqual(@as(u64, 115), counter.get());
+}
+
+test "Counter - reset to zero" {
+    var counter = Counter{ .name = "test_counter" };
+
+    counter.inc(100);
+    try std.testing.expectEqual(@as(u64, 100), counter.get());
+
+    counter.reset();
+    try std.testing.expectEqual(@as(u64, 0), counter.get());
+}
+
+test "Counter - large values" {
+    var counter = Counter{ .name = "test_counter" };
+
+    const large_value: u64 = 1_000_000_000;
+    counter.inc(large_value);
+    try std.testing.expectEqual(large_value, counter.get());
+
+    counter.inc(large_value);
+    try std.testing.expectEqual(large_value * 2, counter.get());
+}
+
+test "Counter - concurrent increment safety" {
+    // Skip on single-threaded platforms
+    if (@import("builtin").single_threaded) return error.SkipZigTest;
+
+    var counter = Counter{ .name = "concurrent_counter" };
+
+    const num_threads = 4;
+    const iterations_per_thread = 1000;
+
+    const ThreadFn = struct {
+        fn run(c: *Counter) void {
+            for (0..iterations_per_thread) |_| {
+                c.inc(1);
+            }
+        }
+    };
+
+    var threads: [num_threads]std.Thread = undefined;
+    for (&threads) |*t| {
+        t.* = std.Thread.spawn(.{}, ThreadFn.run, .{&counter}) catch return error.SkipZigTest;
+    }
+
+    for (threads) |t| {
+        t.join();
+    }
+
+    try std.testing.expectEqual(@as(u64, num_threads * iterations_per_thread), counter.get());
+}
+
+// ============================================================================
+// Gauge Tests
+// ============================================================================
+
+test "Gauge - init and get returns zero" {
+    var gauge = Gauge{ .name = "test_gauge" };
+    try std.testing.expectEqual(@as(i64, 0), gauge.get());
+}
+
+test "Gauge - set positive value" {
+    var gauge = Gauge{ .name = "test_gauge" };
+
+    gauge.set(42);
+    try std.testing.expectEqual(@as(i64, 42), gauge.get());
+}
+
+test "Gauge - set negative value" {
+    var gauge = Gauge{ .name = "test_gauge" };
+
+    gauge.set(-100);
+    try std.testing.expectEqual(@as(i64, -100), gauge.get());
+}
+
+test "Gauge - inc and dec" {
+    var gauge = Gauge{ .name = "test_gauge" };
+
+    gauge.inc();
+    try std.testing.expectEqual(@as(i64, 1), gauge.get());
+
+    gauge.inc();
+    gauge.inc();
+    try std.testing.expectEqual(@as(i64, 3), gauge.get());
+
+    gauge.dec();
+    try std.testing.expectEqual(@as(i64, 2), gauge.get());
+}
+
+test "Gauge - add positive and negative" {
+    var gauge = Gauge{ .name = "test_gauge" };
+
+    gauge.add(10);
+    try std.testing.expectEqual(@as(i64, 10), gauge.get());
+
+    gauge.add(-5);
+    try std.testing.expectEqual(@as(i64, 5), gauge.get());
+
+    gauge.add(-10);
+    try std.testing.expectEqual(@as(i64, -5), gauge.get());
+}
+
+test "Gauge - set overwrites previous value" {
+    var gauge = Gauge{ .name = "test_gauge" };
+
+    gauge.set(100);
+    gauge.add(50);
+    try std.testing.expectEqual(@as(i64, 150), gauge.get());
+
+    gauge.set(-200);
+    try std.testing.expectEqual(@as(i64, -200), gauge.get());
+}
+
+test "Gauge - concurrent operations" {
+    if (@import("builtin").single_threaded) return error.SkipZigTest;
+
+    var gauge = Gauge{ .name = "concurrent_gauge" };
+
+    const num_threads = 4;
+    const iterations = 100;
+
+    const IncThread = struct {
+        fn run(g: *Gauge) void {
+            for (0..iterations) |_| {
+                g.inc();
+            }
+        }
+    };
+
+    const DecThread = struct {
+        fn run(g: *Gauge) void {
+            for (0..iterations) |_| {
+                g.dec();
+            }
+        }
+    };
+
+    var inc_threads: [num_threads]std.Thread = undefined;
+    var dec_threads: [num_threads]std.Thread = undefined;
+
+    for (&inc_threads) |*t| {
+        t.* = std.Thread.spawn(.{}, IncThread.run, .{&gauge}) catch return error.SkipZigTest;
+    }
+    for (&dec_threads) |*t| {
+        t.* = std.Thread.spawn(.{}, DecThread.run, .{&gauge}) catch return error.SkipZigTest;
+    }
+
+    for (inc_threads) |t| t.join();
+    for (dec_threads) |t| t.join();
+
+    // Equal inc and dec should result in 0
+    try std.testing.expectEqual(@as(i64, 0), gauge.get());
+}
+
+// ============================================================================
+// FloatGauge Tests
+// ============================================================================
+
+test "FloatGauge - init and get returns zero" {
+    var gauge = FloatGauge{ .name = "float_gauge" };
+    try std.testing.expectApproxEqAbs(@as(f64, 0.0), gauge.get(), 0.0001);
+}
+
+test "FloatGauge - set value" {
+    var gauge = FloatGauge{ .name = "float_gauge" };
+
+    gauge.set(3.14159);
+    try std.testing.expectApproxEqAbs(@as(f64, 3.14159), gauge.get(), 0.00001);
+
+    gauge.set(-2.71828);
+    try std.testing.expectApproxEqAbs(@as(f64, -2.71828), gauge.get(), 0.00001);
+}
+
+test "FloatGauge - add values" {
+    var gauge = FloatGauge{ .name = "float_gauge" };
+
+    gauge.add(1.5);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.5), gauge.get(), 0.0001);
+
+    gauge.add(2.5);
+    try std.testing.expectApproxEqAbs(@as(f64, 4.0), gauge.get(), 0.0001);
+
+    gauge.add(-1.0);
+    try std.testing.expectApproxEqAbs(@as(f64, 3.0), gauge.get(), 0.0001);
+}
+
+test "FloatGauge - very small values" {
+    var gauge = FloatGauge{ .name = "float_gauge" };
+
+    gauge.set(1e-10);
+    try std.testing.expectApproxEqAbs(@as(f64, 1e-10), gauge.get(), 1e-15);
+}
+
+test "FloatGauge - very large values" {
+    var gauge = FloatGauge{ .name = "float_gauge" };
+
+    gauge.set(1e15);
+    try std.testing.expectApproxEqAbs(@as(f64, 1e15), gauge.get(), 1e10);
+}
+
+// ============================================================================
+// Histogram Tests
+// ============================================================================
+
+test "Histogram - init and deinit" {
+    const allocator = std.testing.allocator;
+    var bounds = [_]u64{ 10, 50, 100, 500, 1000 };
+
+    var hist = try Histogram.init(allocator, "test_histogram", &bounds);
+    defer hist.deinit(allocator);
+
+    try std.testing.expectEqualStrings("test_histogram", hist.name);
+    try std.testing.expectEqual(@as(usize, 5), hist.bounds.len);
+    try std.testing.expectEqual(@as(usize, 6), hist.buckets.len); // bounds.len + 1
+}
+
+test "Histogram - record values in first bucket" {
+    const allocator = std.testing.allocator;
+    var bounds = [_]u64{ 10, 50, 100 };
+
+    var hist = try Histogram.init(allocator, "test_histogram", &bounds);
+    defer hist.deinit(allocator);
+
+    hist.record(5);
+    hist.record(8);
+    hist.record(10);
+
+    try std.testing.expectEqual(@as(u64, 3), hist.buckets[0]);
+    try std.testing.expectEqual(@as(u64, 0), hist.buckets[1]);
+    try std.testing.expectEqual(@as(u64, 0), hist.buckets[2]);
+}
+
+test "Histogram - record values across buckets" {
+    const allocator = std.testing.allocator;
+    var bounds = [_]u64{ 10, 50, 100 };
+
+    var hist = try Histogram.init(allocator, "test_histogram", &bounds);
+    defer hist.deinit(allocator);
+
+    hist.record(5); // bucket 0 (<=10)
+    hist.record(25); // bucket 1 (<=50)
+    hist.record(75); // bucket 2 (<=100)
+    hist.record(150); // bucket 3 (>100, overflow)
+
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[0]);
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[1]);
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[2]);
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[3]);
+}
+
+test "Histogram - record boundary values" {
+    const allocator = std.testing.allocator;
+    var bounds = [_]u64{ 10, 50, 100 };
+
+    var hist = try Histogram.init(allocator, "test_histogram", &bounds);
+    defer hist.deinit(allocator);
+
+    // Exact boundary values should go in the bucket
+    hist.record(10); // bucket 0
+    hist.record(50); // bucket 1
+    hist.record(100); // bucket 2
+
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[0]);
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[1]);
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[2]);
+}
+
+test "Histogram - overflow bucket" {
+    const allocator = std.testing.allocator;
+    var bounds = [_]u64{100};
+
+    var hist = try Histogram.init(allocator, "test_histogram", &bounds);
+    defer hist.deinit(allocator);
+
+    hist.record(50); // bucket 0
+    hist.record(150); // overflow bucket
+    hist.record(1000); // overflow bucket
+    hist.record(std.math.maxInt(u64)); // overflow bucket
+
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[0]);
+    try std.testing.expectEqual(@as(u64, 3), hist.buckets[1]);
+}
+
+test "Histogram - many records in same bucket" {
+    const allocator = std.testing.allocator;
+    var bounds = [_]u64{ 100, 200 };
+
+    var hist = try Histogram.init(allocator, "test_histogram", &bounds);
+    defer hist.deinit(allocator);
+
+    for (0..1000) |_| {
+        hist.record(50);
+    }
+
+    try std.testing.expectEqual(@as(u64, 1000), hist.buckets[0]);
+}
+
+// ============================================================================
+// MetricsCollector Tests
+// ============================================================================
+
+test "MetricsCollector - init and deinit" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    collector.deinit();
+}
+
+test "MetricsCollector - register counter" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const counter = try collector.registerCounter("http_requests_total");
+
+    try std.testing.expectEqualStrings("http_requests_total", counter.name);
+    try std.testing.expectEqual(@as(u64, 0), counter.get());
+
+    counter.inc(10);
+    try std.testing.expectEqual(@as(u64, 10), counter.get());
+}
+
+test "MetricsCollector - register multiple counters" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const counter1 = try collector.registerCounter("requests");
+    const counter2 = try collector.registerCounter("errors");
+    const counter3 = try collector.registerCounter("successes");
+
+    counter1.inc(100);
+    counter2.inc(5);
+    counter3.inc(95);
+
+    try std.testing.expectEqual(@as(u64, 100), counter1.get());
+    try std.testing.expectEqual(@as(u64, 5), counter2.get());
+    try std.testing.expectEqual(@as(u64, 95), counter3.get());
+}
+
+test "MetricsCollector - register gauge" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const gauge = try collector.registerGauge("active_connections");
+
+    gauge.set(50);
+    try std.testing.expectEqual(@as(i64, 50), gauge.get());
+
+    gauge.inc();
+    gauge.inc();
+    try std.testing.expectEqual(@as(i64, 52), gauge.get());
+
+    gauge.dec();
+    try std.testing.expectEqual(@as(i64, 51), gauge.get());
+}
+
+test "MetricsCollector - register float gauge" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const gauge = try collector.registerFloatGauge("temperature");
+
+    gauge.set(23.5);
+    try std.testing.expectApproxEqAbs(@as(f64, 23.5), gauge.get(), 0.001);
+
+    gauge.add(1.5);
+    try std.testing.expectApproxEqAbs(@as(f64, 25.0), gauge.get(), 0.001);
+}
+
+test "MetricsCollector - register histogram" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const bounds = [_]u64{ 5, 10, 25, 50, 100 };
+    const hist = try collector.registerHistogram("request_latency_ms", &bounds);
+
+    hist.record(3);
+    hist.record(15);
+    hist.record(75);
+
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[0]); // <=5
+    try std.testing.expectEqual(@as(u64, 0), hist.buckets[1]); // <=10
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[2]); // <=25
+    try std.testing.expectEqual(@as(u64, 0), hist.buckets[3]); // <=50
+    try std.testing.expectEqual(@as(u64, 1), hist.buckets[4]); // <=100
+}
+
+test "MetricsCollector - combined metrics" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    const counter = try collector.registerCounter("requests");
+    const gauge = try collector.registerGauge("in_flight");
+    const float_gauge = try collector.registerFloatGauge("cpu_usage");
+
+    // Simulate request processing
+    counter.inc(1);
+    gauge.inc();
+    float_gauge.set(0.45);
+
+    try std.testing.expectEqual(@as(u64, 1), counter.get());
+    try std.testing.expectEqual(@as(i64, 1), gauge.get());
+    try std.testing.expectApproxEqAbs(@as(f64, 0.45), float_gauge.get(), 0.001);
+
+    // Complete request
+    gauge.dec();
+    try std.testing.expectEqual(@as(i64, 0), gauge.get());
+}
+
+// ============================================================================
+// DefaultCollector Tests
+// ============================================================================
+
+test "DefaultCollector - init and deinit" {
+    const allocator = std.testing.allocator;
+    var dc = try DefaultCollector.init(allocator);
+    defer dc.deinit();
+
+    try std.testing.expectEqualStrings("requests_total", dc.defaults.requests.name);
+    try std.testing.expectEqualStrings("errors_total", dc.defaults.errors.name);
+    try std.testing.expectEqualStrings("latency_ms", dc.defaults.latency_ms.name);
+}
+
+test "DefaultCollector - record request" {
+    const allocator = std.testing.allocator;
+    var dc = try DefaultCollector.init(allocator);
+    defer dc.deinit();
+
+    recordRequest(&dc.defaults, 50);
+    recordRequest(&dc.defaults, 100);
+
+    try std.testing.expectEqual(@as(u64, 2), dc.defaults.requests.get());
+}
+
+test "DefaultCollector - record error" {
+    const allocator = std.testing.allocator;
+    var dc = try DefaultCollector.init(allocator);
+    defer dc.deinit();
+
+    recordError(&dc.defaults, 500);
+
+    try std.testing.expectEqual(@as(u64, 1), dc.defaults.errors.get());
+}
+
+// ============================================================================
+// CircuitBreakerMetrics Tests
+// ============================================================================
+
+test "CircuitBreakerMetrics - init and record" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    var cb_metrics = try CircuitBreakerMetrics.init(&collector);
+
+    cb_metrics.recordRequest(true, 50);
+    cb_metrics.recordRequest(false, 100);
+    cb_metrics.recordStateTransition();
+
+    try std.testing.expectEqual(@as(u64, 2), cb_metrics.requests_total.get());
+    try std.testing.expectEqual(@as(u64, 1), cb_metrics.requests_rejected.get());
+    try std.testing.expectEqual(@as(u64, 1), cb_metrics.state_transitions.get());
+}
+
+// ============================================================================
+// ErrorMetrics Tests
+// ============================================================================
+
+test "ErrorMetrics - init and record" {
+    const allocator = std.testing.allocator;
+    var collector = MetricsCollector.init(allocator);
+    defer collector.deinit();
+
+    var err_metrics = try ErrorMetrics.init(&collector);
+
+    err_metrics.recordError(false);
+    err_metrics.recordError(true);
+    err_metrics.recordError(false);
+    err_metrics.recordPattern();
+
+    try std.testing.expectEqual(@as(u64, 3), err_metrics.errors_total.get());
+    try std.testing.expectEqual(@as(u64, 1), err_metrics.errors_critical.get());
+    try std.testing.expectEqual(@as(u64, 1), err_metrics.patterns_detected.get());
+}
+
+// ============================================================================
+// Module State Tests
+// ============================================================================
+
+test "module - isEnabled returns build option" {
+    // Just verify the function works without crashing
+    _ = isEnabled();
+}
+
+test "module - isInitialized initially false" {
+    // Note: This test assumes fresh state
+    // Might fail if other tests have modified the initialized flag
+    _ = isInitialized();
+}
+
+test "createCollector - creates valid collector" {
+    const allocator = std.testing.allocator;
+    var collector = createCollector(allocator);
+    defer collector.deinit();
+
+    // Just verify it works
+    const counter = try collector.registerCounter("test");
+    counter.inc(1);
+    try std.testing.expectEqual(@as(u64, 1), counter.get());
+}

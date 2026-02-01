@@ -3,7 +3,7 @@ title: "TODO"
 tags: [development, tracking]
 ---
 # Project TODO List
-> **Codebase Status:** Synced with repository as of 2026-01-31.
+> **Codebase Status:** Synced with repository as of 2026-02-01.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Code_TODOs-Complete-success?style=for-the-badge" alt="Code TODOs Complete"/>
@@ -107,6 +107,7 @@ language bindings and long-term research (see ROADMAP.md).
 
 | Area | Description | Target File(s) |
 |------|-------------|----------------|
+| Trainable Model Refactor | Split monolithic `trainable_model.zig` into `src/ai/training/model/` with modular types. | `src/ai/training/model/` |
 | FPGA VTable Integration | Phase 2 LLM kernels (MatMul, Attention, KV-Cache) wired into FPGA backend vtable. | `src/gpu/backends/fpga/vtable.zig` |
 | FPGA MatMul Kernels | Quantized MatMul (Q4/Q8), tiled computation, fused bias+activation. | `src/gpu/backends/fpga/kernels/matmul_kernels.zig` |
 | FPGA Attention Kernels | Streaming softmax, multi-head attention, flash attention O(N). | `src/gpu/backends/fpga/kernels/attention_kernels.zig` |

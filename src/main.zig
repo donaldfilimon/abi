@@ -73,7 +73,8 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     defer io_backend.deinit();
 
     // Build a fully‑featured framework using the builder pattern.
-    var framework = try abi.Framework.builder(allocator)
+    var builder = abi.Framework.builder(allocator);
+    var framework = builder
         .withGpuDefaults()
         .withAiDefaults()
         .withDatabaseDefaults()

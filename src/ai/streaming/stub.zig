@@ -64,20 +64,6 @@ pub const formats = struct {
     pub const openai = stub_root.formats_openai;
 };
 
-// Re-exports for top-level access
-pub const StreamingServer = stub_root.StreamingServer;
-pub const ServerConfig = stub_root.ServerConfig;
-pub const StreamingServerError = stub_root.StreamingServerError;
-pub const WebSocketHandler = stub_root.WebSocketHandler;
-pub const WebSocketConfig = stub_root.WebSocketConfig;
-pub const WebSocketOpcode = stub_root.WebSocketOpcode;
-pub const WebSocketCloseCode = stub_root.WebSocketCloseCode;
-pub const computeWebSocketAcceptKey = stub_root.computeWebSocketAcceptKey;
-pub const BackendType = stub_root.BackendType;
-pub const BackendRouter = stub_root.BackendRouter;
-pub const Backend = stub_root.Backend;
-pub const BackendGenerationConfig = stub_root.BackendGenerationConfig;
-
 /// Stub SSE event.
 pub const SseEvent = struct {
     event: ?[]const u8 = null,

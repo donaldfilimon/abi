@@ -146,7 +146,18 @@ const ParallelGraph = struct {
         errdefer allocator.free(node_states);
 
         const neighbors = try allocator.alloc([]std.ArrayListUnmanaged(u32), node_count);
-        errdefer allocator.free(neighbors);
+        // Track how many nodes we've initialized for cleanup on error
+        var initialized_nodes: usize = 0;
+        errdefer {
+            // Clean up any partially initialized neighbor lists
+            for (neighbors[0..initialized_nodes]) |node_neighbors| {
+                for (node_neighbors) |*list| {
+                    list.deinit(allocator);
+                }
+                allocator.free(node_neighbors);
+            }
+            allocator.free(neighbors);
+        }
 
         var max_layer: i32 = 0;
 
@@ -167,6 +178,9 @@ const ParallelGraph = struct {
             if (layer > max_layer) {
                 max_layer = layer;
             }
+
+            // Track successful initialization for errdefer cleanup
+            initialized_nodes += 1;
         }
 
         return .{

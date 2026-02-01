@@ -18,12 +18,10 @@ pub fn main() !void {
     std.debug.print("=== ABI GPU Example ===\n\n", .{});
 
     // Initialize framework
-    var framework = abi.Framework.builder(allocator)
+    var builder = abi.Framework.builder(allocator);
+    var framework = try builder
         .withGpuDefaults()
-        .build() catch |err| {
-        std.debug.print("Framework initialization failed: {t}\n", .{err});
-        return err;
-    };
+        .build();
     defer framework.deinit();
 
     // Check GPU module status

@@ -101,21 +101,26 @@ pub const BpeTokenizer = struct {
             try tokens.append(allocator, self.special.bos_id);
         }
 
+        // Use arena allocator for all temporary string operations in the merge loop.
+        // This avoids repeated alloc/free cycles and potential memory leaks.
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        const temp_alloc = arena.allocator();
+
         // Split text into initial character tokens
         var chars = std.ArrayListUnmanaged([]const u8).empty;
-        defer chars.deinit(allocator);
+        defer chars.deinit(temp_alloc);
 
         var i: usize = 0;
         while (i < text.len) {
             const char_len = std.unicode.utf8ByteSequenceLength(text[i]) catch 1;
             const char_slice = text[i..@min(i + char_len, text.len)];
-            try chars.append(allocator, char_slice);
+            try chars.append(temp_alloc, char_slice);
             i += char_len;
         }
 
         // Apply BPE merges
-        var working = try allocator.alloc([]const u8, chars.items.len);
-        defer allocator.free(working);
+        var working = try temp_alloc.alloc([]const u8, chars.items.len);
         @memcpy(working, chars.items);
 
         var working_len = chars.items.len;
@@ -127,8 +132,8 @@ pub const BpeTokenizer = struct {
 
             var j: usize = 0;
             while (j < working_len - 1) : (j += 1) {
-                const key = std.fmt.allocPrint(allocator, "{s} {s}", .{ working[j], working[j + 1] }) catch continue;
-                defer allocator.free(key);
+                // Use temp_alloc - no need for defer free, arena handles cleanup
+                const key = std.fmt.allocPrint(temp_alloc, "{s} {s}", .{ working[j], working[j + 1] }) catch continue;
 
                 if (self.merge_ranks.get(key)) |rank| {
                     if (rank < best_rank) {
@@ -143,7 +148,8 @@ pub const BpeTokenizer = struct {
 
             // Apply merge at best_idx
             const idx = best_idx.?;
-            const merged = try std.fmt.allocPrint(allocator, "{s}{s}", .{ working[idx], working[idx + 1] });
+            // Use temp_alloc - arena handles cleanup at end of encode()
+            const merged = try std.fmt.allocPrint(temp_alloc, "{s}{s}", .{ working[idx], working[idx + 1] });
 
             // Shift remaining items
             working[idx] = merged;

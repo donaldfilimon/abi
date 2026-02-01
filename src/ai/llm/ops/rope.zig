@@ -36,6 +36,8 @@ pub const RopeCache = struct {
     /// Sine values: [max_seq_len, head_dim/2]
     sin_cache: []f32,
 
+    /// Initialize RoPE cache with precomputed sin/cos values.
+    /// Uses SIMD acceleration for frequency and sin/cos computation.
     pub fn init(allocator: std.mem.Allocator, config: RopeConfig) !RopeCache {
         const half_dim = config.head_dim / 2;
         const cache_size = @as(usize, config.max_seq_len) * half_dim;
@@ -49,26 +51,104 @@ pub const RopeCache = struct {
         var freqs = try allocator.alloc(f32, half_dim);
         defer allocator.free(freqs);
 
-        for (0..half_dim) |i| {
-            const exp = @as(f32, @floatFromInt(2 * i)) / @as(f32, @floatFromInt(config.head_dim));
-            freqs[i] = 1.0 / std.math.pow(f32, config.theta_base, exp);
+        // SIMD-accelerated frequency computation
+        const VectorSize = std.simd.suggestVectorLength(f32) orelse 8;
+
+        if (VectorSize > 1 and half_dim >= VectorSize) {
+            const Vec = @Vector(VectorSize, f32);
+            const head_dim_f: Vec = @splat(@as(f32, @floatFromInt(config.head_dim)));
+            var i: usize = 0;
+
+            while (i + VectorSize <= half_dim) : (i += VectorSize) {
+                // Create index vector [2*i, 2*(i+1), 2*(i+2), ...]
+                var idx_arr: [VectorSize]f32 = undefined;
+                inline for (0..VectorSize) |j| {
+                    idx_arr[j] = @floatFromInt(2 * (i + j));
+                }
+                const idx_vec: Vec = idx_arr;
+
+                // exp = (2 * i) / head_dim
+                const exp_vec = idx_vec / head_dim_f;
+                // freq = 1 / (theta_base ^ exp)
+                // Using identity: 1/x^y = exp(-y * log(x))
+                const log_theta: Vec = @splat(@log(config.theta_base));
+                const neg_exp = -exp_vec * log_theta;
+                const freq_vec: Vec = @exp(neg_exp);
+
+                freqs[i..][0..VectorSize].* = freq_vec;
+            }
+
+            // Scalar remainder for frequencies
+            while (i < half_dim) : (i += 1) {
+                const exp = @as(f32, @floatFromInt(2 * i)) / @as(f32, @floatFromInt(config.head_dim));
+                freqs[i] = 1.0 / std.math.pow(f32, config.theta_base, exp);
+            }
+        } else {
+            // Scalar fallback for small dimensions
+            for (0..half_dim) |i| {
+                const exp = @as(f32, @floatFromInt(2 * i)) / @as(f32, @floatFromInt(config.head_dim));
+                freqs[i] = 1.0 / std.math.pow(f32, config.theta_base, exp);
+            }
         }
 
         // Apply scaling if configured
         if (config.scaling_type == .linear and config.scaling_factor != 1.0) {
-            for (freqs) |*f| {
-                f.* /= config.scaling_factor;
+            if (VectorSize > 1 and half_dim >= VectorSize) {
+                const Vec = @Vector(VectorSize, f32);
+                const inv_scale: Vec = @splat(1.0 / config.scaling_factor);
+                var i: usize = 0;
+
+                while (i + VectorSize <= half_dim) : (i += VectorSize) {
+                    const v: Vec = freqs[i..][0..VectorSize].*;
+                    freqs[i..][0..VectorSize].* = v * inv_scale;
+                }
+
+                while (i < half_dim) : (i += 1) {
+                    freqs[i] /= config.scaling_factor;
+                }
+            } else {
+                for (freqs) |*f| {
+                    f.* /= config.scaling_factor;
+                }
             }
         }
 
-        // Precompute cos/sin for each position
+        // Precompute cos/sin for each position with SIMD
         for (0..config.max_seq_len) |pos| {
             const pos_f = @as(f32, @floatFromInt(pos));
-            for (0..half_dim) |i| {
-                const angle = pos_f * freqs[i];
-                const idx = pos * half_dim + i;
-                cos_cache[idx] = @cos(angle);
-                sin_cache[idx] = @sin(angle);
+            const base_idx = pos * half_dim;
+
+            if (VectorSize > 1 and half_dim >= VectorSize) {
+                const Vec = @Vector(VectorSize, f32);
+                const pos_vec: Vec = @splat(pos_f);
+                var i: usize = 0;
+
+                while (i + VectorSize <= half_dim) : (i += VectorSize) {
+                    const freq_vec: Vec = freqs[i..][0..VectorSize].*;
+                    const angle_vec = pos_vec * freq_vec;
+
+                    // Compute cos and sin using SIMD
+                    // Note: @cos and @sin work on vectors in Zig
+                    const cos_vec = @cos(angle_vec);
+                    const sin_vec = @sin(angle_vec);
+
+                    cos_cache[base_idx + i ..][0..VectorSize].* = cos_vec;
+                    sin_cache[base_idx + i ..][0..VectorSize].* = sin_vec;
+                }
+
+                // Scalar remainder
+                while (i < half_dim) : (i += 1) {
+                    const angle = pos_f * freqs[i];
+                    cos_cache[base_idx + i] = @cos(angle);
+                    sin_cache[base_idx + i] = @sin(angle);
+                }
+            } else {
+                // Scalar fallback
+                for (0..half_dim) |i| {
+                    const angle = pos_f * freqs[i];
+                    cos_cache[base_idx + i] = @cos(angle);
+                    sin_cache[base_idx + i] = @sin(angle);
+                }
             }
         }
 
@@ -103,20 +183,50 @@ pub const RopeCache = struct {
 
 /// Apply RoPE to a single vector at a given position.
 /// x: [head_dim], modified in-place
+/// Uses SIMD acceleration for the rotation computation.
 pub fn applyRope(x: []f32, pos: u32, cache: *const RopeCache) void {
     const half_dim = cache.config.head_dim / 2;
     const cos = cache.getCos(pos);
     const sin = cache.getSin(pos);
 
-    // Rotate pairs of dimensions
-    for (0..half_dim) |i| {
-        const x0 = x[i];
-        const x1 = x[i + half_dim];
-        const c = cos[i];
-        const s = sin[i];
+    // SIMD-accelerated rotation of dimension pairs
+    const VectorSize = std.simd.suggestVectorLength(f32) orelse 8;
 
-        x[i] = x0 * c - x1 * s;
-        x[i + half_dim] = x0 * s + x1 * c;
+    if (VectorSize > 1 and half_dim >= VectorSize) {
+        const Vec = @Vector(VectorSize, f32);
+        var i: usize = 0;
+
+        while (i + VectorSize <= half_dim) : (i += VectorSize) {
+            // Load first half and second half of dimensions
+            const x0: Vec = x[i..][0..VectorSize].*;
+            const x1: Vec = x[i + half_dim ..][0..VectorSize].*;
+            const c: Vec = cos[i..][0..VectorSize].*;
+            const s: Vec = sin[i..][0..VectorSize].*;
+
+            // Apply rotation: [x0*c - x1*s, x0*s + x1*c]
+            x[i..][0..VectorSize].* = x0 * c - x1 * s;
+            x[i + half_dim ..][0..VectorSize].* = x0 * s + x1 * c;
+        }
+
+        // Scalar remainder
+        while (i < half_dim) : (i += 1) {
+            const x0 = x[i];
+            const x1 = x[i + half_dim];
+            const c = cos[i];
+            const s = sin[i];
+            x[i] = x0 * c - x1 * s;
+            x[i + half_dim] = x0 * s + x1 * c;
+        }
+    } else {
+        // Scalar fallback
+        for (0..half_dim) |i| {
+            const x0 = x[i];
+            const x1 = x[i + half_dim];
+            const c = cos[i];
+            const s = sin[i];
+            x[i] = x0 * c - x1 * s;
+            x[i + half_dim] = x0 * s + x1 * c;
+        }
     }
 }
 

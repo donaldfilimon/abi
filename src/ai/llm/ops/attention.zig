@@ -2,10 +2,103 @@
 //!
 //! Implements scaled dot-product attention with causal masking,
 //! multi-head attention, and grouped-query attention (GQA).
+//!
+//! Performance note: For known head dimensions, use ScaledAttention(comptime head_dim)
+//! to get a type with pre-computed scale factor. Common head dimensions (32, 64, 128)
+//! have compile-time optimized scale factors.
 
 const std = @import("std");
 const matmul = @import("matmul.zig");
 const activations = @import("activations.zig");
+
+// ============================================================================
+// Comptime Scale Factors
+// ============================================================================
+
+/// Pre-computed scale factors for common head dimensions.
+/// Using comptime evaluation ensures these are embedded in binary.
+pub const ComptimeScales = struct {
+    /// Scale factor for head_dim = 32 (1/sqrt(32))
+    pub const SCALE_32: f32 = 1.0 / @sqrt(32.0);
+    /// Scale factor for head_dim = 64 (1/sqrt(64))
+    pub const SCALE_64: f32 = 1.0 / @sqrt(64.0);
+    /// Scale factor for head_dim = 80 (1/sqrt(80)) - used in Llama models
+    pub const SCALE_80: f32 = 1.0 / @sqrt(80.0);
+    /// Scale factor for head_dim = 96 (1/sqrt(96))
+    pub const SCALE_96: f32 = 1.0 / @sqrt(96.0);
+    /// Scale factor for head_dim = 128 (1/sqrt(128))
+    pub const SCALE_128: f32 = 1.0 / @sqrt(128.0);
+
+    /// Get the scale factor for a given head dimension.
+    /// Uses comptime lookup for common dimensions, runtime for others.
+    pub fn getScale(head_dim: u32) f32 {
+        return switch (head_dim) {
+            32 => SCALE_32,
+            64 => SCALE_64,
+            80 => SCALE_80,
+            96 => SCALE_96,
+            128 => SCALE_128,
+            else => 1.0 / @sqrt(@as(f32, @floatFromInt(head_dim))),
+        };
+    }
+};
+
+/// Create a scaled attention implementation with comptime-known head dimension.
+/// The scale factor is computed at compile time and embedded in the binary.
+pub fn ScaledAttention(comptime head_dim: u32) type {
+    return struct {
+        /// Pre-computed scale factor (1/sqrt(head_dim))
+        pub const SCALE: f32 = 1.0 / @sqrt(@as(f32, head_dim));
+
+        /// Head dimension for this attention type
+        pub const HEAD_DIM: u32 = head_dim;
+
+        /// Scaled dot-product attention with compile-time scale.
+        /// Uses pre-computed SCALE constant instead of runtime sqrt.
+        pub fn apply(
+            allocator: std.mem.Allocator,
+            q: []const f32,
+            k: []const f32,
+            v: []const f32,
+            output: []f32,
+            seq_len: u32,
+            kv_len: u32,
+            causal: bool,
+        ) !void {
+            // Compute attention scores: QK^T / sqrt(d)
+            const scores = try allocator.alloc(f32, @as(usize, seq_len) * kv_len);
+            defer allocator.free(scores);
+
+            // Q @ K^T
+            matmul.matrixMultiplyTransposed(q, k, scores, seq_len, head_dim, kv_len);
+
+            // Scale scores with comptime constant
+            for (scores) |*s| {
+                s.* *= SCALE;
+            }
+
+            // Apply causal mask (set future positions to -inf)
+            if (causal) {
+                applyCausalMask(scores, seq_len, kv_len);
+            }
+
+            // Softmax over last dimension (per row)
+            for (0..seq_len) |i| {
+                const row_start = i * kv_len;
+                activations.softmaxInPlace(scores[row_start .. row_start + kv_len]);
+            }
+
+            // Output = Attention @ V
+            matmul.matrixMultiply(scores, v, output, seq_len, kv_len, head_dim);
+        }
+    };
+}
+
+// Common pre-instantiated attention types for popular model configurations
+pub const Attention32 = ScaledAttention(32);
+pub const Attention64 = ScaledAttention(64);
+pub const Attention80 = ScaledAttention(80); // Llama
+pub const Attention128 = ScaledAttention(128);
 
 /// Self-attention configuration.
 pub const AttentionConfig = struct {
@@ -39,6 +132,9 @@ pub const AttentionConfig = struct {
 /// K: [seq_len, head_dim] or [kv_len, head_dim] for KV cache
 /// V: [seq_len, head_dim] or [kv_len, head_dim]
 /// Output: [seq_len, head_dim]
+///
+/// For best performance with fixed head dimensions, use ScaledAttention(comptime head_dim)
+/// or the pre-instantiated Attention64, Attention128, etc. types.
 pub fn scaledDotProductAttention(
     allocator: std.mem.Allocator,
     q: []const f32,
@@ -50,8 +146,8 @@ pub fn scaledDotProductAttention(
     head_dim: u32,
     causal: bool,
 ) !void {
-    // Scaling factor
-    const scale = 1.0 / @sqrt(@as(f32, @floatFromInt(head_dim)));
+    // Scaling factor - uses comptime lookup for common dimensions
+    const scale = ComptimeScales.getScale(head_dim);
 
     // Compute attention scores: QK^T / sqrt(d)
     const scores = try allocator.alloc(f32, @as(usize, seq_len) * kv_len);
@@ -81,16 +177,41 @@ pub fn scaledDotProductAttention(
 }
 
 /// Apply causal mask to attention scores.
+/// Uses SIMD acceleration to fill masked regions with -inf.
 fn applyCausalMask(scores: []f32, seq_len: u32, kv_len: u32) void {
     const neg_inf = -std.math.inf(f32);
+    const VectorSize = std.simd.suggestVectorLength(f32) orelse 8;
 
     // For each query position, mask out future key positions
     for (0..seq_len) |q_pos| {
         // Keys at positions > q_pos + (kv_len - seq_len) are in the future
         const last_valid_k = q_pos + (kv_len - seq_len);
+        const row_start = q_pos * kv_len;
+        const mask_start = row_start + last_valid_k + 1;
+        const mask_end = row_start + kv_len;
+        const mask_len = mask_end - mask_start;
 
-        for (last_valid_k + 1..kv_len) |k_pos| {
-            scores[q_pos * kv_len + k_pos] = neg_inf;
+        if (mask_len == 0) continue;
+
+        // SIMD fill for masked region
+        if (VectorSize > 1 and mask_len >= VectorSize) {
+            const Vec = @Vector(VectorSize, f32);
+            const neg_inf_vec: Vec = @splat(neg_inf);
+            var i: usize = mask_start;
+
+            while (i + VectorSize <= mask_end) : (i += VectorSize) {
+                scores[i..][0..VectorSize].* = neg_inf_vec;
+            }
+
+            // Scalar remainder
+            while (i < mask_end) : (i += 1) {
+                scores[i] = neg_inf;
+            }
+        } else {
+            // Scalar fallback for small regions
+            for (mask_start..mask_end) |i| {
+                scores[i] = neg_inf;
+            }
         }
     }
 }
@@ -206,7 +327,7 @@ pub fn computeAttentionScores(
     seq_len: u32,
     kv_len: u32,
 ) ![]f32 {
-    const scale = 1.0 / @sqrt(@as(f32, @floatFromInt(head_dim)));
+    const scale = ComptimeScales.getScale(head_dim);
 
     const scores = try allocator.alloc(f32, @as(usize, seq_len) * kv_len);
     matmul.matrixMultiplyTransposed(q, k, scores, seq_len, head_dim, kv_len);
@@ -305,7 +426,7 @@ pub fn flashAttention(
     head_dim: u32,
     config: FlashAttentionConfig,
 ) !void {
-    const scale = config.scale orelse (1.0 / @sqrt(@as(f32, @floatFromInt(head_dim))));
+    const scale = config.scale orelse ComptimeScales.getScale(head_dim);
     const block_q = @min(config.block_size_q, seq_len);
     const block_kv = @min(config.block_size_kv, kv_len);
 

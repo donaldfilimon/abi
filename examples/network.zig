@@ -12,12 +12,10 @@ pub fn main() !void {
         return;
     }
 
-    var framework = abi.Framework.builder(allocator)
+    var builder = abi.Framework.builder(allocator);
+    var framework = try builder
         .withNetworkDefaults()
-        .build() catch |err| {
-        std.debug.print("Failed to initialize network framework: {t}\n", .{err});
-        return err;
-    };
+        .build();
     defer framework.deinit();
 
     // Explicitly initialize the network subsystem before accessing the registry.

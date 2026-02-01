@@ -26,6 +26,13 @@ pub fn CodeGenerator(comptime Config: type) type {
         /// The backend configuration used by this generator.
         pub const backend_config: configs.BackendConfig = Config.config;
 
+        // Comptime-generated lookup tables for O(1) access
+        // These are computed once at compile time for each backend instantiation.
+        pub const unary_fn_table: configs.UnaryFunctions.LookupTable = backend_config.unary_fns.buildTable();
+        pub const binary_fn_table: configs.BinaryFunctions.LookupTable = backend_config.binary_fns.buildTable();
+        pub const type_name_table: configs.TypeNames.LookupTable = backend_config.type_names.buildTable();
+        pub const vector_prefix_table: configs.VectorNaming.LookupTable = backend_config.vector_naming.buildTable();
+
         pub fn init(allocator: std.mem.Allocator) Self {
             return .{
                 .writer = common.CodeWriter.init(allocator),
@@ -425,7 +432,7 @@ pub fn CodeGenerator(comptime Config: type) type {
 
         pub fn writeType(self: *Self, ty: types.Type) backend.CodegenError!void {
             switch (ty) {
-                .scalar => |s| try self.writer.write(self.config.type_names.getScalar(s)),
+                .scalar => |s| try self.writer.write(type_name_table[@intFromEnum(s)]),
                 .vector => |v| try self.writeVectorType(v),
                 .matrix => |m| try self.writeMatrixType(m),
                 .array => |a| try self.writeArrayType(a),
@@ -440,17 +447,17 @@ pub fn CodeGenerator(comptime Config: type) type {
         fn writeVectorType(self: *Self, v: types.VectorType) !void {
             switch (self.config.vector_naming.style) {
                 .prefix => {
-                    const prefix = self.config.vector_naming.getPrefix(v.element);
+                    const prefix = vector_prefix_table[@intFromEnum(v.element)];
                     try self.writer.writeFmt("{s}{d}", .{ prefix, v.size });
                 },
                 .type_suffix => {
-                    const prefix = self.config.vector_naming.getPrefix(v.element);
+                    const prefix = vector_prefix_table[@intFromEnum(v.element)];
                     try self.writer.writeFmt("{s}{d}", .{ prefix, v.size });
                 },
                 .generic => {
                     // WGSL style: vec3<f32>
                     try self.writer.writeFmt("vec{d}<", .{v.size});
-                    try self.writer.write(self.config.type_names.getScalar(v.element));
+                    try self.writer.write(type_name_table[@intFromEnum(v.element)]);
                     try self.writer.write(">");
                 },
             }
@@ -461,13 +468,13 @@ pub fn CodeGenerator(comptime Config: type) type {
                 .glsl => try self.writer.writeFmt("mat{d}x{d}", .{ m.cols, m.rows }),
                 .wgsl => {
                     try self.writer.writeFmt("mat{d}x{d}<", .{ m.cols, m.rows });
-                    try self.writer.write(self.config.type_names.getScalar(m.element));
+                    try self.writer.write(type_name_table[@intFromEnum(m.element)]);
                     try self.writer.write(">");
                 },
                 .msl => try self.writer.writeFmt("float{d}x{d}", .{ m.cols, m.rows }),
                 .cuda => {
                     // CUDA doesn't have native matrix types
-                    const base = self.config.type_names.getScalar(m.element);
+                    const base = type_name_table[@intFromEnum(m.element)];
                     try self.writer.writeFmt("{s}[{d}][{d}]", .{ base, m.rows, m.cols });
                 },
                 else => try self.writer.writeFmt("mat{d}x{d}", .{ m.cols, m.rows }),
@@ -556,8 +563,8 @@ pub fn CodeGenerator(comptime Config: type) type {
                 try self.writeExpr(un.operand);
                 try self.writer.write(")");
             } else {
-                // Function-style unary op
-                const func_name = self.config.unary_fns.get(un.op);
+                // Function-style unary op - use comptime lookup table for O(1) access
+                const func_name = unary_fn_table[@intFromEnum(un.op)];
                 try self.writer.writeFmt("{s}(", .{func_name});
                 try self.writeExpr(un.operand);
                 try self.writer.write(")");
@@ -572,8 +579,8 @@ pub fn CodeGenerator(comptime Config: type) type {
                 try self.writeExpr(bin.right);
                 try self.writer.write(")");
             } else {
-                // Function-style binary op
-                const func_name = self.config.binary_fns.get(bin.op);
+                // Function-style binary op - use comptime lookup table for O(1) access
+                const func_name = binary_fn_table[@intFromEnum(bin.op)];
                 try self.writer.writeFmt("{s}(", .{func_name});
                 try self.writeExpr(bin.left);
                 try self.writer.write(", ");
@@ -756,16 +763,16 @@ pub fn CodeGenerator(comptime Config: type) type {
         fn writeVectorConstruct(self: *Self, vc: expr.Expr.VectorConstruct) !void {
             switch (self.config.language) {
                 .cuda => {
-                    const base = self.config.type_names.getScalar(vc.element_type);
+                    const base = type_name_table[@intFromEnum(vc.element_type)];
                     try self.writer.writeFmt("make_{s}{d}(", .{ base, vc.size });
                 },
                 .wgsl => {
                     try self.writer.writeFmt("vec{d}<", .{vc.size});
-                    try self.writer.write(self.config.type_names.getScalar(vc.element_type));
+                    try self.writer.write(type_name_table[@intFromEnum(vc.element_type)]);
                     try self.writer.write(">(");
                 },
                 else => {
-                    const prefix = self.config.vector_naming.getPrefix(vc.element_type);
+                    const prefix = vector_prefix_table[@intFromEnum(vc.element_type)];
                     try self.writer.writeFmt("{s}{d}(", .{ prefix, vc.size });
                 },
             }

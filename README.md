@@ -313,6 +313,7 @@ abi/
 │   │   ├── llm/          # Local LLM inference (Llama-CPP parity)
 │   │   ├── agents/       # Agent runtime with personas
 │   │   ├── training/     # Training pipelines
+│   │   │   └── model/    # Modular model architecture
 │   │   └── embeddings/   # Vector embeddings
 │   │
 │   ├── gpu/              # GPU Acceleration
@@ -492,6 +493,7 @@ zig build lint
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Modular Refactor | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
 See [PLAN.md](PLAN.md) for current sprint status and [ROADMAP.md](ROADMAP.md) for version history.
 

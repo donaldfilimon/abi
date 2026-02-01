@@ -3,7 +3,7 @@ title: "GEMINI"
 tags: [ai, agents, gemini]
 ---
 # GEMINI.md
-> **Codebase Status:** Synced with repository as of 2026-01-31.
+> **Codebase Status:** Synced with repository as of 2026-02-01.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Gemini-Agent_Guide-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini Guide"/>
@@ -182,6 +182,28 @@ recovery.recordFailure(.openai);  // Opens circuit after threshold
 // Session caching for SSE Last-Event-ID reconnection
 var cache = streaming.SessionCache.init(allocator, .{});
 try cache.storeToken("session", 1, "Hello", .local, hash);
+```
+
+### Model Training Architecture (2026-02-01)
+Refactored `src/ai/training/model/` for clean separation of concerns.
+
+```zig
+const model = @import("abi").ai.training.model;
+
+// Configuration
+const config = model.TrainableModelConfig{
+    .hidden_dim = 512,
+    .num_layers = 4,
+    .checkpointing = .every_n_layers,
+};
+
+// Weights container
+var weights = try model.TrainableWeights.init(allocator, config);
+defer weights.deinit();
+
+// Activation cache
+var cache = try model.ActivationCache.init(allocator, config, 2048);
+defer cache.deinit();
 ```
 
 ## Gotchas for Gemini

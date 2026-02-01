@@ -187,6 +187,7 @@ src/
 │   ├── templates/       # Template system
 │   ├── tools/           # Agent tools
 │   ├── training/        # Training pipelines
+│   │   └── model/       # Modular model architecture (config, weights, cache, layers)
 │   ├── transformer/     # Transformer architecture
 │   └── vision/          # Vision/image processing
 ├── cloud/               # Cloud function adapters (AWS Lambda, Azure, GCP)
@@ -751,6 +752,7 @@ Key documentation:
 - [CLI Guide](docs/content/cli.html) - Model management and CLI usage
 - [Benchmarks](benchmarks/README.md) - Performance benchmarking guide
 - [CLI Tests](scripts/run_cli_tests.sh) - CLI test procedures
+- **Agent Prompts**: `prompts/` contains mega-prompts for system instructions, refactoring, and testing.
 
 ## Experimental Feature Flags
 

@@ -61,36 +61,57 @@ pub const Feature = enum {
     personas,
     cloud,
 
+    /// Number of features in the enum
+    pub const feature_count = @typeInfo(Feature).@"enum".fields.len;
+
+    /// Comptime-generated description lookup table for O(1) access.
+    const DESCRIPTIONS: [feature_count][]const u8 = blk: {
+        var descs: [feature_count][]const u8 = undefined;
+        descs[@intFromEnum(Feature.gpu)] = "GPU acceleration and compute";
+        descs[@intFromEnum(Feature.ai)] = "AI core functionality";
+        descs[@intFromEnum(Feature.llm)] = "Local LLM inference";
+        descs[@intFromEnum(Feature.embeddings)] = "Vector embeddings generation";
+        descs[@intFromEnum(Feature.agents)] = "AI agent runtime";
+        descs[@intFromEnum(Feature.training)] = "Model training pipelines";
+        descs[@intFromEnum(Feature.database)] = "Vector database (WDBX)";
+        descs[@intFromEnum(Feature.network)] = "Distributed compute network";
+        descs[@intFromEnum(Feature.observability)] = "Metrics, tracing, profiling";
+        descs[@intFromEnum(Feature.web)] = "Web/HTTP utilities";
+        descs[@intFromEnum(Feature.personas)] = "Multi-persona AI assistant";
+        descs[@intFromEnum(Feature.cloud)] = "Cloud provider integration";
+        break :blk descs;
+    };
+
+    /// Comptime-generated compile-time enabled flags lookup table.
+    const COMPILE_TIME_ENABLED: [feature_count]bool = blk: {
+        var enabled: [feature_count]bool = undefined;
+        enabled[@intFromEnum(Feature.gpu)] = build_options.enable_gpu;
+        enabled[@intFromEnum(Feature.ai)] = build_options.enable_ai;
+        enabled[@intFromEnum(Feature.llm)] = build_options.enable_ai;
+        enabled[@intFromEnum(Feature.embeddings)] = build_options.enable_ai;
+        enabled[@intFromEnum(Feature.agents)] = build_options.enable_ai;
+        enabled[@intFromEnum(Feature.training)] = build_options.enable_ai;
+        enabled[@intFromEnum(Feature.personas)] = build_options.enable_ai;
+        enabled[@intFromEnum(Feature.database)] = build_options.enable_database;
+        enabled[@intFromEnum(Feature.network)] = build_options.enable_network;
+        enabled[@intFromEnum(Feature.observability)] = build_options.enable_profiling;
+        enabled[@intFromEnum(Feature.web)] = build_options.enable_web;
+        enabled[@intFromEnum(Feature.cloud)] = build_options.enable_web;
+        break :blk enabled;
+    };
+
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
     }
 
+    /// Get feature description using O(1) comptime lookup table.
     pub fn description(self: Feature) []const u8 {
-        return switch (self) {
-            .gpu => "GPU acceleration and compute",
-            .ai => "AI core functionality",
-            .llm => "Local LLM inference",
-            .embeddings => "Vector embeddings generation",
-            .agents => "AI agent runtime",
-            .training => "Model training pipelines",
-            .database => "Vector database (WDBX)",
-            .network => "Distributed compute network",
-            .observability => "Metrics, tracing, profiling",
-            .web => "Web/HTTP utilities",
-            .personas => "Multi-persona AI assistant",
-            .cloud => "Cloud provider integration",
-        };
+        return DESCRIPTIONS[@intFromEnum(self)];
     }
 
+    /// Check if feature is compile-time enabled using O(1) comptime lookup table.
     pub fn isCompileTimeEnabled(self: Feature) bool {
-        return switch (self) {
-            .gpu => build_options.enable_gpu,
-            .ai, .llm, .embeddings, .agents, .training, .personas => build_options.enable_ai,
-            .database => build_options.enable_database,
-            .network => build_options.enable_network,
-            .observability => build_options.enable_profiling,
-            .web, .cloud => build_options.enable_web,
-        };
+        return COMPILE_TIME_ENABLED[@intFromEnum(self)];
     }
 };
 

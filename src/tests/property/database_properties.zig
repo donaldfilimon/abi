@@ -787,3 +787,431 @@ test "database model duplicate insert updates existing" {
 
     try std.testing.expect(result.passed);
 }
+
+// ============================================================================
+// Quantization Property Tests
+// ============================================================================
+
+test "property - 8-bit quantization roundtrip error bounded" {
+    const gen = generators.vectorF32(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            // Find min and max for quantization range
+            var min_val: f32 = std.math.inf(f32);
+            var max_val: f32 = -std.math.inf(f32);
+            for (vec) |v| {
+                if (v < min_val) min_val = v;
+                if (v > max_val) max_val = v;
+            }
+
+            // Avoid degenerate case
+            if (max_val - min_val < 1e-6) return true;
+
+            // Quantize each value to 8 bits (256 levels)
+            var quantized: [VECTOR_DIM]u8 = undefined;
+            for (&quantized, vec) |*q, v| {
+                const normalized = (v - min_val) / (max_val - min_val);
+                const scaled = normalized * 255.0;
+                q.* = @intFromFloat(std.math.clamp(scaled, 0.0, 255.0));
+            }
+
+            // Dequantize
+            var dequantized: [VECTOR_DIM]f32 = undefined;
+            for (&dequantized, quantized) |*d, q| {
+                const normalized = @as(f32, @floatFromInt(q)) / 255.0;
+                d.* = min_val + normalized * (max_val - min_val);
+            }
+
+            // Error should be bounded by quantization step size
+            const step = (max_val - min_val) / 255.0;
+            for (vec, dequantized) |original, reconstructed| {
+                if (@abs(original - reconstructed) > step + EPSILON) return false;
+            }
+
+            return true;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - 4-bit quantization roundtrip error bounded" {
+    const gen = generators.vectorF32(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            var min_val: f32 = std.math.inf(f32);
+            var max_val: f32 = -std.math.inf(f32);
+            for (vec) |v| {
+                if (v < min_val) min_val = v;
+                if (v > max_val) max_val = v;
+            }
+
+            if (max_val - min_val < 1e-6) return true;
+
+            // Quantize to 4 bits (16 levels)
+            var quantized: [VECTOR_DIM]u8 = undefined;
+            for (&quantized, vec) |*q, v| {
+                const normalized = (v - min_val) / (max_val - min_val);
+                const scaled = normalized * 15.0;
+                q.* = @intFromFloat(std.math.clamp(scaled, 0.0, 15.0));
+            }
+
+            // Dequantize
+            var dequantized: [VECTOR_DIM]f32 = undefined;
+            for (&dequantized, quantized) |*d, q| {
+                const normalized = @as(f32, @floatFromInt(q)) / 15.0;
+                d.* = min_val + normalized * (max_val - min_val);
+            }
+
+            // Error bounded by quantization step
+            const step = (max_val - min_val) / 15.0;
+            for (vec, dequantized) |original, reconstructed| {
+                if (@abs(original - reconstructed) > step + EPSILON) return false;
+            }
+
+            return true;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - quantization preserves relative ordering" {
+    const gen = generators.vectorPairF32(VECTOR_DIM);
+
+    const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
+            // Compute original distances
+            const orig_dist = abi.simd.l2Distance(&pair.a, &pair.b);
+
+            // Find global min/max
+            var min_val: f32 = std.math.inf(f32);
+            var max_val: f32 = -std.math.inf(f32);
+            for (pair.a) |v| {
+                if (v < min_val) min_val = v;
+                if (v > max_val) max_val = v;
+            }
+            for (pair.b) |v| {
+                if (v < min_val) min_val = v;
+                if (v > max_val) max_val = v;
+            }
+
+            if (max_val - min_val < 1e-6) return true;
+
+            // Quantize and dequantize both vectors
+            var quant_a: [VECTOR_DIM]f32 = undefined;
+            var quant_b: [VECTOR_DIM]f32 = undefined;
+
+            for (&quant_a, pair.a) |*q, v| {
+                const normalized = (v - min_val) / (max_val - min_val);
+                const code: u8 = @intFromFloat(std.math.clamp(normalized * 255.0, 0.0, 255.0));
+                q.* = min_val + (@as(f32, @floatFromInt(code)) / 255.0) * (max_val - min_val);
+            }
+
+            for (&quant_b, pair.b) |*q, v| {
+                const normalized = (v - min_val) / (max_val - min_val);
+                const code: u8 = @intFromFloat(std.math.clamp(normalized * 255.0, 0.0, 255.0));
+                q.* = min_val + (@as(f32, @floatFromInt(code)) / 255.0) * (max_val - min_val);
+            }
+
+            const quant_dist = abi.simd.l2Distance(&quant_a, &quant_b);
+
+            // Quantized distance should be close to original
+            // Allow for accumulated quantization error
+            const max_error = (max_val - min_val) / 255.0 * @sqrt(@as(f32, VECTOR_DIM)) * 2;
+            return @abs(orig_dist - quant_dist) < max_error + EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+// ============================================================================
+// Distance Metric Mathematical Properties
+// ============================================================================
+
+test "property - dot product is commutative" {
+    const gen = generators.vectorPairF32(VECTOR_DIM);
+
+    const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
+            const dot_ab = abi.simd.vectorDot(&pair.a, &pair.b);
+            const dot_ba = abi.simd.vectorDot(&pair.b, &pair.a);
+            return assert.approxEqual(dot_ab, dot_ba, EPSILON);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - dot product with self equals squared magnitude" {
+    const gen = generators.vectorF32(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            const dot_self = abi.simd.vectorDot(&vec, &vec);
+
+            // Compute magnitude squared manually
+            var mag_sq: f32 = 0.0;
+            for (vec) |v| {
+                mag_sq += v * v;
+            }
+
+            return assert.approxEqual(dot_self, mag_sq, EPSILON);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - L2 distance satisfies non-negativity" {
+    const gen = generators.vectorPairF32(VECTOR_DIM);
+
+    const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
+            const dist = abi.simd.l2Distance(&pair.a, &pair.b);
+            return dist >= 0.0;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - L2 distance identity of indiscernibles" {
+    const gen = generators.vectorF32(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            const dist = abi.simd.l2Distance(&vec, &vec);
+            return dist < EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - vector addition is commutative" {
+    const gen = generators.vectorPairF32(VECTOR_DIM);
+
+    const result = forAll(property.VectorPair(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(pair: property.VectorPair(VECTOR_DIM)) bool {
+            var sum_ab: [VECTOR_DIM]f32 = undefined;
+            var sum_ba: [VECTOR_DIM]f32 = undefined;
+
+            for (&sum_ab, pair.a, pair.b) |*s, a, b| {
+                s.* = a + b;
+            }
+            for (&sum_ba, pair.b, pair.a) |*s, b, a| {
+                s.* = b + a;
+            }
+
+            return assert.slicesApproxEqual(&sum_ab, &sum_ba, EPSILON);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - scalar multiplication is distributive" {
+    const gen = generators.scalarVectorF32(VECTOR_DIM);
+
+    const result = forAll(property.ScalarVectorPair(VECTOR_DIM), gen, TestConfig, struct {
+        fn check(pair: property.ScalarVectorPair(VECTOR_DIM)) bool {
+            const scalar = pair.scalar;
+            const vec = pair.vector;
+
+            // Scalar * vector element by element
+            var scaled: [VECTOR_DIM]f32 = undefined;
+            for (&scaled, vec) |*s, v| {
+                s.* = scalar * v;
+            }
+
+            // Magnitude should scale by |scalar|
+            var orig_mag_sq: f32 = 0.0;
+            var scaled_mag_sq: f32 = 0.0;
+
+            for (vec) |v| orig_mag_sq += v * v;
+            for (scaled) |s| scaled_mag_sq += s * s;
+
+            const orig_mag = @sqrt(orig_mag_sq);
+            const scaled_mag = @sqrt(scaled_mag_sq);
+            const expected_mag = orig_mag * @abs(scalar);
+
+            return assert.approxEqual(scaled_mag, expected_mag, EPSILON * 10);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+// ============================================================================
+// Boundary and Edge Case Properties
+// ============================================================================
+
+test "property - single element database always returns that element" {
+    const gen = generators.unitVector(VECTOR_DIM);
+
+    const result = forAllWithAllocator([VECTOR_DIM]f32, std.testing.allocator, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            model.insert(1, vec) catch return false;
+
+            // Search with any query should return the single vector
+            var query: [VECTOR_DIM]f32 = undefined;
+            for (&query, vec) |*q, v| {
+                q.* = v + 0.1; // Slightly perturbed query
+            }
+
+            const results = model.search(query, 10) catch return false;
+            defer allocator.free(results);
+
+            // Should return exactly 1 result
+            if (results.len != 1) return false;
+            return results[0].id == 1;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - k=1 search returns closest vector" {
+    const result = forAllWithAllocator(u8, std.testing.allocator, generators.intRange(u8, 2, 20), TestConfig, struct {
+        fn check(n: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert vectors along a line: [0,0,...], [1,0,...], [2,0,...], etc.
+            for (0..n) |i| {
+                var vec = [_]f32{0.0} ** VECTOR_DIM;
+                vec[0] = @floatFromInt(i);
+                model.insert(@intCast(i), vec) catch return false;
+            }
+
+            // Query at position 0 should return vector 0
+            const query = [_]f32{0.0} ** VECTOR_DIM;
+            const results = model.search(query, 1) catch return false;
+            defer allocator.free(results);
+
+            if (results.len != 1) return false;
+            return results[0].id == 0 and results[0].distance < EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - search never returns duplicate IDs" {
+    const result = forAllWithAllocator(u8, std.testing.allocator, generators.intRange(u8, 5, 30), TestConfig, struct {
+        fn check(n: u8, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert n random vectors
+            var prng = std.Random.DefaultPrng.init(@intCast(n));
+            for (0..n) |i| {
+                var vec: [VECTOR_DIM]f32 = undefined;
+                for (&vec) |*v| {
+                    v.* = prng.random().float(f32) * 2.0 - 1.0;
+                }
+                model.insert(@intCast(i), vec) catch return false;
+            }
+
+            // Search
+            const query = [_]f32{0.0} ** VECTOR_DIM;
+            const results = model.search(query, n) catch return false;
+            defer allocator.free(results);
+
+            // Check for duplicates
+            for (results, 0..) |r1, i| {
+                for (results[i + 1 ..]) |r2| {
+                    if (r1.id == r2.id) return false;
+                }
+            }
+
+            return true;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - insert then delete then insert works correctly" {
+    const gen = generators.unitVector(VECTOR_DIM);
+
+    const result = forAllWithAllocator([VECTOR_DIM]f32, std.testing.allocator, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32, allocator: std.mem.Allocator) bool {
+            var model = DatabaseModel.init(allocator);
+            defer model.deinit();
+
+            // Insert
+            model.insert(42, vec) catch return false;
+            if (model.count() != 1) return false;
+
+            // Delete
+            if (!model.delete(42)) return false;
+            if (model.count() != 0) return false;
+
+            // Re-insert with different vector
+            var new_vec: [VECTOR_DIM]f32 = undefined;
+            for (&new_vec, vec) |*n, v| {
+                n.* = v + 0.5;
+            }
+            model.insert(42, new_vec) catch return false;
+            if (model.count() != 1) return false;
+
+            // Verify new vector is stored
+            const retrieved = model.get(42) orelse return false;
+            return @abs(retrieved[0] - new_vec[0]) < EPSILON;
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - cosine similarity range with normalized vectors" {
+    const gen = generators.unitVector(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            // Generate another unit vector
+            var other: [VECTOR_DIM]f32 = undefined;
+            for (&other, vec) |*o, v| {
+                o.* = -v; // Opposite direction
+            }
+
+            const cos = abi.simd.cosineSimilarity(&vec, &other);
+
+            // Should be -1 for opposite vectors
+            return assert.approxEqual(cos, -1.0, EPSILON * 10);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}
+
+test "property - parallel vectors have cosine similarity 1" {
+    const gen = generators.nonZeroVector(VECTOR_DIM);
+
+    const result = forAll([VECTOR_DIM]f32, gen, TestConfig, struct {
+        fn check(vec: [VECTOR_DIM]f32) bool {
+            // Scale vector by positive factor
+            var scaled: [VECTOR_DIM]f32 = undefined;
+            for (&scaled, vec) |*s, v| {
+                s.* = v * 2.5;
+            }
+
+            const cos = abi.simd.cosineSimilarity(&vec, &scaled);
+
+            // Skip NaN cases
+            if (std.math.isNan(cos)) return true;
+
+            return assert.approxEqual(cos, 1.0, EPSILON * 10);
+        }
+    }.check);
+
+    try std.testing.expect(result.passed);
+}

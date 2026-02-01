@@ -29,218 +29,118 @@ pub const CodegenError = Error;
 pub const CompileError = Error;
 
 // ============================================================================
-// Stub Types
+// Local Stubs Imports
 // ============================================================================
 
-pub const Backend = enum {
-    auto,
-    vulkan,
-    cuda,
-    metal,
-    webgpu,
-    opengl,
-    cpu,
-};
+pub const backend = @import("stubs/backend.zig");
+pub const device = @import("stubs/device.zig");
+pub const memory = @import("stubs/memory.zig");
+pub const stream = @import("stubs/stream.zig");
+pub const kernel = @import("stubs/kernel.zig");
+pub const dsl_mod = @import("stubs/dsl.zig");
+pub const execution = @import("stubs/execution.zig");
+pub const profiler = @import("stubs/profiler.zig");
+pub const recovery_mod = @import("stubs/recovery.zig");
+pub const multi_gpu = @import("stubs/multi_gpu.zig");
+pub const config = @import("stubs/config.zig");
 
-pub const BackendInfo = struct {
-    backend: Backend,
-    name: []const u8,
-    description: []const u8 = "GPU Disabled",
-    enabled: bool = false,
-    available: bool,
-    availability: []const u8 = "disabled",
-    device_count: usize = 0,
-    build_flag: []const u8 = "",
-};
+// ============================================================================
+// Re-exports
+// ============================================================================
 
-pub const DetectionLevel = enum { none, loader, device_count };
+pub const Backend = backend.Backend;
+pub const BackendInfo = backend.BackendInfo;
+pub const DetectionLevel = backend.DetectionLevel;
+pub const BackendAvailability = backend.BackendAvailability;
+pub const Summary = backend.Summary;
 
-pub const BackendAvailability = struct {
-    enabled: bool = false,
-    available: bool = false,
-    reason: []const u8 = "gpu disabled",
-    device_count: usize = 0,
-    level: DetectionLevel = .none,
-};
+pub const Device = device.Device;
+pub const DeviceType = device.DeviceType;
+pub const DeviceInfo = device.DeviceInfo;
+pub const DeviceCapability = device.DeviceCapability;
+pub const DeviceFeature = device.DeviceFeature;
+pub const DeviceSelector = device.DeviceSelector;
+pub const DeviceManager = device.DeviceManager;
 
-pub const Summary = struct {
-    module_enabled: bool = false,
-    enabled_backend_count: usize = 0,
-    available_backend_count: usize = 0,
-    device_count: usize = 0,
-    emulated_devices: usize = 0,
-};
+pub const Buffer = memory.Buffer;
+pub const UnifiedBuffer = memory.UnifiedBuffer;
+pub const BufferFlags = memory.BufferFlags;
+pub const BufferOptions = memory.BufferOptions;
+pub const BufferView = memory.BufferView;
+pub const BufferStats = memory.BufferStats;
+pub const MappedBuffer = memory.MappedBuffer;
+pub const MemoryPool = memory.MemoryPool;
+pub const MemoryStats = memory.MemoryStats;
+pub const MemoryInfo = memory.MemoryInfo;
+pub const MemoryMode = memory.MemoryMode;
+pub const MemoryLocation = memory.MemoryLocation;
 
-pub const Device = struct {
-    id: u32 = 0,
-    backend: Backend = .cpu,
-    name: []const u8 = "disabled",
-};
-pub const DeviceType = enum { cpu, gpu, accelerator };
-pub const DeviceInfo = struct {
-    id: u32 = 0,
-    backend: Backend = .cpu,
-    name: []const u8 = "disabled",
-    total_memory_bytes: ?u64 = null,
-    is_emulated: bool = true,
-    capability: DeviceCapability = .{},
-    device_type: DeviceType = .cpu,
-};
-pub const DeviceCapability = struct {
-    unified_memory: bool = false,
-    supports_fp16: bool = false,
-    supports_int8: bool = false,
-    supports_async_transfers: bool = false,
-    max_threads_per_block: ?u32 = null,
-    max_shared_memory_bytes: ?u32 = null,
-};
-pub const DeviceFeature = enum { compute, graphics };
-pub const DeviceSelector = struct {};
-pub const DeviceManager = struct {};
+pub const Stream = stream.Stream;
+pub const StreamOptions = stream.StreamOptions;
+pub const StreamPriority = stream.StreamPriority;
+pub const StreamFlags = stream.StreamFlags;
+pub const StreamState = stream.StreamState;
+pub const StreamManager = stream.StreamManager;
+pub const Event = stream.Event;
+pub const EventOptions = stream.EventOptions;
+pub const EventFlags = stream.EventFlags;
+pub const EventState = stream.EventState;
 
-pub const Buffer = struct {
-    pub fn read(_: *Buffer, comptime _: type, _: anytype) Error!void {
-        return error.GpuDisabled;
-    }
+pub const KernelBuilder = kernel.KernelBuilder;
+pub const KernelIR = kernel.KernelIR;
+pub const KernelSource = kernel.KernelSource;
+pub const KernelConfig = kernel.KernelConfig;
+pub const CompiledKernel = kernel.CompiledKernel;
+pub const KernelCache = kernel.KernelCache;
+pub const KernelCacheConfig = kernel.KernelCacheConfig;
+pub const CacheStats = kernel.CacheStats;
+pub const PortableKernelSource = kernel.PortableKernelSource;
 
-    pub fn readBytes(_: *Buffer, _: []u8) Error!void {
-        return error.GpuDisabled;
-    }
+pub const dsl = dsl_mod.dsl;
+pub const ScalarType = dsl_mod.ScalarType;
+pub const VectorType = dsl_mod.VectorType;
+pub const MatrixType = dsl_mod.MatrixType;
+pub const AddressSpace = dsl_mod.AddressSpace;
+pub const DslType = dsl_mod.DslType;
+pub const AccessMode = dsl_mod.AccessMode;
+pub const Expr = dsl_mod.Expr;
+pub const BinaryOp = dsl_mod.BinaryOp;
+pub const UnaryOp = dsl_mod.UnaryOp;
+pub const BuiltinFn = dsl_mod.BuiltinFn;
+pub const BuiltinVar = dsl_mod.BuiltinVar;
+pub const Stmt = dsl_mod.Stmt;
+pub const GeneratedSource = dsl_mod.GeneratedSource;
+pub const CompileOptions = dsl_mod.CompileOptions;
 
-    pub fn write(_: *Buffer, comptime _: type, _: anytype) Error!void {
-        return error.GpuDisabled;
-    }
+pub const LaunchConfig = execution.LaunchConfig;
+pub const ExecutionResult = execution.ExecutionResult;
+pub const ExecutionStats = execution.ExecutionStats;
+pub const HealthStatus = execution.HealthStatus;
+pub const GpuStats = execution.GpuStats;
+pub const MatrixDims = execution.MatrixDims;
+pub const MultiGpuConfig = execution.MultiGpuConfig;
+pub const LoadBalanceStrategy = execution.LoadBalanceStrategy;
+pub const ReduceResult = execution.ReduceResult;
+pub const DotProductResult = execution.DotProductResult;
 
-    pub fn writeBytes(_: *Buffer, _: []const u8) Error!void {
-        return error.GpuDisabled;
-    }
+pub const Profiler = profiler.Profiler;
+pub const TimingResult = profiler.TimingResult;
+pub const OccupancyResult = profiler.OccupancyResult;
+pub const MemoryBandwidth = profiler.MemoryBandwidth;
+pub const MetricsSummary = profiler.MetricsSummary;
+pub const KernelMetrics = profiler.KernelMetrics;
+pub const MetricsCollector = profiler.MetricsCollector;
 
-    pub fn size(_: *const Buffer) usize {
-        return 0;
-    }
+pub const recovery = recovery_mod.recovery;
+pub const failover = recovery_mod.failover;
+pub const RecoveryManager = recovery_mod.RecoveryManager;
+pub const FailoverManager = recovery_mod.FailoverManager;
 
-    pub fn deinit(_: *Buffer) void {}
-};
+pub const DeviceGroup = multi_gpu.DeviceGroup;
+pub const WorkDistribution = multi_gpu.WorkDistribution;
+pub const GroupStats = multi_gpu.GroupStats;
 
-pub const UnifiedBuffer = struct {
-    pub fn read(_: *UnifiedBuffer, comptime _: type, _: anytype) Error!void {
-        return error.GpuDisabled;
-    }
-
-    pub fn write(_: *UnifiedBuffer, comptime _: type, _: anytype) Error!void {
-        return error.GpuDisabled;
-    }
-
-    pub fn size(_: *const UnifiedBuffer) usize {
-        return 0;
-    }
-
-    pub fn deinit(_: *UnifiedBuffer) void {}
-};
-pub const BufferFlags = packed struct { read: bool = true, write: bool = true };
-pub const BufferOptions = struct {};
-pub const BufferView = struct {};
-pub const BufferStats = struct {};
-pub const MappedBuffer = struct {};
-
-pub const MemoryPool = struct {};
-pub const MemoryStats = struct {};
-pub const MemoryInfo = struct {
-    used_bytes: usize = 0,
-    peak_used_bytes: usize = 0,
-    total_bytes: usize = 0,
-};
-pub const MemoryMode = enum { automatic, explicit, unified };
-pub const MemoryLocation = enum { device, host };
-
-pub const Stream = struct {};
-pub const StreamOptions = struct {};
-pub const StreamPriority = enum { low, normal, high };
-pub const StreamFlags = packed struct {};
-pub const StreamState = enum { idle, running, @"error" };
-pub const StreamManager = struct {};
-pub const Event = struct {};
-pub const EventOptions = struct {};
-pub const EventFlags = packed struct {};
-pub const EventState = enum { pending, completed };
-
-pub const KernelBuilder = struct {};
-pub const KernelIR = struct {};
-pub const KernelSource = struct {};
-pub const KernelConfig = struct {};
-pub const CompiledKernel = struct {};
-pub const KernelCache = struct {};
-pub const KernelCacheConfig = struct {};
-pub const CacheStats = struct {};
-pub const PortableKernelSource = struct {};
-
-pub const dsl = struct {};
-pub const ScalarType = enum { f32, f64, i32, i64, u32, u64 };
-pub const VectorType = struct {};
-pub const MatrixType = struct {};
-pub const AddressSpace = enum { global, local, private };
-pub const DslType = struct {};
-pub const AccessMode = enum { read, write, read_write };
-pub const Expr = struct {};
-pub const BinaryOp = enum { add, sub, mul, div };
-pub const UnaryOp = enum { neg, abs };
-pub const BuiltinFn = enum {};
-pub const BuiltinVar = enum {};
-pub const Stmt = struct {};
-pub const GeneratedSource = struct {};
-pub const CompileOptions = struct {};
-
-pub const LaunchConfig = struct {};
-pub const ExecutionResult = struct {
-    execution_time_ns: u64 = 0,
-    elements_processed: usize = 0,
-    bytes_transferred: usize = 0,
-    backend: Backend = .cpu,
-    device_id: u32 = 0,
-};
-pub const ExecutionStats = struct {};
-pub const HealthStatus = enum { healthy, degraded, unhealthy };
-pub const GpuStats = struct {
-    kernels_launched: usize = 0,
-    buffers_created: usize = 0,
-    bytes_allocated: usize = 0,
-    total_execution_time_ns: u64 = 0,
-};
-pub const MatrixDims = struct { m: usize = 0, n: usize = 0, k: usize = 0 };
-pub const MultiGpuConfig = struct {};
-pub const LoadBalanceStrategy = enum { round_robin, least_loaded };
-
-pub const Profiler = struct {};
-pub const TimingResult = struct {};
-pub const OccupancyResult = struct {};
-pub const MemoryBandwidth = struct {};
-
-pub const recovery = struct {};
-pub const failover = struct {};
-pub const RecoveryManager = struct {};
-pub const FailoverManager = struct {};
-
-pub const ReduceResult = struct {
-    value: f32 = 0.0,
-    stats: ExecutionResult = .{},
-};
-
-pub const DotProductResult = struct {
-    value: f32 = 0.0,
-    stats: ExecutionResult = .{},
-};
-
-pub const MetricsSummary = struct {
-    total_kernel_invocations: usize = 0,
-    avg_kernel_time_ns: f64 = 0.0,
-    kernels_per_second: f64 = 0.0,
-};
-
-pub const DeviceGroup = struct {};
-pub const WorkDistribution = struct {};
-pub const GroupStats = struct {};
-pub const KernelMetrics = struct {};
-pub const MetricsCollector = struct {};
+pub const GpuConfig = config.GpuConfig;
 
 pub const Gpu = struct {
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!Gpu {
@@ -332,12 +232,6 @@ pub const Gpu = struct {
     pub fn checkHealth(_: *const Gpu) HealthStatus {
         return .unhealthy;
     }
-};
-
-pub const GpuConfig = struct {
-    backend: Backend = .auto,
-    enable_profiling: bool = false,
-    memory_mode: MemoryMode = .automatic,
 };
 
 // ============================================================================
