@@ -1,3 +1,8 @@
+//! Network Utilities
+//!
+//! Low-level network helper functions for parsing and validating
+//! network addresses, host:port pairs, and related operations.
+
 const std = @import("std");
 
 pub const NetError = error{

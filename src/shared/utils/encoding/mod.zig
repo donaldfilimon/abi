@@ -1,3 +1,8 @@
+//! Encoding Utilities
+//!
+//! Data encoding and decoding functions for hexadecimal,
+//! base64, and other common encoding formats.
+
 const std = @import("std");
 
 pub const EncodingError = error{

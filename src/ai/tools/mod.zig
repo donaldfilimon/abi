@@ -1,3 +1,11 @@
+//! Agent Tools Module
+//!
+//! Provides tool infrastructure for AI agents including:
+//! - Tool registry for registering and executing tools
+//! - Built-in tools (file, search, edit, OS operations)
+//! - Discord integration tools
+//! - Task management and subagent coordination
+
 pub const tool = @import("tool.zig");
 pub const task = @import("task.zig");
 pub const discord_tools = @import("discord.zig");

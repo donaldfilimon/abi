@@ -1,3 +1,8 @@
+//! File System Utilities
+//!
+//! Path manipulation, file extension checking, and other
+//! file system helper functions.
+
 const std = @import("std");
 
 pub fn join(allocator: std.mem.Allocator, parts: []const []const u8) ![]u8 {
