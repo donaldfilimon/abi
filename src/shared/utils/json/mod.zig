@@ -17,6 +17,9 @@ pub fn escapeString(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
             '\t' => try escaped.appendSlice(allocator, "\\t"),
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
                 var buf: [6]u8 = undefined;
+                // SAFETY: Buffer is exactly 6 bytes which matches the output format
+                // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
+                // NoSpaceLeft which cannot occur here.
                 _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
                 try escaped.appendSlice(allocator, &buf);
             },
@@ -45,6 +48,9 @@ pub fn escapeJsonContent(allocator: std.mem.Allocator, str: []const u8) ![]u8 {
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
                 // Escape other control characters as \uXXXX
                 var buf: [6]u8 = undefined;
+                // SAFETY: Buffer is exactly 6 bytes which matches the output format
+                // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
+                // NoSpaceLeft which cannot occur here.
                 _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
                 try escaped.appendSlice(allocator, &buf);
             },
@@ -97,6 +103,9 @@ pub fn appendJsonEscaped(
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
                 // Escape control characters as \uXXXX
                 var buf: [6]u8 = undefined;
+                // SAFETY: Buffer is exactly 6 bytes which matches the output format
+                // "\\u" (2 chars) + 4 hex digits = 6 chars. bufPrint only fails with
+                // NoSpaceLeft which cannot occur here.
                 _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
                 try list.appendSlice(allocator, &buf);
             },
