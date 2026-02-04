@@ -130,9 +130,13 @@ fn printStatus(allocator: std.mem.Allocator) !void {
         defer mutable_cfg.deinit(allocator);
 
         utils.output.printHeader("Discord Configuration");
-        utils.output.printKeyValue("Bot Token", try std.fmt.allocPrint(allocator, "{s}...", .{if (cfg.bot_token.len > 8) cfg.bot_token[0..8] else cfg.bot_token}));
-        utils.output.printKeyValue("API Version", try std.fmt.allocPrint(allocator, "v{d}", .{cfg.api_version}));
-        utils.output.printKeyValue("Timeout", try std.fmt.allocPrint(allocator, "{d}ms", .{cfg.timeout_ms}));
+        utils.output.printKeyValueFmt(
+            "Bot Token",
+            "{s}...",
+            .{if (cfg.bot_token.len > 8) cfg.bot_token[0..8] else cfg.bot_token},
+        );
+        utils.output.printKeyValueFmt("API Version", "v{d}", .{cfg.api_version});
+        utils.output.printKeyValueFmt("Timeout", "{d}ms", .{cfg.timeout_ms});
 
         if (cfg.client_id) |id| {
             utils.output.printKeyValue("Client ID", id);
@@ -141,7 +145,7 @@ fn printStatus(allocator: std.mem.Allocator) !void {
         }
 
         utils.output.printKeyValue("Public Key", if (cfg.public_key != null) "configured" else "not set");
-        utils.output.printKeyValue("Gateway Intents", try std.fmt.allocPrint(allocator, "0x{x}", .{cfg.intents}));
+        utils.output.printKeyValueFmt("Gateway Intents", "0x{x}", .{cfg.intents});
     } else {
         utils.output.printWarning("Discord not configured", .{});
         utils.output.printInfo("To configure Discord, set the following environment variables:", .{});
@@ -171,7 +175,7 @@ fn printBotInfo(allocator: std.mem.Allocator) !void {
         utils.output.printKeyValue("Global Name", name);
     }
     utils.output.printKeyValue("Bot", utils.output.boolLabel(user.bot));
-    utils.output.printKeyValue("Flags", try std.fmt.allocPrint(allocator, "{d}", .{user.public_flags}));
+    utils.output.printKeyValueFmt("Flags", "{d}", .{user.public_flags});
 }
 
 fn listGuilds(allocator: std.mem.Allocator) !void {
@@ -192,7 +196,7 @@ fn listGuilds(allocator: std.mem.Allocator) !void {
         return;
     }
 
-    utils.output.printHeader(try std.fmt.allocPrint(allocator, "Guilds ({d})", .{guilds.len}));
+    utils.output.printHeaderFmt("Guilds ({d})", .{guilds.len});
     for (guilds) |guild| {
         std.debug.print("  " ++ utils.output.color.green ++ "•" ++ utils.output.color.reset ++ " {s: <20} (ID: {s})\n", .{ guild.name, guild.id });
     }
@@ -257,7 +261,7 @@ fn channelInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (channel.name) |name| {
         utils.output.printKeyValue("Name", name);
     }
-    utils.output.printKeyValue("Type", try std.fmt.allocPrint(allocator, "{d}", .{channel.channel_type}));
+    utils.output.printKeyValueFmt("Type", "{d}", .{channel.channel_type});
     if (channel.guild_id) |gid| {
         utils.output.printKeyValue("Guild ID", gid);
     }
@@ -308,7 +312,7 @@ fn manageCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
             return;
         }
 
-        utils.output.printHeader(try std.fmt.allocPrint(allocator, "Application Commands ({d})", .{commands.len}));
+        utils.output.printHeaderFmt("Application Commands ({d})", .{commands.len});
         for (commands) |cmd| {
             std.debug.print("  " ++ utils.output.color.cyan ++ "/" ++ utils.output.color.reset ++ "{s: <15} - {s} (ID: {s})\n", .{ cmd.name, cmd.description, cmd.id });
         }
@@ -336,7 +340,7 @@ fn manageCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
         };
 
         utils.output.printSuccess("Command created successfully!", .{});
-        utils.output.printKeyValue("Name", try std.fmt.allocPrint(allocator, "/{s}", .{cmd.name}));
+        utils.output.printKeyValueFmt("Name", "/{s}", .{cmd.name});
         utils.output.printKeyValue("ID", cmd.id);
         return;
     }

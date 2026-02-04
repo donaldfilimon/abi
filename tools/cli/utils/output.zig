@@ -63,9 +63,21 @@ pub fn printHeader(title: []const u8) void {
     std.debug.print("\n" ++ Color.bold ++ Color.cyan ++ "=== " ++ "{s}" ++ " ===" ++ Color.reset ++ "\n", .{title});
 }
 
+/// Print a formatted header without pre-allocating the title string.
+pub fn printHeaderFmt(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print("\n" ++ Color.bold ++ Color.cyan ++ "=== " ++ fmt ++ " ===" ++ Color.reset ++ "\n", args);
+}
+
 /// Print a key-value pair.
 pub fn printKeyValue(key: []const u8, value: []const u8) void {
     std.debug.print("  " ++ Color.bold ++ "{s}:" ++ Color.reset ++ " {s}\n", .{ key, value });
+}
+
+/// Print a formatted key-value pair without pre-allocating the value string.
+pub fn printKeyValueFmt(key: []const u8, comptime fmt: []const u8, args: anytype) void {
+    std.debug.print("  " ++ Color.bold ++ "{s}:" ++ Color.reset ++ " ", .{key});
+    std.debug.print(fmt, args);
+    std.debug.print("\n", .{});
 }
 
 /// Print a bullet list with a title.

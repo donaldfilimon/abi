@@ -110,14 +110,10 @@ fn runInfo(allocator: std.mem.Allocator) !void {
     defer coord.deinit();
 
     const count = coord.agents.items.len;
-    const count_str = try std.fmt.allocPrint(allocator, "{d}", .{count});
-    defer allocator.free(count_str);
-    utils.output.printKeyValue("Registered Agents", count_str);
+    utils.output.printKeyValueFmt("Registered Agents", "{d}", .{count});
 
     // Show available templates
-    const templates_str = try std.fmt.allocPrint(allocator, "{d}", .{workflow_templates.len});
-    defer allocator.free(templates_str);
-    utils.output.printKeyValue("Workflow Templates", templates_str);
+    utils.output.printKeyValueFmt("Workflow Templates", "{d}", .{workflow_templates.len});
 
     utils.output.printSuccess("Coordinator ready.", .{});
 }
@@ -289,13 +285,8 @@ fn showStatus(allocator: std.mem.Allocator) !void {
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 
-    const agent_count = try std.fmt.allocPrint(allocator, "{d}", .{coord.agents.items.len});
-    defer allocator.free(agent_count);
-    utils.output.printKeyValue("Registered Agents", agent_count);
-
-    const template_count = try std.fmt.allocPrint(allocator, "{d}", .{workflow_templates.len});
-    defer allocator.free(template_count);
-    utils.output.printKeyValue("Workflow Templates", template_count);
+    utils.output.printKeyValueFmt("Registered Agents", "{d}", .{coord.agents.items.len});
+    utils.output.printKeyValueFmt("Workflow Templates", "{d}", .{workflow_templates.len});
 
     utils.output.printKeyValue("Status", "Ready");
 

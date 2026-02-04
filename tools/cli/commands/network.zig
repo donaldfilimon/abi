@@ -170,17 +170,18 @@ fn printStatus() !void {
     const registry = try abi.network.defaultRegistry();
     utils.output.printHeader("Network Status");
     utils.output.printKeyValue("Cluster ID", config.?.cluster_id);
-    utils.output.printKeyValue("Node Count", try std.fmt.allocPrint(std.heap.page_allocator, "{d}", .{registry.list().len}));
+    utils.output.printKeyValueFmt("Node Count", "{d}", .{registry.list().len});
 }
 
 fn printNodes(allocator: std.mem.Allocator) !void {
+    _ = allocator;
     const registry = try abi.network.defaultRegistry();
     const nodes = registry.list();
     if (nodes.len == 0) {
         utils.output.printInfo("No nodes registered.", .{});
         return;
     }
-    utils.output.printHeader(try std.fmt.allocPrint(allocator, "Registered Nodes ({d})", .{nodes.len}));
+    utils.output.printHeaderFmt("Registered Nodes ({d})", .{nodes.len});
     for (nodes) |node| {
         std.debug.print("  " ++ utils.output.color.green ++ "•" ++ utils.output.color.reset ++ " {s: <15} {s: <20} ({t}) seen {d}ms ago\n", .{ node.id, node.address, node.status, node.last_seen_ms });
     }

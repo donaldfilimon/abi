@@ -45,6 +45,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
 /// Example of a subcommand that takes parameters and options.
 fn runAction(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    _ = allocator;
     // Required positional argument
     const target = parser.next() orelse {
         output.printError("Missing required argument: <target>", .{});
@@ -58,7 +59,7 @@ fn runAction(allocator: std.mem.Allocator, parser: *ArgParser) !void {
 
     output.printHeader("Running Action");
     output.printInfo("Target: {s}", .{target});
-    output.printKeyValue("Iterations", try std.fmt.allocPrint(allocator, "{d}", .{count}));
+    output.printKeyValueFmt("Iterations", "{d}", .{count});
     output.printKeyValue("Force Mode", output.boolLabel(force));
     output.printKeyValue("Message", message);
 

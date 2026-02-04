@@ -27,17 +27,9 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printHeader("System Information");
 
     // Core Platform Info
-    const os_str = try std.fmt.allocPrint(allocator, "{t}", .{info.os});
-    defer allocator.free(os_str);
-    utils.output.printKeyValue("OS", os_str);
-
-    const arch_str = try std.fmt.allocPrint(allocator, "{t}", .{info.arch});
-    defer allocator.free(arch_str);
-    utils.output.printKeyValue("Architecture", arch_str);
-
-    const threads_str = try std.fmt.allocPrint(allocator, "{d}", .{info.max_threads});
-    defer allocator.free(threads_str);
-    utils.output.printKeyValue("CPU Threads", threads_str);
+    utils.output.printKeyValueFmt("OS", "{t}", .{info.os});
+    utils.output.printKeyValueFmt("Architecture", "{t}", .{info.arch});
+    utils.output.printKeyValueFmt("CPU Threads", "{d}", .{info.max_threads});
 
     utils.output.printKeyValue("ABI Version", abi.version());
 

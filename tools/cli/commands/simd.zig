@@ -64,21 +64,10 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     // Print results
     utils.output.printHeader("SIMD Performance Results");
 
-    const add_time_str = try std.fmt.allocPrint(allocator, "{d}ns", .{add_time});
-    defer allocator.free(add_time_str);
-    utils.output.printKeyValue("Vector Add", add_time_str);
-
-    const dot_time_str = try std.fmt.allocPrint(allocator, "{d}ns (result: {d:.6})", .{ dot_time, dot_result });
-    defer allocator.free(dot_time_str);
-    utils.output.printKeyValue("Dot Product", dot_time_str);
-
-    const norm_time_str = try std.fmt.allocPrint(allocator, "{d}ns (result: {d:.6})", .{ norm_time, norm_result });
-    defer allocator.free(norm_time_str);
-    utils.output.printKeyValue("L2 Norm", norm_time_str);
-
-    const cos_time_str = try std.fmt.allocPrint(allocator, "{d}ns (result: {d:.6})", .{ cos_time, cos_result });
-    defer allocator.free(cos_time_str);
-    utils.output.printKeyValue("Cosine Similarity", cos_time_str);
+    utils.output.printKeyValueFmt("Vector Add", "{d}ns", .{add_time});
+    utils.output.printKeyValueFmt("Dot Product", "{d}ns (result: {d:.6})", .{ dot_time, dot_result });
+    utils.output.printKeyValueFmt("L2 Norm", "{d}ns (result: {d:.6})", .{ norm_time, norm_result });
+    utils.output.printKeyValueFmt("Cosine Similarity", "{d}ns (result: {d:.6})", .{ cos_time, cos_result });
 }
 
 fn printHelp(allocator: std.mem.Allocator) void {
