@@ -7,6 +7,7 @@ const std = @import("std");
 const unified = @import("unified.zig");
 const compression = @import("compression.zig");
 const mod = @import("mod.zig");
+const simd = @import("../../shared/simd.zig");
 
 pub const VectorDbError = error{
     InvalidDimension,
@@ -95,7 +96,7 @@ pub const VectorDatabase = struct {
         defer results.deinit(self.allocator);
 
         for (self.vectors.items) |v| {
-            const score = cosineSimilarity(query, v.data);
+            const score = simd.cosineSimilarity(query, v.data);
             results.append(self.allocator, .{ .id = v.id, .score = score }) catch return error.OutOfMemory;
         }
 
@@ -255,21 +256,7 @@ pub const SearchResult = struct {
     score: f32,
 };
 
-fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-    var dot: f32 = 0;
-    var norm_a: f32 = 0;
-    var norm_b: f32 = 0;
-
-    for (a, b) |va, vb| {
-        dot += va * vb;
-        norm_a += va * va;
-        norm_b += vb * vb;
-    }
-
-    const denom = @sqrt(norm_a) * @sqrt(norm_b);
-    if (denom == 0) return 0;
-    return dot / denom;
-}
+// Cosine similarity now uses shared SIMD implementation via simd.cosineSimilarity
 
 test "vector database basic operations" {
     const allocator = std.testing.allocator;
