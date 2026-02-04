@@ -3,7 +3,7 @@ title: "PLAN"
 tags: [planning, sprint, development]
 ---
 # Current Development Focus
-> **Codebase Status:** Synced with repository as of 2026-02-01.
+> **Codebase Status:** Synced with repository as of 2026-02-03.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Sprint-Complete-success?style=for-the-badge" alt="Sprint Complete"/>
@@ -61,14 +61,17 @@ Potential focus areas for upcoming work:
 
 - [ ] Language bindings expansion (Python, Rust, Go, JS/WASM wrappers using new C API)
 - [ ] ASIC exploration research (long-term)
-- [ ] Additional competitive benchmarks
 - [ ] Community contribution tooling
-- [ ] C header auto-generation CI integration
+
+### Recently Completed (2026-02-03)
+- [x] **Competitive benchmarks** - Added real SIMD-accelerated benchmarks for FAISS comparison (recall@K, parameter sweeps) and vector DB comparison (8 competitor baselines: Pinecone, Milvus, Qdrant, Weaviate, Chroma, LanceDB, pgvector, Elasticsearch)
+- [x] **C header CI integration** - Added `zig build c-header` step and CI verification in `.github/workflows/ci.yml`
 
 ---
 
 ## Recently Completed
 
+- **Benchmarks & CI Improvements** - Added real competitive benchmarks (FAISS, vector DBs), C header CI integration with `zig build c-header` and verification step; 889/894 tests passing (2026-02-03)
 - **API Stability & C Bindings Sprint** - Complete C-compatible FFI layer (`src/c_api.zig`), stub/real API parity fixes across network/observability/streaming/training modules, circuit breaker documentation, HNSW prefetch optimizations; 889/894 tests passing (2026-02-01)
 - **GPU backend test coverage complete** - Added inline tests to ALL GPU backends: WebGPU, OpenGL, OpenGL ES, Vulkan (17 error cases), Metal (10 error cases), WebGL2, stdgpu; Verified Metal backend works (emulated mode); All CLI commands functional including nested subcommands; Training pipeline tested; 787/792 tests passing (2026-01-31)
 - **Documentation cleanup** - Removed 23 redundant files: 21 deprecated api_*.md redirects, performance.md stub, gpu-backends.md duplicate; Added standardized error module (src/shared/errors.zig) with ResourceError, IoError, FeatureError, ConfigError, AuthError sets; Added inline tests to config/loader.zig and platform/detection.zig; 787/792 tests passing (2026-01-31)

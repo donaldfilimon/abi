@@ -60,6 +60,16 @@ jobs:
           zig build -Denable-gpu=false
           zig build -Denable-database=false
 
+      - name: Build C library and header
+        run: |
+          zig build lib
+          zig build c-header
+
+      - name: Verify C header installed
+        run: |
+          test -f zig-out/include/abi.h
+        shell: bash
+
   lint:
     runs-on: ubuntu-latest
     steps:

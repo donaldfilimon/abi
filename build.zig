@@ -528,6 +528,10 @@ pub fn build(b: *std.Build) void {
 
         const lib_install = b.addInstallArtifact(lib, .{});
         b.step("lib", "Build C shared library").dependOn(&lib_install.step);
+
+        // Install C header file
+        const header_install = b.addInstallFile(b.path("src/bindings/c/abi.h"), "include/abi.h");
+        b.step("c-header", "Install C header file").dependOn(&header_install.step);
     }
 
     // Performance Verification Tool (build only - requires piped input to run)
