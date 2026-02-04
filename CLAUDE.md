@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Zig Version Requirement
+
+**Required:** Zig 0.16.x (`0.16.0-dev.2471+e9eadee00` or later)
+
+```bash
+# Check version
+zig version
+
+# If using zvm, ensure PATH order is correct
+export PATH="$HOME/.zvm/bin:$PATH"
+zvm use master
+```
+
+The codebase uses Zig 0.16 APIs (`std.Io.Dir`, `std.Io.Threaded`, `std.time.Timer`). Earlier versions will fail to compile.
+
 ## ⚠️ Before Making Changes
 
 **CRITICAL**: This codebase frequently has work-in-progress changes. Before making any modifications:
@@ -352,9 +367,9 @@ zig build run -- train clip                          # CLIP multimodal training
 
 Key features: gradient clipping, mixed precision (FP16/BF16), contrastive learning, checkpoint resume.
 
-## Zig 0.16 Patterns
+## Zig 0.16 API Patterns (Required)
 
-Current patterns are documented below; additional examples live in `examples/`.
+The codebase uses Zig 0.16 APIs throughout. These patterns are mandatory; do not use deprecated 0.15.x APIs.
 
 ### I/O Backend Initialization (CRITICAL)
 

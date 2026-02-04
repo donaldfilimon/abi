@@ -221,6 +221,10 @@ const example_targets = [_]BuildTarget{
     .{ .name = "example-concurrency", .step_name = "run-concurrency", .description = "Run concurrency primitives example", .source_path = "examples/concurrency.zig" },
     .{ .name = "example-observability", .step_name = "run-observability", .description = "Run observability example", .source_path = "examples/observability.zig" },
     .{ .name = "example-gpu", .step_name = "run-gpu", .description = "Run GPU example", .source_path = "examples/gpu.zig" },
+    .{ .name = "example-streaming", .step_name = "run-streaming", .description = "Run streaming API example", .source_path = "examples/streaming.zig" },
+    .{ .name = "example-registry", .step_name = "run-registry", .description = "Run feature registry example", .source_path = "examples/registry.zig" },
+    .{ .name = "example-embeddings", .step_name = "run-embeddings", .description = "Run embeddings example", .source_path = "examples/embeddings.zig" },
+    .{ .name = "example-config", .step_name = "run-config", .description = "Run configuration example", .source_path = "examples/config.zig" },
 };
 
 const benchmark_targets = [_]BuildTarget{
@@ -228,23 +232,9 @@ const benchmark_targets = [_]BuildTarget{
     .{ .name = "bench-competitive", .step_name = "bench-competitive", .description = "Run competitive benchmarks", .source_path = "benchmarks/run_competitive.zig", .optimize = .ReleaseFast },
 };
 
-fn pathExists(path: []const u8) bool {
-    // Build scripts should avoid `@cImport` to keep builds working in environments
-    // without libc headers (common in minimal containers / CI runners).
-    //
-    // Zig 0.16 deprecated `std.fs.cwd()` in favor of the new `std.Io` APIs.
-    const io_opts: std.Io.Threaded.InitOptions = .{ .environ = std.process.Environ.empty };
-    var io_backend: std.Io.Threaded = undefined;
-    const InitResult = @TypeOf(std.Io.Threaded.init(std.heap.page_allocator, io_opts));
-    if (@typeInfo(InitResult) == .error_union) {
-        io_backend = std.Io.Threaded.init(std.heap.page_allocator, io_opts) catch return false;
-    } else {
-        io_backend = std.Io.Threaded.init(std.heap.page_allocator, io_opts);
-    }
-    defer io_backend.deinit();
-    const io = io_backend.io();
-
-    _ = std.Io.Dir.cwd().statFile(io, path, .{}) catch return false;
+fn pathExists(b: *std.Build, path: []const u8) bool {
+    // Use Build's I/O context for Zig 0.16 compatibility
+    b.build_root.handle.access(b.graph.io, path, .{}) catch return false;
     return true;
 }
 
@@ -259,7 +249,7 @@ fn buildTargets(
     aggregate_runs: bool,
 ) void {
     for (targets) |t| {
-        if (!pathExists(t.source_path)) continue;
+        if (!pathExists(b, t.source_path)) continue;
         const exe_optimize = t.optimize orelse optimize;
         const exe = b.addExecutable(.{
             .name = t.name,
@@ -367,13 +357,13 @@ pub fn build(b: *std.Build) void {
     abi_module.addImport("build_options", build_opts);
 
     // CLI executable
-    const cli_path = if (pathExists("tools/cli/main.zig")) "tools/cli/main.zig" else "src/main.zig";
+    const cli_path = if (pathExists(b, "tools/cli/main.zig")) "tools/cli/main.zig" else "src/main.zig";
     const exe = b.addExecutable(.{
         .name = "abi",
         .root_module = b.createModule(.{ .root_source_file = b.path(cli_path), .target = target, .optimize = optimize, .link_libc = true }),
     });
     exe.root_module.addImport("abi", abi_module);
-    if (pathExists("tools/cli/main.zig")) exe.root_module.addImport("cli", createCliModule(b, abi_module, target, optimize));
+    if (pathExists(b, "tools/cli/main.zig")) exe.root_module.addImport("cli", createCliModule(b, abi_module, target, optimize));
 
     // Apply performance optimizations (LTO, strip)
     applyPerformanceTweaks(exe, optimize);
@@ -419,7 +409,7 @@ pub fn build(b: *std.Build) void {
     // Tests - defined before full-check to allow step dependency
     // ---------------------------------------------------------------------------
     var test_step: ?*std.Build.Step = null;
-    if (pathExists("src/tests/mod.zig")) {
+    if (pathExists(b, "src/tests/mod.zig")) {
         const tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/tests/mod.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         tests.root_module.addImport("abi", abi_module);
         tests.root_module.addImport("build_options", build_opts);
@@ -443,7 +433,7 @@ pub fn build(b: *std.Build) void {
     buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
 
     // Documentation - API markdown generation
-    if (pathExists("tools/gendocs/main.zig")) {
+    if (pathExists(b, "tools/gendocs/main.zig")) {
         const gendocs = b.addExecutable(.{ .name = "gendocs", .root_module = b.createModule(.{ .root_source_file = b.path("tools/gendocs/main.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         const run_gendocs = b.addRunArtifact(gendocs);
         if (b.args) |args| run_gendocs.addArgs(args);
@@ -451,7 +441,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Documentation - Static site generation
-    if (pathExists("tools/docs_site/main.zig")) {
+    if (pathExists(b, "tools/docs_site/main.zig")) {
         const docs_site = b.addExecutable(.{
             .name = "docs-site",
             .root_module = b.createModule(.{
@@ -467,7 +457,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // Profile build
-    if (pathExists("tools/cli/main.zig")) {
+    if (pathExists(b, "tools/cli/main.zig")) {
         var profile_opts = options;
         profile_opts.enable_profiling = true;
         const abi_profile = createAbiModule(b, profile_opts, target, optimize);
@@ -513,7 +503,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // C Library (Shared Object / DLL)
-    if (pathExists("src/bindings/c/exports.zig")) {
+    if (pathExists(b, "src/bindings/c/exports.zig")) {
         const lib = b.addLibrary(.{
             .name = "abi",
             .root_module = b.createModule(.{
@@ -536,7 +526,7 @@ pub fn build(b: *std.Build) void {
 
     // Performance Verification Tool (build only - requires piped input to run)
     // Usage: zig build bench-competitive -- --json | ./zig-out/bin/abi-check-perf
-    if (pathExists("tools/perf/check.zig")) {
+    if (pathExists(b, "tools/perf/check.zig")) {
         const check_perf_exe = b.addExecutable(.{
             .name = "abi-check-perf",
             .root_module = b.createModule(.{ .root_source_file = b.path("tools/perf/check.zig"), .target = target, .optimize = .ReleaseSafe }),
@@ -546,7 +536,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // WASM - only build if bindings exist (removed for reimplementation)
-    if (pathExists("bindings/wasm/abi_wasm.zig")) {
+    if (pathExists(b, "bindings/wasm/abi_wasm.zig")) {
         const wasm_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
         var wasm_opts = options;
         wasm_opts.enable_database = false;

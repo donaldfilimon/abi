@@ -1,0 +1,36 @@
+[package]
+name = "abi"
+version = "0.1.0"
+edition = "2021"
+description = "Rust bindings for the ABI Framework"
+license = "MIT"
+repository = "https://github.com/donaldfilimon/abi"
+readme = "README.md"
+keywords = ["ai", "vector-database", "gpu", "simd", "embeddings"]
+categories = ["api-bindings", "development-tools", "science"]
+
+[lib]
+name = "abi"
+crate-type = ["lib"]
+
+[dependencies]
+libc = "0.2"
+thiserror = "2.0"
+
+[build-dependencies]
+bindgen = "0.70"
+pkg-config = "0.3"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "simd_bench"
+harness = false
+
+[features]
+default = ["simd"]
+simd = []
+gpu = []
+database = []
+agent = []

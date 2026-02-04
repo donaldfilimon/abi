@@ -16,6 +16,8 @@ pub const suites = struct {
     pub const memory = @import("memory.zig");
     pub const simd = @import("simd.zig");
     pub const network = @import("network.zig");
+    pub const result_cache = @import("result_cache.zig");
+    pub const registry = @import("registry.zig");
 };
 
 pub fn runAll(allocator: std.mem.Allocator) !void {
@@ -27,6 +29,8 @@ pub fn runAll(allocator: std.mem.Allocator) !void {
     try suites.memory.run(allocator);
     try suites.simd.run(allocator);
     try suites.network.run(allocator);
+    try suites.result_cache.runAllBenchmarks(allocator, suites.result_cache.ResultCacheBenchConfig.quick);
+    try suites.registry.runAllBenchmarks(allocator, suites.registry.RegistryBenchConfig.quick);
 
     std.debug.print("\nInfrastructure Benchmarks Complete\n", .{});
     std.debug.print("==============================\n", .{});
@@ -75,4 +79,6 @@ test {
     _ = suites.memory;
     _ = suites.simd;
     _ = suites.network;
+    _ = suites.result_cache;
+    _ = suites.registry;
 }

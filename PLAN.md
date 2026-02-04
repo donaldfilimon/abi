@@ -4,10 +4,12 @@ tags: [planning, sprint, development]
 ---
 # Current Development Focus
 > **Codebase Status:** Synced with repository as of 2026-02-04.
+> **Zig Version:** `0.16.0-dev.2471+e9eadee00` (master branch)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Sprint-Complete-success?style=for-the-badge" alt="Sprint Complete"/>
   <img src="https://img.shields.io/badge/Tests-912%2F917-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Zig-0.16--dev-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
 </p>
 
 ## This Sprint
@@ -55,13 +57,31 @@ Waiting on external dependencies:
 
 ---
 
-## Next Sprint Preview
+## Next Sprint: Language Bindings & Examples
 
-Potential focus areas for upcoming work:
+**Focus: Complete language bindings ecosystem and fix example files**
 
+### Sprint Goals
+1. **Rust Bindings** - FFI bindings using existing C API
+2. **JavaScript/WASM Bindings** - Browser and Node.js support
+3. **Example Files** - Fix API mismatches in config, embeddings, registry, streaming examples
+4. **Go Bindings Verification** - Confirm completion status
+
+### Completed (Previous Sprints)
 - [x] Python bindings with pyproject.toml and examples
 - [x] Go bindings with context cancellation support
-- [ ] Language bindings expansion (Rust, JS/WASM wrappers using C API)
+- [x] C bindings with full FFI layer
+
+### In Progress
+- [ ] Rust bindings (using bindgen or manual FFI from C API)
+- [ ] JavaScript/Node bindings (ffi-napi using C API)
+- [ ] WASM bindings (web browser support)
+
+### Blocked
+- [ ] Native HTTP downloads (waiting on Zig 0.16 std.Io.File.Writer stabilization)
+- [ ] Toolchain CLI re-enablement (Zig 0.16 API incompatibilities)
+
+### Future Work
 - [ ] ASIC exploration research (long-term)
 - [ ] Community contribution tooling
 

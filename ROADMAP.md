@@ -3,7 +3,8 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-02-01.
+> **Codebase Status:** Synced with repository as of 2026-02-04.
+> **Zig Version:** `0.16.0-dev.2471+e9eadee00` (master branch)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
@@ -15,7 +16,7 @@ tags: [planning, roadmap]
 >
 > This document tracks planned features, improvements, and milestones for ABI framework.
 
-**Zig Version Requirement:** 0.16.x (migration complete)
+**Zig Version Requirement:** `0.16.0-dev.2471+e9eadee00` or later (migration complete)
 
 ## Version 0.3.0 - Q1 2026
 

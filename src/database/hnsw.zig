@@ -917,6 +917,34 @@ pub const HnswIndex = struct {
         return null;
     }
 
+    /// Enable search state pooling for deserialized indexes.
+    /// Pre-allocates search states to avoid per-query allocations.
+    ///
+    /// @param pool_size Number of search states to pre-allocate (capped at 64)
+    pub fn enableSearchPool(self: *HnswIndex, pool_size: usize) !void {
+        if (self.state_pool != null) return; // Already enabled
+
+        const pool = try self.allocator.create(SearchStatePool);
+        errdefer self.allocator.destroy(pool);
+
+        pool.* = try SearchStatePool.init(self.allocator, pool_size);
+        self.state_pool = pool;
+    }
+
+    /// Enable distance caching for deserialized indexes.
+    /// Caches frequently computed distances to reduce redundant calculations.
+    ///
+    /// @param capacity Maximum number of distance pairs to cache
+    pub fn enableDistanceCache(self: *HnswIndex, capacity: usize) !void {
+        if (self.distance_cache != null) return; // Already enabled
+
+        const cache = try self.allocator.create(DistanceCache);
+        errdefer self.allocator.destroy(cache);
+
+        cache.* = try DistanceCache.init(self.allocator, capacity);
+        self.distance_cache = cache;
+    }
+
     /// Result type for batch search operations
     pub const BatchSearchResult = struct {
         /// Query index in the original batch
@@ -1531,4 +1559,41 @@ test "hnsw batch distance computation" {
     // Orthogonal vectors should have distance ~1.0
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), distances[1], 0.01);
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), distances[2], 0.01);
+}
+
+test "hnsw enable search pool on deserialized index" {
+    const allocator = std.testing.allocator;
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 1, .vector = &[_]f32{ 1.0, 0.0, 0.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 1.0, 0.0, 0.0 } },
+        .{ .id = 3, .vector = &[_]f32{ 0.0, 0.0, 1.0, 0.0 } },
+    };
+
+    // Build without pool to simulate deserialized index
+    var index = try HnswIndex.buildWithConfig(allocator, &records, .{
+        .search_pool_size = 0, // Disabled
+        .distance_cache_size = 0, // Disabled
+    });
+    defer index.deinit(allocator);
+
+    try std.testing.expect(index.state_pool == null);
+    try std.testing.expect(index.distance_cache == null);
+
+    // Enable pool and cache post-construction
+    try index.enableSearchPool(4);
+    try index.enableDistanceCache(128);
+
+    try std.testing.expect(index.state_pool != null);
+    try std.testing.expect(index.distance_cache != null);
+
+    // Second call should be no-op (already enabled)
+    try index.enableSearchPool(8);
+    try index.enableDistanceCache(256);
+
+    // Verify search still works with newly enabled pool
+    const query = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
+    const results = try index.search(allocator, &records, &query, 2);
+    defer allocator.free(results);
+
+    try std.testing.expect(results.len >= 1);
 }

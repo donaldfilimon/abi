@@ -1,5 +1,20 @@
 # Repository Guidelines
 
+## Zig Version Requirement
+
+**Required:** Zig `0.16.0-dev.2471+e9eadee00` or later (master branch)
+
+```bash
+# Check version
+zig version
+
+# If using zvm, ensure PATH order is correct
+export PATH="$HOME/.zvm/bin:$PATH"
+zvm use master
+```
+
+The codebase uses Zig 0.16 APIs (`std.Io.Dir`, `std.Io.Threaded`, `std.time.Timer`). Earlier versions will fail to compile.
+
 ## Project Structure & Module Organization
 - `src/` contains the core Zig 0.16 implementation. Nested modules should import dependencies via their parent `mod.zig` (parent exports, child imports).
 - Public API imports should use `@import("abi")` (avoid direct file paths).
@@ -28,7 +43,15 @@
 - Types: `PascalCase`; functions/variables: `camelCase`; errors: `*Error`; configs: `*Config`.
 - Prefer explicit imports (avoid `usingnamespace`).
 - Use specific error sets and `error!Type` returns; clean up with `defer`/`errdefer`.
-- Prefer `std.ArrayListUnmanaged` and modern format specifiers (e.g., `{t}` for enums/errors).
+- Prefer `std.ArrayListUnmanaged` (use `.empty` not `.init()`) and modern format specifiers (e.g., `{t}` for enums/errors).
+
+## Zig 0.16 API Patterns (Required)
+- **I/O Backend**: Use `std.Io.Threaded.init()` for file/network operations
+- **File System**: Use `std.Io.Dir.cwd()` not deprecated `std.fs.cwd()`
+- **Timing**: Use `std.time.Timer.start()` not `std.time.Instant.now()`
+- **Sleep**: Use `std.Io.Clock.Duration.sleep()` not `std.time.sleep()`
+- **HTTP Server**: Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()`
+- **Reserved keywords**: Escape with `@"error"` syntax
 
 ## Testing Guidelines
 - Use `std.testing` and `GeneralPurposeAllocator` in new tests.
@@ -43,4 +66,4 @@
 ## References
 - Architecture and contribution details: `docs/README.md`, `CONTRIBUTING.md`.
 - Security and deployment guidance: `SECURITY.md`, `DEPLOYMENT_GUIDE.md`.
-- Agent-specific requirements: `PROMPT.md` and `CLAUDE.md`.
+- Agent-specific requirements: `PROMPT.md`, `CLAUDE.md`, `GEMINI.md`.

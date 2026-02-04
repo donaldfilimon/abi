@@ -1015,7 +1015,7 @@ pub const StreamingServer = struct {
         else
             0.0;
 
-        var json = std.ArrayList(u8).empty;
+        var json = std.ArrayListUnmanaged(u8).empty;
         defer json.deinit(self.allocator);
 
         try json.print(

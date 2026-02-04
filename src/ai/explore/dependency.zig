@@ -131,6 +131,13 @@ pub const DependencyGraph = struct {
     /// Detect circular dependencies
     pub fn findCircularDependencies(self: *const DependencyGraph) !std.ArrayListUnmanaged([]const []const u8) {
         var cycles = std.ArrayListUnmanaged([]const []const u8){};
+        errdefer {
+            for (cycles.items) |cycle| {
+                self.allocator.free(cycle);
+            }
+            cycles.deinit(self.allocator);
+        }
+
         var visited = std.StringHashMapUnmanaged(void){};
         defer visited.deinit(self.allocator);
 
@@ -187,6 +194,8 @@ pub const DependencyGraph = struct {
     /// Get topological order of modules
     pub fn topologicalSort(self: *const DependencyGraph) !std.ArrayListUnmanaged([]const u8) {
         var result = std.ArrayListUnmanaged([]const u8){};
+        errdefer result.deinit(self.allocator);
+
         var visited = std.StringHashMapUnmanaged(void){};
         defer visited.deinit(self.allocator);
 

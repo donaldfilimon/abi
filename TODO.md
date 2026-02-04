@@ -4,6 +4,7 @@ tags: [development, tracking]
 ---
 # Project TODO List
 > **Codebase Status:** Synced with repository as of 2026-02-04.
+> **Zig Version:** `0.16.0-dev.2471+e9eadee00` (master branch)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Code_TODOs-Complete-success?style=for-the-badge" alt="Code TODOs Complete"/>

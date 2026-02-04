@@ -91,6 +91,28 @@ pub const CacheStats = struct {
     }
 };
 
+const CacheStatsAtomic = struct {
+    gets: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+    hits: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+    misses: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+    puts: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+    evictions: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+    expirations: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+    entry_count: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
+
+    fn snapshot(self: *const CacheStatsAtomic) CacheStats {
+        return .{
+            .gets = self.gets.load(.monotonic),
+            .hits = self.hits.load(.monotonic),
+            .misses = self.misses.load(.monotonic),
+            .puts = self.puts.load(.monotonic),
+            .evictions = self.evictions.load(.monotonic),
+            .expirations = self.expirations.load(.monotonic),
+            .entry_count = self.entry_count.load(.monotonic),
+        };
+    }
+};
+
 /// High-performance result cache.
 pub fn ResultCache(comptime K: type, comptime V: type) type {
     return struct {
@@ -108,14 +130,15 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
         allocator: std.mem.Allocator,
         config: CacheConfig,
         shards: []Shard,
-        stats: CacheStats = .{},
-        /// Atomic flag for stats updates
-        stats_lock: std.Thread.Mutex = .{},
+        stats: CacheStatsAtomic = .{},
 
         /// Initialize the cache.
         pub fn init(allocator: std.mem.Allocator, config: CacheConfig) !Self {
             if (!std.math.isPowerOfTwo(config.shard_count)) {
                 return error.InvalidShardCount;
+            }
+            if (config.max_entries < config.shard_count) {
+                return error.InvalidCacheConfig;
             }
 
             const shards = try allocator.alloc(Shard, config.shard_count);
@@ -150,49 +173,41 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
             defer shard.mutex.unlock();
 
             if (self.config.enable_stats) {
-                self.stats_lock.lock();
-                self.stats.gets += 1;
-                self.stats_lock.unlock();
+                _ = self.stats.gets.fetchAdd(1, .monotonic);
             }
 
             const entry = shard.map.getPtr(key) orelse {
                 if (self.config.enable_stats) {
-                    self.stats_lock.lock();
-                    self.stats.misses += 1;
-                    self.stats_lock.unlock();
+                    _ = self.stats.misses.fetchAdd(1, .monotonic);
                 }
                 return null;
             };
 
+            const now = @as(i64, @intCast(platform_time.timestampNs()));
+
             // Check TTL
             if (self.config.ttl_ms > 0) {
-                const now = @as(i64, @intCast(platform_time.timestampNs()));
                 const age_ms = @divFloor(now - entry.created_ns, std.time.ns_per_ms);
                 if (age_ms > @as(i64, @intCast(self.config.ttl_ms))) {
                     // Expired
                     _ = shard.map.remove(key);
                     shard.entry_count -= 1;
+                    _ = self.stats.entry_count.fetchSub(1, .monotonic);
 
                     if (self.config.enable_stats) {
-                        self.stats_lock.lock();
-                        self.stats.expirations += 1;
-                        self.stats.misses += 1;
-                        self.stats.entry_count = self.totalEntries();
-                        self.stats_lock.unlock();
+                        _ = self.stats.expirations.fetchAdd(1, .monotonic);
+                        _ = self.stats.misses.fetchAdd(1, .monotonic);
                     }
                     return null;
                 }
             }
 
             // Update access metadata
-            const now = @as(i64, @intCast(platform_time.timestampNs()));
             entry.last_access_ns.store(now, .release);
             _ = entry.access_count.fetchAdd(1, .monotonic);
 
             if (self.config.enable_stats) {
-                self.stats_lock.lock();
-                self.stats.hits += 1;
-                self.stats_lock.unlock();
+                _ = self.stats.hits.fetchAdd(1, .monotonic);
             }
 
             return entry.value;
@@ -227,14 +242,12 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
 
             if (!result.found_existing) {
                 shard.entry_count += 1;
+                _ = self.stats.entry_count.fetchAdd(1, .monotonic);
             }
             result.value_ptr.* = entry;
 
             if (self.config.enable_stats) {
-                self.stats_lock.lock();
-                self.stats.puts += 1;
-                self.stats.entry_count = self.totalEntries();
-                self.stats_lock.unlock();
+                _ = self.stats.puts.fetchAdd(1, .monotonic);
             }
         }
 
@@ -248,6 +261,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
 
             if (shard.map.remove(key)) {
                 shard.entry_count -= 1;
+                _ = self.stats.entry_count.fetchSub(1, .monotonic);
                 return true;
             }
             return false;
@@ -262,20 +276,12 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
                 shard.mutex.unlock();
             }
 
-            if (self.config.enable_stats) {
-                self.stats_lock.lock();
-                self.stats.entry_count = 0;
-                self.stats_lock.unlock();
-            }
+            self.stats.entry_count.store(0, .monotonic);
         }
 
         /// Get current statistics.
         pub fn getStats(self: *Self) CacheStats {
-            self.stats_lock.lock();
-            defer self.stats_lock.unlock();
-            var stats = self.stats;
-            stats.entry_count = self.totalEntries();
-            return stats;
+            return self.stats.snapshot();
         }
 
         /// Get total entry count across all shards.
@@ -326,10 +332,9 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
                 if (maybe_key) |key| {
                     if (shard.map.remove(key)) {
                         shard.entry_count -= 1;
+                        _ = self.stats.entry_count.fetchSub(1, .monotonic);
                         if (self.config.enable_stats) {
-                            self.stats_lock.lock();
-                            self.stats.evictions += 1;
-                            self.stats_lock.unlock();
+                            _ = self.stats.evictions.fetchAdd(1, .monotonic);
                         }
                     }
                 }
@@ -395,6 +400,39 @@ test "result cache basic operations" {
     try std.testing.expectEqual(@as(u64, 4), stats.gets);
     try std.testing.expectEqual(@as(u64, 3), stats.hits);
     try std.testing.expectEqual(@as(u64, 1), stats.misses);
+}
+
+test "result cache invalid config" {
+    try std.testing.expectError(
+        error.InvalidCacheConfig,
+        ResultCache(u32, u64).init(std.testing.allocator, .{
+            .max_entries = 2,
+            .shard_count = 4,
+        }),
+    );
+}
+
+test "result cache stats snapshot" {
+    var cache = try ResultCache(u32, u64).init(std.testing.allocator, .{
+        .max_entries = 16,
+        .shard_count = 2,
+    });
+    defer cache.deinit();
+
+    try cache.put(1, 10);
+    try cache.put(2, 20);
+    _ = cache.get(1);
+    _ = cache.get(3);
+
+    var stats = cache.getStats();
+    try std.testing.expectEqual(@as(usize, 2), stats.entry_count);
+    try std.testing.expectEqual(@as(u64, 2), stats.gets);
+    try std.testing.expectEqual(@as(u64, 1), stats.hits);
+    try std.testing.expectEqual(@as(u64, 1), stats.misses);
+
+    try std.testing.expect(cache.remove(1));
+    stats = cache.getStats();
+    try std.testing.expectEqual(@as(usize, 1), stats.entry_count);
 }
 
 test "result cache eviction" {

@@ -54,11 +54,13 @@ pub const QueryUnderstanding = struct {
         const lower_query = try self.toLowercase(query);
         defer self.allocator.free(lower_query);
 
+        errdefer self.freeParsedQuery(parsed);
+
         parsed.intent = self.classifyIntent(lower_query);
-        parsed.patterns = try self.extractPatterns(self.allocator, query, parsed.intent);
+        parsed.patterns = try self.extractPatterns(self.allocator, lower_query, parsed.intent);
         parsed.target_paths = try self.extractTargetPaths(self.allocator, lower_query);
         parsed.file_extensions = try self.extractFileExtensions(self.allocator, lower_query);
-        parsed.confidence = self.calculateConfidence(query, parsed.intent);
+        parsed.confidence = self.calculateConfidence(lower_query, parsed.intent);
 
         return parsed;
     }
@@ -138,6 +140,7 @@ pub const QueryUnderstanding = struct {
 
     fn extractPatterns(self: *QueryUnderstanding, allocator: std.mem.Allocator, query: []const u8, intent: QueryIntent) ![]const []const u8 {
         var patterns = std.ArrayListUnmanaged([]const u8){};
+        errdefer patterns.deinit(allocator);
 
         switch (intent) {
             .find_functions => {
@@ -201,8 +204,8 @@ pub const QueryUnderstanding = struct {
         while (tokens.next()) |token| {
             if (token.len > 2 and token.len < 50) {
                 for (valid_keywords) |kw| {
-                    if (std.mem.eql(u8, token, kw)) {
-                        try patterns.append(allocator, token);
+                    if (std.ascii.eqlIgnoreCase(token, kw)) {
+                        try patterns.append(allocator, kw);
                         break;
                     }
                 }
@@ -212,19 +215,27 @@ pub const QueryUnderstanding = struct {
 
     fn extractTargetPaths(_: *QueryUnderstanding, allocator: std.mem.Allocator, query: []const u8) ![]const []const u8 {
         var paths = std.ArrayListUnmanaged([]const u8){};
+        errdefer {
+            for (paths.items) |path| {
+                allocator.free(path);
+            }
+            paths.deinit(allocator);
+        }
 
         const path_patterns = [_][]const u8{ "src/", "src/", "tests/", "docs/", "examples/", "lib/", "include/", "bin/", "tools/" };
         for (path_patterns) |pattern| {
-            if (std.mem.indexOf(u8, query, pattern) != null) {
-                const idx = std.mem.indexOf(u8, query, pattern).?;
-                const start = idx;
+            if (std.mem.indexOf(u8, query, pattern)) |idx| {
                 var end = idx + pattern.len;
                 while (end < query.len and (std.ascii.isAlphanumeric(query[end]) or query[end] == '/' or query[end] == '_' or query[end] == '-')) {
                     end += 1;
                 }
-                if (end > start) {
-                    const path = query[start..end];
-                    try paths.append(allocator, try allocator.dupe(u8, path));
+                if (end > idx) {
+                    const path = query[idx..end];
+                    const duped = try allocator.dupe(u8, path);
+                    paths.append(allocator, duped) catch |err| {
+                        allocator.free(duped);
+                        return err;
+                    };
                 }
             }
         }
@@ -234,6 +245,7 @@ pub const QueryUnderstanding = struct {
 
     fn extractFileExtensions(_: *QueryUnderstanding, allocator: std.mem.Allocator, query: []const u8) ![]const []const u8 {
         var extensions = std.ArrayListUnmanaged([]const u8){};
+        errdefer extensions.deinit(allocator);
 
         const ext_map = [_][2][]const u8{
             .{ "zig", ".zig" },
@@ -319,3 +331,23 @@ pub const QueryUnderstanding = struct {
         }
     }
 };
+
+test "query understanding patterns are case-insensitive" {
+    const allocator = std.testing.allocator;
+
+    var understander = QueryUnderstanding.init(allocator);
+    defer understander.deinit();
+
+    const parsed = try understander.parse("FIND PUB FN HANDLER");
+    defer understander.freeParsedQuery(parsed);
+
+    var has_pub_fn = false;
+    var has_handler = false;
+    for (parsed.patterns) |pattern| {
+        if (std.mem.eql(u8, pattern, "pub fn ")) has_pub_fn = true;
+        if (std.mem.eql(u8, pattern, "handler")) has_handler = true;
+    }
+
+    try std.testing.expect(has_pub_fn);
+    try std.testing.expect(has_handler);
+}
