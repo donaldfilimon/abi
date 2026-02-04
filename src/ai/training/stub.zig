@@ -12,6 +12,22 @@ pub const Error = error{
     OutOfMemory,
 };
 
+// Checkpoint error types matching checkpoint.zig
+pub const CheckpointError = error{
+    InvalidFormat,
+    UnsupportedVersion,
+    PayloadTooLarge,
+};
+
+pub const SaveError = Error || CheckpointError;
+pub const LoadError = Error || CheckpointError;
+
+pub const CheckpointView = struct {
+    step: u64,
+    timestamp: u64,
+    weights: []const f32,
+};
+
 pub const TrainError = Error;
 pub const OptimizerType = enum { sgd, adam, adamw };
 pub const LearningRateSchedule = enum {
@@ -102,10 +118,13 @@ pub const TokenBlock = struct {
 };
 pub const Checkpoint = struct {
     step: u64 = 0,
-    timestamp: i64 = 0,
-    weights: []const f32 = &.{},
+    timestamp: u64 = 0,
+    weights: []f32 = &.{},
 
-    pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
+    pub fn deinit(self: *Checkpoint, allocator: std.mem.Allocator) void {
+        if (self.weights.len > 0) allocator.free(self.weights);
+        self.* = undefined;
+    }
 };
 pub const GradientAccumulator = struct {};
 pub const LlmTrainingConfig = struct {
@@ -589,6 +608,15 @@ pub fn readTokenBinFile(_: std.mem.Allocator, _: []const u8) Error![]u32 {
 }
 
 pub fn writeTokenBinFile(_: std.mem.Allocator, _: []const u8, _: []const u32) Error!void {
+    return error.TrainingDisabled;
+}
+
+// Module-level checkpoint functions matching checkpoint.zig
+pub fn loadCheckpoint(_: std.mem.Allocator, _: []const u8) LoadError!Checkpoint {
+    return error.TrainingDisabled;
+}
+
+pub fn saveCheckpoint(_: std.mem.Allocator, _: []const u8, _: CheckpointView) SaveError!void {
     return error.TrainingDisabled;
 }
 

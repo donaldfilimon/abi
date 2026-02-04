@@ -94,7 +94,8 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | Import paths | Always use `@import("abi")` for public API, not direct file paths |
 | Stub/Real module sync | Changes to `mod.zig` must be mirrored in `stub.zig` with identical signatures |
 | Format specifiers | Use `{t}` for printing errors/enums. `@tagName()`/`@errorName()` valid for returning `[]const u8` |
-| ArrayListUnmanaged | Use `.empty` not `.init()` for unmanaged variants |
+| ArrayListUnmanaged | Use `.empty` not `.init()`; pass allocator to ops: `list.append(allocator, x)`, `list.toOwnedSlice(allocator)` |
+| Benchmark imports | Use `@import("abi").module` in benchmarks, not `@import("../../src/...")` - relative paths fail |
 | Timer API | Use `std.time.Timer.start()` not `std.time.Instant.now()` |
 | Sleep API | Use `std.Io.Clock.Duration.sleep()` not `std.time.sleep()` |
 | HTTP Server init | Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()` |
@@ -106,6 +107,8 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | Streaming API | Use `src/ai/streaming/` for real-time LLM responses; backend selection via config |
 | Test module imports | Use `abi.shared.module` not `@import("../path")` - tests can't import outside module path |
 | Implementation plans | Track in `PLAN.md` with date-stamped sections |
+| Binding library path | Set `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH` (macOS) to `bindings/c/zig-out/lib` |
+| C header regeneration | Run `zig build c-header` after C API changes |
 
 ## Feature Flags
 
@@ -856,6 +859,114 @@ docker compose --profile ollama up -d
 
 The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster builds.
 
+## Language Bindings
+
+ABI provides FFI bindings for C, Python, and Go. All bindings live in `bindings/`.
+
+### Building the Shared Library
+
+```bash
+# Build the C shared library (required for all bindings)
+cd bindings/c && zig build
+
+# Outputs:
+#   bindings/c/zig-out/lib/libabi.dylib (macOS) or libabi.so (Linux)
+#   bindings/c/zig-out/include/abi.h
+
+# Regenerate C header (if API changes)
+zig build c-header
+```
+
+### C Bindings
+
+The C API (`bindings/c/zig-out/include/abi.h`) provides:
+- Framework lifecycle: `abi_init()`, `abi_shutdown()`, `abi_version()`
+- SIMD operations: `abi_simd_vector_add()`, `abi_simd_vector_dot()`, `abi_simd_cosine_similarity()`
+- Database operations: `abi_db_create()`, `abi_db_insert()`, `abi_db_search()`
+- GPU operations: `abi_gpu_init()`, `abi_gpu_info()`
+
+```c
+#include "abi.h"
+
+abi_framework_t fw = NULL;
+if (abi_init(&fw) == ABI_OK) {
+    printf("ABI v%s\n", abi_version());
+    abi_shutdown(fw);
+}
+```
+
+### Python Bindings
+
+```bash
+# Install (requires shared library built first)
+cd bindings/python
+pip install -e .
+
+# Or use directly
+export DYLD_LIBRARY_PATH=$PWD/../c/zig-out/lib:$DYLD_LIBRARY_PATH  # macOS
+export LD_LIBRARY_PATH=$PWD/../c/zig-out/lib:$LD_LIBRARY_PATH      # Linux
+python -c "from abi import ABI; print(ABI().version())"
+```
+
+```python
+from abi import ABI, VectorDatabase, GpuBackend
+
+# Initialize framework
+abi = ABI()
+print(f"ABI v{abi.version()}")
+
+# Vector database operations
+db = VectorDatabase(dimension=384)
+db.insert(1, [0.1] * 384)
+results = db.search([0.1] * 384, k=10)
+
+# GPU backend selection (cuda, vulkan, metal, cpu)
+db_gpu = VectorDatabase(dimension=384, backend=GpuBackend.CUDA)
+```
+
+### Go Bindings
+
+```bash
+# Set library path
+export DYLD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$DYLD_LIBRARY_PATH  # macOS
+export LD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$LD_LIBRARY_PATH      # Linux
+
+# Run tests
+cd bindings/go && go test -v
+
+# Run example
+cd bindings/go/examples/vector_search && go run main.go
+```
+
+```go
+import "github.com/donaldfilimon/abi/bindings/go"
+
+func main() {
+    framework, _ := abi.Init()
+    defer framework.Shutdown()
+
+    db, _ := framework.CreateDB(128)
+    defer db.Destroy()
+
+    db.Insert(1, []float32{1.0, 0.0, ...})
+    results, _ := db.Search([]float32{1.0, 0.0, ...}, 10)
+
+    // With context cancellation
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+    results, _ = db.SearchWithContext(ctx, query, 10)
+}
+```
+
+### Binding Development Workflow
+
+When modifying the C API:
+1. Update `bindings/c/build.zig` or source files
+2. Rebuild: `cd bindings/c && zig build`
+3. Regenerate header: `zig build c-header` (from root)
+4. Update Python/Go bindings to match new signatures
+5. Run binding tests: `cd bindings/python && python -m pytest` or `cd bindings/go && go test`
+
 ## Adding a New Feature Module
 
 1. Create the module directory under `src/<feature>/`
@@ -921,6 +1032,9 @@ These flags are integrated into `build_options` and must have corresponding stub
 | Streaming API changes | `src/ai/streaming/` (server, backends, handlers) |
 | Model management | `src/ai/models/` + `tools/cli/commands/model.zig` |
 | Task management | `src/tasks/` + `tools/cli/commands/task.zig` |
+| C API changes | `bindings/c/` + rebuild with `zig build c-header` |
+| Python bindings | `bindings/python/abi.py` + `bindings/python/test_abi.py` |
+| Go bindings | `bindings/go/abi.go` + `bindings/go/context.go` |
 
 ## Post-Edit Checklist
 

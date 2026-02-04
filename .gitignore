@@ -156,3 +156,4 @@ tmpclaude-*
 nul
 examples/c_test
 docs/api/
+bindings/c/.zig-cache/
