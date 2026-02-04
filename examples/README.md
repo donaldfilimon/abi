@@ -3,10 +3,10 @@ title: "Examples"
 tags: [examples, tutorials, getting-started]
 ---
 # ABI Framework Examples
-> **Codebase Status:** Synced with repository as of 2026-01-31.
+> **Codebase Status:** Synced with repository as of 2026-02-04.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Examples-15+-blue?style=for-the-badge" alt="15+ Examples"/>
+  <img src="https://img.shields.io/badge/Examples-18-blue?style=for-the-badge" alt="18 Examples"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
   <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
 </p>
@@ -226,6 +226,66 @@ High Availability features for production deployments.
 zig build run-ha
 ```
 
+### config.zig
+
+Configuration system demonstration using the Builder pattern.
+
+**Features:**
+- GPU, AI, and database configuration
+- Builder pattern for flexible setup
+- Environment variable integration
+
+**Run:**
+
+```bash
+zig build run-config
+```
+
+### embeddings.zig
+
+Vector embeddings and similarity operations.
+
+**Features:**
+- SIMD-accelerated vector operations
+- Cosine similarity, dot product, L2 distance
+- Vector normalization
+
+**Run:**
+
+```bash
+zig build run-embeddings
+```
+
+### registry.zig
+
+Feature registry for runtime feature management.
+
+**Features:**
+- Feature registration (comptime and runtime)
+- Feature toggle and query
+- Dependency tracking
+
+**Run:**
+
+```bash
+zig build run-registry
+```
+
+### streaming.zig
+
+Streaming response handling for AI models.
+
+**Features:**
+- Token-by-token streaming
+- Server-Sent Events (SSE)
+- Backpressure handling
+
+**Run:**
+
+```bash
+zig build run-streaming
+```
+
 ## Building Examples
 
 All examples are integrated into the main build system:
@@ -240,18 +300,20 @@ zig build run-database
 zig build run-agent
 zig build run-compute
 zig build run-concurrency
+zig build run-config
+zig build run-discord
+zig build run-embeddings
 zig build run-gpu
+zig build run-ha
+zig build run-llm
 zig build run-network
 zig build run-observability
 zig build run-orchestration
-zig build run-discord
-zig build run-orchestration
+zig build run-registry
+zig build run-streaming
 zig build run-training
-zig build run-train-demo
-zig build run-llm
-zig build run-orchestration
 zig build run-train-ava
-zig build run-observability
+zig build run-train-demo
 zig build run-ha
 ```
 
