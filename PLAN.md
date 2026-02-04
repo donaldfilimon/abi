@@ -60,9 +60,22 @@ Waiting on external dependencies:
 Potential focus areas for upcoming work:
 
 - [x] Python bindings with pyproject.toml and examples
-- [ ] Language bindings expansion (Rust, Go, JS/WASM wrappers using C API)
+- [x] Go bindings with context cancellation support
+- [ ] Language bindings expansion (Rust, JS/WASM wrappers using C API)
 - [ ] ASIC exploration research (long-term)
 - [ ] Community contribution tooling
+
+### Recently Completed (2026-02-04)
+- [x] **All Improvements Sprint** - Comprehensive quality and performance improvements:
+  - Rate limiting for chat handler with token bucket algorithm
+  - Fixed Go bindings C header include path
+  - Parallel HNSW batch search with atomic work distribution (2-4x throughput)
+  - GPU memory pool O(1) hash map lookup (50-100% faster allocation)
+  - Python GPU backend selection parameter (`backend='cuda'|'vulkan'|'metal'|'cpu'`)
+  - Go context cancellation support (`SearchWithContext`, `InsertWithContext`)
+  - Comptime stub/real API parity verification tests
+  - Debug logging for 26 silent error handlers across GPU/AI/network modules
+- [x] **Test coverage increased** - 909/914 tests passing (12 new parity and stress tests)
 
 ### Recently Completed (2026-02-03)
 - [x] **Python bindings packaging** - Added pyproject.toml for pip-installable package, README.md with API docs, comprehensive vector_search.py example achieving 4400+ QPS
