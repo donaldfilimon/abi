@@ -116,6 +116,7 @@ pub const occupancy = @import("occupancy.zig");
 pub const fusion = @import("fusion.zig");
 pub const execution_coordinator = @import("execution_coordinator.zig");
 pub const memory_pool_advanced = @import("memory_pool_advanced.zig");
+pub const memory_pool_lockfree = @import("memory_pool_lockfree.zig");
 pub const sync_event = @import("sync_event.zig");
 pub const kernel_ring = @import("kernel_ring.zig");
 pub const adaptive_tiling = @import("adaptive_tiling.zig");
@@ -254,6 +255,7 @@ comptime {
         _ = @import("sync_event.zig");
         _ = @import("kernel_ring.zig");
         _ = @import("adaptive_tiling.zig");
+        _ = @import("memory_pool_lockfree.zig");
         // std.gpu integration tests
         _ = @import("std_gpu.zig");
         _ = @import("std_gpu_kernels.zig");
@@ -286,6 +288,15 @@ pub const MemoryPool = GpuMemoryPool; // Alias for convenience
 pub const MemoryStats = memory.MemoryStats;
 pub const AsyncTransfer = memory.AsyncTransfer;
 pub const GpuError = memory.MemoryError || error{GpuDisabled};
+
+// Lock-free memory pool types (high-performance concurrent allocation)
+pub const LockFreeResourcePool = memory_pool_lockfree.LockFreeResourcePool;
+pub const ResourceHandle = memory_pool_lockfree.ResourceHandle;
+pub const LockFreePoolConfig = memory_pool_lockfree.PoolConfig;
+pub const LockFreePoolStats = memory_pool_lockfree.StatsSnapshot;
+pub const ConcurrentCommandPool = memory_pool_lockfree.ConcurrentCommandPool;
+pub const INVALID_HANDLE = memory_pool_lockfree.INVALID_HANDLE;
+pub const CACHE_LINE_SIZE = memory_pool_lockfree.CACHE_LINE_SIZE;
 
 pub const KernelSource = kernels.KernelSource;
 pub const KernelConfig = kernels.KernelConfig;
