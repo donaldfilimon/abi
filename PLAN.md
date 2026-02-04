@@ -59,11 +59,13 @@ Waiting on external dependencies:
 
 Potential focus areas for upcoming work:
 
-- [ ] Language bindings expansion (Python, Rust, Go, JS/WASM wrappers using new C API)
+- [x] Python bindings with pyproject.toml and examples
+- [ ] Language bindings expansion (Rust, Go, JS/WASM wrappers using C API)
 - [ ] ASIC exploration research (long-term)
 - [ ] Community contribution tooling
 
 ### Recently Completed (2026-02-03)
+- [x] **Python bindings packaging** - Added pyproject.toml for pip-installable package, README.md with API docs, comprehensive vector_search.py example achieving 4400+ QPS
 - [x] **Competitive benchmarks** - Added real SIMD-accelerated benchmarks for FAISS comparison (recall@K, parameter sweeps) and vector DB comparison (8 competitor baselines: Pinecone, Milvus, Qdrant, Weaviate, Chroma, LanceDB, pgvector, Elasticsearch)
 - [x] **C header CI integration** - Added `zig build c-header` step and CI verification in `.github/workflows/ci.yml`
 
