@@ -391,7 +391,7 @@ test "batchnorm2d forward training" {
         13, 14, 15, 16,
     };
 
-    var output = try bn.forward(&input, 2, 2, 2, 2);
+    const output = try bn.forward(&input, 2, 2, 2, 2);
     defer allocator.free(output);
 
     // After normalization, each channel should have mean ~0 and var ~1
@@ -424,7 +424,7 @@ test "batchnorm2d forward inference" {
     // 1 batch, 1 channel, 2x2 spatial
     const input = [_]f32{ 1, 3, 7, 9 };
 
-    var output = try bn.forward(&input, 1, 1, 2, 2);
+    const output = try bn.forward(&input, 1, 1, 2, 2);
     defer allocator.free(output);
 
     // Expected: (x - 5) / 2

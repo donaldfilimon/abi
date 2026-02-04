@@ -401,7 +401,7 @@ export const Quantization = struct {
         switch (precision) {
             .fp32 => {
                 // No quantization needed for fp32
-                var slice = std.mem.sliceAsBytes(vector);
+                const slice = std.mem.sliceAsBytes(vector);
                 @memcpy(buffer[0..slice.len], slice);
             },
             .fp16 => {

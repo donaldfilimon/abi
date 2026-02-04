@@ -136,7 +136,7 @@ test "rules evaluation - emotional content" {
     var engine = rules.RulesEngine.init(testing.allocator);
     defer engine.deinit();
 
-    var request = types.PersonaRequest{
+    const request = types.PersonaRequest{
         .content = "I'm feeling really sad and overwhelmed today.",
     };
 
@@ -157,7 +157,7 @@ test "rules evaluation - technical content" {
     var engine = rules.RulesEngine.init(testing.allocator);
     defer engine.deinit();
 
-    var request = types.PersonaRequest{
+    const request = types.PersonaRequest{
         .content = "Implement a binary search algorithm in Zig.",
     };
 
@@ -176,7 +176,7 @@ test "rules evaluation - code request" {
     var engine = rules.RulesEngine.init(testing.allocator);
     defer engine.deinit();
 
-    var request = types.PersonaRequest{
+    const request = types.PersonaRequest{
         .content = "Write a function to parse JSON.",
     };
 

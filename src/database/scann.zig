@@ -130,7 +130,7 @@ pub const AVQCodebook = struct {
     direction_vectors: ?[]f32 = null,
 
     pub fn init(allocator: std.mem.Allocator, dimensions: u32, num_centroids: u32) !AVQCodebook {
-        var codebook = AVQCodebook{
+        const codebook = AVQCodebook{
             .allocator = allocator,
             .dimensions = dimensions,
             .num_centroids = num_centroids,

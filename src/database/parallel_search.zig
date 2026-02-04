@@ -309,7 +309,7 @@ pub const ParallelSearchExecutor = struct {
             }
 
             // Find top-k
-            var indices = try self.allocator.alloc(usize, vectors.len);
+            const indices = try self.allocator.alloc(usize, vectors.len);
             defer self.allocator.free(indices);
 
             for (indices, 0..) |*idx, i| {

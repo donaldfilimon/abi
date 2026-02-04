@@ -504,7 +504,7 @@ test "conv2d forward" {
     // 1x1x4x4 input filled with 1s
     const input = [_]f32{1.0} ** 16;
 
-    var output = try conv.forward(&input, 1, 4, 4);
+    const output = try conv.forward(&input, 1, 4, 4);
     defer allocator.free(output);
 
     // Output should be 1x1x2x2 = 4 elements

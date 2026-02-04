@@ -994,7 +994,7 @@ pub const HnswIndex = struct {
         }
 
         // Allocate results array (nullable to track completion)
-        var results_slots = try allocator.alloc(?[]index_mod.IndexResult, queries.len);
+        const results_slots = try allocator.alloc(?[]index_mod.IndexResult, queries.len);
         defer allocator.free(results_slots);
         @memset(results_slots, null);
 
@@ -1299,7 +1299,7 @@ pub const HnswIndex = struct {
         const max_layer = try reader.readInt(i32, .little);
         const ef_construction = try reader.readInt(u32, .little);
 
-        var self = HnswIndex{
+        const self = HnswIndex{
             .m = m,
             .m_max = m,
             .m_max0 = m * 2,

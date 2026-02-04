@@ -599,7 +599,7 @@ fn calculateStatistics(
     }
 
     // Sort samples for percentile calculation
-    var sorted = try allocator.alloc(u64, samples.len);
+    const sorted = try allocator.alloc(u64, samples.len);
     defer allocator.free(sorted);
     @memcpy(sorted, samples);
     std.mem.sort(u64, sorted, {}, std.sort.asc(u64));

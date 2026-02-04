@@ -235,7 +235,7 @@ pub const CrossAttention = struct {
         const head_dim = hidden_size / num_heads;
         const size = hidden_size * hidden_size;
 
-        var self = CrossAttention{
+        const self = CrossAttention{
             .allocator = allocator,
             .hidden_size = hidden_size,
             .num_heads = num_heads,

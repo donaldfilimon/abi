@@ -487,7 +487,7 @@ pub const TrainableCLIPModel = struct {
         const vision_hidden = self.config.vision_config.vit_config.hidden_size;
 
         // Get vision features
-        var vision_features = try self.allocator.alloc(f32, batch_size * vision_hidden);
+        const vision_features = try self.allocator.alloc(f32, batch_size * vision_hidden);
         defer self.allocator.free(vision_features);
 
         try self.vision_encoder.forward(images, batch_size, vision_features);

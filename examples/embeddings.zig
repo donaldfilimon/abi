@@ -20,7 +20,7 @@ pub fn main() !void {
     defer allocator.free(vec_a);
     var vec_b = try allocator.alloc(f32, dim);
     defer allocator.free(vec_b);
-    var result = try allocator.alloc(f32, dim);
+    const result = try allocator.alloc(f32, dim);
     defer allocator.free(result);
 
     // Initialize vectors with sample data

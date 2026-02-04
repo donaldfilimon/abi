@@ -510,7 +510,7 @@ test "avgpool2d forward" {
         13, 14, 15, 16,
     };
 
-    var output = try pool.forward(&input, 1, 1, 4, 4);
+    const output = try pool.forward(&input, 1, 1, 4, 4);
     defer allocator.free(output);
 
     // Should get 1x1x2x2 output with average values
@@ -541,7 +541,7 @@ test "adaptive avgpool2d forward" {
         26, 28, 30, 32,
     };
 
-    var output = try pool.forward(&input, 1, 2, 4, 4);
+    const output = try pool.forward(&input, 1, 2, 4, 4);
     defer allocator.free(output);
 
     // Should get 1x2x1x1 = 2 values
@@ -556,7 +556,7 @@ test "global avg pool" {
     // 1x1x2x2 input
     const input = [_]f32{ 1, 2, 3, 4 };
 
-    var output = try globalAvgPool2D(allocator, &input, 1, 1, 2, 2);
+    const output = try globalAvgPool2D(allocator, &input, 1, 1, 2, 2);
     defer allocator.free(output);
 
     try std.testing.expectEqual(@as(usize, 1), output.len);
@@ -583,7 +583,7 @@ test "maxpool2d backward" {
     // Gradient from next layer
     const grad_output = [_]f32{ 1, 1, 1, 1 };
 
-    var input_grad = try pool.backward(&grad_output, result.indices);
+    const input_grad = try pool.backward(&grad_output, result.indices);
     defer allocator.free(input_grad);
 
     // Gradient should only be non-zero at max positions

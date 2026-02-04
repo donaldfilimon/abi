@@ -623,7 +623,7 @@ const StatResult = struct {
 fn calculateStats(allocator: std.mem.Allocator, samples: []const u64) !StatResult {
     if (samples.len == 0) return StatResult{};
 
-    var sorted = try allocator.alloc(u64, samples.len);
+    const sorted = try allocator.alloc(u64, samples.len);
     defer allocator.free(sorted);
     @memcpy(sorted, samples);
     std.mem.sort(u64, sorted, {}, std.sort.asc(u64));

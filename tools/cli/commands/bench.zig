@@ -476,7 +476,7 @@ fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUn
         const dimension: usize = 128;
         const num_vectors: usize = 1000;
 
-        var vectors = try allocator.alloc(f32, num_vectors * dimension);
+        const vectors = try allocator.alloc(f32, num_vectors * dimension);
         defer allocator.free(vectors);
 
         var prng = std.Random.Xoroshiro128.init(123);
@@ -485,7 +485,7 @@ fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUn
             v.* = rand.float(f32) * 2.0 - 1.0;
         }
 
-        var query = try allocator.alloc(f32, dimension);
+        const query = try allocator.alloc(f32, dimension);
         defer allocator.free(query);
         for (query) |*v| {
             v.* = rand.float(f32) * 2.0 - 1.0;

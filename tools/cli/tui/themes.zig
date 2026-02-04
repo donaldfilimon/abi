@@ -287,7 +287,7 @@ pub const ThemeManager = struct {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test "theme manager initialization" {
-    var manager = ThemeManager.init();
+    const manager = ThemeManager.init();
     try std.testing.expectEqualStrings("default", manager.current.name);
 }
 

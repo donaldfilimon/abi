@@ -592,7 +592,7 @@ pub const TrainableViTModel = struct {
         for (0..batch_size) |b| {
             // Get class token output (or mean pool)
             const cls_offset = b * seq_len * hidden;
-            var cls_features = hidden_states[cls_offset .. cls_offset + hidden];
+            const cls_features = hidden_states[cls_offset .. cls_offset + hidden];
 
             // Apply final layer norm
             layerNorm(cls_features, self.weights.final_ln_weight, self.weights.final_ln_bias);
@@ -648,7 +648,7 @@ pub const TrainableViTModel = struct {
         const head_dim = hidden_dim / num_heads;
 
         // Allocate temporaries
-        var residual = try self.allocator.alloc(f32, batch_size * seq_len * hidden_dim);
+        const residual = try self.allocator.alloc(f32, batch_size * seq_len * hidden_dim);
         defer self.allocator.free(residual);
 
         // Save pre-norm for backward

@@ -690,7 +690,7 @@ pub const ConcurrentCommandPool = struct {
     /// Acquire a command buffer for the current thread
     pub fn acquire(self: *ConcurrentCommandPool) ?*CommandBuffer {
         const thread_idx = getThreadIndex();
-        var pool = &self.thread_pools[thread_idx];
+        const pool = &self.thread_pools[thread_idx];
 
         // Find a free buffer in this thread's pool
         for (pool.buffers) |*buffer| {

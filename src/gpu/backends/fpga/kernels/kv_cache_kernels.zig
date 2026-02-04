@@ -142,7 +142,7 @@ pub const HierarchicalKVCache = struct {
     stats: CacheStats = .{},
 
     pub fn init(allocator: std.mem.Allocator, config: KVCacheKernelConfig) !HierarchicalKVCache {
-        var cache = HierarchicalKVCache{
+        const cache = HierarchicalKVCache{
             .config = config,
             .allocator = allocator,
             .blocks = .{},
@@ -421,7 +421,7 @@ pub const CompressedKVCache = struct {
     layer_zeros: []f32,
 
     pub fn init(allocator: std.mem.Allocator, config: KVCacheKernelConfig) !CompressedKVCache {
-        var cache = CompressedKVCache{
+        const cache = CompressedKVCache{
             .config = config,
             .allocator = allocator,
             .base_cache = try HierarchicalKVCache.init(allocator, config),

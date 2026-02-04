@@ -59,7 +59,7 @@ pub const Image = struct {
         const expected_size = @as(usize, width) * @as(usize, height) * @as(usize, channels);
         if (source_data.len != expected_size) return error.DataSizeMismatch;
 
-        var img = try init(allocator, width, height, channels);
+        const img = try init(allocator, width, height, channels);
         @memcpy(img.data, source_data);
         return img;
     }

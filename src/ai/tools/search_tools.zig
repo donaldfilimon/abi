@@ -117,7 +117,7 @@ fn executeGrep(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     }) catch return error.OutOfMemory;
     defer ctx.allocator.free(command);
 
-    var result = os.exec(ctx.allocator, command) catch |err| {
+    const result = os.exec(ctx.allocator, command) catch |err| {
         const msg = std.fmt.allocPrint(ctx.allocator, "Grep failed: {t}", .{err}) catch return error.OutOfMemory;
         return ToolResult.fromError(ctx.allocator, msg);
     };

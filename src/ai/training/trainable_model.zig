@@ -961,7 +961,7 @@ pub const TrainableModel = struct {
         var layer_idx: usize = self.config.num_layers;
         while (layer_idx > 0) {
             layer_idx -= 1;
-            var layer = &self.weights.layers[layer_idx];
+            const layer = &self.weights.layers[layer_idx];
             const layer_cache = &cache.layer_caches[layer_idx];
 
             // Backward through FFN residual: hidden = pre_ffn + ffn_out

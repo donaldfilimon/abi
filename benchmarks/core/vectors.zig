@@ -138,7 +138,7 @@ pub fn generateClustered(
     const rand = prng.random();
 
     // Generate cluster centers
-    var centers = try allocator.alloc([]f32, num_clusters);
+    const centers = try allocator.alloc([]f32, num_clusters);
     defer {
         for (centers) |c| {
             allocator.free(c);

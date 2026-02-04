@@ -1150,7 +1150,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         tokenizer = tok;
     }
 
-    var dataset = try resolveDatasetPath(allocator, dataset_url, dataset_path, dataset_cache, dataset_max_bytes);
+    const dataset = try resolveDatasetPath(allocator, dataset_url, dataset_path, dataset_cache, dataset_max_bytes);
     defer if (dataset.owned and dataset.path.len > 0) allocator.free(dataset.path);
 
     var train_tokens: []u32 = &.{};
@@ -1466,7 +1466,7 @@ fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     };
     defer allocator.free(train_images);
 
-    var train_labels = allocator.alloc(u32, num_samples) catch |err| {
+    const train_labels = allocator.alloc(u32, num_samples) catch |err| {
         std.debug.print("Error allocating labels: {t}\n", .{err});
         return;
     };
@@ -1502,7 +1502,7 @@ fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
             const batch_images = train_images[batch_start .. batch_start + batch_size * image_dim];
 
             // Forward pass
-            var logits = allocator.alloc(f32, batch_size * num_classes) catch continue;
+            const logits = allocator.alloc(f32, batch_size * num_classes) catch continue;
             defer allocator.free(logits);
 
             model.forward(batch_images, batch_size, logits) catch continue;

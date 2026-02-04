@@ -661,7 +661,7 @@ pub fn compareSingle(
     config: ComparisonConfig,
 ) !ComparisonResult {
     const results = [_]BenchmarkResult{current};
-    var report = try compareAllWithConfig(store, &results, allocator, config);
+    const report = try compareAllWithConfig(store, &results, allocator, config);
     defer {
         if (report.branch) |b| allocator.free(b);
         if (report.commit) |c| allocator.free(c);
