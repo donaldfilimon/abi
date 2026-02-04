@@ -23,7 +23,7 @@ const BenchmarkResult = struct {
 };
 
 fn measurePerformance(test_fn: anytype, iterations: usize) !BenchmarkResult {
-    var timer = std.time.Timer.start() catch unreachable;
+    var timer = try std.time.Timer.start();
 
     for (0..iterations) |_| {
         test_fn() catch {};
@@ -187,7 +187,7 @@ test "GPU dispatcher: concurrent execution performance" {
 
     const atomic_error_count = std.atomic.Value(usize).init(0);
 
-    var timer = std.time.Timer.start() catch unreachable;
+    var timer = try std.time.Timer.start();
 
     for (0..concurrent_threads) |_| {
         const thread = try std.Thread.spawn(.{}, struct {

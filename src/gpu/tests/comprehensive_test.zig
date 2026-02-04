@@ -369,7 +369,10 @@ pub const TestSuite = struct {
         const health = try g.getHealth();
         const max_allocation = @as(usize, @intFromFloat(@as(f64, @floatFromInt(health.memory_total)) * self.config.memory_pressure));
 
-        var buffers = std.ArrayListUnmanaged(*gpu.UnifiedBuffer).initCapacity(self.allocator, 100) catch unreachable;
+        var buffers = std.ArrayListUnmanaged(*gpu.UnifiedBuffer).initCapacity(self.allocator, 100) catch |err| {
+            std.debug.print("Failed to allocate buffer list: {t}\n", .{err});
+            return err;
+        };
         defer {
             for (buffers.items) |buf| {
                 g.destroyBuffer(buf);

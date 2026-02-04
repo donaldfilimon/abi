@@ -36,7 +36,7 @@ test "WDBX distributed workflow integration" {
     const tenant_id: u64 = 1001;
     const session_id = "test-session-xyz";
     // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
-    var timer = std.time.Timer.start() catch unreachable;
+    var timer = try std.time.Timer.start();
     const timestamp: i64 = @intCast(timer.read());
 
     // Create shard key for placement decision

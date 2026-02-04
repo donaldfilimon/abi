@@ -631,14 +631,15 @@ pub const BatchMatMulKernel = struct {
         metrics: ?*MatMulMetrics,
     ) !void {
         const batch_size = batch_activations.len;
+        // Use empty static slice instead of allocating - avoids allocation errors
+        const empty_weights: []const u8 = &[_]u8{};
 
         if (metrics) |m| {
             // Use Timer for Zig 0.16 compatibility (no std.time.nanoTimestamp())
             var timer = std.time.Timer.start() catch {
                 // If timer fails, execute without timing
                 for (batch_activations, batch_outputs, 0..) |activations, output, i| {
-                    const weights = if (batch_weights) |bw| bw[i] else self.allocator.alloc(u8, 0) catch unreachable;
-                    defer if (batch_weights != null) {};
+                    const weights = if (batch_weights) |bw| bw[i] else empty_weights;
                     try self.executeSingleHead(activations, weights, output);
                 }
                 return;
@@ -647,9 +648,7 @@ pub const BatchMatMulKernel = struct {
             // FPGA would have specialized pipeline for batch processing
 
             for (batch_activations, batch_outputs, 0..) |activations, output, i| {
-                const weights = if (batch_weights) |bw| bw[i] else self.allocator.alloc(u8, 0) catch unreachable;
-                defer if (batch_weights != null) {};
-
+                const weights = if (batch_weights) |bw| bw[i] else empty_weights;
                 try self.executeSingleHead(activations, weights, output);
             }
 
@@ -657,9 +656,7 @@ pub const BatchMatMulKernel = struct {
             m.total_flops = @as(u64, batch_size) * 2 * self.config.m * self.config.n * self.config.k;
         } else {
             for (batch_activations, batch_outputs, 0..) |activations, output, i| {
-                const weights = if (batch_weights) |bw| bw[i] else self.allocator.alloc(u8, 0) catch unreachable;
-                defer if (batch_weights != null) {};
-
+                const weights = if (batch_weights) |bw| bw[i] else empty_weights;
                 try self.executeSingleHead(activations, weights, output);
             }
         }
