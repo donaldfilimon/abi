@@ -42,15 +42,14 @@ pub fn buildSoftmaxKernel(allocator: std.mem.Allocator) !*const KernelIR {
     // output[i] = exp(input[i] - max_val) / sum_exp
     const input_val = try input.at(idx);
     const shifted = try builder.sub(input_val, try max_val.toExpr());
-    // exp() would need to be a builtin function call
-    // For now, just store the shifted value as placeholder
+    // exp(input[i] - max_val)
+    const exp_shifted = try builder.exp(shifted);
+    // exp(input[i] - max_val) / sum_exp
+    const softmax_val = try builder.div(exp_shifted, try sum_exp.toExpr());
     const output_idx = try output.at(idx);
 
-    const assign_stmt = try builder.assignStmt(output_idx, shifted);
+    const assign_stmt = try builder.assignStmt(output_idx, softmax_val);
     try builder.ifStmt(condition, &[_]*const dsl.Stmt{assign_stmt}, null);
-
-    // Suppress unused
-    _ = sum_exp;
 
     const ir = try allocator.create(KernelIR);
     ir.* = try builder.build();
@@ -103,11 +102,24 @@ pub fn buildSigmoidKernel(allocator: std.mem.Allocator) !*const KernelIR {
     const idx = try gid.x();
     const condition = try builder.lt(idx, try n.toExpr());
 
-    // Placeholder: actual impl needs exp() builtin
-    const input_val = try input.at(idx);
-    const output_idx = try output.at(idx);
+    // sigmoid(x) = 1 / (1 + exp(-x))
+    const x = try input.at(idx);
 
-    const assign_stmt = try builder.assignStmt(output_idx, input_val);
+    // -x
+    const neg_x = try builder.neg(x);
+
+    // exp(-x)
+    const exp_neg_x = try builder.exp(neg_x);
+
+    // 1 + exp(-x)
+    const one = try builder.f32Lit(1.0);
+    const denom = try builder.add(one, exp_neg_x);
+
+    // 1 / (1 + exp(-x))
+    const sigmoid_val = try builder.div(one, denom);
+
+    const output_idx = try output.at(idx);
+    const assign_stmt = try builder.assignStmt(output_idx, sigmoid_val);
     try builder.ifStmt(condition, &[_]*const dsl.Stmt{assign_stmt}, null);
 
     const ir = try allocator.create(KernelIR);
@@ -130,11 +142,12 @@ pub fn buildTanhKernel(allocator: std.mem.Allocator) !*const KernelIR {
     const idx = try gid.x();
     const condition = try builder.lt(idx, try n.toExpr());
 
-    // Placeholder: actual impl needs tanh() builtin
-    const input_val = try input.at(idx);
-    const output_idx = try output.at(idx);
+    // tanh(x)
+    const x = try input.at(idx);
+    const tanh_val = try builder.tanh(x);
 
-    const assign_stmt = try builder.assignStmt(output_idx, input_val);
+    const output_idx = try output.at(idx);
+    const assign_stmt = try builder.assignStmt(output_idx, tanh_val);
     try builder.ifStmt(condition, &[_]*const dsl.Stmt{assign_stmt}, null);
 
     const ir = try allocator.create(KernelIR);
