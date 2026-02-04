@@ -125,6 +125,20 @@ zig build run-hello                    # Run hello example
 zig build run-database                 # Run database example
 zig build run-agent                    # Run agent example
 zig build run-gpu                      # Run GPU example
+zig build run-compute                  # Run compute example
+zig build run-network                  # Run network example
+zig build run-llm                      # Run LLM example
+zig build run-training                 # Run training example
+zig build run-streaming                # Run streaming example
+zig build run-embeddings               # Run embeddings example
+zig build run-config                   # Run config example
+zig build run-registry                 # Run registry example
+zig build run-ha                       # Run high availability example
+zig build run-discord                  # Run Discord bot example
+zig build run-orchestration            # Run orchestration example
+zig build run-concurrency              # Run concurrency example
+zig build run-observability            # Run observability example
+zig build run-train-ava                # Run Ava training example
 
 # Debugging
 zig build -Doptimize=Debug             # Debug build with symbols
@@ -151,7 +165,7 @@ lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
 | ArrayListUnmanaged | Use `.empty` not `.init()`; pass allocator to ops: `list.append(allocator, x)`, `list.toOwnedSlice(allocator)` |
 | Benchmark imports | Use `@import("abi").module` in benchmarks, not `@import("../../src/...")` - relative paths fail |
 | Timer API | Use `std.time.Timer.start()` not `std.time.Instant.now()` |
-| Sleep API | Use `std.Io.Clock.Duration.sleep()` not `std.time.sleep()` |
+| Sleep API | Use `abi.shared.time.sleepMs()` or `sleepNs()` for cross-platform sleep |
 | HTTP Server init | Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()` |
 | Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
 | Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
@@ -637,7 +651,7 @@ const path = try manager.getModelPath("llama-2-7b-q4");
 | `convert` | Dataset conversion (tokenbin, text, jsonl, wdbx) |
 | `completions` | Shell completions (bash, zsh, fish, powershell) |
 | `system-info` | Framework and feature status |
-| `toolchain` | Zig toolchain management (temporarily disabled for Zig 0.16 migration) |
+| `toolchain` | Zig toolchain management (install, update, status) |
 
 ### Model Management
 

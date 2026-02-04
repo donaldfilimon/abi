@@ -63,12 +63,21 @@ pub const EmbeddingModel = struct {
     }
 
     /// Generate embeddings for multiple texts.
+    /// Caller owns the returned slice and each embedding within it.
     pub fn embedBatch(self: *EmbeddingModel, texts: []const []const u8) ![][]f32 {
         const results = try self.allocator.alloc([]f32, texts.len);
-        errdefer self.allocator.free(results);
+        var completed: usize = 0;
+        errdefer {
+            // Free any embeddings we successfully allocated before the error
+            for (results[0..completed]) |embedding| {
+                self.allocator.free(embedding);
+            }
+            self.allocator.free(results);
+        }
 
-        for (texts, 0..) |text, i| {
-            results[i] = try self.embed(text);
+        for (texts) |text| {
+            results[completed] = try self.embed(text);
+            completed += 1;
         }
         return results;
     }
@@ -172,12 +181,21 @@ pub const Context = struct {
     }
 
     /// Generate embeddings for multiple texts.
+    /// Caller owns the returned slice and each embedding within it.
     pub fn embedBatch(self: *Context, texts: []const []const u8) ![][]f32 {
         const results = try self.allocator.alloc([]f32, texts.len);
-        errdefer self.allocator.free(results);
+        var completed: usize = 0;
+        errdefer {
+            // Free any embeddings we successfully allocated before the error
+            for (results[0..completed]) |embedding| {
+                self.allocator.free(embedding);
+            }
+            self.allocator.free(results);
+        }
 
-        for (texts, 0..) |text, i| {
-            results[i] = try self.embed(text);
+        for (texts) |text| {
+            results[completed] = try self.embed(text);
+            completed += 1;
         }
         return results;
     }

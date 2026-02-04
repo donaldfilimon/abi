@@ -186,7 +186,7 @@ pub fn ShardedMap(
 
         pub fn get(self: *@This(), key: K) ?V {
             const index = shardIndex(key);
-            var shard = &self.shards[index];
+            const shard = &self.shards[index];
             shard.mutex.lock();
             defer shard.mutex.unlock();
             return shard.map.get(key);
@@ -194,7 +194,7 @@ pub fn ShardedMap(
 
         pub fn put(self: *@This(), key: K, value: V) !void {
             const index = shardIndex(key);
-            var shard = &self.shards[index];
+            const shard = &self.shards[index];
             shard.mutex.lock();
             defer shard.mutex.unlock();
 
@@ -209,7 +209,7 @@ pub fn ShardedMap(
 
         pub fn remove(self: *@This(), key: K) bool {
             const index = shardIndex(key);
-            var shard = &self.shards[index];
+            const shard = &self.shards[index];
             shard.mutex.lock();
             defer shard.mutex.unlock();
 
@@ -223,7 +223,7 @@ pub fn ShardedMap(
         /// Atomically fetch and remove a key-value pair
         pub fn fetchRemove(self: *@This(), key: K) ?Map.KV {
             const index = shardIndex(key);
-            var shard = &self.shards[index];
+            const shard = &self.shards[index];
             shard.mutex.lock();
             defer shard.mutex.unlock();
 

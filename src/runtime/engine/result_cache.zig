@@ -166,7 +166,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
         /// Returns null if not found or expired.
         pub fn get(self: *Self, key: K) ?V {
             const shard_idx = self.shardIndex(key);
-            var shard = &self.shards[shard_idx];
+            const shard = &self.shards[shard_idx];
 
             // Lock-free fast path check
             shard.mutex.lock();
@@ -216,7 +216,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
         /// Put a value in the cache.
         pub fn put(self: *Self, key: K, value: V) !void {
             const shard_idx = self.shardIndex(key);
-            var shard = &self.shards[shard_idx];
+            const shard = &self.shards[shard_idx];
 
             shard.mutex.lock();
             defer shard.mutex.unlock();
@@ -254,7 +254,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
         /// Remove a specific key.
         pub fn remove(self: *Self, key: K) bool {
             const shard_idx = self.shardIndex(key);
-            var shard = &self.shards[shard_idx];
+            const shard = &self.shards[shard_idx];
 
             shard.mutex.lock();
             defer shard.mutex.unlock();

@@ -289,17 +289,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_OPENAI_API_KEY",
         "OPENAI_API_KEY",
     })) orelse return OpenAIError.MissingApiKey;
+    errdefer allocator.free(api_key);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OPENAI_BASE_URL",
         "OPENAI_BASE_URL",
     })) orelse try allocator.dupe(u8, "https://api.openai.com/v1");
+    errdefer allocator.free(base_url);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OPENAI_MODEL",
         "OPENAI_MODEL",
     })) orelse try allocator.dupe(u8, "gpt-4");
-    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,
