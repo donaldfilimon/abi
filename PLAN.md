@@ -72,10 +72,17 @@ Waiting on external dependencies:
 - [x] Go bindings with context cancellation support
 - [x] C bindings with full FFI layer
 
-### In Progress
-- [ ] Rust bindings (using bindgen or manual FFI from C API)
-- [ ] JavaScript/Node bindings (ffi-napi using C API)
-- [ ] WASM bindings (web browser support)
+### Completed (This Sprint - 2026-02-04)
+- [x] **Rust bindings** - Full FFI bindings in `bindings/rust/` with safe Rust wrappers:
+  - Framework lifecycle, SIMD operations, Vector Database, GPU backends, Agent system
+  - Example in `bindings/rust/examples/basic.rs`
+- [x] **JavaScript/TypeScript bindings** - Browser and Node.js support in `bindings/js/`:
+  - WASM SIMD support for high-performance vector operations
+  - VectorDatabase, GPU/WebGPU acceleration, TypeScript definitions
+  - Example usage in README.md
+- [x] **Example files fixed** - Recreated 4 broken examples with correct APIs:
+  - `examples/config.zig`, `examples/embeddings.zig`, `examples/registry.zig`, `examples/streaming.zig`
+- [x] **Benchmark modules integrated** - Added `benchmarks/infrastructure/registry.zig` and `result_cache.zig`
 
 ### Blocked
 - [ ] Native HTTP downloads (waiting on Zig 0.16 std.Io.File.Writer stabilization)
