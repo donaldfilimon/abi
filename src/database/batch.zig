@@ -254,8 +254,10 @@ pub const BatchProcessor = struct {
 
     /// Insert batch of records sequentially.
     fn insertBatchSequential(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
-        var timer = std.time.Timer.start() catch {
-            return error.TimerFailed;
+        const timer = std.time.Timer.start() catch |err| {
+            // Timer unavailable on this platform - process without timing
+            std.log.debug("Timer unavailable: {t}, processing without timing", .{err});
+            return self.insertBatchSequentialNoTiming(records);
         };
 
         var successful: usize = 0;
@@ -356,10 +358,53 @@ pub const BatchProcessor = struct {
         };
     }
 
+    /// Insert batch of records sequentially without timing (fallback for platforms without timer).
+    fn insertBatchSequentialNoTiming(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
+        var successful: usize = 0;
+        var failed: usize = 0;
+        _ = &failed;
+        var skipped: usize = 0;
+        var failed_ids = std.ArrayListUnmanaged(u64){};
+        var errors = std.ArrayListUnmanaged(BatchError){};
+        defer failed_ids.deinit(self.allocator);
+        defer errors.deinit(self.allocator);
+
+        for (records) |record| {
+            if (self.config.validate_before_insert) {
+                if (!self.validateRecord(record)) {
+                    if (self.config.continue_on_error) {
+                        skipped += 1;
+                        continue;
+                    } else {
+                        return error.ValidationFailed;
+                    }
+                }
+            }
+            successful += 1;
+        }
+
+        self.mutex.lock();
+        self.stats.total_inserted += successful;
+        self.stats.total_errors += failed;
+        self.mutex.unlock();
+
+        return .{
+            .total_processed = records.len,
+            .successful = successful,
+            .failed = failed,
+            .skipped = skipped,
+            .elapsed_ns = 0, // No timing available
+            .throughput = 0,
+            .failed_ids = try failed_ids.toOwnedSlice(self.allocator),
+            .errors = try errors.toOwnedSlice(self.allocator),
+        };
+    }
+
     /// Insert batch of records in parallel using worker threads.
     fn insertBatchParallel(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
-        var timer = std.time.Timer.start() catch {
-            return error.TimerFailed;
+        const timer = std.time.Timer.start() catch {
+            // Timer unavailable - fallback to sequential without timing
+            return self.insertBatchSequentialNoTiming(records);
         };
 
         const num_workers = @min(self.config.parallel_workers, records.len);
@@ -457,8 +502,26 @@ pub const BatchProcessor = struct {
 
     /// Delete batch of IDs.
     pub fn deleteBatch(self: *BatchProcessor, ids: []const u64) !BatchResult {
-        var timer = std.time.Timer.start() catch {
-            return error.TimerFailed;
+        const timer = std.time.Timer.start() catch {
+            // Timer unavailable - return result without timing
+            var successful: usize = 0;
+            for (ids) |id| {
+                _ = id;
+                successful += 1;
+            }
+            self.mutex.lock();
+            self.stats.total_deleted += successful;
+            self.mutex.unlock();
+            return .{
+                .total_processed = ids.len,
+                .successful = successful,
+                .failed = 0,
+                .skipped = 0,
+                .elapsed_ns = 0,
+                .throughput = 0,
+                .failed_ids = &.{},
+                .errors = &.{},
+            };
         };
 
         var successful: usize = 0;

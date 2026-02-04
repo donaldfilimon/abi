@@ -161,3 +161,215 @@ pub fn buildFillKernel(allocator: std.mem.Allocator) !*const KernelIR {
     ir.* = try builder.build();
     return ir;
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "buildDotProductKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildDotProductKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("dot_product", ir.name);
+
+    // Verify workgroup size
+    try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
+    try std.testing.expectEqual(@as(u32, 1), ir.workgroup_size[1]);
+    try std.testing.expectEqual(@as(u32, 1), ir.workgroup_size[2]);
+
+    // Verify buffer bindings (a, b, output)
+    try std.testing.expectEqual(@as(usize, 3), ir.buffers.len);
+    try std.testing.expectEqualStrings("a", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[0].access);
+    try std.testing.expectEqualStrings("b", ir.buffers[1].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[1].access);
+    try std.testing.expectEqualStrings("output", ir.buffers[2].name);
+    try std.testing.expectEqual(AccessMode.read_write, ir.buffers[2].access);
+
+    // Verify uniform binding (n)
+    try std.testing.expectEqual(@as(usize, 1), ir.uniforms.len);
+    try std.testing.expectEqualStrings("n", ir.uniforms[0].name);
+
+    // Verify shared memory declaration
+    try std.testing.expectEqual(@as(usize, 1), ir.shared_memory.len);
+    try std.testing.expectEqualStrings("shared_data", ir.shared_memory[0].name);
+    try std.testing.expectEqual(@as(?usize, 256), ir.shared_memory[0].size);
+
+    // Verify kernel body has statements
+    try std.testing.expect(ir.body.len > 0);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "buildNormalizeKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildNormalizeKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("normalize", ir.name);
+
+    // Verify workgroup size
+    try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
+
+    // Verify buffer bindings (input, output)
+    try std.testing.expectEqual(@as(usize, 2), ir.buffers.len);
+    try std.testing.expectEqualStrings("input", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[0].access);
+    try std.testing.expectEqualStrings("output", ir.buffers[1].name);
+    try std.testing.expectEqual(AccessMode.write_only, ir.buffers[1].access);
+
+    // Verify uniform bindings (norm, n)
+    try std.testing.expectEqual(@as(usize, 2), ir.uniforms.len);
+    try std.testing.expectEqualStrings("norm", ir.uniforms[0].name);
+    try std.testing.expectEqualStrings("n", ir.uniforms[1].name);
+
+    // Verify no shared memory needed for normalize
+    try std.testing.expectEqual(@as(usize, 0), ir.shared_memory.len);
+
+    // Verify kernel body has statements
+    try std.testing.expect(ir.body.len > 0);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "buildSaxpyKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildSaxpyKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("saxpy", ir.name);
+
+    // Verify workgroup size
+    try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
+
+    // Verify buffer bindings (x, y)
+    try std.testing.expectEqual(@as(usize, 2), ir.buffers.len);
+    try std.testing.expectEqualStrings("x", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[0].access);
+    try std.testing.expectEqualStrings("y", ir.buffers[1].name);
+    try std.testing.expectEqual(AccessMode.read_write, ir.buffers[1].access);
+
+    // Verify uniform bindings (a, n)
+    try std.testing.expectEqual(@as(usize, 2), ir.uniforms.len);
+    try std.testing.expectEqualStrings("a", ir.uniforms[0].name);
+    try std.testing.expectEqualStrings("n", ir.uniforms[1].name);
+
+    // Verify no shared memory needed for SAXPY
+    try std.testing.expectEqual(@as(usize, 0), ir.shared_memory.len);
+
+    // Verify kernel body has statements
+    try std.testing.expect(ir.body.len > 0);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "buildCopyKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildCopyKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("copy", ir.name);
+
+    // Verify buffer bindings (src, dst)
+    try std.testing.expectEqual(@as(usize, 2), ir.buffers.len);
+    try std.testing.expectEqualStrings("src", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[0].access);
+    try std.testing.expectEqualStrings("dst", ir.buffers[1].name);
+    try std.testing.expectEqual(AccessMode.write_only, ir.buffers[1].access);
+
+    // Verify uniform binding (n)
+    try std.testing.expectEqual(@as(usize, 1), ir.uniforms.len);
+    try std.testing.expectEqualStrings("n", ir.uniforms[0].name);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "buildFillKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildFillKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("fill", ir.name);
+
+    // Verify buffer bindings (dst only)
+    try std.testing.expectEqual(@as(usize, 1), ir.buffers.len);
+    try std.testing.expectEqualStrings("dst", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.write_only, ir.buffers[0].access);
+
+    // Verify uniform bindings (value, n)
+    try std.testing.expectEqual(@as(usize, 2), ir.uniforms.len);
+    try std.testing.expectEqualStrings("value", ir.uniforms[0].name);
+    try std.testing.expectEqualStrings("n", ir.uniforms[1].name);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "linalg kernels - binding index uniqueness" {
+    const allocator = std.testing.allocator;
+
+    // Test each kernel for binding conflicts
+    const kernels = .{
+        try buildDotProductKernel(allocator),
+        try buildNormalizeKernel(allocator),
+        try buildSaxpyKernel(allocator),
+        try buildCopyKernel(allocator),
+        try buildFillKernel(allocator),
+    };
+
+    inline for (kernels) |ir| {
+        defer {
+            ir.deinit(allocator);
+            allocator.destroy(@constCast(ir));
+        }
+
+        // Validation should pass (no duplicate bindings)
+        const validation = ir.validate();
+        try std.testing.expect(!validation.errors.duplicate_bindings);
+    }
+}
+
+test "linalg kernels - element types are f32" {
+    const allocator = std.testing.allocator;
+
+    // All linalg kernels should use f32 for buffers
+    const ir = try buildDotProductKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    for (ir.buffers) |buffer| {
+        try std.testing.expectEqual(Type{ .scalar = .f32 }, buffer.element_type);
+    }
+}

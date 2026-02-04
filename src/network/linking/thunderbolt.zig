@@ -644,3 +644,120 @@ test "DMA channel state" {
     try std.testing.expectEqual(ThunderboltTransport.DmaChannel.ChannelState.idle, channel.state);
     try std.testing.expectEqual(@as(u8, 0), channel.id);
 }
+
+test "ThunderboltTransport device connect and disconnect" {
+    const allocator = std.testing.allocator;
+
+    const transport = try ThunderboltTransport.init(allocator, .{});
+    defer transport.deinit();
+
+    // Connect a device
+    const device = try transport.connectDevice(12345);
+    try std.testing.expectEqual(@as(u64, 12345), device.id);
+    try std.testing.expectEqual(ThunderboltDevice.ConnectionState.connecting, device.state);
+    try std.testing.expectEqual(ThunderboltDevice.Generation.thunderbolt_4, device.generation);
+
+    // Verify stats updated
+    var stats = transport.getStats();
+    try std.testing.expectEqual(@as(u64, 1), stats.devices_connected);
+    try std.testing.expectEqual(@as(u64, 0), stats.devices_disconnected);
+
+    // Get device should return the same device
+    const retrieved = transport.getDevice(12345);
+    try std.testing.expect(retrieved != null);
+    try std.testing.expectEqual(device, retrieved.?);
+
+    // Disconnect the device
+    transport.disconnectDevice(12345);
+
+    // Verify stats updated
+    stats = transport.getStats();
+    try std.testing.expectEqual(@as(u64, 1), stats.devices_disconnected);
+
+    // Get device should now return null
+    try std.testing.expect(transport.getDevice(12345) == null);
+}
+
+test "ThunderboltTransport DMA submission" {
+    const allocator = std.testing.allocator;
+
+    const transport = try ThunderboltTransport.init(allocator, .{
+        .dma_enabled = true,
+        .max_dma_size = 1024 * 1024,
+    });
+    defer transport.deinit();
+
+    // Submit a valid DMA transfer
+    const descriptor = DmaDescriptor{
+        .src_addr = 0x1000,
+        .dst_addr = 0x2000,
+        .size = 4096,
+        .direction = .host_to_device,
+        .flags = .{},
+        .on_complete = null,
+        .user_data = null,
+    };
+
+    try transport.submitDma(descriptor);
+
+    // Verify channel became active
+    try std.testing.expectEqual(
+        ThunderboltTransport.DmaChannel.ChannelState.active,
+        transport.dma_channels[0].state,
+    );
+    try std.testing.expectEqual(@as(usize, 1), transport.dma_channels[0].pending_transfers.items.len);
+}
+
+test "ThunderboltTransport DMA size limit enforcement" {
+    const allocator = std.testing.allocator;
+
+    const transport = try ThunderboltTransport.init(allocator, .{
+        .dma_enabled = true,
+        .max_dma_size = 1024, // Small limit for testing
+    });
+    defer transport.deinit();
+
+    // Submit a transfer that exceeds max size should fail
+    const too_large = DmaDescriptor{
+        .src_addr = 0x1000,
+        .dst_addr = 0x2000,
+        .size = 2048, // Larger than max
+        .direction = .host_to_device,
+        .flags = .{},
+        .on_complete = null,
+        .user_data = null,
+    };
+
+    const result = transport.submitDma(too_large);
+    try std.testing.expectError(error.SizeTooLarge, result);
+}
+
+test "ThunderboltDevice supportsDma checks" {
+    var device = ThunderboltDevice{
+        .id = 1,
+        .name = std.mem.zeroes([64]u8),
+        .vendor_id = 0,
+        .device_id = 0,
+        .generation = .thunderbolt_4,
+        .state = .connected,
+        .link_speed_gbps = 40,
+        .lanes = 2,
+        .power_watts = 100,
+        .security = .user_authorized,
+        .uuid = std.mem.zeroes([16]u8),
+        .route_string = 0,
+        .protocols = .{ .pcie = true },
+    };
+
+    // PCIe + user_authorized = DMA supported
+    try std.testing.expect(device.supportsDma());
+
+    // No PCIe = no DMA
+    device.protocols.pcie = false;
+    try std.testing.expect(!device.supportsDma());
+
+    // PCIe but security rejected = no DMA
+    device.protocols.pcie = true;
+    device.security = .rejected;
+    try std.testing.expect(!device.supportsDma());
+}

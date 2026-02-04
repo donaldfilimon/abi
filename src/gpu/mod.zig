@@ -263,6 +263,8 @@ comptime {
         _ = @import("mega/mod.zig");
         // Platform detection tests
         _ = @import("platform.zig");
+        // Built-in kernel tests (includes linalg, reduction, etc.)
+        _ = @import("builtin_kernels.zig");
     }
 }
 

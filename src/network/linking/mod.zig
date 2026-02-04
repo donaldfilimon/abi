@@ -361,7 +361,8 @@ pub const Link = struct {
         }) catch return error.ConnectionFailed;
 
         // Perform connection handshake
-        self.channel.?.connect(self.remote_address) catch {
+        self.channel.?.connect(self.remote_address) catch |err| {
+            std.log.debug("Connection handshake failed for {s}: {t}", .{ self.remote_address, err });
             self.state = .failed;
             return error.ConnectionFailed;
         };
@@ -395,7 +396,8 @@ pub const Link = struct {
 
         const channel = self.channel orelse return error.NotConnected;
 
-        channel.send(data) catch {
+        channel.send(data) catch |err| {
+            std.log.debug("Send failed on link {d}: {t}", .{ self.id, err });
             self.stats.recordError(true);
             if (self.config.auto_reconnect) {
                 self.state = .reconnecting;
@@ -417,7 +419,8 @@ pub const Link = struct {
 
         const channel = self.channel orelse return error.NotConnected;
 
-        const len = channel.receive(buffer) catch {
+        const len = channel.receive(buffer) catch |err| {
+            std.log.debug("Receive failed on link {d}: {t}", .{ self.id, err });
             self.stats.recordError(false);
             return error.ReceiveFailed;
         };

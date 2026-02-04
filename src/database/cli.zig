@@ -338,6 +338,79 @@ fn seedDatabase(handle: *wdbx.DatabaseHandle) !void {
 
 const fs = @import("../shared/utils.zig").fs;
 
+/// Parse CLI arguments for the add command. Returns parsed options or null on validation error.
+/// Exposed for testing purposes.
+pub const AddOptions = struct {
+    id: ?u64 = null,
+    vector_text: ?[]const u8 = null,
+    meta: ?[]const u8 = null,
+    embed_text: ?[]const u8 = null,
+    path: ?[]const u8 = null,
+};
+
+pub fn parseAddArgs(args: []const [:0]const u8) AddOptions {
+    var opts = AddOptions{};
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        i += 1;
+
+        if (std.mem.eql(u8, arg, "--id")) {
+            if (i < args.len) {
+                opts.id = std.fmt.parseInt(u64, std.mem.sliceTo(args[i], 0), 10) catch null;
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--vector")) {
+            if (i < args.len) {
+                opts.vector_text = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--meta")) {
+            if (i < args.len) {
+                opts.meta = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--embed")) {
+            if (i < args.len) {
+                opts.embed_text = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--path")) {
+            if (i < args.len) {
+                opts.path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+    }
+    return opts;
+}
+
+/// Validate that exactly one of vector or embed is specified.
+pub fn validateVectorOrEmbed(has_vector: bool, has_embed: bool) bool {
+    return has_vector != has_embed;
+}
+
+/// Normalize a database path for consistent handling.
+/// Returns the path unchanged if valid, or null if empty.
+pub fn normalizePath(path: ?[]const u8) ?[]const u8 {
+    const p = path orelse return null;
+    if (p.len == 0) return null;
+    return p;
+}
+
 const DbContext = struct {
     handle: wdbx.DatabaseHandle,
     path: ?[]const u8,
@@ -345,17 +418,18 @@ const DbContext = struct {
     fn init(allocator: std.mem.Allocator, path: ?[]const u8) !DbContext {
         if (path) |file_path| {
             // Normalize path to backups/ directory (same as backup/restore)
-            const safe_path = fs.normalizeBackupPath(allocator, file_path) catch {
+            const safe_path = fs.normalizeBackupPath(allocator, file_path) catch |norm_err| {
+                std.log.debug("Path normalization failed for '{s}': {t}, trying direct load", .{ file_path, norm_err });
                 // If path validation fails, try loading directly (for legacy compatibility)
                 const loaded = storage.loadDatabase(allocator, file_path);
                 if (loaded) |db| {
                     return .{ .handle = .{ .db = db }, .path = file_path };
-                } else |err| switch (err) {
+                } else |load_err| switch (load_err) {
                     std.Io.Dir.ReadFileAllocError.FileNotFound => {
                         const handle = try wdbx.createDatabase(allocator, file_path);
                         return .{ .handle = handle, .path = file_path };
                     },
-                    else => return err,
+                    else => return load_err,
                 }
             };
             defer allocator.free(safe_path);
@@ -385,3 +459,76 @@ const DbContext = struct {
         }
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "parseAddArgs parses all options" {
+    const args = [_][:0]const u8{
+        "--id",
+        "42",
+        "--vector",
+        "1.0,2.0,3.0",
+        "--meta",
+        "test metadata",
+        "--path",
+        "/tmp/test.db",
+    };
+    const opts = parseAddArgs(&args);
+
+    try std.testing.expectEqual(@as(?u64, 42), opts.id);
+    try std.testing.expectEqualStrings("1.0,2.0,3.0", opts.vector_text.?);
+    try std.testing.expectEqualStrings("test metadata", opts.meta.?);
+    try std.testing.expectEqualStrings("/tmp/test.db", opts.path.?);
+    try std.testing.expect(opts.embed_text == null);
+}
+
+test "parseAddArgs handles missing values gracefully" {
+    // Missing value after --id flag
+    const args_missing_value = [_][:0]const u8{"--id"};
+    const opts = parseAddArgs(&args_missing_value);
+
+    try std.testing.expect(opts.id == null);
+
+    // Empty args
+    const empty_args: []const [:0]const u8 = &.{};
+    const empty_opts = parseAddArgs(empty_args);
+    try std.testing.expect(empty_opts.id == null);
+    try std.testing.expect(empty_opts.vector_text == null);
+}
+
+test "parseAddArgs handles invalid id" {
+    const args = [_][:0]const u8{ "--id", "not_a_number" };
+    const opts = parseAddArgs(&args);
+
+    // Invalid number should result in null
+    try std.testing.expect(opts.id == null);
+}
+
+test "validateVectorOrEmbed requires exactly one" {
+    // Both false - invalid
+    try std.testing.expect(!validateVectorOrEmbed(false, false));
+
+    // Both true - invalid
+    try std.testing.expect(!validateVectorOrEmbed(true, true));
+
+    // Vector only - valid
+    try std.testing.expect(validateVectorOrEmbed(true, false));
+
+    // Embed only - valid
+    try std.testing.expect(validateVectorOrEmbed(false, true));
+}
+
+test "normalizePath handles empty and null" {
+    // Null input
+    try std.testing.expect(normalizePath(null) == null);
+
+    // Empty string
+    try std.testing.expect(normalizePath("") == null);
+
+    // Valid path
+    const valid_path = normalizePath("/tmp/test.db");
+    try std.testing.expect(valid_path != null);
+    try std.testing.expectEqualStrings("/tmp/test.db", valid_path.?);
+}

@@ -302,9 +302,9 @@ pub const KernelCache = struct {
         // Cache miss - compile
         self.stats.misses += 1;
 
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        const timer = std.time.Timer.start() catch null;
         const binary = try compiler(source, source_type, options);
-        const compile_time = timer.read();
+        const compile_time: u64 = if (timer) |t| t.read() else 0;
 
         // Create entry
         const owned_key = try self.allocator.dupe(u8, key);

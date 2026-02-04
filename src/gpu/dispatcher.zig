@@ -394,7 +394,12 @@ pub const KernelDispatcher = struct {
         config: LaunchConfig,
         args: KernelArgs,
     ) DispatchError!ExecutionResult {
-        var timer = std.time.Timer.start() catch return DispatchError.TimerFailed;
+        const timer_result = std.time.Timer.start();
+        var timer = timer_result catch |err| {
+            std.log.debug("Timer unavailable for kernel execution: {t}", .{err});
+            // Timer unavailable - execute without timing
+            return self.executeWithoutTiming(kernel, config, args);
+        };
 
         // Track launch configuration in ring buffer for fast-path detection
         const grid = config.gridDimensions();
@@ -508,6 +513,55 @@ pub const KernelDispatcher = struct {
             .backend = if (used_cublas) .cuda else self.backend,
             .device_id = self.device.id,
             .gpu_executed = gpu_executed,
+        };
+    }
+
+    /// Execute a kernel without timing (fallback for platforms without timer support).
+    fn executeWithoutTiming(
+        self: *Self,
+        kernel: CompiledKernelHandle,
+        config: LaunchConfig,
+        args: KernelArgs,
+    ) DispatchError!ExecutionResult {
+        // Validate arguments
+        if (args.buffers.len != kernel.buffer_count) {
+            return DispatchError.InvalidArguments;
+        }
+
+        // Ensure buffers are on device
+        for (args.buffers) |buf| {
+            if (buf.isHostDirty()) {
+                buf.toDevice() catch return DispatchError.BufferNotReady;
+            }
+        }
+
+        // Calculate metrics
+        var bytes_transferred: usize = 0;
+        for (args.buffers) |buf| {
+            bytes_transferred += buf.getSize();
+        }
+        const elements = config.global_size[0] * config.global_size[1] * config.global_size[2];
+
+        // Execute on CPU fallback
+        self.executeOnCpu(kernel, config, args) catch |err| {
+            std.log.err("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
+            return DispatchError.ExecutionFailed;
+        };
+
+        // Mark output buffers as device dirty
+        for (args.buffers) |buf| {
+            buf.markDeviceDirty();
+        }
+
+        self.kernels_executed += 1;
+
+        return ExecutionResult{
+            .execution_time_ns = 0, // No timing available
+            .elements_processed = elements,
+            .bytes_transferred = bytes_transferred,
+            .backend = self.backend,
+            .device_id = self.device.id,
+            .gpu_executed = false, // CPU fallback due to no timer
         };
     }
 

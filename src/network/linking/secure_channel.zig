@@ -684,3 +684,82 @@ test "EncryptedMessage serialization" {
     try std.testing.expectEqualSlices(u8, &msg.tag, &restored.tag);
     try std.testing.expectEqualStrings("hello", restored.ciphertext);
 }
+
+test "SecureChannel state transition: uninitialized to handshaking to established" {
+    const allocator = std.testing.allocator;
+
+    const channel = try SecureChannel.init(allocator, .{ .encryption = .noise_xx });
+    defer channel.deinit();
+
+    // Initial state should be uninitialized
+    try std.testing.expectEqual(ChannelState.uninitialized, channel.state);
+
+    // Connect should transition through handshaking to established
+    try channel.connect("test-address");
+
+    try std.testing.expectEqual(ChannelState.established, channel.state);
+    try std.testing.expect(channel.stats.handshakes == 1);
+    try std.testing.expect(channel.stats.established_at_ms > 0);
+}
+
+test "SecureChannel state transition: established to rekeying to established" {
+    const allocator = std.testing.allocator;
+
+    const channel = try SecureChannel.init(allocator, .{ .encryption = .chacha20_poly1305 });
+    defer channel.deinit();
+
+    // Connect first
+    try channel.connect("test-address");
+    try std.testing.expectEqual(ChannelState.established, channel.state);
+
+    // Store original keys for comparison
+    var original_send_key: [32]u8 = undefined;
+    @memcpy(&original_send_key, &channel.send_key);
+
+    // Rotate keys should transition through rekeying and back to established
+    try channel.rotateKeys();
+
+    try std.testing.expectEqual(ChannelState.established, channel.state);
+    try std.testing.expect(channel.stats.key_rotations == 1);
+
+    // Keys should have changed after rotation
+    try std.testing.expect(!std.mem.eql(u8, &original_send_key, &channel.send_key));
+}
+
+test "SecureChannel state transition: established to closed" {
+    const allocator = std.testing.allocator;
+
+    const channel = try SecureChannel.init(allocator, .{ .encryption = .tls_1_3 });
+    defer channel.deinit();
+
+    // Connect first
+    try channel.connect("test-address");
+    try std.testing.expectEqual(ChannelState.established, channel.state);
+
+    // Close should transition to closed
+    channel.close();
+    try std.testing.expectEqual(ChannelState.closed, channel.state);
+
+    // Cannot send after close
+    const result = channel.send("test message");
+    try std.testing.expectError(error.NotEstablished, result);
+
+    // Cannot rotate keys after close
+    const rekey_result = channel.rotateKeys();
+    try std.testing.expectError(error.NotEstablished, rekey_result);
+}
+
+test "SecureChannel connect from invalid state returns error" {
+    const allocator = std.testing.allocator;
+
+    const channel = try SecureChannel.init(allocator, .{ .encryption = .wireguard });
+    defer channel.deinit();
+
+    // First connect should succeed
+    try channel.connect("first-address");
+    try std.testing.expectEqual(ChannelState.established, channel.state);
+
+    // Second connect from established state should fail
+    const result = channel.connect("second-address");
+    try std.testing.expectError(error.InvalidState, result);
+}

@@ -39,7 +39,10 @@ pub const Instant = if (has_instant) std.time.Instant else struct {
 
 /// Get current instant, returns null on failure or unsupported platform
 pub fn now() ?Instant {
-    return Instant.now() catch null;
+    return Instant.now() catch |err| {
+        std.log.debug("Failed to get current instant: {t}", .{err});
+        return null;
+    };
 }
 
 /// Get elapsed nanoseconds since a previous instant
@@ -67,7 +70,10 @@ var app_start_initialized: bool = false;
 
 fn getAppStart() ?Instant {
     if (!app_start_initialized) {
-        app_start = Instant.now() catch null;
+        app_start = Instant.now() catch |err| blk: {
+            std.log.debug("Failed to initialize app start time: {t}", .{err});
+            break :blk null;
+        };
         app_start_initialized = true;
     }
     return app_start;
@@ -78,7 +84,10 @@ fn getAppStart() ?Instant {
 pub fn timestampNs() u64 {
     if (!has_instant) return 0;
     const start = getAppStart() orelse return 0;
-    const now_inst = Instant.now() catch return 0;
+    const now_inst = Instant.now() catch |err| {
+        std.log.debug("Failed to get current instant for timestamp: {t}", .{err});
+        return 0;
+    };
     return now_inst.since(start);
 }
 

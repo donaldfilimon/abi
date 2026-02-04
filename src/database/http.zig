@@ -641,3 +641,142 @@ fn appendVectorJson(
     }
     try list.append(allocator, ']');
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "splitTarget separates path and query" {
+    // Target with query string
+    const parts = splitTarget("/search?vector=1,2,3&top_k=5");
+    try std.testing.expectEqualStrings("/search", parts.path);
+    try std.testing.expectEqualStrings("vector=1,2,3&top_k=5", parts.query);
+
+    // Target without query string
+    const parts_no_query = splitTarget("/health");
+    try std.testing.expectEqualStrings("/health", parts_no_query.path);
+    try std.testing.expectEqualStrings("", parts_no_query.query);
+}
+
+test "getQueryParam extracts parameters" {
+    const query = "id=42&vector=1,2,3&meta=test";
+
+    // First parameter
+    const id = getQueryParam(query, "id");
+    try std.testing.expect(id != null);
+    try std.testing.expectEqualStrings("42", id.?);
+
+    // Middle parameter
+    const vector = getQueryParam(query, "vector");
+    try std.testing.expect(vector != null);
+    try std.testing.expectEqualStrings("1,2,3", vector.?);
+
+    // Last parameter
+    const meta = getQueryParam(query, "meta");
+    try std.testing.expect(meta != null);
+    try std.testing.expectEqualStrings("test", meta.?);
+
+    // Non-existent parameter
+    const missing = getQueryParam(query, "nonexistent");
+    try std.testing.expect(missing == null);
+}
+
+test "parseQueryInt returns default on invalid" {
+    const query = "limit=25&invalid=abc";
+
+    // Valid integer
+    const limit = parseQueryInt(query, "limit", usize, 10);
+    try std.testing.expectEqual(@as(usize, 25), limit);
+
+    // Invalid integer - returns default
+    const invalid = parseQueryInt(query, "invalid", usize, 999);
+    try std.testing.expectEqual(@as(usize, 999), invalid);
+
+    // Missing parameter - returns default
+    const missing = parseQueryInt(query, "missing", usize, 42);
+    try std.testing.expectEqual(@as(usize, 42), missing);
+}
+
+test "buildStatsJson formats correctly" {
+    const allocator = std.testing.allocator;
+    const stats = wdbx.Stats{ .count = 100, .dimension = 384 };
+
+    const json = try buildStatsJson(allocator, stats);
+    defer allocator.free(json);
+
+    try std.testing.expectEqualStrings("{\"count\":100,\"dimension\":384}", json);
+}
+
+test "buildSearchResultsJson formats results" {
+    const allocator = std.testing.allocator;
+    const results = [_]wdbx.SearchResult{
+        .{ .id = 1, .score = 0.95 },
+        .{ .id = 2, .score = 0.85 },
+    };
+
+    const json = try buildSearchResultsJson(allocator, &results);
+    defer allocator.free(json);
+
+    // Verify structure
+    try std.testing.expect(std.mem.startsWith(u8, json, "{\"results\":["));
+    try std.testing.expect(std.mem.endsWith(u8, json, "]}"));
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"id\":1") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"id\":2") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"score\":") != null);
+}
+
+test "timingSafeEqual prevents timing attacks" {
+    // Equal strings
+    try std.testing.expect(timingSafeEqual("secret123", "secret123"));
+
+    // Different strings same length
+    try std.testing.expect(!timingSafeEqual("secret123", "secret456"));
+
+    // Different lengths
+    try std.testing.expect(!timingSafeEqual("short", "muchlonger"));
+
+    // Empty strings
+    try std.testing.expect(timingSafeEqual("", ""));
+}
+
+test "urlDecode handles percent encoding" {
+    const allocator = std.testing.allocator;
+
+    // Simple percent encoding
+    const decoded = try urlDecode(allocator, "hello%20world");
+    defer allocator.free(decoded);
+    try std.testing.expectEqualStrings("hello world", decoded);
+
+    // Plus sign as space
+    const decoded_plus = try urlDecode(allocator, "hello+world");
+    defer allocator.free(decoded_plus);
+    try std.testing.expectEqualStrings("hello world", decoded_plus);
+
+    // No encoding needed
+    const decoded_plain = try urlDecode(allocator, "plain");
+    defer allocator.free(decoded_plain);
+    try std.testing.expectEqualStrings("plain", decoded_plain);
+
+    // Invalid hex - keeps literal
+    const decoded_invalid = try urlDecode(allocator, "test%ZZ");
+    defer allocator.free(decoded_invalid);
+    try std.testing.expectEqualStrings("test%ZZ", decoded_invalid);
+}
+
+test "findHeaderInBuffer parses headers case-insensitively" {
+    const buffer = "GET /path HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer token123\r\nContent-Type: application/json\r\n\r\n";
+
+    // Find authorization header (case-insensitive)
+    const auth = findHeaderInBuffer(buffer, "authorization");
+    try std.testing.expect(auth != null);
+    try std.testing.expectEqualStrings("Bearer token123", auth.?);
+
+    // Find host header
+    const host = findHeaderInBuffer(buffer, "host");
+    try std.testing.expect(host != null);
+    try std.testing.expectEqualStrings("localhost", host.?);
+
+    // Non-existent header
+    const missing = findHeaderInBuffer(buffer, "x-custom");
+    try std.testing.expect(missing == null);
+}

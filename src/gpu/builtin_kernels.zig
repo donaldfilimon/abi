@@ -128,6 +128,18 @@ pub const buildCol2imKernel = kernels.vision.buildCol2imKernel;
 // Tests
 // ============================================================================
 
+// Include sub-module tests
+test {
+    _ = kernels.linalg;
+    _ = kernels.reduction;
+    _ = kernels.elementwise;
+    _ = kernels.matrix;
+    _ = kernels.activation;
+    _ = kernels.normalization;
+    _ = kernels.batch;
+    _ = kernels.vision;
+}
+
 test "buildVectorAddKernel" {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();

@@ -292,3 +292,229 @@ pub fn buildReduceProductKernel(allocator: std.mem.Allocator) !*const KernelIR {
     ir.* = try builder.build();
     return ir;
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "buildReduceSumKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildReduceSumKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("reduce_sum", ir.name);
+
+    // Verify workgroup size (256 is standard for reductions)
+    try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
+    try std.testing.expectEqual(@as(u32, 1), ir.workgroup_size[1]);
+    try std.testing.expectEqual(@as(u32, 1), ir.workgroup_size[2]);
+
+    // Verify buffer bindings (input, output)
+    try std.testing.expectEqual(@as(usize, 2), ir.buffers.len);
+    try std.testing.expectEqualStrings("input", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[0].access);
+    try std.testing.expectEqualStrings("output", ir.buffers[1].name);
+    try std.testing.expectEqual(AccessMode.read_write, ir.buffers[1].access);
+
+    // Verify uniform binding (n)
+    try std.testing.expectEqual(@as(usize, 1), ir.uniforms.len);
+    try std.testing.expectEqualStrings("n", ir.uniforms[0].name);
+
+    // Verify shared memory for workgroup reduction
+    try std.testing.expectEqual(@as(usize, 1), ir.shared_memory.len);
+    try std.testing.expectEqualStrings("shared_data", ir.shared_memory[0].name);
+    try std.testing.expectEqual(@as(?usize, 256), ir.shared_memory[0].size);
+
+    // Verify kernel body has statements (reduction uses many statements)
+    try std.testing.expect(ir.body.len > 0);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "buildReduceMaxKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildReduceMaxKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("reduce_max", ir.name);
+
+    // Verify workgroup size
+    try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
+
+    // Verify buffer bindings (input, output)
+    try std.testing.expectEqual(@as(usize, 2), ir.buffers.len);
+    try std.testing.expectEqualStrings("input", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[0].access);
+    try std.testing.expectEqualStrings("output", ir.buffers[1].name);
+    try std.testing.expectEqual(AccessMode.read_write, ir.buffers[1].access);
+
+    // Verify uniform binding (n)
+    try std.testing.expectEqual(@as(usize, 1), ir.uniforms.len);
+    try std.testing.expectEqualStrings("n", ir.uniforms[0].name);
+
+    // Verify shared memory
+    try std.testing.expectEqual(@as(usize, 1), ir.shared_memory.len);
+    try std.testing.expectEqualStrings("shared_data", ir.shared_memory[0].name);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "buildReduceMinKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildReduceMinKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("reduce_min", ir.name);
+
+    // Verify workgroup size
+    try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
+
+    // Verify buffer bindings (input, output)
+    try std.testing.expectEqual(@as(usize, 2), ir.buffers.len);
+    try std.testing.expectEqualStrings("input", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[0].access);
+    try std.testing.expectEqualStrings("output", ir.buffers[1].name);
+    try std.testing.expectEqual(AccessMode.read_write, ir.buffers[1].access);
+
+    // Verify uniform binding (n)
+    try std.testing.expectEqual(@as(usize, 1), ir.uniforms.len);
+    try std.testing.expectEqualStrings("n", ir.uniforms[0].name);
+
+    // Verify shared memory
+    try std.testing.expectEqual(@as(usize, 1), ir.shared_memory.len);
+    try std.testing.expectEqualStrings("shared_data", ir.shared_memory[0].name);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "buildReduceProductKernel - IR structure validation" {
+    const allocator = std.testing.allocator;
+    const ir = try buildReduceProductKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // Verify kernel name
+    try std.testing.expectEqualStrings("reduce_product", ir.name);
+
+    // Verify workgroup size
+    try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
+
+    // Verify buffer bindings (input, output)
+    try std.testing.expectEqual(@as(usize, 2), ir.buffers.len);
+    try std.testing.expectEqualStrings("input", ir.buffers[0].name);
+    try std.testing.expectEqual(AccessMode.read_only, ir.buffers[0].access);
+    try std.testing.expectEqualStrings("output", ir.buffers[1].name);
+    // Product kernel uses write_only since no atomic_mul exists
+    try std.testing.expectEqual(AccessMode.write_only, ir.buffers[1].access);
+
+    // Verify uniform binding (n)
+    try std.testing.expectEqual(@as(usize, 1), ir.uniforms.len);
+    try std.testing.expectEqualStrings("n", ir.uniforms[0].name);
+
+    // Verify shared memory
+    try std.testing.expectEqual(@as(usize, 1), ir.shared_memory.len);
+
+    // Verify kernel passes validation
+    const validation = ir.validate();
+    try std.testing.expect(validation.isValid());
+}
+
+test "reduction kernels - shared memory size matches workgroup" {
+    const allocator = std.testing.allocator;
+
+    // All reduction kernels should have shared memory size matching workgroup size
+    const kernels = .{
+        try buildReduceSumKernel(allocator),
+        try buildReduceMaxKernel(allocator),
+        try buildReduceMinKernel(allocator),
+        try buildReduceProductKernel(allocator),
+    };
+
+    inline for (kernels) |ir| {
+        defer {
+            ir.deinit(allocator);
+            allocator.destroy(@constCast(ir));
+        }
+
+        // Shared memory size should equal workgroup size for tree reduction
+        try std.testing.expectEqual(@as(usize, 1), ir.shared_memory.len);
+        try std.testing.expectEqual(@as(?usize, ir.workgroup_size[0]), ir.shared_memory[0].size);
+    }
+}
+
+test "reduction kernels - binding index uniqueness" {
+    const allocator = std.testing.allocator;
+
+    const kernels = .{
+        try buildReduceSumKernel(allocator),
+        try buildReduceMaxKernel(allocator),
+        try buildReduceMinKernel(allocator),
+        try buildReduceProductKernel(allocator),
+    };
+
+    inline for (kernels) |ir| {
+        defer {
+            ir.deinit(allocator);
+            allocator.destroy(@constCast(ir));
+        }
+
+        // Validation should pass (no duplicate bindings)
+        const validation = ir.validate();
+        try std.testing.expect(!validation.errors.duplicate_bindings);
+    }
+}
+
+test "reduction kernels - element types are f32" {
+    const allocator = std.testing.allocator;
+
+    // All reduction kernels should use f32 for buffers
+    const ir = try buildReduceSumKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    for (ir.buffers) |buffer| {
+        try std.testing.expectEqual(Type{ .scalar = .f32 }, buffer.element_type);
+    }
+
+    // Shared memory should also be f32
+    for (ir.shared_memory) |shared| {
+        try std.testing.expectEqual(Type{ .scalar = .f32 }, shared.element_type);
+    }
+}
+
+test "reduction kernels - body contains barrier statements" {
+    const allocator = std.testing.allocator;
+
+    // Reduction kernels must have barriers for synchronization
+    const ir = try buildReduceSumKernel(allocator);
+    defer {
+        ir.deinit(allocator);
+        allocator.destroy(@constCast(ir));
+    }
+
+    // The kernel should have multiple statements due to tree reduction unrolling
+    // (8 stride iterations + initial load + final atomic = many statements)
+    try std.testing.expect(ir.body.len >= 10);
+}

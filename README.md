@@ -9,7 +9,7 @@
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-889_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-912_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
@@ -42,7 +42,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 889+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 912+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -421,13 +421,28 @@ zig build -Dgpu-backend=auto
 
 ---
 
-## Language Bindings (In Progress)
+## Language Bindings
 
-C bindings and additional language integrations are being reintroduced. The prior
-`bindings/` directory was removed during the Zig 0.16 migration and is slated for
-rebuild. Track status in [ROADMAP.md](ROADMAP.md) and [TODO.md](TODO.md).
+Complete FFI bindings are available for multiple languages in the `bindings/` directory:
 
-For now, use the Zig API directly or the CLI (`zig build run -- --help`).
+| Language | Location | Features |
+|:---------|:---------|:---------|
+| **C** | `bindings/c/` | Full FFI layer with `abi_` prefixed functions, header generation via `zig build c-header` |
+| **Python** | `bindings/python/` | pip-installable package, VectorDatabase, GPU backend selection, 4400+ QPS benchmarks |
+| **Go** | `bindings/go/` | Context cancellation support, SIMD operations, vector search examples |
+| **Rust** | `bindings/rust/` | Safe wrappers for Framework, SIMD, VectorDatabase, GPU, Agent modules |
+| **JavaScript/TypeScript** | `bindings/js/` | WASM SIMD support, VectorDatabase, WebGPU acceleration, TypeScript definitions |
+
+```bash
+# Build the C shared library (required for Python/Go/Rust bindings)
+cd bindings/c && zig build
+
+# Set library path (required for runtime)
+export DYLD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$DYLD_LIBRARY_PATH  # macOS
+export LD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$LD_LIBRARY_PATH      # Linux
+```
+
+See [CLAUDE.md](CLAUDE.md#language-bindings) for detailed usage examples.
 
 ---
 
@@ -488,7 +503,7 @@ zig build lint
 |:----------|:------:|
 | Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| C Library Bindings | ![In Progress](https://img.shields.io/badge/-In%20Progress-yellow) |
+| C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
