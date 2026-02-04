@@ -1,3 +1,9 @@
+//! Model Registry
+//!
+//! Tracks registered AI models with their metadata including name,
+//! parameter count, and description. Used for model discovery and
+//! capability management.
+
 const std = @import("std");
 
 pub const ModelRegistryError = error{

@@ -1,3 +1,16 @@
+//! Codebase Exploration Module
+//!
+//! Provides intelligent codebase analysis and exploration capabilities.
+//! Supports multiple exploration levels (quick, medium, thorough, deep)
+//! for understanding code structure, dependencies, and relationships.
+//!
+//! Features:
+//! - AST-based code analysis
+//! - Call graph construction
+//! - Dependency tracking
+//! - Parallel file processing
+//! - Natural language query understanding
+
 const std = @import("std");
 const build_options = @import("build_options");
 

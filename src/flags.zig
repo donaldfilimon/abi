@@ -1,3 +1,11 @@
+//! Feature Flags Module
+//!
+//! Centralized build configuration options used throughout the ABI framework.
+//! These flags control which features are compiled into the binary, allowing
+//! for lightweight builds by disabling unused functionality.
+//!
+//! Flags are typically set via build options: `zig build -Denable-gpu=true`
+
 const std = @import("std");
 
 /// Build configuration options used throughout the project.
