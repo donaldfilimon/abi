@@ -40,8 +40,10 @@ comptime {
     _ = abi.shared.errors;
     // High Availability module tests
     _ = @import("ha_test.zig");
-    // Stub parity verification tests
+    // Stub parity verification tests (runtime checks)
     _ = @import("stub_parity.zig");
+    // Comptime API parity tests (catches drift at compile time)
+    _ = @import("parity/mod.zig");
 
     // End-to-end integration tests (issue #397)
     _ = @import("e2e_llm_test.zig");
@@ -147,6 +149,9 @@ pub const property = @import("property/mod.zig");
 
 // E2E workflow tests (complete user workflow validation)
 pub const e2e = @import("e2e/mod.zig");
+
+// Comptime API parity verification (stub/real module consistency)
+pub const parity = @import("parity/mod.zig");
 
 pub const Generator = proptest.Generator;
 pub const Generators = proptest.Generators;
