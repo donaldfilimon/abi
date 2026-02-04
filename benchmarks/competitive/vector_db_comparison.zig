@@ -15,9 +15,10 @@
 //! 5. **Recall@K** - Accuracy of approximate search
 
 const std = @import("std");
+const abi = @import("abi");
 const mod = @import("mod.zig");
 const framework = @import("../system/framework.zig");
-const simd = @import("../../src/shared/simd.zig");
+const simd = abi.simd;
 
 /// Vector database reference baselines
 pub const VectorDbBaseline = struct {

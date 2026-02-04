@@ -18,9 +18,10 @@
 //! | SIFT1M | IVF | 0.950 | 8000 |
 
 const std = @import("std");
+const abi = @import("abi");
 const mod = @import("mod.zig");
 const framework = @import("../system/framework.zig");
-const simd = @import("../../src/shared/simd.zig");
+const simd = abi.simd;
 
 /// FAISS reference performance baselines (documented values)
 pub const FaissBaseline = struct {
