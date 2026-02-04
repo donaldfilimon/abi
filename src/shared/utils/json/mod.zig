@@ -207,6 +207,22 @@ pub fn parseOptionalUintField(object: std.json.ObjectMap, key: []const u8) ?u64 
     return parseUint(value) catch null;
 }
 
+/// Parse an integer field and cast to a specific type with bounds checking.
+/// Example: `const count: u32 = try json_utils.parseIntAs(u32, obj, "count");`
+pub fn parseIntAs(comptime T: type, object: std.json.ObjectMap, key: []const u8) !T {
+    const value = try getRequiredField(object, key);
+    const int = try parseInt(value);
+    return std.math.cast(T, int) orelse return JsonError.TypeMismatch;
+}
+
+/// Parse a float field and cast to a specific type.
+/// Example: `const score: f32 = try json_utils.parseFloatAs(f32, obj, "score");`
+pub fn parseFloatAs(comptime T: type, object: std.json.ObjectMap, key: []const u8) !T {
+    const value = try getRequiredField(object, key);
+    const float = try parseNumber(value);
+    return @floatCast(float);
+}
+
 pub fn parseBoolField(object: std.json.ObjectMap, key: []const u8) !bool {
     const value = try getRequiredField(object, key);
     return try parseBool(value);
