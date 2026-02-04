@@ -102,6 +102,7 @@ pub fn generateServiceId(allocator: std.mem.Allocator, service_name: []const u8)
     random.bytes(&id);
 
     var hex: [16]u8 = undefined;
+    // SAFETY: u64 formatted as 16-char zero-padded hex exactly fills 16-byte buffer - cannot overflow
     _ = std.fmt.bufPrint(&hex, "{x:0>16}", .{std.mem.readInt(u64, &id, .big)}) catch unreachable;
 
     return std.fmt.allocPrint(allocator, "{s}-{s}", .{ service_name, hex[0..8] });
