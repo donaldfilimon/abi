@@ -151,17 +151,19 @@ pub const GpuAccelerator = struct {
             self.gpu_ctx = ctx;
 
             // Initialize kernel dispatcher if GPU is available
-            if (ctx.getDevice()) |device| {
-                const disp = allocator.create(gpu.KernelDispatcher) catch {
-                    return self;
-                };
+            if (ctx.getActiveDevice()) |device| {
+                if (ctx.getBackend()) |backend| {
+                    const disp = allocator.create(gpu.KernelDispatcher) catch {
+                        return self;
+                    };
 
-                disp.* = gpu.KernelDispatcher.init(allocator, ctx.getBackend(), device) catch {
-                    allocator.destroy(disp);
-                    return self;
-                };
+                    disp.* = gpu.KernelDispatcher.init(allocator, backend, device) catch {
+                        allocator.destroy(disp);
+                        return self;
+                    };
 
-                self.dispatcher = disp;
+                    self.dispatcher = disp;
+                }
             }
         }
 

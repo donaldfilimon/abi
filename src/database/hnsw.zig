@@ -917,6 +917,200 @@ pub const HnswIndex = struct {
         return null;
     }
 
+    /// Result type for batch search operations
+    pub const BatchSearchResult = struct {
+        /// Query index in the original batch
+        query_index: usize,
+        /// Search results for this query
+        results: []index_mod.IndexResult,
+    };
+
+    /// Worker context for parallel batch search
+    const BatchSearchWorkerContext = struct {
+        index: *const HnswIndex,
+        records: []const index_mod.VectorRecordView,
+        queries: []const []const f32,
+        top_k: usize,
+        results: []?[]index_mod.IndexResult,
+        allocator: std.mem.Allocator,
+        errors_occurred: *std.atomic.Value(usize),
+        /// Current index to process (shared counter for work distribution)
+        next_index: *std.atomic.Value(usize),
+        /// Total number of queries
+        total_queries: usize,
+    };
+
+    /// Perform batch search on multiple query vectors in parallel.
+    /// Uses atomic counter-based work distribution for parallel execution.
+    ///
+    /// @param allocator Memory allocator for results
+    /// @param records Source vector records
+    /// @param queries Slice of query vectors
+    /// @param top_k Number of results to return per query
+    /// @return Array of BatchSearchResult, one per query. Caller must free both
+    ///         the outer array and each inner results slice.
+    pub fn batchSearch(
+        self: *const HnswIndex,
+        allocator: std.mem.Allocator,
+        records: []const index_mod.VectorRecordView,
+        queries: []const []const f32,
+        top_k: usize,
+    ) ![]BatchSearchResult {
+        if (queries.len == 0) {
+            return allocator.alloc(BatchSearchResult, 0);
+        }
+
+        // For small batches, just run sequentially
+        if (queries.len < 4) {
+            return self.batchSearchSequential(allocator, records, queries, top_k);
+        }
+
+        // Allocate results array (nullable to track completion)
+        var results_slots = try allocator.alloc(?[]index_mod.IndexResult, queries.len);
+        defer allocator.free(results_slots);
+        @memset(results_slots, null);
+
+        // Shared state for work distribution
+        var next_index = std.atomic.Value(usize).init(0);
+        var errors_occurred = std.atomic.Value(usize).init(0);
+
+        // Determine number of worker threads
+        const cpu_count = std.Thread.getCpuCount() catch 4;
+        const num_workers = @min(cpu_count, queries.len);
+
+        // Create worker context
+        var context = BatchSearchWorkerContext{
+            .index = self,
+            .records = records,
+            .queries = queries,
+            .top_k = top_k,
+            .results = results_slots,
+            .allocator = allocator,
+            .errors_occurred = &errors_occurred,
+            .next_index = &next_index,
+            .total_queries = queries.len,
+        };
+
+        // Spawn worker threads
+        var threads = try allocator.alloc(std.Thread, num_workers);
+        defer allocator.free(threads);
+
+        for (0..num_workers) |i| {
+            threads[i] = std.Thread.spawn(.{}, batchSearchWorker, .{&context}) catch |err| {
+                // If we can't spawn a thread, clean up what we have and fallback
+                for (0..i) |j| {
+                    threads[j].join();
+                }
+                // Free any results that were allocated
+                for (results_slots) |maybe_result| {
+                    if (maybe_result) |result| {
+                        allocator.free(result);
+                    }
+                }
+                return err;
+            };
+        }
+
+        // Wait for all workers to complete
+        for (threads) |t| {
+            t.join();
+        }
+
+        // Check for errors
+        if (errors_occurred.load(.acquire) > 0) {
+            // Free any results that were allocated
+            for (results_slots) |maybe_result| {
+                if (maybe_result) |result| {
+                    allocator.free(result);
+                }
+            }
+            return error.BatchSearchFailed;
+        }
+
+        // Convert to final result format
+        var final_results = try allocator.alloc(BatchSearchResult, queries.len);
+        errdefer allocator.free(final_results);
+
+        for (0..queries.len) |i| {
+            final_results[i] = .{
+                .query_index = i,
+                .results = results_slots[i] orelse &.{},
+            };
+        }
+
+        return final_results;
+    }
+
+    /// Worker function for parallel batch search
+    fn batchSearchWorker(context: *BatchSearchWorkerContext) void {
+        // Process work items using atomic counter for work distribution
+        while (true) {
+            // Atomically claim the next index
+            const idx = context.next_index.fetchAdd(1, .monotonic);
+            if (idx >= context.total_queries) {
+                // No more work
+                break;
+            }
+            processQueryIndex(context, idx);
+        }
+    }
+
+    /// Process a single query in the batch
+    fn processQueryIndex(context: *BatchSearchWorkerContext, query_idx: usize) void {
+        const query = context.queries[query_idx];
+
+        // Perform the search
+        const search_result = context.index.search(
+            context.allocator,
+            context.records,
+            query,
+            context.top_k,
+        ) catch {
+            // Record error and set empty result to prevent uninitialized access
+            _ = context.errors_occurred.fetchAdd(1, .monotonic);
+            context.results[query_idx] = &.{};
+            return;
+        };
+
+        // Store result
+        context.results[query_idx] = search_result;
+    }
+
+    /// Sequential batch search for small batches
+    fn batchSearchSequential(
+        self: *const HnswIndex,
+        allocator: std.mem.Allocator,
+        records: []const index_mod.VectorRecordView,
+        queries: []const []const f32,
+        top_k: usize,
+    ) ![]BatchSearchResult {
+        var results = try allocator.alloc(BatchSearchResult, queries.len);
+        errdefer {
+            for (results) |r| {
+                allocator.free(r.results);
+            }
+            allocator.free(results);
+        }
+
+        for (queries, 0..) |query, i| {
+            const search_results = try self.search(allocator, records, query, top_k);
+            results[i] = .{
+                .query_index = i,
+                .results = search_results,
+            };
+        }
+
+        return results;
+    }
+
+    /// Free batch search results
+    pub fn freeBatchSearchResults(allocator: std.mem.Allocator, results: []BatchSearchResult) void {
+        for (results) |r| {
+            allocator.free(r.results);
+        }
+        allocator.free(results);
+    }
+
     /// Check if GPU acceleration is available for this index.
     pub fn hasGpuAcceleration(self: *const HnswIndex) bool {
         if (self.gpu_accelerator) |accel| {

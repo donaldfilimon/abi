@@ -707,7 +707,7 @@ pub const IvfPqIndex = struct {
     }
 };
 
-const NeighborList = struct {
+pub const NeighborList = struct {
     nodes: []u32,
 };
 

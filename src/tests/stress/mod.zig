@@ -92,6 +92,7 @@ comptime {
     // Database stress tests (when database enabled)
     if (build_options.enable_database) {
         _ = @import("database_stress_test.zig");
+        _ = @import("hnsw_parallel_test.zig");
     }
 }
 

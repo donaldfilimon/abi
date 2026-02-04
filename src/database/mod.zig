@@ -121,6 +121,10 @@ pub const parallel_search = @import("parallel_search.zig");
 // Parallel HNSW index building
 pub const parallel_hnsw = @import("parallel_hnsw.zig");
 
+// Core HNSW and index modules
+pub const hnsw = @import("hnsw.zig");
+pub const index = @import("index.zig");
+
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
 pub const SearchResult = wdbx.SearchResult;
