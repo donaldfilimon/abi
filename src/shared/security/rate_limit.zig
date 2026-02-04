@@ -607,7 +607,9 @@ pub const MultiTierRateLimiter = struct {
             statuses.append(.{
                 .tier_name = tier.name,
                 .status = status,
-            }) catch {};
+            }) catch |err| {
+                std.log.debug("Failed to append rate limit status: {t}", .{err});
+            };
 
             if (!status.allowed) {
                 all_allowed = false;

@@ -1039,7 +1039,9 @@ pub const ExecutionCoordinator = struct {
                 .method = method,
                 .time_ns = time_ns,
                 .operation = op,
-            }) catch {};
+            }) catch |err| {
+                std.log.debug("Failed to record adaptive learning sample: {t}", .{err});
+            };
         }
     }
 };

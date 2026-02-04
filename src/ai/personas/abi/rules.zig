@@ -140,7 +140,9 @@ pub const RulesEngine = struct {
         };
 
         // Add default routing rules
-        engine.addDefaultRules() catch {};
+        engine.addDefaultRules() catch |err| {
+            std.log.debug("Failed to add default routing rules: {t}", .{err});
+        };
 
         return engine;
     }
@@ -276,7 +278,9 @@ pub const RulesEngine = struct {
                 score.aviva_boost += rule.persona_adjustments.aviva_boost;
                 score.abi_boost += rule.persona_adjustments.abi_boost;
 
-                score.matched_rules.append(score.allocator, rule.name) catch {};
+                score.matched_rules.append(score.allocator, rule.name) catch |err| {
+                    std.log.debug("Failed to track matched rule '{s}': {t}", .{ rule.name, err });
+                };
             }
         }
 

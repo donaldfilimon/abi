@@ -59,7 +59,9 @@ pub const ServiceDiscovery = struct {
 
     pub fn deinit(self: *ServiceDiscovery) void {
         if (self.registered) {
-            self.deregister() catch {};
+            self.deregister() catch |err| {
+                std.log.debug("ServiceDiscovery.deregister failed during deinit: {t}", .{err});
+            };
         }
         self.clearCache();
         self.cached_services.deinit(self.allocator);

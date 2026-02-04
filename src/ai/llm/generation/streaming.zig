@@ -585,7 +585,9 @@ pub const StreamingResponse = struct {
 
         // Pre-allocate buffer
         if (config.initial_buffer_capacity > 0) {
-            response.token_buffer.ensureTotalCapacity(allocator, config.initial_buffer_capacity) catch {};
+            response.token_buffer.ensureTotalCapacity(allocator, config.initial_buffer_capacity) catch |err| {
+                std.log.debug("Failed to pre-allocate streaming buffer: {t}", .{err});
+            };
         }
 
         return response;

@@ -273,7 +273,9 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
         .linux => &.{ "libcuda.so.1", "libcuda.so" },
         else => return error.PlatformNotSupported,
     };
-    for (default_names) |n| _ = lib_paths.append(allocator, n) catch {};
+    for (default_names) |n| _ = lib_paths.append(allocator, n) catch |err| {
+        std.log.debug("Failed to append CUDA library path '{s}': {t}", .{ n, err });
+    };
 
     // Attempt to open each candidate name.
     for (lib_paths.items) |name| {

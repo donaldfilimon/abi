@@ -132,7 +132,9 @@ pub const TrainingStats = struct {
             self.learning_rate,
             self.grad_norm,
             self.throughput,
-        }) catch {};
+        }) catch |err| {
+            std.log.debug("TrainingProgress format buffer overflow: {t}", .{err});
+        };
         return buf;
     }
 };

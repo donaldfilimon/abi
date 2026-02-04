@@ -69,7 +69,9 @@ pub const Manager = struct {
 
     pub fn deinit(self: *Manager) void {
         if (self.dirty and self.config.auto_save) {
-            self.save() catch {};
+            self.save() catch |err| {
+                std.log.debug("Failed to auto-save tasks during deinit: {t}", .{err});
+            };
         }
 
         // Free all owned strings

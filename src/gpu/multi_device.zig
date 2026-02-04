@@ -438,7 +438,9 @@ pub const PeerTransfer = struct {
     /// Wait for transfer to complete.
     pub fn wait(self: *PeerTransfer) !void {
         while (!self.completed) {
-            std.Thread.yield() catch {};
+            std.Thread.yield() catch |err| {
+                std.log.debug("Thread.yield failed during PeerTransfer.wait: {t}", .{err});
+            };
         }
     }
 

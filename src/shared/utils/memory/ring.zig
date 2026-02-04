@@ -287,7 +287,9 @@ pub const ByteRing = struct {
             if (c == '\n') {
                 const line_len = @min(i, output.len);
                 _ = self.ring.read(output[0..line_len]);
-                _ = self.ring.pop() catch {}; // consume newline
+                _ = self.ring.pop() catch |err| {
+                    std.log.debug("Ring buffer pop failed after readLine: {t}", .{err});
+                }; // consume newline
                 return output[0..line_len];
             }
         }

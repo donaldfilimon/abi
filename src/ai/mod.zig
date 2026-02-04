@@ -683,7 +683,9 @@ pub const Context = struct {
         if (cfg.auto_discover) {
             const disc = try allocator.create(discovery.ModelDiscovery);
             disc.* = discovery.ModelDiscovery.init(allocator, .{});
-            disc.scanAll() catch {}; // Best effort scan
+            disc.scanAll() catch |err| {
+                std.log.debug("Model discovery scan failed (best effort): {t}", .{err});
+            };
             ctx.model_discovery = disc;
         }
 

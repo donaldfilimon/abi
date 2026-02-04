@@ -635,7 +635,9 @@ pub const GpuAgent = struct {
     pub fn endEpisode(self: *GpuAgent) void {
         if (gpu_available) {
             if (self.learning_scheduler) |sched| {
-                sched.endEpisode() catch {};
+                sched.endEpisode() catch |err| {
+                    std.log.debug("Failed to end learning episode: {t}", .{err});
+                };
             }
         }
         self.stats.learning_episodes += 1;

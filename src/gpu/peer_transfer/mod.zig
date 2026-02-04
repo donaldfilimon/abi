@@ -586,7 +586,9 @@ pub const PeerTransferManager = struct {
                 handle.error_info = error.TransferTimeout;
                 return error.TransferTimeout;
             }
-            std.Thread.yield() catch {};
+            std.Thread.yield() catch |err| {
+                std.log.debug("Thread.yield failed during transfer wait: {t}", .{err});
+            };
         }
 
         if (!handle.succeeded()) {

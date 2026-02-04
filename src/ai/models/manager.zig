@@ -84,7 +84,9 @@ pub const Manager = struct {
 
         // Scan cache directory if requested
         if (config.auto_scan) {
-            self.scanCacheDir() catch {}; // Best effort
+            self.scanCacheDir() catch |err| {
+                std.log.debug("Model cache scan failed (best effort): {t}", .{err});
+            };
         }
 
         return self;
@@ -200,7 +202,9 @@ pub const Manager = struct {
         self.models.clearRetainingCapacity();
 
         if (self.config.auto_scan) {
-            self.scanCacheDir() catch {};
+            self.scanCacheDir() catch |err| {
+                std.log.debug("Model cache rescan failed (best effort): {t}", .{err});
+            };
         }
     }
 

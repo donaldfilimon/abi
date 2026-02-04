@@ -258,7 +258,9 @@ pub const FailoverManager = struct {
             .to_backend = to,
             .reason = reason,
             .success = success,
-        }) catch {};
+        }) catch |err| {
+            std.log.debug("Failed to record failover event: {t}", .{err});
+        };
 
         self.stats.total_failovers += 1;
         if (success) {

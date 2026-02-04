@@ -844,7 +844,10 @@ fn analyzeClasses(password: []const u8) ClassFlags {
 }
 
 fn appendFeedback(feedback: *std.BoundedArray([]const u8, 10), message: []const u8) void {
-    feedback.append(message) catch {};
+    // BoundedArray has fixed capacity - failure means we've hit the limit
+    feedback.append(message) catch |err| {
+        std.log.debug("Password feedback limit reached: {t}", .{err});
+    };
 }
 
 fn scoreClasses(feedback: *std.BoundedArray([]const u8, 10), flags: ClassFlags) u32 {

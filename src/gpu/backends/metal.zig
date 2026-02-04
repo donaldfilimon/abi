@@ -755,7 +755,9 @@ pub fn launchKernelAsync(
 
     // Track pending command buffer for synchronization
     if (pending_buffers_allocator) |alloc| {
-        pending_command_buffers.append(alloc, command_buffer) catch {};
+        pending_command_buffers.append(alloc, command_buffer) catch |err| {
+            std.log.debug("Failed to track Metal command buffer: {t}", .{err});
+        };
     }
 
     return command_buffer;

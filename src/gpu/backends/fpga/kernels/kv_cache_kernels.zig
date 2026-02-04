@@ -246,7 +246,9 @@ pub const HierarchicalKVCache = struct {
         }
 
         block.state = .free;
-        self.free_blocks.append(self.allocator, block.id) catch {};
+        self.free_blocks.append(self.allocator, block.id) catch |err| {
+            std.log.debug("Failed to return block {d} to free list: {t}", .{ block.id, err });
+        };
         _ = self.layer_mappings[block.layer].remove(block.seq_offset);
 
         self.stats.freed_blocks += 1;

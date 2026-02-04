@@ -1142,8 +1142,10 @@ pub const BatchedDispatcher = struct {
 
     /// Deinitialize and flush any pending operations.
     pub fn deinit(self: *Self) void {
-        // Flush remaining ops (ignore errors during cleanup)
-        self.flush() catch {};
+        // Flush remaining ops (log errors during cleanup)
+        self.flush() catch |err| {
+            std.log.debug("BatchingDispatcher.flush failed during deinit: {t}", .{err});
+        };
         self.pending_ops.deinit(self.allocator);
     }
 

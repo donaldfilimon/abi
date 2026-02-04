@@ -237,12 +237,16 @@ pub const AlertManager = struct {
 
         // Load default rules
         for (PERSONA_ALERTS) |rule| {
-            manager.rules.append(allocator, rule) catch {};
+            manager.rules.append(allocator, rule) catch |err| {
+                std.log.debug("Failed to load default alert rule: {t}", .{err});
+            };
         }
 
         // Load custom rules
         for (config.custom_rules) |rule| {
-            manager.rules.append(allocator, rule) catch {};
+            manager.rules.append(allocator, rule) catch |err| {
+                std.log.debug("Failed to load custom alert rule: {t}", .{err});
+            };
         }
 
         return manager;
@@ -373,7 +377,9 @@ pub const AlertManager = struct {
             if (self.history.items.len >= self.config.max_history) {
                 _ = self.history.orderedRemove(0);
             }
-            self.history.append(self.allocator, alert) catch {};
+            self.history.append(self.allocator, alert) catch |err| {
+                std.log.debug("Failed to append alert to history: {t}", .{err});
+            };
         }
     }
 

@@ -562,7 +562,9 @@ pub const QuicConnection = struct {
 
         if (to_read > 0) {
             @memcpy(buffer[0..to_read], stream.recv_buffer.items[0..to_read]);
-            stream.recv_buffer.replaceRange(self.allocator, 0, to_read, &.{}) catch {};
+            stream.recv_buffer.replaceRange(self.allocator, 0, to_read, &.{}) catch |err| {
+                std.log.debug("Failed to clear stream recv_buffer after read: {t}", .{err});
+            };
             stream.bytes_received += to_read;
             self.stats.bytes_received += to_read;
         }

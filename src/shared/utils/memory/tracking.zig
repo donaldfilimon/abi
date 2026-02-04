@@ -228,7 +228,9 @@ pub const TrackingAllocator = struct {
 
             if (self.history.items.len < self.config.max_history) {
                 // History is optional - failure just means less debug info available
-                self.history.append(self.backing_allocator, info) catch {};
+                self.history.append(self.backing_allocator, info) catch |err| {
+                    std.log.debug("Failed to append to allocation history (non-critical): {t}", .{err});
+                };
             }
 
             self.stats.total_allocations += 1;

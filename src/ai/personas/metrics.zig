@@ -243,12 +243,16 @@ pub const PersonaMetrics = struct {
 
         // Record to latency window for percentile tracking
         if (self.latency_windows.getPtr(persona_type)) |window| {
-            window.*.record(latency_ms) catch {};
+            window.*.record(latency_ms) catch |err| {
+                std.log.debug("Failed to record latency to window: {t}", .{err});
+            };
         }
 
         // Notify alert manager of success
         if (self.alert_manager) |alert_mgr| {
-            alert_mgr.recordResult(persona_type, true) catch {};
+            alert_mgr.recordResult(persona_type, true) catch |err| {
+                std.log.debug("Failed to record success to alert manager: {t}", .{err});
+            };
         }
     }
 
@@ -260,7 +264,9 @@ pub const PersonaMetrics = struct {
 
         // Notify alert manager of failure
         if (self.alert_manager) |alert_mgr| {
-            alert_mgr.recordResult(persona_type, false) catch {};
+            alert_mgr.recordResult(persona_type, false) catch |err| {
+                std.log.debug("Failed to record error to alert manager: {t}", .{err});
+            };
         }
     }
 

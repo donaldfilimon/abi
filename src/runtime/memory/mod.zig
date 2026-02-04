@@ -230,9 +230,11 @@ pub const SlabAllocator = struct {
                 if (ptr_addr >= pool_base and ptr_addr < pool_end) {
                     const block_size = SIZE_CLASSES[class_idx];
                     const full_block = ptr.ptr[0..block_size];
-                    // Pool free errors (e.g., double-free) are silently ignored
+                    // Pool free errors (e.g., double-free) are logged but ignored
                     // to match Allocator interface contract; the block is already freed
-                    pool.free(full_block) catch {};
+                    pool.free(full_block) catch |err| {
+                        std.log.debug("SlabAllocator pool.free failed (possible double-free): {t}", .{err});
+                    };
                     return;
                 }
             }
