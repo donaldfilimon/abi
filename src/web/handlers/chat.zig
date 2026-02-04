@@ -9,8 +9,13 @@
 //! - POST /api/v1/chat/aviva - Force Aviva persona
 //! - GET /api/v1/personas - List available personas
 //! - GET /api/v1/personas/metrics - Get persona metrics
+//!
+//! Rate Limiting:
+//! - 100 requests per minute per user (token bucket algorithm)
+//! - Auto-ban after 10 consecutive violations (1 hour ban)
 
 const std = @import("std");
+const rate_limit = @import("../../shared/security/rate_limit.zig");
 
 /// Helper to serialize a value to JSON using Zig 0.16 API
 fn jsonStringifyAlloc(allocator: std.mem.Allocator, value: anytype, options: std.json.Stringify.Options) ![]u8 {
@@ -107,19 +112,46 @@ const PersonaMetricsJson = struct {
     latency_p99_ms: ?f64 = null,
 };
 
+/// Rate limiting errors.
+pub const RateLimitError = error{
+    /// Request rate limit exceeded.
+    RateLimited,
+};
+
 /// Chat handler that wraps the persona system.
 pub const ChatHandler = struct {
     allocator: std.mem.Allocator,
     orchestrator: ?*personas.MultiPersonaSystem = null,
+    rate_limiter: rate_limit.RateLimiter,
 
     const Self = @This();
 
-    /// Initialize the chat handler.
+    /// Rate limit configuration for chat endpoint.
+    /// - 100 requests per minute per user
+    /// - Token bucket algorithm (allows bursts)
+    /// - Auto-ban after 10 consecutive violations for 1 hour
+    pub const rate_limit_config: rate_limit.RateLimitConfig = .{
+        .requests = 100,
+        .window_seconds = 60,
+        .burst = 20,
+        .algorithm = .token_bucket,
+        .scope = .user,
+        .ban_duration = 3600, // 1 hour ban
+        .ban_threshold = 10, // 10 consecutive violations triggers ban
+    };
+
+    /// Initialize the chat handler with rate limiting.
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
             .orchestrator = null,
+            .rate_limiter = rate_limit.RateLimiter.init(allocator, rate_limit_config),
         };
+    }
+
+    /// Deinitialize the chat handler.
+    pub fn deinit(self: *Self) void {
+        self.rate_limiter.deinit();
     }
 
     /// Set the orchestrator reference.
@@ -133,12 +165,32 @@ pub const ChatHandler = struct {
     }
 
     /// Handle a chat request with optional forced persona.
+    /// Returns `error.RateLimited` if the user has exceeded the rate limit.
     pub fn handleChatWithPersona(self: *Self, request_json: []const u8, forced_persona: ?types.PersonaType) ![]const u8 {
         // Parse request
         const request = self.parseRequest(request_json) catch |err| {
-            const err_name = @errorName(err);
+            const err_name = try std.fmt.allocPrint(self.allocator, "{t}", .{err});
+            defer self.allocator.free(err_name);
             return self.formatError("PARSE_ERROR", err_name, null);
         };
+
+        // Check rate limit before processing
+        // Use user_id if available, fall back to session_id or "anonymous"
+        const rate_limit_key = request.user_id orelse request.session_id orelse "anonymous";
+        const rate_status = self.rate_limiter.check(rate_limit_key);
+
+        if (!rate_status.allowed) {
+            if (rate_status.banned) {
+                // User is banned due to repeated violations
+                return self.formatError(
+                    "RATE_LIMITED",
+                    "Too many requests. You have been temporarily banned due to excessive violations.",
+                    null,
+                );
+            }
+            // Return rate limit error with retry information
+            return RateLimitError.RateLimited;
+        }
 
         // Get orchestrator
         const orch = self.orchestrator orelse {
@@ -162,7 +214,8 @@ pub const ChatHandler = struct {
 
         // Process request
         const response = orch.process(persona_request) catch |err| {
-            const err_name = @errorName(err);
+            const err_name = try std.fmt.allocPrint(self.allocator, "{t}", .{err});
+            defer self.allocator.free(err_name);
             return self.formatError("PROCESSING_ERROR", err_name, null);
         };
 
@@ -250,7 +303,7 @@ pub const ChatHandler = struct {
     fn formatResponse(self: *Self, response: types.PersonaResponse) ![]const u8 {
         var code_blocks: ?[]CodeBlockJson = null;
         if (response.code_blocks) |blocks| {
-            var cb_list = try self.allocator.alloc(CodeBlockJson, blocks.len);
+            const cb_list = try self.allocator.alloc(CodeBlockJson, blocks.len);
             for (blocks, 0..) |block, i| {
                 cb_list[i] = .{
                     .language = block.language,
@@ -259,10 +312,11 @@ pub const ChatHandler = struct {
             }
             code_blocks = cb_list;
         }
+        defer if (code_blocks) |cb| self.allocator.free(cb);
 
         var references: ?[]SourceJson = null;
         if (response.references) |refs| {
-            var ref_list = try self.allocator.alloc(SourceJson, refs.len);
+            const ref_list = try self.allocator.alloc(SourceJson, refs.len);
             for (refs, 0..) |ref, i| {
                 ref_list[i] = .{
                     .title = ref.title,
@@ -272,6 +326,7 @@ pub const ChatHandler = struct {
             }
             references = ref_list;
         }
+        defer if (references) |r| self.allocator.free(r);
 
         const chat_response = ChatResponse{
             .content = response.content,
@@ -304,6 +359,50 @@ pub const ChatHandler = struct {
         }
         return false;
     }
+
+    /// Get rate limit status for a user (useful for returning rate limit headers).
+    /// Returns the current rate limit status without consuming a request.
+    pub fn getRateLimitStatus(self: *Self, user_id: ?[]const u8) rate_limit.RateLimitStatus {
+        const key = user_id orelse "anonymous";
+        // Note: check() does consume a request, so this should be called after handling
+        // For header purposes, we can use the limiter's bucket info
+        if (self.rate_limiter.getBucketInfo(key)) |info| {
+            const current: u32 = @intCast(@min(info.total_requests, rate_limit_config.requests));
+            const remaining: u32 = if (current >= rate_limit_config.requests) 0 else rate_limit_config.requests - current;
+            return .{
+                .allowed = !info.is_banned,
+                .remaining = remaining,
+                .limit = rate_limit_config.requests,
+                .reset_at = 0,
+                .current = current,
+                .banned = info.is_banned,
+                .ban_expires_at = info.ban_expires_at,
+            };
+        }
+        // No bucket yet means no requests made
+        return .{
+            .allowed = true,
+            .remaining = rate_limit_config.requests,
+            .limit = rate_limit_config.requests,
+            .reset_at = 0,
+            .current = 0,
+        };
+    }
+
+    /// Get rate limiter statistics.
+    pub fn getRateLimiterStats(self: *Self) rate_limit.RateLimiter.RateLimiterStats {
+        return self.rate_limiter.getStats();
+    }
+
+    /// Reset rate limit for a specific user (admin operation).
+    pub fn resetRateLimit(self: *Self, user_id: []const u8) void {
+        self.rate_limiter.reset(user_id);
+    }
+
+    /// Unban a specific user (admin operation).
+    pub fn unbanUser(self: *Self, user_id: []const u8) bool {
+        return self.rate_limiter.unban(user_id);
+    }
 };
 
 /// Parse persona type from string.
@@ -322,6 +421,7 @@ pub const HttpStatus = struct {
     pub const unauthorized = 401;
     pub const not_found = 404;
     pub const method_not_allowed = 405;
+    pub const too_many_requests = 429;
     pub const internal_server_error = 500;
     pub const service_unavailable = 503;
 };
@@ -336,14 +436,50 @@ test "parse persona type" {
 
 test "chat handler initialization" {
     var handler = ChatHandler.init(std.testing.allocator);
+    defer handler.deinit();
     try std.testing.expect(handler.orchestrator == null);
 }
 
 test "error response format" {
     var handler = ChatHandler.init(std.testing.allocator);
+    defer handler.deinit();
     const error_json = try handler.formatError("TEST_ERROR", "Test message", null);
     defer std.testing.allocator.free(error_json);
 
     try std.testing.expect(std.mem.indexOf(u8, error_json, "TEST_ERROR") != null);
     try std.testing.expect(std.mem.indexOf(u8, error_json, "Test message") != null);
+}
+
+test "rate limiter configuration" {
+    // Verify rate limit config matches requirements
+    try std.testing.expectEqual(@as(u32, 100), ChatHandler.rate_limit_config.requests);
+    try std.testing.expectEqual(@as(u32, 60), ChatHandler.rate_limit_config.window_seconds);
+    try std.testing.expectEqual(rate_limit.Algorithm.token_bucket, ChatHandler.rate_limit_config.algorithm);
+    try std.testing.expectEqual(rate_limit.Scope.user, ChatHandler.rate_limit_config.scope);
+    try std.testing.expectEqual(@as(u32, 3600), ChatHandler.rate_limit_config.ban_duration);
+    try std.testing.expectEqual(@as(u32, 10), ChatHandler.rate_limit_config.ban_threshold);
+}
+
+test "rate limiting allows requests under limit" {
+    var handler = ChatHandler.init(std.testing.allocator);
+    defer handler.deinit();
+
+    // Initial status should show full capacity
+    const status = handler.getRateLimitStatus("test_user");
+    try std.testing.expect(status.allowed);
+    try std.testing.expectEqual(@as(u32, 100), status.limit);
+}
+
+test "rate limiter stats tracking" {
+    var handler = ChatHandler.init(std.testing.allocator);
+    defer handler.deinit();
+
+    // Initial stats should be zero
+    const stats = handler.getRateLimiterStats();
+    try std.testing.expectEqual(@as(u64, 0), stats.total_requests);
+    try std.testing.expectEqual(@as(u64, 0), stats.blocked_requests);
+}
+
+test "http status includes rate limit code" {
+    try std.testing.expectEqual(@as(u16, 429), HttpStatus.too_many_requests);
 }
