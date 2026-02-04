@@ -96,6 +96,9 @@ comptime {
 
     // E2E workflow tests (complete user workflow validation)
     _ = @import("e2e/mod.zig");
+
+    // Common test helpers and utilities
+    _ = @import("helpers.zig");
 }
 
 // Connector tests
@@ -107,6 +110,9 @@ pub const TestMatrix = test_matrix.TestMatrix;
 
 // Property-based testing framework
 pub const proptest = @import("proptest.zig");
+
+// Common test helpers and utilities
+pub const helpers = @import("helpers.zig");
 
 // Cross-platform test utilities
 pub const platform = @import("platform.zig");
