@@ -27,6 +27,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const abi = @import("abi");
+const time = abi.shared.time;
 
 /// Stress test profile defining test parameters
 pub const StressProfile = struct {
@@ -298,30 +300,9 @@ pub fn getProfileByName(name: []const u8) ?StressProfile {
     return null;
 }
 
-/// Sleep helper that works across platforms
-pub fn sleepMs(ms: u64) void {
-    if (builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64) {
-        return; // WASM: no sleep available
-    }
-    const ns = ms * std.time.ns_per_ms;
-    // Use nanosleep if available (POSIX)
-    if (@hasDecl(std.posix, "nanosleep")) {
-        var req = std.posix.timespec{
-            .sec = @intCast(ns / std.time.ns_per_s),
-            .nsec = @intCast(ns % std.time.ns_per_s),
-        };
-        var rem: std.posix.timespec = undefined;
-        while (true) {
-            const result = std.posix.nanosleep(&req, &rem);
-            if (result == 0) break;
-            req = rem;
-        }
-    } else if (@hasDecl(std.os.windows.kernel32, "Sleep")) {
-        // Windows: use kernel32.Sleep (in milliseconds)
-        std.os.windows.kernel32.Sleep(@intCast(ms));
-    }
-    // If neither works, busy-wait is avoided - just return
-}
+/// Sleep helper that works across platforms.
+/// Delegates to shared time module for consistent implementation.
+pub const sleepMs = time.sleepMs;
 
 /// Timer for measuring elapsed time
 /// Uses std.time.Timer on native platforms, fallback for WASM

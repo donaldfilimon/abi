@@ -148,6 +148,7 @@ fn defaultNowMs(ctx: ?*anyopaque) i64 {
 pub fn sleepNs(ns: u64) void {
     if (!has_instant) return;
     if (@hasDecl(std.posix, "nanosleep")) {
+        // POSIX systems: use nanosleep
         var req = std.posix.timespec{
             .sec = @intCast(ns / std.time.ns_per_s),
             .nsec = @intCast(ns % std.time.ns_per_s),
@@ -158,7 +159,12 @@ pub fn sleepNs(ns: u64) void {
             if (result == 0) break;
             req = rem;
         }
+    } else if (builtin.os.tag == .windows) {
+        // Windows: use kernel32.Sleep (milliseconds, rounded up)
+        const ms: u32 = @intCast(@min((ns + std.time.ns_per_ms - 1) / std.time.ns_per_ms, std.math.maxInt(u32)));
+        std.os.windows.kernel32.Sleep(ms);
     } else {
+        // Fallback: busy-wait (avoid if possible)
         const start = now() orelse return;
         while (true) {
             const current = now() orelse return;

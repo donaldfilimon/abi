@@ -4,6 +4,20 @@
 //! helpers used across the test suite.
 
 const std = @import("std");
+const abi = @import("abi");
+const time = abi.shared.time;
+
+// ============================================================================
+// Time Utilities
+// ============================================================================
+
+/// Sleep for a specified number of milliseconds.
+/// On WASM, this is a no-op (can't block in WASM).
+/// Re-exports from shared/time.zig for test convenience.
+pub const sleepMs = time.sleepMs;
+
+/// Sleep for a specified number of nanoseconds.
+pub const sleepNs = time.sleepNs;
 
 /// Test allocator with leak detection.
 /// Wraps GeneralPurposeAllocator with automatic leak checking on deinit.

@@ -17,31 +17,10 @@ const build_options = @import("build_options");
 const abi = @import("abi");
 const ha = abi.ha;
 const chaos = @import("mod.zig");
+const helpers = @import("../helpers.zig");
 
-// ============================================================================
-// Test Helpers
-// ============================================================================
-
-/// Sleep implementation for tests
-fn sleepMs(ms: u64) void {
-    const ns = ms * std.time.ns_per_ms;
-    const builtin = @import("builtin");
-    if (builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64) {
-        return;
-    }
-    if (@hasDecl(std.posix, "nanosleep")) {
-        var req = std.posix.timespec{
-            .sec = @intCast(ns / std.time.ns_per_s),
-            .nsec = @intCast(ns % std.time.ns_per_s),
-        };
-        var rem: std.posix.timespec = undefined;
-        while (true) {
-            const result = std.posix.nanosleep(&req, &rem);
-            if (result == 0) break;
-            req = rem;
-        }
-    }
-}
+// Re-export sleep from helpers for convenience
+const sleepMs = helpers.sleepMs;
 
 /// Validate that the system is in a consistent state
 fn validateSystemConsistency(manager: *ha.HaManager) !void {

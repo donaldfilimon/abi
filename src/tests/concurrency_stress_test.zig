@@ -16,28 +16,10 @@
 const std = @import("std");
 const abi = @import("abi");
 const runtime = abi.runtime;
-const builtin = @import("builtin");
+const helpers = @import("helpers.zig");
 
-// Local sleep implementation for tests
-fn sleepMs(ms: u64) void {
-    const ns = ms * std.time.ns_per_ms;
-    if (builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64) {
-        // WASM: busy-wait (no sleep available)
-        return;
-    }
-    if (@hasDecl(std.posix, "nanosleep")) {
-        var req = std.posix.timespec{
-            .sec = @intCast(ns / std.time.ns_per_s),
-            .nsec = @intCast(ns % std.time.ns_per_s),
-        };
-        var rem: std.posix.timespec = undefined;
-        while (true) {
-            const result = std.posix.nanosleep(&req, &rem);
-            if (result == 0) break;
-            req = rem;
-        }
-    }
-}
+// Re-export sleep from helpers for convenience
+const sleepMs = helpers.sleepMs;
 
 // ============================================================================
 // Configuration

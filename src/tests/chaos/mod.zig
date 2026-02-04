@@ -38,6 +38,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const abi = @import("abi");
+const time = abi.shared.time;
 
 /// Types of faults that can be injected
 pub const FaultType = enum {
@@ -374,26 +376,10 @@ pub const ChaosContext = struct {
         return self.shouldFault(.network_partition);
     }
 
-    // Platform-aware sleep
+    // Platform-aware sleep - delegates to shared time module
     fn sleepMs(self: *Self, ms: u64) void {
         _ = self;
-        const ns = ms * std.time.ns_per_ms;
-        if (builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64) {
-            // WASM: busy-wait
-            return;
-        }
-        if (@hasDecl(std.posix, "nanosleep")) {
-            var req = std.posix.timespec{
-                .sec = @intCast(ns / std.time.ns_per_s),
-                .nsec = @intCast(ns % std.time.ns_per_s),
-            };
-            var rem: std.posix.timespec = undefined;
-            while (true) {
-                const result = std.posix.nanosleep(&req, &rem);
-                if (result == 0) break;
-                req = rem;
-            }
-        }
+        time.sleepMs(ms);
     }
 };
 
