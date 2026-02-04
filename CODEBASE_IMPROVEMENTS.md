@@ -1,8 +1,8 @@
 # Codebase Improvement Opportunities
 
-**Date**: January 31, 2026  
-**Branch**: cursor/codebase-improvements-exploration-a622  
-**Test Status**: 787/792 passing  
+**Date**: February 4, 2026
+**Branch**: cursor/codebase-improvements-exploration-a622
+**Test Status**: 910/915 passing
 **Overall Assessment**: Strong codebase with production-ready quality. Most issues are minor modernization opportunities.
 
 ---
@@ -14,7 +14,7 @@ This comprehensive exploration identified improvements across 8 categories:
 - **Security Hardening**: 4 medium-severity issues (3 already resolved)
 - **Code Quality**: Memory management, error handling, documentation gaps
 - **Performance Optimizations**: SIMD, memory pooling, concurrency patterns
-- **Test Coverage**: Good coverage (47 test files, 787 passing tests)
+- **Test Coverage**: Good coverage (47 test files, 910 passing tests)
 - **Build System**: Modern, well-structured with feature flags
 
 ---
@@ -34,8 +34,8 @@ const file = std.fs.cwd().openFile(path, .{});
 const file = std.Io.Dir.cwd().openFile(io, path, .{});
 ```
 
-**Impact**: Will break in future Zig releases  
-**Effort**: Medium (requires I/O context plumbing)  
+**Impact**: Will break in future Zig releases
+**Effort**: Medium (requires I/O context plumbing)
 **Files**:
 - `benchmarks/system/baseline_store.zig:397,427,440,444,450,451,521,566`
 
@@ -55,11 +55,10 @@ const duration = std.Io.Clock.Duration{ .ns = 1_000_000 };
 duration.sleep();
 ```
 
-**Impact**: Will break in future Zig releases  
-**Effort**: Low (simple find-replace)  
+**Impact**: Will break in future Zig releases
+**Effort**: Low (simple find-replace)
 **Files**:
 - `tools/cli/tui/async_loop.zig:190`
-- `tools/cli/commands/command_template.zig:80`
 - `src/ai/streaming/session_cache.zig:433,435`
 - `src/ai/streaming/circuit_breaker.zig:371,398,423`
 - `src/ai/models/downloader.zig:195`
@@ -79,9 +78,11 @@ std.debug.print("Error: {t}\n", .{err});
 std.debug.print("State: {t}\n", .{state});
 ```
 
-**Impact**: Non-breaking but not idiomatic for Zig 0.16  
-**Effort**: Low (automated refactoring possible)  
+**Impact**: Non-breaking but not idiomatic for Zig 0.16
+**Effort**: Low (automated refactoring possible)
 **Note**: `@tagName()` and `@errorName()` are still valid when you need a `[]const u8` return value (not just for printing).
+
+**Status (2026-02-04)**: ✅ Reviewed - all usages are correct (storing strings, not printing). No changes needed.
 
 **Files with opportunities** (sample):
 - `src/web/handlers/chat.zig:139,165,198,199,220,278`
@@ -98,15 +99,13 @@ std.debug.print("State: {t}\n", .{state});
 
 **Resolved (2026-01-30)**:
 - ✅ H-1: JWT "none" algorithm → Runtime warning added
-- ✅ H-2: Master key fallback → `require_master_key` config option added  
+- ✅ H-2: Master key fallback → `require_master_key` config option added
 - ✅ M-1: API key wiping → `secureZero()` added
 
-**Remaining Medium Severity**:
+**Resolved (2026-02-04)**:
+- ✅ M-2: Rate limiting → `productionDefaults()` function added for secure defaults
 
-**M-2: Rate Limiting Not Enforced by Default**
-- **File**: `src/shared/security/rate_limit.zig`
-- **Impact**: Public APIs vulnerable to abuse
-- **Recommendation**: Enable rate limiting in production mode by default
+**Remaining Medium Severity**:
 
 **M-3: TLS Certificate Validation**
 - **File**: `src/shared/security/tls.zig`
@@ -145,9 +144,13 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 };
 ```
 
-**Files with opportunities**:
+**Status (2026-02-04)**: Partially addressed:
+- ✅ Added SAFETY comments to provably-safe bufPrint operations
+- ✅ Fixed buffer sizing issue in `src/network/discovery.zig`
+- ✅ Added proper error propagation for `Timer.start()` calls
+
+**Files with remaining opportunities**:
 - `tools/cli/utils/help.zig:277,291,303`
-- `src/network/discovery.zig:233,246,420,425`
 - `src/shared/utils/json/mod.zig:20,48,100`
 - `benchmarks/` (multiple files using `unreachable` in performance-critical paths)
 
@@ -206,22 +209,19 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 - ✅ CLAUDE.md and AGENTS.md for AI coding assistants
 - ✅ SECURITY.md with security policy and reporting
 
-**Improvement opportunities**:
+**Status (2026-02-04)**: Significant improvements made:
+- ✅ All 6 stub files now have comprehensive documentation explaining their purpose
+- ✅ Concurrency primitives (`src/runtime/concurrency/*.zig`) now have Big-O complexity documentation
+- ✅ Test helpers module created (`src/tests/helpers.zig`)
 
-1. **Module-level Documentation**
-   - Some stub files lack doc comments explaining their purpose
-   - Example: `src/*/stub.zig` files could benefit from "This is a no-op stub when feature X is disabled"
+**Remaining improvement opportunities**:
 
-2. **Public API Examples**
+1. **Public API Examples**
    - Main modules have good examples
    - Some sub-modules lack usage examples
    - Opportunities in: `src/ai/orchestration/`, `src/network/unified_memory/`
 
-3. **Performance Characteristics**
-   - Lock-free data structures lack Big-O complexity documentation
-   - Files: `src/runtime/concurrency/*.zig`
-
-4. **Migration Guides**
+2. **Migration Guides**
    - Consider adding Zig 0.15 → 0.16 migration guide
    - Would help external contributors
 
@@ -276,9 +276,8 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
    - Low priority: Zig doesn't have traits, current pattern is idiomatic
 
 2. **Test Helpers**
-   - Test setup code duplicated across test files
-   - Could extract to `src/tests/helpers.zig`
-   - Files: `src/tests/e2e/*.zig`, `src/tests/integration/*.zig`
+   - ✅ **Completed (2026-02-04)**: Test helper module created (`src/tests/helpers.zig`)
+   - Common setup/teardown logic now centralized
 
 3. **Error Wrapping**
    - Similar error conversion logic in connectors
@@ -289,7 +288,7 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 
 ### 7. Test Coverage Analysis
 
-**Strong test coverage** (787/792 passing):
+**Strong test coverage** (910/915 passing):
 - ✅ 47 dedicated test files (`*_test.zig`)
 - ✅ Integration tests (`src/tests/integration/`)
 - ✅ E2E tests (`src/tests/e2e/`)
@@ -373,11 +372,12 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 1. ✅ Security hardening (mostly complete)
 2. Fix `std.time.sleep()` → `std.Io.Clock.Duration.sleep()` (8 instances)
 3. Fix `std.fs.cwd()` in `baseline_store.zig` (9 instances)
+4. ✅ **Completed (2026-02-04)**: @errorName/@tagName reviewed - all usages are correct
 
 ### Phase 2: Modernization (3-5 days)
-4. Convert `@errorName/@tagName` to `{t}` format specifier (67 instances)
-5. Review and fix `unreachable` patterns (30 instances)
-6. Add missing module documentation
+4. ~~Convert `@errorName/@tagName` to `{t}` format specifier~~ (Not needed - usages store strings)
+5. ✅ **Partially completed (2026-02-04)**: Review and fix `unreachable` patterns
+6. ✅ **Completed (2026-02-04)**: Add missing module documentation
 
 ### Phase 3: Polish (1-2 weeks)
 7. Performance micro-optimizations
@@ -396,27 +396,22 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 These can be done immediately with minimal risk:
 
 1. **Format Specifier Migration** (1 hour)
-   ```bash
-   # Automated refactoring opportunity
-   find src/ -name "*.zig" -exec sed -i 's/@errorName(\([^)]*\))/\1/g' {} \;
-   # Then use {t} in print statements
-   ```
+   - ✅ **Completed (2026-02-04)**: Reviewed - all usages are storing strings, not printing. No changes needed.
 
 2. **Sleep API Updates** (30 minutes)
    - 8 instances, straightforward replacement
    - No logic changes needed
 
 3. **Documentation Comments** (2 hours)
-   - Add module-level `//!` comments to stub files
-   - Document Big-O complexity for data structures
+   - ✅ **Completed (2026-02-04)**: Added module-level `//!` comments to all 6 stub files
+   - ✅ **Completed (2026-02-04)**: Documented Big-O complexity for concurrency data structures
 
 4. **Test Helper Extraction** (1 hour)
-   - Create `src/tests/helpers.zig`
-   - Move common setup/teardown logic
+   - ✅ **Completed (2026-02-04)**: Created `src/tests/helpers.zig` with common setup/teardown logic
 
 5. **Unreachable → Error Returns** (2 hours)
-   - Focus on non-benchmark code
-   - Improve error messages
+   - ✅ **Partially completed (2026-02-04)**: Focus on non-benchmark code
+   - Added SAFETY comments, fixed buffer sizing, improved error propagation
 
 ---
 
@@ -445,7 +440,7 @@ These can be done immediately with minimal risk:
    - GPU acceleration with multiple backends
 
 5. **Testing**
-   - 787 passing tests
+   - 910 passing tests
    - Integration, E2E, chaos, stress, property-based tests
    - Good coverage across modules
 
@@ -475,5 +470,5 @@ These can be done immediately with minimal risk:
 
 ---
 
-**Last Updated**: January 31, 2026  
-**Next Review**: After Phase 1 completion
+**Last Updated**: February 4, 2026
+**Next Review**: After Phase 2 completion
