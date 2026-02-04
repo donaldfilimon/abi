@@ -245,6 +245,8 @@ fn benchHexEncode(allocator: std.mem.Allocator, data: []const u8) ![]u8 {
     const buffer = try allocator.alloc(u8, data.len * 2);
     // Use std.fmt.formatInt for hex encoding
     for (data, 0..) |byte, i| {
+        // PERF: Intentionally unreachable - buffer is exactly sized for 2-char hex output
+        // per byte, so bufPrint cannot fail. Avoids branch prediction overhead in hot path.
         _ = std.fmt.bufPrint(buffer[i * 2 ..][0..2], "{x:0>2}", .{byte}) catch unreachable;
     }
     return buffer;
