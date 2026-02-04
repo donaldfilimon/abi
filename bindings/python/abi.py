@@ -11,11 +11,10 @@ Example:
 
 import ctypes
 import os
-import sys
 import platform
 
 __version__ = "0.4.0"
-__all__ = ["ABI", "VectorDatabase", "AbiError", "AbiStatus", "__version__"]
+__all__ = ["ABI", "VectorDatabase", "AbiError", "AbiStatus", "GpuBackend", "__version__"]
 
 # Define C types
 c_void_p = ctypes.c_void_p
@@ -40,6 +39,67 @@ class AbiError(Exception):
         self.status = status
         self.message = message
         super().__init__(f"{message}: {status}")
+
+
+class GpuBackend:
+    """GPU backend selection constants.
+
+    These correspond to the backend values in the C API (abi_gpu_config_t):
+        0=auto, 1=cuda, 2=vulkan, 3=metal, 4=webgpu, 5=stdgpu, 6=cpu
+    """
+    AUTO = 'auto'
+    CUDA = 'cuda'
+    VULKAN = 'vulkan'
+    METAL = 'metal'
+    WEBGPU = 'webgpu'
+    STDGPU = 'stdgpu'
+    CPU = 'cpu'
+
+    # Valid backend names
+    VALID_BACKENDS = [AUTO, CUDA, VULKAN, METAL, WEBGPU, STDGPU, CPU]
+
+    # Mapping from string to C API int value
+    _TO_INT = {
+        AUTO: 0,
+        CUDA: 1,
+        VULKAN: 2,
+        METAL: 3,
+        WEBGPU: 4,
+        STDGPU: 5,
+        CPU: 6,
+    }
+
+    @classmethod
+    def validate(cls, backend):
+        """Validate a backend name and return it normalized.
+
+        Args:
+            backend: Backend name string
+
+        Returns:
+            Normalized backend name
+
+        Raises:
+            ValueError: If backend is not a valid backend name
+        """
+        if backend not in cls.VALID_BACKENDS:
+            raise ValueError(
+                f"Invalid backend '{backend}'. "
+                f"Must be one of: {cls.VALID_BACKENDS}"
+            )
+        return backend
+
+    @classmethod
+    def to_int(cls, backend):
+        """Convert backend name to C API integer value.
+
+        Args:
+            backend: Backend name string
+
+        Returns:
+            Integer value for C API
+        """
+        return cls._TO_INT.get(backend, 0)
 
 class ABI:
     def __init__(self, lib_path=None):
@@ -112,15 +172,57 @@ class ABI:
     def version(self):
         return self.lib.abi_version().decode('utf-8')
 
-    def create_db(self, dimension):
-        return VectorDatabase(self, dimension)
+    def create_db(self, dimension, backend='auto'):
+        """Create a new vector database.
+
+        Args:
+            dimension: Vector dimension (number of components)
+            backend: GPU backend to use for acceleration.
+                Options: 'auto', 'cuda', 'vulkan', 'metal', 'webgpu', 'stdgpu', 'cpu'
+                Default is 'auto' which selects the best available backend.
+
+        Returns:
+            VectorDatabase instance
+
+        Raises:
+            ValueError: If backend is not a valid backend name
+        """
+        return VectorDatabase(self, dimension, backend=backend)
 
 class VectorDatabase:
-    def __init__(self, abi_instance, dimension):
+    """Vector database with optional GPU acceleration.
+
+    Attributes:
+        dimension: Vector dimension (number of components per vector)
+        backend: GPU backend name ('auto', 'cuda', 'vulkan', 'metal', 'webgpu', 'stdgpu', 'cpu')
+    """
+
+    def __init__(self, abi_instance, dimension, backend='auto'):
+        """Create a new vector database.
+
+        Args:
+            abi_instance: Parent ABI instance
+            dimension: Vector dimension (number of components)
+            backend: GPU backend to use for acceleration.
+                Options: 'auto', 'cuda', 'vulkan', 'metal', 'webgpu', 'stdgpu', 'cpu'
+                Default is 'auto' which selects the best available backend.
+
+        Raises:
+            ValueError: If backend is not a valid backend name
+            AbiError: If database creation fails
+        """
         self.abi = abi_instance
         self.handle = c_void_p()
         self.dimension = dimension
-        
+
+        # Validate and store backend
+        self.backend = GpuBackend.validate(backend)
+        self._backend_int = GpuBackend.to_int(backend)
+
+        # Create the database
+        # Note: The current C API (abi_db_create) doesn't support backend selection yet.
+        # When the C API is extended to support GPU-accelerated database operations,
+        # we'll pass self._backend_int to the native function.
         status = self.abi.lib.abi_db_create(self.abi.handle, dimension, ctypes.byref(self.handle))
         if status != AbiStatus.SUCCESS:
             raise AbiError(status, "Failed to create database")
