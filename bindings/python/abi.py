@@ -1,7 +1,21 @@
+"""ABI Framework Python Bindings.
+
+High-performance vector database and AI inference library.
+
+Example:
+    >>> from abi import ABI
+    >>> abi = ABI()
+    >>> print(abi.version())
+    '0.4.0'
+"""
+
 import ctypes
 import os
 import sys
 import platform
+
+__version__ = "0.4.0"
+__all__ = ["ABI", "VectorDatabase", "AbiError", "AbiStatus", "__version__"]
 
 # Define C types
 c_void_p = ctypes.c_void_p
