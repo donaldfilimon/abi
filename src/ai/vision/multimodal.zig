@@ -31,6 +31,7 @@
 const std = @import("std");
 const math = std.math;
 const vit = @import("vit.zig");
+const simd = @import("../../shared/simd.zig");
 
 // ============================================================================
 // Configuration
@@ -197,23 +198,9 @@ pub const ContrastiveLoss = struct {
         return loss / @as(f32, @floatFromInt(2 * batch_size));
     }
 
-    /// Compute cosine similarity between two embeddings
+    /// Compute cosine similarity between two embeddings (SIMD-optimized via shared module)
     pub fn cosineSimilarity(embed1: []const f32, embed2: []const f32) f32 {
-        if (embed1.len != embed2.len or embed1.len == 0) return 0.0;
-
-        var dot: f32 = 0.0;
-        var norm1: f32 = 0.0;
-        var norm2: f32 = 0.0;
-
-        for (embed1, embed2) |e1, e2| {
-            dot += e1 * e2;
-            norm1 += e1 * e1;
-            norm2 += e2 * e2;
-        }
-
-        const denom = @sqrt(norm1 * norm2);
-        if (denom < 1e-8) return 0.0;
-        return dot / denom;
+        return simd.cosineSimilarity(embed1, embed2);
     }
 };
 

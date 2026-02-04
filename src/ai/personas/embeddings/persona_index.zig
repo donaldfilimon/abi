@@ -16,6 +16,7 @@ const embeddings = @import("../../embeddings/mod.zig");
 const database = @import("../../../database/mod.zig");
 const seed_data = @import("seed_data.zig");
 const time = @import("../../../shared/time.zig");
+const simd = @import("../../../shared/simd.zig");
 
 /// Result of a persona matching operation.
 pub const PersonaMatch = struct {
@@ -332,22 +333,7 @@ fn personaFromId(id: u64) types.PersonaType {
 
 /// Calculate cosine similarity between two vectors.
 fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-    if (a.len != b.len or a.len == 0) return 0.0;
-
-    var dot_product: f32 = 0.0;
-    var norm_a: f32 = 0.0;
-    var norm_b: f32 = 0.0;
-
-    for (a, b) |va, vb| {
-        dot_product += va * vb;
-        norm_a += va * va;
-        norm_b += vb * vb;
-    }
-
-    const norm = @sqrt(norm_a) * @sqrt(norm_b);
-    if (norm == 0.0) return 0.0;
-
-    return dot_product / norm;
+    return simd.cosineSimilarity(a, b);
 }
 
 // Tests

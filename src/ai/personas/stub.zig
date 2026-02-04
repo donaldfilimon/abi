@@ -54,7 +54,7 @@ pub const PersonaRegistry = struct {
 /// Personas context for framework integration (Stub).
 pub const Context = struct {
     allocator: std.mem.Allocator,
-    config_: MultiPersonaConfig,
+    config: MultiPersonaConfig,
     registry: PersonaRegistry,
     embeddings_module: ?*anyopaque = null,
     metrics_manager: ?*anyopaque = null,

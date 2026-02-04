@@ -5,6 +5,7 @@
 const std = @import("std");
 const chunker = @import("chunker.zig");
 const Chunk = chunker.Chunk;
+const simd = @import("../../shared/simd.zig");
 
 /// Common AI processing errors
 pub const AIError = std.mem.Allocator.Error || error{
@@ -123,47 +124,20 @@ pub const Retriever = struct {
     }
 };
 
-/// Compute cosine similarity.
+/// Compute cosine similarity (SIMD-optimized via shared module).
 pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-    if (a.len != b.len or a.len == 0) return 0;
-
-    var dot: f32 = 0;
-    var norm_a: f32 = 0;
-    var norm_b: f32 = 0;
-
-    for (a, b) |ai, bi| {
-        dot += ai * bi;
-        norm_a += ai * ai;
-        norm_b += bi * bi;
-    }
-
-    const denom = @sqrt(norm_a) * @sqrt(norm_b);
-    if (denom == 0) return 0;
-    return dot / denom;
+    return simd.cosineSimilarity(a, b);
 }
 
 /// Compute Euclidean similarity (1 / (1 + distance)).
 pub fn euclideanSimilarity(a: []const f32, b: []const f32) f32 {
     if (a.len != b.len or a.len == 0) return 0;
-
-    var sum_sq: f32 = 0;
-    for (a, b) |ai, bi| {
-        const diff = ai - bi;
-        sum_sq += diff * diff;
-    }
-
-    return 1.0 / (1.0 + @sqrt(sum_sq));
+    return 1.0 / (1.0 + simd.l2Distance(a, b));
 }
 
-/// Compute dot product.
+/// Compute dot product (SIMD-optimized via shared module).
 pub fn dotProduct(a: []const f32, b: []const f32) f32 {
-    if (a.len != b.len or a.len == 0) return 0;
-
-    var sum: f32 = 0;
-    for (a, b) |ai, bi| {
-        sum += ai * bi;
-    }
-    return sum;
+    return simd.vectorDot(a, b);
 }
 
 /// Compute Jaccard similarity between texts.

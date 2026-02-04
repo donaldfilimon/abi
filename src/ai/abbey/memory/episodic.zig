@@ -6,6 +6,7 @@
 const std = @import("std");
 const types = @import("../../core/types.zig");
 const neural = @import("../neural/mod.zig");
+const simd = @import("../../../shared/simd.zig");
 
 // ============================================================================
 // Episode Types
@@ -381,22 +382,7 @@ pub const EpisodicMemory = struct {
 // ============================================================================
 
 fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-    if (a.len != b.len or a.len == 0) return 0;
-
-    var dot: f32 = 0;
-    var norm_a: f32 = 0;
-    var norm_b: f32 = 0;
-
-    for (a, 0..) |val_a, i| {
-        dot += val_a * b[i];
-        norm_a += val_a * val_a;
-        norm_b += b[i] * b[i];
-    }
-
-    const denom = @sqrt(norm_a) * @sqrt(norm_b);
-    if (denom == 0) return 0;
-
-    return dot / denom;
+    return simd.cosineSimilarity(a, b);
 }
 
 // ============================================================================

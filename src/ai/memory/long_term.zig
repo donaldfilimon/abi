@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const time = @import("../../shared/utils.zig");
+const simd = @import("../../shared/simd.zig");
 const mod = @import("mod.zig");
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;
@@ -308,23 +309,9 @@ pub const LongTermMemory = struct {
     }
 };
 
-/// Compute cosine similarity between two vectors.
+/// Compute cosine similarity between two vectors (SIMD-optimized via shared module).
 pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-    if (a.len != b.len or a.len == 0) return 0;
-
-    var dot: f32 = 0;
-    var norm_a: f32 = 0;
-    var norm_b: f32 = 0;
-
-    for (a, b) |ai, bi| {
-        dot += ai * bi;
-        norm_a += ai * ai;
-        norm_b += bi * bi;
-    }
-
-    const denom = @sqrt(norm_a) * @sqrt(norm_b);
-    if (denom == 0) return 0;
-    return dot / denom;
+    return simd.cosineSimilarity(a, b);
 }
 
 /// Default pseudo-embedding based on character hash.
