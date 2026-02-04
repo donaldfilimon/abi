@@ -125,19 +125,19 @@ fn benchmarkAbiInsert(
     const tracked = tracker.allocator();
 
     // Simulate WDBX insert with vector storage
-    var storage = std.ArrayList([]f32).init(tracked);
+    var storage = std.ArrayListUnmanaged([]f32).empty;
     defer {
         for (storage.items) |item| {
             tracked.free(item);
         }
-        storage.deinit();
+        storage.deinit(tracked);
     }
 
     var timer = std.time.Timer.start() catch return error.TimerFailed;
 
     for (vectors) |vec| {
         const copy = try tracked.dupe(f32, vec);
-        try storage.append(copy);
+        try storage.append(tracked, copy);
     }
 
     const elapsed_ns = timer.read();
@@ -362,8 +362,8 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
 
 /// Generate markdown comparison report
 pub fn generateReport(allocator: std.mem.Allocator) ![]u8 {
-    var report = std.ArrayList(u8).init(allocator);
-    const writer = report.writer();
+    var report = std.ArrayListUnmanaged(u8).empty;
+    const writer = report.writer(allocator);
 
     try writer.writeAll("# Vector Database Comparison Report\n\n");
     try writer.writeAll("## Systems Compared\n\n");
@@ -427,7 +427,7 @@ pub fn generateReport(allocator: std.mem.Allocator) ![]u8 {
     try writer.writeAll("- Competitor baselines from published benchmarks (2024-2025)\n");
     try writer.writeAll("- ABI measurements taken on actual hardware\n");
 
-    return report.toOwnedSlice();
+    return report.toOwnedSlice(allocator);
 }
 
 test "vector db insert benchmark" {

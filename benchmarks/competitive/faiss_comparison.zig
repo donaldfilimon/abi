@@ -261,8 +261,8 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
     const test_dims = config.dimensions;
     const test_k = config.top_k_values;
 
-    var results = std.ArrayList(BenchmarkResult).init(allocator);
-    defer results.deinit();
+    var results = std.ArrayListUnmanaged(BenchmarkResult).empty;
+    defer results.deinit(allocator);
 
     for (test_sizes) |size| {
         for (test_dims) |dim| {
@@ -280,7 +280,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
 
                 // Run Flat (brute-force) benchmark
                 const flat_result = try runSingleBenchmark(allocator, vectors, queries, k, "Flat", 0);
-                try results.append(flat_result);
+                try results.append(allocator, flat_result);
                 std.debug.print("  ABI Flat:    Recall@{d}={d:.3}, QPS={d:.0}, P50={d:.2}ms, P99={d:.2}ms\n", .{
                     k,
                     flat_result.recall_at_k,
@@ -292,7 +292,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
                 // Run HNSW-style benchmark with different ef_search values
                 for ([_]usize{ 50, 100, 200 }) |ef| {
                     const hnsw_result = try runSingleBenchmark(allocator, vectors, queries, k, "HNSW", ef);
-                    try results.append(hnsw_result);
+                    try results.append(allocator, hnsw_result);
                     std.debug.print("  ABI HNSW(ef={d}): Recall@{d}={d:.3}, QPS={d:.0}, P50={d:.2}ms, P99={d:.2}ms\n", .{
                         ef,
                         k,
@@ -349,8 +349,8 @@ pub fn runBenchmarks(allocator: std.mem.Allocator, config: mod.CompetitiveConfig
 
 /// Generate comparison report in Markdown format
 pub fn generateReport(allocator: std.mem.Allocator, config: mod.CompetitiveConfig) ![]u8 {
-    var report = std.ArrayList(u8).init(allocator);
-    const writer = report.writer();
+    var report = std.ArrayListUnmanaged(u8).empty;
+    const writer = report.writer(allocator);
 
     try writer.writeAll("# ABI vs FAISS Comparison Report\n\n");
     try writer.writeAll("## Methodology\n\n");
@@ -396,7 +396,7 @@ pub fn generateReport(allocator: std.mem.Allocator, config: mod.CompetitiveConfi
     try writer.writeAll("- FAISS baselines from academic publications\n");
     try writer.writeAll("- Higher QPS is better, higher Recall@K is better\n");
 
-    return report.toOwnedSlice();
+    return report.toOwnedSlice(allocator);
 }
 
 test "faiss comparison benchmark small scale" {
