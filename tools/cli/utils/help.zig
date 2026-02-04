@@ -273,6 +273,9 @@ test "Option: formatting with all fields" {
         .description = "Set the name",
     };
 
+    // Buffer sized for test data: ~65 chars max (short + long + arg + padding + desc).
+    // The format output for this test option is approximately:
+    // "  -n, --name <NAME>          Set the name" = ~42 chars
     var buf: [128]u8 = undefined;
     const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch unreachable;
     try std.testing.expect(std.mem.indexOf(u8, result, "-n") != null);
@@ -287,6 +290,9 @@ test "Option: formatting without short" {
         .description = "Enable verbose output",
     };
 
+    // Buffer sized for test data: ~55 chars max (padding + long + padding + desc).
+    // The format output for this test option is approximately:
+    // "      --verbose              Enable verbose output" = ~50 chars
     var buf: [128]u8 = undefined;
     const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch unreachable;
     try std.testing.expect(std.mem.indexOf(u8, result, "--verbose") != null);
@@ -299,6 +305,9 @@ test "Subcommand: formatting" {
         .description = "Run the command",
     };
 
+    // Buffer sized for test data: ~40 chars max (indent + name + padding + desc).
+    // The format output for this test subcommand is approximately:
+    // "  run             Run the command" = ~34 chars
     var buf: [128]u8 = undefined;
     const result = std.fmt.bufPrint(&buf, "{}", .{cmd}) catch unreachable;
     try std.testing.expect(std.mem.indexOf(u8, result, "run") != null);
