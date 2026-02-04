@@ -1,4 +1,4 @@
-// ! Advanced GPU memory pool with size-class allocation and fragmentation mitigation.
+//! Advanced GPU memory pool with size-class allocation and fragmentation mitigation.
 //!
 //! Provides efficient memory pooling with:
 //! - Size-class based allocation to reduce fragmentation

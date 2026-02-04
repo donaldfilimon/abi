@@ -2,6 +2,36 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Table of Contents
+
+- [Zig Version Requirement](#zig-version-requirement)
+- [Before Making Changes](#️-before-making-changes)
+- [TL;DR for Common Tasks](#tldr-for-common-tasks)
+- [Quick Reference](#quick-reference)
+- [Critical Gotchas](#critical-gotchas)
+- [Feature Flags](#feature-flags)
+- [Architecture](#architecture)
+- [Common Workflows](#common-workflows)
+- [Zig 0.16 API Patterns](#zig-016-api-patterns-required)
+- [Concurrency Primitives](#concurrency-primitives)
+- [GPU Memory Pool](#gpu-memory-pool)
+- [Test Infrastructure](#test-infrastructure)
+- [Task Management](#task-management)
+- [Model Management](#model-management)
+- [CLI Commands](#cli-commands)
+- [Environment Variables](#environment-variables)
+- [Security Considerations](#security-considerations)
+- [Platform Notes](#platform-notes)
+- [Debugging](#debugging)
+- [Connectors](#connectors)
+- [Docker Deployment](#docker-deployment)
+- [Language Bindings](#language-bindings)
+- [Adding a New Feature Module](#adding-a-new-feature-module)
+- [Reference](#reference)
+- [Code Style](#code-style)
+- [Quick File Navigation](#quick-file-navigation)
+- [Post-Edit Checklist](#post-edit-checklist)
+
 ## Zig Version Requirement
 
 **Required:** Zig 0.16.x (`0.16.0-dev.2471+e9eadee00` or later)
@@ -10,9 +40,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Check version
 zig version
 
-# If using zvm, ensure PATH order is correct
+# If using zvm, ensure PATH order is correct in ~/.zshrc (or ~/.bashrc)
+# Add this line BEFORE any other Zig path entries:
 export PATH="$HOME/.zvm/bin:$PATH"
+
+# Then select Zig 0.16.x
 zvm use master
+```
+
+**Shell setup for zvm (add to `~/.zshrc`):**
+```bash
+# Zig Version Manager - must be first in PATH
+export PATH="$HOME/.zvm/bin:$PATH"
 ```
 
 The codebase uses Zig 0.16 APIs (`std.Io.Dir`, `std.Io.Threaded`, `std.time.Timer`). Earlier versions will fail to compile.
@@ -72,7 +111,7 @@ zig build run -- --disable-ai llm info    # Disable feature for this run
 zig build benchmarks                   # Run comprehensive benchmarks
 zig build bench-all                    # Run all benchmark suites
 zig build gendocs                      # Generate API documentation
-zig build docs-site                    # Generate documentation website (zig-out/docs-site/)
+zig build docs-site                    # Generate documentation website (zig-out/docs/)
 zig build check-wasm                   # Check WASM compilation (standalone binary)
 zig build examples                     # Build all examples
 zig build cli-tests                    # Run CLI command smoke tests
