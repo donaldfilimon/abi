@@ -4,6 +4,20 @@
 //! and multiple consumers concurrently. Uses a circular buffer with
 //! per-slot sequence numbers to ensure correct ordering.
 //!
+//! ## Complexity
+//!
+//! | Operation | Time | Notes |
+//! |-----------|------|-------|
+//! | `push()` | O(1) | Single CAS, may spin on contention |
+//! | `pop()` | O(1) | Single CAS, may spin on contention |
+//! | `tryPush()` | O(1) | Non-blocking variant |
+//! | `len()` | O(1) | Approximate (non-atomic read of both positions) |
+//!
+//! ## Memory
+//!
+//! - O(capacity) fixed allocation at init
+//! - No dynamic resizing (bounded queue)
+//!
 //! ## Algorithm
 //!
 //! Based on the Dmitry Vyukov bounded MPMC queue:

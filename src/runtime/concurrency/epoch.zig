@@ -3,6 +3,22 @@
 //! Provides safe memory reclamation for lock-free data structures by deferring
 //! deallocation until no thread can hold a reference to the memory.
 //!
+//! ## Complexity
+//!
+//! | Operation | Time | Notes |
+//! |-----------|------|-------|
+//! | `pin()` | O(1) | Atomic load + store |
+//! | `unpin()` | O(1) | Atomic store, may trigger advance |
+//! | `retire()` | O(1) | Adds to thread-local list |
+//! | `tryAdvance()` | O(t) | t = number of threads (scans all thread states) |
+//! | `reclaimEpoch()` | O(n) | n = retired items in that epoch slot |
+//!
+//! ## Memory
+//!
+//! - O(t * e) where t = MAX_THREADS (256), e = EPOCH_COUNT (3)
+//! - Retired items accumulate until epoch advances
+//! - Reclamation triggered after RECLAIM_THRESHOLD (64) retirements
+//!
 //! ## How it Works
 //!
 //! 1. Threads "pin" themselves to an epoch when accessing shared data

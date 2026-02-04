@@ -4,6 +4,39 @@
 //! multiple priority levels, aging (starvation prevention), and
 //! deadline-based scheduling.
 //!
+//! ## Complexity
+//!
+//! ### PriorityQueue
+//!
+//! | Operation | Time | Notes |
+//! |-----------|------|-------|
+//! | `push()` | O(log n) | Binary heap insertion |
+//! | `pop()` | O(log n) | Binary heap extraction |
+//! | `peek()` | O(1) | Returns top of heap |
+//! | `len()` | O(1) | Returns item count |
+//! | `tick()` | O(1) | Increments tick counter |
+//! | `drain()` | O(n log n) | Extracts all items in priority order |
+//!
+//! ### DeadlineQueue
+//!
+//! | Operation | Time | Notes |
+//! |-----------|------|-------|
+//! | `push()` | O(log n) | Binary heap insertion by deadline |
+//! | `pop()` | O(log n) | Binary heap extraction |
+//! | `peek()` | O(1) | Returns earliest deadline item |
+//!
+//! ### MultilevelQueue
+//!
+//! | Operation | Time | Notes |
+//! |-----------|------|-------|
+//! | `push()` | O(log n) | Delegates to level's PriorityQueue |
+//! | `pop()` | O(k log n) | k = number of levels (5), scans for non-empty |
+//!
+//! ## Memory
+//!
+//! - O(n) where n is the number of queued items
+//! - Dynamic allocation via ArrayList (grows as needed)
+//!
 //! ## Available Queue Types
 //!
 //! | Queue | Use Case |

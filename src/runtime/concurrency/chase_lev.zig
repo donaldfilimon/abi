@@ -5,11 +5,26 @@
 //!
 //! Based on: "Dynamic Circular Work-Stealing Deque" by Chase and Lev (SPAA 2005)
 //!
+//! ## Complexity
+//!
+//! | Operation | Time | Notes |
+//! |-----------|------|-------|
+//! | `push()` | O(1) amortized | May trigger buffer growth |
+//! | `pop()` | O(1) | Single CAS in contended case |
+//! | `steal()` | O(1) | May retry on contention |
+//! | `len()` | O(1) | Approximate for thieves |
+//!
+//! ## Memory
+//!
+//! - O(n) where n is the maximum concurrent items
+//! - Buffer grows dynamically (doubles when full)
+//! - Old buffers retained until safe to reclaim
+//!
 //! ## Properties
 //!
 //! - Lock-free for all operations
-//! - Owner push/pop: O(1) amortized, no contention with other owner ops
-//! - Thief steal: O(1), may contend with owner or other thieves
+//! - Owner push/pop: no contention with other owner ops
+//! - Thief steal: may contend with owner or other thieves
 //! - Dynamic resizing (grows as needed)
 //!
 //! ## Memory Ordering
