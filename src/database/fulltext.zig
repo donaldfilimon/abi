@@ -1,7 +1,10 @@
 //! Full-text search with BM25 ranking.
 //!
-//! Provides inverted index-based full-text search with BM25 scoring
-//! for relevance ranking.
+//! This module provides pure in-memory inverted index search with BM25 scoring.
+//! **Security Note**: This implementation does not use SQL - all operations
+//! are performed on in-memory data structures (hash maps and arrays),
+//! eliminating SQL injection risks. Search queries are tokenized and matched
+//! against the inverted index as literal text, not interpreted as commands.
 
 const std = @import("std");
 
@@ -751,4 +754,53 @@ test "bm25 idf calculation" {
     const rare_df = index.getDocumentFrequency("test");
 
     try std.testing.expect(common_df >= rare_df);
+}
+
+test "search safely handles SQL-like input" {
+    // Security test: SQL injection patterns should be treated as literal search terms,
+    // not executed as SQL. This module uses pure in-memory data structures with no SQL.
+    const allocator = std.testing.allocator;
+    var index = InvertedIndex.init(allocator, .{}, .{});
+    defer index.deinit();
+
+    // Index some legitimate documents
+    try index.indexDocument(1, "user data profile");
+    try index.indexDocument(2, "admin settings configuration");
+    try index.indexDocument(3, "database records storage");
+
+    // These SQL injection patterns should be treated as literal search terms, not SQL
+    const malicious_queries = [_][]const u8{
+        "'; DROP TABLE users; --",
+        "1 OR 1=1",
+        "admin'--",
+        "SELECT * FROM users",
+        "UNION SELECT password FROM accounts",
+        "'; DELETE FROM users WHERE '1'='1",
+        "Robert'); DROP TABLE students;--",
+    };
+
+    // Each query should complete without issues (may return empty results since
+    // these are just tokenized and matched against the inverted index)
+    for (malicious_queries) |query| {
+        const results = try index.search(query, 10);
+        defer {
+            for (results) |result| {
+                for (result.matched_terms) |term| {
+                    allocator.free(term);
+                }
+                allocator.free(result.matched_terms);
+            }
+            allocator.free(results);
+        }
+        // The search should complete - results may be empty or contain matches
+        // for tokens like "select", "from", "users", etc. The important thing
+        // is that no SQL was executed, just text matching.
+    }
+
+    // Also test indexing documents with SQL-like content (should be safe)
+    try index.indexDocument(4, "'; DROP TABLE users; --");
+    try index.indexDocument(5, "SELECT * FROM users WHERE id = 1");
+
+    // Verify these were indexed as regular documents
+    try std.testing.expectEqual(@as(u64, 5), index.documentCount());
 }
