@@ -132,6 +132,8 @@ pub const MemoryStats = struct {
 
 pub const GpuMemoryPool = struct {
     buffers: std.ArrayListUnmanaged(*GpuBuffer),
+    /// HashMap for O(1) buffer lookup by pointer address
+    buffer_lookup: std.AutoHashMapUnmanaged(usize, usize),
     allocator: std.mem.Allocator,
     total_size: usize,
     max_size: usize,
@@ -139,6 +141,7 @@ pub const GpuMemoryPool = struct {
     pub fn init(allocator: std.mem.Allocator, max_size: usize) GpuMemoryPool {
         return .{
             .buffers = std.ArrayListUnmanaged(*GpuBuffer).empty,
+            .buffer_lookup = std.AutoHashMapUnmanaged(usize, usize){},
             .allocator = allocator,
             .total_size = 0,
             .max_size = max_size,
@@ -151,6 +154,7 @@ pub const GpuMemoryPool = struct {
             self.allocator.destroy(buffer);
         }
         self.buffers.deinit(self.allocator);
+        self.buffer_lookup.deinit(self.allocator);
     }
 
     pub fn allocate(self: *GpuMemoryPool, size: usize, flags: BufferFlags) !*GpuBuffer {
@@ -161,27 +165,63 @@ pub const GpuMemoryPool = struct {
         const buffer = try self.allocator.create(GpuBuffer);
         errdefer self.allocator.destroy(buffer);
         buffer.* = try GpuBuffer.init(self.allocator, size, flags);
+        errdefer buffer.deinit();
+
+        // Insert into lookup map before appending to buffers array
+        const buffer_addr = @intFromPtr(buffer);
+        const buffer_idx = self.buffers.items.len;
+        try self.buffer_lookup.put(self.allocator, buffer_addr, buffer_idx);
+        errdefer _ = self.buffer_lookup.remove(buffer_addr);
+
         try self.buffers.append(self.allocator, buffer);
         self.total_size += size;
         return buffer;
     }
 
     /// Free a buffer from the pool.
-    /// Uses swapRemove for O(1) removal (order not preserved, which is fine for pools).
+    /// Uses O(1) hash map lookup and swapRemove for efficient removal.
     pub fn free(self: *GpuMemoryPool, buffer: *GpuBuffer) bool {
-        // Linear search to find buffer - could be optimized with hash map for very large pools
-        for (self.buffers.items, 0..) |buf, i| {
-            if (buf == buffer) {
-                std.debug.assert(self.total_size >= buffer.size);
-                self.total_size -= buffer.size;
-                buffer.deinit();
-                self.allocator.destroy(buffer);
-                // Use swapRemove for O(1) removal instead of orderedRemove O(n)
-                _ = self.buffers.swapRemove(i);
-                return true;
+        const buffer_addr = @intFromPtr(buffer);
+
+        // O(1) lookup using hash map
+        const idx = self.buffer_lookup.get(buffer_addr) orelse return false;
+
+        std.debug.assert(self.total_size >= buffer.size);
+        self.total_size -= buffer.size;
+
+        // Remove from lookup map
+        _ = self.buffer_lookup.remove(buffer_addr);
+
+        // If we're not removing the last element, update the swapped element's index
+        const last_idx = self.buffers.items.len - 1;
+        if (idx != last_idx) {
+            const swapped_buffer = self.buffers.items[last_idx];
+            const swapped_addr = @intFromPtr(swapped_buffer);
+            // Update the swapped buffer's index in the lookup map
+            if (self.buffer_lookup.getPtr(swapped_addr)) |entry| {
+                entry.* = idx;
             }
         }
-        return false;
+
+        buffer.deinit();
+        self.allocator.destroy(buffer);
+        // Use swapRemove for O(1) removal instead of orderedRemove O(n)
+        _ = self.buffers.swapRemove(idx);
+        return true;
+    }
+
+    /// Find a buffer in the pool by pointer (O(1) lookup).
+    /// Returns the buffer if found, null otherwise.
+    pub fn findBuffer(self: *const GpuMemoryPool, buffer: *const GpuBuffer) ?*GpuBuffer {
+        const buffer_addr = @intFromPtr(buffer);
+        const idx = self.buffer_lookup.get(buffer_addr) orelse return null;
+        return self.buffers.items[idx];
+    }
+
+    /// Check if a buffer exists in the pool (O(1) lookup).
+    pub fn contains(self: *const GpuMemoryPool, buffer: *const GpuBuffer) bool {
+        const buffer_addr = @intFromPtr(buffer);
+        return self.buffer_lookup.contains(buffer_addr);
     }
 
     pub fn stats(self: *const GpuMemoryPool) MemoryStats {
@@ -305,4 +345,84 @@ test "async transfer copies data" {
     try transfer.start();
     transfer.wait();
     try std.testing.expectEqualSlices(u8, &.{ 4, 3, 2, 1 }, dest.bytes);
+}
+
+test "memory pool O(1) buffer lookup" {
+    var pool = GpuMemoryPool.init(std.testing.allocator, 0); // No size limit
+    defer pool.deinit();
+
+    // Allocate 1000 buffers
+    const num_buffers = 1000;
+    var handles: [num_buffers]*GpuBuffer = undefined;
+    for (&handles) |*h| {
+        h.* = try pool.allocate(64, .{});
+    }
+
+    // Verify all buffers can be found via O(1) lookup
+    for (handles) |h| {
+        try std.testing.expect(pool.contains(h));
+        try std.testing.expect(pool.findBuffer(h) != null);
+    }
+
+    // Measure lookup time (should be O(1) per lookup)
+    var timer = try std.time.Timer.start();
+    for (handles) |h| {
+        _ = pool.contains(h);
+    }
+    const elapsed = timer.read();
+
+    // 1000 lookups should be < 1ms (O(1) each)
+    // In practice, hash map lookups are ~100ns each, so 1000 should be ~100us
+    try std.testing.expect(elapsed < 1_000_000); // 1ms in nanoseconds
+
+    // Free all buffers and verify they're no longer found
+    for (handles) |h| {
+        try std.testing.expect(pool.free(h));
+    }
+
+    // Verify buffers are removed from lookup
+    for (handles) |h| {
+        try std.testing.expect(!pool.contains(h));
+    }
+}
+
+test "memory pool swap remove updates lookup correctly" {
+    var pool = GpuMemoryPool.init(std.testing.allocator, 0);
+    defer pool.deinit();
+
+    // Allocate 5 buffers: [0, 1, 2, 3, 4]
+    const a = try pool.allocate(64, .{});
+    const b = try pool.allocate(64, .{});
+    const c = try pool.allocate(64, .{});
+    const d = try pool.allocate(64, .{});
+    const e = try pool.allocate(64, .{});
+
+    try std.testing.expectEqual(@as(usize, 5), pool.buffers.items.len);
+
+    // Free buffer at index 1 (b) - this should swap 'e' into position 1
+    try std.testing.expect(pool.free(b));
+    try std.testing.expectEqual(@as(usize, 4), pool.buffers.items.len);
+
+    // All remaining buffers should still be findable
+    try std.testing.expect(pool.contains(a));
+    try std.testing.expect(!pool.contains(b)); // b was freed
+    try std.testing.expect(pool.contains(c));
+    try std.testing.expect(pool.contains(d));
+    try std.testing.expect(pool.contains(e)); // e was swapped but should still be found
+
+    // Free buffer at index 0 (a) - this should swap current last into position 0
+    try std.testing.expect(pool.free(a));
+    try std.testing.expectEqual(@as(usize, 3), pool.buffers.items.len);
+
+    // Remaining buffers should still be findable
+    try std.testing.expect(pool.contains(c));
+    try std.testing.expect(pool.contains(d));
+    try std.testing.expect(pool.contains(e));
+
+    // Clean up
+    try std.testing.expect(pool.free(c));
+    try std.testing.expect(pool.free(d));
+    try std.testing.expect(pool.free(e));
+
+    try std.testing.expectEqual(@as(usize, 0), pool.buffers.items.len);
 }
