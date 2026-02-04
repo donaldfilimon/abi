@@ -64,7 +64,8 @@ pub const BackpressureController = struct {
     current_tps: f64,
 
     /// Initialize backpressure controller.
-    pub fn init(config: BackpressureConfig) BackpressureController {
+    /// Returns error.TimerUnavailable if platform timer cannot be started.
+    pub fn init(config: BackpressureConfig) error{TimerUnavailable}!BackpressureController {
         return .{
             .config = config,
             .state = .normal,
@@ -72,7 +73,7 @@ pub const BackpressureController = struct {
             .dropped_count = 0,
             .total_processed = 0,
             .sample_counter = 0,
-            .timer = std.time.Timer.start() catch unreachable,
+            .timer = std.time.Timer.start() catch return error.TimerUnavailable,
             .last_check_ns = 0,
             .tokens_in_window = 0,
             .current_tps = 0,
@@ -232,12 +233,13 @@ pub const RateLimiter = struct {
     last_refill_ns: u64,
 
     /// Initialize rate limiter.
-    pub fn init(tokens_per_second: f64, bucket_size: ?f64) RateLimiter {
+    /// Returns error.TimerUnavailable if platform timer cannot be started.
+    pub fn init(tokens_per_second: f64, bucket_size: ?f64) error{TimerUnavailable}!RateLimiter {
         return .{
             .tokens_per_second = tokens_per_second,
             .bucket_size = bucket_size orelse tokens_per_second,
             .available_tokens = bucket_size orelse tokens_per_second,
-            .timer = std.time.Timer.start() catch unreachable,
+            .timer = std.time.Timer.start() catch return error.TimerUnavailable,
             .last_refill_ns = 0,
         };
     }
@@ -296,7 +298,7 @@ test "backpressure controller basic" {
         .high_watermark = 10,
         .low_watermark = 5,
         .max_buffer = 20,
-    });
+    }) catch return error.SkipZigTest;
 
     try std.testing.expectEqual(FlowState.normal, ctrl.getState());
 
@@ -321,7 +323,7 @@ test "backpressure controller blocking" {
         .strategy = .buffer,
         .high_watermark = 5,
         .max_buffer = 10,
-    });
+    }) catch return error.SkipZigTest;
 
     // Fill to max
     var i: usize = 0;
@@ -333,7 +335,7 @@ test "backpressure controller blocking" {
 }
 
 test "backpressure statistics" {
-    var ctrl = BackpressureController.init(.{});
+    var ctrl = BackpressureController.init(.{}) catch return error.SkipZigTest;
 
     ctrl.produce();
     ctrl.produce();
@@ -347,7 +349,7 @@ test "backpressure statistics" {
 }
 
 test "rate limiter" {
-    var limiter = RateLimiter.init(100.0, 10.0);
+    var limiter = RateLimiter.init(100.0, 10.0) catch return error.SkipZigTest;
 
     // Should have 10 tokens available initially
     try std.testing.expect(limiter.getAvailable() >= 9.9);

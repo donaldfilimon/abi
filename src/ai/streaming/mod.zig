@@ -418,14 +418,15 @@ pub const EnhancedStreamingGenerator = struct {
     is_completed: bool,
 
     /// Initialize enhanced streaming generator with the given configuration.
-    pub fn init(allocator: std.mem.Allocator, config: StreamConfig) EnhancedStreamingGenerator {
+    /// Returns error.TimerUnavailable if platform timer cannot be started.
+    pub fn init(allocator: std.mem.Allocator, config: StreamConfig) error{TimerUnavailable}!EnhancedStreamingGenerator {
         return .{
             .allocator = allocator,
             .sse_encoder = SseEncoder.init(allocator, config.sse_config),
-            .backpressure_ctrl = BackpressureController.init(config.backpressure_config),
+            .backpressure_ctrl = BackpressureController.init(config.backpressure_config) catch return error.TimerUnavailable,
             .token_buffer = TokenBuffer.init(allocator, config.buffer_config),
             .stats = .{},
-            .timer = std.time.Timer.start() catch unreachable,
+            .timer = std.time.Timer.start() catch return error.TimerUnavailable,
             .is_started = false,
             .is_completed = false,
         };

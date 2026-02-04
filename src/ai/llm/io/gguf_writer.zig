@@ -495,6 +495,8 @@ pub fn exportToGguf(
     try writer.addTensorF32("output_norm.weight", weights.output_norm, &.{config.embedding_length});
 
     // Layer weights
+    // SAFETY: name_buf is 128 bytes. Longest format is "blk.{d}.attn_output.weight" = ~30 chars.
+    // Even with max u32 layer index (10 digits), output is ~40 chars, well under 128.
     for (weights.layers, 0..) |layer, i| {
         var name_buf: [128]u8 = undefined;
 

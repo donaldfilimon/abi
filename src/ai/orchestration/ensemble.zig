@@ -476,6 +476,8 @@ test "averaging ensemble with numbers" {
     defer std.testing.allocator.free(result.response);
 
     // Average should be 11.0
+    // SAFETY: The averaging ensemble method always produces a valid float string via allocPrint("{d:.6}", ...).
+    // Test inputs are controlled numeric strings that produce a predictable numeric output.
     const avg = std.fmt.parseFloat(f64, result.response) catch unreachable;
     try std.testing.expect(@abs(avg - 11.0) < 0.001);
 }

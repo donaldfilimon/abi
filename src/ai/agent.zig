@@ -55,6 +55,8 @@ fn escapeJsonString(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
             // Other control characters (excluding \n=0x0A, \r=0x0D, \t=0x09)
             0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
                 var buf: [6]u8 = undefined;
+                // SAFETY: Buffer is exactly 6 bytes for format "\uXXXX" where X is a hex digit.
+                // Control characters (0x00-0x1F) always produce exactly 4 hex digits with 0-padding.
                 _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
                 try result.appendSlice(allocator, &buf);
             },
