@@ -1,10 +1,18 @@
-//! Stub for Web feature when disabled.
+//! Web Stub Module
 //!
-//! Mirrors the full API of mod.zig, returning error.WebDisabled for all operations.
-//! This stub is used when the web feature is disabled via `-Denable-web=false`.
+//! This module provides API-compatible no-op implementations for all public
+//! web/HTTP functions when the web feature is disabled at compile time.
+//! All functions return `error.WebDisabled` or empty/default values as
+//! appropriate. Type definitions are provided to maintain API compatibility.
 //!
-//! All functions that would perform network operations return `error.WebDisabled`.
-//! Type definitions are provided to maintain API compatibility.
+//! The web module encompasses:
+//! - HTTP client for external API requests
+//! - Chat handlers for AI persona interactions
+//! - Route definitions and request routing
+//! - JSON parsing and response formatting
+//! - Weather and utility clients
+//!
+//! To enable the real implementation, build with `-Denable-web=true`.
 
 const std = @import("std");
 const config_module = @import("../config/mod.zig");

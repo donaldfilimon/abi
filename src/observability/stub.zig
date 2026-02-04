@@ -1,7 +1,19 @@
 //! Observability Stub Module
 //!
-//! Stub implementation when profiling/observability is disabled.
-//! All functions return ObservabilityDisabled error or no-op.
+//! This module provides API-compatible no-op implementations for all public
+//! observability functions when the profiling feature is disabled at compile
+//! time. All functions return `error.ObservabilityDisabled` or empty/default
+//! values as appropriate.
+//!
+//! The observability module encompasses:
+//! - Metrics collection (counters, gauges, histograms)
+//! - Distributed tracing with OpenTelemetry support
+//! - Span creation and context propagation
+//! - Alerting and alert rule management
+//! - Prometheus and StatsD exporters
+//! - System information gathering
+//!
+//! To enable the real implementation, build with `-Denable-profiling=true`.
 
 const std = @import("std");
 const config_module = @import("../config/mod.zig");

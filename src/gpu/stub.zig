@@ -1,7 +1,21 @@
 //! GPU Stub Module
 //!
-//! Provides stub implementations when GPU is disabled at compile time.
-//! All operations return error.GpuDisabled.
+//! This module provides API-compatible no-op implementations for all public GPU
+//! functions when the GPU feature is disabled at compile time. All functions
+//! return `error.GpuDisabled` or empty/default values as appropriate.
+//!
+//! The GPU module encompasses:
+//! - Multi-backend GPU acceleration (CUDA, Vulkan, Metal, WebGPU, OpenGL, FPGA)
+//! - Device discovery and management
+//! - Memory allocation and buffer operations
+//! - Kernel compilation and execution
+//! - Stream and event synchronization
+//! - Multi-GPU coordination and load balancing
+//! - Lock-free memory pools for LLM workloads
+//! - Performance profiling and metrics
+//!
+//! To enable the real implementation, build with `-Denable-gpu=true`.
+//! To select specific backends, use `-Dgpu-backend=vulkan,cuda` (comma-separated).
 
 const std = @import("std");
 const config_module = @import("../config/mod.zig");

@@ -1,7 +1,20 @@
-//! Minimal stub for Database feature when disabled.
+//! Database Stub Module
 //!
-//! Provides API compatibility with mod.zig while returning DatabaseDisabled for all operations.
-//! Types are kept minimal - only essential ones needed for compile-time checking.
+//! This module provides API-compatible no-op implementations for all public
+//! database functions when the database feature is disabled at compile time.
+//! All functions return `error.DatabaseDisabled` or empty/default values as
+//! appropriate. Types are kept minimal - only essential ones needed for
+//! compile-time checking.
+//!
+//! The database module encompasses:
+//! - WDBX vector database with HNSW/IVF-PQ indexing
+//! - Parallel search and batch operations
+//! - Full-text search and hybrid queries
+//! - Clustering and quantization
+//! - Backup, restore, and persistence
+//! - HTTP server for remote access
+//!
+//! To enable the real implementation, build with `-Denable-database=true`.
 
 const std = @import("std");
 const config_module = @import("../config/mod.zig");

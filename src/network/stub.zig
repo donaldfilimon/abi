@@ -1,4 +1,18 @@
 //! Network Stub Module
+//!
+//! This module provides API-compatible no-op implementations for all public
+//! network functions when the network feature is disabled at compile time.
+//! All functions return `error.NetworkDisabled` or empty/default values as
+//! appropriate.
+//!
+//! The network module encompasses:
+//! - Distributed compute coordination
+//! - Raft consensus protocol
+//! - Node discovery and peer management
+//! - Task distribution across cluster nodes
+//! - Network state management
+//!
+//! To enable the real implementation, build with `-Denable-network=true`.
 
 const std = @import("std");
 const config_module = @import("../config/mod.zig");

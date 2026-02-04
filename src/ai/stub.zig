@@ -1,6 +1,19 @@
 //! AI Stub Module
 //!
-//! Stub implementation when AI is disabled at compile time.
+//! This module provides API-compatible no-op implementations for all public AI
+//! functions when the AI feature is disabled at compile time. All functions
+//! return `error.AiDisabled` or empty/default values as appropriate.
+//!
+//! The AI module encompasses:
+//! - LLM inference and text generation
+//! - Embeddings and vector operations
+//! - Agent systems and multi-agent coordination
+//! - Training pipelines (LLM, Vision, CLIP)
+//! - Document processing and RAG
+//! - Streaming response handling
+//! - Model discovery and management
+//!
+//! To enable the real implementation, build with `-Denable-ai=true`.
 
 const std = @import("std");
 const config_module = @import("../config/mod.zig");
