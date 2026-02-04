@@ -17,6 +17,7 @@ const std = @import("std");
 const abi = @import("abi");
 const db = abi.database;
 const profiles = @import("profiles.zig");
+const helpers = @import("../helpers.zig");
 const StressProfile = profiles.StressProfile;
 const LatencyHistogram = profiles.LatencyHistogram;
 const Timer = profiles.Timer;
@@ -34,22 +35,10 @@ fn getTestProfile() StressProfile {
     return StressProfile.quick;
 }
 
-/// Generate a random vector for testing
+/// Generate a random normalized vector for testing
 fn generateRandomVector(rng: *std.Random.DefaultPrng, dim: usize, buffer: []f32) void {
-    for (0..dim) |i| {
-        buffer[i] = rng.random().float(f32) * 2.0 - 1.0;
-    }
-    // Normalize
-    var sum: f32 = 0.0;
-    for (buffer[0..dim]) |v| {
-        sum += v * v;
-    }
-    const norm = @sqrt(sum);
-    if (norm > 0) {
-        for (buffer[0..dim]) |*v| {
-            v.* /= norm;
-        }
-    }
+    helpers.generateRandomVector(rng, buffer[0..dim]);
+    helpers.normalizeVector(buffer[0..dim]);
 }
 
 // ============================================================================

@@ -15,38 +15,22 @@ const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
 const database = abi.database;
+const simd = abi.shared.simd;
 const chaos = @import("mod.zig");
+const helpers = @import("../helpers.zig");
 
 // ============================================================================
 // Test Helpers
 // ============================================================================
 
-/// Generate a random vector for testing
+/// Generate a random vector for testing using shared helper
 fn generateRandomVector(rng: *std.Random.DefaultPrng, dims: usize, allocator: std.mem.Allocator) ![]f32 {
-    const vec = try allocator.alloc(f32, dims);
-    for (vec) |*v| {
-        v.* = rng.random().float(f32) * 2.0 - 1.0; // Range: -1.0 to 1.0
-    }
-    return vec;
+    return helpers.generateRandomVectorAlloc(allocator, rng, dims);
 }
 
-/// Compute cosine similarity between two vectors
+/// Compute cosine similarity using shared SIMD implementation
 fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
-    if (a.len != b.len or a.len == 0) return 0.0;
-
-    var dot: f32 = 0.0;
-    var norm_a: f32 = 0.0;
-    var norm_b: f32 = 0.0;
-
-    for (a, b) |av, bv| {
-        dot += av * bv;
-        norm_a += av * av;
-        norm_b += bv * bv;
-    }
-
-    const norm = @sqrt(norm_a) * @sqrt(norm_b);
-    if (norm == 0.0) return 0.0;
-    return dot / norm;
+    return simd.cosineSimilarity(a, b);
 }
 
 // ============================================================================
