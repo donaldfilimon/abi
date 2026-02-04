@@ -244,7 +244,10 @@ test "inference stats: formatting" {
 
     // Format to buffer using print
     var buffer: [256]u8 = undefined;
-    const formatted = std.fmt.bufPrint(&buffer, "{}", .{stats}) catch unreachable;
+    // Buffer is large enough for formatted stats output
+    const formatted = std.fmt.bufPrint(&buffer, "{}", .{stats}) catch |err| {
+        std.debug.panic("bufPrint failed unexpectedly: {}", .{err});
+    };
 
     // Verify format contains expected elements
     try std.testing.expect(std.mem.indexOf(u8, formatted, "prefill") != null);

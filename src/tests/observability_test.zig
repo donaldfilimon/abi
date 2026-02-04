@@ -1438,7 +1438,10 @@ test "observability: span with many attributes" {
     // Add many attributes
     for (0..100) |i| {
         var key_buf: [32]u8 = undefined;
-        const key = std.fmt.bufPrint(&key_buf, "attr_{d}", .{i}) catch unreachable;
+        // Buffer is guaranteed large enough for "attr_" + up to 3 digits
+        const key = std.fmt.bufPrint(&key_buf, "attr_{d}", .{i}) catch |err| {
+            std.debug.panic("bufPrint failed unexpectedly: {}", .{err});
+        };
         try span.setAttribute(key, .{ .int = @intCast(i) });
     }
 
@@ -1452,7 +1455,10 @@ test "observability: span with many events" {
 
     for (0..50) |i| {
         var name_buf: [32]u8 = undefined;
-        const name = std.fmt.bufPrint(&name_buf, "event_{d}", .{i}) catch unreachable;
+        // Buffer is guaranteed large enough for "event_" + up to 2 digits
+        const name = std.fmt.bufPrint(&name_buf, "event_{d}", .{i}) catch |err| {
+            std.debug.panic("bufPrint failed unexpectedly: {}", .{err});
+        };
         try span.addEvent(name);
     }
 

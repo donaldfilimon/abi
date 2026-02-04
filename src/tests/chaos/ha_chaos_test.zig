@@ -383,7 +383,9 @@ test "ha chaos: pitr recovery point lookup under chaos" {
     if (created_checkpoints > 0) {
         // Find nearest recovery point to a future time
         // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
-        var timer = std.time.Timer.start() catch unreachable;
+        const timer = std.time.Timer.start() catch |err| {
+            std.debug.panic("Timer.start failed unexpectedly: {}", .{err});
+        };
         const current_ns: i64 = @intCast(timer.read());
         const future_time: i64 = current_ns + 3600 * std.time.ns_per_s; // 1 hour from now
         const point = pm.findNearestRecoveryPoint(future_time);
