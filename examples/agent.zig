@@ -1,3 +1,10 @@
+//! AI Agent Example
+//!
+//! Demonstrates creating and using an AI agent with the ABI framework.
+//! Shows agent initialization, tool registration, and query processing.
+//!
+//! Run with: `zig build run-agent`
+
 const std = @import("std");
 const abi = @import("abi");
 

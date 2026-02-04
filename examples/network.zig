@@ -1,3 +1,10 @@
+//! Distributed Network Example
+//!
+//! Demonstrates the distributed compute network with node registration,
+//! cluster management, and Raft consensus coordination.
+//!
+//! Run with: `zig build run-network`
+
 const std = @import("std");
 const abi = @import("abi");
 

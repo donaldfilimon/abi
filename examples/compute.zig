@@ -1,3 +1,10 @@
+//! SIMD Compute Example
+//!
+//! Demonstrates SIMD vector operations including dot product,
+//! cosine similarity, and L2 distance calculations.
+//!
+//! Run with: `zig build run-compute`
+
 const std = @import("std");
 const abi = @import("abi");
 

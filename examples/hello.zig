@@ -1,3 +1,10 @@
+//! Hello World Example
+//!
+//! Minimal example showing framework initialization.
+//! Use this as a starting point for new ABI projects.
+//!
+//! Run with: `zig build run-hello`
+
 const std = @import("std");
 const abi = @import("abi");
 

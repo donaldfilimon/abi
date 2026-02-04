@@ -1,3 +1,10 @@
+//! Vector Database Example
+//!
+//! Demonstrates the WDBX vector database with HNSW indexing.
+//! Shows database creation, vector insertion, and similarity search.
+//!
+//! Run with: `zig build run-database`
+
 const std = @import("std");
 const abi = @import("abi");
 
