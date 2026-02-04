@@ -149,8 +149,8 @@ pub const INVALID_HANDLE: ResourceHandle = .{ .value = std.math.maxInt(u64) };
 pub const ResourceHandle = struct {
     value: u64,
 
-    pub fn init(index: u32, generation: u32) ResourceHandle {
-        return .{ .value = (@as(u64, generation) << 32) | @as(u64, index) };
+    pub fn init(idx: u32, gen: u32) ResourceHandle {
+        return .{ .value = (@as(u64, gen) << 32) | @as(u64, idx) };
     }
 
     pub fn index(self: ResourceHandle) u32 {

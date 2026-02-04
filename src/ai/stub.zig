@@ -321,6 +321,4 @@ pub fn decodeTokens(_: std.mem.Allocator, _: []const u32) Error![]u8 {
     return error.AiDisabled;
 }
 
-pub fn loadCheckpoint(_: std.mem.Allocator, _: []const u8) Error!Checkpoint {
-    return error.AiDisabled;
-}
+// Note: loadCheckpoint is re-exported from training module at line 70
