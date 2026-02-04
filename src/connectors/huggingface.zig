@@ -23,6 +23,7 @@
 
 const std = @import("std");
 const connectors = @import("mod.zig");
+const shared = @import("shared.zig");
 const async_http = @import("../shared/utils.zig").async_http;
 const json_utils = @import("../shared/utils.zig").json;
 
@@ -45,9 +46,8 @@ pub const Config = struct {
     timeout_ms: u32 = 60_000,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-        // Securely wipe API token before freeing to prevent memory forensics
-        std.crypto.secureZero(u8, self.api_token);
-        allocator.free(self.api_token);
+        // Use shared secure cleanup helpers
+        shared.secureFree(allocator, self.api_token);
         allocator.free(self.base_url);
         self.* = undefined;
     }

@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const shared = @import("../shared.zig");
 const async_http = @import("../../shared/utils.zig").async_http;
 const json_utils = @import("../../shared/utils.zig").json;
 
@@ -47,18 +48,11 @@ pub const Config = struct {
     intents: u32 = GatewayIntent.ALL_UNPRIVILEGED,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-        // Securely wipe sensitive credentials before freeing to prevent memory forensics
-        std.crypto.secureZero(u8, self.bot_token);
-        allocator.free(self.bot_token);
+        // Use shared secure cleanup helpers for sensitive credentials
+        shared.secureFree(allocator, self.bot_token);
         if (self.client_id) |id| allocator.free(id);
-        if (self.client_secret) |secret| {
-            std.crypto.secureZero(u8, secret);
-            allocator.free(secret);
-        }
-        if (self.public_key) |key| {
-            std.crypto.secureZero(u8, key);
-            allocator.free(key);
-        }
+        shared.secureFreeOptional(allocator, self.client_secret);
+        shared.secureFreeOptional(allocator, self.public_key);
         self.* = undefined;
     }
 

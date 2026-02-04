@@ -45,10 +45,8 @@ pub const Config = struct {
     timeout_ms: u32 = 60_000,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-        // Securely wipe API key before freeing to prevent memory forensics
-        std.crypto.secureZero(u8, self.api_key);
-        allocator.free(self.api_key);
-        allocator.free(self.base_url);
+        // Use shared secure cleanup helper
+        shared.deinitConfig(allocator, self.api_key, self.base_url);
         self.* = undefined;
     }
 };
