@@ -42,6 +42,9 @@ pub const Scope = enum {
 
 /// Rate limit configuration
 pub const RateLimitConfig = struct {
+    /// Whether rate limiting is enabled. Defaults to false for backwards compatibility.
+    /// Use `productionDefaults()` for production deployments with rate limiting enabled.
+    enabled: bool = false,
     /// Requests per window
     requests: u32 = 100,
     /// Window duration in seconds
@@ -66,6 +69,25 @@ pub const RateLimitConfig = struct {
     exempt_authenticated: bool = false,
     /// Different limits for authenticated users
     authenticated_multiplier: f32 = 2.0,
+
+    /// Returns production-ready rate limit configuration.
+    /// Default: 100 requests per minute with 20 burst allowance.
+    /// Rate limiting is enabled by default in production mode.
+    pub fn productionDefaults() RateLimitConfig {
+        return .{
+            .enabled = true,
+            .requests = 100,
+            .window_seconds = 60,
+            .burst = 20,
+            .algorithm = .token_bucket,
+            .scope = .ip,
+        };
+    }
+
+    /// Returns whether this configuration has rate limiting enabled.
+    pub fn isEnabled(self: RateLimitConfig) bool {
+        return self.enabled;
+    }
 };
 
 /// Retry-After header strategy
@@ -764,4 +786,43 @@ test "whitelist bypass" {
     _ = limiter.check("normal_client");
     const status = limiter.check("normal_client");
     try std.testing.expect(!status.allowed);
+}
+
+test "production defaults have rate limiting enabled" {
+    // Test that productionDefaults() returns a config with rate limiting enabled
+    const prod_config = RateLimitConfig.productionDefaults();
+
+    // Rate limiting must be enabled in production defaults
+    try std.testing.expect(prod_config.enabled);
+    try std.testing.expect(prod_config.isEnabled());
+
+    // Verify sensible production values
+    try std.testing.expectEqual(@as(u32, 100), prod_config.requests);
+    try std.testing.expectEqual(@as(u32, 60), prod_config.window_seconds);
+    try std.testing.expectEqual(@as(u32, 20), prod_config.burst);
+    try std.testing.expectEqual(Algorithm.token_bucket, prod_config.algorithm);
+    try std.testing.expectEqual(Scope.ip, prod_config.scope);
+}
+
+test "default config has rate limiting disabled for backwards compatibility" {
+    // Default config should have rate limiting disabled to maintain backwards compatibility
+    const default_config = RateLimitConfig{};
+
+    try std.testing.expect(!default_config.enabled);
+    try std.testing.expect(!default_config.isEnabled());
+}
+
+test "presets maintain backwards compatibility" {
+    // Existing presets should not have enabled field explicitly set (defaults to false)
+    // This ensures existing code continues to work
+    const standard = Presets.standard;
+    const strict = Presets.strict;
+    const lenient = Presets.lenient;
+    const login = Presets.login;
+
+    // Presets don't set enabled, so they default to false (backwards compatible)
+    try std.testing.expect(!standard.enabled);
+    try std.testing.expect(!strict.enabled);
+    try std.testing.expect(!lenient.enabled);
+    try std.testing.expect(!login.enabled);
 }
