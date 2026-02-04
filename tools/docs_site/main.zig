@@ -1,3 +1,10 @@
+//! Documentation Site Generator
+//!
+//! Static site generator for the ABI framework documentation.
+//! Processes markdown files and generates HTML output.
+//!
+//! Run with: `zig build docs-site`
+
 const std = @import("std");
 
 const BuildConfig = struct {

@@ -1,3 +1,10 @@
+//! Benchmark Runner
+//!
+//! Main entry point for running ABI framework benchmarks.
+//! Includes framework initialization, database, and AI benchmarks.
+//!
+//! Run with: `zig build benchmarks`
+
 const std = @import("std");
 const benchmark = @import("mod.zig");
 const abi = @import("abi");

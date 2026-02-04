@@ -1,3 +1,8 @@
+//! TUI Module
+//!
+//! Terminal User Interface components for the ABI CLI.
+//! Includes widgets, panels, themes, and dashboard views.
+
 pub const events = @import("events.zig");
 pub const terminal = @import("terminal.zig");
 pub const widgets = @import("widgets.zig");

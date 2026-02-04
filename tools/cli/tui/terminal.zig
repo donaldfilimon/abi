@@ -1,3 +1,8 @@
+//! Terminal Abstraction Layer
+//!
+//! Cross-platform terminal handling for the TUI interface.
+//! Supports POSIX, Windows, and WASM environments.
+
 const std = @import("std");
 const cli_io = @import("../utils/io_backend.zig");
 const builtin = @import("builtin");

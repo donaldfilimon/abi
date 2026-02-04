@@ -1,3 +1,8 @@
+//! TUI Event Types
+//!
+//! Input event definitions for the terminal user interface.
+//! Includes keyboard events with modifiers and mouse support.
+
 pub const Modifiers = packed struct {
     ctrl: bool = false,
     alt: bool = false,
