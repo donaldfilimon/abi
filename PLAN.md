@@ -19,22 +19,22 @@ tags: [planning, sprint, development]
 ### Completed This Sprint (2026-02-01)
 - [x] **C bindings implementation complete** - Full C-compatible FFI layer in `src/c_api.zig` with `abi_` prefixed functions for Framework, GPU, AI, Database modules; C header generation via `zig build c-header`; Error handling with `AbiError` struct; Memory-safe string handling
 - [x] **Stub API parity fixes** - Fixed signature mismatches between real and stub modules:
-  - `src/network/stub.zig`: Added `registerNode()`, `connectToNode()`, `broadcastMessage()`, `getClusterStatus()` stubs
-  - `src/observability/stub.zig`: Added `recordLatency()`, `getActiveAlerts()`, `getMetricsSummary()` stubs
-  - `src/ai/streaming/stub.zig`: Added `StreamRecovery`, `SessionCache`, `StreamingMetrics` stub types
-  - `src/ai/training/stub.zig`: Added `ViTConfig`, `CLIPConfig` stubs with matching field types
+  - `src/features/network/stub.zig`: Added `registerNode()`, `connectToNode()`, `broadcastMessage()`, `getClusterStatus()` stubs
+  - `src/features/observability/stub.zig`: Added `recordLatency()`, `getActiveAlerts()`, `getMetricsSummary()` stubs
+  - `src/features/ai/streaming/stub.zig`: Added `StreamRecovery`, `SessionCache`, `StreamingMetrics` stub types
+  - `src/features/ai/training/stub.zig`: Added `ViTConfig`, `CLIPConfig` stubs with matching field types
 - [x] **Silent error handling fixes** - Replaced `catch {}` patterns with proper error handling:
-  - `src/database/hnsw.zig`: Uses `@prefetch` intrinsic for cache optimization (no error possible)
+  - `src/features/database/hnsw.zig`: Uses `@prefetch` intrinsic for cache optimization (no error possible)
   - Added debug logging where silent errors were intentional
 - [x] **Circuit breaker documentation** - Added comprehensive docs in CLAUDE.md for `StreamRecovery`, `SessionCache`, backend routing with circuit breakers, and recovery patterns
 - [x] **HNSW prefetch optimizations** - Hardware prefetch hints via `@prefetch` intrinsic in search loops for improved cache performance on large vector datasets
 - [x] **Test count verification** - 889/894 tests passing (87 new tests added)
-- [x] **GPU stub error return type fix** - Fixed `deinitialize()` in `src/gpu/stub.zig` to return `GpuError!void` matching real module signature
+- [x] **GPU stub error return type fix** - Fixed `deinitialize()` in `src/features/gpu/stub.zig` to return `GpuError!void` matching real module signature
 - [x] **Feature-disabled builds verified** - All combinations compile: `-Denable-ai=false`, `-Denable-gpu=false`, `-Denable-database=false`, `-Denable-network=false`, `-Denable-web=false`
 - [x] **Code formatting applied** - `zig fmt .` across codebase
 
 ### Previous Sprint (Completed)
-- [x] **Model Architecture Refactor** - Split `trainable_model.zig` into modular `src/ai/training/model/` components (config, weights, cache, layers).
+- [x] **Model Architecture Refactor** - Split `trainable_model.zig` into modular `src/features/ai/training/model/` components (config, weights, cache, layers).
 - [x] **Stream error recovery** - Per-backend circuit breakers, exponential backoff retry, session caching, recovery events
 - [x] **Streaming integration tests** - E2E tests with fault injection for circuit breaker, session cache, metrics
 - [x] **Security hardening** - JWT none algorithm warning, master key requirement option, secure API key wiping
@@ -123,15 +123,15 @@ Waiting on external dependencies:
 - **Benchmarks & CI Improvements** - Added real competitive benchmarks (FAISS, vector DBs), C header CI integration with `zig build c-header` and verification step; 889/894 tests passing (2026-02-03)
 - **API Stability & C Bindings Sprint** - Complete C-compatible FFI layer (`src/c_api.zig`), stub/real API parity fixes across network/observability/streaming/training modules, circuit breaker documentation, HNSW prefetch optimizations; 889/894 tests passing (2026-02-01)
 - **GPU backend test coverage complete** - Added inline tests to ALL GPU backends: WebGPU, OpenGL, OpenGL ES, Vulkan (17 error cases), Metal (10 error cases), WebGL2, stdgpu; Verified Metal backend works (emulated mode); All CLI commands functional including nested subcommands; Training pipeline tested; 787/792 tests passing (2026-01-31)
-- **Documentation cleanup** - Removed 23 redundant files: 21 deprecated api_*.md redirects, performance.md stub, gpu-backends.md duplicate; Added standardized error module (src/shared/errors.zig) with ResourceError, IoError, FeatureError, ConfigError, AuthError sets; Added inline tests to config/loader.zig and platform/detection.zig; 787/792 tests passing (2026-01-31)
+- **Documentation cleanup** - Removed 23 redundant files: 21 deprecated api_*.md redirects, performance.md stub, gpu-backends.md duplicate; Added standardized error module (src/services/shared/errors.zig) with ResourceError, IoError, FeatureError, ConfigError, AuthError sets; Added inline tests to config/loader.zig and platform/detection.zig; 787/792 tests passing (2026-01-31)
 - **Zig 0.16 pattern modernization** - Replaced @tagName() with {t} format specifier in print statements, converted std.ArrayList to ArrayListUnmanaged in docgen, updated std.json.stringify to std.json.fmt API; 787/792 tests passing (2026-01-31)
 - **Configuration loader with env vars** - New ConfigLoader for runtime configuration via environment variables (ABI_GPU_BACKEND, ABI_LLM_MODEL_PATH, etc.); documented in CLAUDE.md; 787/792 tests passing (2026-01-31)
 - **Build system improvements** - Fixed pathExists() for Zig 0.16 using C stat(); synced package version to 0.4.0 across build.zig, build.zig.zon, and all source files; cross-platform cli-tests and full-check build steps; 787/792 tests passing (2026-01-31)
 - **C-compatible library bindings** - Completed FFI layer and headers, then removed for reimplementation during cleanup; reintroduction tracked in ROADMAP.md (2026-01-31)
 - **Codebase cleanup** - Removed unnecessary files for fresh start: bindings/ (Rust, Go, Python, WASM, C), vscode-abi/, www/, models/, .serena/, migration scripts (probe_*.zig, fix_*.py, migrate*.sh), tools/migrate_0_16/; Removed legacy plan archives; Fixed WASM build targets to gracefully no-op when bindings missing; Updated .gitignore; Updated documentation (CLAUDE.md, AGENTS.md, ROADMAP.md, TODO.md); 787/792 tests passing (2026-01-31)
 - **AI stub parity complete** - Full stub/real API parity for `-Denable-ai=false` builds; Added TrainableViTConfig, TrainableViTModel, CLIPTrainingConfig, TrainableCLIPModel, VisionTrainingError, MultimodalTrainingError stubs; Fixed DownloadResult.checksum type (`[64]u8` vs optional); All feature flag combinations now compile; 787/792 tests passing (2026-01-31)
-- **src/ restructure (partial)** - Created `src/platform/` module with unified platform detection (mod.zig, detection.zig, cpu.zig, stub.zig), created `src/shared/mod.zig` to consolidate utilities, moved io.zig to shared/, updated CLAUDE.md architecture diagram; 787/792 tests passing (2026-01-31)
-- **GPU platform detection** - Centralized platform detection for all GPU backends (`src/gpu/platform.zig`), PlatformCapabilities for runtime feature detection, BackendSupport for compile-time availability, isCudaSupported/isMetalSupported/isVulkanSupported helpers; 787/792 tests passing (2026-01-31)
+- **src/ restructure (partial)** - Created `src/services/platform/` module with unified platform detection (mod.zig, detection.zig, cpu.zig, stub.zig), created `src/services/shared/mod.zig` to consolidate utilities, moved io.zig to shared/, updated CLAUDE.md architecture diagram; 787/792 tests passing (2026-01-31)
+- **GPU platform detection** - Centralized platform detection for all GPU backends (`src/features/gpu/platform.zig`), PlatformCapabilities for runtime feature detection, BackendSupport for compile-time availability, isCudaSupported/isMetalSupported/isVulkanSupported helpers; 787/792 tests passing (2026-01-31)
 - **CUDA Zig 0.16 compatibility** - Fixed CUDA loader to work without deprecated `std.process.getEnvVarOwned` API, added allocator parameter throughout CUDA initialization chain, updated memory/mod/vtable modules to pass allocators correctly; 787/792 tests passing (2026-01-31)
 - **Metal backend enhancements** - Accelerate framework integration (vBLAS/vDSP/vForce for AMX-accelerated ops), unified memory manager for zero-copy CPU/GPU sharing, UnifiedTensor type, storage mode selection, neural network primitives (softmax, rmsnorm, silu, gelu); 787/792 tests passing (2026-01-31)
 - **Stream error recovery implementation** - Per-backend circuit breakers (closed/open/half_open states), exponential backoff retry with jitter, LRU session token caching for reconnection, comprehensive streaming metrics, recovery event callbacks, BackendRouter with recovery-aware routing, 503 with Retry-After when circuit open; 787/792 tests passing (2026-01-31)

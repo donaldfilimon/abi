@@ -25,7 +25,7 @@ tags: [development, tracking]
 - [x] **Silent error handling** - Replaced `catch {}` patterns with proper error handling or debug logging
 - [x] **Circuit breaker documentation** - Added comprehensive docs in CLAUDE.md for StreamRecovery, SessionCache, backend routing
 - [x] **HNSW prefetch optimizations** - Hardware prefetch hints via `@prefetch` intrinsic in search loops
-- [x] **GPU stub return type fix** - Fixed `deinitialize()` in `src/gpu/stub.zig` to match real module signature
+- [x] **GPU stub return type fix** - Fixed `deinitialize()` in `src/features/gpu/stub.zig` to match real module signature
 - [x] **Feature-disabled builds verified** - All combinations compile correctly
 
 ### Completed (2026-02-04)
@@ -44,7 +44,7 @@ All previously tracked code-level TODOs have been completed:
 - ✅ `explore_test.zig` - Placeholder query string fixed
 - ✅ `streaming.zig` - Metadata counting implemented
 
-Note: `src/ai/explore/query.zig` contains intentional TODO/FIXME pattern strings used for code search functionality.
+Note: `src/features/ai/explore/query.zig` contains intentional TODO/FIXME pattern strings used for code search functionality.
 
 ## Roadmap TODOs
 
@@ -59,18 +59,18 @@ The following high-level items remain open in **[ROADMAP.md](ROADMAP.md)**.
 
 | Area | Status | Description | Target File(s) |
 |------|--------|-------------|----------------|
-| Model I/O | ✅ | GGUF loader, metadata parsing, `load_model` API. | `src/ai/llm/io/gguf.zig` |
-| Quantization | ✅ | Q4_0, Q4_1, Q8_0 tensor decoders with roundtrip tests. | `src/ai/llm/tensor/quantized.zig` |
-| Tokenizer | ✅ | BPE and SentencePiece (Viterbi) implemented. | `src/ai/llm/tokenizer/` |
-| CPU Inference | ✅ | MatMul, attention, RMSNorm kernels with SIMD. | `src/ai/llm/ops/` |
-| GPU Backends | ✅ | CUDA/cuBLAS matmul + activation kernels (softmax, RMSNorm, SiLU). | `src/ai/llm/ops/gpu.zig` |
-| Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/ai/llm/generation/sampler.zig` |
-| Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/ai/llm/generation/streaming.zig` |
+| Model I/O | ✅ | GGUF loader, metadata parsing, `load_model` API. | `src/features/ai/llm/io/gguf.zig` |
+| Quantization | ✅ | Q4_0, Q4_1, Q8_0 tensor decoders with roundtrip tests. | `src/features/ai/llm/tensor/quantized.zig` |
+| Tokenizer | ✅ | BPE and SentencePiece (Viterbi) implemented. | `src/features/ai/llm/tokenizer/` |
+| CPU Inference | ✅ | MatMul, attention, RMSNorm kernels with SIMD. | `src/features/ai/llm/ops/` |
+| GPU Backends | ✅ | CUDA/cuBLAS matmul + activation kernels (softmax, RMSNorm, SiLU). | `src/features/ai/llm/ops/gpu.zig` |
+| Sampling | ✅ | Top-k, top-p, temperature, tail-free, mirostat (v1/v2). | `src/features/ai/llm/generation/sampler.zig` |
+| Streaming | ✅ | Async streaming with SSE support, callbacks, cancellation. | `src/features/ai/llm/generation/streaming.zig` |
 | CLI | ✅ | Full llama-cpp CLI parity (info, generate, chat, bench). | `tools/cli/commands/llm.zig` |
 | Library API | ✅ | C-compatible API bindings with full FFI exports (framework, SIMD, database, GPU, agent). | `bindings/c/`, `src/bindings/c/exports.zig` |
-| Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/tests/llm_reference_vectors.zig` |
-| Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/ai/training/` |
-| Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/ai/training/trainable_model.zig` |
+| Tests & Benchmarks | ✅ | Reference vectors for Q4/Q8, softmax, RMSNorm, SiLU, MatMul, attention. | `src/services/tests/llm_reference_vectors.zig` |
+| Training | ✅ | Backward ops, loss, trainable model, LoRA, mixed precision. | `src/features/ai/training/` |
+| Gradient Checkpointing | ✅ | Memory-efficient training with selective activation storage. | `src/features/ai/training/trainable_model.zig` |
 
 **Legend:** ✅ Complete | ⚠️ Partial | ❌ Not Started
 
@@ -80,41 +80,28 @@ The major architecture redesign has been completed successfully:
 
 | Task | Status | Description |
 |------|--------|-------------|
-| Unified Configuration | ✅ | Created `src/config/mod.zig` with Builder pattern configuration system |
-| Framework Orchestration | ✅ | Created `src/framework.zig` for lifecycle and feature coordination |
-| Runtime Infrastructure | ✅ | Created `src/runtime/` for always-on infrastructure components |
-| GPU Module | ✅ | Moved GPU from `src/compute/gpu/` to `src/gpu/` (primary location) |
+| Unified Configuration | ✅ | Created `src/core/config/mod.zig` with Builder pattern configuration system |
+| Framework Orchestration | ✅ | Created `src/core/framework.zig` for lifecycle and feature coordination |
+| Runtime Infrastructure | ✅ | Created `src/services/runtime/` for always-on infrastructure components |
+| GPU Module | ✅ | Moved GPU from `src/compute/gpu/` to `src/features/gpu/` (primary location) |
 | AI Module Structure | ✅ | Created AI module with core + sub-features (llm, embeddings, agents, training) |
-| Database Module | ✅ | Created top-level `src/database/` module |
-| Network Module | ✅ | Created top-level `src/network/` module |
-| Observability Module | ✅ | Created top-level `src/observability/` module |
-| Web Module | ✅ | Created top-level `src/web/` module |
-| Shared Module | ✅ | Refactored `src/internal/` to `src/shared/` utilities |
-| abi.zig Integration | ✅ | Updated `src/abi.zig` to use new modular structure |
+| Database Module | ✅ | Created top-level `src/features/database/` module |
+| Network Module | ✅ | Created top-level `src/features/network/` module |
+| Observability Module | ✅ | Created top-level `src/features/observability/` module |
+| Web Module | ✅ | Created top-level `src/features/web/` module |
+| Shared Module | ✅ | Refactored `src/internal/` to `src/services/shared/` utilities |
+| abi.zig Integration | ✅ | Consolidated public API at `src/abi.zig` after entrypoint refactor |
 | Test Suite | ✅ | All 51 tests pass |
 | Build Pipeline | ✅ | Full build succeeds (21/21 steps) |
 
-**New Architecture (updated 2026-01-31):**
+**New Architecture (updated 2026-02-04):**
 ```
 src/
-├── abi.zig              # Public API entry point
-├── config/              # Unified configuration (Builder pattern)
-├── framework.zig        # Framework orchestration
-├── platform/            # Platform detection (NEW: mod.zig, detection.zig, cpu.zig)
-├── runtime/             # Always-on infrastructure
-├── gpu/                 # GPU acceleration
-├── ai/                  # AI features (llm, embeddings, agents, training)
-├── database/            # Vector database
-├── network/             # Distributed networking
-├── observability/       # Metrics, tracing, logging
-├── web/                 # Web utilities
-├── shared/              # Shared utilities (mod.zig, io.zig, security/, utils/)
-├── connectors/          # External API connectors
-├── cloud/               # Cloud function adapters
-├── ha/                  # High availability
-├── registry/            # Feature registry
-├── tasks/               # Task management
-└── tests/               # Test infrastructure
+├── abi.zig              # Public API module root
+├── api/                 # Entry points (main.zig)
+├── core/                # Framework orchestration, config, flags, registry
+├── features/            # Feature modules (ai, gpu, database, network, web, observability)
+└── services/            # Shared infrastructure (runtime, platform, shared, connectors, cloud, ha, tasks, tests)
 ```
 
 ## Remaining Work
@@ -128,30 +115,30 @@ language bindings and long-term research (see ROADMAP.md).
 |------|-------------|----------------|
 | C Bindings Reimplementation | Complete C FFI bindings with framework lifecycle, SIMD ops, database CRUD, GPU management, and agent conversation API. Includes error handling, handle-based memory management, and comprehensive test coverage. | `bindings/c/`, `src/bindings/c/exports.zig` |
 | Python Bindings | Python FFI wrapper using ctypes for ABI framework integration. Includes framework initialization, GPU backend selection, and database operations. | `bindings/python/` |
-| Streaming Stub Expansion | Added StreamRecovery, SessionCache, StreamingMetrics stub types for feature-disabled builds. | `src/ai/streaming/stub.zig` |
-| Training Stub Updates | Added ViTConfig, CLIPConfig stubs with matching field types for multimodal training. | `src/ai/training/stub.zig` |
-| Stub API Parity Fixes | Fixed network stub (NodeStatus enum, last_seen_ms field, registerNode, connectToNode, broadcastMessage, getClusterStatus), observability stub (recordLatency, getActiveAlerts, getMetricsSummary, timer APIs). | `src/network/stub.zig`, `src/observability/stub.zig` |
-| Silent Error Handling | Fixed socket option failures and directory creation to use silent fallbacks instead of returning errors that break optional functionality. | `src/network/mod.zig`, `src/shared/io.zig` |
-| HNSW Prefetch Optimization | Added `@prefetch` intrinsic hints in search loops for improved cache performance on large vector datasets. | `src/database/hnsw.zig` |
-| GPU Memory Pool Enhancements | Enhanced memory pool with fragmentation tracking, auto-defragmentation, and improved allocation strategies. | `src/ai/llm/ops/gpu_memory_pool.zig` |
-| Circuit Breaker Hardening | Improved circuit breaker with better state transitions, exponential backoff, and metrics collection. | `src/ai/streaming/circuit_breaker.zig` |
-| Trainable Model Refactor | Split monolithic `trainable_model.zig` into `src/ai/training/model/` with modular types. | `src/ai/training/model/` |
-| FPGA VTable Integration | Phase 2 LLM kernels (MatMul, Attention, KV-Cache) wired into FPGA backend vtable. | `src/gpu/backends/fpga/vtable.zig` |
-| FPGA MatMul Kernels | Quantized MatMul (Q4/Q8), tiled computation, fused bias+activation. | `src/gpu/backends/fpga/kernels/matmul_kernels.zig` |
-| FPGA Attention Kernels | Streaming softmax, multi-head attention, flash attention O(N). | `src/gpu/backends/fpga/kernels/attention_kernels.zig` |
-| FPGA KV-Cache Kernels | Hierarchical BRAM/HBM/DDR cache, paged attention, prefix caching. | `src/gpu/backends/fpga/kernels/kv_cache_kernels.zig` |
-| DiskANN Index | Billion-scale disk-based ANN with Vamana graph, PQ compression. | `src/database/diskann.zig` |
-| ScaNN Index | Learned quantization with AVQ, dimension weighting, two-phase search. | `src/database/scann.zig` |
-| Flash Attention | Memory-efficient tiled attention with online softmax normalization. O(N) memory. | `src/ai/llm/ops/attention.zig` |
-| Fused Attention Kernel | Single CUDA kernel for Q*K^T, softmax, V in one pass. Includes tiled variant. | `src/gpu/backends/cuda/llm_kernels.zig` |
+| Streaming Stub Expansion | Added StreamRecovery, SessionCache, StreamingMetrics stub types for feature-disabled builds. | `src/features/ai/streaming/stub.zig` |
+| Training Stub Updates | Added ViTConfig, CLIPConfig stubs with matching field types for multimodal training. | `src/features/ai/training/stub.zig` |
+| Stub API Parity Fixes | Fixed network stub (NodeStatus enum, last_seen_ms field, registerNode, connectToNode, broadcastMessage, getClusterStatus), observability stub (recordLatency, getActiveAlerts, getMetricsSummary, timer APIs). | `src/features/network/stub.zig`, `src/features/observability/stub.zig` |
+| Silent Error Handling | Fixed socket option failures and directory creation to use silent fallbacks instead of returning errors that break optional functionality. | `src/features/network/mod.zig`, `src/services/shared/io.zig` |
+| HNSW Prefetch Optimization | Added `@prefetch` intrinsic hints in search loops for improved cache performance on large vector datasets. | `src/features/database/hnsw.zig` |
+| GPU Memory Pool Enhancements | Enhanced memory pool with fragmentation tracking, auto-defragmentation, and improved allocation strategies. | `src/features/ai/llm/ops/gpu_memory_pool.zig` |
+| Circuit Breaker Hardening | Improved circuit breaker with better state transitions, exponential backoff, and metrics collection. | `src/features/ai/streaming/circuit_breaker.zig` |
+| Trainable Model Refactor | Split monolithic `trainable_model.zig` into `src/features/ai/training/model/` with modular types. | `src/features/ai/training/model/` |
+| FPGA VTable Integration | Phase 2 LLM kernels (MatMul, Attention, KV-Cache) wired into FPGA backend vtable. | `src/features/gpu/backends/fpga/vtable.zig` |
+| FPGA MatMul Kernels | Quantized MatMul (Q4/Q8), tiled computation, fused bias+activation. | `src/features/gpu/backends/fpga/kernels/matmul_kernels.zig` |
+| FPGA Attention Kernels | Streaming softmax, multi-head attention, flash attention O(N). | `src/features/gpu/backends/fpga/kernels/attention_kernels.zig` |
+| FPGA KV-Cache Kernels | Hierarchical BRAM/HBM/DDR cache, paged attention, prefix caching. | `src/features/gpu/backends/fpga/kernels/kv_cache_kernels.zig` |
+| DiskANN Index | Billion-scale disk-based ANN with Vamana graph, PQ compression. | `src/features/database/diskann.zig` |
+| ScaNN Index | Learned quantization with AVQ, dimension weighting, two-phase search. | `src/features/database/scann.zig` |
+| Flash Attention | Memory-efficient tiled attention with online softmax normalization. O(N) memory. | `src/features/ai/llm/ops/attention.zig` |
+| Fused Attention Kernel | Single CUDA kernel for Q*K^T, softmax, V in one pass. Includes tiled variant. | `src/features/gpu/backends/cuda/llm_kernels.zig` |
 | Interactive TUI CLI | Cross-platform terminal UI for selecting CLI commands. | `tools/cli/tui/`, `tools/cli/commands/tui.zig` |
-| Paged Attention | Block-based KV cache with on-demand allocation, sequence forking, prefix sharing. | `src/ai/llm/cache/paged_kv_cache.zig` |
-| GPU Backward Ops | cuBLAS-accelerated matmul backward with auto CPU fallback. | `src/ai/llm/ops/backward/gpu_backward.zig` |
-| GPU Unified Inference | CUDA kernels wired into GpuOpsContext with auto CPU fallback. | `src/ai/llm/ops/gpu.zig` |
-| Q5_0/Q5_1 Quantization | 5-bit quantization with symmetric/asymmetric modes. | `src/ai/llm/tensor/quantized.zig` |
-| GGUF Export | Export trained weights to llama.cpp-compatible GGUF. | `src/ai/llm/io/gguf_writer.zig` |
-| CUDA Kernels | Softmax, RMSNorm, SiLU, elementwise ops, fused attention for GPU. | `src/gpu/backends/cuda/llm_kernels.zig` |
-| Reference Vectors | MatMul, attention, GeLU, LayerNorm, cross-entropy tests. | `src/tests/llm_reference_vectors.zig` |
+| Paged Attention | Block-based KV cache with on-demand allocation, sequence forking, prefix sharing. | `src/features/ai/llm/cache/paged_kv_cache.zig` |
+| GPU Backward Ops | cuBLAS-accelerated matmul backward with auto CPU fallback. | `src/features/ai/llm/ops/backward/gpu_backward.zig` |
+| GPU Unified Inference | CUDA kernels wired into GpuOpsContext with auto CPU fallback. | `src/features/ai/llm/ops/gpu.zig` |
+| Q5_0/Q5_1 Quantization | 5-bit quantization with symmetric/asymmetric modes. | `src/features/ai/llm/tensor/quantized.zig` |
+| GGUF Export | Export trained weights to llama.cpp-compatible GGUF. | `src/features/ai/llm/io/gguf_writer.zig` |
+| CUDA Kernels | Softmax, RMSNorm, SiLU, elementwise ops, fused attention for GPU. | `src/features/gpu/backends/cuda/llm_kernels.zig` |
+| Reference Vectors | MatMul, attention, GeLU, LayerNorm, cross-entropy tests. | `src/services/tests/llm_reference_vectors.zig` |
 
 Developers should prioritize these items to achieve functional parity with llama-cpp while maintaining Zig 0.16 conventions.
 
@@ -206,14 +193,14 @@ All feature stubs have been updated to match real implementations and tested wit
 
 | Feature | Stub File | Status | Notes |
 |---------|-----------|--------|-------|
-| AI | `src/ai/stub.zig` | ✅ | Full AI feature stub with all sub-module placeholders |
-| LLM | `src/ai/llm/stub.zig` | ✅ | Added matrixMultiply to ops, GgufFile.printSummaryDebug |
-| GPU | `src/gpu/stub.zig` | ✅ | Added backendAvailability export |
-| Network | `src/network/stub.zig` | ✅ | Added touch(), setStatus(), fixed NodeInfo.last_seen_ms, corrected NodeStatus enum, socket options silent fallback |
-| Database | `src/database/stub.zig` | ✅ | Verified (no changes needed) |
-| Web | `src/web/stub.zig` | ✅ | Web utilities stub |
-| Platform | `src/platform/stub.zig` | ✅ | Platform detection stub |
-| Observability | `src/observability/stub.zig` | ✅ | Metrics and tracing stub, timer API fixes |
+| AI | `src/features/ai/stub.zig` | ✅ | Full AI feature stub with all sub-module placeholders |
+| LLM | `src/features/ai/llm/stub.zig` | ✅ | Added matrixMultiply to ops, GgufFile.printSummaryDebug |
+| GPU | `src/features/gpu/stub.zig` | ✅ | Added backendAvailability export |
+| Network | `src/features/network/stub.zig` | ✅ | Added touch(), setStatus(), fixed NodeInfo.last_seen_ms, corrected NodeStatus enum, socket options silent fallback |
+| Database | `src/features/database/stub.zig` | ✅ | Verified (no changes needed) |
+| Web | `src/features/web/stub.zig` | ✅ | Web utilities stub |
+| Platform | `src/services/platform/stub.zig` | ✅ | Platform detection stub |
+| Observability | `src/features/observability/stub.zig` | ✅ | Metrics and tracing stub, timer API fixes |
 
 **Build Verification:**
 - ✅ `zig build -Denable-ai=false` - Passes

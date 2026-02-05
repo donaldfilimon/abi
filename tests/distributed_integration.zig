@@ -17,9 +17,9 @@ pub fn main() !void {
     try stdout.print("✅ Enhanced Routing ↔ WDBX: FULLY CONNECTED\n", .{});
     try stdout.print("✅ FPGA Backend: COMPLETE VTABLE IMPLEMENTATION\n", .{});
     try stdout.print("✅ Distributed Architecture Files:\n", .{});
-    try stdout.print("   • src/database/distributed/shard_manager.zig\n", .{});
-    try stdout.print("   • src/database/distributed/block_exchange.zig\n", .{});
-    try stdout.print("   • src/database/distributed/raft_block_chain.zig\n", .{});
+    try stdout.print("   • src/features/database/distributed/shard_manager.zig\n", .{});
+    try stdout.print("   • src/features/database/distributed/block_exchange.zig\n", .{});
+    try stdout.print("   • src/features/database/distributed/raft_block_chain.zig\n", .{});
 
     // Integration status
     try stdout.print("\n🔗 INTEGRATION STATUS:\n", .{});
@@ -29,7 +29,7 @@ pub fn main() !void {
 
     // Next steps needed
     try stdout.print("\n📋 NEXT STEPS REQUIRED:\n", .{});
-    try stdout.print("1. Fix module import paths in src/database/distributed/\n", .{});
+    try stdout.print("1. Fix module import paths in src/features/database/distributed/\n", .{});
     try stdout.print("2. Complete Raft integration with block chain\n", .{});
     try stdout.print("3. Test full cluster synchronization\n", .{});
 

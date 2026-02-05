@@ -76,88 +76,88 @@ comptime {
 // ============================================================================
 
 /// Unified configuration system.
-pub const config = @import("config/mod.zig");
+pub const config = @import("core/config/mod.zig");
 pub const Config = config.Config;
 pub const Feature = config.Feature;
 
 /// Framework orchestration with builder pattern.
-pub const framework = @import("framework.zig");
+pub const framework = @import("core/framework.zig");
 pub const Framework = framework.Framework;
 pub const FrameworkBuilder = framework.FrameworkBuilder;
 
 /// Plugin registry for feature management.
-pub const registry = @import("registry/mod.zig");
+pub const registry = @import("core/registry/mod.zig");
 pub const Registry = registry.Registry;
 
 /// Runtime infrastructure (always available).
-pub const runtime = @import("runtime/mod.zig");
+pub const runtime = @import("services/runtime/mod.zig");
 
 /// Platform detection and abstraction.
-pub const platform = @import("platform/mod.zig");
+pub const platform = @import("services/platform/mod.zig");
 
 /// Shared utilities.
-pub const shared = @import("shared/mod.zig");
+pub const shared = @import("services/shared/mod.zig");
 
 /// GPU acceleration.
 pub const gpu = if (build_options.enable_gpu)
-    @import("gpu/mod.zig")
+    @import("features/gpu/mod.zig")
 else
-    @import("gpu/stub.zig");
+    @import("features/gpu/stub.zig");
 
 /// AI capabilities (modular sub-features).
 pub const ai = if (build_options.enable_ai)
-    @import("ai/mod.zig")
+    @import("features/ai/mod.zig")
 else
-    @import("ai/stub.zig");
+    @import("features/ai/stub.zig");
 
 /// Vector database.
 pub const database = if (build_options.enable_database)
-    @import("database/mod.zig")
+    @import("features/database/mod.zig")
 else
-    @import("database/stub.zig");
+    @import("features/database/stub.zig");
 
 /// Distributed network.
 pub const network = if (build_options.enable_network)
-    @import("network/mod.zig")
+    @import("features/network/mod.zig")
 else
-    @import("network/stub.zig");
+    @import("features/network/stub.zig");
 
 /// Observability (metrics, tracing, profiling).
 pub const observability = if (build_options.enable_profiling)
-    @import("observability/mod.zig")
+    @import("features/observability/mod.zig")
 else
-    @import("observability/stub.zig");
+    @import("features/observability/stub.zig");
 
 /// Convenience alias for system information utilities.
 pub const systemInfo = observability.SystemInfo;
 
 /// Web utilities.
 pub const web = if (build_options.enable_web)
-    @import("web/mod.zig")
+    @import("features/web/mod.zig")
 else
-    @import("web/stub.zig");
+    @import("features/web/stub.zig");
 
 /// Cloud function adapters.
 pub const cloud = if (build_options.enable_web)
-    @import("cloud/mod.zig")
+    @import("services/cloud/mod.zig")
 else
-    @import("cloud/stub.zig");
+    @import("services/cloud/stub.zig");
 
 /// High availability (replication, backup, PITR).
-pub const ha = @import("ha/mod.zig");
+pub const ha = @import("services/ha/mod.zig");
 
 /// Task management system.
-pub const tasks = @import("tasks/mod.zig");
+pub const tasks = @import("services/tasks/mod.zig");
 
 // ============================================================================
 // Legacy Compatibility Layer
 // ============================================================================
 
 /// Core utilities (legacy).
-pub const core = @import("shared/legacy/mod.zig");
+pub const core = @import("services/shared/legacy/mod.zig");
 
 /// Connectors (legacy).
-pub const connectors = @import("connectors/mod.zig");
+pub const connectors = @import("services/connectors/mod.zig");
 
 /// Monitoring (legacy - use observability).
 pub const monitoring = observability;
@@ -169,14 +169,14 @@ pub const RuntimeConfig = framework.RuntimeConfig;
 pub const runtimeConfigFromOptions = framework.runtimeConfigFromOptions;
 
 // Shared utilities (direct imports from shared/)
-pub const logging = @import("shared/logging.zig");
-pub const plugins = @import("shared/plugins.zig");
-pub const simd = @import("shared/simd.zig");
-pub const utils = @import("shared/utils.zig");
-pub const os = @import("shared/os.zig");
+pub const logging = @import("services/shared/logging.zig");
+pub const plugins = @import("services/shared/plugins.zig");
+pub const simd = @import("services/shared/simd.zig");
+pub const utils = @import("services/shared/utils.zig");
+pub const os = @import("services/shared/os.zig");
 
 // Legacy platform re-export (use platform module instead)
-pub const legacy_platform = @import("shared/platform.zig");
+pub const legacy_platform = @import("services/shared/platform.zig");
 
 // SIMD functions exported directly for convenience.
 // These provide hardware-accelerated vector operations when available.
@@ -270,7 +270,7 @@ pub const DiscordTools = ai.DiscordTools;
 
 /// WDBX compatibility namespace.
 pub const wdbx = if (build_options.enable_database) struct {
-    const db = @import("database/mod.zig");
+    const db = @import("features/database/mod.zig");
     pub const database_mod = db.database;
     pub const helpers = db.db_helpers;
     pub const cli = db.cli;

@@ -1,69 +1,218 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Zig Version Requirement
+Baseline guidance for any AI agent working in the ABI Framework repository.
+Read this first. `CLAUDE.md` adds deep details, `GEMINI.md` is a condensed quick reference.
 
-**Required:** Zig `0.16.0-dev.2471+e9eadee00` or later (master branch)
+---
+
+## Prerequisites
+
+| Requirement | Value |
+|-------------|-------|
+| Zig version | `0.16.0-dev.2471+e9eadee00` or later |
+| Entry point | `src/abi.zig` |
+| Package version | `0.4.0` |
 
 ```bash
-# Check version
+# Verify Zig version
 zig version
 
-# If using zvm, ensure PATH order is correct
+# If using zvm
 export PATH="$HOME/.zvm/bin:$PATH"
 zvm use master
 ```
 
-The codebase uses Zig 0.16 APIs (`std.Io.Dir`, `std.Io.Threaded`, `std.time.Timer`). Earlier versions will fail to compile.
+The codebase uses Zig 0.16 APIs throughout. Earlier versions will not compile.
 
-## Project Structure & Module Organization
-- `src/` contains the core Zig 0.16 implementation. Nested modules should import dependencies via their parent `mod.zig` (parent exports, child imports).
-- Public API imports should use `@import("abi")` (avoid direct file paths).
-- When changing a feature module's public API, update both `mod.zig` and `stub.zig`.
-- `tests/` holds integration-style tests; unit tests also live alongside code as `*_test.zig`.
-- `benchmarks/` contains performance suites; `examples/` has runnable samples.
-- `docs/` and `tools/` host documentation and developer tooling.
+---
 
-## Build, Test, and Development Commands
-- `zig build` — build the project.
-- `zig build test --summary all` — run the full test suite (baseline around 787/792).
-- `zig test src/path/to/file.zig --test-filter "pattern"` — run a focused test.
-- `zig fmt .` — format all Zig files (required after edits).
-- `zig build cli-tests` — run CLI command smoke tests.
-- `zig build full-check` — format + tests + CLI smoke tests.
-- `zig build bench-competitive` / `zig build benchmarks` — performance validation.
-- `zig build run -- --help` — run the CLI entry point.
+## Before Making Changes
 
-## Change Management
-- Run `git status` and `git diff --stat` before edits to review existing work.
-- Avoid reverting unrelated changes; ask if large or unclear diffs exist.
-- Use package managers to add new dependencies (latest versions).
+Always run these commands first:
 
-## Coding Style & Naming Conventions
-- Indentation: 4 spaces, no tabs; keep lines under ~100 chars.
-- Types: `PascalCase`; functions/variables: `camelCase`; errors: `*Error`; configs: `*Config`.
-- Prefer explicit imports (avoid `usingnamespace`).
-- Use specific error sets and `error!Type` returns; clean up with `defer`/`errdefer`.
-- Prefer `std.ArrayListUnmanaged` (use `.empty` not `.init()`) and modern format specifiers (e.g., `{t}` for enums/errors).
+```bash
+git status      # Check for uncommitted work
+git diff --stat # Understand scope of existing changes
+```
 
-## Zig 0.16 API Patterns (Required)
-- **I/O Backend**: Use `std.Io.Threaded.init()` for file/network operations
-- **File System**: Use `std.Io.Dir.cwd()` not deprecated `std.fs.cwd()`
-- **Timing**: Use `std.time.Timer.start()` not `std.time.Instant.now()`
-- **Sleep**: Use `std.Io.Clock.Duration.sleep()` not `std.time.sleep()`
-- **HTTP Server**: Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()`
-- **Reserved keywords**: Escape with `@"error"` syntax
+If large or unclear diffs exist, ask about their status before proceeding.
+Avoid reverting unrelated changes.
+Use package managers to add new dependencies.
 
-## Testing Guidelines
-- Use `std.testing` and `GeneralPurposeAllocator` in new tests.
-- Place unit tests in `*_test.zig`; integration tests in `tests/`.
-- For feature-gated tests, use `-Denable-gpu=true`; skip hardware-gated tests via `error.SkipZigTest`.
+---
 
-## Commit & Pull Request Guidelines
-- Commit messages follow Conventional Commits with optional scopes, e.g. `feat(metal): add unified memory` or `docs: update README`.
-- Common types in history: `feat`, `fix`, `docs`, `chore`, `ci`, `security`, `refactor`, `test`.
-- PRs should include a clear description, linked issues (if any), passing tests, and formatted code. Add benchmarks for performance-sensitive changes.
+## Project Structure
+
+```
+src/
+├── abi.zig              # Public API module root
+├── api/                 # Entry points (main.zig)
+├── core/                # Framework orchestration and config
+├── features/            # Feature modules (ai, gpu, database, network, web, observability)
+└── services/            # Shared infrastructure (runtime, platform, shared, tests, etc.)
+```
+
+Key rules:
+- Public API imports use `@import("abi")` (avoid direct file paths).
+- Nested modules import dependencies via their parent `mod.zig`.
+- Feature modules must keep `mod.zig` and `stub.zig` in sync.
+- Integration tests live in `services/tests/`; unit tests live alongside code as `*_test.zig`.
+
+---
+
+## Essential Commands
+
+| Command | Purpose |
+|---------|---------|
+| `zig build` | Build the project |
+| `zig build test --summary all` | Run full test suite |
+| `zig test src/path/to/file.zig --test-filter "pattern"` | Run focused tests |
+| `zig fmt .` | Format code (required after edits) |
+| `zig build lint` | Check formatting (CI uses this) |
+| `zig build cli-tests` | CLI smoke tests |
+| `zig build full-check` | Format + tests + CLI smoke tests |
+| `zig build benchmarks` | Performance validation |
+| `zig build run -- --help` | Run CLI help |
+
+---
+
+## Feature Flags
+
+```bash
+zig build -Denable-ai=true -Denable-gpu=false
+zig build -Dgpu-backend=vulkan,cuda
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-Denable-ai` | true | AI agent system |
+| `-Denable-llm` | true | Local LLM inference (requires AI) |
+| `-Denable-vision` | true | Vision/image processing (requires AI) |
+| `-Denable-gpu` | true | GPU acceleration |
+| `-Denable-database` | true | Vector database |
+| `-Denable-network` | true | Distributed compute |
+| `-Denable-web` | true | Web/HTTP support |
+| `-Denable-profiling` | true | Metrics/tracing |
+| `-Denable-mobile` | false | Mobile cross-compilation |
+
+GPU backends: `auto`, `none`, `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `opengl`, `fpga`.
+
+---
+
+## Module Pattern (Critical)
+
+| File | When Used | Returns |
+|------|-----------|---------|
+| `mod.zig` | Feature enabled at build time | Real implementation |
+| `stub.zig` | Feature disabled | `error.<Feature>Disabled` |
+
+Both files must export identical public signatures.
+
+```zig
+// src/features/feature/stub.zig
+pub fn doOperation() !void {
+    return error.FeatureDisabled;
+}
+```
+
+Verify both builds compile:
+
+```bash
+zig build -Denable-<feature>=true
+zig build -Denable-<feature>=false
+```
+
+---
+
+## Zig 0.16 API Patterns
+
+| Old (0.15) | New (0.16) |
+|------------|------------|
+| `std.fs.cwd()` | `std.Io.Dir.cwd()` |
+| `std.time.Instant.now()` | `std.time.Timer.start()` |
+| `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` (preferred) |
+| `list.init()` | `list.empty` (ArrayListUnmanaged) |
+| `@tagName(x)` in print | `{t}` format specifier |
+
+Notes:
+- I/O operations must use `std.Io.Threaded.init()` and its `io` handle.
+- Use `std.Io.Clock.Duration.sleep()` only when you need raw clock access.
+- HTTP server init uses `&reader.interface` and `&writer.interface`.
+- Reserved keywords must be escaped (example: `result.@"error"`).
+
+Example I/O setup:
+
+```zig
+var io_backend = std.Io.Threaded.init(allocator, .{
+    .environ = std.process.Environ.empty,
+});
+defer io_backend.deinit();
+const io = io_backend.io();
+
+const content = try std.Io.Dir.cwd().readFileAlloc(
+    io,
+    path,
+    allocator,
+    .limited(10 * 1024 * 1024),
+);
+```
+
+---
+
+## Code Style
+
+| Rule | Convention |
+|------|------------|
+| Indentation | 4 spaces, no tabs |
+| Line length | Under 100 characters |
+| Types | `PascalCase` |
+| Functions/Variables | `camelCase` |
+| Errors | `*Error` names and specific error sets |
+| Config structs | `*Config` |
+| Imports | Explicit only (no `usingnamespace`) |
+| Cleanup | Prefer `defer` / `errdefer` |
+| Arrays | `std.ArrayListUnmanaged` with `.empty` |
+
+---
+
+## Testing
+
+| Command | Purpose |
+|---------|---------|
+| `zig build test --summary all` | Full test suite |
+| `zig test src/services/tests/integration/mod.zig` | Integration tests |
+| `zig test src/services/tests/stress/mod.zig` | Stress tests |
+| `zig test file.zig --test-filter "pattern"` | Filtered tests |
+
+Skip hardware-gated tests with `error.SkipZigTest`:
+
+```zig
+test "gpu operation" {
+    const gpu = initGpu() catch return error.SkipZigTest;
+    defer gpu.deinit();
+}
+```
+
+---
+
+## Post-Edit Checklist
+
+```bash
+zig fmt .
+zig build test --summary all
+zig build lint
+```
+
+---
 
 ## References
-- Architecture and contribution details: `docs/README.md`, `CONTRIBUTING.md`.
-- Security and deployment guidance: `SECURITY.md`, `DEPLOYMENT_GUIDE.md`.
-- Agent-specific requirements: `PROMPT.md`, `CLAUDE.md`, `GEMINI.md`.
+
+| Document | Purpose |
+|----------|---------|
+| `CLAUDE.md` | Comprehensive reference and deep examples |
+| `GEMINI.md` | Quick reference for Gemini |
+| `CONTRIBUTING.md` | Development workflow |
+| `docs/README.md` | Documentation system |
+| `SECURITY.md` | Security practices |
+| `DEPLOYMENT_GUIDE.md` | Production deployment |
+| `PLAN.md` | Development roadmap |

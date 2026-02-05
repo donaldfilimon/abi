@@ -90,11 +90,11 @@ tags: [planning, roadmap]
   - [x] Memory pools for hot paths (SlabAllocator with size classes)
   - [x] Zero-copy optimizations (ZeroCopyBuffer)
 - [x] Lock-free concurrency - COMPLETE (2026-01-25)
-  - [x] Chase-Lev work-stealing deque (`src/runtime/concurrency/chase_lev.zig`)
-  - [x] Epoch-based memory reclamation (`src/runtime/concurrency/epoch.zig`)
-  - [x] Lock-free MPMC queue (`src/runtime/concurrency/mpmc_queue.zig`)
-  - [x] NUMA-aware work stealing policy (`src/runtime/engine/steal_policy.zig`)
-  - [x] Result caching with TTL (`src/runtime/engine/result_cache.zig`)
+  - [x] Chase-Lev work-stealing deque (`src/services/runtime/concurrency/chase_lev.zig`)
+  - [x] Epoch-based memory reclamation (`src/services/runtime/concurrency/epoch.zig`)
+  - [x] Lock-free MPMC queue (`src/services/runtime/concurrency/mpmc_queue.zig`)
+  - [x] NUMA-aware work stealing policy (`src/services/runtime/engine/steal_policy.zig`)
+  - [x] Result caching with TTL (`src/services/runtime/engine/result_cache.zig`)
 - [x] Quantized CUDA kernels - COMPLETE (2026-01-25)
   - [x] Q4_0 matrix-vector multiplication with fused dequantization
   - [x] Q8_0 matrix-vector multiplication with fused dequantization
@@ -123,8 +123,8 @@ tags: [planning, roadmap]
       - [x] Profile/settings management (api-keys, preferences)
     - [x] Tooling
       - [x] Debugger integration (GDB/LLDB support documented in CLAUDE.md)
-      - [x] Performance profiler (src/compute/profiling/mod.zig, src/gpu/profiling.zig)
-      - [x] Memory leak detector (src/shared/utils/memory/tracking.zig - TrackingAllocator)
+      - [x] Performance profiler (src/compute/profiling/mod.zig, src/features/gpu/profiling.zig)
+      - [x] Memory leak detector (src/services/shared/utils/memory/tracking.zig - TrackingAllocator)
     - [x] Vulkan backend consolidation
       - [x] Merged Vulkan split files into a single module (`vulkan.zig`)
 
@@ -140,18 +140,18 @@ tags: [planning, roadmap]
   - [x] Modular codebase structure (completed 2026-01-17)
   - [x] Vulkan backend consolidation documentation – completed
  - [x] Mega GPU Orchestration + TUI + Learning Agent Upgrade – COMPLETE (2026-01-24)
-   - [x] Cross-backend GPU coordinator (`src/gpu/mega/coordinator.zig`)
-   - [x] Learning-based scheduler with Q-learning (`src/gpu/mega/scheduler.zig`)
+   - [x] Cross-backend GPU coordinator (`src/features/gpu/mega/coordinator.zig`)
+   - [x] Learning-based scheduler with Q-learning (`src/features/gpu/mega/scheduler.zig`)
    - [x] GPU monitor TUI widget (`tools/cli/tui/gpu_monitor.zig`)
    - [x] Agent status panel (`tools/cli/tui/agent_panel.zig`)
-   - [x] GPU-aware agent integration (`src/ai/gpu_agent.zig`)
+   - [x] GPU-aware agent integration (`src/features/ai/gpu_agent.zig`)
    - [x] Interactive dashboard command (`tools/cli/commands/gpu_dashboard.zig`)
 
 ### Testing
 - [x] Expanded test suite
   - [x] Property-based testing
   - [x] Fuzzing infrastructure
-  - [x] Integration test matrix (src/tests/test_matrix.zig)
+  - [x] Integration test matrix (src/services/tests/test_matrix.zig)
 - [x] Benchmark suite
   - [x] Performance regression detection (compareWithBaseline, RegressionResult)
   - [x] Baseline tracking (BenchmarkRunner with statistics)
@@ -173,13 +173,13 @@ tags: [planning, roadmap]
 
 ### High Availability
 - [x] Failover mechanisms
-  - [x] Automatic failover (src/ha/mod.zig - HaManager with auto_failover)
-  - [x] Health checks (src/network/loadbalancer.zig - NodeState)
-  - [x] Circuit breakers (src/observability/mod.zig - CircuitBreakerMetrics)
+  - [x] Automatic failover (src/services/ha/mod.zig - HaManager with auto_failover)
+  - [x] Health checks (src/features/network/loadbalancer.zig - NodeState)
+  - [x] Circuit breakers (src/features/observability/mod.zig - CircuitBreakerMetrics)
 - [x] Disaster recovery
-  - [x] Backup orchestration (src/ha/backup.zig - BackupOrchestrator)
-  - [x] Point-in-time recovery (src/ha/pitr.zig - PitrManager)
-  - [x] Multi-region support (src/ha/replication.zig - ReplicationManager)
+  - [x] Backup orchestration (src/services/ha/backup.zig - BackupOrchestrator)
+  - [x] Point-in-time recovery (src/services/ha/pitr.zig - PitrManager)
+  - [x] Multi-region support (src/services/ha/replication.zig - ReplicationManager)
 
 ### Ecosystem
 ### Language Bindings (In Progress)
@@ -202,14 +202,14 @@ tags: [planning, roadmap]
     - [x] Quantized MatMul (Q4/Q8, tiled, fused activation)
     - [x] Streaming Softmax & Flash Attention (O(N) memory)
     - [x] Hierarchical KV-Cache (BRAM/HBM/DDR tiers)
-    - [x] Hybrid GPU-FPGA coordinator (`src/gpu/mega/hybrid.zig`)
+    - [x] Hybrid GPU-FPGA coordinator (`src/features/gpu/mega/hybrid.zig`)
   - [ ] ASIC exploration (future research)
 - [x] Novel index structures - COMPLETE (2026-01-23)
   - [x] DiskANN integration (billion-scale graph-based ANN)
   - [x] ScaNN-style quantized indexes (AVQ, learned weights)
 - [x] AI-optimized workloads
-  - [x] Enhanced persona routing (`src/ai/personas/routing/enhanced.zig`)
-  - [x] Distributed WDBX conversation blocks (`src/database/distributed/`)
+  - [x] Enhanced persona routing (`src/features/ai/personas/routing/enhanced.zig`)
+  - [x] Distributed WDBX conversation blocks (`src/features/database/distributed/`)
   - [x] MVCC with version vectors for causal consistency
 - [x] Academic collaborations - COMPLETE (2026-01-24)
   - [x] Research partnerships (documented in docs site)
@@ -232,9 +232,9 @@ tags: [planning, roadmap]
   - [x] Priority support (documented in docs site)
   - [x] Custom development (documented in docs site)
 - [x] Cloud integration - COMPLETE (2026-01)
-  - [x] AWS Lambda (`src/cloud/aws_lambda.zig`)
-  - [x] Google Cloud Functions (`src/cloud/gcp_functions.zig`)
-  - [x] Azure Functions (`src/cloud/azure_functions.zig`)
+  - [x] AWS Lambda (`src/services/cloud/aws_lambda.zig`)
+  - [x] Google Cloud Functions (`src/services/cloud/gcp_functions.zig`)
+  - [x] Azure Functions (`src/services/cloud/azure_functions.zig`)
 
 ## Priority Legend
 
@@ -335,7 +335,7 @@ For detailed implementation notes, see:
 ### Research & Innovation (2026-2027)
 - **Hardware acceleration** – FPGA backend complete (AMD Alveo, Intel Agilex); FPGA Phase 2 LLM kernels complete (MatMul, Attention, KV-Cache); ASIC exploration future work.
 - **AI-optimized workloads** – Enhanced persona routing, distributed WDBX, MVCC consistency complete.
-- **Novel index structures** – DiskANN and ScaNN implementations complete (`src/database/diskann.zig`, `src/database/scann.zig`).
+- **Novel index structures** – DiskANN and ScaNN implementations complete (`src/features/database/diskann.zig`, `src/features/database/scann.zig`).
 - **Academic collaborations** – COMPLETE (2026-01-24). Research partnerships, publication guidelines, and conference framework documented in the docs site.
 ### Community & Growth - COMPLETE (2026-01-24)
 - **Community governance** – RFC process, voting mechanisms, and contributor recognition documented in the docs site.
@@ -348,50 +348,50 @@ For detailed implementation notes, see:
 
 ### Llama-CPP Parity (Complete)
 All Llama-CPP parity tasks have been completed. See TODO.md for details:
-- [x] GGUF loader and metadata parsing (src/ai/llm/io/gguf.zig)
-- [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/ai/llm/tensor/quantized.zig)
-- [x] BPE/SentencePiece tokenizer (src/ai/llm/tokenizer/)
-- [x] CPU inference kernels with SIMD (src/ai/llm/ops/)
-- [x] GPU backend with CUDA kernels (src/ai/llm/ops/gpu.zig)
-- [x] Sampling strategies (src/ai/llm/generation/sampler.zig)
-- [x] Async token streaming (src/ai/llm/generation/streaming.zig)
+- [x] GGUF loader and metadata parsing (src/features/ai/llm/io/gguf.zig)
+- [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/features/ai/llm/tensor/quantized.zig)
+- [x] BPE/SentencePiece tokenizer (src/features/ai/llm/tokenizer/)
+- [x] CPU inference kernels with SIMD (src/features/ai/llm/ops/)
+- [x] GPU backend with CUDA kernels (src/features/ai/llm/ops/gpu.zig)
+- [x] Sampling strategies (src/features/ai/llm/generation/sampler.zig)
+- [x] Async token streaming (src/features/ai/llm/generation/streaming.zig)
 - [x] CLI with full llama-cpp parity (tools/cli/commands/llm.zig)
 - [x] C-compatible API (`src/c_api.zig` with `abi_` prefixed functions, header generation via `zig build c-header`)
-- [x] Tests and benchmarks (src/tests/llm_reference_vectors.zig)
+- [x] Tests and benchmarks (src/services/tests/llm_reference_vectors.zig)
 
 ### Modular Codebase Refactor (Complete - 2026-01-17)
 Major architecture redesign completed with 51/51 tests passing, 21/21 build steps:
-- [x] Unified configuration system with Builder pattern (src/config/mod.zig)
-- [x] Framework orchestration for lifecycle management (src/framework.zig)
-- [x] Runtime infrastructure for always-on components (src/runtime/)
-- [x] GPU module moved to top-level (src/gpu/)
-- [x] AI module with core + sub-features (src/ai/ - llm, embeddings, agents, training)
-- [x] Top-level database module (src/database/)
-- [x] Top-level network module (src/network/)
-- [x] Top-level observability module (src/observability/)
-- [x] Top-level web module (src/web/)
-- [x] Shared utilities module (src/shared/)
+- [x] Unified configuration system with Builder pattern (src/core/config/mod.zig)
+- [x] Framework orchestration for lifecycle management (src/core/framework.zig)
+- [x] Runtime infrastructure for always-on components (src/services/runtime/)
+- [x] GPU module moved to top-level (src/features/gpu/)
+- [x] AI module with core + sub-features (src/features/ai/ - llm, embeddings, agents, training)
+- [x] Top-level database module (src/features/database/)
+- [x] Top-level network module (src/features/network/)
+- [x] Top-level observability module (src/features/observability/)
+- [x] Top-level web module (src/features/web/)
+- [x] Shared utilities module (src/services/shared/)
 - [x] Updated abi.zig to use new modular structure
 
 ### Runtime Consolidation (Complete - 2026-01-17)
 Runtime module fully consolidated from compute/:
-- [x] Plugin registry system (src/registry/mod.zig)
-- [x] Task engine migrated (src/runtime/engine/)
-- [x] Scheduling primitives migrated (src/runtime/scheduling/)
-- [x] Concurrency primitives migrated (src/runtime/concurrency/)
-- [x] Memory utilities migrated (src/runtime/memory/)
+- [x] Plugin registry system (src/core/registry/mod.zig)
+- [x] Task engine migrated (src/services/runtime/engine/)
+- [x] Scheduling primitives migrated (src/services/runtime/scheduling/)
+- [x] Concurrency primitives migrated (src/services/runtime/concurrency/)
+- [x] Memory utilities migrated (src/services/runtime/memory/)
 - [x] CLI runtime flags (--list-features, --enable-*, --disable-*)
 - [x] Comptime feature validation for CLI flags
 - [x] Default Ollama model updated to gpt-oss
 
 ### Platform Module Restructure (Complete - 2026-01-31)
 Created dedicated platform detection module:
-- [x] Unified platform detection (src/platform/mod.zig)
-- [x] OS/arch detection with SIMD support (src/platform/detection.zig)
-- [x] CPU detection utilities (src/platform/cpu.zig)
-- [x] Stub for minimal builds (src/platform/stub.zig)
-- [x] Shared module consolidation (src/shared/mod.zig)
-- [x] I/O utilities moved to shared (src/shared/io.zig)
+- [x] Unified platform detection (src/services/platform/mod.zig)
+- [x] OS/arch detection with SIMD support (src/services/platform/detection.zig)
+- [x] CPU detection utilities (src/services/platform/cpu.zig)
+- [x] Stub for minimal builds (src/services/platform/stub.zig)
+- [x] Shared module consolidation (src/services/shared/mod.zig)
+- [x] I/O utilities moved to shared (src/services/shared/io.zig)
 - [x] Updated abi.zig exports (platform, shared)
 
 ### C API & FFI Bindings (Complete - 2026-02-01)

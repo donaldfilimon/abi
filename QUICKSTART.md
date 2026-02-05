@@ -38,8 +38,8 @@ zig build run -- --version
 zig fmt .                               # Format all files (required)
 zig build test --summary all            # Run tests with detailed output
 zig build typecheck                     # Type check without running tests
-zig test src/runtime/engine/engine.zig  # Test single file
-zig test src/tests/mod.zig --test-filter "pattern"  # Filter tests
+zig test src/services/runtime/engine/engine.zig  # Test single file
+zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests
 zig build test -Denable-gpu=true -Denable-network=true  # Test with features
 zig build benchmarks                    # Run performance benchmarks
 ```
@@ -210,25 +210,25 @@ Flat domain structure with modular architecture:
 | Module | Description | Status | Docs |
 |--------|-------------|--------|------|
 | `src/abi.zig` | Public API entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
-| `src/config/mod.zig` | Unified configuration system | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
-| `src/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Framework Guide](docs/framework.md) |
-| `src/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Compute Guide](docs/compute.md) |
+| `src/core/config/mod.zig` | Unified configuration system | ![Ready](https://img.shields.io/badge/-Ready-success) | [API Reference](API_REFERENCE.md) |
+| `src/core/framework.zig` | Framework orchestration | ![Ready](https://img.shields.io/badge/-Ready-success) | [Framework Guide](docs/framework.md) |
+| `src/services/runtime/` | Scheduler, memory, concurrency | ![Ready](https://img.shields.io/badge/-Ready-success) | [Compute Guide](docs/compute.md) |
 
 ### Feature Modules
 
 | Module | Description | Status | Docs |
 |--------|-------------|--------|------|
-| `src/gpu/` | GPU backends and unified API | ![Ready](https://img.shields.io/badge/-Ready-success) | [GPU Guide](docs/content/gpu.html) |
-| `src/ai/` | AI module entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
-| `src/ai/llm/` | Local LLM inference | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
-| `src/ai/embeddings/` | Vector embeddings | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
-| `src/ai/agents/` | AI agent runtime | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
-| `src/ai/training/` | Training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
-| `src/database/` | WDBX vector database | ![Ready](https://img.shields.io/badge/-Ready-success) | [Database Guide](docs/content/database.html) |
-| `src/network/` | Distributed compute and Raft | ![Ready](https://img.shields.io/badge/-Ready-success) | [Network Guide](docs/content/network.html) |
-| `src/observability/` | Metrics, tracing, profiling | ![Ready](https://img.shields.io/badge/-Ready-success) | [Observability Guide](docs/content/observability.html) |
-| `src/web/` | HTTP helpers and web utilities | ![Ready](https://img.shields.io/badge/-Ready-success) | - |
-| `src/shared/` | Shared utilities and helpers | ![Ready](https://img.shields.io/badge/-Ready-success) | - |
+| `src/features/gpu/` | GPU backends and unified API | ![Ready](https://img.shields.io/badge/-Ready-success) | [GPU Guide](docs/content/gpu.html) |
+| `src/features/ai/` | AI module entry point | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/features/ai/llm/` | Local LLM inference | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/features/ai/embeddings/` | Vector embeddings | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/features/ai/agents/` | AI agent runtime | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/features/ai/training/` | Training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) | [AI Guide](docs/content/ai.html) |
+| `src/features/database/` | WDBX vector database | ![Ready](https://img.shields.io/badge/-Ready-success) | [Database Guide](docs/content/database.html) |
+| `src/features/network/` | Distributed compute and Raft | ![Ready](https://img.shields.io/badge/-Ready-success) | [Network Guide](docs/content/network.html) |
+| `src/features/observability/` | Metrics, tracing, profiling | ![Ready](https://img.shields.io/badge/-Ready-success) | [Observability Guide](docs/content/observability.html) |
+| `src/features/web/` | HTTP helpers and web utilities | ![Ready](https://img.shields.io/badge/-Ready-success) | - |
+| `src/services/shared/` | Shared utilities and helpers | ![Ready](https://img.shields.io/badge/-Ready-success) | - |
 
 ## Next Steps
 

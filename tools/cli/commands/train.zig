@@ -13,6 +13,7 @@ const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 const tui = @import("../tui/mod.zig");
 const cli_io = utils.io_backend;
+const gguf_writer = abi.ai.llm.io.gguf_writer;
 
 const train_subcommands = [_][]const u8{
     "run",
@@ -706,12 +707,14 @@ fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         .enable_metrics_stream = true,
     };
 
-    if (export_gguf_path) |path| {
-        llm_config.export_gguf_path = path;
+    const export_path = export_gguf_path;
+    const export_name = export_gguf_name orelse "abi-llama";
+
+    // Export after training so we can attach a byte-level tokenizer.
+    if (export_path != null) {
+        llm_config.export_gguf_path = null;
     }
-    if (export_gguf_name) |name| {
-        llm_config.export_name = name;
-    }
+    llm_config.export_name = export_name;
 
     std.debug.print("Starting training from scratch...\n", .{});
     var timer = std.time.Timer.start() catch {
@@ -735,7 +738,20 @@ fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("Tokens processed: {d}\n", .{report.total_tokens});
     std.debug.print("Wall time:        {d:.2}s\n", .{elapsed_s});
     std.debug.print("Checkpoints saved:{d}\n", .{report.checkpoints_saved});
-    if (export_gguf_path) |path| {
+    if (export_path) |path| {
+        var tokenizer_build = ByteTokenizerBuild.init(allocator, vocab_size) catch |err| {
+            std.debug.print("Error preparing tokenizer export: {t}\n", .{err});
+            return;
+        };
+        defer tokenizer_build.deinit(allocator);
+
+        model.exportToGguf(allocator, path, .{
+            .name = export_name,
+            .tokenizer = tokenizer_build.toConfig(),
+        }) catch |err| {
+            std.debug.print("Error exporting GGUF: {t}\n", .{err});
+            return;
+        };
         std.debug.print("Model exported to:{s}\n", .{path});
     }
 }
@@ -787,6 +803,68 @@ fn printNewHelp() void {
     ;
     std.debug.print("{s}", .{help_text});
 }
+
+const ByteTokenizerBuild = struct {
+    tokens: []const []const u8,
+    backing: []u8,
+    extra: std.ArrayListUnmanaged([]const u8),
+
+    fn init(allocator: std.mem.Allocator, vocab_size: u32) !ByteTokenizerBuild {
+        const count: usize = @intCast(vocab_size);
+        var tokens = try allocator.alloc([]const u8, count);
+        errdefer allocator.free(tokens);
+
+        const byte_count = @min(count, 256);
+        var backing = try allocator.alloc(u8, byte_count);
+        errdefer allocator.free(backing);
+
+        for (0..byte_count) |i| {
+            backing[i] = @intCast(i);
+            tokens[i] = backing[i .. i + 1];
+        }
+
+        var extra = std.ArrayListUnmanaged([]const u8).empty;
+        errdefer extra.deinit(allocator);
+
+        if (count > byte_count) {
+            for (byte_count..count) |i| {
+                const label = try std.fmt.allocPrint(allocator, "<tok_{d}>", .{i});
+                try extra.append(allocator, label);
+                tokens[i] = label;
+            }
+        }
+
+        return .{
+            .tokens = tokens,
+            .backing = backing,
+            .extra = extra,
+        };
+    }
+
+    fn deinit(self: *ByteTokenizerBuild, allocator: std.mem.Allocator) void {
+        for (self.extra.items) |entry| {
+            allocator.free(entry);
+        }
+        self.extra.deinit(allocator);
+        allocator.free(self.backing);
+        allocator.free(self.tokens);
+        self.* = undefined;
+    }
+
+    fn toConfig(self: *const ByteTokenizerBuild) gguf_writer.TokenizerConfig {
+        const unk_id: u32 = 0;
+        return .{
+            .model = "gpt2",
+            .tokens = self.tokens,
+            .bos_token_id = 1,
+            .eos_token_id = 2,
+            .unknown_token_id = unk_id,
+            .padding_token_id = 0,
+            .add_bos_token = false,
+            .add_eos_token = false,
+        };
+    }
+};
 
 fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (utils.args.containsHelpArgs(args)) {

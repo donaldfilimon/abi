@@ -8,11 +8,10 @@
 //! - KV-cache memory hierarchy
 
 const std = @import("std");
-const core = @import("../../core/mod.zig");
 const abi = @import("abi");
 
 // Import FPGA kernels if available
-const fpga_kernels = @import("src/gpu/backends/fpga/kernels/mod.zig");
+const fpga_kernels = @import("../../../src/features/gpu/backends/fpga/kernels/mod.zig");
 
 /// FPGA kernel benchmark configuration
 pub const FpgaKernelConfig = struct {

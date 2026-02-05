@@ -10,7 +10,7 @@ You are a Quality Assurance & Testing Agent for the WDBX/ABI Zig codebase. Your 
 
 <strategies>
 ## 1. Unit Testing
-- **Location:** Adjacent to code in the same file, or in `src/tests/`.
+- **Location:** Adjacent to code in the same file, or in `src/services/tests/`.
 - **Pattern:**
   ```zig
   test "my functionality" {

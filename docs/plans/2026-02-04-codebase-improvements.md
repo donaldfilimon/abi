@@ -15,13 +15,13 @@
 ### Task 1: Migrate @errorName in stress tests
 
 **Files:**
-- Modify: `src/tests/stress/mod.zig`
-- Test: `zig test src/tests/stress/mod.zig`
+- Modify: `src/services/tests/stress/mod.zig`
+- Test: `zig test src/services/tests/stress/mod.zig`
 
 **Step 1: Read the file to identify @errorName patterns**
 
 ```bash
-grep -n "@errorName" src/tests/stress/mod.zig
+grep -n "@errorName" src/services/tests/stress/mod.zig
 ```
 
 **Step 2: Replace @errorName with {t} format specifier**
@@ -37,13 +37,13 @@ std.debug.print("Error: {t}\n", .{err});
 
 **Step 3: Run test to verify it compiles and passes**
 
-Run: `zig test src/tests/stress/mod.zig`
+Run: `zig test src/services/tests/stress/mod.zig`
 Expected: All tests pass
 
 **Step 4: Commit**
 
 ```bash
-git add src/tests/stress/mod.zig
+git add src/services/tests/stress/mod.zig
 git commit -m "$(cat <<'EOF'
 refactor(tests): migrate @errorName to {t} format specifier
 
@@ -60,13 +60,13 @@ EOF
 ### Task 2: Migrate @errorName in AI tools
 
 **Files:**
-- Modify: `src/ai/tools/tool.zig`
+- Modify: `src/features/ai/tools/tool.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Read file and identify patterns**
 
 ```bash
-grep -n "@errorName" src/ai/tools/tool.zig
+grep -n "@errorName" src/features/ai/tools/tool.zig
 ```
 
 **Step 2: Replace @errorName with {t} format specifier**
@@ -81,7 +81,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/ai/tools/tool.zig
+git add src/features/ai/tools/tool.zig
 git commit -m "$(cat <<'EOF'
 refactor(ai/tools): migrate @errorName to {t} format specifier
 
@@ -95,15 +95,15 @@ EOF
 ### Task 3: Migrate @errorName in cloud modules
 
 **Files:**
-- Modify: `src/cloud/aws_lambda.zig`
-- Modify: `src/cloud/azure_functions.zig`
-- Modify: `src/cloud/gcp_functions.zig`
+- Modify: `src/services/cloud/aws_lambda.zig`
+- Modify: `src/services/cloud/azure_functions.zig`
+- Modify: `src/services/cloud/gcp_functions.zig`
 - Test: `zig build -Denable-network=true test --summary all`
 
 **Step 1: Read files and identify patterns**
 
 ```bash
-grep -n "@errorName" src/cloud/*.zig
+grep -n "@errorName" src/services/cloud/*.zig
 ```
 
 **Step 2: Replace @errorName with {t} format specifier in all three files**
@@ -116,7 +116,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/cloud/aws_lambda.zig src/cloud/azure_functions.zig src/cloud/gcp_functions.zig
+git add src/services/cloud/aws_lambda.zig src/services/cloud/azure_functions.zig src/services/cloud/gcp_functions.zig
 git commit -m "$(cat <<'EOF'
 refactor(cloud): migrate @errorName to {t} format specifier
 
@@ -132,13 +132,13 @@ EOF
 ### Task 4: Migrate @tagName in web handlers
 
 **Files:**
-- Modify: `src/web/handlers/chat.zig`
+- Modify: `src/features/web/handlers/chat.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Read file and identify @tagName patterns**
 
 ```bash
-grep -n "@tagName" src/web/handlers/chat.zig
+grep -n "@tagName" src/features/web/handlers/chat.zig
 ```
 
 **Step 2: Replace @tagName with {t} format specifier**
@@ -155,7 +155,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/web/handlers/chat.zig
+git add src/features/web/handlers/chat.zig
 git commit -m "$(cat <<'EOF'
 refactor(web): migrate @tagName to {t} in chat handler
 
@@ -169,18 +169,18 @@ EOF
 ### Task 5: Migrate @tagName in AI personas
 
 **Files:**
-- Modify: `src/ai/personas/metrics.zig`
-- Modify: `src/ai/personas/loadbalancer.zig`
-- Modify: `src/ai/personas/abbey/reasoning.zig`
-- Modify: `src/ai/personas/abi/mod.zig`
-- Modify: `src/ai/personas/aviva/code.zig`
-- Modify: `src/ai/personas/embeddings/persona_index.zig`
+- Modify: `src/features/ai/personas/metrics.zig`
+- Modify: `src/features/ai/personas/loadbalancer.zig`
+- Modify: `src/features/ai/personas/abbey/reasoning.zig`
+- Modify: `src/features/ai/personas/abi/mod.zig`
+- Modify: `src/features/ai/personas/aviva/code.zig`
+- Modify: `src/features/ai/personas/embeddings/persona_index.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Read files and identify patterns**
 
 ```bash
-grep -n "@tagName" src/ai/personas/*.zig src/ai/personas/**/*.zig
+grep -n "@tagName" src/features/ai/personas/*.zig src/features/ai/personas/**/*.zig
 ```
 
 **Step 2: Replace @tagName with {t} format specifier (print statements only)**
@@ -193,7 +193,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/ai/personas/
+git add src/features/ai/personas/
 git commit -m "$(cat <<'EOF'
 refactor(ai/personas): migrate @tagName to {t} format specifier
 
@@ -209,17 +209,17 @@ EOF
 ### Task 6: Migrate @tagName in orchestration module
 
 **Files:**
-- Modify: `src/ai/orchestration/mod.zig`
-- Modify: `src/ai/orchestration/router.zig`
-- Modify: `src/ai/orchestration/ensemble.zig`
-- Modify: `src/ai/orchestration/fallback.zig`
-- Modify: `src/ai/orchestration/stub.zig`
+- Modify: `src/features/ai/orchestration/mod.zig`
+- Modify: `src/features/ai/orchestration/router.zig`
+- Modify: `src/features/ai/orchestration/ensemble.zig`
+- Modify: `src/features/ai/orchestration/fallback.zig`
+- Modify: `src/features/ai/orchestration/stub.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Read files and identify patterns**
 
 ```bash
-grep -n "@tagName" src/ai/orchestration/*.zig
+grep -n "@tagName" src/features/ai/orchestration/*.zig
 ```
 
 **Step 2: Replace @tagName with {t} format specifier (print statements only)**
@@ -232,7 +232,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/ai/orchestration/
+git add src/features/ai/orchestration/
 git commit -m "$(cat <<'EOF'
 refactor(ai/orchestration): migrate @tagName to {t} format specifier
 
@@ -248,21 +248,21 @@ EOF
 ### Task 7: Migrate remaining @tagName occurrences
 
 **Files:**
-- Modify: `src/ai/gpu_agent.zig`
-- Modify: `src/ai/tools/task.zig`
-- Modify: `src/config/mod.zig`
-- Modify: `src/config/cloud.zig`
-- Modify: `src/config/stubs/types.zig`
-- Modify: `src/cloud/types.zig`
-- Modify: `src/cloud/stubs/types.zig`
-- Modify: `src/platform/mod.zig`
-- Modify: `src/registry/stub.zig`
-- Modify: `src/registry/registration.zig`
+- Modify: `src/features/ai/gpu_agent.zig`
+- Modify: `src/features/ai/tools/task.zig`
+- Modify: `src/core/config/mod.zig`
+- Modify: `src/core/config/cloud.zig`
+- Modify: `src/core/config/stubs/types.zig`
+- Modify: `src/services/cloud/types.zig`
+- Modify: `src/services/cloud/stubs/types.zig`
+- Modify: `src/services/platform/mod.zig`
+- Modify: `src/core/registry/stub.zig`
+- Modify: `src/core/registry/registration.zig`
 - Modify: `tools/cli/commands/system_info.zig`
 - Modify: `tools/cli/tui/model_panel.zig`
 - Modify: `benchmarks/main.zig`
-- Modify: `src/tests/integration/c_api_test.zig`
-- Modify: `src/tests/integration/fixtures.zig`
+- Modify: `src/services/tests/integration/c_api_test.zig`
+- Modify: `src/services/tests/integration/fixtures.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Search and identify all remaining patterns**
@@ -371,14 +371,14 @@ EOF
 ### Task 9: Fix unreachable in network discovery
 
 **Files:**
-- Modify: `src/network/discovery.zig`
-- Modify: `src/network/discovery_types.zig`
+- Modify: `src/features/network/discovery.zig`
+- Modify: `src/features/network/discovery_types.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Read files and identify unreachable patterns**
 
 ```bash
-grep -n "catch unreachable" src/network/discovery*.zig
+grep -n "catch unreachable" src/features/network/discovery*.zig
 ```
 
 **Step 2: Replace unreachable with proper error handling**
@@ -403,7 +403,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/network/discovery.zig src/network/discovery_types.zig
+git add src/features/network/discovery.zig src/features/network/discovery_types.zig
 git commit -m "$(cat <<'EOF'
 fix(network): replace unreachable with error handling in discovery
 
@@ -419,26 +419,26 @@ EOF
 ### Task 10: Fix unreachable in JSON utilities
 
 **Files:**
-- Modify: `src/shared/utils/json/mod.zig`
-- Test: `zig test src/shared/utils/json/mod.zig`
+- Modify: `src/services/shared/utils/json/mod.zig`
+- Test: `zig test src/services/shared/utils/json/mod.zig`
 
 **Step 1: Read file and identify unreachable patterns**
 
 ```bash
-grep -n "catch unreachable" src/shared/utils/json/mod.zig
+grep -n "catch unreachable" src/services/shared/utils/json/mod.zig
 ```
 
 **Step 2: Replace unreachable with proper error handling**
 
 **Step 3: Run tests**
 
-Run: `zig test src/shared/utils/json/mod.zig`
+Run: `zig test src/services/shared/utils/json/mod.zig`
 Expected: All tests pass
 
 **Step 4: Commit**
 
 ```bash
-git add src/shared/utils/json/mod.zig
+git add src/services/shared/utils/json/mod.zig
 git commit -m "$(cat <<'EOF'
 fix(shared/json): replace unreachable with error handling
 
@@ -452,17 +452,17 @@ EOF
 ### Task 11: Fix unreachable in AI modules
 
 **Files:**
-- Modify: `src/ai/agent.zig`
-- Modify: `src/ai/streaming/mod.zig`
-- Modify: `src/ai/streaming/backpressure.zig`
-- Modify: `src/ai/orchestration/ensemble.zig`
-- Modify: `src/ai/llm/io/gguf_writer.zig`
+- Modify: `src/features/ai/agent.zig`
+- Modify: `src/features/ai/streaming/mod.zig`
+- Modify: `src/features/ai/streaming/backpressure.zig`
+- Modify: `src/features/ai/orchestration/ensemble.zig`
+- Modify: `src/features/ai/llm/io/gguf_writer.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Read files and identify unreachable patterns**
 
 ```bash
-grep -n "catch unreachable" src/ai/*.zig src/ai/**/*.zig
+grep -n "catch unreachable" src/features/ai/*.zig src/features/ai/**/*.zig
 ```
 
 **Step 2: Replace unreachable with proper error handling**
@@ -477,7 +477,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/ai/
+git add src/features/ai/
 git commit -m "$(cat <<'EOF'
 fix(ai): replace unreachable with error handling
 
@@ -494,17 +494,17 @@ EOF
 ### Task 12: Fix unreachable in GPU and database modules
 
 **Files:**
-- Modify: `src/gpu/tests/comprehensive_test.zig`
-- Modify: `src/gpu/tests/performance_benchmark_test.zig`
-- Modify: `src/gpu/backends/fpga/kernels/matmul_kernels.zig`
-- Modify: `src/database/distributed/integration_test.zig`
-- Modify: `src/database/distributed/shard_assignment_test.zig`
+- Modify: `src/features/gpu/tests/comprehensive_test.zig`
+- Modify: `src/features/gpu/tests/performance_benchmark_test.zig`
+- Modify: `src/features/gpu/backends/fpga/kernels/matmul_kernels.zig`
+- Modify: `src/features/database/distributed/integration_test.zig`
+- Modify: `src/features/database/distributed/shard_assignment_test.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Read files and identify unreachable patterns**
 
 ```bash
-grep -n "catch unreachable" src/gpu/**/*.zig src/database/**/*.zig
+grep -n "catch unreachable" src/features/gpu/**/*.zig src/features/database/**/*.zig
 ```
 
 **Step 2: Evaluate each occurrence**
@@ -525,7 +525,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/gpu/ src/database/
+git add src/features/gpu/ src/features/database/
 git commit -m "$(cat <<'EOF'
 fix(gpu,database): improve error handling in tests
 
@@ -542,15 +542,15 @@ EOF
 ### Task 13: Fix unreachable in remaining test files
 
 **Files:**
-- Modify: `src/tests/observability_test.zig`
-- Modify: `src/tests/e2e_llm_test.zig`
-- Modify: `src/tests/chaos/ha_chaos_test.zig`
+- Modify: `src/services/tests/observability_test.zig`
+- Modify: `src/services/tests/e2e_llm_test.zig`
+- Modify: `src/services/tests/chaos/ha_chaos_test.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Read files and identify unreachable patterns**
 
 ```bash
-grep -n "catch unreachable" src/tests/*.zig src/tests/**/*.zig
+grep -n "catch unreachable" src/services/tests/*.zig src/services/tests/**/*.zig
 ```
 
 **Step 2: Replace unreachable with proper error handling**
@@ -563,7 +563,7 @@ Expected: All tests pass
 **Step 4: Commit**
 
 ```bash
-git add src/tests/
+git add src/services/tests/
 git commit -m "$(cat <<'EOF'
 fix(tests): replace unreachable with proper error handling
 
@@ -625,8 +625,8 @@ EOF
 ### Task 15: Enable rate limiting by default in production
 
 **Files:**
-- Modify: `src/shared/security/rate_limit.zig`
-- Modify: `src/config/web.zig`
+- Modify: `src/services/shared/security/rate_limit.zig`
+- Modify: `src/core/config/web.zig`
 - Test: `zig build test --summary all`
 
 **Step 1: Write failing test for default rate limiting**
@@ -643,7 +643,7 @@ test "rate limiting enabled by default in production" {
 
 **Step 2: Run test to verify it fails**
 
-Run: `zig test src/shared/security/rate_limit.zig`
+Run: `zig test src/services/shared/security/rate_limit.zig`
 Expected: FAIL
 
 **Step 3: Add productionDefaults() with rate limiting enabled**
@@ -661,7 +661,7 @@ pub fn productionDefaults() RateLimitConfig {
 
 **Step 4: Run test to verify it passes**
 
-Run: `zig test src/shared/security/rate_limit.zig`
+Run: `zig test src/services/shared/security/rate_limit.zig`
 Expected: PASS
 
 **Step 5: Update web config to use production defaults**
@@ -674,7 +674,7 @@ Expected: All tests pass
 **Step 7: Commit**
 
 ```bash
-git add src/shared/security/rate_limit.zig src/config/web.zig
+git add src/services/shared/security/rate_limit.zig src/core/config/web.zig
 git commit -m "$(cat <<'EOF'
 security(rate_limit): enable rate limiting by default in production
 
@@ -692,8 +692,8 @@ EOF
 ### Task 16: Add parameterized query helpers for fulltext search
 
 **Files:**
-- Modify: `src/database/fulltext.zig`
-- Test: `zig test src/database/fulltext.zig`
+- Modify: `src/features/database/fulltext.zig`
+- Test: `zig test src/features/database/fulltext.zig`
 
 **Step 1: Write failing test for query sanitization**
 
@@ -720,7 +720,7 @@ test "search rejects SQL injection attempts" {
 
 **Step 2: Run test to verify behavior**
 
-Run: `zig test src/database/fulltext.zig`
+Run: `zig test src/features/database/fulltext.zig`
 Expected: Verify current behavior
 
 **Step 3: Add input sanitization if needed**
@@ -730,13 +730,13 @@ If it's pure in-memory BM25 (no SQL), add a comment documenting this is SQL-free
 
 **Step 4: Run tests**
 
-Run: `zig test src/database/fulltext.zig`
+Run: `zig test src/features/database/fulltext.zig`
 Expected: All tests pass
 
 **Step 5: Commit**
 
 ```bash
-git add src/database/fulltext.zig
+git add src/features/database/fulltext.zig
 git commit -m "$(cat <<'EOF'
 security(database): verify fulltext search is SQL injection safe
 
@@ -755,12 +755,12 @@ EOF
 ### Task 17: Add stub file documentation
 
 **Files:**
-- Modify: `src/ai/stub.zig`
-- Modify: `src/gpu/stub.zig`
-- Modify: `src/database/stub.zig`
-- Modify: `src/network/stub.zig`
-- Modify: `src/web/stub.zig`
-- Modify: `src/observability/stub.zig`
+- Modify: `src/features/ai/stub.zig`
+- Modify: `src/features/gpu/stub.zig`
+- Modify: `src/features/database/stub.zig`
+- Modify: `src/features/network/stub.zig`
+- Modify: `src/features/web/stub.zig`
+- Modify: `src/features/observability/stub.zig`
 - Test: `zig build`
 
 **Step 1: Add module-level doc comments to each stub**
@@ -799,10 +799,10 @@ EOF
 ### Task 18: Document Big-O complexity for concurrency primitives
 
 **Files:**
-- Modify: `src/runtime/concurrency/chase_lev.zig`
-- Modify: `src/runtime/concurrency/mpmc_queue.zig`
-- Modify: `src/runtime/concurrency/epoch.zig`
-- Modify: `src/runtime/concurrency/priority_queue.zig`
+- Modify: `src/services/runtime/concurrency/chase_lev.zig`
+- Modify: `src/services/runtime/concurrency/mpmc_queue.zig`
+- Modify: `src/services/runtime/concurrency/epoch.zig`
+- Modify: `src/services/runtime/concurrency/priority_queue.zig`
 - Test: `zig build`
 
 **Step 1: Add complexity documentation to chase_lev.zig**
@@ -845,7 +845,7 @@ Expected: Build succeeds
 **Step 5: Commit**
 
 ```bash
-git add src/runtime/concurrency/
+git add src/services/runtime/concurrency/
 git commit -m "$(cat <<'EOF'
 docs(concurrency): add Big-O complexity documentation
 
@@ -862,9 +862,9 @@ EOF
 ### Task 19: Create test helpers module
 
 **Files:**
-- Create: `src/tests/helpers.zig`
-- Modify: `src/tests/mod.zig`
-- Test: `zig test src/tests/mod.zig`
+- Create: `src/services/tests/helpers.zig`
+- Modify: `src/services/tests/mod.zig`
+- Test: `zig test src/services/tests/mod.zig`
 
 **Step 1: Create helpers.zig with common test utilities**
 
@@ -926,13 +926,13 @@ pub const helpers = @import("helpers.zig");
 
 **Step 3: Run tests**
 
-Run: `zig test src/tests/mod.zig`
+Run: `zig test src/services/tests/mod.zig`
 Expected: All tests pass
 
 **Step 4: Commit**
 
 ```bash
-git add src/tests/helpers.zig src/tests/mod.zig
+git add src/services/tests/helpers.zig src/services/tests/mod.zig
 git commit -m "$(cat <<'EOF'
 feat(tests): add shared test helpers module
 

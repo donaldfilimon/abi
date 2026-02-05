@@ -117,7 +117,7 @@ var fw = try abi.Framework.builder(allocator)
     .withGpu(.{ .backend = .cuda })
     .withAi(.{
         .llm = .{ .model_path = "./model.gguf" },
-        .personas = .{ .enable_abbey = true, .enable_aviva = true },
+        .personas = .{ .default_persona = .abbey, .enable_dynamic_routing = true },
     })
     .withDatabaseDefaults()
     .withObservabilityDefaults()
@@ -714,24 +714,38 @@ The Multi-Persona AI Assistant routes queries through specialized personas.
 | **Abi** | Router/Moderator | Content moderation, sentiment analysis, routing |
 | **Abbey** | Empathetic Polymath | Supportive responses with emotional intelligence |
 | **Aviva** | Direct Expert | Concise, factual, technically accurate responses |
+| **Assistant** | General | General-purpose helpful assistant |
+| **Coder** | Specialist | Programming and code-focused assistant |
+| **Writer** | Specialist | Creative writing and content generation |
+| **Analyst** | Specialist | Data analysis and research |
+| **Companion** | Conversational | Friendly, supportive chat |
+| **Docs** | Specialist | Technical documentation helper |
+| **Reviewer** | Specialist | Code and logic reviewer |
+| **Minimal** | Specialist | Minimal, direct responses |
+| **Ralph** | Specialist | Iterative agent loop specialist |
 
 ### Core Types
 
 - `abi.ai.personas.MultiPersonaSystem` - Main orchestrator managing persona routing
-- `abi.ai.personas.PersonaType` - Enum: `.abi`, `.abbey`, `.aviva`
-- `abi.ai.personas.PersonaRequest` - Request structure with content and context
-- `abi.ai.personas.PersonaResponse` - Response with content and routing info
-- `abi.ai.personas.RoutingScore` - Scores for each persona
+- `abi.ai.personas.PersonaType` - Enum of all persona types (Abbey/Aviva/Abi plus generic modes)
+- `abi.ai.personas.PersonaRequest` - Request structure with content, optional forced persona, and context
+- `abi.ai.personas.PersonaResponse` - Response with content, persona, confidence, and optional metadata
+- `abi.ai.personas.RoutingScore` - Simple score tuple `{ persona_type, score }` for load balancing
 
 ### Orchestrator API
 
-- `MultiPersonaSystem.init(allocator, config)` -> `!MultiPersonaSystem` - Initialize
+- `MultiPersonaSystem.init(allocator, config)` -> `!*MultiPersonaSystem` - Initialize base system
+- `MultiPersonaSystem.initWithDefaults(allocator, config)` -> `!*MultiPersonaSystem` - Initialize with Abbey/Aviva/Abi plus metrics/load balancer
 - `MultiPersonaSystem.deinit()` - Clean up resources
 - `MultiPersonaSystem.process(request)` -> `!PersonaResponse` - Auto-route message
 - `MultiPersonaSystem.processWithPersona(type, request)` -> `!PersonaResponse` - Force persona
-- `MultiPersonaSystem.getPersona(type)` -> `?*Persona` - Access specific persona
-- `MultiPersonaSystem.getMetrics()` -> `*Metrics` - Access metrics
-- `MultiPersonaSystem.getHealthChecker()` -> `*HealthChecker` - Access health
+- `MultiPersonaSystem.registerPersona(type, interface)` -> `!void` - Register a persona implementation
+- `MultiPersonaSystem.getPersona(type)` -> `?PersonaInterface` - Access specific persona
+- `MultiPersonaSystem.enableMetrics(collector?)` -> `!void` - Enable metrics (creates owned collector if null)
+- `MultiPersonaSystem.enableLoadBalancer(config)` -> `!void` - Enable load balancing
+- `MultiPersonaSystem.enableHealthChecks(config)` -> `!void` - Enable health checks
+- `MultiPersonaSystem.getMetrics()` -> `?*PersonaMetrics` - Access metrics if enabled
+- `MultiPersonaSystem.getHealthChecker()` -> `?*HealthChecker` - Access health if enabled
 
 ### Abi (Router) Components
 
@@ -769,11 +783,11 @@ The Multi-Persona AI Assistant routes queries through specialized personas.
 ```zig
 const personas = abi.ai.personas;
 
-// Initialize orchestrator
-var orchestrator = try personas.MultiPersonaSystem.init(allocator, .{
-    .enable_abbey = true,
-    .enable_aviva = true,
-    .routing_strategy = .adaptive,
+// Initialize orchestrator with defaults (Abbey/Aviva/Abi registered)
+var orchestrator = try personas.MultiPersonaSystem.initWithDefaults(allocator, .{
+    .default_persona = .abbey,
+    .enable_dynamic_routing = true,
+    .routing_confidence_threshold = 0.6,
 });
 defer orchestrator.deinit();
 
@@ -782,7 +796,7 @@ const response = try orchestrator.process(.{
     .content = "How do I implement a linked list?",
 });
 
-std.debug.print("Persona: {s}\n", .{@tagName(response.persona_used)});
+std.debug.print("Persona: {s}\n", .{@tagName(response.persona)});
 std.debug.print("Response: {s}\n", .{response.content});
 
 // Force specific persona
@@ -850,25 +864,25 @@ Flat domain structure (modular architecture):
 | Module | Description | Status |
 |--------|-------------|--------|
 | `src/abi.zig` | Public API entry point | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/config/mod.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/framework.zig` | Framework orchestration | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/platform/` | Platform detection and CPU probing | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/registry/` | Feature registry | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/runtime/` | Scheduler, memory, concurrency | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/shared/` | Logging, security, utils | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
-| `src/gpu/` | GPU backends and unified API | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/ai/` | AI module (llm, embeddings, agents, training) | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/database/` | WDBX vector database | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/network/` | Distributed compute and Raft | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/observability/` | Metrics, tracing, profiling | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/web/` | HTTP helpers and web utilities | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/cloud/` | Cloud function adapters | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/connectors/` | External API connectors | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/ha/` | High availability | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/tasks/` | Task management | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/tests/` | Test infrastructure | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
+| `src/core/config/mod.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/core/framework.zig` | Framework orchestration | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/services/platform/` | Platform detection and CPU probing | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/core/registry/` | Feature registry | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/services/runtime/` | Scheduler, memory, concurrency | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/services/shared/` | Logging, security, utils | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
+| `src/features/gpu/` | GPU backends and unified API | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/ai/` | AI module (llm, embeddings, agents, training) | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/database/` | WDBX vector database | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/network/` | Distributed compute and Raft | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/observability/` | Metrics, tracing, profiling | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/web/` | HTTP helpers and web utilities | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/services/cloud/` | Cloud function adapters | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/services/connectors/` | External API connectors | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/services/ha/` | High availability | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/services/tasks/` | Task management | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/services/tests/` | Test infrastructure | ![Shared](https://img.shields.io/badge/-Shared-yellow) |
 
-> **Backward Compatibility**: Re-exports in `abi.zig` maintain API compatibility with the previous module layout.
+> **Backward Compatibility**: Re-exports in `src/abi.zig` maintain API compatibility with the previous module layout.
 
 ## See Also
 

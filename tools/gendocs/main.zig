@@ -46,39 +46,39 @@ const Module = struct {
 const modules = [_]Module{
     // Core Framework
     .{ .path = "src/abi.zig", .name = "abi", .category = .core, .description = "Main framework entry point and public API" },
-    .{ .path = "src/config/mod.zig", .name = "config", .category = .core, .description = "Unified configuration system with builder pattern" },
-    .{ .path = "src/framework.zig", .name = "framework", .category = .core, .description = "Framework orchestration and lifecycle management" },
+    .{ .path = "src/core/config/mod.zig", .name = "config", .category = .core, .description = "Unified configuration system with builder pattern" },
+    .{ .path = "src/core/framework.zig", .name = "framework", .category = .core, .description = "Framework orchestration and lifecycle management" },
 
     // Compute & Runtime
-    .{ .path = "src/runtime/mod.zig", .name = "runtime", .category = .compute, .description = "Runtime infrastructure (engine, scheduling, memory)" },
-    .{ .path = "src/runtime/engine/mod.zig", .name = "runtime-engine", .category = .compute, .description = "Work-stealing task execution engine" },
-    .{ .path = "src/runtime/scheduling/mod.zig", .name = "runtime-scheduling", .category = .compute, .description = "Futures, cancellation, and task groups" },
-    .{ .path = "src/runtime/memory/mod.zig", .name = "runtime-memory", .category = .compute, .description = "Memory pools and custom allocators" },
-    .{ .path = "src/runtime/concurrency/mod.zig", .name = "runtime-concurrency", .category = .compute, .description = "Lock-free concurrent primitives" },
+    .{ .path = "src/services/runtime/mod.zig", .name = "runtime", .category = .compute, .description = "Runtime infrastructure (engine, scheduling, memory)" },
+    .{ .path = "src/services/runtime/engine/mod.zig", .name = "runtime-engine", .category = .compute, .description = "Work-stealing task execution engine" },
+    .{ .path = "src/services/runtime/scheduling/mod.zig", .name = "runtime-scheduling", .category = .compute, .description = "Futures, cancellation, and task groups" },
+    .{ .path = "src/services/runtime/memory/mod.zig", .name = "runtime-memory", .category = .compute, .description = "Memory pools and custom allocators" },
+    .{ .path = "src/services/runtime/concurrency/mod.zig", .name = "runtime-concurrency", .category = .compute, .description = "Lock-free concurrent primitives" },
 
     // GPU
-    .{ .path = "src/gpu/mod.zig", .name = "gpu", .category = .compute, .description = "GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU)" },
+    .{ .path = "src/features/gpu/mod.zig", .name = "gpu", .category = .compute, .description = "GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU)" },
 
     // AI & Machine Learning
-    .{ .path = "src/ai/mod.zig", .name = "ai", .category = .ai, .description = "AI module with agents, LLM, embeddings, and training" },
-    .{ .path = "src/ai/agents/mod.zig", .name = "ai-agents", .category = .ai, .description = "Agent runtime and orchestration" },
-    .{ .path = "src/ai/embeddings/mod.zig", .name = "ai-embeddings", .category = .ai, .description = "Vector embeddings generation" },
-    .{ .path = "src/ai/llm/mod.zig", .name = "ai-llm", .category = .ai, .description = "Local LLM inference" },
-    .{ .path = "src/ai/training/mod.zig", .name = "ai-training", .category = .ai, .description = "Training pipelines and fine-tuning" },
-    .{ .path = "src/connectors/mod.zig", .name = "connectors", .category = .ai, .description = "API connectors (OpenAI, Ollama, Anthropic, HuggingFace)" },
+    .{ .path = "src/features/ai/mod.zig", .name = "ai", .category = .ai, .description = "AI module with agents, LLM, embeddings, and training" },
+    .{ .path = "src/features/ai/agents/mod.zig", .name = "ai-agents", .category = .ai, .description = "Agent runtime and orchestration" },
+    .{ .path = "src/features/ai/embeddings/mod.zig", .name = "ai-embeddings", .category = .ai, .description = "Vector embeddings generation" },
+    .{ .path = "src/features/ai/llm/mod.zig", .name = "ai-llm", .category = .ai, .description = "Local LLM inference" },
+    .{ .path = "src/features/ai/training/mod.zig", .name = "ai-training", .category = .ai, .description = "Training pipelines and fine-tuning" },
+    .{ .path = "src/services/connectors/mod.zig", .name = "connectors", .category = .ai, .description = "API connectors (OpenAI, Ollama, Anthropic, HuggingFace)" },
 
     // Data & Storage
-    .{ .path = "src/database/mod.zig", .name = "database", .category = .data, .description = "Vector database (WDBX with HNSW/IVF-PQ)" },
+    .{ .path = "src/features/database/mod.zig", .name = "database", .category = .data, .description = "Vector database (WDBX with HNSW/IVF-PQ)" },
 
     // Infrastructure
-    .{ .path = "src/network/mod.zig", .name = "network", .category = .infrastructure, .description = "Distributed compute and Raft consensus" },
-    .{ .path = "src/ha/mod.zig", .name = "ha", .category = .infrastructure, .description = "High availability (backup, PITR, replication)" },
-    .{ .path = "src/observability/mod.zig", .name = "observability", .category = .infrastructure, .description = "Metrics, tracing, and monitoring" },
-    .{ .path = "src/registry/mod.zig", .name = "registry", .category = .infrastructure, .description = "Plugin registry (comptime, runtime, dynamic)" },
-    .{ .path = "src/web/mod.zig", .name = "web", .category = .infrastructure, .description = "Web utilities and HTTP support" },
+    .{ .path = "src/features/network/mod.zig", .name = "network", .category = .infrastructure, .description = "Distributed compute and Raft consensus" },
+    .{ .path = "src/services/ha/mod.zig", .name = "ha", .category = .infrastructure, .description = "High availability (backup, PITR, replication)" },
+    .{ .path = "src/features/observability/mod.zig", .name = "observability", .category = .infrastructure, .description = "Metrics, tracing, and monitoring" },
+    .{ .path = "src/core/registry/mod.zig", .name = "registry", .category = .infrastructure, .description = "Plugin registry (comptime, runtime, dynamic)" },
+    .{ .path = "src/features/web/mod.zig", .name = "web", .category = .infrastructure, .description = "Web utilities and HTTP support" },
 
     // Utilities
-    .{ .path = "src/shared/security/mod.zig", .name = "security", .category = .utilities, .description = "TLS, mTLS, API keys, and RBAC" },
+    .{ .path = "src/services/shared/security/mod.zig", .name = "security", .category = .utilities, .description = "TLS, mTLS, API keys, and RBAC" },
 };
 
 /// Documentation item (function, type, constant)

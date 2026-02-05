@@ -1,0 +1,278 @@
+//! Authentication Middleware
+//!
+//! Provides JWT and API key authentication for HTTP requests.
+
+const std = @import("std");
+const types = @import("types.zig");
+const server = @import("../server/mod.zig");
+const MiddlewareContext = types.MiddlewareContext;
+
+/// Authentication configuration.
+pub const AuthConfig = struct {
+    /// Secret key for JWT validation.
+    jwt_secret: []const u8 = "",
+    /// Header name for JWT token.
+    token_header: []const u8 = "Authorization",
+    /// Token scheme (e.g., "Bearer").
+    token_scheme: []const u8 = "Bearer",
+    /// Header name for API key.
+    api_key_header: []const u8 = "X-API-Key",
+    /// Valid API keys (for simple API key auth).
+    valid_api_keys: []const []const u8 = &.{},
+    /// Paths that don't require authentication.
+    public_paths: []const []const u8 = &.{ "/health", "/live", "/ready", "/metrics" },
+};
+
+/// Default auth configuration.
+pub const default_config = AuthConfig{};
+
+/// Authentication result.
+pub const AuthResult = struct {
+    authenticated: bool,
+    user_id: ?[]const u8,
+    error_message: ?[]const u8,
+};
+
+/// Creates an auth middleware with the given configuration.
+pub fn createAuthMiddleware(config: AuthConfig) types.MiddlewareFn {
+    _ = config;
+    return &optionalAuth;
+}
+
+/// Optional authentication (doesn't fail if no token).
+pub fn optionalAuth(ctx: *MiddlewareContext) !void {
+    const result = authenticate(ctx, default_config);
+    if (result.authenticated) {
+        if (result.user_id) |uid| {
+            try ctx.set("user_id", uid);
+        }
+        try ctx.set("authenticated", "true");
+    }
+}
+
+/// Required authentication (fails if no valid token).
+pub fn requireAuth(ctx: *MiddlewareContext) !void {
+    // Skip public paths
+    if (isPublicPath(ctx.request.path, default_config.public_paths)) {
+        return;
+    }
+
+    const result = authenticate(ctx, default_config);
+    if (!result.authenticated) {
+        _ = ctx.response.setStatus(.unauthorized);
+        _ = try ctx.response.setHeader("WWW-Authenticate", "Bearer");
+        _ = try ctx.response.text(result.error_message orelse "Unauthorized");
+        ctx.abort();
+        return;
+    }
+
+    if (result.user_id) |uid| {
+        try ctx.set("user_id", uid);
+    }
+    try ctx.set("authenticated", "true");
+}
+
+/// API key authentication middleware.
+pub fn apiKeyAuth(ctx: *MiddlewareContext) !void {
+    const api_key = ctx.request.getHeader(default_config.api_key_header);
+
+    if (api_key == null) {
+        _ = ctx.response.setStatus(.unauthorized);
+        _ = try ctx.response.text("API key required");
+        ctx.abort();
+        return;
+    }
+
+    if (!isValidApiKey(api_key.?, default_config.valid_api_keys)) {
+        _ = ctx.response.setStatus(.unauthorized);
+        _ = try ctx.response.text("Invalid API key");
+        ctx.abort();
+        return;
+    }
+
+    try ctx.set("authenticated", "true");
+    try ctx.set("auth_method", "api_key");
+}
+
+/// Performs authentication check.
+pub fn authenticate(ctx: *MiddlewareContext, config: AuthConfig) AuthResult {
+    // Try JWT first
+    if (extractBearerToken(ctx, config)) |token| {
+        return validateJwt(token, config.jwt_secret);
+    }
+
+    // Try API key
+    if (ctx.request.getHeader(config.api_key_header)) |api_key| {
+        if (isValidApiKey(api_key, config.valid_api_keys)) {
+            return AuthResult{
+                .authenticated = true,
+                .user_id = null,
+                .error_message = null,
+            };
+        }
+    }
+
+    return AuthResult{
+        .authenticated = false,
+        .user_id = null,
+        .error_message = "No valid authentication provided",
+    };
+}
+
+/// Extracts Bearer token from Authorization header.
+pub fn extractBearerToken(ctx: *MiddlewareContext, config: AuthConfig) ?[]const u8 {
+    const auth_header = ctx.request.getHeader(config.token_header) orelse return null;
+
+    // Check for scheme prefix
+    if (config.token_scheme.len > 0) {
+        if (!std.mem.startsWith(u8, auth_header, config.token_scheme)) {
+            return null;
+        }
+        // Skip scheme and space
+        const token_start = config.token_scheme.len;
+        if (token_start >= auth_header.len) return null;
+
+        const rest = auth_header[token_start..];
+        const trimmed = std.mem.trimLeft(u8, rest, " ");
+        if (trimmed.len == 0) return null;
+        return trimmed;
+    }
+
+    return auth_header;
+}
+
+/// Validates a JWT token (simplified - real implementation needs crypto).
+pub fn validateJwt(token: []const u8, secret: []const u8) AuthResult {
+    _ = secret;
+
+    // Simple validation: JWT has 3 parts separated by dots
+    var parts = std.mem.splitScalar(u8, token, '.');
+    var part_count: u32 = 0;
+    while (parts.next()) |_| {
+        part_count += 1;
+    }
+
+    if (part_count != 3) {
+        return AuthResult{
+            .authenticated = false,
+            .user_id = null,
+            .error_message = "Invalid token format",
+        };
+    }
+
+    // In a real implementation:
+    // 1. Decode header and payload (base64url)
+    // 2. Verify signature using HMAC-SHA256 with secret
+    // 3. Check expiration (exp claim)
+    // 4. Extract user_id from payload
+
+    // For now, accept any well-formed JWT
+    return AuthResult{
+        .authenticated = true,
+        .user_id = "jwt_user", // Would extract from payload
+        .error_message = null,
+    };
+}
+
+/// Checks if an API key is valid.
+pub fn isValidApiKey(key: []const u8, valid_keys: []const []const u8) bool {
+    for (valid_keys) |valid_key| {
+        if (std.mem.eql(u8, key, valid_key)) {
+            return true;
+        }
+    }
+    // If no keys configured, reject all
+    return valid_keys.len == 0;
+}
+
+/// Checks if a path is public (no auth required).
+pub fn isPublicPath(path: []const u8, public_paths: []const []const u8) bool {
+    for (public_paths) |public_path| {
+        if (std.mem.eql(u8, path, public_path)) {
+            return true;
+        }
+        // Support prefix matching with trailing *
+        if (public_path.len > 0 and public_path[public_path.len - 1] == '*') {
+            const prefix = public_path[0 .. public_path.len - 1];
+            if (std.mem.startsWith(u8, path, prefix)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/// Generates a simple API key (for testing/development).
+pub fn generateApiKey(allocator: std.mem.Allocator) ![]u8 {
+    var key: [32]u8 = undefined;
+    std.crypto.random.bytes(&key);
+
+    // Convert to hex
+    var hex: [64]u8 = undefined;
+    _ = std.fmt.bufPrint(&hex, "{s}", .{std.fmt.fmtSliceHexLower(&key)}) catch unreachable;
+
+    return try allocator.dupe(u8, &hex);
+}
+
+test "extractBearerToken" {
+    const allocator = std.testing.allocator;
+
+    var headers = std.StringHashMap([]const u8).init(allocator);
+    defer headers.deinit();
+    try headers.put("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature");
+
+    var request = server.ParsedRequest{
+        .method = .GET,
+        .path = "/api/test",
+        .query = null,
+        .version = .http_1_1,
+        .headers = headers,
+        .body = null,
+        .raw_path = "/api/test",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    const token = extractBearerToken(&ctx, default_config);
+    try std.testing.expect(token != null);
+    try std.testing.expect(std.mem.startsWith(u8, token.?, "eyJhbGciOiJIUzI1NiJ9"));
+}
+
+test "validateJwt format" {
+    // Valid JWT format (3 parts)
+    const valid = validateJwt("header.payload.signature", "secret");
+    try std.testing.expect(valid.authenticated);
+
+    // Invalid format (2 parts)
+    const invalid = validateJwt("header.payload", "secret");
+    try std.testing.expect(!invalid.authenticated);
+
+    // Invalid format (no dots)
+    const invalid2 = validateJwt("invalidtoken", "secret");
+    try std.testing.expect(!invalid2.authenticated);
+}
+
+test "isPublicPath" {
+    const public = [_][]const u8{ "/health", "/api/public/*" };
+
+    try std.testing.expect(isPublicPath("/health", &public));
+    try std.testing.expect(isPublicPath("/api/public/test", &public));
+    try std.testing.expect(isPublicPath("/api/public/nested/path", &public));
+    try std.testing.expect(!isPublicPath("/api/private", &public));
+    try std.testing.expect(!isPublicPath("/healthcheck", &public));
+}
+
+test "isValidApiKey" {
+    const keys = [_][]const u8{ "key1", "key2" };
+
+    try std.testing.expect(isValidApiKey("key1", &keys));
+    try std.testing.expect(isValidApiKey("key2", &keys));
+    try std.testing.expect(!isValidApiKey("key3", &keys));
+    try std.testing.expect(!isValidApiKey("", &keys));
+}

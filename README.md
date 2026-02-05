@@ -304,38 +304,33 @@ abi --disable-ai system-info  # Disable feature for command
 ```
 abi/
 ├── src/
-│   ├── abi.zig           # Public API entry point
-│   ├── config/           # Unified configuration
-│   ├── framework.zig     # Lifecycle orchestration
-│   ├── platform/         # Platform detection (OS, arch, CPU)
+│   ├── abi.zig           # Public API module root
+│   ├── api/              # Entry points
+│   │   └── main.zig      # CLI fallback entrypoint
 │   │
-│   ├── ai/               # AI Module
-│   │   ├── llm/          # Local LLM inference (Llama-CPP parity)
-│   │   ├── agents/       # Agent runtime with personas
-│   │   ├── training/     # Training pipelines
-│   │   │   └── model/    # Modular model architecture
-│   │   └── embeddings/   # Vector embeddings
+│   ├── core/             # Framework orchestration and config
+│   │   ├── config/       # Unified configuration
+│   │   ├── framework.zig # Lifecycle orchestration
+│   │   ├── flags.zig     # Feature flags
+│   │   └── registry/     # Feature registry
 │   │
-│   ├── gpu/              # GPU Acceleration
-│   │   ├── backends/     # CUDA, Vulkan, Metal, WebGPU, FPGA
-│   │   ├── kernels/      # Compute kernels
-│   │   └── dsl/          # Shader DSL & codegen
+│   ├── features/         # Feature modules
+│   │   ├── ai/           # AI Module (llm, agents, training, embeddings)
+│   │   ├── gpu/          # GPU Acceleration
+│   │   ├── database/     # Vector Database (WDBX)
+│   │   ├── network/      # Distributed Compute
+│   │   ├── observability/ # Metrics & Tracing
+│   │   └── web/          # Web/HTTP utilities
 │   │
-│   ├── database/         # Vector Database (WDBX)
-│   │   ├── hnsw.zig      # HNSW indexing
-│   │   └── distributed/  # Sharding & replication
-│   │
-│   ├── runtime/          # Compute Infrastructure
-│   │   ├── engine/       # Work-stealing scheduler
-│   │   ├── concurrency/  # Lock-free primitives
-│   │   └── memory/       # Pool allocators
-│   │
-│   ├── network/          # Distributed Compute
-│   │   └── raft/         # Consensus protocol
-│   │
-│   ├── shared/           # Shared utilities (security, io, utils)
-│   │
-│   └── observability/    # Metrics & Tracing
+│   └── services/         # Shared infrastructure
+│       ├── runtime/      # Compute infrastructure (engine, concurrency, memory)
+│       ├── platform/     # Platform detection (OS, arch, CPU)
+│       ├── shared/       # Utilities (security, io, utils)
+│       ├── connectors/   # External API connectors
+│       ├── cloud/        # Cloud function adapters
+│       ├── ha/           # High availability (backup, PITR, replication)
+│       ├── tasks/        # Task management
+│       └── tests/        # Test infrastructure
 │
 ├── tools/cli/            # CLI implementation
 ├── examples/             # Usage examples
@@ -442,7 +437,8 @@ export DYLD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$DYLD_LIBRARY_PATH  # macOS
 export LD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$LD_LIBRARY_PATH      # Linux
 ```
 
-See [CLAUDE.md](CLAUDE.md#language-bindings) for detailed usage examples.
+See [AGENTS.md](AGENTS.md) for baseline agent guidance and
+[CLAUDE.md](CLAUDE.md#language-bindings) for detailed usage examples.
 
 ---
 
@@ -463,6 +459,7 @@ See [CLAUDE.md](CLAUDE.md#language-bindings) for detailed usage examples.
 | [Network Guide](docs/content/network.html) | Distributed compute |
 | [Observability Guide](docs/content/observability.html) | Metrics and tracing |
 | [Security Guide](docs/content/security.html) | Security practices |
+| [Agent Guidelines](AGENTS.md) | Baseline rules for AI agents |
 | [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
 
 ```bash
@@ -470,10 +467,10 @@ See [CLAUDE.md](CLAUDE.md#language-bindings) for detailed usage examples.
 zig build test --summary all
 
 # Test specific module
-zig test src/runtime/engine/engine.zig
+zig test src/services/runtime/engine/engine.zig
 
 # Filter tests by pattern
-zig test src/tests/mod.zig --test-filter "pattern"
+zig test src/services/tests/mod.zig --test-filter "pattern"
 
 # Run benchmarks
 zig build benchmarks
@@ -519,7 +516,8 @@ See [PLAN.md](PLAN.md) for current sprint status and [ROADMAP.md](ROADMAP.md) fo
 We welcome contributions! Please see:
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow
-- [CLAUDE.md](CLAUDE.md) - Coding guidelines and patterns
+- [AGENTS.md](AGENTS.md) - Baseline agent guidelines
+- [CLAUDE.md](CLAUDE.md) - Detailed coding guidelines and patterns
 
 <div align="center">
 

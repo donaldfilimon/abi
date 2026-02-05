@@ -68,9 +68,9 @@ duration.sleep();
 **Effort**: Low (simple find-replace)
 **Files**:
 - `tools/cli/tui/async_loop.zig:190`
-- `src/ai/streaming/session_cache.zig:433,435`
-- `src/ai/streaming/circuit_breaker.zig:371,398,423`
-- `src/ai/models/downloader.zig:195`
+- `src/features/ai/streaming/session_cache.zig:433,435`
+- `src/features/ai/streaming/circuit_breaker.zig:371,398,423`
+- `src/features/ai/models/downloader.zig:195`
 
 ---
 
@@ -94,11 +94,11 @@ std.debug.print("State: {t}\n", .{state});
 **Status (2026-02-04)**: ✅ Reviewed - all usages are correct (storing strings, not printing). No changes needed.
 
 **Files with opportunities** (sample):
-- `src/web/handlers/chat.zig:139,165,198,199,220,278`
-- `src/web/routes/personas.zig:146,156`
-- `src/tests/stress/mod.zig:122,161`
-- `src/ai/personas/*.zig` (multiple files)
-- `src/cloud/*.zig` (multiple files)
+- `src/features/web/handlers/chat.zig:139,165,198,199,220,278`
+- `src/features/web/routes/personas.zig:146,156`
+- `src/services/tests/stress/mod.zig:122,161`
+- `src/features/ai/personas/*.zig` (multiple files)
+- `src/services/cloud/*.zig` (multiple files)
 
 ---
 
@@ -117,17 +117,17 @@ std.debug.print("State: {t}\n", .{state});
 **Remaining Medium Severity**:
 
 **M-3: TLS Certificate Validation**
-- **File**: `src/shared/security/tls.zig`
+- **File**: `src/services/shared/security/tls.zig`
 - **Impact**: MITM vulnerability if not properly configured
 - **Recommendation**: Add certificate pinning option for high-security deployments
 
 **M-4: SQL Injection in Database Queries**
-- **File**: `src/database/fulltext.zig`
+- **File**: `src/features/database/fulltext.zig`
 - **Impact**: Potential injection if user input not sanitized
 - **Recommendation**: Use parameterized queries throughout
 
 **M-5: Timing Attack on API Key Comparison**
-- **File**: `src/shared/security/api_keys.zig:164`
+- **File**: `src/services/shared/security/api_keys.zig:164`
 - **Status**: Already uses `std.crypto.utils.timingSafeEql()` ✅
 - **Note**: Good security practice already implemented
 
@@ -155,12 +155,12 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 
 **Status (2026-02-04)**: Partially addressed:
 - ✅ Added SAFETY comments to provably-safe bufPrint operations
-- ✅ Fixed buffer sizing issue in `src/network/discovery.zig`
+- ✅ Fixed buffer sizing issue in `src/features/network/discovery.zig`
 - ✅ Added proper error propagation for `Timer.start()` calls
 
 **Files with remaining opportunities**:
 - `tools/cli/utils/help.zig:277,291,303`
-- `src/shared/utils/json/mod.zig:20,48,100`
+- `src/services/shared/utils/json/mod.zig:20,48,100`
 - `benchmarks/` (multiple files using `unreachable` in performance-critical paths)
 
 **Note**: Some uses in performance benchmarks are intentional to prevent optimization.
@@ -180,7 +180,7 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 1. **Allocator Parameter Consistency**
    - Some functions use `std.heap.page_allocator` directly
    - Should accept `std.mem.Allocator` parameter for flexibility
-   - Files: `src/tests/proptest.zig`, `src/tests/property/generators.zig`
+   - Files: `src/services/tests/proptest.zig`, `src/services/tests/property/generators.zig`
 
 2. **Memory Pool Adoption**
    - Existing `gpu/memory_pool_advanced.zig` has excellent features
@@ -201,7 +201,7 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 1. **Panic Usage**
    - 6 instances of `@panic()` in codebase
    - Most are in test memory leak detection (appropriate)
-   - One in `src/gpu/backends/fpga/mod.zig:73` for invalid device ID
+   - One in `src/features/gpu/backends/fpga/mod.zig:73` for invalid device ID
    - **Recommendation**: Convert to proper error return where possible
 
 2. **Error Context**
@@ -220,15 +220,15 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 
 **Status (2026-02-04)**: Significant improvements made:
 - ✅ All 6 stub files now have comprehensive documentation explaining their purpose
-- ✅ Concurrency primitives (`src/runtime/concurrency/*.zig`) now have Big-O complexity documentation
-- ✅ Test helpers module created (`src/tests/helpers.zig`)
+- ✅ Concurrency primitives (`src/services/runtime/concurrency/*.zig`) now have Big-O complexity documentation
+- ✅ Test helpers module created (`src/services/tests/helpers.zig`)
 
 **Remaining improvement opportunities**:
 
 1. **Public API Examples**
    - Main modules have good examples
    - Some sub-modules lack usage examples
-   - Opportunities in: `src/ai/orchestration/`, `src/network/unified_memory/`
+   - Opportunities in: `src/features/ai/orchestration/`, `src/features/network/unified_memory/`
 
 2. **Migration Guides**
    - Consider adding Zig 0.15 → 0.16 migration guide
@@ -245,14 +245,14 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 - ✅ Lock-free concurrency primitives (Chase-Lev deques, MPMC queues)
 - ✅ GPU memory pooling with defragmentation
 - ✅ Work-stealing scheduler with NUMA awareness
-- ✅ `inline fn` used appropriately (30+ instances in `src/gpu/std_gpu.zig`)
+- ✅ `inline fn` used appropriately (30+ instances in `src/features/gpu/std_gpu.zig`)
 
 **Potential micro-optimizations**:
 
 1. **SIMD Vector Reductions**
    - Current: Manual reduction loops
    - Could use: `@reduce()` builtin (already used in some places)
-   - Files: `src/ai/llm/ops/*.zig` (some opportunities)
+   - Files: `src/features/ai/llm/ops/*.zig` (some opportunities)
 
 2. **Batch Operations**
    - Good batch APIs exist (`batchCosineSimilarityPrecomputed`)
@@ -261,7 +261,7 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 
 3. **Cache Line Alignment**
    - Some hot structures could benefit from `@alignOf(std.atomic.cache_line)`
-   - Files: `src/runtime/concurrency/*.zig`, `src/database/hnsw.zig`
+   - Files: `src/services/runtime/concurrency/*.zig`, `src/features/database/hnsw.zig`
 
 4. **Prefetching**
    - Database already uses `@prefetch` (line 81)
@@ -285,12 +285,12 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
    - Low priority: Zig doesn't have traits, current pattern is idiomatic
 
 2. **Test Helpers**
-   - ✅ **Completed (2026-02-04)**: Test helper module created (`src/tests/helpers.zig`)
+   - ✅ **Completed (2026-02-04)**: Test helper module created (`src/services/tests/helpers.zig`)
    - Common setup/teardown logic now centralized
 
 3. **Error Wrapping**
    - Similar error conversion logic in connectors
-   - Files: `src/connectors/*.zig`
+   - Files: `src/services/connectors/*.zig`
    - Could create shared `mapHttpError()` helper
 
 ---
@@ -299,17 +299,17 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 
 **Strong test coverage** (912/917 passing):
 - ✅ 47 dedicated test files (`*_test.zig`)
-- ✅ Integration tests (`src/tests/integration/`)
-- ✅ E2E tests (`src/tests/e2e/`)
-- ✅ Chaos/stress tests (`src/tests/chaos/`, `src/tests/stress/`)
-- ✅ Property-based tests (`src/tests/property/`)
+- ✅ Integration tests (`src/services/tests/integration/`)
+- ✅ E2E tests (`src/services/tests/e2e/`)
+- ✅ Chaos/stress tests (`src/services/tests/chaos/`, `src/services/tests/stress/`)
+- ✅ Property-based tests (`src/services/tests/property/`)
 
 **Areas for additional testing**:
 
 1. **Network Module Edge Cases**
    - Raft consensus partition tolerance
    - Circuit breaker state transitions
-   - Files: `src/network/raft.zig`, `src/network/circuit_breaker.zig`
+   - Files: `src/features/network/raft.zig`, `src/features/network/circuit_breaker.zig`
 
 2. **GPU Backend Error Paths**
    - Out-of-memory scenarios
@@ -319,12 +319,12 @@ const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch |err| {
 3. **Streaming Recovery**
    - Session cache expiration
    - Circuit breaker recovery timing
-   - Files: `src/ai/streaming/recovery.zig`
+   - Files: `src/features/ai/streaming/recovery.zig`
 
 4. **Concurrency Stress Tests**
    - Existing stress tests are good
    - Could add longer-running soak tests
-   - Files: `src/tests/stress/*.zig`
+   - Files: `src/services/tests/stress/*.zig`
 
 ---
 
@@ -416,7 +416,7 @@ These can be done immediately with minimal risk:
    - ✅ **Completed (2026-02-04)**: Documented Big-O complexity for concurrency data structures
 
 4. **Test Helper Extraction** (1 hour)
-   - ✅ **Completed (2026-02-04)**: Created `src/tests/helpers.zig` with common setup/teardown logic
+   - ✅ **Completed (2026-02-04)**: Created `src/services/tests/helpers.zig` with common setup/teardown logic
 
 5. **Unreachable → Error Returns** (2 hours)
    - ✅ **Partially completed (2026-02-04)**: Focus on non-benchmark code

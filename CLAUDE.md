@@ -1,1132 +1,298 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Comprehensive guidance for Claude Code working with the ABI Framework. Read
+`AGENTS.md` first for baseline rules; this file adds deeper details and examples.
+`GEMINI.md` is a condensed quick reference.
 
-## Table of Contents
+| | |
+|---|---|
+| **Version** | 0.4.0 |
+| **Entry Point** | `src/abi.zig` |
+| **Zig Required** | 0.16.x (`0.16.0-dev.2471+e9eadee00` or later) |
+| **Version File** | `.zigversion` (pins exact Zig version) |
 
-- [Zig Version Requirement](#zig-version-requirement)
-- [Before Making Changes](#️-before-making-changes)
-- [TL;DR for Common Tasks](#tldr-for-common-tasks)
-- [Quick Reference](#quick-reference)
-- [Critical Gotchas](#critical-gotchas)
-- [Feature Flags](#feature-flags)
-- [Architecture](#architecture)
-- [Common Workflows](#common-workflows)
-- [Zig 0.16 API Patterns](#zig-016-api-patterns-required)
-- [Concurrency Primitives](#concurrency-primitives)
-- [GPU Memory Pool](#gpu-memory-pool)
-- [Test Infrastructure](#test-infrastructure)
-- [Task Management](#task-management)
-- [Model Management](#model-management)
-- [CLI Commands](#cli-commands)
-- [Environment Variables](#environment-variables)
-- [Security Considerations](#security-considerations)
-- [Platform Notes](#platform-notes)
-- [Debugging](#debugging)
-- [Connectors](#connectors)
-- [Docker Deployment](#docker-deployment)
-- [Language Bindings](#language-bindings)
-- [Adding a New Feature Module](#adding-a-new-feature-module)
-- [Reference](#reference)
-- [Code Style](#code-style)
-- [Quick File Navigation](#quick-file-navigation)
-- [Post-Edit Checklist](#post-edit-checklist)
+## Quick Start
 
-## Zig Version Requirement
+| Command | Purpose |
+|---------|---------|
+| `zig build` | Build the project |
+| `zig build test --summary all` | Run full test suite |
+| `zig fmt .` | Format code (required after edits) |
+| `zig build run -- --help` | CLI help |
+| `zig test src/file.zig --test-filter "pattern"` | Focused tests |
 
-**Required:** Zig 0.16.x (`0.16.0-dev.2471+e9eadee00` or later)
-
-```bash
-# Check version
-zig version
-
-# If using zvm, ensure PATH order is correct in ~/.zshrc (or ~/.bashrc)
-# Add this line BEFORE any other Zig path entries:
-export PATH="$HOME/.zvm/bin:$PATH"
-
-# Then select Zig 0.16.x
-zvm use master
-```
-
-**Shell setup for zvm (add to `~/.zshrc`):**
-```bash
-# Zig Version Manager - must be first in PATH
-export PATH="$HOME/.zvm/bin:$PATH"
-```
-
-The codebase uses Zig 0.16 APIs (`std.Io.Dir`, `std.Io.Threaded`, `std.time.Timer`). Earlier versions will fail to compile.
-
-## ⚠️ Before Making Changes
-
-**CRITICAL**: This codebase frequently has work-in-progress changes. Before making any modifications:
-
-1. Run `git status` to see uncommitted work
-2. Run `git diff --stat` to understand the scope of existing changes
-3. Review existing changes before adding new ones to avoid conflicts or duplicating work
-4. If there are many staged/unstaged changes, ask the user about their status before proceeding
-
-## TL;DR for Common Tasks
-
-```bash
-# Most common workflow
-zig build test --summary all && zig fmt .   # Test + format (always run before commits)
-
-# Single file test (faster iteration)
-zig test src/path/to/file.zig --test-filter "specific test"
-
-# Build with specific features
-zig build -Denable-ai=true -Dgpu-backend=vulkan
-```
-
-## Quick Reference
-
-```bash
-# Build and test
-zig build                              # Build the project
-zig build test --summary all           # Run tests with detailed output
-zig fmt .                              # Format code (run after edits)
-zig build lint                         # Check formatting (CI uses this)
-zig build typecheck                    # Type check without running tests
-zig build run -- --help                # CLI help
-
-# Single file testing (use zig test, NOT zig build test)
-zig test src/runtime/engine/engine.zig
-zig test src/tests/mod.zig --test-filter "pattern"
-
-# Test categories
-zig test src/tests/stress/mod.zig               # Stress tests
-zig test src/tests/integration/mod.zig          # Integration tests
-zig test src/tests/e2e/mod.zig                  # End-to-end tests
-
-# Feature-gated builds
-zig build -Denable-ai=true -Denable-gpu=false -Denable-database=true
-zig build -Dgpu-backend=cuda,vulkan         # GPU backends (comma-separated)
-
-# Runtime feature flags (CLI)
-zig build run -- --list-features          # List features and their status
-zig build run -- --enable-gpu db stats    # Enable feature for this run
-zig build run -- --disable-ai llm info    # Disable feature for this run
-
-# Additional build targets
-zig build benchmarks                   # Run comprehensive benchmarks
-zig build bench-all                    # Run all benchmark suites
-zig build gendocs                      # Generate API documentation
-zig build docs-site                    # Generate documentation website (zig-out/docs/)
-zig build check-wasm                   # Check WASM compilation (standalone binary)
-zig build examples                     # Build all examples
-zig build cli-tests                    # Run CLI command smoke tests
-zig build full-check                   # Format + tests + CLI smoke + benchmarks
-zig build profile                      # Build with performance profiling
-zig build check-perf                   # Run performance verification
-zig build mobile                       # Build for mobile targets (Android/iOS)
-
-# Run examples
-zig build run-hello                    # Run hello example
-zig build run-database                 # Run database example
-zig build run-agent                    # Run agent example
-zig build run-gpu                      # Run GPU example
-zig build run-compute                  # Run compute example
-zig build run-network                  # Run network example
-zig build run-llm                      # Run LLM example
-zig build run-training                 # Run training example
-zig build run-streaming                # Run streaming example
-zig build run-embeddings               # Run embeddings example
-zig build run-config                   # Run config example
-zig build run-registry                 # Run registry example
-zig build run-ha                       # Run high availability example
-zig build run-discord                  # Run Discord bot example
-zig build run-orchestration            # Run orchestration example
-zig build run-concurrency              # Run concurrency example
-zig build run-observability            # Run observability example
-zig build run-train-ava                # Run Ava training example
-
-# Debugging
-zig build -Doptimize=Debug             # Debug build with symbols
-gdb ./zig-out/bin/abi                  # Debug with GDB
-lldb ./zig-out/bin/abi                 # Debug with LLDB (macOS)
-```
+---
 
 ## Critical Gotchas
 
-| Issue | Solution |
-|-------|----------|
-| `--test-filter` syntax | Use `zig test file.zig --test-filter "pattern"`, NOT `zig build test --test-filter` |
-| File system operations | Use `std.Io.Dir.cwd()` instead of deprecated `std.fs.cwd()` (Zig 0.16) |
-| Reserved keywords | Escape with `@"error"` syntax, not bare `error` |
-| Feature disabled errors | Rebuild with `-Denable-<feature>=true` |
-| GPU backend conflicts | Prefer one primary backend; CUDA+Vulkan may cause issues |
-| WASM limitations | `database`, `network`, `gpu` auto-disabled; no `std.Io.Threaded` |
-| WASM build targets | Use `pathExists()` from build.zig for conditional compilation; WASM bindings may be absent |
-| build.zig file checks | Use existing `pathExists()` helper, not `std.fs.cwd()` or `LazyPath.getPath3()` |
-| libc linking | CLI and examples require libc for environment variable access |
-| Import paths | Always use `@import("abi")` for public API, not direct file paths |
-| Stub/Real module sync | Changes to `mod.zig` must be mirrored in `stub.zig` with identical signatures |
-| Format specifiers | Use `{t}` for printing errors/enums. `@tagName()`/`@errorName()` valid for returning `[]const u8` |
-| ArrayListUnmanaged | Use `.empty` not `.init()`; pass allocator to ops: `list.append(allocator, x)`, `list.toOwnedSlice(allocator)` |
-| Benchmark imports | Use `@import("abi").module` in benchmarks, not `@import("../../src/...")` - relative paths fail |
-| Timer API | Use `std.time.Timer.start()` not `std.time.Instant.now()` |
-| Sleep API | Use `abi.shared.time.sleepMs()` or `sleepNs()` for cross-platform sleep |
-| HTTP Server init | Use `&reader.interface` and `&writer.interface` for `std.http.Server.init()` |
-| Slow builds | Clear `.zig-cache` or reduce parallelism with `zig build -j 2` |
-| Debug builds | Use `-Doptimize=Debug` for debugging, `-Doptimize=ReleaseFast` for performance |
-| GPU (CUDA) | Requires NVIDIA drivers + toolkit; use Vulkan or `stdgpu` fallback |
-| GPU (Metal) | macOS only; includes Accelerate framework (AMX) and unified memory support |
-| WASM getCpuCount | Use `getCpuCount()` only with WASM/freestanding guards; 9+ files affected |
-| Streaming API | Use `src/ai/streaming/` for real-time LLM responses; backend selection via config |
-| Test module imports | Use `abi.shared.module` not `@import("../path")` - tests can't import outside module path |
-| Implementation plans | Track in `PLAN.md` with date-stamped sections |
-| Binding library path | Set `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH` (macOS) to `bindings/c/zig-out/lib` |
-| C header regeneration | Run `zig build c-header` after C API changes |
+| Category | Issue | Solution |
+|----------|-------|----------|
+| Zig 0.16 | File system ops | Use `std.Io.Dir.cwd()` not `std.fs.cwd()` |
+| Zig 0.16 | Timer API | Use `std.time.Timer.start()` not `Instant.now()` |
+| Zig 0.16 | ArrayListUnmanaged | Use `.empty` not `.init()` |
+| Zig 0.16 | Format specifiers | Use `{t}` for errors/enums |
+| Feature | Stub/real sync | Update `mod.zig` and `stub.zig` together |
+| Build | `--test-filter` syntax | Use `zig test file.zig --test-filter` |
+| Build | build.zig file checks | Use `pathExists()` helper |
+| GPU | Backend conflicts | Prefer one primary backend |
+| WASM | Limitations | `database`, `network`, `gpu` auto-disabled |
+| Sleep | Cross-platform | Prefer `abi.shared.time.sleepMs()` / `sleepNs()` |
+| HTTP | Server init | Use `&reader.interface` and `&writer.interface` |
 
-## Feature Flags
+---
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-Denable-ai` | true | Full ABI agent system (LLM, vision, agent, training sub-features) |
-| `-Denable-gpu` | true | GPU acceleration framework |
-| `-Denable-database` | true | Vector database integration (WDBX) |
-| `-Denable-network` | true | Distributed compute capabilities |
-| `-Denable-web` | true | Web utilities and HTTP support |
-| `-Denable-profiling` | true | Performance profiling and metrics |
-| `-Denable-explore` | true | Codebase exploration (requires `-Denable-ai`) |
-| `-Denable-llm` | true | Local LLM inference (requires `-Denable-ai`) |
-| `-Denable-vision` | true | Vision/image processing (requires `-Denable-ai`) |
-| `-Denable-mobile` | false | Mobile cross-compilation (Android/iOS) |
+## Zig 0.16 API Patterns
 
-### GPU Backends
+### I/O Backend Initialization (Critical)
 
-**New unified syntax (recommended):**
-```bash
-zig build -Dgpu-backend=vulkan              # Single backend
-zig build -Dgpu-backend=cuda,vulkan         # Multiple backends (comma-separated)
-zig build -Dgpu-backend=none                # Disable all GPU backends
-zig build -Dgpu-backend=auto                # Auto-detect available backends
+```zig
+const std = @import("std");
+
+var io_backend = std.Io.Threaded.init(allocator, .{
+    .environ = std.process.Environ.empty, // .empty for library, init.environ for CLI
+});
+defer io_backend.deinit();
+const io = io_backend.io();
+
+const content = try std.Io.Dir.cwd().readFileAlloc(
+    io,
+    path,
+    allocator,
+    .limited(10 * 1024 * 1024),
+);
+defer allocator.free(content);
 ```
 
-**Available backends:** `none`, `auto`, `cuda`, `vulkan`, `stdgpu`, `metal`, `webgpu`, `opengl`, `opengles`, `webgl2`, `fpga`
+### Other Changes
 
-**Deprecated (still works with warning):** `-Dgpu-vulkan`, `-Dgpu-cuda`, `-Dgpu-metal`, `-Dgpu-webgpu`, `-Dgpu-opengl`
+```zig
+// Error/enum formatting: use {t}
+std.debug.print("Error: {t}, State: {t}", .{err, state});
+
+// ArrayListUnmanaged
+var list = std.ArrayListUnmanaged(u8).empty;
+
+// Timing
+var timer = std.time.Timer.start() catch return error.TimerFailed;
+const elapsed_ns = timer.read();
+
+// Sleep (preferred for cross-platform)
+const abi = @import("abi");
+abi.shared.time.sleepMs(10);
+
+// HTTP server init
+var server: std.http.Server = .init(
+    &connection_reader.interface,
+    &connection_writer.interface,
+);
+```
+
+---
 
 ## Architecture
 
-Flat domain structure with unified configuration. Each domain has `mod.zig` (entry point) and `stub.zig` (feature-gated placeholder).
+Flat domain structure with unified configuration. Each feature has `mod.zig`
+(real) and `stub.zig` (feature-gated placeholder).
 
 ```
 src/
-├── abi.zig              # Public API entry point: init(), shutdown(), version()
-├── config/              # Unified configuration system (Config + Builder + per-feature configs)
-│   ├── mod.zig          # Config entry point
-│   ├── ai.zig           # AI-specific configuration
-│   ├── cloud.zig        # Cloud provider configuration
-│   ├── database.zig     # Database configuration
-│   ├── gpu.zig          # GPU configuration
-│   ├── network.zig      # Network configuration
-│   ├── observability.zig # Observability configuration
-│   ├── plugin.zig       # Plugin configuration
-│   └── web.zig          # Web configuration
-├── flags.zig            # Feature flags management
-├── framework.zig        # Framework orchestration with builder pattern
-├── platform/            # Platform detection and abstraction
-│   ├── mod.zig          # Platform entry point
-│   ├── cpu.zig          # CPU fallback for GPU operations
-│   ├── detection.zig    # OS/arch detection with SIMD support
-│   └── stub.zig         # Stub for minimal builds
-├── ai/                  # AI module with sub-features
-│   ├── mod.zig          # AI public API
-│   ├── stub.zig         # Stub when AI disabled
-│   ├── abbey/           # Abbey persona subsystem (advanced, memory, neural)
-│   ├── agents/          # Agent runtime
-│   ├── core/            # Integrated core types and configuration
-│   ├── database/        # Database-related AI functionality (convert, export, wdbx)
-│   ├── discovery.zig    # AI model/capability discovery
-│   ├── documents/       # Document handling and processing
-│   ├── embeddings/      # Vector embeddings
-│   ├── eval/            # Model evaluation and benchmarking
-│   ├── explore/         # Codebase exploration
-│   ├── federated/       # Federated learning
-│   ├── gpu_agent.zig    # GPU-specific agent implementation
-│   ├── llm/             # Local LLM inference (streaming, tokenization)
-│   ├── memory/          # Agent memory systems
-│   ├── model_registry.zig # Model registry functionality
-│   ├── models/          # Model download, caching, HuggingFace integration
-│   ├── multi_agent/     # Multi-agent coordination
-│   ├── orchestration/   # Multi-model routing, ensemble, fallback
-│   ├── personas/        # AI persona definitions (abbey, abi, aviva, etc.)
-│   ├── prompts/         # Prompt management
-│   ├── rag/             # Retrieval-augmented generation
-│   ├── streaming/       # Streaming response handling
-│   ├── templates/       # Template system
-│   ├── tools/           # Agent tools
-│   ├── training/        # Training pipelines
-│   │   └── model/       # Modular model architecture (config, weights, cache, layers)
-│   ├── transformer/     # Transformer architecture
-│   └── vision/          # Vision/image processing
-├── cloud/               # Cloud function adapters (AWS Lambda, Azure, GCP)
-├── connectors/          # API connectors (OpenAI, Ollama, Anthropic, HuggingFace, Mistral, Cohere, Discord)
-├── database/            # Vector database (WDBX with HNSW/IVF-PQ)
-├── gpu/                 # GPU acceleration (Vulkan, CUDA, Metal, etc.)
-│   ├── kernels/         # Split kernel implementations (elementwise, matrix, etc.)
-│   ├── backends/fpga/   # FPGA backend stubs and types
-│   └── dsl/codegen/     # Shader codegen with generic comptime template
-│       ├── generic.zig  # Comptime CodeGenerator(BackendConfig) template
-│       ├── configs/     # Backend-specific config structs (glsl, wgsl, msl, cuda)
-│       ├── spirv/       # Split SPIRV generator modules
-│       └── *.zig        # Thin wrappers re-exporting generic generators
-├── ha/                  # High availability (backup, PITR, replication)
-├── network/             # Distributed compute and Raft consensus
-├── observability/       # Consolidated metrics, tracing, monitoring
-├── registry/            # Feature registry (comptime, runtime, dynamic)
-│   ├── mod.zig          # Public API facade with Registry struct
-│   ├── types.zig        # Core types (Feature, RegistrationMode, Error)
-│   ├── registration.zig # registerComptime, registerRuntimeToggle, registerDynamic
-│   └── lifecycle.zig    # initFeature, deinitFeature, enable/disable
-├── runtime/             # Always-on infrastructure
-│   ├── engine/          # Work-stealing task execution
-│   ├── scheduling/      # Futures, cancellation, task groups
-│   ├── concurrency/     # Lock-free primitives (see Concurrency Primitives)
-│   └── memory/          # Memory pools and allocators
-├── shared/              # Consolidated shared components
-│   ├── mod.zig          # Shared utilities entry point
-│   ├── io.zig           # I/O utilities
-│   ├── legacy/          # Legacy core utilities
-│   ├── security/        # TLS, mTLS, API keys, RBAC
-│   ├── utils/           # Sub-modules (config, crypto, json, net, etc.)
-│   ├── logging.zig      # Logging
-│   ├── platform.zig     # Legacy platform detection (use platform/ instead)
-│   ├── plugins.zig      # Plugin registry primitives
-│   ├── simd.zig         # SIMD vector operations
-│   └── utils.zig        # Unified utilities (time, math, string, crypto, http, json, etc.)
-├── tasks/               # Task management system (personal, roadmap, distributed jobs)
-│   ├── mod.zig          # Task Manager entry point
-│   ├── types.zig        # Task, Priority, Status, Category types
-│   ├── persistence.zig  # JSON file persistence
-│   ├── querying.zig     # Filtering and sorting
-│   ├── lifecycle.zig    # Task state transitions
-│   └── roadmap.zig      # Roadmap integration
-├── web/                 # Web/HTTP utilities
-└── tests/               # Comprehensive test suite
-    ├── mod.zig          # Test entry point
-    ├── chaos/           # Chaos testing (fault injection, recovery)
-    ├── e2e/             # End-to-end tests
-    ├── integration/     # Integration tests
-    ├── property/        # Property-based testing
-    └── stress/          # Stress tests (concurrency, load)
+├── abi.zig              # Public API module root
+├── api/                 # Entry points
+│   └── main.zig         # CLI entrypoint fallback
+├── core/                # Framework orchestration and config
+│   ├── config/          # Unified config (Config + Builder + per-feature)
+│   ├── framework.zig    # Lifecycle states, builder pattern
+│   ├── flags.zig        # Feature flags
+│   └── registry/        # Feature registry (comptime, runtime, dynamic)
+├── features/            # Feature modules
+│   ├── ai/              # Agents, LLM, streaming, training, vision
+│   ├── gpu/             # GPU acceleration (backends, kernels, codegen)
+│   ├── database/        # Vector database (WDBX with HNSW/IVF-PQ)
+│   ├── network/         # Distributed compute, Raft consensus
+│   ├── observability/   # Metrics, tracing, system info
+│   └── web/             # Web/HTTP server support
+└── services/            # Shared infrastructure
+    ├── runtime/         # Task execution, concurrency, scheduling
+    ├── platform/        # Platform abstraction layer
+    ├── shared/          # Utilities, security, SIMD
+    ├── connectors/      # API connectors (OpenAI, Ollama, Anthropic, etc.)
+    ├── cloud/           # Cloud provider integrations
+    ├── ha/              # High availability (failover, replication)
+    ├── tasks/           # Task management system
+    └── tests/           # Test suite (chaos, e2e, integration, stress)
 ```
 
-**Import guidance:**
-- **Public API**: Always use `@import("abi")` - never import files directly
-- **Feature Modules**: Access via `abi.gpu`, `abi.ai`, `abi.database`, etc.
-- **Platform Detection**: Use `abi.platform` for OS/arch detection, CPU features
-- **Shared Utilities**: Use `abi.shared` for consolidated utilities, or import from `src/shared/mod.zig` for all sub-modules
-- **Internal AI**: Implementation files import from `../../core/mod.zig` for types
+Import rules:
+- Public API imports use `@import("abi")`.
+- Nested modules import via their parent `mod.zig`.
 
-**Stub pattern:** Each feature module has a `stub.zig` that provides the same API surface when the feature is disabled. When modifying a module's public API, update both `mod.zig` and `stub.zig` to maintain compatibility. The AI module has extensive sub-feature stubs (`src/ai/*/stub.zig`) for agents, embeddings, llm, vision, training, etc.
+### Granular Stub Pattern
 
-**Comptime generics pattern:** Use comptime configuration structs to eliminate code duplication. Example from GPU codegen:
+AI submodules have individual `stub.zig` files for fine-grained feature gating:
 
-```zig
-// configs/wgsl_config.zig - Define config struct with backend-specific values
-pub const config = BackendConfig{
-    .language = .wgsl,
-    .type_names = .{ .f32_ = "f32", .i32_ = "i32", ... },
-    .atomics = .{ .add_fn = "atomicAdd", ... },
-};
-
-// generic.zig - Generic template instantiated with config
-pub fn CodeGenerator(comptime cfg: BackendConfig) type {
-    return struct {
-        pub const backend_config = cfg;
-        // Shared logic uses backend_config.type_names, etc.
-    };
-}
-
-// Pre-instantiate generators for each backend
-pub const WgslGenerator = CodeGenerator(wgsl_config.config);
-pub const GlslGenerator = CodeGenerator(glsl_config.config);
-
-// wgsl.zig - Backend-specific file is thin wrapper
-const generic = @import("generic.zig");
-pub const Generator = generic.WgslGenerator;
+```
+src/features/ai/
+├── mod.zig, stub.zig       # Top-level AI
+├── agents/mod.zig, stub.zig
+├── llm/mod.zig, stub.zig
+├── vision/mod.zig, stub.zig
+├── streaming/mod.zig, stub.zig
+├── training/mod.zig, stub.zig
+├── models/mod.zig, stub.zig
+├── memory/mod.zig, stub.zig
+├── rag/mod.zig, stub.zig
+├── embeddings/mod.zig, stub.zig
+├── orchestration/mod.zig, stub.zig
+├── multi_agent/mod.zig, stub.zig
+├── personas/mod.zig, stub.zig
+└── explore/mod.zig, stub.zig
 ```
 
-This pattern reduces each backend from ~1,000+ lines to ~50-100 lines while keeping all shared logic in `generic.zig`.
+When modifying any of these, update **both** `mod.zig` and `stub.zig`.
 
-**Table-driven build system:** `build.zig` uses arrays of `BuildTarget` structs to define examples and benchmarks. When adding new examples or benchmarks, add them to the appropriate array (`example_targets` or `benchmark_targets`) rather than duplicating build code. The `buildTargets()` function handles compilation uniformly.
+---
 
-### Configuration System
+## Feature Flags
 
-Two-level configuration architecture:
-- **`src/config/mod.zig`**: Unified `Config` struct with builder pattern for framework initialization
-- **`src/config/`**: Modular per-feature configs (ai.zig, gpu.zig, database.zig, etc.)
+```bash
+zig build -Denable-ai=true -Denable-gpu=false
+zig build -Dgpu-backend=vulkan,cuda
+```
 
-Single `Config` struct with optional feature configs and builder pattern:
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-Denable-ai` | true | AI agent system |
+| `-Denable-llm` | true | Local LLM inference |
+| `-Denable-vision` | true | Vision/image processing |
+| `-Denable-gpu` | true | GPU acceleration |
+| `-Denable-database` | true | Vector database |
+| `-Denable-network` | true | Distributed compute |
+| `-Denable-web` | true | Web/HTTP support |
+| `-Denable-profiling` | true | Metrics/tracing |
+| `-Denable-mobile` | false | Mobile cross-compilation |
+
+GPU backends: `auto`, `none`, `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`,
+`opengl`, `fpga`.
+
+---
+
+## Common Workflows
+
+```bash
+# Build + test
+zig build test --summary all
+
+# Single file test
+zig test src/services/runtime/engine/engine.zig --test-filter "pattern"
+
+# Full check
+zig build full-check
+
+# CLI smoke tests
+zig build cli-tests
+```
+
+---
+
+## Configuration System
+
+Unified `Config` with a builder pattern:
 
 ```zig
-pub const Config = struct {
-    gpu: ?GpuConfig = null,
-    ai: ?AiConfig = null,
-    database: ?DatabaseConfig = null,
-    network: ?NetworkConfig = null,
-    observability: ?ObservabilityConfig = null,
-    web: ?WebConfig = null,
-    plugins: PluginConfig = .{},
-};
+const abi = @import("abi");
 
-// Builder pattern usage
 var builder = abi.config.Builder.init(allocator);
 const config = builder
     .withAiDefaults()
     .withGpuDefaults()
     .withDatabaseDefaults()
     .build();
-
-var framework = try abi.Framework.init(allocator, config);
-defer framework.deinit();
 ```
 
-## Common Workflows
+---
 
-### Adding a new public API function
-1. Add to the real module (`src/<feature>/mod.zig`)
-2. Mirror the same signature in `src/<feature>/stub.zig`
-3. If the function needs types from core, import from `../../core/mod.zig`
-4. Run `zig build test` to verify both paths compile
+## CLI Reference (Condensed)
 
-### Adding a new example
-1. Add entry to `example_targets` array in `build.zig`
-2. Create the example file in `examples/`
-3. Run `zig build examples` to verify compilation
+Key command groups:
+- `abi agent`, `abi llm`, `abi model` (AI/LLM)
+- `abi db`, `abi embed` (database, embeddings)
+- `abi gpu`, `abi gpu-dashboard` (GPU)
+- `abi train` (training)
+- `abi bench` (benchmarks)
+- `abi config`, `abi system-info` (system/config)
 
-### Writing tests
-- Use `error.SkipZigTest` for hardware-gated tests (GPU, network):
-  ```zig
-  test "gpu operation" {
-      const gpu = initGpu() catch return error.SkipZigTest;
-      defer gpu.deinit();
-      // ... test code
-  }
-  ```
-- Unit tests live in library files and `src/tests/mod.zig`
-- Run filtered tests with `zig test file.zig --test-filter "pattern"`
-- For tests requiring I/O, initialize `std.Io.Threaded` in test setup (see Zig 0.16 Patterns)
+Full details in `docs/content/cli.html`.
 
-### Multi-Model Training
-The training module supports LLM, Vision (ViT), and Multimodal (CLIP) models:
-```bash
-zig build run -- train llm --epochs 10 --batch 32     # LLM training
-zig build run -- train vision --model vit            # ViT image classification
-zig build run -- train clip                          # CLIP multimodal training
-```
-
-Key features: gradient clipping, mixed precision (FP16/BF16), contrastive learning, checkpoint resume.
-
-## Zig 0.16 API Patterns (Required)
-
-The codebase uses Zig 0.16 APIs throughout. These patterns are mandatory; do not use deprecated 0.15.x APIs.
-
-### I/O Backend Initialization (CRITICAL)
-
-Zig 0.16 requires explicit I/O backend initialization for file and network operations. Requires an allocator; see `examples/` for full setup with `GeneralPurposeAllocator`.
-
-```zig
-// Initialize once, use for all file/network operations
-var io_backend = std.Io.Threaded.init(allocator, .{
- .environ = std.process.Environ.empty,  // .empty for library, init.environ for CLI
-});
-defer io_backend.deinit();
-const io = io_backend.io();
-
-// File read
-const content = try std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(10 * 1024 * 1024));
-defer allocator.free(content);
-
-// File write
-var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
-defer file.close(io);
-try file.writer(io).writeAll(content);
-
-// Directory operations
-std.Io.Dir.cwd().makePath(io, "path/to/dir") catch |err| switch (err) {
-    error.PathAlreadyExists => {},
-    else => return err,
-};
-
-// Directory iteration
-var dir = try std.Io.Dir.cwd().openDir(io, "path", .{ .iterate = true });
-defer dir.close(io);
-```
-
-### Other Zig 0.16 Changes
-
-```zig
-// Error/enum formatting: use {t} instead of @errorName()/@tagName()
-std.debug.print("Error: {t}, State: {t}", .{err, state});
-
-// ArrayListUnmanaged: use .empty not .init()
-var list = std.ArrayListUnmanaged(u8).empty;
-
-// Timing: use Timer.start() not Instant.now()
-var timer = std.time.Timer.start() catch return error.TimerFailed;
-const elapsed_ns = timer.read();
-
-// HTTP server: use .interface for reader/writer (from stream.reader/writer)
-var server: std.http.Server = .init(
-    &connection_reader.interface,  // connection_reader = stream.reader(io, &recv_buffer)
-    &connection_writer.interface,  // connection_writer = stream.writer(io, &send_buffer)
-);
-```
-
-## Concurrency Primitives
-
-The `src/runtime/concurrency/` module provides lock-free data structures for high-performance concurrent code:
-
-| Primitive | File | Description |
-|-----------|------|-------------|
-| Chase-Lev Deque | `chase_lev.zig` | Work-stealing deque for task scheduling |
-| Epoch-Based Reclamation | `epoch.zig` | Safe memory reclamation for lock-free structures |
-| Lock-Free Primitives | `lockfree.zig` | Atomic operations and CAS utilities |
-| MPMC Queue | `mpmc_queue.zig` | Multi-producer multi-consumer bounded queue |
-| Priority Queue | `priority_queue.zig` | Concurrent priority queue |
-
-```zig
-// Example: Using the MPMC queue
-const concurrency = @import("abi").runtime.concurrency;
-var queue = try concurrency.MpmcQueue(u64).init(allocator, 1024);
-defer queue.deinit();
-
-try queue.push(42);
-if (queue.pop()) |value| {
-    // Process value
-}
-```
-
-## GPU Memory Pool
-
-The GPU module includes an optimized memory pool for LLM workloads:
-
-```zig
-const gpu = @import("abi").gpu;
-var pool = try gpu.MemoryPool.init(allocator, .{
-    .strategy = .best_fit,  // or .first_fit
-    .auto_defrag = true,
-    .size_classes = &.{ 4096, 16384, 65536 },  // Common LLM buffer sizes
-});
-defer pool.deinit();
-
-const buffer = try pool.allocate(32768);
-defer pool.free(buffer);
-
-// Check fragmentation
-const stats = pool.getStats();
-if (stats.fragmentation_ratio > 0.3) {
-    try pool.defragment();
-}
-```
-
-**Features:** best-fit allocation, buffer splitting, fragmentation tracking, auto-defragmentation.
-
-## Test Infrastructure
-
-The `src/tests/` directory contains a comprehensive test suite:
-
-```bash
-# Run all tests
-zig build test --summary all
-
-# Run specific test categories
-zig test src/tests/integration/mod.zig          # Integration tests
-zig test src/tests/stress/mod.zig               # Stress tests
-zig test src/tests/property/mod.zig             # Property-based tests
-zig test src/tests/e2e/mod.zig                  # End-to-end tests
-zig test src/tests/chaos/mod.zig                # Chaos/fault injection tests
-
-# Run with filter
-zig test src/tests/mod.zig --test-filter "database"
-```
-
-| Directory | Purpose |
-|-----------|---------|
-| `chaos/` | Fault injection, recovery testing |
-| `e2e/` | Full system end-to-end tests |
-| `integration/` | Cross-module integration tests |
-| `property/` | Property-based/fuzzing tests |
-| `stress/` | High-load concurrency stress tests |
-
-## Task Management
-
-The `src/tasks/` module provides unified task tracking for personal tasks, project roadmap items, and distributed compute jobs:
-
-```zig
-const tasks = @import("abi").tasks;
-
-// Initialize task manager
-var manager = try tasks.Manager.init(allocator, .{
-    .storage_path = ".abi/tasks.json",
-    .auto_save = true,
-});
-defer manager.deinit();
-
-// Add a task
-const id = try manager.add("Fix authentication bug", .{
-    .priority = .high,
-    .category = .bug,
-    .description = "Users unable to login with OAuth",
-});
-
-// Update task status
-try manager.start(id);    // Mark as in_progress
-try manager.complete(id); // Mark as completed
-
-// Query tasks
-const high_priority = try manager.list(allocator, .{
-    .priority = .high,
-    .status = .pending,
-    .sort_by = .priority,
-});
-defer allocator.free(high_priority);
-
-// Get statistics
-const stats = manager.getStats();
-std.debug.print("Completed: {d}/{d}\n", .{stats.completed, stats.total});
-```
-
-**Features:** Priority levels (critical/high/normal/low), categories (feature/bug/docs/test/refactor), status tracking, due dates, task dependencies (blocked_by), JSON persistence, roadmap import.
-
-## Model Management
-
-The `src/ai/models/` module provides model download, caching, and HuggingFace integration:
-
-```zig
-const models = @import("abi").ai.models;
-
-// Initialize model manager
-var manager = try models.Manager.init(allocator, .{});
-defer manager.deinit();
-
-// List cached models
-const cached = manager.listModels();
-for (cached) |model| {
-    std.debug.print("{s}: {d} MB\n", .{model.name, model.size_bytes / 1024 / 1024});
-}
-
-// Download a model from HuggingFace (shorthand format)
-try manager.download("TheBloke/Llama-2-7B-GGUF:Q4_K_M", .{
-    .progress_callback = progressFn,
-    .verify_checksum = true,
-});
-
-// Get model path for inference
-const path = try manager.getModelPath("llama-2-7b-q4");
-```
-
-**Cache directories:**
-- Linux/macOS: `~/.abi/models/`
-- Windows: `%LOCALAPPDATA%\abi\models\`
-
-**HuggingFace shorthand:** `Owner/Repo:QuantType` (e.g., `TheBloke/Llama-2-7B-GGUF:Q4_K_M`)
-
-## CLI Commands
-
-| Command | Purpose |
-|---------|---------|
-| `db` | Database operations (add, query, stats, optimize, backup, restore, serve) |
-| `agent` | AI agent interaction (interactive, one-shot, 13 personas) |
-| `llm` | LLM inference (chat, generate, serve, info, bench, download, list) |
-| `model` | Model management (list, info, download, remove, search, path) |
-| `train` | Training pipeline (run, llm, vision, clip, resume, monitor, info) |
-| `gpu` | GPU management (backends, devices, summary, default, status) |
-| `gpu-dashboard` | Interactive GPU + Agent monitoring TUI |
-| `bench` | Benchmarks (all, simd, memory, ai, quick, concurrency) |
-| `simd` | SIMD performance demonstration |
-| `task` | Task management (add, list, done, stats) |
-| `tui` | Interactive TUI command launcher with themes |
-| `explore` | Codebase search (quick/medium/thorough/deep levels) |
-| `embed` | Generate embeddings (openai, ollama, mistral, cohere) |
-| `config` | Configuration management (init, show, validate) |
-| `network` | Network registry (list, register, status) |
-| `multi-agent` | Multi-agent coordinator workflows |
-| `plugins` | Plugin management (list, enable, disable, info) |
-| `profile` | User profile and settings |
-| `discord` | Discord bot operations |
-| `convert` | Dataset conversion (tokenbin, text, jsonl, wdbx) |
-| `completions` | Shell completions (bash, zsh, fish, powershell) |
-| `system-info` | Framework and feature status |
-| `toolchain` | Zig toolchain management (install, update, status) |
-
-### Model Management
-
-```bash
-zig build run -- model list                          # List cached models
-zig build run -- model info llama-7b                 # Show model details
-zig build run -- model download TheBloke/Model:Q4_K_M  # Download from HuggingFace
-zig build run -- model remove llama-7b               # Remove cached model
-zig build run -- model search llama                  # Search HuggingFace models
-zig build run -- model path llama-7b                 # Get local model path
-```
-
-Models are cached in platform-aware directories (`~/.abi/models/` on Unix, `%APPDATA%\abi\models\` on Windows). The HuggingFace shorthand format is `TheBloke/Model:QuantType`.
-
-### LLM CLI Examples
-
-```bash
-zig build run -- llm chat --model llama-7b           # Interactive chat
-zig build run -- llm generate "Once upon" --max 100  # Text generation
-zig build run -- llm info --model mistral            # Model information
-zig build run -- llm list                            # List available models
-```
-
-The LLM feature (`src/ai/llm/`) provides local GGUF model inference with:
-- **Tokenization**: BPE and SentencePiece (Viterbi)
-- **Quantization**: Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 with roundtrip encoding
-- **Transformer Ops**: MatMul, attention, RoPE, RMSNorm, SiLU with SIMD
-- **KV Cache**: Standard, sliding window, and paged attention (vLLM-style)
-- **GPU Acceleration**: CUDA kernels for softmax, RMSNorm, SiLU with CPU fallback
-- **Sampling**: Greedy, top-k, top-p, temperature, tail-free, mirostat (v1/v2)
-- **Export**: GGUF writer for trained model export
-
-### Streaming Inference API
-
-The streaming module (`src/ai/streaming/`) provides real-time token streaming:
-
-```bash
-# Start streaming server with a local GGUF model
-zig build run -- llm serve -m ./models/llama-7b.gguf --preload
-
-# With authentication and custom address
-zig build run -- llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token my-secret
-```
-
-**Endpoints:**
-- `POST /v1/chat/completions` - OpenAI-compatible chat completions (SSE)
-- `POST /api/stream` - Custom ABI streaming endpoint (SSE)
-- `GET /api/stream/ws` - WebSocket streaming (bidirectional, supports cancellation)
-- `POST /admin/reload` - Hot-reload model without restart
-- `GET /health` - Health check
-
-**Features:**
-- **SSE/WebSocket** support for real-time responses
-- **Backend routing**: local GGUF, OpenAI, Ollama, Anthropic
-- **Bearer token auth** with configurable validation
-- **Heartbeat keep-alive** for long-running connections
-- **Model preloading** to reduce first-request latency
-- **Circuit breakers**: Per-backend failure isolation with automatic recovery
-- **Session caching**: Resume interrupted streams via SSE Last-Event-ID
-
-**Circuit Breaker Pattern:**
-
-The circuit breaker (`src/ai/streaming/circuit_breaker.zig`) prevents cascading failures by tracking backend health:
-
-```
-    CLOSED ──(failures >= threshold)──> OPEN ──(timeout)──> HALF_OPEN
-       ^                                  ^                     │
-       │                                  │                     │
-       └──(successes >= threshold)────────┴──(any failure)──────┘
-```
-
-| State | Behavior |
-|-------|----------|
-| **Closed** | Normal operation; failures increment counter, success resets it |
-| **Open** | All requests rejected with `error.CircuitBreakerOpen` |
-| **Half-Open** | Limited probe requests; success closes, failure reopens |
-
-**Configuration:**
-```zig
-var cb = CircuitBreaker.init(.{
-    .failure_threshold = 5,       // Failures to trip circuit
-    .success_threshold = 2,       // Successes to recover
-    .timeout_ms = 60_000,         // Time before recovery attempt
-    .half_open_max_requests = 3,  // Probes allowed in half-open
-});
-```
-
-**Common errors:**
-- `error.CircuitBreakerOpen` - Backend unhealthy, use fallback or retry later
-
-**Stream Recovery (Circuit Breaker Pattern):**
-```zig
-const streaming = @import("abi").ai.streaming;
-
-// Initialize recovery with circuit breakers
-var recovery = try streaming.StreamRecovery.init(allocator, .{
-    .circuit_breaker = .{ .failure_threshold = 5 },
-});
-defer recovery.deinit();
-
-// Check backend availability before use
-if (recovery.isBackendAvailable(.openai)) {
-    // Backend circuit is closed, safe to use
-}
-
-// Record outcomes to update circuit state
-recovery.recordSuccess(.openai);
-recovery.recordFailure(.openai);  // Opens circuit after threshold
-
-// Session cache for reconnection
-var cache = streaming.SessionCache.init(allocator, .{});
-try cache.storeToken("session-id", event_id, "token", .local, prompt_hash);
-```
+---
 
 ## Environment Variables
 
-### Configuration Variables
+| Variable | Purpose |
+|----------|---------|
+| `ABI_OPENAI_API_KEY` | OpenAI connector |
+| `ABI_ANTHROPIC_API_KEY` | Claude connector |
+| `ABI_OLLAMA_HOST` | Ollama host |
+| `ABI_OLLAMA_MODEL` | Default Ollama model |
+| `ABI_HF_API_TOKEN` | HuggingFace token |
+| `ABI_MASTER_KEY` | Secrets encryption (production) |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ABI_GPU_BACKEND` | `auto` | GPU backend (auto, cuda, vulkan, metal, none) |
-| `ABI_LLM_MODEL_PATH` | - | Path to LLM model file |
-| `ABI_LLM_TEMPERATURE` | `0.7` | LLM sampling temperature |
-| `ABI_LLM_MAX_TOKENS` | `2048` | Maximum tokens for LLM generation |
-| `ABI_DB_PATH` | `abi.db` | Database file path |
+See `README.md` for the full list.
 
-### API Keys
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `ABI_OPENAI_API_KEY` | - | OpenAI API key |
-| `ABI_OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama host |
-| `ABI_OLLAMA_MODEL` | `gpt-oss` | Default Ollama model |
-| `ABI_HF_API_TOKEN` | - | HuggingFace token |
-| `ABI_ANTHROPIC_API_KEY` | - | Anthropic/Claude API key |
-| `ABI_MISTRAL_API_KEY` | - | Mistral AI API key |
-| `ABI_COHERE_API_KEY` | - | Cohere API key |
-| `ABI_MASTER_KEY` | - | 32-byte key for secrets encryption (required in production) |
-| `DISCORD_BOT_TOKEN` | - | Discord bot token |
-
-### Using ConfigLoader
-
-```zig
-const config_mod = @import("abi").config;
-
-// Load config with environment variable overrides
-var loader = config_mod.ConfigLoader.init(allocator);
-defer loader.deinit();
-const config = try loader.load();
-
-// Or merge with a base config
-const base = config_mod.Config.minimal();
-const config_merged = try loader.loadWithBase(base);
-```
-
-## Security Considerations
-
-| Setting | Default | Production Recommendation |
-|---------|---------|---------------------------|
-| JWT `allow_none_algorithm` | false | Keep false (logs warning if enabled) |
-| Secrets `require_master_key` | false | Set true for production |
-| Rate limiting | off | Enable for public APIs |
-
-**Critical for production:**
-1. Set `ABI_MASTER_KEY` environment variable (32+ bytes)
-2. Enable rate limiting on public endpoints
-3. Review `SECURITY.md` for known issues
-
-## Platform Notes
-
-### Windows
-
-| Issue | Solution |
-|-------|----------|
-| Path separators | Use forward slashes `/` in Zig code; backslashes work in shell commands |
-| Binary location | `zig-out\bin\abi.exe` (note `.exe` extension) |
-| Cache clearing | `rmdir /s /q .zig-cache` or `Remove-Item -Recurse .zig-cache` (PowerShell) |
-| Environment variables | Use `set VAR=value` (cmd) or `$env:VAR="value"` (PowerShell) |
-| Line endings | Git handles CRLF/LF; `zig fmt` normalizes to LF |
-
-```powershell
-# Windows PowerShell examples
-zig build run -- --help
-zig build test --summary all
-$env:ABI_OPENAI_API_KEY="sk-..."
-.\zig-out\bin\abi.exe db stats
-```
-
-### macOS/Linux
-
-```bash
-# Use LLDB on macOS, GDB on Linux
-lldb ./zig-out/bin/abi    # macOS
-gdb ./zig-out/bin/abi     # Linux
-```
-
-## Debugging
-
-```bash
-# Debug build
-zig build -Doptimize=Debug
-
-# Run with GDB (Linux)
-gdb ./zig-out/bin/abi
-(gdb) break src/runtime/engine/engine.zig:150
-(gdb) run -- db stats
-
-# Run with LLDB (macOS)
-lldb ./zig-out/bin/abi
-(lldb) breakpoint set --file engine.zig --line 150
-```
-
-**Memory leak detection:**
-```zig
-var gpa = std.heap.GeneralPurposeAllocator(.{
-    .stack_trace_frames = 10,
-}){};
-defer {
-    const check = gpa.deinit();
-    if (check == .leak) @panic("Memory leak detected");
-}
-```
-
-## Connectors
-
-Use external AI providers through the connectors module:
-
-```zig
-// OpenAI
-const openai = @import("abi").connectors.openai;
-var client = try openai.Client.init(allocator, .{});
-const response = try client.chat("Hello", .{});
-
-// Ollama (local)
-const ollama = @import("abi").connectors.ollama;
-var client = try ollama.Client.init(allocator, .{ .host = "http://127.0.0.1:11434" });
-
-// Anthropic (Claude)
-const anthropic = @import("abi").connectors.anthropic;
-var client = try anthropic.Client.init(allocator, .{});
-
-// Mistral
-const mistral = @import("abi").connectors.mistral;
-var client = try mistral.Client.init(allocator, .{});
-
-// Cohere
-const cohere = @import("abi").connectors.cohere;
-var client = try cohere.Client.init(allocator, .{});
-
-// HuggingFace
-const huggingface = @import("abi").connectors.huggingface;
-var client = try huggingface.Client.init(allocator, .{});
-```
-
-**Available connectors:** OpenAI, Ollama, Anthropic, HuggingFace, Mistral, Cohere, Discord
-
-Connectors require corresponding environment variables (see Environment Variables section).
-
-## Docker Deployment
-
-A `docker-compose.yml` is provided for containerized deployments:
-
-```bash
-# Standard deployment
-docker compose up -d abi
-
-# GPU-enabled deployment (requires NVIDIA Container Toolkit)
-docker compose up -d abi-gpu
-
-# With Ollama for local LLM inference
-docker compose --profile ollama up -d
-```
-
-The Dockerfile uses multi-stage builds with optimized `.dockerignore` for faster builds.
+---
 
 ## Language Bindings
 
-ABI provides FFI bindings for C, Python, and Go. All bindings live in `bindings/`.
-
-### Building the Shared Library
+Bindings live in `bindings/`. Build the C shared library first:
 
 ```bash
-# Build the C shared library (required for all bindings)
 cd bindings/c && zig build
-
-# Outputs:
-#   bindings/c/zig-out/lib/libabi.dylib (macOS) or libabi.so (Linux)
-#   bindings/c/zig-out/include/abi.h
-
-# Regenerate C header (if API changes)
-zig build c-header
+# Outputs: bindings/c/zig-out/lib/libabi.{dylib,so}
 ```
 
-### C Bindings
+| Language | Location | Setup |
+|----------|----------|-------|
+| C | `bindings/c/` | `#include "abi.h"` |
+| Python | `bindings/python/` | `pip install -e .` (depends on C lib) |
+| Go | `bindings/go/` | `go get` (depends on C lib) |
+| JavaScript | `bindings/js/` | Node.js FFI wrapper |
+| Rust | `bindings/rust/` | Rust FFI crate |
 
-The C API (`bindings/c/zig-out/include/abi.h`) provides:
-- Framework lifecycle: `abi_init()`, `abi_shutdown()`, `abi_version()`
-- SIMD operations: `abi_simd_vector_add()`, `abi_simd_vector_dot()`, `abi_simd_cosine_similarity()`
-- Database operations: `abi_db_create()`, `abi_db_insert()`, `abi_db_search()`
-- GPU operations: `abi_gpu_init()`, `abi_gpu_info()`
+Set library path: `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH` (macOS) to `bindings/c/zig-out/lib`.
 
-```c
-#include "abi.h"
+---
 
-abi_framework_t fw = NULL;
-if (abi_init(&fw) == ABI_OK) {
-    printf("ABI v%s\n", abi_version());
-    abi_shutdown(fw);
-}
-```
+## Test Infrastructure
 
-### Python Bindings
+- Unit tests live alongside code as `*_test.zig`.
+- Integration tests are under `tests/` (e2e, stress, chaos, integration).
+- Skip hardware-gated tests with `error.SkipZigTest`.
 
-```bash
-# Install (requires shared library built first)
-cd bindings/python
-pip install -e .
-
-# Or use directly
-export DYLD_LIBRARY_PATH=$PWD/../c/zig-out/lib:$DYLD_LIBRARY_PATH  # macOS
-export LD_LIBRARY_PATH=$PWD/../c/zig-out/lib:$LD_LIBRARY_PATH      # Linux
-python -c "from abi import ABI; print(ABI().version())"
-```
-
-```python
-from abi import ABI, VectorDatabase, GpuBackend
-
-# Initialize framework
-abi = ABI()
-print(f"ABI v{abi.version()}")
-
-# Vector database operations
-db = VectorDatabase(dimension=384)
-db.insert(1, [0.1] * 384)
-results = db.search([0.1] * 384, k=10)
-
-# GPU backend selection (cuda, vulkan, metal, cpu)
-db_gpu = VectorDatabase(dimension=384, backend=GpuBackend.CUDA)
-```
-
-### Go Bindings
-
-```bash
-# Set library path
-export DYLD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$DYLD_LIBRARY_PATH  # macOS
-export LD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$LD_LIBRARY_PATH      # Linux
-
-# Run tests
-cd bindings/go && go test -v
-
-# Run example
-cd bindings/go/examples/vector_search && go run main.go
-```
-
-```go
-import "github.com/donaldfilimon/abi/bindings/go"
-
-func main() {
-    framework, _ := abi.Init()
-    defer framework.Shutdown()
-
-    db, _ := framework.CreateDB(128)
-    defer db.Destroy()
-
-    db.Insert(1, []float32{1.0, 0.0, ...})
-    results, _ := db.Search([]float32{1.0, 0.0, ...}, 10)
-
-    // With context cancellation
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    results, _ = db.SearchWithContext(ctx, query, 10)
-}
-```
-
-### Binding Development Workflow
-
-When modifying the C API:
-1. Update `bindings/c/build.zig` or source files
-2. Rebuild: `cd bindings/c && zig build`
-3. Regenerate header: `zig build c-header` (from root)
-4. Update Python/Go bindings to match new signatures
-5. Run binding tests: `cd bindings/python && python -m pytest` or `cd bindings/go && go test`
-
-## Adding a New Feature Module
-
-1. Create the module directory under `src/<feature>/`
-2. Create `mod.zig` (real implementation) and `stub.zig` (disabled placeholder)
-3. Both files must export identical public APIs; stub returns `error.<Feature>Disabled`
-4. Add feature flag in `build.zig` (`-Denable-<feature>`)
-5. Register in `src/registry/` if it needs runtime toggling
-6. Add entry to `src/config/mod.zig` Config struct if it needs configuration
-7. Update `src/abi.zig` to conditionally import via `if (build_options.enable_<feature>)`
-
-## Reference
-
-Key documentation:
-- [PLAN.md](PLAN.md) - Development roadmap and sprint status
-- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) - Production deployment guide
-- [SECURITY.md](SECURITY.md) - Security practices and reporting
-- [Docs Index](docs/content/index.html) - Offline docs landing page
-- [GPU Guide](docs/content/gpu.html) - GPU backend details
-- [AI Guide](docs/content/ai.html) - AI module and agents guide
-- [Database Guide](docs/content/database.html) - Vector database (WDBX) usage
-- [Network Guide](docs/content/network.html) - Distributed compute and Raft consensus
-- [API Guide](docs/content/api.html) - SSE/WebSocket streaming API
-- [CLI Guide](docs/content/cli.html) - Model management and CLI usage
-- [Benchmarks](benchmarks/README.md) - Performance benchmarking guide
-- [CLI Tests](scripts/run_cli_tests.sh) - CLI test procedures
-- **Agent Prompts**: `prompts/` contains mega-prompts for system instructions, refactoring, and testing.
-
-## Experimental Feature Flags
-
-During CI or local builds you may need to toggle experimental flags via `-D` options:
-
-```bash
-zig build -Denable-telemetry=true        # Enable experimental telemetry
-zig build -Denable-scripting=true        # Enable embedded scripting backends
-```
-
-These flags are integrated into `build_options` and must have corresponding stub implementations in `stub.zig` to keep API parity.
-
-## Code Style
-
-| Rule | Convention |
-|------|------------|
-| Indentation | 4 spaces, no tabs |
-| Line length | Under 100 characters |
-| Types | `PascalCase` |
-| Functions/Variables | `camelCase` |
-| Imports | Explicit only (no `usingnamespace`) |
-| Error handling | `!` return types, specific error enums |
-| Cleanup | Prefer `defer`/`errdefer` |
-| ArrayList | Prefer `std.ArrayListUnmanaged` with explicit allocator passing |
+---
 
 ## Quick File Navigation
 
 | Task | Key Files |
 |------|-----------|
-| Add new CLI command | `tools/cli/commands/` + register in `tools/cli/main.zig` |
-| Add new feature module | `src/<feature>/mod.zig` + `src/<feature>/stub.zig` + `build.zig` |
-| Add new connector | `src/connectors/<provider>.zig` |
-| Add new GPU backend | `src/gpu/backends/` + `src/gpu/dsl/codegen/configs/` |
-| Modify public API | `src/abi.zig` (entry point) |
-| Add new example | `examples/` + add to `example_targets` in `build.zig` |
-| Add new test category | `src/tests/<category>/mod.zig` + import in `src/tests/mod.zig` |
-| Streaming API changes | `src/ai/streaming/` (server, backends, handlers) |
-| Model management | `src/ai/models/` + `tools/cli/commands/model.zig` |
-| Task management | `src/tasks/` + `tools/cli/commands/task.zig` |
-| C API changes | `bindings/c/` + rebuild with `zig build c-header` |
-| Python bindings | `bindings/python/abi.py` + `bindings/python/test_abi.py` |
-| Go bindings | `bindings/go/abi.go` + `bindings/go/context.go` |
+| Public API | `src/abi.zig` |
+| Feature module | `src/features/<feature>/mod.zig`, `src/features/<feature>/stub.zig` |
+| CLI commands | `tools/cli/commands/` |
+| CLI main | `tools/cli/main.zig`, `tools/cli/mod.zig` |
+| CLI utilities | `tools/cli/utils/`, `tools/cli/tui/` |
+| Build config | `build.zig`, `build.zig.zon` |
+| Tests entry | `src/services/tests/mod.zig` |
+| Docs site | `docs/` |
+| Cloud integrations | `src/services/cloud/` |
+| High availability | `src/services/ha/` |
+| Connectors | `src/services/connectors/` |
 
-## Post-Edit Checklist
+---
 
-After making changes, always run:
+## References
 
-```bash
-zig fmt .                        # Format code
-zig build test --summary all     # Run all tests
-zig build lint                   # Verify formatting passes CI
-```
-
-If modifying a feature module's public API, verify both enabled and disabled builds compile:
-
-```bash
-zig build -Denable-<feature>=true   # Real module
-zig build -Denable-<feature>=false  # Stub module
-```
-
-### GPU Backend Verification
-
-When modifying GPU code, verify all backends compile:
-
-```bash
-for backend in auto metal vulkan cuda stdgpu webgpu opengl fpga none; do
-  zig build -Dgpu-backend=$backend || echo "FAIL: $backend"
-done
-```
+- `AGENTS.md` - Baseline rules
+- `GEMINI.md` - Quick reference
+- `CONTRIBUTING.md` - Workflow
+- `docs/README.md` - Docs system
+- `SECURITY.md` - Security practices
+- `DEPLOYMENT_GUIDE.md` - Production deployment
+- `PLAN.md` - Roadmap

@@ -357,7 +357,7 @@ pub fn build(b: *std.Build) void {
     abi_module.addImport("build_options", build_opts);
 
     // CLI executable
-    const cli_path = if (pathExists(b, "tools/cli/main.zig")) "tools/cli/main.zig" else "src/main.zig";
+    const cli_path = if (pathExists(b, "tools/cli/main.zig")) "tools/cli/main.zig" else "src/api/main.zig";
     const exe = b.addExecutable(.{
         .name = "abi",
         .root_module = b.createModule(.{ .root_source_file = b.path(cli_path), .target = target, .optimize = optimize, .link_libc = true }),
@@ -409,8 +409,8 @@ pub fn build(b: *std.Build) void {
     // Tests - defined before full-check to allow step dependency
     // ---------------------------------------------------------------------------
     var test_step: ?*std.Build.Step = null;
-    if (pathExists(b, "src/tests/mod.zig")) {
-        const tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/tests/mod.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
+    if (pathExists(b, "src/services/tests/mod.zig")) {
+        const tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/services/tests/mod.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         tests.root_module.addImport("abi", abi_module);
         tests.root_module.addImport("build_options", build_opts);
         b.step("typecheck", "Compile tests without running").dependOn(&tests.step);

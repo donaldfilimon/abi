@@ -20,111 +20,50 @@ stable APIs and Context structs for Framework integration.
 
 | Directory | Description |
 |-----------|-------------|
-| `abi.zig` | Public API entry point with curated re-exports |
-| `config/` | Unified configuration system (Config + Builder APIs) |
-| `framework.zig` | Framework orchestration and lifecycle management |
-| `flags.zig` | Feature flag definitions |
-| `config/` | Modular configuration per feature |
-| `registry/` | Feature registry system (comptime, runtime-toggle, dynamic modes) |
-| `runtime/` | Always-on infrastructure (engine, scheduling, concurrency, memory) |
-| `platform/` | Platform detection and SIMD capabilities |
-| `shared/` | Cross-cutting utilities (logging, io, security, utils) |
-| `ai/` | AI module with sub-features (llm, embeddings, agents, training) |
-| `gpu/` | GPU acceleration with unified multi-backend API |
-| `database/` | Vector database (primary implementation) |
-| `network/` | Distributed compute (primary implementation) |
-| `observability/` | Metrics, tracing, profiling |
-| `web/` | Web/HTTP utilities (primary implementation) |
-| `connectors/` | External API connectors (OpenAI, Ollama, Anthropic, etc.) |
-| `cloud/` | Cloud function adapters (AWS, GCP, Azure) |
-| `ha/` | High availability (backup, PITR, replication) |
-| `tasks/` | Task management system (roadmap, tracking) |
-| `tests/` | Test utilities, property-based testing, stub parity verification |
+| `api/` | Entry points (`main.zig`) |
+| `core/` | Framework orchestration, config, flags, registry |
+| `features/` | Feature modules (ai, gpu, database, network, observability, web) |
+| `services/` | Shared infrastructure (runtime, platform, shared, connectors, cloud, ha, tasks, tests) |
 
 ## Module Hierarchy
 
 ```
 src/
-├── abi.zig              # Public API
-├── config/              # Unified configuration
-├── framework.zig        # Framework orchestration
-├── flags.zig            # Feature flags
+├── abi.zig              # Public API module root
+├── api/                 # Entry points
+│   └── main.zig         # CLI entrypoint fallback
 │
-├── config/              # Modular configuration
-│   ├── mod.zig
-│   ├── ai.zig
-│   ├── cloud.zig
-│   ├── database.zig
-│   ├── gpu.zig
-│   ├── network.zig
-│   ├── observability.zig
-│   ├── plugin.zig
-│   └── web.zig
+├── core/                # Framework orchestration and config
+│   ├── config/          # Unified configuration
+│   ├── framework.zig    # Framework lifecycle
+│   ├── flags.zig        # Feature flags
+│   └── registry/        # Feature registry system
 │
-├── registry/            # Feature registry system
-│   ├── mod.zig          # Public API facade with Registry struct
-│   ├── types.zig        # Core types (Feature, RegistrationMode, Error)
-│   ├── registration.zig # registerComptime, registerRuntimeToggle, registerDynamic
-│   └── lifecycle.zig    # initFeature, deinitFeature, enable/disable
+├── features/            # Feature modules
+│   ├── ai/              # AI module (agents, llm, training, personas)
+│   ├── gpu/             # GPU acceleration
+│   ├── database/        # Vector database
+│   ├── network/         # Distributed compute
+│   ├── observability/   # Metrics and tracing
+│   └── web/             # Web/HTTP utilities
 │
-├── runtime/             # Always-on infrastructure
-│   ├── mod.zig          # Unified entry point
-│   ├── engine/          # Work-stealing task execution
-│   ├── scheduling/      # Futures, cancellation, task groups
-│   ├── concurrency/     # Lock-free data structures
-│   └── memory/          # Allocators, pools
-│
-├── platform/            # Platform detection and SIMD capabilities
-│   ├── mod.zig          # Platform entry point
-│   ├── detection.zig    # OS/arch detection
-│   └── cpu.zig          # CPU feature helpers
-│
-├── shared/              # Cross-cutting concerns
-│   ├── logging.zig      # Logging infrastructure
-│   ├── io.zig           # I/O helpers
-│   ├── security/        # API keys, auth
-│   └── utils/           # General utilities
-│
-├── ai/                  # AI module
-│   ├── mod.zig          # Re-exports + Context
-│   ├── llm/             # LLM inference sub-feature
-│   ├── embeddings/      # Embeddings generation sub-feature
-│   ├── agents/          # Agent runtime sub-feature
-│   └── training/        # Training pipelines sub-feature
-│
-├── gpu/                 # GPU acceleration
-│   ├── mod.zig          # Unified GPU API with backends, DSL, profiling
-│   └── stub.zig         # Feature-disabled stub
-│
-├── database/            # Vector database
-│   ├── mod.zig
-│   └── stub.zig
-│
-├── network/             # Distributed compute
-│   ├── mod.zig
-│   └── stub.zig
-│
-├── observability/       # Metrics and tracing
-│   ├── mod.zig
-│   └── stub.zig
-│
-├── web/                 # Web utilities
-│   ├── mod.zig
-│   └── stub.zig
-│
-├── connectors/          # External API connectors
-├── cloud/               # Cloud function adapters
-├── ha/                  # High availability
-├── tasks/               # Task management
-└── tests/               # Test infrastructure
+└── services/            # Shared infrastructure
+    ├── runtime/         # Scheduling, concurrency, memory
+    ├── platform/        # Platform detection and SIMD capabilities
+    ├── shared/          # Logging, io, utils, security
+    ├── connectors/      # External API connectors
+    ├── cloud/           # Cloud function adapters
+    ├── ha/              # High availability
+    ├── tasks/           # Task management
+    └── tests/           # Test infrastructure
 ```
 
 ## Key Entry Points
 
-- **Public API**: `abi.zig` - Use `abi.initDefault()`, `Framework.builder()`, `Framework.deinit()`, `abi.version()`
-- **Configuration**: `config/mod.zig` - Unified `Config` struct with `Builder` API
-- **Framework**: `framework.zig` - `Framework` struct manages feature lifecycle
-- **Runtime**: `runtime/mod.zig` - Always-available scheduling and concurrency
+- **Public API**: `abi.zig` - `abi.initDefault()`, `Framework.builder()`, `Framework.deinit()`, `abi.version()`
+- **Configuration**: `core/config/mod.zig` - Unified `Config` struct with `Builder` API
+- **Framework**: `core/framework.zig` - `Framework` struct manages feature lifecycle
+- **Runtime**: `services/runtime/mod.zig` - Always-available scheduling and concurrency
 
 ## Module Pattern
 
@@ -136,7 +75,7 @@ Top-level modules (gpu, ai, database, network, observability, web) follow this p
 4. Have a corresponding `stub.zig` for when the feature is disabled
 
 ```zig
-// Example: src/gpu/mod.zig
+// Example: src/features/gpu/mod.zig
 const unified = @import("unified.zig");
 
 // Re-exports

@@ -16,9 +16,23 @@ available as fields on the root module and follow stable naming patterns.
     <li><code>abi.shared</code> for shared utilities</li>
 </ul>
 
+<h2>Persona API</h2>
+<p>
+The multi-persona assistant exposes a simple HTTP surface for chat and telemetry.
+Endpoints are available when the web and AI features are enabled.
+</p>
+<ul>
+    <li><code>POST /api/v1/chat</code> - Auto-routing chat</li>
+    <li><code>POST /api/v1/chat/abbey</code> - Force Abbey persona</li>
+    <li><code>POST /api/v1/chat/aviva</code> - Force Aviva persona</li>
+    <li><code>GET /api/v1/personas</code> - List personas and availability</li>
+    <li><code>GET /api/v1/personas/metrics</code> - Aggregated persona metrics</li>
+    <li><code>GET /api/v1/personas/health</code> - Health status snapshot</li>
+</ul>
+
 <h2>Streaming API</h2>
 <p>
-The streaming module (<code>src/ai/streaming/</code>) provides real-time token streaming
+The streaming module (<code>src/features/ai/streaming/</code>) provides real-time token streaming
 for LLM inference. Start a streaming server with:
 </p>
 <pre><code>zig build run -- llm serve -m ./models/llama-7b.gguf --preload

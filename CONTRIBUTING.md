@@ -111,8 +111,8 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 | Test Type | Command | Notes |
 |-----------|---------|-------|
 | All tests | `zig build test --summary all` | Detailed output |
-| Single file | `zig test src/runtime/engine/engine.zig` | Direct file test |
-| Filtered | `zig test src/tests/mod.zig --test-filter "pattern"` | Pattern matching |
+| Single file | `zig test src/services/runtime/engine/engine.zig` | Direct file test |
+| Filtered | `zig test src/services/tests/mod.zig --test-filter "pattern"` | Pattern matching |
 | With features | `zig build test -Denable-gpu=true` | Feature-gated |
 | Skip hardware | Use `error.SkipZigTest` | For hardware-gated tests |
 
