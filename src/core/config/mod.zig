@@ -14,6 +14,7 @@ pub const network_config = @import("network.zig");
 pub const observability_config = @import("observability.zig");
 pub const web_config = @import("web.zig");
 pub const cloud_config = @import("cloud.zig");
+pub const analytics_config = @import("analytics.zig");
 pub const plugin_config = @import("plugin.zig");
 pub const loader = @import("loader.zig");
 
@@ -42,6 +43,8 @@ pub const ObservabilityConfig = observability_config.ObservabilityConfig;
 pub const WebConfig = web_config.WebConfig;
 
 pub const CloudConfig = cloud_config.CloudConfig;
+
+pub const AnalyticsConfig = analytics_config.AnalyticsConfig;
 
 pub const PluginConfig = plugin_config.PluginConfig;
 
@@ -135,6 +138,7 @@ pub const Config = struct {
     observability: ?ObservabilityConfig = null,
     web: ?WebConfig = null,
     cloud: ?CloudConfig = null,
+    analytics: ?AnalyticsConfig = null,
     plugins: PluginConfig = .{},
 
     /// Create a config with all compile-time enabled features using defaults.
@@ -147,6 +151,7 @@ pub const Config = struct {
             .observability = if (build_options.enable_profiling) ObservabilityConfig.defaults() else null,
             .web = if (build_options.enable_web) WebConfig.defaults() else null,
             .cloud = if (build_options.enable_web) CloudConfig.defaults() else null,
+            .analytics = if (build_options.enable_analytics) AnalyticsConfig.defaults() else null,
         };
     }
 
@@ -170,7 +175,7 @@ pub const Config = struct {
             .web => self.web != null,
             .personas => if (self.ai) |ai| ai.personas != null else false,
             .cloud => self.cloud != null,
-            .analytics => build_options.enable_analytics,
+            .analytics => self.analytics != null,
         };
     }
 
@@ -291,6 +296,16 @@ pub const Builder = struct {
         return self;
     }
 
+    pub fn withAnalytics(self: *Builder, cfg: AnalyticsConfig) *Builder {
+        self.config.analytics = cfg;
+        return self;
+    }
+
+    pub fn withAnalyticsDefaults(self: *Builder) *Builder {
+        self.config.analytics = AnalyticsConfig.defaults();
+        return self;
+    }
+
     pub fn withPlugins(self: *Builder, cfg: PluginConfig) *Builder {
         self.config.plugins = cfg;
         return self;
@@ -348,6 +363,11 @@ pub fn validate(config: Config) ConfigError!void {
 
     // Check cloud config
     if (config.cloud != null and !build_options.enable_web) {
+        return ConfigError.FeatureDisabled;
+    }
+
+    // Check analytics config
+    if (config.analytics != null and !build_options.enable_analytics) {
         return ConfigError.FeatureDisabled;
     }
 

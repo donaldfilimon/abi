@@ -322,9 +322,11 @@ pub const Framework = struct {
             }
         }
 
-        if (comptime build_options.enable_analytics) {
+        if (cfg.analytics) |_| {
             fw.analytics = try analytics_mod.Context.init(allocator, analytics_mod.AnalyticsConfig{});
-            try fw.registry.registerComptime(.analytics);
+            if (comptime build_options.enable_analytics) {
+                try fw.registry.registerComptime(.analytics);
+            }
         }
 
         // Initialize high availability if enabled (defaulting to primary)
@@ -662,6 +664,18 @@ pub const FrameworkBuilder = struct {
     /// Enable web with defaults.
     pub fn withWebDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
         _ = self.config_builder.withWebDefaults();
+        return self;
+    }
+
+    /// Enable analytics with configuration.
+    pub fn withAnalytics(self: *FrameworkBuilder, analytics_cfg: config_module.AnalyticsConfig) *FrameworkBuilder {
+        _ = self.config_builder.withAnalytics(analytics_cfg);
+        return self;
+    }
+
+    /// Enable analytics with defaults.
+    pub fn withAnalyticsDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withAnalyticsDefaults();
         return self;
     }
 

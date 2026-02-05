@@ -130,7 +130,7 @@ the namespaced versions (`abi.gpu.Gpu`, `abi.ai.TransformerConfig`). Deprecated
 functions `createDefaultFramework` and `createFramework` wrap the new `initDefault`
 and `initWithConfig`.
 
-## AI Module (Largest Module — 280+ files)
+## AI Module (Largest Module — 255 files)
 
 Located at `src/features/ai/`. Has 17 submodules that follow the stub pattern
 (agents, database, documents, embeddings, eval, explore, llm, memory, models,
@@ -155,14 +155,14 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 |------------|---------|
 | Add/modify public API | `src/abi.zig` |
 | Change build flags | `build.zig`, `src/core/flags.zig` |
-| Add a new feature module | 6 files: `mod.zig` + `stub.zig`, `build.zig` (5 places), `src/abi.zig`, `src/core/flags.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig`. **Verify:** `zig build validate-flags` |
+| Add a new feature module | 8 files: `mod.zig` + `stub.zig`, `build.zig` (5 places), `src/abi.zig`, `src/core/flags.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig`, `src/core/framework.zig`, `src/services/tests/parity/mod.zig`. **Verify:** `zig build validate-flags` |
 | Add a CLI command | `tools/cli/commands/`, register in `tools/cli/main.zig` |
 | Add config for a feature | `src/core/config/` |
 | Write integration tests | `src/services/tests/` |
 | Add a GPU backend | `src/features/gpu/backends/` |
-| Security infrastructure | `src/services/shared/security/` (15 modules) |
+| Security infrastructure | `src/services/shared/security/` (16 modules) |
 | Language bindings | `bindings/` (C, Python, Go, JS, Rust) — build C lib first |
-| Examples | `examples/` (22 examples) |
+| Examples | `examples/` (19 examples) |
 
 ## Environment Variables
 

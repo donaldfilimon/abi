@@ -132,7 +132,7 @@ zig build -Denable-<feature>=false
 | Old (0.15) | New (0.16) |
 |------------|------------|
 | `std.fs.cwd()` | `std.Io.Dir.cwd()` |
-| `std.time.Instant.now()` | `std.time.Timer.start()` |
+| `std.time.nanoTimestamp()` | `std.time.Instant.now()` + `.since()` or `std.time.Timer.start()` for elapsed |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` (preferred) |
 | `list.init()` | `list.empty` (ArrayListUnmanaged) |
 | `@tagName(x)` in print | `{t}` format specifier |
