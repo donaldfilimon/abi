@@ -70,7 +70,8 @@ Key rules:
 | `zig fmt .` | Format code (required after edits) |
 | `zig build lint` | Check formatting (CI uses this) |
 | `zig build cli-tests` | CLI smoke tests |
-| `zig build full-check` | Format + tests + CLI smoke tests |
+| `zig build validate-flags` | Validate all feature flag combinations compile |
+| `zig build full-check` | Format + tests + flag validation + CLI smoke tests |
 | `zig build benchmarks` | Performance validation |
 | `zig build run -- --help` | Run CLI help |
 
@@ -183,6 +184,10 @@ const content = try std.Io.Dir.cwd().readFileAlloc(
 | `zig test src/services/tests/integration/mod.zig` | Integration tests |
 | `zig test src/services/tests/stress/mod.zig` | Stress tests |
 | `zig test file.zig --test-filter "pattern"` | Filtered tests |
+
+Parity tests (`src/services/tests/parity/`) use `DeclSpec` to verify stub modules
+match real modules -- checking declaration kind (function vs type) and sub-declarations,
+not just name existence.
 
 Skip hardware-gated tests with `error.SkipZigTest`:
 

@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# ABI Framework - Commit Message Hook
+#
+# Validates that commit messages follow the conventional format:
+#   <type>(<scope>): <summary>
+#   <type>: <summary>
+#
+# Allowed types: feat, fix, docs, refactor, test, chore, merge
+# Merge commits (auto-generated) are also allowed.
+#
+# Install: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(head -1 "$COMMIT_MSG_FILE")
+
+# Colors (disabled if not a terminal or on dumb terminals)
+if [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ]; then
+    RED='\033[0;31m'
+    YELLOW='\033[0;33m'
+    GREEN='\033[0;32m'
+    BOLD='\033[1m'
+    RESET='\033[0m'
+else
+    RED=''
+    YELLOW=''
+    GREEN=''
+    BOLD=''
+    RESET=''
+fi
+
+# Allow empty messages (will be caught by git itself)
+if [ -z "$COMMIT_MSG" ]; then
+    exit 0
+fi
+
+# Allow auto-generated merge commits ("Merge branch ...", "Merge pull request ...")
+if echo "$COMMIT_MSG" | grep -qiE '^Merge '; then
+    exit 0
+fi
+
+# Validate conventional commit format
+# Pattern: type(optional-scope): summary
+PATTERN='^(feat|fix|docs|refactor|test|chore|merge)(\([a-zA-Z0-9/_-]+\))?: .+'
+
+if ! echo "$COMMIT_MSG" | grep -qE "$PATTERN"; then
+    echo ""
+    echo -e "${RED}${BOLD}INVALID COMMIT MESSAGE FORMAT${RESET}"
+    echo ""
+    echo -e "  Your message:  ${YELLOW}$COMMIT_MSG${RESET}"
+    echo ""
+    echo -e "${BOLD}Expected format:${RESET}"
+    echo "  <type>(<scope>): <summary>"
+    echo "  <type>: <summary>"
+    echo ""
+    echo -e "${BOLD}Allowed types:${RESET}"
+    echo "  feat      A new feature"
+    echo "  fix       A bug fix"
+    echo "  docs      Documentation changes"
+    echo "  refactor  Code refactoring (no feature/fix)"
+    echo "  test      Adding or updating tests"
+    echo "  chore     Build, CI, tooling changes"
+    echo "  merge     Merge operations"
+    echo ""
+    echo -e "${BOLD}Examples:${RESET}"
+    echo "  feat(ai): add streaming response support"
+    echo "  fix: resolve memory leak in GPU backend"
+    echo "  docs: update CLAUDE.md with new API patterns"
+    echo "  refactor(gpu): simplify kernel dispatch logic"
+    echo "  test(database): add HNSW index stress tests"
+    echo "  chore: update build.zig for Zig 0.16"
+    echo "  merge: claude/feature-branch"
+    echo ""
+    echo -e "${YELLOW}Use 'git commit --no-verify' to bypass this check.${RESET}"
+    exit 1
+fi
+
+# Warn if summary is too long (> 72 chars is conventional limit)
+MSG_LENGTH=${#COMMIT_MSG}
+if [ "$MSG_LENGTH" -gt 72 ]; then
+    echo -e "${YELLOW}WARNING: Commit message first line is $MSG_LENGTH chars (recommended: <= 72)${RESET}"
+fi
+
+exit 0

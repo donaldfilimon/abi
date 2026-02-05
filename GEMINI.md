@@ -37,6 +37,7 @@ zig build test --summary all
 zig test src/path/to/file.zig --test-filter "pattern"
 zig fmt .
 zig build lint
+zig build validate-flags          # verify all flag combos compile
 ```
 
 Feature flags:
