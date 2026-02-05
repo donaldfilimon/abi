@@ -807,14 +807,72 @@ fn runDownload(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("Downloading: {s}\n", .{url.?});
     std.debug.print("Output: {s}\n\n", .{final_path});
 
-    // Note: Full HTTP download implementation would require the HTTP client
-    // For now, show instructions for manual download
-    std.debug.print("Download functionality requires network support.\n", .{});
-    std.debug.print("\nManual download options:\n", .{});
-    std.debug.print("  curl -L -o {s} \"{s}\"\n", .{ final_path, url.? });
-    std.debug.print("  wget -O {s} \"{s}\"\n", .{ final_path, url.? });
-    std.debug.print("\nNote: Direct download will be available with enable-network build flag.\n", .{});
-    _ = allocator;
+    // Initialize I/O backend for HTTP download
+    var io_backend = cli_io.initIoBackend(allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    // Initialize downloader
+    var downloader = abi.ai.models.Downloader.init(allocator);
+    defer downloader.deinit();
+
+    const ProgressState = struct {
+        var last_percent: u8 = 255;
+    };
+
+    const progress_callback = struct {
+        fn callback(progress: abi.ai.models.DownloadProgress) void {
+            if (progress.percent == ProgressState.last_percent) return;
+            ProgressState.last_percent = progress.percent;
+
+            const downloaded_mb = @as(f64, @floatFromInt(progress.downloaded_bytes)) / (1024 * 1024);
+            const total_mb = @as(f64, @floatFromInt(progress.total_bytes)) / (1024 * 1024);
+            const speed_mb = @as(f64, @floatFromInt(progress.speed_bytes_per_sec)) / (1024 * 1024);
+
+            if (progress.total_bytes > 0) {
+                std.debug.print("\r{d}% ({d:.1}/{d:.1} MB) {d:.1} MB/s", .{
+                    progress.percent,
+                    downloaded_mb,
+                    total_mb,
+                    speed_mb,
+                });
+            } else {
+                std.debug.print("\r{d:.1} MB {d:.1} MB/s", .{
+                    downloaded_mb,
+                    speed_mb,
+                });
+            }
+
+            if (progress.percent >= 100) {
+                std.debug.print("\n", .{});
+            }
+        }
+    }.callback;
+
+    const result = downloader.downloadWithIo(io, url.?, .{
+        .output_path = final_path,
+        .progress_callback = progress_callback,
+        .resume_download = true,
+    });
+
+    if (result) |download_result| {
+        defer allocator.free(download_result.path);
+        const size_mb = @as(f64, @floatFromInt(download_result.bytes_downloaded)) / (1024 * 1024);
+        std.debug.print("Download complete: {s}\n", .{download_result.path});
+        std.debug.print("Size: {d:.2} MB\n", .{size_mb});
+        std.debug.print("SHA256: {s}\n", .{&download_result.checksum});
+        if (download_result.was_resumed) {
+            std.debug.print("Note: Download resumed from partial file.\n", .{});
+        }
+        if (download_result.checksum_verified) {
+            std.debug.print("Checksum verified.\n", .{});
+        }
+    } else |err| {
+        std.debug.print("\nDownload failed: {t}\n\n", .{err});
+        std.debug.print("Manual download options:\n", .{});
+        std.debug.print("  curl -L -o {s} \"{s}\"\n", .{ final_path, url.? });
+        std.debug.print("  wget -O {s} \"{s}\"\n", .{ final_path, url.? });
+    }
 }
 
 fn printHelp() void {
