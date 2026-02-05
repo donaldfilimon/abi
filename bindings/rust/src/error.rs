@@ -9,6 +9,10 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Errors that can occur when using the ABI framework.
 #[derive(Debug, Error)]
 pub enum Error {
+    /// Initialization failed.
+    #[error("Initialization failed")]
+    InitFailed,
+
     /// Invalid argument passed to a function.
     #[error("Invalid argument: {0}")]
     InvalidArgument(String),
@@ -26,28 +30,32 @@ pub enum Error {
     AlreadyInitialized,
 
     /// Requested feature is disabled.
-    #[error("Feature disabled: {0}")]
-    FeatureDisabled(String),
+    #[error("Feature disabled")]
+    FeatureDisabled,
+
+    /// Operation timed out.
+    #[error("Operation timed out")]
+    Timeout,
 
     /// I/O error occurred.
-    #[error("I/O error: {0}")]
-    IoError(String),
+    #[error("I/O error")]
+    IoError,
 
-    /// Network error occurred.
-    #[error("Network error: {0}")]
-    NetworkError(String),
-
-    /// GPU error occurred.
-    #[error("GPU error: {0}")]
-    GpuError(String),
+    /// GPU not available.
+    #[error("GPU unavailable")]
+    GpuUnavailable,
 
     /// Database error occurred.
-    #[error("Database error: {0}")]
-    DatabaseError(String),
+    #[error("Database error")]
+    DatabaseError,
 
-    /// Agent error occurred.
-    #[error("Agent error: {0}")]
-    AgentError(String),
+    /// Network error occurred.
+    #[error("Network error")]
+    NetworkError,
+
+    /// AI operation error.
+    #[error("AI error")]
+    AiError,
 
     /// Unknown error from the C library.
     #[error("Unknown error: code {0}")]
@@ -66,17 +74,19 @@ impl From<AbiError> for Error {
     fn from(err: AbiError) -> Self {
         match err {
             AbiError::Ok => panic!("Cannot convert Ok to Error"),
-            AbiError::InvalidArgument => Error::InvalidArgument(String::new()),
-            AbiError::OutOfMemory => Error::OutOfMemory,
-            AbiError::NotInitialized => Error::NotInitialized,
+            AbiError::InitFailed => Error::InitFailed,
             AbiError::AlreadyInitialized => Error::AlreadyInitialized,
-            AbiError::FeatureDisabled => Error::FeatureDisabled(String::new()),
-            AbiError::IoError => Error::IoError(String::new()),
-            AbiError::NetworkError => Error::NetworkError(String::new()),
-            AbiError::GpuError => Error::GpuError(String::new()),
-            AbiError::DatabaseError => Error::DatabaseError(String::new()),
-            AbiError::AgentError => Error::AgentError(String::new()),
-            AbiError::Unknown => Error::Unknown(255),
+            AbiError::NotInitialized => Error::NotInitialized,
+            AbiError::OutOfMemory => Error::OutOfMemory,
+            AbiError::InvalidArgument => Error::InvalidArgument(String::new()),
+            AbiError::FeatureDisabled => Error::FeatureDisabled,
+            AbiError::Timeout => Error::Timeout,
+            AbiError::IoError => Error::IoError,
+            AbiError::GpuUnavailable => Error::GpuUnavailable,
+            AbiError::DatabaseError => Error::DatabaseError,
+            AbiError::NetworkError => Error::NetworkError,
+            AbiError::AiError => Error::AiError,
+            AbiError::Unknown => Error::Unknown(-99),
         }
     }
 }
