@@ -901,10 +901,9 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Project
-- [TODO.md](TODO.md) — Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))
-- [ROADMAP.md](ROADMAP.md) — Upcoming milestones
-- [CONTRIBUTING.md](CONTRIBUTING.md) — Development guidelines
- - [CHANGELOG_CONSOLIDATED.md](CHANGELOG_CONSOLIDATED.md) — Version history
+- [Roadmap](roadmap.md) — Upcoming milestones
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — Development guidelines
+- [CHANGELOG.md](../CHANGELOG.md) — Version history
 
 </td>
 </tr>

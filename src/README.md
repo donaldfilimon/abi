@@ -100,6 +100,6 @@ pub fn isEnabled() bool {
 ## See Also
 
 - [CLAUDE.md](../CLAUDE.md) - Full project documentation
-- [API Reference](../API_REFERENCE.md)
+- [API Reference](../docs/api-reference.md)
 - [Docs Map](../docs/README.md) - Documentation layout and entry points
 - [docs/README.md](../docs/README.md) - Documentation site source

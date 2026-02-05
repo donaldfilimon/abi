@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Baseline guidance for any AI agent working in the ABI Framework repository.
-Read this first. `CLAUDE.md` adds deep details, `GEMINI.md` is a condensed quick reference.
+Read this first. `CLAUDE.md` adds deep details.
 
 ---
 
@@ -215,9 +215,8 @@ zig build lint
 | Document | Purpose |
 |----------|---------|
 | `CLAUDE.md` | Comprehensive reference and deep examples |
-| `GEMINI.md` | Quick reference for Gemini |
 | `CONTRIBUTING.md` | Development workflow |
 | `docs/README.md` | Documentation system |
 | `SECURITY.md` | Security practices |
-| `DEPLOYMENT_GUIDE.md` | Production deployment |
-| `PLAN.md` | Development roadmap |
+| `docs/deployment.md` | Production deployment |
+| `docs/plan.md` | Development roadmap |

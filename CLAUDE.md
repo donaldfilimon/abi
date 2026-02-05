@@ -35,7 +35,7 @@ Feature flags: `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulk
 
 All features default to `true` except `-Denable-mobile`. Additional flags:
 `-Denable-web`, `-Denable-explore`, `-Denable-llm`, `-Denable-vision`,
-`-Denable-profiling`. GPU backends accept comma-separated values: `auto`, `none`,
+`-Denable-profiling`, `-Denable-analytics`. GPU backends accept comma-separated values: `auto`, `none`,
 `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`.
 
 ## Critical Gotchas
@@ -51,6 +51,7 @@ These are the mistakes most likely to cause compilation failures:
 | Editing `mod.zig` only | **Always update `stub.zig` too** — signatures must match |
 | `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
+| `std.time.nanoTimestamp()` | Doesn't exist in 0.16 — use `std.time.Instant.now()` + `.since(anchor)` |
 | `@typeInfo` tags `.Type`, `.Fn` | Lowercase in 0.16: `.type`, `.@"fn"`, `.@"struct"` |
 | `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
 
@@ -154,7 +155,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 |------------|---------|
 | Add/modify public API | `src/abi.zig` |
 | Change build flags | `build.zig`, `src/core/flags.zig` |
-| Add a new feature module | `src/features/<name>/mod.zig` + `stub.zig`, wire in `src/abi.zig` and `build.zig` |
+| Add a new feature module | 6 files: `mod.zig` + `stub.zig`, `build.zig` (5 places), `src/abi.zig`, `src/core/flags.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig` |
 | Add a CLI command | `tools/cli/commands/`, register in `tools/cli/main.zig` |
 | Add config for a feature | `src/core/config/` |
 | Write integration tests | `src/services/tests/` |
@@ -177,8 +178,11 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 
 ## Testing Patterns
 
-**Current baseline**: 920 tests total, 915 pass, 5 skip. One known flaky test
-(`helpers.test.createTempDir creates unique directory`) may intermittently fail.
+**Current baseline**: 921 tests total, 916 pass, 5 skip (observability stress tests).
+
+**Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are
+discovered through the `abi` import chain. Cannot `@import()` outside the test module
+path — use `abi.<feature>` instead.
 
 - Unit tests: `*_test.zig` files alongside code
 - Integration/stress/chaos/parity/property tests: `src/services/tests/`
@@ -191,6 +195,6 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 |----------|---------|
 | `AGENTS.md` | Baseline rules, code style, Zig 0.16 migration table |
 | `CONTRIBUTING.md` | Development workflow |
-| `PLAN.md` | Development roadmap |
-| `DEPLOYMENT_GUIDE.md` | Production deployment |
+| `docs/plan.md` | Development roadmap |
+| `docs/deployment.md` | Production deployment |
 | `SECURITY.md` | Security practices |

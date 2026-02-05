@@ -113,7 +113,7 @@ pub const connectors_test = @import("connectors_test.zig");
 pub const test_matrix = @import("test_matrix.zig");
 pub const TestMatrix = test_matrix.TestMatrix;
 
-// Property-based testing framework
+// Legacy property-based testing (prefer property/mod.zig for new tests)
 pub const proptest = @import("proptest.zig");
 
 // Common test helpers and utilities
@@ -163,15 +163,6 @@ pub const e2e = @import("e2e/mod.zig");
 
 // Comptime API parity verification (stub/real module consistency)
 pub const parity = @import("parity/mod.zig");
-
-pub const Generator = proptest.Generator;
-pub const Generators = proptest.Generators;
-pub const PropTest = proptest.PropTest;
-pub const PropTestConfig = proptest.PropTestConfig;
-pub const PropTestResult = proptest.PropTestResult;
-pub const Assertions = proptest.Assertions;
-pub const Fuzzer = proptest.Fuzzer;
-pub const forAll = proptest.forAll;
 
 test "abi version returns build package version" {
     try std.testing.expectEqualStrings("0.4.0", abi.version());

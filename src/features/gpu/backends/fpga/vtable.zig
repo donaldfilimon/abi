@@ -172,14 +172,14 @@ pub const FpgaBackend = struct {
         _ = self;
         _ = dst;
         _ = src;
-        return interface.MemoryError.NotImplemented;
+        return interface.MemoryError.TransferFailed;
     }
 
     pub fn copyFromDevice(self: *Self, dst: []u8, src: *anyopaque) interface.MemoryError!void {
         _ = self;
         _ = dst;
         _ = src;
-        return interface.MemoryError.NotImplemented;
+        return interface.MemoryError.TransferFailed;
     }
 
     pub fn copyToDeviceAsync(self: *Self, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) interface.MemoryError!void {
@@ -187,7 +187,7 @@ pub const FpgaBackend = struct {
         _ = dst;
         _ = src;
         _ = stream;
-        return interface.MemoryError.NotImplemented;
+        return interface.MemoryError.TransferFailed;
     }
 
     pub fn copyFromDeviceAsync(self: *Self, dst: []u8, src: *anyopaque, stream: ?*anyopaque) interface.MemoryError!void {

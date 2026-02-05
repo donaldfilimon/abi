@@ -50,11 +50,19 @@ test "database stub parity - types exist" {
 test "gpu stub parity - types exist" {
     const Gpu = abi.gpu;
 
-    // Verify Context exists
+    // Core API surface (both mod.zig and stub.zig must have these)
     try testing.expect(@hasDecl(Gpu, "Context"));
-
-    // Verify isEnabled exists
     try testing.expect(@hasDecl(Gpu, "isEnabled"));
+
+    // Error types (shared between both implementations)
+    try testing.expect(@hasDecl(Gpu, "GpuError"));
+    try testing.expect(@hasDecl(Gpu, "MemoryError"));
+    try testing.expect(@hasDecl(Gpu, "KernelError"));
+
+    // Key re-exported types
+    try testing.expect(@hasDecl(Gpu, "Backend"));
+    try testing.expect(@hasDecl(Gpu, "Device"));
+    try testing.expect(@hasDecl(Gpu, "DeviceType"));
 }
 
 // ============================================================================
@@ -151,6 +159,63 @@ test "ai/training stub parity - types exist" {
 
     const Training = abi.ai.training;
     _ = Training; // Module exists and is accessible
+}
+
+// ============================================================================
+// GPU Backend VTable Parity
+// ============================================================================
+
+/// Required methods for all GPU backend implementations.
+/// These must match the VTable signatures in interface.zig.
+const vtable_required_methods = [_][]const u8{
+    "init",
+    "deinit",
+    "getDeviceCount",
+    "getDeviceCaps",
+    "allocate",
+    "free",
+    "copyToDevice",
+    "copyFromDevice",
+    "copyToDeviceAsync",
+    "copyFromDeviceAsync",
+    "compileKernel",
+    "launchKernel",
+    "destroyKernel",
+    "synchronize",
+};
+
+fn verifyBackendHasMethods(comptime Backend: type) !void {
+    inline for (vtable_required_methods) |method_name| {
+        if (!@hasDecl(Backend, method_name)) {
+            @compileError("GPU backend " ++ @typeName(Backend) ++ " missing required method: " ++ method_name);
+        }
+    }
+}
+
+test "gpu backend vtable parity - all backends implement required methods" {
+    if (!build_options.enable_gpu) return error.SkipZigTest;
+
+    const gpu_mod = abi.gpu;
+
+    // Verify each backend type exports all VTable-required methods
+    if (@hasDecl(gpu_mod, "backends")) {
+        const backends = gpu_mod.backends;
+
+        if (@hasDecl(backends, "CudaBackend"))
+            try verifyBackendHasMethods(backends.CudaBackend);
+        if (@hasDecl(backends, "MetalBackend"))
+            try verifyBackendHasMethods(backends.MetalBackend);
+        if (@hasDecl(backends, "OpenGLBackend"))
+            try verifyBackendHasMethods(backends.OpenGLBackend);
+        if (@hasDecl(backends, "OpenGLESBackend"))
+            try verifyBackendHasMethods(backends.OpenGLESBackend);
+        if (@hasDecl(backends, "WebGpuBackend"))
+            try verifyBackendHasMethods(backends.WebGpuBackend);
+        if (@hasDecl(backends, "FpgaBackend"))
+            try verifyBackendHasMethods(backends.FpgaBackend);
+        if (@hasDecl(backends, "VulkanBackend"))
+            try verifyBackendHasMethods(backends.VulkanBackend);
+    }
 }
 
 // ============================================================================

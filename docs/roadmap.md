@@ -16,7 +16,7 @@ tags: [planning, roadmap]
 > **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
 >
 > This document tracks the **version history** and **future roadmap** for the ABI framework.
-> For current sprint work, see [PLAN.md](PLAN.md).
+> For current sprint work, see [plan.md](plan.md).
 
 ---
 
@@ -24,10 +24,10 @@ tags: [planning, roadmap]
 
 | Document | Purpose |
 |----------|---------|
-| **ROADMAP.md** (this file) | Version history, release timeline, future vision |
-| [PLAN.md](PLAN.md) | Current sprint focus, blocked items, near-term work |
-| [docs/plans/](docs/plans/) | Detailed implementation plans for specific initiatives |
-| [CHANGELOG_CONSOLIDATED.md](CHANGELOG_CONSOLIDATED.md) | Detailed release notes |
+| **roadmap.md** (this file) | Version history, release timeline, future vision |
+| [plan.md](plan.md) | Current sprint focus, blocked items, near-term work |
+| [plans/](plans/) | Detailed implementation plans for specific initiatives |
+| [CHANGELOG.md](../CHANGELOG.md) | Detailed release notes |
 
 **Zig Version Requirement:** `0.16.0-dev.2471+e9eadee00` or later (migration complete)
 
@@ -317,10 +317,10 @@ All feature-gated stubs have been audited and updated for API parity:
 
 ## Changelog History
 
- - [0.2.2](CHANGELOG_CONSOLIDATED.md#022---2025-12-27) - Zig 0.16 modernization
- - [0.2.1](CHANGELOG_CONSOLIDATED.md#021---2025-12-27) - Security fixes, memory safety
- - [0.2.0](CHANGELOG_CONSOLIDATED.md#020---2025-12-24) - High-performance compute runtime
- - [0.1.0](CHANGELOG_CONSOLIDATED.md#010---2025-12-24) - Initial release
+ - [0.2.2](../CHANGELOG.md#022---2025-12-27) - Zig 0.16 modernization
+ - [0.2.1](../CHANGELOG.md#021---2025-12-27) - Security fixes, memory safety
+ - [0.2.0](../CHANGELOG.md#020---2025-12-24) - High-performance compute runtime
+ - [0.1.0](../CHANGELOG.md#010---2025-12-24) - Initial release
 
 ## Related Documentation
 
@@ -366,7 +366,7 @@ For detailed implementation notes, see:
 ## Version 0.6.0 - Q4 2026 (Complete)
 
 ### Llama-CPP Parity (Complete)
-All Llama-CPP parity tasks have been completed. See TODO.md for details:
+All Llama-CPP parity tasks have been completed:
 - [x] GGUF loader and metadata parsing (src/features/ai/llm/io/gguf.zig)
 - [x] Quantization decoders Q4_0, Q4_1, Q5_0, Q5_1, Q8_0 (src/features/ai/llm/tensor/quantized.zig)
 - [x] BPE/SentencePiece tokenizer (src/features/ai/llm/tokenizer/)

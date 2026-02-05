@@ -208,5 +208,5 @@ No active blockers as of 2026-02-05.
 
 ## Quick Links
 
-- [ROADMAP.md](ROADMAP.md) - Full project roadmap
-- [CLAUDE.md](CLAUDE.md) - Development guidelines
+- [Roadmap](roadmap.md) - Full project roadmap
+- [CLAUDE.md](../CLAUDE.md) - Development guidelines

@@ -174,105 +174,60 @@ fn printHelp() void {
     , .{});
 }
 
+const CommandFn = *const fn (std.mem.Allocator, []const [:0]const u8) anyerror!void;
+const IoCommandFn = *const fn (std.mem.Allocator, std.Io, []const [:0]const u8) anyerror!void;
+
+const command_map = std.StaticStringMap(CommandFn).initComptime(.{
+    .{ "db", wrap(commands.db) },
+    .{ "agent", wrap(commands.agent) },
+    .{ "bench", wrap(commands.bench) },
+    .{ "gpu", wrap(commands.gpu) },
+    .{ "network", wrap(commands.network) },
+    .{ "system-info", wrap(commands.system_info) },
+    .{ "multi-agent", wrap(commands.multi_agent) },
+    .{ "explore", wrap(commands.explore) },
+    .{ "simd", wrap(commands.simd) },
+    .{ "config", wrap(commands.config) },
+    .{ "discord", wrap(commands.discord) },
+    .{ "llm", wrap(commands.llm) },
+    .{ "model", wrap(commands.model) },
+    .{ "embed", wrap(commands.embed) },
+    .{ "train", wrap(commands.train) },
+    .{ "convert", wrap(commands.convert) },
+    .{ "task", wrap(commands.task) },
+    .{ "completions", wrap(commands.completions) },
+    .{ "plugins", wrap(commands.plugins) },
+    .{ "profile", wrap(commands.profile) },
+    .{ "toolchain", wrap(commands.toolchain) },
+});
+
+const io_command_map = std.StaticStringMap(IoCommandFn).initComptime(.{
+    .{ "gpu-dashboard", wrapIo(commands.gpu_dashboard) },
+    .{ "tui", wrapIo(commands.tui) },
+});
+
+fn wrap(comptime cmd: type) CommandFn {
+    return cmd.run;
+}
+
+fn wrapIo(comptime cmd: type) IoCommandFn {
+    return cmd.run;
+}
+
 fn runCommand(
     allocator: std.mem.Allocator,
     io: std.Io,
     command: []const u8,
     args: []const [:0]const u8,
 ) !bool {
-    if (std.mem.eql(u8, command, "db")) {
-        try commands.db.run(allocator, args);
+    if (io_command_map.get(command)) |run_fn| {
+        try run_fn(allocator, io, args);
         return true;
     }
-    if (std.mem.eql(u8, command, "agent")) {
-        try commands.agent.run(allocator, args);
+    if (command_map.get(command)) |run_fn| {
+        try run_fn(allocator, args);
         return true;
     }
-    if (std.mem.eql(u8, command, "bench")) {
-        try commands.bench.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "gpu")) {
-        try commands.gpu.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "gpu-dashboard")) {
-        try commands.gpu_dashboard.run(allocator, io, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "network")) {
-        try commands.network.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "system-info")) {
-        try commands.system_info.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "multi-agent")) {
-        try commands.multi_agent.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "explore")) {
-        try commands.explore.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "simd")) {
-        try commands.simd.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "config")) {
-        try commands.config.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "discord")) {
-        try commands.discord.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "llm")) {
-        try commands.llm.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "model")) {
-        try commands.model.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "embed")) {
-        try commands.embed.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "train")) {
-        try commands.train.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "convert")) {
-        try commands.convert.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "task")) {
-        try commands.task.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "tui")) {
-        try commands.tui.run(allocator, io, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "completions")) {
-        try commands.completions.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "plugins")) {
-        try commands.plugins.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "profile")) {
-        try commands.profile.run(allocator, args);
-        return true;
-    }
-    if (std.mem.eql(u8, command, "toolchain")) {
-        try commands.toolchain.run(allocator, args);
-        return true;
-    }
-
     return false;
 }
 
