@@ -24,7 +24,7 @@ tags: [planning, sprint, development]
 ### Completed This Sprint (2026-02-05)
 - [x] **Native HTTP downloads** - Direct HTTP download enabled for CLI model fetches
 - [x] **Toolchain CLI** - Re-enabled Zig/ZLS install/update commands
-- [x] **Test count verification** - 926/931 tests passing (5 skipped)
+- [x] **Test count verification** - 944/949 tests passing (5 skipped)
 - [x] **Language bindings parity** - Rust/Go/JS bindings completed alongside C/Python
 
 ### Completed (Previous Sprint - 2026-02-01)
@@ -122,7 +122,7 @@ No active blockers as of 2026-02-05.
 
 ## Recently Completed
 
-- **Stabilization & Tooling** - Enabled native HTTP model downloads and re-enabled toolchain CLI; 926/931 tests passing (2026-02-05)
+- **Stabilization & Tooling** - Enabled native HTTP model downloads and re-enabled toolchain CLI; 944/949 tests passing (2026-02-05)
 - **Benchmarks & CI Improvements** - Added real competitive benchmarks (FAISS, vector DBs), C header CI integration with `zig build c-header` and verification step; 889/894 tests passing (2026-02-03)
 - **API Stability & C Bindings Sprint** - Complete C-compatible FFI layer (`src/c_api.zig`), stub/real API parity fixes across network/observability/streaming/training modules, circuit breaker documentation, HNSW prefetch optimizations; 889/894 tests passing (2026-02-01)
 - **GPU backend test coverage complete** - Added inline tests to ALL GPU backends: WebGPU, OpenGL, OpenGL ES, Vulkan (17 error cases), Metal (10 error cases), WebGL2, stdgpu; Verified Metal backend works (emulated mode); All CLI commands functional including nested subcommands; Training pipeline tested; 787/792 tests passing (2026-01-31)

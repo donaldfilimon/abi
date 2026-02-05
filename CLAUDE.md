@@ -194,7 +194,7 @@ Format: `<type>: <short summary>`
 
 ## Testing Patterns
 
-**Current baseline**: 926 pass, 5 skip (931 total). Run `zig build test --summary all` to verify.
+**Current baseline**: 944 pass, 5 skip (949 total). Run `zig build test --summary all` to verify.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are
 discovered through the `abi` import chain. Cannot `@import()` outside the test module
