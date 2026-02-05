@@ -275,6 +275,8 @@ test "all feature modules have consistent API surface" {
     try verifyContextPattern(abi.network);
     try verifyContextPattern(abi.web);
     try verifyContextPattern(abi.observability);
+    try verifyContextPattern(abi.analytics);
+    try verifyContextPattern(abi.cloud);
 
     if (build_options.enable_ai) {
         try verifyContextPattern(abi.ai);
