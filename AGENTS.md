@@ -48,7 +48,7 @@ src/
 ├── abi.zig              # Public API module root
 ├── api/                 # Entry points (main.zig)
 ├── core/                # Framework orchestration and config
-├── features/            # Feature modules (ai, gpu, database, network, web, observability)
+├── features/            # Feature modules (ai, gpu, database, network, web, observability, analytics, cloud)
 └── services/            # Shared infrastructure (runtime, platform, shared, tests, etc.)
 ```
 
@@ -94,6 +94,8 @@ zig build -Dgpu-backend=vulkan,cuda
 | `-Denable-network` | true | Distributed compute |
 | `-Denable-web` | true | Web/HTTP support |
 | `-Denable-profiling` | true | Metrics/tracing |
+| `-Denable-analytics` | true | Event tracking, funnels, experiments |
+| `-Denable-explore` | true | Exploration/discovery features |
 | `-Denable-mobile` | false | Mobile cross-compilation |
 
 GPU backends: `auto`, `none`, `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `opengl`, `fpga`.

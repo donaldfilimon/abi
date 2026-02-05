@@ -45,13 +45,13 @@ These are the mistakes most likely to cause compilation failures:
 | Mistake | Fix |
 |---------|-----|
 | `std.fs.cwd()` | `std.Io.Dir.cwd()` — Zig 0.16 moved filesystem to I/O backend |
-| `std.time.Instant.now()` | `std.time.Timer.start()` |
+| `std.time.Instant.now()` for elapsed time | `std.time.Timer.start()` — use Timer for benchmarks/elapsed |
 | `list.init()` | `std.ArrayListUnmanaged(T).empty` |
 | `@tagName(x)` in format | `{t}` format specifier for errors and enums |
 | Editing `mod.zig` only | **Always update `stub.zig` too** — signatures must match |
 | `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
-| `std.time.nanoTimestamp()` | Doesn't exist in 0.16 — use `std.time.Instant.now()` + `.since(anchor)` |
+| `std.time.nanoTimestamp()` | Doesn't exist in 0.16 — use `Instant.now()` + `.since(anchor)` for absolute time |
 | `@typeInfo` tags `.Type`, `.Fn` | Lowercase in 0.16: `.type`, `.@"fn"`, `.@"struct"` |
 | `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
 
@@ -94,7 +94,7 @@ This means:
 ```
 src/abi.zig              → Public API, comptime feature selection, type aliases
 src/core/                → Framework lifecycle, config builder, feature flags, registry
-src/features/<name>/     → mod.zig + stub.zig per feature
+src/features/<name>/     → mod.zig + stub.zig per feature (8 modules: ai, analytics, cloud, database, gpu, network, observability, web)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
 tools/cli/               → CLI entry point and 24 commands
 ```
@@ -155,7 +155,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 |------------|---------|
 | Add/modify public API | `src/abi.zig` |
 | Change build flags | `build.zig`, `src/core/flags.zig` |
-| Add a new feature module | 6 files: `mod.zig` + `stub.zig`, `build.zig` (5 places), `src/abi.zig`, `src/core/flags.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig` |
+| Add a new feature module | 6 files: `mod.zig` + `stub.zig`, `build.zig` (5 places), `src/abi.zig`, `src/core/flags.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig`. **Verify:** `zig build validate-flags` |
 | Add a CLI command | `tools/cli/commands/`, register in `tools/cli/main.zig` |
 | Add config for a feature | `src/core/config/` |
 | Write integration tests | `src/services/tests/` |
@@ -176,9 +176,22 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | `ABI_MASTER_KEY` | Secrets encryption (production) |
 | `DISCORD_BOT_TOKEN` | Discord bot token |
 
+## Commit Convention
+
+Format: `<type>: <short summary>`
+
+| Type | Use for |
+|------|---------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `refactor` | Code change (no feature/fix) |
+| `test` | Adding or updating tests |
+| `chore` | Maintenance, deps, CI |
+
 ## Testing Patterns
 
-**Current baseline**: 921 tests total, 916 pass, 5 skip (observability stress tests).
+**Current baseline**: ~920 tests, 5 skipped (observability stress tests). Run `zig build test --summary all` to get exact counts.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are
 discovered through the `abi` import chain. Cannot `@import()` outside the test module

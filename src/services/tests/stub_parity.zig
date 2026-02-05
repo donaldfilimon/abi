@@ -117,6 +117,42 @@ test "analytics stub parity - types exist" {
 }
 
 // ============================================================================
+// Cloud Module Parity
+// ============================================================================
+
+test "cloud stub parity - types exist" {
+    const Cloud = abi.cloud;
+
+    // Core types
+    try testing.expect(@hasDecl(Cloud, "CloudEvent"));
+    try testing.expect(@hasDecl(Cloud, "CloudResponse"));
+    try testing.expect(@hasDecl(Cloud, "CloudProvider"));
+    try testing.expect(@hasDecl(Cloud, "CloudHandler"));
+    try testing.expect(@hasDecl(Cloud, "CloudConfig"));
+    try testing.expect(@hasDecl(Cloud, "CloudError"));
+    try testing.expect(@hasDecl(Cloud, "HttpMethod"));
+    try testing.expect(@hasDecl(Cloud, "InvocationMetadata"));
+
+    // Structs
+    try testing.expect(@hasDecl(Cloud, "Context"));
+    try testing.expect(@hasDecl(Cloud, "ResponseBuilder"));
+
+    // Functions
+    try testing.expect(@hasDecl(Cloud, "detectProvider"));
+    try testing.expect(@hasDecl(Cloud, "detectProviderWithAllocator"));
+    try testing.expect(@hasDecl(Cloud, "runHandler"));
+    try testing.expect(@hasDecl(Cloud, "init"));
+    try testing.expect(@hasDecl(Cloud, "deinit"));
+    try testing.expect(@hasDecl(Cloud, "isEnabled"));
+    try testing.expect(@hasDecl(Cloud, "isInitialized"));
+
+    // Sub-modules
+    try testing.expect(@hasDecl(Cloud, "aws_lambda"));
+    try testing.expect(@hasDecl(Cloud, "gcp_functions"));
+    try testing.expect(@hasDecl(Cloud, "azure_functions"));
+}
+
+// ============================================================================
 // AI Module Parity
 // ============================================================================
 

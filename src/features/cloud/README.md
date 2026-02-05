@@ -279,7 +279,7 @@ Test your handler locally before deployment:
 
 ```bash
 # Run cloud module tests
-zig test src/services/cloud/types.zig
+zig test src/features/cloud/types.zig
 
 # Or include in full test suite
 zig build test --summary all
@@ -290,6 +290,6 @@ zig build test --summary all
 - `CloudEvent` - Event type details
 - `CloudResponse` - Response type details
 - `ResponseBuilder` - Fluent response building
-- AWS Lambda runtime: `src/services/cloud/aws_lambda.zig`
-- GCP Functions runtime: `src/services/cloud/gcp_functions.zig`
-- Azure Functions runtime: `src/services/cloud/azure_functions.zig`
+- AWS Lambda runtime: `src/features/cloud/aws_lambda.zig`
+- GCP Functions runtime: `src/features/cloud/gcp_functions.zig`
+- Azure Functions runtime: `src/features/cloud/azure_functions.zig`
