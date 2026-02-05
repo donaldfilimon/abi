@@ -25,13 +25,18 @@ zig build lint                               # CI formatting check
 zig build cli-tests                          # CLI smoke tests
 zig build benchmarks                         # Performance benchmarks
 zig build examples                           # Build all examples
+zig build validate-flags                     # Compile with all feature-flag combos
+zig build bench-all                          # All benchmark suites
+zig build docs-site                          # Generate documentation website
+zig build check-wasm                         # Check WASM compilation
 ```
 
 Feature flags: `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
 
-All features default to `true` except `-Denable-mobile`. GPU backends accept
-comma-separated values: `auto`, `none`, `cuda`, `vulkan`, `metal`, `stdgpu`,
-`webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`.
+All features default to `true` except `-Denable-mobile`. Additional flags:
+`-Denable-web`, `-Denable-explore`, `-Denable-llm`, `-Denable-vision`,
+`-Denable-profiling`. GPU backends accept comma-separated values: `auto`, `none`,
+`cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`.
 
 ## Critical Gotchas
 
@@ -46,6 +51,8 @@ These are the mistakes most likely to cause compilation failures:
 | Editing `mod.zig` only | **Always update `stub.zig` too** — signatures must match |
 | `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
+| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in 0.16: `.type`, `.@"fn"`, `.@"struct"` |
+| `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -154,7 +161,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Add a GPU backend | `src/features/gpu/backends/` |
 | Security infrastructure | `src/services/shared/security/` (15 modules) |
 | Language bindings | `bindings/` (C, Python, Go, JS, Rust) — build C lib first |
-| Examples | `examples/` (18 examples) |
+| Examples | `examples/` (22 examples) |
 
 ## Environment Variables
 
@@ -169,6 +176,9 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | `DISCORD_BOT_TOKEN` | Discord bot token |
 
 ## Testing Patterns
+
+**Current baseline**: 920 tests total, 915 pass, 5 skip. One known flaky test
+(`helpers.test.createTempDir creates unique directory`) may intermittently fail.
 
 - Unit tests: `*_test.zig` files alongside code
 - Integration/stress/chaos/parity/property tests: `src/services/tests/`
