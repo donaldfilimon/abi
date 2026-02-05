@@ -876,7 +876,8 @@ Flat domain structure (modular architecture):
 | `src/features/network/` | Distributed compute and Raft | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/features/observability/` | Metrics, tracing, profiling | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/features/web/` | HTTP helpers and web utilities | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/services/cloud/` | Cloud function adapters | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/cloud/` | Cloud function adapters | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/analytics/` | Event tracking and experiments | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/services/connectors/` | External API connectors | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/services/ha/` | High availability | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/services/tasks/` | Task management | ![Feature](https://img.shields.io/badge/-Feature-green) |

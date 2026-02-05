@@ -251,9 +251,9 @@ tags: [planning, roadmap]
   - [x] Priority support (documented in docs site)
   - [x] Custom development (documented in docs site)
 - [x] Cloud integration - COMPLETE (2026-01)
-  - [x] AWS Lambda (`src/services/cloud/aws_lambda.zig`)
-  - [x] Google Cloud Functions (`src/services/cloud/gcp_functions.zig`)
-  - [x] Azure Functions (`src/services/cloud/azure_functions.zig`)
+  - [x] AWS Lambda (`src/features/cloud/aws_lambda.zig`)
+  - [x] Google Cloud Functions (`src/features/cloud/gcp_functions.zig`)
+  - [x] Azure Functions (`src/features/cloud/azure_functions.zig`)
 
 ## Priority Legend
 
