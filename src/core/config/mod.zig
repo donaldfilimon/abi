@@ -13,6 +13,7 @@ pub const database_config = @import("database.zig");
 pub const network_config = @import("network.zig");
 pub const observability_config = @import("observability.zig");
 pub const web_config = @import("web.zig");
+pub const cloud_config = @import("cloud.zig");
 pub const plugin_config = @import("plugin.zig");
 pub const loader = @import("loader.zig");
 
@@ -39,6 +40,8 @@ pub const LinkingConfig = network_config.LinkingConfig;
 pub const ObservabilityConfig = observability_config.ObservabilityConfig;
 
 pub const WebConfig = web_config.WebConfig;
+
+pub const CloudConfig = cloud_config.CloudConfig;
 
 pub const PluginConfig = plugin_config.PluginConfig;
 
@@ -131,6 +134,7 @@ pub const Config = struct {
     network: ?NetworkConfig = null,
     observability: ?ObservabilityConfig = null,
     web: ?WebConfig = null,
+    cloud: ?CloudConfig = null,
     plugins: PluginConfig = .{},
 
     /// Create a config with all compile-time enabled features using defaults.
@@ -142,6 +146,7 @@ pub const Config = struct {
             .network = if (build_options.enable_network) NetworkConfig.defaults() else null,
             .observability = if (build_options.enable_profiling) ObservabilityConfig.defaults() else null,
             .web = if (build_options.enable_web) WebConfig.defaults() else null,
+            .cloud = if (build_options.enable_web) CloudConfig.defaults() else null,
         };
     }
 
@@ -164,8 +169,8 @@ pub const Config = struct {
             .observability => self.observability != null,
             .web => self.web != null,
             .personas => if (self.ai) |ai| ai.personas != null else false,
-            .cloud => self.web != null, // Cloud feature falls under web config
-            .analytics => true, // Analytics has no config dependency
+            .cloud => self.cloud != null,
+            .analytics => build_options.enable_analytics,
         };
     }
 
@@ -276,6 +281,16 @@ pub const Builder = struct {
         return self;
     }
 
+    pub fn withCloud(self: *Builder, cfg: CloudConfig) *Builder {
+        self.config.cloud = cfg;
+        return self;
+    }
+
+    pub fn withCloudDefaults(self: *Builder) *Builder {
+        self.config.cloud = CloudConfig.defaults();
+        return self;
+    }
+
     pub fn withPlugins(self: *Builder, cfg: PluginConfig) *Builder {
         self.config.plugins = cfg;
         return self;
@@ -331,6 +346,11 @@ pub fn validate(config: Config) ConfigError!void {
         return ConfigError.FeatureDisabled;
     }
 
+    // Check cloud config
+    if (config.cloud != null and !build_options.enable_web) {
+        return ConfigError.FeatureDisabled;
+    }
+
     // Check observability config
     if (config.observability != null and !build_options.enable_profiling) {
         return ConfigError.FeatureDisabled;
@@ -355,6 +375,7 @@ test "Config.minimal has no features" {
     try std.testing.expect(config.gpu == null);
     try std.testing.expect(config.ai == null);
     try std.testing.expect(config.database == null);
+    try std.testing.expect(config.cloud == null);
 }
 
 test "Builder creates valid config" {
