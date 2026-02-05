@@ -1,6 +1,16 @@
+---
+title: "Feature Modules Completion Plan"
+date: 2026-02-04
+status: active
+tags: [planning, implementation, features]
+related:
+  - "../../PLAN.md"
+  - "../../ROADMAP.md"
+  - "./2026-02-04-codebase-improvements.md"
+---
 # Feature Modules Completion Plan - Production Ready (90%)
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **Status:** Active | **Created:** 2026-02-04 | **Parent:** [PLAN.md](../../PLAN.md)
 
 **Goal:** Bring all 6 feature modules from current state to 90% production-ready.
 
