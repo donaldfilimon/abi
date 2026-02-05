@@ -311,13 +311,14 @@ abi/
 │   ├── core/             # Framework orchestration and config
 │   │   ├── config/       # Unified configuration
 │   │   ├── framework.zig # Lifecycle orchestration
-│   │   ├── flags.zig     # Feature flags
 │   │   └── registry/     # Feature registry
 │   │
 │   ├── features/         # Feature modules
 │   │   ├── ai/           # AI Module (llm, agents, training, embeddings)
-│   │   ├── gpu/          # GPU Acceleration
+│   │   ├── analytics/    # Event Tracking & Experiments
+│   │   ├── cloud/        # Cloud Function Adapters (AWS, GCP, Azure)
 │   │   ├── database/     # Vector Database (WDBX)
+│   │   ├── gpu/          # GPU Acceleration
 │   │   ├── network/      # Distributed Compute
 │   │   ├── observability/ # Metrics & Tracing
 │   │   └── web/          # Web/HTTP utilities
@@ -327,7 +328,6 @@ abi/
 │       ├── platform/     # Platform detection (OS, arch, CPU)
 │       ├── shared/       # Utilities (security, io, utils)
 │       ├── connectors/   # External API connectors
-│       ├── cloud/        # Cloud function adapters
 │       ├── ha/           # High availability (backup, PITR, replication)
 │       ├── tasks/        # Task management
 │       └── tests/        # Test infrastructure

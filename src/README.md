@@ -36,13 +36,14 @@ src/
 ├── core/                # Framework orchestration and config
 │   ├── config/          # Unified configuration
 │   ├── framework.zig    # Framework lifecycle
-│   ├── flags.zig        # Feature flags
 │   └── registry/        # Feature registry system
 │
 ├── features/            # Feature modules
 │   ├── ai/              # AI module (agents, llm, training, personas)
-│   ├── gpu/             # GPU acceleration
+│   ├── analytics/       # Event tracking and experiments
+│   ├── cloud/           # Cloud function adapters (AWS, GCP, Azure)
 │   ├── database/        # Vector database
+│   ├── gpu/             # GPU acceleration
 │   ├── network/         # Distributed compute
 │   ├── observability/   # Metrics and tracing
 │   └── web/             # Web/HTTP utilities
@@ -52,7 +53,6 @@ src/
     ├── platform/        # Platform detection and SIMD capabilities
     ├── shared/          # Logging, io, utils, security
     ├── connectors/      # External API connectors
-    ├── cloud/           # Cloud function adapters
     ├── ha/              # High availability
     ├── tasks/           # Task management
     └── tests/           # Test infrastructure
