@@ -137,6 +137,12 @@ pub const web = if (build_options.enable_web)
 else
     @import("features/web/stub.zig");
 
+/// Analytics event tracking.
+pub const analytics = if (build_options.enable_analytics)
+    @import("features/analytics/mod.zig")
+else
+    @import("features/analytics/stub.zig");
+
 /// Cloud function adapters.
 pub const cloud = if (build_options.enable_web)
     @import("services/cloud/mod.zig")

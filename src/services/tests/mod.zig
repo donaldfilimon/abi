@@ -99,6 +99,11 @@ comptime {
 
     // Common test helpers and utilities
     _ = @import("helpers.zig");
+
+    // Analytics module tests
+    if (@hasDecl(build_options, "enable_analytics") and build_options.enable_analytics) {
+        _ = abi.analytics;
+    }
 }
 
 // Connector tests

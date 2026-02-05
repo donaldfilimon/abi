@@ -20,6 +20,7 @@ pub const BuildOptions = struct {
     enable_database: bool,
     enable_network: bool,
     enable_profiling: bool,
+    enable_analytics: bool,
     gpu_cuda: bool,
     gpu_vulkan: bool,
     gpu_metal: bool,
@@ -42,6 +43,7 @@ pub const Default = struct {
     // expectations and allow the CLI examples to run without extra flags.
     const enable_network = true;
     const enable_profiling = true;
+    const enable_analytics = true;
     const gpu_cuda = false;
     const gpu_vulkan = false;
     const gpu_metal = false;
@@ -63,6 +65,7 @@ pub fn read(b: *std.Build) BuildOptions {
     const enable_database = b.option(bool, "enable-database", "Enable database support") orelse Default.enable_database;
     const enable_network = b.option(bool, "enable-network", "Enable network support") orelse Default.enable_network;
     const enable_profiling = b.option(bool, "enable-profiling", "Enable profiling") orelse Default.enable_profiling;
+    const enable_analytics = b.option(bool, "enable-analytics", "Enable analytics") orelse Default.enable_analytics;
     // GPU back‑end flags
     const gpu_cuda = b.option(bool, "gpu-cuda", "Enable CUDA backend") orelse Default.gpu_cuda;
     const gpu_vulkan = b.option(bool, "gpu-vulkan", "Enable Vulkan backend") orelse Default.gpu_vulkan;
@@ -80,6 +83,7 @@ pub fn read(b: *std.Build) BuildOptions {
         .enable_database = enable_database,
         .enable_network = enable_network,
         .enable_profiling = enable_profiling,
+        .enable_analytics = enable_analytics,
         .gpu_cuda = gpu_cuda,
         .gpu_vulkan = gpu_vulkan,
         .gpu_metal = gpu_metal,

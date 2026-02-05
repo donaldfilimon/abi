@@ -91,6 +91,24 @@ test "observability stub parity - types exist" {
 }
 
 // ============================================================================
+// Analytics Module Parity
+// ============================================================================
+
+test "analytics stub parity - types exist" {
+    const Analytics = abi.analytics;
+
+    // Core types
+    try testing.expect(@hasDecl(Analytics, "Engine"));
+    try testing.expect(@hasDecl(Analytics, "Event"));
+    try testing.expect(@hasDecl(Analytics, "AnalyticsConfig"));
+    try testing.expect(@hasDecl(Analytics, "AnalyticsError"));
+
+    // Extended types
+    try testing.expect(@hasDecl(Analytics, "Funnel"));
+    try testing.expect(@hasDecl(Analytics, "Experiment"));
+}
+
+// ============================================================================
 // AI Module Parity
 // ============================================================================
 

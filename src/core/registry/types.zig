@@ -77,6 +77,7 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
         .observability => build_options.enable_profiling,
         .web => build_options.enable_web,
         .cloud => build_options.enable_web,
+        .analytics => build_options.enable_analytics,
     };
 }
 

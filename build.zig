@@ -116,6 +116,7 @@ const BuildOptions = struct {
     enable_database: bool,
     enable_network: bool,
     enable_profiling: bool,
+    enable_analytics: bool,
     gpu_backends: []const GpuBackend,
 
     pub fn hasGpuBackend(self: BuildOptions, backend: GpuBackend) bool {
@@ -173,6 +174,7 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
         .enable_database = b.option(bool, "enable-database", "Enable database features") orelse true,
         .enable_network = b.option(bool, "enable-network", "Enable network distributed compute") orelse true,
         .enable_profiling = b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse true,
+        .enable_analytics = b.option(bool, "enable-analytics", "Enable analytics event tracking") orelse true,
         .gpu_backends = parseGpuBackends(b, enable_gpu, enable_web),
     };
 }
@@ -207,12 +209,13 @@ const FlagCombo = struct {
     enable_database: bool = false,
     enable_network: bool = false,
     enable_profiling: bool = false,
+    enable_analytics: bool = false,
 };
 
 /// Critical flag combinations that must compile. Covers: all on, all off,
 /// each feature solo, and each feature disabled with the rest enabled.
 const validation_matrix = [_]FlagCombo{
-    .{ .name = "all-enabled", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true },
+    .{ .name = "all-enabled", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
     .{ .name = "all-disabled" },
     .{ .name = "ai-only", .enable_ai = true },
     .{ .name = "gpu-only", .enable_gpu = true },
@@ -220,8 +223,9 @@ const validation_matrix = [_]FlagCombo{
     .{ .name = "database-only", .enable_database = true },
     .{ .name = "network-only", .enable_network = true },
     .{ .name = "profiling-only", .enable_profiling = true },
-    .{ .name = "no-ai", .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true },
-    .{ .name = "no-gpu", .enable_ai = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true },
+    .{ .name = "analytics-only", .enable_analytics = true },
+    .{ .name = "no-ai", .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
+    .{ .name = "no-gpu", .enable_ai = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
 };
 
 fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
@@ -235,6 +239,7 @@ fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
         .enable_database = combo.enable_database,
         .enable_network = combo.enable_network,
         .enable_profiling = combo.enable_profiling,
+        .enable_analytics = combo.enable_analytics,
         .gpu_backends = if (combo.enable_gpu) &.{.vulkan} else &.{},
     };
 }
@@ -377,6 +382,7 @@ fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Mod
     opts.addOption(bool, "enable_database", options.enable_database);
     opts.addOption(bool, "enable_network", options.enable_network);
     opts.addOption(bool, "enable_profiling", options.enable_profiling);
+    opts.addOption(bool, "enable_analytics", options.enable_analytics);
     opts.addOption(bool, "gpu_cuda", options.gpu_cuda());
     opts.addOption(bool, "gpu_vulkan", options.gpu_vulkan());
     opts.addOption(bool, "gpu_stdgpu", options.gpu_stdgpu());

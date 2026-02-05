@@ -60,6 +60,7 @@ pub const Feature = enum {
     web,
     personas,
     cloud,
+    analytics,
 
     /// Number of features in the enum
     pub const feature_count = @typeInfo(Feature).@"enum".fields.len;
@@ -79,6 +80,7 @@ pub const Feature = enum {
         descs[@intFromEnum(Feature.web)] = "Web/HTTP utilities";
         descs[@intFromEnum(Feature.personas)] = "Multi-persona AI assistant";
         descs[@intFromEnum(Feature.cloud)] = "Cloud provider integration";
+        descs[@intFromEnum(Feature.analytics)] = "Analytics event tracking";
         break :blk descs;
     };
 
@@ -97,6 +99,7 @@ pub const Feature = enum {
         enabled[@intFromEnum(Feature.observability)] = build_options.enable_profiling;
         enabled[@intFromEnum(Feature.web)] = build_options.enable_web;
         enabled[@intFromEnum(Feature.cloud)] = build_options.enable_web;
+        enabled[@intFromEnum(Feature.analytics)] = build_options.enable_analytics;
         break :blk enabled;
     };
 
@@ -162,6 +165,7 @@ pub const Config = struct {
             .web => self.web != null,
             .personas => if (self.ai) |ai| ai.personas != null else false,
             .cloud => self.web != null, // Cloud feature falls under web config
+            .analytics => true, // Analytics has no config dependency
         };
     }
 
