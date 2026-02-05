@@ -105,50 +105,103 @@ src/
 │   ├── flags.zig        # Feature flags
 │   └── registry/        # Feature registry (comptime, runtime, dynamic)
 ├── features/            # Feature modules
-│   ├── ai/              # Agents, LLM, streaming, training, vision
-│   ├── gpu/             # GPU acceleration (backends, kernels, codegen)
+│   ├── ai/              # AI module (280+ files, see AI section below)
+│   ├── gpu/             # GPU acceleration (backends, kernels, DSL, codegen)
 │   ├── database/        # Vector database (WDBX with HNSW/IVF-PQ)
 │   ├── network/         # Distributed compute, Raft consensus
 │   ├── observability/   # Metrics, tracing, system info
 │   └── web/             # Web/HTTP server support
 └── services/            # Shared infrastructure
-    ├── runtime/         # Task execution, concurrency, scheduling
+    ├── runtime/         # Task execution, concurrency, scheduling, memory
     ├── platform/        # Platform abstraction layer
-    ├── shared/          # Utilities, security, SIMD
-    ├── connectors/      # API connectors (OpenAI, Ollama, Anthropic, etc.)
+    ├── shared/          # Utilities, security (15 modules), SIMD
+    ├── connectors/      # External connectors (Discord, etc.)
     ├── cloud/           # Cloud provider integrations
-    ├── ha/              # High availability (failover, replication)
+    ├── ha/              # High availability (failover, replication, PITR)
     ├── tasks/           # Task management system
-    └── tests/           # Test suite (chaos, e2e, integration, stress)
+    └── tests/           # Test suite (chaos, e2e, integration, parity, property, stress)
 ```
 
 Import rules:
 - Public API imports use `@import("abi")`.
 - Nested modules import via their parent `mod.zig`.
 
-### Granular Stub Pattern
+---
 
-AI submodules have individual `stub.zig` files for fine-grained feature gating:
+## AI Module Structure
+
+The AI module is the largest in the codebase (280+ files). It contains 23 submodules:
+
+### Submodules with Stub Pattern (mod.zig + stub.zig)
+
+These require keeping both files in sync when modified:
+
+| Submodule | Purpose |
+|-----------|---------|
+| `agents/` | Agent runtime and behaviors |
+| `database/` | AI-specific database utilities |
+| `documents/` | Document processing |
+| `embeddings/` | Text/vector embeddings |
+| `eval/` | Evaluation metrics (BLEU, ROUGE, Perplexity) |
+| `explore/` | Code exploration capabilities |
+| `llm/` | Local LLM inference |
+| `memory/` | Agent memory systems |
+| `models/` | Model management and downloading |
+| `multi_agent/` | Multi-agent coordination |
+| `orchestration/` | Workflow orchestration |
+| `personas/` | Agent personas and personalities |
+| `rag/` | Retrieval-augmented generation |
+| `streaming/` | Streaming generation (SSE, WebSocket) |
+| `templates/` | Prompt templates |
+| `training/` | Training pipelines |
+| `vision/` | Vision/image processing |
+
+### Submodules without Stubs
+
+| Submodule | Purpose |
+|-----------|---------|
+| `abbey/` | **Advanced reasoning system** - meta-learning, self-reflection, theory of mind, neural attention, episodic/semantic/working memory |
+| `core/` | Shared AI types and configuration |
+| `prompts/` | Prompt building and rendering |
+| `tools/` | Agent tools (file, edit, search, Discord, OS) |
+| `transformer/` | Transformer model implementations |
+| `federated/` | Federated learning support |
+
+### Abbey Reasoning System
+
+The `abbey/` submodule provides advanced cognitive capabilities:
 
 ```
-src/features/ai/
-├── mod.zig, stub.zig       # Top-level AI
-├── agents/mod.zig, stub.zig
-├── llm/mod.zig, stub.zig
-├── vision/mod.zig, stub.zig
-├── streaming/mod.zig, stub.zig
-├── training/mod.zig, stub.zig
-├── models/mod.zig, stub.zig
-├── memory/mod.zig, stub.zig
-├── rag/mod.zig, stub.zig
-├── embeddings/mod.zig, stub.zig
-├── orchestration/mod.zig, stub.zig
-├── multi_agent/mod.zig, stub.zig
-├── personas/mod.zig, stub.zig
-└── explore/mod.zig, stub.zig
+src/features/ai/abbey/
+├── advanced/        # Meta-learning, self-reflection, theory of mind, compositional reasoning
+├── neural/          # Attention mechanisms, learning, GPU ops, tensor operations
+├── memory/          # Episodic, semantic, working memory systems
+├── mod.zig          # Main module
+├── emotions.zig     # Emotional modeling
+├── calibration.zig  # Confidence calibration
+├── reasoning.zig    # Reasoning engine
+└── context.zig      # Context management
 ```
 
-When modifying any of these, update **both** `mod.zig` and `stub.zig`.
+---
+
+## GPU Module Structure
+
+The GPU module supports 11 backends with a unified API:
+
+```
+src/features/gpu/
+├── backends/        # 16 backend implementations + vtable abstractions
+│   ├── cuda/        # CUDA with cuBLAS, NVRTC, custom kernels
+│   ├── vulkan/      # Vulkan compute
+│   ├── metal/       # Metal with Accelerate/AMX
+│   ├── fpga/        # Intel/Xilinx FPGA (attention, matmul, distance, kv_cache)
+│   └── ...          # stdgpu, webgpu, opengl, opengles, webgl2, fallback, simulated
+├── dsl/             # Kernel DSL with codegen, optimizer, SPIR-V
+├── kernels/         # Activation, batch, elementwise, linalg, matrix, normalization, reduction, vision
+├── mega/            # Multi-GPU orchestration (coordinator, failover, hybrid, metrics, power, queue, scheduler)
+└── peer_transfer/   # GPU-to-GPU data movement across backends
+```
 
 ---
 
@@ -162,8 +215,9 @@ zig build -Dgpu-backend=vulkan,cuda
 | Flag | Default | Description |
 |------|---------|-------------|
 | `-Denable-ai` | true | AI agent system |
-| `-Denable-llm` | true | Local LLM inference |
-| `-Denable-vision` | true | Vision/image processing |
+| `-Denable-llm` | true | Local LLM inference (requires AI) |
+| `-Denable-vision` | true | Vision/image processing (requires AI) |
+| `-Denable-explore` | true | Code exploration (requires AI) |
 | `-Denable-gpu` | true | GPU acceleration |
 | `-Denable-database` | true | Vector database |
 | `-Denable-network` | true | Distributed compute |
@@ -171,8 +225,147 @@ zig build -Dgpu-backend=vulkan,cuda
 | `-Denable-profiling` | true | Metrics/tracing |
 | `-Denable-mobile` | false | Mobile cross-compilation |
 
-GPU backends: `auto`, `none`, `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`,
-`opengl`, `fpga`.
+### GPU Backends
+
+All supported backends (comma-separated for multiple):
+
+| Backend | Description |
+|---------|-------------|
+| `auto` | Auto-detect best available |
+| `none` | Disable GPU entirely |
+| `cuda` | NVIDIA CUDA |
+| `vulkan` | Vulkan compute (default on desktop) |
+| `metal` | Apple Metal with Accelerate/AMX |
+| `stdgpu` | Zig std.gpu integration |
+| `webgpu` | WebGPU (default for web) |
+| `webgl2` | WebGL 2.0 (default for web) |
+| `opengl` | OpenGL compute |
+| `opengles` | OpenGL ES |
+| `fpga` | FPGA (Intel/Xilinx) |
+
+```bash
+# Examples
+zig build -Dgpu-backend=cuda,vulkan
+zig build -Dgpu-backend=metal
+zig build -Dgpu-backend=auto
+```
+
+---
+
+## Services Layer
+
+### Runtime Services (`src/services/runtime/`)
+
+| Component | Purpose |
+|-----------|---------|
+| `concurrency/` | Chase-Lev queue, epoch-based memory, lock-free structures, MPMC queue, priority queue |
+| `engine/` | Task execution with NUMA support, work stealing, result cache |
+| `scheduling/` | Async execution, futures, task groups, cancellation |
+
+### Shared Services (`src/services/shared/`)
+
+| Component | Purpose |
+|-----------|---------|
+| `security/` | 15 modules: API keys, audit, certificates, CORS, encryption, JWT, mTLS, RBAC, rate limiting, TLS, validation |
+| `utils/` | 40+ utilities: crypto, encoding, filesystem, HTTP, JSON, retry |
+| `memory/` | Pools, alignment, zerocopy, ring buffers, thread-cache |
+| `simd.zig` | SIMD acceleration (vectorAdd, vectorDot, L2Norm, cosineSimilarity) |
+| `logging.zig` | Structured logging |
+| `plugins.zig` | Plugin management |
+
+---
+
+## CLI Structure
+
+The CLI is located in `tools/cli/` with 24 commands:
+
+```
+tools/cli/
+├── main.zig              # CLI entry point
+├── mod.zig               # Module exports
+├── commands/             # Command implementations
+│   ├── agent.zig         # AI agent chat
+│   ├── bench.zig         # Benchmarking
+│   ├── completions.zig   # Shell completions
+│   ├── config.zig        # Configuration management
+│   ├── convert.zig       # Format conversion
+│   ├── db.zig            # Database operations
+│   ├── discord.zig       # Discord integration
+│   ├── embed.zig         # Embedding generation
+│   ├── explore.zig       # Code exploration
+│   ├── gpu.zig           # GPU status/operations
+│   ├── gpu_dashboard.zig # GPU monitoring TUI
+│   ├── llm.zig           # LLM inference
+│   ├── model.zig         # Model management
+│   ├── multi_agent.zig   # Multi-agent orchestration
+│   ├── network.zig       # Network operations
+│   ├── plugins.zig       # Plugin management
+│   ├── profile.zig       # Profiling
+│   ├── simd.zig          # SIMD operations
+│   ├── system_info.zig   # System information
+│   ├── task.zig          # Task management
+│   ├── toolchain.zig     # Toolchain info
+│   ├── train.zig         # Training pipelines
+│   └── tui.zig           # TUI launcher
+└── tui/                  # TUI components
+    ├── async_loop.zig
+    ├── events.zig
+    ├── gpu_monitor.zig
+    ├── streaming_dashboard.zig
+    ├── training_metrics.zig
+    ├── widgets/
+    └── themes/
+```
+
+### CLI Command Groups
+
+| Group | Commands |
+|-------|----------|
+| AI/LLM | `agent`, `llm`, `model`, `embed`, `explore`, `multi_agent` |
+| Database | `db`, `convert` |
+| GPU | `gpu`, `gpu-dashboard` |
+| Training | `train` |
+| System | `config`, `system-info`, `simd`, `bench`, `profile`, `task`, `toolchain`, `network`, `plugins`, `completions`, `tui` |
+| External | `discord` |
+
+---
+
+## Test Infrastructure
+
+Tests are organized in `src/services/tests/`:
+
+```
+src/services/tests/
+├── mod.zig          # Test suite entry point
+├── chaos/           # Chaos testing (fault injection)
+├── e2e/             # End-to-end tests
+├── integration/     # Integration tests
+├── parity/          # Real vs stub parity testing
+├── property/        # Property-based testing
+├── stress/          # Stress/load testing
+└── *.zig            # Domain-specific tests (cloud, concurrency, connectors, database, LLM, etc.)
+```
+
+Unit tests live alongside code as `*_test.zig` files.
+
+### Test Commands
+
+```bash
+# Full test suite
+zig build test --summary all
+
+# Specific test categories
+zig test src/services/tests/integration/mod.zig
+zig test src/services/tests/stress/mod.zig
+zig test src/services/tests/chaos/mod.zig
+zig test src/services/tests/parity/mod.zig
+zig test src/services/tests/property/mod.zig
+
+# Filtered tests
+zig test src/file.zig --test-filter "pattern"
+```
+
+Skip hardware-gated tests with `error.SkipZigTest`.
 
 ---
 
@@ -190,6 +383,9 @@ zig build full-check
 
 # CLI smoke tests
 zig build cli-tests
+
+# Benchmarks
+zig build benchmarks
 ```
 
 ---
@@ -209,19 +405,14 @@ const config = builder
     .build();
 ```
 
----
-
-## CLI Reference (Condensed)
-
-Key command groups:
-- `abi agent`, `abi llm`, `abi model` (AI/LLM)
-- `abi db`, `abi embed` (database, embeddings)
-- `abi gpu`, `abi gpu-dashboard` (GPU)
-- `abi train` (training)
-- `abi bench` (benchmarks)
-- `abi config`, `abi system-info` (system/config)
-
-Full details in `docs/content/cli.html`.
+Configuration modules in `src/core/config/`:
+- `ai_config.zig`
+- `gpu_config.zig`
+- `database_config.zig`
+- `network_config.zig`
+- `observability_config.zig`
+- `web_config.zig`
+- `plugin_config.zig`
 
 ---
 
@@ -231,10 +422,11 @@ Full details in `docs/content/cli.html`.
 |----------|---------|
 | `ABI_OPENAI_API_KEY` | OpenAI connector |
 | `ABI_ANTHROPIC_API_KEY` | Claude connector |
-| `ABI_OLLAMA_HOST` | Ollama host |
+| `ABI_OLLAMA_HOST` | Ollama host (default: `http://127.0.0.1:11434`) |
 | `ABI_OLLAMA_MODEL` | Default Ollama model |
 | `ABI_HF_API_TOKEN` | HuggingFace token |
 | `ABI_MASTER_KEY` | Secrets encryption (production) |
+| `DISCORD_BOT_TOKEN` | Discord bot token |
 
 See `README.md` for the full list.
 
@@ -261,11 +453,38 @@ Set library path: `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH` (macOS) to `b
 
 ---
 
-## Test Infrastructure
+## Examples
 
-- Unit tests live alongside code as `*_test.zig`.
-- Integration tests are under `tests/` (e2e, stress, chaos, integration).
-- Skip hardware-gated tests with `error.SkipZigTest`.
+18 examples are provided in `examples/`:
+
+| Example | Purpose |
+|---------|---------|
+| `agent.zig` | AI agent chat |
+| `compute.zig` | Compute engine usage |
+| `concurrency.zig` | Concurrent task execution |
+| `config.zig` | Configuration loading |
+| `database.zig` | Vector database operations |
+| `discord.zig` | Discord bot integration |
+| `embeddings.zig` | Text embeddings |
+| `gpu.zig` | GPU acceleration |
+| `ha.zig` | High availability |
+| `hello.zig` | Hello world |
+| `llm.zig` | LLM inference |
+| `network.zig` | Distributed networking |
+| `observability.zig` | Metrics and tracing |
+| `orchestration.zig` | Multi-agent orchestration |
+| `registry.zig` | Feature registry |
+| `streaming.zig` | Streaming generation |
+| `train_ava.zig` | Training with Ava |
+| `training.zig` | Training pipelines |
+
+Build and run examples:
+
+```bash
+zig build examples
+./zig-out/bin/example-hello
+./zig-out/bin/example-agent
+```
 
 ---
 
@@ -275,24 +494,30 @@ Set library path: `LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH` (macOS) to `b
 |------|-----------|
 | Public API | `src/abi.zig` |
 | Feature module | `src/features/<feature>/mod.zig`, `src/features/<feature>/stub.zig` |
+| AI submodule | `src/features/ai/<submodule>/mod.zig`, `src/features/ai/<submodule>/stub.zig` |
+| Abbey reasoning | `src/features/ai/abbey/` |
+| GPU backends | `src/features/gpu/backends/` |
 | CLI commands | `tools/cli/commands/` |
 | CLI main | `tools/cli/main.zig`, `tools/cli/mod.zig` |
-| CLI utilities | `tools/cli/utils/`, `tools/cli/tui/` |
+| CLI TUI | `tools/cli/tui/` |
 | Build config | `build.zig`, `build.zig.zon` |
 | Tests entry | `src/services/tests/mod.zig` |
 | Docs site | `docs/` |
 | Cloud integrations | `src/services/cloud/` |
 | High availability | `src/services/ha/` |
 | Connectors | `src/services/connectors/` |
+| Security | `src/services/shared/security/` |
+| Examples | `examples/` |
 
 ---
 
 ## References
 
-- `AGENTS.md` - Baseline rules
-- `GEMINI.md` - Quick reference
-- `CONTRIBUTING.md` - Workflow
-- `docs/README.md` - Docs system
+- `AGENTS.md` - Baseline rules for AI agents
+- `GEMINI.md` - Quick reference for Gemini
+- `CONTRIBUTING.md` - Development workflow
+- `docs/README.md` - Documentation system
 - `SECURITY.md` - Security practices
 - `DEPLOYMENT_GUIDE.md` - Production deployment
-- `PLAN.md` - Roadmap
+- `PLAN.md` - Development roadmap
+- `ROADMAP.md` - Version history
