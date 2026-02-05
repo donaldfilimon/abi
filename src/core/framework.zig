@@ -90,6 +90,8 @@ const database_mod = if (build_options.enable_database) @import("../features/dat
 const network_mod = if (build_options.enable_network) @import("../features/network/mod.zig") else @import("../features/network/stub.zig");
 const observability_mod = if (build_options.enable_profiling) @import("../features/observability/mod.zig") else @import("../features/observability/stub.zig");
 const web_mod = if (build_options.enable_web) @import("../features/web/mod.zig") else @import("../features/web/stub.zig");
+const cloud_mod = if (build_options.enable_web) @import("../features/cloud/mod.zig") else @import("../features/cloud/stub.zig");
+const analytics_mod = if (build_options.enable_analytics) @import("../features/analytics/mod.zig") else @import("../features/analytics/stub.zig");
 const ha_mod = @import("../services/ha/mod.zig");
 const runtime_mod = @import("../services/runtime/mod.zig");
 
@@ -157,6 +159,10 @@ pub const Framework = struct {
     observability: ?*observability_mod.Context = null,
     /// Web context, or null if web is not enabled.
     web: ?*web_mod.Context = null,
+    /// Cloud context, or null if cloud/web is not enabled.
+    cloud: ?*cloud_mod.Context = null,
+    /// Analytics context, or null if analytics is not enabled.
+    analytics: ?*analytics_mod.Context = null,
     /// High availability manager, or null if not initialized.
     ha: ?ha_mod.HaManager = null,
     /// Runtime context (always available).
@@ -309,6 +315,18 @@ pub const Framework = struct {
             }
         }
 
+        if (cfg.cloud) |_| {
+            fw.cloud = try cloud_mod.Context.init(allocator, cloud_mod.CloudConfig.defaults());
+            if (comptime build_options.enable_web) {
+                try fw.registry.registerComptime(.cloud);
+            }
+        }
+
+        if (comptime build_options.enable_analytics) {
+            fw.analytics = try analytics_mod.Context.init(allocator, analytics_mod.AnalyticsConfig{});
+            try fw.registry.registerComptime(.analytics);
+        }
+
         // Initialize high availability if enabled (defaulting to primary)
         fw.ha = ha_mod.HaManager.init(allocator, .{});
 
@@ -430,6 +448,14 @@ pub const Framework = struct {
     }
 
     fn deinitFeatures(self: *Framework) void {
+        if (self.analytics) |a| {
+            a.deinit();
+            self.analytics = null;
+        }
+        if (self.cloud) |c| {
+            c.deinit();
+            self.cloud = null;
+        }
         if (self.web) |w| {
             w.deinit();
             self.web = null;
@@ -499,6 +525,16 @@ pub const Framework = struct {
     /// Get web context (returns error if not enabled).
     pub fn getWeb(self: *Framework) Error!*web_mod.Context {
         return self.web orelse error.FeatureDisabled;
+    }
+
+    /// Get cloud context (returns error if not enabled).
+    pub fn getCloud(self: *Framework) Error!*cloud_mod.Context {
+        return self.cloud orelse error.FeatureDisabled;
+    }
+
+    /// Get analytics context (returns error if not enabled).
+    pub fn getAnalytics(self: *Framework) Error!*analytics_mod.Context {
+        return self.analytics orelse error.FeatureDisabled;
     }
 
     /// Get runtime context (always available).
@@ -629,6 +665,18 @@ pub const FrameworkBuilder = struct {
         return self;
     }
 
+    /// Enable cloud with configuration.
+    pub fn withCloud(self: *FrameworkBuilder, cloud_config: config_module.CloudConfig) *FrameworkBuilder {
+        _ = self.config_builder.withCloud(cloud_config);
+        return self;
+    }
+
+    /// Enable cloud with defaults.
+    pub fn withCloudDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withCloudDefaults();
+        return self;
+    }
+
     /// Configure plugins.
     pub fn withPlugins(self: *FrameworkBuilder, plugin_config: config_module.PluginConfig) *FrameworkBuilder {
         _ = self.config_builder.withPlugins(plugin_config);
@@ -674,6 +722,7 @@ pub const FrameworkOptions = struct {
             .network = if (self.enable_network) config_module.NetworkConfig.defaults() else null,
             .observability = if (self.enable_profiling) config_module.ObservabilityConfig.defaults() else null,
             .web = if (self.enable_web) config_module.WebConfig.defaults() else null,
+            .cloud = if (self.enable_web) config_module.CloudConfig.defaults() else null,
             .plugins = .{
                 .paths = self.plugin_paths,
                 .auto_discover = self.auto_discover_plugins,
