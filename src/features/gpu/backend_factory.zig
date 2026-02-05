@@ -106,6 +106,7 @@ const backend_priority = [_]Backend{
 };
 
 /// Create a backend instance for the specified type.
+/// Uses the VTable backend system internally.
 pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) FactoryError!*BackendInstance {
     const instance = allocator.create(BackendInstance) catch return FactoryError.OutOfMemory;
     errdefer allocator.destroy(instance);
@@ -113,46 +114,13 @@ pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) Factor
     instance.allocator = allocator;
     instance.backend_type = backend_type;
     instance.is_emulated = backend_type == .stdgpu;
-
-    // Initialize based on backend type
-    switch (backend_type) {
-        .cuda => {
-            instance.backend = try initCudaBackend(allocator);
-            instance.max_threads_per_block = 1024;
-            instance.total_memory = queryCudaMemory();
-        },
-        .vulkan => {
-            instance.backend = try initVulkanBackend(allocator);
-            instance.max_threads_per_block = 1024;
-            instance.total_memory = queryVulkanMemory();
-        },
-        .metal => {
-            instance.backend = try initMetalBackend(allocator);
-            instance.max_threads_per_block = 1024;
-            instance.total_memory = queryMetalMemory();
-        },
-        .webgpu => {
-            instance.backend = try initWebGPUBackend(allocator);
-            instance.max_threads_per_block = 256;
-            instance.total_memory = null; // WebGPU doesn't expose this
-        },
-        .opengl, .opengles => {
-            instance.backend = try initOpenGLBackend(allocator);
-            instance.max_threads_per_block = 1024;
-            instance.total_memory = null;
-        },
-        .fpga => {
-            instance.backend = try initFpgaBackend(allocator);
-            instance.max_threads_per_block = 1;
-            instance.total_memory = queryFpgaMemory();
-        },
-        .stdgpu => {
-            instance.backend = initStdgpuBackend();
-            instance.max_threads_per_block = 256;
-            instance.total_memory = null;
-        },
-        .webgl2 => return FactoryError.UnsupportedBackend,
-    }
+    instance.backend = try createVTableBackend(allocator, backend_type);
+    instance.total_memory = queryDeviceMemory(backend_type);
+    instance.max_threads_per_block = switch (backend_type) {
+        .cuda, .vulkan, .metal, .opengl, .opengles => 1024,
+        .webgpu, .stdgpu, .webgl2 => 256,
+        .fpga => 1,
+    };
 
     return instance;
 }
@@ -169,11 +137,7 @@ pub fn createBestBackend(allocator: std.mem.Allocator) FactoryError!*BackendInst
 
 /// Destroy a backend instance and release its resources.
 pub fn destroyBackend(instance: *BackendInstance) void {
-    // Backend-specific cleanup
-    if (instance.backend.deinit) |deinit_fn| {
-        deinit_fn();
-    }
-
+    instance.backend.deinit();
     instance.allocator.destroy(instance);
 }
 
@@ -303,243 +267,14 @@ fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bool {
 }
 
 // ============================================================================
-// Backend-specific initialization
-// ============================================================================
-
-fn initCudaBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface {
-    _ = allocator;
-    // Import CUDA module at comptime to check availability
-    const cuda_available = @hasDecl(@import("root"), "build_options") and
-        @field(@import("root"), "build_options").gpu_cuda;
-
-    if (!cuda_available) {
-        return FactoryError.BackendNotAvailable;
-    }
-
-    return BackendInterface{
-        .compileKernel = compileKernelStub,
-        .launchKernel = launchKernelStub,
-        .destroyKernel = destroyKernelStub,
-        .allocateMemory = allocateMemoryStub,
-        .freeMemory = freeMemoryStub,
-        .memcpyHostToDevice = memcpyStub,
-        .memcpyDeviceToHost = memcpyStub,
-        .memcpyDeviceToDevice = memcpyStub,
-        .copyToDeviceAsync = memcpyAsyncStub,
-        .copyFromDeviceAsync = memcpyAsyncStub,
-        .synchronize = synchronizeStub,
-        .deinit = null,
-    };
-}
-
-fn initVulkanBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface {
-    _ = allocator;
-    // Check Vulkan availability
-    if (!isBackendAvailable(.vulkan)) {
-        return FactoryError.BackendNotAvailable;
-    }
-
-    return BackendInterface{
-        .compileKernel = compileKernelStub,
-        .launchKernel = launchKernelStub,
-        .destroyKernel = destroyKernelStub,
-        .allocateMemory = allocateMemoryStub,
-        .freeMemory = freeMemoryStub,
-        .memcpyHostToDevice = memcpyStub,
-        .memcpyDeviceToHost = memcpyStub,
-        .memcpyDeviceToDevice = memcpyStub,
-        .copyToDeviceAsync = memcpyAsyncStub,
-        .copyFromDeviceAsync = memcpyAsyncStub,
-        .synchronize = synchronizeStub,
-        .deinit = null,
-    };
-}
-
-fn initMetalBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface {
-    _ = allocator;
-    // Check Metal availability (macOS only)
-    if (!isBackendAvailable(.metal)) {
-        return FactoryError.BackendNotAvailable;
-    }
-
-    return BackendInterface{
-        .compileKernel = compileKernelStub,
-        .launchKernel = launchKernelStub,
-        .destroyKernel = destroyKernelStub,
-        .allocateMemory = allocateMemoryStub,
-        .freeMemory = freeMemoryStub,
-        .memcpyHostToDevice = memcpyStub,
-        .memcpyDeviceToHost = memcpyStub,
-        .memcpyDeviceToDevice = memcpyStub,
-        .copyToDeviceAsync = memcpyAsyncStub,
-        .copyFromDeviceAsync = memcpyAsyncStub,
-        .synchronize = synchronizeStub,
-        .deinit = null,
-    };
-}
-
-fn initWebGPUBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface {
-    _ = allocator;
-    if (!isBackendAvailable(.webgpu)) {
-        return FactoryError.BackendNotAvailable;
-    }
-
-    return BackendInterface{
-        .compileKernel = compileKernelStub,
-        .launchKernel = launchKernelStub,
-        .destroyKernel = destroyKernelStub,
-        .allocateMemory = allocateMemoryStub,
-        .freeMemory = freeMemoryStub,
-        .memcpyHostToDevice = memcpyStub,
-        .memcpyDeviceToHost = memcpyStub,
-        .memcpyDeviceToDevice = memcpyStub,
-        .copyToDeviceAsync = memcpyAsyncStub,
-        .copyFromDeviceAsync = memcpyAsyncStub,
-        .synchronize = synchronizeStub,
-        .deinit = null,
-    };
-}
-
-fn initOpenGLBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface {
-    _ = allocator;
-    if (!isBackendAvailable(.opengl)) {
-        return FactoryError.BackendNotAvailable;
-    }
-
-    return BackendInterface{
-        .compileKernel = compileKernelStub,
-        .launchKernel = launchKernelStub,
-        .destroyKernel = destroyKernelStub,
-        .allocateMemory = allocateMemoryStub,
-        .freeMemory = freeMemoryStub,
-        .memcpyHostToDevice = memcpyStub,
-        .memcpyDeviceToHost = memcpyStub,
-        .memcpyDeviceToDevice = memcpyStub,
-        .copyToDeviceAsync = memcpyAsyncStub,
-        .copyFromDeviceAsync = memcpyAsyncStub,
-        .synchronize = synchronizeStub,
-        .deinit = null,
-    };
-}
-
-fn initFpgaBackend(allocator: std.mem.Allocator) FactoryError!BackendInterface {
-    _ = allocator;
-    if (!isBackendAvailable(.fpga)) {
-        return FactoryError.BackendNotAvailable;
-    }
-
-    return BackendInterface{
-        .compileKernel = compileKernelStub,
-        .launchKernel = launchKernelStub,
-        .destroyKernel = destroyKernelStub,
-        .allocateMemory = allocateMemoryStub,
-        .freeMemory = freeMemoryStub,
-        .memcpyHostToDevice = memcpyStub,
-        .memcpyDeviceToHost = memcpyStub,
-        .memcpyDeviceToDevice = memcpyStub,
-        .copyToDeviceAsync = memcpyAsyncStub,
-        .copyFromDeviceAsync = memcpyAsyncStub,
-        .synchronize = synchronizeStub,
-        .deinit = null,
-    };
-}
-
-fn initStdgpuBackend() BackendInterface {
-    return BackendInterface{
-        .compileKernel = compileKernelStub,
-        .launchKernel = launchKernelStub,
-        .destroyKernel = destroyKernelStub,
-        .allocateMemory = allocateMemoryStub,
-        .freeMemory = freeMemoryStub,
-        .memcpyHostToDevice = memcpyStub,
-        .memcpyDeviceToHost = memcpyStub,
-        .memcpyDeviceToDevice = memcpyStub,
-        .copyToDeviceAsync = memcpyAsyncStub,
-        .copyFromDeviceAsync = memcpyAsyncStub,
-        .synchronize = synchronizeStub,
-        .deinit = null,
-    };
-}
-
-// ============================================================================
 // Memory Query Functions
 // ============================================================================
 
-fn queryCudaMemory() ?u64 {
-    // Would query CUDA device memory
-    return null;
-}
-
-fn queryVulkanMemory() ?u64 {
-    // Would query Vulkan device memory
-    return null;
-}
-
-fn queryMetalMemory() ?u64 {
-    // Would query Metal device memory
-    return null;
-}
-
-fn queryFpgaMemory() ?u64 {
-    return null;
-}
-
-// ============================================================================
-// Stub Implementations (for backends without full interface)
-// ============================================================================
-
-fn compileKernelStub(
-    allocator: std.mem.Allocator,
-    source: []const u8,
-    entry_point: []const u8,
-) interface.InterfaceError!*anyopaque {
-    _ = allocator;
-    _ = source;
-    _ = entry_point;
-    return interface.InterfaceError.NotImplemented;
-}
-
-fn launchKernelStub(
-    kernel: *anyopaque,
-    config: LaunchConfig,
-    args: []const *anyopaque,
-) interface.InterfaceError!void {
-    _ = kernel;
-    _ = config;
-    _ = args;
-    return interface.InterfaceError.NotImplemented;
-}
-
-fn destroyKernelStub(kernel: *anyopaque) void {
-    _ = kernel;
-}
-
-fn allocateMemoryStub(size: usize) interface.InterfaceError!*anyopaque {
-    _ = size;
-    return interface.InterfaceError.NotImplemented;
-}
-
-fn freeMemoryStub(ptr: *anyopaque) void {
-    _ = ptr;
-}
-
-fn memcpyStub(dst: *anyopaque, src: *const anyopaque, size: usize) interface.InterfaceError!void {
-    _ = dst;
-    _ = src;
-    _ = size;
-    return interface.InterfaceError.NotImplemented;
-}
-
-fn memcpyAsyncStub(dst: *anyopaque, src: *const anyopaque, size: usize, stream: ?*anyopaque) interface.InterfaceError!void {
-    _ = dst;
-    _ = src;
-    _ = size;
-    _ = stream;
-    return interface.InterfaceError.NotImplemented;
-}
-
-fn synchronizeStub() interface.InterfaceError!void {
-    // stdgpu is always synchronized
+fn queryDeviceMemory(backend_type: Backend) ?u64 {
+    return switch (backend_type) {
+        .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .webgl2, .fpga => null,
+        .stdgpu => null,
+    };
 }
 
 // ============================================================================
@@ -714,7 +449,7 @@ pub fn createVTableBackend(allocator: std.mem.Allocator, backend_type: Backend) 
         .opengl, .opengles => createOpenGLVTableBackend(allocator),
         .fpga => createFpgaVTableBackend(allocator),
         .stdgpu => createSimulatedVTableBackend(allocator),
-        .webgl2 => FactoryError.UnsupportedBackend,
+        .webgl2 => createWebGL2VTableBackend(allocator),
     };
 }
 
@@ -845,6 +580,18 @@ fn createOpenGLVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
             else => FactoryError.BackendInitializationFailed,
         };
     };
+}
+
+fn createWebGL2VTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
+    // Check if WebGL2 is available at comptime
+    if (comptime !build_options.gpu_webgl2) {
+        return FactoryError.BackendNotAvailable;
+    }
+
+    // WebGL2 uses the SimulatedBackend since it targets browsers
+    // and has no native kernel support
+    const impl = SimulatedBackend.init(allocator) catch return FactoryError.OutOfMemory;
+    return interface.createBackend(SimulatedBackend, impl);
 }
 
 // ============================================================================

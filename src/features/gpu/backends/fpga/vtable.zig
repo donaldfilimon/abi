@@ -170,24 +170,23 @@ pub const FpgaBackend = struct {
 
     pub fn copyToDevice(self: *Self, dst: *anyopaque, src: []const u8) interface.MemoryError!void {
         _ = self;
-        _ = dst;
-        _ = src;
-        return interface.MemoryError.TransferFailed;
+        // Synchronous host-to-device transfer (simulation: memcpy)
+        // Real FPGA would use XRT DMA: xrtBOSync(bo, XCL_BO_SYNC_BO_TO_DEVICE, ...)
+        const dest_ptr: [*]u8 = @ptrCast(dst);
+        @memcpy(dest_ptr[0..src.len], src);
     }
 
     pub fn copyFromDevice(self: *Self, dst: []u8, src: *anyopaque) interface.MemoryError!void {
         _ = self;
-        _ = dst;
-        _ = src;
-        return interface.MemoryError.TransferFailed;
+        // Synchronous device-to-host transfer (simulation: memcpy)
+        // Real FPGA would use XRT DMA: xrtBOSync(bo, XCL_BO_SYNC_BO_FROM_DEVICE, ...)
+        const src_ptr: [*]const u8 = @ptrCast(src);
+        @memcpy(dst, src_ptr[0..dst.len]);
     }
 
     pub fn copyToDeviceAsync(self: *Self, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) interface.MemoryError!void {
-        _ = self;
-        _ = dst;
-        _ = src;
-        _ = stream;
-        return interface.MemoryError.TransferFailed;
+        _ = stream; // FPGA typically doesn't have async transfer separate from sync
+        return self.copyToDevice(dst, src);
     }
 
     pub fn copyFromDeviceAsync(self: *Self, dst: []u8, src: *anyopaque, stream: ?*anyopaque) interface.MemoryError!void {
