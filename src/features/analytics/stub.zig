@@ -141,6 +141,50 @@ pub const Funnel = struct {
 };
 
 // ============================================================================
+// Module Lifecycle
+// ============================================================================
+
+/// Analytics context stub for Framework integration.
+pub const Context = struct {
+    allocator: std.mem.Allocator,
+    config: AnalyticsConfig,
+    engine: ?Engine = null,
+
+    pub fn init(allocator: std.mem.Allocator, config: AnalyticsConfig) !*Context {
+        _ = allocator;
+        _ = config;
+        return AnalyticsError.AnalyticsDisabled;
+    }
+
+    pub fn deinit(self: *Context) void {
+        _ = self;
+    }
+
+    pub fn getEngine(_: *Context) ?*Engine {
+        return null;
+    }
+};
+
+var initialized: bool = false;
+
+pub fn init(allocator: std.mem.Allocator) !void {
+    _ = allocator;
+    return AnalyticsError.AnalyticsDisabled;
+}
+
+pub fn deinit() void {
+    initialized = false;
+}
+
+pub fn isEnabled() bool {
+    return false;
+}
+
+pub fn isInitialized() bool {
+    return initialized;
+}
+
+// ============================================================================
 // Stub Experiment
 // ============================================================================
 

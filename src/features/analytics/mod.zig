@@ -230,6 +230,55 @@ pub const Experiment = struct {
 };
 
 // ============================================================================
+// Module Lifecycle
+// ============================================================================
+
+/// Analytics context for Framework integration.
+pub const Context = struct {
+    allocator: std.mem.Allocator,
+    config: AnalyticsConfig,
+    engine: ?Engine = null,
+
+    pub fn init(allocator: std.mem.Allocator, config: AnalyticsConfig) !*Context {
+        const ctx = try allocator.create(Context);
+        ctx.* = .{
+            .allocator = allocator,
+            .config = config,
+            .engine = Engine.init(allocator, config),
+        };
+        return ctx;
+    }
+
+    pub fn deinit(self: *Context) void {
+        if (self.engine) |*eng| eng.deinit();
+        self.allocator.destroy(self);
+    }
+
+    pub fn getEngine(self: *Context) ?*Engine {
+        return if (self.engine != null) &self.engine.? else null;
+    }
+};
+
+var initialized: bool = false;
+
+pub fn init(allocator: std.mem.Allocator) !void {
+    _ = allocator;
+    initialized = true;
+}
+
+pub fn deinit() void {
+    initialized = false;
+}
+
+pub fn isEnabled() bool {
+    return build_options.enable_analytics;
+}
+
+pub fn isInitialized() bool {
+    return initialized;
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 

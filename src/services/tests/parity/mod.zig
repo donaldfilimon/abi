@@ -281,6 +281,89 @@ const network_required = [_][]const u8{
     "defaultConfig",
 };
 
+/// Web module required declarations
+const web_required = [_][]const u8{
+    "Context",
+    "WebError",
+    "Response",
+    "HttpClient",
+    "RequestOptions",
+    "WeatherClient",
+    "WeatherConfig",
+    "JsonValue",
+    "ParsedJson",
+    "ChatHandler",
+    "ChatRequest",
+    "ChatResponse",
+    "ChatResult",
+    "PersonaRouter",
+    "Route",
+    "RouteContext",
+    "handlers",
+    "routes",
+    "http",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "get",
+    "getWithOptions",
+    "postJson",
+    "freeResponse",
+    "parseJsonValue",
+    "isSuccessStatus",
+};
+
+/// Observability module required declarations
+const observability_required = [_][]const u8{
+    "Context",
+    "Error",
+    "Counter",
+    "Gauge",
+    "FloatGauge",
+    "Histogram",
+    "MetricsCollector",
+    "MetricsConfig",
+    "MetricsSummary",
+    "Tracer",
+    "Span",
+    "TraceId",
+    "SpanId",
+    "SpanKind",
+    "SpanStatus",
+    "ObservabilityBundle",
+    "BundleConfig",
+    "AlertManager",
+    "AlertRule",
+    "PrometheusExporter",
+    "PrometheusConfig",
+    "OtelExporter",
+    "OtelConfig",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "createCollector",
+    "registerDefaultMetrics",
+    "recordRequest",
+    "recordError",
+};
+
+/// Analytics module required declarations
+const analytics_required = [_][]const u8{
+    "Context",
+    "Event",
+    "AnalyticsConfig",
+    "AnalyticsError",
+    "Engine",
+    "Funnel",
+    "Experiment",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+};
+
 /// Cloud module required declarations
 const cloud_required = [_][]const u8{
     "CloudEvent",
@@ -395,6 +478,83 @@ const network_specs = [_]DeclSpec{
     .{ .name = "isInitialized", .kind = .function },
     .{ .name = "defaultRegistry", .kind = .function },
     .{ .name = "defaultConfig", .kind = .function },
+};
+
+/// Web module specs.
+const web_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "WebError", .kind = .type_decl },
+    .{ .name = "Response", .kind = .type_decl },
+    .{ .name = "HttpClient", .kind = .type_decl },
+    .{ .name = "RequestOptions", .kind = .type_decl },
+    .{ .name = "WeatherClient", .kind = .type_decl },
+    .{ .name = "WeatherConfig", .kind = .type_decl },
+    .{ .name = "ChatHandler", .kind = .type_decl, .sub_decls = &.{"init"} },
+    .{ .name = "ChatRequest", .kind = .type_decl },
+    .{ .name = "ChatResponse", .kind = .type_decl },
+    .{ .name = "ChatResult", .kind = .type_decl },
+    .{ .name = "PersonaRouter", .kind = .type_decl },
+    .{ .name = "Route", .kind = .type_decl },
+    .{ .name = "RouteContext", .kind = .type_decl },
+    .{ .name = "handlers", .kind = .type_decl },
+    .{ .name = "routes", .kind = .type_decl },
+    .{ .name = "http", .kind = .type_decl },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "get", .kind = .function },
+    .{ .name = "getWithOptions", .kind = .function },
+    .{ .name = "postJson", .kind = .function },
+    .{ .name = "freeResponse", .kind = .function },
+    .{ .name = "parseJsonValue", .kind = .function },
+    .{ .name = "isSuccessStatus", .kind = .function },
+};
+
+/// Observability module specs.
+const observability_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "Counter", .kind = .type_decl, .sub_decls = &.{ "inc", "get" } },
+    .{ .name = "Gauge", .kind = .type_decl, .sub_decls = &.{ "set", "get", "inc", "dec" } },
+    .{ .name = "FloatGauge", .kind = .type_decl, .sub_decls = &.{ "set", "get", "add" } },
+    .{ .name = "Histogram", .kind = .type_decl, .sub_decls = &.{ "init", "deinit", "record" } },
+    .{ .name = "MetricsCollector", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "MetricsConfig", .kind = .type_decl },
+    .{ .name = "MetricsSummary", .kind = .type_decl },
+    .{ .name = "Tracer", .kind = .type_decl },
+    .{ .name = "Span", .kind = .type_decl },
+    .{ .name = "ObservabilityBundle", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "BundleConfig", .kind = .type_decl },
+    .{ .name = "AlertManager", .kind = .type_decl },
+    .{ .name = "AlertRule", .kind = .type_decl },
+    .{ .name = "PrometheusExporter", .kind = .type_decl },
+    .{ .name = "PrometheusConfig", .kind = .type_decl },
+    .{ .name = "OtelExporter", .kind = .type_decl },
+    .{ .name = "OtelConfig", .kind = .type_decl },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "createCollector", .kind = .function },
+    .{ .name = "registerDefaultMetrics", .kind = .function },
+    .{ .name = "recordRequest", .kind = .function },
+    .{ .name = "recordError", .kind = .function },
+};
+
+/// Analytics module specs.
+const analytics_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Event", .kind = .type_decl },
+    .{ .name = "AnalyticsConfig", .kind = .type_decl },
+    .{ .name = "AnalyticsError", .kind = .type_decl },
+    .{ .name = "Engine", .kind = .type_decl, .sub_decls = &.{ "init", "deinit", "track", "flush" } },
+    .{ .name = "Funnel", .kind = .type_decl, .sub_decls = &.{ "init", "deinit", "addStep", "recordStep" } },
+    .{ .name = "Experiment", .kind = .type_decl, .sub_decls = &.{ "assign", "totalAssignments" } },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
 };
 
 /// Cloud module specs.
@@ -543,6 +703,72 @@ test "cloud module declaration kinds and signatures" {
 }
 
 // ============================================================================
+// Web Module Parity Tests
+// ============================================================================
+
+test "web module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.web, &web_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Web module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.web, &web_required);
+}
+
+test "web module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.web, &web_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.web, &web_specs));
+}
+
+// ============================================================================
+// Observability Module Parity Tests
+// ============================================================================
+
+test "observability module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.observability, &observability_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Observability module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.observability, &observability_required);
+}
+
+test "observability module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.observability, &observability_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.observability, &observability_specs));
+}
+
+// ============================================================================
+// Analytics Module Parity Tests
+// ============================================================================
+
+test "analytics module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.analytics, &analytics_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Analytics module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.analytics, &analytics_required);
+}
+
+test "analytics module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.analytics, &analytics_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.analytics, &analytics_specs));
+}
+
+// ============================================================================
 // Cross-Module Consistency Tests
 // ============================================================================
 
@@ -556,6 +782,7 @@ test "all feature modules follow Context pattern" {
         abi.cloud,
         abi.web,
         abi.observability,
+        abi.analytics,
     };
 
     inline for (modules) |mod| {
@@ -575,6 +802,9 @@ test "all feature modules have lifecycle functions" {
         abi.database,
         abi.network,
         abi.cloud,
+        abi.web,
+        abi.observability,
+        abi.analytics,
     };
 
     inline for (modules) |mod| {
