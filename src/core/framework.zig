@@ -316,14 +316,21 @@ pub const Framework = struct {
         }
 
         if (cfg.cloud) |_| {
+            // Note: cfg.cloud is core/config CloudConfig (detailed) but cloud_mod.Context
+            // expects features/cloud CloudConfig (runtime). Using defaults until types are unified.
             fw.cloud = try cloud_mod.Context.init(allocator, cloud_mod.CloudConfig.defaults());
             if (comptime build_options.enable_web) {
                 try fw.registry.registerComptime(.cloud);
             }
         }
 
-        if (cfg.analytics) |_| {
-            fw.analytics = try analytics_mod.Context.init(allocator, analytics_mod.AnalyticsConfig{});
+        if (cfg.analytics) |analytics_cfg| {
+            fw.analytics = try analytics_mod.Context.init(allocator, .{
+                .buffer_capacity = analytics_cfg.buffer_capacity,
+                .enable_timestamps = analytics_cfg.enable_timestamps,
+                .app_id = analytics_cfg.app_id,
+                .flush_interval_ms = analytics_cfg.flush_interval_ms,
+            });
             if (comptime build_options.enable_analytics) {
                 try fw.registry.registerComptime(.analytics);
             }
