@@ -145,9 +145,9 @@ else
 
 /// Cloud function adapters.
 pub const cloud = if (build_options.enable_web)
-    @import("services/cloud/mod.zig")
+    @import("features/cloud/mod.zig")
 else
-    @import("services/cloud/stub.zig");
+    @import("features/cloud/stub.zig");
 
 /// High availability (replication, backup, PITR).
 pub const ha = @import("services/ha/mod.zig");

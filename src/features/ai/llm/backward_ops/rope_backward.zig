@@ -10,7 +10,7 @@
 //!   dx[i + half_dim] = -dy[i] * sin(θ) + dy[i + half_dim] * cos(θ)
 
 const std = @import("std");
-const rope = @import("../rope.zig");
+const rope = @import("../ops/rope.zig");
 
 /// Backward pass for RoPE.
 /// Since RoPE is an orthogonal transform, backward = inverse rotation.

@@ -24,7 +24,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-const time = @import("../shared/time.zig");
+const time = @import("../../services/shared/time.zig");
 
 pub const CloudEvent = types.CloudEvent;
 pub const CloudResponse = types.CloudResponse;
