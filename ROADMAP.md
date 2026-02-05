@@ -10,11 +10,24 @@ tags: [planning, roadmap]
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
   <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=for-the-badge" alt="Version"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/Tests-914%2F919-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 > **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.
 >
-> This document tracks planned features, improvements, and milestones for ABI framework.
+> This document tracks the **version history** and **future roadmap** for the ABI framework.
+> For current sprint work, see [PLAN.md](PLAN.md).
+
+---
+
+## Document Structure
+
+| Document | Purpose |
+|----------|---------|
+| **ROADMAP.md** (this file) | Version history, release timeline, future vision |
+| [PLAN.md](PLAN.md) | Current sprint focus, blocked items, near-term work |
+| [docs/plans/](docs/plans/) | Detailed implementation plans for specific initiatives |
+| [CHANGELOG_CONSOLIDATED.md](CHANGELOG_CONSOLIDATED.md) | Detailed release notes |
 
 **Zig Version Requirement:** `0.16.0-dev.2471+e9eadee00` or later (migration complete)
 

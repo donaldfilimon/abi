@@ -12,6 +12,11 @@ tags: [planning, sprint, development]
   <img src="https://img.shields.io/badge/Zig-0.16--dev-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
 </p>
 
+> This document tracks **current sprint focus** and **near-term work**.
+> For version history and roadmap, see [ROADMAP.md](ROADMAP.md).
+
+---
+
 ## This Sprint
 
 **Focus: Stabilization & Tooling - COMPLETE**
