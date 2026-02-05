@@ -3,7 +3,7 @@ title: "TODO"
 tags: [development, tracking]
 ---
 # Project TODO List
-> **Codebase Status:** Synced with repository as of 2026-02-04.
+> **Codebase Status:** Synced with repository as of 2026-02-05.
 > **Zig Version:** `0.16.0-dev.2471+e9eadee00` (master branch)
 
 <p align="center">
@@ -16,17 +16,14 @@ tags: [development, tracking]
 >
 > This file tracks incomplete or placeholder implementations in the codebase. Each entry includes a file path, line number, and a brief description of the pending work.
 
-## Current Session Progress (2026-02-04)
+## Current Session Progress (2026-02-05)
 
 ### Completed This Session
-- [x] **C bindings reimplementation** - Full C-compatible FFI layer in `bindings/c/` with framework lifecycle, SIMD ops, database CRUD, GPU management, and agent conversation API
-- [x] **Python bindings** - Python FFI wrapper using ctypes in `bindings/python/`
-- [x] **Stub API parity fixes** - Fixed signature mismatches across network, observability, streaming, and training stubs
-- [x] **Silent error handling** - Replaced `catch {}` patterns with proper error handling or debug logging
-- [x] **Circuit breaker documentation** - Added comprehensive docs in CLAUDE.md for StreamRecovery, SessionCache, backend routing
-- [x] **HNSW prefetch optimizations** - Hardware prefetch hints via `@prefetch` intrinsic in search loops
-- [x] **GPU stub return type fix** - Fixed `deinitialize()` in `src/features/gpu/stub.zig` to match real module signature
-- [x] **Feature-disabled builds verified** - All combinations compile correctly
+- [x] **Test count verification** - 914/919 tests passing (5 skipped)
+- [x] **Planning docs sync** - Updated ROADMAP/PLAN/docs plans to reflect stabilization focus
+- [x] **Language bindings status** - Marked Rust/Go/JS/WASM bindings as complete in roadmap
+- [x] **Native HTTP downloads** - Enabled direct model downloads in CLI
+- [x] **Toolchain CLI** - Re-enabled Zig/ZLS install/update commands
 
 ### Completed (2026-02-04)
 - [x] **Code quality improvements** - Security module error handling (productionDefaults), streaming module hardening (proper error propagation)
@@ -52,8 +49,7 @@ The following high-level items remain open in **[ROADMAP.md](ROADMAP.md)**.
 
 | File | Line | Description |
 |------|------|-------------|
-| `ROADMAP.md` | 184-189 | Language bindings reimplementation - C bindings complete! Python complete! Rust/Go/JS/WASM pending |
-| `ROADMAP.md` | 205 | ASIC exploration (future research) |
+| `ROADMAP.md` | 212 | ASIC exploration (future research) |
 
 ## Llama-CPP Parity Tasks (Zig 0.16)
 
@@ -178,7 +174,7 @@ This section aggregates all high‑level and implementation‑level tasks that a
 | ~~Education~~ | ~~Training courses, certification program, university partnerships~~ ✅ Complete |
 | ~~Commercial Support~~ | ~~SLA offerings, priority support, custom development~~ ✅ Complete |
 | ~~Cloud Integration~~ | ~~AWS Lambda, Google Cloud Functions, Azure Functions~~ ✅ Complete |
-| Language Bindings | ~~C bindings~~ ✅ Complete, ~~Python bindings~~ ✅ Complete, Rust/Go/JS/WASM pending |
+| Language Bindings | ~~C bindings~~ ✅ Complete, ~~Python bindings~~ ✅ Complete, ~~Rust/Go/JS/WASM~~ ✅ Complete |
 | ASIC Exploration | Long-term research program |
 
 ### Miscellaneous Implementation TODOs

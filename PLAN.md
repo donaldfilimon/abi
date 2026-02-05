@@ -3,20 +3,26 @@ title: "PLAN"
 tags: [planning, sprint, development]
 ---
 # Current Development Focus
-> **Codebase Status:** Synced with repository as of 2026-02-04.
+> **Codebase Status:** Synced with repository as of 2026-02-05.
 > **Zig Version:** `0.16.0-dev.2471+e9eadee00` (master branch)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Sprint-Complete-success?style=for-the-badge" alt="Sprint Complete"/>
-  <img src="https://img.shields.io/badge/Tests-912%2F917-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Tests-914%2F919-success?style=for-the-badge" alt="Tests"/>
   <img src="https://img.shields.io/badge/Zig-0.16--dev-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
 </p>
 
 ## This Sprint
 
-**Focus: API Stability & C Bindings - COMPLETE**
+**Focus: Stabilization & Tooling - COMPLETE**
 
-### Completed This Sprint (2026-02-01)
+### Completed This Sprint (2026-02-05)
+- [x] **Native HTTP downloads** - Direct HTTP download enabled for CLI model fetches
+- [x] **Toolchain CLI** - Re-enabled Zig/ZLS install/update commands
+- [x] **Test count verification** - 914/919 tests passing (5 skipped)
+- [x] **Language bindings parity** - Rust/Go/JS bindings completed alongside C/Python
+
+### Completed (Previous Sprint - 2026-02-01)
 - [x] **C bindings implementation complete** - Full C-compatible FFI layer in `src/c_api.zig` with `abi_` prefixed functions for Framework, GPU, AI, Database modules; C header generation via `zig build c-header`; Error handling with `AbiError` struct; Memory-safe string handling
 - [x] **Stub API parity fixes** - Fixed signature mismatches between real and stub modules:
   - `src/features/network/stub.zig`: Added `registerNode()`, `connectToNode()`, `broadcastMessage()`, `getClusterStatus()` stubs
@@ -46,33 +52,25 @@ tags: [planning, sprint, development]
 
 ## Blocked
 
-Waiting on external dependencies:
-
-| Item | Blocker | Workaround |
-|------|---------|------------|
-| Native HTTP downloads | Zig 0.16 `std.Io.File.Writer` API unstable | Falls back to curl/wget instructions |
-| Toolchain CLI | Zig 0.16 API incompatibilities | Command disabled; manual zig installation |
-
-**Note:** These will be re-evaluated when Zig 0.16.1+ releases with I/O API stabilization.
+No active blockers as of 2026-02-05.
 
 ---
 
-## Next Sprint: Language Bindings & Examples
+## Next Sprint: Examples & Docs Alignment
 
-**Focus: Complete language bindings ecosystem and fix example files**
+**Focus: Keep examples, CLI help, and docs aligned with current APIs**
 
 ### Sprint Goals
-1. **Rust Bindings** - FFI bindings using existing C API
-2. **JavaScript/WASM Bindings** - Browser and Node.js support
-3. **Example Files** - Fix API mismatches in config, embeddings, registry, streaming examples
-4. **Go Bindings Verification** - Confirm completion status
+1. **API drift checks** - Verify example programs against current public APIs
+2. **CLI documentation sync** - Ensure CLI help/docs match command behavior
+3. **Regression validation** - Run targeted example builds and tests
 
 ### Completed (Previous Sprints)
 - [x] Python bindings with pyproject.toml and examples
 - [x] Go bindings with context cancellation support
 - [x] C bindings with full FFI layer
 
-### Completed (This Sprint - 2026-02-04)
+### Completed (This Sprint - 2026-02-05)
 - [x] **Rust bindings** - Full FFI bindings in `bindings/rust/` with safe Rust wrappers:
   - Framework lifecycle, SIMD operations, Vector Database, GPU backends, Agent system
   - Example in `bindings/rust/examples/basic.rs`
@@ -85,8 +83,7 @@ Waiting on external dependencies:
 - [x] **Benchmark modules integrated** - Added `benchmarks/infrastructure/registry.zig` and `result_cache.zig`
 
 ### Blocked
-- [ ] Native HTTP downloads (waiting on Zig 0.16 std.Io.File.Writer stabilization)
-- [ ] Toolchain CLI re-enablement (Zig 0.16 API incompatibilities)
+- None.
 
 ### Future Work
 - [ ] ASIC exploration research (long-term)
@@ -120,6 +117,7 @@ Waiting on external dependencies:
 
 ## Recently Completed
 
+- **Stabilization & Tooling** - Enabled native HTTP model downloads and re-enabled toolchain CLI; 914/919 tests passing (2026-02-05)
 - **Benchmarks & CI Improvements** - Added real competitive benchmarks (FAISS, vector DBs), C header CI integration with `zig build c-header` and verification step; 889/894 tests passing (2026-02-03)
 - **API Stability & C Bindings Sprint** - Complete C-compatible FFI layer (`src/c_api.zig`), stub/real API parity fixes across network/observability/streaming/training modules, circuit breaker documentation, HNSW prefetch optimizations; 889/894 tests passing (2026-02-01)
 - **GPU backend test coverage complete** - Added inline tests to ALL GPU backends: WebGPU, OpenGL, OpenGL ES, Vulkan (17 error cases), Metal (10 error cases), WebGL2, stdgpu; Verified Metal backend works (emulated mode); All CLI commands functional including nested subcommands; Training pipeline tested; 787/792 tests passing (2026-01-31)

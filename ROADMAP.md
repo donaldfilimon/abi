@@ -3,7 +3,7 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-02-04.
+> **Codebase Status:** Synced with repository as of 2026-02-05.
 > **Zig Version:** `0.16.0-dev.2471+e9eadee00` (master branch)
 
 <p align="center">
@@ -17,6 +17,12 @@ tags: [planning, roadmap]
 > This document tracks planned features, improvements, and milestones for ABI framework.
 
 **Zig Version Requirement:** `0.16.0-dev.2471+e9eadee00` or later (migration complete)
+
+## Current Focus (Q1 2026)
+
+### Stabilization & Tooling (Complete)
+- [x] Native HTTP downloads (Zig 0.16 `std.Io.File.Writer` stabilized) - COMPLETE (2026-02-05)
+- [x] Toolchain CLI re-enable (Zig 0.16 API compatibility restored) - COMPLETE (2026-02-05)
 
 ## Version 0.3.0 - Q1 2026
 
@@ -182,12 +188,12 @@ tags: [planning, roadmap]
   - [x] Multi-region support (src/services/ha/replication.zig - ReplicationManager)
 
 ### Ecosystem
-### Language Bindings (In Progress)
+### Language Bindings (Complete)
 - [x] **C Compatible Interface**: `libabi` shared library with C headers.
 - [x] **Python**: `ctypes` wrapper for vector database operations.
-- [ ] **JavaScript/Node**: `ffi-napi` bindings.
-- [ ] **Rust**: Native Rust crate (using bindgen or manual FFI).
-- [ ] **Go**: cgo bindings.
+- [x] **JavaScript/Node**: `ffi-napi` bindings.
+- [x] **Rust**: Native Rust crate (using bindgen or manual FFI).
+- [x] **Go**: cgo bindings.
 - [x] Package manager integration
   - [x] Zig package registry (build.zig.zon with fingerprint)
   - [x] Homebrew formula (Formula/abi.rb)
@@ -265,7 +271,7 @@ See CONTRIBUTING.md for details.
 
 > **Note:** Development significantly accelerated in Q1 2026, completing the full 2026 roadmap ahead of schedule.
 
-*Last updated: February 1, 2026*
+*Last updated: February 5, 2026*
 
 ## Zig 0.16 Migration Status
 
