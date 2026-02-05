@@ -92,8 +92,8 @@ zig build -Dgpu-backend=vulkan,cuda
 | `-Denable-gpu` | true | GPU acceleration |
 | `-Denable-database` | true | Vector database |
 | `-Denable-network` | true | Distributed compute |
-| `-Denable-web` | true | Web/HTTP support |
-| `-Denable-profiling` | true | Metrics/tracing |
+| `-Denable-web` | true | Web/HTTP support (also gates cloud module) |
+| `-Denable-profiling` | true | Metrics/tracing (gates observability module) |
 | `-Denable-analytics` | true | Event tracking, funnels, experiments |
 | `-Denable-explore` | true | Exploration/discovery features |
 | `-Denable-mobile` | false | Mobile cross-compilation |

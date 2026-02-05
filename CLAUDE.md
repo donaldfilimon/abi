@@ -38,6 +38,9 @@ All features default to `true` except `-Denable-mobile`. Additional flags:
 `-Denable-profiling`, `-Denable-analytics`. GPU backends accept comma-separated values: `auto`, `none`,
 `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`.
 
+**Note:** Cloud module has no separate flag — it is gated by `-Denable-web` (intentional coupling).
+Observability is gated by `-Denable-profiling`.
+
 ## Critical Gotchas
 
 These are the mistakes most likely to cause compilation failures:
@@ -93,7 +96,7 @@ This means:
 
 ```
 src/abi.zig              → Public API, comptime feature selection, type aliases
-src/core/                → Framework lifecycle, config builder, feature flags, registry
+src/core/                → Framework lifecycle, config builder, registry
 src/features/<name>/     → mod.zig + stub.zig per feature (8 modules: ai, analytics, cloud, database, gpu, network, observability, web)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
 tools/cli/               → CLI entry point and 24 commands
@@ -154,8 +157,8 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Need to... | Look at |
 |------------|---------|
 | Add/modify public API | `src/abi.zig` |
-| Change build flags | `build.zig`, `src/core/flags.zig` |
-| Add a new feature module | 8 files: `mod.zig` + `stub.zig`, `build.zig` (5 places), `src/abi.zig`, `src/core/flags.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig`, `src/core/framework.zig`, `src/services/tests/parity/mod.zig`. **Verify:** `zig build validate-flags` |
+| Change build flags | `build.zig` |
+| Add a new feature module | 8 files: `mod.zig` + `stub.zig`, `build.zig` (5 places), `src/abi.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig`, `src/core/framework.zig`, `src/services/tests/parity/mod.zig`. **Verify:** `zig build validate-flags` |
 | Add a CLI command | `tools/cli/commands/`, register in `tools/cli/main.zig` |
 | Add config for a feature | `src/core/config/` |
 | Write integration tests | `src/services/tests/` |

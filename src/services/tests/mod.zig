@@ -103,6 +103,7 @@ comptime {
     // Analytics module tests
     if (@hasDecl(build_options, "enable_analytics") and build_options.enable_analytics) {
         _ = abi.analytics;
+        _ = @import("analytics_test.zig");
     }
 }
 
