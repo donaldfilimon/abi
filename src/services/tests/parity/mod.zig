@@ -281,6 +281,31 @@ const network_required = [_][]const u8{
     "defaultConfig",
 };
 
+/// Cloud module required declarations
+const cloud_required = [_][]const u8{
+    "CloudEvent",
+    "CloudResponse",
+    "CloudProvider",
+    "CloudHandler",
+    "CloudConfig",
+    "CloudError",
+    "HttpMethod",
+    "InvocationMetadata",
+    "Context",
+    "ResponseBuilder",
+    "Error",
+    "detectProvider",
+    "detectProviderWithAllocator",
+    "runHandler",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "aws_lambda",
+    "gcp_functions",
+    "azure_functions",
+};
+
 // ============================================================================
 // Enhanced Declaration Specs (kind + signature constraints)
 // ============================================================================
@@ -370,6 +395,31 @@ const network_specs = [_]DeclSpec{
     .{ .name = "isInitialized", .kind = .function },
     .{ .name = "defaultRegistry", .kind = .function },
     .{ .name = "defaultConfig", .kind = .function },
+};
+
+/// Cloud module specs.
+const cloud_specs = [_]DeclSpec{
+    .{ .name = "CloudEvent", .kind = .type_decl },
+    .{ .name = "CloudResponse", .kind = .type_decl },
+    .{ .name = "CloudProvider", .kind = .type_decl },
+    .{ .name = "CloudHandler", .kind = .type_decl },
+    .{ .name = "CloudConfig", .kind = .type_decl },
+    .{ .name = "CloudError", .kind = .type_decl },
+    .{ .name = "HttpMethod", .kind = .type_decl },
+    .{ .name = "InvocationMetadata", .kind = .type_decl },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit", "wrapHandler" } },
+    .{ .name = "ResponseBuilder", .kind = .type_decl, .sub_decls = &.{ "init", "build" } },
+    .{ .name = "detectProvider", .kind = .function },
+    .{ .name = "detectProviderWithAllocator", .kind = .function },
+    .{ .name = "runHandler", .kind = .function },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "aws_lambda", .kind = .type_decl },
+    .{ .name = "gcp_functions", .kind = .type_decl },
+    .{ .name = "azure_functions", .kind = .type_decl },
 };
 
 // ============================================================================
@@ -471,6 +521,28 @@ test "network module declaration kinds and signatures" {
 }
 
 // ============================================================================
+// Cloud Module Parity Tests
+// ============================================================================
+
+test "cloud module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.cloud, &cloud_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Cloud module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.cloud, &cloud_required);
+}
+
+test "cloud module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.cloud, &cloud_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.cloud, &cloud_specs));
+}
+
+// ============================================================================
 // Cross-Module Consistency Tests
 // ============================================================================
 
@@ -481,6 +553,7 @@ test "all feature modules follow Context pattern" {
         abi.ai,
         abi.database,
         abi.network,
+        abi.cloud,
         abi.web,
         abi.observability,
     };
@@ -501,6 +574,7 @@ test "all feature modules have lifecycle functions" {
         abi.ai,
         abi.database,
         abi.network,
+        abi.cloud,
     };
 
     inline for (modules) |mod| {
