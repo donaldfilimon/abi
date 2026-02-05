@@ -41,7 +41,7 @@ pub fn main() !void {
 
     // Display GPU configuration
     if (config.gpu) |gpu_config| {
-        std.debug.print("  GPU backend: {s}\n", .{@tagName(gpu_config.backend)});
+        std.debug.print("  GPU backend: {t}\n", .{gpu_config.backend});
         std.debug.print("  Device index: {d}\n", .{gpu_config.device_index});
         std.debug.print("  Async enabled: {}\n", .{gpu_config.async_enabled});
         std.debug.print("  Kernel caching: {}\n", .{gpu_config.cache_kernels});

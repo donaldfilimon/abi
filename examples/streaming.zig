@@ -19,7 +19,7 @@ pub fn main() !void {
 
     // Start event
     const start_event = abi.ai.streaming.StreamEvent.startEvent();
-    std.debug.print("  Start event type: {s}\n", .{@tagName(start_event.event_type)});
+    std.debug.print("  Start event type: {t}\n", .{start_event.event_type});
 
     // Token events
     const tokens = [_][]const u8{ "Hello", ",", " ", "world", "!" };
@@ -41,7 +41,7 @@ pub fn main() !void {
 
     // End event
     const end_event = abi.ai.streaming.StreamEvent.endEvent();
-    std.debug.print("  End event type: {s}\n", .{@tagName(end_event.event_type)});
+    std.debug.print("  End event type: {t}\n", .{end_event.event_type});
 
     // Error event
     const error_event = abi.ai.streaming.StreamEvent.errorEvent("Connection timeout");
@@ -49,7 +49,7 @@ pub fn main() !void {
 
     // Heartbeat event
     const heartbeat = abi.ai.streaming.StreamEvent.heartbeatEvent();
-    std.debug.print("  Heartbeat event type: {s}\n\n", .{@tagName(heartbeat.event_type)});
+    std.debug.print("  Heartbeat event type: {t}\n\n", .{heartbeat.event_type});
 
     // SSE Encoding
     std.debug.print("SSE Encoding:\n", .{});
@@ -80,7 +80,7 @@ pub fn main() !void {
         .heartbeat,
     };
     for (event_types) |et| {
-        std.debug.print("  - {s}\n", .{@tagName(et)});
+        std.debug.print("  - {t}\n", .{et});
     }
 
     // Backend types (for routing)
@@ -92,7 +92,7 @@ pub fn main() !void {
         .anthropic,
     };
     for (backend_types) |bt| {
-        std.debug.print("  - {s}\n", .{@tagName(bt)});
+        std.debug.print("  - {t}\n", .{bt});
     }
 
     std.debug.print("\nStreaming example completed successfully!\n", .{});
