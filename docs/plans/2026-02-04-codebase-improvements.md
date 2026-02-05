@@ -1,6 +1,16 @@
+---
+title: "Codebase Improvements Implementation Plan"
+date: 2026-02-04
+status: queued
+tags: [planning, implementation, quality]
+related:
+  - "../../PLAN.md"
+  - "../../ROADMAP.md"
+  - "./2026-02-04-feature-modules-completion.md"
+---
 # Codebase Improvements Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **Status:** Queued (Next Sprint) | **Created:** 2026-02-04 | **Parent:** [PLAN.md](../../PLAN.md)
 
 **Goal:** Modernize the ABI codebase by fixing deprecated Zig 0.16 patterns, improving security defaults, and enhancing code quality across ~100 instances.
 
