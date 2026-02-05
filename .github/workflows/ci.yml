@@ -56,9 +56,10 @@ jobs:
 
       - name: Feature flag builds
         run: |
-          zig build -Denable-ai=false
-          zig build -Denable-gpu=false
-          zig build -Denable-database=false
+          zig build -Denable-ai=true
+          zig build -Denable-gpu=true
+          zig build -Denable-database=true
+          zig build docs-site
 
       - name: Build C library and header
         run: |
