@@ -21,10 +21,23 @@ jobs:
             script_ext: .bat
 
     runs-on: ${{ matrix.os }}
+    env:
+      ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/.zig-cache-global
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Cache Zig build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache-global
+            zig-cache
+            zig-out
+          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig', 'build.zig.zon', '.zigversion') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-
 
       - name: Install Zig 0.16
         uses: goto-bus-stop/setup-zig@v2
@@ -73,8 +86,21 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    env:
+      ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/.zig-cache-global
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache Zig build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache-global
+            zig-cache
+            zig-out
+          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig', 'build.zig.zon', '.zigversion') }}
+          restore-keys: |
+            ${{ runner.os }}-zig-
 
       - name: Install Zig 0.16
         uses: goto-bus-stop/setup-zig@v2
