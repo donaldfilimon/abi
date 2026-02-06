@@ -23,16 +23,6 @@ pub const ShadingLanguage = enum {
     hlsl,
 };
 
-/// Backend target enumeration.
-pub const BackendTarget = enum {
-    vulkan,
-    opengl,
-    opengles,
-    webgpu,
-    metal,
-    cuda,
-};
-
 /// Literal formatting configuration.
 pub const LiteralFormat = struct {
     bool_true: []const u8 = "true",
