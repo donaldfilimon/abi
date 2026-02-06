@@ -42,7 +42,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     // Warmup cache
-    var timer = try std.time.Timer.start();
+    var timer = try abi.shared.time.Timer.start();
     _ = timer.lap();
 
     // Run vector addition benchmark

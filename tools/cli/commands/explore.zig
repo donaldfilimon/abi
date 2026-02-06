@@ -116,7 +116,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var agent = try abi.ai.explore.ExploreAgent.init(allocator, config);
     defer agent.deinit();
 
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         utils.output.printError("Timer unavailable on this platform", .{});
         return;
     };

@@ -688,7 +688,7 @@ fn printHelp() void {
 fn getUnixSeconds() i64 {
     // Use a simple counter based on timer - the actual value doesn't matter
     // as long as it's reasonably unique within a session
-    var timer = std.time.Timer.start() catch return 1000;
+    var timer = abi.shared.time.Timer.start() catch return 1000;
     // Return nanoseconds divided down to make more manageable IDs
     // The timer value combined with nanoTimestamp gives reasonable uniqueness
     const base = timer.read();
