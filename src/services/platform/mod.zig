@@ -9,9 +9,9 @@
 //! const platform = @import("abi").platform;
 //!
 //! const info = platform.getPlatformInfo();
-//! std.debug.print("OS: {s}, Arch: {s}, Cores: {d}\n", .{
-//!     @tagName(info.os),
-//!     @tagName(info.arch),
+//! std.debug.print("OS: {t}, Arch: {t}, Cores: {d}\n", .{
+//!     info.os,
+//!     info.arch,
 //!     info.max_threads,
 //! });
 //!
