@@ -392,9 +392,9 @@ All examples follow these Zig 0.16 best practices:
 
 ## Need Help?
 
-See the [Documentation README](../docs/README.md) for guides, or check API_REFERENCE.md for detailed API information.
+See the [Documentation README](../docs/README.md) for guides, or check [API Reference](../docs/api-reference.md) for detailed API information.
 
 ## See Also
 
-- [API Reference](../API_REFERENCE.md) - Detailed API information
+- [API Reference](../docs/api-reference.md) - Detailed API information
 - [Documentation README](../docs/README.md) - Documentation site source

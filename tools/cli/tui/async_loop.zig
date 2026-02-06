@@ -266,7 +266,7 @@ pub const AsyncLoop = struct {
     }
 
     fn currentTimeMs() i64 {
-        return @divFloor(std.time.nanoTimestamp(), 1_000_000);
+        return shared_time.nowMs();
     }
 };
 
@@ -294,7 +294,7 @@ pub const MetricsTracker = struct {
     }
 
     pub fn update(self: *MetricsTracker) void {
-        const now = @divFloor(std.time.nanoTimestamp(), 1_000_000);
+        const now = shared_time.nowMs();
         if (now - self.last_update < self.update_interval_ms) return;
 
         // Sample system metrics

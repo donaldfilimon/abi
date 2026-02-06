@@ -7,6 +7,9 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 
+const web_enabled = @hasDecl(build_options, "enable_web") and build_options.enable_web;
+const web_client = if (web_enabled) @import("../../web/client.zig") else @as(?void, null);
+
 // libc import for environment access - required for Zig 0.16
 const c = if (builtin.target.os.tag != .freestanding and
     builtin.target.cpu.arch != .wasm32 and
@@ -150,19 +153,51 @@ pub const HuggingFaceClient = struct {
     /// - Author/organization
     /// - Tags
     pub fn search(self: *Self, query: []const u8, options: SearchOptions) HuggingFaceError!SearchResult {
-        _ = options;
+        if (web_enabled) {
+            // Build API URL with optional filters
+            const gguf_filter: []const u8 = if (options.filter_gguf) "&filter=gguf" else "";
 
-        // Note: Full implementation would make HTTP request to:
-        // https://huggingface.co/api/models?search=<query>&filter=gguf
-        //
-        // For now, return a placeholder that shows what the API would return.
-        // The CLI will show instructions to search on the website until
-        // full HTTP client integration is available.
+            const author_suffix = if (options.author) |author|
+                std.fmt.allocPrint(self.allocator, "&author={s}", .{author}) catch
+                    return HuggingFaceError.OutOfMemory
+            else
+                self.allocator.dupe(u8, "") catch return HuggingFaceError.OutOfMemory;
+            defer self.allocator.free(author_suffix);
 
+            const sort_param: []const u8 = if (options.sort_by_downloads) "&sort=downloads&direction=-1" else "";
+
+            const url = std.fmt.allocPrint(
+                self.allocator,
+                "{s}/api/models?search={s}&limit={d}{s}{s}{s}",
+                .{ self.base_url, query, options.limit, gguf_filter, author_suffix, sort_param },
+            ) catch return HuggingFaceError.OutOfMemory;
+            defer self.allocator.free(url);
+
+            var http_client = web_client.HttpClient.init(self.allocator) catch
+                return HuggingFaceError.NetworkError;
+            defer http_client.deinit();
+
+            const response = http_client.get(url) catch
+                return HuggingFaceError.NetworkError;
+            defer http_client.freeResponse(response);
+
+            if (response.status != 200) return HuggingFaceError.ApiError;
+
+            // The API returns a JSON array of model objects.
+            // Full JSON parsing would populate SearchResult.models;
+            // for now return the count heuristic from the response body.
+            return SearchResult{
+                .models = &.{},
+                .total_count = if (response.body.len > 2) 1 else 0,
+                .query = self.allocator.dupe(u8, query) catch return HuggingFaceError.OutOfMemory,
+            };
+        }
+
+        // Fallback when web module is disabled
         return SearchResult{
             .models = &.{},
             .total_count = 0,
-            .query = try self.allocator.dupe(u8, query),
+            .query = self.allocator.dupe(u8, query) catch return HuggingFaceError.OutOfMemory,
         };
     }
 

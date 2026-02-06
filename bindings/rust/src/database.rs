@@ -19,7 +19,7 @@ use std::ptr;
 ///
 /// // Insert a vector
 /// let vector: Vec<f32> = vec![0.0; 128];
-/// db.insert(1, &vector).expect("Failed to insert");
+/// db.insert(1, &vector, Some("example")).expect("Failed to insert");
 ///
 /// // Search for similar vectors
 /// let results = db.search(&vector, 10).expect("Failed to search");
@@ -81,11 +81,12 @@ impl VectorDatabase {
     ///
     /// * `id` - Unique vector ID
     /// * `vector` - Vector data (must match database dimension)
+    /// * `metadata` - Optional metadata string (pass `None` for no metadata)
     ///
     /// # Errors
     ///
     /// Returns an error if the vector dimension doesn't match.
-    pub fn insert(&self, id: u64, vector: &[f32]) -> Result<()> {
+    pub fn insert(&self, id: u64, vector: &[f32], metadata: Option<&str>) -> Result<()> {
         if vector.len() != self.dimension {
             return Err(Error::InvalidArgument(format!(
                 "Vector dimension {} doesn't match database dimension {}",
@@ -94,7 +95,17 @@ impl VectorDatabase {
             )));
         }
 
-        let err = unsafe { ffi::abi_database_insert(self.handle, id, vector.as_ptr(), vector.len()) };
+        let c_metadata = metadata
+            .map(|m| CString::new(m).ok())
+            .flatten();
+        let metadata_ptr = c_metadata
+            .as_ref()
+            .map(|m| m.as_ptr())
+            .unwrap_or(ptr::null());
+
+        let err = unsafe {
+            ffi::abi_database_insert(self.handle, id, vector.as_ptr(), vector.len(), metadata_ptr)
+        };
         check_error(err)
     }
 
@@ -121,8 +132,6 @@ impl VectorDatabase {
             AbiSearchResult {
                 id: 0,
                 score: 0.0,
-                vector: ptr::null(),
-                vector_len: 0,
             };
             k
         ];
@@ -198,6 +207,6 @@ mod tests {
 
         let db = db_result.unwrap();
         let wrong_dim = vec![0.0; 64];
-        assert!(db.insert(1, &wrong_dim).is_err());
+        assert!(db.insert(1, &wrong_dim, None).is_err());
     }
 }

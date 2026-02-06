@@ -723,6 +723,20 @@ pub const StdGpuBackend = struct {
         };
     }
 
+    /// Copy data from host to device (async).
+    /// CPU backend is inherently synchronous; stream parameter is ignored.
+    pub fn copyToDeviceAsync(self: *Self, dst: *anyopaque, src: []const u8, stream: ?*anyopaque) interface.MemoryError!void {
+        _ = stream;
+        return self.copyToDevice(dst, src);
+    }
+
+    /// Copy data from device to host (async).
+    /// CPU backend is inherently synchronous; stream parameter is ignored.
+    pub fn copyFromDeviceAsync(self: *Self, dst: []u8, src: *anyopaque, stream: ?*anyopaque) interface.MemoryError!void {
+        _ = stream;
+        return self.copyFromDevice(dst, src);
+    }
+
     // ========================================================================
     // Kernel Operations
     // ========================================================================

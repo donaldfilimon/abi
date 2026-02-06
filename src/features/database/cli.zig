@@ -5,7 +5,17 @@ const database = @import("database.zig");
 const storage = @import("storage.zig");
 const db_helpers = @import("db_helpers.zig");
 const http = @import("http.zig");
-const transformer = @import("../ai/transformer/mod.zig");
+const transformer = if (build_options.enable_ai) @import("../ai/transformer/mod.zig") else struct {
+    pub const TransformerModel = struct {
+        pub fn init(_: std.mem.Allocator, _: anytype) !TransformerModel {
+            return error.AiDisabled;
+        }
+        pub fn deinit(_: *TransformerModel) void {}
+        pub fn embed(_: *TransformerModel, _: std.mem.Allocator, _: []const u8) ![]f32 {
+            return error.AiDisabled;
+        }
+    };
+};
 
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0) {

@@ -116,6 +116,17 @@ pub const PrometheusFormatter = exporters.PrometheusFormatter;
 pub const generateMetricsOutput = exporters.generateMetricsOutput;
 pub const statsd = exporters.statsd;
 
+// Monitoring re-exports for parity with mod.zig
+pub const monitoring = alerting;
+pub const MonitoringError = error{
+    MonitoringDisabled,
+};
+pub const StatsDClient = struct {};
+pub const StatsDConfig = struct {};
+pub const StatsDError = error{
+    StatsDDisabled,
+};
+
 // Unified observability bundle (stub)
 pub const ObservabilityBundle = struct {
     pub fn init(_: std.mem.Allocator, _: BundleConfig) Error!ObservabilityBundle {

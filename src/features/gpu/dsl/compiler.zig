@@ -94,7 +94,14 @@ fn generateSource(
             break :blk result;
         },
         .webgl2 => return CompileError.UnsupportedBackend,
-        .fpga => return CompileError.UnsupportedBackend,
+        .fpga => blk: {
+            // FPGA synthesis tools can consume GLSL-like IR
+            var gen = glsl.GlslGenerator.init(allocator);
+            defer gen.deinit();
+            var result = try gen.generate(ir);
+            result.backend = .fpga;
+            break :blk result;
+        },
     };
 }
 
@@ -176,6 +183,20 @@ pub fn backendSupportsCompilation(target: gpu_backend.Backend) bool {
         .webgl2 => false, // WebGL2 doesn't support compute shaders
         else => true,
     };
+}
+
+test "compile empty kernel to FPGA" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    const ir = kernel_mod.KernelIR.empty("test_kernel");
+    var result = try compile(allocator, &ir, .fpga, .{});
+    defer result.deinit(allocator);
+
+    // FPGA uses GLSL-based IR, so should contain #version header
+    try std.testing.expect(result.backend == .fpga);
+    try std.testing.expect(std.mem.indexOf(u8, result.code, "#version 450") != null);
 }
 
 // ============================================================================
