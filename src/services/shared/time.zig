@@ -30,13 +30,21 @@ pub const Instant = struct {
             return error.Unsupported;
         }
 
-        // Use POSIX clock_gettime on supported platforms
-        if (@hasDecl(std.posix, "clock_gettime")) {
-            var ts: std.posix.timespec = undefined;
-            const result = std.posix.clock_gettime(std.posix.CLOCK.MONOTONIC, &ts);
+        // Use C clock_gettime on POSIX platforms
+        if (@hasDecl(std, "c") and @hasDecl(std.c, "clock_gettime")) {
+            var ts: std.c.timespec = undefined;
+            // Use MONOTONIC clock (enum value varies by platform)
+            const clock_id = if (@hasField(std.c.clockid_t, "MONOTONIC"))
+                std.c.clockid_t.MONOTONIC
+            else
+                @as(std.c.clockid_t, @enumFromInt(1)); // Fallback for Linux
+            const result = std.c.clock_gettime(clock_id, &ts);
             if (result == 0) {
-                const nanos: u128 = @as(u128, @intCast(ts.sec)) * std.time.ns_per_s +
-                    @as(u128, @intCast(ts.nsec));
+                // Field names vary by platform (tv_sec/tv_nsec on Linux, sec/nsec on macOS)
+                const sec = if (@hasField(std.c.timespec, "tv_sec")) ts.tv_sec else ts.sec;
+                const nsec = if (@hasField(std.c.timespec, "tv_nsec")) ts.tv_nsec else ts.nsec;
+                const nanos: u128 = @as(u128, @intCast(sec)) * std.time.ns_per_s +
+                    @as(u128, @intCast(nsec));
                 return .{ .nanos = nanos };
             }
         }
