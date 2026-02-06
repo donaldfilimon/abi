@@ -139,10 +139,15 @@ zig build -Denable-<feature>=false
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` (preferred) |
 | `list.init()` | `list.empty` (ArrayListUnmanaged) |
 | `@tagName(x)` in print | `{t}` format specifier |
+| `std.Thread.Condition` | `abi.shared.sync.Condition` (custom implementation) |
+| `std.Thread.Wake` | `abi.shared.sync.Wake` (atomic-based spinloop) |
+| `std.process.getEnvVarOwned()` | `std.c.getenv(key.ptr)` + `std.mem.sliceTo(raw, 0)` |
+| `std.heap.ThreadSafeAllocator` | Direct allocator usage (deprecated in 0.16, requires `io` field) |
 
 Notes:
-- **Timer/Mutex**: `std.time.Timer`, `std.Thread.Mutex`, and `std.Thread.RwLock` don't exist in Zig 0.16. Use `abi.shared.time.Timer` and `abi.shared.sync.{Mutex,RwLock}` instead (custom implementations using `std.c.clock_gettime` and inline assembly).
+- **Timer/Mutex/Condition/Wake**: `std.time.Timer`, `std.Thread.{Mutex,RwLock,Condition,Wake}` don't exist in Zig 0.16. Use `abi.shared.time.Timer` and `abi.shared.sync.{Mutex,RwLock,Condition,Wake}` instead (custom implementations using `std.c.clock_gettime` and atomics).
 - **Import pattern**: Files importing `abi` use `const time = abi.shared.time; const sync = abi.shared.sync;`. Files without `abi` import use relative paths.
+- **Env vars**: Use `std.c.getenv(key.ptr)` for POSIX; for runtime key construction use `std.fmt.allocPrintSentinel(alloc, fmt, args, 0)` to create null-terminated strings.
 - I/O operations must use `std.Io.Threaded.init()` and its `io` handle.
 - Use `std.Io.Clock.Duration.sleep()` only when you need raw clock access.
 - HTTP server init uses `&reader.interface` and `&writer.interface`.
