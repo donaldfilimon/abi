@@ -260,10 +260,7 @@ pub const Generator = struct {
         self.streaming_callback = callback;
         defer self.streaming_callback = null;
 
-        // Would need tokenizer here
-        _ = prompt;
-        // const result = try self.generate(prompt);
-        // defer result.deinit(self.allocator);
+        _ = prompt; // Requires tokenizer integration
     }
 
     /// Reset generator state.
