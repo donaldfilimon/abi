@@ -58,9 +58,7 @@ benchmarks/
     ├── mod.zig
     ├── baseline_store.zig
     ├── baseline_comparator.zig
-    ├── ci_integration.zig
-    ├── framework.zig
-    └── industry_standard.zig
+    └── framework.zig
 ```
 
 ## Purpose of Each Directory
@@ -97,12 +95,10 @@ Infrastructure component performance:
 - Network parsing and request handling
 - GPU backend enumeration and setup costs
 
-### `system/` - Integration & Compliance
-System-level and compliance testing:
+### `system/` - Framework & Baseline Tooling
+System-level testing and regression tracking:
 - Baseline storage/comparison for regressions
-- CI/CD integration performance
 - Framework startup/shutdown
-- Industry standard compliance
 - Baseline storage and comparison tooling
 
 ### `baselines/` - Baseline Storage

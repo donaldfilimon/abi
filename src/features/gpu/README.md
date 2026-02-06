@@ -48,5 +48,5 @@ _ = try gpu.vectorAdd(a, b, result);
 ## See Also
 
 - [GPU Documentation](../../docs/content/gpu.html)
-- [API Reference](../../API_REFERENCE.md)
+- [API Reference](../../docs/api-reference.md)
 

@@ -170,6 +170,8 @@ pub const Backend = struct {
         free: *const fn (*anyopaque, *anyopaque) void,
         copyToDevice: *const fn (*anyopaque, *anyopaque, []const u8) MemoryError!void,
         copyFromDevice: *const fn (*anyopaque, []u8, *anyopaque) MemoryError!void,
+        copyToDeviceAsync: *const fn (*anyopaque, *anyopaque, []const u8, ?*anyopaque) MemoryError!void,
+        copyFromDeviceAsync: *const fn (*anyopaque, []u8, *anyopaque, ?*anyopaque) MemoryError!void,
 
         // Kernel operations
         compileKernel: *const fn (*anyopaque, std.mem.Allocator, []const u8, []const u8) KernelError!*anyopaque,

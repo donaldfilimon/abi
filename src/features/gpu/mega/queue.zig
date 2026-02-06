@@ -286,8 +286,11 @@ pub const WorkloadQueue = struct {
                     const workload = queue.orderedRemove(0);
                     self.stats.priority_counts[priority_idx] -|= 1;
                     const new_priority = priority_idx - 1;
-                    self.queues[new_priority].append(self.allocator, workload) catch |err| {
-                        std.log.debug("Failed to promote workload to priority {d}: {t}", .{ new_priority, err });
+                    self.queues[new_priority].append(self.allocator, workload) catch {
+                        // Re-enqueue at original priority if promotion fails
+                        self.queues[priority_idx].append(self.allocator, workload) catch {};
+                        self.stats.priority_counts[priority_idx] += 1;
+                        continue;
                     };
                     self.stats.priority_counts[new_priority] += 1;
                 }

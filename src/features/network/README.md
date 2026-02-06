@@ -54,6 +54,6 @@ tags: []
 //! ## See Also
 //!
 //! - [Network Documentation](../../docs/content/network.html)
-//! - [API Reference](../../API_REFERENCE.md)
+//! - [API Reference](../../docs/api-reference.md)
 
 

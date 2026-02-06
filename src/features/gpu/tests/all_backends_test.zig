@@ -33,8 +33,8 @@ test "backend factory creates valid instances" {
     };
     defer backend_factory.destroyBackend(instance);
 
-    // Instance should be valid
-    try std.testing.expect(instance.vtable != null);
+    // Instance should have a valid VTable backend
+    try std.testing.expect(instance.backend.getDeviceCount() >= 1);
 }
 
 test "feature-based backend selection" {
