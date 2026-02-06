@@ -23,6 +23,7 @@
 //! ```
 
 const std = @import("std");
+const abi = @import("abi");
 const framework = @import("../../system/framework.zig");
 
 /// Configuration for streaming benchmarks
@@ -257,7 +258,7 @@ pub const MockTokenGenerator = struct {
     }
 
     fn simulateDelay(_: *Self, delay_ns: u64) void {
-        var timer = std.time.Timer.start() catch return;
+        var timer = abi.shared.time.Timer.start() catch return;
 
         if (delay_ns < 1_000_000) {
             // For sub-millisecond delays, use tight busy-wait
@@ -447,7 +448,7 @@ fn benchmarkTokenGeneration(
             max_delay_ns,
         );
 
-        var run_timer = std.time.Timer.start() catch continue;
+        var run_timer = abi.shared.time.Timer.start() catch continue;
         var prev_token_time: u64 = 0;
         var first_token = true;
 
@@ -520,7 +521,7 @@ fn benchmarkSseEncoding(allocator: std.mem.Allocator, token_count: usize, iterat
     for (0..iterations) |_| {
         buffer.clearRetainingCapacity();
 
-        const timer = std.time.Timer.start() catch continue;
+        const timer = abi.shared.time.Timer.start() catch continue;
 
         for (0..token_count) |i| {
             const token = sample_tokens[i % sample_tokens.len];
@@ -576,7 +577,7 @@ fn benchmarkWsFraming(allocator: std.mem.Allocator, message_count: usize, iterat
     for (0..iterations) |_| {
         buffer.clearRetainingCapacity();
 
-        const timer = std.time.Timer.start() catch continue;
+        const timer = abi.shared.time.Timer.start() catch continue;
 
         for (0..message_count) |i| {
             const message = sample_messages[i % sample_messages.len];

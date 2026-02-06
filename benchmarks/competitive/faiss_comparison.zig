@@ -192,7 +192,7 @@ fn runSingleBenchmark(
     const dimension = if (vectors.len > 0) vectors[0].len else 0;
 
     // Measure build time (for flat index, this is 0)
-    var build_timer = std.time.Timer.start() catch return error.TimerFailed;
+    var build_timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
     // In a real implementation, we'd build the HNSW index here
     const build_time = build_timer.read();
 
@@ -201,10 +201,10 @@ fn runSingleBenchmark(
     defer allocator.free(latencies);
 
     var total_recall: f64 = 0.0;
-    var search_timer = std.time.Timer.start() catch return error.TimerFailed;
+    var search_timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
 
     for (queries, 0..) |query, qi| {
-        var query_timer = std.time.Timer.start() catch return error.TimerFailed;
+        var query_timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
 
         // Compute ground truth
         const ground_truth = try computeGroundTruth(allocator, vectors, query, k);

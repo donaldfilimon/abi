@@ -240,7 +240,6 @@ pub const DeviceBufferRef = struct {
 /// Staging buffer pool for efficient memory reuse.
 const StagingPool = struct {
     allocator: std.mem.Allocator,
-    thread_safe_allocator: std.heap.ThreadSafeAllocator,
     buffers: std.ArrayListUnmanaged(StagingBuffer),
     mutex: sync.Mutex,
 
@@ -255,10 +254,8 @@ const StagingPool = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator) !StagingPool {
-        const thread_safe_allocator = std.heap.ThreadSafeAllocator{ .child_allocator = allocator };
         return .{
             .allocator = allocator,
-            .thread_safe_allocator = thread_safe_allocator,
             .buffers = std.ArrayListUnmanaged(StagingBuffer){},
             .mutex = .{},
         };
@@ -266,9 +263,9 @@ const StagingPool = struct {
 
     pub fn deinit(self: *StagingPool) void {
         for (self.buffers.items) |buffer| {
-            self.thread_safe_allocator.allocator().free(buffer.data);
+            self.allocator.free(buffer.data);
         }
-        self.buffers.deinit();
+        self.buffers.deinit(self.allocator);
         self.* = undefined;
     }
 
@@ -337,7 +334,7 @@ const ThreadPool = struct {
     threads: []std.Thread,
     queue: std.ArrayListUnmanaged(TransferTask),
     mutex: sync.Mutex,
-    condition: std.Thread.Condition,
+    condition: sync.Condition,
     shutdown: std.atomic.Value(bool),
 
     pub fn init(allocator: std.mem.Allocator, num_threads: usize) !ThreadPool {

@@ -14,6 +14,7 @@
 //! 4. **Memory Efficiency** - Model memory footprint
 
 const std = @import("std");
+const abi = @import("abi");
 const mod = @import("mod.zig");
 const framework = @import("../system/framework.zig");
 
@@ -61,7 +62,7 @@ fn benchmarkTokenGeneration(
     context_size: usize,
 ) !struct { tokens_per_sec: f64, ttft_ms: f64 } {
     // Simulate token generation (replace with actual LLM inference)
-    var timer = std.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
 
     // Simulate context processing (TTFT)
     var context = try allocator.alloc(f32, context_size * 4096); // Simulated hidden state
@@ -103,7 +104,7 @@ fn benchmarkBatchThroughput(
     batch_size: usize,
     tokens_per_request: usize,
 ) !struct { total_tokens_per_sec: f64, latency_per_request_ms: f64 } {
-    var timer = std.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
 
     // Simulate batch processing
     const batch_results = try allocator.alloc([]u32, batch_size);

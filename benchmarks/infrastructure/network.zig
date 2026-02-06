@@ -13,6 +13,8 @@
 //! - TLS handshake simulation
 
 const std = @import("std");
+const abi = @import("abi");
+const sync = abi.shared.sync;
 const framework = @import("../system/framework.zig");
 
 /// Network benchmark configuration
@@ -517,7 +519,7 @@ const ConnectionPool = struct {
     };
 
     connections: std.ArrayListUnmanaged(Connection),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     max_size: usize,
     allocator: std.mem.Allocator,
 

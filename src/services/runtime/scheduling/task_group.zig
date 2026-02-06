@@ -111,7 +111,7 @@ pub const TaskGroup = struct {
     config: TaskGroupConfig,
     tasks: std.ArrayListUnmanaged(Task),
     mutex: sync.Mutex,
-    condition: std.Thread.Condition,
+    condition: sync.Condition,
     next_id: std.atomic.Value(u64),
     cancellation_source: CancellationSource,
     active_count: std.atomic.Value(usize),

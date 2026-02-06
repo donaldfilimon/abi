@@ -63,7 +63,7 @@ pub fn Future(comptime T: type) type {
         state: std.atomic.Value(u8),
         result: ?Result,
         mutex: sync.Mutex,
-        condition: std.Thread.Condition,
+        condition: sync.Condition,
         callbacks: std.ArrayListUnmanaged(CallbackEntry),
         cancel_token: ?*CancellationToken,
 

@@ -211,9 +211,9 @@ pub fn BlockingMpmcQueue(comptime T: type) type {
 
         inner: MpmcQueue(T),
         /// Condition for waiting pushers
-        push_cond: std.Thread.Condition = .{},
+        push_cond: sync.Condition = .{},
         /// Condition for waiting poppers
-        pop_cond: std.Thread.Condition = .{},
+        pop_cond: sync.Condition = .{},
         /// Mutex for condition variables
         mutex: sync.Mutex = .{},
         /// Whether the queue is closed

@@ -151,7 +151,7 @@ pub const PendingRequest = struct {
     response_data: ?[]u8 = null,
     completed: std.atomic.Value(bool),
     error_code: ?TransportError = null,
-    condition: std.Thread.Condition,
+    condition: sync.Condition,
     mutex: sync.Mutex,
 
     pub fn init(request_id: u64, timeout_ms: u64) PendingRequest {

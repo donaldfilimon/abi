@@ -10,6 +10,7 @@
 //! - JSON/CSV export support
 
 const std = @import("std");
+const abi = @import("abi");
 
 /// Statistical summary of benchmark results
 pub const Statistics = struct {
@@ -237,11 +238,11 @@ pub const TrackingAllocator = struct {
 
 /// High-resolution timer with CPU cycle support
 pub const Timer = struct {
-    inner: ?std.time.Timer,
+    inner: ?abi.shared.time.Timer,
 
     pub fn start() Timer {
         return .{
-            .inner = std.time.Timer.start() catch null,
+            .inner = abi.shared.time.Timer.start() catch null,
         };
     }
 

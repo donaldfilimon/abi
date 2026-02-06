@@ -125,6 +125,42 @@ pub const Condition = struct {
     }
 };
 
+/// Wake event for signaling a sleeping thread.
+/// This is a spinlock-based implementation that works without OS-level futex support.
+/// Used to wake background monitor threads (e.g., auto-reindexer).
+pub const Wake = struct {
+    signaled: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+
+    /// Signal the wake event, causing any waiting thread to proceed.
+    pub fn signal(self: *Wake) void {
+        self.signaled.store(true, .release);
+    }
+
+    /// Wait until signaled or until the timeout (in nanoseconds) elapses.
+    /// Returns `.timed_out` if the timeout expired, `.signaled` otherwise.
+    pub fn timedWait(self: *Wake, timeout_ns: u64) TimedWaitResult {
+        const time = @import("time.zig");
+        const start = time.timestampNs();
+        while (!self.signaled.load(.acquire)) {
+            const elapsed: u64 = @intCast(time.timestampNs() - start);
+            if (elapsed >= timeout_ns) return .timed_out;
+            std.atomic.spinLoopHint();
+        }
+        self.signaled.store(false, .release);
+        return .signaled;
+    }
+
+    /// No-op deinit for API compatibility.
+    pub fn deinit(self: *Wake) void {
+        _ = self;
+    }
+
+    pub const TimedWaitResult = enum {
+        signaled,
+        timed_out,
+    };
+};
+
 test "rwlock basic" {
     var rwlock = RwLock.init();
 
