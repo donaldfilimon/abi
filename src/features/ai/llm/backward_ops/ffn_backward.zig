@@ -14,7 +14,7 @@
 
 const std = @import("std");
 const matmul_backward = @import("matmul_backward.zig");
-const activations = @import("../activations.zig");
+const activations = @import("../ops/activations.zig");
 
 /// Cached activations needed for SwiGLU backward pass.
 pub const SwigluCache = struct {

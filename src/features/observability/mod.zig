@@ -209,6 +209,17 @@ pub const TraceId = tracing.TraceId;
 pub const SpanId = tracing.SpanId;
 pub const SpanKind = tracing.SpanKind;
 pub const SpanStatus = tracing.SpanStatus;
+pub const AttributeValue = tracing.AttributeValue;
+pub const SpanAttribute = tracing.SpanAttribute;
+pub const SpanEvent = tracing.SpanEvent;
+pub const SpanLink = tracing.SpanLink;
+pub const TraceContext = tracing.TraceContext;
+pub const Propagator = tracing.Propagator;
+pub const PropagationFormat = tracing.PropagationFormat;
+pub const TraceSampler = tracing.TraceSampler;
+pub const SpanProcessor = tracing.SpanProcessor;
+pub const SpanExporter = tracing.SpanExporter;
+pub const SamplerType = tracing.TraceSampler.SamplerType;
 
 // ============================================================================
 // Monitoring (Consolidated Alerting, Prometheus, StatsD)
@@ -241,6 +252,7 @@ pub const createAlertRule = monitoring.createRule;
 // Prometheus exports
 pub const PrometheusExporter = monitoring.PrometheusExporter;
 pub const PrometheusConfig = monitoring.PrometheusConfig;
+pub const PrometheusFormatter = struct {};
 pub const generateMetricsOutput = monitoring.generateMetricsOutput;
 
 // StatsD exports

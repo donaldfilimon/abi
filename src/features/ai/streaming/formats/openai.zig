@@ -258,7 +258,7 @@ pub fn formatResponse(
     // Generate a simple ID using timer - Zig 0.16 compatible
     var timer = std.time.Timer.start() catch return error.OutOfMemory;
     const id: i128 = @intCast(timer.read());
-    const prompt_tokens: u32 = 10; // Placeholder
+    const prompt_tokens: u32 = @intCast(@max(1, @divFloor(content.len, 4))); // ~4 chars/token estimate
     const completion_tokens: u32 = @intCast(@divFloor(content.len, 4)); // Rough estimate
 
     try json.appendSlice(allocator, "{\"id\":\"chatcmpl-");

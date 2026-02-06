@@ -311,13 +311,14 @@ abi/
 │   ├── core/             # Framework orchestration and config
 │   │   ├── config/       # Unified configuration
 │   │   ├── framework.zig # Lifecycle orchestration
-│   │   ├── flags.zig     # Feature flags
 │   │   └── registry/     # Feature registry
 │   │
 │   ├── features/         # Feature modules
 │   │   ├── ai/           # AI Module (llm, agents, training, embeddings)
-│   │   ├── gpu/          # GPU Acceleration
+│   │   ├── analytics/    # Event Tracking & Experiments
+│   │   ├── cloud/        # Cloud Function Adapters (AWS, GCP, Azure)
 │   │   ├── database/     # Vector Database (WDBX)
+│   │   ├── gpu/          # GPU Acceleration
 │   │   ├── network/      # Distributed Compute
 │   │   ├── observability/ # Metrics & Tracing
 │   │   └── web/          # Web/HTTP utilities
@@ -327,7 +328,6 @@ abi/
 │       ├── platform/     # Platform detection (OS, arch, CPU)
 │       ├── shared/       # Utilities (security, io, utils)
 │       ├── connectors/   # External API connectors
-│       ├── cloud/        # Cloud function adapters
 │       ├── ha/           # High availability (backup, PITR, replication)
 │       ├── tasks/        # Task management
 │       └── tests/        # Test infrastructure
@@ -448,9 +448,8 @@ See [AGENTS.md](AGENTS.md) for baseline agent guidance and
 |:---------|:------------|
 | [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
 | [Docs Index](docs/content/index.html) | Offline docs landing page |
-| [API Reference](API_REFERENCE.md) | Public API summary |
-| [Quickstart](QUICKSTART.md) | Getting started guide |
-| [Deployment Guide](DEPLOYMENT_GUIDE.md) | Production deployment |
+| [API Reference](docs/api-reference.md) | Public API summary |
+| [Deployment Guide](docs/deployment.md) | Production deployment |
 | [Configuration](docs/content/configuration.html) | Config and feature flags |
 | [CLI Guide](docs/content/cli.html) | Command reference and usage |
 | [AI Guide](docs/content/ai.html) | LLM, agents, training |
@@ -507,7 +506,7 @@ zig build lint
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Modular Refactor | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
-See [PLAN.md](PLAN.md) for current sprint status and [ROADMAP.md](ROADMAP.md) for version history.
+See [docs/plan.md](docs/plan.md) for current sprint status and [docs/roadmap.md](docs/roadmap.md) for version history.
 
 ---
 

@@ -25,7 +25,7 @@
 const std = @import("std");
 const types = @import("types.zig");
 // Shared utilities for time handling (Unix ms)
-const utils = @import("../shared/utils.zig");
+const utils = @import("../../services/shared/utils.zig");
 
 pub const CloudEvent = types.CloudEvent;
 pub const CloudResponse = types.CloudResponse;

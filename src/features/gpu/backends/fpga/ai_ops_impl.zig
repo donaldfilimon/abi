@@ -221,20 +221,32 @@ pub const FpgaAiOps = struct {
         stride_c: i64,
         batch_count: i32,
     ) AiOpsError!void {
-        // This is critical for attention: Q @ K^T across multiple heads/batches
-
         self.stats.matmul_ops += @as(u64, @intCast(batch_count));
 
-        // FPGA can process batches in parallel using multiple compute units
         std.log.debug("FPGA sgemmStridedBatched: {d} batches of {d}x{d} @ {d}x{d}", .{
             batch_count, m, k, k, n,
         });
 
         if (self.simulation_mode) {
-            // Could use FPGA batch MatMul kernel in simulation
-        }
+            // Delegate each batch to sgemm with offset pointers
+            const a_bytes: [*]const u8 = @ptrCast(a);
+            const b_bytes: [*]const u8 = @ptrCast(b);
+            const c_bytes: [*]u8 = @ptrCast(c);
 
-        return AiOpsError.NotSupported;
+            const stride_a_bytes: usize = @intCast(stride_a * @sizeOf(f32));
+            const stride_b_bytes: usize = @intCast(stride_b * @sizeOf(f32));
+            const stride_c_bytes: usize = @intCast(stride_c * @sizeOf(f32));
+
+            for (0..@intCast(batch_count)) |batch| {
+                const a_ptr: *const anyopaque = @ptrCast(a_bytes + batch * stride_a_bytes);
+                const b_ptr: *const anyopaque = @ptrCast(b_bytes + batch * stride_b_bytes);
+                const c_ptr: *anyopaque = @ptrCast(c_bytes + batch * stride_c_bytes);
+
+                try self.sgemm(trans_a, trans_b, m, n, k, alpha, a_ptr, lda, b_ptr, ldb, beta, c_ptr, ldc);
+            }
+        } else {
+            return AiOpsError.NotSupported;
+        }
     }
 
     // =========================================================================
@@ -295,16 +307,24 @@ pub const FpgaAiOps = struct {
         stream: ?*anyopaque,
     ) AiOpsError!void {
         _ = self;
-        _ = x;
-        _ = weight;
-        _ = len;
-        _ = eps;
         _ = stream;
 
-        // FPGA would implement specialized RMS norm hardware
-        // Research focus is on attention, not RMS norm specifically
+        const x_ptr = @as([*]f32, @ptrCast(@alignCast(x)));
+        const w_ptr = @as([*]const f32, @ptrCast(@alignCast(weight)));
+        const x_slice = x_ptr[0..len];
+        const w_slice = w_ptr[0..len];
 
-        return AiOpsError.NotSupported;
+        // Compute mean of squares
+        var sum_sq: f32 = 0;
+        for (x_slice) |v| {
+            sum_sq += v * v;
+        }
+        const rms = @sqrt(sum_sq / @as(f32, @floatFromInt(len)) + eps);
+
+        // Normalize and apply weight
+        for (x_slice, 0..) |*v, i| {
+            v.* = v.* / rms * w_slice[i];
+        }
     }
 
     /// In-place SiLU activation: x = x * sigmoid(x)
@@ -315,17 +335,18 @@ pub const FpgaAiOps = struct {
         stream: ?*anyopaque,
     ) AiOpsError!void {
         _ = self;
-        _ = data;
-        _ = len;
         _ = stream;
 
-        // SiLU used in SwiGLU FFN layers
-        // FPGA could implement using lookup tables or specialized units
+        const ptr = @as([*]f32, @ptrCast(@alignCast(data)));
+        const slice = ptr[0..len];
 
-        return AiOpsError.NotSupported;
+        for (slice) |*v| {
+            const sigmoid = 1.0 / (1.0 + @exp(-v.*));
+            v.* = v.* * sigmoid;
+        }
     }
 
-    /// In-place GELU activation
+    /// In-place GELU activation (tanh approximation)
     pub fn gelu(
         self: *FpgaAiOps,
         data: *anyopaque,
@@ -333,14 +354,17 @@ pub const FpgaAiOps = struct {
         stream: ?*anyopaque,
     ) AiOpsError!void {
         _ = self;
-        _ = data;
-        _ = len;
         _ = stream;
 
-        // GELU approximation can be implemented in FPGA logic
-        // tanh(x) can be approximated with polynomial
+        const ptr = @as([*]f32, @ptrCast(@alignCast(data)));
+        const slice = ptr[0..len];
 
-        return AiOpsError.NotSupported;
+        const sqrt_2_over_pi: f32 = 0.7978845608; // sqrt(2/pi)
+        for (slice) |*v| {
+            const x = v.*;
+            const inner = sqrt_2_over_pi * (x + 0.044715 * x * x * x);
+            v.* = 0.5 * x * (1.0 + std.math.tanh(inner));
+        }
     }
 
     /// In-place scale: x = x * scalar

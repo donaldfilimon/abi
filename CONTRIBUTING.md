@@ -28,6 +28,7 @@ tags: []
 | Test | `zig build test --summary all` |
 | Format | `zig fmt .` |
 | CLI Smoke Test | `zig build cli-tests` |
+| Validate Flags | `zig build validate-flags` |
 | Full Check | `zig build full-check` |
 | Single File Test | `zig test src/path/to/file.zig` |
 
@@ -47,8 +48,8 @@ flowchart LR
 |------|--------|-----------------|
 | 1 | Create branch | `git checkout -b feature/my-feature` |
 | 2 | Make changes | Keep scope focused |
-| 3 | Build & test | `zig build && zig build test` |
-| 4 | Format | `zig fmt .` |
+| 3 | Format | `zig fmt .` |
+| 4 | Full check | `zig build full-check` (format + tests + flag validation + CLI smoke tests) |
 | 5 | Update docs | For public API changes |
 
 ## Style Guide

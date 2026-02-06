@@ -137,11 +137,17 @@ pub const web = if (build_options.enable_web)
 else
     @import("features/web/stub.zig");
 
+/// Analytics event tracking.
+pub const analytics = if (build_options.enable_analytics)
+    @import("features/analytics/mod.zig")
+else
+    @import("features/analytics/stub.zig");
+
 /// Cloud function adapters.
 pub const cloud = if (build_options.enable_web)
-    @import("services/cloud/mod.zig")
+    @import("features/cloud/mod.zig")
 else
-    @import("services/cloud/stub.zig");
+    @import("features/cloud/stub.zig");
 
 /// High availability (replication, backup, PITR).
 pub const ha = @import("services/ha/mod.zig");

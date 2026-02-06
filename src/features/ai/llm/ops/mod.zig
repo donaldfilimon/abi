@@ -21,7 +21,7 @@ pub const activations = @import("activations.zig");
 pub const ffn = @import("ffn.zig");
 pub const gpu = @import("gpu.zig");
 pub const gpu_memory_pool = @import("gpu_memory_pool.zig");
-pub const backward = @import("backward/mod.zig");
+pub const backward = @import("../backward_ops/mod.zig");
 
 // Re-exports for convenience
 pub const matrixMultiply = matmul.matrixMultiply;

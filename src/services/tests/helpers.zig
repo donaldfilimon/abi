@@ -159,12 +159,10 @@ pub fn createTempDir(allocator: std.mem.Allocator) ![]const u8 {
     };
     defer allocator.free(base_dir);
 
-    // Generate a unique directory name using timer and random suffix
-    // Use Timer.start() (Zig 0.16 API) for time-based seed
-    const seed: u64 = blk: {
-        var timer = std.time.Timer.start() catch break :blk 0;
-        break :blk timer.read();
-    };
+    // Generate a unique directory name using absolute timestamp as seed
+    // getSeed() uses timestampNs() on native, giving monotonically
+    // increasing absolute time — unlike Timer.read() which gives ~0ns
+    const seed: u64 = time.getSeed();
     var rng = std.Random.DefaultPrng.init(seed);
     const random_suffix = rng.random().int(u32);
     const random_suffix2 = rng.random().int(u32);
