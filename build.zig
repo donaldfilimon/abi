@@ -116,6 +116,7 @@ const BuildOptions = struct {
     enable_database: bool,
     enable_network: bool,
     enable_profiling: bool,
+    enable_analytics: bool,
     gpu_backends: []const GpuBackend,
 
     pub fn hasGpuBackend(self: BuildOptions, backend: GpuBackend) bool {
@@ -173,6 +174,7 @@ fn readBuildOptions(b: *std.Build) BuildOptions {
         .enable_database = b.option(bool, "enable-database", "Enable database features") orelse true,
         .enable_network = b.option(bool, "enable-network", "Enable network distributed compute") orelse true,
         .enable_profiling = b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse true,
+        .enable_analytics = b.option(bool, "enable-analytics", "Enable analytics event tracking") orelse true,
         .gpu_backends = parseGpuBackends(b, enable_gpu, enable_web),
     };
 }
@@ -191,6 +193,87 @@ fn validateOptions(options: BuildOptions) void {
         std.log.warn("Both OpenGL and WebGL2 enabled; prefer one", .{});
     if (options.hasGpuBackend(.opengl) and options.hasGpuBackend(.opengles))
         std.log.warn("Both OpenGL and OpenGL ES enabled; typically mutually exclusive", .{});
+}
+
+// ============================================================================
+// Feature Flag Validation Matrix
+// ============================================================================
+
+/// Compact flag combination for validation. Sub-feature flags (explore, llm,
+/// vision) inherit from enable_ai.
+const FlagCombo = struct {
+    name: []const u8,
+    enable_ai: bool = false,
+    enable_gpu: bool = false,
+    enable_web: bool = false,
+    enable_database: bool = false,
+    enable_network: bool = false,
+    enable_profiling: bool = false,
+    enable_analytics: bool = false,
+};
+
+/// Critical flag combinations that must compile. Covers: all on, all off,
+/// each feature solo, and each feature disabled with the rest enabled.
+const validation_matrix = [_]FlagCombo{
+    .{ .name = "all-enabled", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
+    .{ .name = "all-disabled" },
+    .{ .name = "ai-only", .enable_ai = true },
+    .{ .name = "gpu-only", .enable_gpu = true },
+    .{ .name = "web-only", .enable_web = true },
+    .{ .name = "database-only", .enable_database = true },
+    .{ .name = "network-only", .enable_network = true },
+    .{ .name = "profiling-only", .enable_profiling = true },
+    .{ .name = "analytics-only", .enable_analytics = true },
+    .{ .name = "no-ai", .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
+    .{ .name = "no-gpu", .enable_ai = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
+};
+
+fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
+    return .{
+        .enable_ai = combo.enable_ai,
+        .enable_gpu = combo.enable_gpu,
+        .enable_explore = combo.enable_ai,
+        .enable_llm = combo.enable_ai,
+        .enable_vision = combo.enable_ai,
+        .enable_web = combo.enable_web,
+        .enable_database = combo.enable_database,
+        .enable_network = combo.enable_network,
+        .enable_profiling = combo.enable_profiling,
+        .enable_analytics = combo.enable_analytics,
+        .gpu_backends = if (combo.enable_gpu) &.{.vulkan} else &.{},
+    };
+}
+
+fn addFlagValidation(
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
+) *std.Build.Step {
+    const validate_step = b.step(
+        "validate-flags",
+        "Compile with every critical feature-flag combination",
+    );
+
+    inline for (validation_matrix) |combo| {
+        const opts = comboToBuildOptions(combo);
+        const build_opts_mod = createBuildOptionsModule(b, opts);
+        const abi_mod = b.createModule(.{
+            .root_source_file = b.path("src/abi.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        abi_mod.addImport("build_options", build_opts_mod);
+
+        // Static library compile-check: verifies code compiles without linking
+        const check = b.addLibrary(.{
+            .name = "validate-" ++ combo.name,
+            .root_module = abi_mod,
+            .linkage = .static,
+        });
+        validate_step.dependOn(&check.step);
+    }
+
+    return validate_step;
 }
 
 // ============================================================================
@@ -299,6 +382,7 @@ fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Mod
     opts.addOption(bool, "enable_database", options.enable_database);
     opts.addOption(bool, "enable_network", options.enable_network);
     opts.addOption(bool, "enable_profiling", options.enable_profiling);
+    opts.addOption(bool, "enable_analytics", options.enable_analytics);
     opts.addOption(bool, "gpu_cuda", options.gpu_cuda());
     opts.addOption(bool, "gpu_vulkan", options.gpu_vulkan());
     opts.addOption(bool, "gpu_stdgpu", options.gpu_stdgpu());
@@ -421,15 +505,21 @@ pub fn build(b: *std.Build) void {
     }
 
     // ---------------------------------------------------------------------------
-    // Full verification step – formatting, tests, CLI smoke test, benchmarks
-    // Cross-platform: chains format check, tests, and CLI smoke tests
+    // Feature flag validation matrix
     // ---------------------------------------------------------------------------
-    const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and benchmarks");
+    const validate_flags_step = addFlagValidation(b, target, optimize);
+
+    // ---------------------------------------------------------------------------
+    // Full verification step – formatting, tests, CLI smoke test, flag validation
+    // Cross-platform: chains format check, tests, CLI smoke tests, and flag matrix
+    // ---------------------------------------------------------------------------
+    const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and flag validation");
     full_check_step.dependOn(&lint_cmd.step);
     if (test_step) |ts| {
         full_check_step.dependOn(ts);
     }
     full_check_step.dependOn(cli_tests_step);
+    full_check_step.dependOn(validate_flags_step);
     buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
 
     // Documentation - API markdown generation

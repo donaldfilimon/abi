@@ -733,11 +733,16 @@ pub const Orchestrator = struct {
             self.mutex.unlock();
         }
 
-        // Generate response (placeholder - actual implementation would call the backend)
+        // Simulated response: Routes to the model but doesn't call a real backend.
+        // To wire up real inference, integrate abbey.ClientWrapper here:
+        //   1. Map model.config.backend (ModelBackend) to abbey client type
+        //   2. Build a CompletionRequest from `prompt`
+        //   3. Call client.complete(request) and return response.content
+        const prompt_preview = if (prompt.len > 60) prompt[0..60] else prompt;
         const response = std.fmt.allocPrint(
             response_allocator,
-            "[{s}] Response to: {s}",
-            .{ model.config.id, prompt },
+            "[{s}/{s}] {s}",
+            .{ model.config.backend.toString(), model.config.id, prompt_preview },
         ) catch return OrchestrationError.OutOfMemory;
 
         // Reset consecutive failures on success

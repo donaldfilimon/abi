@@ -483,6 +483,177 @@ bool abi_gpu_is_available(void);
 const char *abi_gpu_backend_name(abi_gpu_t *gpu);
 
 /* ============================================================================
+ * Agent Operations
+ * ============================================================================ */
+
+/** Opaque agent handle. */
+typedef struct abi_agent abi_agent_t;
+
+/** Agent backend constants. */
+#define ABI_AGENT_BACKEND_ECHO        0
+#define ABI_AGENT_BACKEND_OPENAI      1
+#define ABI_AGENT_BACKEND_OLLAMA      2
+#define ABI_AGENT_BACKEND_HUGGINGFACE 3
+#define ABI_AGENT_BACKEND_LOCAL       4
+
+/** Agent status constants. */
+#define ABI_AGENT_STATUS_READY  0
+#define ABI_AGENT_STATUS_BUSY   1
+#define ABI_AGENT_STATUS_ERROR  2
+
+/**
+ * Agent configuration options.
+ */
+typedef struct abi_agent_config {
+    /** Agent name (required, null-terminated). */
+    const char *name;
+
+    /** Backend type (use ABI_AGENT_BACKEND_* constants, default: ECHO). */
+    int backend;
+
+    /** Model name (e.g., "gpt-4", "llama3.2"). */
+    const char *model;
+
+    /** System prompt (optional, NULL for no system prompt). */
+    const char *system_prompt;
+
+    /** Temperature for generation (0.0 - 2.0, default: 0.7). */
+    float temperature;
+
+    /** Top-p for generation (0.0 - 1.0, default: 0.9). */
+    float top_p;
+
+    /** Maximum tokens for generation (default: 1024). */
+    uint32_t max_tokens;
+
+    /** Enable conversation history (default: true). */
+    bool enable_history;
+} abi_agent_config_t;
+
+/**
+ * Agent response from a send operation.
+ */
+typedef struct abi_agent_response {
+    /** Response text (null-terminated, valid until next send or destroy). */
+    const char *text;
+
+    /** Length of response text (excluding null terminator). */
+    size_t length;
+
+    /** Number of tokens used (if available from backend). */
+    uint64_t tokens_used;
+} abi_agent_response_t;
+
+/**
+ * Agent conversation statistics.
+ */
+typedef struct abi_agent_stats {
+    /** Total messages in history. */
+    size_t history_length;
+
+    /** Number of user messages. */
+    size_t user_messages;
+
+    /** Number of assistant messages. */
+    size_t assistant_messages;
+
+    /** Total characters in history. */
+    size_t total_characters;
+
+    /** Total tokens used in session. */
+    uint64_t total_tokens_used;
+} abi_agent_stats_t;
+
+/**
+ * Create a new AI agent.
+ *
+ * Requires the AI feature to be enabled at compile time.
+ *
+ * @param config Agent configuration, or NULL for defaults.
+ * @param[out] out_agent Pointer to receive the agent handle.
+ * @return ABI_OK on success, or an error code on failure.
+ *
+ * @see abi_agent_destroy
+ */
+int abi_agent_create(const abi_agent_config_t *config,
+                     abi_agent_t **out_agent);
+
+/**
+ * Destroy an agent and release all resources.
+ *
+ * After calling this function, the agent handle becomes invalid.
+ *
+ * @param agent Agent handle to destroy. May be NULL (no-op).
+ */
+void abi_agent_destroy(abi_agent_t *agent);
+
+/**
+ * Send a message to the agent and get a response.
+ *
+ * The response text is owned by the agent and valid until the next
+ * send or destroy call.
+ *
+ * @param agent Agent handle.
+ * @param message Null-terminated message string.
+ * @param[out] out_response Pointer to receive the response.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_agent_send(abi_agent_t *agent, const char *message,
+                   abi_agent_response_t *out_response);
+
+/**
+ * Get the current status of the agent.
+ *
+ * @param agent Agent handle.
+ * @return ABI_AGENT_STATUS_* constant.
+ */
+int abi_agent_get_status(abi_agent_t *agent);
+
+/**
+ * Get agent conversation statistics.
+ *
+ * @param agent Agent handle.
+ * @param[out] out_stats Pointer to receive statistics.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_agent_get_stats(abi_agent_t *agent, abi_agent_stats_t *out_stats);
+
+/**
+ * Clear the agent's conversation history.
+ *
+ * @param agent Agent handle.
+ * @return ABI_OK on success, or an error code on failure.
+ */
+int abi_agent_clear_history(abi_agent_t *agent);
+
+/**
+ * Set the agent's temperature parameter.
+ *
+ * @param agent Agent handle.
+ * @param temperature New temperature (0.0 - 2.0).
+ * @return ABI_OK on success, ABI_ERROR_INVALID_ARGUMENT if out of range.
+ */
+int abi_agent_set_temperature(abi_agent_t *agent, float temperature);
+
+/**
+ * Set the agent's max tokens parameter.
+ *
+ * @param agent Agent handle.
+ * @param max_tokens New max tokens value.
+ * @return ABI_OK on success, ABI_ERROR_INVALID_ARGUMENT if invalid.
+ */
+int abi_agent_set_max_tokens(abi_agent_t *agent, uint32_t max_tokens);
+
+/**
+ * Get the agent's name.
+ *
+ * @param agent Agent handle.
+ * @return Agent name string. The string is owned by the agent and
+ *         must not be freed.
+ */
+const char *abi_agent_get_name(abi_agent_t *agent);
+
+/* ============================================================================
  * Memory Management
  * ============================================================================ */
 
@@ -541,6 +712,22 @@ static inline void abi_gpu_config_init(abi_gpu_config_t *config) {
     config->backend = ABI_GPU_BACKEND_AUTO;
     config->device_index = 0;
     config->enable_profiling = false;
+}
+
+/**
+ * Initialize an agent config structure with default values.
+ *
+ * @param[out] config Pointer to config structure to initialize.
+ */
+static inline void abi_agent_config_init(abi_agent_config_t *config) {
+    config->name = "agent";
+    config->backend = ABI_AGENT_BACKEND_ECHO;
+    config->model = "gpt-4";
+    config->system_prompt = NULL;
+    config->temperature = 0.7f;
+    config->top_p = 0.9f;
+    config->max_tokens = 1024;
+    config->enable_history = true;
 }
 
 #ifdef __cplusplus

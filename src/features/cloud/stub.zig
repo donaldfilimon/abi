@@ -56,6 +56,20 @@ pub const Context = struct {
         _ = self;
         return false;
     }
+
+    /// Create a handler wrapper (stub - returns disabled error).
+    pub fn wrapHandler(
+        self: *Context,
+        comptime handler: fn (*CloudEvent, std.mem.Allocator) anyerror!CloudResponse,
+    ) CloudHandler {
+        _ = self;
+        _ = handler;
+        return struct {
+            fn wrapped(_: *CloudEvent, _: std.mem.Allocator) anyerror!CloudResponse {
+                return Error.CloudDisabled;
+            }
+        }.wrapped;
+    }
 };
 
 /// Response builder stub.
@@ -110,6 +124,12 @@ pub const ResponseBuilder = struct {
 
 /// Detect which cloud provider environment we're running in.
 pub fn detectProvider() ?CloudProvider {
+    return null;
+}
+
+/// Detect provider with explicit allocator (stub - always returns null).
+pub fn detectProviderWithAllocator(allocator: std.mem.Allocator) ?CloudProvider {
+    _ = allocator;
     return null;
 }
 

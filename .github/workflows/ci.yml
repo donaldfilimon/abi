@@ -28,22 +28,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Zig build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            .zig-cache-global
-            zig-cache
-            zig-out
-          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig', 'build.zig.zon', '.zigversion') }}
-          restore-keys: |
-            ${{ runner.os }}-zig-
+      - name: Read Zig version from .zigversion
+        id: zig-version
+        run: echo "version=$(cat .zigversion | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+        shell: bash
 
-      - name: Install Zig 0.16
+      - name: Install Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
-          # Keep CI reproducible: match repo's declared Zig version (.zigversion / build.zig.zon)
-          version: 0.16.0-dev.2368+380ea6fb5
+          # Version is read from .zigversion to avoid drift between CI and the project
+          version: ${{ steps.zig-version.outputs.version }}
 
       - name: Format check
         run: zig fmt --check .
@@ -51,7 +45,14 @@ jobs:
       - name: Build
         run: zig build
 
+      - name: Validate feature-flag combinations
+        # Compiles the project under 10 different feature-flag permutations
+        # to catch compilation errors in gated code paths early.
+        run: zig build validate-flags
+
       - name: Run unit tests
+        # NOTE: This step also exercises stub parity tests, which verify that
+        # stub modules stay in sync with their real (mod.zig) counterparts.
         run: zig build test --summary all
 
       - name: Build with GPU backends (Linux/macOS)
@@ -91,22 +92,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Zig build artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            .zig-cache-global
-            zig-cache
-            zig-out
-          key: ${{ runner.os }}-zig-${{ hashFiles('build.zig', 'build.zig.zon', '.zigversion') }}
-          restore-keys: |
-            ${{ runner.os }}-zig-
+      - name: Read Zig version from .zigversion
+        id: zig-version
+        run: echo "version=$(cat .zigversion | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+        shell: bash
 
-      - name: Install Zig 0.16
+      - name: Install Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
-          # Keep CI reproducible: match repo's declared Zig version (.zigversion / build.zig.zon)
-          version: 0.16.0-dev.2368+380ea6fb5
+          # Version is read from .zigversion to avoid drift between CI and the project
+          version: ${{ steps.zig-version.outputs.version }}
 
       - name: Lint check
         run: zig build lint

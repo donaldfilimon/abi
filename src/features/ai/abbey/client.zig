@@ -447,6 +447,36 @@ pub const OpenAIBackend = struct {
         _ = self;
         return "openai";
     }
+
+    pub fn streamComplete(
+        self: *Self,
+        request: CompletionRequest,
+        callback: *LLMClient.StreamCallback,
+    ) ClientError!void {
+        // Fallback: call complete() and emit result as single chunk
+        // Real implementation would use SSE streaming with "stream":true
+        var response = try self.complete(request);
+        defer response.deinit(self.allocator);
+
+        callback(.{
+            .content = response.content,
+            .is_final = true,
+            .finish_reason = .stop,
+        });
+    }
+
+    pub fn client(self: *Self) LLMClient {
+        return .{
+            .ptr = self,
+            .vtable = &.{
+                .complete = @ptrCast(&complete),
+                .streamComplete = @ptrCast(&streamComplete),
+                .isAvailable = @ptrCast(&isAvailable),
+                .getBackendName = @ptrCast(&getBackendName),
+                .deinit = @ptrCast(&deinit),
+            },
+        };
+    }
 };
 
 // ============================================================================
@@ -572,14 +602,53 @@ pub const OllamaBackend = struct {
     };
 
     pub fn isAvailable(self: *Self) bool {
-        _ = self;
-        // Would check if Ollama is running
-        return false;
+        if (!web_enabled) return false;
+
+        var http_client = web_client.HttpClient.init(self.allocator) catch return false;
+        defer http_client.deinit();
+
+        const url = std.fmt.allocPrint(self.allocator, "{s}/api/tags", .{self.host}) catch return false;
+        defer self.allocator.free(url);
+
+        const response = http_client.get(url) catch return false;
+        defer http_client.freeResponse(response);
+
+        return response.status == 200;
     }
 
     pub fn getBackendName(self: *Self) []const u8 {
         _ = self;
         return "ollama";
+    }
+
+    pub fn streamComplete(
+        self: *Self,
+        request: CompletionRequest,
+        callback: *LLMClient.StreamCallback,
+    ) ClientError!void {
+        // Fallback: call complete() and emit result as single chunk
+        // Real implementation would use Ollama streaming with "stream":true
+        var response = try self.complete(request);
+        defer response.deinit(self.allocator);
+
+        callback(.{
+            .content = response.content,
+            .is_final = true,
+            .finish_reason = .stop,
+        });
+    }
+
+    pub fn client(self: *Self) LLMClient {
+        return .{
+            .ptr = self,
+            .vtable = &.{
+                .complete = @ptrCast(&complete),
+                .streamComplete = @ptrCast(&streamComplete),
+                .isAvailable = @ptrCast(&isAvailable),
+                .getBackendName = @ptrCast(&getBackendName),
+                .deinit = @ptrCast(&deinit),
+            },
+        };
     }
 };
 
@@ -657,6 +726,18 @@ pub const ClientWrapper = union(enum) {
             .echo => |e| e.getBackendName(),
             .openai => |o| o.getBackendName(),
             .ollama => |ol| ol.getBackendName(),
+        };
+    }
+
+    pub fn streamComplete(
+        self: *ClientWrapper,
+        request: CompletionRequest,
+        callback: *LLMClient.StreamCallback,
+    ) ClientError!void {
+        return switch (self.*) {
+            .echo => |e| e.streamComplete(request, callback),
+            .openai => |o| o.streamComplete(request, callback),
+            .ollama => |ol| ol.streamComplete(request, callback),
         };
     }
 };
