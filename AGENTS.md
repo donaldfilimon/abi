@@ -132,12 +132,17 @@ zig build -Denable-<feature>=false
 | Old (0.15) | New (0.16) |
 |------------|------------|
 | `std.fs.cwd()` | `std.Io.Dir.cwd()` |
-| `std.time.nanoTimestamp()` | `std.time.Instant.now()` + `.since()` or `std.time.Timer.start()` for elapsed |
+| `std.time.Timer` | `abi.shared.time.Timer` (custom implementation using C FFI) |
+| `std.Thread.Mutex` | `abi.shared.sync.Mutex` (custom implementation) |
+| `std.Thread.RwLock` | `abi.shared.sync.RwLock` (custom implementation) |
+| `std.time.nanoTimestamp()` | `abi.shared.time.timestampNs()` or `Instant.now()` + `.since()` |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` (preferred) |
 | `list.init()` | `list.empty` (ArrayListUnmanaged) |
 | `@tagName(x)` in print | `{t}` format specifier |
 
 Notes:
+- **Timer/Mutex**: `std.time.Timer`, `std.Thread.Mutex`, and `std.Thread.RwLock` don't exist in Zig 0.16. Use `abi.shared.time.Timer` and `abi.shared.sync.{Mutex,RwLock}` instead (custom implementations using `std.c.clock_gettime` and inline assembly).
+- **Import pattern**: Files importing `abi` use `const time = abi.shared.time; const sync = abi.shared.sync;`. Files without `abi` import use relative paths.
 - I/O operations must use `std.Io.Threaded.init()` and its `io` handle.
 - Use `std.Io.Clock.Duration.sleep()` only when you need raw clock access.
 - HTTP server init uses `&reader.interface` and `&writer.interface`.
