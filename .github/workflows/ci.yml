@@ -30,7 +30,7 @@ jobs:
         uses: goto-bus-stop/setup-zig@v2
         with:
           # Keep CI reproducible: match repo's declared Zig version (.zigversion / build.zig.zon)
-          version: 0.16.0-dev.2368+380ea6fb5
+          version: 0.16.0-dev.2471+e9eadee00
 
       - name: Format check
         run: zig fmt --check .
@@ -80,7 +80,7 @@ jobs:
         uses: goto-bus-stop/setup-zig@v2
         with:
           # Keep CI reproducible: match repo's declared Zig version (.zigversion / build.zig.zon)
-          version: 0.16.0-dev.2368+380ea6fb5
+          version: 0.16.0-dev.2471+e9eadee00
 
       - name: Lint check
         run: zig build lint
