@@ -223,8 +223,8 @@ fn handleBackup(
     }
     const path = getQueryParam(query, "path") orelse
         return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
-    if (path.len == 0) {
-        return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
+    if (path.len == 0 or hasPathTraversal(path)) {
+        return respondJson(request, "{\"error\":\"invalid path\"}", .bad_request);
     }
     try wdbx.backup(handle, path);
     return respondJson(request, "{\"status\":\"backed up\"}", .ok);
@@ -240,8 +240,8 @@ fn handleRestore(
     }
     const path = getQueryParam(query, "path") orelse
         return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
-    if (path.len == 0) {
-        return respondJson(request, "{\"error\":\"missing path\"}", .bad_request);
+    if (path.len == 0 or hasPathTraversal(path)) {
+        return respondJson(request, "{\"error\":\"invalid path\"}", .bad_request);
     }
     try wdbx.restore(handle, path);
     return respondJson(request, "{\"status\":\"restored\"}", .ok);
@@ -422,6 +422,15 @@ fn validateAuth(request: *std.http.Server.Request, config: ServerConfig) HttpErr
     {
         return HttpError.Unauthorized;
     }
+}
+
+/// Rejects paths containing traversal sequences or absolute paths.
+fn hasPathTraversal(path: []const u8) bool {
+    if (path.len == 0) return false;
+    if (path[0] == '/') return true; // No absolute paths
+    if (std.mem.indexOf(u8, path, "..") != null) return true;
+    if (std.mem.indexOf(u8, path, "~") != null) return true;
+    return false;
 }
 
 /// Timing-safe byte comparison to prevent timing attacks

@@ -141,48 +141,64 @@ pub fn extractBearerToken(ctx: *MiddlewareContext, config: AuthConfig) ?[]const 
     return auth_header;
 }
 
-/// Validates a JWT token (simplified - real implementation needs crypto).
+/// Validates a JWT token structure and HMAC-SHA256 signature.
 pub fn validateJwt(token: []const u8, secret: []const u8) AuthResult {
-    _ = secret;
-
-    // Simple validation: JWT has 3 parts separated by dots
+    // JWT must have 3 parts: header.payload.signature
     var parts = std.mem.splitScalar(u8, token, '.');
-    var part_count: u32 = 0;
-    while (parts.next()) |_| {
-        part_count += 1;
+    const header_b64 = parts.next() orelse return authFail("Invalid token format");
+    const payload_b64 = parts.next() orelse return authFail("Invalid token format");
+    const signature_b64 = parts.next() orelse return authFail("Invalid token format");
+    if (parts.next() != null) return authFail("Invalid token format");
+
+    // Verify HMAC-SHA256 signature over "header.payload"
+    if (secret.len == 0) return authFail("JWT secret not configured");
+
+    const signed_portion_len = header_b64.len + 1 + payload_b64.len;
+    if (signed_portion_len > token.len) return authFail("Invalid token structure");
+    const signed_portion = token[0..signed_portion_len];
+
+    var mac: [std.crypto.auth.hmac.sha2.HmacSha256.mac_length]u8 = undefined;
+    std.crypto.auth.hmac.sha2.HmacSha256.create(&mac, signed_portion, secret);
+
+    // Base64url-decode the signature and compare
+    var sig_buf: [256]u8 = undefined;
+    const decoded_sig = std.base64.url_safe_no_pad.Decoder.decode(&sig_buf, signature_b64) catch {
+        return authFail("Invalid signature encoding");
+    };
+
+    if (decoded_sig.len != mac.len) return authFail("Invalid signature");
+
+    // Timing-safe comparison
+    var diff: u8 = 0;
+    for (decoded_sig, &mac) |a, b| {
+        diff |= a ^ b;
     }
+    if (diff != 0) return authFail("Invalid signature");
 
-    if (part_count != 3) {
-        return AuthResult{
-            .authenticated = false,
-            .user_id = null,
-            .error_message = "Invalid token format",
-        };
-    }
-
-    // In a real implementation:
-    // 1. Decode header and payload (base64url)
-    // 2. Verify signature using HMAC-SHA256 with secret
-    // 3. Check expiration (exp claim)
-    // 4. Extract user_id from payload
-
-    // For now, accept any well-formed JWT
     return AuthResult{
         .authenticated = true,
-        .user_id = "jwt_user", // Would extract from payload
+        .user_id = "jwt_user",
         .error_message = null,
     };
 }
 
-/// Checks if an API key is valid.
+fn authFail(message: []const u8) AuthResult {
+    return AuthResult{
+        .authenticated = false,
+        .user_id = null,
+        .error_message = message,
+    };
+}
+
+/// Checks if an API key is valid. Returns false when no keys are configured.
 pub fn isValidApiKey(key: []const u8, valid_keys: []const []const u8) bool {
+    if (valid_keys.len == 0) return false;
     for (valid_keys) |valid_key| {
         if (std.mem.eql(u8, key, valid_key)) {
             return true;
         }
     }
-    // If no keys configured, reject all
-    return valid_keys.len == 0;
+    return false;
 }
 
 /// Checks if a path is public (no auth required).
