@@ -3,6 +3,10 @@
 
 This directory is the source for the ABI documentation site.
 
+## Requirements
+
+- Zig `0.16.0-dev.2471+e9eadee00` (match `.zigversion`).
+
 ## Build
 
 Use the Zig toolchain pinned in `.zigversion` (currently `0.16.0-dev.2471+e9eadee00`)
