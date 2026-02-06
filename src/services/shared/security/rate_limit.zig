@@ -10,9 +10,8 @@
 //! - Distributed rate limiting support
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 
 /// Rate limiting algorithm
 pub const Algorithm = enum {

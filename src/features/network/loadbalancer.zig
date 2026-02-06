@@ -4,10 +4,10 @@
 //! weighted routing, least connections, and health-based routing.
 
 const std = @import("std");
-const platform_time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
 const registry = @import("registry.zig");
 const platform_time = @import("../../services/shared/utils.zig");
+const time = platform_time;
+const sync = @import("../../services/shared/sync.zig");
 
 pub const LoadBalancerStrategy = enum {
     round_robin,

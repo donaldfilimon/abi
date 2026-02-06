@@ -203,7 +203,7 @@ test "cloud lifecycle: warm invocation simulation" {
     // Simulate multiple warm invocations
     var warm_times: [10]u64 = undefined;
 
-    for (&warm_times) |*time| {
+    for (&warm_times) |*duration| {
         var timer = try time.Timer.start();
 
         // Simulate request handling by creating an event
@@ -212,7 +212,7 @@ test "cloud lifecycle: warm invocation simulation" {
         event.path = "/health";
         event.deinit();
 
-        time.* = timer.read();
+        duration.* = timer.read();
     }
 
     // Warm invocations should be much faster than cold start

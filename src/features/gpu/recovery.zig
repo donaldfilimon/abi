@@ -4,9 +4,9 @@
 //! and manages graceful degradation to fallback backends.
 
 const std = @import("std");
-const platform_time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
 const platform_time = @import("../../services/shared/utils.zig");
+const time = platform_time;
+const sync = @import("../../services/shared/sync.zig");
 const backend = @import("backend.zig");
 
 /// Recovery strategy for device failures.

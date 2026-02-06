@@ -29,8 +29,8 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const agents = @import("../agents/mod.zig");
 const build_options = @import("build_options");
 

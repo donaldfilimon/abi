@@ -10,10 +10,9 @@
 //! - OCSP stapling support
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
 const crypto = std.crypto;
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 
 /// Certificate type
 pub const CertificateType = enum {

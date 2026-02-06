@@ -86,6 +86,10 @@ pub const os = @import("os.zig");
 /// Platform-aware implementations for unix timestamps, monotonic clocks, and sleep.
 pub const time = @import("time.zig");
 
+/// Synchronization primitives compatible with Zig 0.16.
+/// Provides Mutex, RwLock, and other concurrency utilities.
+pub const sync = @import("sync.zig");
+
 /// I/O utilities and helpers for file and stream operations.
 /// Designed for Zig 0.16's explicit I/O backend model.
 pub const io = @import("io.zig");

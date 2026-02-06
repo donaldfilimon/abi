@@ -105,8 +105,8 @@
 //! - Lifecycle management internals (gpu_lifecycle, cuda_backend_init_lock)
 //! - Backend-specific initialization functions (initCudaComponents, etc.)
 const std = @import("std");
-const time = @import("../services/shared/time.zig");
-const sync = @import("../services/shared/sync.zig");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const backend = @import("backend.zig");
 const kernels = @import("runtime_kernels.zig");
 const memory = @import("memory.zig");

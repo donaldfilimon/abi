@@ -4,9 +4,9 @@
 //! including token bucket, sliding window, and fixed window.
 
 const std = @import("std");
-const platform_time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
 const platform_time = @import("../../services/shared/utils.zig");
+const time = platform_time;
+const sync = @import("../../services/shared/sync.zig");
 
 /// Rate limiting algorithm.
 pub const RateLimitAlgorithm = enum {

@@ -32,8 +32,8 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const multi_device = @import("../multi_device.zig");
 const backend_mod = @import("../backend.zig");

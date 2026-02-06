@@ -182,7 +182,7 @@ pub const TaskGroup = struct {
         }
 
         const id = self.next_id.fetchAdd(1, .monotonic);
-        const now: i64 = @intCast(time.nowNanoseconds());
+        const now: i64 = @intCast(platform_time.nowNanoseconds());
 
         const task = Task{
             .id = id,
@@ -207,7 +207,7 @@ pub const TaskGroup = struct {
         self.mutex.lock();
         self.tasks.items[task_idx].state = .running;
         if (self.config.track_timing) {
-            self.tasks.items[task_idx].start_time_ns = @intCast(time.nowNanoseconds());
+            self.tasks.items[task_idx].start_time_ns = @intCast(platform_time.nowNanoseconds());
         }
         const func = self.tasks.items[task_idx].func;
         const user_data = self.tasks.items[task_idx].user_data;
@@ -245,7 +245,7 @@ pub const TaskGroup = struct {
             };
 
             if (self.config.track_timing) {
-                self.tasks.items[task_idx].end_time_ns = @intCast(time.nowNanoseconds());
+                self.tasks.items[task_idx].end_time_ns = @intCast(platform_time.nowNanoseconds());
             }
 
             switch (result) {

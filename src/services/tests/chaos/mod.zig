@@ -39,6 +39,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
+const sync = abi.shared.sync;
 const time = abi.shared.time;
 
 /// Types of faults that can be injected

@@ -9,9 +9,8 @@
 //! - JWK (JSON Web Key) support
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 const crypto = std.crypto;
 
 /// JWT signing algorithms

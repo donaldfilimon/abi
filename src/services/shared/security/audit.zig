@@ -10,9 +10,8 @@
 //! - Compliance-ready audit trails
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 
 /// Severity level for security events
 pub const Severity = enum(u8) {
