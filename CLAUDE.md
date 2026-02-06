@@ -16,16 +16,16 @@ files to understand.
 
 ```bash
 zig build                                    # Build
-zig build test --summary all                 # Full test suite
+zig build test --summary all                 # Full test suite (expect: 944 pass, 5 skip)
 zig build run -- --help                      # CLI help
 zig test src/path/to/file.zig --test-filter "pattern"  # Single test
 zig fmt .                                    # Format (required after edits)
-zig build full-check                         # Format + tests + CLI smoke tests
+zig build full-check                         # Pre-commit check: format + tests + validate-flags + CLI tests
 zig build lint                               # CI formatting check
 zig build cli-tests                          # CLI smoke tests
 zig build benchmarks                         # Performance benchmarks
 zig build examples                           # Build all examples
-zig build validate-flags                     # Compile with all feature-flag combos
+zig build validate-flags                     # Compile with all feature-flag combos (11 configurations)
 zig build bench-all                          # All benchmark suites
 zig build docs-site                          # Generate documentation website
 zig build check-wasm                         # Check WASM compilation
@@ -194,7 +194,8 @@ Format: `<type>: <short summary>`
 
 ## Testing Patterns
 
-**Current baseline**: 944 pass, 5 skip (949 total). Run `zig build test --summary all` to verify.
+**Current baseline**: 944 pass, 5 skip (949 total). **This baseline must be maintained** — any
+PR that reduces passing tests or increases skipped tests requires justification.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are
 discovered through the `abi` import chain. Cannot `@import()` outside the test module
@@ -214,3 +215,4 @@ path — use `abi.<feature>` instead.
 | `docs/plan.md` | Development roadmap |
 | `docs/deployment.md` | Production deployment |
 | `SECURITY.md` | Security practices |
+| `~/.claude/projects/.../memory/` | Auto memory: Records learnings across sessions (200 line limit in MEMORY.md) |

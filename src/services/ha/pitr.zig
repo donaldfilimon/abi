@@ -9,6 +9,17 @@
 const std = @import("std");
 const time = @import("../shared/utils.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 /// PITR configuration
 pub const PitrConfig = struct {
     /// Retention period in hours
@@ -88,7 +99,7 @@ pub const PitrManager = struct {
     recovery_points: std.ArrayListUnmanaged(RecoveryPoint),
 
     // Synchronization
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     /// Initialize the PITR manager
     pub fn init(allocator: std.mem.Allocator, config: PitrConfig) PitrManager {

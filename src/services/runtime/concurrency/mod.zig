@@ -26,6 +26,17 @@ pub const epoch = @import("epoch.zig");
 pub const chase_lev = @import("chase_lev.zig");
 pub const mpmc = @import("mpmc_queue.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 // Lock-free structures
 pub const LockFreeQueue = lockfree.LockFreeQueue;
 pub const LockFreeStack = lockfree.LockFreeStack;
@@ -59,7 +70,7 @@ pub const DeadlineQueue = priority_queue.DeadlineQueue;
 pub fn WorkQueue(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
-        mutex: std.Thread.Mutex = .{},
+        mutex: Mutex = .{},
         items: std.ArrayListUnmanaged(T),
 
         pub fn init(allocator: std.mem.Allocator) @This() {
@@ -102,7 +113,7 @@ pub fn WorkQueue(comptime T: type) type {
 pub fn WorkStealingQueue(comptime T: type) type {
     return struct {
         allocator: std.mem.Allocator,
-        mutex: std.Thread.Mutex = .{},
+        mutex: Mutex = .{},
         items: std.ArrayListUnmanaged(T),
 
         pub fn init(allocator: std.mem.Allocator) @This() {

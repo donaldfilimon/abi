@@ -14,6 +14,17 @@
 const std = @import("std");
 const build_options = @import("build_options");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 // ============================================================================
 // Event Types
 // ============================================================================
@@ -69,7 +80,7 @@ pub const Engine = struct {
     events: std.ArrayListUnmanaged(StoredEvent) = .empty,
     session_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
     event_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-    mutex: std.Thread.Mutex = .{},
+    mutex: Mutex = .{},
 
     const StoredEvent = struct {
         name: []const u8,

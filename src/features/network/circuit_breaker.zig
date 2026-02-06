@@ -19,6 +19,17 @@
 const std = @import("std");
 const time = @import("../../services/shared/utils.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 /// Error set for network operations that can be wrapped by the circuit breaker
 pub const NetworkOperationError = error{
     /// Network connection failed
@@ -147,7 +158,7 @@ pub const CircuitBreaker = struct {
     state_changed_at_ms: i64,
     failure_records: std.ArrayListUnmanaged(FailureRecord),
     stats: CircuitStats,
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     const Self = @This();
 
@@ -546,7 +557,7 @@ pub const CircuitRegistry = struct {
     allocator: std.mem.Allocator,
     breakers: std.StringArrayHashMapUnmanaged(CircuitBreaker),
     default_config: CircuitConfig,
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     const Self = @This();
 

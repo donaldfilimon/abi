@@ -95,6 +95,42 @@ const builtin = @import("builtin");
 const numa = @import("numa.zig");
 const concurrency = @import("../concurrency/mod.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
+// Zig 0.16 compatibility: Simple Condition (busy-wait implementation)
+const Condition = struct {
+    waiters: std.atomic.Value(u32) = std.atomic.Value(u32).init(0),
+
+    pub fn wait(self: *Condition, mutex: anytype) void {
+        _ = self.waiters.fetchAdd(1, .monotonic);
+        mutex.unlock();
+        while (self.waiters.load(.acquire) > 0) {
+            std.atomic.spinLoopHint();
+        }
+        mutex.lock();
+    }
+
+    pub fn signal(self: *Condition) void {
+        const current = self.waiters.load(.acquire);
+        if (current > 0) {
+            _ = self.waiters.fetchSub(1, .release);
+        }
+    }
+
+    pub fn broadcast(self: *Condition) void {
+        self.waiters.store(0, .release);
+    }
+};
+
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and
     builtin.target.cpu.arch != .wasm32 and
@@ -156,17 +192,17 @@ const EngineState = struct {
     /// Sharded map for reduced lock contention under concurrent load
     results: concurrency.ShardedMap(TaskId, ResultBlob, RESULT_SHARD_COUNT),
     /// Condition variable for threads waiting on results
-    results_cond: std.Thread.Condition = .{},
+    results_cond: Condition = .{},
     /// Mutex for result condition variable (not for results map)
-    results_mutex: std.Thread.Mutex = .{},
+    results_mutex: Mutex = .{},
     /// Array of worker threads
     workers: []Worker,
     /// Number of tasks pending execution
     pending_tasks: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
     /// Mutex for worker condition variable
-    work_mutex: std.Thread.Mutex = .{},
+    work_mutex: Mutex = .{},
     /// Condition variable to wake idle workers
-    work_cond: std.Thread.Condition = .{},
+    work_cond: Condition = .{},
     /// Flag to signal workers to shut down
     stop_flag: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
     /// Round-robin counter for task distribution

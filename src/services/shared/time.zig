@@ -21,19 +21,22 @@ const CounterInt = if (isWasmTarget()) u32 else u64;
 var wasm_counter: std.atomic.Value(CounterInt) = .{ .raw = 0 };
 
 /// Platform-aware Instant type
-/// On native platforms, this is std.time.Instant
-/// On WASM, this is a stub that returns 0
-pub const Instant = if (has_instant) std.time.Instant else struct {
-    counter: u64,
+/// Uses epoch milliseconds for cross-version compatibility
+pub const Instant = struct {
+    millis: i64,
 
     pub fn now() error{Unsupported}!@This() {
-        return .{ .counter = 0 };
+        if (isWasmTarget()) {
+            return error.Unsupported;
+        }
+        return .{ .millis = std.time.milliTimestamp() };
     }
 
     pub fn since(self: @This(), earlier: @This()) u64 {
-        _ = self;
-        _ = earlier;
-        return 0;
+        const diff = self.millis - earlier.millis;
+        if (diff < 0) return 0;
+        // Convert milliseconds to nanoseconds
+        return @intCast(diff * std.time.ns_per_ms);
     }
 };
 

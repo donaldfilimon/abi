@@ -43,6 +43,17 @@ const kernel_types = @import("kernel_types.zig");
 const builtin_kernels = @import("builtin_kernels.zig");
 const kernel_ring_mod = @import("kernel_ring.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
 const cublas = if (build_options.enable_gpu)
     @import("backends/cuda/cublas.zig")
@@ -216,7 +227,7 @@ pub const KernelDispatcher = struct {
     /// Launch queue for batching kernel launches.
     launch_queue: std.ArrayListUnmanaged(QueuedLaunch),
     /// Mutex for thread-safe queue operations.
-    queue_mutex: std.Thread.Mutex,
+    queue_mutex: Mutex,
     /// Maximum queue size before auto-flush.
     max_queue_size: usize = 32,
 

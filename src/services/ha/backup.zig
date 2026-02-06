@@ -10,6 +10,17 @@
 const std = @import("std");
 const time = @import("../shared/utils.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 /// Backup configuration
 pub const BackupConfig = struct {
     /// Backup interval in hours
@@ -134,7 +145,7 @@ pub const BackupOrchestrator = struct {
     backup_history: std.ArrayListUnmanaged(BackupMetadata),
 
     // Synchronization
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     /// Initialize the backup orchestrator
     pub fn init(allocator: std.mem.Allocator, config: BackupConfig) BackupOrchestrator {

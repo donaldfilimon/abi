@@ -24,6 +24,17 @@
 //! Thread-safe via per-shard mutex locking. Safe for multi-producer multi-consumer.
 const std = @import("std");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 pub fn LockFreeQueue(comptime T: type, comptime capacity: usize) type {
     comptime {
         if (capacity == 0 or !std.math.isPowerOfTwo(capacity)) {
@@ -151,7 +162,7 @@ pub fn ShardedMap(
         const Context = std.hash_map.AutoContext(K);
         const Map = std.AutoHashMapUnmanaged(K, V);
         const Shard = struct {
-            mutex: std.Thread.Mutex = .{},
+            mutex: Mutex = .{},
             map: Map,
         };
 

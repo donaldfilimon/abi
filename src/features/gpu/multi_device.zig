@@ -35,6 +35,17 @@ const build_options = @import("build_options");
 const unified = @import("unified.zig");
 const peer_transfer = @import("peer_transfer/mod.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 /// Device identifier.
 pub const DeviceId = u32;
 
@@ -122,7 +133,7 @@ pub const DeviceGroup = struct {
     devices: std.ArrayListUnmanaged(DeviceInfo),
     active_devices: std.ArrayListUnmanaged(DeviceId),
     round_robin_counter: std.atomic.Value(u64),
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     /// Initialize a device group with discovered devices.
     pub fn init(allocator: std.mem.Allocator, config: MultiDeviceConfig) !DeviceGroup {
@@ -566,7 +577,7 @@ pub const GPUCluster = struct {
     gpu_contexts: std.AutoHashMapUnmanaged(DeviceId, *unified.Gpu),
     comm_buffers: std.AutoHashMapUnmanaged(DeviceId, CommBuffer),
     barrier: ?DeviceBarrier,
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
     /// Peer transfer manager for real GPU-to-GPU transfers.
     peer_manager: ?peer_transfer.PeerTransferManager,
 

@@ -9,6 +9,17 @@ const device_mod = @import("device.zig");
 const stream_mod = @import("stream.zig");
 const sync_event_mod = @import("sync_event.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;
 pub const Stream = stream_mod.Stream;
@@ -138,7 +149,7 @@ pub const Buffer = struct {
     backend: Backend,
 
     // Thread safety
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     // Statistics
     host_to_device_transfers: u64,

@@ -13,6 +13,17 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 // ============================================================================
 // Metrics Primitives
 // ============================================================================
@@ -65,7 +76,7 @@ pub const Gauge = struct {
 pub const FloatGauge = struct {
     name: []const u8,
     value: f64 = 0.0,
-    mutex: std.Thread.Mutex = .{},
+    mutex: Mutex = .{},
 
     pub fn set(self: *FloatGauge, val: f64) void {
         self.mutex.lock();
