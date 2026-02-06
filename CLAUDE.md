@@ -25,7 +25,7 @@ zig build lint                               # CI formatting check
 zig build cli-tests                          # CLI smoke tests
 zig build benchmarks                         # Performance benchmarks
 zig build examples                           # Build all examples
-zig build validate-flags                     # Compile with all feature-flag combos (11 configurations)
+zig build validate-flags                     # Compile with all feature-flag combos (16 configurations)
 zig build bench-all                          # All benchmark suites
 zig build docs-site                          # Generate documentation website
 zig build check-wasm                         # Check WASM compilation
