@@ -7,7 +7,6 @@
 //! - Multi-operation pipelines
 
 const std = @import("std");
-const build_options = @import("build_options");
 const abi = @import("abi");
 const time = abi.shared.time;
 const sync = abi.shared.sync;
@@ -16,11 +15,6 @@ const e2e = @import("mod.zig");
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/// Skip test if GPU is disabled.
-fn skipIfGpuDisabled() !void {
-    if (!build_options.enable_gpu) return error.SkipZigTest;
-}
 
 /// CPU reference implementation for vector addition.
 fn cpuVectorAdd(a: []const f32, b: []const f32, result: []f32) void {
@@ -101,7 +95,7 @@ const MockGpuContext = struct {
 // ============================================================================
 
 test "e2e: gpu context initialization" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -114,12 +108,12 @@ test "e2e: gpu context initialization" {
     // Verify GPU feature is enabled
     try std.testing.expect(ctx.isFeatureAvailable(.gpu));
 
-    // Check GPU module is enabled at compile time
-    try std.testing.expect(build_options.enable_gpu);
+    // Check GPU module is enabled at compile time.
+    try std.testing.expect(abi.Feature.gpu.isCompileTimeEnabled());
 }
 
 test "e2e: gpu module detection" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -140,7 +134,7 @@ test "e2e: gpu module detection" {
 // ============================================================================
 
 test "e2e: gpu vector addition pipeline" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -199,7 +193,7 @@ test "e2e: gpu vector addition pipeline" {
 }
 
 test "e2e: gpu matrix multiplication pipeline" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -267,7 +261,7 @@ test "e2e: gpu matrix multiplication pipeline" {
 // ============================================================================
 
 test "e2e: chained gpu operations" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -321,7 +315,7 @@ test "e2e: chained gpu operations" {
 }
 
 test "e2e: batch vector processing" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -370,7 +364,7 @@ test "e2e: batch vector processing" {
 // ============================================================================
 
 test "e2e: gpu handles empty vectors" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -391,7 +385,7 @@ test "e2e: gpu handles empty vectors" {
 }
 
 test "e2e: gpu handles single element" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -412,7 +406,7 @@ test "e2e: gpu handles single element" {
 }
 
 test "e2e: gpu handles special float values" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -449,7 +443,7 @@ test "e2e: gpu handles special float values" {
 // ============================================================================
 
 test "e2e: gpu throughput benchmark" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -508,8 +502,8 @@ test "e2e: gpu throughput benchmark" {
 // ============================================================================
 
 test "e2e: gpu accelerated vector similarity" {
-    try skipIfGpuDisabled();
-    if (!build_options.enable_database) return error.SkipZigTest;
+    try e2e.skipIfGpuDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -561,7 +555,7 @@ test "e2e: gpu accelerated vector similarity" {
 // ============================================================================
 
 test "e2e: gpu memory lifecycle" {
-    try skipIfGpuDisabled();
+    try e2e.skipIfGpuDisabled();
 
     const allocator = std.testing.allocator;
 

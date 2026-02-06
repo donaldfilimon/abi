@@ -458,6 +458,11 @@ pub fn skipIfAiDisabled() !void {
     if (!build_options.enable_ai) return error.SkipZigTest;
 }
 
+/// Skip test if LLM is disabled.
+pub fn skipIfLlmDisabled() !void {
+    if (!build_options.enable_llm) return error.SkipZigTest;
+}
+
 /// Skip test if GPU is disabled.
 pub fn skipIfGpuDisabled() !void {
     if (!build_options.enable_gpu) return error.SkipZigTest;

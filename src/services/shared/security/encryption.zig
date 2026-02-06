@@ -11,6 +11,10 @@
 const std = @import("std");
 const crypto = std.crypto;
 
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
+
 /// Encryption algorithm
 pub const Algorithm = enum {
     /// AES-256-GCM (recommended)
@@ -438,9 +442,7 @@ pub const KeyWrapper = struct {
 /// Note: In Zig 0.16+, this function requires an allocator for I/O backend initialization
 pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) !void {
     // Initialize I/O backend (Zig 0.16)
-    var io_backend = std.Io.Threaded.init(allocator, .{
-        .environ = std.process.Environ.empty,
-    });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

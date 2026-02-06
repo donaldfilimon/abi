@@ -15,11 +15,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
-
-// Skip all tests if database feature is disabled
-fn skipIfDatabaseDisabled() !void {
-    if (!build_options.enable_database) return error.SkipZigTest;
-}
+const e2e = @import("e2e/mod.zig");
 
 // ============================================================================
 // Basic CRUD Operations
@@ -28,7 +24,7 @@ fn skipIfDatabaseDisabled() !void {
 // Test database creation and basic lifecycle.
 // Verifies database can be created, used, and properly cleaned up.
 test "database: lifecycle management" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -43,7 +39,7 @@ test "database: lifecycle management" {
 // Test inserting vectors into the database.
 // Verifies insert operation stores vectors correctly.
 test "database: insert vectors" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -68,7 +64,7 @@ test "database: insert vectors" {
 // Test inserting vectors with metadata.
 // Verifies metadata is stored and retrievable.
 test "database: insert with metadata" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -92,7 +88,7 @@ test "database: insert with metadata" {
 // Test retrieving vectors by ID.
 // Verifies get operation returns correct vector data.
 test "database: get vectors" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -118,7 +114,7 @@ test "database: get vectors" {
 // Test updating existing vectors.
 // Verifies update operation modifies vector data in place.
 test "database: update vectors" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -146,7 +142,7 @@ test "database: update vectors" {
 // Test deleting vectors from the database.
 // Verifies delete operation removes vectors correctly.
 test "database: delete vectors" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -187,7 +183,7 @@ test "database: delete vectors" {
 // Test basic vector similarity search.
 // Verifies search returns results sorted by similarity.
 test "database: vector search" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -218,7 +214,7 @@ test "database: vector search" {
 // Test search with top_k larger than database size.
 // Should return all available results without error.
 test "database: search top_k exceeds count" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -240,7 +236,7 @@ test "database: search top_k exceeds count" {
 // Test search on empty database.
 // Should return empty results without error.
 test "database: search empty database" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -256,7 +252,7 @@ test "database: search empty database" {
 // Test search with zero vector query.
 // Zero vectors should be handled gracefully.
 test "database: search with zero vector" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -280,7 +276,7 @@ test "database: search with zero vector" {
 // Test listing vectors from database.
 // Verifies list operation returns correct subset of vectors.
 test "database: list vectors" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -310,7 +306,7 @@ test "database: list vectors" {
 // Test database statistics.
 // Verifies stats accurately reflect database state.
 test "database: statistics" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -336,7 +332,7 @@ test "database: statistics" {
 // Test database optimize operation.
 // Verifies optimize doesn't corrupt data.
 test "database: optimize" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -368,7 +364,7 @@ test "database: optimize" {
 // Test duplicate ID insertion.
 // Should return error when inserting same ID twice.
 test "database: duplicate id error" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -390,7 +386,7 @@ test "database: duplicate id error" {
 // Test dimension mismatch error.
 // Should return error when inserting vector with wrong dimension.
 test "database: dimension mismatch error" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -412,7 +408,7 @@ test "database: dimension mismatch error" {
 // Test with single-dimension vectors.
 // Minimum dimension should work correctly.
 test "edge case: single dimension vectors" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -433,7 +429,7 @@ test "edge case: single dimension vectors" {
 // Test with high-dimension vectors.
 // Large dimensions should work correctly.
 test "edge case: high dimension vectors" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -463,7 +459,7 @@ test "edge case: high dimension vectors" {
 // Test with empty metadata.
 // Null and empty metadata should be distinguished.
 test "edge case: empty vs null metadata" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -492,7 +488,7 @@ test "edge case: empty vs null metadata" {
 // Test with unicode metadata.
 // Unicode in metadata should be preserved.
 test "edge case: unicode metadata" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -510,7 +506,7 @@ test "edge case: unicode metadata" {
 // Test with special float values.
 // NaN and infinity should be handled appropriately.
 test "edge case: special float values" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -537,7 +533,7 @@ test "edge case: special float values" {
 // Test with large number of vectors.
 // Database should handle many vectors without issues.
 test "edge case: many vectors" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -580,7 +576,7 @@ test "database feature: detection" {
 // Test database module initialization.
 // Verifies init/deinit cycle works correctly.
 test "database feature: init cycle" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -598,7 +594,7 @@ test "database feature: init cycle" {
 // Test that delete operations maintain index consistency.
 // Swap Removeshould update index correctly for moved elements.
 test "database: delete maintains index consistency" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -626,7 +622,7 @@ test "database: delete maintains index consistency" {
 // Test multiple sequential deletes.
 // Ensures consistency is maintained across multiple deletions.
 test "database: sequential deletes" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 

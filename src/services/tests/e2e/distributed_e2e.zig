@@ -7,18 +7,12 @@
 //! - Failover and recovery
 
 const std = @import("std");
-const build_options = @import("build_options");
 const abi = @import("abi");
 const e2e = @import("mod.zig");
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/// Skip test if network is disabled.
-fn skipIfNetworkDisabled() !void {
-    if (!build_options.enable_network) return error.SkipZigTest;
-}
 
 /// Mock node for testing distributed scenarios.
 const MockNode = struct {
@@ -148,7 +142,7 @@ const MockCluster = struct {
 // ============================================================================
 
 test "e2e: cluster formation workflow" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -192,7 +186,7 @@ test "e2e: cluster formation workflow" {
 }
 
 test "e2e: node discovery and registration" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -217,7 +211,7 @@ test "e2e: node discovery and registration" {
 }
 
 test "e2e: network state initialization" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -245,7 +239,7 @@ test "e2e: network state initialization" {
 // ============================================================================
 
 test "e2e: distributed task coordination" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -279,8 +273,8 @@ test "e2e: distributed task coordination" {
 }
 
 test "e2e: distributed vector search with sharding" {
-    try skipIfNetworkDisabled();
-    if (!build_options.enable_database) return error.SkipZigTest;
+    try e2e.skipIfNetworkDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -322,7 +316,7 @@ test "e2e: distributed vector search with sharding" {
 // ============================================================================
 
 test "e2e: leader election on cluster startup" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -356,7 +350,7 @@ test "e2e: leader election on cluster startup" {
 }
 
 test "e2e: leader election after leader failure" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -398,7 +392,7 @@ test "e2e: leader election after leader failure" {
 // ============================================================================
 
 test "e2e: cluster handles node failure" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -436,7 +430,7 @@ test "e2e: cluster handles node failure" {
 }
 
 test "e2e: node recovery and rejoin" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -464,7 +458,7 @@ test "e2e: node recovery and rejoin" {
 }
 
 test "e2e: graceful node removal" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -493,7 +487,7 @@ test "e2e: graceful node removal" {
 }
 
 test "e2e: leader removal triggers re-election" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -534,7 +528,7 @@ test "e2e: leader removal triggers re-election" {
 // ============================================================================
 
 test "e2e: quorum calculation" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -563,7 +557,7 @@ test "e2e: quorum calculation" {
 }
 
 test "e2e: cluster maintains quorum after failures" {
-    try skipIfNetworkDisabled();
+    try e2e.skipIfNetworkDisabled();
 
     const allocator = std.testing.allocator;
 

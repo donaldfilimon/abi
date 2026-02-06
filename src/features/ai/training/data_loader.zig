@@ -9,6 +9,10 @@
 const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
+
 /// A batch of training data.
 pub const Batch = struct {
     /// Input token IDs [batch_size * seq_len]
@@ -146,7 +150,7 @@ pub const TokenizedDataset = struct {
     /// Load tokenized data from a binary file.
     /// Format: raw u32 token IDs in little-endian.
     pub fn load(allocator: std.mem.Allocator, path: []const u8) !TokenizedDataset {
-        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 

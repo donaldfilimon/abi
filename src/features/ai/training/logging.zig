@@ -2,6 +2,10 @@
 const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
+
 pub const LogError =
     std.mem.Allocator.Error ||
     std.Io.Dir.CreateDirPathError ||
@@ -116,7 +120,7 @@ const TensorboardLogger = struct {
     file: std.Io.File,
 
     pub fn init(allocator: std.mem.Allocator, log_dir: []const u8) LogError!TensorboardLogger {
-        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = .empty });
+        var io_backend = initIoBackend(allocator);
         errdefer io_backend.deinit();
         const io = io_backend.io();
 
@@ -170,7 +174,7 @@ const WandbLogger = struct {
     entity: []const u8,
 
     pub fn init(allocator: std.mem.Allocator, config: LoggerConfig) LogError!WandbLogger {
-        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(allocator);
         errdefer io_backend.deinit();
         const io = io_backend.io();
 
@@ -296,7 +300,7 @@ pub const MetricsStream = struct {
     offset: u64,
 
     pub fn init(allocator: std.mem.Allocator, path: []const u8) LogError!MetricsStream {
-        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(allocator);
         errdefer io_backend.deinit();
         const io = io_backend.io();
 

@@ -8,18 +8,12 @@
 //! - Backup and restore workflows
 
 const std = @import("std");
-const build_options = @import("build_options");
 const abi = @import("abi");
 const e2e = @import("mod.zig");
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/// Skip test if database is disabled.
-fn skipIfDatabaseDisabled() !void {
-    if (!build_options.enable_database) return error.SkipZigTest;
-}
 
 /// Create test documents with embeddings.
 const TestDocument = struct {
@@ -81,7 +75,7 @@ fn createTestDocuments(allocator: std.mem.Allocator, count: usize) ![]TestDocume
 // ============================================================================
 
 test "e2e: complete document search workflow" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -148,7 +142,7 @@ test "e2e: complete document search workflow" {
 }
 
 test "e2e: incremental index updates" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -209,7 +203,7 @@ test "e2e: incremental index updates" {
 }
 
 test "e2e: document CRUD lifecycle" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -269,7 +263,7 @@ test "e2e: document CRUD lifecycle" {
 // ============================================================================
 
 test "e2e: search returns semantically similar documents" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -316,7 +310,7 @@ test "e2e: search returns semantically similar documents" {
 }
 
 test "e2e: search handles edge cases" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -355,7 +349,7 @@ test "e2e: search handles edge cases" {
 // ============================================================================
 
 test "e2e: handles many documents" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -418,7 +412,7 @@ test "e2e: handles many documents" {
 // ============================================================================
 
 test "e2e: optimize maintains data integrity" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -474,7 +468,7 @@ test "e2e: optimize maintains data integrity" {
 }
 
 test "e2e: list returns correct subset" {
-    try skipIfDatabaseDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 

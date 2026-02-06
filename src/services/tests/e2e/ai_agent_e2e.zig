@@ -7,7 +7,6 @@
 //! - Agent with database integration
 
 const std = @import("std");
-const build_options = @import("build_options");
 const abi = @import("abi");
 const time = abi.shared.time;
 const sync = abi.shared.sync;
@@ -16,11 +15,6 @@ const e2e = @import("mod.zig");
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/// Skip test if AI is disabled.
-fn skipIfAiDisabled() !void {
-    if (!build_options.enable_ai) return error.SkipZigTest;
-}
 
 /// Mock tool for testing agent workflows.
 const MockToolResult = struct {
@@ -65,7 +59,7 @@ fn generateMockAgentResponse(allocator: std.mem.Allocator, query: []const u8, co
 // ============================================================================
 
 test "e2e: agent basic initialization" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -85,7 +79,7 @@ test "e2e: agent basic initialization" {
 }
 
 test "e2e: agent with tool registry" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -107,7 +101,7 @@ test "e2e: agent with tool registry" {
 // ============================================================================
 
 test "e2e: agent processes simple query" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -139,7 +133,7 @@ test "e2e: agent processes simple query" {
 }
 
 test "e2e: agent tool execution workflow" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -180,7 +174,7 @@ test "e2e: agent tool execution workflow" {
 }
 
 test "e2e: agent handles tool errors gracefully" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -209,7 +203,7 @@ test "e2e: agent handles tool errors gracefully" {
 // ============================================================================
 
 test "e2e: agent multi-turn conversation" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -258,7 +252,7 @@ test "e2e: agent multi-turn conversation" {
 }
 
 test "e2e: agent context window management" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -297,10 +291,8 @@ test "e2e: agent context window management" {
 // ============================================================================
 
 test "e2e: agent with database tool" {
-    try skipIfAiDisabled();
-
-    // Skip if database is also disabled
-    if (!build_options.enable_database) return error.SkipZigTest;
+    try e2e.skipIfAiDisabled();
+    try e2e.skipIfDatabaseDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -371,7 +363,7 @@ test "e2e: agent with database tool" {
 // ============================================================================
 
 test "e2e: agent persona configuration" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -392,7 +384,7 @@ test "e2e: agent persona configuration" {
 }
 
 test "e2e: agent handles empty and invalid input" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -424,7 +416,7 @@ test "e2e: agent handles empty and invalid input" {
 // ============================================================================
 
 test "e2e: agent response time benchmark" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -460,7 +452,7 @@ test "e2e: agent response time benchmark" {
 // ============================================================================
 
 test "e2e: multiple agents work independently" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
