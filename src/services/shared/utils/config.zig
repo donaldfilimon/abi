@@ -497,60 +497,40 @@ pub const ConfigLoader = struct {
         }
     }
 
-    fn getEnvBool(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?bool {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
+    /// Look up an environment variable using std.c.getenv (Zig 0.16 compatible).
+    /// Returns a non-owning slice into the process environment block.
+    fn lookupEnv(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?[*:0]u8 {
+        const env_name = try std.fmt.allocPrintSentinel(self.allocator, "{s}{s}", .{ prefix, name }, 0);
         defer self.allocator.free(env_name);
+        return std.c.getenv(env_name.ptr);
+    }
 
-        const value = std.process.getEnvVar(self.allocator, env_name) catch {
-            return null;
-        };
-        defer self.allocator.free(value);
-
+    fn getEnvBool(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?bool {
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        const value = std.mem.sliceTo(raw, 0);
         return std.ascii.eqlIgnoreCase(value, "true") or std.ascii.eqlIgnoreCase(value, "1");
     }
 
     fn getEnvString(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?[]const u8 {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
-        defer self.allocator.free(env_name);
-
-        return std.process.getEnvVarOwned(self.allocator, env_name) catch {
-            return null;
-        };
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        return try self.allocator.dupe(u8, std.mem.sliceTo(raw, 0));
     }
 
     fn getEnvUsize(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?usize {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
-        defer self.allocator.free(env_name);
-
-        const value = std.process.getEnvVar(self.allocator, env_name) catch {
-            return null;
-        };
-        defer self.allocator.free(value);
-
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        const value = std.mem.sliceTo(raw, 0);
         return try std.fmt.parseInt(usize, value, 10);
     }
 
     fn getEnvU16(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?u16 {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
-        defer self.allocator.free(env_name);
-
-        const value = std.process.getEnvVar(self.allocator, env_name) catch {
-            return null;
-        };
-        defer self.allocator.free(value);
-
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        const value = std.mem.sliceTo(raw, 0);
         return try std.fmt.parseInt(u16, value, 10);
     }
 
     fn getEnvF32(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?f32 {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
-        defer self.allocator.free(env_name);
-
-        const value = std.process.getEnvVar(self.allocator, env_name) catch {
-            return null;
-        };
-        defer self.allocator.free(value);
-
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        const value = std.mem.sliceTo(raw, 0);
         return try std.fmt.parseFloat(f32, value);
     }
 };

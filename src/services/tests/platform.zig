@@ -136,9 +136,9 @@ pub fn isCI() bool {
     };
 
     for (ci_vars) |var_name| {
-        if (std.process.getEnvVarOwned(std.heap.page_allocator, var_name)) |_| {
+        if (std.c.getenv(var_name.ptr) != null) {
             return true;
-        } else |_| {}
+        }
     }
     return false;
 }

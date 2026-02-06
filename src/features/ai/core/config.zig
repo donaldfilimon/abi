@@ -488,7 +488,8 @@ pub fn loadFromEnvironment(allocator: std.mem.Allocator) !AbbeyConfig {
 }
 
 fn getEnv(allocator: std.mem.Allocator, key: []const u8) ?[]const u8 {
-    return std.process.getEnvVarOwned(allocator, key) catch null;
+    const raw = std.c.getenv(key.ptr) orelse return null;
+    return allocator.dupe(u8, std.mem.sliceTo(raw, 0)) catch null;
 }
 
 fn parseBackend(str: []const u8) ?LLMConfig.Backend {
