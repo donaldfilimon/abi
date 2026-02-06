@@ -9,6 +9,8 @@
 //! is disabled.
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 
 // Centralized GPU interface - handles compile-time gating and stubs
@@ -153,7 +155,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn matmulGpu(self: *Self, a: []const f32, b: []const f32, c: []f32, m: u32, n: u32, k: u32) !void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         if (self.cublas_ctx) |*ctx| {
             const a_size = @as(usize, m) * k * @sizeOf(f32);
@@ -196,7 +198,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn matmulCpu(self: *Self, a: []const f32, b: []const f32, c: []f32, m: u32, n: u32, k: u32) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         // Naive matmul - could use SIMD for larger matrices
         for (0..m) |i| {
@@ -249,7 +251,7 @@ pub const GpuOpsContext = struct {
         const kernels = if (self.llm_kernels) |*value| value else return error.NotAvailable;
         const ctx = if (self.cublas_ctx) |*value| value else return error.NotAvailable;
 
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         const seq_usize = @as(usize, seq_len);
         const head_usize = @as(usize, head_dim);
@@ -336,7 +338,7 @@ pub const GpuOpsContext = struct {
         seq_len: u32,
         head_dim: u32,
     ) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         const seq_usize = @as(usize, seq_len);
         const head_usize = @as(usize, head_dim);
@@ -431,7 +433,7 @@ pub const GpuOpsContext = struct {
         eps: f32,
     ) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             const size = x.len * @sizeOf(f32);
             var x_dev = try cuda_mod.memory.DeviceMemory.init(self.allocator, size);
@@ -464,7 +466,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn layerNormCpu(self: *Self, x: []f32, gamma: []const f32, beta: []const f32, eps: f32) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         const n = x.len;
         const dim = gamma.len;
@@ -505,7 +507,7 @@ pub const GpuOpsContext = struct {
 
     /// ReLU activation: max(0, x)
     pub fn relu(self: *Self, x: []f32) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         // ReLU is simple enough that GPU overhead isn't worth it for most sizes
         for (x) |*val| {
@@ -529,7 +531,7 @@ pub const GpuOpsContext = struct {
     fn geluGpu(self: *Self, x: []f32) !void {
         // Use dedicated GELU kernel for GPU acceleration
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             const size = x.len * @sizeOf(f32);
             var x_dev = try cuda_mod.memory.DeviceMemory.init(self.allocator, size);
@@ -555,7 +557,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn geluCpu(self: *Self, x: []f32) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         const sqrt_2_over_pi: f32 = 0.7978845608;
         for (x) |*val| {
@@ -581,7 +583,7 @@ pub const GpuOpsContext = struct {
 
     fn softmaxGpu(self: *Self, x: []f32) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             const size = x.len * @sizeOf(f32);
             var x_dev = try cuda_mod.memory.DeviceMemory.init(self.allocator, size);
@@ -598,7 +600,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn softmaxCpu(self: *Self, x: []f32) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         // Find max for numerical stability
         var max_val: f32 = x[0];
@@ -638,7 +640,7 @@ pub const GpuOpsContext = struct {
 
     fn elementwiseMulGpu(self: *Self, a: []f32, b: []const f32) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             const size = a.len * @sizeOf(f32);
             var a_dev = try cuda_mod.memory.DeviceMemory.init(self.allocator, size);
@@ -664,7 +666,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn elementwiseMulCpu(self: *Self, a: []f32, b: []const f32) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         for (a, b) |*av, bv| {
             av.* *= bv;
@@ -686,7 +688,7 @@ pub const GpuOpsContext = struct {
 
     fn elementwiseAddGpu(self: *Self, a: []f32, b: []const f32) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             const size = a.len * @sizeOf(f32);
             var a_dev = try cuda_mod.memory.DeviceMemory.init(self.allocator, size);
@@ -712,7 +714,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn elementwiseAddCpu(self: *Self, a: []f32, b: []const f32) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         for (a, b) |*av, bv| {
             av.* += bv;
@@ -734,7 +736,7 @@ pub const GpuOpsContext = struct {
 
     fn scaleGpu(self: *Self, x: []f32, scalar: f32) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             const size = x.len * @sizeOf(f32);
             var x_dev = try cuda_mod.memory.DeviceMemory.init(self.allocator, size);
@@ -751,7 +753,7 @@ pub const GpuOpsContext = struct {
     }
 
     fn scaleCpu(self: *Self, x: []f32, scalar: f32) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         for (x) |*val| {
             val.* *= scalar;

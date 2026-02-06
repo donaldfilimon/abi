@@ -7,6 +7,8 @@
 //! 4. Raft consensus coordination
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const BlockChain = @import("../block_chain.zig");
 const Distributed = @import("./mod.zig");
 
@@ -36,7 +38,7 @@ test "WDBX distributed workflow integration" {
     const tenant_id: u64 = 1001;
     const session_id = "test-session-xyz";
     // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
     const timestamp: i64 = @intCast(timer.read());
 
     // Create shard key for placement decision

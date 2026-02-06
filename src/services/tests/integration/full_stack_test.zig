@@ -11,6 +11,8 @@ const testing = std.testing;
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 
 const fixtures = @import("fixtures.zig");
 const mocks = @import("mocks.zig");
@@ -195,7 +197,7 @@ test "full stack: concurrent mock operations" {
 test "full stack: combined operation latency" {
     const allocator = testing.allocator;
 
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
 
     // Run combined operations
     var gpu = mocks.MockGpu.init(allocator);

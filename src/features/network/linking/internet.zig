@@ -11,6 +11,8 @@
 //! - 0-RTT reconnection
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const builtin = @import("builtin");
 
 /// Internet transport configuration.
@@ -144,7 +146,7 @@ pub const NatTraversal = struct {
     state: State,
 
     /// Lock for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const Address = struct {
         ip: [16]u8, // IPv6 or IPv4-mapped
@@ -402,7 +404,7 @@ pub const QuicConnection = struct {
     config: QuicConfig,
 
     /// Lock for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const ConnectionState = enum {
         initial,
@@ -622,7 +624,7 @@ pub const InternetTransport = struct {
     next_conn_id: u64,
 
     /// Lock for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const TransportState = enum {
         uninitialized,

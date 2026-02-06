@@ -11,6 +11,8 @@ const testing = std.testing;
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 
 const fixtures = @import("fixtures.zig");
 
@@ -174,7 +176,7 @@ test "cloud lifecycle: cold start simulation" {
     const allocator = testing.allocator;
 
     // Simulate cold start by measuring initialization time
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
 
     var fixture = try fixtures.IntegrationFixture.init(allocator, .{
         .web = true,
@@ -202,7 +204,7 @@ test "cloud lifecycle: warm invocation simulation" {
     var warm_times: [10]u64 = undefined;
 
     for (&warm_times) |*time| {
-        var timer = try std.time.Timer.start();
+        var timer = try time.Timer.start();
 
         // Simulate request handling by creating an event
         var event = abi.cloud.CloudEvent.init(allocator, .aws_lambda, "warm-request");

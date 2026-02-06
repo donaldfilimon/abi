@@ -38,6 +38,8 @@
 //! - Cache put: ~100ns (hash + lock + insert)
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const platform_time = @import("../../shared/time.zig");
 
 /// Configuration for the result cache.
@@ -122,7 +124,7 @@ pub fn ResultCache(comptime K: type, comptime V: type) type {
 
         /// A single shard of the cache
         const Shard = struct {
-            mutex: std.Thread.Mutex = .{},
+            mutex: sync.Mutex = .{},
             map: HashMap,
             entry_count: usize = 0,
         };

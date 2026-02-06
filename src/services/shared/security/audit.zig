@@ -10,6 +10,8 @@
 //! - Compliance-ready audit trails
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const time = @import("../time.zig");
 
 /// Severity level for security events
@@ -242,7 +244,7 @@ pub const AuditLogger = struct {
     event_counter: std.atomic.Value(u64),
     last_hash: [32]u8,
     alert_callbacks: std.ArrayListUnmanaged(AlertCallback),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// Statistics
     stats: AuditStats,
 

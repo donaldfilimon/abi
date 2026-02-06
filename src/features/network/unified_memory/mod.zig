@@ -28,6 +28,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const shared_utils = @import("../../../services/shared/utils.zig");
 
@@ -242,7 +244,7 @@ pub const UnifiedMemoryManager = struct {
     stats: ManagerStats,
 
     /// State mutex for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     /// Next region ID.
     next_region_id: RegionId,

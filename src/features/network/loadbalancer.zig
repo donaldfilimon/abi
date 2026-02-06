@@ -4,8 +4,10 @@
 //! weighted routing, least connections, and health-based routing.
 
 const std = @import("std");
+const platform_time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const registry = @import("registry.zig");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/utils.zig");
 
 pub const LoadBalancerStrategy = enum {
     round_robin,
@@ -109,7 +111,7 @@ pub const LoadBalancer = struct {
     round_robin_index: std.atomic.Value(usize),
     session_map: std.StringArrayHashMapUnmanaged([]const u8),
     prng: std.Random.DefaultPrng,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub fn init(allocator: std.mem.Allocator, config: LoadBalancerConfig) LoadBalancer {
         return .{
@@ -119,7 +121,7 @@ pub const LoadBalancer = struct {
             .round_robin_index = std.atomic.Value(usize).init(0),
             .session_map = std.StringArrayHashMapUnmanaged([]const u8){},
             .prng = std.Random.DefaultPrng.init(@intCast(time.unixMilliseconds())),
-            .mutex = std.Thread.Mutex{},
+            .mutex = sync.Mutex{},
         };
     }
 

@@ -4,6 +4,8 @@
 //! replacing polling-based dirty state checks with wait/signal semantics.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 
 /// Event-based synchronization primitive for GPU operations.
 /// Replaces polling-based dirty state checks with wait/signal semantics.
@@ -48,7 +50,7 @@ pub const SyncEvent = struct {
     /// Block until event completes or timeout expires.
     /// Returns true if event completed, false if timeout.
     pub fn waitTimeout(self: *SyncEvent, timeout_ns: u64) bool {
-        var timer = std.time.Timer.start() catch return self.isComplete();
+        var timer = time.Timer.start() catch return self.isComplete();
 
         while (!self.completed.load(.acquire)) {
             if (timer.read() >= timeout_ns) {

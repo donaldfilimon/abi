@@ -18,6 +18,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const simd = @import("../../services/shared/simd.zig");
 
@@ -226,7 +228,7 @@ pub const GpuAccelerator = struct {
 
         if (vectors.len == 0) return;
 
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             // Timer unavailable, just use SIMD
             simd.batchCosineSimilarityFast(query, query_norm, vectors, results);
             self.simd_ops += 1;
@@ -380,7 +382,7 @@ pub const GpuAccelerator = struct {
 
         if (vectors.len == 0) return;
 
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             simd.batchDotProduct(query, vectors, results);
             self.simd_ops += 1;
             return;
@@ -411,7 +413,7 @@ pub const GpuAccelerator = struct {
 
         if (vectors.len == 0) return;
 
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             for (vectors, results) |vec, *result| {
                 result.* = simd.l2DistanceSquared(query, vec);
             }

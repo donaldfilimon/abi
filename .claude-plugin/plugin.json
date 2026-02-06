@@ -1,0 +1,11 @@
+{
+  "name": "abi-framework",
+  "version": "1.0.0",
+  "description": "Agents for the ABI Zig framework: code review, test generation, API docs, and autonomous task execution",
+  "agents": [
+    "agents/zig-code-reviewer.md",
+    "agents/zig-test-generator.md",
+    "agents/api-doc-writer.md",
+    "agents/abi-task-runner.md"
+  ]
+}

@@ -4,6 +4,8 @@
 //! scheduling recommendations based on power efficiency.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const backend_mod = @import("../backend.zig");
 
 /// Power profile for a GPU backend.
@@ -87,7 +89,7 @@ pub const PowerMonitor = struct {
     profiles: std.AutoHashMap(backend_mod.Backend, BackendPowerProfile),
     per_backend_stats: [@typeInfo(backend_mod.Backend).@"enum".fields.len]BackendEnergyStats,
     eco_config: EcoModeConfig,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const backend_count = @typeInfo(backend_mod.Backend).@"enum".fields.len;
 

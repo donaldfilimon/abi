@@ -11,6 +11,8 @@
 //! - Fact checking with confidence scoring
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const types = @import("../types.zig");
 const config = @import("../config.zig");
 const core_types = @import("../../core/types.zig");
@@ -135,7 +137,7 @@ pub const AvivaPersona = struct {
 
     /// Process a request using Aviva's direct and expert logic.
     pub fn process(self: *Self, request: types.PersonaRequest) anyerror!types.PersonaResponse {
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             return error.TimerFailed;
         };
 

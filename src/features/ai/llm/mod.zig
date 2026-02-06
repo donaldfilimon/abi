@@ -22,6 +22,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 
@@ -202,7 +204,7 @@ pub const Engine = struct {
 
     /// Load a model from a GGUF file
     pub fn loadModel(self: *Engine, path: []const u8) !void {
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             self.stats.load_time_ns = 0;
             return self.loadModelImpl(path);
         };

@@ -4,6 +4,8 @@
 //! insertion logic. Used by ParallelHnswBuilder in parallel_hnsw.zig.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const hnsw = @import("hnsw.zig");
 const index_mod = @import("index.zig");
 const simd = @import("../../services/shared/simd.zig");
@@ -29,7 +31,7 @@ pub const ParallelNodeState = struct {
     /// Insertion completed flag
     inserted: std.atomic.Value(bool),
     /// Lock for neighbor list updates
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 };
 
 /// Thread-safe parallel HNSW graph for concurrent construction.

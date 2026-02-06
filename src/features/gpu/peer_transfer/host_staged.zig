@@ -13,6 +13,8 @@
 //! This is the slowest transfer method but always works.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const multi_device = @import("../multi_device.zig");
 
 pub const DeviceId = multi_device.DeviceId;
@@ -240,7 +242,7 @@ const StagingPool = struct {
     allocator: std.mem.Allocator,
     thread_safe_allocator: std.heap.ThreadSafeAllocator,
     buffers: std.ArrayListUnmanaged(StagingBuffer),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     // Pool configuration
     const MIN_BUFFER_SIZE: usize = 1024 * 1024; // 1 MB minimum
@@ -334,7 +336,7 @@ const ThreadPool = struct {
     allocator: std.mem.Allocator,
     threads: []std.Thread,
     queue: std.ArrayListUnmanaged(TransferTask),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     condition: std.Thread.Condition,
     shutdown: std.atomic.Value(bool),
 

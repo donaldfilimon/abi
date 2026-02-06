@@ -26,6 +26,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 const build_options = @import("build_options");
 
 /// Hardware detection mode
@@ -118,7 +120,7 @@ pub const IntegrationFixture = struct {
         features: FeatureSet,
         hardware_mode: HardwareMode,
     ) Error!IntegrationFixture {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         var fixture = IntegrationFixture{
             .allocator = allocator,
@@ -164,7 +166,7 @@ pub const IntegrationFixture = struct {
 
     /// Clean up all resources
     pub fn deinit(self: *IntegrationFixture) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         if (self.framework) |fw| {
             fw.deinit();

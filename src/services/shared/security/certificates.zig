@@ -10,6 +10,8 @@
 //! - OCSP stapling support
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const crypto = std.crypto;
 const time = @import("../time.zig");
 
@@ -180,7 +182,7 @@ pub const CertificateManager = struct {
     rotation_state: RotationState = .idle,
     /// Statistics
     stats: CertificateStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const RotationState = enum {
         idle,

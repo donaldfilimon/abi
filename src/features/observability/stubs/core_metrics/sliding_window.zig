@@ -4,6 +4,8 @@
 //! All operations are no-ops when observability is disabled.
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 
 /// A sample with timestamp.
 pub const TimestampedSample = struct {
@@ -20,7 +22,7 @@ pub fn SlidingWindow(comptime max_samples: usize) type {
         count: usize = 0,
         head: usize = 0,
         window_ms: i64,
-        mutex: std.Thread.Mutex = .{},
+        mutex: sync.Mutex = .{},
 
         pub fn init(window_ms: i64) Self {
             return .{ .window_ms = window_ms };

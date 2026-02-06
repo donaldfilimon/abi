@@ -6,6 +6,8 @@
 //! Reference: https://platform.openai.com/docs/api-reference/chat
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const backends = @import("../backends/mod.zig");
 
 /// Chat message role
@@ -206,7 +208,7 @@ pub fn formatStreamChunk(
 
     // Generate a simple ID using timer - Zig 0.16 compatible
     // Since we just need a unique-ish ID, use timer elapsed nanoseconds
-    var timer = std.time.Timer.start() catch return error.OutOfMemory;
+    var timer = time.Timer.start() catch return error.OutOfMemory;
     const id: i128 = @intCast(timer.read());
 
     try json.appendSlice(allocator, "{\"id\":\"chatcmpl-");
@@ -256,7 +258,7 @@ pub fn formatResponse(
     errdefer json.deinit(allocator);
 
     // Generate a simple ID using timer - Zig 0.16 compatible
-    var timer = std.time.Timer.start() catch return error.OutOfMemory;
+    var timer = time.Timer.start() catch return error.OutOfMemory;
     const id: i128 = @intCast(timer.read());
     const prompt_tokens: u32 = @intCast(@max(1, @divFloor(content.len, 4))); // ~4 chars/token estimate
     const completion_tokens: u32 = @intCast(@divFloor(content.len, 4)); // Rough estimate

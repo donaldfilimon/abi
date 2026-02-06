@@ -4,6 +4,8 @@
 //! with configurable batching strategies and progress reporting.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 
 /// Batch operation configuration.
 pub const BatchConfig = struct {
@@ -142,7 +144,7 @@ pub const BatchProcessor = struct {
     pending_size: usize,
     progress_callback: ?ProgressCallback,
     stats: ProcessorStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const ProcessorStats = struct {
         total_inserted: usize = 0,
@@ -254,7 +256,7 @@ pub const BatchProcessor = struct {
 
     /// Insert batch of records sequentially.
     fn insertBatchSequential(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
-        const timer = std.time.Timer.start() catch |err| {
+        const timer = time.Timer.start() catch |err| {
             // Timer unavailable on this platform - process without timing
             std.log.debug("Timer unavailable: {t}, processing without timing", .{err});
             return self.insertBatchSequentialNoTiming(records);
@@ -402,7 +404,7 @@ pub const BatchProcessor = struct {
 
     /// Insert batch of records in parallel using worker threads.
     fn insertBatchParallel(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
-        const timer = std.time.Timer.start() catch {
+        const timer = time.Timer.start() catch {
             // Timer unavailable - fallback to sequential without timing
             return self.insertBatchSequentialNoTiming(records);
         };
@@ -502,7 +504,7 @@ pub const BatchProcessor = struct {
 
     /// Delete batch of IDs.
     pub fn deleteBatch(self: *BatchProcessor, ids: []const u64) !BatchResult {
-        const timer = std.time.Timer.start() catch {
+        const timer = time.Timer.start() catch {
             // Timer unavailable - return result without timing
             var successful: usize = 0;
             for (ids) |id| {
@@ -594,7 +596,7 @@ pub const BatchWriter = struct {
     processor: BatchProcessor,
     total_written: usize,
     started: bool,
-    timer: ?std.time.Timer,
+    timer: ?time.Timer,
 
     pub fn init(allocator: std.mem.Allocator, config: BatchConfig) BatchWriter {
         return .{
@@ -613,7 +615,7 @@ pub const BatchWriter = struct {
 
     /// Start writing session.
     pub fn start(self: *BatchWriter) !void {
-        self.timer = std.time.Timer.start() catch null;
+        self.timer = time.Timer.start() catch null;
         self.started = true;
         self.total_written = 0;
     }

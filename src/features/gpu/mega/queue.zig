@@ -4,6 +4,8 @@
 //! deadline support, and retry policies.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const coordinator = @import("coordinator.zig");
 
 /// Workload priority levels.
@@ -108,7 +110,7 @@ pub const WorkloadQueue = struct {
     queues: [5]std.ArrayListUnmanaged(QueuedWorkload),
     stats: QueueStats,
     next_id: u64,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub fn init(allocator: std.mem.Allocator, config: QueueConfig) !*WorkloadQueue {
         const self = try allocator.create(WorkloadQueue);

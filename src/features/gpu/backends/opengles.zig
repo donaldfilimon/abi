@@ -4,6 +4,8 @@
 //! for mobile and embedded platforms. Requires OpenGL ES 3.1+ for compute shader support.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
@@ -36,7 +38,7 @@ pub const BufferUsageHint = enum {
 
 var opengles_lib: ?std.DynLib = null;
 var opengles_initialized = false;
-var init_mutex = std.Thread.Mutex{};
+var init_mutex = sync.Mutex{};
 
 // OpenGL ES function pointers (subset of OpenGL)
 const GlesGetStringFn = *const fn (u32) callconv(.c) ?[*:0]const u8;

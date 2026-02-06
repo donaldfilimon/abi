@@ -35,6 +35,8 @@
 //! by eliminating allocation latency during inference.
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 
 // GPU memory interface (stubs when GPU disabled)
@@ -250,7 +252,7 @@ pub const LlmMemoryPool = struct {
     /// Count of free buffers per class
     free_counts: [SIZE_CLASS_COUNT]usize,
     /// Mutex for thread-safe access
-    mutex: std.Thread.Mutex = .{},
+    mutex: sync.Mutex = .{},
     /// Pool statistics
     stats: PoolStats = .{},
     /// Whether GPU memory is available
@@ -1038,7 +1040,7 @@ pub const FragmentationAnalysis = struct {
 
 /// Get current timestamp in nanoseconds.
 fn getCurrentTimestamp() i128 {
-    var timer = std.time.Timer.start() catch return 0;
+    var timer = time.Timer.start() catch return 0;
     return @as(i128, timer.read());
 }
 

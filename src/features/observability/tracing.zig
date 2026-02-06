@@ -5,6 +5,8 @@
 //! context propagation and OTLP export.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const utils = @import("../../services/shared/utils.zig");
 
 // ============================================================================
@@ -199,7 +201,7 @@ pub const Span = struct {
         // The counter ensures unique seeds even if timer has low resolution
         const counter = global_trace_counter.fetchAdd(1, .monotonic);
         var prng = std.Random.DefaultPrng.init(blk: {
-            var timer = std.time.Timer.start() catch break :blk counter;
+            var timer = time.Timer.start() catch break :blk counter;
             break :blk timer.read() ^ counter;
         });
         prng.fill(&trace_id);
@@ -213,7 +215,7 @@ pub const Span = struct {
         // Use DefaultPrng with combined timer + atomic counter for uniqueness
         const counter = global_span_counter.fetchAdd(1, .monotonic);
         var prng = std.Random.DefaultPrng.init(blk: {
-            var timer = std.time.Timer.start() catch break :blk counter;
+            var timer = time.Timer.start() catch break :blk counter;
             break :blk timer.read() ^ counter;
         });
         prng.fill(&span_id);

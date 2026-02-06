@@ -1,4 +1,6 @@
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const builtin = @import("builtin");
 const ExploreConfig = @import("config.zig").ExploreConfig;
 
@@ -24,7 +26,7 @@ pub const ParallelExplorer = struct {
     patterns: []const SearchPattern,
     should_cancel: std.atomic.Value(bool),
     processed: std.atomic.Value(usize),
-    lock: std.Thread.Mutex,
+    lock: sync.Mutex,
 
     pub fn init(allocator: std.mem.Allocator, config: ExploreConfig, result: *ExploreResult, patterns: []const SearchPattern) ParallelExplorer {
         return ParallelExplorer{
@@ -34,7 +36,7 @@ pub const ParallelExplorer = struct {
             .patterns = patterns,
             .should_cancel = std.atomic.Value(bool).init(false),
             .processed = std.atomic.Value(usize).init(0),
-            .lock = std.Thread.Mutex{},
+            .lock = sync.Mutex{},
         };
     }
 
@@ -249,7 +251,7 @@ pub fn parallelExplore(
     var explorer = ParallelExplorer.init(allocator, config, &result, patterns.items);
     defer explorer.* = undefined;
 
-    var timer = std.time.Timer.start() catch return error.TimerFailed;
+    var timer = time.Timer.start() catch return error.TimerFailed;
 
     try explorer.explore(files);
 

@@ -9,6 +9,8 @@
 //! is disabled.
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const matmul = @import("matmul.zig");
 const attention = @import("attention.zig");
@@ -322,7 +324,7 @@ pub const GpuOpsContext = struct {
         k: u32,
         n: u32,
     ) !void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         if (self.cublas_ctx) |*ctx| {
             const a_size = @as(usize, m) * k * @sizeOf(f32);
@@ -387,7 +389,7 @@ pub const GpuOpsContext = struct {
         k: u32,
         n: u32,
     ) !void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         if (self.cublas_ctx) |*ctx| {
             // Use cuBLAS strided batched SGEMM
@@ -618,7 +620,7 @@ pub const GpuOpsContext = struct {
         eps: f32,
     ) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             // Allocate device memory
             const size = x.len * @sizeOf(f32);
@@ -676,7 +678,7 @@ pub const GpuOpsContext = struct {
 
     fn gpuSoftmax(self: *GpuOpsContext, x: []f32) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             // Allocate device memory
             const size = x.len * @sizeOf(f32);
@@ -716,7 +718,7 @@ pub const GpuOpsContext = struct {
 
     fn gpuSilu(self: *GpuOpsContext, x: []f32) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             // Allocate device memory
             const size = x.len * @sizeOf(f32);
@@ -756,7 +758,7 @@ pub const GpuOpsContext = struct {
 
     fn gpuElementwiseMul(self: *GpuOpsContext, a: []f32, b: []const f32) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             // Allocate device memory
             const size = a.len * @sizeOf(f32);
@@ -815,7 +817,7 @@ pub const GpuOpsContext = struct {
 
     fn gpuVectorAdd(self: *GpuOpsContext, a: []f32, b: []const f32) !void {
         if (self.llm_kernels) |*kernels| {
-            var timer = std.time.Timer.start() catch null;
+            var timer = time.Timer.start() catch null;
 
             // Allocate device memory
             const size = a.len * @sizeOf(f32);

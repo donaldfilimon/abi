@@ -4,6 +4,8 @@
 //! and helper functions used by the ServiceDiscovery implementation.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 
 pub const DiscoveryBackend = enum {
     consul,
@@ -93,7 +95,7 @@ pub const AddressPort = struct {
 /// Generate a unique service ID from service name and random bytes.
 pub fn generateServiceId(allocator: std.mem.Allocator, service_name: []const u8) ![]const u8 {
     // Use timer-based seed with hash for uniqueness (Zig 0.16 compatible)
-    var timer = std.time.Timer.start() catch return error.TimerUnsupported;
+    var timer = time.Timer.start() catch return error.TimerUnsupported;
     const seed = timer.read();
     var prng = std.Random.DefaultPrng.init(seed);
     const random = prng.random();

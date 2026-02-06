@@ -186,7 +186,7 @@ pub fn RetryExecutor(comptime T: type) type {
 
         /// Execute operation with retry logic.
         pub fn execute(self: *Self, operation: *const fn () RetryableError!T) RetryResult(T) {
-            var timer = std.time.Timer.start() catch {
+            var timer = time.Timer.start() catch {
                 return .{ .failure = .{
                     .attempts = 0,
                     .last_error = error.TimerFailed,
@@ -254,7 +254,7 @@ pub fn RetryExecutor(comptime T: type) type {
             ctx: Context,
             operation: *const fn (Context) RetryableError!T,
         ) RetryResult(T) {
-            var timer = std.time.Timer.start() catch {
+            var timer = time.Timer.start() catch {
                 return .{ .failure = .{
                     .attempts = 0,
                     .last_error = error.TimerFailed,

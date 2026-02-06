@@ -19,6 +19,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 
 /// Configuration for the tracking allocator.
 pub const TrackingConfig = struct {
@@ -81,7 +83,7 @@ pub const TrackingAllocator = struct {
     stats: TrackingStats,
     allocations: std.AutoHashMapUnmanaged(usize, AllocationInfo),
     history: std.ArrayListUnmanaged(AllocationInfo),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const Self = @This();
 

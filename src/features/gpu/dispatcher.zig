@@ -33,6 +33,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
@@ -405,7 +407,7 @@ pub const KernelDispatcher = struct {
         config: LaunchConfig,
         args: KernelArgs,
     ) DispatchError!ExecutionResult {
-        const timer_result = std.time.Timer.start();
+        const timer_result = time.Timer.start();
         var timer = timer_result catch |err| {
             std.log.debug("Timer unavailable for kernel execution: {t}", .{err});
             // Timer unavailable - execute without timing

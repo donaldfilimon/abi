@@ -1,5 +1,7 @@
 //! Simple logging helpers with scoped timing.
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 
 pub const Level = enum {
     trace,
@@ -9,7 +11,7 @@ pub const Level = enum {
     err,
 };
 
-var log_mutex: std.Thread.Mutex = .{};
+var log_mutex: sync.Mutex = .{};
 
 pub fn log(level: Level, comptime fmt: []const u8, args: anytype) void {
     log_mutex.lock();
@@ -41,12 +43,12 @@ pub fn err(comptime fmt: []const u8, args: anytype) void {
 
 pub const ScopedTimer = struct {
     label: []const u8,
-    timer: std.time.Timer,
+    timer: time.Timer,
 
     pub fn start(label: []const u8) ?ScopedTimer {
         return .{
             .label = label,
-            .timer = std.time.Timer.start() catch return null,
+            .timer = time.Timer.start() catch return null,
         };
     }
 

@@ -7,7 +7,9 @@
 //! use std.Io.Dir.cwd() with proper I/O context for full Zig 0.16 compliance.
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
+const platform_time = @import("../../services/shared/utils.zig");
 
 // ============================================================================
 // Constants
@@ -149,7 +151,7 @@ pub const KernelCache = struct {
     lru_head: ?*LruNode,
     lru_tail: ?*LruNode,
     current_size: usize,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     stats: CacheStats,
 
     /// LRU doubly-linked list node for O(1) eviction
@@ -302,7 +304,7 @@ pub const KernelCache = struct {
         // Cache miss - compile
         self.stats.misses += 1;
 
-        const timer = std.time.Timer.start() catch null;
+        const timer = platform_time.Timer.start() catch null;
         const binary = try compiler(source, source_type, options);
         const compile_time: u64 = if (timer) |t| t.read() else 0;
 

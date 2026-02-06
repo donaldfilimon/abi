@@ -1,6 +1,8 @@
 //! Memory pool allocator for hot path allocations.
 //! Uses size-segregated free lists for O(1) allocation performance.
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 
 pub const PoolConfig = struct {
     block_size: usize = 4096,
@@ -48,7 +50,7 @@ pub const MemoryPool = struct {
     /// Size-segregated free lists for O(1) allocation
     size_class_free_lists: [SIZE_CLASS_COUNT]?*MemoryBlock,
     used_list: ?*MemoryBlock,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     pool_id: u64,
     next_pool_id: std.atomic.Value(u64),
     total_allocated: u64,

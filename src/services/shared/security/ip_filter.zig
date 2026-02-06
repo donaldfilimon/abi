@@ -10,6 +10,8 @@
 //! - Automatic threat detection
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const time = @import("../time.zig");
 
 /// IP version
@@ -293,7 +295,7 @@ pub const IpFilter = struct {
     violations: std.AutoHashMapUnmanaged(u128, ViolationInfo),
     /// Statistics
     stats: IpFilterStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const BlockedRange = struct {
         range: CidrRange,

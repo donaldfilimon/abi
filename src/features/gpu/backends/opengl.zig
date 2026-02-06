@@ -4,6 +4,8 @@
 //! for cross-platform GPU compute acceleration. Requires OpenGL 4.3+ for compute shader support.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
@@ -22,7 +24,7 @@ pub const OpenGlError = error{
 
 var opengl_lib: ?std.DynLib = null;
 var opengl_initialized = false;
-var init_mutex = std.Thread.Mutex{};
+var init_mutex = sync.Mutex{};
 
 // OpenGL function pointers (simplified)
 const GlGetStringFn = *const fn (u32) callconv(.c) ?[*:0]const u8;

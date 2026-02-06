@@ -2,6 +2,8 @@
 //!
 //! Provides buffer allocation, simulated device transfers, and pool helpers.
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 
 pub const MemoryError = error{
     BufferTooSmall,
@@ -365,7 +367,7 @@ test "memory pool O(1) buffer lookup" {
     }
 
     // Measure lookup time (should be O(1) per lookup)
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
     for (handles) |h| {
         _ = pool.contains(h);
     }

@@ -4,7 +4,9 @@
 //! HTTP clients and other network resources.
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
+const platform_time = @import("../../services/shared/utils.zig");
 
 /// Connection state.
 pub const ConnectionState = enum {
@@ -142,7 +144,7 @@ pub const ConnectionPool = struct {
     config: ConnectionPoolConfig,
     connections: std.ArrayListUnmanaged(PooledConnection),
     next_id: std.atomic.Value(u64),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     total_created: std.atomic.Value(u64),
     total_reused: std.atomic.Value(u64),
     total_closed: std.atomic.Value(u64),

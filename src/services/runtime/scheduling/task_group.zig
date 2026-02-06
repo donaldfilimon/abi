@@ -4,7 +4,8 @@
 //! managing groups of tasks with collective wait operations.
 
 const std = @import("std");
-const time = @import("../../shared/time.zig");
+const platform_time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const cancellation_mod = @import("cancellation.zig");
 const future_mod = @import("future.zig");
 
@@ -109,7 +110,7 @@ pub const TaskGroup = struct {
     allocator: std.mem.Allocator,
     config: TaskGroupConfig,
     tasks: std.ArrayListUnmanaged(Task),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     condition: std.Thread.Condition,
     next_id: std.atomic.Value(u64),
     cancellation_source: CancellationSource,

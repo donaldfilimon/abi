@@ -31,6 +31,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const shared_utils = @import("../../../services/shared/utils.zig");
 
@@ -287,7 +289,7 @@ pub const Link = struct {
     send_queue: std.ArrayListUnmanaged(QueuedMessage),
 
     /// Lock for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const QueuedMessage = struct {
         data: []const u8,
@@ -484,7 +486,7 @@ pub const LinkManager = struct {
     next_link_id: u64,
 
     /// Lock for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const ManagerStats = struct {
         links_created: u64 = 0,

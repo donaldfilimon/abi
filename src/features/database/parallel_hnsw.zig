@@ -33,6 +33,8 @@
 //! good load balancing even with variable insertion costs.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const builtin = @import("builtin");
 const hnsw = @import("hnsw.zig");
 const index_mod = @import("index.zig");
@@ -114,7 +116,7 @@ const ParallelNodeState = struct {
     /// Insertion completed flag
     inserted: std.atomic.Value(bool),
     /// Lock for neighbor list updates
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 };
 
 /// Thread-safe parallel HNSW graph for concurrent construction.
@@ -594,10 +596,10 @@ pub const ParallelHnswBuilder = struct {
     ) !hnsw.HnswIndex {
         if (records.len == 0) return index_mod.IndexError.EmptyIndex;
 
-        var total_timer = std.time.Timer.start() catch null;
+        var total_timer = time.Timer.start() catch null;
 
         // Phase 1: Assign layers to all nodes
-        var layer_timer = std.time.Timer.start() catch null;
+        var layer_timer = time.Timer.start() catch null;
         const layer_assignments = try self.assignLayers(records.len);
         defer self.allocator.free(layer_assignments);
         if (layer_timer) |*t| stats.layer_assign_time_ns = t.read();
@@ -607,7 +609,7 @@ pub const ParallelHnswBuilder = struct {
         defer graph.deinit();
 
         // Phase 3: Parallel insert using work-stealing
-        var insert_timer = std.time.Timer.start() catch null;
+        var insert_timer = time.Timer.start() catch null;
         try self.parallelInsert(&graph, records);
         if (insert_timer) |*t| stats.insert_time_ns = t.read();
 

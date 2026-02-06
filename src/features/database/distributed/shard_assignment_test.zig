@@ -10,6 +10,8 @@
 //! - Dynamic rebalancing with minimal data movement
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const parent = @import("./mod.zig");
 const ShardKey = parent.ShardKey;
 const ShardId = parent.ShardId;
@@ -22,7 +24,7 @@ test "shard key computation from conversation" {
     const tenant_id: u64 = 1001;
     const session_id = "session-xyz-789";
     // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
     const timestamp: i64 = @intCast(timer.read());
 
     // Create test embedding (simplified)
@@ -384,7 +386,7 @@ test "research alignment: intelligent sharding strategy" {
 
     // Test placement demonstrates research concepts
     // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
-    var research_timer = try std.time.Timer.start();
+    var research_timer = try time.Timer.start();
     const research_key = ShardKey{
         .tenant_id = 9999,
         .session_hash = 0x123456789ABCDEF0,

@@ -6,6 +6,8 @@
 //! To enable the real implementation, build with `-Denable-analytics=true`.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 
 // ============================================================================
 // Event Types (matching mod.zig signatures)
@@ -55,7 +57,7 @@ pub const Engine = struct {
     events: std.ArrayListUnmanaged(StoredEvent) = .empty,
     session_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
     event_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-    mutex: std.Thread.Mutex = .{},
+    mutex: sync.Mutex = .{},
 
     const StoredEvent = struct {
         name: []const u8,

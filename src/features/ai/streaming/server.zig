@@ -17,6 +17,8 @@
 //! - POST /admin/reload - Hot-reload model without server restart
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const mod = @import("mod.zig");
 const sse = @import("sse.zig");
 const websocket = @import("websocket.zig");
@@ -432,7 +434,7 @@ pub const StreamingServer = struct {
         };
 
         // Initialize heartbeat timer
-        var heartbeat_timer = std.time.Timer.start() catch null;
+        var heartbeat_timer = time.Timer.start() catch null;
         const heartbeat_interval_ns: u64 = self.config.heartbeat_interval_ms * 1_000_000;
 
         const stream_start_ms = shared_utils.unixMs();
@@ -604,7 +606,7 @@ pub const StreamingServer = struct {
         };
 
         // Initialize heartbeat timer
-        var heartbeat_timer = std.time.Timer.start() catch null;
+        var heartbeat_timer = time.Timer.start() catch null;
         const heartbeat_interval_ns: u64 = self.config.heartbeat_interval_ms * 1_000_000;
 
         const stream_start_ms = shared_utils.unixMs();
@@ -1100,7 +1102,7 @@ pub const StreamingServer = struct {
         };
 
         // Wait for active streams to drain
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             // Timer failed - proceed with reload anyway
             return self.performModelReload(request, model_path);
         };
@@ -1114,7 +1116,7 @@ pub const StreamingServer = struct {
                 );
             }
             // Brief delay to avoid pure busy-waiting (Zig 0.16 compatible)
-            const poll_timer = std.time.Timer.start() catch continue;
+            const poll_timer = time.Timer.start() catch continue;
             var pt = poll_timer;
             while (pt.read() < admin_reload_poll_interval_ns) {
                 std.atomic.spinLoopHint();

@@ -4,6 +4,8 @@
 //! Supports multiple encryption backends and protocols.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const shared_utils = @import("../../../services/shared/utils.zig");
 
 /// Encryption type for the channel.
@@ -189,7 +191,7 @@ pub const SecureChannel = struct {
     stream: ?*anyopaque,
 
     /// Lock for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const KeyPair = struct {
         public_key: [32]u8,

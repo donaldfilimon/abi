@@ -10,6 +10,8 @@
 //! - Activity tracking
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const time = @import("../time.zig");
 const crypto = std.crypto;
 
@@ -162,7 +164,7 @@ pub const SessionManager = struct {
     config: SessionConfig,
     sessions: std.StringArrayHashMapUnmanaged(*Session),
     user_sessions: std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged([]const u8)),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     stats: SessionStats,
 
     pub const SessionStats = struct {

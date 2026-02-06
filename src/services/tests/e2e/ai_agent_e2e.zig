@@ -9,6 +9,8 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 const e2e = @import("mod.zig");
 
 // ============================================================================
@@ -436,7 +438,7 @@ test "e2e: agent response time benchmark" {
     var total_time_ns: u64 = 0;
 
     for (0..iterations) |i| {
-        var timer = try std.time.Timer.start();
+        var timer = try time.Timer.start();
 
         const query = "What is machine learning?";
         const response = try generateMockAgentResponse(allocator, query, null);

@@ -11,6 +11,8 @@
 //! - Tone adaptation based on user emotional state
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const types = @import("../types.zig");
 const config = @import("../config.zig");
 const core_types = @import("../../core/types.zig");
@@ -119,7 +121,7 @@ pub const AbbeyPersona = struct {
 
     /// Process a request using Abbey's empathetic and technical logic.
     pub fn process(self: *Self, request: types.PersonaRequest) anyerror!types.PersonaResponse {
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             return error.TimerFailed;
         };
 

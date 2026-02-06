@@ -15,7 +15,7 @@
 //!
 //! For multi-threaded workloads, either:
 //! 1. Create one coordinator per thread
-//! 2. Use external locking (e.g., `std.Thread.Mutex`) around all coordinator calls
+//! 2. Use external locking (e.g., `sync.Mutex`) around all coordinator calls
 //! 3. Use the stateless functions in `simd` module directly for thread-safe SIMD ops
 //!
 //! ## Example (Thread-Local)
@@ -32,6 +32,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const backend_factory = @import("backend_factory.zig");
 const simd = @import("../../services/shared/simd.zig");
 const dispatcher_mod = @import("dispatcher.zig");

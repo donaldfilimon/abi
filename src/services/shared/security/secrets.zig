@@ -9,6 +9,8 @@
 //! - Provider abstraction (env, file, vault)
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const time = @import("../time.zig");
 const crypto = std.crypto;
 
@@ -156,7 +158,7 @@ pub const SecretsManager = struct {
     master_key: [32]u8,
     /// Statistics
     stats: SecretsStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// I/O backend for file operations (Zig 0.16)
     io_backend: std.Io.Threaded,
 

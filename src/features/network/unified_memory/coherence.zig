@@ -5,6 +5,8 @@
 //! cluster sizes and topologies.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const shared_utils = @import("../../../services/shared/utils.zig");
 const memory_region = @import("memory_region.zig");
 
@@ -240,7 +242,7 @@ pub const DirectoryEntry = struct {
     state: DirectoryState,
 
     /// Lock for concurrent access.
-    lock: std.Thread.Mutex,
+    lock: sync.Mutex,
 
     pub const DirectoryState = enum {
         uncached, // No cached copies
@@ -328,7 +330,7 @@ pub const CoherenceProtocol = struct {
     stats: ProtocolStats,
 
     /// Lock for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const ProtocolType = enum {
         mesi,

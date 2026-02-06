@@ -12,6 +12,8 @@
 //! - Batch distance: SIMD/GPU acceleration for candidate evaluation
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const builtin = @import("builtin");
 const simd = @import("../../services/shared/simd.zig");
 
@@ -172,7 +174,7 @@ pub const ParallelBeamState = struct {
     /// Visited nodes
     visited: std.AutoHashMapUnmanaged(usize, void),
     /// Lock for concurrent access
-    mutex: std.Thread.Mutex = .{},
+    mutex: sync.Mutex = .{},
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) ParallelBeamState {
@@ -276,7 +278,7 @@ pub const ParallelSearchExecutor = struct {
         vectors: []const []const f32,
         top_k: usize,
     ) !BatchSearchResult {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
         var distance_count: u64 = 0;
 
         // Allocate results

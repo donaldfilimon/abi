@@ -135,7 +135,7 @@ pub const ChaosContext = struct {
     active: bool,
     rng: std.Random.DefaultPrng,
     stats: FaultStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     operation_count: u64,
     event_callback: ?FaultEventCallback,
     /// Injected faults per type (for max_faults tracking)
@@ -256,7 +256,7 @@ pub const ChaosContext = struct {
 
     fn recordFault(self: *Self, fault_type: FaultType, module: ?[]const u8, config_idx: usize) void {
         const now = blk: {
-            var timer = std.time.Timer.start() catch break :blk 0;
+            var timer = time.Timer.start() catch break :blk 0;
             break :blk @as(i128, timer.read());
         };
 
@@ -455,7 +455,7 @@ pub const NetworkPartitionSimulator = struct {
     /// Partitioned node pairs (node_a, node_b) - communication blocked between them
     partitions: std.ArrayListUnmanaged([2][]const u8),
     allocator: std.mem.Allocator,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const Self = @This();
 
@@ -547,7 +547,7 @@ pub const MessageDelaySimulator = struct {
     /// Delayed messages with their delivery time
     delayed: std.ArrayListUnmanaged(DelayedMessage),
     allocator: std.mem.Allocator,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     next_id: u64,
 
     pub const DelayedMessage = struct {
@@ -659,7 +659,7 @@ pub fn runWithChaos(
     chaos.enable();
 
     const start_time = blk: {
-        var timer = std.time.Timer.start() catch break :blk 0;
+        var timer = time.Timer.start() catch break :blk 0;
         break :blk @as(i128, timer.read());
     };
     var test_error: ?anyerror = null;
@@ -670,7 +670,7 @@ pub fn runWithChaos(
 
     chaos.disable();
     const end_time = blk: {
-        var timer = std.time.Timer.start() catch break :blk 0;
+        var timer = time.Timer.start() catch break :blk 0;
         break :blk @as(i128, timer.read());
     };
 

@@ -17,6 +17,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 
 /// Configuration for thread cache.
 pub const ThreadCacheConfig = struct {
@@ -170,7 +172,7 @@ pub const ThreadCache = struct {
     global_allocs: std.atomic.Value(u64),
     global_frees: std.atomic.Value(u64),
     active_locals: std.atomic.Value(usize),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     locals: std.ArrayListUnmanaged(*LocalCache),
 
     const Self = @This();

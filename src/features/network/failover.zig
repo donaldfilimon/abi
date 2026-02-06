@@ -5,6 +5,7 @@
 const std = @import("std");
 const loadbalancer = @import("loadbalancer.zig");
 const platform_time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 
 pub const FailoverConfig = struct {
     /// Health check interval in milliseconds.
@@ -48,7 +49,7 @@ pub const FailoverManager = struct {
     secondary_nodes: std.ArrayListUnmanaged([]const u8),
     failure_counts: std.StringHashMapUnmanaged(u32),
     event_log: std.ArrayListUnmanaged(FailoverEvent),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const Self = @This();
 

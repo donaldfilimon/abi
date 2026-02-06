@@ -5,6 +5,9 @@
 //! terminal capabilities, and system APIs.
 
 const std = @import("std");
+const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 const builtin = @import("builtin");
 
 /// Current platform information
@@ -72,7 +75,7 @@ pub const TestEnv = struct {
             else => "/tmp",
         };
 
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             // Fallback: use a simple counter
             const path = try std.fmt.allocPrint(
                 self.allocator,

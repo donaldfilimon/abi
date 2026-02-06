@@ -22,9 +22,11 @@
 //! ```
 
 const std = @import("std");
+const platform_time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const backend_mod = @import("backend.zig");
 const recovery = @import("recovery.zig");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/utils.zig");
 const interface = @import("interface.zig");
 const error_handling = @import("error_handling.zig");
 
@@ -136,7 +138,7 @@ pub const FailoverManager = struct {
     failover_history: std.ArrayListUnmanaged(FailoverHistoryEntry),
 
     // Synchronization
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     failover_in_progress: bool,
 
     // Integration with recovery

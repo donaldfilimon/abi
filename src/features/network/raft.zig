@@ -15,6 +15,8 @@
 //!   try node.tick(); // Process timeouts and state transitions
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 
 /// Raft node state.
 pub const RaftState = enum {
@@ -222,7 +224,7 @@ pub const RaftNode = struct {
                 seed = seed *% 31 +% c;
             }
             // Mix in some entropy from timer
-            var timer = std.time.Timer.start() catch break :blk seed;
+            var timer = time.Timer.start() catch break :blk seed;
             seed ^= timer.read();
             break :blk seed;
         });

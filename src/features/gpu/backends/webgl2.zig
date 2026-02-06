@@ -4,6 +4,8 @@
 //! stub implementations. For actual GPU compute in web environments, use WebGPU.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 
@@ -14,7 +16,7 @@ pub const WebGl2Error = error{
 };
 
 var webgl2_initialized = false;
-var init_mutex = std.Thread.Mutex{};
+var init_mutex = sync.Mutex{};
 
 pub fn init() WebGl2Error!void {
     init_mutex.lock();

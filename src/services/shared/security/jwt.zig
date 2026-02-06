@@ -9,6 +9,8 @@
 //! - JWK (JSON Web Key) support
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const time = @import("../time.zig");
 const crypto = std.crypto;
 
@@ -173,7 +175,7 @@ pub const JwtManager = struct {
     secret_key: []const u8,
     /// Blacklisted token IDs (jti)
     blacklist: std.StringArrayHashMapUnmanaged(i64),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// Statistics
     stats: JwtStats,
 

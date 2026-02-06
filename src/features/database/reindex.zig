@@ -36,7 +36,7 @@ pub const AutoReindexer = struct {
     running: std.atomic.Value(bool),
     thread: ?std.Thread = null,
     condition: std.Thread.Condition = .{},
-    mutex: std.Thread.Mutex = .{},
+    mutex: sync.Mutex = .{},
     index_manager: *index.IndexManager,
     wake_event: std.Thread.Wake = .{},
 
@@ -174,7 +174,7 @@ pub const AutoReindexer = struct {
 
     fn performReindex(self: *AutoReindexer) void {
         self.metrics.current_state = .reindexing;
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             self.metrics.current_state = .idle;
             return;
         };

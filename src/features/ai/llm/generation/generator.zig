@@ -1,6 +1,8 @@
 //! Text generator for autoregressive generation.
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const sampler_mod = @import("sampler.zig");
 const tokenizer = @import("../tokenizer/mod.zig");
 
@@ -224,7 +226,7 @@ pub const Generator = struct {
 
     /// Generate text from a text prompt.
     pub fn generate(self: *Generator, prompt: []const u8, tok: *tokenizer.Tokenizer) !GenerationResult {
-        var prefill_timer = std.time.Timer.start() catch return error.TimerFailed;
+        var prefill_timer = time.Timer.start() catch return error.TimerFailed;
 
         // Encode prompt
         const prompt_tokens = try tok.encode(self.allocator, prompt);
@@ -232,7 +234,7 @@ pub const Generator = struct {
 
         // Generate
         const prefill_time_ns = prefill_timer.read();
-        var gen_timer = std.time.Timer.start() catch return error.TimerFailed;
+        var gen_timer = time.Timer.start() catch return error.TimerFailed;
         const output_tokens = try self.generateTokens(prompt_tokens);
         const generation_time_ns = gen_timer.read();
 

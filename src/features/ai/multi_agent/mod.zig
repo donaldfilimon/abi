@@ -29,6 +29,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const agents = @import("../agents/mod.zig");
 const build_options = @import("build_options");
 
@@ -108,7 +110,7 @@ pub const Coordinator = struct {
     config: CoordinatorConfig,
     agents: std.ArrayListUnmanaged(*agents.Agent) = .{},
     results: std.ArrayListUnmanaged(AgentResult) = .{},
-    mutex: std.Thread.Mutex = .{},
+    mutex: sync.Mutex = .{},
 
     /// Initialise the coordinator with an allocator and default config.
     pub fn init(allocator: std.mem.Allocator) Coordinator {
@@ -176,7 +178,7 @@ pub const Coordinator = struct {
     /// Execute agents sequentially.
     fn executeSequential(self: *Coordinator, task: []const u8) Error!void {
         for (self.agents.items, 0..) |ag, i| {
-            var timer = std.time.Timer.start() catch {
+            var timer = time.Timer.start() catch {
                 // Timer unavailable, proceed without timing
                 const response = ag.process(task, self.allocator) catch {
                     self.results.append(self.allocator, .{
@@ -242,7 +244,7 @@ pub const Coordinator = struct {
         defer if (owned_input) |o| self.allocator.free(o);
 
         for (self.agents.items, 0..) |ag, i| {
-            var timer = std.time.Timer.start() catch {
+            var timer = time.Timer.start() catch {
                 const response = ag.process(current_input, self.allocator) catch {
                     self.results.append(self.allocator, .{
                         .agent_index = i,

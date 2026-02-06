@@ -4,6 +4,8 @@
 //! protection, exponential backoff, and health monitoring.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const backend_mod = @import("../backend.zig");
 
 /// Circuit breaker state.
@@ -96,7 +98,7 @@ pub const FailoverManager = struct {
     current_primary: ?backend_mod.Backend,
     events: std.ArrayListUnmanaged(FailoverEvent),
     stats: FailoverStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const max_events = 1000;
 

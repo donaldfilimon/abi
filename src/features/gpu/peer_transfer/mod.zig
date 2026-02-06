@@ -28,6 +28,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const shared_utils = @import("../../../services/shared/utils.zig");
 
@@ -230,7 +232,7 @@ pub const PeerTransferManager = struct {
     active_transfers: std.ArrayListUnmanaged(TransferHandle),
     recovery_strategy: RecoveryStrategy,
     stats: TransferStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     next_transfer_id: std.atomic.Value(u64),
 
     // Backend instances
@@ -578,7 +580,7 @@ pub const PeerTransferManager = struct {
         _ = self;
 
         const timeout_ns: u64 = 30_000_000_000; // 30 seconds
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = time.Timer.start() catch return error.TimerFailed;
 
         while (!handle.isComplete()) {
             if (timer.read() > timeout_ns) {

@@ -14,7 +14,10 @@
 
 const std = @import("std");
 const testing = std.testing;
-const streaming = @import("abi").ai.streaming;
+const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
+const streaming = abi.ai.streaming;
 
 const CircuitBreaker = streaming.CircuitBreaker;
 const CircuitBreakerConfig = streaming.CircuitBreakerConfig;
@@ -54,7 +57,7 @@ test "circuit breaker: state transitions under failures" {
 
     // Wait for timeout (busy-wait since tests don't have I/O backend)
     {
-        var timer = std.time.Timer.start() catch return;
+        var timer = time.Timer.start() catch return;
         while (timer.read() < 15 * std.time.ns_per_ms) {
             std.atomic.spinLoopHint();
         }
@@ -83,7 +86,7 @@ test "circuit breaker: half-open failure returns to open" {
 
     // Wait and transition to half-open (busy-wait since tests don't have I/O backend)
     {
-        var timer = std.time.Timer.start() catch return;
+        var timer = time.Timer.start() catch return;
         while (timer.read() < 15 * std.time.ns_per_ms) {
             std.atomic.spinLoopHint();
         }
@@ -284,7 +287,7 @@ test "stream recovery: event callback" {
 
     // Wait and recover (busy-wait since tests don't have I/O backend)
     {
-        var timer = std.time.Timer.start() catch return;
+        var timer = time.Timer.start() catch return;
         while (timer.read() < 15 * std.time.ns_per_ms) {
             std.atomic.spinLoopHint();
         }

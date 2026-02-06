@@ -9,6 +9,8 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 const e2e = @import("mod.zig");
 
 // ============================================================================
@@ -481,7 +483,7 @@ test "e2e: gpu throughput benchmark" {
     var total_time_ns: u64 = 0;
 
     for (0..iterations) |_| {
-        var iter_timer = try std.time.Timer.start();
+        var iter_timer = try time.Timer.start();
         gpu.vectorAdd(a, b, result);
         total_time_ns += iter_timer.read();
     }

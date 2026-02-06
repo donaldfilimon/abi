@@ -9,6 +9,9 @@
 //! These tests ensure quantized inference produces correct results.
 
 const std = @import("std");
+const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 const build_options = @import("build_options");
 
 // Stub QuantConfig for testing - provides config preset functionality
@@ -522,7 +525,7 @@ test "Q4 matmul performance baseline" {
     defer allocator.free(q4_blocks);
 
     // Time the operation
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
 
     const iterations = 10;
     for (0..iterations) |_| {

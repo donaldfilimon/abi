@@ -4,6 +4,8 @@
 //! with hierarchical cancellation (parent cancels children).
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 /// Cancellation state.
 pub const CancellationState = enum {
@@ -31,7 +33,7 @@ pub const CancellationSource = struct {
     message: ?[]const u8,
     children: std.ArrayListUnmanaged(*CancellationSource),
     parent: ?*CancellationSource,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     callbacks: std.ArrayListUnmanaged(CancelCallback),
 
     const CancelCallback = struct {
