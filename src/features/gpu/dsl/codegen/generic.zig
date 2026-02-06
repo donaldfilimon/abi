@@ -609,7 +609,7 @@ pub fn CodeGenerator(comptime Config: type) type {
                 .memory_barrier_buffer => try self.writer.write(self.config.barriers.memory_barrier_buffer),
                 .memory_barrier_shared => try self.writer.write(self.config.barriers.memory_barrier_shared),
                 .atomic_add => try self.writeAtomicOp(self.config.atomics.add_fn, c.args),
-                .atomic_sub => try self.writeAtomicOp(self.config.atomics.sub_fn, c.args),
+                .atomic_sub => try self.writeAtomicSub(c.args),
                 .atomic_and => try self.writeAtomicOp(self.config.atomics.and_fn, c.args),
                 .atomic_or => try self.writeAtomicOp(self.config.atomics.or_fn, c.args),
                 .atomic_xor => try self.writeAtomicOp(self.config.atomics.xor_fn, c.args),
@@ -627,6 +627,27 @@ pub fn CodeGenerator(comptime Config: type) type {
                 .all => try self.writeBuiltinCall(self.config.builtin_fns.all, c.args),
                 .any => try self.writeBuiltinCall(self.config.builtin_fns.any, c.args),
             }
+        }
+
+        /// Handle atomic_sub: if the backend uses add for sub (GLSL), negate the value.
+        fn writeAtomicSub(self: *Self, args: []const *const expr.Expr) !void {
+            const sub_fn = self.config.atomics.sub_fn;
+            const add_fn = self.config.atomics.add_fn;
+            const negate = std.mem.eql(u8, sub_fn, add_fn);
+
+            try self.writer.writeFmt("{s}(", .{sub_fn});
+            if (args.len >= 2) {
+                if (self.config.atomics.needs_cast) {
+                    try self.writer.write(self.config.atomics.cast_template);
+                }
+                try self.writer.write(self.config.atomics.ptr_prefix);
+                try self.writeExpr(args[0]);
+                try self.writer.write(", ");
+                if (negate) try self.writer.write("-(");
+                try self.writeExpr(args[1]);
+                if (negate) try self.writer.write(")");
+            }
+            try self.writer.write(self.config.atomics.suffix);
         }
 
         fn writeAtomicOp(self: *Self, func_name: []const u8, args: []const *const expr.Expr) !void {

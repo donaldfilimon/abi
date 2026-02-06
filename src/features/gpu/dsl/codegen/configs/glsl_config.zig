@@ -78,7 +78,7 @@ pub const literal_format = mod.LiteralFormat{
 /// GLSL atomic operations.
 pub const atomics = mod.AtomicSyntax{
     .add_fn = "atomicAdd",
-    .sub_fn = "atomicAdd", // Use with negative value
+    .sub_fn = "atomicAdd", // GLSL lacks atomicSub; codegen negates value when sub_fn == add_fn
     .and_fn = "atomicAnd",
     .or_fn = "atomicOr",
     .xor_fn = "atomicXor",
