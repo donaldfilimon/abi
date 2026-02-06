@@ -433,7 +433,7 @@ pub const WorkflowTimer = struct {
     /// Check if a timeout has been exceeded.
     pub fn isTimedOut(self: *WorkflowTimer, timeout_ms: u64) bool {
         const elapsed_ns = self.elapsed();
-        return elapsed_ns > timeout_ms * 1_000_000;
+        return elapsed_ns >= timeout_ms * 1_000_000;
     }
 };
 
