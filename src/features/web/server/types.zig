@@ -4,6 +4,7 @@
 //! These types follow Zig 0.16 conventions and integrate with std.Io.Threaded.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
 
 /// Configuration for the HTTP server.
 pub const ServerConfig = struct {
@@ -236,7 +237,7 @@ test "Connection lifecycle" {
 
     // Test touch updates last_activity
     const old_activity = conn.last_activity;
-    std.time.sleep(1_000_000); // 1ms
+    time.sleepMs(1);
     conn.touch();
     try std.testing.expect(conn.last_activity >= old_activity);
 }
