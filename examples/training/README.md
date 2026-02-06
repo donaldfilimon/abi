@@ -325,7 +325,7 @@ defer lora_model.deinit();
 
 ## Related Documentation
 
-- [API Reference](../../API_REFERENCE.md) - Full API documentation
+- [API Reference](../../docs/api-reference.md) - Full API documentation
 - [AI Module Guide](../../docs/content/ai.html) - AI subsystem details
 - [Developer Guide](../../CLAUDE.md) - Debugging and common issues
 

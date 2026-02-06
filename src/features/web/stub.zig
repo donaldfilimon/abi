@@ -16,7 +16,11 @@
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
-const persona_types = @import("../ai/personas/types.zig");
+// Minimal persona type definition to avoid cross-feature import.
+// The real web module imports from ai/personas/types.zig directly.
+const persona_types = struct {
+    pub const PersonaType = enum { assistant, coder, writer, analyst, companion, docs, reviewer, minimal, abbey, aviva, abi, ralph };
+};
 
 // ============================================================================
 // Local Stubs Imports

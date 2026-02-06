@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Baseline guidance for any AI agent working in the ABI Framework repository.
-Read this first. `CLAUDE.md` adds deep details, `GEMINI.md` is a condensed quick reference.
+Read this first. `CLAUDE.md` adds deep details.
 
 ---
 
@@ -48,7 +48,7 @@ src/
 ├── abi.zig              # Public API module root
 ├── api/                 # Entry points (main.zig)
 ├── core/                # Framework orchestration and config
-├── features/            # Feature modules (ai, gpu, database, network, web, observability)
+├── features/            # Feature modules (ai, gpu, database, network, web, observability, analytics, cloud)
 └── services/            # Shared infrastructure (runtime, platform, shared, tests, etc.)
 ```
 
@@ -70,7 +70,8 @@ Key rules:
 | `zig fmt .` | Format code (required after edits) |
 | `zig build lint` | Check formatting (CI uses this) |
 | `zig build cli-tests` | CLI smoke tests |
-| `zig build full-check` | Format + tests + CLI smoke tests |
+| `zig build validate-flags` | Validate all feature flag combinations compile |
+| `zig build full-check` | Format + tests + flag validation + CLI smoke tests |
 | `zig build benchmarks` | Performance validation |
 | `zig build run -- --help` | Run CLI help |
 
@@ -91,8 +92,10 @@ zig build -Dgpu-backend=vulkan,cuda
 | `-Denable-gpu` | true | GPU acceleration |
 | `-Denable-database` | true | Vector database |
 | `-Denable-network` | true | Distributed compute |
-| `-Denable-web` | true | Web/HTTP support |
-| `-Denable-profiling` | true | Metrics/tracing |
+| `-Denable-web` | true | Web/HTTP support (also gates cloud module) |
+| `-Denable-profiling` | true | Metrics/tracing (gates observability module) |
+| `-Denable-analytics` | true | Event tracking, funnels, experiments |
+| `-Denable-explore` | true | Exploration/discovery features |
 | `-Denable-mobile` | false | Mobile cross-compilation |
 
 GPU backends: `auto`, `none`, `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `opengl`, `fpga`.
@@ -129,7 +132,7 @@ zig build -Denable-<feature>=false
 | Old (0.15) | New (0.16) |
 |------------|------------|
 | `std.fs.cwd()` | `std.Io.Dir.cwd()` |
-| `std.time.Instant.now()` | `std.time.Timer.start()` |
+| `std.time.nanoTimestamp()` | `std.time.Instant.now()` + `.since()` or `std.time.Timer.start()` for elapsed |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` (preferred) |
 | `list.init()` | `list.empty` (ArrayListUnmanaged) |
 | `@tagName(x)` in print | `{t}` format specifier |
@@ -184,6 +187,10 @@ const content = try std.Io.Dir.cwd().readFileAlloc(
 | `zig test src/services/tests/stress/mod.zig` | Stress tests |
 | `zig test file.zig --test-filter "pattern"` | Filtered tests |
 
+Parity tests (`src/services/tests/parity/`) use `DeclSpec` to verify stub modules
+match real modules -- checking declaration kind (function vs type) and sub-declarations,
+not just name existence.
+
 Skip hardware-gated tests with `error.SkipZigTest`:
 
 ```zig
@@ -210,9 +217,8 @@ zig build lint
 | Document | Purpose |
 |----------|---------|
 | `CLAUDE.md` | Comprehensive reference and deep examples |
-| `GEMINI.md` | Quick reference for Gemini |
 | `CONTRIBUTING.md` | Development workflow |
 | `docs/README.md` | Documentation system |
 | `SECURITY.md` | Security practices |
-| `DEPLOYMENT_GUIDE.md` | Production deployment |
-| `PLAN.md` | Development roadmap |
+| `docs/deployment.md` | Production deployment |
+| `docs/plan.md` | Development roadmap |

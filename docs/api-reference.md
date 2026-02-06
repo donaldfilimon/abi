@@ -876,7 +876,8 @@ Flat domain structure (modular architecture):
 | `src/features/network/` | Distributed compute and Raft | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/features/observability/` | Metrics, tracing, profiling | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/features/web/` | HTTP helpers and web utilities | ![Feature](https://img.shields.io/badge/-Feature-green) |
-| `src/services/cloud/` | Cloud function adapters | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/cloud/` | Cloud function adapters | ![Feature](https://img.shields.io/badge/-Feature-green) |
+| `src/features/analytics/` | Event tracking and experiments | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/services/connectors/` | External API connectors | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/services/ha/` | High availability | ![Feature](https://img.shields.io/badge/-Feature-green) |
 | `src/services/tasks/` | Task management | ![Feature](https://img.shields.io/badge/-Feature-green) |
@@ -901,10 +902,9 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Project
-- [TODO.md](TODO.md) — Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))
-- [ROADMAP.md](ROADMAP.md) — Upcoming milestones
-- [CONTRIBUTING.md](CONTRIBUTING.md) — Development guidelines
- - [CHANGELOG_CONSOLIDATED.md](CHANGELOG_CONSOLIDATED.md) — Version history
+- [Roadmap](roadmap.md) — Upcoming milestones
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — Development guidelines
+- [CHANGELOG.md](../CHANGELOG.md) — Version history
 
 </td>
 </tr>

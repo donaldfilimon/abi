@@ -14,7 +14,7 @@ const matmul_backward = @import("matmul_backward.zig");
 const attention_backward = @import("attention_backward.zig");
 
 // Centralized GPU interface - handles compile-time gating and stubs
-const ai_ops = @import("../../../../gpu/ai_ops.zig");
+const ai_ops = @import("../../../gpu/ai_ops.zig");
 
 // Re-export GPU modules from ai_ops (stubs provided when GPU disabled)
 const cublas = ai_ops.cublas;

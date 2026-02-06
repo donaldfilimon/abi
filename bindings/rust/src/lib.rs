@@ -22,7 +22,7 @@
 //!
 //! // Create a vector database
 //! let db = VectorDatabase::new("test_db", 128).expect("Failed to create database");
-//! db.insert(1, &vec![0.0; 128]).expect("Failed to insert");
+//! db.insert(1, &vec![0.0; 128], None).expect("Failed to insert");
 //! ```
 
 mod ffi;
@@ -36,9 +36,9 @@ mod agent;
 pub use error::{Error, Result};
 pub use framework::Framework;
 pub use simd::Simd;
-pub use database::VectorDatabase;
+pub use database::{VectorDatabase, SearchResult};
 pub use gpu::Gpu;
-pub use agent::Agent;
+pub use agent::{Agent, AgentBackend, AgentConfig, AgentResponse, AgentStats};
 
 /// Re-export FFI types for advanced usage.
 pub mod raw {

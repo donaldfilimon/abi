@@ -206,7 +206,7 @@ pub const OpenGLESBackend = struct {
         return self.copyToDevice(dst, src);
     }
 
-    pub fn copyFromDeviceAsync(self: *Self, dst: []u8, src: *anyopaque, stream: ?anyopaque) interface.MemoryError!void {
+    pub fn copyFromDeviceAsync(self: *Self, dst: []u8, src: *anyopaque, stream: ?*anyopaque) interface.MemoryError!void {
         _ = stream;
         return self.copyFromDevice(dst, src);
     }

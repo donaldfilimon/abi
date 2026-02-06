@@ -57,6 +57,104 @@ pub fn hasAllDeclarations(comptime Module: type, comptime expected: []const []co
 }
 
 // ============================================================================
+// Enhanced Parity: Declaration Kind + Signature Checking
+// ============================================================================
+
+/// What kind of declaration we expect.
+pub const DeclKind = enum { function, type_decl, any };
+
+/// Rich declaration specification: name, expected kind, and constraints.
+pub const DeclSpec = struct {
+    name: []const u8,
+    kind: DeclKind = .any,
+    /// For functions: minimum explicit parameter count.
+    min_params: ?usize = null,
+    /// For types: sub-declarations that must exist (e.g. init, deinit).
+    sub_decls: []const []const u8 = &.{},
+};
+
+/// Verify declarations with kind and signature checks.
+/// Catches drift that @hasDecl alone cannot: a function renamed to a type,
+/// or a type losing its init/deinit methods.
+pub fn verifyDeclSpecs(comptime Module: type, comptime specs: []const DeclSpec) void {
+    inline for (specs) |spec| {
+        if (!@hasDecl(Module, spec.name)) {
+            @compileError("Module missing declaration: '" ++ spec.name ++ "'");
+        }
+
+        const DeclType = @TypeOf(@field(Module, spec.name));
+        const info = @typeInfo(DeclType);
+
+        switch (spec.kind) {
+            .function => {
+                if (info != .@"fn") {
+                    @compileError("Expected '" ++ spec.name ++ "' to be a function");
+                }
+                if (spec.min_params) |min_p| {
+                    if (info.@"fn".params.len < min_p) {
+                        @compileError("Function '" ++ spec.name ++ "' has fewer params than expected");
+                    }
+                }
+            },
+            .type_decl => {
+                if (info != .type) {
+                    @compileError("Expected '" ++ spec.name ++ "' to be a type");
+                }
+                const T = @field(Module, spec.name);
+                inline for (spec.sub_decls) |sub| {
+                    if (!@hasDecl(T, sub)) {
+                        @compileError("Type '" ++ spec.name ++ "' missing sub-declaration: '" ++ sub ++ "'");
+                    }
+                }
+            },
+            .any => {},
+        }
+    }
+}
+
+/// Non-failing version: returns count of spec violations.
+pub fn countSpecViolations(comptime Module: type, comptime specs: []const DeclSpec) usize {
+    comptime var violations: usize = 0;
+
+    inline for (specs) |spec| {
+        if (!@hasDecl(Module, spec.name)) {
+            violations += 1;
+            continue;
+        }
+
+        const DeclType = @TypeOf(@field(Module, spec.name));
+        const info = @typeInfo(DeclType);
+
+        switch (spec.kind) {
+            .function => {
+                if (info != .@"fn") {
+                    violations += 1;
+                } else if (spec.min_params) |min_p| {
+                    if (info.@"fn".params.len < min_p) {
+                        violations += 1;
+                    }
+                }
+            },
+            .type_decl => {
+                if (info != .type) {
+                    violations += 1;
+                } else {
+                    const T = @field(Module, spec.name);
+                    inline for (spec.sub_decls) |sub| {
+                        if (!@hasDecl(T, sub)) {
+                            violations += 1;
+                        }
+                    }
+                }
+            },
+            .any => {},
+        }
+    }
+
+    return violations;
+}
+
+// ============================================================================
 // Expected API Declarations
 // ============================================================================
 //
@@ -183,6 +281,307 @@ const network_required = [_][]const u8{
     "defaultConfig",
 };
 
+/// Web module required declarations
+const web_required = [_][]const u8{
+    "Context",
+    "WebError",
+    "Response",
+    "HttpClient",
+    "RequestOptions",
+    "WeatherClient",
+    "WeatherConfig",
+    "JsonValue",
+    "ParsedJson",
+    "ChatHandler",
+    "ChatRequest",
+    "ChatResponse",
+    "ChatResult",
+    "PersonaRouter",
+    "Route",
+    "RouteContext",
+    "handlers",
+    "routes",
+    "http",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "get",
+    "getWithOptions",
+    "postJson",
+    "freeResponse",
+    "parseJsonValue",
+    "isSuccessStatus",
+};
+
+/// Observability module required declarations
+const observability_required = [_][]const u8{
+    "Context",
+    "Error",
+    "Counter",
+    "Gauge",
+    "FloatGauge",
+    "Histogram",
+    "MetricsCollector",
+    "MetricsConfig",
+    "MetricsSummary",
+    "Tracer",
+    "Span",
+    "TraceId",
+    "SpanId",
+    "SpanKind",
+    "SpanStatus",
+    "ObservabilityBundle",
+    "BundleConfig",
+    "AlertManager",
+    "AlertRule",
+    "PrometheusExporter",
+    "PrometheusConfig",
+    "OtelExporter",
+    "OtelConfig",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "createCollector",
+    "registerDefaultMetrics",
+    "recordRequest",
+    "recordError",
+};
+
+/// Analytics module required declarations
+const analytics_required = [_][]const u8{
+    "Context",
+    "Event",
+    "AnalyticsConfig",
+    "AnalyticsError",
+    "Engine",
+    "Funnel",
+    "Experiment",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+};
+
+/// Cloud module required declarations
+const cloud_required = [_][]const u8{
+    "CloudEvent",
+    "CloudResponse",
+    "CloudProvider",
+    "CloudHandler",
+    "CloudConfig",
+    "CloudError",
+    "HttpMethod",
+    "InvocationMetadata",
+    "Context",
+    "ResponseBuilder",
+    "Error",
+    "detectProvider",
+    "detectProviderWithAllocator",
+    "runHandler",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "aws_lambda",
+    "gcp_functions",
+    "azure_functions",
+};
+
+// ============================================================================
+// Enhanced Declaration Specs (kind + signature constraints)
+// ============================================================================
+
+/// GPU module: types must have init/deinit, functions must have correct arity.
+const gpu_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Gpu", .kind = .type_decl },
+    .{ .name = "GpuConfig", .kind = .type_decl },
+    .{ .name = "GpuError", .kind = .type_decl },
+    .{ .name = "Backend", .kind = .type_decl },
+    .{ .name = "Buffer", .kind = .type_decl },
+    .{ .name = "UnifiedBuffer", .kind = .type_decl },
+    .{ .name = "BufferOptions", .kind = .type_decl },
+    .{ .name = "BufferFlags", .kind = .type_decl },
+    .{ .name = "Device", .kind = .type_decl },
+    .{ .name = "DeviceType", .kind = .type_decl },
+    .{ .name = "Stream", .kind = .type_decl },
+    .{ .name = "StreamOptions", .kind = .type_decl },
+    .{ .name = "Event", .kind = .type_decl },
+    .{ .name = "EventOptions", .kind = .type_decl },
+    .{ .name = "ExecutionResult", .kind = .type_decl },
+    .{ .name = "LaunchConfig", .kind = .type_decl },
+    .{ .name = "HealthStatus", .kind = .type_decl },
+    .{ .name = "KernelBuilder", .kind = .type_decl },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+};
+
+/// AI module: verify types, functions, and submodule accessibility.
+const ai_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "Agent", .kind = .type_decl },
+    .{ .name = "TrainingConfig", .kind = .type_decl },
+    .{ .name = "TrainingResult", .kind = .type_decl },
+    .{ .name = "Tool", .kind = .type_decl },
+    .{ .name = "ToolResult", .kind = .type_decl },
+    .{ .name = "ToolRegistry", .kind = .type_decl },
+    .{ .name = "LlmEngine", .kind = .type_decl },
+    .{ .name = "LlmModel", .kind = .type_decl },
+    .{ .name = "LlmConfig", .kind = .type_decl },
+    .{ .name = "StreamingGenerator", .kind = .type_decl },
+    .{ .name = "StreamToken", .kind = .type_decl },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    // Submodules are type declarations (they're struct namespaces)
+    .{ .name = "llm", .kind = .type_decl },
+    .{ .name = "embeddings", .kind = .type_decl },
+    .{ .name = "agents", .kind = .type_decl },
+    .{ .name = "training", .kind = .type_decl },
+    .{ .name = "streaming", .kind = .type_decl },
+};
+
+/// Database module specs.
+const database_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "DatabaseHandle", .kind = .type_decl },
+    .{ .name = "SearchResult", .kind = .type_decl },
+    .{ .name = "VectorView", .kind = .type_decl },
+    .{ .name = "Stats", .kind = .type_decl },
+    .{ .name = "wdbx", .kind = .type_decl },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "open", .kind = .function },
+    .{ .name = "close", .kind = .function },
+    .{ .name = "insert", .kind = .function },
+    .{ .name = "search", .kind = .function },
+};
+
+/// Network module specs.
+const network_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "NetworkConfig", .kind = .type_decl },
+    .{ .name = "NodeInfo", .kind = .type_decl },
+    .{ .name = "NodeRegistry", .kind = .type_decl },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "defaultRegistry", .kind = .function },
+    .{ .name = "defaultConfig", .kind = .function },
+};
+
+/// Web module specs.
+const web_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "WebError", .kind = .type_decl },
+    .{ .name = "Response", .kind = .type_decl },
+    .{ .name = "HttpClient", .kind = .type_decl },
+    .{ .name = "RequestOptions", .kind = .type_decl },
+    .{ .name = "WeatherClient", .kind = .type_decl },
+    .{ .name = "WeatherConfig", .kind = .type_decl },
+    .{ .name = "ChatHandler", .kind = .type_decl, .sub_decls = &.{"init"} },
+    .{ .name = "ChatRequest", .kind = .type_decl },
+    .{ .name = "ChatResponse", .kind = .type_decl },
+    .{ .name = "ChatResult", .kind = .type_decl },
+    .{ .name = "PersonaRouter", .kind = .type_decl },
+    .{ .name = "Route", .kind = .type_decl },
+    .{ .name = "RouteContext", .kind = .type_decl },
+    .{ .name = "handlers", .kind = .type_decl },
+    .{ .name = "routes", .kind = .type_decl },
+    .{ .name = "http", .kind = .type_decl },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "get", .kind = .function },
+    .{ .name = "getWithOptions", .kind = .function },
+    .{ .name = "postJson", .kind = .function },
+    .{ .name = "freeResponse", .kind = .function },
+    .{ .name = "parseJsonValue", .kind = .function },
+    .{ .name = "isSuccessStatus", .kind = .function },
+};
+
+/// Observability module specs.
+const observability_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "Counter", .kind = .type_decl, .sub_decls = &.{ "inc", "get" } },
+    .{ .name = "Gauge", .kind = .type_decl, .sub_decls = &.{ "set", "get", "inc", "dec" } },
+    .{ .name = "FloatGauge", .kind = .type_decl, .sub_decls = &.{ "set", "get", "add" } },
+    .{ .name = "Histogram", .kind = .type_decl, .sub_decls = &.{ "init", "deinit", "record" } },
+    .{ .name = "MetricsCollector", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "MetricsConfig", .kind = .type_decl },
+    .{ .name = "MetricsSummary", .kind = .type_decl },
+    .{ .name = "Tracer", .kind = .type_decl },
+    .{ .name = "Span", .kind = .type_decl },
+    .{ .name = "ObservabilityBundle", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "BundleConfig", .kind = .type_decl },
+    .{ .name = "AlertManager", .kind = .type_decl },
+    .{ .name = "AlertRule", .kind = .type_decl },
+    .{ .name = "PrometheusExporter", .kind = .type_decl },
+    .{ .name = "PrometheusConfig", .kind = .type_decl },
+    .{ .name = "OtelExporter", .kind = .type_decl },
+    .{ .name = "OtelConfig", .kind = .type_decl },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "createCollector", .kind = .function },
+    .{ .name = "registerDefaultMetrics", .kind = .function },
+    .{ .name = "recordRequest", .kind = .function },
+    .{ .name = "recordError", .kind = .function },
+};
+
+/// Analytics module specs.
+const analytics_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Event", .kind = .type_decl },
+    .{ .name = "AnalyticsConfig", .kind = .type_decl },
+    .{ .name = "AnalyticsError", .kind = .type_decl },
+    .{ .name = "Engine", .kind = .type_decl, .sub_decls = &.{ "init", "deinit", "track", "flush" } },
+    .{ .name = "Funnel", .kind = .type_decl, .sub_decls = &.{ "init", "deinit", "addStep", "recordStep" } },
+    .{ .name = "Experiment", .kind = .type_decl, .sub_decls = &.{ "assign", "totalAssignments" } },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+};
+
+/// Cloud module specs.
+const cloud_specs = [_]DeclSpec{
+    .{ .name = "CloudEvent", .kind = .type_decl },
+    .{ .name = "CloudResponse", .kind = .type_decl },
+    .{ .name = "CloudProvider", .kind = .type_decl },
+    .{ .name = "CloudHandler", .kind = .type_decl },
+    .{ .name = "CloudConfig", .kind = .type_decl },
+    .{ .name = "CloudError", .kind = .type_decl },
+    .{ .name = "HttpMethod", .kind = .type_decl },
+    .{ .name = "InvocationMetadata", .kind = .type_decl },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit", "wrapHandler" } },
+    .{ .name = "ResponseBuilder", .kind = .type_decl, .sub_decls = &.{ "init", "build" } },
+    .{ .name = "detectProvider", .kind = .function },
+    .{ .name = "detectProviderWithAllocator", .kind = .function },
+    .{ .name = "runHandler", .kind = .function },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "aws_lambda", .kind = .type_decl },
+    .{ .name = "gcp_functions", .kind = .type_decl },
+    .{ .name = "azure_functions", .kind = .type_decl },
+};
+
 // ============================================================================
 // GPU Module Parity Tests
 // ============================================================================
@@ -201,10 +600,9 @@ test "gpu module has required declarations" {
     comptime verifyDeclarations(abi.gpu, &gpu_required);
 }
 
-test "gpu module Context follows pattern" {
-    const Context = abi.gpu.Context;
-    try std.testing.expect(@hasDecl(Context, "init"));
-    try std.testing.expect(@hasDecl(Context, "deinit"));
+test "gpu module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.gpu, &gpu_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.gpu, &gpu_specs));
 }
 
 // ============================================================================
@@ -224,10 +622,9 @@ test "ai module has required declarations" {
     comptime verifyDeclarations(abi.ai, &ai_required);
 }
 
-test "ai module Context follows pattern" {
-    const Context = abi.ai.Context;
-    try std.testing.expect(@hasDecl(Context, "init"));
-    try std.testing.expect(@hasDecl(Context, "deinit"));
+test "ai module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.ai, &ai_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.ai, &ai_specs));
 }
 
 test "ai submodules accessible" {
@@ -256,10 +653,9 @@ test "database module has required declarations" {
     comptime verifyDeclarations(abi.database, &database_required);
 }
 
-test "database module Context follows pattern" {
-    const Context = abi.database.Context;
-    try std.testing.expect(@hasDecl(Context, "init"));
-    try std.testing.expect(@hasDecl(Context, "deinit"));
+test "database module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.database, &database_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.database, &database_specs));
 }
 
 // ============================================================================
@@ -279,10 +675,97 @@ test "network module has required declarations" {
     comptime verifyDeclarations(abi.network, &network_required);
 }
 
-test "network module Context follows pattern" {
-    const Context = abi.network.Context;
-    try std.testing.expect(@hasDecl(Context, "init"));
-    try std.testing.expect(@hasDecl(Context, "deinit"));
+test "network module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.network, &network_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.network, &network_specs));
+}
+
+// ============================================================================
+// Cloud Module Parity Tests
+// ============================================================================
+
+test "cloud module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.cloud, &cloud_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Cloud module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.cloud, &cloud_required);
+}
+
+test "cloud module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.cloud, &cloud_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.cloud, &cloud_specs));
+}
+
+// ============================================================================
+// Web Module Parity Tests
+// ============================================================================
+
+test "web module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.web, &web_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Web module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.web, &web_required);
+}
+
+test "web module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.web, &web_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.web, &web_specs));
+}
+
+// ============================================================================
+// Observability Module Parity Tests
+// ============================================================================
+
+test "observability module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.observability, &observability_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Observability module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.observability, &observability_required);
+}
+
+test "observability module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.observability, &observability_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.observability, &observability_specs));
+}
+
+// ============================================================================
+// Analytics Module Parity Tests
+// ============================================================================
+
+test "analytics module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.analytics, &analytics_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Analytics module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.analytics, &analytics_required);
+}
+
+test "analytics module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.analytics, &analytics_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.analytics, &analytics_specs));
 }
 
 // ============================================================================
@@ -296,8 +779,10 @@ test "all feature modules follow Context pattern" {
         abi.ai,
         abi.database,
         abi.network,
+        abi.cloud,
         abi.web,
         abi.observability,
+        abi.analytics,
     };
 
     inline for (modules) |mod| {
@@ -316,6 +801,10 @@ test "all feature modules have lifecycle functions" {
         abi.ai,
         abi.database,
         abi.network,
+        abi.cloud,
+        abi.web,
+        abi.observability,
+        abi.analytics,
     };
 
     inline for (modules) |mod| {
@@ -348,4 +837,46 @@ test "parity checker identifies missing declarations" {
     // Verify missing count
     const missing = comptime getMissingDeclarations(TestModule, &some_missing);
     try std.testing.expectEqual(@as(usize, 2), missing.len);
+}
+
+test "enhanced spec checker validates declaration kinds" {
+    const TestModule = struct {
+        pub const MyType = struct {
+            pub fn init() void {}
+            pub fn deinit() void {}
+        };
+        pub fn myFunc(a: u32, b: u32) u64 {
+            return @as(u64, a) + @as(u64, b);
+        }
+        pub const my_const: u32 = 42;
+    };
+
+    // Correct specs should have zero violations
+    const correct_specs = [_]DeclSpec{
+        .{ .name = "MyType", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+        .{ .name = "myFunc", .kind = .function, .min_params = 2 },
+        .{ .name = "my_const" }, // .any kind accepts anything
+    };
+    try std.testing.expectEqual(
+        @as(usize, 0),
+        comptime countSpecViolations(TestModule, &correct_specs),
+    );
+
+    // Wrong kind should be detected
+    const wrong_kind = [_]DeclSpec{
+        .{ .name = "MyType", .kind = .function }, // MyType is a type, not a function
+    };
+    try std.testing.expectEqual(
+        @as(usize, 1),
+        comptime countSpecViolations(TestModule, &wrong_kind),
+    );
+
+    // Missing sub-declaration should be detected
+    const missing_sub = [_]DeclSpec{
+        .{ .name = "MyType", .kind = .type_decl, .sub_decls = &.{ "init", "nonexistent" } },
+    };
+    try std.testing.expectEqual(
+        @as(usize, 1),
+        comptime countSpecViolations(TestModule, &missing_sub),
+    );
 }

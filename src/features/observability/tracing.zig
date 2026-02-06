@@ -309,6 +309,15 @@ pub const PropagationFormat = enum {
     aws_xray,
 };
 
+/// Context propagator for distributed tracing across service boundaries.
+pub const Propagator = struct {
+    format: PropagationFormat,
+
+    pub fn init(format: PropagationFormat) Propagator {
+        return .{ .format = format };
+    }
+};
+
 pub const TraceSampler = struct {
     sampler_type: SamplerType,
     param: f64,

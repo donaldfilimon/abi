@@ -117,6 +117,7 @@ pub const routes = struct {
 pub const ChatHandler = handlers.chat.ChatHandler;
 pub const ChatRequest = handlers.chat.ChatRequest;
 pub const ChatResponse = handlers.chat.ChatResponse;
+pub const ChatResult = handlers.chat.ChatResult;
 
 // Re-export route types
 pub const PersonaRouter = routes.personas.Router;

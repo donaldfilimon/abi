@@ -13,7 +13,7 @@
 //!   d_V = attn^T @ d_output
 
 const std = @import("std");
-const matmul = @import("../matmul.zig");
+const matmul = @import("../ops/matmul.zig");
 const softmax_backward = @import("softmax_backward.zig");
 
 /// Cached activations needed for attention backward pass.
