@@ -1,7 +1,7 @@
 ---
 title: "Codebase Improvements Implementation Plan"
 date: 2026-02-04
-status: queued
+status: mostly-complete
 tags: [planning, implementation, quality]
 related:
   - "../../PLAN.md"
@@ -10,7 +10,7 @@ related:
 ---
 # Codebase Improvements Implementation Plan
 
-> **Status:** Queued (Next Sprint) | **Created:** 2026-02-04 | **Parent:** [PLAN.md](../../PLAN.md)
+> **Status:** Mostly Complete (Phase 1 done via Ralph Loop iterations) | **Created:** 2026-02-04 | **Parent:** [PLAN.md](../../PLAN.md)
 
 **Goal:** Modernize the ABI codebase by fixing deprecated Zig 0.16 patterns, improving security defaults, and enhancing code quality across ~100 instances.
 
