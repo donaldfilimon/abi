@@ -226,6 +226,11 @@ const validation_matrix = [_]FlagCombo{
     .{ .name = "analytics-only", .enable_analytics = true },
     .{ .name = "no-ai", .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
     .{ .name = "no-gpu", .enable_ai = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
+    .{ .name = "no-web", .enable_ai = true, .enable_gpu = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
+    .{ .name = "no-database", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true },
+    .{ .name = "no-network", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_profiling = true, .enable_analytics = true },
+    .{ .name = "no-profiling", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_analytics = true },
+    .{ .name = "no-analytics", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true },
 };
 
 fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
@@ -403,7 +408,9 @@ fn createCliModule(b: *std.Build, abi_module: *std.Build.Module, target: std.Bui
 
 fn createAbiModule(b: *std.Build, options: BuildOptions, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Module {
     const build_opts = createBuildOptionsModule(b, options);
-    const abi = b.addModule("abi", .{ .root_source_file = b.path("src/abi.zig"), .target = target, .optimize = optimize });
+    // Use createModule (anonymous) to avoid double-registering "abi" in the global namespace.
+    // The primary "abi" module is registered in build() via addModule.
+    const abi = b.createModule(.{ .root_source_file = b.path("src/abi.zig"), .target = target, .optimize = optimize });
     abi.addImport("build_options", build_opts);
     return abi;
 }
