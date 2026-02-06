@@ -7,6 +7,7 @@
 //! - InstructionDataset: Alpaca/ShareGPT format parsing
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
 
 /// A batch of training data.
 pub const Batch = struct {
@@ -57,7 +58,7 @@ pub const BatchIterator = struct {
             }
             // Shuffle using Fisher-Yates
             const seed = blk: {
-                var timer = std.time.Timer.start() catch break :blk @as(u64, 0);
+                var timer = time.Timer.start() catch break :blk @as(u64, 0);
                 break :blk timer.read();
             };
             var rng = std.Random.DefaultPrng.init(seed);
@@ -123,7 +124,7 @@ pub const BatchIterator = struct {
         // Reshuffle if needed
         if (self.shuffle_indices) |indices| {
             const seed = blk: {
-                var timer = std.time.Timer.start() catch break :blk @as(u64, 0);
+                var timer = time.Timer.start() catch break :blk @as(u64, 0);
                 break :blk timer.read();
             };
             var rng = std.Random.DefaultPrng.init(seed);

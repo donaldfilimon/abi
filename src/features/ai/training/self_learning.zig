@@ -35,6 +35,7 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
 const trainable_model = @import("trainable_model.zig");
 const loss_mod = @import("loss.zig");
 const gradient = @import("gradient.zig");
@@ -43,7 +44,7 @@ const logging = @import("logging.zig");
 /// Get current timestamp for Zig 0.16 compatibility (no std.time.timestamp()).
 /// Returns nanoseconds since timer start as an i64.
 fn getCurrentTimestamp() i64 {
-    var timer = std.time.Timer.start() catch return 0;
+    var timer = time.Timer.start() catch return 0;
     return @intCast(timer.read());
 }
 
@@ -270,7 +271,7 @@ pub const ExperienceBuffer = struct {
 
         // Get time-based seed
         const seed = blk: {
-            var timer = std.time.Timer.start() catch break :blk @as(u64, 0);
+            var timer = time.Timer.start() catch break :blk @as(u64, 0);
             break :blk timer.read();
         };
         var rng = std.Random.DefaultPrng.init(seed);
@@ -366,7 +367,7 @@ pub const RewardModel = struct {
         // Xavier initialization
         const scale = @sqrt(2.0 / @as(f32, @floatFromInt(input_dim)));
         const seed = blk: {
-            var timer = std.time.Timer.start() catch break :blk @as(u64, 42);
+            var timer = time.Timer.start() catch break :blk @as(u64, 42);
             break :blk timer.read();
         };
         var rng = std.Random.DefaultPrng.init(seed);
@@ -498,7 +499,7 @@ pub const PolicyNetwork = struct {
 
     fn initializeWeights(self: *Self) void {
         const seed = blk: {
-            var timer = std.time.Timer.start() catch break :blk @as(u64, 12345);
+            var timer = time.Timer.start() catch break :blk @as(u64, 12345);
             break :blk timer.read();
         };
         var rng = std.Random.DefaultPrng.init(seed);
@@ -827,7 +828,7 @@ pub const DPOOptimizer = struct {
 
         // Sample batch (simple random sampling)
         const seed = blk: {
-            var timer = std.time.Timer.start() catch break :blk @as(u64, 0);
+            var timer = time.Timer.start() catch break :blk @as(u64, 0);
             break :blk timer.read();
         };
         var rng = std.Random.DefaultPrng.init(seed);
