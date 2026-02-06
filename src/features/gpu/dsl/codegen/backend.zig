@@ -169,6 +169,15 @@ pub const BackendCapabilities = struct {
                 .max_shared_memory = 0,
                 .supports_atomics = false,
             },
+            .fpga => .{
+                .max_workgroup_size = 256,
+                .max_shared_memory = 64 * 1024, // FPGA PLRAM/BRAM
+                .supports_fp16 = true,
+                .supports_fp64 = true,
+                .supports_int64 = true,
+                .supports_subgroups = false,
+                .supports_dynamic_shared_memory = false,
+            },
         };
     }
 };

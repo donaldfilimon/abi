@@ -21,7 +21,7 @@ pub const Language = .cuda;
 
 test "CudaGenerator availability" {
     const allocator = std.testing.allocator;
-    var g = Generator.init(allocator, .{});
+    var g = Generator.init(allocator);
     defer g.deinit();
 
     try std.testing.expect(g.backend_config.language == .cuda);
