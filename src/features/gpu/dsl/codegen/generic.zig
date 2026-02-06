@@ -111,8 +111,11 @@ pub fn CodeGenerator(comptime Config: type) type {
         }
 
         fn writeGlslHeader(self: *Self) !void {
-            try self.writer.writeLine("#version 450");
-            try self.writer.writeLine("#extension GL_ARB_separate_shader_objects : enable");
+            const target = self.config.glsl_target;
+            try self.writer.writeLine(configs.glsl.getVersionDirective(target));
+            for (configs.glsl.getExtensions(target)) |ext| {
+                try self.writer.writeLine(ext);
+            }
             try self.writer.newline();
         }
 

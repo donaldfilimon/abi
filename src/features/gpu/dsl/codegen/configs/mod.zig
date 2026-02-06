@@ -338,4 +338,6 @@ pub const BackendConfig = struct {
     select_reversed: bool = false,
     /// While loop style: "native" | "loop_break"
     while_style: enum { native, loop_break } = .native,
+    /// GLSL target variant (Vulkan, OpenGL, or OpenGL ES). Only used when language == .glsl.
+    glsl_target: glsl.Target = .vulkan,
 };
