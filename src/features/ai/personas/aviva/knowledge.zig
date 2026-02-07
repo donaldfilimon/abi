@@ -189,7 +189,7 @@ pub const KnowledgeRetriever = struct {
         query: []const u8,
         domain: ?classifier.Domain,
     ) !RetrievalResult {
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             return error.TimerFailed;
         };
 

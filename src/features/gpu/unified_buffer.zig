@@ -9,6 +9,17 @@ const device_mod = @import("device.zig");
 const stream_mod = @import("stream.zig");
 const sync_event_mod = @import("sync_event.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;
 pub const Stream = stream_mod.Stream;
@@ -122,7 +133,6 @@ const DirtyState = packed struct {
 pub const Buffer = struct {
     // Core state
     allocator: std.mem.Allocator,
-    thread_safe_allocator: std.heap.ThreadSafeAllocator,
     size: usize,
     element_type: ElementType,
     options: BufferOptions,
@@ -138,7 +148,7 @@ pub const Buffer = struct {
     backend: Backend,
 
     // Thread safety
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     // Statistics
     host_to_device_transfers: u64,
@@ -155,18 +165,16 @@ pub const Buffer = struct {
         device: *const Device,
         options: BufferOptions,
     ) !Buffer {
-        var thread_safe_allocator = std.heap.ThreadSafeAllocator{ .child_allocator = allocator };
-
         // Allocate host memory if needed
         const host_data: ?[]u8 = switch (options.location) {
             .device_only => null,
             else => blk: {
-                const data = try thread_safe_allocator.allocator().alloc(u8, size);
+                const data = try allocator.alloc(u8, size);
                 @memset(data, 0);
                 break :blk data;
             },
         };
-        errdefer if (host_data) |data| thread_safe_allocator.allocator().free(data);
+        errdefer if (host_data) |data| allocator.free(data);
 
         // Copy initial data if provided
         if (options.initial_data) |initial| {
@@ -178,7 +186,6 @@ pub const Buffer = struct {
 
         var buffer = Buffer{
             .allocator = allocator,
-            .thread_safe_allocator = thread_safe_allocator,
             .size = size,
             .element_type = options.element_type,
             .options = options,
@@ -206,7 +213,7 @@ pub const Buffer = struct {
     /// Destroy the buffer.
     pub fn deinit(self: *Buffer) void {
         if (self.host_data) |data| {
-            self.thread_safe_allocator.allocator().free(data);
+            self.allocator.free(data);
         }
         self.sync_event.deinit();
         // Backend would free device_handle here

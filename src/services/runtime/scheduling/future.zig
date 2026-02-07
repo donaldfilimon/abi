@@ -4,6 +4,8 @@
 //! at some point, with combinators for composition and transformation.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 /// Common future errors
 pub const FutureError = std.mem.Allocator.Error || error{
@@ -60,8 +62,8 @@ pub fn Future(comptime T: type) type {
         allocator: std.mem.Allocator,
         state: std.atomic.Value(u8),
         result: ?Result,
-        mutex: std.Thread.Mutex,
-        condition: std.Thread.Condition,
+        mutex: sync.Mutex,
+        condition: sync.Condition,
         callbacks: std.ArrayListUnmanaged(CallbackEntry),
         cancel_token: ?*CancellationToken,
 

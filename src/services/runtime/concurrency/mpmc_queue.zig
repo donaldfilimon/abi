@@ -49,6 +49,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 /// MPMC bounded queue.
 pub fn MpmcQueue(comptime T: type) type {
@@ -209,11 +211,11 @@ pub fn BlockingMpmcQueue(comptime T: type) type {
 
         inner: MpmcQueue(T),
         /// Condition for waiting pushers
-        push_cond: std.Thread.Condition = .{},
+        push_cond: sync.Condition = .{},
         /// Condition for waiting poppers
-        pop_cond: std.Thread.Condition = .{},
+        pop_cond: sync.Condition = .{},
         /// Mutex for condition variables
-        mutex: std.Thread.Mutex = .{},
+        mutex: sync.Mutex = .{},
         /// Whether the queue is closed
         closed: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 

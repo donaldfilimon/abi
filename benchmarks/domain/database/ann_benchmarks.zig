@@ -11,6 +11,7 @@
 //! - Standard dataset configurations
 
 const std = @import("std");
+const abi = @import("abi");
 const core = @import("../../core/mod.zig");
 const framework = @import("../../system/framework.zig");
 const hnsw = @import("hnsw.zig");
@@ -127,7 +128,7 @@ pub fn runAnnBenchmarks(
             std.debug.print("Testing M={d}, efConstruction={d}...\n", .{ m, ef_const });
 
             // Build index and measure time
-            var build_timer = std.time.Timer.start() catch continue;
+            var build_timer = abi.shared.time.Timer.start() catch continue;
             var index = hnsw.EuclideanHNSW.init(allocator, m, ef_const);
             defer index.deinit();
 
@@ -146,7 +147,7 @@ pub fn runAnnBenchmarks(
                     var total_recall: f64 = 0;
 
                     for (queries, 0..) |query, qi| {
-                        var query_timer = std.time.Timer.start() catch continue;
+                        var query_timer = abi.shared.time.Timer.start() catch continue;
                         const search_results = try index.search(query, k, ef_search);
                         defer allocator.free(search_results);
                         total_time_ns += query_timer.read();
@@ -238,7 +239,7 @@ pub fn generateRecallQpsCurve(
         var total_recall: f64 = 0;
 
         for (queries, 0..) |query, qi| {
-            var timer = std.time.Timer.start() catch continue;
+            var timer = abi.shared.time.Timer.start() catch continue;
             const results = try index.search(query, k, ef_search);
             defer allocator.free(results);
             total_time_ns += timer.read();

@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 
 /// Severity level for security events
 pub const Severity = enum(u8) {
@@ -242,7 +243,7 @@ pub const AuditLogger = struct {
     event_counter: std.atomic.Value(u64),
     last_hash: [32]u8,
     alert_callbacks: std.ArrayListUnmanaged(AlertCallback),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// Statistics
     stats: AuditStats,
 

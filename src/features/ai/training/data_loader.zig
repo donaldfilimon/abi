@@ -7,6 +7,11 @@
 //! - InstructionDataset: Alpaca/ShareGPT format parsing
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
 
 /// A batch of training data.
 pub const Batch = struct {
@@ -57,7 +62,7 @@ pub const BatchIterator = struct {
             }
             // Shuffle using Fisher-Yates
             const seed = blk: {
-                var timer = std.time.Timer.start() catch break :blk @as(u64, 0);
+                var timer = time.Timer.start() catch break :blk @as(u64, 0);
                 break :blk timer.read();
             };
             var rng = std.Random.DefaultPrng.init(seed);
@@ -123,7 +128,7 @@ pub const BatchIterator = struct {
         // Reshuffle if needed
         if (self.shuffle_indices) |indices| {
             const seed = blk: {
-                var timer = std.time.Timer.start() catch break :blk @as(u64, 0);
+                var timer = time.Timer.start() catch break :blk @as(u64, 0);
                 break :blk timer.read();
             };
             var rng = std.Random.DefaultPrng.init(seed);
@@ -145,7 +150,7 @@ pub const TokenizedDataset = struct {
     /// Load tokenized data from a binary file.
     /// Format: raw u32 token IDs in little-endian.
     pub fn load(allocator: std.mem.Allocator, path: []const u8) !TokenizedDataset {
-        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 

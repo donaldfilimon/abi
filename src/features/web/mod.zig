@@ -99,6 +99,8 @@
 //! be used per-thread or with external synchronization.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
@@ -221,7 +223,7 @@ pub const Context = struct {
 };
 
 var initialized: bool = false;
-var client_mutex = std.Thread.Mutex{};
+var client_mutex = sync.Mutex{};
 var default_client: ?HttpClient = null;
 
 pub fn init(allocator: std.mem.Allocator) !void {

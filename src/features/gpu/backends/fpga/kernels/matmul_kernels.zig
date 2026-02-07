@@ -11,6 +11,8 @@
 //! - Latency: <10us for typical LLM weight matrices
 
 const std = @import("std");
+const time = @import("../../../../../services/shared/time.zig");
+const sync = @import("../../../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const distance_kernels = @import("distance_kernels.zig");
 
@@ -636,7 +638,7 @@ pub const BatchMatMulKernel = struct {
 
         if (metrics) |m| {
             // Use Timer for Zig 0.16 compatibility (no std.time.nanoTimestamp())
-            var timer = std.time.Timer.start() catch {
+            var timer = time.Timer.start() catch {
                 // If timer fails, execute without timing
                 for (batch_activations, batch_outputs, 0..) |activations, output, i| {
                     const weights = if (batch_weights) |bw| bw[i] else empty_weights;

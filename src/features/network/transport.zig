@@ -17,7 +17,9 @@
 //!   const response = try transport.sendRequest("192.168.1.2:9000", request_data);
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/utils.zig");
+const time = platform_time;
+const sync = @import("../../services/shared/sync.zig");
 const connection_pool = @import("connection_pool.zig");
 const circuit_breaker = @import("circuit_breaker.zig");
 const retry = @import("retry.zig");
@@ -149,8 +151,8 @@ pub const PendingRequest = struct {
     response_data: ?[]u8 = null,
     completed: std.atomic.Value(bool),
     error_code: ?TransportError = null,
-    condition: std.Thread.Condition,
-    mutex: std.Thread.Mutex,
+    condition: sync.Condition,
+    mutex: sync.Mutex,
 
     pub fn init(request_id: u64, timeout_ms: u64) PendingRequest {
         return .{
@@ -212,7 +214,7 @@ pub const PeerConnection = struct {
     requests_sent: u64,
     requests_failed: u64,
     consecutive_failures: u32,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const ConnectionState = enum {
         disconnected,
@@ -416,7 +418,7 @@ pub const TcpTransport = struct {
     handlers: std.AutoHashMapUnmanaged(u8, *const MessageHandler),
 
     // Synchronization
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     // Statistics
     stats: TransportStats,

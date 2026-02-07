@@ -796,7 +796,7 @@ const response = try orchestrator.process(.{
     .content = "How do I implement a linked list?",
 });
 
-std.debug.print("Persona: {s}\n", .{@tagName(response.persona)});
+std.debug.print("Persona: {t}\n", .{response.persona});
 std.debug.print("Response: {s}\n", .{response.content});
 
 // Force specific persona

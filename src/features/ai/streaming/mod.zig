@@ -93,6 +93,8 @@
 //! | `/v1/models` | GET | List available models (OpenAI-compatible) |
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 pub const sse = @import("sse.zig");
 pub const backpressure = @import("backpressure.zig");
 pub const buffer = @import("buffer.zig");
@@ -413,7 +415,7 @@ pub const EnhancedStreamingGenerator = struct {
     backpressure_ctrl: BackpressureController,
     token_buffer: TokenBuffer,
     stats: StreamStats,
-    timer: std.time.Timer,
+    timer: time.Timer,
     is_started: bool,
     is_completed: bool,
 
@@ -426,7 +428,7 @@ pub const EnhancedStreamingGenerator = struct {
             .backpressure_ctrl = BackpressureController.init(config.backpressure_config) catch return error.TimerUnavailable,
             .token_buffer = TokenBuffer.init(allocator, config.buffer_config),
             .stats = .{},
-            .timer = std.time.Timer.start() catch return error.TimerUnavailable,
+            .timer = time.Timer.start() catch return error.TimerUnavailable,
             .is_started = false,
             .is_completed = false,
         };

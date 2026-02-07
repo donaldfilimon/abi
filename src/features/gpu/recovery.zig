@@ -4,7 +4,9 @@
 //! and manages graceful degradation to fallback backends.
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/utils.zig");
+const time = platform_time;
+const sync = @import("../../services/shared/sync.zig");
 const backend = @import("backend.zig");
 
 /// Recovery strategy for device failures.
@@ -86,7 +88,7 @@ pub const RecoveryManager = struct {
     recovery_history: std.ArrayListUnmanaged(RecoveryHistoryEntry),
     active_backend: backend.Backend,
     fallback_backends: std.ArrayListUnmanaged(backend.Backend),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const DeviceKey = struct {
         backend_type: backend.Backend,

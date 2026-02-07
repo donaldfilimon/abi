@@ -111,8 +111,11 @@ pub fn CodeGenerator(comptime Config: type) type {
         }
 
         fn writeGlslHeader(self: *Self) !void {
-            try self.writer.writeLine("#version 450");
-            try self.writer.writeLine("#extension GL_ARB_separate_shader_objects : enable");
+            const target = self.config.glsl_target;
+            try self.writer.writeLine(configs.glsl.getVersionDirective(target));
+            for (configs.glsl.getExtensions(target)) |ext| {
+                try self.writer.writeLine(ext);
+            }
             try self.writer.newline();
         }
 
@@ -133,7 +136,7 @@ pub fn CodeGenerator(comptime Config: type) type {
         // ============================================================
 
         fn writeHelpers(self: *Self) !void {
-            // CUDA needs clamp helper
+            // CUDA needs helper functions for operations that don't have direct intrinsics
             if (self.config.language == .cuda) {
                 try self.writer.writeLine("#ifndef CLAMP_DEFINED");
                 try self.writer.writeLine("#define CLAMP_DEFINED");
@@ -141,6 +144,16 @@ pub fn CodeGenerator(comptime Config: type) type {
                 try self.writer.writeLine("    return fminf(fmaxf(x, lo), hi);");
                 try self.writer.writeLine("}");
                 try self.writer.writeLine("#endif");
+                try self.writer.newline();
+
+                try self.writer.writeLine("__device__ __forceinline__ float __fract_helper(float x) {");
+                try self.writer.writeLine("    return x - floorf(x);");
+                try self.writer.writeLine("}");
+                try self.writer.newline();
+
+                try self.writer.writeLine("__device__ __forceinline__ float __sign_helper(float x) {");
+                try self.writer.writeLine("    return (x > 0.0f) ? 1.0f : ((x < 0.0f) ? -1.0f : 0.0f);");
+                try self.writer.writeLine("}");
                 try self.writer.newline();
             }
         }
@@ -596,7 +609,7 @@ pub fn CodeGenerator(comptime Config: type) type {
                 .memory_barrier_buffer => try self.writer.write(self.config.barriers.memory_barrier_buffer),
                 .memory_barrier_shared => try self.writer.write(self.config.barriers.memory_barrier_shared),
                 .atomic_add => try self.writeAtomicOp(self.config.atomics.add_fn, c.args),
-                .atomic_sub => try self.writeAtomicOp(self.config.atomics.sub_fn, c.args),
+                .atomic_sub => try self.writeAtomicSub(c.args),
                 .atomic_and => try self.writeAtomicOp(self.config.atomics.and_fn, c.args),
                 .atomic_or => try self.writeAtomicOp(self.config.atomics.or_fn, c.args),
                 .atomic_xor => try self.writeAtomicOp(self.config.atomics.xor_fn, c.args),
@@ -614,6 +627,27 @@ pub fn CodeGenerator(comptime Config: type) type {
                 .all => try self.writeBuiltinCall(self.config.builtin_fns.all, c.args),
                 .any => try self.writeBuiltinCall(self.config.builtin_fns.any, c.args),
             }
+        }
+
+        /// Handle atomic_sub: if the backend uses add for sub (GLSL), negate the value.
+        fn writeAtomicSub(self: *Self, args: []const *const expr.Expr) !void {
+            const sub_fn = self.config.atomics.sub_fn;
+            const add_fn = self.config.atomics.add_fn;
+            const negate = std.mem.eql(u8, sub_fn, add_fn);
+
+            try self.writer.writeFmt("{s}(", .{sub_fn});
+            if (args.len >= 2) {
+                if (self.config.atomics.needs_cast) {
+                    try self.writer.write(self.config.atomics.cast_template);
+                }
+                try self.writer.write(self.config.atomics.ptr_prefix);
+                try self.writeExpr(args[0]);
+                try self.writer.write(", ");
+                if (negate) try self.writer.write("-(");
+                try self.writeExpr(args[1]);
+                if (negate) try self.writer.write(")");
+            }
+            try self.writer.write(self.config.atomics.suffix);
         }
 
         fn writeAtomicOp(self: *Self, func_name: []const u8, args: []const *const expr.Expr) !void {

@@ -69,9 +69,9 @@ const std = @import("std");
 pub fn main() !void {
     // Get platform information
     const info = platform.getPlatformInfo();
-    std.debug.print("OS: {s}, Arch: {s}\n", .{
-        @tagName(info.os),
-        @tagName(info.arch),
+    std.debug.print("OS: {t}, Arch: {t}\n", .{
+        info.os,
+        info.arch,
     });
 
     // Check capabilities

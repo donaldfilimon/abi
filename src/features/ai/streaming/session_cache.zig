@@ -22,6 +22,7 @@
 const std = @import("std");
 const backends = @import("backends/mod.zig");
 const platform_time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 /// Session cache configuration.
 pub const SessionCacheConfig = struct {
@@ -89,7 +90,7 @@ pub const SessionCache = struct {
     allocator: std.mem.Allocator,
     config: SessionCacheConfig,
     sessions: std.StringHashMapUnmanaged(*SessionEntry),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     last_cleanup_ms: i64,
     time_provider: platform_time.TimeProvider,
 

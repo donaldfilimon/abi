@@ -1,7 +1,7 @@
 //! Platform-Aware Time Utilities
 //!
 //! Provides cross-platform time functionality that works on all targets
-//! including WASM where std.time.Instant is not available.
+//! including WASM where timing APIs are not available.
 //!
 //! On WASM: Uses entropy when available; otherwise falls back to a counter
 //! since monotonic timers are unavailable. Timing functions return 0.
@@ -9,7 +9,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
-/// Check if we're on a platform that supports std.time.Instant
+/// Check if we're on a platform that supports timing APIs
 pub const has_instant = !isWasmTarget();
 
 fn isWasmTarget() bool {
@@ -21,19 +21,72 @@ const CounterInt = if (isWasmTarget()) u32 else u64;
 var wasm_counter: std.atomic.Value(CounterInt) = .{ .raw = 0 };
 
 /// Platform-aware Instant type
-/// On native platforms, this is std.time.Instant
-/// On WASM, this is a stub that returns 0
-pub const Instant = if (has_instant) std.time.Instant else struct {
-    counter: u64,
+/// Uses POSIX clock_gettime for monotonic time on supported platforms
+pub const Instant = struct {
+    nanos: u128, // Absolute nanoseconds from arbitrary epoch
 
     pub fn now() error{Unsupported}!@This() {
-        return .{ .counter = 0 };
+        if (isWasmTarget()) {
+            return error.Unsupported;
+        }
+
+        // Use C clock_gettime on POSIX platforms
+        if (@hasDecl(std, "c") and @hasDecl(std.c, "clock_gettime")) {
+            var ts: std.c.timespec = undefined;
+            // Use MONOTONIC clock (enum value varies by platform)
+            const clock_id = if (@hasField(std.c.clockid_t, "MONOTONIC"))
+                std.c.clockid_t.MONOTONIC
+            else
+                @as(std.c.clockid_t, @enumFromInt(1)); // Fallback for Linux
+            const result = std.c.clock_gettime(clock_id, &ts);
+            if (result == 0) {
+                // Field names vary by platform (tv_sec/tv_nsec on Linux, sec/nsec on macOS)
+                const sec = if (@hasField(std.c.timespec, "tv_sec")) ts.tv_sec else ts.sec;
+                const nsec = if (@hasField(std.c.timespec, "tv_nsec")) ts.tv_nsec else ts.nsec;
+                const nanos: u128 = @as(u128, @intCast(sec)) * std.time.ns_per_s +
+                    @as(u128, @intCast(nsec));
+                return .{ .nanos = nanos };
+            }
+        }
+
+        return error.Unsupported;
     }
 
     pub fn since(self: @This(), earlier: @This()) u64 {
-        _ = self;
-        _ = earlier;
+        if (self.nanos >= earlier.nanos) {
+            const diff = self.nanos - earlier.nanos;
+            // Clamp to u64 max if it overflows
+            return if (diff > std.math.maxInt(u64))
+                std.math.maxInt(u64)
+            else
+                @intCast(diff);
+        }
         return 0;
+    }
+};
+
+/// Timer for measuring elapsed time (std.time.Timer compatible API)
+/// Provides nanosecond-precision timing on supported platforms
+pub const Timer = struct {
+    start_instant: Instant,
+
+    pub fn start() error{Unsupported}!Timer {
+        return .{ .start_instant = try Instant.now() };
+    }
+
+    pub fn read(self: *Timer) u64 {
+        const current = Instant.now() catch return 0;
+        return current.since(self.start_instant);
+    }
+
+    pub fn reset(self: *Timer) void {
+        self.start_instant = Instant.now() catch return;
+    }
+
+    pub fn lap(self: *Timer) u64 {
+        const elapsed_ns = self.read();
+        self.reset();
+        return elapsed_ns;
     }
 };
 
@@ -232,9 +285,20 @@ test "instant on native platform" {
     }
 }
 
+test "timer basic" {
+    if (has_instant) {
+        var timer = Timer.start() catch return error.SkipZigTest;
+        sleepMs(10);
+        const elapsed_ns = timer.read();
+        try std.testing.expect(elapsed_ns > 0);
+    }
+}
+
 test "getSeed returns unique values" {
     const seed1 = getSeed();
+    sleepMs(1); // Ensure time passes
     const seed2 = getSeed();
+    sleepMs(1);
     const seed3 = getSeed();
     // Seeds should be different (with very high probability)
     try std.testing.expect(seed1 != seed2 or seed2 != seed3);

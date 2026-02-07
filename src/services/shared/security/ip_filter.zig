@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 
 /// IP version
 pub const IpVersion = enum {
@@ -293,7 +294,7 @@ pub const IpFilter = struct {
     violations: std.AutoHashMapUnmanaged(u128, ViolationInfo),
     /// Statistics
     stats: IpFilterStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const BlockedRange = struct {
         range: CidrRange,

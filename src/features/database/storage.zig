@@ -13,6 +13,10 @@ const database = @import("database.zig");
 const storage_magic = "ABID";
 const storage_version: u16 = 1;
 
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
+
 pub const StorageError = error{
     InvalidFormat,
     UnsupportedVersion,
@@ -59,7 +63,7 @@ pub fn saveDatabaseWithConfig(
     path: []const u8,
     config: StorageConfig,
 ) SaveError!void {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -200,7 +204,7 @@ fn saveDatabaseBuffered(
 }
 
 pub fn loadDatabase(allocator: std.mem.Allocator, path: []const u8) LoadError!database.Database {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

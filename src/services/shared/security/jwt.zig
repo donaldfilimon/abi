@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 const crypto = std.crypto;
 
 /// JWT signing algorithms
@@ -173,7 +174,7 @@ pub const JwtManager = struct {
     secret_key: []const u8,
     /// Blacklisted token IDs (jti)
     blacklist: std.StringArrayHashMapUnmanaged(i64),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// Statistics
     stats: JwtStats,
 

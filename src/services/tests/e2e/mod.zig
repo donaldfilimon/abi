@@ -44,6 +44,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 
 // Sub-modules
 pub const vector_search = @import("vector_search_e2e.zig");
@@ -200,7 +202,7 @@ pub const E2EContext = struct {
     /// Creates a framework with the requested features and sets up
     /// temporary directories for test artifacts.
     pub fn init(allocator: std.mem.Allocator, config: E2EConfig) Error!E2EContext {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         var ctx = E2EContext{
             .allocator = allocator,
@@ -242,7 +244,7 @@ pub const E2EContext = struct {
 
     /// Clean up all resources.
     pub fn deinit(self: *E2EContext) void {
-        var timer = std.time.Timer.start() catch null;
+        var timer = time.Timer.start() catch null;
 
         // Clean up framework
         if (self.framework) |fw| {
@@ -286,7 +288,7 @@ pub const E2EContext = struct {
         // Generate unique directory name
         var buf: [64]u8 = undefined;
         // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             return error.TempDirCreationFailed;
         };
         const timestamp_ns = timer.read();
@@ -388,7 +390,7 @@ pub const E2EMetrics = struct {
 
 /// Timer for measuring workflow durations.
 pub const WorkflowTimer = struct {
-    start_time: ?std.time.Timer = null,
+    start_time: ?time.Timer = null,
     checkpoints: std.ArrayListUnmanaged(Checkpoint) = .{},
     allocator: std.mem.Allocator,
 
@@ -400,7 +402,7 @@ pub const WorkflowTimer = struct {
     pub fn init(allocator: std.mem.Allocator) WorkflowTimer {
         return .{
             .allocator = allocator,
-            .start_time = std.time.Timer.start() catch null,
+            .start_time = time.Timer.start() catch null,
         };
     }
 
@@ -431,7 +433,7 @@ pub const WorkflowTimer = struct {
     /// Check if a timeout has been exceeded.
     pub fn isTimedOut(self: *WorkflowTimer, timeout_ms: u64) bool {
         const elapsed_ns = self.elapsed();
-        return elapsed_ns > timeout_ms * 1_000_000;
+        return elapsed_ns >= timeout_ms * 1_000_000;
     }
 };
 
@@ -454,6 +456,11 @@ pub fn skipIfDatabaseDisabled() !void {
 /// Skip test if AI is disabled.
 pub fn skipIfAiDisabled() !void {
     if (!build_options.enable_ai) return error.SkipZigTest;
+}
+
+/// Skip test if LLM is disabled.
+pub fn skipIfLlmDisabled() !void {
+    if (!build_options.enable_llm) return error.SkipZigTest;
 }
 
 /// Skip test if GPU is disabled.

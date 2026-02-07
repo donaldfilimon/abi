@@ -40,6 +40,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const sampler_mod = @import("sampler.zig");
 const tokenizer = @import("../tokenizer/mod.zig");
 const generator_mod = @import("generator.zig");
@@ -215,7 +217,7 @@ pub const StreamingGenerator = struct {
     stats: StreamingStats,
 
     /// Start time for timing
-    start_time: ?std.time.Timer,
+    start_time: ?time.Timer,
 
     /// Cancellation flag
     cancel_requested: std.atomic.Value(bool),
@@ -274,7 +276,7 @@ pub const StreamingGenerator = struct {
         self.stats = std.mem.zeroes(StreamingStats);
         self.stats.prompt_tokens = @intCast(prompt_tokens.len);
 
-        self.start_time = std.time.Timer.start() catch null;
+        self.start_time = time.Timer.start() catch null;
 
         // Prefill phase
         var pos: u32 = 0;
@@ -526,7 +528,7 @@ pub const StreamingResponse = struct {
     token_buffer: std.ArrayListUnmanaged(u32),
 
     // Timing
-    start_time: ?std.time.Timer,
+    start_time: ?time.Timer,
     first_token_time: ?u64,
     stats: StreamingStats,
 
@@ -624,7 +626,7 @@ pub const StreamingResponse = struct {
             .idle => {
                 // Start prefill
                 self.state = .prefilling;
-                self.start_time = std.time.Timer.start() catch return StreamingError.TimerFailed;
+                self.start_time = time.Timer.start() catch return StreamingError.TimerFailed;
                 self.stats.prompt_tokens = @intCast(self.prompt_tokens.len);
 
                 // Process all prompt tokens

@@ -15,6 +15,7 @@
 //!   zig build benchmarks -- --help          # Show help
 
 const std = @import("std");
+const abi = @import("abi");
 const framework = @import("system/framework.zig");
 const infrastructure = @import("infrastructure/mod.zig");
 const domains = @import("mod.zig").domains;
@@ -254,7 +255,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     printHeader();
 
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         std.debug.print("Timer not supported on this platform\n", .{});
         return;
     };

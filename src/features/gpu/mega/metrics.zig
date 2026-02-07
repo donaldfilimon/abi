@@ -4,6 +4,8 @@
 //! export. Uses shared observability primitives from the centralized metrics module.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const backend_mod = @import("../backend.zig");
 const core_metrics = @import("../../observability/metrics/mod.zig");
 
@@ -47,7 +49,7 @@ pub const MetricsExporter = struct {
     metrics: std.AutoHashMap(backend_mod.Backend, BackendMetrics),
     global_workload_count: Counter = .{},
     global_failover_count: Counter = .{},
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub fn init(allocator: std.mem.Allocator) !*MetricsExporter {
         const self = try allocator.create(MetricsExporter);

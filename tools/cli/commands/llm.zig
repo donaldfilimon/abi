@@ -634,7 +634,7 @@ fn runComputeBenchmark(allocator: std.mem.Allocator, prompt_tokens: u32, gen_tok
 
     // Benchmark
     const iterations: u32 = 5;
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         return BenchResult{
             .m = m,
             .k = k,

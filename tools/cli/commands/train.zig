@@ -278,7 +278,7 @@ fn runTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     // Run training
     std.debug.print("Starting training...\n\n", .{});
 
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         std.debug.print("Error: Failed to start timer\n", .{});
         return;
     };
@@ -717,7 +717,7 @@ fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     llm_config.export_name = export_name;
 
     std.debug.print("Starting training from scratch...\n", .{});
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         std.debug.print("Error: Failed to start timer\n", .{});
         return;
     };
@@ -1562,7 +1562,7 @@ fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     std.debug.print("Generated {d} synthetic images for training\n\n", .{num_samples});
     std.debug.print("Starting Vision training...\n", .{});
 
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         std.debug.print("Error: Failed to start timer\n", .{});
         return;
     };
@@ -1924,7 +1924,7 @@ fn runClipTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     std.debug.print("Generated {d} synthetic image-text pairs for training\n\n", .{num_samples});
     std.debug.print("Starting CLIP contrastive training...\n", .{});
 
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         std.debug.print("Error: Failed to start timer\n", .{});
         return;
     };

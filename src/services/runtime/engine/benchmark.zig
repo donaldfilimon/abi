@@ -4,6 +4,8 @@
 //! This module provides minimal exports for API compatibility.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 /// Result of a benchmark run.
 pub const BenchmarkResult = struct {
@@ -28,7 +30,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator) ![]BenchmarkResult {
 fn runAllocationBenchmark(allocator: std.mem.Allocator) !BenchmarkResult {
     const iterations: u64 = 10_000;
 
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
 
     var i: u64 = 0;
     while (i < iterations) : (i += 1) {

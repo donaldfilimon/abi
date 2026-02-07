@@ -562,7 +562,7 @@ fn runGpuMatmulBenchmark(
     var iterations: u32 = 0;
 
     while (total_ns < config.min_time_ns and iterations < config.benchmark_iterations) : (iterations += 1) {
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
         _ = try gpu_ctx.matrixMultiply(buf_a, buf_b, buf_c, .{
             .m = size,
             .n = size,

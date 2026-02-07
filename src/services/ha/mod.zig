@@ -25,6 +25,17 @@
 const std = @import("std");
 const platform_time = @import("../shared/time.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 pub const replication = @import("replication.zig");
 pub const backup = @import("backup.zig");
 pub const pitr = @import("pitr.zig");
@@ -94,7 +105,7 @@ pub const HaManager = struct {
     is_running: bool,
     is_primary: bool,
     node_id: u64,
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     /// Initialize the HA manager
     pub fn init(allocator: std.mem.Allocator, config: HaConfig) HaManager {

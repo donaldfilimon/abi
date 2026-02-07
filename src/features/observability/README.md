@@ -170,7 +170,8 @@ if (requestFailed()) {
 ### Request Tracking with Histogram
 
 ```zig
-const timer = std.time.Timer.start() catch return error.TimerFailed;
+const time = @import("../../services/shared/time.zig");
+var timer = time.Timer.start() catch return error.TimerFailed;
 defer {
     const elapsed_ns = timer.read();
     const elapsed_ms = elapsed_ns / 1_000_000;
@@ -257,7 +258,7 @@ const exporter = observability.PrometheusExporter.init(
 
 All metric primitives are thread-safe:
 - **Counter/Gauge**: Use `std.atomic.Value` for lock-free operations
-- **FloatGauge**: Uses `std.Thread.Mutex` for safe floating-point access
+- **FloatGauge**: Uses `sync.Mutex` for safe floating-point access
 - **MetricsCollector**: Safe concurrent registration and recording
 
 ## Performance

@@ -9,6 +9,8 @@
 //! - Concurrent operation handling
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const abi = @import("../../src/abi");
 const gpu = abi.gpu;
 const dispatcher = gpu.dispatcher;
@@ -23,7 +25,7 @@ const BenchmarkResult = struct {
 };
 
 fn measurePerformance(test_fn: anytype, iterations: usize) !BenchmarkResult {
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
 
     for (0..iterations) |_| {
         test_fn() catch {};
@@ -187,7 +189,7 @@ test "GPU dispatcher: concurrent execution performance" {
 
     const atomic_error_count = std.atomic.Value(usize).init(0);
 
-    var timer = try std.time.Timer.start();
+    var timer = try time.Timer.start();
 
     for (0..concurrent_threads) |_| {
         const thread = try std.Thread.spawn(.{}, struct {

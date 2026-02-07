@@ -32,6 +32,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const multi_device = @import("../multi_device.zig");
 const backend_mod = @import("../backend.zig");
@@ -153,7 +155,7 @@ pub const Coordinator = struct {
     scheduling_history: std.ArrayListUnmanaged(SchedulingRecord),
     stats: CoordinatorStats,
     next_decision_id: u64,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     /// Record of a scheduling decision and its outcome.
     const SchedulingRecord = struct {

@@ -1,5 +1,6 @@
 const std = @import("std");
 const platform_time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const ExploreConfig = @import("config.zig").ExploreConfig;
 const ExploreLevel = @import("config.zig").ExploreLevel;
 const ExploreResult = @import("results.zig").ExploreResult;
@@ -22,7 +23,7 @@ pub const ExploreAgent = struct {
     stats: ExplorationStats,
     start_time: platform_time.Instant,
     cancelled: bool,
-    cancellation_lock: std.Thread.Mutex,
+    cancellation_lock: sync.Mutex,
     io_backend: std.Io.Threaded,
 
     pub fn init(allocator: std.mem.Allocator, config: ExploreConfig) !ExploreAgent {
@@ -33,7 +34,7 @@ pub const ExploreAgent = struct {
             .stats = ExplorationStats{},
             .start_time = platform_time.Instant.now() catch return error.TimerUnavailable,
             .cancelled = false,
-            .cancellation_lock = std.Thread.Mutex{},
+            .cancellation_lock = sync.Mutex{},
             .io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }),
         };
     }

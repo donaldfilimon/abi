@@ -6,6 +6,7 @@
 //! - Parameter sensitivity analysis
 
 const std = @import("std");
+const abi = @import("abi");
 const core = @import("../../core/mod.zig");
 const framework = @import("../../system/framework.zig");
 
@@ -242,7 +243,7 @@ pub fn benchBuildTime(
 
     var prng = std.Random.DefaultPrng.init(12345);
 
-    var timer = std.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
 
     for (vectors, 0..) |v, i| {
         try index.insert(v, @intCast(i), prng.random());
@@ -262,7 +263,7 @@ pub fn benchSearch(
     k: usize,
     ef: usize,
 ) !struct { total_time_ns: u64, results_count: u64 } {
-    var timer = std.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
     var total_results: u64 = 0;
 
     for (queries) |q| {

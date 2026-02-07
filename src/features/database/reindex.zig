@@ -1,6 +1,7 @@
 //! Automatic re-indexing for vector databases with background monitoring.
 const std = @import("std");
 const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const index = @import("index.zig");
 
 pub const ReindexConfig = struct {
@@ -35,10 +36,10 @@ pub const AutoReindexer = struct {
     state: ReindexState,
     running: std.atomic.Value(bool),
     thread: ?std.Thread = null,
-    condition: std.Thread.Condition = .{},
-    mutex: std.Thread.Mutex = .{},
+    condition: sync.Condition = .{},
+    mutex: sync.Mutex = .{},
     index_manager: *index.IndexManager,
-    wake_event: std.Thread.Wake = .{},
+    wake_event: sync.Wake = .{},
 
     pub fn init(
         allocator: std.mem.Allocator,
@@ -88,8 +89,8 @@ pub const AutoReindexer = struct {
     fn runMonitor(self: *AutoReindexer) void {
         while (self.running.load(.acquire)) {
             {
-                const lock = self.mutex.acquire();
-                defer lock.release();
+                self.mutex.lock();
+                defer self.mutex.unlock();
                 if (!self.running.load(.acquire)) break;
             }
 
@@ -103,8 +104,8 @@ pub const AutoReindexer = struct {
     }
 
     fn checkAndReindex(self: *AutoReindexer) void {
-        self.mutex.acquire();
-        defer self.mutex.release();
+        self.mutex.lock();
+        defer self.mutex.unlock();
 
         self.metrics.total_checks += 1;
         self.metrics.last_check_time = time.unixSeconds();
@@ -174,7 +175,7 @@ pub const AutoReindexer = struct {
 
     fn performReindex(self: *AutoReindexer) void {
         self.metrics.current_state = .reindexing;
-        var timer = std.time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             self.metrics.current_state = .idle;
             return;
         };

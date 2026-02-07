@@ -8,7 +8,9 @@
 //! - Memory pressure handling with automatic eviction
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/utils.zig");
+const time = platform_time;
+const sync = @import("../../services/shared/sync.zig");
 const memory = @import("memory.zig");
 
 /// Memory allocation size classes in bytes.
@@ -215,7 +217,7 @@ pub const AdvancedMemoryPool = struct {
     allocation_count: u64,
     free_count: u64,
     coalesce_count: u64,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// Histogram tracking allocation frequency per size class (for hot class detection)
     allocation_histogram: [SIZE_CLASSES.len]u64,
 

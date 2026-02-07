@@ -133,7 +133,7 @@ fn benchmarkAbiInsert(
         storage.deinit(tracked);
     }
 
-    var timer = std.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
 
     for (vectors) |vec| {
         const copy = try tracked.dupe(f32, vec);
@@ -165,7 +165,7 @@ fn benchmarkAbiQuery(
     var total_recall: f64 = 0.0;
 
     for (queries, 0..) |query, qi| {
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
 
         // Use SIMD for distance computation
         var distances = try allocator.alloc(f32, vectors.len);

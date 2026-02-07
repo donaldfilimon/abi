@@ -4,7 +4,9 @@
 //! for GPU operations and kernel launches.
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/utils.zig");
+const time = platform_time;
+const sync = @import("../../services/shared/sync.zig");
 
 pub const ProfilingError = error{
     TimerFailed,
@@ -117,7 +119,7 @@ pub const Profiler = struct {
     timings: std.ArrayListUnmanaged(TimingInfo),
     memory_transfers: std.ArrayListUnmanaged(MemoryThroughput),
     enabled: bool,
-    start_timer: ?std.time.Timer,
+    start_timer: ?platform_time.Timer,
     current_stream_id: ?u64,
 
     pub fn init(allocator: std.mem.Allocator) Profiler {
@@ -142,7 +144,7 @@ pub const Profiler = struct {
 
     pub fn enable(self: *Profiler) void {
         self.enabled = true;
-        self.start_timer = std.time.Timer.start() catch null;
+        self.start_timer = platform_time.Timer.start() catch null;
     }
 
     pub fn disable(self: *Profiler) void {

@@ -4,7 +4,9 @@
 //! including token bucket, sliding window, and fixed window.
 
 const std = @import("std");
-const time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../services/shared/utils.zig");
+const time = platform_time;
+const sync = @import("../../services/shared/sync.zig");
 
 /// Rate limiting algorithm.
 pub const RateLimitAlgorithm = enum {
@@ -82,7 +84,7 @@ pub const TokenBucketLimiter = struct {
     tokens: std.atomic.Value(u64),
     last_refill: std.atomic.Value(i64),
     refill_rate_ns: u64,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     /// Initialize token bucket limiter.
     pub fn init(config: RateLimiterConfig) TokenBucketLimiter {
@@ -176,7 +178,7 @@ pub const SlidingWindowLimiter = struct {
     config: RateLimiterConfig,
     timestamps: std.ArrayListUnmanaged(i64),
     allocator: std.mem.Allocator,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     /// Initialize sliding window limiter.
     pub fn init(allocator: std.mem.Allocator, config: RateLimiterConfig) SlidingWindowLimiter {
@@ -263,7 +265,7 @@ pub const FixedWindowLimiter = struct {
     config: RateLimiterConfig,
     count: std.atomic.Value(u32),
     window_start: std.atomic.Value(i64),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     /// Initialize fixed window limiter.
     pub fn init(config: RateLimiterConfig) FixedWindowLimiter {

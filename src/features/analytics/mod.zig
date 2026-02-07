@@ -12,7 +12,20 @@
 //! - Thread-safe event buffer with configurable flush
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
+
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
 
 // ============================================================================
 // Event Types
@@ -69,7 +82,7 @@ pub const Engine = struct {
     events: std.ArrayListUnmanaged(StoredEvent) = .empty,
     session_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
     event_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-    mutex: std.Thread.Mutex = .{},
+    mutex: Mutex = .{},
 
     const StoredEvent = struct {
         name: []const u8,
@@ -283,15 +296,15 @@ pub fn isInitialized() bool {
 // ============================================================================
 
 /// Application start anchor for monotonic timestamps.
-var app_start: ?std.time.Instant = null;
+var app_start: ?time.Instant = null;
 
 fn timestampMs() u64 {
     const start = app_start orelse blk: {
-        const s = std.time.Instant.now() catch return 0;
+        const s = time.Instant.now() catch return 0;
         app_start = s;
         break :blk s;
     };
-    const now = std.time.Instant.now() catch return 0;
+    const now = time.Instant.now() catch return 0;
     return now.since(start) / std.time.ns_per_ms;
 }
 

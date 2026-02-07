@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 const crypto = std.crypto;
 
 /// Session configuration
@@ -162,7 +163,7 @@ pub const SessionManager = struct {
     config: SessionConfig,
     sessions: std.StringArrayHashMapUnmanaged(*Session),
     user_sessions: std.StringArrayHashMapUnmanaged(std.ArrayListUnmanaged([]const u8)),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     stats: SessionStats,
 
     pub const SessionStats = struct {

@@ -33,6 +33,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
@@ -42,6 +44,17 @@ const unified_buffer = @import("unified_buffer.zig");
 const kernel_types = @import("kernel_types.zig");
 const builtin_kernels = @import("builtin_kernels.zig");
 const kernel_ring_mod = @import("kernel_ring.zig");
+
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
 
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
 const cublas = if (build_options.enable_gpu)
@@ -216,7 +229,7 @@ pub const KernelDispatcher = struct {
     /// Launch queue for batching kernel launches.
     launch_queue: std.ArrayListUnmanaged(QueuedLaunch),
     /// Mutex for thread-safe queue operations.
-    queue_mutex: std.Thread.Mutex,
+    queue_mutex: Mutex,
     /// Maximum queue size before auto-flush.
     max_queue_size: usize = 32,
 
@@ -394,7 +407,7 @@ pub const KernelDispatcher = struct {
         config: LaunchConfig,
         args: KernelArgs,
     ) DispatchError!ExecutionResult {
-        const timer_result = std.time.Timer.start();
+        const timer_result = time.Timer.start();
         var timer = timer_result catch |err| {
             std.log.debug("Timer unavailable for kernel execution: {t}", .{err});
             // Timer unavailable - execute without timing

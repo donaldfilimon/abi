@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 
 /// Rate limiting algorithm
 pub const Algorithm = enum {
@@ -141,7 +142,7 @@ pub const RateLimiter = struct {
     allocator: std.mem.Allocator,
     config: RateLimitConfig,
     buckets: std.StringArrayHashMapUnmanaged(Bucket),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// Statistics
     stats: RateLimiterStats,
 

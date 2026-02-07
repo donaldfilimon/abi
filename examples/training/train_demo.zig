@@ -151,7 +151,7 @@ pub fn main() !void {
     };
     defer trainer.deinit();
 
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         std.debug.print("Error: Failed to start timer\n", .{});
         return;
     };

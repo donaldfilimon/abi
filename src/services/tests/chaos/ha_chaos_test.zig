@@ -15,6 +15,8 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
+const time = abi.shared.time;
+const sync = abi.shared.sync;
 const ha = abi.ha;
 const chaos = @import("mod.zig");
 const helpers = @import("../helpers.zig");
@@ -362,7 +364,7 @@ test "ha chaos: pitr recovery point lookup under chaos" {
     if (created_checkpoints > 0) {
         // Find nearest recovery point to a future time
         // Use Timer for Zig 0.16 compatibility (no std.time.timestamp())
-        const timer = std.time.Timer.start() catch |err| {
+        const timer = time.Timer.start() catch |err| {
             std.debug.panic("Timer.start failed unexpectedly: {}", .{err});
         };
         const current_ns: i64 = @intCast(timer.read());

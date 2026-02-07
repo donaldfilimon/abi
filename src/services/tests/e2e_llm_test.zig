@@ -13,11 +13,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
-
-// Skip all tests if LLM feature is disabled
-fn skipIfLlmDisabled() !void {
-    if (!build_options.enable_llm) return error.SkipZigTest;
-}
+const e2e = @import("e2e/mod.zig");
 
 // ============================================================================
 // Tokenizer Workflow Tests
@@ -26,7 +22,7 @@ fn skipIfLlmDisabled() !void {
 // Test that tokenizer can be initialized with different kinds.
 // Verifies the unified tokenizer interface works for all supported types.
 test "tokenizer: initialization with different kinds" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -52,7 +48,7 @@ test "tokenizer: initialization with different kinds" {
 // Test tokenizer kind detection from GGUF model type strings.
 // Ensures correct tokenizer selection for different model architectures.
 test "tokenizer: kind detection from model type" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const TokenizerKind = abi.ai.llm.tokenizer.TokenizerKind;
 
@@ -74,7 +70,7 @@ test "tokenizer: kind detection from model type" {
 // Test BPE tokenizer with vocabulary loading.
 // Verifies basic vocabulary operations work correctly.
 test "tokenizer: bpe vocabulary loading" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -97,7 +93,7 @@ test "tokenizer: bpe vocabulary loading" {
 // Test tokenizer BOS/EOS configuration.
 // Verifies special token flags can be set and affect output.
 test "tokenizer: bos and eos configuration" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -128,7 +124,7 @@ test "tokenizer: bos and eos configuration" {
 // Testinference configuration defaults.
 // Ensuressensible defaults are set for all configuration options.
 test "inference config: default values" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const config = abi.ai.llm.InferenceConfig{};
 
@@ -146,7 +142,7 @@ test "inference config: default values" {
 // Test inference configuration with custom values.
 // Verifies all configuration options can be customized.
 test "inference config: custom values" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const config = abi.ai.llm.InferenceConfig{
         .max_context_length = 4096,
@@ -173,7 +169,7 @@ test "inference config: custom values" {
 // Test edge case: temperature at boundaries.
 // Temperature of 0 means greedy, high values increase randomness.
 test "inference config: temperature boundaries" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     // Greedy decoding
     const greedy = abi.ai.llm.InferenceConfig{ .temperature = 0.0 };
@@ -195,7 +191,7 @@ test "inference config: temperature boundaries" {
 // Test inference statistics calculation.
 // Verifies tokens-per-second calculations are correct.
 test "inference stats: tokens per second calculation" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const stats = abi.ai.llm.InferenceStats{
         .prompt_tokens = 100,
@@ -215,7 +211,7 @@ test "inference stats: tokens per second calculation" {
 // Test inference statistics with zero time.
 // Division by zero should be handled gracefully.
 test "inference stats: zero time handling" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const stats = abi.ai.llm.InferenceStats{
         .prompt_tokens = 100,
@@ -232,7 +228,7 @@ test "inference stats: zero time handling" {
 // Test inference statistics formatting.
 // Verifies the format function produces expected output structure.
 test "inference stats: formatting" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const stats = abi.ai.llm.InferenceStats{
         .prompt_tokens = 100,
@@ -262,7 +258,7 @@ test "inference stats: formatting" {
 // Test LLM engine initialization and cleanup.
 // Verifies engine can be created and destroyed without leaks.
 test "engine: lifecycle management" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -283,7 +279,7 @@ test "engine: lifecycle management" {
 // Test LLM engine with custom configuration.
 // Verifies configuration is properly stored and accessible.
 test "engine: custom configuration" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -304,7 +300,7 @@ test "engine: custom configuration" {
 // Test engine operations without loaded model.
 // Should return appropriate errors when no model is available.
 test "engine: operations without model" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -331,7 +327,7 @@ test "engine: operations without model" {
 // Test handling of empty input strings.
 // Empty inputs should be handled gracefully without crashes.
 test "edge case: empty input handling" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -354,7 +350,7 @@ test "edge case: empty input handling" {
 // Test handling of unicode input.
 // Unicode characters should be processed correctly.
 test "edge case: unicode input" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -382,7 +378,7 @@ test "edge case: unicode input" {
 // Test handling of special characters.
 // Control characters, null bytes, etc. should be handled safely.
 test "edge case: special characters" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -410,7 +406,7 @@ test "edge case: special characters" {
 // Test handling of maximum size inputs.
 // Very long inputs should not cause integer overflow or OOM.
 test "edge case: large input handling" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -440,7 +436,7 @@ test "edge case: large input handling" {
 // TestLLM error types are properly defined.
 // Ensuresall expected error types exist in the error set.
 test "llm errors: type definitions" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     // Verify LlmError types exist
     const llm_errors = [_]abi.ai.llm.LlmError{
@@ -463,7 +459,7 @@ test "llm errors: type definitions" {
 // Testmodule-level Error types.
 // Ensuresconvenience error types are also available.
 test "llm errors: module error types" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const module_errors = [_]abi.ai.llm.Error{
         abi.ai.llm.Error.LlmDisabled,
@@ -504,7 +500,7 @@ test "llm feature: detection" {
 // Test parallel executor basic initialization.
 // Verifies parallel processing support is available when LLM is enabled.
 test "parallel: executor initialization" {
-    try skipIfLlmDisabled();
+    try e2e.skipIfLlmDisabled();
 
     const allocator = std.testing.allocator;
 

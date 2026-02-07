@@ -26,6 +26,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const numa = @import("numa.zig");
 
 /// Configuration for steal policy.
@@ -93,7 +95,7 @@ pub const NumaStealPolicy = struct {
     /// Statistics
     stats: StealStats = .{},
     /// Mutex for stats updates
-    stats_mutex: std.Thread.Mutex = .{},
+    stats_mutex: sync.Mutex = .{},
 
     /// Initialize with NUMA topology.
     pub fn init(

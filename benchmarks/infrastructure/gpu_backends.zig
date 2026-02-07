@@ -128,7 +128,7 @@ fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void
     }
 
     // Benchmark
-    var timer = try std.time.Timer.start();
+    var timer = try abi.shared.time.Timer.start();
     const iterations: usize = 100;
     for (0..iterations) |_| {
         abi.vectorAdd(vec_a, vec_b, result);
@@ -167,7 +167,7 @@ fn benchmarkMatrixMultiply(allocator: std.mem.Allocator, size: usize) !void {
     }
 
     // Benchmark
-    var timer = try std.time.Timer.start();
+    var timer = try abi.shared.time.Timer.start();
     const iterations: usize = 10;
     for (0..iterations) |_| {
         abi.simd.matrixMultiply(mat_a, mat_b, result, size, size, size);

@@ -29,6 +29,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 const stream_mod = @import("stream.zig");
@@ -38,6 +40,17 @@ const multi_device = @import("multi_device.zig");
 const metrics_mod = @import("metrics.zig");
 const dispatcher_mod = @import("dispatcher.zig");
 const adaptive_tiling_mod = @import("adaptive_tiling.zig");
+
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
 
 // Re-export key types
 pub const Backend = backend_mod.Backend;
@@ -198,7 +211,7 @@ pub const Gpu = struct {
 
     // Buffer tracking
     buffers: std.ArrayListUnmanaged(*Buffer),
-    buffer_mutex: std.Thread.Mutex,
+    buffer_mutex: Mutex,
 
     // Statistics
     stats: GpuStats,
@@ -466,7 +479,7 @@ pub const Gpu = struct {
     pub fn vectorAdd(self: *Gpu, a: *Buffer, b: *Buffer, result: *Buffer) !ExecutionResult {
         const device = self.active_device orelse return error.NoActiveDevice;
 
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = time.Timer.start() catch return error.TimerFailed;
         var gpu_executed = false;
 
         // Try dispatcher-based execution first
@@ -530,7 +543,7 @@ pub const Gpu = struct {
     ) !ExecutionResult {
         const device = self.active_device orelse return error.NoActiveDevice;
 
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = time.Timer.start() catch return error.TimerFailed;
         var gpu_executed = false;
 
         // Try dispatcher-based execution first
@@ -626,7 +639,7 @@ pub const Gpu = struct {
     pub fn reduceSum(self: *Gpu, input: *Buffer) !struct { value: f32, stats: ExecutionResult } {
         const device = self.active_device orelse return error.NoActiveDevice;
 
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = time.Timer.start() catch return error.TimerFailed;
         var sum: f32 = 0;
         var gpu_executed = false;
 
@@ -696,7 +709,7 @@ pub const Gpu = struct {
     pub fn dotProduct(self: *Gpu, a: *Buffer, b: *Buffer) !struct { value: f32, stats: ExecutionResult } {
         const device = self.active_device orelse return error.NoActiveDevice;
 
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = time.Timer.start() catch return error.TimerFailed;
         var sum: f32 = 0;
         var gpu_executed = false;
 
@@ -769,7 +782,7 @@ pub const Gpu = struct {
     pub fn softmax(self: *Gpu, input: *Buffer, output: *Buffer) !ExecutionResult {
         const device = self.active_device orelse return error.NoActiveDevice;
 
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = time.Timer.start() catch return error.TimerFailed;
         var gpu_executed = false;
 
         // Try dispatcher-based execution first
@@ -868,7 +881,7 @@ pub const Gpu = struct {
         const device = self.active_device orelse return error.NoActiveDevice;
         _ = args;
 
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = time.Timer.start() catch return error.TimerFailed;
 
         // In a real implementation, this would dispatch to the backend
         // For now, just record the launch

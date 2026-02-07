@@ -11,6 +11,8 @@
 //! - Hot-plug detection
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const builtin = @import("builtin");
 
 /// Thunderbolt configuration.
@@ -239,7 +241,7 @@ pub const ThunderboltTransport = struct {
     state: TransportState,
 
     /// Lock for thread safety.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const TransportState = enum {
         uninitialized,

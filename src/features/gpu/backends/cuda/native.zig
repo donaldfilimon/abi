@@ -4,6 +4,8 @@
 //! using the CUDA Driver API instead of fallback simulation.
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const types = @import("../../kernel_types.zig");
 const shared = @import("../shared.zig");
 
@@ -28,7 +30,7 @@ pub const CudaContext = struct {
 var cuda_initialized = false;
 var cuda_context: ?CudaContext = null;
 var cuda_lib: ?std.DynLib = null;
-var init_mutex: std.Thread.Mutex = .{};
+var init_mutex: sync.Mutex = .{};
 
 const CuResult = enum(i32) {
     success = 0,

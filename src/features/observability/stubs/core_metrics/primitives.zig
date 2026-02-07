@@ -4,6 +4,8 @@
 //! All operations are no-ops when observability is disabled.
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 
 /// Stub counter - all operations are no-ops.
 pub const Counter = struct {
@@ -36,7 +38,7 @@ pub const Gauge = struct {
 pub const FloatGauge = struct {
     const Self = @This();
     value: f64 = 0,
-    mutex: std.Thread.Mutex = .{},
+    mutex: sync.Mutex = .{},
 
     pub fn set(_: *Self, _: f64) void {}
     pub fn add(_: *Self, _: f64) void {}
@@ -57,7 +59,7 @@ pub fn Histogram(comptime bucket_count: usize) type {
         bucket_bounds: [bucket_count]f64,
         sum: f64 = 0,
         count: u64 = 0,
-        mutex: std.Thread.Mutex = .{},
+        mutex: sync.Mutex = .{},
 
         pub fn init(bounds: [bucket_count]f64) Self {
             return .{ .bucket_bounds = bounds };

@@ -307,6 +307,10 @@ pub const Config = struct {
     }
 };
 
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
+
 /// Configuration loader
 pub const ConfigLoader = struct {
     allocator: std.mem.Allocator,
@@ -315,7 +319,7 @@ pub const ConfigLoader = struct {
     pub fn init(allocator: std.mem.Allocator) ConfigLoader {
         return .{
             .allocator = allocator,
-            .io_backend = std.Io.Threaded.init(allocator, .{ .environ = .empty }),
+            .io_backend = initIoBackend(allocator),
         };
     }
 
@@ -366,12 +370,8 @@ pub const ConfigLoader = struct {
         if (try self.getEnvUsize(prefix, "WORKER_THREADS")) |v| config.framework.worker_threads = v;
 
         if (try self.getEnvString(prefix, "LOG_LEVEL")) |level| {
-            if (std.ascii.eqlIgnoreCase(level, "debug")) {
-                config.framework.log_level = .debug;
-            } else if (std.ascii.eqlIgnoreCase(level, "warn")) {
-                config.framework.log_level = .warn;
-            } else if (std.ascii.eqlIgnoreCase(level, "err")) {
-                config.framework.log_level = .err;
+            if (parseLogLevel(level)) |parsed| {
+                config.framework.log_level = parsed;
             }
             self.allocator.free(level);
         }
@@ -424,13 +424,8 @@ pub const ConfigLoader = struct {
                     }
                     if (framework.object.get("log_level")) |v| {
                         if (v == .string) {
-                            const level = v.string;
-                            if (std.ascii.eqlIgnoreCase(level, "debug")) {
-                                config.framework.log_level = .debug;
-                            } else if (std.ascii.eqlIgnoreCase(level, "warn")) {
-                                config.framework.log_level = .warn;
-                            } else if (std.ascii.eqlIgnoreCase(level, "err")) {
-                                config.framework.log_level = .err;
+                            if (parseLogLevel(v.string)) |parsed| {
+                                config.framework.log_level = parsed;
                             }
                         }
                     }
@@ -497,60 +492,48 @@ pub const ConfigLoader = struct {
         }
     }
 
-    fn getEnvBool(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?bool {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
+    fn parseLogLevel(level: []const u8) ?LogLevel {
+        if (std.ascii.eqlIgnoreCase(level, "debug")) return .debug;
+        if (std.ascii.eqlIgnoreCase(level, "info")) return .info;
+        if (std.ascii.eqlIgnoreCase(level, "warn")) return .warn;
+        if (std.ascii.eqlIgnoreCase(level, "err")) return .err;
+        return null;
+    }
+
+    /// Look up an environment variable using std.c.getenv (Zig 0.16 compatible).
+    /// Returns a non-owning slice into the process environment block.
+    fn lookupEnv(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?[*:0]u8 {
+        const env_name = try std.fmt.allocPrintSentinel(self.allocator, "{s}{s}", .{ prefix, name }, 0);
         defer self.allocator.free(env_name);
+        return std.c.getenv(env_name.ptr);
+    }
 
-        const value = std.process.getEnvVar(self.allocator, env_name) catch {
-            return null;
-        };
-        defer self.allocator.free(value);
-
+    fn getEnvBool(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?bool {
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        const value = std.mem.sliceTo(raw, 0);
         return std.ascii.eqlIgnoreCase(value, "true") or std.ascii.eqlIgnoreCase(value, "1");
     }
 
     fn getEnvString(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?[]const u8 {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
-        defer self.allocator.free(env_name);
-
-        return std.process.getEnvVarOwned(self.allocator, env_name) catch {
-            return null;
-        };
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        return try self.allocator.dupe(u8, std.mem.sliceTo(raw, 0));
     }
 
     fn getEnvUsize(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?usize {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
-        defer self.allocator.free(env_name);
-
-        const value = std.process.getEnvVar(self.allocator, env_name) catch {
-            return null;
-        };
-        defer self.allocator.free(value);
-
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        const value = std.mem.sliceTo(raw, 0);
         return try std.fmt.parseInt(usize, value, 10);
     }
 
     fn getEnvU16(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?u16 {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
-        defer self.allocator.free(env_name);
-
-        const value = std.process.getEnvVar(self.allocator, env_name) catch {
-            return null;
-        };
-        defer self.allocator.free(value);
-
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        const value = std.mem.sliceTo(raw, 0);
         return try std.fmt.parseInt(u16, value, 10);
     }
 
     fn getEnvF32(self: *ConfigLoader, prefix: []const u8, name: []const u8) !?f32 {
-        const env_name = try std.fmt.allocPrint(self.allocator, "{s}{s}", .{ prefix, name });
-        defer self.allocator.free(env_name);
-
-        const value = std.process.getEnvVar(self.allocator, env_name) catch {
-            return null;
-        };
-        defer self.allocator.free(value);
-
+        const raw = try self.lookupEnv(prefix, name) orelse return null;
+        const value = std.mem.sliceTo(raw, 0);
         return try std.fmt.parseFloat(f32, value);
     }
 };
@@ -597,6 +580,34 @@ test "config loader from JSON" {
     try std.testing.expectEqual(@as(usize, 20), config.database.default_search_limit);
     try std.testing.expectEqual(@as(f32, 0.5), config.ai.temperature);
     try std.testing.expectEqual(@as(u32, 1024), config.ai.max_tokens);
+}
+
+test "config log level parsing handles info and invalid values" {
+    try std.testing.expectEqual(@as(?LogLevel, .info), ConfigLoader.parseLogLevel("info"));
+    try std.testing.expectEqual(@as(?LogLevel, .info), ConfigLoader.parseLogLevel("INFO"));
+    try std.testing.expectEqual(@as(?LogLevel, .warn), ConfigLoader.parseLogLevel("Warn"));
+    try std.testing.expectEqual(@as(?LogLevel, null), ConfigLoader.parseLogLevel("invalid"));
+}
+
+test "config loader ignores invalid log level from JSON" {
+    const allocator = std.testing.allocator;
+
+    var loader = ConfigLoader.init(allocator);
+    defer loader.deinit();
+
+    const json =
+        \\{
+        \\  "framework": {
+        \\    "log_level": "not-a-level"
+        \\  }
+        \\}
+    ;
+
+    const config = try loader.loadFromJson(json, "invalid-log-level.json");
+    defer config.deinit();
+
+    // Default remains unchanged when log level cannot be parsed.
+    try std.testing.expectEqual(.info, config.framework.log_level);
 }
 
 test "config validation failures" {

@@ -443,8 +443,12 @@ fn isValidSessionId(id: []const u8) bool {
 // File I/O (Zig 0.16 compatible)
 // =============================================================================
 
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
+
 fn writeFile(allocator: std.mem.Allocator, path: []const u8, content: []const u8) !void {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -465,7 +469,7 @@ fn writeFile(allocator: std.mem.Allocator, path: []const u8, content: []const u8
 }
 
 fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -477,7 +481,7 @@ fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
 }
 
 fn deleteFile(allocator: std.mem.Allocator, path: []const u8) !void {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -488,7 +492,7 @@ fn deleteFile(allocator: std.mem.Allocator, path: []const u8) !void {
 }
 
 fn fileExists(allocator: std.mem.Allocator, path: []const u8) bool {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -505,7 +509,7 @@ fn listSessionFiles(allocator: std.mem.Allocator, dir_path: []const u8) ![][]con
         files.deinit(allocator);
     }
 
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

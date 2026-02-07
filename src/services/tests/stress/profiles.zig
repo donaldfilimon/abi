@@ -30,6 +30,17 @@ const builtin = @import("builtin");
 const abi = @import("abi");
 const time = abi.shared.time;
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 /// Stress test profile defining test parameters
 pub const StressProfile = struct {
     /// Profile name for identification
@@ -135,7 +146,7 @@ pub const StressProfile = struct {
     pub fn getEffectiveSeed(self: StressProfile) u64 {
         if (self.seed != 0) return self.seed;
         // Use Timer for time-based seed
-        var timer = std.time.Timer.start() catch return 12345;
+        var timer = time.Timer.start() catch return 12345;
         return timer.read();
     }
 };
@@ -210,7 +221,7 @@ pub const StressResult = struct {
 pub const LatencyHistogram = struct {
     samples: std.ArrayListUnmanaged(u64),
     allocator: std.mem.Allocator,
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     pub fn init(allocator: std.mem.Allocator) LatencyHistogram {
         return .{
@@ -307,9 +318,9 @@ pub fn getProfileByName(name: []const u8) ?StressProfile {
 pub const sleepMs = time.sleepMs;
 
 /// Timer for measuring elapsed time
-/// Uses std.time.Timer on native platforms, fallback for WASM
+/// Uses time.Timer on native platforms, fallback for WASM
 pub const Timer = struct {
-    inner: ?std.time.Timer,
+    inner: ?time.Timer,
 
     pub fn start() Timer {
         if (builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64) {
@@ -317,14 +328,14 @@ pub const Timer = struct {
             return .{ .inner = null };
         }
 
-        // Use std.time.Timer for native platforms
-        const inner = std.time.Timer.start() catch null;
+        // Use time.Timer for native platforms
+        const inner = time.Timer.start() catch null;
         return .{ .inner = inner };
     }
 
     pub fn read(self: Timer) u64 {
         if (self.inner) |t| {
-            // Note: std.time.Timer.read() is mutable, but we can work around
+            // Note: time.Timer.read() is mutable, but we can work around
             // by creating a copy and calling read on it
             var timer_copy = t;
             return timer_copy.read();

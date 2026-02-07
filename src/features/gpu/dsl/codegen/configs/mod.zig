@@ -23,16 +23,6 @@ pub const ShadingLanguage = enum {
     hlsl,
 };
 
-/// Backend target enumeration.
-pub const BackendTarget = enum {
-    vulkan,
-    opengl,
-    opengles,
-    webgpu,
-    metal,
-    cuda,
-};
-
 /// Literal formatting configuration.
 pub const LiteralFormat = struct {
     bool_true: []const u8 = "true",
@@ -348,4 +338,6 @@ pub const BackendConfig = struct {
     select_reversed: bool = false,
     /// While loop style: "native" | "loop_break"
     while_style: enum { native, loop_break } = .native,
+    /// GLSL target variant (Vulkan, OpenGL, or OpenGL ES). Only used when language == .glsl.
+    glsl_target: glsl.Target = .vulkan,
 };

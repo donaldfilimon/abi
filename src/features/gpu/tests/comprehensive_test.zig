@@ -4,6 +4,8 @@
 //! including performance benchmarks, stress tests, and correctness verification.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const gpu = @import("../mod.zig");
 const unified = @import("../unified.zig");
 const device_mod = @import("../device.zig");
@@ -246,7 +248,7 @@ pub const TestSuite = struct {
         var result_buf = try g.createBuffer(f32, size, .{});
         defer g.destroyBuffer(&result_buf);
 
-        var timer = try std.time.Timer.start();
+        var timer = try time.Timer.start();
         var total_time: u64 = 0;
 
         for (0..self.config.iterations) |_| {
@@ -296,7 +298,7 @@ pub const TestSuite = struct {
 
         const dims = gpu.MatrixDims{ .m = dim, .n = dim, .k = dim };
 
-        var timer = try std.time.Timer.start();
+        var timer = try time.Timer.start();
         var total_time: u64 = 0;
 
         for (0..self.config.iterations) |_| {
@@ -336,7 +338,7 @@ pub const TestSuite = struct {
         var buffer = try g.createBuffer(f32, size, .{});
         defer g.destroyBuffer(&buffer);
 
-        var timer = try std.time.Timer.start();
+        var timer = try time.Timer.start();
         var total_time: u64 = 0;
 
         // Benchmark host-to-device transfer

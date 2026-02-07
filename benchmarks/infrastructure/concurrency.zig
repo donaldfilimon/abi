@@ -12,6 +12,8 @@
 //! - Channel/message passing throughput
 
 const std = @import("std");
+const abi = @import("abi");
+const sync = abi.shared.sync;
 const framework = @import("../system/framework.zig");
 
 /// Concurrency benchmark configuration
@@ -279,7 +281,7 @@ fn benchMutexContention(
     contention: ContentionLevel,
 ) !u64 {
     const SharedState = struct {
-        mutex: std.Thread.Mutex = .{},
+        mutex: sync.Mutex = .{},
         counter: u64 = 0,
         contention: ContentionLevel,
         ops_per_thread: usize,
@@ -342,7 +344,7 @@ fn benchRWLock(
     read_ratio: u8, // Percentage of reads (0-100)
 ) !u64 {
     const SharedState = struct {
-        rwlock: std.Thread.RwLock = .{},
+        rwlock: sync.RwLock = .{},
         value: u64 = 0,
         read_ratio: u8,
         ops_per_thread: usize,
@@ -543,9 +545,9 @@ fn Channel(comptime T: type, comptime capacity: usize) type {
         buffer: [capacity]T = undefined,
         head: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
         tail: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
-        mutex: std.Thread.Mutex = .{},
-        not_empty: std.Thread.Condition = .{},
-        not_full: std.Thread.Condition = .{},
+        mutex: sync.Mutex = .{},
+        not_empty: sync.Condition = .{},
+        not_full: sync.Condition = .{},
 
         pub fn send(self: *Self, item: T) void {
             self.mutex.lock();

@@ -29,6 +29,10 @@
 const std = @import("std");
 const database = @import("database.zig");
 
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
+
 // ============================================================================
 // Constants and Magic Numbers
 // ============================================================================
@@ -527,7 +531,7 @@ pub fn saveDatabaseV2(
     path: []const u8,
     config: StorageV2Config,
 ) !void {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -705,7 +709,7 @@ pub fn loadDatabaseV2(
     path: []const u8,
     config: StorageV2Config,
 ) !database.Database {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 

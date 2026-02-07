@@ -8,6 +8,8 @@
 //! Uses Zig 0.16 std.Io patterns for cross-platform networking.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const builtin = @import("builtin");
 const Raft = @import("raft.zig");
 
@@ -326,7 +328,7 @@ fn deserializeMessage(allocator: std.mem.Allocator, data: []const u8) !Raft.Mess
 
 /// Get current timestamp in nanoseconds.
 fn getTimestampNs() u64 {
-    var timer = std.time.Timer.start() catch return 0;
+    var timer = time.Timer.start() catch return 0;
     return timer.read();
 }
 

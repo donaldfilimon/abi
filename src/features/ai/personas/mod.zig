@@ -10,6 +10,8 @@
 //! - WDBX: Distributed neural database for long-term memory and context continuity.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const obs = @import("../../observability/mod.zig");
 
@@ -243,7 +245,7 @@ pub const MultiPersonaSystem = struct {
 
     /// Process a user request through the persona pipeline.
     pub fn process(self: *Self, request: PersonaRequest) !PersonaResponse {
-        var timer = std.time.Timer.start() catch return error.TimerFailed;
+        var timer = time.Timer.start() catch return error.TimerFailed;
 
         var selected_persona: PersonaType = self.ctx.config.default_persona;
         var primary_score: f32 = 1.0;

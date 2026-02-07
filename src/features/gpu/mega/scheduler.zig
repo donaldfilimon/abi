@@ -37,6 +37,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const coordinator = @import("coordinator.zig");
 
 /// Experience for replay buffer - stores a single state transition.
@@ -121,7 +123,7 @@ pub const QTable = struct {
 
         // Epsilon-greedy exploration - use Timer for Zig 0.16 compatibility
         const seed: u64 = blk: {
-            var timer = std.time.Timer.start() catch break :blk 0;
+            var timer = time.Timer.start() catch break :blk 0;
             break :blk timer.read();
         };
         var prng = std.Random.DefaultPrng.init(seed);

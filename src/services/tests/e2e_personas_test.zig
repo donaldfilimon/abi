@@ -13,15 +13,10 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const build_options = @import("build_options");
+const e2e = @import("e2e/mod.zig");
 
 // Use the prompts module which has the simple getPersona/listPersonas API
 const prompts = abi.ai.prompts;
-
-// Skip all tests if AI feature is disabled
-fn skipIfAiDisabled() !void {
-    if (!build_options.enable_ai) return error.SkipZigTest;
-}
 
 // ============================================================================
 // Persona Definition Tests
@@ -30,7 +25,7 @@ fn skipIfAiDisabled() !void {
 // Test retrieving the assistant persona.
 // Verifies default helpful assistant configuration.
 test "persona: assistant definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.assistant);
 
@@ -47,7 +42,7 @@ test "persona: assistant definition" {
 // Test retrieving the coder persona.
 // Verifies programming-focused configuration.
 test "persona: coder definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.coder);
 
@@ -66,7 +61,7 @@ test "persona: coder definition" {
 // Test retrieving the writer persona.
 // Verifies creative writing configuration.
 test "persona: writer definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.writer);
 
@@ -85,7 +80,7 @@ test "persona: writer definition" {
 // Test retrieving the analyst persona.
 // Verifies data analysis configuration.
 test "persona: analyst definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.analyst);
 
@@ -105,7 +100,7 @@ test "persona: analyst definition" {
 // Test retrieving the companion persona.
 // Verifies friendly conversational configuration.
 test "persona: companion definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.companion);
 
@@ -124,7 +119,7 @@ test "persona: companion definition" {
 // Test retrieving the docs persona.
 // Verifies documentation specialist configuration.
 test "persona: docs definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.docs);
 
@@ -146,7 +141,7 @@ test "persona: docs definition" {
 // Test retrieving the reviewer persona.
 // Verifies code review specialist configuration.
 test "persona: reviewer definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.reviewer);
 
@@ -165,7 +160,7 @@ test "persona: reviewer definition" {
 // Test retrieving the minimal persona.
 // Verifies direct response configuration.
 test "persona: minimal definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.minimal);
 
@@ -187,7 +182,7 @@ test "persona: minimal definition" {
 // Test retrieving the Abbey persona.
 // Verifies emotionally intelligent polymath configuration.
 test "persona: abbey definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.abbey);
 
@@ -216,7 +211,7 @@ test "persona: abbey definition" {
 // Test retrieving the Ralph persona.
 // Verifies iterative worker configuration.
 test "persona: ralph definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.ralph);
 
@@ -242,7 +237,7 @@ test "persona: ralph definition" {
 // Test retrieving the Aviva persona.
 // Verifies direct expert configuration.
 test "persona: aviva definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.aviva);
 
@@ -268,7 +263,7 @@ test "persona: aviva definition" {
 // Test retrieving the Abi persona.
 // Verifies adaptive moderator configuration.
 test "persona: abi definition" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona = prompts.getPersona(.abi);
 
@@ -296,7 +291,7 @@ test "persona: abi definition" {
 // Test listing all available personas.
 // Verifies complete persona enumeration.
 test "persona: list all" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const all_personas = prompts.listPersonas();
 
@@ -329,7 +324,7 @@ test "persona: list all" {
 // Test temperature values are within valid range.
 // All temperatures should be between 0.0 and 2.0.
 test "persona: temperature ranges" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const all_types = prompts.listPersonas();
 
@@ -345,7 +340,7 @@ test "persona: temperature ranges" {
 // Test temperature ordering by persona purpose.
 // Creative personas should have higher temperatures than analytical.
 test "persona: temperature ordering" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const writer = prompts.getPersona(.writer);
     const coder = prompts.getPersona(.coder);
@@ -365,7 +360,7 @@ test "persona: temperature ordering" {
 // Test system prompts have sufficient length.
 // Prompts should have meaningful content, not just placeholders.
 test "persona: prompt length requirements" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const all_types = prompts.listPersonas();
 
@@ -384,7 +379,7 @@ test "persona: prompt length requirements" {
 // Test system prompts contain no control characters.
 // Prompts should be clean text suitable for display.
 test "persona: prompt character validity" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const all_types = prompts.listPersonas();
 
@@ -415,7 +410,7 @@ test "persona: prompt character validity" {
 // Test PersonaType enum values.
 // Verifies enum is properly defined and accessible.
 test "persona type: enum values" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     // All persona types should be valid enum values
     const types = [_]prompts.PersonaType{
@@ -444,7 +439,7 @@ test "persona type: enum values" {
 // Test PersonaType can be converted to/from integers.
 // Useful for serialization and indexing.
 test "persona type: integer conversion" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     // Convert to int and back
     const original = prompts.PersonaType.coder;
@@ -461,7 +456,7 @@ test "persona type: integer conversion" {
 // Test that persona retrieval is consistent.
 // Same persona type should always return same definition.
 test "edge case: retrieval consistency" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const persona1 = prompts.getPersona(.abbey);
     const persona2 = prompts.getPersona(.abbey);
@@ -477,7 +472,7 @@ test "edge case: retrieval consistency" {
 // Test rapid persona switching.
 // Should handle fast switches without issues.
 test "edge case: rapid persona switching" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const types = prompts.listPersonas();
 
@@ -498,7 +493,7 @@ test "edge case: rapid persona switching" {
 // Test creating a prompt builder with a persona.
 // Verifies integration with the builder pattern.
 test "prompt builder: with persona" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 
@@ -516,7 +511,7 @@ test "prompt builder: with persona" {
 // Test creating a prompt builder with custom persona.
 // Verifies custom persona can be provided.
 test "prompt builder: custom persona" {
-    try skipIfAiDisabled();
+    try e2e.skipIfAiDisabled();
 
     const allocator = std.testing.allocator;
 

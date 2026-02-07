@@ -9,6 +9,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 const time_utils = @import("../../../services/shared/utils.zig");
+const time = @import("../../../services/shared/time.zig");
 const database = @import("../../database/mod.zig");
 
 // Local submodule imports
@@ -649,7 +650,7 @@ pub fn trainWithResult(
     var patience_counter: u32 = 0;
     var early_stopped: bool = false;
 
-    var training_timer = std.time.Timer.start() catch return error.InvalidConfiguration;
+    var training_timer = time.Timer.start() catch return error.InvalidConfiguration;
 
     for (0..config.epochs) |epoch| {
         var epoch_loss: f32 = 0;

@@ -4,13 +4,15 @@
 //! These types form the backbone of Abbey's unique architecture.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const builtin = @import("builtin");
 
 // ============================================================================
 // Time Utilities (Zig 0.16 compatible, platform-aware)
 // ============================================================================
 
-/// Check if we're on a platform that supports std.time.Instant
+/// Check if we're on a platform that supports time.Instant
 const has_instant = !isWasmTarget();
 
 fn isWasmTarget() bool {
@@ -18,7 +20,7 @@ fn isWasmTarget() bool {
 }
 
 /// Platform-aware Instant wrapper
-const PlatformInstant = if (has_instant) std.time.Instant else struct {
+const PlatformInstant = if (has_instant) time.Instant else struct {
     counter: u64,
 
     pub fn now() error{Unsupported}!@This() {

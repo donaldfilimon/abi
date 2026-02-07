@@ -505,8 +505,8 @@ fn detectVulkan() BackendAvailability {
 }
 
 fn detectMetal() BackendAvailability {
-    if (builtin.target.os.tag != .macos) {
-        return unavailableAvailability("metal requires macos");
+    if (builtin.target.os.tag != .macos and builtin.target.os.tag != .ios) {
+        return unavailableAvailability("metal requires apple platform");
     }
     if (!shared.canUseDynLib()) {
         return unavailableAvailability("metal requires dynamic loader");
@@ -663,7 +663,7 @@ fn openGlesLibNames() []const []const u8 {
     return switch (builtin.target.os.tag) {
         .windows => opengles_windows[0..],
         .linux => opengles_linux[0..],
-        .macos => opengles_macos[0..],
+        .ios => opengles_macos[0..], // OpenGLES.framework exists on iOS, not macOS
         else => &.{},
     };
 }

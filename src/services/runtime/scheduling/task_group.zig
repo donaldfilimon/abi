@@ -4,7 +4,8 @@
 //! managing groups of tasks with collective wait operations.
 
 const std = @import("std");
-const time = @import("../../shared/time.zig");
+const platform_time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const cancellation_mod = @import("cancellation.zig");
 const future_mod = @import("future.zig");
 
@@ -109,8 +110,8 @@ pub const TaskGroup = struct {
     allocator: std.mem.Allocator,
     config: TaskGroupConfig,
     tasks: std.ArrayListUnmanaged(Task),
-    mutex: std.Thread.Mutex,
-    condition: std.Thread.Condition,
+    mutex: sync.Mutex,
+    condition: sync.Condition,
     next_id: std.atomic.Value(u64),
     cancellation_source: CancellationSource,
     active_count: std.atomic.Value(usize),
@@ -181,7 +182,7 @@ pub const TaskGroup = struct {
         }
 
         const id = self.next_id.fetchAdd(1, .monotonic);
-        const now: i64 = @intCast(time.nowNanoseconds());
+        const now: i64 = @intCast(platform_time.nowNanoseconds());
 
         const task = Task{
             .id = id,
@@ -206,7 +207,7 @@ pub const TaskGroup = struct {
         self.mutex.lock();
         self.tasks.items[task_idx].state = .running;
         if (self.config.track_timing) {
-            self.tasks.items[task_idx].start_time_ns = @intCast(time.nowNanoseconds());
+            self.tasks.items[task_idx].start_time_ns = @intCast(platform_time.nowNanoseconds());
         }
         const func = self.tasks.items[task_idx].func;
         const user_data = self.tasks.items[task_idx].user_data;
@@ -244,7 +245,7 @@ pub const TaskGroup = struct {
             };
 
             if (self.config.track_timing) {
-                self.tasks.items[task_idx].end_time_ns = @intCast(time.nowNanoseconds());
+                self.tasks.items[task_idx].end_time_ns = @intCast(platform_time.nowNanoseconds());
             }
 
             switch (result) {

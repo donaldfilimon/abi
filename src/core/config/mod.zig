@@ -327,53 +327,35 @@ pub const ConfigError = error{
     ConflictingConfig,
 };
 
+const FeatureValidation = struct {
+    is_enabled_in_config: bool,
+    is_enabled_at_build: bool,
+};
+
 /// Validate configuration against compile-time constraints.
 pub fn validate(config: Config) ConfigError!void {
-    // Check GPU config against compile-time flag
-    if (config.gpu != null and !build_options.enable_gpu) {
-        return ConfigError.FeatureDisabled;
-    }
-
-    // Check AI config against compile-time flag
-    if (config.ai != null and !build_options.enable_ai) {
-        return ConfigError.FeatureDisabled;
-    }
-
-    // Check LLM config
-    if (config.ai) |ai| {
-        if (ai.llm != null and !build_options.enable_llm) {
+    const validations = [_]FeatureValidation{
+        .{ .is_enabled_in_config = config.gpu != null, .is_enabled_at_build = build_options.enable_gpu },
+        .{ .is_enabled_in_config = config.ai != null, .is_enabled_at_build = build_options.enable_ai },
+        .{ .is_enabled_in_config = config.database != null, .is_enabled_at_build = build_options.enable_database },
+        .{ .is_enabled_in_config = config.network != null, .is_enabled_at_build = build_options.enable_network },
+        .{ .is_enabled_in_config = config.web != null, .is_enabled_at_build = build_options.enable_web },
+        // Cloud is gated by web support.
+        .{ .is_enabled_in_config = config.cloud != null, .is_enabled_at_build = build_options.enable_web },
+        .{ .is_enabled_in_config = config.analytics != null, .is_enabled_at_build = build_options.enable_analytics },
+        .{ .is_enabled_in_config = config.observability != null, .is_enabled_at_build = build_options.enable_profiling },
+    };
+    inline for (validations) |entry| {
+        if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {
             return ConfigError.FeatureDisabled;
         }
     }
 
-    // Check database config
-    if (config.database != null and !build_options.enable_database) {
-        return ConfigError.FeatureDisabled;
-    }
-
-    // Check network config
-    if (config.network != null and !build_options.enable_network) {
-        return ConfigError.FeatureDisabled;
-    }
-
-    // Check web config
-    if (config.web != null and !build_options.enable_web) {
-        return ConfigError.FeatureDisabled;
-    }
-
-    // Check cloud config
-    if (config.cloud != null and !build_options.enable_web) {
-        return ConfigError.FeatureDisabled;
-    }
-
-    // Check analytics config
-    if (config.analytics != null and !build_options.enable_analytics) {
-        return ConfigError.FeatureDisabled;
-    }
-
-    // Check observability config
-    if (config.observability != null and !build_options.enable_profiling) {
-        return ConfigError.FeatureDisabled;
+    // LLM is nested under AI and has its own compile-time flag.
+    if (config.ai) |ai| {
+        if (ai.llm != null and !build_options.enable_llm) {
+            return ConfigError.FeatureDisabled;
+        }
     }
 }
 
@@ -408,4 +390,62 @@ test "Feature.isCompileTimeEnabled" {
     // At least some feature should match build_options
     const gpu_enabled = Feature.gpu.isCompileTimeEnabled();
     try std.testing.expectEqual(build_options.enable_gpu, gpu_enabled);
+}
+
+test "validate returns FeatureDisabled for compile-time disabled features" {
+    if (!build_options.enable_gpu) {
+        var config = Config.minimal();
+        config.gpu = GpuConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.enable_ai) {
+        var config = Config.minimal();
+        config.ai = AiConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.enable_database) {
+        var config = Config.minimal();
+        config.database = DatabaseConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.enable_network) {
+        var config = Config.minimal();
+        config.network = NetworkConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.enable_web) {
+        var web_cfg = Config.minimal();
+        web_cfg.web = WebConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(web_cfg));
+
+        var cloud_cfg = Config.minimal();
+        cloud_cfg.cloud = CloudConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(cloud_cfg));
+    }
+
+    if (!build_options.enable_analytics) {
+        var config = Config.minimal();
+        config.analytics = AnalyticsConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+
+    if (!build_options.enable_profiling) {
+        var config = Config.minimal();
+        config.observability = ObservabilityConfig.defaults();
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
+}
+
+test "validate returns FeatureDisabled for llm when llm build flag is disabled" {
+    if (build_options.enable_ai and !build_options.enable_llm) {
+        var config = Config.minimal();
+        var ai = AiConfig.defaults();
+        ai.llm = LlmConfig.defaults();
+        config.ai = ai;
+        try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
+    }
 }

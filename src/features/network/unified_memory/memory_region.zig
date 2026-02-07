@@ -4,6 +4,8 @@
 //! memory system. Regions track ownership, permissions, and coherence state.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const shared_utils = @import("../../../services/shared/utils.zig");
 
 /// Unique identifier for a memory region.
@@ -188,7 +190,7 @@ pub const MemoryRegion = struct {
     metadata: ?[]const u8 = null,
 
     /// Lock for thread-safe access.
-    lock: std.Thread.Mutex = .{},
+    lock: sync.Mutex = .{},
 
     /// Initialize a new memory region.
     pub fn init(

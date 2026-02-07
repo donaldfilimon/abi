@@ -36,6 +36,17 @@ const build_options = @import("build_options");
 // Shared utilities for timestamps
 const utils = @import("../../../services/shared/utils.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 // Sub-modules
 pub const router = @import("router.zig");
 pub const ensemble = @import("ensemble.zig");
@@ -271,7 +282,7 @@ pub const Orchestrator = struct {
     ensemble_instance: ?Ensemble,
     fallback_manager: FallbackManager,
     round_robin_index: usize = 0,
-    mutex: std.Thread.Mutex = .{},
+    mutex: Mutex = .{},
 
     /// Initialize the orchestrator with configuration.
     pub fn init(allocator: std.mem.Allocator, config: OrchestrationConfig) OrchestrationError!Orchestrator {

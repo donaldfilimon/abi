@@ -15,6 +15,7 @@ const metrics_mod = @import("metrics.zig");
 const alerts = @import("alerts.zig");
 const loadbalancer = @import("loadbalancer.zig");
 const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 /// Health status of a persona.
 pub const HealthStatus = enum {
@@ -104,7 +105,7 @@ pub const HealthChecker = struct {
     last_results: std.AutoHashMapUnmanaged(types.PersonaType, HealthCheckResult),
     /// Custom health check functions.
     custom_checks: std.ArrayListUnmanaged(CustomHealthCheck),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const Self = @This();
 

@@ -5,6 +5,17 @@ const std = @import("std");
 const types = @import("types.zig");
 const config = @import("config.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
 /// Central registry managing the lifecycle and discovery of AI personas.
 pub const PersonaRegistry = struct {
     allocator: std.mem.Allocator,
@@ -13,7 +24,7 @@ pub const PersonaRegistry = struct {
     /// Map of persona-specific configurations.
     configs: std.AutoHashMapUnmanaged(types.PersonaType, config.MultiPersonaConfig),
     /// Mutex for thread-safe access to the registry.
-    mutex: std.Thread.Mutex,
+    mutex: Mutex,
 
     const Self = @This();
 

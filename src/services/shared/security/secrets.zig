@@ -10,7 +10,12 @@
 
 const std = @import("std");
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 const crypto = std.crypto;
+
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
 
 /// Secret provider types
 pub const ProviderType = enum {
@@ -156,7 +161,7 @@ pub const SecretsManager = struct {
     master_key: [32]u8,
     /// Statistics
     stats: SecretsStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// I/O backend for file operations (Zig 0.16)
     io_backend: std.Io.Threaded,
 
@@ -209,9 +214,7 @@ pub const SecretsManager = struct {
             .master_key = master_key,
             .stats = .{},
             .mutex = .{},
-            .io_backend = std.Io.Threaded.init(allocator, .{
-                .environ = std.process.Environ.empty,
-            }),
+            .io_backend = initIoBackend(allocator),
         };
 
         // Load required secrets

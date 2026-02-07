@@ -9,6 +9,42 @@
 const std = @import("std");
 const simd = @import("../../services/shared/simd.zig");
 
+// Zig 0.16 compatibility: Simple spinlock Mutex
+const Mutex = struct {
+    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
+    pub fn lock(self: *Mutex) void {
+        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
+    }
+    pub fn unlock(self: *Mutex) void {
+        self.locked.store(false, .release);
+    }
+};
+
+// Zig 0.16 compatibility: Simple RwLock
+const RwLock = struct {
+    state: std.atomic.Value(i32) = std.atomic.Value(i32).init(0),
+    pub fn lockShared(self: *RwLock) void {
+        while (true) {
+            const current = self.state.load(.acquire);
+            if (current >= 0) {
+                if (self.state.cmpxchgWeak(current, current + 1, .acquire, .monotonic) == null) break;
+            }
+            std.atomic.spinLoopHint();
+        }
+    }
+    pub fn unlockShared(self: *RwLock) void {
+        _ = self.state.fetchSub(1, .release);
+    }
+    pub fn lock(self: *RwLock) void {
+        while (self.state.cmpxchgWeak(0, -1, .acquire, .monotonic) != null) {
+            std.atomic.spinLoopHint();
+        }
+    }
+    pub fn unlock(self: *RwLock) void {
+        self.state.store(0, .release);
+    }
+};
+
 pub const DatabaseError = error{
     DuplicateId,
     VectorNotFound,
@@ -436,7 +472,7 @@ pub const Database = struct {
     /// Optional vector pool
     vector_pool: ?*VectorPool,
     /// Read-write lock for thread-safe concurrent access
-    rw_lock: std.Thread.RwLock,
+    rw_lock: RwLock,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) !Database {
         return initWithConfig(allocator, name, .{});

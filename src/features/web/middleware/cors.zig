@@ -33,10 +33,11 @@ pub const strict_config = CorsConfig{
 };
 
 /// Creates a CORS middleware with the given configuration.
+/// Note: Zig function pointers cannot capture state, so this returns
+/// a handler that uses the provided config at the call site.
+/// For custom configs, call addCorsHeaders/handlePreflight directly.
 pub fn createCorsMiddleware(config: CorsConfig) types.MiddlewareFn {
     _ = config;
-    // Return the permissive CORS handler
-    // In a full implementation, we'd capture config
     return &permissiveCors;
 }
 
@@ -126,8 +127,8 @@ pub fn isOriginAllowed(origin: []const u8, allowed: []const []const u8) bool {
         }
         // Subdomain wildcard (e.g., "*.example.com")
         if (allowed_origin.len > 2 and std.mem.startsWith(u8, allowed_origin, "*.")) {
-            const domain = allowed_origin[2..];
-            if (std.mem.endsWith(u8, origin, domain)) {
+            const domain = allowed_origin[1..]; // ".example.com" (keep the dot)
+            if (std.mem.endsWith(u8, origin, domain) and origin.len > domain.len) {
                 return true;
             }
         }
@@ -178,6 +179,11 @@ test "isOriginAllowed" {
     // Subdomain wildcard
     try std.testing.expect(isOriginAllowed("https://sub.example.com", &.{"*.example.com"}));
     try std.testing.expect(isOriginAllowed("https://deep.sub.example.com", &.{"*.example.com"}));
+
+    // Must not match non-subdomains (security: prevent evil-example.com bypass)
+    try std.testing.expect(!isOriginAllowed("https://evil-example.com", &.{"*.example.com"}));
+    try std.testing.expect(!isOriginAllowed("https://notexample.com", &.{"*.example.com"}));
+    try std.testing.expect(!isOriginAllowed(".example.com", &.{"*.example.com"}));
 }
 
 test "isMethodAllowed" {

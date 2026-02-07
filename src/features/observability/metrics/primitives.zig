@@ -4,6 +4,8 @@
 //! Used as building blocks for domain-specific metrics.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 /// Monotonically increasing counter.
 pub const Counter = struct {
@@ -54,7 +56,7 @@ pub const Gauge = struct {
 /// Float gauge for non-integer measurements (requires mutex).
 pub const FloatGauge = struct {
     value: f64 = 0,
-    mutex: std.Thread.Mutex = .{},
+    mutex: sync.Mutex = .{},
 
     pub fn set(self: *FloatGauge, v: f64) void {
         self.mutex.lock();
@@ -87,7 +89,7 @@ pub fn Histogram(comptime bucket_count: usize) type {
         bucket_bounds: [bucket_count]f64,
         sum: f64 = 0,
         count: u64 = 0,
-        mutex: std.Thread.Mutex = .{},
+        mutex: sync.Mutex = .{},
 
         pub fn init(bounds: [bucket_count]f64) Self {
             return .{ .bucket_bounds = bounds };

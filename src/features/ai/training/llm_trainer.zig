@@ -8,6 +8,7 @@
 //! - Checkpointing and resumption
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
 const trainable_model = @import("trainable_model.zig");
 const loss_mod = @import("loss.zig");
 const mod = @import("mod.zig");
@@ -219,7 +220,7 @@ pub const LlamaTrainer = struct {
     /// Metrics logger (optional)
     logger: ?logging.TrainingLogger,
     /// Timer for throughput logging
-    log_timer: ?std.time.Timer,
+    log_timer: ?time.Timer,
     last_log_time_ns: u64,
     last_log_tokens: u64,
     accum_correct: u64,
@@ -275,7 +276,7 @@ pub const LlamaTrainer = struct {
             });
         }
 
-        var log_timer = std.time.Timer.start() catch null;
+        var log_timer = time.Timer.start() catch null;
         const initial_time = if (log_timer) |*t| t.read() else 0;
 
         return .{
@@ -893,7 +894,7 @@ pub fn trainLlmWithValidation(
         trainer.setValidationData(vd);
     }
 
-    var timer = std.time.Timer.start() catch return error.TimerFailed;
+    var timer = time.Timer.start() catch return error.TimerFailed;
 
     for (0..config.epochs) |_| {
         const result = try trainer.trainEpochWithValidation(train_data, early_stop_config);

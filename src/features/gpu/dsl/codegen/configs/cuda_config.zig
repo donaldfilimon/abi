@@ -99,8 +99,8 @@ pub const unary_fns = mod.UnaryFunctions{
     .ceil = "ceilf",
     .round = "roundf",
     .trunc = "truncf",
-    .fract = "fmodf",
-    .sign = "copysignf",
+    .fract = "__fract_helper",
+    .sign = "__sign_helper",
     .normalize = "normalize",
     .length = "length",
 };

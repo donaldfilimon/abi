@@ -117,7 +117,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     };
     defer allocator.free(prompt_tokens);
 
-    var timer = std.time.Timer.start() catch null;
+    var timer = abi.shared.time.Timer.start() catch null;
     const output_tokens = model.generate(prompt_tokens, gen_config) catch |err| {
         std.debug.print("Generation failed: {t}\n", .{err});
         return err;

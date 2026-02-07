@@ -456,39 +456,23 @@ pub const Framework = struct {
         self.state = .stopped;
     }
 
+    fn deinitOptionalContext(comptime Context: type, slot: *?*Context) void {
+        if (slot.*) |ctx| {
+            ctx.deinit();
+            slot.* = null;
+        }
+    }
+
     fn deinitFeatures(self: *Framework) void {
-        if (self.analytics) |a| {
-            a.deinit();
-            self.analytics = null;
-        }
-        if (self.cloud) |c| {
-            c.deinit();
-            self.cloud = null;
-        }
-        if (self.web) |w| {
-            w.deinit();
-            self.web = null;
-        }
-        if (self.observability) |o| {
-            o.deinit();
-            self.observability = null;
-        }
-        if (self.network) |n| {
-            n.deinit();
-            self.network = null;
-        }
-        if (self.database) |d| {
-            d.deinit();
-            self.database = null;
-        }
-        if (self.ai) |a| {
-            a.deinit();
-            self.ai = null;
-        }
-        if (self.gpu) |g| {
-            g.deinit();
-            self.gpu = null;
-        }
+        // Deinitialize in reverse order of initialization.
+        deinitOptionalContext(analytics_mod.Context, &self.analytics);
+        deinitOptionalContext(cloud_mod.Context, &self.cloud);
+        deinitOptionalContext(web_mod.Context, &self.web);
+        deinitOptionalContext(observability_mod.Context, &self.observability);
+        deinitOptionalContext(network_mod.Context, &self.network);
+        deinitOptionalContext(database_mod.Context, &self.database);
+        deinitOptionalContext(ai_mod.Context, &self.ai);
+        deinitOptionalContext(gpu_mod.Context, &self.gpu);
     }
 
     /// Check if the framework is running.
@@ -506,44 +490,48 @@ pub const Framework = struct {
         return self.state;
     }
 
+    fn requireFeature(comptime Context: type, value: ?*Context) Error!*Context {
+        return value orelse error.FeatureDisabled;
+    }
+
     /// Get GPU context (returns error if not enabled).
     pub fn getGpu(self: *Framework) Error!*gpu_mod.Context {
-        return self.gpu orelse error.FeatureDisabled;
+        return requireFeature(gpu_mod.Context, self.gpu);
     }
 
     /// Get AI context (returns error if not enabled).
     pub fn getAi(self: *Framework) Error!*ai_mod.Context {
-        return self.ai orelse error.FeatureDisabled;
+        return requireFeature(ai_mod.Context, self.ai);
     }
 
     /// Get database context (returns error if not enabled).
     pub fn getDatabase(self: *Framework) Error!*database_mod.Context {
-        return self.database orelse error.FeatureDisabled;
+        return requireFeature(database_mod.Context, self.database);
     }
 
     /// Get network context (returns error if not enabled).
     pub fn getNetwork(self: *Framework) Error!*network_mod.Context {
-        return self.network orelse error.FeatureDisabled;
+        return requireFeature(network_mod.Context, self.network);
     }
 
     /// Get observability context (returns error if not enabled).
     pub fn getObservability(self: *Framework) Error!*observability_mod.Context {
-        return self.observability orelse error.FeatureDisabled;
+        return requireFeature(observability_mod.Context, self.observability);
     }
 
     /// Get web context (returns error if not enabled).
     pub fn getWeb(self: *Framework) Error!*web_mod.Context {
-        return self.web orelse error.FeatureDisabled;
+        return requireFeature(web_mod.Context, self.web);
     }
 
     /// Get cloud context (returns error if not enabled).
     pub fn getCloud(self: *Framework) Error!*cloud_mod.Context {
-        return self.cloud orelse error.FeatureDisabled;
+        return requireFeature(cloud_mod.Context, self.cloud);
     }
 
     /// Get analytics context (returns error if not enabled).
     pub fn getAnalytics(self: *Framework) Error!*analytics_mod.Context {
-        return self.analytics orelse error.FeatureDisabled;
+        return requireFeature(analytics_mod.Context, self.analytics);
     }
 
     /// Get runtime context (always available).

@@ -6,8 +6,13 @@ const dispatcher = gpu.dispatcher;
 const builtin_kernels = gpu.builtin_kernels;
 
 test "KernelRing fast‑path reuse increments ring_hits" {
-    // Skip execution on CI – kernel execution requires a supported backend.
-    if (true) return error.SkipZigTest;
+    // Skip: requires a real GPU backend (Vulkan). The CPU fallback logs
+    // errors via std.log.err which the Zig test runner treats as failure.
+    // TODO(gpu-tests): enable once a mock backend suppresses error logging.
+    if (!@import("build_options").enable_gpu) return error.SkipZigTest;
+    // Runtime skip: no Vulkan hardware available in CI/test environments
+    if (!gpu.backend_factory.isBackendAvailable(.vulkan)) return error.SkipZigTest;
+
     const device = dispatcher.Device{
         .id = 0,
         .backend = .vulkan,

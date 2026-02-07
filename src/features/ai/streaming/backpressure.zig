@@ -58,7 +58,7 @@ pub const BackpressureController = struct {
     dropped_count: usize,
     total_processed: u64,
     sample_counter: usize,
-    timer: std.time.Timer,
+    timer: time.Timer,
     last_check_ns: u64,
     tokens_in_window: usize,
     current_tps: f64,
@@ -73,7 +73,7 @@ pub const BackpressureController = struct {
             .dropped_count = 0,
             .total_processed = 0,
             .sample_counter = 0,
-            .timer = std.time.Timer.start() catch return error.TimerUnavailable,
+            .timer = time.Timer.start() catch return error.TimerUnavailable,
             .last_check_ns = 0,
             .tokens_in_window = 0,
             .current_tps = 0,
@@ -229,7 +229,7 @@ pub const RateLimiter = struct {
     tokens_per_second: f64,
     bucket_size: f64,
     available_tokens: f64,
-    timer: std.time.Timer,
+    timer: time.Timer,
     last_refill_ns: u64,
 
     /// Initialize rate limiter.
@@ -239,7 +239,7 @@ pub const RateLimiter = struct {
             .tokens_per_second = tokens_per_second,
             .bucket_size = bucket_size orelse tokens_per_second,
             .available_tokens = bucket_size orelse tokens_per_second,
-            .timer = std.time.Timer.start() catch return error.TimerUnavailable,
+            .timer = time.Timer.start() catch return error.TimerUnavailable,
             .last_refill_ns = 0,
         };
     }

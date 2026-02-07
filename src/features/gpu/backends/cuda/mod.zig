@@ -12,6 +12,8 @@
 //! - nvrtc.zig: Runtime compilation support
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const types = @import("../../kernel_types.zig");
 const shared = @import("../shared.zig");
 const fallback = @import("../fallback.zig");
@@ -75,7 +77,7 @@ const CudaContext = struct {
 var cuda_initialized = false;
 var cuda_context: ?CudaContext = null;
 var use_native: bool = false;
-var init_mutex = std.Thread.Mutex{};
+var init_mutex = sync.Mutex{};
 var cached_allocator: ?std.mem.Allocator = null;
 
 /// Initialize the CUDA backend and create context.

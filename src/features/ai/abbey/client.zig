@@ -7,6 +7,8 @@
 //! - Retry and fallback handling
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const types = @import("../core/types.zig");
 const config = @import("../core/config.zig");
 const build_options = @import("build_options");
@@ -310,7 +312,7 @@ pub const OpenAIBackend = struct {
         }
 
         const api_key = self.api_key orelse return error.AuthenticationFailed;
-        var timer = std.time.Timer.start() catch return error.BackendError;
+        var timer = time.Timer.start() catch return error.BackendError;
 
         // Build URL
         const url = try std.fmt.allocPrint(self.allocator, "{s}/chat/completions", .{self.base_url});
@@ -508,7 +510,7 @@ pub const OllamaBackend = struct {
             return error.NotImplemented;
         }
 
-        var timer = std.time.Timer.start() catch return error.BackendError;
+        var timer = time.Timer.start() catch return error.BackendError;
 
         // Build URL
         const url = try std.fmt.allocPrint(self.allocator, "{s}/api/chat", .{self.host});

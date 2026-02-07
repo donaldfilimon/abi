@@ -52,6 +52,8 @@
 //! 2. After 16 spins: Yield to OS scheduler
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 /// Backoff strategy for spin-wait loops in the engine.
 pub const Backoff = struct {
@@ -90,8 +92,8 @@ pub const Backoff = struct {
     }
 };
 
-var global_timer: ?std.time.Timer = null;
-var timer_init_mutex = std.Thread.Mutex{};
+var global_timer: ?time.Timer = null;
+var timer_init_mutex = sync.Mutex{};
 
 /// Get current time in milliseconds using a global timer.
 /// Thread-safe: uses mutex for one-time initialization.
@@ -102,7 +104,7 @@ pub fn nowMilliseconds() i64 {
         defer timer_init_mutex.unlock();
         // Re-check after acquiring lock
         if (global_timer == null) {
-            global_timer = std.time.Timer.start() catch null;
+            global_timer = time.Timer.start() catch null;
         }
     }
     if (global_timer) |*timer| {

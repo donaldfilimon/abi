@@ -26,6 +26,8 @@
 //! ```
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
@@ -386,7 +388,7 @@ pub const Context = struct {
 // ============================================================================
 // Module state
 // ============================================================================
-var state_mutex = std.Thread.Mutex{};
+var state_mutex = sync.Mutex{};
 var default_state: ?NetworkState = null;
 var initialized: bool = false;
 

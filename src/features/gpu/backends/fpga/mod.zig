@@ -63,14 +63,14 @@ pub fn getDeviceCount() u32 {
     return if (isAvailable()) 1 else 0;
 }
 
-pub fn getDeviceInfo(device_id: u32) struct {
+pub fn getDeviceInfo(device_id: u32) error{DeviceNotFound}!struct {
     name: []const u8,
     vendor: []const u8,
     memory_bytes: ?u64,
     is_emulated: bool,
 } {
     if (device_id != 0) {
-        @panic("Invalid FPGA device ID");
+        return error.DeviceNotFound;
     }
 
     return .{

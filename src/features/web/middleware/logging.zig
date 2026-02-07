@@ -51,25 +51,23 @@ pub fn minimalLogger(ctx: *MiddlewareContext) !void {
 
 /// Logs the request after processing completes.
 pub fn logRequest(ctx: *const MiddlewareContext, status: u16) void {
-    const method = @tagName(ctx.request.method);
     const path = ctx.request.path;
     const duration = ctx.elapsedMs();
 
-    std.log.info("{s} {s} {d} {d}ms", .{ method, path, status, duration });
+    std.log.info("{t} {s} {d} {d}ms", .{ ctx.request.method, path, status, duration });
 }
 
 /// Logs in Apache Common Log Format.
 pub fn logCommon(ctx: *const MiddlewareContext, status: u16, bytes: usize) void {
-    const method = @tagName(ctx.request.method);
     const path = ctx.request.raw_path;
     const remote_addr = ctx.get("remote_addr") orelse "-";
     const user = ctx.getUserId() orelse "-";
 
     // Format: host ident authuser date request status bytes
-    std.log.info("{s} - {s} \"{s} {s} HTTP/1.1\" {d} {d}", .{
+    std.log.info("{s} - {s} \"{t} {s} HTTP/1.1\" {d} {d}", .{
         remote_addr,
         user,
-        method,
+        ctx.request.method,
         path,
         status,
         bytes,
@@ -78,17 +76,16 @@ pub fn logCommon(ctx: *const MiddlewareContext, status: u16, bytes: usize) void 
 
 /// Logs in Apache Combined Log Format.
 pub fn logCombined(ctx: *const MiddlewareContext, status: u16, bytes: usize) void {
-    const method = @tagName(ctx.request.method);
     const path = ctx.request.raw_path;
     const remote_addr = ctx.get("remote_addr") orelse "-";
     const user = ctx.getUserId() orelse "-";
     const referrer = ctx.request.getHeader("Referer") orelse "-";
     const user_agent = ctx.request.getHeader("User-Agent") orelse "-";
 
-    std.log.info("{s} - {s} \"{s} {s} HTTP/1.1\" {d} {d} \"{s}\" \"{s}\"", .{
+    std.log.info("{s} - {s} \"{t} {s} HTTP/1.1\" {d} {d} \"{s}\" \"{s}\"", .{
         remote_addr,
         user,
-        method,
+        ctx.request.method,
         path,
         status,
         bytes,
@@ -126,10 +123,9 @@ pub fn logJson(
 
 /// Request logging middleware that logs at request start.
 pub fn requestStartLogger(ctx: *MiddlewareContext) !void {
-    const method = @tagName(ctx.request.method);
     const path = ctx.request.path;
 
-    std.log.debug("--> {s} {s}", .{ method, path });
+    std.log.debug("--> {t} {s}", .{ ctx.request.method, path });
 }
 
 /// Access log middleware (logs completed requests).

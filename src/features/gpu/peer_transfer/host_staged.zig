@@ -13,6 +13,8 @@
 //! This is the slowest transfer method but always works.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const multi_device = @import("../multi_device.zig");
 
 pub const DeviceId = multi_device.DeviceId;
@@ -238,9 +240,8 @@ pub const DeviceBufferRef = struct {
 /// Staging buffer pool for efficient memory reuse.
 const StagingPool = struct {
     allocator: std.mem.Allocator,
-    thread_safe_allocator: std.heap.ThreadSafeAllocator,
     buffers: std.ArrayListUnmanaged(StagingBuffer),
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     // Pool configuration
     const MIN_BUFFER_SIZE: usize = 1024 * 1024; // 1 MB minimum
@@ -253,10 +254,8 @@ const StagingPool = struct {
     };
 
     pub fn init(allocator: std.mem.Allocator) !StagingPool {
-        const thread_safe_allocator = std.heap.ThreadSafeAllocator{ .child_allocator = allocator };
         return .{
             .allocator = allocator,
-            .thread_safe_allocator = thread_safe_allocator,
             .buffers = std.ArrayListUnmanaged(StagingBuffer){},
             .mutex = .{},
         };
@@ -264,9 +263,9 @@ const StagingPool = struct {
 
     pub fn deinit(self: *StagingPool) void {
         for (self.buffers.items) |buffer| {
-            self.thread_safe_allocator.allocator().free(buffer.data);
+            self.allocator.free(buffer.data);
         }
-        self.buffers.deinit();
+        self.buffers.deinit(self.allocator);
         self.* = undefined;
     }
 
@@ -334,8 +333,8 @@ const ThreadPool = struct {
     allocator: std.mem.Allocator,
     threads: []std.Thread,
     queue: std.ArrayListUnmanaged(TransferTask),
-    mutex: std.Thread.Mutex,
-    condition: std.Thread.Condition,
+    mutex: sync.Mutex,
+    condition: sync.Condition,
     shutdown: std.atomic.Value(bool),
 
     pub fn init(allocator: std.mem.Allocator, num_threads: usize) !ThreadPool {

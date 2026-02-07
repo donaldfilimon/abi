@@ -12,6 +12,7 @@
 const std = @import("std");
 const crypto = std.crypto;
 const time = @import("../time.zig");
+const sync = @import("../sync.zig");
 
 /// Certificate type
 pub const CertificateType = enum {
@@ -180,7 +181,7 @@ pub const CertificateManager = struct {
     rotation_state: RotationState = .idle,
     /// Statistics
     stats: CertificateStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     pub const RotationState = enum {
         idle,

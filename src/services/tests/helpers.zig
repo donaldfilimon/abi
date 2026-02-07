@@ -60,7 +60,7 @@ fn hasGpuSupport() bool {
 
 /// Skip test if timer is not available on this platform.
 pub fn skipIfNoTimer() error{SkipZigTest}!void {
-    _ = std.time.Timer.start() catch return error.SkipZigTest;
+    _ = time.Timer.start() catch return error.SkipZigTest;
 }
 
 // ============================================================================

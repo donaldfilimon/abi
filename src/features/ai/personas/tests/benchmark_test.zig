@@ -9,6 +9,8 @@
 //! - Policy checking <5ms
 
 const std = @import("std");
+const time = @import("../../../../services/shared/time.zig");
+const sync = @import("../../../../services/shared/sync.zig");
 const testing = std.testing;
 
 // Import modules to benchmark
@@ -54,7 +56,7 @@ fn benchmark(name: []const u8, iterations: u32, func: anytype) BenchmarkResult {
 
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
-        var timer = std.time.Timer.start() catch continue;
+        var timer = time.Timer.start() catch continue;
         func();
         const elapsed = timer.read();
 
@@ -114,7 +116,7 @@ test "benchmark: sentiment analysis - long text" {
 
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
-        var timer = std.time.Timer.start() catch continue;
+        var timer = time.Timer.start() catch continue;
         _ = analyzer.analyze(long_text);
         total_ns += timer.read();
     }
@@ -147,7 +149,7 @@ test "benchmark: policy checking" {
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
         for (test_inputs) |input| {
-            var timer = std.time.Timer.start() catch continue;
+            var timer = time.Timer.start() catch continue;
             _ = checker.check(input);
             total_ns += timer.read();
         }
@@ -182,7 +184,7 @@ test "benchmark: query classification" {
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
         for (test_queries) |query| {
-            var timer = std.time.Timer.start() catch continue;
+            var timer = time.Timer.start() catch continue;
             _ = cls.classify(query);
             total_ns += timer.read();
         }
@@ -223,7 +225,7 @@ test "benchmark: routing rules evaluation" {
             const request = types.PersonaRequest{ .content = content };
             const sent_result = analyzer.analyze(content);
 
-            var timer = std.time.Timer.start() catch continue;
+            var timer = time.Timer.start() catch continue;
             _ = engine.evaluate(request, sent_result);
             total_ns += timer.read();
         }
@@ -261,7 +263,7 @@ test "benchmark: load balancer selection" {
 
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
-        var timer = std.time.Timer.start() catch continue;
+        var timer = time.Timer.start() catch continue;
         if (lb.selectWithScores(&scores)) |_| {
             successful_selections += 1;
             lb.recordSuccess(.abbey);
@@ -290,7 +292,7 @@ test "benchmark: latency window recording" {
 
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
-        var timer = std.time.Timer.start() catch continue;
+        var timer = time.Timer.start() catch continue;
         try window.record(@as(u64, i) * 10);
         total_ns += timer.read();
     }
@@ -317,7 +319,7 @@ test "benchmark: percentile calculation" {
 
     var j: u32 = 0;
     while (j < iterations) : (j += 1) {
-        var timer = std.time.Timer.start() catch continue;
+        var timer = time.Timer.start() catch continue;
         _ = window.getPercentiles();
         total_ns += timer.read();
     }
@@ -393,7 +395,7 @@ test "benchmark: full routing pipeline" {
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
         for (test_queries) |query| {
-            var timer = std.time.Timer.start() catch continue;
+            var timer = time.Timer.start() catch continue;
 
             // Step 1: Sentiment analysis
             const sent_result = analyzer.analyze(query);

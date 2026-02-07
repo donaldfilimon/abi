@@ -4,6 +4,8 @@
 //! requests to handlers. Uses Zig 0.16 std.Io.Threaded for async I/O.
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const types = @import("types.zig");
 
 const ServerConfig = types.ServerConfig;
@@ -27,7 +29,7 @@ pub const Server = struct {
     /// Connection ID counter.
     next_conn_id: u64,
     /// Mutex for thread-safe state access.
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
     /// Request handler callback.
     handler: ?*const RequestHandler,
 

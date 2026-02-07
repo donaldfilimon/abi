@@ -40,6 +40,8 @@
 //!    - Speculative decoding: GPU for draft, FPGA for verification
 
 const std = @import("std");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const backend_mod = @import("../backend.zig");
 const multi_device = @import("../multi_device.zig");
@@ -245,7 +247,7 @@ pub const HybridCoordinator = struct {
     // Performance history for learning
     routing_history: std.ArrayListUnmanaged(RoutingRecord),
     stats: HybridStats,
-    mutex: std.Thread.Mutex,
+    mutex: sync.Mutex,
 
     const RoutingRecord = struct {
         workload: HybridWorkload,

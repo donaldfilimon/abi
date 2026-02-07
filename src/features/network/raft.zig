@@ -15,6 +15,12 @@
 //!   try node.tick(); // Process timeouts and state transitions
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
+const sync = @import("../../services/shared/sync.zig");
+
+fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+}
 
 /// Raft node state.
 pub const RaftState = enum {
@@ -222,7 +228,7 @@ pub const RaftNode = struct {
                 seed = seed *% 31 +% c;
             }
             // Mix in some entropy from timer
-            var timer = std.time.Timer.start() catch break :blk seed;
+            var timer = time.Timer.start() catch break :blk seed;
             seed ^= timer.read();
             break :blk seed;
         });
@@ -1020,7 +1026,7 @@ pub const RaftPersistence = struct {
         }
 
         // Write to file using std.Io
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -1031,7 +1037,7 @@ pub const RaftPersistence = struct {
 
     /// Load Raft node state from disk.
     pub fn load(self: *RaftPersistence, node: *RaftNode) !void {
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -1106,7 +1112,7 @@ pub const RaftPersistence = struct {
 
     /// Check if persistence file exists.
     pub fn exists(self: *RaftPersistence) bool {
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -1236,7 +1242,7 @@ pub const RaftSnapshotManager = struct {
         ) catch return error.PathTooLong;
 
         // Write to file
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -1285,7 +1291,7 @@ pub const RaftSnapshotManager = struct {
         self: *RaftSnapshotManager,
         node: *RaftNode,
     ) !?[]u8 {
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -1384,7 +1390,7 @@ pub const RaftSnapshotManager = struct {
             snapshots.deinit(self.allocator);
         }
 
-        var io_backend = std.Io.Threaded.init(self.allocator, .{ .environ = std.process.Environ.empty });
+        var io_backend = initIoBackend(self.allocator);
         defer io_backend.deinit();
         const io = io_backend.io();
 
@@ -1546,7 +1552,7 @@ test "raft persistence save and load" {
     try std.testing.expectEqual(@as(usize, 2), node2.log.items.len);
 
     // Clean up test file
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
     std.Io.Dir.cwd().deleteFile(io, "test_raft_state.bin") catch {};
