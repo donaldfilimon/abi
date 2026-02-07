@@ -21,6 +21,8 @@ jobs:
             script_ext: .bat
 
     runs-on: ${{ matrix.os }}
+    env:
+      ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/.zig-cache-global
 
     steps:
       - name: Checkout repository
@@ -85,6 +87,8 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    env:
+      ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/.zig-cache-global
     steps:
       - uses: actions/checkout@v4
 
