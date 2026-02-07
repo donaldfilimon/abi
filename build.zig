@@ -600,11 +600,11 @@ pub fn build(b: *std.Build) void {
     }
 
     // C Library (Shared Object / DLL)
-    if (pathExists(b, "src/bindings/c/exports.zig")) {
+    if (pathExists(b, "bindings/c/src/abi_c.zig")) {
         const lib = b.addLibrary(.{
             .name = "abi",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("src/bindings/c/exports.zig"),
+                .root_source_file = b.path("bindings/c/src/abi_c.zig"),
                 .target = target,
                 .optimize = optimize,
             }),
@@ -617,7 +617,7 @@ pub fn build(b: *std.Build) void {
         b.step("lib", "Build C shared library").dependOn(&lib_install.step);
 
         // Install C header file
-        const header_install = b.addInstallFile(b.path("src/bindings/c/abi.h"), "include/abi.h");
+        const header_install = b.addInstallFile(b.path("bindings/c/include/abi.h"), "include/abi.h");
         b.step("c-header", "Install C header file").dependOn(&header_install.step);
     }
 

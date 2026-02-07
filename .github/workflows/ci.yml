@@ -21,6 +21,7 @@ jobs:
             script_ext: .bat
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     env:
       ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/.zig-cache-global
 
@@ -34,19 +35,32 @@ jobs:
         shell: bash
 
       - name: Install Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
-          # Version is read from .zigversion to avoid drift between CI and the project
           version: ${{ steps.zig-version.outputs.version }}
 
+      - name: Cache Zig global cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.zig-cache-global
+            ${{ github.workspace }}/.zig-cache
+          key: zig-cache-${{ matrix.os }}-${{ hashFiles('build.zig', 'build.zig.zon') }}
+          restore-keys: |
+            zig-cache-${{ matrix.os }}-
+
       - name: Format check
+        # Windows git may auto-convert LF to CRLF, which causes zig fmt to
+        # report every file as misformatted. Run the canonical check on Linux
+        # only (the lint job also covers this).
+        if: runner.os == 'Linux'
         run: zig fmt --check .
 
       - name: Build
         run: zig build
 
       - name: Validate feature-flag combinations
-        # Compiles the project under 10 different feature-flag permutations
+        # Compiles the project under 16 different feature-flag permutations
         # to catch compilation errors in gated code paths early.
         run: zig build validate-flags
 
@@ -68,12 +82,8 @@ jobs:
       - name: CLI smoke test
         run: zig build cli-tests
 
-      - name: Feature flag builds
-        run: |
-          zig build -Denable-ai=true
-          zig build -Denable-gpu=true
-          zig build -Denable-database=true
-          zig build docs-site
+      - name: Build docs site
+        run: zig build docs-site
 
       - name: Build C library and header
         run: |
@@ -87,6 +97,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       ZIG_GLOBAL_CACHE_DIR: ${{ github.workspace }}/.zig-cache-global
     steps:
@@ -98,10 +109,19 @@ jobs:
         shell: bash
 
       - name: Install Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
-          # Version is read from .zigversion to avoid drift between CI and the project
           version: ${{ steps.zig-version.outputs.version }}
+
+      - name: Cache Zig global cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.zig-cache-global
+            ${{ github.workspace }}/.zig-cache
+          key: zig-cache-lint-${{ hashFiles('build.zig', 'build.zig.zon') }}
+          restore-keys: |
+            zig-cache-lint-
 
       - name: Lint check
         run: zig build lint
