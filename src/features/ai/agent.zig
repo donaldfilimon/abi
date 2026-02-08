@@ -6,10 +6,11 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const http = @import("../../services/shared/utils.zig").async_http;
-const retry = @import("../../services/shared/utils.zig").http_retry;
+const shared_utils = @import("../../services/shared/utils.zig");
+const http = shared_utils.async_http;
+const retry = shared_utils.http_retry;
 const connectors = @import("../../services/connectors/mod.zig");
-const time = @import("../../services/shared/utils.zig");
+const time = shared_utils;
 const platform_time = @import("../../services/shared/time.zig");
 
 // ============================================================================
@@ -40,32 +41,8 @@ pub const DEFAULT_TOP_P: f32 = 0.9;
 /// Default max tokens for generation.
 pub const DEFAULT_MAX_TOKENS: u32 = 1024;
 
-/// Escape a string for JSON output
-fn escapeJsonString(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    var result = std.ArrayListUnmanaged(u8).empty;
-    errdefer result.deinit(allocator);
-
-    for (input) |c| {
-        switch (c) {
-            '"' => try result.appendSlice(allocator, "\\\""),
-            '\\' => try result.appendSlice(allocator, "\\\\"),
-            '\n' => try result.appendSlice(allocator, "\\n"),
-            '\r' => try result.appendSlice(allocator, "\\r"),
-            '\t' => try result.appendSlice(allocator, "\\t"),
-            // Other control characters (excluding \n=0x0A, \r=0x0D, \t=0x09)
-            0x00...0x08, 0x0B, 0x0C, 0x0E...0x1F => {
-                var buf: [6]u8 = undefined;
-                // SAFETY: Buffer is exactly 6 bytes for format "\uXXXX" where X is a hex digit.
-                // Control characters (0x00-0x1F) always produce exactly 4 hex digits with 0-padding.
-                _ = std.fmt.bufPrint(&buf, "\\u{x:0>4}", .{c}) catch unreachable;
-                try result.appendSlice(allocator, &buf);
-            },
-            else => try result.append(allocator, c),
-        }
-    }
-
-    return result.toOwnedSlice(allocator);
-}
+/// Escape a string for JSON output (delegates to shared json utilities)
+const escapeJsonString = shared_utils.json.escapeJsonContent;
 
 pub const AgentError = error{
     InvalidConfiguration,

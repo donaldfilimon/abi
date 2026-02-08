@@ -297,11 +297,6 @@ pub fn formatResponse(allocator: std.mem.Allocator, response: *const CloudRespon
     return response.body;
 }
 
-/// Format headers for GCP Functions response.
-pub fn formatHeaders(response: *const CloudResponse) std.StringHashMap([]const u8) {
-    return response.headers;
-}
-
 /// Run a handler as a GCP Cloud Function.
 pub fn runHandler(allocator: std.mem.Allocator, handler: CloudHandler, port: u16) !void {
     var runtime = GcpRuntime.initWithConfig(allocator, handler, .{ .port = port });

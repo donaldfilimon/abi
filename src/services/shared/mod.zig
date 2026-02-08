@@ -124,37 +124,9 @@ pub const tensor = @import("tensor.zig");
 /// See `security/mod.zig` for full API documentation.
 pub const security = @import("security/mod.zig");
 
-// ============================================================================
-// Utils Sub-modules (Direct Access)
-// ============================================================================
-
-/// Memory management utilities including pools, arenas, and leak detection.
-/// Provides specialized allocators for different use cases.
-pub const memory = @import("utils/memory/mod.zig");
-
-/// Cryptographic utilities: hashing, random generation, secure comparison.
-/// Wraps std.crypto with convenient higher-level APIs.
-pub const crypto = @import("utils/crypto/mod.zig");
-
-/// Encoding and decoding utilities: Base64, hex, URL encoding.
-/// Supports both allocating and buffer-based APIs.
-pub const encoding = @import("utils/encoding/mod.zig");
-
-/// Filesystem utilities for file and directory operations.
-/// Compatible with Zig 0.16's I/O backend model.
-pub const fs = @import("utils/fs/mod.zig");
-
-/// HTTP client utilities for making web requests.
-/// Includes retry logic, timeouts, and connection pooling.
-pub const http = @import("utils/http/mod.zig");
-
-/// JSON parsing and serialization utilities.
-/// Provides both streaming and DOM-based parsing.
-pub const json = @import("utils/json/mod.zig");
-
-/// Network utilities: address parsing, DNS resolution, socket helpers.
-/// Platform-independent networking primitives.
-pub const net = @import("utils/net/mod.zig");
+// Utils sub-modules are accessible via `shared.utils.*` (e.g., `shared.utils.memory`,
+// `shared.utils.json`, `shared.utils.crypto`). No direct re-exports here to avoid
+// duplicate paths to the same modules.
 
 // ============================================================================
 // Legacy Compatibility

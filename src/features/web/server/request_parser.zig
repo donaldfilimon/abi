@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const router_types = @import("../router/types.zig");
 
 /// Parsed HTTP request.
 pub const ParsedRequest = struct {
@@ -298,41 +299,8 @@ pub fn extractPathParams(
 }
 
 /// Checks if a path matches a pattern.
-pub fn matchesPattern(pattern: []const u8, path: []const u8) bool {
-    var pattern_parts = std.mem.splitScalar(u8, pattern, '/');
-    var path_parts = std.mem.splitScalar(u8, path, '/');
-
-    while (true) {
-        const pattern_part = pattern_parts.next();
-        const path_part = path_parts.next();
-
-        if (pattern_part == null and path_part == null) {
-            return true; // Both exhausted, match
-        }
-
-        if (pattern_part == null or path_part == null) {
-            return false; // One exhausted before other
-        }
-
-        const pp = pattern_part.?;
-        const pa = path_part.?;
-
-        // Parameter matches anything
-        if (pp.len > 0 and pp[0] == ':') {
-            continue;
-        }
-
-        // Wildcard matches anything
-        if (std.mem.eql(u8, pp, "*")) {
-            continue;
-        }
-
-        // Exact match required
-        if (!std.mem.eql(u8, pp, pa)) {
-            return false;
-        }
-    }
-}
+/// Delegates to the canonical implementation in router/types.zig.
+pub const matchesPattern = router_types.matchPattern;
 
 /// URL decodes a string.
 pub fn urlDecode(allocator: std.mem.Allocator, encoded: []const u8) ![]u8 {

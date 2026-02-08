@@ -99,7 +99,7 @@ pub const Context = struct {
         };
 
         // Auto-detect provider from environment
-        ctx.provider = detectProvider();
+        ctx.provider = detectProviderWithAllocator(allocator);
 
         return ctx;
     }
@@ -174,7 +174,7 @@ pub fn detectProviderWithAllocator(allocator: std.mem.Allocator) ?CloudProvider 
 /// Run a handler on the detected cloud provider.
 /// Automatically selects the appropriate runtime based on environment detection.
 pub fn runHandler(allocator: std.mem.Allocator, handler: CloudHandler) !void {
-    const provider = detectProvider() orelse {
+    const provider = detectProviderWithAllocator(allocator) orelse {
         // Not running in a cloud environment
         std.log.warn("No cloud provider detected. Running in local mode.", .{});
         return Error.UnsupportedProvider;
