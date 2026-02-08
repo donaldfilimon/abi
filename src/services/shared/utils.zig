@@ -334,6 +334,18 @@ pub const string = struct {
         return copy;
     }
 
+    /// Convert a string to uppercase ASCII (allocating).
+    ///
+    /// Returns a newly allocated string that must be freed by the caller.
+    /// Non-ASCII characters are copied unchanged.
+    pub fn toUpperAscii(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
+        const copy = try allocator.alloc(u8, input.len);
+        for (input, 0..) |char, i| {
+            copy[i] = std.ascii.toUpper(char);
+        }
+        return copy;
+    }
+
     /// Convert a string to lowercase ASCII in-place.
     ///
     /// Modifies the buffer directly and returns it for chaining.

@@ -1311,32 +1311,8 @@ pub fn saxpy(a: f32, x: []const f32, y: []f32) void {
 }
 
 /// Reduce sum: sum all elements in a vector.
-/// @param data Input vector
-/// @return Sum of all elements, or 0.0 for empty input
-pub fn reduceSum(data: []const f32) f32 {
-    if (data.len == 0) return 0.0;
-
-    var i: usize = 0;
-    var total: f32 = 0.0;
-
-    if (comptime VectorSize > 1) {
-        const Vec = @Vector(VectorSize, f32);
-        var sum_vec: Vec = @splat(0.0);
-
-        while (i + VectorSize <= data.len) : (i += VectorSize) {
-            const v: Vec = data[i..][0..VectorSize].*;
-            sum_vec += v;
-        }
-
-        total += @reduce(.Add, sum_vec);
-    }
-
-    while (i < data.len) : (i += 1) {
-        total += data[i];
-    }
-
-    return total;
-}
+/// Alias for `sum` — provided for semantic consistency with `reduceMin`/`reduceMax`.
+pub const reduceSum = sum;
 
 /// Reduce min: find the minimum element in a vector.
 /// @param data Input vector

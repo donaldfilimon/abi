@@ -1,4 +1,5 @@
 const std = @import("std");
+const string_utils = @import("../../../services/shared/utils.zig");
 const ExploreConfig = @import("config.zig").ExploreConfig;
 const ExploreLevel = @import("config.zig").ExploreLevel;
 const SearchPattern = @import("search.zig").SearchPattern;
@@ -66,11 +67,7 @@ pub const QueryUnderstanding = struct {
     }
 
     fn toLowercase(self: *QueryUnderstanding, text: []const u8) ![]const u8 {
-        const result = try self.allocator.alloc(u8, text.len);
-        for (text, 0..) |c, i| {
-            result[i] = std.ascii.toLower(c);
-        }
-        return result;
+        return string_utils.toLowerAscii(self.allocator, text);
     }
 
     fn classifyIntent(self: *QueryUnderstanding, query: []const u8) QueryIntent {

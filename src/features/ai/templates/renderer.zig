@@ -6,6 +6,7 @@
 const std = @import("std");
 const parser = @import("parser.zig");
 const Token = parser.Token;
+const string_utils = @import("../../../services/shared/utils.zig");
 const json_utils = @import("../../../services/shared/utils/json/mod.zig");
 
 pub const RenderError = error{
@@ -167,19 +168,11 @@ pub const Renderer = struct {
     }
 
     fn toUpper(self: *Renderer, value: []const u8) ![]const u8 {
-        var result = try self.allocator.alloc(u8, value.len);
-        for (value, 0..) |c, i| {
-            result[i] = std.ascii.toUpper(c);
-        }
-        return result;
+        return string_utils.toUpperAscii(self.allocator, value);
     }
 
     fn toLower(self: *Renderer, value: []const u8) ![]const u8 {
-        var result = try self.allocator.alloc(u8, value.len);
-        for (value, 0..) |c, i| {
-            result[i] = std.ascii.toLower(c);
-        }
-        return result;
+        return string_utils.toLowerAscii(self.allocator, value);
     }
 
     fn escapeHtml(self: *Renderer, value: []const u8) ![]const u8 {

@@ -23,9 +23,9 @@ pub const Math = struct {
         if (x == 0) return 1;
         if (isPowerOfTwo(x)) return x;
         var n = x - 1;
-        comptime var shift: u6 = 1;
-        inline while (shift < @bitSizeOf(T)) : (shift <<= 1) {
-            n |= n >> shift;
+        var shift: usize = 1;
+        while (shift < @bitSizeOf(T)) : (shift <<= 1) {
+            n |= n >> @as(std.math.Log2Int(T), @intCast(shift));
         }
         return n +| 1; // saturating add prevents overflow on max values
     }

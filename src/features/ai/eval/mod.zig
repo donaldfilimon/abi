@@ -260,13 +260,8 @@ pub const Evaluator = struct {
     }
 };
 
-fn toLower(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
-    const result = try allocator.alloc(u8, text.len);
-    for (text, 0..) |c, i| {
-        result[i] = std.ascii.toLower(c);
-    }
-    return result;
-}
+const string_utils = @import("../../../services/shared/utils.zig");
+const toLower = string_utils.toLowerAscii;
 
 fn mean(values: []const f64) f64 {
     if (values.len == 0) return 0;
