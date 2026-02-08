@@ -178,14 +178,23 @@ pub const SessionStore = struct {
                     self.allocator.free(s.messages);
                 }
 
+                const duped_id = self.allocator.dupe(u8, session.id) catch continue;
+                const duped_name = self.allocator.dupe(u8, session.name) catch {
+                    self.allocator.free(duped_id);
+                    continue;
+                };
                 sessions.append(self.allocator, .{
-                    .id = self.allocator.dupe(u8, session.id) catch continue,
-                    .name = self.allocator.dupe(u8, session.name) catch continue,
+                    .id = duped_id,
+                    .name = duped_name,
                     .created_at = session.created_at,
                     .updated_at = session.updated_at,
                     .message_count = session.messages.len,
                     .total_tokens = countTokens(session.messages),
-                }) catch continue;
+                }) catch {
+                    self.allocator.free(duped_name);
+                    self.allocator.free(duped_id);
+                    continue;
+                };
             }
         }
 
@@ -312,6 +321,10 @@ fn deserializeSession(allocator: std.mem.Allocator, json_content: []const u8) !S
 
     // Parse config
     var config = SessionConfig{};
+    errdefer {
+        if (config.model) |m| allocator.free(m);
+        if (config.system_prompt) |sp| allocator.free(sp);
+    }
     if (root.get("config")) |config_val| {
         if (config_val.object.get("memory_type")) |mt| {
             config.memory_type = stringToMemoryType(mt.string);
@@ -354,12 +367,18 @@ fn deserializeSession(allocator: std.mem.Allocator, json_content: []const u8) !S
         try messages.append(allocator, msg);
     }
 
+    const duped_id = try allocator.dupe(u8, id.string);
+    errdefer allocator.free(duped_id);
+    const duped_name = try allocator.dupe(u8, name.string);
+    errdefer allocator.free(duped_name);
+    const owned_messages = try messages.toOwnedSlice(allocator);
+
     return .{
-        .id = try allocator.dupe(u8, id.string),
-        .name = try allocator.dupe(u8, name.string),
+        .id = duped_id,
+        .name = duped_name,
         .created_at = created_at.integer,
         .updated_at = updated_at.integer,
-        .messages = try messages.toOwnedSlice(allocator),
+        .messages = owned_messages,
         .config = config,
     };
 }
