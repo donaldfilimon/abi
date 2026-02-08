@@ -784,6 +784,12 @@ fn calculateAccuracy(weights: []f32, gradients: []f32) f32 {
     return @as(f32, @floatFromInt(correct)) / @as(f32, @floatFromInt(weights.len));
 }
 
+// Test discovery for extracted test files
+test {
+    _ = @import("self_learning_test.zig");
+    _ = @import("trainable_model_test.zig");
+}
+
 test "training result includes checkpoints" {
     var result = try trainWithResult(std.testing.allocator, .{
         .epochs = 2,
