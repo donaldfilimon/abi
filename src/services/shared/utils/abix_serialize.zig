@@ -210,6 +210,7 @@ pub const Reader = struct {
         if (version > VERSION) return error.UnsupportedVersion;
 
         const payload_len = self.readU32() catch return error.BufferTooSmall;
+        if (payload_len > self.remaining()) return error.BufferTooSmall;
         return payload_len;
     }
 
@@ -274,7 +275,7 @@ pub const Reader = struct {
     /// Read a length-prefixed byte slice (zero-copy -- borrows from input buffer).
     pub fn readSlice(self: *Reader) ![]const u8 {
         const len: usize = try self.readU32();
-        if (self.pos + len > self.data.len) return error.BufferTooSmall;
+        if (len > self.remaining()) return error.BufferTooSmall;
         const result = self.data[self.pos .. self.pos + len];
         self.pos += len;
         return result;
@@ -288,8 +289,10 @@ pub const Reader = struct {
     /// Read a typed f32 array (zero-copy for the element data).
     pub fn readArrayF32(self: *Reader) ![]const f32 {
         const count: usize = try self.readU32();
+        // Validate count against remaining bytes to prevent overflow in multiplication
+        if (count > self.remaining() / @sizeOf(f32)) return error.BufferTooSmall;
         const byte_len = count * @sizeOf(f32);
-        if (self.pos + byte_len > self.data.len) return error.BufferTooSmall;
+        if (self.pos % @alignOf(f32) != 0) return error.InvalidAlignment;
         const bytes = self.data[self.pos .. self.pos + byte_len];
         self.pos += byte_len;
         return std.mem.bytesAsSlice(f32, @alignCast(bytes));

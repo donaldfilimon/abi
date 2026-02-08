@@ -286,7 +286,8 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
         fn ensureCapacity(self: *Self, required: usize) !void {
             if (required <= self.size and self.growth_left > 0) return;
             if (self.capacity == 0 or self.growth_left == 0 or required > capacityToGrowth(self.capacity) + self.size) {
-                try self.rehash(@max(default_capacity, nextPowerOfTwo(required * 2)));
+                const doubled = std.math.mul(usize, required, 2) catch return error.OutOfMemory;
+                try self.rehash(@max(default_capacity, nextPowerOfTwo(doubled)));
             }
         }
 
@@ -296,11 +297,13 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
             const old_values = self.values;
             const old_capacity = self.capacity;
 
-            // Allocate new arrays
+            // Allocate new arrays (errdefer prevents leaks if a later alloc fails)
             const new_ctrl = try self.allocator.alloc(u8, new_capacity + group_width);
+            errdefer self.allocator.free(new_ctrl);
             @memset(new_ctrl, CTRL_EMPTY);
 
             const new_keys = try self.allocator.alloc(K, new_capacity);
+            errdefer self.allocator.free(new_keys);
             const new_values = try self.allocator.alloc(V, new_capacity);
 
             self.ctrl = new_ctrl;
