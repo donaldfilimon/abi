@@ -25,6 +25,7 @@ pub const priority_queue = @import("priority_queue.zig");
 pub const epoch = @import("epoch.zig");
 pub const chase_lev = @import("chase_lev.zig");
 pub const mpmc = @import("mpmc_queue.zig");
+pub const channel_mod = @import("channel.zig");
 
 // Zig 0.16 compatibility: Simple spinlock Mutex
 const Mutex = struct {
@@ -53,6 +54,14 @@ pub const WorkStealingScheduler = chase_lev.WorkStealingScheduler;
 // MPMC queue
 pub const MpmcQueue = mpmc.MpmcQueue;
 pub const BlockingMpmcQueue = mpmc.BlockingMpmcQueue;
+
+// Vyukov MPMC channel (v2)
+pub const Channel = channel_mod.Channel;
+pub const ByteChannel = channel_mod.ByteChannel;
+pub const U64Channel = channel_mod.U64Channel;
+pub const F32Channel = channel_mod.F32Channel;
+pub const MessageChannel = channel_mod.MessageChannel;
+pub const Message = channel_mod.Message;
 
 // Priority queue
 pub const Priority = priority_queue.Priority;

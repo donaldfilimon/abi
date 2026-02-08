@@ -220,6 +220,15 @@ pub const Framework = struct {
         WebDisabled,
         RequestFailed,
         InvalidUrl,
+        // Cloud errors
+        CloudDisabled,
+        UnsupportedProvider,
+        InvalidEvent,
+        EventParseFailed,
+        ResponseSerializeFailed,
+        HandlerFailed,
+        TimeoutExceeded,
+        ProviderError,
     } || std.mem.Allocator.Error || ConfigError || RegistryError;
 
     /// Initialize the framework with the given configuration.

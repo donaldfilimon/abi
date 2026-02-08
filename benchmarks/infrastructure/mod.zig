@@ -16,6 +16,7 @@ pub const suites = struct {
     pub const memory = @import("memory.zig");
     pub const simd = @import("simd.zig");
     pub const network = @import("network.zig");
+    pub const v2_modules = @import("v2_modules.zig");
 };
 
 pub fn runAll(allocator: std.mem.Allocator) !void {
@@ -27,6 +28,7 @@ pub fn runAll(allocator: std.mem.Allocator) !void {
     try suites.memory.run(allocator);
     try suites.simd.run(allocator);
     try suites.network.run(allocator);
+    try suites.v2_modules.run(allocator);
 
     std.debug.print("\nInfrastructure Benchmarks Complete\n", .{});
     std.debug.print("==============================\n", .{});
@@ -48,4 +50,5 @@ test {
     _ = suites.memory;
     _ = suites.simd;
     _ = suites.network;
+    _ = suites.v2_modules;
 }

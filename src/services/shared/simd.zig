@@ -1201,6 +1201,227 @@ pub fn fillF32(data: []f32, value: f32) void {
 }
 
 // ============================================================================
+// v2.0 SIMD Kernels
+// ============================================================================
+
+/// Euclidean distance: sqrt(sum((a[i] - b[i])^2))
+/// Single-pass SIMD computation of L2 distance between two vectors.
+/// @param a First input vector (must not be empty)
+/// @param b Second input vector (must have same length as a)
+/// @return Euclidean distance between the two vectors
+pub fn euclideanDistance(a: []const f32, b: []const f32) f32 {
+    std.debug.assert(a.len > 0);
+    std.debug.assert(b.len > 0);
+    std.debug.assert(a.len == b.len);
+
+    const len = a.len;
+    var dist_sum: f32 = 0.0;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var vec_sum: Vec = @splat(0.0);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            const diff = va - vb;
+            vec_sum += diff * diff;
+        }
+
+        dist_sum += @reduce(.Add, vec_sum);
+    }
+
+    while (i < len) : (i += 1) {
+        const diff = a[i] - b[i];
+        dist_sum += diff * diff;
+    }
+
+    return @sqrt(dist_sum);
+}
+
+/// Numerically stable softmax with separate output buffer.
+/// softmax(x)_i = exp(x_i - max(x)) / sum(exp(x_j - max(x)))
+/// @param data Input logits (must not be empty)
+/// @param out Output probabilities (must have same length as data, caller-owned)
+pub fn softmax(data: []const f32, out: []f32) void {
+    std.debug.assert(data.len > 0);
+    std.debug.assert(data.len == out.len);
+
+    // Step 1: Find max for numerical stability
+    const max_val = maxValue(data);
+
+    // Step 2: Compute exp(x - max) into output buffer
+    var exp_sum: f32 = 0.0;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const max_vec: Vec = @splat(max_val);
+        var sum_vec: Vec = @splat(0.0);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const x: Vec = data[i..][0..VectorSize].*;
+            const exp_val: Vec = @exp(x - max_vec);
+            out[i..][0..VectorSize].* = exp_val;
+            sum_vec += exp_val;
+        }
+
+        exp_sum += @reduce(.Add, sum_vec);
+    }
+
+    while (i < data.len) : (i += 1) {
+        const exp_val = @exp(data[i] - max_val);
+        out[i] = exp_val;
+        exp_sum += exp_val;
+    }
+
+    // Step 3: Normalize
+    if (exp_sum > 0.0) {
+        divideByScalar(out, exp_sum);
+    }
+}
+
+/// SAXPY: y[i] += a * x[i] (BLAS Level 1)
+/// Performs the scalar-alpha-x-plus-y operation in-place on y.
+/// @param a Scalar multiplier
+/// @param x Input vector (must not be empty)
+/// @param y Input/output vector, modified in-place (must have same length as x)
+pub fn saxpy(a: f32, x: []const f32, y: []f32) void {
+    std.debug.assert(x.len > 0);
+    std.debug.assert(x.len == y.len);
+
+    const len = x.len;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const va: Vec = @splat(a);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const vx: Vec = x[i..][0..VectorSize].*;
+            const vy: Vec = y[i..][0..VectorSize].*;
+            y[i..][0..VectorSize].* = @mulAdd(Vec, va, vx, vy);
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        y[i] = @mulAdd(f32, a, x[i], y[i]);
+    }
+}
+
+/// Reduce sum: sum all elements in a vector.
+/// @param data Input vector
+/// @return Sum of all elements, or 0.0 for empty input
+pub fn reduceSum(data: []const f32) f32 {
+    if (data.len == 0) return 0.0;
+
+    var i: usize = 0;
+    var total: f32 = 0.0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var sum_vec: Vec = @splat(0.0);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            sum_vec += v;
+        }
+
+        total += @reduce(.Add, sum_vec);
+    }
+
+    while (i < data.len) : (i += 1) {
+        total += data[i];
+    }
+
+    return total;
+}
+
+/// Reduce min: find the minimum element in a vector.
+/// @param data Input vector
+/// @return Minimum value, or positive infinity for empty input
+pub fn reduceMin(data: []const f32) f32 {
+    if (data.len == 0) return std.math.inf(f32);
+
+    var i: usize = 0;
+    var result: f32 = data[0];
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var min_vec: Vec = @splat(data[0]);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            min_vec = @min(min_vec, v);
+        }
+
+        result = @min(result, @reduce(.Min, min_vec));
+    }
+
+    while (i < data.len) : (i += 1) {
+        result = @min(result, data[i]);
+    }
+
+    return result;
+}
+
+/// Reduce max: find the maximum element in a vector.
+/// @param data Input vector
+/// @return Maximum value, or negative infinity for empty input
+pub fn reduceMax(data: []const f32) f32 {
+    if (data.len == 0) return -std.math.inf(f32);
+
+    var i: usize = 0;
+    var result: f32 = data[0];
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var max_vec: Vec = @splat(data[0]);
+
+        while (i + VectorSize <= data.len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            max_vec = @max(max_vec, v);
+        }
+
+        result = @max(result, @reduce(.Max, max_vec));
+    }
+
+    while (i < data.len) : (i += 1) {
+        result = @max(result, data[i]);
+    }
+
+    return result;
+}
+
+/// Scale vector into a separate output buffer: out[i] = data[i] * scalar
+/// Unlike scaleInPlace which modifies in-place, this writes to a distinct output slice.
+/// @param data Input vector (must not be empty)
+/// @param scalar Scalar multiplier
+/// @param out Output buffer (must have same length as data, caller-owned)
+pub fn scale(data: []const f32, scalar: f32, out: []f32) void {
+    std.debug.assert(data.len > 0);
+    std.debug.assert(data.len == out.len);
+
+    const len = data.len;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        const s: Vec = @splat(scalar);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const v: Vec = data[i..][0..VectorSize].*;
+            out[i..][0..VectorSize].* = v * s;
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        out[i] = data[i] * scalar;
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -1594,5 +1815,203 @@ test "fillF32 works" {
 
     for (data) |v| {
         try std.testing.expectApproxEqAbs(@as(f32, 3.14), v, 1e-6);
+    }
+}
+
+// ============================================================================
+// Tests for v2.0 SIMD Kernels
+// ============================================================================
+
+test "euclideanDistance works" {
+    const a = [_]f32{ 0.0, 0.0, 0.0 };
+    const b = [_]f32{ 1.0, 2.0, 2.0 };
+    const dist = euclideanDistance(&a, &b);
+    // sqrt(1 + 4 + 4) = sqrt(9) = 3
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), dist, 1e-6);
+}
+
+test "euclideanDistance identical vectors is zero" {
+    const a = [_]f32{ 3.0, 4.0, 5.0, 6.0 };
+    const dist = euclideanDistance(&a, &a);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), dist, 1e-6);
+}
+
+test "euclideanDistance large array" {
+    var a: [64]f32 = undefined;
+    var b: [64]f32 = undefined;
+    for (0..64) |i| {
+        a[i] = @floatFromInt(i);
+        b[i] = @as(f32, @floatFromInt(i)) + 1.0;
+    }
+    const dist = euclideanDistance(&a, &b);
+    // Each diff is 1.0, so sum of squares = 64, sqrt(64) = 8
+    try std.testing.expectApproxEqAbs(@as(f32, 8.0), dist, 1e-5);
+}
+
+test "softmax output sums to one" {
+    const data = [_]f32{ 1.0, 2.0, 3.0 };
+    var out: [3]f32 = undefined;
+    softmax(&data, &out);
+
+    var total: f32 = 0.0;
+    for (out) |v| total += v;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 1e-5);
+
+    // Values should be in ascending order (since inputs were)
+    try std.testing.expect(out[0] < out[1]);
+    try std.testing.expect(out[1] < out[2]);
+
+    // All values should be positive
+    for (out) |v| {
+        try std.testing.expect(v > 0);
+    }
+}
+
+test "softmax numerical stability with large values" {
+    const data = [_]f32{ 1000.0, 1001.0, 1002.0 };
+    var out: [3]f32 = undefined;
+    softmax(&data, &out);
+
+    var total: f32 = 0.0;
+    for (out) |v| total += v;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 1e-5);
+
+    // No NaN or Inf
+    for (out) |v| {
+        try std.testing.expect(!std.math.isNan(v));
+        try std.testing.expect(!std.math.isInf(v));
+    }
+}
+
+test "saxpy basic operation" {
+    var y = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const x = [_]f32{ 10.0, 20.0, 30.0, 40.0 };
+    saxpy(2.0, &x, &y);
+
+    // y = 2*x + y = [21, 42, 63, 84]
+    try std.testing.expectApproxEqAbs(@as(f32, 21.0), y[0], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 42.0), y[1], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 63.0), y[2], 1e-6);
+    try std.testing.expectApproxEqAbs(@as(f32, 84.0), y[3], 1e-6);
+}
+
+test "saxpy with zero alpha" {
+    const original = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var y = original;
+    const x = [_]f32{ 10.0, 20.0, 30.0, 40.0 };
+    saxpy(0.0, &x, &y);
+
+    // y should be unchanged
+    for (y, original) |actual, expected| {
+        try std.testing.expectEqual(expected, actual);
+    }
+}
+
+test "saxpy large array" {
+    var y: [64]f32 = undefined;
+    var x: [64]f32 = undefined;
+    for (0..64) |i| {
+        x[i] = 1.0;
+        y[i] = @floatFromInt(i);
+    }
+    saxpy(3.0, &x, &y);
+
+    for (0..64) |i| {
+        const expected = @as(f32, @floatFromInt(i)) + 3.0;
+        try std.testing.expectApproxEqAbs(expected, y[i], 1e-5);
+    }
+}
+
+test "reduceSum works" {
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0 };
+    const total = reduceSum(&data);
+    try std.testing.expectApproxEqAbs(@as(f32, 15.0), total, 1e-6);
+}
+
+test "reduceSum empty returns zero" {
+    const data = [_]f32{};
+    const total = reduceSum(&data);
+    try std.testing.expectEqual(@as(f32, 0.0), total);
+}
+
+test "reduceSum large array" {
+    var data: [64]f32 = undefined;
+    for (0..64) |i| {
+        data[i] = 1.0;
+    }
+    const total = reduceSum(&data);
+    try std.testing.expectApproxEqAbs(@as(f32, 64.0), total, 1e-4);
+}
+
+test "reduceMin works" {
+    const data = [_]f32{ 5.0, 3.0, 9.0, 1.0, 7.0 };
+    const result = reduceMin(&data);
+    try std.testing.expectEqual(@as(f32, 1.0), result);
+}
+
+test "reduceMin empty returns positive infinity" {
+    const data = [_]f32{};
+    const result = reduceMin(&data);
+    try std.testing.expect(std.math.isInf(result));
+    try std.testing.expect(result > 0);
+}
+
+test "reduceMin negative values" {
+    const data = [_]f32{ -1.0, -5.0, -2.0, -3.0 };
+    const result = reduceMin(&data);
+    try std.testing.expectEqual(@as(f32, -5.0), result);
+}
+
+test "reduceMax works" {
+    const data = [_]f32{ 5.0, 3.0, 9.0, 1.0, 7.0 };
+    const result = reduceMax(&data);
+    try std.testing.expectEqual(@as(f32, 9.0), result);
+}
+
+test "reduceMax empty returns negative infinity" {
+    const data = [_]f32{};
+    const result = reduceMax(&data);
+    try std.testing.expect(std.math.isInf(result));
+    try std.testing.expect(result < 0);
+}
+
+test "reduceMax negative values" {
+    const data = [_]f32{ -1.0, -5.0, -2.0, -3.0 };
+    const result = reduceMax(&data);
+    try std.testing.expectEqual(@as(f32, -1.0), result);
+}
+
+test "scale out-of-place works" {
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var out: [4]f32 = undefined;
+    scale(&data, 3.0, &out);
+
+    try std.testing.expectEqual(@as(f32, 3.0), out[0]);
+    try std.testing.expectEqual(@as(f32, 6.0), out[1]);
+    try std.testing.expectEqual(@as(f32, 9.0), out[2]);
+    try std.testing.expectEqual(@as(f32, 12.0), out[3]);
+}
+
+test "scale preserves original" {
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var out: [4]f32 = undefined;
+    scale(&data, 5.0, &out);
+
+    // Original should be unchanged
+    try std.testing.expectEqual(@as(f32, 1.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 2.0), data[1]);
+}
+
+test "scale large array" {
+    var data: [64]f32 = undefined;
+    var out: [64]f32 = undefined;
+    for (0..64) |i| {
+        data[i] = @floatFromInt(i);
+    }
+    scale(&data, 2.0, &out);
+
+    for (0..64) |i| {
+        const expected = @as(f32, @floatFromInt(i)) * 2.0;
+        try std.testing.expectApproxEqAbs(expected, out[i], 1e-5);
     }
 }

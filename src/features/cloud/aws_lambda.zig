@@ -89,7 +89,8 @@ pub const LambdaRuntime = struct {
         if (self.handler(&event, self.allocator)) |resp| {
             response = resp;
         } else |err| {
-            error_message = @errorName(err);
+            var err_name_buf: [128]u8 = undefined;
+            error_message = std.fmt.bufPrint(&err_name_buf, "{t}", .{err}) catch "HandlerError";
             response = try CloudResponse.err(self.allocator, 500, error_message.?);
         }
         defer response.deinit();
@@ -190,6 +191,30 @@ pub fn parseEvent(allocator: std.mem.Allocator, raw_event: []const u8, request_i
     return event;
 }
 
+fn jsonStringOrNull(value: std.json.Value) ?[]const u8 {
+    return switch (value) {
+        .string => |s| s,
+        else => null,
+    };
+}
+
+fn parseJsonStringMap(
+    allocator: std.mem.Allocator,
+    object_value: std.json.Value,
+) !std.StringHashMap([]const u8) {
+    var out = std.StringHashMap([]const u8).init(allocator);
+    errdefer out.deinit();
+
+    var iter = object_value.object.iterator();
+    while (iter.next()) |entry| {
+        if (entry.value_ptr.* == .string) {
+            try out.put(entry.key_ptr.*, entry.value_ptr.string);
+        }
+    }
+
+    return out;
+}
+
 /// Parse API Gateway REST API event.
 fn parseApiGatewayEvent(event: *CloudEvent, root: std.json.Value, method: []const u8) !void {
     event.method = HttpMethod.fromString(method);
@@ -198,23 +223,12 @@ fn parseApiGatewayEvent(event: *CloudEvent, root: std.json.Value, method: []cons
         event.path = path.string;
     }
 
-    if (root.object.get("body")) |body| {
-        event.body = switch (body) {
-            .string => |s| s,
-            else => null,
-        };
-    }
+    if (root.object.get("body")) |body| event.body = jsonStringOrNull(body);
 
     // Parse query parameters
     if (root.object.get("queryStringParameters")) |params| {
         if (params != .null) {
-            event.query_params = std.StringHashMap([]const u8).init(event.allocator);
-            var iter = params.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    try event.query_params.?.put(entry.key_ptr.*, entry.value_ptr.string);
-                }
-            }
+            event.query_params = try parseJsonStringMap(event.allocator, params);
         }
     }
 
@@ -249,23 +263,12 @@ fn parseHttpApiEvent(event: *CloudEvent, root: std.json.Value) !void {
         }
     }
 
-    if (root.object.get("body")) |body| {
-        event.body = switch (body) {
-            .string => |s| s,
-            else => null,
-        };
-    }
+    if (root.object.get("body")) |body| event.body = jsonStringOrNull(body);
 
     // Parse query parameters (already decoded in v2)
     if (root.object.get("queryStringParameters")) |params| {
         if (params != .null) {
-            event.query_params = std.StringHashMap([]const u8).init(event.allocator);
-            var iter = params.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    try event.query_params.?.put(entry.key_ptr.*, entry.value_ptr.string);
-                }
-            }
+            event.query_params = try parseJsonStringMap(event.allocator, params);
         }
     }
 

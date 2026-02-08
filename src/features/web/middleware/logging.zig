@@ -5,6 +5,8 @@
 const std = @import("std");
 const types = @import("types.zig");
 const MiddlewareContext = types.MiddlewareContext;
+const logging_key = "_logging";
+const access_log_key = "_access_log";
 
 /// Log output format.
 pub const LogFormat = enum {
@@ -46,7 +48,7 @@ pub fn minimalLogger(ctx: *MiddlewareContext) !void {
 
     // We log after the request completes, so we defer this
     // For now, just mark that logging is enabled
-    try ctx.set("_logging", "minimal");
+    try ctx.set(logging_key, "minimal");
 }
 
 /// Logs the request after processing completes.
@@ -57,18 +59,30 @@ pub fn logRequest(ctx: *const MiddlewareContext, status: u16) void {
     std.log.info("{t} {s} {d} {d}ms", .{ ctx.request.method, path, status, duration });
 }
 
+const CommonLogFields = struct {
+    path: []const u8,
+    remote_addr: []const u8,
+    user: []const u8,
+};
+
+fn commonLogFields(ctx: *const MiddlewareContext) CommonLogFields {
+    return .{
+        .path = ctx.request.raw_path,
+        .remote_addr = ctx.get("remote_addr") orelse "-",
+        .user = ctx.getUserId() orelse "-",
+    };
+}
+
 /// Logs in Apache Common Log Format.
 pub fn logCommon(ctx: *const MiddlewareContext, status: u16, bytes: usize) void {
-    const path = ctx.request.raw_path;
-    const remote_addr = ctx.get("remote_addr") orelse "-";
-    const user = ctx.getUserId() orelse "-";
+    const fields = commonLogFields(ctx);
 
     // Format: host ident authuser date request status bytes
     std.log.info("{s} - {s} \"{t} {s} HTTP/1.1\" {d} {d}", .{
-        remote_addr,
-        user,
+        fields.remote_addr,
+        fields.user,
         ctx.request.method,
-        path,
+        fields.path,
         status,
         bytes,
     });
@@ -76,17 +90,15 @@ pub fn logCommon(ctx: *const MiddlewareContext, status: u16, bytes: usize) void 
 
 /// Logs in Apache Combined Log Format.
 pub fn logCombined(ctx: *const MiddlewareContext, status: u16, bytes: usize) void {
-    const path = ctx.request.raw_path;
-    const remote_addr = ctx.get("remote_addr") orelse "-";
-    const user = ctx.getUserId() orelse "-";
+    const fields = commonLogFields(ctx);
     const referrer = ctx.request.getHeader("Referer") orelse "-";
     const user_agent = ctx.request.getHeader("User-Agent") orelse "-";
 
     std.log.info("{s} - {s} \"{t} {s} HTTP/1.1\" {d} {d} \"{s}\" \"{s}\"", .{
-        remote_addr,
-        user,
+        fields.remote_addr,
+        fields.user,
         ctx.request.method,
-        path,
+        fields.path,
         status,
         bytes,
         referrer,
@@ -114,10 +126,10 @@ pub fn logJson(
         .user_agent = ctx.request.getHeader("User-Agent") orelse "-",
     };
 
-    var output = std.ArrayList(u8).init(allocator);
-    defer output.deinit();
+    var output = std.ArrayListUnmanaged(u8).empty;
+    defer output.deinit(allocator);
 
-    try std.json.stringify(log_entry, .{}, output.writer());
+    try std.json.stringify(log_entry, .{}, output.writer(allocator));
     std.log.info("{s}", .{output.items});
 }
 
@@ -132,12 +144,12 @@ pub fn requestStartLogger(ctx: *MiddlewareContext) !void {
 pub fn accessLog(ctx: *MiddlewareContext) !void {
     // This runs before the handler, we want to log after
     // Store a marker that we should log on completion
-    try ctx.set("_access_log", "true");
+    try ctx.set(access_log_key, "true");
 }
 
 /// Should be called after request completes to log access.
 pub fn finalizeAccessLog(ctx: *const MiddlewareContext) void {
-    if (ctx.get("_access_log") == null) return;
+    if (ctx.get(access_log_key) == null) return;
 
     const status = @intFromEnum(ctx.response.status);
     const bytes = ctx.response.body.items.len;
@@ -170,7 +182,7 @@ test "minimal logger sets marker" {
 
     try minimalLogger(&ctx);
 
-    try std.testing.expectEqualStrings("minimal", ctx.get("_logging").?);
+    try std.testing.expectEqualStrings("minimal", ctx.get(logging_key).?);
 }
 
 test "log format selection" {

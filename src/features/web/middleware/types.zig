@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const server = @import("../server/mod.zig");
+const user_id_key = "user_id";
 
 /// Context passed through the middleware chain.
 pub const MiddlewareContext = struct {
@@ -74,12 +75,12 @@ pub const MiddlewareContext = struct {
 
     /// Checks if user is authenticated (via state).
     pub fn isAuthenticated(self: *const MiddlewareContext) bool {
-        return self.state.get("user_id") != null;
+        return self.getUserId() != null;
     }
 
     /// Gets the authenticated user ID.
     pub fn getUserId(self: *const MiddlewareContext) ?[]const u8 {
-        return self.state.get("user_id");
+        return self.state.get(user_id_key);
     }
 };
 
@@ -88,25 +89,25 @@ pub const MiddlewareFn = *const fn (ctx: *MiddlewareContext) anyerror!void;
 
 /// Chain of middleware functions.
 pub const MiddlewareChain = struct {
-    middlewares: std.ArrayList(MiddlewareFn),
+    middlewares: std.ArrayListUnmanaged(MiddlewareFn),
     allocator: std.mem.Allocator,
 
     /// Creates a new middleware chain.
     pub fn init(allocator: std.mem.Allocator) MiddlewareChain {
         return .{
-            .middlewares = std.ArrayList(MiddlewareFn).init(allocator),
+            .middlewares = .empty,
             .allocator = allocator,
         };
     }
 
     /// Cleans up resources.
     pub fn deinit(self: *MiddlewareChain) void {
-        self.middlewares.deinit();
+        self.middlewares.deinit(self.allocator);
     }
 
     /// Adds a middleware to the chain.
     pub fn use(self: *MiddlewareChain, middleware: MiddlewareFn) !void {
-        try self.middlewares.append(middleware);
+        try self.middlewares.append(self.allocator, middleware);
     }
 
     /// Executes all middleware in order.
@@ -148,21 +149,25 @@ pub const RouteHandler = struct {
     }
 };
 
-test "MiddlewareContext basic operations" {
-    const allocator = std.testing.allocator;
-
-    // Create mock request/response
-    var request = server.ParsedRequest{
+fn makeTestRequest(allocator: std.mem.Allocator, path: []const u8) server.ParsedRequest {
+    return .{
         .method = .GET,
-        .path = "/test",
+        .path = path,
         .query = null,
         .version = .http_1_1,
         .headers = std.StringHashMap([]const u8).init(allocator),
         .body = null,
-        .raw_path = "/test",
+        .raw_path = path,
         .allocator = allocator,
         .owned_data = null,
     };
+}
+
+test "MiddlewareContext basic operations" {
+    const allocator = std.testing.allocator;
+
+    // Create mock request/response
+    var request = makeTestRequest(allocator, "/test");
     defer request.deinit();
 
     var response = server.ResponseBuilder.init(allocator);
@@ -185,19 +190,15 @@ test "MiddlewareContext basic operations" {
 test "MiddlewareChain execution" {
     const allocator = std.testing.allocator;
 
-    const call_count: u32 = 0;
-
     const middleware1 = struct {
         fn run(ctx: *MiddlewareContext) !void {
-            _ = ctx;
-            call_count += 1;
+            try ctx.set("mw1", "1");
         }
     }.run;
 
     const middleware2 = struct {
         fn run(ctx: *MiddlewareContext) !void {
-            _ = ctx;
-            call_count += 1;
+            try ctx.set("mw2", "1");
         }
     }.run;
 
@@ -210,17 +211,7 @@ test "MiddlewareChain execution" {
     try std.testing.expectEqual(@as(usize, 2), chain.len());
 
     // Create context
-    var request = server.ParsedRequest{
-        .method = .GET,
-        .path = "/",
-        .query = null,
-        .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
-        .body = null,
-        .raw_path = "/",
-        .allocator = allocator,
-        .owned_data = null,
-    };
+    var request = makeTestRequest(allocator, "/");
     defer request.deinit();
 
     var response = server.ResponseBuilder.init(allocator);
@@ -230,9 +221,8 @@ test "MiddlewareChain execution" {
     defer ctx.deinit();
 
     try chain.execute(&ctx);
-
-    // Note: static var won't work in tests, this is simplified
-    // In real tests, use context state to track calls
+    try std.testing.expectEqualStrings("1", ctx.get("mw1").?);
+    try std.testing.expectEqualStrings("1", ctx.get("mw2").?);
 }
 
 test "MiddlewareChain abort stops execution" {
@@ -257,17 +247,7 @@ test "MiddlewareChain abort stops execution" {
     try chain.use(abortMiddleware);
     try chain.use(neverRuns);
 
-    var request = server.ParsedRequest{
-        .method = .GET,
-        .path = "/",
-        .query = null,
-        .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
-        .body = null,
-        .raw_path = "/",
-        .allocator = allocator,
-        .owned_data = null,
-    };
+    var request = makeTestRequest(allocator, "/");
     defer request.deinit();
 
     var response = server.ResponseBuilder.init(allocator);

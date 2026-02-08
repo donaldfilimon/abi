@@ -14,6 +14,8 @@ pub const future_mod = @import("future.zig");
 pub const cancellation_mod = @import("cancellation.zig");
 pub const task_group_mod = @import("task_group.zig");
 pub const async_mod = @import("async.zig");
+pub const thread_pool_mod = @import("thread_pool.zig");
+pub const dag_pipeline_mod = @import("dag_pipeline.zig");
 
 // Future/Promise pattern
 pub const Future = future_mod.Future;
@@ -51,6 +53,18 @@ pub const AsyncRuntimeOptions = async_mod.AsyncRuntimeOptions;
 pub const TaskHandle = async_mod.TaskHandle;
 pub const AsyncTaskGroup = async_mod.AsyncTaskGroup;
 pub const AsyncError = async_mod.AsyncError;
+
+// Work-stealing thread pool (v2)
+pub const ThreadPool = thread_pool_mod.ThreadPool;
+pub const ThreadPoolTask = thread_pool_mod.Task;
+pub const parallelFor = thread_pool_mod.parallelFor;
+
+// DAG pipeline scheduler (v2)
+pub const Pipeline = dag_pipeline_mod.Pipeline;
+pub const PipelineResult = dag_pipeline_mod.PipelineResult;
+pub const PipelineStage = dag_pipeline_mod.Stage;
+pub const StageStatus = dag_pipeline_mod.StageStatus;
+pub const createInferencePipeline = dag_pipeline_mod.createInferencePipeline;
 
 // ============================================================================
 // Tests

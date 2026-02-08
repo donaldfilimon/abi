@@ -662,6 +662,20 @@ pub const net = @import("utils/net/mod.zig");
 /// Supports JSON, TOML, and environment variable overrides.
 pub const config = @import("utils/config.zig");
 
+// v2 utility modules
+/// Foundational primitives: Math, String, Time, Atomic, Platform, RingBuffer (v2).
+pub const v2_primitives = @import("utils/v2_primitives.zig");
+/// Structured error handling with categories, severity, and accumulation (v2).
+pub const structured_error = @import("utils/structured_error.zig");
+/// SwissMap: high-performance open-addressing hash map with H2 control bytes (v2).
+pub const swiss_map = @import("utils/swiss_map.zig");
+/// ABIX binary serialization: compact wire format with comptime struct support (v2).
+pub const abix_serialize = @import("utils/abix_serialize.zig");
+/// Hierarchical span-based profiler with Chrome Trace export (v2).
+pub const profiler = @import("utils/profiler.zig");
+/// Statistical benchmark suite with Chauvenet outlier filtering (v2).
+pub const benchmark = @import("utils/benchmark.zig");
+
 /// HTTP retry logic with backoff strategies.
 /// Configurable retry policies for web requests.
 pub const http_retry = @import("utils/retry.zig");

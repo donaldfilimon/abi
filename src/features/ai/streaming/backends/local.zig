@@ -86,20 +86,23 @@ pub const LocalBackend = struct {
     pub fn loadModel(self: *Self, path: []const u8) !void {
         const engine = self.engine orelse return LocalBackendError.ModelNotLoaded;
 
-        // Store path for reference
+        // Store path for reference - dupe first since path may equal self.model_path
+        const path_copy = try self.allocator.dupe(u8, path);
+
         if (self.model_path) |old_path| {
             self.allocator.free(old_path);
         }
-        self.model_path = try self.allocator.dupe(u8, path);
-        errdefer {
-            self.allocator.free(self.model_path.?);
-            self.model_path = null;
+        self.model_path = path_copy;
+        {
+            errdefer {
+                self.model_path = null;
+                self.allocator.free(path_copy);
+            }
+            // Load model into engine - map any error to ModelLoadFailed
+            engine.loadModel(path_copy) catch {
+                return LocalBackendError.ModelLoadFailed;
+            };
         }
-
-        // Load model into engine - map any error to ModelLoadFailed
-        engine.loadModel(path) catch {
-            return LocalBackendError.ModelLoadFailed;
-        };
 
         self.model_loaded = true;
     }

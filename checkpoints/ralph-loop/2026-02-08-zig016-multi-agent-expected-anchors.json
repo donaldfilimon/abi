@@ -1,0 +1,157 @@
+[
+  {
+    "prompt_id": "zig016-scope-001",
+    "required_phases": [],
+    "key_command_fragments": [],
+    "key_policy_phrases": [
+      "Public API usage stays on `@import(\"abi\")`; deep internal imports are not relied on.",
+      "Public import rule: prefer `@import(\"abi\")` for public APIs.",
+      "Parallel execution is done by explicit file/module ownership per agent.",
+      "Ownership rule: edit only files explicitly assigned in the task."
+    ],
+    "required_facts": [
+      "Current objective targets February 2026 release-readiness decision.",
+      "Current objective includes stable ABI baseline on Zig 0.16.",
+      "Current objective includes verified feature-gated parity."
+    ],
+    "rationale_keywords": [
+      "public API boundary",
+      "multi-agent ownership isolation"
+    ]
+  },
+  {
+    "prompt_id": "zig016-phases-002",
+    "required_phases": [
+      "Phase 0: Baseline Capture (2026-02-08)",
+      "Phase 1: Feature-Gated Parity Closure (2026-02-09 to 2026-02-11)",
+      "Phase 2: Integration and Regression Gates (2026-02-12 to 2026-02-14)",
+      "Phase 3: Release Readiness Decision (2026-02-15 to 2026-02-16)"
+    ],
+    "key_command_fragments": [
+      "zig version",
+      "zig fmt <owned-paths>",
+      "zig build run -- --help",
+      "zig build validate-flags",
+      "zig build -Denable-<feature>=true",
+      "zig build -Denable-<feature>=false",
+      "zig build cli-tests",
+      "zig build full-check"
+    ],
+    "key_policy_phrases": [
+      "Coordinator issues go/no-go decision with evidence.",
+      "Final rerun of release gates (including formatting) is green."
+    ],
+    "required_facts": [
+      "Phase 3 is the explicit go/no-go decision phase.",
+      "Evidence requirement is release-gate rerun plus coordinator decision."
+    ]
+  },
+  {
+    "prompt_id": "zig016-parity-003",
+    "required_phases": [
+      "Phase 1: Feature-Gated Parity Closure"
+    ],
+    "key_command_fragments": [
+      "zig build validate-flags",
+      "zig build -Denable-web=true",
+      "zig build -Denable-web=false"
+    ],
+    "key_policy_phrases": [
+      "Feature-gated parity is required: each changed src/features/*/mod.zig and stub.zig pair must expose matching public signatures and compatible error behavior.",
+      "Keep mod.zig and stub.zig signatures aligned for feature-gated modules.",
+      "If feature-gated code changed, validate both paths."
+    ],
+    "required_facts": [
+      "Answer must cite where each verification requirement comes from.",
+      "Source mapping must include docs/plan.md plus refactor/testing prompts."
+    ]
+  },
+  {
+    "prompt_id": "zig016-workflow-004",
+    "required_phases": [
+      "Master: Phase 1 Intake",
+      "Master: Phase 2 Recon",
+      "Master: Phase 3 Plan",
+      "Master: Phase 4 Execute",
+      "Master: Phase 5 Verify",
+      "Master: Phase 6 Handoff",
+      "Refactor: Phase 1 Baseline Recon",
+      "Refactor: Phase 2 Refactor Plan",
+      "Refactor: Phase 3 Implementation",
+      "Refactor: Phase 4 Verification",
+      "Refactor: Phase 5 Handoff",
+      "Testing: Phase 1 Test Recon",
+      "Testing: Phase 2 Test Plan",
+      "Testing: Phase 3 Test Authoring",
+      "Testing: Phase 4 Execution",
+      "Testing: Phase 5 Handoff"
+    ],
+    "key_command_fragments": [
+      "rg --files src",
+      "rg -n \"@import\\(\" src",
+      "rg -n \"^test \\\"\" src tests",
+      "zig build validate-flags"
+    ],
+    "key_policy_phrases": [
+      "Artifact output: optional inline final-report section ...",
+      "Create <ARTIFACT>.md only when file creation is explicitly assigned."
+    ],
+    "required_facts": [
+      "Answer must list artifact outputs phase-by-phase for all three roles.",
+      "Answer must highlight at least two meaningful responsibility differences."
+    ],
+    "difference_keywords": [
+      "master coordinates sequencing and go/no-go",
+      "refactor preserves behavior while changing structure",
+      "testing emphasizes deterministic coverage and flake control"
+    ]
+  },
+  {
+    "prompt_id": "zig016-safety-005",
+    "required_phases": [],
+    "key_command_fragments": [
+      "git reset --hard",
+      "git checkout -- <path>"
+    ],
+    "key_policy_phrases": [
+      "Never run destructive git operations unless explicitly requested by the user.",
+      "Do not revert unrelated edits.",
+      "modify/edit only assigned files"
+    ],
+    "required_facts": [
+      "Include one concrete forbidden action.",
+      "Explain interaction with rollback policy in docs/plan.md."
+    ],
+    "rollback_policy_phrases": [
+      "Revert only the smallest offending commit set.",
+      "Continue unaffected agent tracks when isolation is clear.",
+      "If root cause is unclear, roll back to last known green state and reapply incrementally."
+    ]
+  },
+  {
+    "prompt_id": "zig016-testing-006",
+    "required_phases": [
+      "Testing: Phase 2 Test Plan",
+      "Testing: Phase 4 Execution"
+    ],
+    "key_command_fragments": [
+      "zig test src/path/to/file.zig --test-filter \"<pattern>\"",
+      "zig fmt <owned-paths>",
+      "zig build validate-flags",
+      "zig build -Denable-gpu=true",
+      "zig build -Denable-gpu=false",
+      "zig build cli-tests",
+      "zig build test --summary all"
+    ],
+    "key_policy_phrases": [
+      "Use error.SkipZigTest for unavailable hardware/system prerequisites.",
+      "Keep tests deterministic and isolated.",
+      "Avoid sleep-based race tests unless bounded and justified.",
+      "Prefer reproducible randomized tests with explicit seeds."
+    ],
+    "required_facts": [
+      "Coverage matrix includes unit, integration, feature-flag on/off, and CLI layers.",
+      "Command ordering runs targeted checks before broader checks."
+    ]
+  }
+]

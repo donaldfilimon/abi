@@ -3,11 +3,11 @@ title: "SECURITY"
 tags: [security, policy]
 ---
 # Security Policy
-> **Codebase Status:** Synced with repository as of 2026-02-04.
+> **Codebase Status:** Synced with repository as of the latest release tag.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Security-Priority-critical?style=for-the-badge" alt="Security Priority"/>
-  <img src="https://img.shields.io/badge/Reporting-GitHub_Issues-blue?style=for-the-badge" alt="Reporting"/>
+  <img src="https://img.shields.io/badge/Reporting-GitHub_Advisories-blue?style=for-the-badge" alt="Reporting"/>
 </p>
 
 ## Security Advisories
@@ -79,5 +79,6 @@ The CLI is minimal by design; most deployments should embed ABI as a library.
 
 ## See Also
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Maintainer contact information
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow and guidelines
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Maintainer contact information and development workflow
+- [AGENTS.md](AGENTS.md) - Baseline coding and testing conventions
+- [CLAUDE.md](CLAUDE.md) - Architectural context for coding agents

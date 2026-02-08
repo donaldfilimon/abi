@@ -2,9 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Read `AGENTS.md` first for baseline rules (code style, post-edit checklist, Zig 0.16 API
-migration table). This file adds deeper architectural context that requires reading multiple
-files to understand.
+Read `AGENTS.md` first for baseline rules (project structure, commands, coding style,
+testing, and commit/PR conventions). This file adds deeper architectural context.
 
 | Key | Value |
 |-----|-------|
@@ -14,18 +13,11 @@ files to understand.
 
 ## Build Commands
 
+Baseline build/test/fmt commands are in `AGENTS.md`. This list covers extended commands.
+
 ```bash
-zig build                                    # Build
-zig build test --summary all                 # Full test suite (expect: 944 pass, 5 skip)
-zig build run -- --help                      # CLI help
-zig test src/path/to/file.zig --test-filter "pattern"  # Single test
-zig fmt .                                    # Format (required after edits)
-zig build full-check                         # Pre-commit check: format + tests + validate-flags + CLI tests
-zig build lint                               # CI formatting check
-zig build cli-tests                          # CLI smoke tests
 zig build benchmarks                         # Performance benchmarks
 zig build examples                           # Build all examples
-zig build validate-flags                     # Compile with all feature-flag combos (16 configurations)
 zig build bench-all                          # All benchmark suites
 zig build docs-site                          # Generate documentation website
 zig build check-wasm                         # Check WASM compilation
@@ -51,7 +43,7 @@ These are the mistakes most likely to cause compilation failures:
 | `std.time.Instant.now()` for elapsed time | `std.time.Timer.start()` — use Timer for benchmarks/elapsed |
 | `list.init()` | `std.ArrayListUnmanaged(T).empty` |
 | `@tagName(x)` in format | `{t}` format specifier for errors and enums |
-| Editing `mod.zig` only | **Always update `stub.zig` too** — signatures must match |
+| Editing `mod.zig` only | Update `stub.zig` to match exported signatures (see `AGENTS.md`) |
 | `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
 | `std.time.nanoTimestamp()` | Doesn't exist in 0.16 — use `Instant.now()` + `.since(anchor)` for absolute time |
@@ -87,8 +79,8 @@ else
 
 This means:
 - Every feature directory has `mod.zig` (real) and `stub.zig` (stub)
-- **Both files must export identical public signatures** — if you add/change a function
-  in `mod.zig`, the same signature must exist in `stub.zig` returning an error
+- `mod.zig` and `stub.zig` must keep matching public signatures (baseline rule in
+  `AGENTS.md`)
 - Test both paths: `zig build -Denable-<feature>=true` and `=false`
 - Disabled features have zero binary overhead
 
@@ -99,7 +91,8 @@ src/abi.zig              → Public API, comptime feature selection, type aliase
 src/core/                → Framework lifecycle, config builder, registry
 src/features/<name>/     → mod.zig + stub.zig per feature (8 modules: ai, analytics, cloud, database, gpu, network, observability, web)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
-tools/cli/               → CLI entry point and 24 commands
+tools/cli/               → Primary CLI entry point and command registration
+src/api/                 → Additional executable entry points (e.g., `main.zig`)
 ```
 
 Import convention: public API uses `@import("abi")`, internal modules import
@@ -181,16 +174,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 
 ## Commit Convention
 
-Format: `<type>: <short summary>`
-
-| Type | Use for |
-|------|---------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `refactor` | Code change (no feature/fix) |
-| `test` | Adding or updating tests |
-| `chore` | Maintenance, deps, CI |
+Use the Conventional Commit guidance in `AGENTS.md`.
 
 ## Testing Patterns
 

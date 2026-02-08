@@ -40,6 +40,8 @@ pub const ring = @import("ring.zig");
 pub const aligned = @import("aligned.zig");
 pub const stack = @import("stack.zig");
 pub const thread_cache = @import("thread_cache.zig");
+pub const arena_pool = @import("arena_pool.zig");
+pub const combinators = @import("combinators.zig");
 
 // Re-export commonly used types
 pub const MemoryPool = pool.MemoryPool;
@@ -55,6 +57,15 @@ pub const AlignedAllocator = aligned.AlignedAllocator;
 pub const ThreadCache = thread_cache.ThreadCache;
 pub const ThreadArena = thread_cache.ThreadArena;
 
+// v2 memory primitives
+pub const ArenaPool = arena_pool.ArenaPool;
+pub const VectorPool = arena_pool.VectorPool;
+pub const ScratchAllocator = arena_pool.ScratchAllocator;
+pub const TrackingAllocator2 = combinators.TrackingAllocator;
+pub const LimitingAllocator = combinators.LimitingAllocator;
+pub const FallbackAllocator = combinators.FallbackAllocator;
+pub const NullAllocator = combinators.NullAllocator;
+
 test {
     _ = pool;
     _ = zerocopy;
@@ -63,4 +74,6 @@ test {
     _ = aligned;
     _ = stack;
     _ = thread_cache;
+    _ = arena_pool;
+    _ = combinators;
 }

@@ -24,6 +24,7 @@ pub const infrastructure = struct {
     pub const memory = @import("infrastructure/memory.zig");
     pub const simd = @import("infrastructure/simd.zig");
     pub const network = @import("infrastructure/network.zig");
+    pub const v2_modules = @import("infrastructure/v2_modules.zig");
 
     // Utility functions
     pub const runner = struct {

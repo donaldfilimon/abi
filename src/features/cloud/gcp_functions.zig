@@ -103,15 +103,17 @@ pub const GcpRuntime = struct {
     ) !CloudResponse {
         self.request_count += 1;
 
+        var generated_request_id_buf: [32]u8 = undefined;
         const request_id = blk: {
             // Use X-Cloud-Trace-Context or generate one
             if (headers.get("x-cloud-trace-context")) |trace| {
                 break :blk trace;
             }
             // Generate a simple request ID
-            var buf: [32]u8 = undefined;
-            _ = std.fmt.bufPrint(&buf, "gcp-{d}", .{self.request_count}) catch break :blk "unknown";
-            break :blk buf[0..];
+            const generated = std.fmt.bufPrint(&generated_request_id_buf, "gcp-{d}", .{
+                self.request_count,
+            }) catch break :blk "unknown";
+            break :blk generated;
         };
 
         var event = try parseHttpRequest(
@@ -133,7 +135,8 @@ pub const GcpRuntime = struct {
         if (self.handler(&event, self.allocator)) |response| {
             return response;
         } else |err| {
-            const err_name = @errorName(err);
+            var err_name_buf: [128]u8 = undefined;
+            const err_name = std.fmt.bufPrint(&err_name_buf, "{t}", .{err}) catch "HandlerError";
             return CloudResponse.err(self.allocator, 500, err_name);
         }
     }
@@ -156,11 +159,7 @@ pub fn parseHttpRequest(
     event.body = body;
 
     // Clone headers
-    event.headers = std.StringHashMap([]const u8).init(allocator);
-    var iter = headers.iterator();
-    while (iter.next()) |entry| {
-        try event.headers.?.put(entry.key_ptr.*, entry.value_ptr.*);
-    }
+    event.headers = try cloneStringMapLowercase(allocator, headers);
 
     // Parse query parameters from path
     if (std.mem.indexOf(u8, path, "?")) |query_start| {
@@ -172,12 +171,71 @@ pub fn parseHttpRequest(
     return event;
 }
 
+fn jsonStringOrNull(value: std.json.Value) ?[]const u8 {
+    return switch (value) {
+        .string => |s| s,
+        else => null,
+    };
+}
+
+fn jsonValueToOwnedSlice(allocator: std.mem.Allocator, value: std.json.Value) ![]const u8 {
+    var buffer = std.ArrayListUnmanaged(u8){};
+    defer buffer.deinit(allocator);
+    try std.json.stringify(value, .{}, buffer.writer(allocator));
+    return buffer.toOwnedSlice(allocator);
+}
+
+fn parseJsonStringMap(
+    allocator: std.mem.Allocator,
+    object_value: std.json.Value,
+) !std.StringHashMap([]const u8) {
+    var map = std.StringHashMap([]const u8).init(allocator);
+    errdefer map.deinit();
+
+    var iter = object_value.object.iterator();
+    while (iter.next()) |entry| {
+        if (entry.value_ptr.* == .string) {
+            try map.put(entry.key_ptr.*, entry.value_ptr.string);
+        }
+    }
+
+    return map;
+}
+
+fn cloneStringMapLowercase(
+    allocator: std.mem.Allocator,
+    source: std.StringHashMap([]const u8),
+) !std.StringHashMap([]const u8) {
+    var clone = std.StringHashMap([]const u8).init(allocator);
+    errdefer clone.deinit();
+
+    var iter = source.iterator();
+    while (iter.next()) |entry| {
+        var lower_key_buf: [256]u8 = undefined;
+        const key_len = @min(entry.key_ptr.len, lower_key_buf.len);
+        const lower_key = std.ascii.lowerString(
+            lower_key_buf[0..key_len],
+            entry.key_ptr.*[0..key_len],
+        );
+        try clone.put(lower_key, entry.value_ptr.*);
+    }
+
+    return clone;
+}
+
+fn parseJsonRoot(
+    allocator: std.mem.Allocator,
+    raw_event: []const u8,
+) !std.json.Parsed(std.json.Value) {
+    return std.json.parseFromSlice(std.json.Value, allocator, raw_event, .{}) catch {
+        return CloudError.EventParseFailed;
+    };
+}
+
 /// Parse a CloudEvent (structured event format).
 /// GCP uses the CloudEvents specification for event-driven functions.
 pub fn parseCloudEvent(allocator: std.mem.Allocator, raw_event: []const u8) !CloudEvent {
-    const parsed = std.json.parseFromSlice(std.json.Value, allocator, raw_event, .{}) catch {
-        return CloudError.EventParseFailed;
-    };
+    const parsed = try parseJsonRoot(allocator, raw_event);
     defer parsed.deinit();
 
     const root = parsed.value;
@@ -195,15 +253,7 @@ pub fn parseCloudEvent(allocator: std.mem.Allocator, raw_event: []const u8) !Clo
 
     // Extract data payload
     if (root.object.get("data")) |data| {
-        if (data == .string) {
-            event.body = data.string;
-        } else {
-            // Serialize non-string data back to JSON
-            var buffer = std.ArrayListUnmanaged(u8){};
-            defer buffer.deinit(allocator);
-            try std.json.stringify(data, .{}, buffer.writer(allocator));
-            event.body = try buffer.toOwnedSlice(allocator);
-        }
+        event.body = if (jsonStringOrNull(data)) |body| body else try jsonValueToOwnedSlice(allocator, data);
     }
 
     // Extract timestamp
@@ -218,9 +268,7 @@ pub fn parseCloudEvent(allocator: std.mem.Allocator, raw_event: []const u8) !Clo
 
 /// Parse a Pub/Sub message.
 pub fn parsePubSubMessage(allocator: std.mem.Allocator, raw_event: []const u8) !CloudEvent {
-    const parsed = std.json.parseFromSlice(std.json.Value, allocator, raw_event, .{}) catch {
-        return CloudError.EventParseFailed;
-    };
+    const parsed = try parseJsonRoot(allocator, raw_event);
     defer parsed.deinit();
 
     const root = parsed.value;
@@ -252,13 +300,7 @@ pub fn parsePubSubMessage(allocator: std.mem.Allocator, raw_event: []const u8) !
     // Get attributes as headers
     if (message.object.get("attributes")) |attrs| {
         if (attrs != .null) {
-            event.headers = std.StringHashMap([]const u8).init(allocator);
-            var iter = attrs.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    try event.headers.?.put(entry.key_ptr.*, entry.value_ptr.string);
-                }
-            }
+            event.headers = try parseJsonStringMap(allocator, attrs);
         }
     }
 
@@ -267,9 +309,7 @@ pub fn parsePubSubMessage(allocator: std.mem.Allocator, raw_event: []const u8) !
 
 /// Parse a Cloud Storage event.
 pub fn parseStorageEvent(allocator: std.mem.Allocator, raw_event: []const u8) !CloudEvent {
-    const parsed = std.json.parseFromSlice(std.json.Value, allocator, raw_event, .{}) catch {
-        return CloudError.EventParseFailed;
-    };
+    const parsed = try parseJsonRoot(allocator, raw_event);
     defer parsed.deinit();
 
     const root = parsed.value;
@@ -377,6 +417,7 @@ test "parseHttpRequest" {
     try std.testing.expectEqualStrings("/api/test", event.path.?);
     try std.testing.expectEqualStrings("{\"data\":\"test\"}", event.body.?);
     try std.testing.expectEqualStrings("123", event.query_params.?.get("id").?);
+    try std.testing.expectEqualStrings("application/json", event.getHeader("Content-Type").?);
 }
 
 test "parseCloudEvent" {

@@ -13,34 +13,32 @@ pub const ResponseBuilder = struct {
     /// Response headers.
     headers: std.StringHashMap([]const u8),
     /// Response body.
-    body: std.ArrayList(u8),
+    body: std.ArrayListUnmanaged(u8),
     /// Memory allocator.
     allocator: std.mem.Allocator,
     /// Whether response has been finalized.
     finalized: bool,
     /// Owned header values that need cleanup.
-    owned_values: std.ArrayList([]u8),
+    owned_values: std.ArrayListUnmanaged([]u8),
 
     /// Creates a new response builder.
     pub fn init(allocator: std.mem.Allocator) ResponseBuilder {
         return .{
             .status = .ok,
             .headers = std.StringHashMap([]const u8).init(allocator),
-            .body = std.ArrayList(u8).init(allocator),
+            .body = .empty,
             .allocator = allocator,
             .finalized = false,
-            .owned_values = std.ArrayList([]u8).init(allocator),
+            .owned_values = .empty,
         };
     }
 
     /// Cleans up all resources.
     pub fn deinit(self: *ResponseBuilder) void {
         self.headers.deinit();
-        self.body.deinit();
-        for (self.owned_values.items) |value| {
-            self.allocator.free(value);
-        }
-        self.owned_values.deinit();
+        self.body.deinit(self.allocator);
+        self.freeOwnedValues();
+        self.owned_values.deinit(self.allocator);
     }
 
     /// Resets the builder for reuse.
@@ -49,6 +47,10 @@ pub const ResponseBuilder = struct {
         self.headers.clearRetainingCapacity();
         self.body.clearRetainingCapacity();
         self.finalized = false;
+        self.freeOwnedValues();
+    }
+
+    fn freeOwnedValues(self: *ResponseBuilder) void {
         for (self.owned_values.items) |value| {
             self.allocator.free(value);
         }
@@ -114,7 +116,7 @@ pub const ResponseBuilder = struct {
     /// Sets a header with a formatted value.
     pub fn setHeaderFmt(self: *ResponseBuilder, name: []const u8, comptime fmt: []const u8, args: anytype) !*ResponseBuilder {
         const value = try std.fmt.allocPrint(self.allocator, fmt, args);
-        try self.owned_values.append(value);
+        try self.owned_values.append(self.allocator, value);
         try self.headers.put(name, value);
         return self;
     }
@@ -141,32 +143,32 @@ pub const ResponseBuilder = struct {
 
     /// Adds a Set-Cookie header.
     pub fn setCookie(self: *ResponseBuilder, name: []const u8, value: []const u8, options: CookieOptions) !*ResponseBuilder {
-        var cookie = std.ArrayList(u8).init(self.allocator);
-        defer cookie.deinit();
+        var cookie = std.ArrayListUnmanaged(u8).empty;
+        defer cookie.deinit(self.allocator);
 
-        try cookie.writer().print("{s}={s}", .{ name, value });
+        try cookie.writer(self.allocator).print("{s}={s}", .{ name, value });
 
         if (options.path) |path| {
-            try cookie.writer().print("; Path={s}", .{path});
+            try cookie.writer(self.allocator).print("; Path={s}", .{path});
         }
         if (options.domain) |domain| {
-            try cookie.writer().print("; Domain={s}", .{domain});
+            try cookie.writer(self.allocator).print("; Domain={s}", .{domain});
         }
         if (options.max_age) |max_age| {
-            try cookie.writer().print("; Max-Age={d}", .{max_age});
+            try cookie.writer(self.allocator).print("; Max-Age={d}", .{max_age});
         }
         if (options.secure) {
-            try cookie.appendSlice("; Secure");
+            try cookie.appendSlice(self.allocator, "; Secure");
         }
         if (options.http_only) {
-            try cookie.appendSlice("; HttpOnly");
+            try cookie.appendSlice(self.allocator, "; HttpOnly");
         }
         if (options.same_site) |same_site| {
-            try cookie.writer().print("; SameSite={s}", .{same_site});
+            try cookie.writer(self.allocator).print("; SameSite={s}", .{same_site});
         }
 
         const owned_cookie = try self.allocator.dupe(u8, cookie.items);
-        try self.owned_values.append(owned_cookie);
+        try self.owned_values.append(self.allocator, owned_cookie);
         return self.setHeader(types.Header.set_cookie, owned_cookie);
     }
 
@@ -175,50 +177,57 @@ pub const ResponseBuilder = struct {
     /// Sets the response body as raw bytes.
     pub fn setBody(self: *ResponseBuilder, body: []const u8) !*ResponseBuilder {
         self.body.clearRetainingCapacity();
-        try self.body.appendSlice(body);
+        try self.body.appendSlice(self.allocator, body);
         return self;
     }
 
     /// Appends to the response body.
     pub fn appendBody(self: *ResponseBuilder, data: []const u8) !*ResponseBuilder {
-        try self.body.appendSlice(data);
+        try self.body.appendSlice(self.allocator, data);
+        return self;
+    }
+
+    fn setJsonBodyWithOptions(self: *ResponseBuilder, value: anytype, options: anytype) !*ResponseBuilder {
+        self.body.clearRetainingCapacity();
+        try std.json.stringify(value, options, self.body.writer(self.allocator));
+        _ = try self.setContentType(types.MimeType.json);
         return self;
     }
 
     /// Sets the body as JSON.
     pub fn json(self: *ResponseBuilder, value: anytype) !*ResponseBuilder {
-        self.body.clearRetainingCapacity();
-        try std.json.stringify(value, .{}, self.body.writer());
-        _ = try self.setContentType(types.MimeType.json);
-        return self;
+        return self.setJsonBodyWithOptions(value, .{});
     }
 
     /// Sets the body as pretty-printed JSON.
     pub fn jsonPretty(self: *ResponseBuilder, value: anytype) !*ResponseBuilder {
-        self.body.clearRetainingCapacity();
-        try std.json.stringify(value, .{ .whitespace = .indent_2 }, self.body.writer());
-        _ = try self.setContentType(types.MimeType.json);
+        return self.setJsonBodyWithOptions(value, .{ .whitespace = .indent_2 });
+    }
+
+    fn setTypedBody(self: *ResponseBuilder, content: []const u8, mime_type: []const u8) !*ResponseBuilder {
+        _ = try self.setBody(content);
+        _ = try self.setContentType(mime_type);
         return self;
     }
 
     /// Sets the body as plain text.
     pub fn text(self: *ResponseBuilder, content: []const u8) !*ResponseBuilder {
-        _ = try self.setBody(content);
-        _ = try self.setContentType(types.MimeType.plain);
-        return self;
+        return self.setTypedBody(content, types.MimeType.plain);
     }
 
     /// Sets the body as HTML.
     pub fn html(self: *ResponseBuilder, content: []const u8) !*ResponseBuilder {
-        _ = try self.setBody(content);
-        _ = try self.setContentType(types.MimeType.html);
-        return self;
+        return self.setTypedBody(content, types.MimeType.html);
     }
 
     /// Sets the body as XML.
     pub fn xml(self: *ResponseBuilder, content: []const u8) !*ResponseBuilder {
-        _ = try self.setBody(content);
-        _ = try self.setContentType(types.MimeType.xml);
+        return self.setTypedBody(content, types.MimeType.xml);
+    }
+
+    fn redirectWithStatus(self: *ResponseBuilder, status: types.Status, url: []const u8) !*ResponseBuilder {
+        _ = self.setStatus(status);
+        _ = try self.setLocation(url);
         return self;
     }
 
@@ -226,23 +235,17 @@ pub const ResponseBuilder = struct {
 
     /// Redirects to a URL (302 Found).
     pub fn redirect(self: *ResponseBuilder, url: []const u8) !*ResponseBuilder {
-        _ = self.setStatus(.found);
-        _ = try self.setLocation(url);
-        return self;
+        return self.redirectWithStatus(.found, url);
     }
 
     /// Permanent redirect (301).
     pub fn redirectPermanent(self: *ResponseBuilder, url: []const u8) !*ResponseBuilder {
-        _ = self.setStatus(.moved_permanently);
-        _ = try self.setLocation(url);
-        return self;
+        return self.redirectWithStatus(.moved_permanently, url);
     }
 
     /// Temporary redirect (307).
     pub fn redirectTemporary(self: *ResponseBuilder, url: []const u8) !*ResponseBuilder {
-        _ = self.setStatus(.temporary_redirect);
-        _ = try self.setLocation(url);
-        return self;
+        return self.redirectWithStatus(.temporary_redirect, url);
     }
 
     // --- Error Response Methods ---
@@ -252,7 +255,7 @@ pub const ResponseBuilder = struct {
         _ = self.setStatus(status);
         // Build error JSON manually since "error" is a reserved keyword
         self.body.clearRetainingCapacity();
-        try self.body.writer().print(
+        try self.body.writer(self.allocator).print(
             \\{{"error":{{"status":{d},"message":"{s}"}}}}
         , .{ @intFromEnum(status), message });
         _ = try self.setContentType(types.MimeType.json);
@@ -261,13 +264,7 @@ pub const ResponseBuilder = struct {
 
     // --- Output Methods ---
 
-    /// Builds the complete HTTP response as bytes.
-    pub fn build(self: *ResponseBuilder) ![]const u8 {
-        var result = std.ArrayList(u8).init(self.allocator);
-        errdefer result.deinit();
-
-        const writer = result.writer();
-
+    fn writeHttpResponse(self: *ResponseBuilder, writer: anytype) !void {
         // Status line
         try writer.print("HTTP/1.1 {d} {s}\r\n", .{
             @intFromEnum(self.status),
@@ -294,37 +291,21 @@ pub const ResponseBuilder = struct {
         }
 
         self.finalized = true;
-        return result.toOwnedSlice();
+    }
+
+    /// Builds the complete HTTP response as bytes.
+    pub fn build(self: *ResponseBuilder) ![]const u8 {
+        var result = std.ArrayListUnmanaged(u8).empty;
+        errdefer result.deinit(self.allocator);
+
+        const writer = result.writer(self.allocator);
+        try self.writeHttpResponse(writer);
+        return result.toOwnedSlice(self.allocator);
     }
 
     /// Writes the response directly to a writer.
     pub fn writeTo(self: *ResponseBuilder, writer: anytype) !void {
-        // Status line
-        try writer.print("HTTP/1.1 {d} {s}\r\n", .{
-            @intFromEnum(self.status),
-            self.status.phrase() orelse "Unknown",
-        });
-
-        // Content-Length
-        if (self.body.items.len > 0) {
-            try writer.print("Content-Length: {d}\r\n", .{self.body.items.len});
-        }
-
-        // Headers
-        var it = self.headers.iterator();
-        while (it.next()) |entry| {
-            try writer.print("{s}: {s}\r\n", .{ entry.key_ptr.*, entry.value_ptr.* });
-        }
-
-        // End headers
-        try writer.writeAll("\r\n");
-
-        // Body
-        if (self.body.items.len > 0) {
-            try writer.writeAll(self.body.items);
-        }
-
-        self.finalized = true;
+        try self.writeHttpResponse(writer);
     }
 
     /// Returns the response body.

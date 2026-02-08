@@ -637,7 +637,7 @@ pub const BatchMatMulKernel = struct {
         const empty_weights: []const u8 = &[_]u8{};
 
         if (metrics) |m| {
-            // Use Timer for Zig 0.16 compatibility (no std.time.nanoTimestamp())
+            // Use shared Timer for high-resolution execution timing.
             var timer = time.Timer.start() catch {
                 // If timer fails, execute without timing
                 for (batch_activations, batch_outputs, 0..) |activations, output, i| {

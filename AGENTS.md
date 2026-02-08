@@ -1,234 +1,51 @@
-# AGENTS.md
+# Repository Guidelines
 
-Baseline guidance for any AI agent working in the ABI Framework repository.
-Read this first. `CLAUDE.md` adds deep details.
+For deeper architecture notes, see `CLAUDE.md`. For vulnerability reporting and security
+practices, see `SECURITY.md`.
 
----
+## Project Structure & Module Organization
+ABI is a Zig 0.16 framework with `src/abi.zig` as the public API root. Core layout:
+- `src/api/`: executable entry points (`main.zig`).
+- `src/core/`: framework orchestration and config.
+- `src/features/`: feature modules (`ai`, `gpu`, `database`, `network`, `web`, etc.).
+- `src/services/`: shared runtime/platform infrastructure and test suites.
+- `src/services/tests/`: integration, parity, and stress tests.
+- `tests/`: additional top-level test harnesses.
+- `examples/`, `benchmarks/`, `bindings/`, `docs/`: samples, performance, language bindings, and docs.
 
-## Prerequisites
+Import public APIs via `@import("abi")` rather than deep file paths. For feature-gated modules, keep `mod.zig` and `stub.zig` signatures aligned.
 
-| Requirement | Value |
-|-------------|-------|
-| Zig version | `0.16.0-dev.2471+e9eadee00` or later |
-| Entry point | `src/abi.zig` |
-| Package version | `0.4.0` |
+## Build, Test, and Development Commands
+- `zig build`: build with default feature flags.
+- `zig build run -- --help`: run CLI entry point.
+- `zig build test --summary all`: run full test suite.
+- `zig test src/path/to/file.zig --test-filter "pattern"`: run focused tests.
+- `zig build validate-flags`: verify feature-flag combinations compile.
+- `zig build cli-tests`: CLI smoke tests.
+- `zig build full-check`: full local gate (format + tests + flag validation + CLI smoke tests).
+- `zig fmt .`: format source.
+- `zig build lint`: CI formatting check.
 
-```bash
-# Verify Zig version
-zig version
+## Coding Style & Naming Conventions
+- Use Zig `0.16.0-dev.2471+e9eadee00` or newer.
+- Indentation: 4 spaces, no tabs; keep lines under 100 chars.
+- Naming: `PascalCase` for types, `camelCase` for functions/variables, `*Config` for config structs.
+- Prefer explicit imports (no `usingnamespace`), specific error sets, and `defer`/`errdefer` for cleanup.
+- Prefer `std.ArrayListUnmanaged(T).empty` patterns used across this codebase.
 
-# If using zvm
-export PATH="$HOME/.zvm/bin:$PATH"
-zvm use master
-```
+## Testing Guidelines
+- Unit tests should live alongside implementation files as `*_test.zig`.
+- Integration/stress/parity suites live under `src/services/tests/`.
+- Hardware-gated tests should skip cleanly with `error.SkipZigTest` when prerequisites are unavailable.
+- Before opening a PR, run at minimum `zig fmt .` and `zig build test --summary all`.
 
-The codebase uses Zig 0.16 APIs throughout. Earlier versions will not compile.
+## Commit & Pull Request Guidelines
+- Follow Conventional Commit prefixes seen in history: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
+- Keep commits focused and avoid mixing refactors with behavior changes.
+- PRs should include a clear summary, linked issue (if applicable), tests run, and documentation updates for API/flag changes.
 
----
-
-## Before Making Changes
-
-Always run these commands first:
-
-```bash
-git status      # Check for uncommitted work
-git diff --stat # Understand scope of existing changes
-```
-
-If large or unclear diffs exist, ask about their status before proceeding.
-Avoid reverting unrelated changes.
-Use package managers to add new dependencies.
-
----
-
-## Project Structure
-
-```
-src/
-├── abi.zig              # Public API module root
-├── api/                 # Entry points (main.zig)
-├── core/                # Framework orchestration and config
-├── features/            # Feature modules (ai, gpu, database, network, web, observability, analytics, cloud)
-└── services/            # Shared infrastructure (runtime, platform, shared, tests, etc.)
-```
-
-Key rules:
-- Public API imports use `@import("abi")` (avoid direct file paths).
-- Nested modules import dependencies via their parent `mod.zig`.
-- Feature modules must keep `mod.zig` and `stub.zig` in sync.
-- Integration tests live in `services/tests/`; unit tests live alongside code as `*_test.zig`.
-
----
-
-## Essential Commands
-
-| Command | Purpose |
-|---------|---------|
-| `zig build` | Build the project |
-| `zig build test --summary all` | Run full test suite |
-| `zig test src/path/to/file.zig --test-filter "pattern"` | Run focused tests |
-| `zig fmt .` | Format code (required after edits) |
-| `zig build lint` | Check formatting (CI uses this) |
-| `zig build cli-tests` | CLI smoke tests |
-| `zig build validate-flags` | Validate all feature flag combinations compile |
-| `zig build full-check` | Format + tests + flag validation + CLI smoke tests |
-| `zig build benchmarks` | Performance validation |
-| `zig build run -- --help` | Run CLI help |
-
----
-
-## Feature Flags
-
-```bash
-zig build -Denable-ai=true -Denable-gpu=false
-zig build -Dgpu-backend=vulkan,cuda
-```
-
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-Denable-ai` | true | AI agent system |
-| `-Denable-llm` | true | Local LLM inference (requires AI) |
-| `-Denable-vision` | true | Vision/image processing (requires AI) |
-| `-Denable-gpu` | true | GPU acceleration |
-| `-Denable-database` | true | Vector database |
-| `-Denable-network` | true | Distributed compute |
-| `-Denable-web` | true | Web/HTTP support (also gates cloud module) |
-| `-Denable-profiling` | true | Metrics/tracing (gates observability module) |
-| `-Denable-analytics` | true | Event tracking, funnels, experiments |
-| `-Denable-explore` | true | Exploration/discovery features |
-| `-Denable-mobile` | false | Mobile cross-compilation |
-
-GPU backends: `auto`, `none`, `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `opengl`, `fpga`.
-
----
-
-## Module Pattern (Critical)
-
-| File | When Used | Returns |
-|------|-----------|---------|
-| `mod.zig` | Feature enabled at build time | Real implementation |
-| `stub.zig` | Feature disabled | `error.<Feature>Disabled` |
-
-Both files must export identical public signatures.
-
-```zig
-// src/features/feature/stub.zig
-pub fn doOperation() !void {
-    return error.FeatureDisabled;
-}
-```
-
-Verify both builds compile:
-
-```bash
-zig build -Denable-<feature>=true
-zig build -Denable-<feature>=false
-```
-
----
-
-## Zig 0.16 API Patterns
-
-| Old (0.15) | New (0.16) |
-|------------|------------|
-| `std.fs.cwd()` | `std.Io.Dir.cwd()` |
-| `std.time.Timer` | `abi.shared.time.Timer` (custom implementation using C FFI) |
-| `std.Thread.Mutex` | `abi.shared.sync.Mutex` (custom implementation) |
-| `std.Thread.RwLock` | `abi.shared.sync.RwLock` (custom implementation) |
-| `std.time.nanoTimestamp()` | `abi.shared.time.timestampNs()` or `Instant.now()` + `.since()` |
-| `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` (preferred) |
-| `list.init()` | `list.empty` (ArrayListUnmanaged) |
-| `@tagName(x)` in print | `{t}` format specifier |
-| `std.Thread.Condition` | `abi.shared.sync.Condition` (custom implementation) |
-| `std.Thread.Wake` | `abi.shared.sync.Wake` (atomic-based spinloop) |
-| `std.process.getEnvVarOwned()` | `std.c.getenv(key.ptr)` + `std.mem.sliceTo(raw, 0)` |
-| `std.heap.ThreadSafeAllocator` | Direct allocator usage (deprecated in 0.16, requires `io` field) |
-
-Notes:
-- **Timer/Mutex/Condition/Wake**: `std.time.Timer`, `std.Thread.{Mutex,RwLock,Condition,Wake}` don't exist in Zig 0.16. Use `abi.shared.time.Timer` and `abi.shared.sync.{Mutex,RwLock,Condition,Wake}` instead (custom implementations using `std.c.clock_gettime` and atomics).
-- **Import pattern**: Files importing `abi` use `const time = abi.shared.time; const sync = abi.shared.sync;`. Files without `abi` import use relative paths.
-- **Env vars**: Use `std.c.getenv(key.ptr)` for POSIX; for runtime key construction use `std.fmt.allocPrintSentinel(alloc, fmt, args, 0)` to create null-terminated strings.
-- I/O operations must use `std.Io.Threaded.init()` and its `io` handle.
-- Use `std.Io.Clock.Duration.sleep()` only when you need raw clock access.
-- HTTP server init uses `&reader.interface` and `&writer.interface`.
-- Reserved keywords must be escaped (example: `result.@"error"`).
-
-Example I/O setup:
-
-```zig
-var io_backend = std.Io.Threaded.init(allocator, .{
-    .environ = std.process.Environ.empty,
-});
-defer io_backend.deinit();
-const io = io_backend.io();
-
-const content = try std.Io.Dir.cwd().readFileAlloc(
-    io,
-    path,
-    allocator,
-    .limited(10 * 1024 * 1024),
-);
-```
-
----
-
-## Code Style
-
-| Rule | Convention |
-|------|------------|
-| Indentation | 4 spaces, no tabs |
-| Line length | Under 100 characters |
-| Types | `PascalCase` |
-| Functions/Variables | `camelCase` |
-| Errors | `*Error` names and specific error sets |
-| Config structs | `*Config` |
-| Imports | Explicit only (no `usingnamespace`) |
-| Cleanup | Prefer `defer` / `errdefer` |
-| Arrays | `std.ArrayListUnmanaged` with `.empty` |
-
----
-
-## Testing
-
-| Command | Purpose |
-|---------|---------|
-| `zig build test --summary all` | Full test suite |
-| `zig test src/services/tests/integration/mod.zig` | Integration tests |
-| `zig test src/services/tests/stress/mod.zig` | Stress tests |
-| `zig test file.zig --test-filter "pattern"` | Filtered tests |
-
-Parity tests (`src/services/tests/parity/`) use `DeclSpec` to verify stub modules
-match real modules -- checking declaration kind (function vs type) and sub-declarations,
-not just name existence.
-
-Skip hardware-gated tests with `error.SkipZigTest`:
-
-```zig
-test "gpu operation" {
-    const gpu = initGpu() catch return error.SkipZigTest;
-    defer gpu.deinit();
-}
-```
-
----
-
-## Post-Edit Checklist
-
-```bash
-zig fmt .
-zig build test --summary all
-zig build lint
-```
-
----
-
-## References
-
-| Document | Purpose |
-|----------|---------|
-| `CLAUDE.md` | Comprehensive reference and deep examples |
-| `CONTRIBUTING.md` | Development workflow |
-| `docs/README.md` | Documentation system |
-| `SECURITY.md` | Security practices |
-| `docs/deployment.md` | Production deployment |
-| `docs/plan.md` | Development roadmap |
+## Security & Configuration Tips
+- Never hardcode secrets; pass credentials via environment variables.
+- When touching feature-gated code, validate both paths:
+  - `zig build -Denable-<feature>=true`
+  - `zig build -Denable-<feature>=false`

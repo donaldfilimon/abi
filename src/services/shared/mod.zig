@@ -98,6 +98,12 @@ pub const io = @import("io.zig");
 /// Provides consistent error types and placeholder implementations.
 pub const stub_common = @import("stub_common.zig");
 
+/// Dense matrix operations with SIMD-accelerated multiply (v2).
+pub const matrix = @import("matrix.zig");
+
+/// Multi-dimensional tensor operations with broadcasting (v2).
+pub const tensor = @import("tensor.zig");
+
 // ============================================================================
 // Security Sub-module
 // ============================================================================
