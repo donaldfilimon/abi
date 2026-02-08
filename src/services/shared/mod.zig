@@ -72,7 +72,7 @@ pub const plugins = @import("plugins.zig");
 /// SIMD (Single Instruction, Multiple Data) vector operations.
 /// Provides optimized vector math with automatic fallback to scalar operations
 /// when SIMD is not available. Includes dot product, L2 norm, and cosine similarity.
-pub const simd = @import("simd.zig");
+pub const simd = @import("simd/mod.zig");
 
 /// General-purpose utility functions: time, math, string, lifecycle management.
 /// See sub-modules for specialized utilities (crypto, encoding, fs, http, json, net).
