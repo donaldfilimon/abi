@@ -411,7 +411,7 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_MISTRAL_MODEL",
         "MISTRAL_MODEL",
     })) orelse try allocator.dupe(u8, "mistral-large-latest");
-    defer allocator.free(model);
+    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,
