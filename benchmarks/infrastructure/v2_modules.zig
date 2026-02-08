@@ -5,7 +5,6 @@
 //! - SIMD BLAS operations (SAXPY, euclidean distance, reductions)
 //! - Matrix operations (multiply, transpose, matvec)
 //! - SwissMap hash table (put, get, iterate)
-//! - Channel (MPMC bounded queue throughput)
 //! - Allocator combinators (tracking, limiting, fallback)
 
 const std = @import("std");
@@ -740,12 +739,6 @@ pub fn runV2Benchmarks(allocator: std.mem.Allocator, config: V2BenchConfig) !voi
 /// Convenience alias for infrastructure mod.zig
 pub fn run(allocator: std.mem.Allocator) !void {
     try runV2Benchmarks(allocator, .{});
-}
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    try runV2Benchmarks(gpa.allocator(), .{});
 }
 
 test "v2 benchmark imports" {

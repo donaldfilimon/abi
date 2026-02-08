@@ -34,16 +34,6 @@ pub fn runAll(allocator: std.mem.Allocator) !void {
     std.debug.print("==============================\n", .{});
 }
 
-pub const InfrastructureBenchmarkConfig = struct {
-    iterations: u64 = 10000,
-    warmup_iterations: u64 = 1000,
-    timeout_seconds: u64 = 30,
-
-    pub const default = InfrastructureBenchmarkConfig{};
-    pub const quick = InfrastructureBenchmarkConfig{ .iterations = 1000, .warmup_iterations = 100 };
-    pub const thorough = InfrastructureBenchmarkConfig{ .iterations = 100000, .warmup_iterations = 5000 };
-};
-
 test {
     _ = suites.concurrency;
     _ = suites.crypto;

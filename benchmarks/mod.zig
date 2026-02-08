@@ -54,16 +54,6 @@ pub const utilities = struct {
     pub const statistics = struct {};
 };
 
-// Re-export commonly used types
-pub const BenchmarkConfig = struct {
-    iterations: u64 = 10000,
-    warmup: u64 = 1000,
-    timeout_seconds: u64 = 30,
-
-    pub const quick = BenchmarkConfig{ .iterations = 1000, .warmup = 100 };
-    pub const thorough = BenchmarkConfig{ .iterations = 100000, .warmup = 5000 };
-};
-
 pub fn runAllBenchmarks(allocator: std.mem.Allocator) !void {
     std.debug.print("Running Complete ABI Benchmark Suite\n", .{});
     std.debug.print("===================================\n\n", .{});

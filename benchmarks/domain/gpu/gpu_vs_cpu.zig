@@ -162,6 +162,8 @@ pub fn compareMatmul(
         cpu_total += timer.read();
     }
 
+    if (cpu_iters == 0) return error.BenchmarkFailed;
+
     const cpu_time_ns = @as(f64, @floatFromInt(cpu_total)) / @as(f64, @floatFromInt(cpu_iters));
     const cpu_throughput = @as(f64, @floatFromInt(bytes)) / (cpu_time_ns / 1e9) / 1e9;
 
@@ -297,6 +299,8 @@ pub fn compareVectorAdd(
         cpu_total += timer.read();
     }
 
+    if (cpu_iters == 0) return error.BenchmarkFailed;
+
     const cpu_time_ns = @as(f64, @floatFromInt(cpu_total)) / @as(f64, @floatFromInt(cpu_iters));
     const cpu_throughput = @as(f64, @floatFromInt(bytes)) / (cpu_time_ns / 1e9) / 1e9;
 
@@ -345,6 +349,8 @@ pub fn compareReduceSum(
         _ = cpuSimdReduceSum(v);
         cpu_total += timer.read();
     }
+
+    if (cpu_iters == 0) return error.BenchmarkFailed;
 
     const cpu_time_ns = @as(f64, @floatFromInt(cpu_total)) / @as(f64, @floatFromInt(cpu_iters));
     const cpu_throughput = @as(f64, @floatFromInt(bytes)) / (cpu_time_ns / 1e9) / 1e9;

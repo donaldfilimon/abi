@@ -577,14 +577,6 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, config: MemoryBenchConf
     runner.printSummaryDebug();
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    try runMemoryBenchmarks(allocator, .{});
-}
-
 test "memory benchmarks compile" {
     const allocator = std.testing.allocator;
 

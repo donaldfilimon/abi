@@ -636,7 +636,7 @@ fn calculateStats(allocator: std.mem.Allocator, samples: []const u64) !StatResul
         .min = sorted[0],
         .max = sorted[sorted.len - 1],
         .mean = @as(f64, @floatFromInt(sum)) / @as(f64, @floatFromInt(sorted.len)),
-        .p50 = sorted[sorted.len * 50 / 100],
+        .p50 = sorted[@min(sorted.len * 50 / 100, sorted.len - 1)],
         .p90 = sorted[@min(sorted.len * 90 / 100, sorted.len - 1)],
         .p99 = sorted[@min(sorted.len * 99 / 100, sorted.len - 1)],
     };
@@ -672,7 +672,7 @@ fn calculateFloatStats(allocator: std.mem.Allocator, samples: []const f64) !Floa
 
     return FloatStatResult{
         .mean = mean,
-        .p50 = sorted[sorted.len * 50 / 100],
+        .p50 = sorted[@min(sorted.len * 50 / 100, sorted.len - 1)],
         .p99 = sorted[@min(sorted.len * 99 / 100, sorted.len - 1)],
     };
 }
@@ -708,15 +708,6 @@ fn printWsFramingResult(result: WsFramingResult) void {
         result.overhead_ratio,
         result.bytes_with_framing,
     });
-}
-
-/// Main entry point for CLI
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    try runStreamingBenchmarks(allocator, .standard);
 }
 
 // Tests

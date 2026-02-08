@@ -231,7 +231,10 @@ fn runSingleBenchmark(
     const p99_idx = (queries.len * 99) / 100;
 
     const avg_recall = total_recall / @as(f64, @floatFromInt(queries.len));
-    const qps = @as(f64, @floatFromInt(queries.len)) / (@as(f64, @floatFromInt(total_search_time)) / 1_000_000_000.0);
+    const qps = if (total_search_time > 0)
+        @as(f64, @floatFromInt(queries.len)) / (@as(f64, @floatFromInt(total_search_time)) / 1_000_000_000.0)
+    else
+        0.0;
     const memory_bytes = vectors.len * dimension * @sizeOf(f32);
 
     return BenchmarkResult{

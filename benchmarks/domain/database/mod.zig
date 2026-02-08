@@ -89,14 +89,6 @@ pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, config: core.config.D
     try hnsw.runHnswBenchmarks(allocator, config);
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    try runAllBenchmarks(allocator, .standard);
-}
-
 test {
     _ = hnsw;
     _ = operations;

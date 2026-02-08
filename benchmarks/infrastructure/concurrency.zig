@@ -828,14 +828,6 @@ pub fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, config: Concurrenc
     runner.printSummaryDebug();
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    try runConcurrencyBenchmarks(allocator, .{});
-}
-
 test "concurrency primitives" {
     // Test SPSC queue
     var spsc = SPSCQueue(u64, 16){};

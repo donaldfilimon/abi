@@ -227,22 +227,6 @@ fn benchmarkKVCacheHierarchy(allocator: std.mem.Allocator, config: FpgaKernelCon
     }
 }
 
-/// Run FPGA kernel benchmarks with quick preset
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    const config = FpgaKernelConfig{
-        .enable_fpga = false, // Simulation mode
-        .seq_lengths = &.{ 64, 128, 256, 512 },
-        .head_dims = &.{ 64, 128, 256 },
-        .precisions = &.{ "fp32", "fp16", "int8", "int4" },
-    };
-
-    try runFpgaKernelBenchmarks(allocator, config);
-}
-
 test "fpga kernel benchmark structure" {
     // Verify config structure
     const config = FpgaKernelConfig{};

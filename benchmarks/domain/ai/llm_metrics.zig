@@ -175,7 +175,7 @@ fn measureEfficiency(
     const memory_gb = @as(f64, @floatFromInt(mem_stats.peak)) / (1024.0 * 1024.0 * 1024.0);
 
     return .{
-        .tokens_per_second = @as(f64, @floatFromInt(total_tokens)) / elapsed_sec,
+        .tokens_per_second = if (elapsed_sec > 0.0) @as(f64, @floatFromInt(total_tokens)) / elapsed_sec else 0.0,
         .memory_gb = memory_gb,
         .latency_ms = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0 / @as(f64, @floatFromInt(config.num_samples)),
     };
@@ -348,10 +348,10 @@ fn measureBatchPerformance(
 
     return .{
         .batch_size = batch_size,
-        .throughput_tokens_per_sec = @as(f64, @floatFromInt(total_tokens * output_length)) / total_time_sec,
+        .throughput_tokens_per_sec = if (total_time_sec > 0.0) @as(f64, @floatFromInt(total_tokens * output_length)) / total_time_sec else 0.0,
         .latency_ms = @as(f64, @floatFromInt(latency_sum / num_iterations)) / 1_000_000.0,
-        .p50_latency_ms = @as(f64, @floatFromInt(latencies[50])) / 1_000_000.0,
-        .p99_latency_ms = @as(f64, @floatFromInt(latencies[99])) / 1_000_000.0,
+        .p50_latency_ms = @as(f64, @floatFromInt(latencies[latencies.len / 2])) / 1_000_000.0,
+        .p99_latency_ms = @as(f64, @floatFromInt(latencies[@min(latencies.len * 99 / 100, latencies.len - 1)])) / 1_000_000.0,
         .time_to_first_token_ms = @as(f64, @floatFromInt(ttft_ns)) / 1_000_000.0,
         .memory_usage_gb = @as(f64, @floatFromInt(mem_stats.peak)) / (1024.0 * 1024.0 * 1024.0),
     };
@@ -455,7 +455,7 @@ fn analyzeQuantizationLevel(
     const elapsed_ns = timer.read();
     const elapsed_sec = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0;
 
-    const tokens_per_second = @as(f64, @floatFromInt(total_tokens)) / elapsed_sec;
+    const tokens_per_second = if (elapsed_sec > 0.0) @as(f64, @floatFromInt(total_tokens)) / elapsed_sec else 0.0;
 
     const compression_ratio = if (fp32_baseline) |baseline|
         @as(f64, @floatFromInt(baseline.model_size_bytes)) / @as(f64, @floatFromInt(model_size))
