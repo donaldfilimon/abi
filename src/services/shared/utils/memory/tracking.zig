@@ -225,7 +225,7 @@ pub const TrackingAllocator = struct {
 
             self.allocations.put(self.backing_allocator, address, info) catch {
                 // Tracking failed - allocation still succeeded but may not appear in leak detection
-                std.debug.print("[memory_tracking] Failed to track allocation at 0x{x} - leak detection may be incomplete\n", .{address});
+                std.log.warn("memory_tracking: failed to track allocation at 0x{x}, leak detection may be incomplete", .{address});
             };
 
             if (self.history.items.len < self.config.max_history) {
@@ -300,7 +300,7 @@ pub const TrackingAllocator = struct {
                     info.address = new_address;
                     info.size = new_len;
                     self.allocations.put(self.backing_allocator, new_address, info) catch {
-                        std.debug.print("[memory_tracking] Failed to track remapped allocation at 0x{x}\n", .{new_address});
+                        std.log.warn("memory_tracking: failed to track remapped allocation at 0x{x}", .{new_address});
                     };
                 }
             } else if (self.allocations.getPtr(old_address)) |info| {

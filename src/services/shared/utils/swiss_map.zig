@@ -26,20 +26,12 @@
 //! ═══════════════════════════════════════════════════════════════════════════
 
 const std = @import("std");
+const Math = @import("v2_primitives.zig").Math;
 
 // ─── Inline Helpers ──────────────────────────────────────────────────────────
 
 fn nextPowerOfTwo(x: usize) usize {
-    if (x == 0) return 1;
-    if (x & (x - 1) == 0) return x; // already power of two
-    var n = x - 1;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n |= n >> 32;
-    return n +| 1;
+    return Math.nextPowerOfTwo(usize, x);
 }
 
 // ─── Control Byte Constants ──────────────────────────────────────────────────

@@ -21,22 +21,17 @@ const page_size: usize = 4096;
 const simd_alignment: usize = std.simd.suggestVectorLength(f32) orelse 4;
 const simd_byte_width: usize = simd_alignment * @sizeOf(f32);
 
-// ─── Math Helpers ──────────────────────────────────────────────────────────
+// ─── Math Helpers (delegated to v2 primitives) ────────────────────────────
+const Math = @import("../v2_primitives.zig").Math;
 
-inline fn isPowerOfTwo(x: anytype) bool {
-    return x > 0 and (x & (x - 1)) == 0;
-}
+const isPowerOfTwo = Math.isPowerOfTwo;
 
 fn alignUpVal(value: usize, alignment: usize) usize {
-    std.debug.assert(isPowerOfTwo(alignment));
-    const mask = alignment - 1;
-    return (value + mask) & ~mask;
+    return Math.alignUp(usize, value, alignment);
 }
 
 inline fn alignUpComptime(value: usize, comptime alignment: usize) usize {
-    comptime std.debug.assert(isPowerOfTwo(alignment));
-    const mask = alignment - 1;
-    return (value + mask) & ~mask;
+    return Math.alignUpComptime(usize, value, alignment);
 }
 
 // ─── Arena Pool ────────────────────────────────────────────────────────────
