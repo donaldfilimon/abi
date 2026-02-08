@@ -124,6 +124,10 @@ pub const tensor = @import("tensor.zig");
 /// See `security/mod.zig` for full API documentation.
 pub const security = @import("security/mod.zig");
 
+/// POSIX signal handling for graceful shutdown.
+/// Sets a shared atomic flag on SIGINT/SIGTERM.
+pub const signal = @import("signal.zig");
+
 // Utils sub-modules are accessible via `shared.utils.*` (e.g., `shared.utils.memory`,
 // `shared.utils.json`, `shared.utils.crypto`). No direct re-exports here to avoid
 // duplicate paths to the same modules.

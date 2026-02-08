@@ -465,6 +465,13 @@ pub const Framework = struct {
         self.state = .stopped;
     }
 
+    /// Shutdown with timeout. Currently synchronous (timeout reserved for
+    /// future async cleanup). Returns true if clean shutdown completed.
+    pub fn shutdownWithTimeout(self: *Framework, _: u64) bool {
+        self.deinit();
+        return self.state == .stopped;
+    }
+
     fn deinitOptionalContext(comptime Context: type, slot: *?*Context) void {
         if (slot.*) |ctx| {
             ctx.deinit();

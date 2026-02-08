@@ -24,4 +24,5 @@ pub const completions = @import("completions.zig");
 pub const multi_agent = @import("multi_agent.zig");
 pub const plugins = @import("plugins.zig");
 pub const profile = @import("profile.zig");
+pub const status = @import("status.zig");
 pub const toolchain = @import("toolchain.zig");

@@ -53,6 +53,7 @@ const command_infos = [_]CommandInfo{
     .{ .name = "plugins", .description = "Plugin management (list, enable, disable, info)" },
     .{ .name = "profile", .description = "User profile and settings management" },
     .{ .name = "completions", .description = "Generate shell completions (bash, zsh, fish, powershell)" },
+    .{ .name = "status", .description = "Show framework health and component status" },
     .{ .name = "toolchain", .description = "Build and install Zig/ZLS from master (install, update, status)" },
     .{ .name = "version", .description = "Show framework version" },
     .{ .name = "help", .description = "Show help (use: abi help <command>)" },
@@ -198,6 +199,7 @@ const command_map = std.StaticStringMap(CommandFn).initComptime(.{
     .{ "completions", wrap(commands.completions) },
     .{ "plugins", wrap(commands.plugins) },
     .{ "profile", wrap(commands.profile) },
+    .{ "status", wrap(commands.status) },
     .{ "toolchain", wrap(commands.toolchain) },
 });
 
