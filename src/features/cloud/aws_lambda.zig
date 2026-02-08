@@ -24,7 +24,6 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-// Shared utilities for time handling (Unix ms)
 const utils = @import("../../services/shared/utils.zig");
 
 pub const CloudEvent = types.CloudEvent;
@@ -33,6 +32,11 @@ pub const CloudHandler = types.CloudHandler;
 pub const CloudError = types.CloudError;
 pub const HttpMethod = types.HttpMethod;
 pub const InvocationMetadata = types.InvocationMetadata;
+
+// Shared helpers from types.zig
+const jsonStringOrNull = types.jsonStringOrNull;
+const parseJsonStringMap = types.parseJsonStringMap;
+const parseJsonHeaderMap = types.parseJsonHeaderMap;
 
 /// AWS Lambda runtime API client.
 pub const LambdaRuntime = struct {
@@ -191,30 +195,6 @@ pub fn parseEvent(allocator: std.mem.Allocator, raw_event: []const u8, request_i
     return event;
 }
 
-fn jsonStringOrNull(value: std.json.Value) ?[]const u8 {
-    return switch (value) {
-        .string => |s| s,
-        else => null,
-    };
-}
-
-fn parseJsonStringMap(
-    allocator: std.mem.Allocator,
-    object_value: std.json.Value,
-) !std.StringHashMap([]const u8) {
-    var out = std.StringHashMap([]const u8).init(allocator);
-    errdefer out.deinit();
-
-    var iter = object_value.object.iterator();
-    while (iter.next()) |entry| {
-        if (entry.value_ptr.* == .string) {
-            try out.put(entry.key_ptr.*, entry.value_ptr.string);
-        }
-    }
-
-    return out;
-}
-
 /// Parse API Gateway REST API event.
 fn parseApiGatewayEvent(event: *CloudEvent, root: std.json.Value, method: []const u8) !void {
     event.method = HttpMethod.fromString(method);
@@ -232,20 +212,10 @@ fn parseApiGatewayEvent(event: *CloudEvent, root: std.json.Value, method: []cons
         }
     }
 
-    // Parse headers
+    // Parse headers (lowercase keys for case-insensitive lookup)
     if (root.object.get("headers")) |headers| {
         if (headers != .null) {
-            event.headers = std.StringHashMap([]const u8).init(event.allocator);
-            var iter = headers.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    // Store headers with lowercase keys
-                    var lower_key_buf: [256]u8 = undefined;
-                    const key_len = @min(entry.key_ptr.len, 256);
-                    const lower_key = std.ascii.lowerString(lower_key_buf[0..key_len], entry.key_ptr.*[0..key_len]);
-                    try event.headers.?.put(lower_key, entry.value_ptr.string);
-                }
-            }
+            event.headers = try parseJsonHeaderMap(event.allocator, headers);
         }
     }
 }
@@ -272,16 +242,10 @@ fn parseHttpApiEvent(event: *CloudEvent, root: std.json.Value) !void {
         }
     }
 
-    // Parse headers (lowercase in v2)
+    // Parse headers (already lowercase in v2, but normalize for consistency)
     if (root.object.get("headers")) |headers| {
         if (headers != .null) {
-            event.headers = std.StringHashMap([]const u8).init(event.allocator);
-            var iter = headers.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    try event.headers.?.put(entry.key_ptr.*, entry.value_ptr.string);
-                }
-            }
+            event.headers = try parseJsonHeaderMap(event.allocator, headers);
         }
     }
 }

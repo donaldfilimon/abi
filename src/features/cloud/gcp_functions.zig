@@ -33,6 +33,12 @@ pub const CloudError = types.CloudError;
 pub const HttpMethod = types.HttpMethod;
 pub const InvocationMetadata = types.InvocationMetadata;
 
+// Shared helpers from types.zig
+const jsonStringOrNull = types.jsonStringOrNull;
+const parseJsonStringMap = types.parseJsonStringMap;
+const cloneStringMapLowercase = types.cloneStringMapLowercase;
+const parseJsonRoot = types.parseJsonRoot;
+
 /// GCP Functions runtime configuration.
 pub const GcpConfig = struct {
     /// Port to listen on (from PORT environment variable).
@@ -171,65 +177,11 @@ pub fn parseHttpRequest(
     return event;
 }
 
-fn jsonStringOrNull(value: std.json.Value) ?[]const u8 {
-    return switch (value) {
-        .string => |s| s,
-        else => null,
-    };
-}
-
 fn jsonValueToOwnedSlice(allocator: std.mem.Allocator, value: std.json.Value) ![]const u8 {
     var buffer = std.ArrayListUnmanaged(u8){};
     defer buffer.deinit(allocator);
     try std.json.stringify(value, .{}, buffer.writer(allocator));
     return buffer.toOwnedSlice(allocator);
-}
-
-fn parseJsonStringMap(
-    allocator: std.mem.Allocator,
-    object_value: std.json.Value,
-) !std.StringHashMap([]const u8) {
-    var map = std.StringHashMap([]const u8).init(allocator);
-    errdefer map.deinit();
-
-    var iter = object_value.object.iterator();
-    while (iter.next()) |entry| {
-        if (entry.value_ptr.* == .string) {
-            try map.put(entry.key_ptr.*, entry.value_ptr.string);
-        }
-    }
-
-    return map;
-}
-
-fn cloneStringMapLowercase(
-    allocator: std.mem.Allocator,
-    source: std.StringHashMap([]const u8),
-) !std.StringHashMap([]const u8) {
-    var clone = std.StringHashMap([]const u8).init(allocator);
-    errdefer clone.deinit();
-
-    var iter = source.iterator();
-    while (iter.next()) |entry| {
-        var lower_key_buf: [256]u8 = undefined;
-        const key_len = @min(entry.key_ptr.len, lower_key_buf.len);
-        const lower_key = std.ascii.lowerString(
-            lower_key_buf[0..key_len],
-            entry.key_ptr.*[0..key_len],
-        );
-        try clone.put(lower_key, entry.value_ptr.*);
-    }
-
-    return clone;
-}
-
-fn parseJsonRoot(
-    allocator: std.mem.Allocator,
-    raw_event: []const u8,
-) !std.json.Parsed(std.json.Value) {
-    return std.json.parseFromSlice(std.json.Value, allocator, raw_event, .{}) catch {
-        return CloudError.EventParseFailed;
-    };
 }
 
 /// Parse a CloudEvent (structured event format).

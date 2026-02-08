@@ -32,6 +32,12 @@ pub const CloudError = types.CloudError;
 pub const HttpMethod = types.HttpMethod;
 pub const InvocationMetadata = types.InvocationMetadata;
 
+// Shared helpers from types.zig
+const jsonStringOrNull = types.jsonStringOrNull;
+const parseJsonStringMap = types.parseJsonStringMap;
+const parseJsonHeaderMap = types.parseJsonHeaderMap;
+const parseJsonRoot = types.parseJsonRoot;
+
 /// Azure Functions runtime configuration.
 pub const AzureConfig = struct {
     /// Functions host port (from FUNCTIONS_HTTPWORKER_PORT).
@@ -177,28 +183,9 @@ pub fn parseInvocationRequest(allocator: std.mem.Allocator, raw_request: []const
     return event;
 }
 
-fn parseJsonRoot(
-    allocator: std.mem.Allocator,
-    raw_event: []const u8,
-) !std.json.Parsed(std.json.Value) {
-    return std.json.parseFromSlice(std.json.Value, allocator, raw_event, .{}) catch {
-        return CloudError.EventParseFailed;
-    };
-}
-
 fn getStringField(root: std.json.Value, key: []const u8) ?[]const u8 {
     const value = root.object.get(key) orelse return null;
-    return switch (value) {
-        .string => |s| s,
-        else => null,
-    };
-}
-
-fn jsonStringOrNull(value: std.json.Value) ?[]const u8 {
-    return switch (value) {
-        .string => |s| s,
-        else => null,
-    };
+    return jsonStringOrNull(value);
 }
 
 fn jsonValueToOwnedSlice(allocator: std.mem.Allocator, value: std.json.Value) ![]const u8 {
@@ -206,60 +193,6 @@ fn jsonValueToOwnedSlice(allocator: std.mem.Allocator, value: std.json.Value) ![
     defer buffer.deinit(allocator);
     try std.json.stringify(value, .{}, buffer.writer(allocator));
     return buffer.toOwnedSlice(allocator);
-}
-
-fn firstHeaderString(value: std.json.Value) ?[]const u8 {
-    return switch (value) {
-        .string => |s| s,
-        .array => |items| blk: {
-            if (items.items.len == 0) break :blk null;
-            break :blk switch (items.items[0]) {
-                .string => |s| s,
-                else => null,
-            };
-        },
-        else => null,
-    };
-}
-
-fn parseStringMap(
-    allocator: std.mem.Allocator,
-    object_value: std.json.Value,
-) !std.StringHashMap([]const u8) {
-    var out = std.StringHashMap([]const u8).init(allocator);
-    errdefer out.deinit();
-
-    var iter = object_value.object.iterator();
-    while (iter.next()) |entry| {
-        if (entry.value_ptr.* == .string) {
-            try out.put(entry.key_ptr.*, entry.value_ptr.string);
-        }
-    }
-
-    return out;
-}
-
-fn parseHeaderMap(
-    allocator: std.mem.Allocator,
-    object_value: std.json.Value,
-) !std.StringHashMap([]const u8) {
-    var out = std.StringHashMap([]const u8).init(allocator);
-    errdefer out.deinit();
-
-    var iter = object_value.object.iterator();
-    while (iter.next()) |entry| {
-        if (firstHeaderString(entry.value_ptr.*)) |header_value| {
-            var lower_key_buf: [256]u8 = undefined;
-            const key_len = @min(entry.key_ptr.len, lower_key_buf.len);
-            const lower_key = std.ascii.lowerString(
-                lower_key_buf[0..key_len],
-                entry.key_ptr.*[0..key_len],
-            );
-            try out.put(lower_key, header_value);
-        }
-    }
-
-    return out;
 }
 
 /// Parse HTTP trigger request data.
@@ -280,14 +213,14 @@ fn parseHttpTrigger(event: *CloudEvent, req: std.json.Value) !void {
     // Headers
     if (req.object.get("Headers")) |headers| {
         if (headers != .null) {
-            event.headers = try parseHeaderMap(event.allocator, headers);
+            event.headers = try parseJsonHeaderMap(event.allocator, headers);
         }
     }
 
     // Query parameters
     if (req.object.get("Query")) |query| {
         if (query != .null) {
-            event.query_params = try parseStringMap(event.allocator, query);
+            event.query_params = try parseJsonStringMap(event.allocator, query);
         }
     }
 }
