@@ -206,6 +206,8 @@ extern "C" {
     pub fn abi_version() -> *const c_char;
     pub fn abi_version_info(out_version: *mut AbiVersion);
     pub fn abi_is_feature_enabled(framework: AbiFramework, feature: *const c_char) -> bool;
+    pub fn abi_get_state(framework: AbiFramework) -> *const c_char;
+    pub fn abi_enabled_feature_count(framework: AbiFramework) -> c_int;
 
     // SIMD operations
     pub fn abi_simd_get_caps(out_caps: *mut AbiSimdCaps);
@@ -218,17 +220,12 @@ extern "C" {
     );
     pub fn abi_simd_vector_dot(a: *const c_float, b: *const c_float, len: size_t) -> c_float;
     pub fn abi_simd_vector_l2_norm(v: *const c_float, len: size_t) -> c_float;
-    pub fn abi_simd_cosine_similarity(
-        a: *const c_float,
-        b: *const c_float,
-        len: size_t,
-    ) -> c_float;
+    pub fn abi_simd_cosine_similarity(a: *const c_float, b: *const c_float, len: size_t)
+        -> c_float;
 
     // Database operations
-    pub fn abi_database_create(
-        config: *const AbiDatabaseConfig,
-        out_db: *mut AbiDatabase,
-    ) -> c_int;
+    pub fn abi_database_create(config: *const AbiDatabaseConfig, out_db: *mut AbiDatabase)
+        -> c_int;
     pub fn abi_database_close(db: AbiDatabase);
     pub fn abi_database_insert(
         db: AbiDatabase,
@@ -255,10 +252,7 @@ extern "C" {
     pub fn abi_gpu_backend_name(gpu: AbiGpu) -> *const c_char;
 
     // Agent operations
-    pub fn abi_agent_create(
-        config: *const AbiAgentConfig,
-        out_agent: *mut AbiAgent,
-    ) -> c_int;
+    pub fn abi_agent_create(config: *const AbiAgentConfig, out_agent: *mut AbiAgent) -> c_int;
     pub fn abi_agent_destroy(agent: AbiAgent);
     pub fn abi_agent_send(
         agent: AbiAgent,

@@ -299,6 +299,23 @@ void abi_version_info(abi_version_info_t *out_version);
  */
 bool abi_is_feature_enabled(abi_framework_t *framework, const char *feature);
 
+/**
+ * Get the current framework state as a string.
+ *
+ * @param framework  Framework handle.
+ * @return One of: "uninitialized", "initializing", "running",
+ *         "stopping", "stopped", "failed", or "unknown".
+ */
+const char *abi_get_state(abi_framework_t *framework);
+
+/**
+ * Get the number of features that initialized successfully.
+ *
+ * @param framework  Framework handle.
+ * @return Count of active features (0-8).
+ */
+int abi_enabled_feature_count(abi_framework_t *framework);
+
 /* ============================================================================
  * SIMD Operations
  * ============================================================================ */

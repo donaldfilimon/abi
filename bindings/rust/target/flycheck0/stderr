@@ -1,0 +1,4 @@
+error: failed to parse manifest at `/Users/donaldfilimon/abi/bindings/rust/Cargo.toml`
+
+Caused by:
+  can't find `simd_bench` bench at `benches/simd_bench.rs` or `benches/simd_bench/main.rs`. Please specify bench.path if you want to use a non-default path.
