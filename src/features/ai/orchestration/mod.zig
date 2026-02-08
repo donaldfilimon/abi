@@ -717,14 +717,19 @@ pub const Orchestrator = struct {
         prompt: []const u8,
         response_allocator: std.mem.Allocator,
     ) OrchestrationError![]u8 {
-        const model = self.getModel(model_id) orelse return OrchestrationError.ModelNotFound;
+        // Hold mutex for lookup and initial state check to prevent data race
+        self.mutex.lock();
+        const model = self.models.getPtr(model_id) orelse {
+            self.mutex.unlock();
+            return OrchestrationError.ModelNotFound;
+        };
 
         if (!model.config.enabled) {
+            self.mutex.unlock();
             return OrchestrationError.ModelDisabled;
         }
 
-        // Update stats
-        self.mutex.lock();
+        // Update stats while still holding the lock
         model.active_requests += 1;
         model.total_requests += 1;
         model.last_request_time = utils.unixMs();

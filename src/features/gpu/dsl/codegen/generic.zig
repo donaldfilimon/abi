@@ -59,6 +59,7 @@ pub fn CodeGenerator(comptime Config: type) type {
             try self.writeKernelClose();
 
             const code = try self.writer.getCode();
+            errdefer self.allocator.free(code);
             const entry_point = try self.allocator.dupe(u8, ir.entry_point);
 
             return .{

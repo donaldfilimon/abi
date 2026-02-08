@@ -4,10 +4,6 @@ const database = @import("database.zig");
 const storage = @import("storage_v2.zig"); // Unified storage with v1 fallback
 const fs = @import("../../services/shared/utils.zig").fs;
 
-pub const UnifiedError = error{
-    Unsupported,
-};
-
 pub const DatabaseHandle = struct {
     db: database.Database,
 };

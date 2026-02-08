@@ -705,7 +705,7 @@ pub fn trainWithResult(
                             .timestamp = @as(u64, @intCast(time_utils.unixSeconds())),
                             .weights = model.weights,
                         }) catch |err| {
-                            std.debug.print("Warning: failed to save checkpoint: {t}\n", .{err});
+                            std.log.warn("failed to save checkpoint: {t}", .{err});
                         };
                     }
                 }

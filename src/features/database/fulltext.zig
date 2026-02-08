@@ -454,15 +454,19 @@ pub const InvertedIndex = struct {
         // Step 2: common suffixes
         if (len > 5) {
             if (std.mem.endsWith(u8, word[0..len], "ational")) {
-                len -= 5; // ational -> ate
-                @memcpy(word[len - 3 .. len], "ate");
+                // ational -> ate: replace 7-char suffix with 3-char replacement
+                const stem = len - 7;
+                @memcpy(word[stem .. stem + 3], "ate");
+                len = stem + 3;
             } else if (std.mem.endsWith(u8, word[0..len], "tional")) {
                 len -= 2; // tional -> tion
             } else if (std.mem.endsWith(u8, word[0..len], "alism")) {
                 len -= 3; // alism -> al
             } else if (std.mem.endsWith(u8, word[0..len], "ation")) {
-                len -= 3; // ation -> ate
-                @memcpy(word[len - 3 .. len], "ate");
+                // ation -> ate: replace 5-char suffix with 3-char replacement
+                const stem = len - 5;
+                @memcpy(word[stem .. stem + 3], "ate");
+                len = stem + 3;
             } else if (std.mem.endsWith(u8, word[0..len], "ness")) {
                 len -= 4; // ness -> (empty)
             } else if (std.mem.endsWith(u8, word[0..len], "ment")) {

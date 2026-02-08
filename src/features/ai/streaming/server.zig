@@ -146,24 +146,24 @@ pub const StreamingServer = struct {
         var server = try listen_addr.listen(io, .{ .reuse_address = true });
         defer server.deinit(io);
 
-        std.debug.print("Streaming inference server listening on {s}\n", .{self.config.address});
-        std.debug.print("  - SSE endpoint: POST /api/stream\n", .{});
+        std.log.info("Streaming inference server listening on {s}", .{self.config.address});
+        std.log.info("  SSE endpoint: POST /api/stream", .{});
         if (self.config.enable_openai_compat) {
-            std.debug.print("  - OpenAI endpoint: POST /v1/chat/completions\n", .{});
+            std.log.info("  OpenAI endpoint: POST /v1/chat/completions", .{});
         }
         if (self.config.enable_websocket) {
-            std.debug.print("  - WebSocket endpoint: GET /api/stream/ws\n", .{});
+            std.log.info("  WebSocket endpoint: GET /api/stream/ws", .{});
         }
 
         while (true) {
             var stream = server.accept(io) catch |err| {
-                std.debug.print("Streaming server accept error: {t}\n", .{err});
+                std.log.err("Streaming server accept error: {t}", .{err});
                 continue;
             };
             defer stream.close(io);
 
             self.handleConnection(io, stream) catch |err| {
-                std.debug.print("Streaming server connection error: {t}\n", .{err});
+                std.log.err("Streaming server connection error: {t}", .{err});
             };
         }
     }
@@ -193,7 +193,7 @@ pub const StreamingServer = struct {
             };
 
             self.dispatchRequest(&request, &conn_ctx) catch |err| {
-                std.debug.print("Streaming request error: {t}\n", .{err});
+                std.log.err("Streaming request error: {t}", .{err});
                 const error_body = if (err == StreamingServerError.Unauthorized)
                     "{\"error\":{\"message\":\"unauthorized\",\"type\":\"authentication_error\"}}"
                 else
@@ -203,7 +203,7 @@ pub const StreamingServer = struct {
                 else
                     .internal_server_error;
                 self.respondJson(&request, error_body, status) catch |resp_err| {
-                    std.debug.print("Streaming server: failed to send error response: {t}\n", .{resp_err});
+                    std.log.err("Streaming server: failed to send error response: {t}", .{resp_err});
                 };
                 return;
             };
@@ -774,7 +774,7 @@ pub const StreamingServer = struct {
                 const close_frame = try ws_handler.sendClose(.protocol_error, "invalid frame");
                 defer allocator.free(close_frame);
                 try conn_ctx.write(close_frame);
-                std.debug.print("WebSocket parse error: {t}\n", .{err});
+                std.log.err("WebSocket parse error: {t}", .{err});
                 break;
             };
             defer allocator.free(parse_result.frame.payload);

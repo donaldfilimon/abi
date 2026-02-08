@@ -174,7 +174,7 @@ pub const FailoverManager = struct {
             .cooldown_until = 0,
             .last_used_time = time.unixMilliseconds(),
         }) catch {
-            std.debug.print("[gpu_failover] Failed to initialize primary backend state - failover may not work correctly\n", .{});
+            std.log.warn("gpu_failover: failed to initialize primary backend state — failover may not work correctly", .{});
         };
 
         // Initialize failover chain states
@@ -186,7 +186,7 @@ pub const FailoverManager = struct {
                 .cooldown_until = 0,
                 .last_used_time = 0,
             }) catch {
-                std.debug.print("[gpu_failover] Failed to initialize failover backend {t} state\n", .{backend});
+                std.log.warn("gpu_failover: failed to initialize failover backend {t} state", .{backend});
             };
         }
 
@@ -291,7 +291,7 @@ pub const FailoverManager = struct {
             .success = true,
             .duration_ms = duration,
         }) catch {
-            std.debug.print("[gpu_failover] Failed to record failover history from {t} to {t}\n", .{ from_backend, to_backend });
+            std.log.warn("gpu_failover: failed to record failover history from {t} to {t}", .{ from_backend, to_backend });
         };
 
         // Notify completion
@@ -487,7 +487,7 @@ pub const FailoverManager = struct {
             .success = true,
             .duration_ms = duration,
         }) catch {
-            std.debug.print("[gpu_failover] Failed to record CPU fallback history from {t}\n", .{from_backend});
+            std.log.warn("gpu_failover: failed to record CPU fallback history from {t}", .{from_backend});
         };
 
         // Notify completion (unless silent mode)

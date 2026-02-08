@@ -647,6 +647,7 @@ pub fn flashMultiHeadAttention(
         const kv_h = h / kv_ratio;
         const q_offset = h * head_dim;
         const k_offset = kv_h * head_dim;
+        const v_offset = kv_h * head_dim;
 
         // Extract head slices
         for (0..seq_len) |i| {
@@ -657,7 +658,7 @@ pub fn flashMultiHeadAttention(
 
         for (0..kv_len) |i| {
             const k_src = i * (num_kv_heads * head_dim) + k_offset;
-            const v_src = i * (num_kv_heads * head_dim) + k_offset;
+            const v_src = i * (num_kv_heads * head_dim) + v_offset;
             const dst = i * head_dim;
             @memcpy(k_head[dst .. dst + head_dim], k[k_src .. k_src + head_dim]);
             @memcpy(v_head[dst .. dst + head_dim], v[v_src .. v_src + head_dim]);

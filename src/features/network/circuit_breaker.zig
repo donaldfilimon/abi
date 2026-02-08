@@ -349,7 +349,7 @@ pub const CircuitBreaker = struct {
             .timestamp_ms = now_ms,
             .error_code = error_code,
         }) catch {
-            std.debug.print("[circuit_breaker] Failed to record failure in history - windowed counting may be inaccurate\n", .{});
+            std.log.warn("circuit_breaker: failed to record failure in history — windowed counting may be inaccurate", .{});
         };
 
         // Clean old records outside the window
@@ -605,7 +605,7 @@ pub const CircuitRegistry = struct {
         errdefer self.allocator.free(name_copy);
 
         try self.breakers.put(self.allocator, name_copy, CircuitBreaker.initWithName(self.allocator, name_copy, config));
-        return self.breakers.getPtr(name).?;
+        return self.breakers.getPtr(name_copy).?;
     }
 
     pub fn getBreaker(self: *Self, name: []const u8) ?*CircuitBreaker {
