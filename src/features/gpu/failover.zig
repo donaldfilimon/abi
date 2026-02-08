@@ -27,8 +27,6 @@ const recovery = @import("recovery.zig");
 const platform_time = @import("../../services/shared/utils.zig");
 const time = platform_time;
 const sync = @import("../../services/shared/sync.zig");
-const interface = @import("interface.zig");
-const error_handling = @import("error_handling.zig");
 
 pub const Backend = backend_mod.Backend;
 

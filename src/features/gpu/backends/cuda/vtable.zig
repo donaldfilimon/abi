@@ -4,7 +4,6 @@
 //! kernel execution through the polymorphic backend interface.
 
 const std = @import("std");
-const builtin = @import("builtin");
 const build_options = @import("build_options");
 const interface = @import("../../interface.zig");
 const loader = @import("loader.zig");
