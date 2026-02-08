@@ -218,22 +218,22 @@ Import chains verified: `abi.zig` -> `services/{shared,runtime}/mod.zig` -> sub-
 ## Phase 4: v2 Hardening (2026-02-09 to 2026-02-11)
 
 ### 4.1 Integration Testing
-- [ ] Write integration tests exercising v2 modules through `abi.shared.*` and `abi.runtime.*`
-- [ ] Verify `SwissMap` works with all key types used in the codebase
-- [ ] Test `ArenaPool` under concurrent access (thread safety)
-- [ ] Test `Channel` (Vyukov MPMC) under high contention with multiple producers/consumers
-- [ ] Test `ThreadPool` work-stealing with varying task granularity
-- [ ] Test `DagPipeline` with diamond dependency graphs and error propagation
-- [ ] Verify `FallbackAllocator` ownership detection (rawResize probe pattern)
+- [x] Write integration tests exercising v2 modules through `abi.shared.*` and `abi.runtime.*`
+- [x] Verify `SwissMap` works with all key types used in the codebase (integer + string keys, rehash)
+- [x] ~~Test `ArenaPool` under concurrent access~~ — N/A: ArenaPool is intentionally single-threaded (no atomics)
+- [x] Test `Channel` (Vyukov MPMC) under high contention with multiple producers/consumers
+- [x] Test `ThreadPool` work-stealing with varying task granularity
+- [x] Test `DagPipeline` with diamond dependency graphs and error propagation
+- [x] Verify `FallbackAllocator` ownership detection (rawResize probe pattern)
 
 ### 4.2 SIMD Kernel Validation
-- [ ] Verify SIMD kernels produce correct results vs scalar fallbacks
-- [ ] Test euclidean distance, softmax, saxpy, reduce_sum, reduce_max, reduce_min, scale
-- [ ] Confirm `@Vector` operations work on target architectures (x86_64, aarch64)
+- [x] Verify SIMD kernels produce correct results vs scalar fallbacks (scale, saxpy verified)
+- [x] Test euclidean distance, softmax, saxpy, reduce_sum, reduce_max, reduce_min, scale (declaration + functional tests)
+- [x] Confirm `@Vector` operations work on target architectures (verified on aarch64/macOS)
 - [ ] Benchmark SIMD vs scalar performance ratios
 
 ### 4.3 Benchmark Integration
-- [ ] Wire `benchmarks/infrastructure/v2_modules.zig` into `zig build benchmarks`
+- [x] Wire `benchmarks/infrastructure/v2_modules.zig` into `zig build benchmarks`
 - [ ] Establish baseline performance numbers for v2 data structures
 - [ ] Compare `SwissMap` vs `std.HashMap` performance
 - [ ] Compare `ArenaPool` vs raw `ArenaAllocator` performance
@@ -252,10 +252,13 @@ Import chains verified: `abi.zig` -> `services/{shared,runtime}/mod.zig` -> sub-
 - [ ] `TODO(gpu-tests)`: Enable GPU kernel tests once mock backend suppresses error logging
 
 ### 5.3 Security Hardening
-- [ ] Audit v2 modules for unsafe patterns (unbounded allocations, panics in library code)
-- [ ] Verify no `@panic` in library paths (should return errors)
-- [ ] Review `abix_serialize.zig` for buffer overflow potential with untrusted input
-- [ ] Review `swiss_map.zig` hash collision resilience
+- [x] Audit v2 modules for unsafe patterns (unbounded allocations, panics in library code)
+- [x] Verify no `@panic` in library paths (should return errors)
+- [x] Review `abix_serialize.zig` for buffer overflow potential with untrusted input
+      - Fixed: `readSlice()` overflow-safe bounds check, `readArrayF32()` multiplication overflow + alignment validation, `readHeader()` payload_len validation
+- [x] Review `swiss_map.zig` hash collision resilience
+      - Fixed: `rehash()` errdefer on partial allocations, `ensureCapacity()` overflow-checked multiplication
+      - Known: deterministic hash (no per-instance seed) — acceptable for internal use, document if exposed to untrusted input
 
 ## Phase 6: Documentation and Examples (2026-02-17 to 2026-02-19)
 
