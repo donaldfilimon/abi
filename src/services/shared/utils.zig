@@ -132,14 +132,6 @@ pub const math = struct {
         max: f64,
     };
 
-    /// Clamp a value to be within the specified range [min_value, max_value].
-    ///
-    /// Returns min_value if value < min_value, max_value if value > max_value,
-    /// otherwise returns value unchanged. Works with any comparable type.
-    pub fn clamp(value: anytype, min_value: @TypeOf(value), max_value: @TypeOf(value)) @TypeOf(value) {
-        return std.math.clamp(value, min_value, max_value);
-    }
-
     /// Linear interpolation between two values.
     ///
     /// Returns a + (b - a) * t, where t=0 gives a and t=1 gives b.
@@ -236,7 +228,7 @@ pub const math = struct {
     /// fractional positions.
     pub fn percentileSorted(values: []const f64, percentile_value: f64) f64 {
         if (values.len == 0) return 0;
-        const clamped = clamp(percentile_value, 0.0, 1.0);
+        const clamped = std.math.clamp(percentile_value, 0.0, 1.0);
         const position = clamped * @as(f64, @floatFromInt(values.len - 1));
         const lower_index: usize = @intFromFloat(@floor(position));
         const upper_index: usize = @intFromFloat(@ceil(position));

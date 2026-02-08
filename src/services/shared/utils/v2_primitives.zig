@@ -63,17 +63,6 @@ pub const Math = struct {
 // --- String Utilities ------------------------------------------------------
 
 pub const String = struct {
-    /// FNV-1a hash -- industry standard for hash tables
-    pub fn hash(str: []const u8) u64 {
-        const fnv_prime: u64 = 0x100000001b3;
-        var h: u64 = 0xcbf29ce484222325;
-        for (str) |byte| {
-            h ^= byte;
-            h *%= fnv_prime;
-        }
-        return h;
-    }
-
     pub fn eqlIgnoreCase(a: []const u8, b: []const u8) bool {
         if (a.len != b.len) return false;
         for (a, b) |ca, cb| {

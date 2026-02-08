@@ -648,7 +648,7 @@ fn benchPrimitives(runner: *framework.BenchmarkRunner) !void {
                 fn bench(strings: []const []const u8) u64 {
                     var sum: u64 = 0;
                     for (strings) |s| {
-                        sum +%= utils.v2_primitives.String.hash(s);
+                        sum +%= utils.crypto.fnv1a64(s);
                     }
                     return sum;
                 }
