@@ -179,6 +179,7 @@ pub const TokenBuffer = struct {
         }
 
         const cloned = try token.clone(self.allocator);
+        errdefer self.allocator.free(cloned.text);
         try self.items.append(self.allocator, cloned);
         self.total_pushed += 1;
     }
@@ -202,6 +203,7 @@ pub const TokenBuffer = struct {
         }
 
         const cloned = try token.clone(self.allocator);
+        errdefer self.allocator.free(cloned.text);
         try self.items.append(self.allocator, cloned);
         self.total_pushed += 1;
     }
@@ -227,6 +229,7 @@ pub const TokenBuffer = struct {
         }
 
         const cloned = try token.clone(self.allocator);
+        errdefer self.allocator.free(cloned.text);
         try self.items.append(self.allocator, cloned);
 
         // Sort by sequence_index descending

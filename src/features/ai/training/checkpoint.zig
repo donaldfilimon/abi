@@ -91,6 +91,7 @@ pub const CheckpointStore = struct {
     /// @param weights Model weights snapshot
     pub fn add(self: *CheckpointStore, step: u64, weights: []const f32) !void {
         const copy = try self.allocator.alloc(f32, weights.len);
+        errdefer self.allocator.free(copy);
         std.mem.copyForwards(f32, copy, weights);
 
         const timestamp = unixTimestamp();

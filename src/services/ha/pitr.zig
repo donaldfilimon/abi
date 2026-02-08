@@ -151,6 +151,7 @@ pub const PitrManager = struct {
         if (previous_value) |v| {
             prev_copy = try self.allocator.dupe(u8, v);
         }
+        errdefer if (prev_copy) |v| self.allocator.free(v);
 
         const op = Operation{
             .type = op_type,

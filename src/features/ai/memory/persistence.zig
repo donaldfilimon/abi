@@ -53,6 +53,8 @@ pub const SessionData = struct {
     updated_at: i64,
     messages: []Message,
     config: SessionConfig,
+    owns_model: bool = false,
+    owns_system_prompt: bool = false,
 
     pub fn deinit(self: *SessionData, allocator: std.mem.Allocator) void {
         allocator.free(self.id);
@@ -61,6 +63,14 @@ pub const SessionData = struct {
             msg.deinit(allocator);
         }
         allocator.free(self.messages);
+        if (self.owns_model) {
+            allocator.free(self.config.model);
+        }
+        if (self.owns_system_prompt) {
+            if (self.config.system_prompt) |sp| {
+                allocator.free(sp);
+            }
+        }
         self.* = undefined;
     }
 };
@@ -168,15 +178,8 @@ pub const SessionStore = struct {
             // Extract session ID from filename (remove .json)
             if (std.mem.endsWith(u8, filename, ".json")) {
                 const id = filename[0 .. filename.len - 5];
-                const session = self.loadSession(id) catch continue;
-                defer {
-                    const s = session;
-                    // Don't free messages, just the session struct
-                    self.allocator.free(s.id);
-                    self.allocator.free(s.name);
-                    for (s.messages) |*msg| msg.deinit(self.allocator);
-                    self.allocator.free(s.messages);
-                }
+                var session = self.loadSession(id) catch continue;
+                defer session.deinit(self.allocator);
 
                 const duped_id = self.allocator.dupe(u8, session.id) catch continue;
                 const duped_name = self.allocator.dupe(u8, session.name) catch {
@@ -321,9 +324,13 @@ fn deserializeSession(allocator: std.mem.Allocator, json_content: []const u8) !S
 
     // Parse config
     var config = SessionConfig{};
+    var owns_model = false;
+    var owns_system_prompt = false;
     errdefer {
-        if (config.model) |m| allocator.free(m);
-        if (config.system_prompt) |sp| allocator.free(sp);
+        if (owns_model) allocator.free(config.model);
+        if (owns_system_prompt) {
+            if (config.system_prompt) |sp| allocator.free(sp);
+        }
     }
     if (root.get("config")) |config_val| {
         if (config_val.object.get("memory_type")) |mt| {
@@ -337,9 +344,11 @@ fn deserializeSession(allocator: std.mem.Allocator, json_content: []const u8) !S
         }
         if (config_val.object.get("model")) |m| {
             config.model = try allocator.dupe(u8, m.string);
+            owns_model = true;
         }
         if (config_val.object.get("system_prompt")) |sp| {
             config.system_prompt = try allocator.dupe(u8, sp.string);
+            owns_system_prompt = true;
         }
     }
 
@@ -380,6 +389,8 @@ fn deserializeSession(allocator: std.mem.Allocator, json_content: []const u8) !S
         .updated_at = updated_at.integer,
         .messages = owned_messages,
         .config = config,
+        .owns_model = owns_model,
+        .owns_system_prompt = owns_system_prompt,
     };
 }
 

@@ -88,6 +88,7 @@ pub fn computeBleuMultiRef(
 
     for (references) |ref| {
         const tokens = try tokenizer.tokenize(allocator, ref);
+        errdefer allocator.free(tokens);
         try ref_tokens_list.append(allocator, tokens);
     }
 
