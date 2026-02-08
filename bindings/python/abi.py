@@ -260,6 +260,12 @@ def _setup_signatures(lib):
     lib.abi_is_feature_enabled.restype = ctypes.c_bool
     lib.abi_is_feature_enabled.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
+    lib.abi_get_state.restype = ctypes.c_char_p
+    lib.abi_get_state.argtypes = [ctypes.c_void_p]
+
+    lib.abi_enabled_feature_count.restype = ctypes.c_int
+    lib.abi_enabled_feature_count.argtypes = [ctypes.c_void_p]
+
     # SIMD
     lib.abi_simd_get_caps.restype = None
     lib.abi_simd_get_caps.argtypes = [ctypes.POINTER(_AbiSimdCaps)]

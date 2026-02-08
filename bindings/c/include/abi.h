@@ -305,6 +305,7 @@ bool abi_is_feature_enabled(abi_framework_t *framework, const char *feature);
  * @param framework  Framework handle.
  * @return One of: "uninitialized", "initializing", "running",
  *         "stopping", "stopped", "failed", or "unknown".
+ *         The returned string is a static constant — do not free it.
  */
 const char *abi_get_state(abi_framework_t *framework);
 
