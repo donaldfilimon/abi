@@ -297,6 +297,9 @@ Exit criteria:
 ## Near-Term Milestones (February 2026)
 - 2026-02-08: ~~Baseline captured and ownership map confirmed.~~ DONE
 - 2026-02-08: ~~v2 module integration (15 modules).~~ DONE (commit `7175ac18`)
+- 2026-02-08: ~~Benchmark safety fixes (errdefer, div-by-zero, percentile).~~ DONE (commit `46f24957`)
+- 2026-02-08: ~~M10 production readiness (health, signal, status CLI).~~ DONE (commit `4c58d5a0`)
+- 2026-02-08: ~~M11 language bindings (state + feature count, all 5 langs).~~ DONE (commit `290baa66`)
 - 2026-02-09: Stub parity audit complete, any drift fixed.
 - 2026-02-11: v2 integration tests written and passing.
 - 2026-02-14: Feature completion and tech debt addressed.
@@ -307,7 +310,7 @@ Exit criteria:
 
 | Metric | Baseline | Current | Target |
 |--------|----------|---------|--------|
-| Tests passing | 944 | 944 | 950+ |
+| Tests passing | 944 | 980 | 950+ |
 | Tests skipped | 5 | 5 | 5 or fewer |
 | Feature modules | 8 | 8 | 8 |
 | v2 modules integrated | 0 | 15 | 15 |
@@ -317,6 +320,7 @@ Exit criteria:
 | Stub parity violations | TBD | 0 | 0 |
 
 ## Quick Links
+- [Cleanup + Production + Bindings Plan](plans/2026-02-08-cleanup-production-bindings.md)
 - [v2 Integration Plan](plans/2026-02-08-abi-system-v2-integration.md)
 - [Ralph Loop Eval](plans/2026-02-08-ralph-loop-zig016-multi-agent-eval.md)
 - [Roadmap](roadmap.md)
