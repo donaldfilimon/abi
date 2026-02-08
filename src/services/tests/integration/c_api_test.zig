@@ -770,6 +770,7 @@ test "c_api: gpu init and shutdown lifecycle" {
             .opengles => "opengles",
             .webgl2 => "webgl2",
             .fpga => "fpga",
+            .simulated => "simulated",
         };
         try testing.expect(name.len > 0);
     }

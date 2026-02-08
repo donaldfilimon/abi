@@ -324,10 +324,16 @@ pub const Framework = struct {
             }
         }
 
-        if (cfg.cloud) |_| {
-            // Note: cfg.cloud is core/config CloudConfig (detailed) but cloud_mod.Context
-            // expects features/cloud CloudConfig (runtime). Using defaults until types are unified.
-            fw.cloud = try cloud_mod.Context.init(allocator, cloud_mod.CloudConfig.defaults());
+        if (cfg.cloud) |core_cloud| {
+            // Map core/config CloudConfig fields to features/cloud runtime CloudConfig.
+            const runtime_cloud = cloud_mod.CloudConfig{
+                .memory_mb = core_cloud.memory_mb,
+                .timeout_seconds = core_cloud.timeout_seconds,
+                .tracing_enabled = core_cloud.tracing_enabled,
+                .logging_enabled = core_cloud.logging_enabled,
+                .log_level = @enumFromInt(@intFromEnum(core_cloud.log_level)),
+            };
+            fw.cloud = try cloud_mod.Context.init(allocator, runtime_cloud);
             if (comptime build_options.enable_web) {
                 try fw.registry.registerComptime(.cloud);
             }

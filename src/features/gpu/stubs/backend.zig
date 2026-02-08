@@ -10,6 +10,7 @@ pub const Backend = enum {
     opengles,
     webgl2,
     fpga,
+    simulated,
 };
 
 pub const BackendInfo = struct {

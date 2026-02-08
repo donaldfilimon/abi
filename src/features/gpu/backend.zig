@@ -14,6 +14,7 @@ pub const Backend = enum {
     opengles,
     webgl2,
     fpga,
+    simulated,
 };
 
 pub const DetectionLevel = enum {
@@ -236,6 +237,25 @@ const backend_meta = [_]BackendMeta{
         .supports_kernels = true,
         .aliases = &.{},
     },
+    .{
+        .name = "simulated",
+        .display_name = "Simulated",
+        .description = "Software-simulated backend for testing and fallback",
+        .build_flag = "",
+        .device_name = "Simulated Device",
+        .device_name_emulated = "Simulated Device",
+        .memory_bytes = 2 * GiB,
+        .capability = .{
+            .unified_memory = true,
+            .supports_fp16 = true,
+            .supports_int8 = true,
+            .supports_async_transfers = false,
+            .max_threads_per_block = 256,
+            .max_shared_memory_bytes = 16 * 1024,
+        },
+        .supports_kernels = true,
+        .aliases = &.{},
+    },
 };
 
 fn meta(backend: Backend) BackendMeta {
@@ -258,6 +278,7 @@ pub fn isEnabled(backend: Backend) bool {
         .opengles => build_options.gpu_opengles,
         .webgl2 => build_options.gpu_webgl2,
         .fpga => if (@hasDecl(build_options, "gpu_fpga")) build_options.gpu_fpga else false,
+        .simulated => true, // always available as software fallback
     };
 }
 
@@ -366,6 +387,13 @@ pub fn backendAvailability(backend: Backend) BackendAvailability {
         .opengles => detectOpenGles(),
         .webgl2 => detectWebGl2(),
         .fpga => detectFpga(),
+        .simulated => .{
+            .enabled = true,
+            .available = true,
+            .reason = "software simulation",
+            .device_count = 1,
+            .level = .device_count,
+        },
     };
 }
 
