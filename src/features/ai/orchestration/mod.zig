@@ -467,7 +467,10 @@ pub const Orchestrator = struct {
 
         for (available.items) |model| {
             const resp = self.executeSingle(model.config.id, prompt, response_allocator) catch continue;
-            responses.append(self.allocator, resp) catch continue;
+            responses.append(self.allocator, resp) catch {
+                response_allocator.free(resp);
+                continue;
+            };
         }
 
         if (responses.items.len == 0) {

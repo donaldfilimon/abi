@@ -326,7 +326,7 @@ pub const TransformerModel = struct {
         }
 
         const output = try allocator.alloc(f32, input.len);
-        defer allocator.free(output);
+        errdefer allocator.free(output);
         matMul(output, intermediate, ff_1_w, intermediate_size, hidden_size);
 
         return output;

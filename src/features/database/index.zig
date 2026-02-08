@@ -470,7 +470,13 @@ pub const IvfPqIndex = struct {
 
         const cluster_count = @max(@min(options.clusters, records.len), 1);
         var clusters = try allocator.alloc(Cluster, cluster_count);
-        errdefer allocator.free(clusters);
+        var clusters_initialized: usize = 0;
+        errdefer {
+            for (clusters[0..clusters_initialized]) |cluster| {
+                allocator.free(cluster.centroid);
+            }
+            allocator.free(clusters);
+        }
         for (clusters, 0..) |*cluster, i| {
             const centroid = try allocator.alloc(f32, dim);
             std.mem.copyForwards(f32, centroid, records[i % records.len].vector);
@@ -478,6 +484,7 @@ pub const IvfPqIndex = struct {
                 .centroid = centroid,
                 .members = &.{},
             };
+            clusters_initialized += 1;
         }
 
         var assignments = try allocator.alloc(u32, records.len);
@@ -518,8 +525,13 @@ pub const IvfPqIndex = struct {
             member_counts[cluster_id] += 1;
         }
 
+        var members_initialized: usize = 0;
+        errdefer for (clusters[0..members_initialized]) |cluster| {
+            allocator.free(cluster.members);
+        };
         for (clusters, 0..) |*cluster, i| {
             cluster.members = try allocator.alloc(u32, member_counts[i]);
+            members_initialized += 1;
         }
 
         var offsets = try allocator.alloc(usize, cluster_count);
@@ -532,8 +544,8 @@ pub const IvfPqIndex = struct {
         }
 
         const min_values = try allocator.alloc(f32, dim);
-        const max_values = try allocator.alloc(f32, dim);
         errdefer allocator.free(min_values);
+        const max_values = try allocator.alloc(f32, dim);
         errdefer allocator.free(max_values);
         initializeMinMax(min_values, max_values, records);
 

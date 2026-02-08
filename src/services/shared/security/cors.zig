@@ -191,6 +191,7 @@ pub const CorsHandler = struct {
                 try self.allocator.dupe(u8, "*")
             else
                 try self.allocator.dupe(u8, origin);
+            errdefer self.allocator.free(allow_origin);
 
             try headers.append(self.allocator, .{
                 .name = "Access-Control-Allow-Origin",

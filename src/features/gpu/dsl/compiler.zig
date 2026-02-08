@@ -142,8 +142,11 @@ pub fn compileAll(
 
     for (available) |target| {
         if (gpu_backend.backendSupportsKernels(target)) {
-            const src = compile(allocator, ir, target, options) catch continue;
-            try sources.append(allocator, src);
+            var src = compile(allocator, ir, target, options) catch continue;
+            sources.append(allocator, src) catch {
+                src.deinit(allocator);
+                continue;
+            };
         }
     }
 

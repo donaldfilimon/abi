@@ -145,10 +145,14 @@ pub const RbacManager = struct {
 
         const granted_by_copy = try self.allocator.dupe(u8, granted_by);
         errdefer self.allocator.free(granted_by_copy);
+        const user_id_copy = try self.allocator.dupe(u8, user_id);
+        errdefer self.allocator.free(user_id_copy);
+        const role_name_copy = try self.allocator.dupe(u8, role_name);
+        errdefer self.allocator.free(role_name_copy);
 
         const assignment = RoleAssignment{
-            .user_id = try self.allocator.dupe(u8, user_id),
-            .role_name = try self.allocator.dupe(u8, role_name),
+            .user_id = user_id_copy,
+            .role_name = role_name_copy,
             .granted_at = time.unixSeconds(),
             .granted_by = granted_by_copy,
             .expires_at = null,
@@ -156,7 +160,9 @@ pub const RbacManager = struct {
 
         var assignments = self.role_assignments.get(user_id) orelse blk: {
             const list = std.ArrayListUnmanaged(RoleAssignment).empty;
-            try self.role_assignments.put(self.allocator, try self.allocator.dupe(u8, user_id), list);
+            const key_copy = try self.allocator.dupe(u8, user_id);
+            errdefer self.allocator.free(key_copy);
+            try self.role_assignments.put(self.allocator, key_copy, list);
             break :blk self.role_assignments.get(user_id).?;
         };
         try assignments.append(self.allocator, assignment);
@@ -229,6 +235,7 @@ pub const RbacManager = struct {
     pub fn getUserRoles(self: *RbacManager, user_id: []const u8) []*const Role {
         const assignments = self.role_assignments.get(user_id) orelse return &.{};
         var result = std.ArrayListUnmanaged(*const Role).empty;
+        result.ensureTotalCapacity(self.allocator, assignments.items.len) catch return &.{};
         for (assignments.items) |assignment| {
             if (self.roles.get(assignment.role_name)) |role| {
                 result.appendAssumeCapacity(role);

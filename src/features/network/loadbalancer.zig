@@ -160,11 +160,11 @@ pub const LoadBalancer = struct {
             }
         }
 
-        try self.nodes.append(self.allocator, NodeState.init(
-            try self.allocator.dupe(u8, id),
-            try self.allocator.dupe(u8, address),
-            weight,
-        ));
+        const id_copy = try self.allocator.dupe(u8, id);
+        errdefer self.allocator.free(id_copy);
+        const addr_copy = try self.allocator.dupe(u8, address);
+        errdefer self.allocator.free(addr_copy);
+        try self.nodes.append(self.allocator, NodeState.init(id_copy, addr_copy, weight));
     }
 
     /// Remove a node from the load balancer pool.

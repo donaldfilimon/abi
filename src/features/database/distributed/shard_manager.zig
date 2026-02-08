@@ -14,7 +14,6 @@ const std = @import("std");
 const parent = @import("./mod.zig");
 const time = parent.time;
 const network = parent.network;
-const block_chain = parent.block_chain;
 
 pub const ShardManagerError = error{
     NodeNotFound,
@@ -143,6 +142,7 @@ pub const VirtualNode = struct {
 
     pub fn deinit(self: *VirtualNode, allocator: std.mem.Allocator) void {
         allocator.free(self.node_id);
+        allocator.free(self.physical_node);
     }
 };
 
@@ -183,9 +183,15 @@ pub const HashRing = struct {
             const base_hash = std.hash.Fnv1a_64.hash(node_id);
             const position_hash = base_hash ^ @as(u64, @intCast(i * 2654435761)); // Fibonacci hash
 
-            const vnode = try VirtualNode.init(self.allocator, try self.allocator.dupe(u8, node_id), position_hash, capacity_score);
-
-            try self.virtual_nodes.append(self.allocator, vnode);
+            const node_id_copy = try self.allocator.dupe(u8, node_id);
+            var vnode = VirtualNode.init(self.allocator, node_id_copy, position_hash, capacity_score) catch |err| {
+                self.allocator.free(node_id_copy);
+                return err;
+            };
+            self.virtual_nodes.append(self.allocator, vnode) catch |err| {
+                vnode.deinit(self.allocator);
+                return err;
+            };
         }
 
         // Re-sort positions

@@ -106,12 +106,22 @@ pub const MtlsConnection = struct {
         }
 
         // Store certificate info for later reference
+        const subject_cn = try self.allocator.dupe(u8, cert.common_name);
+        errdefer self.allocator.free(subject_cn);
+        const subject_o = try self.allocator.dupe(u8, cert.organization);
+        errdefer self.allocator.free(subject_o);
+        const issuer_cn = try self.allocator.dupe(u8, "CA"); // Would come from actual issuer
+        errdefer self.allocator.free(issuer_cn);
+        const issuer_o = try self.allocator.dupe(u8, cert.organization);
+        errdefer self.allocator.free(issuer_o);
+        const serial_number = try self.allocator.dupe(u8, "0");
+        errdefer self.allocator.free(serial_number);
         const cert_info = ClientCertificateInfo{
-            .subject_cn = try self.allocator.dupe(u8, cert.common_name),
-            .subject_o = try self.allocator.dupe(u8, cert.organization),
-            .issuer_cn = try self.allocator.dupe(u8, "CA"), // Would come from actual issuer
-            .issuer_o = try self.allocator.dupe(u8, cert.organization),
-            .serial_number = try self.allocator.dupe(u8, "0"),
+            .subject_cn = subject_cn,
+            .subject_o = subject_o,
+            .issuer_cn = issuer_cn,
+            .issuer_o = issuer_o,
+            .serial_number = serial_number,
             .not_before = cert.valid_from,
             .not_after = cert.valid_until,
             .is_valid = true,
@@ -300,7 +310,7 @@ pub const MtlsPolicy = struct {
     }
 
     pub fn setAllowedOus(self: *MtlsPolicy, ous: []const []const u8) !void {
-        self.allowed_cns = ous;
+        self.allowed_ous = ous;
     }
 };
 

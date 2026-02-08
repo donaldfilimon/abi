@@ -72,6 +72,7 @@ pub const Context = struct {
         agent_ptr.* = try Agent.init(self.allocator, .{ .name = name });
 
         const name_copy = try self.allocator.dupe(u8, name);
+        errdefer self.allocator.free(name_copy);
         try self.agents.put(self.allocator, name_copy, agent_ptr);
 
         return agent_ptr;
