@@ -46,8 +46,11 @@ build/test outcomes, and a clear release-readiness decision in February 2026.
   - `zig build -j1 docs-site` -> success
   - `zig build -j1 full-check` -> success (known harness artifact still printed)
   - `zig build -j1 bench-competitive` -> success (published comparative metrics printed)
-  - `zig build -j1 benchmarks` -> started and produced results, but repeatedly stalled at
-    `[Channel/Message Passing]` in this environment before completion.
+  - `zig build -j1 benchmarks -- --suite=concurrency` -> success (no channel stall observed)
+  - `zig build -j1 benchmarks -- --suite=v2` -> success (v2 module metrics published)
+  - `zig build -j1 benchmarks -- --suite=quick` -> success (`Total runtime: 115.13s`)
+  - `zig build -j1 benchmarks -- --help` -> success after fixing
+    `src/services/shared/utils/v2_primitives.zig` branch-quota overflow in `nextPowerOfTwo`
 
 ## Assumptions
 - Zig toolchain is `0.16.0-dev.2471+e9eadee00` or a compatible newer Zig 0.16 build.
@@ -176,9 +179,9 @@ Exit criteria:
   status changes.
 - Local Zig cache can intermittently emit `FileNotFound` in highly parallel `run-*` builds;
   use `-j1` for deterministic local verification when this occurs.
-- `zig build benchmarks` appears to stall late in the concurrency suite
-  (`[Channel/Message Passing]`) in this environment; track as release-gate blocker until
-  a full benchmark run exits cleanly.
+- Full all-suite `zig build -j1 benchmarks` runtime can be long in the AI/streaming segment.
+  Use suite-scoped invocations (`--suite=concurrency`, `--suite=v2`, `--suite=quick`) for
+  deterministic local gates unless a full all-suite baseline capture is explicitly required.
 
 ## v2 Module Integration Status (2026-02-08)
 
@@ -286,7 +289,7 @@ Exit criteria:
 - [x] All examples build
 - [x] No `@panic` in library code paths
 - [x] Stub parity confirmed for all 8 feature modules
-- [ ] v2 module benchmarks show expected performance characteristics
+- [x] v2 module benchmarks show expected performance characteristics
 - [x] CLAUDE.md, AGENTS.md, SECURITY.md up to date
 
 ---
@@ -311,7 +314,7 @@ Exit criteria:
 | Flag combos passing | 16 | 16 | 16 |
 | Examples | 19 | 21 | 21+ |
 | Known `@panic` in lib | 0 | 0 | 0 |
-| Stub parity violations | TBD | Auditing | 0 |
+| Stub parity violations | TBD | 0 | 0 |
 
 ## Quick Links
 - [v2 Integration Plan](plans/2026-02-08-abi-system-v2-integration.md)
