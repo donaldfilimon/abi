@@ -30,7 +30,21 @@ pub const Instant = struct {
             return error.Unsupported;
         }
 
-        // Use C clock_gettime on POSIX platforms
+        // Windows: use QueryPerformanceCounter
+        if (builtin.os.tag == .windows) {
+            if (@hasDecl(std.os, "windows")) {
+                const qpc = std.os.windows.QueryPerformanceCounter();
+                const freq = std.os.windows.QueryPerformanceFrequency();
+                if (freq > 0) {
+                    // Convert to nanoseconds: (counter * 1e9) / freq
+                    const nanos: u128 = @as(u128, @intCast(qpc)) * std.time.ns_per_s / @as(u128, @intCast(freq));
+                    return .{ .nanos = nanos };
+                }
+            }
+            return error.Unsupported;
+        }
+
+        // POSIX: use C clock_gettime
         if (@hasDecl(std, "c") and @hasDecl(std.c, "clock_gettime")) {
             var ts: std.c.timespec = undefined;
             // Use MONOTONIC clock (enum value varies by platform)
@@ -222,9 +236,11 @@ pub fn sleepNs(ns: u64) void {
             req = rem;
         }
     } else if (builtin.os.tag == .windows) {
-        // Windows: use kernel32.Sleep (milliseconds, rounded up)
-        const ms: u32 = @intCast(@min((ns + std.time.ns_per_ms - 1) / std.time.ns_per_ms, std.math.maxInt(u32)));
-        std.os.windows.kernel32.Sleep(ms);
+        // Windows: use NtDelayExecution with negative interval (relative time)
+        // Interval is in 100-nanosecond units, negative = relative
+        const hns = ns / 100;
+        const interval: std.os.windows.LARGE_INTEGER = -@as(i64, @intCast(@min(hns, @as(u64, @intCast(std.math.maxInt(i64))))));
+        _ = std.os.windows.ntdll.NtDelayExecution(0, &interval);
     } else {
         // Fallback: busy-wait (avoid if possible)
         const start = now() orelse return;

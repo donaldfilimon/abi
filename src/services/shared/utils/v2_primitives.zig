@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const time = @import("../time.zig");
 
 // --- Mathematical Utilities ------------------------------------------------
 
@@ -126,31 +127,29 @@ pub const String = struct {
 
 pub const Time = struct {
     pub const Stopwatch = struct {
-        timer: std.time.Timer,
+        timer: time.Timer,
 
         pub fn begin() Stopwatch {
             return .{
-                .timer = std.time.Timer.start() catch .{
-                    .started = .{ .sec = 0, .nsec = 0 },
+                .timer = time.Timer.start() catch .{
+                    .start_instant = .{ .nanos = 0 },
                 },
             };
         }
 
-        pub fn elapsed(self: Stopwatch) u64 {
+        pub fn elapsed(self: *Stopwatch) u64 {
             return self.timer.read();
         }
 
         pub fn lap(self: *Stopwatch) u64 {
-            const e = self.timer.read();
-            self.timer.reset();
-            return e;
+            return self.timer.lap();
         }
 
-        pub fn elapsedMs(self: Stopwatch) f64 {
+        pub fn elapsedMs(self: *Stopwatch) f64 {
             return @as(f64, @floatFromInt(self.elapsed())) / 1_000_000.0;
         }
 
-        pub fn elapsedUs(self: Stopwatch) f64 {
+        pub fn elapsedUs(self: *Stopwatch) f64 {
             return @as(f64, @floatFromInt(self.elapsed())) / 1_000.0;
         }
     };

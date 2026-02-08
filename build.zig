@@ -313,6 +313,8 @@ const example_targets = [_]BuildTarget{
     .{ .name = "example-registry", .step_name = "run-registry", .description = "Run feature registry example", .source_path = "examples/registry.zig" },
     .{ .name = "example-embeddings", .step_name = "run-embeddings", .description = "Run embeddings example", .source_path = "examples/embeddings.zig" },
     .{ .name = "example-config", .step_name = "run-config", .description = "Run configuration example", .source_path = "examples/config.zig" },
+    .{ .name = "example-tensor-ops", .step_name = "run-tensor-ops", .description = "Run tensor + matrix + SIMD example", .source_path = "examples/tensor_ops.zig" },
+    .{ .name = "example-concurrent-pipeline", .step_name = "run-concurrent-pipeline", .description = "Run channel + thread pool + DAG pipeline example", .source_path = "examples/concurrent_pipeline.zig" },
 };
 
 const benchmark_targets = [_]BuildTarget{
