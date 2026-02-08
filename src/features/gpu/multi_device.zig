@@ -38,6 +38,11 @@ const peer_transfer = @import("peer_transfer/mod.zig");
 const sync = @import("../../services/shared/sync.zig");
 const Mutex = sync.Mutex;
 
+// Re-export extracted submodules for build discovery
+pub const device_group_mod = @import("device_group.zig");
+pub const gpu_cluster_mod = @import("gpu_cluster.zig");
+pub const gradient_sync_mod = @import("gradient_sync.zig");
+
 /// Device identifier.
 pub const DeviceId = u32;
 

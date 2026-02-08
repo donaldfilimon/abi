@@ -267,6 +267,18 @@ comptime {
         _ = @import("platform.zig");
         // Built-in kernel tests (includes linalg, reduction, etc.)
         _ = @import("builtin_kernels.zig");
+        // Extracted submodule tests
+        _ = @import("dispatcher_test.zig");
+        _ = @import("multi_device_test.zig");
+        // Extracted type modules (compile-check)
+        _ = @import("dispatch_types.zig");
+        _ = @import("batched_dispatch.zig");
+        _ = @import("device_group.zig");
+        _ = @import("gpu_cluster.zig");
+        _ = @import("gradient_sync.zig");
+        // Backend extracted tests
+        _ = @import("backends/metal_test.zig");
+        _ = @import("backends/vulkan_test.zig");
     }
 }
 

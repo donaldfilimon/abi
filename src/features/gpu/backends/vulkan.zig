@@ -8,6 +8,9 @@
 
 const std = @import("std");
 
+// Re-export extracted type definitions for build discovery
+pub const vulkan_types = @import("vulkan_types.zig");
+
 // ============================================================================
 // Errors
 // ============================================================================

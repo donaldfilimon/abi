@@ -22,6 +22,9 @@ const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
 const fallback = @import("fallback.zig");
 
+// Re-export extracted type definitions for build discovery
+pub const metal_types = @import("metal_types.zig");
+
 pub const MetalError = error{
     InitializationFailed,
     DeviceNotFound,

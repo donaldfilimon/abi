@@ -47,6 +47,10 @@ const kernel_ring_mod = @import("kernel_ring.zig");
 
 const Mutex = sync.Mutex;
 
+// Re-export extracted submodules for build discovery
+pub const dispatch_types = @import("dispatch_types.zig");
+pub const batched_dispatch = @import("batched_dispatch.zig");
+
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
 const cublas = if (build_options.enable_gpu)
     @import("backends/cuda/cublas.zig")
