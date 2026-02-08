@@ -14,7 +14,7 @@ ABI is a Zig 0.16 framework with `src/abi.zig` as the public API root. Core layo
 - `src/services/`: shared runtime/platform infrastructure and test suites.
 - `src/services/tests/`: integration, parity, and stress tests.
 - `tests/`: additional top-level test harnesses.
-- `examples/`, `benchmarks/`, `bindings/`, `docs/`: samples, performance, language bindings, and docs.
+- `examples/`, `benchmarks/`, `docs/api/`: samples, performance, and auto-generated API docs.
 
 Import public APIs via `@import("abi")` rather than deep file paths. For feature-gated modules, keep `mod.zig` and `stub.zig` signatures aligned.
 

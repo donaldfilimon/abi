@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | 0.16.x (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 944 pass, 5 skip — must be maintained |
+| **Test baseline** | 980 pass, 5 skip — must be maintained |
 
 ## Build & Test Commands
 
@@ -31,17 +31,31 @@ zig build examples                           # Build all examples
 zig build check-wasm                         # Check WASM compilation
 ```
 
+### Running the CLI
+
+```bash
+zig build run -- --help                      # CLI help
+zig build run -- system-info                 # System and feature status
+zig build run -- plugins list                # List plugins
+```
+
 ### Feature Flags
 
 `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
 
-All features default to `true` except `-Denable-mobile`. Additional flags:
-`-Denable-web`, `-Denable-explore`, `-Denable-llm`, `-Denable-vision`,
-`-Denable-profiling`, `-Denable-analytics`. GPU backends: `auto`, `none`,
+All features default to `true` except `-Denable-mobile`. GPU backends: `auto`, `none`,
 `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`.
 
-**Note:** Cloud module is gated by `-Denable-web` (no separate flag).
-Observability is gated by `-Denable-profiling`.
+| Feature Module | Build Flag | Notes |
+|----------------|------------|-------|
+| `ai` | `-Denable-ai` | Also: `-Denable-llm`, `-Denable-vision`, `-Denable-explore` |
+| `analytics` | `-Denable-analytics` | |
+| `cloud` | `-Denable-web` | Shares flag with web (no separate flag) |
+| `database` | `-Denable-database` | |
+| `gpu` | `-Denable-gpu` | Backend selection via `-Dgpu-backend=` |
+| `network` | `-Denable-network` | |
+| `observability` | `-Denable-profiling` | Not `-Denable-observability` |
+| `web` | `-Denable-web` | Also gates cloud module |
 
 ## Critical Gotchas
 
@@ -190,7 +204,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Write integration tests | `src/services/tests/` |
 | Add a GPU backend | `src/features/gpu/backends/` |
 | Security infrastructure | `src/services/shared/security/` (16 modules) |
-| Language bindings | `bindings/` (C, Python, Go, JS, Rust) — build C lib first |
+| Generate API docs | `zig build gendocs` → `docs/api/` |
 | Examples | `examples/` (19 examples) |
 
 ## Environment Variables
@@ -222,7 +236,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Current baseline**: 944 pass, 5 skip (949 total). **This baseline must be maintained** — any
+**Current baseline**: 980 pass, 5 skip (985 total). **This baseline must be maintained** — any
 PR that reduces passing tests or increases skipped tests requires justification.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are
@@ -238,5 +252,4 @@ path — use `abi.<feature>` instead.
 
 - `AGENTS.md` — Project structure overview and v2 module notes
 - `CONTRIBUTING.md` — Development workflow and PR checklist
-- `docs/plan.md` — Development roadmap
-- `docs/deployment.md` — Production deployment
+- `docs/api/` — Auto-generated API docs (`zig build gendocs`)
