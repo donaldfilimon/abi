@@ -555,11 +555,14 @@ pub const Context = struct {
         // Convert config_module.GpuConfig to unified.GpuConfig
         const preferred_backend: ?Backend = switch (cfg.backend) {
             .auto => null,
-            .vulkan => .vulkan,
             .cuda => .cuda,
+            .vulkan => .vulkan,
+            .stdgpu => .stdgpu,
             .metal => .metal,
             .webgpu => .webgpu,
             .opengl => .opengl,
+            .opengles => .opengles,
+            .webgl2 => .webgl2,
             .fpga => .fpga,
             .cpu => .stdgpu, // CPU fallback uses stdgpu backend
         };

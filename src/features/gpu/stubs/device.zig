@@ -3,7 +3,7 @@ const backend_mod = @import("backend.zig");
 
 pub const Device = struct {
     id: u32 = 0,
-    backend: backend_mod.Backend = .cpu,
+    backend: backend_mod.Backend = .stdgpu,
     name: []const u8 = "disabled",
 };
 pub const DeviceType = enum { cpu, gpu, accelerator };
@@ -17,7 +17,7 @@ pub const DeviceCapability = struct {
 };
 pub const DeviceInfo = struct {
     id: u32 = 0,
-    backend: backend_mod.Backend = .cpu,
+    backend: backend_mod.Backend = .stdgpu,
     name: []const u8 = "disabled",
     total_memory_bytes: ?u64 = null,
     is_emulated: bool = true,

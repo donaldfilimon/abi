@@ -1,13 +1,15 @@
 const std = @import("std");
 
 pub const Backend = enum {
-    auto,
-    vulkan,
     cuda,
+    vulkan,
+    stdgpu,
     metal,
     webgpu,
     opengl,
-    cpu,
+    opengles,
+    webgl2,
+    fpga,
 };
 
 pub const BackendInfo = struct {

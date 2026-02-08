@@ -11,8 +11,11 @@
 //   FallbackAllocator  — Primary → fallback chain
 //   NullAllocator      — Always fails (sentinel / test stub)
 //
-// All vtables use the Zig 0.16 4-function signature:
-//   alloc, resize, remap, free
+// All vtables use the Zig 0.16 5-parameter signature:
+//   alloc(ctx, len, alignment, ret_addr) -> ?[*]u8
+//   resize(ctx, memory: []u8, alignment, new_len, ret_addr) -> bool
+//   remap(ctx, memory: []u8, alignment, new_len, ret_addr) -> ?[*]u8
+//   free(ctx, memory: []u8, alignment, ret_addr) -> void
 // ============================================================================
 
 const std = @import("std");
@@ -50,14 +53,14 @@ pub const TrackingAllocator = struct {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
         const result = self.backing.rawAlloc(len, alignment, ret_addr);
         if (result != null) {
-            _ = self.alloc_count.fetchAdd(1, .relaxed);
-            const new_bytes = self.bytes_allocated.fetchAdd(len, .relaxed) + len;
-            const freed = self.bytes_freed.load(.relaxed);
+            _ = self.alloc_count.fetchAdd(1, .monotonic);
+            const new_bytes = self.bytes_allocated.fetchAdd(len, .monotonic) + len;
+            const freed = self.bytes_freed.load(.monotonic);
             const current = new_bytes -| freed;
-            // Update peak (relaxed CAS loop)
-            var peak = self.peak_bytes.load(.relaxed);
+            // Update peak (monotonic CAS loop)
+            var peak = self.peak_bytes.load(.monotonic);
             while (current > peak) {
-                if (self.peak_bytes.cmpxchgWeak(peak, current, .relaxed, .relaxed)) |p| {
+                if (self.peak_bytes.cmpxchgWeak(peak, current, .monotonic, .monotonic)) |p| {
                     peak = p;
                 } else break;
             }
@@ -65,21 +68,21 @@ pub const TrackingAllocator = struct {
         return result;
     }
 
-    fn resizeFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, new_len: usize, alignment: std.mem.Alignment, ret_addr: usize) bool {
+    fn resizeFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
-        return self.backing.rawResize(buf, buf_len, new_len, alignment, ret_addr);
+        return self.backing.rawResize(memory, alignment, new_len, ret_addr);
     }
 
-    fn remapFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, new_len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+    fn remapFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
-        return self.backing.rawRemap(buf, buf_len, new_len, alignment, ret_addr);
+        return self.backing.rawRemap(memory, alignment, new_len, ret_addr);
     }
 
-    fn freeFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, alignment: std.mem.Alignment, ret_addr: usize) void {
+    fn freeFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
         const self: *TrackingAllocator = @ptrCast(@alignCast(ctx));
-        _ = self.free_count.fetchAdd(1, .relaxed);
-        _ = self.bytes_freed.fetchAdd(buf_len, .relaxed);
-        self.backing.rawFree(buf, buf_len, alignment, ret_addr);
+        _ = self.free_count.fetchAdd(1, .monotonic);
+        _ = self.bytes_freed.fetchAdd(memory.len, .monotonic);
+        self.backing.rawFree(memory, alignment, ret_addr);
     }
 
     // ── Statistics ──────────────────────────────────────────────
@@ -160,25 +163,25 @@ pub const LimitingAllocator = struct {
         return result;
     }
 
-    fn resizeFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, new_len: usize, alignment: std.mem.Alignment, ret_addr: usize) bool {
+    fn resizeFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *LimitingAllocator = @ptrCast(@alignCast(ctx));
-        if (new_len > buf_len) {
-            const diff = new_len - buf_len;
+        if (new_len > memory.len) {
+            const diff = new_len - memory.len;
             const cur = self.current.load(.acquire);
             if (cur + diff > self.limit) return false;
         }
-        return self.backing.rawResize(buf, buf_len, new_len, alignment, ret_addr);
+        return self.backing.rawResize(memory, alignment, new_len, ret_addr);
     }
 
-    fn remapFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, new_len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+    fn remapFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const self: *LimitingAllocator = @ptrCast(@alignCast(ctx));
-        return self.backing.rawRemap(buf, buf_len, new_len, alignment, ret_addr);
+        return self.backing.rawRemap(memory, alignment, new_len, ret_addr);
     }
 
-    fn freeFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, alignment: std.mem.Alignment, ret_addr: usize) void {
+    fn freeFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
         const self: *LimitingAllocator = @ptrCast(@alignCast(ctx));
-        _ = self.current.fetchSub(buf_len, .release);
-        self.backing.rawFree(buf, buf_len, alignment, ret_addr);
+        _ = self.current.fetchSub(memory.len, .release);
+        self.backing.rawFree(memory, alignment, ret_addr);
     }
 
     pub fn remaining(self: *const LimitingAllocator) usize {
@@ -222,30 +225,30 @@ pub const FallbackAllocator = struct {
             return result;
         }
 
-        _ = self.fallback_count.fetchAdd(1, .relaxed);
+        _ = self.fallback_count.fetchAdd(1, .monotonic);
         return self.secondary.rawAlloc(len, alignment, ret_addr);
     }
 
-    fn resizeFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, new_len: usize, alignment: std.mem.Alignment, ret_addr: usize) bool {
+    fn resizeFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *FallbackAllocator = @ptrCast(@alignCast(ctx));
-        if (self.primary.rawResize(buf, buf_len, new_len, alignment, ret_addr)) return true;
-        return self.secondary.rawResize(buf, buf_len, new_len, alignment, ret_addr);
+        if (self.primary.rawResize(memory, alignment, new_len, ret_addr)) return true;
+        return self.secondary.rawResize(memory, alignment, new_len, ret_addr);
     }
 
-    fn remapFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, new_len: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+    fn remapFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const self: *FallbackAllocator = @ptrCast(@alignCast(ctx));
-        if (self.primary.rawRemap(buf, buf_len, new_len, alignment, ret_addr)) |result| return result;
-        return self.secondary.rawRemap(buf, buf_len, new_len, alignment, ret_addr);
+        if (self.primary.rawRemap(memory, alignment, new_len, ret_addr)) |result| return result;
+        return self.secondary.rawRemap(memory, alignment, new_len, ret_addr);
     }
 
-    fn freeFn(ctx: *anyopaque, buf: [*]u8, buf_len: usize, alignment: std.mem.Alignment, ret_addr: usize) void {
+    fn freeFn(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
         const self: *FallbackAllocator = @ptrCast(@alignCast(ctx));
         // Determine ownership: try resizing to 0 on primary. If it succeeds,
         // the primary owns the allocation; otherwise free from secondary.
-        if (self.primary.rawResize(buf, buf_len, 0, alignment, ret_addr)) {
-            self.primary.rawFree(buf, buf_len, alignment, ret_addr);
+        if (self.primary.rawResize(memory, alignment, 0, ret_addr)) {
+            self.primary.rawFree(memory, alignment, ret_addr);
         } else {
-            self.secondary.rawFree(buf, buf_len, alignment, ret_addr);
+            self.secondary.rawFree(memory, alignment, ret_addr);
         }
     }
 
@@ -275,13 +278,13 @@ pub const NullAllocator = struct {
         return null;
     }
 
-    fn resizeFn(_: *anyopaque, _: [*]u8, _: usize, _: usize, _: std.mem.Alignment, _: usize) bool {
+    fn resizeFn(_: *anyopaque, _: []u8, _: std.mem.Alignment, _: usize, _: usize) bool {
         return false;
     }
 
-    fn remapFn(_: *anyopaque, _: [*]u8, _: usize, _: usize, _: std.mem.Alignment, _: usize) ?[*]u8 {
+    fn remapFn(_: *anyopaque, _: []u8, _: std.mem.Alignment, _: usize, _: usize) ?[*]u8 {
         return null;
     }
 
-    fn freeFn(_: *anyopaque, _: [*]u8, _: usize, _: std.mem.Alignment, _: usize) void {}
+    fn freeFn(_: *anyopaque, _: []u8, _: std.mem.Alignment, _: usize) void {}
 };

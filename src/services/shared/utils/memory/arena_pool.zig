@@ -17,6 +17,7 @@ const builtin = @import("builtin");
 // ─── Platform Constants ────────────────────────────────────────────────────
 
 const cache_line_size: usize = if (builtin.cpu.arch == .aarch64) 128 else 64;
+const cache_line_alignment: std.mem.Alignment = std.mem.Alignment.fromByteUnits(cache_line_size);
 const page_size: usize = 4096;
 const simd_alignment: usize = std.simd.suggestVectorLength(f32) orelse 4;
 const simd_byte_width: usize = simd_alignment * @sizeOf(f32);
@@ -54,7 +55,7 @@ pub const ArenaPool = struct {
 
     pub fn init(backing: std.mem.Allocator, config: Config) !Self {
         const size = alignUpVal(config.size, page_size);
-        const buf = try backing.alignedAlloc(u8, cache_line_size, size);
+        const buf = try backing.alignedAlloc(u8, cache_line_alignment, size);
         return Self{
             .buffer = buf,
             .offset = 0,
@@ -142,15 +143,15 @@ pub const ArenaPool = struct {
         return self.buffer.ptr + aligned_offset;
     }
 
-    fn arenaResizeFn(_: *anyopaque, _: [*]u8, _: usize, _: usize, _: std.mem.Alignment, _: usize) bool {
+    fn arenaResizeFn(_: *anyopaque, _: []u8, _: std.mem.Alignment, _: usize, _: usize) bool {
         return false; // arena doesn't support resize
     }
 
-    fn arenaRemapFn(_: *anyopaque, _: [*]u8, _: usize, _: usize, _: std.mem.Alignment, _: usize) ?[*]u8 {
+    fn arenaRemapFn(_: *anyopaque, _: []u8, _: std.mem.Alignment, _: usize, _: usize) ?[*]u8 {
         return null; // arena doesn't support remap
     }
 
-    fn arenaFreeFn(_: *anyopaque, _: [*]u8, _: usize, _: std.mem.Alignment, _: usize) void {
+    fn arenaFreeFn(_: *anyopaque, _: []u8, _: std.mem.Alignment, _: usize) void {
         // Arena doesn't free individual allocations — use reset()
     }
 };

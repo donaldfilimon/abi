@@ -430,7 +430,7 @@ pub fn availableBackends(allocator: std.mem.Allocator) Error![]Backend {
 }
 
 pub fn getBestBackend() Backend {
-    return .cpu;
+    return .stdgpu;
 }
 
 pub fn listBackendInfo(_: std.mem.Allocator) Error![]BackendInfo {

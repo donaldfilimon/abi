@@ -100,6 +100,12 @@ comptime {
     // Common test helpers and utilities
     _ = @import("helpers.zig");
 
+    // v2 module integration tests (SwissMap, ArenaPool, Channel, ThreadPool, DagPipeline)
+    _ = @import("v2_integration_test.zig");
+
+    // SIMD kernel validation (v2 kernels vs scalar reference)
+    _ = @import("simd_validation_test.zig");
+
     // Analytics module tests
     if (@hasDecl(build_options, "enable_analytics") and build_options.enable_analytics) {
         _ = abi.analytics;
