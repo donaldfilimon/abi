@@ -135,11 +135,12 @@ perf.data*
 
 *.core
 
-# Binary executables
+# Binary executables and object files
 *.exe
 *.dll
 *.so
 *.dylib
+*.o
 *.pdb
 *.pdb.*
 # Backup files

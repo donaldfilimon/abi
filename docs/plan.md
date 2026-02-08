@@ -16,6 +16,12 @@ build/test outcomes, and a clear release-readiness decision in February 2026.
   - `src/features/cloud/**` (header normalization for case-insensitive lookup and tests)
   - `src/services/runtime/**` (channel/thread-pool/pipeline cleanup and focused tests)
   - `src/services/shared/**` (utility cleanup and benchmark tests)
+- Completed Phase 6 documentation/examples closure:
+  - Added `examples/tensor_ops.zig` (tensor + matrix + SIMD demo)
+  - Added `examples/concurrent_pipeline.zig` (channel + thread pool + DAG pipeline demo)
+  - Updated existing examples where v2 references were beneficial (`examples/compute.zig`,
+    `examples/concurrency.zig`)
+  - Regenerated docs site with `zig build -j1 docs-site`
 - Closed a feature-toggle parity regression discovered during explicit spot-checking:
   - `zig build -Denable-web=false` initially failed due cloud stub error-set mismatch.
   - Fixed by extending `Framework.Error` cloud variants in `src/core/framework.zig`.
@@ -25,6 +31,23 @@ build/test outcomes, and a clear release-readiness decision in February 2026.
   - `zig build cli-tests` -> success
   - `zig build test --summary all` -> success (`944 pass`, `5 skip`)
   - `zig build full-check` -> success
+- Phase 6 verification evidence:
+  - `zig build examples` -> success
+  - `zig build -j1 run-tensor-ops` -> success
+  - `zig build -j1 run-concurrent-pipeline` -> success
+  - `zig build -j1 docs-site` -> success
+- Phase 7 release-gate verification evidence:
+  - `zig build -j1 validate-flags` -> success
+  - `zig build -j1 test --summary all` -> success (`944 pass`, `5 skip`)
+  - `zig build -j1 test -- --test-filter parity` -> success
+  - `rg -n "@panic\\(" src -g "*.zig" -g "!**/*test*.zig"` -> no runtime library `@panic` calls detected
+  - `zig build -j1 examples` -> success
+  - `zig build -j1 check-wasm` -> success
+  - `zig build -j1 docs-site` -> success
+  - `zig build -j1 full-check` -> success (known harness artifact still printed)
+  - `zig build -j1 bench-competitive` -> success (published comparative metrics printed)
+  - `zig build -j1 benchmarks` -> started and produced results, but repeatedly stalled at
+    `[Channel/Message Passing]` in this environment before completion.
 
 ## Assumptions
 - Zig toolchain is `0.16.0-dev.2471+e9eadee00` or a compatible newer Zig 0.16 build.
@@ -151,6 +174,11 @@ Exit criteria:
   `zig build test --summary all` / `zig build full-check` even when the build step exits `0`
   and reports `944/949` passing (`5` skipped). Treat as a known harness artifact unless exit
   status changes.
+- Local Zig cache can intermittently emit `FileNotFound` in highly parallel `run-*` builds;
+  use `-j1` for deterministic local verification when this occurs.
+- `zig build benchmarks` appears to stall late in the concurrency suite
+  (`[Channel/Message Passing]`) in this environment; track as release-gate blocker until
+  a full benchmark run exits cleanly.
 
 ## v2 Module Integration Status (2026-02-08)
 
@@ -232,12 +260,13 @@ Import chains verified: `abi.zig` -> `services/{shared,runtime}/mod.zig` -> sub-
       (problem statement, expected behavior, reproduction steps, environment, logs).
 - [x] Refresh `examples/gpu.zig` against current unified GPU API and validate with
       `zig build examples` to ensure docs/example parity.
-- [ ] Update all 19 examples to reference v2 types where beneficial
-- [ ] Add example: `examples/tensor_ops.zig` — demonstrate tensor + matrix + SIMD pipeline
-- [ ] Add example: `examples/concurrent_pipeline.zig` — demonstrate channel + thread pool + DAG
+- [x] Audit all 19 existing examples for v2 adoption and update where beneficial
+      (including `examples/compute.zig` and `examples/concurrency.zig`).
+- [x] Add example: `examples/tensor_ops.zig` — demonstrate tensor + matrix + SIMD pipeline
+- [x] Add example: `examples/concurrent_pipeline.zig` — demonstrate channel + thread pool + DAG
 - [x] Ensure CLAUDE.md and AGENTS.md reflect v2 module locations and import patterns
 - [x] Refresh `SECURITY.md` with v2 security review targets and ownership locations
-- [ ] Generate API docs: `zig build docs-site`
+- [x] Generate API docs: `zig build docs-site`
 
 ## Phase 7: Release Gate (2026-02-20 to 2026-02-21)
 
@@ -252,13 +281,13 @@ zig build docs-site            # documentation generates
 ```
 
 Exit criteria:
-- [ ] 944+ tests passing, 5 or fewer skipped
-- [ ] All feature flag combos compile (validate-flags green)
-- [ ] All examples build
-- [ ] No `@panic` in library code paths
-- [ ] Stub parity confirmed for all 8 feature modules
+- [x] 944+ tests passing, 5 or fewer skipped
+- [x] All feature flag combos compile (validate-flags green)
+- [x] All examples build
+- [x] No `@panic` in library code paths
+- [x] Stub parity confirmed for all 8 feature modules
 - [ ] v2 module benchmarks show expected performance characteristics
-- [ ] CLAUDE.md, AGENTS.md, SECURITY.md up to date
+- [x] CLAUDE.md, AGENTS.md, SECURITY.md up to date
 
 ---
 
@@ -268,7 +297,7 @@ Exit criteria:
 - 2026-02-09: Stub parity audit complete, any drift fixed.
 - 2026-02-11: v2 integration tests written and passing.
 - 2026-02-14: Feature completion and tech debt addressed.
-- 2026-02-16: Documentation and examples updated.
+- 2026-02-16: ~~Documentation and examples updated.~~ DONE
 - 2026-02-21: Release-readiness review and v0.4.1 go/no-go.
 
 ## Metrics Dashboard
@@ -280,7 +309,7 @@ Exit criteria:
 | Feature modules | 8 | 8 | 8 |
 | v2 modules integrated | 0 | 15 | 15 |
 | Flag combos passing | 16 | 16 | 16 |
-| Examples | 19 | 19 | 21+ |
+| Examples | 19 | 21 | 21+ |
 | Known `@panic` in lib | 0 | 0 | 0 |
 | Stub parity violations | TBD | Auditing | 0 |
 
