@@ -188,9 +188,9 @@ pub const ExploreResult = struct {
 
     pub fn deinit(_: *ExploreResult) void {}
 
-    pub fn formatHuman(_: *ExploreResult, _: anytype) void {}
+    pub fn formatHuman(_: *ExploreResult, _: anytype) !void {}
 
-    pub fn formatJSON(_: *ExploreResult, _: anytype) void {}
+    pub fn formatJSON(_: *ExploreResult, _: anytype) !void {}
 };
 
 pub const QueryIntent = enum {

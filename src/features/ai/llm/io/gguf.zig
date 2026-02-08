@@ -609,35 +609,14 @@ pub const GgufFile = struct {
         }
     }
 
-    /// Print summary using std.debug.print (for CLI usage)
+    /// Print summary to stderr (convenience wrapper for CLI usage)
     pub fn printSummaryDebug(self: *const GgufFile) void {
-        std.debug.print("GGUF Model Summary\n", .{});
-        std.debug.print("==================\n", .{});
-        std.debug.print("Version: {d}\n", .{self.header.version});
-        std.debug.print("Tensor count: {d}\n", .{self.header.tensor_count});
-        std.debug.print("Metadata count: {d}\n", .{self.header.metadata_kv_count});
-
-        if (self.getArchitecture()) |arch| {
-            std.debug.print("Architecture: {s}\n", .{arch});
-        }
-        if (self.getName()) |name| {
-            std.debug.print("Name: {s}\n", .{name});
-        }
-        if (self.getContextLength()) |ctx| {
-            std.debug.print("Context length: {d}\n", .{ctx});
-        }
-        if (self.getEmbeddingLength()) |emb| {
-            std.debug.print("Embedding dim: {d}\n", .{emb});
-        }
-        if (self.getBlockCount()) |blocks| {
-            std.debug.print("Layers: {d}\n", .{blocks});
-        }
-        if (self.getHeadCount()) |heads| {
-            std.debug.print("Attention heads: {d}\n", .{heads});
-        }
-        if (self.getVocabSize()) |vocab| {
-            std.debug.print("Vocab size: {d}\n", .{vocab});
-        }
+        const DebugWriter = struct {
+            pub fn print(_: @This(), comptime fmt: []const u8, args: anytype) !void {
+                std.debug.print(fmt, args);
+            }
+        };
+        self.printSummary(DebugWriter{}) catch {};
     }
 };
 

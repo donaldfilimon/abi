@@ -189,7 +189,7 @@ pub const KMeans = struct {
             self.inertia = self.calculateInertia(vectors);
 
             if (options.verbose and iteration % 10 == 0) {
-                std.debug.print("Iteration {d}: inertia = {d:.4}\n", .{ iteration, self.inertia });
+                std.log.debug("Iteration {d}: inertia = {d:.4}", .{ iteration, self.inertia });
             }
 
             // Check convergence
