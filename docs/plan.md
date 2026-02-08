@@ -228,14 +228,15 @@ Import chains verified: `abi.zig` -> `services/{shared,runtime}/mod.zig` -> sub-
 
 ## Phase 6: Documentation and Examples (2026-02-17 to 2026-02-19)
 
-- [ ] Define actionable issue intake fields in `.github/ISSUE_TEMPLATE/custom.md`
+- [x] Define actionable issue intake fields in `.github/ISSUE_TEMPLATE/custom.md`
       (problem statement, expected behavior, reproduction steps, environment, logs).
-- [ ] Refresh `examples/gpu.zig` against current unified GPU API and validate with
+- [x] Refresh `examples/gpu.zig` against current unified GPU API and validate with
       `zig build examples` to ensure docs/example parity.
 - [ ] Update all 19 examples to reference v2 types where beneficial
 - [ ] Add example: `examples/tensor_ops.zig` — demonstrate tensor + matrix + SIMD pipeline
 - [ ] Add example: `examples/concurrent_pipeline.zig` — demonstrate channel + thread pool + DAG
-- [ ] Ensure CLAUDE.md and AGENTS.md reflect v2 module locations and import patterns
+- [x] Ensure CLAUDE.md and AGENTS.md reflect v2 module locations and import patterns
+- [x] Refresh `SECURITY.md` with v2 security review targets and ownership locations
 - [ ] Generate API docs: `zig build docs-site`
 
 ## Phase 7: Release Gate (2026-02-20 to 2026-02-21)

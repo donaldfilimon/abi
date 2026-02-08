@@ -103,6 +103,9 @@ training_data.txt
 # ABI local user state
 .abi/
 
+# Development checkpoints and evaluation data
+checkpoints/
+
 # Auto Claude workspace data
 abi/
 

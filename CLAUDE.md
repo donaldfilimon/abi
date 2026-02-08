@@ -98,6 +98,26 @@ src/api/                 → Additional executable entry points (e.g., `main.zig
 Import convention: public API uses `@import("abi")`, internal modules import
 via their parent `mod.zig`. Never use direct file paths for cross-module imports.
 
+### v2 Integration Map
+
+The v2 adoption is wired through `shared` and `runtime` surfaces, not feature-local deep
+imports.
+
+| Area | Source Location | Public Access Path |
+|------|------------------|--------------------|
+| Primitive helpers | `src/services/shared/utils/v2_primitives.zig` | `abi.shared.utils.v2_primitives` |
+| Structured errors | `src/services/shared/utils/structured_error.zig` | `abi.shared.utils.structured_error` |
+| SwissMap | `src/services/shared/utils/swiss_map.zig` | `abi.shared.utils.swiss_map` |
+| ABIX serialization | `src/services/shared/utils/abix_serialize.zig` | `abi.shared.utils.abix_serialize` |
+| Profiler / benchmark | `src/services/shared/utils/{profiler,benchmark}.zig` | `abi.shared.utils.{profiler,benchmark}` |
+| Arena/combinator allocators | `src/services/shared/utils/memory/{arena_pool,combinators}.zig` | `abi.shared.memory.{ArenaPool,FallbackAllocator}` |
+| Vyukov channel | `src/services/runtime/concurrency/channel.zig` | `abi.runtime.Channel` |
+| Work-stealing thread pool | `src/services/runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
+| DAG pipeline scheduler | `src/services/runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
+
+When updating any entry above, verify import-chain stability:
+`src/abi.zig` -> `src/services/{shared,runtime}/mod.zig` -> sub-module.
+
 ### Framework Lifecycle
 
 The `Framework` struct (`src/core/framework.zig`) manages feature initialization through

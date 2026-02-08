@@ -74,6 +74,20 @@ Include reproduction steps, impact assessment, and suggested fixes.
 - **Secrets Management**: Use `src/services/shared/security/secrets.zig` for all credential handling. Secrets are encrypted in memory, audited on access, and never logged. Configure `SecretsConfig` with an appropriate `env_prefix` and enable `audit_logging`.
 - Avoid printing secret values or their hashes to logs; the `SecretsManager` ensures decryption occurs only in controlled code paths.
 
+## Security-Sensitive v2 Surfaces
+- Input parsing and wire formats:
+  - `src/services/shared/utils/abix_serialize.zig`
+  - `src/services/shared/utils/structured_error.zig`
+  - Review for bounds checks, size limits, and error-path consistency on untrusted input.
+- Hash-table behavior under adversarial keys:
+  - `src/services/shared/utils/swiss_map.zig`
+  - Validate collision behavior and avoid unbounded attacker-controlled growth.
+- Runtime concurrency primitives:
+  - `src/services/runtime/concurrency/channel.zig`
+  - `src/services/runtime/scheduling/thread_pool.zig`
+  - `src/services/runtime/scheduling/dag_pipeline.zig`
+  - Confirm bounded queueing/backpressure where exposed to external request volume.
+
 ## Additional Details
 The CLI is minimal by design; most deployments should embed ABI as a library.
 

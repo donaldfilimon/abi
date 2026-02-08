@@ -409,8 +409,9 @@ pub fn parseJsonHeaderMap(
     return out;
 }
 
-/// Clone a StringHashMap preserving existing keys.
-pub fn cloneStringMapLowercase(
+/// Clone a StringHashMap, preserving original keys.
+/// CloudEvent.getHeader performs case-insensitive lookup at query time.
+pub fn cloneStringMap(
     allocator: std.mem.Allocator,
     source: std.StringHashMap([]const u8),
 ) !std.StringHashMap([]const u8) {

@@ -309,10 +309,10 @@ pub fn Result(comptime T: type, comptime E: type) type {
             return self == .err;
         }
 
-        pub fn unwrap(self: Self) T {
+        pub fn unwrap(self: Self) error{UnwrapError}!T {
             return switch (self) {
                 .ok => |val| val,
-                .err => @panic("unwrap() called on error Result"),
+                .err => error.UnwrapError,
             };
         }
 
@@ -323,9 +323,9 @@ pub fn Result(comptime T: type, comptime E: type) type {
             };
         }
 
-        pub fn unwrapErr(self: Self) E {
+        pub fn unwrapErr(self: Self) error{UnwrapError}!E {
             return switch (self) {
-                .ok => @panic("unwrapErr() called on ok Result"),
+                .ok => error.UnwrapError,
                 .err => |e| e,
             };
         }

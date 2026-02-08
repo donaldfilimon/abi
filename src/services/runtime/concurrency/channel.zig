@@ -87,6 +87,9 @@ pub fn Channel(comptime T: type) type {
                 std.Thread.yield() catch {};
             } else {
                 std.Thread.yield() catch {};
+                // After many spins, back off more aggressively
+                std.atomic.spinLoopHint();
+                std.atomic.spinLoopHint();
             }
         }
 

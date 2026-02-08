@@ -36,7 +36,7 @@ pub const InvocationMetadata = types.InvocationMetadata;
 // Shared helpers from types.zig
 const jsonStringOrNull = types.jsonStringOrNull;
 const parseJsonStringMap = types.parseJsonStringMap;
-const cloneStringMapLowercase = types.cloneStringMapLowercase;
+const cloneStringMap = types.cloneStringMap;
 const parseJsonRoot = types.parseJsonRoot;
 
 /// GCP Functions runtime configuration.
@@ -165,7 +165,7 @@ pub fn parseHttpRequest(
     event.body = body;
 
     // Clone headers
-    event.headers = try cloneStringMapLowercase(allocator, headers);
+    event.headers = try cloneStringMap(allocator, headers);
 
     // Parse query parameters from path
     if (std.mem.indexOf(u8, path, "?")) |query_start| {
