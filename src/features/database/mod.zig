@@ -125,6 +125,10 @@ pub const parallel_hnsw = @import("parallel_hnsw.zig");
 pub const hnsw = @import("hnsw.zig");
 pub const index = @import("index.zig");
 
+// HNSW sub-modules (extracted for modularity)
+pub const search_state = @import("search_state.zig");
+pub const distance_cache = @import("distance_cache.zig");
+
 pub const Database = database.Database;
 pub const DatabaseHandle = wdbx.DatabaseHandle;
 pub const SearchResult = wdbx.SearchResult;
@@ -516,4 +520,11 @@ test "database module init gating" {
     try std.testing.expect(isInitialized());
     deinit();
     try std.testing.expect(!isInitialized());
+}
+
+// Test discovery for extracted test files
+comptime {
+    if (@import("builtin").is_test) {
+        _ = @import("hnsw_test.zig");
+    }
 }
