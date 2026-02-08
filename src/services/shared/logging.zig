@@ -13,6 +13,9 @@ pub const Level = enum {
 
 var log_mutex: sync.Mutex = .{};
 
+/// Low-level log backend — writes directly to stderr via std.debug.print.
+/// This is intentional: std.log would create a circular dependency since
+/// this module IS the log implementation layer.
 pub fn log(level: Level, comptime fmt: []const u8, args: anytype) void {
     log_mutex.lock();
     defer log_mutex.unlock();

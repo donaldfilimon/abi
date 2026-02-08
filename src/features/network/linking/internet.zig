@@ -156,13 +156,13 @@ pub const NatTraversal = struct {
         pub fn format(self: Address) [64]u8 {
             var result: [64]u8 = undefined;
             if (self.is_ipv6) {
-                // Format IPv6 - buffer is 64 bytes, max IPv6:port is ~47 chars
+                // SAFETY: buffer is 64 bytes, max IPv6 "[xxxx:...:xxxx]:65535" is ~47 chars - cannot overflow
                 _ = std.fmt.bufPrint(&result, "[{x}]:{d}", .{
                     std.mem.readInt(u128, &self.ip, .big),
                     self.port,
                 }) catch unreachable;
             } else {
-                // Format IPv4 - buffer is 64 bytes, max IPv4:port is ~21 chars
+                // SAFETY: buffer is 64 bytes, max IPv4 "255.255.255.255:65535" is 21 chars - cannot overflow
                 _ = std.fmt.bufPrint(&result, "{d}.{d}.{d}.{d}:{d}", .{
                     self.ip[12],
                     self.ip[13],

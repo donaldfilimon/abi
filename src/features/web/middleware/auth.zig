@@ -223,7 +223,7 @@ pub fn generateApiKey(allocator: std.mem.Allocator) ![]u8 {
     var key: [32]u8 = undefined;
     std.crypto.random.bytes(&key);
 
-    // Convert to hex
+    // SAFETY: 32 bytes × 2 hex chars = 64 chars, buffer is exactly 64 bytes - cannot overflow
     var hex: [64]u8 = undefined;
     _ = std.fmt.bufPrint(&hex, "{s}", .{std.fmt.fmtSliceHexLower(&key)}) catch unreachable;
 
