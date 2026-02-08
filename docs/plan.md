@@ -152,13 +152,135 @@ Exit criteria:
   and reports `944/949` passing (`5` skipped). Treat as a known harness artifact unless exit
   status changes.
 
+## v2 Module Integration Status (2026-02-08)
+
+15 modules from abi-system-v2.0 integrated and committed (`7175ac18`):
+
+| Module | Location | Status | Tests |
+|--------|----------|--------|-------|
+| v2_primitives | `shared/utils/v2_primitives.zig` | Wired | Inline |
+| structured_error | `shared/utils/structured_error.zig` | Wired | Inline |
+| swiss_map | `shared/utils/swiss_map.zig` | Wired | Inline |
+| abix_serialize | `shared/utils/abix_serialize.zig` | Wired | Inline |
+| profiler | `shared/utils/profiler.zig` | Wired | Inline |
+| benchmark | `shared/utils/benchmark.zig` | Wired | Inline |
+| arena_pool | `shared/utils/memory/arena_pool.zig` | Wired | Inline |
+| combinators | `shared/utils/memory/combinators.zig` | Wired | Inline |
+| tensor | `shared/tensor.zig` | Wired | Inline |
+| matrix | `shared/matrix.zig` | Wired | Inline |
+| channel | `runtime/concurrency/channel.zig` | Wired | Inline |
+| thread_pool | `runtime/scheduling/thread_pool.zig` | Wired | Inline |
+| dag_pipeline | `runtime/scheduling/dag_pipeline.zig` | Wired | Inline |
+| simd (7 kernels) | `shared/simd.zig` | Extended | Existing |
+| v2 benchmarks | `benchmarks/infrastructure/v2_modules.zig` | Wired | N/A |
+
+Import chains verified: `abi.zig` -> `services/{shared,runtime}/mod.zig` -> sub-modules.
+
+### v2 Modules Intentionally Skipped
+- `config.zig` — framework already has layered config system
+- `gpu.zig` — existing GPU module is far more complete (11 backends)
+- `cli.zig` — existing CLI has 24 commands
+- `main.zig` — entry point, not applicable
+
+---
+
+## Phase 4: v2 Hardening (2026-02-09 to 2026-02-11)
+
+### 4.1 Integration Testing
+- [ ] Write integration tests exercising v2 modules through `abi.shared.*` and `abi.runtime.*`
+- [ ] Verify `SwissMap` works with all key types used in the codebase
+- [ ] Test `ArenaPool` under concurrent access (thread safety)
+- [ ] Test `Channel` (Vyukov MPMC) under high contention with multiple producers/consumers
+- [ ] Test `ThreadPool` work-stealing with varying task granularity
+- [ ] Test `DagPipeline` with diamond dependency graphs and error propagation
+- [ ] Verify `FallbackAllocator` ownership detection (rawResize probe pattern)
+
+### 4.2 SIMD Kernel Validation
+- [ ] Verify SIMD kernels produce correct results vs scalar fallbacks
+- [ ] Test euclidean distance, softmax, saxpy, reduce_sum, reduce_max, reduce_min, scale
+- [ ] Confirm `@Vector` operations work on target architectures (x86_64, aarch64)
+- [ ] Benchmark SIMD vs scalar performance ratios
+
+### 4.3 Benchmark Integration
+- [ ] Wire `benchmarks/infrastructure/v2_modules.zig` into `zig build benchmarks`
+- [ ] Establish baseline performance numbers for v2 data structures
+- [ ] Compare `SwissMap` vs `std.HashMap` performance
+- [ ] Compare `ArenaPool` vs raw `ArenaAllocator` performance
+
+## Phase 5: Feature Completion (2026-02-12 to 2026-02-16)
+
+### 5.1 Remaining v2 Patterns to Harvest
+- [ ] BufferPool staging pattern from v2 `gpu.zig` — evaluate for GPU module
+- [ ] Validation patterns from v2 `config.zig` — evaluate for config builder
+
+### 5.2 Known Technical Debt
+- [ ] Three `Backend` enums with different members across GPU backends — unify
+- [ ] Inconsistent error naming across GPU backends — standardize
+- [ ] `createCorsMiddleware` limitation: Zig fn pointers can't capture config (always permissive)
+- [ ] Cloud `CloudConfig` type mismatch: `core/config/cloud.zig` vs `features/cloud/types.zig`
+- [ ] `TODO(gpu-tests)`: Enable GPU kernel tests once mock backend suppresses error logging
+
+### 5.3 Security Hardening
+- [ ] Audit v2 modules for unsafe patterns (unbounded allocations, panics in library code)
+- [ ] Verify no `@panic` in library paths (should return errors)
+- [ ] Review `abix_serialize.zig` for buffer overflow potential with untrusted input
+- [ ] Review `swiss_map.zig` hash collision resilience
+
+## Phase 6: Documentation and Examples (2026-02-17 to 2026-02-19)
+
+- [ ] Update all 19 examples to reference v2 types where beneficial
+- [ ] Add example: `examples/tensor_ops.zig` — demonstrate tensor + matrix + SIMD pipeline
+- [ ] Add example: `examples/concurrent_pipeline.zig` — demonstrate channel + thread pool + DAG
+- [ ] Ensure CLAUDE.md and AGENTS.md reflect v2 module locations and import patterns
+- [ ] Generate API docs: `zig build docs-site`
+
+## Phase 7: Release Gate (2026-02-20 to 2026-02-21)
+
+Final release criteria for v0.4.1:
+
+```sh
+zig build full-check          # format + build + test + validate-flags
+zig build examples             # all 19+ examples compile
+zig build benchmarks           # benchmarks compile and run
+zig build check-wasm           # WASM target compiles
+zig build docs-site            # documentation generates
+```
+
+Exit criteria:
+- [ ] 944+ tests passing, 5 or fewer skipped
+- [ ] All feature flag combos compile (validate-flags green)
+- [ ] All examples build
+- [ ] No `@panic` in library code paths
+- [ ] Stub parity confirmed for all 8 feature modules
+- [ ] v2 module benchmarks show expected performance characteristics
+- [ ] CLAUDE.md, AGENTS.md, SECURITY.md up to date
+
+---
+
 ## Near-Term Milestones (February 2026)
-- 2026-02-08: Baseline captured and ownership map confirmed.
-- 2026-02-10: First full parity pass complete for active feature workstreams.
-- 2026-02-12: Validation matrix run and failures triaged with assigned owners.
-- 2026-02-14: Shared integration branch reaches green gate state.
-- 2026-02-16: Release-readiness review and go/no-go outcome.
+- 2026-02-08: ~~Baseline captured and ownership map confirmed.~~ DONE
+- 2026-02-08: ~~v2 module integration (15 modules).~~ DONE (commit `7175ac18`)
+- 2026-02-09: Stub parity audit complete, any drift fixed.
+- 2026-02-11: v2 integration tests written and passing.
+- 2026-02-14: Feature completion and tech debt addressed.
+- 2026-02-16: Documentation and examples updated.
+- 2026-02-21: Release-readiness review and v0.4.1 go/no-go.
+
+## Metrics Dashboard
+
+| Metric | Baseline | Current | Target |
+|--------|----------|---------|--------|
+| Tests passing | 944 | 944 | 950+ |
+| Tests skipped | 5 | 5 | 5 or fewer |
+| Feature modules | 8 | 8 | 8 |
+| v2 modules integrated | 0 | 15 | 15 |
+| Flag combos passing | 16 | 16 | 16 |
+| Examples | 19 | 19 | 21+ |
+| Known `@panic` in lib | 0 | 0 | 0 |
+| Stub parity violations | TBD | Auditing | 0 |
 
 ## Quick Links
+- [v2 Integration Plan](plans/2026-02-08-abi-system-v2-integration.md)
+- [Ralph Loop Eval](plans/2026-02-08-ralph-loop-zig016-multi-agent-eval.md)
 - [Roadmap](roadmap.md)
 - [CLAUDE.md](../CLAUDE.md)
