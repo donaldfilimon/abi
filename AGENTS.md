@@ -3,6 +3,9 @@
 For deeper architecture notes, see `CLAUDE.md`. For vulnerability reporting and security
 practices, see `SECURITY.md`.
 
+**AI agents**: Claude Code (Cursor) and Codex share `.cursorrules` and these docs for
+consistent behavior.
+
 ## Project Structure & Module Organization
 ABI is a Zig 0.16 framework with `src/abi.zig` as the public API root. Core layout:
 - `src/api/`: executable entry points (`main.zig`).
@@ -33,6 +36,7 @@ Import public APIs via `@import("abi")` rather than deep file paths. For feature
 
 ## Build, Test, and Development Commands
 - `zig build`: build with default feature flags.
+- `zig build run -- plugins list`: list ABI plugins.
 - `zig build run -- --help`: run CLI entry point.
 - `zig build test --summary all`: run full test suite.
 - `zig test src/path/to/file.zig --test-filter "pattern"`: run focused tests.

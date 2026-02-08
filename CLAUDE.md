@@ -2,35 +2,45 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Read `AGENTS.md` first for baseline rules (project structure, commands, coding style,
-testing, and commit/PR conventions). This file adds deeper architectural context.
+## Quick Reference
 
 | Key | Value |
 |-----|-------|
-| **Zig Required** | 0.16.x (`0.16.0-dev.2471+e9eadee00`+) — pinned in `.zigversion` |
+| **Zig** | 0.16.x (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
+| **Test baseline** | 944 pass, 5 skip — must be maintained |
 
-## Build Commands
+## Build & Test Commands
 
-Baseline build/test/fmt commands are in `AGENTS.md`. This list covers extended commands.
+Use `./zigw` instead of `zig` to ensure the pinned toolchain version from `.zigversion` is used.
+If your system `zig` is already 0.16.x, plain `zig` works too.
 
 ```bash
+zig build                                    # Build with default flags
+zig build test --summary all                 # Run full test suite
+zig test src/path/to/file.zig                # Test a single file
+zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
+zig fmt .                                    # Format all source
+zig build full-check                         # Format + tests + flag validation + CLI smoke tests
+zig build validate-flags                     # Compile-check 16 feature flag combos
+zig build cli-tests                          # CLI smoke tests
+zig build lint                               # CI formatting check
 zig build benchmarks                         # Performance benchmarks
 zig build examples                           # Build all examples
-zig build bench-all                          # All benchmark suites
-zig build docs-site                          # Generate documentation website
 zig build check-wasm                         # Check WASM compilation
 ```
 
-Feature flags: `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
+### Feature Flags
+
+`zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
 
 All features default to `true` except `-Denable-mobile`. Additional flags:
 `-Denable-web`, `-Denable-explore`, `-Denable-llm`, `-Denable-vision`,
-`-Denable-profiling`, `-Denable-analytics`. GPU backends accept comma-separated values: `auto`, `none`,
+`-Denable-profiling`, `-Denable-analytics`. GPU backends: `auto`, `none`,
 `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`.
 
-**Note:** Cloud module has no separate flag — it is gated by `-Denable-web` (intentional coupling).
+**Note:** Cloud module is gated by `-Denable-web` (no separate flag).
 Observability is gated by `-Denable-profiling`.
 
 ## Critical Gotchas
@@ -42,13 +52,17 @@ These are the mistakes most likely to cause compilation failures:
 | `std.fs.cwd()` | `std.Io.Dir.cwd()` — Zig 0.16 moved filesystem to I/O backend |
 | `std.time.Instant.now()` for elapsed time | `std.time.Timer.start()` — use Timer for benchmarks/elapsed |
 | `list.init()` | `std.ArrayListUnmanaged(T).empty` |
-| `@tagName(x)` in format | `{t}` format specifier for errors and enums |
-| Editing `mod.zig` only | Update `stub.zig` to match exported signatures (see `AGENTS.md`) |
+| `@tagName(x)` / `@errorName(e)` in format | `{t}` format specifier for errors and enums |
+| Editing `mod.zig` only | Update `stub.zig` to match exported signatures |
 | `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
+| `file.read()` / `file.write()` | `file.reader(io).read()` / `file.writer(io).write()` — I/O ops need `io` handle |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
 | `std.time.nanoTimestamp()` | Doesn't exist in 0.16 — use `Instant.now()` + `.since(anchor)` for absolute time |
-| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in 0.16: `.type`, `.@"fn"`, `.@"struct"` |
+| `std.process.getEnvVar()` | Doesn't exist in 0.16 — use `std.c.getenv()` for POSIX |
+| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in 0.16: `.type`, `.@"fn"`, `.@"struct"`, `.@"enum"`, `.@"union"` |
 | `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
+| `defer allocator.free(x)` then return `x` | Use `errdefer` — `defer` frees on success too (use-after-free) |
+| `@panic` in library code | Return an error instead — library code should never panic |
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -79,8 +93,7 @@ else
 
 This means:
 - Every feature directory has `mod.zig` (real) and `stub.zig` (stub)
-- `mod.zig` and `stub.zig` must keep matching public signatures (baseline rule in
-  `AGENTS.md`)
+- `mod.zig` and `stub.zig` must keep matching public signatures
 - Test both paths: `zig build -Denable-<feature>=true` and `=false`
 - Disabled features have zero binary overhead
 
@@ -192,9 +205,20 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | `ABI_MASTER_KEY` | Secrets encryption (production) |
 | `DISCORD_BOT_TOKEN` | Discord bot token |
 
+## Coding Style
+
+- 4 spaces, no tabs; lines under 100 chars
+- `PascalCase` types, `camelCase` functions/variables, `*Config` for config structs
+- Explicit imports only (no `usingnamespace`); prefer `std.ArrayListUnmanaged`
+- Always `zig fmt .` before committing
+- Import public API via `@import("abi")`, not deep file paths
+- Feature modules cannot `@import("abi")` (circular) — use relative imports to `services/shared/`
+- `std.log.*` in library code; `std.debug.print` only in CLI tools and display functions
+
 ## Commit Convention
 
-Use the Conventional Commit guidance in `AGENTS.md`.
+`<type>: <short summary>` — types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
+Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
@@ -212,11 +236,7 @@ path — use `abi.<feature>` instead.
 
 ## References
 
-| Document | Purpose |
-|----------|---------|
-| `AGENTS.md` | Baseline rules, code style, Zig 0.16 migration table |
-| `CONTRIBUTING.md` | Development workflow |
-| `docs/plan.md` | Development roadmap |
-| `docs/deployment.md` | Production deployment |
-| `SECURITY.md` | Security practices |
-| `~/.claude/projects/.../memory/` | Auto memory: Records learnings across sessions (200 line limit in MEMORY.md) |
+- `AGENTS.md` — Project structure overview and v2 module notes
+- `CONTRIBUTING.md` — Development workflow and PR checklist
+- `docs/plan.md` — Development roadmap
+- `docs/deployment.md` — Production deployment

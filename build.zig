@@ -1,4 +1,18 @@
 const std = @import("std");
+const builtin = @import("builtin");
+
+comptime {
+    if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16) {
+        @compileError(std.fmt.comptimePrint(
+            "ABI requires Zig 0.16.0 or newer (detected {d}.{d}.{d}).\nUse ./zigw <command> in this repository.",
+            .{
+                builtin.zig_version.major,
+                builtin.zig_version.minor,
+                builtin.zig_version.patch,
+            },
+        ));
+    }
+}
 
 // ============================================================================
 // GPU Backend Configuration
@@ -323,8 +337,13 @@ const benchmark_targets = [_]BuildTarget{
 };
 
 fn pathExists(b: *std.Build, path: []const u8) bool {
-    // Use Build's I/O context for Zig 0.16 compatibility
-    b.build_root.handle.access(b.graph.io, path, .{}) catch return false;
+    if (builtin.zig_version.minor >= 16) {
+        // Zig 0.16+: access(io, sub_path, flags)
+        b.build_root.handle.access(b.graph.io, path, .{}) catch return false;
+    } else {
+        // Zig 0.15: access(sub_path, flags)
+        b.build_root.handle.access(path, .{}) catch return false;
+    }
     return true;
 }
 
@@ -361,7 +380,6 @@ fn buildTargets(
         const run = b.addRunArtifact(exe);
         if (b.args) |args| run.addArgs(args);
         const step = b.step(t.step_name, t.description);
-        step.dependOn(b.getInstallStep());
         step.dependOn(&run.step);
         if (aggregate) |agg| {
             if (aggregate_runs) {
@@ -464,7 +482,6 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(exe);
 
     const run_cli = b.addRunArtifact(exe);
-    run_cli.step.dependOn(b.getInstallStep());
     if (b.args) |args| run_cli.addArgs(args);
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
@@ -495,8 +512,11 @@ pub fn build(b: *std.Build) void {
     // ---------------------------------------------------------------------------
     // Lint step (formatting check)
     // ---------------------------------------------------------------------------
-    const lint_cmd = b.addSystemCommand(&[_][]const u8{ "zig", "fmt", "--check", "." });
-    b.step("lint", "Check code formatting").dependOn(&lint_cmd.step);
+    const lint_fmt = b.addFmt(.{
+        .paths = &.{"."},
+        .check = true,
+    });
+    b.step("lint", "Check code formatting").dependOn(&lint_fmt.step);
 
     // ---------------------------------------------------------------------------
     // Tests - defined before full-check to allow step dependency
@@ -523,7 +543,7 @@ pub fn build(b: *std.Build) void {
     // Cross-platform: chains format check, tests, CLI smoke tests, and flag matrix
     // ---------------------------------------------------------------------------
     const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and flag validation");
-    full_check_step.dependOn(&lint_cmd.step);
+    full_check_step.dependOn(&lint_fmt.step);
     if (test_step) |ts| {
         full_check_step.dependOn(ts);
     }
