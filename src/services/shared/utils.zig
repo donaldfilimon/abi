@@ -680,27 +680,8 @@ pub const benchmark = @import("utils/benchmark.zig");
 /// Configurable retry policies for web requests.
 pub const http_retry = @import("utils/retry.zig");
 
-// ============================================================================
-// Top-level Shared Module Re-exports
-// ============================================================================
-
-/// Logging infrastructure with scoped loggers.
-pub const logging = @import("logging.zig");
-
-/// Operating system abstraction layer.
-pub const os = @import("os.zig");
-
-/// Platform detection: OS, architecture, capabilities.
-pub const platform = @import("platform.zig");
-
-/// Plugin registry and lifecycle management.
-pub const plugins = @import("plugins.zig");
-
-/// SIMD vector operations with automatic fallback.
-pub const simd = @import("simd.zig");
-
-/// Platform-aware time utilities.
-pub const time = @import("time.zig");
+// Note: Top-level shared modules (logging, os, platform, plugins, simd, time)
+// are exported via shared/mod.zig. Access them as abi.shared.<module>.
 
 // ============================================================================
 // Tests

@@ -27,16 +27,8 @@ pub const chase_lev = @import("chase_lev.zig");
 pub const mpmc = @import("mpmc_queue.zig");
 pub const channel_mod = @import("channel.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../../shared/sync.zig");
+const Mutex = sync.Mutex;
 
 // Lock-free structures
 pub const LockFreeQueue = lockfree.LockFreeQueue;

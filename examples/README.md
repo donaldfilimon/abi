@@ -3,10 +3,10 @@ title: "Examples"
 tags: [examples, tutorials, getting-started]
 ---
 # ABI Framework Examples
-> **Codebase Status:** Synced with repository as of 2026-02-05.
+> **Codebase Status:** Synced with repository as of 2026-02-08.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Examples-18-blue?style=for-the-badge" alt="18 Examples"/>
+  <img src="https://img.shields.io/badge/Examples-21-blue?style=for-the-badge" alt="21 Examples"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
   <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
 </p>
@@ -53,7 +53,8 @@ zig build run-agent
 
 ### compute.zig
 
-Compute engine task execution and result handling.
+SIMD compute operations including dot product, cosine similarity, and vector addition
+with v2 platform detection.
 
 **Run:**
 
@@ -69,6 +70,29 @@ Lock-free concurrency primitives (MPMC queue, Chase-Lev deque).
 
 ```bash
 zig build run-concurrency
+```
+
+### concurrent_pipeline.zig
+
+Multi-stage concurrent pipeline using v2 runtime primitives: Channel for stage
+handoff with backpressure, ThreadPool for parallel stage work, and DagPipeline
+for dependency orchestration.
+
+**Run:**
+
+```bash
+zig build run-concurrent-pipeline
+```
+
+### tensor_ops.zig
+
+Tensor and matrix operations using the v2 shared math modules. Demonstrates
+element-wise operations, matrix multiplication, and SIMD-accelerated kernels.
+
+**Run:**
+
+```bash
+zig build run-tensor-ops
 ```
 
 ### gpu.zig
@@ -116,7 +140,7 @@ zig build run-discord
 
 ### orchestration.zig
 
-Multi-model routing and ensemble orchestration example.
+Multi-model routing with ensemble and fallback policies.
 
 **Run:**
 
@@ -164,26 +188,6 @@ Local LLM inference with GGUF models.
 
 ```bash
 zig build -Denable-llm=true run-llm -- path/to/model.gguf
-```
-
-### orchestration.zig
-
-Multi-model routing with ensemble and fallback policies.
-
-**Run:**
-
-```bash
-zig build -Denable-ai=true run-orchestration
-```
-
-### orchestration.zig
-
-Multi-model orchestration (routing, fallback, ensemble).
-
-**Run:**
-
-```bash
-zig build run-orchestration
 ```
 
 ### train_ava.zig
@@ -300,6 +304,7 @@ zig build run-database
 zig build run-agent
 zig build run-compute
 zig build run-concurrency
+zig build run-concurrent-pipeline
 zig build run-config
 zig build run-discord
 zig build run-embeddings
@@ -311,10 +316,10 @@ zig build run-observability
 zig build run-orchestration
 zig build run-registry
 zig build run-streaming
+zig build run-tensor-ops
 zig build run-training
 zig build run-train-ava
 zig build run-train-demo
-zig build run-ha
 ```
 
 ## Running Benchmarks
@@ -330,7 +335,7 @@ zig build benchmarks
 
 1. **Start with `hello.zig`** - Learn basic framework initialization
 2. **Try `database.zig`** - Understand vector storage and search
-3. **Explore `compute.zig`** - Learn about task execution
+3. **Explore `compute.zig`** - Learn about task execution and SIMD
 4. **Review `concurrency.zig`** - Lock-free primitives and queues
 5. **Check `agent.zig`** - See AI integration
 6. **Review `gpu.zig`** - Understand GPU acceleration
@@ -343,6 +348,8 @@ zig build benchmarks
 13. **Study `orchestration.zig`** - Multi-model routing and fallback
 14. **Study `ha.zig`** - High availability features
 15. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
+16. **Build `concurrent_pipeline.zig`** - Multi-stage pipeline with channels and thread pools
+17. **Explore `tensor_ops.zig`** - Tensor and matrix math with SIMD
 
 ## Common Patterns
 

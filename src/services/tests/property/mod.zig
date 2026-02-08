@@ -38,7 +38,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const time = abi.utils.time;
+const time = abi.shared.time;
 
 // Re-export submodules
 pub const generators = @import("generators.zig");

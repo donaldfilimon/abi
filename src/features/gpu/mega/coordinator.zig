@@ -347,7 +347,7 @@ pub const Coordinator = struct {
             .decision = decision,
             .actual_time_ms = actual_time_ms,
             .success = success,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = time.nowMs(),
         };
 
         try self.scheduling_history.append(self.allocator, record);

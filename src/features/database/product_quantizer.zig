@@ -15,7 +15,7 @@
 const std = @import("std");
 const simd = @import("../../services/shared/simd.zig");
 
-pub const QuantizationError = @import("scalar_quantizer.zig").QuantizationError;
+pub const QuantizationError = @import("quantization.zig").QuantizationError;
 
 /// Product Quantizer for high compression ratios.
 ///

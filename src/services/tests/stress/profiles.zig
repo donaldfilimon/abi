@@ -30,16 +30,7 @@ const builtin = @import("builtin");
 const abi = @import("abi");
 const time = abi.shared.time;
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const Mutex = abi.shared.sync.Mutex;
 
 /// Stress test profile defining test parameters
 pub const StressProfile = struct {

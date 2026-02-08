@@ -5,6 +5,7 @@
 
 const std = @import("std");
 // Shared utilities for millisecond timestamps
+const time = @import("../../../services/shared/time.zig");
 const utils = @import("../../../services/shared/utils.zig");
 
 // ============================================================================
@@ -394,7 +395,7 @@ pub const FallbackContext = struct {
     pub fn init(allocator: std.mem.Allocator, timeout_ms: u64) FallbackContext {
         return .{
             .tried_models = .{},
-            .start_time = std.time.milliTimestamp(),
+            .start_time = time.nowMs(),
             .timeout_ms = timeout_ms,
             .allocator = allocator,
         };
@@ -406,7 +407,7 @@ pub const FallbackContext = struct {
 
     /// Check if the execution has timed out.
     pub fn isTimedOut(self: *FallbackContext) bool {
-        const elapsed = std.time.milliTimestamp() - self.start_time;
+        const elapsed = time.nowMs() - self.start_time;
         return elapsed >= @as(i64, @intCast(self.timeout_ms));
     }
 
@@ -427,7 +428,7 @@ pub const FallbackContext = struct {
 
     /// Get elapsed time in milliseconds.
     pub fn elapsedMs(self: *FallbackContext) u64 {
-        const elapsed = std.time.milliTimestamp() - self.start_time;
+        const elapsed = time.nowMs() - self.start_time;
         return @intCast(@max(elapsed, 0));
     }
 };
@@ -484,7 +485,6 @@ test "circuit breaker state transitions" {
     try std.testing.expect(!cb.allowRequest());
 
     // Wait for circuit to half-open
-    const time = @import("../../../services/shared/time.zig");
     time.sleepMs(150);
     try std.testing.expect(cb.allowRequest()); // Transitions to half-open
     try std.testing.expectEqual(CircuitBreaker.State.half_open, cb.state);

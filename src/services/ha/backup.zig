@@ -8,18 +8,10 @@
 //! - Backup verification and integrity checks
 
 const std = @import("std");
-const time = @import("../shared/utils.zig");
+const time = @import("../shared/time.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../shared/sync.zig");
+const Mutex = sync.Mutex;
 
 /// Backup configuration
 pub const BackupConfig = struct {
@@ -179,7 +171,7 @@ pub const BackupOrchestrator = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.time.timestampSec();
+        const now = time.timestampSec();
         const interval_sec = @as(u64, self.config.interval_hours) * 3600;
         const last = self.last_backup_time;
         return (now - last) >= interval_sec;
@@ -230,7 +222,7 @@ pub const BackupOrchestrator = struct {
         };
 
         // Simulate backup process (in real implementation, this would be async)
-        const start_time = time.time.timestampSec();
+        const start_time = time.timestampSec();
 
         self.state = .backing_up;
         self.emitEvent(.{ .backup_progress = .{ .backup_id = backup_id, .percent = 25 } });
@@ -258,7 +250,7 @@ pub const BackupOrchestrator = struct {
         var checksum: [32]u8 = undefined;
         @memset(&checksum, 0);
 
-        const end_time = time.time.timestampSec();
+        const end_time = time.timestampSec();
         const duration_ms = (end_time - start_time) * 1000;
 
         // Record metadata

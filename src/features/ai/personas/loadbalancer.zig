@@ -16,16 +16,8 @@ const config = @import("config.zig");
 const cb = @import("../../network/circuit_breaker.zig");
 const time = @import("../../../services/shared/time.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../../../services/shared/sync.zig");
+const Mutex = sync.Mutex;
 
 /// Status of a persona node.
 pub const NodeStatus = enum {

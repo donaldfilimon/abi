@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const server = @import("../server/mod.zig");
+const time = @import("../../../services/shared/time.zig");
 const user_id_key = "user_id";
 
 /// Context passed through the middleware chain.
@@ -38,7 +39,7 @@ pub const MiddlewareContext = struct {
             .allocator = allocator,
             .state = std.StringHashMap([]const u8).init(allocator),
             .path_params = std.StringHashMap([]const u8).init(allocator),
-            .start_time = std.time.milliTimestamp(),
+            .start_time = time.nowMs(),
         };
     }
 
@@ -70,7 +71,7 @@ pub const MiddlewareContext = struct {
 
     /// Returns elapsed time in milliseconds.
     pub fn elapsedMs(self: *const MiddlewareContext) i64 {
-        return std.time.milliTimestamp() - self.start_time;
+        return time.nowMs() - self.start_time;
     }
 
     /// Checks if user is authenticated (via state).

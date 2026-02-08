@@ -144,7 +144,7 @@ pub const FailoverManager = struct {
             h.success_count += 1;
             h.consecutive_successes += 1;
             h.consecutive_failures = 0;
-            h.last_success_time = std.time.milliTimestamp();
+            h.last_success_time = time.nowMs();
             h.total_requests += 1;
 
             // Half-open to closed transition
@@ -164,7 +164,7 @@ pub const FailoverManager = struct {
             h.failure_count += 1;
             h.consecutive_failures += 1;
             h.consecutive_successes = 0;
-            h.last_failure_time = std.time.milliTimestamp();
+            h.last_failure_time = time.nowMs();
             h.total_requests += 1;
             h.total_failures += 1;
 
@@ -235,7 +235,7 @@ pub const FailoverManager = struct {
     }
 
     fn tryRecoverBackends(self: *FailoverManager) void {
-        const now = std.time.milliTimestamp();
+        const now = time.nowMs();
         var iter = self.health.iterator();
         while (iter.next()) |entry| {
             const h = entry.value_ptr;
@@ -255,7 +255,7 @@ pub const FailoverManager = struct {
             _ = self.events.orderedRemove(0);
         }
         self.events.append(self.allocator, .{
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = time.nowMs(),
             .from_backend = from,
             .to_backend = to,
             .reason = reason,

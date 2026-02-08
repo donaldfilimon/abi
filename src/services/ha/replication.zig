@@ -7,19 +7,10 @@
 //! - Lag monitoring
 
 const std = @import("std");
-const time = @import("../shared/utils.zig");
-const platform_time = @import("../shared/time.zig");
+const time = @import("../shared/time.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../shared/sync.zig");
+const Mutex = sync.Mutex;
 
 /// Replication configuration
 pub const ReplicationConfig = struct {
@@ -125,7 +116,7 @@ pub const ReplicationManager = struct {
 
     /// Initialize the replication manager
     pub fn init(allocator: std.mem.Allocator, config: ReplicationConfig) ReplicationManager {
-        const seed = platform_time.timestampNs();
+        const seed = time.timestampNs();
         var prng = std.Random.DefaultPrng.init(seed);
 
         return .{
@@ -162,7 +153,7 @@ pub const ReplicationManager = struct {
             .region = region,
             .address = address,
             .state = .connecting,
-            .last_heartbeat = time.time.timestampSec(),
+            .last_heartbeat = time.timestampSec(),
             .replication_lag_ms = 0,
             .sequence_number = 0,
         };
@@ -332,7 +323,7 @@ pub const ReplicationManager = struct {
         defer self.mutex.unlock();
 
         if (self.replicas.getPtr(node_id)) |node| {
-            node.last_heartbeat = time.time.timestampSec();
+            node.last_heartbeat = time.timestampSec();
             node.sequence_number = sequence;
 
             // Calculate lag

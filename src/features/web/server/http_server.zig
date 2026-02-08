@@ -235,7 +235,7 @@ pub const Server = struct {
 
         self.listener = sock;
         self.state = .running;
-        self.stats.started_at = std.time.milliTimestamp();
+        self.stats.started_at = time.nowMs();
 
         std.log.info("Server started on {s}:{d}", .{ self.config.host, self.config.port });
     }

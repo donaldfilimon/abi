@@ -54,12 +54,12 @@ pub const QueuedWorkload = struct {
     /// Check if the workload has exceeded its deadline.
     pub fn isExpired(self: QueuedWorkload) bool {
         if (self.deadline_ms == 0) return false;
-        return std.time.milliTimestamp() > self.deadline_ms;
+        return time.nowMs() > self.deadline_ms;
     }
 
     /// Get time spent waiting in queue.
     pub fn waitTime(self: QueuedWorkload) i64 {
-        return std.time.milliTimestamp() - self.submitted_at;
+        return time.nowMs() - self.submitted_at;
     }
 
     /// Check if workload can be retried.
@@ -97,6 +97,7 @@ pub const QueueStats = struct {
     total_failed: u64 = 0,
     total_cancelled: u64 = 0,
     total_timeout: u64 = 0,
+    total_dropped: u64 = 0,
     current_depth: usize = 0,
     priority_counts: [5]u64 = [_]u64{0} ** 5,
     avg_wait_time_ms: f32 = 0,
@@ -143,7 +144,7 @@ pub const WorkloadQueue = struct {
 
         const id = self.next_id;
         self.next_id += 1;
-        const now = std.time.milliTimestamp();
+        const now = time.nowMs();
         const deadline = if (options.deadline_offset_ms > 0) now + options.deadline_offset_ms else 0;
 
         const workload = QueuedWorkload{
@@ -274,7 +275,7 @@ pub const WorkloadQueue = struct {
     }
 
     fn checkStarvation(self: *WorkloadQueue) void {
-        const now = std.time.milliTimestamp();
+        const now = time.nowMs();
         const threshold = self.config.starvation_threshold_ms;
 
         // Check lower priority queues for starving workloads
@@ -290,7 +291,12 @@ pub const WorkloadQueue = struct {
                     const new_priority = priority_idx - 1;
                     self.queues[new_priority].append(self.allocator, workload) catch {
                         // Re-enqueue at original priority if promotion fails
-                        self.queues[priority_idx].append(self.allocator, workload) catch {};
+                        self.queues[priority_idx].append(self.allocator, workload) catch {
+                            // Both queues full — workload is lost
+                            self.stats.total_dropped += 1;
+                            std.log.warn("GPU queue: dropped workload (both priority levels exhausted)", .{});
+                            continue;
+                        };
                         self.stats.priority_counts[priority_idx] += 1;
                         continue;
                     };

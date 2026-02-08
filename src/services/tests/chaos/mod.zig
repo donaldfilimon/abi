@@ -339,8 +339,8 @@ pub const ChaosContext = struct {
         for (self.faults.items) |config| {
             if (config.fault_type == .cpu_pressure) {
                 // Busy-wait to simulate CPU pressure
-                const end_time = std.time.milliTimestamp() + @as(i64, @intCast(config.duration_ms));
-                while (std.time.milliTimestamp() < end_time) {
+                const end_time = time.nowMs() + @as(i64, @intCast(config.duration_ms));
+                while (time.nowMs() < end_time) {
                     // Busy spin
                     var i: u32 = 0;
                     while (i < 1000) : (i += 1) {
@@ -592,7 +592,7 @@ pub const MessageDelaySimulator = struct {
         defer self.mutex.unlock();
 
         const delay_ms: u64 = self.chaos.rng.random().intRangeAtMost(u64, 10, 500);
-        const deliver_at = std.time.milliTimestamp() + @as(i64, @intCast(delay_ms));
+        const deliver_at = time.nowMs() + @as(i64, @intCast(delay_ms));
 
         const id = self.next_id;
         self.next_id += 1;
@@ -620,7 +620,7 @@ pub const MessageDelaySimulator = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = std.time.milliTimestamp();
+        const now = time.nowMs();
         var ready = std.ArrayListUnmanaged(DelayedMessage){};
 
         var i: usize = 0;
