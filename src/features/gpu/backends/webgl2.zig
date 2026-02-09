@@ -11,7 +11,7 @@ const shared = @import("shared.zig");
 
 pub const WebGl2Error = error{
     NotSupported,
-    UnsupportedPlatform,
+    PlatformNotSupported,
     ComputeShadersUnavailable,
 };
 
@@ -25,7 +25,7 @@ pub fn init() WebGl2Error!void {
     if (webgl2_initialized) return;
 
     if (!shared.isWebTarget()) {
-        return WebGl2Error.UnsupportedPlatform;
+        return WebGl2Error.PlatformNotSupported;
     }
 
     webgl2_initialized = true;
@@ -100,7 +100,7 @@ pub fn memcpyDeviceToHost(dst: *anyopaque, src: *anyopaque, size: usize) WebGl2E
 test "WebGl2Error enum covers all cases" {
     const errors = [_]WebGl2Error{
         error.NotSupported,
-        error.UnsupportedPlatform,
+        error.PlatformNotSupported,
         error.ComputeShadersUnavailable,
     };
     try std.testing.expectEqual(@as(usize, 3), errors.len);

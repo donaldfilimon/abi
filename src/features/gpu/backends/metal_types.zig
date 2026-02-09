@@ -12,7 +12,7 @@ const std = @import("std");
 pub const MetalError = error{
     InitializationFailed,
     DeviceNotFound,
-    LibraryCompilationFailed,
+    ShaderCompilationFailed,
     PipelineCreationFailed,
     CommandQueueCreationFailed,
     BufferCreationFailed,

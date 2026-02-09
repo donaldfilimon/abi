@@ -24,23 +24,7 @@ const shared = @import("shared.zig");
 // Re-export extracted type definitions for build discovery
 pub const metal_types = @import("metal_types.zig");
 
-pub const MetalError = error{
-    InitializationFailed,
-    DeviceNotFound,
-    LibraryCompilationFailed,
-    PipelineCreationFailed,
-    CommandQueueCreationFailed,
-    BufferCreationFailed,
-    CommandBufferCreationFailed,
-    KernelExecutionFailed,
-    MemoryCopyFailed,
-    ObjcRuntimeUnavailable,
-    SelectorNotFound,
-    InvalidGridSize,
-    InvalidBlockSize,
-    NSStringCreationFailed,
-    DeviceQueryFailed,
-};
+pub const MetalError = metal_types.MetalError;
 
 // Objective-C runtime types
 const SEL = *anyopaque;

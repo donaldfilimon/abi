@@ -8,7 +8,7 @@ test "MetalError enum covers key cases" {
     const errors = [_]MetalError{
         error.InitializationFailed,
         error.DeviceNotFound,
-        error.LibraryCompilationFailed,
+        error.ShaderCompilationFailed,
         error.PipelineCreationFailed,
         error.CommandQueueCreationFailed,
         error.BufferCreationFailed,
