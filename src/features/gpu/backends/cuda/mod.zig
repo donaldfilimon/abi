@@ -60,12 +60,7 @@ const CuModule = extern struct {
     ptr: *anyopaque,
 };
 
-pub const CudaError = error{
-    InitializationFailed,
-    DriverNotFound,
-    DeviceNotFound,
-    ContextCreationFailed,
-};
+pub const CudaError = cuda_native.CudaError;
 
 const CudaContext = struct {
     device_id: i32,

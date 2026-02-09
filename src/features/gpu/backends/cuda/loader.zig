@@ -396,7 +396,7 @@ pub fn checkResult(result: CuResult) error{ CudaError, InvalidValue, OutOfMemory
 pub const KernelError = error{
     NotLoaded,
     NotAvailable,
-    LaunchFailed,
+    KernelLaunchFailed,
     OutOfMemory,
 };
 
@@ -450,7 +450,7 @@ pub fn launchKernel(
     );
 
     if (result != .success) {
-        return error.LaunchFailed;
+        return error.KernelLaunchFailed;
     }
 }
 

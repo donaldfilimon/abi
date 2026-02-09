@@ -26,7 +26,7 @@ pub const GpuError = error{
     DispatchFailed,
     OutOfMemory,
     InvalidKernelConfig,
-    LaunchFailed,
+    KernelLaunchFailed,
 };
 
 /// Device memory errors for CPU-backed allocation

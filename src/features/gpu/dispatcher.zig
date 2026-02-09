@@ -501,7 +501,7 @@ pub const KernelDispatcher = struct {
         // CPU fallback if needed
         if (!gpu_executed) {
             self.executeOnCpu(kernel, config, args) catch |err| {
-                std.log.err("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
+                std.log.debug("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
                 return DispatchError.ExecutionFailed;
             };
         }
@@ -552,7 +552,7 @@ pub const KernelDispatcher = struct {
 
         // Execute on CPU fallback
         self.executeOnCpu(kernel, config, args) catch |err| {
-            std.log.err("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
+            std.log.debug("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
             return DispatchError.ExecutionFailed;
         };
 
