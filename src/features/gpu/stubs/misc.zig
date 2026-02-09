@@ -78,14 +78,17 @@ pub const adaptive_tiling = struct {
 pub const profiling = struct {};
 pub const occupancy = struct {};
 pub const fusion = struct {};
+pub const execution_coordinator = struct {};
 pub const memory_pool_advanced = struct {};
 pub const memory_pool_lockfree = struct {};
+pub const std_gpu = struct {};
 pub const std_gpu_kernels = struct {};
 pub const unified = struct {};
 pub const unified_buffer = struct {};
 pub const interface = struct {};
 pub const cuda_loader = struct {};
 pub const builtin_kernels = struct {};
+pub const multi_device = struct {};
 pub const error_handling = struct {
     pub const ErrorContext = struct {
         code: GpuErrorCode = .unknown,
@@ -106,3 +109,10 @@ pub const error_handling = struct {
         synchronization,
     };
 };
+
+// Namespace stubs that mirror already-imported stubs files
+// (these provide the `pub const X = struct {}` needed for sub-module namespace re-exports)
+pub const platform_ns = struct {};
+pub const backend_factory_ns = struct {};
+pub const dispatcher_ns = struct {};
+pub const diagnostics_ns = struct {};
