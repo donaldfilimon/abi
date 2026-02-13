@@ -301,7 +301,6 @@ pub const LlmMemoryPool = struct {
     /// Deinitialize and free all pooled memory.
     pub fn deinit(self: *LlmMemoryPool) void {
         self.mutex.lock();
-        defer self.mutex.unlock();
 
         for (&self.free_lists) |*list| {
             var current = list.*;
@@ -314,6 +313,8 @@ pub const LlmMemoryPool = struct {
             list.* = null;
         }
 
+        // Unlock before invalidation to avoid accessing undefined mutex
+        self.mutex.unlock();
         self.* = undefined;
     }
 

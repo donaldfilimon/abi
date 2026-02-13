@@ -428,7 +428,7 @@ pub const RateLimiter = struct {
                 .remaining = @intFromFloat(bucket.tokens),
                 .limit = limit,
                 .reset_at = now + self.config.window_seconds,
-                .current = limit - @as(u32, @intFromFloat(bucket.tokens)),
+                .current = limit -| @as(u32, @intFromFloat(@min(bucket.tokens, @as(f64, @floatFromInt(limit))))),
             };
         }
 
@@ -774,6 +774,7 @@ test "whitelist bypass" {
     var limiter = RateLimiter.init(allocator, .{
         .requests = 1,
         .window_seconds = 60,
+        .burst = 0,
         .whitelist = &.{"trusted_client"},
     });
     defer limiter.deinit();

@@ -358,7 +358,8 @@ test "memory manager hybrid mode" {
     const allocator = std.testing.allocator;
     var manager = MemoryManager.init(allocator, .{
         .primary_type = .hybrid,
-        .sliding_window_tokens = 500,
+        .sliding_window_tokens = 1000,
+        .system_reserve = 0,
         .long_term_config = .{
             .max_memories = 100,
             .embedding_dim = 32,

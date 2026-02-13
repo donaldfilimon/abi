@@ -130,27 +130,29 @@ pub const LlamaConfig = struct {
 
     /// Estimate model memory requirements in bytes.
     pub fn estimateMemory(self: LlamaConfig) u64 {
-        const kv_dim = self.kvDim();
+        const dim: u64 = self.dim;
+        const kv_dim: u64 = self.kvDim();
+        const ffn_dim: u64 = self.ffn_dim;
 
         // Embedding: vocab_size * dim
-        const embed_bytes = @as(u64, self.vocab_size) * self.dim * 4;
+        const embed_bytes = @as(u64, self.vocab_size) * dim * 4;
 
         // Per layer:
         // - attention: q_proj + k_proj + v_proj + o_proj
-        const attn_bytes = (self.dim * self.dim + // q_proj
-            self.dim * kv_dim + // k_proj
-            self.dim * kv_dim + // v_proj
-            self.dim * self.dim) * 4; // o_proj
+        const attn_bytes = (dim * dim + // q_proj
+            dim * kv_dim + // k_proj
+            dim * kv_dim + // v_proj
+            dim * dim) * 4; // o_proj
 
         // - FFN: gate + up + down
-        const ffn_bytes = (self.dim * self.ffn_dim * 2 + // gate + up
-            self.ffn_dim * self.dim) * 4; // down
+        const ffn_bytes = (dim * ffn_dim * 2 + // gate + up
+            ffn_dim * dim) * 4; // down
 
         // - Norms: 2 per layer
-        const norm_bytes = self.dim * 2 * 4;
+        const norm_bytes = dim * 2 * 4;
 
         const per_layer = attn_bytes + ffn_bytes + norm_bytes;
-        const all_layers = per_layer * self.n_layers;
+        const all_layers = per_layer * @as(u64, self.n_layers);
 
         // Output projection (if not tied)
         const output_bytes = if (!self.tie_embeddings) @as(u64, self.vocab_size) * self.dim * 4 else 0;
@@ -163,26 +165,27 @@ pub const LlamaConfig = struct {
 
     /// Estimate model parameters.
     pub fn estimateParameters(self: LlamaConfig) u64 {
-        // Simplified parameter count
-        const kv_dim = self.kvDim();
+        const dim: u64 = self.dim;
+        const kv_dim: u64 = self.kvDim();
+        const ffn_dim: u64 = self.ffn_dim;
 
-        const embed_params = @as(u64, self.vocab_size) * self.dim;
+        const embed_params = @as(u64, self.vocab_size) * dim;
 
-        const attn_params_per_layer = self.dim * self.dim + // q
-            self.dim * kv_dim + // k
-            self.dim * kv_dim + // v
-            self.dim * self.dim; // o
+        const attn_params_per_layer = dim * dim + // q
+            dim * kv_dim + // k
+            dim * kv_dim + // v
+            dim * dim; // o
 
-        const ffn_params_per_layer = self.dim * self.ffn_dim * 2 + // gate + up
-            self.ffn_dim * self.dim; // down
+        const ffn_params_per_layer = dim * ffn_dim * 2 + // gate + up
+            ffn_dim * dim; // down
 
-        const norm_params_per_layer = self.dim * 2;
+        const norm_params_per_layer = dim * 2;
 
         const per_layer = attn_params_per_layer + ffn_params_per_layer + norm_params_per_layer;
 
-        const output_params = if (!self.tie_embeddings) @as(u64, self.vocab_size) * self.dim else 0;
+        const output_params = if (!self.tie_embeddings) @as(u64, self.vocab_size) * dim else 0;
 
-        return embed_params + per_layer * self.n_layers + output_params;
+        return embed_params + per_layer * @as(u64, self.n_layers) + output_params;
     }
 };
 

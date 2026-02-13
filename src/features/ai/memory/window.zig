@@ -287,8 +287,10 @@ test "sliding window get within budget" {
     try memory.add(Message.user("Message 3"));
 
     // Get with very small budget - should only get most recent
-    const recent = try memory.getWithinBudget(10, allocator);
+    // Each message is ~3 tokens ("Message N" = 9 chars / 4 ≈ 3), so budget=5 fits only 1
+    const recent = try memory.getWithinBudget(5, allocator);
     defer allocator.free(recent);
 
+    try std.testing.expect(recent.len >= 1);
     try std.testing.expect(recent.len <= 2);
 }

@@ -63,8 +63,10 @@ pub const TransformerModel = struct {
         const vocab_size: usize = config.vocab_size;
         const hidden_usize: usize = hidden_size;
 
+        var rng = std.Random.DefaultPrng.init(config.seed);
+
         const embedding_weights = try allocator.alloc(f32, vocab_size * hidden_usize);
-        @memset(embedding_weights, 0);
+        initGaussian(embedding_weights, &rng);
 
         var layer_query_weights = try allocator.alloc([]f32, config.layers);
         var layer_key_weights = try allocator.alloc([]f32, config.layers);
@@ -72,8 +74,6 @@ pub const TransformerModel = struct {
         var layer_output_weights = try allocator.alloc([]f32, config.layers);
         var layer_ff_0_weights = try allocator.alloc([]f32, config.layers);
         var layer_ff_1_weights = try allocator.alloc([]f32, config.layers);
-
-        var rng = std.Random.DefaultPrng.init(config.seed);
 
         const intermediate_usize: usize = intermediate_size;
 
@@ -162,9 +162,10 @@ pub const TransformerModel = struct {
         var context = try allocator.alloc(f32, prompt.len * self.config.hidden_size);
         defer allocator.free(context);
 
+        const hs: usize = self.config.hidden_size;
         for (prompt, 0..) |token, i| {
             if (token < self.config.vocab_size) {
-                @memcpy(context[i * self.config.hidden_size .. (i + 1) * self.config.hidden_size], self.embedding_weights[token * self.config.hidden_size ..]);
+                @memcpy(context[i * hs ..][0..hs], self.embedding_weights[token * hs ..][0..hs]);
             }
         }
 
@@ -184,12 +185,16 @@ pub const TransformerModel = struct {
 
             const new_context = try allocator.alloc(f32, context.len + self.config.hidden_size);
             @memcpy(new_context[0..context.len], context);
-            @memcpy(new_context[context.len .. context.len + self.config.hidden_size], self.embedding_weights[token * self.config.hidden_size ..]);
+            @memcpy(new_context[context.len..][0..hs], self.embedding_weights[token * hs ..][0..hs]);
             allocator.free(context);
             context = new_context;
         }
 
-        return result[0..generated];
+        // Return a properly-sized allocation (sub-slices can't be freed)
+        const output = try allocator.alloc(u32, generated);
+        @memcpy(output, result[0..generated]);
+        allocator.free(result);
+        return output;
     }
 
     pub fn forward(self: *const TransformerModel, allocator: std.mem.Allocator, input: []const f32) ![]f32 {

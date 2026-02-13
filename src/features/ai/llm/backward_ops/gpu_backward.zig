@@ -87,6 +87,7 @@ pub const GpuBackwardContext = struct {
             };
             self.gpu_ops += 1;
         } else {
+            self.cpu_fallbacks += 1;
             matmul_backward.matmulBackward(dC, A, B, dA, dB, m, k, n);
         }
     }
@@ -112,6 +113,7 @@ pub const GpuBackwardContext = struct {
             };
             self.gpu_ops += 1;
         } else {
+            self.cpu_fallbacks += 1;
             matmul_backward.batchedMatmulBackward(dC, A, B, dA, dB, batch, m, k, n);
         }
     }

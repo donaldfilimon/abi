@@ -243,9 +243,10 @@ test "softmax numerical stability" {
 
 test "sigmoid bounds" {
     // Sigmoid output should always be in (0, 1)
-    try std.testing.expect(sigmoid(-100) > 0);
-    try std.testing.expect(sigmoid(-100) < 1);
-    try std.testing.expect(sigmoid(100) > 0);
-    try std.testing.expect(sigmoid(100) < 1);
+    // Use ±10 instead of ±100 — f32 precision makes sigmoid(100) == 1.0 exactly
+    try std.testing.expect(sigmoid(-10) > 0);
+    try std.testing.expect(sigmoid(-10) < 1);
+    try std.testing.expect(sigmoid(10) > 0);
+    try std.testing.expect(sigmoid(10) < 1);
     try std.testing.expectApproxEqAbs(@as(f32, 0.5), sigmoid(0), 0.001);
 }

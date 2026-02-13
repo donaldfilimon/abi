@@ -219,7 +219,8 @@ pub const CircuitBreaker = struct {
                     ) == null) {
                         // Successfully transitioned to half-open
                         self.success_count.store(0, .monotonic);
-                        self.half_open_requests.store(0, .monotonic);
+                        // Start at 1: the transition request itself counts
+                        self.half_open_requests.store(1, .monotonic);
                         _ = self.stats_total.fetchAdd(1, .monotonic);
                         return true;
                     }

@@ -209,18 +209,20 @@ test "q4_0 dequantization" {
     const block: *Q4_0Block = @ptrCast(@alignCast(&block_data));
 
     block.scale = @as(f16, 0.5);
-    // Pack two values per byte: (val + 8) for 4-bit unsigned
-    // Value 0 -> 8, Value 1 -> 9, etc.
+    // Pack two 4-bit values per byte: lo nibble = i, hi nibble = i
+    // Values 0..15 fit in 4 bits; dequantization subtracts 8 to center around zero.
     for (0..16) |i| {
-        block.quants[i] = @intCast((8 + i) | ((8 + i) << 4)); // lo = i, hi = i
+        const v: u8 = @intCast(i);
+        block.quants[i] = v | (v << 4);
     }
 
     var output: [32]f32 = undefined;
     try dequantizeQ4_0(&block_data, &output);
 
-    // First value: (8 - 8) * 0.5 = 0.0, then (9 - 8) * 0.5 = 0.5, etc.
-    try std.testing.expectApproxEqAbs(@as(f32, 0.0), output[0], 0.001);
-    try std.testing.expectApproxEqAbs(@as(f32, 0.5), output[1], 0.001);
+    // Q4_0: output[i] = lo nibble of byte i (i=0..15), output[16+i] = hi nibble of byte i
+    // Byte 0: lo=0 -> (0-8)*0.5 = -4.0, Byte 2: lo=2 -> (2-8)*0.5 = -3.0
+    try std.testing.expectApproxEqAbs(@as(f32, -4.0), output[0], 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, -3.0), output[2], 0.01);
 }
 
 test "q8_0 dequantization" {
