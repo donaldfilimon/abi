@@ -23,6 +23,17 @@
 //!   avoid polluting the probe path with large values.
 //!
 //! Performance: ~30ns lookup, ~50ns insert (hot cache, 50% load factor)
+//!
+//! ## Security: Hash Flooding (HashDoS)
+//!
+//! The default constructor uses a deterministic hash seed (wyhash/splitmix64).
+//! This is fine for internal/trusted keys. For untrusted input (user-supplied
+//! keys, network data, external file content), use `initWithSeed()` with a
+//! random seed to prevent hash-collision denial-of-service attacks.
+//!
+//! Iteration order is NOT stable across insertions/deletions and must not be
+//! relied upon. Modifying the map during iteration is undefined behavior
+//! (matches `std.HashMap` semantics).
 //! ═══════════════════════════════════════════════════════════════════════════
 
 const std = @import("std");
