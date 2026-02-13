@@ -279,6 +279,9 @@ const network_required = [_][]const u8{
     "isInitialized",
     "defaultRegistry",
     "defaultConfig",
+    "generateServiceId",
+    "base64Encode",
+    "base64Decode",
 };
 
 /// Web module required declarations
@@ -478,6 +481,9 @@ const network_specs = [_]DeclSpec{
     .{ .name = "isInitialized", .kind = .function },
     .{ .name = "defaultRegistry", .kind = .function },
     .{ .name = "defaultConfig", .kind = .function },
+    .{ .name = "generateServiceId", .kind = .function, .min_params = 2 },
+    .{ .name = "base64Encode", .kind = .function, .min_params = 2 },
+    .{ .name = "base64Decode", .kind = .function, .min_params = 2 },
 };
 
 /// Web module specs.

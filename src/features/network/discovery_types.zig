@@ -5,7 +5,8 @@
 
 const std = @import("std");
 const time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
+
+var service_id_counter: std.atomic.Value(u64) = .{ .raw = 0 };
 
 pub const DiscoveryBackend = enum {
     consul,
@@ -94,20 +95,18 @@ pub const AddressPort = struct {
 
 /// Generate a unique service ID from service name and random bytes.
 pub fn generateServiceId(allocator: std.mem.Allocator, service_name: []const u8) ![]const u8 {
-    // Use timer-based seed with hash for uniqueness (Zig 0.16 compatible)
-    var timer = time.Timer.start() catch return error.TimerUnsupported;
-    const seed = timer.read();
-    var prng = std.Random.DefaultPrng.init(seed);
-    const random = prng.random();
+    // Build IDs from a monotonic process-local counter + random bytes.
+    // Counter ensures uniqueness within a process; random suffix reduces cross-process collisions.
+    const counter = service_id_counter.fetchAdd(1, .monotonic);
+    const salt = @as(u64, @truncate(@intFromPtr(&service_id_counter)));
+    var prng = std.Random.DefaultPrng.init(time.getSeed() ^ counter ^ salt);
 
-    var id: [8]u8 = undefined;
-    random.bytes(&id);
+    var id: [16]u8 = undefined;
+    std.mem.writeInt(u64, id[0..8], counter, .little);
+    prng.random().bytes(id[8..16]);
 
-    var hex: [16]u8 = undefined;
-    // SAFETY: u64 formatted as 16-char zero-padded hex exactly fills 16-byte buffer - cannot overflow
-    _ = std.fmt.bufPrint(&hex, "{x:0>16}", .{std.mem.readInt(u64, &id, .big)}) catch unreachable;
-
-    return std.fmt.allocPrint(allocator, "{s}-{s}", .{ service_name, hex[0..8] });
+    const hex = std.fmt.bytesToHex(id, .lower);
+    return std.fmt.allocPrint(allocator, "{s}-{s}", .{ service_name, hex });
 }
 
 /// Base64 encode data using standard encoding.
@@ -155,4 +154,35 @@ test "address port parsing" {
     const result2 = parseAddressPort("localhost");
     try std.testing.expectEqualStrings("localhost", result2.address);
     try std.testing.expectEqual(@as(u16, 9000), result2.port);
+}
+
+test "service ID generation is unique and correctly formatted" {
+    const allocator = std.testing.allocator;
+    const prefix = "svc";
+    const expected_len = prefix.len + 1 + 32; // "<prefix>-<16 random bytes as hex>"
+
+    var seen = std.StringHashMap(void).init(allocator);
+    defer {
+        var it = seen.keyIterator();
+        while (it.next()) |key| {
+            allocator.free(key.*);
+        }
+        seen.deinit();
+    }
+
+    const rounds: usize = 256;
+    for (0..rounds) |_| {
+        const id = try generateServiceId(allocator, prefix);
+        try std.testing.expect(std.mem.startsWith(u8, id, "svc-"));
+        try std.testing.expectEqual(expected_len, id.len);
+
+        if (seen.contains(id)) {
+            allocator.free(id);
+            return error.TestUnexpectedResult;
+        }
+
+        try seen.put(id, {});
+    }
+
+    try std.testing.expectEqual(rounds, seen.count());
 }

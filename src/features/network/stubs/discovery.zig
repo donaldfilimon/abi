@@ -30,8 +30,8 @@ pub const DiscoveryError = error{
     DiscoveryFailed,
 };
 
-pub fn generateServiceId(_: []const u8) []const u8 {
-    return "";
+pub fn generateServiceId(_: std.mem.Allocator, _: []const u8) ![]const u8 {
+    return error.NetworkDisabled;
 }
 
 pub fn base64Encode(_: std.mem.Allocator, _: []const u8) ![]const u8 {
