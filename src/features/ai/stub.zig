@@ -30,7 +30,8 @@ pub const Error = error{
 };
 
 // Sub-module stubs
-pub const core = @import("core/mod.zig");
+// Sub-module stubs (each submodule has its own stub.zig)
+pub const core = @import("core/stub.zig");
 pub const llm = @import("llm/stub.zig");
 pub const embeddings = @import("embeddings/stub.zig");
 pub const agents = @import("agents/stub.zig");
@@ -48,17 +49,17 @@ pub const personas = @import("personas/stub.zig");
 pub const rag = @import("rag/stub.zig");
 pub const templates = @import("templates/stub.zig");
 pub const eval = @import("eval/stub.zig");
-pub const federated = struct {};
+pub const federated = @import("federated/stub.zig");
+pub const tools = @import("tools/stub.zig");
+pub const transformer = @import("transformer/stub.zig");
+pub const prompts = @import("prompts/stub.zig");
+pub const abbey = @import("abbey/stub.zig");
 
-// Local stubs moved to src/features/ai/stubs/
+// Local stubs for single-file modules (stubs/ directory)
 pub const agent = @import("stubs/agent.zig");
 pub const model_registry = @import("stubs/model_registry.zig");
-pub const tools = @import("stubs/tools.zig");
-pub const transformer = @import("stubs/transformer.zig");
 pub const gpu_agent = @import("stubs/gpu_agent.zig");
 pub const discovery = @import("stubs/discovery.zig");
-pub const prompts = @import("stubs/prompts.zig");
-pub const abbey = @import("stubs/abbey.zig");
 
 // Multi-agent re-exports
 pub const MultiAgentCoordinator = multi_agent.Coordinator;

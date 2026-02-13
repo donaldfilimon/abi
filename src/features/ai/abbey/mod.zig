@@ -238,6 +238,9 @@ pub const CustomAIBuilder = custom_framework.Builder;
 pub const CustomAIResponse = custom_framework.Response;
 pub const CustomAIStats = custom_framework.Stats;
 
+// Alias used by ai/mod.zig: `abbey.Stats`
+pub const Stats = custom_framework.Stats;
+
 // Factory functions
 pub const createCustomAI = custom_framework.create;
 pub const createFromPersona = custom_framework.createFromPersona;
