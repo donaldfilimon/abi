@@ -200,6 +200,17 @@ pub const ErrorContext = error_handling.ErrorContext;
 pub const GpuErrorCode = error_handling.GpuErrorCode;
 pub const GpuErrorType = error_handling.GpuErrorType;
 
+// Standard GPU error taxonomy (from interface.zig)
+// Use these for cross-backend error handling in new code.
+// Backend-specific errors (VulkanError, MetalError, etc.) can be mapped to
+// these standard types via mapToStandardError().
+pub const BackendError = interface.BackendError;
+pub const StandardMemoryError = interface.MemoryError;
+pub const StandardKernelError = interface.KernelError;
+pub const InterfaceError = interface.InterfaceError;
+pub const StandardGpuError = interface.GpuError;
+pub const mapToStandardError = interface.mapToStandardError;
+
 // Execution coordinator convenience exports (GPU→SIMD→scalar fallback)
 pub const ExecutionCoordinator = execution_coordinator.ExecutionCoordinator;
 pub const ExecutionMethod = execution_coordinator.ExecutionMethod;

@@ -273,6 +273,15 @@ pub const ErrorContext = diagnostics_mod.ErrorContext;
 pub const GpuErrorCode = diagnostics_mod.GpuErrorCode;
 pub const GpuErrorType = diagnostics_mod.GpuErrorType;
 
+// Standard GPU error taxonomy (from interface.zig)
+const interface_module = @import("interface.zig");
+pub const BackendError = interface_module.BackendError;
+pub const StandardMemoryError = interface_module.MemoryError;
+pub const StandardKernelError = interface_module.KernelError;
+pub const InterfaceError = interface_module.InterfaceError;
+pub const StandardGpuError = interface_module.GpuError;
+pub const mapToStandardError = interface_module.mapToStandardError;
+
 // ============================================================================
 // Execution Coordinator Re-exports
 // ============================================================================

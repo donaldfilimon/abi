@@ -26,8 +26,8 @@ test {
         _ = @import("features/ai/database/wdbx.zig");
     }
 
-    // Skipped pending fix (6 errors in backward_ops, cache, generation, ops):
-    // if (@hasDecl(build_options, "enable_llm") and build_options.enable_llm) {
-    //     _ = @import("features/ai/llm/mod.zig");
-    // }
+    // LLM module (152 test blocks across 47 files)
+    if (@hasDecl(build_options, "enable_llm") and build_options.enable_llm) {
+        _ = @import("features/ai/llm/mod.zig");
+    }
 }
