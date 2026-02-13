@@ -172,37 +172,22 @@ pub const simd = @import("services/shared/simd.zig");
 pub const utils = @import("services/shared/utils.zig");
 pub const os = @import("services/shared/os.zig");
 
-// SIMD functions exported directly for convenience.
-// These provide hardware-accelerated vector operations when available.
+// Convenience re-exports. For new code, prefer the namespaced versions:
+//   abi.simd.vectorAdd, abi.gpu.Gpu, abi.ai.DiscordTools, etc.
 
-/// Add two vectors element-wise using SIMD acceleration when available.
-/// Falls back to scalar operations on unsupported platforms.
+/// Convenience alias for `abi.simd.vectorAdd`.
 pub const vectorAdd = simd.vectorAdd;
-
-/// Compute the dot product of two vectors using SIMD acceleration.
-/// Returns the sum of element-wise products.
+/// Convenience alias for `abi.simd.vectorDot`.
 pub const vectorDot = simd.vectorDot;
-
-/// Check if SIMD acceleration is available on the current platform.
-/// Returns true if hardware vector instructions can be used.
+/// Convenience alias for `abi.simd.hasSimdSupport`.
 pub const hasSimdSupport = simd.hasSimdSupport;
-
-// GPU type aliases for convenience.
-// Note: For new code, prefer using `abi.gpu.*` namespace directly.
-
-/// GPU context for executing compute kernels. Manages device memory and command queues.
-/// Create via `abi.gpu.Gpu.init()` or through the Framework.
+/// Convenience alias for `abi.gpu.Gpu`.
 pub const Gpu = gpu.Gpu;
-
-/// Enumeration of available GPU backends (cuda, vulkan, metal, webgpu, etc.).
+/// Convenience alias for `abi.gpu.Backend`.
 pub const GpuBackend = gpu.Backend;
-
-// Discord bot integration for AI-powered Discord applications.
-
-/// Discord connector module providing bot functionality.
+/// Convenience alias for `abi.connectors.discord`.
 pub const discord = connectors.discord;
-
-/// AI-powered tools for Discord bots (message analysis, auto-moderation, etc.).
+/// Convenience alias for `abi.ai.DiscordTools`.
 pub const DiscordTools = ai.DiscordTools;
 
 /// WDBX compatibility namespace.
