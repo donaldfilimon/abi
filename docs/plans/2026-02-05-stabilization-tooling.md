@@ -15,7 +15,7 @@ re-enabled, and examples/docs alignment is complete.
 ## Tasks
 
 1. Enabled native HTTP downloads and removed manual-only fallback paths.
-2. Re-enabled toolchain CLI with Zig 0.16 compatible APIs.
+2. Re-enabled toolchain CLI with Zig 0.16.0-dev.2535+b5bd49460 compatible APIs.
 3. Verified example programs for API drift and updated where needed.
 4. Updated planning docs (`ROADMAP.md`, `PLAN.md`, `TODO.md`) to reflect
    completion.

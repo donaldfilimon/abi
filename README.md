@@ -2,19 +2,19 @@
 
 # ABI Framework
 
-<img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
+<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2535+b5bd49460"/>
 <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Status"/>
 <img src="https://img.shields.io/github/license/donaldfilimon/abi?style=for-the-badge" alt="License"/>
 
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-912_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-983_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
 
-**A modern Zig 0.16 framework for AI services, vector search, and high-performance systems**
+**A modern Zig 0.16.0-dev.2535+b5bd49460 framework for AI services, vector search, and high-performance systems**
 
 [Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
 
@@ -42,7 +42,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 912+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 988 tests (983 passing), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -89,7 +89,7 @@ the pinned toolchain from `.zigversion`.
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | 0.16.x | Yes |
+| Zig | `0.16.0-dev.2535+b5bd49460` or newer | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
@@ -425,7 +425,7 @@ zig build -Dgpu-backend=auto
 |:---------|:------------|
 | [API Reference](docs/api/index.md) | Auto-generated API docs (`zig build gendocs`) |
 | [Agent Guidelines](AGENTS.md) | Baseline rules for AI agents |
-| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
+| [Developer Guide](CLAUDE.md) | Zig 0.16.0-dev.2535+b5bd49460 patterns and project conventions |
 
 ```bash
 # Run all tests
@@ -463,7 +463,7 @@ zig build lint
 
 | Milestone | Status |
 |:----------|:------:|
-| Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Zig 0.16.0-dev.2535+b5bd49460 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |

@@ -7,7 +7,7 @@ tags: []
 
 <p align="center">
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
-  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
+  <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2535+b5bd49460"/>
   <img src="https://img.shields.io/badge/Code_Style-Zig_fmt-blue?style=for-the-badge" alt="Code Style"/>
 </p>
 
@@ -29,6 +29,7 @@ tags: []
 | Format | `zig fmt .` |
 | CLI Smoke Test | `zig build cli-tests` |
 | Validate Flags | `zig build validate-flags` |
+| Zig Version Consistency | `scripts/check_zig_version_consistency.sh` |
 | Full Check | `zig build full-check` |
 | Single File Test | `zig test src/path/to/file.zig` |
 
@@ -64,7 +65,7 @@ flowchart LR
 | Error handling | `!` return types, specific error enums | ![Required](https://img.shields.io/badge/-Required-red) |
 | Cleanup | Prefer `defer`/`errdefer` | ![Recommended](https://img.shields.io/badge/-Recommended-yellow) |
 
-## Zig 0.16 Conventions
+## Zig 0.16.0-dev.2535+b5bd49460 Conventions
 
 ### Memory Management
 
@@ -167,4 +168,3 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
   <a href="README.md">← Back to README</a> •
   <a href="CLAUDE.md">Development Guide →</a>
 </p>
-

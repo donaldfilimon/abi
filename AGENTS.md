@@ -7,7 +7,7 @@ practices, see `SECURITY.md`.
 consistent behavior.
 
 ## Project Structure & Module Organization
-ABI is a Zig 0.16 framework with `src/abi.zig` as the public API root. Core layout:
+ABI is a Zig 0.16.0-dev.2535+b5bd49460 framework with `src/abi.zig` as the public API root. Core layout:
 - `src/api/`: executable entry points (`main.zig`).
 - `src/core/`: framework orchestration and config.
 - `src/features/`: feature modules (`ai`, `gpu`, `database`, `network`, `web`, etc.).
@@ -42,12 +42,13 @@ Import public APIs via `@import("abi")` rather than deep file paths. For feature
 - `zig test src/path/to/file.zig --test-filter "pattern"`: run focused tests.
 - `zig build validate-flags`: verify feature-flag combinations compile.
 - `zig build cli-tests`: CLI smoke tests.
+- `scripts/check_zig_version_consistency.sh`: verify pinned Zig version consistency in metadata/docs.
 - `zig build full-check`: full local gate (format + tests + flag validation + CLI smoke tests).
 - `zig fmt .`: format source.
 - `zig build lint`: CI formatting check.
 
 ## Coding Style & Naming Conventions
-- Use Zig `0.16.0-dev.2471+e9eadee00` or newer.
+- Use Zig `0.16.0-dev.2535+b5bd49460` or newer.
 - Indentation: 4 spaces, no tabs; keep lines under 100 chars.
 - Naming: `PascalCase` for types, `camelCase` for functions/variables, `*Config` for config structs.
 - Prefer explicit imports (no `usingnamespace`), specific error sets, and `defer`/`errdefer` for cleanup.

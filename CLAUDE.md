@@ -6,15 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Key | Value |
 |-----|-------|
-| **Zig** | 0.16.x (pinned in `.zigversion`) |
+| **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`), use `./zigw` to run it |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 982 pass, 6 skip — must be maintained |
+| **Test baseline** | 983 pass, 5 skip (988 total) — must be maintained |
 
 ## Build & Test Commands
 
-Use `./zigw` instead of `zig` to ensure the pinned toolchain version from `.zigversion` is used.
-If your system `zig` is already 0.16.x, plain `zig` works too.
+Use `./zigw` or ensure your system `zig` matches `.zigversion` (e.g. via `zvm use master`).
+If your system `zig` is already `0.16.0-dev.2535+b5bd49460` or newer, plain `zig` works.
 
 ```bash
 zig build                                    # Build with default flags
@@ -44,7 +44,8 @@ zig build run -- plugins list                # List plugins
 `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
 
 All features default to `true` except `-Denable-mobile`. GPU backends: `auto`, `none`,
-`cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`.
+`cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`, `simulated`.
+The `simulated` backend is always enabled as a software fallback for testing without GPU hardware.
 
 | Feature Module | Build Flag | Notes |
 |----------------|------------|-------|
@@ -63,7 +64,7 @@ These are the mistakes most likely to cause compilation failures:
 
 | Mistake | Fix |
 |---------|-----|
-| `std.fs.cwd()` | `std.Io.Dir.cwd()` — Zig 0.16 moved filesystem to I/O backend |
+| `std.fs.cwd()` | `std.Io.Dir.cwd()` — Zig 0.16.0-dev.2535+b5bd49460 moved filesystem to I/O backend |
 | `std.time.Instant.now()` for elapsed time | `std.time.Timer.start()` — use Timer for benchmarks/elapsed |
 | `list.init()` | `std.ArrayListUnmanaged(T).empty` |
 | `@tagName(x)` / `@errorName(e)` in format | `{t}` format specifier for errors and enums |
@@ -71,12 +72,15 @@ These are the mistakes most likely to cause compilation failures:
 | `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
 | `file.read()` / `file.write()` | `file.reader(io).read()` / `file.writer(io).write()` — I/O ops need `io` handle |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
-| `std.time.nanoTimestamp()` | Doesn't exist in 0.16 — use `Instant.now()` + `.since(anchor)` for absolute time |
-| `std.process.getEnvVar()` | Doesn't exist in 0.16 — use `std.c.getenv()` for POSIX |
-| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in 0.16: `.type`, `.@"fn"`, `.@"struct"`, `.@"enum"`, `.@"union"` |
+| `std.time.nanoTimestamp()` | Doesn't exist in `0.16.0-dev.2535+b5bd49460` — use `Instant.now()` + `.since(anchor)` for absolute time |
+| `std.process.getEnvVar()` | Doesn't exist in `0.16.0-dev.2535+b5bd49460` — use `std.c.getenv()` for POSIX |
+| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in `0.16.0-dev.2535+b5bd49460`: `.type`, `.@"fn"`, `.@"struct"`, `.@"enum"`, `.@"union"` |
 | `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
 | `defer allocator.free(x)` then return `x` | Use `errdefer` — `defer` frees on success too (use-after-free) |
 | `@panic` in library code | Return an error instead — library code should never panic |
+| `std.time.Timer.read()` → `u64` | Returns `usize` in `0.16.0-dev.2535+b5bd49460`, not `u64` — cast or use `@as(u64, timer.read())` |
+| `std.log.err` in tests | Test runner treats error-level log output as a test failure, even if caught. Skip the test before entering error paths |
+| `defer allocator.free(x)` in `loadFromEnv()` | When returning owned data from a function, use `errdefer` not `defer` — defer frees on success path (use-after-free) |
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -228,6 +232,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 - Import public API via `@import("abi")`, not deep file paths
 - Feature modules cannot `@import("abi")` (circular) — use relative imports to `services/shared/`
 - `std.log.*` in library code; `std.debug.print` only in CLI tools and display functions
+- For null-terminated C strings: `std.fmt.allocPrintSentinel(alloc, fmt, args, sentinel)` or use string literal `.ptr` (which is `[*:0]const u8`)
 
 ## Commit Convention
 
@@ -236,7 +241,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Current baseline**: 982 pass, 6 skip (988 total). **This baseline must be maintained** — any
+**Current baseline**: 983 pass, 5 skip (988 total). **This baseline must be maintained** — any
 PR that reduces passing tests or increases skipped tests requires justification.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are

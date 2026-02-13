@@ -65,7 +65,7 @@ Replace these two rows with:
 
 ```markdown
 | `std.time.Instant.now()` for elapsed time | `std.time.Timer.start()` — use Timer for benchmarks/elapsed |
-| `std.time.nanoTimestamp()` | Doesn't exist in 0.16 — use `Instant.now()` + `.since(anchor)` for absolute time |
+| `std.time.nanoTimestamp()` | Doesn't exist in `0.16.0-dev.2535+b5bd49460` — use `Instant.now()` + `.since(anchor)` for absolute time |
 ```
 
 **Step 2: Verify**

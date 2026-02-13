@@ -130,6 +130,7 @@ testingllm.ckpt/
 
 # Profiling data
 *.prof
+*.profraw
 *.tracy
 perf.data*
 

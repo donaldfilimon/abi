@@ -8,7 +8,7 @@ tags: [deployment, devops, production]
 <p align="center">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"/>
   <img src="https://img.shields.io/badge/Kubernetes-Ready-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes"/>
-  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
 </p>
 
 This guide covers deploying the ABI AI Agent System to production environments.
@@ -28,7 +28,7 @@ curl http://localhost:8080/health
 
 - Docker 20.10+ and Docker Compose v2
 - (Optional) kubectl for Kubernetes deployment
-- (Optional) Zig 0.16.x for local development
+- (Optional) Zig `0.16.0-dev.2535+b5bd49460` or newer for local development
 
 ## Configuration
 
@@ -284,6 +284,5 @@ zig build test --summary all
 # Run benchmarks
 zig build benchmarks
 ```
-
 
 

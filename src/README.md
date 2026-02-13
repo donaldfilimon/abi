@@ -99,7 +99,7 @@ src/
     │   └── pipeline.zig
     │
     └── tests/               # Test infrastructure
-        ├── mod.zig          #   Test root (944 pass, 5 skip baseline)
+        ├── mod.zig          #   Test root (983 pass, 5 skip baseline)
         ├── parity/          #   DeclSpec mod/stub parity tests
         ├── integration/     #   Integration tests
         ├── stress/          #   Stress tests

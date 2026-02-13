@@ -123,5 +123,8 @@ jobs:
           restore-keys: |
             zig-cache-lint-
 
+      - name: Check Zig version consistency
+        run: bash scripts/check_zig_version_consistency.sh
+
       - name: Lint check
         run: zig build lint

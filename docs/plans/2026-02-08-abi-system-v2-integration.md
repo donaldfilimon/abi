@@ -2,11 +2,11 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Integrate 18 modules from abi-system-v2.0 into the ABI framework, adapting all code to Zig 0.16 APIs and the framework's architectural conventions.
+**Goal:** Integrate 18 modules from abi-system-v2.0 into the ABI framework, adapting all code to Zig 0.16.0-dev.2535+b5bd49460 APIs and the framework's architectural conventions.
 
-**Architecture:** New modules land in `src/services/` (infrastructure layer), not `src/features/` (feature-gated layer). Each module either extends an existing file or creates a new one. All Zig 0.16 incompatibilities (`nanoTimestamp`, `sleep`, allocator vtable signatures) are fixed during integration. Existing tests must continue to pass (944 pass, 5 skip baseline).
+**Architecture:** New modules land in `src/services/` (infrastructure layer), not `src/features/` (feature-gated layer). Each module either extends an existing file or creates a new one. All Zig 0.16.0-dev.2535+b5bd49460 incompatibilities (`nanoTimestamp`, `sleep`, allocator vtable signatures) are fixed during integration. Existing tests must continue to pass (944 pass, 5 skip baseline).
 
-**Tech Stack:** Zig 0.16.x, SIMD intrinsics (`@Vector`, `@reduce`, `@splat`), lock-free CAS primitives (`@cmpxchgWeak`), comptime generics.
+**Tech Stack:** Zig `0.16.0-dev.2535+b5bd49460` or newer, SIMD intrinsics (`@Vector`, `@reduce`, `@splat`), lock-free CAS primitives (`@cmpxchgWeak`), comptime generics.
 
 **Source location:** `/tmp/abi-system/src/` (extracted from `~/Downloads/abi-system-v2.0.tar`)
 
@@ -37,7 +37,7 @@
 
 ---
 
-## Zig 0.16 Migration Checklist
+## Zig 0.16.0-dev.2535+b5bd49460 Migration Checklist
 
 Every module must have these fixed during integration:
 
@@ -45,7 +45,7 @@ Every module must have these fixed during integration:
 |---------|-------------|
 | `std.time.nanoTimestamp()` | `std.time.Instant.now()` + `.since(anchor)` or `@import("time.zig").timestampNs()` |
 | `std.time.sleep(ns)` | `@import("time.zig").sleepNs(ns)` or `std.Thread.sleep(ns)` |
-| `std.ArrayList(T)` → if heap needed | Keep (acceptable in Zig 0.16) |
+| `std.ArrayList(T)` → if heap needed | Keep (acceptable in Zig 0.16.0-dev.2535+b5bd49460) |
 | `std.ArrayList(T)` → if no heap | `std.ArrayListUnmanaged(T)` with `.empty` |
 | Allocator vtable `u8` alignment | `std.mem.Alignment` enum (`.fromByteUnits()`) |
 | `@import("utils")` | Relative `@import` within `src/services/` |
@@ -111,7 +111,7 @@ Copy from `/tmp/abi-system/src/utils.zig` these types:
 - `String` namespace: `hash` (FNV-1a), `eqlIgnoreCase`, `formatBuf`, `Builder` (lines 155–238)
 - `Math.nextPowerOfTwo`, `Math.isPowerOfTwo`, `Math.alignUp` (lines 76–110) — only if not already in `shared/`
 
-**Zig 0.16 fixes:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes:**
 - Remove `Stopwatch` (uses `nanoTimestamp`; we already have `shared/time.zig`)
 - Remove `SpinLock` / `SpscQueue` / `Counter` (already in `shared/sync.zig`)
 - Remove `Platform` (already in `shared/platform.zig`)
@@ -335,12 +335,12 @@ Copy from `/tmp/abi-system/src/error.zig`:
 - `AbiError` error set (lines 177–195)
 - Convenience constructors (lines 199–217)
 
-**Zig 0.16 fix:** Line 86 — replace `std.time.nanoTimestamp()`:
+**Zig 0.16.0-dev.2535+b5bd49460 fix:** Line 86 — replace `std.time.nanoTimestamp()`:
 ```zig
 // BEFORE (v2.0):
 .timestamp_ns = std.time.nanoTimestamp(),
 
-// AFTER (Zig 0.16):
+// AFTER (Zig 0.16.0-dev.2535+b5bd49460):
 .timestamp_ns = blk: {
     const now = std.time.Instant.now() catch break :blk 0;
     break :blk @intCast(now.timestamp.tv_sec * std.time.ns_per_s + now.timestamp.tv_nsec);
@@ -404,10 +404,10 @@ test "ArenaPool bump allocation" {
 
 Copy `ArenaPool` from `/tmp/abi-system/src/memory.zig` lines 22–87.
 
-**Zig 0.16 fix:** The `arenaAllocFn` vtable function signature must match Zig 0.16's `std.mem.Allocator.VTable`:
+**Zig 0.16.0-dev.2535+b5bd49460 fix:** The `arenaAllocFn` vtable function signature must match Zig 0.16.0-dev.2535+b5bd49460's `std.mem.Allocator.VTable`:
 
 ```zig
-// Zig 0.16 vtable signature:
+// Zig 0.16.0-dev.2535+b5bd49460 vtable signature:
 fn arenaAllocFn(
     ctx: *anyopaque,
     len: usize,
@@ -470,7 +470,7 @@ zig build test --summary all 2>&1 | tail -5
 
 ```bash
 git add src/services/shared/utils/memory/arena.zig src/services/shared/utils/memory/mod.zig
-git commit -m "feat: add ArenaPool bump allocator with Zig 0.16 vtable"
+git commit -m "feat: add ArenaPool bump allocator with Zig 0.16.0-dev.2535+b5bd49460 vtable"
 ```
 
 ---
@@ -532,7 +532,7 @@ Copy from `/tmp/abi-system/src/memory.zig`:
 - `SlabPool(T)` (lines 142–208) → `slab.zig`
 - `ScratchAllocator` (lines 210–278) → `scratch.zig`
 
-**Zig 0.16 fixes for all three:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes for all three:**
 - Same vtable signature pattern as Task 3 (use `std.mem.Alignment` parameter)
 - Replace any `@import("utils")` with direct `const std = @import("std")`
 
@@ -609,13 +609,13 @@ Copy from `/tmp/abi-system/src/alloc.zig`:
 - `FallbackAllocator` (lines 141–210)
 - `NullAllocator` (lines 212–244)
 
-**Zig 0.16 fixes — ALL vtable functions must use this signature pattern:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes — ALL vtable functions must use this signature pattern:**
 
 ```zig
 const vtable: std.mem.Allocator.VTable = .{
     .alloc = allocFn,
     .resize = resizeFn,
-    .remap = remapFn,  // NEW in 0.16 — return null for "not supported"
+    .remap = remapFn,  // NEW in 0.16.0-dev.2535+b5bd49460 — return null for "not supported"
     .free = freeFn,
 };
 
@@ -638,7 +638,7 @@ fn freeFn(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ret_addr: us
 
 Key: `alignment` is `std.mem.Alignment` (enum), not `u8`. Call `.toByteUnits()` to get the numeric value.
 
-For `TrackingAllocator`, atomics use `@atomicRmw(.add, ...)` — translate to Zig 0.16's `std.atomic.Value(usize)` or direct `@atomicRmw`.
+For `TrackingAllocator`, atomics use `@atomicRmw(.add, ...)` — translate to Zig 0.16.0-dev.2535+b5bd49460's `std.atomic.Value(usize)` or direct `@atomicRmw`.
 
 ### Step 4: Run test — expected PASS
 
@@ -839,7 +839,7 @@ test "Matrix identity and multiply" {
 
 Copy entire `Matrix(T)` generic from `/tmp/abi-system/src/matrix.zig`.
 
-**Zig 0.16 fixes:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes:**
 - Replace `@import("utils")` with `const std = @import("std")`
 - The `vectorizedSaxpy` helper uses `Platform.simd_width` — replace with:
   ```zig
@@ -897,7 +897,7 @@ test "Tensor softmax rows sum to 1" {
 
 Copy `Shape` and `Tensor(T)` from `/tmp/abi-system/src/tensor.zig`.
 
-**Zig 0.16 fixes:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes:**
 - Replace `@import("utils")` → `const std = @import("std")`
 - Replace SIMD references: use `std.simd.suggestVectorLength(T) orelse 4` instead of `Platform.simd_width / @sizeOf(T)`
 - The v2.0 tensor is a general-purpose compute tensor. It does **not** replace the AI-specific tensors in `abbey/neural/tensor.zig` (which have gradient tracking) or `llm/tensor/tensor.zig` (which have quantization). This is infrastructure-level.
@@ -958,10 +958,10 @@ Copy from `/tmp/abi-system/src/hashmap.zig`:
 - `SwissMap(K, V)` — the entire generic type (lines 11–310)
 - Hash functions: `splitmix64`, `wyhash` (lines 312–378)
 
-**Zig 0.16 fixes:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes:**
 - Replace `@import("utils")` → `const std = @import("std")`
-- The v2.0 code uses `std.mem.Allocator` which is fine in 0.16
-- Ensure `@cmpxchgWeak` calls (if any in CAS paths) use Zig 0.16 ordering enums
+- The v2.0 code uses `std.mem.Allocator` which is fine in 0.16.0-dev.2535+b5bd49460
+- Ensure `@cmpxchgWeak` calls (if any in CAS paths) use Zig 0.16.0-dev.2535+b5bd49460 ordering enums
 
 ### Step 4: Run test — expected PASS
 
@@ -1009,7 +1009,7 @@ test "Channel close semantics" {
 
 Copy `Channel(T, N)` from `/tmp/abi-system/src/channel.zig`.
 
-**Zig 0.16 fixes:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes:**
 - Line 128, 179: Replace `std.time.sleep(...)` with `std.Thread.sleep(...)`:
   ```zig
   // BEFORE:
@@ -1018,7 +1018,7 @@ Copy `Channel(T, N)` from `/tmp/abi-system/src/channel.zig`.
   std.Thread.sleep(1);
   ```
 - Replace `@import("utils")` → `const std = @import("std")`
-- Ensure `@atomicStore`/`@atomicLoad`/`@cmpxchgWeak` use correct Zig 0.16 ordering enum (`.monotonic`, `.acquire`, `.release`, `.seq_cst`)
+- Ensure `@atomicStore`/`@atomicLoad`/`@cmpxchgWeak` use correct Zig 0.16.0-dev.2535+b5bd49460 ordering enum (`.monotonic`, `.acquire`, `.release`, `.seq_cst`)
 
 Skip `MessageTag` and `Message` types (pipeline-specific, not general-purpose).
 
@@ -1077,11 +1077,11 @@ test "ThreadPool execute tasks" {
 
 Copy `ThreadPool` from `/tmp/abi-system/src/thread_pool.zig`.
 
-**Zig 0.16 fixes:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes:**
 - Line 309: Replace `std.time.sleep(...)` → `std.Thread.sleep(...)`
 - Replace `@import("utils")` → `const std = @import("std")`
 - The `WorkQueue` uses a SpinLock internally — use `std.Thread.Mutex` or a custom spinlock (already available in the concurrency module)
-- `std.Thread.spawn(.{}, workerLoop, .{self, id})` syntax is fine in 0.16
+- `std.Thread.spawn(.{}, workerLoop, .{self, id})` syntax is fine in 0.16.0-dev.2535+b5bd49460
 
 ### Step 4: Run test — expected PASS
 
@@ -1129,8 +1129,8 @@ test "DAG Pipeline topological execute" {
 
 Copy `Pipeline` and `Stage` from `/tmp/abi-system/src/scheduler.zig`.
 
-**Zig 0.16 fixes:**
-- Replace `std.ArrayList` → keep it (acceptable in 0.16)
+**Zig 0.16.0-dev.2535+b5bd49460 fixes:**
+- Replace `std.ArrayList` → keep it (acceptable in 0.16.0-dev.2535+b5bd49460)
 - Replace `@import("utils")` → `const std = @import("std")`
 - Skip `createInferencePipeline()` template — that's application-specific
 
@@ -1189,7 +1189,7 @@ test "Profiler Chrome Trace export" {
 
 Copy `ProfilerType(max_spans)` from `/tmp/abi-system/src/profiler.zig`.
 
-**Zig 0.16 fixes — CRITICAL:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes — CRITICAL:**
 Replace ALL `std.time.nanoTimestamp()` calls (lines 146, 167) with:
 
 ```zig
@@ -1247,7 +1247,7 @@ test "BenchmarkSuite basic measurement" {
 
 Copy `Suite` and `Stats` from `/tmp/abi-system/src/bench.zig`.
 
-**Zig 0.16 fixes:**
+**Zig 0.16.0-dev.2535+b5bd49460 fixes:**
 - Lines 119, 121: Replace `std.time.nanoTimestamp()` with `std.time.Timer`:
   ```zig
   // BEFORE (v2.0):
@@ -1256,7 +1256,7 @@ Copy `Suite` and `Stats` from `/tmp/abi-system/src/bench.zig`.
   const end = std.time.nanoTimestamp();
   const elapsed = end - start;
 
-  // AFTER (Zig 0.16):
+  // AFTER (Zig 0.16.0-dev.2535+b5bd49460):
   var timer = try std.time.Timer.start();
   func();
   const elapsed = timer.read(); // returns u64 nanoseconds
@@ -1516,7 +1516,7 @@ Add section:
 ## v2.0 Integration (2026-02-08)
 - 14 modules integrated from abi-system-v2.0 (4 skipped: config, gpu, cli, main)
 - All placed in `src/services/` (shared or runtime layer)
-- Zig 0.16 fixes applied: nanoTimestamp→Timer/Instant, sleep→Thread.sleep, allocator vtable→Alignment enum
+- Zig 0.16.0-dev.2535+b5bd49460 fixes applied: nanoTimestamp→Timer/Instant, sleep→Thread.sleep, allocator vtable→Alignment enum
 - New infrastructure: SwissMap, MPMC channel, thread pool, DAG scheduler, profiler, statistical benchmarks
 - Extended: SIMD (softmax, cosine, euclidean), binary serialization (ABIX format), memory (arena, slab, scratch, composable)
 ```
@@ -1562,7 +1562,7 @@ All above ──── Task 16 (integration wiring) ──── Task 17 (format
 
 | Risk | Mitigation |
 |------|------------|
-| Allocator vtable mismatch | Every allocator has explicit Zig 0.16 vtable with `remap` field |
+| Allocator vtable mismatch | Every allocator has explicit Zig 0.16.0-dev.2535+b5bd49460 vtable with `remap` field |
 | Test baseline regression | Check `zig build test --summary all` after every commit |
 | Module import cycles | All new code in `src/services/` — never imports from `src/features/` |
 | SIMD portability | Use `std.simd.suggestVectorLength()` not hardcoded widths |

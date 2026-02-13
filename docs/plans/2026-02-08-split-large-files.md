@@ -6,7 +6,7 @@
 
 **Architecture:** Each file is split along natural struct/type boundaries. The original file becomes a hub that re-exports from new siblings. All new files use relative imports within the same directory. No public API changes — `mod.zig`/`stub.zig` signatures stay identical.
 
-**Tech Stack:** Zig 0.16, `zig fmt`, `zig build test --summary all` (baseline: 980 pass, 5 skip)
+**Tech Stack:** Zig 0.16.0-dev.2535+b5bd49460, `zig fmt`, `zig build test --summary all` (baseline: 980 pass, 5 skip)
 
 **Rules:**
 - Never change `mod.zig` or `stub.zig` public signatures

@@ -7,7 +7,7 @@ tags: [examples, tutorials, getting-started]
 
 <p align="center">
   <img src="https://img.shields.io/badge/Examples-21-blue?style=for-the-badge" alt="21 Examples"/>
-  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
   <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
 </p>
 
@@ -353,9 +353,9 @@ zig build benchmarks
 
 ## Common Patterns
 
-All examples follow these Zig 0.16 best practices:
+All examples follow these Zig 0.16.0-dev.2535+b5bd49460 best practices:
 
-1. **Allocator Setup (Zig 0.16):**
+1. **Allocator Setup (Zig 0.16.0-dev.2535+b5bd49460):**
 
    ```zig
    pub fn main() !void {
@@ -390,7 +390,7 @@ All examples follow these Zig 0.16 best practices:
    defer allocator.free(data);
    ```
 
-5. **Format Specifiers (Zig 0.16):**
+5. **Format Specifiers (Zig 0.16.0-dev.2535+b5bd49460):**
 
    ```zig
    std.debug.print("Status: {t}\n", .{status});  // {t} for enums

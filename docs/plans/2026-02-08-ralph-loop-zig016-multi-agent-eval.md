@@ -1,4 +1,4 @@
-# Ralph Loop Eval: Zig 0.16 Multi-Agent Prompt Suite (2026-02-08)
+# Ralph Loop Eval: Zig 0.16.0-dev.2535+b5bd49460 Multi-Agent Prompt Suite (2026-02-08)
 
 ## Scope
 - Evaluated comprehension-oriented prompts derived from:

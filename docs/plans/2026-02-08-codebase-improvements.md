@@ -6,7 +6,7 @@
 
 **Architecture:** Three parallel workstreams: (A) complete SIMD split, (B) wire new files into parent modules, (C) fix code quality issues. Streams A and B are independent. Stream C depends on A and B.
 
-**Tech Stack:** Zig 0.16, test baseline 980 pass / 5 skip
+**Tech Stack:** Zig 0.16.0-dev.2535+b5bd49460, test baseline 980 pass / 5 skip
 
 ---
 

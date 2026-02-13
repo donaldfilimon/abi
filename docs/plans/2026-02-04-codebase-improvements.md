@@ -12,11 +12,11 @@ related:
 
 > **Status:** Mostly Complete (Phase 1 done via Ralph Loop iterations) | **Created:** 2026-02-04 | **Parent:** [PLAN.md](../../PLAN.md)
 
-**Goal:** Modernize the ABI codebase by fixing deprecated Zig 0.16 patterns, improving security defaults, and enhancing code quality across ~100 instances.
+**Goal:** Modernize the ABI codebase by fixing deprecated Zig 0.16.0-dev.2535+b5bd49460 patterns, improving security defaults, and enhancing code quality across ~100 instances.
 
 **Architecture:** Systematic migration of deprecated APIs (`@errorName`/`@tagName` → `{t}`, `catch unreachable` → proper error handling), security hardening (rate limiting defaults), and documentation improvements. Changes are isolated to individual files with no cross-module dependencies.
 
-**Tech Stack:** Zig 0.16, std library modern APIs, TDD with existing test infrastructure
+**Tech Stack:** Zig 0.16.0-dev.2535+b5bd49460, std library modern APIs, TDD with existing test infrastructure
 
 ---
 
@@ -57,7 +57,7 @@ git add src/services/tests/stress/mod.zig
 git commit -m "$(cat <<'EOF'
 refactor(tests): migrate @errorName to {t} format specifier
 
-Zig 0.16 introduced {t} for printing errors/enums directly.
+Zig 0.16.0-dev.2535+b5bd49460 introduced {t} for printing errors/enums directly.
 This is more idiomatic than using @errorName(@tagName).
 
 Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>

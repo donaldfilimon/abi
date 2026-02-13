@@ -4,12 +4,12 @@ tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
 > **Codebase Status:** Synced with repository as of 2026-02-08.
-> **Zig Version:** `0.16.0-dev.2471+e9eadee00` (master branch)
+> **Zig Version:** `0.16.0-dev.2535+b5bd49460` (master branch)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
   <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=for-the-badge" alt="Version"/>
-  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
+  <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
   <img src="https://img.shields.io/badge/Tests-944%2F949_(5_skip)-success?style=for-the-badge" alt="Tests"/>
 </p>
 
@@ -29,13 +29,13 @@ tags: [planning, roadmap]
 | [plans/](plans/) | Detailed implementation plans for specific initiatives |
 | [CHANGELOG.md](../CHANGELOG.md) | Detailed release notes |
 
-**Zig Version Requirement:** `0.16.0-dev.2471+e9eadee00` or later (migration complete)
+**Zig Version Requirement:** `0.16.0-dev.2535+b5bd49460` or later (migration complete)
 
 ## Current Focus (Q1 2026)
 
 ### Stabilization & Tooling (Complete)
-- [x] Native HTTP downloads (Zig 0.16 `std.Io.File.Writer` stabilized) - COMPLETE (2026-02-05)
-- [x] Toolchain CLI re-enable (Zig 0.16 API compatibility restored) - COMPLETE (2026-02-05)
+- [x] Native HTTP downloads (Zig 0.16.0-dev.2535+b5bd49460 `std.Io.File.Writer` stabilized) - COMPLETE (2026-02-05)
+- [x] Toolchain CLI re-enable (Zig 0.16.0-dev.2535+b5bd49460 API compatibility restored) - COMPLETE (2026-02-05)
 
 ## Version 0.3.0 - Q1 2026
 
@@ -276,7 +276,7 @@ See CONTRIBUTING.md for details.
 
 | Version | Original Target | Completed | Notes |
 |----------|----------------|-----------|-------|
-| 0.2.2 | 2025-12-27 | 2025-12-27 | Zig 0.16 modernization |
+| 0.2.2 | 2025-12-27 | 2025-12-27 | Zig 0.16.0-dev.2535+b5bd49460 modernization |
 | 0.3.0 | Q1 2026 | 2026-01-23 | GPU backends, AI features |
 | 0.4.0 | Q2 2026 | 2026-01-25 | Performance, DX, documentation |
 | 0.5.0 | Q3 2026 | 2026-01-26 | Distributed systems, HA |
@@ -286,9 +286,9 @@ See CONTRIBUTING.md for details.
 
 *Last updated: February 5, 2026*
 
-## Zig 0.16 Migration Status
+## Zig 0.16.0-dev.2535+b5bd49460 Migration Status
 
-All Zig 0.16 API migrations are complete:
+All Zig 0.16.0-dev.2535+b5bd49460 API migrations are complete:
 
 - [x] `std.Io` unified API adoption
 - [x] `std.Io.Threaded` for synchronous I/O
@@ -298,10 +298,10 @@ All Zig 0.16 API migrations are complete:
 - [x] `std.Io.Clock.Duration` for sleep operations
 - [x] `std.ArrayListUnmanaged` for explicit allocator passing
 - [x] `{t}` format specifier for enums/errors
-- [x] CI/CD pinned to Zig 0.16.x
+- [x] CI/CD pinned to Zig `0.16.0-dev.2535+b5bd49460` or newer
 - [x] Feature stub API parity (2026-01-17)
 
-See `CLAUDE.md` for current Zig 0.16 I/O patterns and examples.
+See `CLAUDE.md` for current Zig 0.16.0-dev.2535+b5bd49460 I/O patterns and examples.
 
 ### Code Quality & Refactoring (2026-01-17)
 
@@ -311,13 +311,13 @@ All feature-gated stubs have been audited and updated for API parity:
 - [x] GPU stub exports all public functions (backendAvailability)
 - [x] Network stub implements full registry API (touch, setStatus)
 - [x] All stub modules tested with `-Denable-<feature>=false` builds
-- [x] Zig 0.16 I/O patterns applied to numa.zig (std.Io.Dir.cwd())
+- [x] Zig 0.16.0-dev.2535+b5bd49460 I/O patterns applied to numa.zig (std.Io.Dir.cwd())
 
 **Build Verification:** All feature flag combinations build successfully.
 
 ## Changelog History
 
- - [0.2.2](../CHANGELOG.md#022---2025-12-27) - Zig 0.16 modernization
+ - [0.2.2](../CHANGELOG.md#022---2025-12-27) - Zig 0.16.0-dev.2535+b5bd49460 modernization
  - [0.2.1](../CHANGELOG.md#021---2025-12-27) - Security fixes, memory safety
  - [0.2.0](../CHANGELOG.md#020---2025-12-24) - High-performance compute runtime
  - [0.1.0](../CHANGELOG.md#010---2025-12-24) - Initial release

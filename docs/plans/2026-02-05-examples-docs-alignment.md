@@ -4,9 +4,9 @@
 
 **Goal:** Fix all example compilation errors, verify API alignment, and ensure CLI documentation matches current behavior.
 
-**Architecture:** Fix Zig 0.16 Mutex/RwLock API migration issues across 8+ modules, verify all examples build successfully, audit CLI help text against actual command implementations.
+**Architecture:** Fix Zig 0.16.0-dev.2535+b5bd49460 Mutex/RwLock API migration issues across 8+ modules, verify all examples build successfully, audit CLI help text against actual command implementations.
 
-**Tech Stack:** Zig 0.16, std.Thread.Mutex (new location), build system validation
+**Tech Stack:** Zig 0.16.0-dev.2535+b5bd49460, std.Thread.Mutex (new location), build system validation
 
 ---
 
@@ -17,12 +17,12 @@
 - Modify: `src/features/ai/personas/registry.zig:16`
 - Reference: Search codebase for correct Mutex usage examples
 
-**Step 1: Identify correct Zig 0.16 Mutex API**
+**Step 1: Identify correct Zig 0.16.0-dev.2535+b5bd49460 Mutex API**
 
 Run: `grep -r "Mutex" src/ --include="*.zig" | grep -v "std.Thread.Mutex" | head -20`
 Expected: Find files using the correct API (likely imports or different path)
 
-**Step 2: Check CLAUDE.md for Zig 0.16 patterns**
+**Step 2: Check CLAUDE.md for Zig 0.16.0-dev.2535+b5bd49460 patterns**
 
 Read: `CLAUDE.md` section "Critical Gotchas"
 Look for: Mutex API migration guidance
@@ -58,7 +58,7 @@ Expected: No errors in personas modules
 
 ```bash
 git add src/features/ai/personas/loadbalancer.zig src/features/ai/personas/registry.zig
-git commit -m "fix: update AI personas to Zig 0.16 Mutex API"
+git commit -m "fix: update AI personas to Zig 0.16.0-dev.2535+b5bd49460 Mutex API"
 ```
 
 ---
@@ -100,7 +100,7 @@ Expected: No errors in these modules
 
 ```bash
 git add src/features/analytics/mod.zig src/features/database/database.zig
-git commit -m "fix: update analytics and database to Zig 0.16 sync primitives API"
+git commit -m "fix: update analytics and database to Zig 0.16.0-dev.2535+b5bd49460 sync primitives API"
 ```
 
 ---
@@ -178,7 +178,7 @@ Expected: No Mutex-related errors
 ```bash
 git add src/features/gpu/dispatcher.zig src/features/gpu/metrics.zig \
         src/features/gpu/multi_device.zig src/features/gpu/stream.zig
-git commit -m "fix: update GPU modules to Zig 0.16 sync primitives API"
+git commit -m "fix: update GPU modules to Zig 0.16.0-dev.2535+b5bd49460 sync primitives API"
 ```
 
 ---
@@ -209,7 +209,7 @@ List: Any examples that still fail and why
 In `docs/plan.md`, update "Next Sprint" section:
 ```markdown
 ### Completed (2026-02-05)
-- [x] **Zig 0.16 API migration** - Fixed Mutex/RwLock across 8+ modules
+- [x] **Zig 0.16.0-dev.2535+b5bd49460 API migration** - Fixed Mutex/RwLock across 8+ modules
 - [x] **Examples build verification** - All 18 examples compile successfully
 ```
 
@@ -279,7 +279,7 @@ git commit -m "docs: CLI help text audit - 2026-02-05"
 
 ---
 
-## Task 6: Update CLAUDE.md with Zig 0.16 Gotcha
+## Task 6: Update CLAUDE.md with Zig 0.16.0-dev.2535+b5bd49460 Gotcha
 
 **Files:**
 - Modify: `CLAUDE.md` - Critical Gotchas table
@@ -289,7 +289,7 @@ git commit -m "docs: CLI help text audit - 2026-02-05"
 In `CLAUDE.md` "Critical Gotchas" section, add row:
 
 ```markdown
-| `std.Thread.Mutex` / `std.Thread.RwLock` | `std.sync.Mutex` / `std.sync.RwLock` — Zig 0.16 moved sync primitives to std.sync |
+| `std.Thread.Mutex` / `std.Thread.RwLock` | `std.sync.Mutex` / `std.sync.RwLock` — Zig 0.16.0-dev.2535+b5bd49460 moved sync primitives to std.sync |
 ```
 
 **Step 2: Verify table formatting**
