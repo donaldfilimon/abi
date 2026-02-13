@@ -123,34 +123,8 @@ pub const LaunchConfig = struct {
     }
 };
 
-/// Backend type identifier
-pub const BackendType = enum {
-    cuda,
-    vulkan,
-    metal,
-    webgpu,
-    opengl,
-    opengles,
-    webgl2,
-    stdgpu,
-    simulated,
-    fpga,
-
-    pub fn name(self: BackendType) []const u8 {
-        return switch (self) {
-            .cuda => "cuda",
-            .vulkan => "vulkan",
-            .metal => "metal",
-            .webgpu => "webgpu",
-            .opengl => "opengl",
-            .opengles => "opengles",
-            .webgl2 => "webgl2",
-            .stdgpu => "stdgpu",
-            .simulated => "simulated",
-            .fpga => "fpga",
-        };
-    }
-};
+/// Backend type identifier — canonical definition in backend.zig
+pub const BackendType = @import("backend.zig").Backend;
 
 /// GPU Backend interface (VTable pattern)
 pub const Backend = struct {

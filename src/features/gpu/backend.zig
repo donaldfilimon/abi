@@ -15,6 +15,22 @@ pub const Backend = enum {
     webgl2,
     fpga,
     simulated,
+
+    /// Get backend name as a string.
+    pub fn name(self: Backend) []const u8 {
+        return switch (self) {
+            .cuda => "cuda",
+            .vulkan => "vulkan",
+            .stdgpu => "stdgpu",
+            .metal => "metal",
+            .webgpu => "webgpu",
+            .opengl => "opengl",
+            .opengles => "opengles",
+            .webgl2 => "webgl2",
+            .fpga => "fpga",
+            .simulated => "simulated",
+        };
+    }
 };
 
 pub const DetectionLevel = enum {
