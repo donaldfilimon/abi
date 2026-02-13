@@ -173,7 +173,7 @@ pub const TransformerModel = struct {
             const logits = try self.forward(allocator, context);
             defer allocator.free(logits);
 
-            const token = self.sampleToken(logits);
+            const token = try self.sampleToken(logits);
             result[generated] = token;
 
             if (token == 0) break;
@@ -368,7 +368,7 @@ pub const TransformerModel = struct {
         }
     }
 
-    pub fn sampleToken(self: *const TransformerModel, logits: []f32) u32 {
+    pub fn sampleToken(self: *TransformerModel, logits: []f32) !u32 {
         const vocab_size = self.config.vocab_size;
         const temperature = self.config.temperature;
         const top_k = self.config.top_k;
@@ -526,7 +526,6 @@ fn normalizeInPlace(values: []f32) void {
 }
 
 test "transformer encode and decode" {
-    var rng = std.Random.DefaultPrng.init(12345);
     const allocator = std.testing.allocator;
 
     var model = try TransformerModel.init(allocator, .{
@@ -535,7 +534,7 @@ test "transformer encode and decode" {
         .num_heads = 4,
         .vocab_size = 512,
         .max_tokens = 16,
-        .seed = rng.seed(),
+        .seed = 12345,
     });
     defer model.deinit();
 
@@ -544,7 +543,7 @@ test "transformer encode and decode" {
     try std.testing.expect(tokens.len > 0);
     try std.testing.expect(tokens.len <= 16);
 
-    const decoded = try model.decode(allocator, tokens);
+    const decoded = try model.decode(tokens);
     defer allocator.free(decoded);
     try std.testing.expect(decoded.len > 0);
 }

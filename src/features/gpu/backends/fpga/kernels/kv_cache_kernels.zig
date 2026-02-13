@@ -542,7 +542,8 @@ pub const StreamingKVCache = struct {
     recent_values: ?[]f32 = null,
 
     pub fn init(allocator: std.mem.Allocator, config: KVCacheKernelConfig) !StreamingKVCache {
-        const buffer_size = config.block_size * config.head_dim * config.num_kv_heads;
+        const bh = try std.math.mul(usize, config.block_size, config.head_dim);
+        const buffer_size = try std.math.mul(usize, bh, config.num_kv_heads);
 
         return StreamingKVCache{
             .config = config,

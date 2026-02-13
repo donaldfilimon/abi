@@ -411,15 +411,17 @@ pub const FlashAttentionKernel = struct {
             .allocator = allocator,
         };
 
-        const block_size = config.block_size;
-        const head_dim = config.head_dim;
+        const block_size: usize = config.block_size;
+        const head_dim: usize = config.head_dim;
 
-        // Allocate tile buffers
-        kernel.q_tile = try allocator.alloc(f32, block_size * head_dim);
-        kernel.k_tile = try allocator.alloc(f32, block_size * head_dim);
-        kernel.v_tile = try allocator.alloc(f32, block_size * head_dim);
-        kernel.s_tile = try allocator.alloc(f32, block_size * block_size);
-        kernel.o_tile = try allocator.alloc(f32, block_size * head_dim);
+        // Allocate tile buffers (overflow-checked)
+        const bh = try std.math.mul(usize, block_size, head_dim);
+        const bb = try std.math.mul(usize, block_size, block_size);
+        kernel.q_tile = try allocator.alloc(f32, bh);
+        kernel.k_tile = try allocator.alloc(f32, bh);
+        kernel.v_tile = try allocator.alloc(f32, bh);
+        kernel.s_tile = try allocator.alloc(f32, bb);
+        kernel.o_tile = try allocator.alloc(f32, bh);
 
         kernel.row_max = try allocator.alloc(f32, block_size);
         kernel.row_sum = try allocator.alloc(f32, block_size);

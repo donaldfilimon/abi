@@ -281,8 +281,15 @@ test "generator config defaults" {
 }
 
 test "generation result stats" {
+    const allocator = std.testing.allocator;
+    const tokens = try allocator.alloc(u32, 3);
+    defer allocator.free(tokens);
+    tokens[0] = 1;
+    tokens[1] = 2;
+    tokens[2] = 3;
+
     var result = GenerationResult{
-        .tokens = &[_]u32{ 1, 2, 3 },
+        .tokens = tokens,
         .text = null,
         .prompt_tokens = 10,
         .generated_tokens = 50,

@@ -32,10 +32,37 @@ pub const strict_config = CorsConfig{
     .allow_credentials = false,
 };
 
-/// Creates a CORS middleware with the given configuration.
-/// Note: Zig function pointers cannot capture state, so this returns
-/// a handler that uses the provided config at the call site.
-/// For custom configs, call addCorsHeaders/handlePreflight directly.
+/// CORS middleware that captures its own configuration.
+///
+/// Unlike `createCorsMiddleware` (which discards config due to Zig fn pointer
+/// limitations), this struct properly stores config and applies it per-request.
+///
+/// Usage:
+/// ```zig
+/// const cors = CorsMiddleware.init(.{ .allowed_origins = &.{"https://mysite.com"} });
+/// cors.handle(&ctx);
+/// ```
+pub const CorsMiddleware = struct {
+    config: CorsConfig,
+
+    pub fn init(config: CorsConfig) CorsMiddleware {
+        return .{ .config = config };
+    }
+
+    /// Apply CORS headers and handle preflight for this request.
+    pub fn handle(self: *const CorsMiddleware, ctx: *MiddlewareContext) !void {
+        try addCorsHeaders(ctx, self.config);
+        if (ctx.request.method == .OPTIONS) {
+            try handlePreflight(ctx, self.config);
+        }
+    }
+};
+
+/// Creates a CORS middleware function pointer (always permissive).
+///
+/// Zig function pointers cannot capture state, so this ignores the config
+/// parameter and returns a permissive handler. For config-aware CORS,
+/// use `CorsMiddleware.init(config)` instead.
 pub fn createCorsMiddleware(config: CorsConfig) types.MiddlewareFn {
     _ = config;
     return &permissiveCors;
@@ -216,6 +243,46 @@ test "areHeadersAllowed" {
     try std.testing.expect(areHeadersAllowed("content-type", &allowed)); // Case insensitive
     try std.testing.expect(areHeadersAllowed("Content-Type, Authorization", &allowed));
     try std.testing.expect(!areHeadersAllowed("X-Custom-Header", &allowed));
+}
+
+test "CorsMiddleware applies custom config" {
+    const allocator = std.testing.allocator;
+
+    const cors = CorsMiddleware.init(.{
+        .allowed_origins = &.{"https://mysite.com"},
+        .allow_credentials = true,
+    });
+
+    var request = server.ParsedRequest{
+        .method = .GET,
+        .path = "/api/data",
+        .query = null,
+        .version = .http_1_1,
+        .headers = std.StringHashMap([]const u8).init(allocator),
+        .body = null,
+        .raw_path = "/api/data",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+    defer request.deinit();
+    try request.headers.put("Origin", "https://mysite.com");
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    try cors.handle(&ctx);
+
+    try std.testing.expectEqualStrings(
+        "https://mysite.com",
+        response.getHeader("Access-Control-Allow-Origin").?,
+    );
+    try std.testing.expectEqualStrings(
+        "true",
+        response.getHeader("Access-Control-Allow-Credentials").?,
+    );
 }
 
 test "handlePreflight sets headers and aborts" {

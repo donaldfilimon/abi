@@ -110,12 +110,14 @@ pub const QuantizedMatMulKernel = struct {
             .allocator = allocator,
         };
 
-        // Pre-allocate tile buffers for streaming
+        // Pre-allocate tile buffers for streaming (overflow-checked)
         if (config.streaming_weights) {
-            const tile_size = config.tile_m * config.tile_k;
-            kernel.tile_a_buffer = try allocator.alloc(f32, tile_size);
-            kernel.tile_b_buffer = try allocator.alloc(f32, config.tile_k * config.tile_n);
-            kernel.tile_c_buffer = try allocator.alloc(f32, config.tile_m * config.tile_n);
+            const tile_mk = try std.math.mul(usize, config.tile_m, config.tile_k);
+            const tile_kn = try std.math.mul(usize, config.tile_k, config.tile_n);
+            const tile_mn = try std.math.mul(usize, config.tile_m, config.tile_n);
+            kernel.tile_a_buffer = try allocator.alloc(f32, tile_mk);
+            kernel.tile_b_buffer = try allocator.alloc(f32, tile_kn);
+            kernel.tile_c_buffer = try allocator.alloc(f32, tile_mn);
         }
 
         return kernel;

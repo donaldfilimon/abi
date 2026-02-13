@@ -30,8 +30,8 @@ fn writeFile(allocator: std.mem.Allocator, path: []const u8, data: []const u8) !
     defer io_backend.deinit();
     const io = io_backend.io();
     var file = try std.Io.Dir.cwd().createFile(io, path, .{});
-    defer file.close();
-    try file.writeAll(data);
+    defer file.close(io);
+    try file.writeStreamingAll(io, data);
 }
 
 // ============================================================================

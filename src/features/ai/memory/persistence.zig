@@ -582,7 +582,7 @@ pub fn createSession(
         .name = try allocator.dupe(u8, name),
         .created_at = timestamp,
         .updated_at = timestamp,
-        .messages = &[_]Message{},
+        .messages = try allocator.alloc(Message, 0),
         .config = config,
     };
 }
@@ -614,15 +614,17 @@ test "session id validation" {
 test "serialize and deserialize session" {
     const allocator = std.testing.allocator;
 
+    const msgs = try allocator.alloc(Message, 2);
+    defer allocator.free(msgs);
+    msgs[0] = .{ .role = .user, .content = "Hello!", .timestamp = 1704067200 };
+    msgs[1] = .{ .role = .assistant, .content = "Hi there!", .timestamp = 1704067250 };
+
     const original = SessionData{
         .id = "test-session-123",
         .name = "Test Session",
         .created_at = 1704067200,
         .updated_at = 1704067300,
-        .messages = &[_]Message{
-            .{ .role = .user, .content = "Hello!", .timestamp = 1704067200 },
-            .{ .role = .assistant, .content = "Hi there!", .timestamp = 1704067250 },
-        },
+        .messages = msgs,
         .config = .{
             .memory_type = .sliding_window,
             .max_tokens = 4000,

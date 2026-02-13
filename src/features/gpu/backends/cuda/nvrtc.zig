@@ -46,8 +46,8 @@ const NvrtcCreateProgramFn = *const fn (
     [*:0]const u8,
     [*:0]const u8,
     i32,
-    [*]const [*:0]const u8,
-    [*]const [*:0]const u8,
+    ?[*]const [*:0]const u8,
+    ?[*]const [*:0]const u8,
 ) callconv(.c) NvrtcResult;
 const NvrtcDestroyProgramFn = *const fn (*NvrtcProgram) callconv(.c) NvrtcResult;
 const NvrtcCompileProgramFn = *const fn (NvrtcProgram, i32, [*]const [*:0]const u8) callconv(.c) NvrtcResult;
@@ -111,27 +111,27 @@ pub fn compileToPTX(
 
     const add_expr_fn = nvrtcAddNameExpression orelse {
         const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-        destroy_fn(&program);
+        _ = destroy_fn(&program);
         return NvrtcError.CompilationFailed;
     };
 
     if (add_expr_fn(program, name_ptr) != .success) {
         const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-        destroy_fn(&program);
+        _ = destroy_fn(&program);
         return NvrtcError.CompilationFailed;
     }
 
     const compile_opts = try buildCompileOptions(allocator, options);
     defer {
-        for (compile_opts) |opt| {
-            allocator.free(opt);
+        for (compile_opts) |opt_ptr| {
+            allocator.free(std.mem.span(opt_ptr));
         }
         allocator.free(compile_opts);
     }
 
     const compile_fn = nvrtcCompileProgram orelse {
         const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-        destroy_fn(&program);
+        _ = destroy_fn(&program);
         return NvrtcError.CompilationFailed;
     };
 
@@ -139,7 +139,7 @@ pub fn compileToPTX(
         var log_size: usize = 0;
         const log_size_fn = nvrtcGetProgramLogSize orelse {
             const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-            destroy_fn(&program);
+            _ = destroy_fn(&program);
             return NvrtcError.CompilationFailed;
         };
 
@@ -148,7 +148,7 @@ pub fn compileToPTX(
             defer allocator.free(log);
             const log_fn = nvrtcGetProgramLog orelse {
                 const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-                destroy_fn(&program);
+                _ = destroy_fn(&program);
                 return NvrtcError.CompilationFailed;
             };
             _ = log_fn(program, log.ptr);
@@ -156,20 +156,20 @@ pub fn compileToPTX(
         }
 
         const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-        destroy_fn(&program);
+        _ = destroy_fn(&program);
         return NvrtcError.CompilationFailed;
     }
 
     var ptx_size: usize = 0;
     const size_fn = nvrtcGetPTXSize orelse {
         const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-        destroy_fn(&program);
+        _ = destroy_fn(&program);
         return NvrtcError.CompilationFailed;
     };
 
     if (size_fn(program, &ptx_size) != .success or ptx_size == 0) {
         const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-        destroy_fn(&program);
+        _ = destroy_fn(&program);
         return NvrtcError.CompilationFailed;
     }
 
@@ -177,14 +177,14 @@ pub fn compileToPTX(
 
     const get_fn = nvrtcGetPTX orelse {
         const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-        destroy_fn(&program);
+        _ = destroy_fn(&program);
         return NvrtcError.CompilationFailed;
     };
 
     if (get_fn(program, ptx.ptr) != .success) {
         allocator.free(ptx);
         const destroy_fn = nvrtcDestroyProgram orelse return NvrtcError.CompilationFailed;
-        destroy_fn(&program);
+        _ = destroy_fn(&program);
         return NvrtcError.CompilationFailed;
     }
 
@@ -208,7 +208,7 @@ pub fn compileToPTX(
         return NvrtcError.CompilationFailed;
     };
 
-    destroy_fn(&program);
+    _ = destroy_fn(&program);
 
     return .{
         .ptx = ptx,
@@ -217,45 +217,45 @@ pub fn compileToPTX(
     };
 }
 
-fn buildCompileOptions(allocator: std.mem.Allocator, options: CompileOptions) ![][]const u8 {
-    var opts = std.ArrayListUnmanaged([]const u8){};
+fn buildCompileOptions(allocator: std.mem.Allocator, options: CompileOptions) ![][*:0]const u8 {
+    var opts = std.ArrayListUnmanaged([*:0]const u8).empty;
     errdefer opts.deinit(allocator);
 
     if (options.max_registers != 0) {
-        const opt = try std.fmt.allocPrint(allocator, "-maxrregcount={d}", .{options.max_registers});
-        try opts.append(allocator, opt);
+        const opt = try std.fmt.allocPrintSentinel(allocator, "-maxrregcount={d}", .{options.max_registers}, 0);
+        try opts.append(allocator, opt.ptr);
     }
 
     if (options.min_blocks_per_multiprocessor != 0) {
-        const opt = try std.fmt.allocPrint(allocator, "-minblockspermp={d}", .{options.min_blocks_per_multiprocessor});
-        try opts.append(allocator, opt);
+        const opt = try std.fmt.allocPrintSentinel(allocator, "-minblockspermp={d}", .{options.min_blocks_per_multiprocessor}, 0);
+        try opts.append(allocator, opt.ptr);
     }
 
-    const arch = try std.fmt.allocPrint(allocator, "-arch=native", .{});
-    try opts.append(allocator, arch);
+    const arch = try allocator.dupeZ(u8, "-arch=native");
+    try opts.append(allocator, arch.ptr);
 
-    const opt_level = switch (options.optimization_level) {
+    const opt_level: [:0]const u8 = switch (options.optimization_level) {
         0 => "-O0",
         1 => "-O1",
         2 => "-O2",
         3 => "-O3",
         else => "-O3",
     };
-    const opt_str = try allocator.dupe(u8, opt_level);
-    try opts.append(allocator, opt_str);
+    const opt_str = try allocator.dupeZ(u8, opt_level);
+    try opts.append(allocator, opt_str.ptr);
 
     if (options.generate_debug_info) {
-        const opt = try allocator.dupe(u8, "-lineinfo");
-        try opts.append(allocator, opt);
+        const opt = try allocator.dupeZ(u8, "-lineinfo");
+        try opts.append(allocator, opt.ptr);
     }
 
     if (options.generate_line_info) {
-        const opt = try allocator.dupe(u8, "-device-debug");
-        try opts.append(allocator, opt);
+        const opt = try allocator.dupeZ(u8, "-device-debug");
+        try opts.append(allocator, opt.ptr);
     }
 
-    try opts.append(allocator, try allocator.dupe(u8, "-rdc=true"));
-    try opts.append(allocator, try allocator.dupe(u8, "-default-device"));
+    try opts.append(allocator, (try allocator.dupeZ(u8, "-rdc=true")).ptr);
+    try opts.append(allocator, (try allocator.dupeZ(u8, "-default-device")).ptr);
 
     return try opts.toOwnedSlice(allocator);
 }

@@ -16,10 +16,10 @@ test {
         _ = @import("features/ai/orchestration/mod.zig");
         _ = @import("features/ai/documents/mod.zig");
 
-        // These need targeted fixes before enabling:
-        // _ = @import("features/ai/memory/mod.zig");     // persistence.zig: *const [2]T → []T
-        // _ = @import("features/ai/tools/mod.zig");       // edit_tools.zig: Io.File.writeAll API
-        // _ = @import("features/ai/streaming/mod.zig");   // generator.zig: type mismatches
+        // Fixed: persistence.zig coercion, edit_tools I/O API, generator init signature
+        _ = @import("features/ai/memory/mod.zig");
+        _ = @import("features/ai/tools/mod.zig");
+        _ = @import("features/ai/streaming/mod.zig");
         // _ = @import("features/ai/abbey/mod.zig");       // 13 errors (deep refactor needed)
     }
 

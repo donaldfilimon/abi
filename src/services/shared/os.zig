@@ -741,7 +741,9 @@ pub const CommandResult = struct {
     }
 };
 
-/// Execute a shell command and capture output
+/// Execute a shell command and capture output.
+/// Note: This function passes `command` to /bin/sh — the caller is
+/// responsible for ensuring the command string is safe (no untrusted input).
 pub fn exec(allocator: std.mem.Allocator, command: []const u8) !CommandResult {
     if (comptime is_wasm) {
         return .{
@@ -755,28 +757,33 @@ pub fn exec(allocator: std.mem.Allocator, command: []const u8) !CommandResult {
     const shell = if (comptime builtin.os.tag == .windows) "cmd.exe" else "/bin/sh";
     const shell_arg = if (comptime builtin.os.tag == .windows) "/c" else "-c";
 
-    var child = std.process.Child.init(
-        &[_][]const u8{ shell, shell_arg, command },
-        allocator,
-    );
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Pipe;
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
 
-    try child.spawn();
+    var child = try std.process.spawn(io, .{
+        .argv = &[_][]const u8{ shell, shell_arg, command },
+        .stdout = .pipe,
+        .stderr = .pipe,
+    });
 
-    const stdout = try child.stdout.?.reader().readAllAlloc(allocator, 1024 * 1024);
+    var stdout_buf: [4096]u8 = undefined;
+    var stdout_reader = child.stdout.?.readerStreaming(io, &stdout_buf);
+    const stdout = try stdout_reader.interface.allocRemaining(allocator, .limited(1024 * 1024));
     errdefer allocator.free(stdout);
 
-    const stderr = try child.stderr.?.reader().readAllAlloc(allocator, 1024 * 1024);
+    var stderr_buf: [4096]u8 = undefined;
+    var stderr_reader = child.stderr.?.readerStreaming(io, &stderr_buf);
+    const stderr = try stderr_reader.interface.allocRemaining(allocator, .limited(1024 * 1024));
     errdefer allocator.free(stderr);
 
-    const term = try child.wait();
+    const term = try child.wait(io);
 
     return .{
         .stdout = stdout,
         .stderr = stderr,
         .exit_code = switch (term) {
-            .Exited => |code| code,
+            .exited => |code| code,
             else => 1,
         },
         .allocator = allocator,
@@ -794,25 +801,33 @@ pub fn execArgs(allocator: std.mem.Allocator, argv: []const []const u8) !Command
         };
     }
 
-    var child = std.process.Child.init(argv, allocator);
-    child.stdout_behavior = .Pipe;
-    child.stderr_behavior = .Pipe;
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
 
-    try child.spawn();
+    var child = try std.process.spawn(io, .{
+        .argv = argv,
+        .stdout = .pipe,
+        .stderr = .pipe,
+    });
 
-    const stdout = try child.stdout.?.reader().readAllAlloc(allocator, 1024 * 1024);
+    var stdout_buf: [4096]u8 = undefined;
+    var stdout_reader = child.stdout.?.readerStreaming(io, &stdout_buf);
+    const stdout = try stdout_reader.interface.allocRemaining(allocator, .limited(1024 * 1024));
     errdefer allocator.free(stdout);
 
-    const stderr = try child.stderr.?.reader().readAllAlloc(allocator, 1024 * 1024);
+    var stderr_buf: [4096]u8 = undefined;
+    var stderr_reader = child.stderr.?.readerStreaming(io, &stderr_buf);
+    const stderr = try stderr_reader.interface.allocRemaining(allocator, .limited(1024 * 1024));
     errdefer allocator.free(stderr);
 
-    const term = try child.wait();
+    const term = try child.wait(io);
 
     return .{
         .stdout = stdout,
         .stderr = stderr,
         .exit_code = switch (term) {
-            .Exited => |code| code,
+            .exited => |code| code,
             else => 1,
         },
         .allocator = allocator,
@@ -829,34 +844,31 @@ pub const Clipboard = struct {
     pub fn copy(allocator: std.mem.Allocator, text: []const u8) !void {
         if (comptime is_wasm) return error.Unsupported;
 
-        if (comptime builtin.os.tag == .windows) {
-            // Use clip.exe for simplicity
-            var child = std.process.Child.init(
-                &[_][]const u8{"clip.exe"},
-                allocator,
-            );
-            child.stdin_behavior = .Pipe;
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        defer io_backend.deinit();
+        const io = io_backend.io();
 
-            try child.spawn();
-            try child.stdin.?.writeAll(text);
-            child.stdin.?.close();
+        if (comptime builtin.os.tag == .windows) {
+            var child = try std.process.spawn(io, .{
+                .argv = &[_][]const u8{"clip.exe"},
+                .stdin = .pipe,
+            });
+            try child.stdin.?.writeStreamingAll(io, text);
+            child.stdin.?.close(io);
             child.stdin = null;
-            _ = try child.wait();
+            _ = try child.wait(io);
             return;
         }
 
         if (comptime builtin.os.tag == .macos) {
-            var child = std.process.Child.init(
-                &[_][]const u8{"pbcopy"},
-                allocator,
-            );
-            child.stdin_behavior = .Pipe;
-
-            try child.spawn();
-            try child.stdin.?.writeAll(text);
-            child.stdin.?.close();
+            var child = try std.process.spawn(io, .{
+                .argv = &[_][]const u8{"pbcopy"},
+                .stdin = .pipe,
+            });
+            try child.stdin.?.writeStreamingAll(io, text);
+            child.stdin.?.close(io);
             child.stdin = null;
-            _ = try child.wait();
+            _ = try child.wait(io);
             return;
         }
 
@@ -868,19 +880,16 @@ pub const Clipboard = struct {
         };
 
         for (clipboard_cmds) |cmd| {
-            var child = std.process.Child.init(
-                &[_][]const u8{ "/bin/sh", "-c", cmd },
-                allocator,
-            );
-            child.stdin_behavior = .Pipe;
-            child.stderr_behavior = .Ignore;
-
-            child.spawn() catch continue;
-            child.stdin.?.writeAll(text) catch continue;
-            child.stdin.?.close();
+            var child = std.process.spawn(io, .{
+                .argv = &[_][]const u8{ "/bin/sh", "-c", cmd },
+                .stdin = .pipe,
+                .stderr = .ignore,
+            }) catch continue;
+            child.stdin.?.writeStreamingAll(io, text) catch continue;
+            child.stdin.?.close(io);
             child.stdin = null;
-            const result = child.wait() catch continue;
-            if (result == .Exited and result.Exited == 0) return;
+            const result = child.wait(io) catch continue;
+            if (result == .exited and result.exited == 0) return;
         }
 
         return error.ClipboardUnavailable;

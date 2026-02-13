@@ -288,7 +288,7 @@ pub const LayerPagePool = struct {
     pub fn allocatePage(self: *LayerPagePool) ?u32 {
         if (self.free_list.items.len == 0) return null;
 
-        const page_idx = self.free_list.pop();
+        const page_idx = self.free_list.pop() orelse return null;
         self.pages[page_idx].num_tokens = 0;
         self.pages[page_idx].ref_count = 1;
         self.allocated_pages += 1;

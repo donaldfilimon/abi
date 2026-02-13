@@ -88,10 +88,24 @@ pub const StreamingGenerator = struct {
             return null;
         }
 
-        const logits = try self.model.forward(self.allocator, self.generated_tokens.items);
+        // Build embedding context from token sequence (forward expects []const f32)
+        const hidden_size: usize = self.model.config.hidden_size;
+        const context = try self.allocator.alloc(f32, self.generated_tokens.items.len * hidden_size);
+        defer self.allocator.free(context);
+
+        for (self.generated_tokens.items, 0..) |tok, i| {
+            if (tok < self.model.config.vocab_size) {
+                const src = self.model.embedding_weights[tok * hidden_size ..][0..hidden_size];
+                @memcpy(context[i * hidden_size ..][0..hidden_size], src);
+            } else {
+                @memset(context[i * hidden_size ..][0..hidden_size], 0);
+            }
+        }
+
+        const logits = try self.model.forward(self.allocator, context);
         defer self.allocator.free(logits);
 
-        const token = self.model.sampleToken(logits);
+        const token = try self.model.sampleToken(logits);
         const decoded = decodeToken(token);
 
         self.current_token_id += 1;
@@ -236,11 +250,14 @@ fn decodeToken(token: u32) []const u8 {
 
 test "streaming generator initialization" {
     const allocator = std.testing.allocator;
-    var model = transformer.TransformerModel.init(.{
+    var model = try transformer.TransformerModel.init(allocator, .{
         .layers = 2,
         .hidden_size = 64,
+        .num_heads = 4,
         .vocab_size = 512,
+        .max_tokens = 32,
     });
+    defer model.deinit();
 
     const config = GenerationConfig{ .max_tokens = 10 };
     var generator = StreamingGenerator.init(allocator, &model, config);

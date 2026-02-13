@@ -161,8 +161,11 @@ fn executeWriteFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
 
     // Escape content for shell and write using heredoc
     // Use base64 encoding to safely pass binary/special content
-    const encoded = std.base64.standard.Allocator.encode(ctx.allocator, content) catch return error.OutOfMemory;
-    defer ctx.allocator.free(encoded);
+    const encoder = std.base64.standard.Encoder;
+    const encoded_size = encoder.calcSize(content.len);
+    const encoded_buf = ctx.allocator.alloc(u8, encoded_size) catch return error.OutOfMemory;
+    defer ctx.allocator.free(encoded_buf);
+    const encoded = encoder.encode(encoded_buf, content);
 
     const command = std.fmt.allocPrint(ctx.allocator, "echo \"{s}\" | base64 -d > \"{s}\"", .{ encoded, full_path }) catch return error.OutOfMemory;
     defer ctx.allocator.free(command);

@@ -487,7 +487,7 @@ pub const LlmMemoryPool = struct {
 
     /// Get the allocation size for a class.
     fn sizeForClass(class: u8) usize {
-        return @as(usize, 1) << (@as(u6, class) + 8);
+        return @as(usize, 1) << (@as(u6, @intCast(class)) + 8);
     }
 
     /// Allocate a new buffer.
@@ -695,7 +695,7 @@ pub const LlmMemoryPool = struct {
         if (!build_options.enable_gpu) return false;
 
         // Try to initialize CUDA memory subsystem
-        if (cuda_memory.init()) |_| {
+        if (cuda_memory.init(std.heap.page_allocator)) |_| {
             return true;
         } else |_| {
             return false;
