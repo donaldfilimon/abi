@@ -3,7 +3,7 @@
 For deeper architecture notes, see `CLAUDE.md`. For vulnerability reporting and security
 practices, see `SECURITY.md`.
 
-**AI agents**: Claude Code (Cursor) and Codex share `.cursorrules` and these docs for
+**AI agents**: Claude Code and other AI tools use `CLAUDE.md` and these docs for
 consistent behavior.
 
 ## Project Structure & Module Organization

@@ -47,7 +47,7 @@ pub const raft_transport = @import("raft_transport.zig");
 pub const circuit_breaker = @import("circuit_breaker.zig");
 
 // Unified Memory and Linking modules
-pub const unified_memory = @import("unified_memory.zig");
+pub const unified_memory = @import("unified_memory/mod.zig");
 pub const linking = @import("linking.zig");
 
 // ============================================================================

@@ -6,15 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Key | Value |
 |-----|-------|
-| **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`), use `./zigw` to run it |
+| **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
 | **Test baseline** | 983 pass, 5 skip (988 total) — must be maintained |
 
 ## Build & Test Commands
 
-Use `./zigw` or ensure your system `zig` matches `.zigversion` (e.g. via `zvm use master`).
-If your system `zig` is already `0.16.0-dev.2535+b5bd49460` or newer, plain `zig` works.
+Ensure your system `zig` matches `.zigversion` (e.g. via `zvm use master`).
 
 ```bash
 zig build                                    # Build with default flags

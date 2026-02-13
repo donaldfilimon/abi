@@ -6,10 +6,7 @@
 const std = @import("std");
 const kernel_mod = @import("kernel.zig");
 const backend_mod = @import("codegen/backend.zig");
-const cuda = @import("codegen/cuda.zig");
-const glsl = @import("codegen/glsl.zig");
-const wgsl = @import("codegen/wgsl.zig");
-const msl = @import("codegen/msl.zig");
+const generic = @import("codegen/generic.zig");
 const gpu_backend = @import("../backend.zig");
 const kernel_types = @import("../kernel_types.zig");
 
@@ -63,31 +60,31 @@ fn generateSource(
 ) CompileError!backend_mod.GeneratedSource {
     return switch (target) {
         .cuda => blk: {
-            var gen = cuda.CudaGenerator.init(allocator);
+            var gen = generic.CudaGenerator.init(allocator);
             defer gen.deinit();
             break :blk try gen.generate(ir);
         },
         .vulkan, .opengl, .opengles => blk: {
             // Generic GLSL generator produces Vulkan-style output (#version 450)
-            var gen = glsl.GlslGenerator.init(allocator);
+            var gen = generic.GlslGenerator.init(allocator);
             defer gen.deinit();
             var result = try gen.generate(ir);
             result.backend = target;
             break :blk result;
         },
         .metal => blk: {
-            var gen = msl.MslGenerator.init(allocator);
+            var gen = generic.MslGenerator.init(allocator);
             defer gen.deinit();
             break :blk try gen.generate(ir);
         },
         .webgpu => blk: {
-            var gen = wgsl.WgslGenerator.init(allocator);
+            var gen = generic.WgslGenerator.init(allocator);
             defer gen.deinit();
             break :blk try gen.generate(ir);
         },
         .stdgpu => blk: {
             // stdgpu uses GLSL-like format
-            var gen = glsl.GlslGenerator.init(allocator);
+            var gen = generic.GlslGenerator.init(allocator);
             defer gen.deinit();
             var result = try gen.generate(ir);
             result.backend = .stdgpu;
@@ -96,7 +93,7 @@ fn generateSource(
         .webgl2 => return CompileError.UnsupportedBackend,
         .fpga => blk: {
             // FPGA synthesis tools can consume GLSL-like IR
-            var gen = glsl.GlslGenerator.init(allocator);
+            var gen = generic.GlslGenerator.init(allocator);
             defer gen.deinit();
             var result = try gen.generate(ir);
             result.backend = .fpga;

@@ -182,11 +182,59 @@ pub const Value = builder.Value;
 pub const codegen = struct {
     pub const backend = @import("codegen/backend.zig");
     pub const common = @import("codegen/common.zig");
-    pub const cuda = @import("codegen/cuda.zig");
-    pub const glsl = @import("codegen/glsl.zig");
-    pub const wgsl = @import("codegen/wgsl.zig");
-    pub const msl = @import("codegen/msl.zig");
+    pub const generic = @import("codegen/generic.zig");
     pub const spirv = @import("codegen/spirv.zig");
+    const vision = @import("codegen/vision_kernels.zig");
+
+    // Language-specific namespaces (inlined from former wrapper files)
+    pub const cuda = struct {
+        pub const Generator = generic.CudaGenerator;
+        pub const CudaGenerator = generic.CudaGenerator;
+        pub const VisionKernels = vision.VisionKernels;
+
+        test "CudaGenerator availability" {
+            const allocator = std.testing.allocator;
+            var g = Generator.init(allocator);
+            defer g.deinit();
+            try std.testing.expect(g.backend_config.language == .cuda);
+        }
+    };
+    pub const glsl = struct {
+        pub const Generator = generic.GlslGenerator;
+        pub const GlslGenerator = generic.GlslGenerator;
+        pub const VisionKernels = vision.VisionKernels;
+
+        test "GlslGenerator availability" {
+            const allocator = std.testing.allocator;
+            var g = Generator.init(allocator);
+            defer g.deinit();
+            try std.testing.expect(g.backend_config.language == .glsl);
+        }
+    };
+    pub const wgsl = struct {
+        pub const Generator = generic.WgslGenerator;
+        pub const WgslGenerator = generic.WgslGenerator;
+        pub const VisionKernels = vision.VisionKernels;
+
+        test "WgslGenerator availability" {
+            const allocator = std.testing.allocator;
+            var g = Generator.init(allocator);
+            defer g.deinit();
+            try std.testing.expect(g.backend_config.language == .wgsl);
+        }
+    };
+    pub const msl = struct {
+        pub const Generator = generic.MslGenerator;
+        pub const MslGenerator = generic.MslGenerator;
+        pub const VisionKernels = vision.VisionKernels;
+
+        test "MslGenerator availability" {
+            const allocator = std.testing.allocator;
+            var g = Generator.init(allocator);
+            defer g.deinit();
+            try std.testing.expect(g.backend_config.language == .msl);
+        }
+    };
 
     // Re-export common types
     pub const CodegenError = backend.CodegenError;

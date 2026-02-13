@@ -78,7 +78,7 @@ pub const simd = @import("simd/mod.zig");
 **Step 5: Run tests**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 ```
 
 Expected: 980 pass, 5 skip. If tests fail, check which symbols are missing from `mod.zig`.
@@ -93,7 +93,7 @@ git rm src/services/shared/simd.zig
 **Step 7: Run tests again to confirm**
 
 ```bash
-./zigw build test --summary all
+zig build test --summary all
 ```
 
 **Step 8: Commit**
@@ -133,7 +133,7 @@ _ = @import("trainable_model_test.zig");
 **Step 4: Run tests**
 
 ```bash
-./zigw build test --summary all
+zig build test --summary all
 ```
 
 **Step 5: Commit**
@@ -167,7 +167,7 @@ git commit -m "refactor: wire training submodules and add test discovery"
 **Step 6: Run tests**
 
 ```bash
-./zigw build test --summary all
+zig build test --summary all
 ```
 
 **Step 7: Commit**
@@ -192,7 +192,7 @@ git commit -m "refactor: wire GPU submodules and add test discovery"
 **Step 3: Add missing entries, run tests, commit**
 
 ```bash
-./zigw build test --summary all
+zig build test --summary all
 git add src/features/database/
 git commit -m "refactor: wire database submodules and add test discovery"
 ```
@@ -212,7 +212,7 @@ git commit -m "refactor: wire database submodules and add test discovery"
 **Step 3: Add missing entries, run tests, commit**
 
 ```bash
-./zigw build test --summary all
+zig build test --summary all
 git add src/features/ai/streaming/
 git commit -m "refactor: wire streaming submodules and add test discovery"
 ```
@@ -258,7 +258,7 @@ Most are `bufPrint catch unreachable` — formatting into a fixed-size buffer. I
 **Step 3: Run tests, commit**
 
 ```bash
-./zigw build test --summary all
+zig build test --summary all
 git commit -m "fix: add safety comments for catch unreachable patterns"
 ```
 
@@ -269,7 +269,7 @@ git commit -m "fix: add safety comments for catch unreachable patterns"
 **Step 1: Full check**
 
 ```bash
-./zigw build full-check
+zig build full-check
 ```
 
 This runs: format check + tests + flag validation (16 combos) + CLI smoke tests.
@@ -298,7 +298,7 @@ Task 8 runs last (depends on all others).
 After all tasks:
 
 ```bash
-./zigw build test --summary all    # Must be 980 pass, 5 skip (or more)
-./zigw build validate-flags        # Must pass all 16 flag combos
-./zigw fmt .                       # Must be clean
+zig build test --summary all    # Must be 980 pass, 5 skip (or more)
+zig build validate-flags        # Must pass all 16 flag combos
+zig fmt .                       # Must be clean
 ```

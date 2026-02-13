@@ -326,7 +326,7 @@ Parallel agent dispatch — 4 agents + 1 manual task:
 - [x] Updated `docs/api/runtime-memory.md` — ArenaPool, FallbackAllocator, 6 other allocators
 - [x] Updated `docs/api/index.md` — fixed broken links, added analytics/cloud sections
 - [x] GPU stub parity improved — added Vendor, AccessHint, ElementType, AsyncTransfer, compile functions, backendFlag
-- [x] `.claude-plugin/` agents updated — test baseline 944→983, v2 module awareness, security checks, I/O backend, `./zigw`
+- [x] `.claude-plugin/` agents updated — test baseline 944→983, v2 module awareness, security checks, I/O backend
 
 Test evidence: 983 pass, 5 skip (988 total) — +1 pass from GPU stub parity fix
 

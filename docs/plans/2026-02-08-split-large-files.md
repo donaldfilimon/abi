@@ -12,8 +12,8 @@
 - Never change `mod.zig` or `stub.zig` public signatures
 - Every new file gets `const std = @import("std");` and only the imports it needs
 - Tests move to `*_test.zig` and import the source via relative path
-- Run `./zigw build test --summary all` after each task — must stay at 980/5
-- Run `./zigw fmt .` before each commit
+- Run `zig build test --summary all` after each task — must stay at 980/5
+- Run `zig fmt .` before each commit
 - Commit after each task
 
 ---
@@ -80,7 +80,7 @@ Keep `TrainableModel` struct in this file — it's the core implementation (~900
 **Step 5: Run tests**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 ```
 
 Expected: 980 pass, 5 skip. If any test fails, the test file likely needs an additional import.
@@ -176,7 +176,7 @@ git rm src/services/shared/simd.zig
 **Step 6: Run tests**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 ```
 
 Expected: 980 pass, 5 skip.
@@ -230,7 +230,7 @@ pub fn getCurrentUser(self: *Client) !types.User {
 **Step 2: Run tests, format, commit**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 git add src/services/connectors/discord/
 git commit -m "refactor: extract discord rest tests to separate file"
 ```
@@ -268,7 +268,7 @@ pub const ExperienceType = learning_types.ExperienceType;
 **Step 3: Create test file, run tests, commit**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 git add src/features/ai/training/learning_types.zig src/features/ai/training/experience_buffer.zig src/features/ai/training/reward_policy.zig src/features/ai/training/dpo_optimizer.zig src/features/ai/training/self_learning_test.zig src/features/ai/training/self_learning.zig
 git commit -m "refactor: split self_learning.zig into focused modules"
 ```
@@ -324,7 +324,7 @@ HnswIndex uses SearchState and DistanceCache internally — update its field typ
 **Step 5: Run tests, format, commit**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 git add src/features/database/search_state.zig src/features/database/distance_cache.zig src/features/database/hnsw_test.zig src/features/database/hnsw.zig
 git commit -m "refactor: extract search_state and distance_cache from hnsw.zig"
 ```
@@ -346,7 +346,7 @@ git commit -m "refactor: extract search_state and distance_cache from hnsw.zig"
 **Step 5: Run tests, format, commit**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 git add src/features/gpu/dispatch_types.zig src/features/gpu/batched_dispatch.zig src/features/gpu/dispatcher_test.zig src/features/gpu/dispatcher.zig
 git commit -m "refactor: split dispatcher.zig into types, batched, and test files"
 ```
@@ -367,7 +367,7 @@ git commit -m "refactor: split dispatcher.zig into types, batched, and test file
 **Step 4: Run tests, format, commit**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 git add src/features/gpu/backends/vulkan_types.zig src/features/gpu/backends/vulkan_test.zig src/features/gpu/backends/vulkan.zig
 git commit -m "refactor: extract vulkan types and tests to separate files"
 ```
@@ -392,7 +392,7 @@ Note: Global state variables (metal_lib, objc_lib, etc.) must stay accessible fr
 **Step 4: Run tests, format, commit**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 git add src/features/gpu/backends/metal_types.zig src/features/gpu/backends/metal_test.zig src/features/gpu/backends/metal.zig
 git commit -m "refactor: extract metal types and tests to separate files"
 ```
@@ -425,7 +425,7 @@ git commit -m "refactor: extract metal types and tests to separate files"
 **Step 6: Run tests, format, commit**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 git add src/features/gpu/device_group.zig src/features/gpu/gpu_cluster.zig src/features/gpu/gradient_sync.zig src/features/gpu/multi_device_test.zig src/features/gpu/multi_device.zig
 git commit -m "refactor: split multi_device.zig into device_group, cluster, and gradient modules"
 ```
@@ -453,7 +453,7 @@ pub const AbiStreamRequest = @import("request_types.zig").AbiStreamRequest;
 **Step 4: Run tests, format, commit**
 
 ```bash
-./zigw fmt . && ./zigw build test --summary all
+zig fmt . && zig build test --summary all
 git add src/features/ai/streaming/request_types.zig src/features/ai/streaming/server_test.zig src/features/ai/streaming/server.zig
 git commit -m "refactor: extract streaming request types and tests from server.zig"
 ```
@@ -465,9 +465,9 @@ git commit -m "refactor: extract streaming request types and tests from server.z
 After all 10 tasks:
 
 ```bash
-./zigw build test --summary all    # Must be 980 pass, 5 skip
-./zigw build validate-flags        # Must pass all 16 flag combos
-./zigw fmt .                       # Must be clean
+zig build test --summary all    # Must be 980 pass, 5 skip
+zig build validate-flags        # Must pass all 16 flag combos
+zig fmt .                       # Must be clean
 ```
 
 If validate-flags fails on any combo, the issue is likely a stub.zig that needs updating or a re-export that's missing.

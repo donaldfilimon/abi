@@ -10,6 +10,13 @@ const time = abi.shared.time;
 const sync = abi.shared.sync;
 const builtin = @import("builtin");
 
+const WindowsKernel32 = if (builtin.os.tag == .windows)
+    struct {
+        extern "kernel32" fn GetStdHandle(nStdHandle: std.os.windows.DWORD) callconv(.winapi) ?std.os.windows.HANDLE;
+    }
+else
+    struct {};
+
 /// Current platform information
 pub const Platform = struct {
     os: std.Target.Os.Tag,
@@ -146,7 +153,7 @@ pub fn isCI() bool {
 /// Check if running with terminal attached
 pub fn hasTty() bool {
     if (builtin.os.tag == .windows) {
-        const handle = std.os.windows.kernel32.GetStdHandle(std.os.windows.STD_INPUT_HANDLE);
+        const handle = WindowsKernel32.GetStdHandle(std.os.windows.STD_INPUT_HANDLE) orelse return false;
         return handle != std.os.windows.INVALID_HANDLE_VALUE;
     } else {
         return std.posix.isatty(std.posix.STDIN_FILENO);

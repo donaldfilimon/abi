@@ -99,6 +99,7 @@ training_data.txt
 
 # Claude Code local settings
 .claude/
+.claude-plugin/
 
 # ABI local user state
 .abi/

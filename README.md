@@ -78,12 +78,11 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 ```bash
 git clone https://github.com/donaldfilimon/abi.git
 cd abi
-./zigw build
-./zigw build run -- --help
+zig build
+zig build run -- --help
 ```
 
-If your `zig` on `PATH` is older (for example `0.15.x`), use `./zigw` to run
-the pinned toolchain from `.zigversion`.
+Ensure your `zig` matches the version in `.zigversion` (e.g. via `zvm use master`).
 
 ### Requirements
 

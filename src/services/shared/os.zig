@@ -20,6 +20,14 @@ const posix = std.posix;
 const windows = if (builtin.os.tag == .windows) std.os.windows else struct {};
 const linux = if (builtin.os.tag == .linux) std.os.linux else struct {};
 
+const WindowsKernel32 = if (builtin.os.tag == .windows)
+    struct {
+        extern "kernel32" fn GetStdHandle(nStdHandle: windows.DWORD) callconv(.winapi) ?windows.HANDLE;
+        extern "kernel32" fn GetConsoleMode(hConsoleHandle: windows.HANDLE, lpMode: *windows.DWORD) callconv(.winapi) windows.BOOL;
+    }
+else
+    struct {};
+
 // libc imports for cross-platform compatibility (Zig 0.16)
 // Not available on freestanding/WASM targets
 const libc = if (builtin.os.tag != .freestanding and
@@ -978,9 +986,9 @@ pub fn isatty() bool {
     if (comptime is_wasm) return false;
 
     if (comptime builtin.os.tag == .windows) {
-        const handle = windows.kernel32.GetStdHandle(windows.STD_INPUT_HANDLE) orelse return false;
-        var mode: u32 = 0;
-        return windows.kernel32.GetConsoleMode(handle, &mode) != 0;
+        const handle = WindowsKernel32.GetStdHandle(windows.STD_INPUT_HANDLE) orelse return false;
+        var mode: windows.DWORD = 0;
+        return WindowsKernel32.GetConsoleMode(handle, &mode) != 0;
     }
 
     // POSIX: use ioctl to check if fd is a tty
@@ -995,9 +1003,9 @@ pub fn isattyStdout() bool {
     if (comptime is_wasm) return false;
 
     if (comptime builtin.os.tag == .windows) {
-        const handle = windows.kernel32.GetStdHandle(windows.STD_OUTPUT_HANDLE) orelse return false;
-        var mode: u32 = 0;
-        return windows.kernel32.GetConsoleMode(handle, &mode) != 0;
+        const handle = WindowsKernel32.GetStdHandle(windows.STD_OUTPUT_HANDLE) orelse return false;
+        var mode: windows.DWORD = 0;
+        return WindowsKernel32.GetConsoleMode(handle, &mode) != 0;
     }
 
     // POSIX: use ioctl to check if fd is a tty

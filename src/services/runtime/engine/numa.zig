@@ -40,6 +40,7 @@ const WindowsKernel32 = struct {
         mask: usize,
     ) callconv(.winapi) usize;
     extern "kernel32" fn GetCurrentProcessorNumber() callconv(.winapi) u32;
+    extern "kernel32" fn GetLastError() callconv(.winapi) windows.DWORD;
 };
 
 pub const CpuTopology = struct {
@@ -346,7 +347,7 @@ fn setWindowsThreadAffinity(cpu_id: usize) !void {
     const handle = WindowsKernel32.GetCurrentThread();
     const mask = @as(usize, 1) << @intCast(cpu_id);
     if (WindowsKernel32.SetThreadAffinityMask(handle, mask) == 0) {
-        return windows.unexpectedError(windows.kernel32.GetLastError());
+        return windows.unexpectedError(WindowsKernel32.GetLastError());
     }
 }
 
@@ -385,7 +386,7 @@ fn setWindowsThreadAffinityMask(mask: AffinityMask) !void {
 
     const handle = WindowsKernel32.GetCurrentThread();
     if (WindowsKernel32.SetThreadAffinityMask(handle, bitmask) == 0) {
-        return windows.unexpectedError(windows.kernel32.GetLastError());
+        return windows.unexpectedError(WindowsKernel32.GetLastError());
     }
 }
 

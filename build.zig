@@ -4,7 +4,7 @@ const builtin = @import("builtin");
 comptime {
     if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16) {
         @compileError(std.fmt.comptimePrint(
-            "ABI requires Zig 0.16.0 or newer (detected {d}.{d}.{d}).\nUse ./zigw <command> in this repository.",
+            "ABI requires Zig 0.16.0 or newer (detected {d}.{d}.{d}).\nUse `zvm use master` or install from ziglang.org/builds.",
             .{
                 builtin.zig_version.major,
                 builtin.zig_version.minor,
@@ -494,7 +494,8 @@ pub fn build(b: *std.Build) void {
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
     // Examples and benchmarks (table-driven)
-    buildTargets(b, &example_targets, abi_module, build_opts, target, optimize, b.step("examples", "Build all examples"), false);
+    const examples_step = b.step("examples", "Build all examples");
+    buildTargets(b, &example_targets, abi_module, build_opts, target, optimize, examples_step, false);
 
     // ---------------------------------------------------------------------------
     // CLI smoke-test step (runs all example commands sequentially)
@@ -557,7 +558,8 @@ pub fn build(b: *std.Build) void {
     }
     full_check_step.dependOn(cli_tests_step);
     full_check_step.dependOn(validate_flags_step);
-    buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, b.step("bench-all", "Run all benchmark suites"), true);
+    const bench_all_step = b.step("bench-all", "Run all benchmark suites");
+    buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, bench_all_step, true);
 
     // Documentation - API markdown generation
     if (pathExists(b, "tools/gendocs/main.zig")) {
@@ -664,6 +666,7 @@ pub fn build(b: *std.Build) void {
     }
 
     // WASM - only build if bindings exist (removed for reimplementation)
+    var check_wasm_step: ?*std.Build.Step = null;
     if (pathExists(b, "bindings/wasm/abi_wasm.zig")) {
         const wasm_target = b.resolveTargetQuery(.{ .cpu_arch = .wasm32, .os_tag = .freestanding });
         var wasm_opts = options;
@@ -683,11 +686,24 @@ pub fn build(b: *std.Build) void {
         wasm_lib.rdynamic = true;
         wasm_lib.root_module.addImport("abi", abi_wasm);
 
-        b.step("check-wasm", "Check WASM compilation").dependOn(&wasm_lib.step);
+        check_wasm_step = b.step("check-wasm", "Check WASM compilation");
+        check_wasm_step.?.dependOn(&wasm_lib.step);
         b.step("wasm", "Build WASM bindings").dependOn(&b.addInstallArtifact(wasm_lib, .{ .dest_dir = .{ .override = .{ .custom = "wasm" } } }).step);
     } else {
         // WASM bindings not available - steps are no-ops
-        _ = b.step("check-wasm", "Check WASM compilation (bindings not available)");
+        check_wasm_step = b.step("check-wasm", "Check WASM compilation (bindings not available)");
         _ = b.step("wasm", "Build WASM bindings (bindings not available)");
     }
+
+    // ---------------------------------------------------------------------------
+    // Verify-all: full-check + version script + examples + bench-all + check-wasm
+    // Single gate for "all builds and all files" per verification plan.
+    // ---------------------------------------------------------------------------
+    const version_script_run = b.addSystemCommand(&.{ "sh", "scripts/check_zig_version_consistency.sh" });
+    const verify_all_step = b.step("verify-all", "full-check + version script + examples + bench-all + check-wasm");
+    verify_all_step.dependOn(full_check_step);
+    verify_all_step.dependOn(&version_script_run.step);
+    verify_all_step.dependOn(examples_step);
+    verify_all_step.dependOn(bench_all_step);
+    if (check_wasm_step) |s| verify_all_step.dependOn(s);
 }
