@@ -254,10 +254,16 @@ test "TestAllocator detects leaks" {
 test "createTempDir creates unique directory" {
     const allocator = std.testing.allocator;
 
-    const dir1 = try createTempDir(allocator);
+    const dir1 = createTempDir(allocator) catch |err| switch (err) {
+        error.PermissionDenied => return error.SkipZigTest, // sandbox restriction
+        else => return err,
+    };
     defer removeTempDir(allocator, dir1);
 
-    const dir2 = try createTempDir(allocator);
+    const dir2 = createTempDir(allocator) catch |err| switch (err) {
+        error.PermissionDenied => return error.SkipZigTest,
+        else => return err,
+    };
     defer removeTempDir(allocator, dir2);
 
     // Directories should be different
@@ -293,7 +299,10 @@ test "TempDir scoped cleanup" {
     var path_copy: []const u8 = undefined;
 
     {
-        var temp = try TempDir.init(allocator);
+        var temp = TempDir.init(allocator) catch |err| switch (err) {
+            error.PermissionDenied => return error.SkipZigTest, // sandbox restriction
+            else => return err,
+        };
         defer temp.deinit();
 
         // Save path for verification after cleanup
