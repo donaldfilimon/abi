@@ -448,6 +448,90 @@ const cloud_required = [_][]const u8{
     "azure_functions",
 };
 
+/// Auth module required declarations
+const auth_required = [_][]const u8{
+    "AuthConfig",
+    "AuthError",
+    "Token",
+    "Session",
+    "Permission",
+    "Context",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "createToken",
+    "verifyToken",
+    "createSession",
+    "checkPermission",
+};
+
+/// Messaging module required declarations
+const messaging_required = [_][]const u8{
+    "MessagingConfig",
+    "MessagingError",
+    "Message",
+    "Channel",
+    "Context",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "publish",
+    "subscribe",
+};
+
+/// Cache module required declarations
+const cache_required = [_][]const u8{
+    "CacheConfig",
+    "EvictionPolicy",
+    "CacheError",
+    "CacheEntry",
+    "CacheStats",
+    "Context",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "get",
+    "put",
+    "delete",
+    "stats",
+};
+
+/// Storage module required declarations
+const storage_required = [_][]const u8{
+    "StorageConfig",
+    "StorageBackend",
+    "StorageError",
+    "StorageObject",
+    "Context",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "putObject",
+    "getObject",
+    "deleteObject",
+    "listObjects",
+};
+
+/// Search module required declarations
+const search_required = [_][]const u8{
+    "SearchConfig",
+    "SearchError",
+    "SearchResult",
+    "SearchIndex",
+    "Context",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "createIndex",
+    "indexDocument",
+    "query",
+};
+
 // ============================================================================
 // Enhanced Declaration Specs (kind + signature constraints)
 // ============================================================================
@@ -644,6 +728,210 @@ const cloud_specs = [_]DeclSpec{
     .{ .name = "azure_functions", .kind = .type_decl },
 };
 
+/// Auth module specs.
+const auth_specs = [_]DeclSpec{
+    .{ .name = "AuthConfig", .kind = .type_decl },
+    .{ .name = "AuthError", .kind = .type_decl },
+    .{ .name = "Token", .kind = .type_decl, .sub_decls = &.{"Claims"} },
+    .{ .name = "Session", .kind = .type_decl },
+    .{ .name = "Permission", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "createToken", .kind = .function, .min_params = 2 },
+    .{ .name = "verifyToken", .kind = .function, .min_params = 1 },
+    .{ .name = "createSession", .kind = .function, .min_params = 2 },
+    .{ .name = "checkPermission", .kind = .function, .min_params = 2 },
+};
+
+/// Messaging module specs.
+const messaging_specs = [_]DeclSpec{
+    .{ .name = "MessagingConfig", .kind = .type_decl },
+    .{ .name = "MessagingError", .kind = .type_decl },
+    .{ .name = "Message", .kind = .type_decl },
+    .{ .name = "Channel", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "publish", .kind = .function, .min_params = 3 },
+    .{ .name = "subscribe", .kind = .function, .min_params = 2 },
+};
+
+/// Cache module specs.
+const cache_specs = [_]DeclSpec{
+    .{ .name = "CacheConfig", .kind = .type_decl },
+    .{ .name = "EvictionPolicy", .kind = .type_decl },
+    .{ .name = "CacheError", .kind = .type_decl },
+    .{ .name = "CacheEntry", .kind = .type_decl },
+    .{ .name = "CacheStats", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "get", .kind = .function, .min_params = 1 },
+    .{ .name = "put", .kind = .function, .min_params = 2 },
+    .{ .name = "delete", .kind = .function, .min_params = 1 },
+    .{ .name = "stats", .kind = .function },
+};
+
+/// Storage module specs.
+const storage_specs = [_]DeclSpec{
+    .{ .name = "StorageConfig", .kind = .type_decl },
+    .{ .name = "StorageBackend", .kind = .type_decl },
+    .{ .name = "StorageError", .kind = .type_decl },
+    .{ .name = "StorageObject", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "putObject", .kind = .function, .min_params = 3 },
+    .{ .name = "getObject", .kind = .function, .min_params = 2 },
+    .{ .name = "deleteObject", .kind = .function, .min_params = 1 },
+    .{ .name = "listObjects", .kind = .function, .min_params = 2 },
+};
+
+/// Search module specs.
+const search_specs = [_]DeclSpec{
+    .{ .name = "SearchConfig", .kind = .type_decl },
+    .{ .name = "SearchError", .kind = .type_decl },
+    .{ .name = "SearchResult", .kind = .type_decl },
+    .{ .name = "SearchIndex", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "createIndex", .kind = .function, .min_params = 2 },
+    .{ .name = "indexDocument", .kind = .function, .min_params = 3 },
+    .{ .name = "query", .kind = .function, .min_params = 3 },
+};
+
+// ============================================================================
+// AI Core Module DeclSpec Parity Tests
+// ============================================================================
+
+/// AI Core module required declarations.
+const ai_core_required = [_][]const u8{
+    "Context",       "Error",         "isEnabled",   "Agent",          "ToolRegistry",
+    "PromptBuilder", "ModelRegistry", "createAgent", "createRegistry",
+};
+
+/// AI Core module specs.
+const ai_core_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "createAgent", .kind = .function, .min_params = 2 },
+    .{ .name = "createRegistry", .kind = .function, .min_params = 1 },
+};
+
+test "ai_core module has required declarations" {
+    comptime verifyDeclarations(abi.ai_core, &ai_core_required);
+}
+
+test "ai_core module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.ai_core, &ai_core_specs);
+    try std.testing.expectEqual(
+        @as(usize, 0),
+        comptime countSpecViolations(abi.ai_core, &ai_core_specs),
+    );
+}
+
+// ============================================================================
+// AI Inference Module DeclSpec Parity Tests
+// ============================================================================
+
+/// AI Inference module required declarations.
+const ai_inference_required = [_][]const u8{
+    "Context",   "Error",       "isEnabled", "llm", "embeddings",
+    "streaming", "transformer",
+};
+
+/// AI Inference module specs.
+const ai_inference_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "isEnabled", .kind = .function },
+};
+
+test "ai_inference module has required declarations" {
+    comptime verifyDeclarations(abi.inference, &ai_inference_required);
+}
+
+test "ai_inference module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.inference, &ai_inference_specs);
+    try std.testing.expectEqual(
+        @as(usize, 0),
+        comptime countSpecViolations(abi.inference, &ai_inference_specs),
+    );
+}
+
+// ============================================================================
+// AI Training Module DeclSpec Parity Tests
+// ============================================================================
+
+/// AI Training module required declarations.
+const ai_training_required = [_][]const u8{
+    "Context",        "Error", "isEnabled",       "TrainingConfig",
+    "TrainableModel", "train", "trainWithResult",
+};
+
+/// AI Training module specs.
+const ai_training_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "train", .kind = .function, .min_params = 2 },
+    .{ .name = "trainWithResult", .kind = .function, .min_params = 2 },
+};
+
+test "ai_training module has required declarations" {
+    comptime verifyDeclarations(abi.training, &ai_training_required);
+}
+
+test "ai_training module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.training, &ai_training_specs);
+    try std.testing.expectEqual(
+        @as(usize, 0),
+        comptime countSpecViolations(abi.training, &ai_training_specs),
+    );
+}
+
+// ============================================================================
+// AI Reasoning Module DeclSpec Parity Tests
+// ============================================================================
+
+/// AI Reasoning module required declarations.
+const ai_reasoning_required = [_][]const u8{
+    "Context",       "Error",     "isEnabled", "abbey", "explore",
+    "orchestration", "documents",
+};
+
+/// AI Reasoning module specs.
+const ai_reasoning_specs = [_]DeclSpec{
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "Error", .kind = .type_decl },
+    .{ .name = "isEnabled", .kind = .function },
+};
+
+test "ai_reasoning module has required declarations" {
+    comptime verifyDeclarations(abi.reasoning, &ai_reasoning_required);
+}
+
+test "ai_reasoning module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.reasoning, &ai_reasoning_specs);
+    try std.testing.expectEqual(
+        @as(usize, 0),
+        comptime countSpecViolations(abi.reasoning, &ai_reasoning_specs),
+    );
+}
+
 // ============================================================================
 // GPU Module Parity Tests
 // ============================================================================
@@ -831,6 +1119,116 @@ test "analytics module declaration kinds and signatures" {
 }
 
 // ============================================================================
+// Auth Module Parity Tests
+// ============================================================================
+
+test "auth module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.auth, &auth_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Auth module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.auth, &auth_required);
+}
+
+test "auth module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.auth, &auth_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.auth, &auth_specs));
+}
+
+// ============================================================================
+// Messaging Module Parity Tests
+// ============================================================================
+
+test "messaging module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.messaging, &messaging_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Messaging module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.messaging, &messaging_required);
+}
+
+test "messaging module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.messaging, &messaging_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.messaging, &messaging_specs));
+}
+
+// ============================================================================
+// Cache Module Parity Tests
+// ============================================================================
+
+test "cache module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.cache, &cache_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Cache module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.cache, &cache_required);
+}
+
+test "cache module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.cache, &cache_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.cache, &cache_specs));
+}
+
+// ============================================================================
+// Storage Module Parity Tests
+// ============================================================================
+
+test "storage module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.storage, &storage_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Storage module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.storage, &storage_required);
+}
+
+test "storage module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.storage, &storage_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.storage, &storage_specs));
+}
+
+// ============================================================================
+// Search Module Parity Tests
+// ============================================================================
+
+test "search module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.search, &search_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Search module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.search, &search_required);
+}
+
+test "search module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.search, &search_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.search, &search_specs));
+}
+
+// ============================================================================
 // Cross-Module Consistency Tests
 // ============================================================================
 
@@ -845,6 +1243,15 @@ test "all feature modules follow Context pattern" {
         abi.web,
         abi.observability,
         abi.analytics,
+        abi.auth,
+        abi.messaging,
+        abi.cache,
+        abi.storage,
+        abi.search,
+        abi.ai_core,
+        abi.inference,
+        abi.training,
+        abi.reasoning,
     };
 
     inline for (modules) |mod| {
@@ -867,6 +1274,11 @@ test "all feature modules have lifecycle functions" {
         abi.web,
         abi.observability,
         abi.analytics,
+        abi.auth,
+        abi.messaging,
+        abi.cache,
+        abi.storage,
+        abi.search,
     };
 
     inline for (modules) |mod| {
@@ -1035,6 +1447,78 @@ test "analytics module bidirectional parity audit" {
     const orphans = comptime getOrphanDeclarations(abi.analytics, &analytics_required);
     if (orphans.len > 0) {
         std.log.info("Analytics module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "auth module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.auth, &auth_required);
+    if (orphans.len > 0) {
+        std.log.info("Auth module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "messaging module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.messaging, &messaging_required);
+    if (orphans.len > 0) {
+        std.log.info("Messaging module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "cache module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.cache, &cache_required);
+    if (orphans.len > 0) {
+        std.log.info("Cache module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "storage module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.storage, &storage_required);
+    if (orphans.len > 0) {
+        std.log.info("Storage module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "search module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.search, &search_required);
+    if (orphans.len > 0) {
+        std.log.info("Search module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "ai_core module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.ai_core, &ai_core_required);
+    if (orphans.len > 0) {
+        std.log.info("AI Core module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "ai_inference module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.inference, &ai_inference_required);
+    if (orphans.len > 0) {
+        std.log.info("AI Inference module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "ai_training module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.training, &ai_training_required);
+    if (orphans.len > 0) {
+        std.log.info("AI Training module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "ai_reasoning module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.reasoning, &ai_reasoning_required);
+    if (orphans.len > 0) {
+        std.log.info("AI Reasoning module has {d} declarations not in expected list", .{orphans.len});
     }
     try std.testing.expect(true);
 }

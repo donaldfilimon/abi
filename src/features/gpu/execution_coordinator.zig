@@ -35,7 +35,7 @@ const std = @import("std");
 const sync = @import("../../services/shared/sync.zig");
 const backend_factory = @import("backend_factory.zig");
 const simd = @import("../../services/shared/simd.zig");
-const dispatcher_mod = @import("dispatcher.zig");
+const dispatcher_mod = @import("dispatch/coordinator.zig");
 const device_mod = @import("device.zig");
 const unified_buffer = @import("unified_buffer.zig");
 

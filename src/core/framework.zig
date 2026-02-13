@@ -90,8 +90,17 @@ const database_mod = if (build_options.enable_database) @import("../features/dat
 const network_mod = if (build_options.enable_network) @import("../features/network/mod.zig") else @import("../features/network/stub.zig");
 const observability_mod = if (build_options.enable_profiling) @import("../features/observability/mod.zig") else @import("../features/observability/stub.zig");
 const web_mod = if (build_options.enable_web) @import("../features/web/mod.zig") else @import("../features/web/stub.zig");
-const cloud_mod = if (build_options.enable_web) @import("../features/cloud/mod.zig") else @import("../features/cloud/stub.zig");
+const cloud_mod = if (build_options.enable_cloud) @import("../features/cloud/mod.zig") else @import("../features/cloud/stub.zig");
 const analytics_mod = if (build_options.enable_analytics) @import("../features/analytics/mod.zig") else @import("../features/analytics/stub.zig");
+const auth_mod = if (build_options.enable_auth) @import("../features/auth/mod.zig") else @import("../features/auth/stub.zig");
+const messaging_mod = if (build_options.enable_messaging) @import("../features/messaging/mod.zig") else @import("../features/messaging/stub.zig");
+const cache_mod = if (build_options.enable_cache) @import("../features/cache/mod.zig") else @import("../features/cache/stub.zig");
+const storage_mod = if (build_options.enable_storage) @import("../features/storage/mod.zig") else @import("../features/storage/stub.zig");
+const search_mod = if (build_options.enable_search) @import("../features/search/mod.zig") else @import("../features/search/stub.zig");
+const ai_core_mod = if (build_options.enable_ai) @import("../features/ai_core/mod.zig") else @import("../features/ai_core/stub.zig");
+const ai_inference_mod = if (build_options.enable_llm) @import("../features/ai_inference/mod.zig") else @import("../features/ai_inference/stub.zig");
+const ai_training_mod = if (build_options.enable_training) @import("../features/ai_training/mod.zig") else @import("../features/ai_training/stub.zig");
+const ai_reasoning_mod = if (build_options.enable_reasoning) @import("../features/ai_reasoning/mod.zig") else @import("../features/ai_reasoning/stub.zig");
 const ha_mod = @import("../services/ha/mod.zig");
 const runtime_mod = @import("../services/runtime/mod.zig");
 
@@ -163,6 +172,24 @@ pub const Framework = struct {
     cloud: ?*cloud_mod.Context = null,
     /// Analytics context, or null if analytics is not enabled.
     analytics: ?*analytics_mod.Context = null,
+    /// Auth context, or null if auth is not enabled.
+    auth: ?*auth_mod.Context = null,
+    /// Messaging context, or null if messaging is not enabled.
+    messaging: ?*messaging_mod.Context = null,
+    /// Cache context, or null if cache is not enabled.
+    cache: ?*cache_mod.Context = null,
+    /// Storage context, or null if storage is not enabled.
+    storage: ?*storage_mod.Context = null,
+    /// Search context, or null if search is not enabled.
+    search: ?*search_mod.Context = null,
+    /// AI Core context (agents, tools, prompts), or null if not enabled.
+    ai_core: ?*ai_core_mod.Context = null,
+    /// AI Inference context (LLM, embeddings, vision), or null if not enabled.
+    ai_inference: ?*ai_inference_mod.Context = null,
+    /// AI Training context (pipelines, federated), or null if not enabled.
+    ai_training: ?*ai_training_mod.Context = null,
+    /// AI Reasoning context (Abbey, RAG, eval), or null if not enabled.
+    ai_reasoning: ?*ai_reasoning_mod.Context = null,
     /// High availability manager, or null if not initialized.
     ha: ?ha_mod.HaManager = null,
     /// Runtime context (always available).
@@ -178,58 +205,9 @@ pub const Framework = struct {
         failed,
     };
 
-    pub const Error = error{
-        AlreadyInitialized,
-        NotInitialized,
-        InitializationFailed,
-        FeatureInitFailed,
-        FeatureDisabled,
-        InvalidState,
-        EngineCreationFailed,
-        // GPU errors
-        GpuDisabled,
-        NoDeviceAvailable,
-        InvalidConfig,
-        KernelCompilationFailed,
-        KernelExecutionFailed,
-        // AI errors
-        AiDisabled,
-        LlmDisabled,
-        EmbeddingsDisabled,
-        AgentsDisabled,
-        TrainingDisabled,
-        ModelNotFound,
-        InferenceFailed,
-        // Database errors
-        DatabaseDisabled,
-        ConnectionFailed,
-        QueryFailed,
-        IndexError,
-        StorageError,
-        // Network errors
-        NetworkDisabled,
-        NodeNotFound,
-        ConsensusFailed,
-        Timeout,
-        // Observability errors
-        ObservabilityDisabled,
-        MetricsError,
-        TracingError,
-        ExportFailed,
-        // Web errors
-        WebDisabled,
-        RequestFailed,
-        InvalidUrl,
-        // Cloud errors
-        CloudDisabled,
-        UnsupportedProvider,
-        InvalidEvent,
-        EventParseFailed,
-        ResponseSerializeFailed,
-        HandlerFailed,
-        TimeoutExceeded,
-        ProviderError,
-    } || std.mem.Allocator.Error || ConfigError || RegistryError;
+    /// Composable framework error set.
+    /// See `core/errors.zig` for the full hierarchy.
+    pub const Error = @import("errors.zig").FrameworkError;
 
     /// Initialize the framework with the given configuration.
     ///
@@ -334,7 +312,7 @@ pub const Framework = struct {
                 .log_level = @enumFromInt(@intFromEnum(core_cloud.log_level)),
             };
             fw.cloud = try cloud_mod.Context.init(allocator, runtime_cloud);
-            if (comptime build_options.enable_web) {
+            if (comptime build_options.enable_cloud) {
                 try fw.registry.registerComptime(.cloud);
             }
         }
@@ -348,6 +326,69 @@ pub const Framework = struct {
             });
             if (comptime build_options.enable_analytics) {
                 try fw.registry.registerComptime(.analytics);
+            }
+        }
+
+        if (cfg.auth) |auth_cfg| {
+            fw.auth = try auth_mod.Context.init(allocator, auth_cfg);
+            if (comptime build_options.enable_auth) {
+                try fw.registry.registerComptime(.auth);
+            }
+        }
+
+        if (cfg.messaging) |msg_cfg| {
+            fw.messaging = try messaging_mod.Context.init(allocator, msg_cfg);
+            if (comptime build_options.enable_messaging) {
+                try fw.registry.registerComptime(.messaging);
+            }
+        }
+
+        if (cfg.cache) |cache_cfg| {
+            fw.cache = try cache_mod.Context.init(allocator, cache_cfg);
+            if (comptime build_options.enable_cache) {
+                try fw.registry.registerComptime(.cache);
+            }
+        }
+
+        if (cfg.storage) |storage_cfg| {
+            fw.storage = try storage_mod.Context.init(allocator, storage_cfg);
+            if (comptime build_options.enable_storage) {
+                try fw.registry.registerComptime(.storage);
+            }
+        }
+
+        if (cfg.search) |search_cfg| {
+            fw.search = try search_mod.Context.init(allocator, search_cfg);
+            if (comptime build_options.enable_search) {
+                try fw.registry.registerComptime(.search);
+            }
+        }
+
+        // Initialize split AI modules (use shared AI config)
+        if (cfg.ai) |ai_cfg| {
+            if (comptime build_options.enable_ai) {
+                fw.ai_core = ai_core_mod.Context.init(
+                    allocator,
+                    ai_cfg,
+                ) catch null;
+            }
+            if (comptime build_options.enable_llm) {
+                fw.ai_inference = ai_inference_mod.Context.init(
+                    allocator,
+                    ai_cfg,
+                ) catch null;
+            }
+            if (comptime build_options.enable_training) {
+                fw.ai_training = ai_training_mod.Context.init(
+                    allocator,
+                    ai_cfg,
+                ) catch null;
+            }
+            if (comptime build_options.enable_reasoning) {
+                fw.ai_reasoning = ai_reasoning_mod.Context.init(
+                    allocator,
+                    ai_cfg,
+                ) catch null;
             }
         }
 
@@ -487,6 +528,17 @@ pub const Framework = struct {
 
     fn deinitFeatures(self: *Framework) void {
         // Deinitialize in reverse order of initialization.
+        // Split AI modules first (initialized last)
+        deinitOptionalContext(ai_reasoning_mod.Context, &self.ai_reasoning);
+        deinitOptionalContext(ai_training_mod.Context, &self.ai_training);
+        deinitOptionalContext(ai_inference_mod.Context, &self.ai_inference);
+        deinitOptionalContext(ai_core_mod.Context, &self.ai_core);
+        // Then standard feature modules
+        deinitOptionalContext(search_mod.Context, &self.search);
+        deinitOptionalContext(storage_mod.Context, &self.storage);
+        deinitOptionalContext(cache_mod.Context, &self.cache);
+        deinitOptionalContext(messaging_mod.Context, &self.messaging);
+        deinitOptionalContext(auth_mod.Context, &self.auth);
         deinitOptionalContext(analytics_mod.Context, &self.analytics);
         deinitOptionalContext(cloud_mod.Context, &self.cloud);
         deinitOptionalContext(web_mod.Context, &self.web);
@@ -554,6 +606,51 @@ pub const Framework = struct {
     /// Get analytics context (returns error if not enabled).
     pub fn getAnalytics(self: *Framework) Error!*analytics_mod.Context {
         return requireFeature(analytics_mod.Context, self.analytics);
+    }
+
+    /// Get auth context (returns error if not enabled).
+    pub fn getAuth(self: *Framework) Error!*auth_mod.Context {
+        return requireFeature(auth_mod.Context, self.auth);
+    }
+
+    /// Get messaging context (returns error if not enabled).
+    pub fn getMessaging(self: *Framework) Error!*messaging_mod.Context {
+        return requireFeature(messaging_mod.Context, self.messaging);
+    }
+
+    /// Get cache context (returns error if not enabled).
+    pub fn getCache(self: *Framework) Error!*cache_mod.Context {
+        return requireFeature(cache_mod.Context, self.cache);
+    }
+
+    /// Get storage context (returns error if not enabled).
+    pub fn getStorage(self: *Framework) Error!*storage_mod.Context {
+        return requireFeature(storage_mod.Context, self.storage);
+    }
+
+    /// Get search context (returns error if not enabled).
+    pub fn getSearch(self: *Framework) Error!*search_mod.Context {
+        return requireFeature(search_mod.Context, self.search);
+    }
+
+    /// Get AI core context (agents, tools, prompts).
+    pub fn getAiCore(self: *Framework) Error!*ai_core_mod.Context {
+        return requireFeature(ai_core_mod.Context, self.ai_core);
+    }
+
+    /// Get AI inference context (LLM, embeddings, vision).
+    pub fn getAiInference(self: *Framework) Error!*ai_inference_mod.Context {
+        return requireFeature(ai_inference_mod.Context, self.ai_inference);
+    }
+
+    /// Get AI training context (pipelines, federated).
+    pub fn getAiTraining(self: *Framework) Error!*ai_training_mod.Context {
+        return requireFeature(ai_training_mod.Context, self.ai_training);
+    }
+
+    /// Get AI reasoning context (Abbey, RAG, eval).
+    pub fn getAiReasoning(self: *Framework) Error!*ai_reasoning_mod.Context {
+        return requireFeature(ai_reasoning_mod.Context, self.ai_reasoning);
     }
 
     /// Get runtime context (always available).
@@ -708,6 +805,66 @@ pub const FrameworkBuilder = struct {
         return self;
     }
 
+    /// Enable auth with configuration.
+    pub fn withAuth(self: *FrameworkBuilder, auth_config: config_module.AuthConfig) *FrameworkBuilder {
+        _ = self.config_builder.withAuth(auth_config);
+        return self;
+    }
+
+    /// Enable auth with defaults.
+    pub fn withAuthDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withAuthDefaults();
+        return self;
+    }
+
+    /// Enable messaging with configuration.
+    pub fn withMessaging(self: *FrameworkBuilder, msg_config: config_module.MessagingConfig) *FrameworkBuilder {
+        _ = self.config_builder.withMessaging(msg_config);
+        return self;
+    }
+
+    /// Enable messaging with defaults.
+    pub fn withMessagingDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withMessagingDefaults();
+        return self;
+    }
+
+    /// Enable cache with configuration.
+    pub fn withCache(self: *FrameworkBuilder, cache_config: config_module.CacheConfig) *FrameworkBuilder {
+        _ = self.config_builder.withCache(cache_config);
+        return self;
+    }
+
+    /// Enable cache with defaults.
+    pub fn withCacheDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withCacheDefaults();
+        return self;
+    }
+
+    /// Enable storage with configuration.
+    pub fn withStorage(self: *FrameworkBuilder, storage_config: config_module.StorageConfig) *FrameworkBuilder {
+        _ = self.config_builder.withStorage(storage_config);
+        return self;
+    }
+
+    /// Enable storage with defaults.
+    pub fn withStorageDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withStorageDefaults();
+        return self;
+    }
+
+    /// Enable search with configuration.
+    pub fn withSearch(self: *FrameworkBuilder, search_config: config_module.SearchConfig) *FrameworkBuilder {
+        _ = self.config_builder.withSearch(search_config);
+        return self;
+    }
+
+    /// Enable search with defaults.
+    pub fn withSearchDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withSearchDefaults();
+        return self;
+    }
+
     /// Configure plugins.
     pub fn withPlugins(self: *FrameworkBuilder, plugin_config: config_module.PluginConfig) *FrameworkBuilder {
         _ = self.config_builder.withPlugins(plugin_config);
@@ -754,6 +911,11 @@ pub const FrameworkOptions = struct {
             .observability = if (self.enable_profiling) config_module.ObservabilityConfig.defaults() else null,
             .web = if (self.enable_web) config_module.WebConfig.defaults() else null,
             .cloud = if (self.enable_web) config_module.CloudConfig.defaults() else null,
+            .auth = config_module.AuthConfig.defaults(),
+            .messaging = config_module.MessagingConfig.defaults(),
+            .cache = config_module.CacheConfig.defaults(),
+            .storage = config_module.StorageConfig.defaults(),
+            .search = config_module.SearchConfig.defaults(),
             .plugins = .{
                 .paths = self.plugin_paths,
                 .auto_discover = self.auto_discover_plugins,

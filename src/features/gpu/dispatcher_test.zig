@@ -1,7 +1,7 @@
 //! Tests for GPU Kernel Dispatcher
 
 const std = @import("std");
-const dispatcher_mod = @import("dispatcher.zig");
+const dispatcher_mod = @import("dispatch/coordinator.zig");
 
 const LaunchConfig = dispatcher_mod.LaunchConfig;
 const ExecutionResult = dispatcher_mod.ExecutionResult;

@@ -38,7 +38,7 @@ const buffer_mod = @import("unified_buffer.zig");
 const dsl = @import("dsl/mod.zig");
 const multi_device = @import("multi_device.zig");
 const metrics_mod = @import("metrics.zig");
-const dispatcher_mod = @import("dispatcher.zig");
+const dispatcher_mod = @import("dispatch/coordinator.zig");
 const adaptive_tiling_mod = @import("adaptive_tiling.zig");
 
 const Mutex = sync.Mutex;

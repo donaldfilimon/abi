@@ -23,11 +23,11 @@ fn databaseInsertBenchmark(allocator: std.mem.Allocator) !void {
     });
     defer abi.shutdown(&framework);
 
-    var db_handle = try abi.wdbx.createDatabase(allocator, "bench");
-    defer abi.wdbx.closeDatabase(&db_handle);
+    var db_handle = try abi.database.open(allocator, "bench");
+    defer abi.database.close(&db_handle);
 
     const vector = [_]f32{ 1.0, 0.5, 0.2, 0.8 };
-    try abi.wdbx.insertVector(&db_handle, 1, &vector, null);
+    try abi.database.insert(&db_handle, 1, &vector, null);
 }
 
 fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
@@ -36,8 +36,8 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
     });
     defer abi.shutdown(&framework);
 
-    var db_handle = try abi.wdbx.createDatabase(allocator, "bench");
-    defer abi.wdbx.closeDatabase(&db_handle);
+    var db_handle = try abi.database.open(allocator, "bench");
+    defer abi.database.close(&db_handle);
 
     // Insert some test data
     const vectors = [_][4]f32{
@@ -48,12 +48,12 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
     };
 
     for (vectors, 0..) |vec, i| {
-        try abi.wdbx.insertVector(&db_handle, @intCast(i + 1), &vec, null);
+        try abi.database.insert(&db_handle, @intCast(i + 1), &vec, null);
     }
 
     // Perform search
     const query = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const results = try abi.wdbx.searchVectors(&db_handle, allocator, &query, 3);
+    const results = try abi.database.search(&db_handle, allocator, &query, 3);
     defer allocator.free(results);
     std.mem.doNotOptimizeAway(results);
 }

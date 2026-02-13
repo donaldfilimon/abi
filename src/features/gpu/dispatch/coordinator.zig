@@ -33,18 +33,18 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 const build_options = @import("build_options");
-const backend_mod = @import("backend.zig");
-const device_mod = @import("device.zig");
-const interface = @import("interface.zig");
-const backend_shared = @import("backends/shared.zig");
-const dsl = @import("dsl/mod.zig");
-const unified_buffer = @import("unified_buffer.zig");
-const kernel_types = @import("kernel_types.zig");
-const builtin_kernels = @import("builtin_kernels.zig");
-const kernel_ring_mod = @import("kernel_ring.zig");
+const backend_mod = @import("../backend.zig");
+const device_mod = @import("../device.zig");
+const interface = @import("../interface.zig");
+const backend_shared = @import("../backends/shared.zig");
+const dsl = @import("../dsl/mod.zig");
+const unified_buffer = @import("../unified_buffer.zig");
+const kernel_types = @import("../kernel_types.zig");
+const builtin_kernels = @import("../builtin_kernels.zig");
+const kernel_ring_mod = @import("../kernel_ring.zig");
 
 const Mutex = sync.Mutex;
 
@@ -55,8 +55,8 @@ fn initCublasOptional(comptime Ctx: type) ?Ctx {
 }
 
 // Re-export extracted submodules for build discovery
-pub const dispatch_types = @import("dispatch_types.zig");
-pub const batched_dispatch = @import("batched_dispatch.zig");
+pub const dispatch_types = @import("types.zig");
+pub const batched_dispatch = @import("batch.zig");
 
 // Re-export types from dispatch_types for backward compatibility
 pub const DispatchError = dispatch_types.DispatchError;
@@ -72,7 +72,7 @@ pub const BatchedDispatcher = batched_dispatch.BatchedDispatcher;
 
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
 const cublas = if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
-    @import("backends/cuda/cublas.zig")
+    @import("../backends/cuda/cublas.zig")
 else
     struct {
         pub const CublasContext = void;
@@ -1034,7 +1034,7 @@ fn executeCpuRmsNorm(
 
 // Test discovery for extracted submodules
 test {
-    _ = @import("dispatch_types.zig");
-    _ = @import("batched_dispatch.zig");
-    _ = @import("dispatcher_test.zig");
+    _ = @import("types.zig");
+    _ = @import("batch.zig");
+    _ = @import("../dispatcher_test.zig");
 }

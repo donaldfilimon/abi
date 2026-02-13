@@ -3,9 +3,9 @@
 //! Error types, configuration structs, and handles used by the kernel dispatcher.
 
 const std = @import("std");
-const backend_mod = @import("backend.zig");
-const device_mod = @import("device.zig");
-const unified_buffer = @import("unified_buffer.zig");
+const backend_mod = @import("../backend.zig");
+const device_mod = @import("../device.zig");
+const unified_buffer = @import("../unified_buffer.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;

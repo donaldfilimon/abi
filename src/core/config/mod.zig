@@ -15,6 +15,11 @@ pub const observability_config = @import("observability.zig");
 pub const web_config = @import("web.zig");
 pub const cloud_config = @import("cloud.zig");
 pub const analytics_config = @import("analytics.zig");
+pub const auth_config = @import("auth.zig");
+pub const messaging_config = @import("messaging.zig");
+pub const cache_config = @import("cache.zig");
+pub const storage_config = @import("storage.zig");
+pub const search_config = @import("search.zig");
 pub const plugin_config = @import("plugin.zig");
 pub const loader = @import("loader.zig");
 
@@ -46,6 +51,12 @@ pub const CloudConfig = cloud_config.CloudConfig;
 
 pub const AnalyticsConfig = analytics_config.AnalyticsConfig;
 
+pub const AuthConfig = auth_config.AuthConfig;
+pub const MessagingConfig = messaging_config.MessagingConfig;
+pub const CacheConfig = cache_config.CacheConfig;
+pub const StorageConfig = storage_config.StorageConfig;
+pub const SearchConfig = search_config.SearchConfig;
+
 pub const PluginConfig = plugin_config.PluginConfig;
 
 // ============================================================================
@@ -67,6 +78,11 @@ pub const Feature = enum {
     personas,
     cloud,
     analytics,
+    auth,
+    messaging,
+    cache,
+    storage,
+    search,
 
     /// Number of features in the enum
     pub const feature_count = @typeInfo(Feature).@"enum".fields.len;
@@ -87,6 +103,11 @@ pub const Feature = enum {
         descs[@intFromEnum(Feature.personas)] = "Multi-persona AI assistant";
         descs[@intFromEnum(Feature.cloud)] = "Cloud provider integration";
         descs[@intFromEnum(Feature.analytics)] = "Analytics event tracking";
+        descs[@intFromEnum(Feature.auth)] = "Authentication and security";
+        descs[@intFromEnum(Feature.messaging)] = "Event bus and messaging";
+        descs[@intFromEnum(Feature.cache)] = "In-memory caching";
+        descs[@intFromEnum(Feature.storage)] = "Unified file/object storage";
+        descs[@intFromEnum(Feature.search)] = "Full-text search";
         break :blk descs;
     };
 
@@ -104,8 +125,13 @@ pub const Feature = enum {
         enabled[@intFromEnum(Feature.network)] = build_options.enable_network;
         enabled[@intFromEnum(Feature.observability)] = build_options.enable_profiling;
         enabled[@intFromEnum(Feature.web)] = build_options.enable_web;
-        enabled[@intFromEnum(Feature.cloud)] = build_options.enable_web;
+        enabled[@intFromEnum(Feature.cloud)] = build_options.enable_cloud;
         enabled[@intFromEnum(Feature.analytics)] = build_options.enable_analytics;
+        enabled[@intFromEnum(Feature.auth)] = build_options.enable_auth;
+        enabled[@intFromEnum(Feature.messaging)] = build_options.enable_messaging;
+        enabled[@intFromEnum(Feature.cache)] = build_options.enable_cache;
+        enabled[@intFromEnum(Feature.storage)] = build_options.enable_storage;
+        enabled[@intFromEnum(Feature.search)] = build_options.enable_search;
         break :blk enabled;
     };
 
@@ -139,6 +165,11 @@ pub const Config = struct {
     web: ?WebConfig = null,
     cloud: ?CloudConfig = null,
     analytics: ?AnalyticsConfig = null,
+    auth: ?AuthConfig = null,
+    messaging: ?MessagingConfig = null,
+    cache: ?CacheConfig = null,
+    storage: ?StorageConfig = null,
+    search: ?SearchConfig = null,
     plugins: PluginConfig = .{},
 
     /// Create a config with all compile-time enabled features using defaults.
@@ -150,8 +181,13 @@ pub const Config = struct {
             .network = if (build_options.enable_network) NetworkConfig.defaults() else null,
             .observability = if (build_options.enable_profiling) ObservabilityConfig.defaults() else null,
             .web = if (build_options.enable_web) WebConfig.defaults() else null,
-            .cloud = if (build_options.enable_web) CloudConfig.defaults() else null,
+            .cloud = if (build_options.enable_cloud) CloudConfig.defaults() else null,
             .analytics = if (build_options.enable_analytics) AnalyticsConfig.defaults() else null,
+            .auth = if (build_options.enable_auth) AuthConfig.defaults() else null,
+            .messaging = if (build_options.enable_messaging) MessagingConfig.defaults() else null,
+            .cache = if (build_options.enable_cache) CacheConfig.defaults() else null,
+            .storage = if (build_options.enable_storage) StorageConfig.defaults() else null,
+            .search = if (build_options.enable_search) SearchConfig.defaults() else null,
         };
     }
 
@@ -176,6 +212,11 @@ pub const Config = struct {
             .personas => if (self.ai) |ai| ai.personas != null else false,
             .cloud => self.cloud != null,
             .analytics => self.analytics != null,
+            .auth => self.auth != null,
+            .messaging => self.messaging != null,
+            .cache => self.cache != null,
+            .storage => self.storage != null,
+            .search => self.search != null,
         };
     }
 
@@ -306,6 +347,56 @@ pub const Builder = struct {
         return self;
     }
 
+    pub fn withAuth(self: *Builder, cfg: AuthConfig) *Builder {
+        self.config.auth = cfg;
+        return self;
+    }
+
+    pub fn withAuthDefaults(self: *Builder) *Builder {
+        self.config.auth = AuthConfig.defaults();
+        return self;
+    }
+
+    pub fn withMessaging(self: *Builder, cfg: MessagingConfig) *Builder {
+        self.config.messaging = cfg;
+        return self;
+    }
+
+    pub fn withMessagingDefaults(self: *Builder) *Builder {
+        self.config.messaging = MessagingConfig.defaults();
+        return self;
+    }
+
+    pub fn withCache(self: *Builder, cfg: CacheConfig) *Builder {
+        self.config.cache = cfg;
+        return self;
+    }
+
+    pub fn withCacheDefaults(self: *Builder) *Builder {
+        self.config.cache = CacheConfig.defaults();
+        return self;
+    }
+
+    pub fn withStorage(self: *Builder, cfg: StorageConfig) *Builder {
+        self.config.storage = cfg;
+        return self;
+    }
+
+    pub fn withStorageDefaults(self: *Builder) *Builder {
+        self.config.storage = StorageConfig.defaults();
+        return self;
+    }
+
+    pub fn withSearch(self: *Builder, cfg: SearchConfig) *Builder {
+        self.config.search = cfg;
+        return self;
+    }
+
+    pub fn withSearchDefaults(self: *Builder) *Builder {
+        self.config.search = SearchConfig.defaults();
+        return self;
+    }
+
     pub fn withPlugins(self: *Builder, cfg: PluginConfig) *Builder {
         self.config.plugins = cfg;
         return self;
@@ -333,17 +424,21 @@ const FeatureValidation = struct {
 };
 
 /// Validate configuration against compile-time constraints.
-pub fn validate(config: Config) ConfigError!void {
+pub fn validate(cfg: Config) ConfigError!void {
     const validations = [_]FeatureValidation{
-        .{ .is_enabled_in_config = config.gpu != null, .is_enabled_at_build = build_options.enable_gpu },
-        .{ .is_enabled_in_config = config.ai != null, .is_enabled_at_build = build_options.enable_ai },
-        .{ .is_enabled_in_config = config.database != null, .is_enabled_at_build = build_options.enable_database },
-        .{ .is_enabled_in_config = config.network != null, .is_enabled_at_build = build_options.enable_network },
-        .{ .is_enabled_in_config = config.web != null, .is_enabled_at_build = build_options.enable_web },
-        // Cloud is gated by web support.
-        .{ .is_enabled_in_config = config.cloud != null, .is_enabled_at_build = build_options.enable_web },
-        .{ .is_enabled_in_config = config.analytics != null, .is_enabled_at_build = build_options.enable_analytics },
-        .{ .is_enabled_in_config = config.observability != null, .is_enabled_at_build = build_options.enable_profiling },
+        .{ .is_enabled_in_config = cfg.gpu != null, .is_enabled_at_build = build_options.enable_gpu },
+        .{ .is_enabled_in_config = cfg.ai != null, .is_enabled_at_build = build_options.enable_ai },
+        .{ .is_enabled_in_config = cfg.database != null, .is_enabled_at_build = build_options.enable_database },
+        .{ .is_enabled_in_config = cfg.network != null, .is_enabled_at_build = build_options.enable_network },
+        .{ .is_enabled_in_config = cfg.web != null, .is_enabled_at_build = build_options.enable_web },
+        .{ .is_enabled_in_config = cfg.cloud != null, .is_enabled_at_build = build_options.enable_cloud },
+        .{ .is_enabled_in_config = cfg.analytics != null, .is_enabled_at_build = build_options.enable_analytics },
+        .{ .is_enabled_in_config = cfg.observability != null, .is_enabled_at_build = build_options.enable_profiling },
+        .{ .is_enabled_in_config = cfg.auth != null, .is_enabled_at_build = build_options.enable_auth },
+        .{ .is_enabled_in_config = cfg.messaging != null, .is_enabled_at_build = build_options.enable_messaging },
+        .{ .is_enabled_in_config = cfg.cache != null, .is_enabled_at_build = build_options.enable_cache },
+        .{ .is_enabled_in_config = cfg.storage != null, .is_enabled_at_build = build_options.enable_storage },
+        .{ .is_enabled_in_config = cfg.search != null, .is_enabled_at_build = build_options.enable_search },
     };
     inline for (validations) |entry| {
         if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {
@@ -352,7 +447,7 @@ pub fn validate(config: Config) ConfigError!void {
     }
 
     // LLM is nested under AI and has its own compile-time flag.
-    if (config.ai) |ai| {
+    if (cfg.ai) |ai| {
         if (ai.llm != null and !build_options.enable_llm) {
             return ConfigError.FeatureDisabled;
         }
@@ -421,7 +516,9 @@ test "validate returns FeatureDisabled for compile-time disabled features" {
         var web_cfg = Config.minimal();
         web_cfg.web = WebConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(web_cfg));
+    }
 
+    if (!build_options.enable_cloud) {
         var cloud_cfg = Config.minimal();
         cloud_cfg.cloud = CloudConfig.defaults();
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(cloud_cfg));

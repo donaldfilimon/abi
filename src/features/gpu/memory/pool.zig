@@ -8,10 +8,10 @@
 //! - Memory pressure handling with automatic eviction
 
 const std = @import("std");
-const platform_time = @import("../../services/shared/utils.zig");
+const platform_time = @import("../../../services/shared/utils.zig");
 const time = platform_time;
-const sync = @import("../../services/shared/sync.zig");
-const memory = @import("memory.zig");
+const sync = @import("../../../services/shared/sync.zig");
+const memory = @import("base.zig");
 
 /// Memory allocation size classes in bytes.
 const SIZE_CLASSES = [_]usize{

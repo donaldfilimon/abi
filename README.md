@@ -158,7 +158,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
 
     // Create a 384-dimensional vector database
-    var db = try abi.wdbx.createDatabase(allocator, .{ .dimension = 384 });
+    var db = try abi.database.open(allocator, "vectors");
     defer db.deinit();
 
     // Insert vectors

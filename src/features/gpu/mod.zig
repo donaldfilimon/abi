@@ -109,7 +109,7 @@ const time = @import("../../services/shared/time.zig");
 const sync = @import("../../services/shared/sync.zig");
 const backend = @import("backend.zig");
 const kernels = @import("runtime_kernels.zig");
-const memory = @import("memory.zig");
+const memory = @import("memory/base.zig");
 const kernel_cache = @import("kernel_cache.zig");
 pub const profiling = @import("profiling.zig");
 
@@ -117,8 +117,8 @@ pub const profiling = @import("profiling.zig");
 pub const occupancy = @import("occupancy.zig");
 pub const fusion = @import("fusion.zig");
 pub const execution_coordinator = @import("execution_coordinator.zig");
-pub const memory_pool_advanced = @import("memory_pool_advanced.zig");
-pub const memory_pool_lockfree = @import("memory_pool_lockfree.zig");
+pub const memory_pool_advanced = @import("memory/pool.zig");
+pub const memory_pool_lockfree = @import("memory/lockfree.zig");
 pub const sync_event = @import("sync_event.zig");
 pub const kernel_ring = @import("kernel_ring.zig");
 pub const adaptive_tiling = @import("adaptive_tiling.zig");
@@ -169,7 +169,7 @@ pub const platformDescription = platform.platformDescription;
 
 // Modular backend abstraction layer
 pub const backend_factory = @import("backend_factory.zig");
-pub const dispatcher = @import("dispatcher.zig");
+pub const dispatcher = @import("dispatch/coordinator.zig");
 pub const builtin_kernels = @import("builtin_kernels.zig");
 
 // Factory convenience exports
@@ -295,7 +295,7 @@ comptime {
         _ = @import("sync_event.zig");
         _ = @import("kernel_ring.zig");
         _ = @import("adaptive_tiling.zig");
-        _ = @import("memory_pool_lockfree.zig");
+        _ = @import("memory/lockfree.zig");
         // std.gpu integration tests
         _ = @import("std_gpu.zig");
         _ = @import("std_gpu_kernels.zig");
@@ -309,8 +309,8 @@ comptime {
         _ = @import("dispatcher_test.zig");
         _ = @import("multi_device_test.zig");
         // Extracted type modules (compile-check)
-        _ = @import("dispatch_types.zig");
-        _ = @import("batched_dispatch.zig");
+        _ = @import("dispatch/types.zig");
+        _ = @import("dispatch/batch.zig");
         _ = @import("device_group.zig");
         _ = @import("gpu_cluster.zig");
         _ = @import("gradient_sync.zig");

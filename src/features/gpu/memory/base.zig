@@ -2,8 +2,8 @@
 //!
 //! Provides buffer allocation, simulated device transfers, and pool helpers.
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
+const time = @import("../../../services/shared/time.zig");
+const sync = @import("../../../services/shared/sync.zig");
 
 pub const MemoryError = error{
     BufferTooSmall,

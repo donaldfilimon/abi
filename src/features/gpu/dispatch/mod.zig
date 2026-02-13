@@ -1,0 +1,32 @@
+//! GPU Kernel Dispatch
+//!
+//! Unified module for GPU kernel dispatch, execution types, and batching.
+//!
+//! - `types`: Error types, configuration structs, execution results
+//! - `coordinator`: Kernel compilation and dispatch to backends
+//! - `batch`: Batched small-operation dispatcher
+
+pub const types = @import("types.zig");
+pub const coordinator = @import("coordinator.zig");
+pub const batch = @import("batch.zig");
+
+// Re-export core dispatch types
+pub const DispatchError = types.DispatchError;
+pub const CompiledKernelHandle = types.CompiledKernelHandle;
+pub const LaunchConfig = types.LaunchConfig;
+pub const KernelArgs = types.KernelArgs;
+pub const ExecutionResult = types.ExecutionResult;
+pub const QueuedLaunch = types.QueuedLaunch;
+
+// Re-export dispatcher
+pub const KernelDispatcher = coordinator.KernelDispatcher;
+
+// Re-export batch types
+pub const BatchedOp = batch.BatchedOp;
+pub const BatchedDispatcher = batch.BatchedDispatcher;
+
+test {
+    _ = types;
+    _ = coordinator;
+    _ = batch;
+}

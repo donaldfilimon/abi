@@ -34,14 +34,26 @@
 pub const primitives = @import("primitives.zig");
 pub const prometheus = @import("prometheus.zig");
 pub const sliding_window = @import("sliding_window.zig");
+pub const collector = @import("collector.zig");
 
-// Re-export core types
+// Re-export core types (lightweight, no name field)
 pub const Counter = primitives.Counter;
 pub const Gauge = primitives.Gauge;
 pub const FloatGauge = primitives.FloatGauge;
 pub const Histogram = primitives.Histogram;
 pub const LatencyHistogram = primitives.LatencyHistogram;
 pub const default_latency_buckets = primitives.default_latency_buckets;
+
+// Re-export collector types (named, for MetricsCollector)
+pub const MetricsCollector = collector.MetricsCollector;
+pub const DefaultMetrics = collector.DefaultMetrics;
+pub const DefaultCollector = collector.DefaultCollector;
+pub const CircuitBreakerMetrics = collector.CircuitBreakerMetrics;
+pub const ErrorMetrics = collector.ErrorMetrics;
+pub const createCollector = collector.createCollector;
+pub const registerDefaultMetrics = collector.registerDefaultMetrics;
+pub const recordRequest = collector.recordRequest;
+pub const recordError = collector.recordError;
 
 // Re-export prometheus types
 pub const MetricWriter = prometheus.MetricWriter;
@@ -55,4 +67,5 @@ test {
     _ = primitives;
     _ = prometheus;
     _ = sliding_window;
+    _ = collector;
 }

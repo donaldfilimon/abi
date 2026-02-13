@@ -268,6 +268,175 @@ fn verifyContextPattern(comptime Module: type) !void {
 // Comprehensive Module Surface Test
 // ============================================================================
 
+// ============================================================================
+// Auth Module Parity
+// ============================================================================
+
+test "auth stub parity - types exist" {
+    const Auth = abi.auth;
+
+    try testing.expect(@hasDecl(Auth, "AuthConfig"));
+    try testing.expect(@hasDecl(Auth, "AuthError"));
+    try testing.expect(@hasDecl(Auth, "Token"));
+    try testing.expect(@hasDecl(Auth, "Session"));
+    try testing.expect(@hasDecl(Auth, "Permission"));
+    try testing.expect(@hasDecl(Auth, "Context"));
+    try testing.expect(@hasDecl(Auth, "init"));
+    try testing.expect(@hasDecl(Auth, "isEnabled"));
+    try testing.expect(@hasDecl(Auth, "createToken"));
+    try testing.expect(@hasDecl(Auth, "verifyToken"));
+    try testing.expect(@hasDecl(Auth, "createSession"));
+    try testing.expect(@hasDecl(Auth, "checkPermission"));
+}
+
+// ============================================================================
+// Messaging Module Parity
+// ============================================================================
+
+test "messaging stub parity - types exist" {
+    const Messaging = abi.messaging;
+
+    try testing.expect(@hasDecl(Messaging, "MessagingConfig"));
+    try testing.expect(@hasDecl(Messaging, "MessagingError"));
+    try testing.expect(@hasDecl(Messaging, "Message"));
+    try testing.expect(@hasDecl(Messaging, "Channel"));
+    try testing.expect(@hasDecl(Messaging, "Context"));
+    try testing.expect(@hasDecl(Messaging, "init"));
+    try testing.expect(@hasDecl(Messaging, "isEnabled"));
+    try testing.expect(@hasDecl(Messaging, "publish"));
+    try testing.expect(@hasDecl(Messaging, "subscribe"));
+}
+
+// ============================================================================
+// Cache Module Parity
+// ============================================================================
+
+test "cache stub parity - types exist" {
+    const Cache = abi.cache;
+
+    try testing.expect(@hasDecl(Cache, "CacheConfig"));
+    try testing.expect(@hasDecl(Cache, "CacheError"));
+    try testing.expect(@hasDecl(Cache, "CacheEntry"));
+    try testing.expect(@hasDecl(Cache, "CacheStats"));
+    try testing.expect(@hasDecl(Cache, "EvictionPolicy"));
+    try testing.expect(@hasDecl(Cache, "Context"));
+    try testing.expect(@hasDecl(Cache, "init"));
+    try testing.expect(@hasDecl(Cache, "isEnabled"));
+    try testing.expect(@hasDecl(Cache, "get"));
+    try testing.expect(@hasDecl(Cache, "put"));
+    try testing.expect(@hasDecl(Cache, "delete"));
+    try testing.expect(@hasDecl(Cache, "stats"));
+}
+
+// ============================================================================
+// Storage Module Parity
+// ============================================================================
+
+test "storage stub parity - types exist" {
+    const Storage = abi.storage;
+
+    try testing.expect(@hasDecl(Storage, "StorageConfig"));
+    try testing.expect(@hasDecl(Storage, "StorageBackend"));
+    try testing.expect(@hasDecl(Storage, "StorageError"));
+    try testing.expect(@hasDecl(Storage, "StorageObject"));
+    try testing.expect(@hasDecl(Storage, "Context"));
+    try testing.expect(@hasDecl(Storage, "init"));
+    try testing.expect(@hasDecl(Storage, "isEnabled"));
+    try testing.expect(@hasDecl(Storage, "putObject"));
+    try testing.expect(@hasDecl(Storage, "getObject"));
+    try testing.expect(@hasDecl(Storage, "deleteObject"));
+    try testing.expect(@hasDecl(Storage, "listObjects"));
+}
+
+// ============================================================================
+// Search Module Parity
+// ============================================================================
+
+test "search stub parity - types exist" {
+    const Search = abi.search;
+
+    try testing.expect(@hasDecl(Search, "SearchConfig"));
+    try testing.expect(@hasDecl(Search, "SearchError"));
+    try testing.expect(@hasDecl(Search, "SearchResult"));
+    try testing.expect(@hasDecl(Search, "SearchIndex"));
+    try testing.expect(@hasDecl(Search, "Context"));
+    try testing.expect(@hasDecl(Search, "init"));
+    try testing.expect(@hasDecl(Search, "isEnabled"));
+    try testing.expect(@hasDecl(Search, "createIndex"));
+    try testing.expect(@hasDecl(Search, "indexDocument"));
+    try testing.expect(@hasDecl(Search, "query"));
+}
+
+// ============================================================================
+// AI Core Module Parity
+// ============================================================================
+
+test "ai_core stub parity - types exist" {
+    const AiCore = abi.ai_core;
+
+    try testing.expect(@hasDecl(AiCore, "Context"));
+    try testing.expect(@hasDecl(AiCore, "Error"));
+    try testing.expect(@hasDecl(AiCore, "isEnabled"));
+    try testing.expect(@hasDecl(AiCore, "Agent"));
+    try testing.expect(@hasDecl(AiCore, "ToolRegistry"));
+    try testing.expect(@hasDecl(AiCore, "PromptBuilder"));
+    try testing.expect(@hasDecl(AiCore, "ModelRegistry"));
+    try testing.expect(@hasDecl(AiCore, "createAgent"));
+    try testing.expect(@hasDecl(AiCore, "createRegistry"));
+}
+
+// ============================================================================
+// AI Inference Module Parity
+// ============================================================================
+
+test "ai_inference stub parity - types exist" {
+    const Inference = abi.inference;
+
+    try testing.expect(@hasDecl(Inference, "Context"));
+    try testing.expect(@hasDecl(Inference, "Error"));
+    try testing.expect(@hasDecl(Inference, "isEnabled"));
+    try testing.expect(@hasDecl(Inference, "llm"));
+    try testing.expect(@hasDecl(Inference, "embeddings"));
+    try testing.expect(@hasDecl(Inference, "streaming"));
+    try testing.expect(@hasDecl(Inference, "transformer"));
+}
+
+// ============================================================================
+// AI Training Module Parity
+// ============================================================================
+
+test "ai_training stub parity - types exist" {
+    const Training = abi.training;
+
+    try testing.expect(@hasDecl(Training, "Context"));
+    try testing.expect(@hasDecl(Training, "Error"));
+    try testing.expect(@hasDecl(Training, "isEnabled"));
+    try testing.expect(@hasDecl(Training, "TrainingConfig"));
+    try testing.expect(@hasDecl(Training, "TrainableModel"));
+    try testing.expect(@hasDecl(Training, "train"));
+    try testing.expect(@hasDecl(Training, "trainWithResult"));
+}
+
+// ============================================================================
+// AI Reasoning Module Parity
+// ============================================================================
+
+test "ai_reasoning stub parity - types exist" {
+    const Reasoning = abi.reasoning;
+
+    try testing.expect(@hasDecl(Reasoning, "Context"));
+    try testing.expect(@hasDecl(Reasoning, "Error"));
+    try testing.expect(@hasDecl(Reasoning, "isEnabled"));
+    try testing.expect(@hasDecl(Reasoning, "abbey"));
+    try testing.expect(@hasDecl(Reasoning, "explore"));
+    try testing.expect(@hasDecl(Reasoning, "orchestration"));
+    try testing.expect(@hasDecl(Reasoning, "documents"));
+}
+
+// ============================================================================
+// Comprehensive Module Surface Test
+// ============================================================================
+
 test "all feature modules have consistent API surface" {
     // All feature modules should follow the Context + isEnabled pattern
     try verifyContextPattern(abi.database);
@@ -277,8 +446,19 @@ test "all feature modules have consistent API surface" {
     try verifyContextPattern(abi.observability);
     try verifyContextPattern(abi.analytics);
     try verifyContextPattern(abi.cloud);
+    try verifyContextPattern(abi.auth);
+    try verifyContextPattern(abi.messaging);
+    try verifyContextPattern(abi.cache);
+    try verifyContextPattern(abi.storage);
+    try verifyContextPattern(abi.search);
 
     if (build_options.enable_ai) {
         try verifyContextPattern(abi.ai);
     }
+
+    // Split AI modules
+    try verifyContextPattern(abi.ai_core);
+    try verifyContextPattern(abi.inference);
+    try verifyContextPattern(abi.training);
+    try verifyContextPattern(abi.reasoning);
 }

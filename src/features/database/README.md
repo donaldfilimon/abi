@@ -24,21 +24,16 @@ tags: []
 //! const abi = @import("abi");
 //!
 //! // Create database
-//! var db = try abi.wdbx.createDatabase(allocator, "vectors.db", .{
-//!     .dimensions = 384,
-//!     .distance_metric = .cosine,
-//!     .ef_construction = 200,
-//!     .max_connections = 16,
-//! });
-//! defer abi.wdbx.closeDatabase(db);
+//! var db = try abi.database.open(allocator, "vectors.db");
+//! defer abi.database.close(&db);
 //!
 //! // Insert vector
 //! const vector = [_]f32{ 0.1, 0.2, 0.3, ... };
-//! try abi.wdbx.insertVector(db, 1, &vector, .{ .label = "example" });
+//! try abi.database.insert(&db, 1, &vector, .{ .label = "example" });
 //!
 //! // Search
 //! const query = [_]f32{ 0.15, 0.25, 0.35, ... };
-//! const results = try abi.wdbx.searchVectors(db, &query, 10);
+//! const results = try abi.database.search(&db, allocator, &query, 10);
 //! defer allocator.free(results);
 //! ```
 //!
@@ -68,10 +63,10 @@ tags: []
 //!
 //! ```zig
 //! // Backup
-//! try abi.wdbx.backup(db, "mybackup.db");
+//! try abi.database.wdbx.backup(db, "mybackup.db");
 //!
 //! // Restore
-//! try abi.wdbx.restore(allocator, "mybackup.db", "vectors.db");
+//! try abi.database.wdbx.restore(allocator, "mybackup.db", "vectors.db");
 //! ```
 //!
 //! ## See Also

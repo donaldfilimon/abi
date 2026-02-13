@@ -85,6 +85,10 @@ pub const framework = @import("core/framework.zig");
 pub const Framework = framework.Framework;
 pub const FrameworkBuilder = framework.FrameworkBuilder;
 
+/// Composable error hierarchy for framework operations.
+pub const errors = @import("core/errors.zig");
+pub const FrameworkError = errors.FrameworkError;
+
 /// Plugin registry for feature management.
 pub const registry = @import("core/registry/mod.zig");
 pub const Registry = registry.Registry;
@@ -109,6 +113,30 @@ pub const ai = if (build_options.enable_ai)
     @import("features/ai/mod.zig")
 else
     @import("features/ai/stub.zig");
+
+/// AI Core — agents, tools, prompts, memory, discovery.
+pub const ai_core = if (build_options.enable_ai)
+    @import("features/ai_core/mod.zig")
+else
+    @import("features/ai_core/stub.zig");
+
+/// AI Inference — LLM, embeddings, vision, streaming, transformer.
+pub const inference = if (build_options.enable_llm)
+    @import("features/ai_inference/mod.zig")
+else
+    @import("features/ai_inference/stub.zig");
+
+/// AI Training — training pipelines, federated learning, data loading.
+pub const training = if (build_options.enable_training)
+    @import("features/ai_training/mod.zig")
+else
+    @import("features/ai_training/stub.zig");
+
+/// AI Reasoning — Abbey, RAG, eval, templates, explore, orchestration.
+pub const reasoning = if (build_options.enable_reasoning)
+    @import("features/ai_reasoning/mod.zig")
+else
+    @import("features/ai_reasoning/stub.zig");
 
 /// Vector database.
 pub const database = if (build_options.enable_database)
@@ -141,10 +169,40 @@ else
     @import("features/analytics/stub.zig");
 
 /// Cloud function adapters.
-pub const cloud = if (build_options.enable_web)
+pub const cloud = if (build_options.enable_cloud)
     @import("features/cloud/mod.zig")
 else
     @import("features/cloud/stub.zig");
+
+/// Authentication and security.
+pub const auth = if (build_options.enable_auth)
+    @import("features/auth/mod.zig")
+else
+    @import("features/auth/stub.zig");
+
+/// Event bus and messaging.
+pub const messaging = if (build_options.enable_messaging)
+    @import("features/messaging/mod.zig")
+else
+    @import("features/messaging/stub.zig");
+
+/// In-memory caching.
+pub const cache = if (build_options.enable_cache)
+    @import("features/cache/mod.zig")
+else
+    @import("features/cache/stub.zig");
+
+/// Unified file/object storage.
+pub const storage = if (build_options.enable_storage)
+    @import("features/storage/mod.zig")
+else
+    @import("features/storage/stub.zig");
+
+/// Full-text search.
+pub const search = if (build_options.enable_search)
+    @import("features/search/mod.zig")
+else
+    @import("features/search/stub.zig");
 
 /// High availability (replication, backup, PITR).
 pub const ha = @import("services/ha/mod.zig");
@@ -153,16 +211,13 @@ pub const ha = @import("services/ha/mod.zig");
 pub const tasks = @import("services/tasks/mod.zig");
 
 // ============================================================================
-// Legacy Compatibility Layer
+// Service Modules (always available)
 // ============================================================================
 
-/// Core utilities (legacy).
-pub const core = @import("services/shared/legacy/mod.zig");
-
-/// Connectors (legacy).
+/// External service connectors (OpenAI, Anthropic, Ollama, etc.).
 pub const connectors = @import("services/connectors/mod.zig");
 
-// Legacy framework types (FrameworkOptions still widely used in tests/CLI)
+// Legacy framework types (still used in tests/CLI — scheduled for removal)
 pub const FrameworkOptions = framework.FrameworkOptions;
 
 // Shared utilities (direct imports from shared/)
@@ -174,44 +229,13 @@ pub const os = @import("services/shared/os.zig");
 
 // Convenience re-exports. For new code, prefer the namespaced versions:
 //   abi.simd.vectorAdd, abi.gpu.Gpu, abi.ai.DiscordTools, etc.
-
-/// Convenience alias for `abi.simd.vectorAdd`.
 pub const vectorAdd = simd.vectorAdd;
-/// Convenience alias for `abi.simd.vectorDot`.
 pub const vectorDot = simd.vectorDot;
-/// Convenience alias for `abi.simd.hasSimdSupport`.
 pub const hasSimdSupport = simd.hasSimdSupport;
-/// Convenience alias for `abi.gpu.Gpu`.
 pub const Gpu = gpu.Gpu;
-/// Convenience alias for `abi.gpu.Backend`.
 pub const GpuBackend = gpu.Backend;
-/// Convenience alias for `abi.connectors.discord`.
 pub const discord = connectors.discord;
-/// Convenience alias for `abi.ai.DiscordTools`.
 pub const DiscordTools = ai.DiscordTools;
-
-/// WDBX compatibility namespace.
-pub const wdbx = if (build_options.enable_database) struct {
-    const db = @import("features/database/mod.zig");
-    pub const database_mod = db.database;
-    pub const helpers = db.db_helpers;
-    pub const cli = db.cli;
-    pub const http = db.http;
-
-    pub const createDatabase = db.wdbx.createDatabase;
-    pub const connectDatabase = db.wdbx.connectDatabase;
-    pub const closeDatabase = db.wdbx.closeDatabase;
-    pub const insertVector = db.wdbx.insertVector;
-    pub const searchVectors = db.wdbx.searchVectors;
-    pub const deleteVector = db.wdbx.deleteVector;
-    pub const updateVector = db.wdbx.updateVector;
-    pub const getVector = db.wdbx.getVector;
-    pub const listVectors = db.wdbx.listVectors;
-    pub const getStats = db.wdbx.getStats;
-    pub const optimize = db.wdbx.optimize;
-    pub const backup = db.wdbx.backup;
-    pub const restore = db.wdbx.restore;
-} else struct {};
 
 // ============================================================================
 // Primary API

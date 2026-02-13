@@ -76,8 +76,13 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
         .network => build_options.enable_network,
         .observability => build_options.enable_profiling,
         .web => build_options.enable_web,
-        .cloud => build_options.enable_web,
+        .cloud => build_options.enable_cloud,
         .analytics => build_options.enable_analytics,
+        .auth => build_options.enable_auth,
+        .messaging => build_options.enable_messaging,
+        .cache => build_options.enable_cache,
+        .storage => build_options.enable_storage,
+        .search => build_options.enable_search,
     };
 }
 
