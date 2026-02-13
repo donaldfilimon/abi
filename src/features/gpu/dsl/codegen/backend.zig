@@ -178,6 +178,13 @@ pub const BackendCapabilities = struct {
                 .supports_subgroups = false,
                 .supports_dynamic_shared_memory = false,
             },
+            .simulated => .{
+                .max_workgroup_size = 256,
+                .max_shared_memory = 16 * 1024,
+                .supports_fp16 = true,
+                .supports_fp64 = true,
+                .supports_int64 = true,
+            },
         };
     }
 };

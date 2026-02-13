@@ -40,6 +40,20 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     try gpu.printSummary(allocator);
     network.printSummary();
 
+    // AI Connector Availability
+    utils.output.printHeader("AI Connectors");
+    const connector_status = [_]struct { name: []const u8, available: bool }{
+        .{ .name = "OpenAI", .available = abi.connectors.openai.isAvailable() },
+        .{ .name = "Anthropic", .available = abi.connectors.anthropic.isAvailable() },
+        .{ .name = "Ollama", .available = abi.connectors.ollama.isAvailable() },
+        .{ .name = "HuggingFace", .available = abi.connectors.huggingface.isAvailable() },
+        .{ .name = "Mistral", .available = abi.connectors.mistral.isAvailable() },
+        .{ .name = "Cohere", .available = abi.connectors.cohere.isAvailable() },
+    };
+    for (connector_status) |conn| {
+        utils.output.printKeyValue(conn.name, if (conn.available) "configured" else "not configured");
+    }
+
     // Feature Matrix
     utils.output.printHeader("Feature Matrix");
     const features = std.enums.values(abi.Feature);
