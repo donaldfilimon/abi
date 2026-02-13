@@ -155,6 +155,17 @@ test {
         _ = @import("ai_templates_test.zig");
         _ = @import("ai_tools_test.zig");
     }
+
+    // Non-AI gap coverage tests (Phase 5E)
+    if (build_options.enable_database) {
+        _ = @import("database_batch_test.zig");
+    }
+    if (build_options.enable_gpu) {
+        _ = @import("gpu_dispatcher_test.zig");
+    }
+    if (build_options.enable_network) {
+        _ = @import("network_raft_test.zig");
+    }
 }
 
 // Connector tests
@@ -230,6 +241,11 @@ pub const ai_rag_test = if (build_options.enable_ai) @import("ai_rag_test.zig") 
 pub const ai_orchestration_test = if (build_options.enable_ai) @import("ai_orchestration_test.zig") else struct {};
 pub const ai_templates_test = if (build_options.enable_ai) @import("ai_templates_test.zig") else struct {};
 pub const ai_tools_test = if (build_options.enable_ai) @import("ai_tools_test.zig") else struct {};
+
+// Non-AI gap coverage tests (Phase 5E)
+pub const database_batch_test = if (build_options.enable_database) @import("database_batch_test.zig") else struct {};
+pub const gpu_dispatcher_test = if (build_options.enable_gpu) @import("gpu_dispatcher_test.zig") else struct {};
+pub const network_raft_test = if (build_options.enable_network) @import("network_raft_test.zig") else struct {};
 
 test "abi version returns build package version" {
     try std.testing.expectEqualStrings("0.4.0", abi.version());

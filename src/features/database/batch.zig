@@ -256,7 +256,7 @@ pub const BatchProcessor = struct {
 
     /// Insert batch of records sequentially.
     fn insertBatchSequential(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
-        const timer = time.Timer.start() catch |err| {
+        var timer = time.Timer.start() catch |err| {
             // Timer unavailable on this platform - process without timing
             std.log.debug("Timer unavailable: {t}, processing without timing", .{err});
             return self.insertBatchSequentialNoTiming(records);
@@ -404,7 +404,7 @@ pub const BatchProcessor = struct {
 
     /// Insert batch of records in parallel using worker threads.
     fn insertBatchParallel(self: *BatchProcessor, records: []const BatchRecord) !BatchResult {
-        const timer = time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             // Timer unavailable - fallback to sequential without timing
             return self.insertBatchSequentialNoTiming(records);
         };
@@ -504,7 +504,7 @@ pub const BatchProcessor = struct {
 
     /// Delete batch of IDs.
     pub fn deleteBatch(self: *BatchProcessor, ids: []const u64) !BatchResult {
-        const timer = time.Timer.start() catch {
+        var timer = time.Timer.start() catch {
             // Timer unavailable - return result without timing
             var successful: usize = 0;
             for (ids) |id| {
