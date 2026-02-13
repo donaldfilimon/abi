@@ -22,6 +22,7 @@ pub const Parameter = tool.Parameter;
 pub const ParameterType = tool.ParameterType;
 pub const createContext = tool.createContext;
 pub const ToolExecutionError = tool.ToolExecutionError;
+pub const hasPathTraversal = tool.hasPathTraversal;
 
 pub const TaskTool = task.TaskTool;
 pub const Subagent = task.Subagent;

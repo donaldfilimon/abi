@@ -148,6 +148,13 @@ test {
         _ = @import("ai_memory_test.zig");
         _ = @import("ai_rag_test.zig");
     }
+
+    // AI secondary coverage tests (Phase 5D)
+    if (build_options.enable_ai) {
+        _ = @import("ai_orchestration_test.zig");
+        _ = @import("ai_templates_test.zig");
+        _ = @import("ai_tools_test.zig");
+    }
 }
 
 // Connector tests
@@ -218,6 +225,11 @@ pub const ai_attention_test = if (build_options.enable_llm) @import("ai_attentio
 pub const ai_streaming_test = if (build_options.enable_ai) @import("ai_streaming_test.zig") else struct {};
 pub const ai_memory_test = if (build_options.enable_ai) @import("ai_memory_test.zig") else struct {};
 pub const ai_rag_test = if (build_options.enable_ai) @import("ai_rag_test.zig") else struct {};
+
+// AI secondary coverage tests (Phase 5D)
+pub const ai_orchestration_test = if (build_options.enable_ai) @import("ai_orchestration_test.zig") else struct {};
+pub const ai_templates_test = if (build_options.enable_ai) @import("ai_templates_test.zig") else struct {};
+pub const ai_tools_test = if (build_options.enable_ai) @import("ai_tools_test.zig") else struct {};
 
 test "abi version returns build package version" {
     try std.testing.expectEqualStrings("0.4.0", abi.version());

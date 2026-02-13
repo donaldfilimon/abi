@@ -132,6 +132,10 @@ pub const Parameter = tool.OuterParameter;
 pub const ParameterType = tool.OuterParameterType;
 pub const createContext = tool.outerCreateContext;
 pub const ToolExecutionError = tool.OuterToolExecutionError;
+pub fn hasPathTraversal(path: []const u8) bool {
+    _ = path;
+    return false;
+}
 
 pub const TaskTool = task.OuterTaskTool;
 pub const Subagent = task.OuterSubagent;
