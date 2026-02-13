@@ -471,19 +471,36 @@ pub const SSEFormatter = struct {
     }
 };
 
-/// Simple stdout streaming helper.
+/// Display function: writes streaming token text directly to stderr.
+/// For writing to a specific destination, use `streamEventToWriter` instead.
 pub fn streamToStdout(event: TokenEvent) void {
     if (event.text) |text| {
         std.debug.print("{s}", .{text});
     }
 }
 
-/// Completion callback that prints stats.
+/// Write streaming token text to an arbitrary writer.
+pub fn streamEventToWriter(event: TokenEvent, writer: anytype) !void {
+    if (event.text) |text| {
+        try writer.writeAll(text);
+    }
+}
+
+/// Display function: prints generation stats directly to stderr.
+/// For writing to a specific destination, use `writeCompletionStats` instead.
 pub fn printCompletionStats(stats: StreamingStats) void {
     std.debug.print("\n\n--- Generation Complete ---\n", .{});
     std.debug.print("Tokens: {d}\n", .{stats.tokens_generated});
     std.debug.print("Speed: {d:.1} tok/s\n", .{stats.tokensPerSecond()});
     std.debug.print("Time to first token: {d:.1}ms\n", .{stats.timeToFirstTokenMs()});
+}
+
+/// Write generation stats to an arbitrary writer.
+pub fn writeCompletionStats(stats: StreamingStats, writer: anytype) !void {
+    try writer.print("\n\n--- Generation Complete ---\n", .{});
+    try writer.print("Tokens: {d}\n", .{stats.tokens_generated});
+    try writer.print("Speed: {d:.1} tok/s\n", .{stats.tokensPerSecond()});
+    try writer.print("Time to first token: {d:.1}ms\n", .{stats.timeToFirstTokenMs()});
 }
 
 /// Iterator-based streaming response.

@@ -245,6 +245,7 @@ test "experiment: single variant always chosen" {
     // All users get the only variant
     for (0..20) |i| {
         var buf: [32]u8 = undefined;
+        // SAFETY: max output "user-20" is 7 bytes, buffer is 32.
         const user = std.fmt.bufPrint(&buf, "user-{d}", .{i}) catch unreachable;
         const variant = exp.assign(user);
         try std.testing.expectEqualStrings("treatment", variant);
@@ -265,6 +266,7 @@ test "experiment: multiple variants distribute across users" {
 
     for (0..300) |i| {
         var buf: [32]u8 = undefined;
+        // SAFETY: max output "user-299" is 8 bytes, buffer is 32.
         const user = std.fmt.bufPrint(&buf, "user-{d}", .{i}) catch unreachable;
         const variant = exp.assign(user);
 

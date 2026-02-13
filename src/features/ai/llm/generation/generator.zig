@@ -269,9 +269,15 @@ pub const Generator = struct {
     }
 };
 
-/// Simple streaming helper.
+/// Display function: writes streaming text directly to stderr.
+/// For writing to a specific destination, use `streamToWriter` instead.
 pub fn streamToStdout(text: []const u8) void {
     std.debug.print("{s}", .{text});
+}
+
+/// Write streaming text to an arbitrary writer.
+pub fn streamToWriter(text: []const u8, writer: anytype) !void {
+    try writer.writeAll(text);
 }
 
 test "generator config defaults" {

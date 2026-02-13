@@ -31,7 +31,9 @@ pub const StreamingResponse = streaming.StreamingResponse;
 pub const TokenEvent = streaming.TokenEvent;
 pub const SSEFormatter = streaming.SSEFormatter;
 pub const streamToStdout = streaming.streamToStdout;
+pub const streamEventToWriter = streaming.streamEventToWriter;
 pub const printCompletionStats = streaming.printCompletionStats;
+pub const writeCompletionStats = streaming.writeCompletionStats;
 pub const collectStreamingResponse = streaming.collectStreamingResponse;
 
 test "generation module imports" {
