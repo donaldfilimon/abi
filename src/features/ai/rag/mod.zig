@@ -389,3 +389,10 @@ test "rag pipeline query" {
 
     try std.testing.expect(response.num_chunks > 0);
 }
+
+test {
+    _ = document;
+    _ = chunker;
+    _ = retriever;
+    _ = context;
+}

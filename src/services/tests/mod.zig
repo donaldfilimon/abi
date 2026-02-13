@@ -4,8 +4,11 @@ const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
 
-// Force-reference submodules to include their tests
-comptime {
+// Force-reference submodules to include their tests.
+// NOTE: Must use `test {}` blocks (not `comptime {}`). In Zig 0.16, `comptime {}` forces
+// compilation but does NOT include test blocks in the test runner. Only `test {}` blocks
+// trigger true test discovery for referenced modules.
+test {
     // LLM module tests (when enabled)
     if (build_options.enable_llm) {
         _ = abi.ai.llm.io;
@@ -23,6 +26,21 @@ comptime {
     // Persona integration tests
     if (build_options.enable_ai) {
         _ = abi.ai.personas;
+    }
+    // AI submodule tests (previously undiscovered)
+    if (build_options.enable_ai) {
+        _ = abi.ai.eval;
+        _ = abi.ai.rag;
+        _ = abi.ai.templates;
+        _ = abi.ai.memory;
+        _ = abi.ai.orchestration;
+        _ = abi.ai.tools;
+        _ = abi.ai.streaming;
+        _ = abi.ai.documents;
+        _ = abi.ai.abbey;
+    }
+    if (@hasDecl(build_options, "enable_vision") and build_options.enable_vision) {
+        _ = abi.ai.vision;
     }
     // Connector tests
     _ = @import("connectors_test.zig");

@@ -7,7 +7,7 @@ const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const backend_mod = @import("../backend.zig");
-const core_metrics = @import("../../observability/metrics/mod.zig");
+const core_metrics = @import("../../../services/shared/utils/metric_types.zig");
 
 // Re-export shared types for API compatibility
 pub const Counter = core_metrics.Counter;

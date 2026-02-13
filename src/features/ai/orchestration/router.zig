@@ -418,7 +418,7 @@ test "routing rule matching" {
 test "prompt contains rule" {
     const rule = RoutingRule{
         .name = "python-code",
-        .condition = .{ .prompt_contains = "python" },
+        .condition = .{ .prompt_contains = "Python" }, // case-sensitive match
         .action = .{ .route_to = "codellama" },
     };
 

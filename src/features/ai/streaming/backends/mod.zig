@@ -395,3 +395,8 @@ test "backend router initialization" {
     const backend = try router.getBackend(.local);
     try std.testing.expectEqual(BackendType.local, backend.backend_type);
 }
+
+test {
+    _ = local;
+    _ = external;
+}

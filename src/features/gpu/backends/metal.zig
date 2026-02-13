@@ -26,43 +26,15 @@ pub const metal_types = @import("metal_types.zig");
 
 pub const MetalError = metal_types.MetalError;
 
-// Objective-C runtime types
-const SEL = *anyopaque;
-const Class = *anyopaque;
-const ID = ?*anyopaque;
+// Objective-C runtime types (from metal_types.zig)
+const SEL = metal_types.SEL;
+const Class = metal_types.Class;
+const ID = metal_types.ID;
 
-/// MTLSize struct - matches Metal's definition exactly.
-/// Used for specifying grid and threadgroup dimensions.
-pub const MTLSize = extern struct {
-    width: usize,
-    height: usize,
-    depth: usize,
-
-    pub fn init(w: usize, h: usize, d: usize) MTLSize {
-        return .{ .width = w, .height = h, .depth = d };
-    }
-
-    pub fn from3D(dims: [3]u32) MTLSize {
-        return .{
-            .width = dims[0],
-            .height = dims[1],
-            .depth = dims[2],
-        };
-    }
-};
-
-/// MTLOrigin struct - matches Metal's definition for region origins.
-pub const MTLOrigin = extern struct {
-    x: usize,
-    y: usize,
-    z: usize,
-};
-
-/// MTLRegion struct - for buffer/texture regions.
-pub const MTLRegion = extern struct {
-    origin: MTLOrigin,
-    size: MTLSize,
-};
+// Metal struct types (re-exported from metal_types.zig)
+pub const MTLSize = metal_types.MTLSize;
+pub const MTLOrigin = metal_types.MTLOrigin;
+pub const MTLRegion = metal_types.MTLRegion;
 
 var metal_lib: ?std.DynLib = null;
 var objc_lib: ?std.DynLib = null;
@@ -89,28 +61,22 @@ var buffer_allocator: ?std.mem.Allocator = null;
 var pipeline_cache: std.StringHashMapUnmanaged(ID) = .empty;
 var pipeline_cache_allocator: ?std.mem.Allocator = null;
 
-// Objective-C runtime function pointers
-const ObjcMsgSendFn = *const fn (ID, SEL) callconv(.c) ID;
-const ObjcMsgSendIntFn = *const fn (ID, SEL, usize, u32) callconv(.c) ID;
-const ObjcMsgSendPtrFn = *const fn (ID, SEL, ID) callconv(.c) ID;
-const ObjcMsgSendPtr2Fn = *const fn (ID, SEL, ID, ID) callconv(.c) ID;
-const ObjcMsgSendPtr3Fn = *const fn (ID, SEL, ID, ID, ID) callconv(.c) ID;
-const ObjcMsgSendVoidFn = *const fn (ID, SEL) callconv(.c) void;
-const ObjcMsgSendVoidPtrFn = *const fn (ID, SEL, ID) callconv(.c) void;
-const ObjcMsgSendVoidPtrIntIntFn = *const fn (ID, SEL, ID, usize, u32) callconv(.c) void;
-const ObjcMsgSendU64Fn = *const fn (ID, SEL) callconv(.c) u64;
-const ObjcMsgSendU32Fn = *const fn (ID, SEL) callconv(.c) u32;
-const ObjcMsgSendBoolFn = *const fn (ID, SEL) callconv(.c) bool;
-const SelRegisterNameFn = *const fn ([*:0]const u8) callconv(.c) SEL;
-const ObjcGetClassFn = *const fn ([*:0]const u8) callconv(.c) Class;
-
-// Function pointer for dispatching with MTLSize structs
-// On ARM64 (Apple Silicon), we can pass structs directly
-// On x86_64, small structs are passed in registers
-const ObjcMsgSendMTLSize2Fn = *const fn (ID, SEL, MTLSize, MTLSize) callconv(.c) void;
-
-// NSString creation function pointer
-const NSStringWithUTF8Fn = *const fn (Class, SEL, [*:0]const u8) callconv(.c) ID;
+// Objective-C runtime function pointers (from metal_types.zig)
+const ObjcMsgSendFn = metal_types.ObjcMsgSendFn;
+const ObjcMsgSendIntFn = metal_types.ObjcMsgSendIntFn;
+const ObjcMsgSendPtrFn = metal_types.ObjcMsgSendPtrFn;
+const ObjcMsgSendPtr2Fn = metal_types.ObjcMsgSendPtr2Fn;
+const ObjcMsgSendPtr3Fn = metal_types.ObjcMsgSendPtr3Fn;
+const ObjcMsgSendVoidFn = metal_types.ObjcMsgSendVoidFn;
+const ObjcMsgSendVoidPtrFn = metal_types.ObjcMsgSendVoidPtrFn;
+const ObjcMsgSendVoidPtrIntIntFn = metal_types.ObjcMsgSendVoidPtrIntIntFn;
+const ObjcMsgSendU64Fn = metal_types.ObjcMsgSendU64Fn;
+const ObjcMsgSendU32Fn = metal_types.ObjcMsgSendU32Fn;
+const ObjcMsgSendBoolFn = metal_types.ObjcMsgSendBoolFn;
+const SelRegisterNameFn = metal_types.SelRegisterNameFn;
+const ObjcGetClassFn = metal_types.ObjcGetClassFn;
+const ObjcMsgSendMTLSize2Fn = metal_types.ObjcMsgSendMTLSize2Fn;
+const NSStringWithUTF8Fn = metal_types.NSStringWithUTF8Fn;
 
 var objc_msgSend: ?ObjcMsgSendFn = null;
 var objc_msgSend_int: ?ObjcMsgSendIntFn = null;
@@ -131,9 +97,9 @@ var objc_getClass: ?ObjcGetClassFn = null;
 // NSString class reference
 var nsstring_class: ?Class = null;
 
-// Metal C-callable functions
-const MtlCreateSystemDefaultDeviceFn = *const fn () callconv(.c) ID;
-const MtlCopyAllDevicesFn = *const fn () callconv(.c) ID; // Returns NSArray of MTLDevice
+// Metal C-callable function types (from metal_types.zig)
+const MtlCreateSystemDefaultDeviceFn = metal_types.MtlCreateSystemDefaultDeviceFn;
+const MtlCopyAllDevicesFn = metal_types.MtlCopyAllDevicesFn;
 var mtlCreateSystemDefaultDevice: ?MtlCreateSystemDefaultDeviceFn = null;
 var mtlCopyAllDevices: ?MtlCopyAllDevicesFn = null;
 
@@ -182,47 +148,18 @@ var sel_threadExecutionWidth: SEL = undefined;
 
 var selectors_initialized = false;
 
-// MTLResourceOptions - matches Metal headers
-const MTLResourceStorageModeShared: u32 = 0;
-const MTLResourceStorageModeManaged: u32 = 1 << 4;
-const MTLResourceStorageModePrivate: u32 = 2 << 4;
-const MTLResourceCPUCacheModeDefaultCache: u32 = 0;
-const MTLResourceCPUCacheModeWriteCombined: u32 = 1;
+// MTLResourceOptions (from metal_types.zig)
+const MTLResourceStorageModeShared = metal_types.MTLResourceStorageModeShared;
 
-const MetalKernel = struct {
-    pipeline_state: ID,
-    library: ID,
-    function: ID,
-};
+// Internal Metal structs (from metal_types.zig)
+const MetalKernel = metal_types.MetalKernel;
+const MetalBuffer = metal_types.MetalBuffer;
 
-const MetalBuffer = struct {
-    buffer: ID,
-    size: usize,
-    allocator: std.mem.Allocator,
-};
-
-// ============================================================================
-// Safe Pointer Casting Utilities
-// ============================================================================
-
-/// Magic value used to validate MetalKernel pointers before casting.
-/// This helps detect use-after-free and invalid pointer issues.
-const kernel_magic: u64 = 0x4D45544B_45524E53; // "METKERNS" in hex
-
-/// Magic value used to validate MetalBuffer pointers before casting.
-const buffer_magic: u64 = 0x4D455442_55465300; // "METBUFS\0" in hex
-
-/// Extended MetalKernel with validation magic for safe pointer casting.
-const SafeMetalKernel = struct {
-    magic: u64 = kernel_magic,
-    inner: MetalKernel,
-};
-
-/// Extended MetalBuffer with validation magic for safe pointer casting.
-const SafeMetalBuffer = struct {
-    magic: u64 = buffer_magic,
-    inner: MetalBuffer,
-};
+// Safe pointer casting types (from metal_types.zig)
+const kernel_magic = metal_types.kernel_magic;
+const buffer_magic = metal_types.buffer_magic;
+const SafeMetalKernel = metal_types.SafeMetalKernel;
+const SafeMetalBuffer = metal_types.SafeMetalBuffer;
 
 /// Safely cast an opaque pointer to a MetalKernel pointer with validation.
 /// Returns null if the pointer is null or the magic value doesn't match.
@@ -1308,52 +1245,14 @@ pub fn getDeviceInfo() ?DeviceInfo {
     };
 }
 
-/// Detailed device information struct.
-pub const DeviceInfo = struct {
-    name: []const u8,
-    total_memory: u64,
-    max_buffer_length: u64,
-    max_threads_per_threadgroup: u32,
-    has_unified_memory: bool,
-};
+/// Detailed device information struct (re-exported from metal_types.zig).
+pub const DeviceInfo = metal_types.DeviceInfo;
 
 // ============================================================================
-// Tests
+// Test discovery for extracted submodules
 // ============================================================================
 
-test "MetalError enum covers all cases" {
-    const errors = [_]MetalError{
-        error.InitializationFailed,
-        error.DeviceNotFound,
-        error.CommandQueueCreationFailed,
-        error.LibraryCreationFailed,
-        error.FunctionNotFound,
-        error.PipelineCreationFailed,
-        error.BufferCreationFailed,
-        error.CommandBufferCreationFailed,
-        error.ComputeEncoderCreationFailed,
-        error.ObjcRuntimeUnavailable,
-    };
-    try std.testing.expectEqual(@as(usize, 10), errors.len);
-}
-
-test "isAvailable returns false when not initialized" {
-    try std.testing.expect(!isAvailable());
-}
-
-test "getDeviceInfo returns null when not initialized" {
-    const info = getDeviceInfo();
-    try std.testing.expect(info == null);
-}
-
-test "DeviceInfo struct has correct fields" {
-    const info = DeviceInfo{
-        .name = "Test Device",
-        .total_memory = 8 * 1024 * 1024 * 1024,
-        .max_buffer_length = 256 * 1024 * 1024,
-        .max_threads_per_threadgroup = 1024,
-        .has_unified_memory = true,
-    };
-    try std.testing.expectEqualStrings("Test Device", info.name);
-    try std.testing.expect(info.has_unified_memory);
+test {
+    _ = @import("metal_types.zig");
+    _ = @import("metal_test.zig");
 }

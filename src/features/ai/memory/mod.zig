@@ -235,3 +235,12 @@ test "message clone and deinit" {
     try std.testing.expectEqualStrings(original.name.?, cloned.name.?);
     try std.testing.expectEqual(original.timestamp, cloned.timestamp);
 }
+
+test {
+    _ = short_term;
+    _ = window;
+    _ = summary;
+    _ = long_term;
+    _ = manager;
+    _ = persistence;
+}

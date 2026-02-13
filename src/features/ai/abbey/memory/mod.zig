@@ -349,3 +349,9 @@ test "memory manager consolidation" {
     try manager.consolidate();
     try std.testing.expectEqual(@as(usize, 1), manager.consolidation_count);
 }
+
+test {
+    _ = episodic;
+    _ = semantic;
+    _ = @import("working.zig");
+}

@@ -23,7 +23,7 @@ const obs = @import("../../observability/mod.zig");
 const alerts = @import("alerts.zig");
 
 // Shared metrics primitives (for standalone use)
-const core_metrics = @import("../../observability/metrics/mod.zig");
+const core_metrics = @import("../../../services/shared/utils/metric_types.zig");
 
 /// Collection of metrics for a specific persona.
 pub const PersonaMetricSet = struct {

@@ -1,12 +1,13 @@
 //! OpenTelemetry integration for distributed tracing and metrics.
 const std = @import("std");
+const build_options = @import("build_options");
 const time = @import("../../services/shared/utils.zig");
 const observability = @import("../observability/mod.zig");
 
 pub const OtelConfig = struct {
     enabled: bool = true,
     service_name: []const u8 = "abi-service",
-    service_version: []const u8 = "0.4.0",
+    service_version: []const u8 = build_options.package_version,
     exporter_endpoint: []const u8 = "http://localhost:4318",
     export_interval_ms: u64 = 60000,
     export_on_shutdown: bool = true,
@@ -560,9 +561,9 @@ pub fn createOtelResource(allocator: std.mem.Allocator, service_name: []const u8
     errdefer allocator.free(attrs);
 
     attrs[0] = .{ .key = "service.name", .value = .{ .string = service_name } };
-    attrs[1] = .{ .key = "service.version", .value = .{ .string = "0.4.0" } };
+    attrs[1] = .{ .key = "service.version", .value = .{ .string = build_options.package_version } };
     attrs[2] = .{ .key = "telemetry.sdk.name", .value = .{ .string = "abi" } };
-    attrs[3] = .{ .key = "telemetry.sdk.version", .value = .{ .string = "0.4.0" } };
+    attrs[3] = .{ .key = "telemetry.sdk.version", .value = .{ .string = build_options.package_version } };
 
     return attrs;
 }

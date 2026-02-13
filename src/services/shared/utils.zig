@@ -298,6 +298,9 @@ pub const benchmark = @import("utils/benchmark.zig");
 /// HTTP retry logic with backoff strategies.
 /// Configurable retry policies for web requests.
 pub const http_retry = @import("utils/retry.zig");
+/// Shared metric primitives (Counter, Gauge, FloatGauge, Histogram).
+/// Used by observability, GPU, and AI modules for consistent metrics.
+pub const metric_types = @import("utils/metric_types.zig");
 
 // Note: Top-level shared modules (logging, os, platform, plugins, simd, time)
 // are exported via shared/mod.zig. Access them as abi.shared.<module>.

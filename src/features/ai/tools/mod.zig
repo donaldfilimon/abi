@@ -56,3 +56,13 @@ pub fn registerCodeAgentTools(registry: *ToolRegistry) !void {
     try edit_tools.registerAll(registry);
     try os_tools.registerAll(registry);
 }
+
+test {
+    _ = tool;
+    _ = task;
+    _ = discord_tools;
+    _ = os_tools;
+    _ = file_tools;
+    _ = search_tools;
+    _ = edit_tools;
+}

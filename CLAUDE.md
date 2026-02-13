@@ -26,8 +26,11 @@ zig build validate-flags                     # Compile-check 16 feature flag com
 zig build cli-tests                          # CLI smoke tests
 zig build lint                               # CI formatting check
 zig build benchmarks                         # Performance benchmarks
+zig build bench-all                          # Run all benchmark suites
 zig build examples                           # Build all examples
 zig build check-wasm                         # Check WASM compilation
+zig build verify-all                         # full-check + version script + examples + bench-all + check-wasm
+scripts/check_zig_version_consistency.sh     # Verify .zigversion matches build.zig/docs
 ```
 
 ### Running the CLI
@@ -75,11 +78,10 @@ These are the mistakes most likely to cause compilation failures:
 | `std.process.getEnvVar()` | Doesn't exist in `0.16.0-dev.2535+b5bd49460` — use `std.c.getenv()` for POSIX |
 | `@typeInfo` tags `.Type`, `.Fn` | Lowercase in `0.16.0-dev.2535+b5bd49460`: `.type`, `.@"fn"`, `.@"struct"`, `.@"enum"`, `.@"union"` |
 | `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
-| `defer allocator.free(x)` then return `x` | Use `errdefer` — `defer` frees on success too (use-after-free) |
+| `defer allocator.free(x)` then return `x` | Use `errdefer` — `defer` frees on success too (use-after-free). Applies anywhere caller takes ownership: `loadFromEnv()`, builder patterns, etc. |
 | `@panic` in library code | Return an error instead — library code should never panic |
 | `std.time.Timer.read()` → `u64` | Returns `usize` in `0.16.0-dev.2535+b5bd49460`, not `u64` — cast or use `@as(u64, timer.read())` |
 | `std.log.err` in tests | Test runner treats error-level log output as a test failure, even if caught. Skip the test before entering error paths |
-| `defer allocator.free(x)` in `loadFromEnv()` | When returning owned data from a function, use `errdefer` not `defer` — defer frees on success path (use-after-free) |
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -256,4 +258,5 @@ path — use `abi.<feature>` instead.
 
 - `AGENTS.md` — Project structure overview and v2 module notes
 - `CONTRIBUTING.md` — Development workflow and PR checklist
+- `.claude/rules/zig.md` — Zig 0.16 rules enforced by Claude Code (overlaps with gotchas above)
 - `docs/api/` — Auto-generated API docs (`zig build gendocs`)

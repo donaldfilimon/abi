@@ -281,8 +281,8 @@ test "bleu no match" {
         "foo bar baz",
         "the cat sat on the mat",
         4,
-        .method1,
+        .none, // Use no smoothing — method1 inflates zero-count precisions
     );
 
-    try std.testing.expect(result.score < 0.1);
+    try std.testing.expect(result.score < 0.01);
 }

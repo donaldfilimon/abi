@@ -238,3 +238,9 @@ test "template with default value" {
 
     try std.testing.expectEqualStrings("Hello, World!", result);
 }
+
+test {
+    _ = parser;
+    _ = renderer;
+    _ = library;
+}

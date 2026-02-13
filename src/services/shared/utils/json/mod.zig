@@ -280,7 +280,7 @@ test "parse optional fields" {
     const required = try parseStringField(object, "required", allocator);
     try std.testing.expectEqualStrings("present", required);
 
-    const missing = parseOptionalStringField(object, "missing", allocator);
+    const missing = try parseOptionalStringField(object, "missing", allocator);
     try std.testing.expect(missing == null);
 }
 

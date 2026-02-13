@@ -261,7 +261,7 @@ pub const Evaluator = struct {
 };
 
 const string_utils = @import("../../../services/shared/utils.zig");
-const toLower = string_utils.toLowerAscii;
+const toLower = string_utils.string.toLowerAscii;
 
 fn mean(values: []const f64) f64 {
     if (values.len == 0) return 0;
@@ -361,4 +361,12 @@ test "batch evaluation empty" {
 
     const result = evaluator.evaluateBatch(&hypotheses, &references);
     try std.testing.expectError(error.EmptyInput, result);
+}
+
+test {
+    _ = bleu;
+    _ = rouge;
+    _ = perplexity;
+    _ = metrics;
+    _ = tokenizer;
 }

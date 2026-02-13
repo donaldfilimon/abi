@@ -131,3 +131,11 @@ test "neural module imports" {
     var attn = try SelfAttention.init(allocator, 8, 2);
     defer attn.deinit();
 }
+
+test {
+    _ = tensor;
+    _ = layer;
+    _ = attention;
+    _ = learning;
+    _ = gpu_ops;
+}

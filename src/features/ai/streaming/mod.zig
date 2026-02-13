@@ -606,3 +606,21 @@ test "stream event creation" {
     const end_event = StreamEvent.endEvent();
     try std.testing.expectEqual(StreamEventType.end, end_event.event_type);
 }
+
+test {
+    _ = sse;
+    _ = backpressure;
+    _ = buffer;
+    _ = generator;
+    _ = server;
+    _ = websocket;
+    _ = backends;
+    _ = formats;
+    _ = recovery;
+    _ = circuit_breaker;
+    _ = retry_config;
+    _ = session_cache;
+    _ = streaming_metrics;
+    _ = @import("request_types.zig");
+    _ = @import("server_test.zig");
+}

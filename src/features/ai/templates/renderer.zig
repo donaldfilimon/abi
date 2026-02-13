@@ -137,8 +137,14 @@ pub const Renderer = struct {
                 if (FieldType == []const u8 or FieldType == []u8) {
                     return value;
                 } else if (@typeInfo(FieldType) == .pointer) {
-                    const child = @typeInfo(FieldType).pointer.child;
-                    if (child == u8) {
+                    const ptr_info = @typeInfo(FieldType).pointer;
+                    if (ptr_info.child == u8) {
+                        return value;
+                    }
+                    // Handle string literals: *const [N]u8 / *const [N:0]u8
+                    if (@typeInfo(ptr_info.child) == .array and
+                        @typeInfo(ptr_info.child).array.child == u8)
+                    {
                         return value;
                     }
                 } else if (@typeInfo(FieldType) == .optional) {
@@ -168,11 +174,11 @@ pub const Renderer = struct {
     }
 
     fn toUpper(self: *Renderer, value: []const u8) ![]const u8 {
-        return string_utils.toUpperAscii(self.allocator, value);
+        return string_utils.string.toUpperAscii(self.allocator, value);
     }
 
     fn toLower(self: *Renderer, value: []const u8) ![]const u8 {
-        return string_utils.toLowerAscii(self.allocator, value);
+        return string_utils.string.toLowerAscii(self.allocator, value);
     }
 
     fn escapeHtml(self: *Renderer, value: []const u8) ![]const u8 {

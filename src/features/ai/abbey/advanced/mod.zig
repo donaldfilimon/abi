@@ -332,3 +332,10 @@ test "cognitive state tracking" {
     const state = cognition.getCognitiveState();
     try std.testing.expectEqual(@as(usize, 2), state.active_mental_models);
 }
+
+test {
+    _ = meta_learning;
+    _ = theory_of_mind;
+    _ = compositional_reasoning;
+    _ = self_reflection;
+}

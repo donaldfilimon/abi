@@ -108,3 +108,7 @@ test "format abi chunk" {
     try std.testing.expect(std.mem.indexOf(u8, formatted, "\"text\":\"Hello\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, formatted, "\"index\":0") != null);
 }
+
+test {
+    _ = openai;
+}

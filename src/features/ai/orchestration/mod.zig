@@ -881,3 +881,9 @@ test "model enable/disable" {
     stats = orch.getStats();
     try std.testing.expectEqual(@as(u32, 0), stats.available_models);
 }
+
+test {
+    _ = router;
+    _ = ensemble;
+    _ = fallback;
+}

@@ -542,6 +542,19 @@ pub fn build(b: *std.Build) void {
         test_step.?.dependOn(&run_tests.step);
     }
 
+    // Feature module inline tests — separate binary because Zig 0.16 restricts
+    // each source file to one module. Feature files already belong to the 'abi'
+    // module, so they cannot also be imported by the main test module. This step
+    // discovers test blocks inside feature source files (eval, rag, streaming, etc.).
+    // NOT wired into the main 'test' step yet — stabilize before gating builds.
+    if (pathExists(b, "src/feature_test_root.zig")) {
+        const feature_tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/feature_test_root.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
+        feature_tests.root_module.addImport("build_options", build_opts);
+        const run_feature_tests = b.addRunArtifact(feature_tests);
+        run_feature_tests.skip_foreign_checks = true;
+        b.step("feature-tests", "Run feature module inline tests").dependOn(&run_feature_tests.step);
+    }
+
     // ---------------------------------------------------------------------------
     // Feature flag validation matrix
     // ---------------------------------------------------------------------------

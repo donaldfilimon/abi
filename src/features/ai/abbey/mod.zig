@@ -564,3 +564,18 @@ test "self-reflection engine" {
     );
     try std.testing.expect(evaluation.overall_quality > 0.0);
 }
+
+test {
+    _ = neural;
+    _ = memory;
+    _ = reasoning;
+    _ = emotions;
+    _ = context;
+    _ = calibration;
+    _ = client;
+    _ = engine;
+    _ = server;
+    _ = discord_bot;
+    _ = custom_framework;
+    _ = advanced;
+}

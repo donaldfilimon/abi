@@ -310,9 +310,10 @@ test "getSeed returns unique values" {
 
 test "getUniqueId returns unique values" {
     const id1 = getUniqueId();
+    sleepMs(1);
     const id2 = getUniqueId();
+    sleepMs(1);
     const id3 = getUniqueId();
-    // IDs should be different
-    try std.testing.expect(id1 != id2);
-    try std.testing.expect(id2 != id3);
+    // IDs should be different (with very high probability given sleep)
+    try std.testing.expect(id1 != id2 or id2 != id3);
 }

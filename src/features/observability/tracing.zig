@@ -5,6 +5,7 @@
 //! context propagation and OTLP export.
 
 const std = @import("std");
+const build_options = @import("build_options");
 const time = @import("../../services/shared/time.zig");
 const sync = @import("../../services/shared/sync.zig");
 const utils = @import("../../services/shared/utils.zig");
@@ -230,7 +231,7 @@ pub const Span = struct {
 pub const Tracer = struct {
     allocator: std.mem.Allocator,
     service_name: []const u8,
-    tracer_version: []const u8 = "0.4.0",
+    tracer_version: []const u8 = build_options.package_version,
     schema_url: ?[]const u8 = null,
 
     pub fn init(allocator: std.mem.Allocator, service_name: []const u8) !Tracer {

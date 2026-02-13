@@ -67,6 +67,9 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
         size: usize,
         allocator: std.mem.Allocator,
         growth_left: usize,
+        /// Per-instance hash seed for HashDoS resistance.
+        /// Default (0) uses deterministic hashing for backward compatibility.
+        hash_seed: u64,
 
         // ── Lifecycle ────────────────────────────────────────────
 
@@ -79,6 +82,22 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
                 .size = 0,
                 .allocator = allocator,
                 .growth_left = 0,
+                .hash_seed = 0,
+            };
+        }
+
+        /// Create a SwissMap with a per-instance hash seed for
+        /// HashDoS resistance when keys come from untrusted sources.
+        pub fn initWithSeed(allocator: std.mem.Allocator, seed: u64) Self {
+            return Self{
+                .ctrl = &.{},
+                .keys = &.{},
+                .values = &.{},
+                .capacity = 0,
+                .size = 0,
+                .allocator = allocator,
+                .growth_left = 0,
+                .hash_seed = seed,
             };
         }
 
@@ -89,6 +108,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
         }
 
         pub fn deinit(self: *Self) void {
+            const seed = self.hash_seed;
             if (self.capacity > 0) {
                 // ctrl has capacity + group_width sentinel bytes
                 self.allocator.free(self.ctrl[0 .. self.capacity + group_width]);
@@ -96,6 +116,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
                 self.allocator.free(self.values[0..self.capacity]);
             }
             self.* = init(self.allocator);
+            self.hash_seed = seed;
         }
 
         // ── Core Operations ──────────────────────────────────────
@@ -103,7 +124,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
         pub fn get(self: *const Self, key: K) ?V {
             if (self.capacity == 0) return null;
 
-            const hash = hashKey(key);
+            const hash = self.hashKey(key);
             const target_h2 = h2(hash);
             var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
             var probe: usize = 0;
@@ -132,7 +153,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
         pub fn getPtr(self: *Self, key: K) ?*V {
             if (self.capacity == 0) return null;
 
-            const hash = hashKey(key);
+            const hash = self.hashKey(key);
             const target_h2 = h2(hash);
             var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
             var probe: usize = 0;
@@ -152,7 +173,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
         pub fn put(self: *Self, key: K, value: V) !void {
             try self.ensureCapacity(self.size + 1);
 
-            const hash = hashKey(key);
+            const hash = self.hashKey(key);
             const target_h2 = h2(hash);
             var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
             var probe: usize = 0;
@@ -189,7 +210,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
         pub fn remove(self: *Self, key: K) bool {
             if (self.capacity == 0) return false;
 
-            const hash = hashKey(key);
+            const hash = self.hashKey(key);
             const target_h2 = h2(hash);
             var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
             var probe: usize = 0;
@@ -255,7 +276,7 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
 
         /// Insert without capacity check — only used during rehash
         fn insertUnchecked(self: *Self, key: K, value: V) void {
-            const hash = hashKey(key);
+            const hash = self.hashKey(key);
             const target_h2 = h2(hash);
             var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
             var probe: usize = 0;
@@ -334,14 +355,14 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
 
         // ── Hashing ──────────────────────────────────────────────
 
-        fn hashKey(key: K) u64 {
+        fn hashKey(self: *const Self, key: K) u64 {
             if (K == []const u8) {
-                return wyhash(key);
+                return wyhash(key, self.hash_seed);
             } else if (@typeInfo(K) == .int or @typeInfo(K) == .comptime_int) {
-                return splitmix64(@as(u64, @intCast(key)));
+                return splitmix64(@as(u64, @intCast(key)) ^ self.hash_seed);
             } else {
                 const bytes = std.mem.asBytes(&key);
-                return wyhash(bytes);
+                return wyhash(bytes, self.hash_seed);
             }
         }
 
@@ -363,9 +384,9 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
             return x ^ (x >> 31);
         }
 
-        fn wyhash(data: []const u8) u64 {
-            // Simplified wyhash-inspired mixer
-            var hash: u64 = 0x527f_cf73_a70b_b714;
+        fn wyhash(data: []const u8, seed: u64) u64 {
+            // Simplified wyhash-inspired mixer with per-instance seed
+            var hash: u64 = 0x527f_cf73_a70b_b714 ^ seed;
             for (data) |byte| {
                 hash = (hash ^ @as(u64, byte)) *% 0x2127_599b_f432_8c09;
             }

@@ -13,6 +13,8 @@ const types = @import("types.zig");
 const shared = @import("../shared.zig");
 const async_http = @import("../../shared/utils.zig").async_http;
 const json_utils = @import("../../shared/utils.zig").json;
+const parsers = @import("rest_parsers.zig");
+const encoders = @import("rest_encoders.zig");
 
 // Re-export types used in API
 pub const DiscordError = types.DiscordError;
@@ -152,7 +154,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseUser(response.body);
+        return try parsers.parseUser(self.allocator, response.body);
     }
 
     /// Get a user by ID
@@ -170,7 +172,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseUser(response.body);
+        return try parsers.parseUser(self.allocator, response.body);
     }
 
     /// Modify the current user
@@ -204,7 +206,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseUser(response.body);
+        return try parsers.parseUser(self.allocator, response.body);
     }
 
     /// Get current user's guilds
@@ -215,7 +217,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseGuildArray(response.body);
+        return try parsers.parseGuildArray(self.allocator, response.body);
     }
 
     /// Leave a guild
@@ -250,7 +252,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseChannel(response.body);
+        return try parsers.parseChannel(self.allocator, response.body);
     }
 
     // ========================================================================
@@ -272,7 +274,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseGuild(response.body);
+        return try parsers.parseGuild(self.allocator, response.body);
     }
 
     /// Get guild channels
@@ -290,7 +292,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseChannelArray(response.body);
+        return try parsers.parseChannelArray(self.allocator, response.body);
     }
 
     /// Get guild member
@@ -312,7 +314,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseGuildMember(response.body);
+        return try parsers.parseGuildMember(self.allocator, response.body);
     }
 
     /// Get guild roles
@@ -330,7 +332,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseRoleArray(response.body);
+        return try parsers.parseRoleArray(self.allocator, response.body);
     }
 
     // ========================================================================
@@ -352,7 +354,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseChannel(response.body);
+        return try parsers.parseChannel(self.allocator, response.body);
     }
 
     /// Delete a channel
@@ -395,7 +397,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseMessageArray(response.body);
+        return try parsers.parseMessageArray(self.allocator, response.body);
     }
 
     /// Get a specific message
@@ -417,7 +419,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseMessage(response.body);
+        return try parsers.parseMessage(self.allocator, response.body);
     }
 
     /// Create a message
@@ -447,7 +449,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseMessage(response.body);
+        return try parsers.parseMessage(self.allocator, response.body);
     }
 
     /// Create a message with embed
@@ -467,14 +469,14 @@ pub const Client = struct {
         var request = try self.makeRequest(.post, endpoint);
         defer request.deinit();
 
-        const body = try self.encodeMessageWithEmbed(content, embed);
+        const body = try encoders.encodeMessageWithEmbed(self.allocator, content, embed);
         defer self.allocator.free(body);
         try request.setJsonBody(body);
 
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseMessage(response.body);
+        return try parsers.parseMessage(self.allocator, response.body);
     }
 
     /// Edit a message
@@ -505,7 +507,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseMessage(response.body);
+        return try parsers.parseMessage(self.allocator, response.body);
     }
 
     /// Delete a message
@@ -592,7 +594,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseApplicationCommandArray(response.body);
+        return try parsers.parseApplicationCommandArray(self.allocator, response.body);
     }
 
     /// Create a global application command
@@ -613,14 +615,14 @@ pub const Client = struct {
         var request = try self.makeRequest(.post, endpoint);
         defer request.deinit();
 
-        const body = try self.encodeApplicationCommand(name, description, options);
+        const body = try encoders.encodeApplicationCommand(self.allocator, name, description, options);
         defer self.allocator.free(body);
         try request.setJsonBody(body);
 
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseApplicationCommand(response.body);
+        return try parsers.parseApplicationCommand(self.allocator, response.body);
     }
 
     /// Delete a global application command
@@ -662,7 +664,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseApplicationCommandArray(response.body);
+        return try parsers.parseApplicationCommandArray(self.allocator, response.body);
     }
 
     /// Create a guild application command
@@ -684,14 +686,14 @@ pub const Client = struct {
         var request = try self.makeRequest(.post, endpoint);
         defer request.deinit();
 
-        const body = try self.encodeApplicationCommand(name, description, options);
+        const body = try encoders.encodeApplicationCommand(self.allocator, name, description, options);
         defer self.allocator.free(body);
         try request.setJsonBody(body);
 
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseApplicationCommand(response.body);
+        return try parsers.parseApplicationCommand(self.allocator, response.body);
     }
 
     // ========================================================================
@@ -764,7 +766,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseMessage(response.body);
+        return try parsers.parseMessage(self.allocator, response.body);
     }
 
     /// Delete the original interaction response
@@ -815,7 +817,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseMessage(response.body);
+        return try parsers.parseMessage(self.allocator, response.body);
     }
 
     // ========================================================================
@@ -837,7 +839,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseWebhook(response.body);
+        return try parsers.parseWebhook(self.allocator, response.body);
     }
 
     /// Execute a webhook
@@ -887,7 +889,7 @@ pub const Client = struct {
         var request = try self.makeRequest(.post, endpoint);
         defer request.deinit();
 
-        const body = try self.encodeMessageWithEmbed(content, embed);
+        const body = try encoders.encodeMessageWithEmbed(self.allocator, content, embed);
         defer self.allocator.free(body);
         try request.setJsonBody(body);
 
@@ -977,7 +979,7 @@ pub const Client = struct {
         var response = try self.doRequest(&request);
         defer response.deinit();
 
-        return try self.parseVoiceRegionArray(response.body);
+        return try parsers.parseVoiceRegionArray(self.allocator, response.body);
     }
 
     // ========================================================================
@@ -1052,7 +1054,7 @@ pub const Client = struct {
             return DiscordError.ApiRequestFailed;
         }
 
-        return try self.parseOAuth2Token(response.body);
+        return try parsers.parseOAuth2Token(self.allocator, response.body);
     }
 
     /// Refresh an access token
@@ -1085,596 +1087,6 @@ pub const Client = struct {
             return DiscordError.ApiRequestFailed;
         }
 
-        return try self.parseOAuth2Token(response.body);
-    }
-
-    // ========================================================================
-    // JSON Encoding Helpers
-    // ========================================================================
-
-    fn encodeMessageWithEmbed(self: *Client, content: ?[]const u8, embed: Embed) ![]u8 {
-        var json = std.ArrayListUnmanaged(u8){};
-        errdefer json.deinit(self.allocator);
-
-        try json.appendSlice(self.allocator, "{");
-
-        if (content) |c| {
-            try json.print(
-                self.allocator,
-                "\"content\":\"{}\",",
-                .{json_utils.jsonEscape(c)},
-            );
-        }
-
-        try json.appendSlice(self.allocator, "\"embeds\":[{");
-
-        var first = true;
-        if (embed.title) |title| {
-            try json.print(
-                self.allocator,
-                "\"title\":\"{}\"",
-                .{json_utils.jsonEscape(title)},
-            );
-            first = false;
-        }
-
-        if (embed.description) |desc| {
-            if (!first) try json.appendSlice(self.allocator, ",");
-            try json.print(
-                self.allocator,
-                "\"description\":\"{}\"",
-                .{json_utils.jsonEscape(desc)},
-            );
-            first = false;
-        }
-
-        if (embed.color) |color| {
-            if (!first) try json.appendSlice(self.allocator, ",");
-            try json.print(self.allocator, "\"color\":{d}", .{color});
-            first = false;
-        }
-
-        if (embed.url) |url_val| {
-            if (!first) try json.appendSlice(self.allocator, ",");
-            try json.print(self.allocator, "\"url\":\"{s}\"", .{url_val});
-            first = false;
-        }
-
-        if (embed.timestamp) |ts| {
-            if (!first) try json.appendSlice(self.allocator, ",");
-            try json.print(self.allocator, "\"timestamp\":\"{s}\"", .{ts});
-            first = false;
-        }
-
-        if (embed.footer) |footer| {
-            if (!first) try json.appendSlice(self.allocator, ",");
-            try json.print(
-                self.allocator,
-                "\"footer\":{{\"text\":\"{}\"",
-                .{json_utils.jsonEscape(footer.text)},
-            );
-            if (footer.icon_url) |icon| {
-                try json.print(self.allocator, ",\"icon_url\":\"{s}\"", .{icon});
-            }
-            try json.appendSlice(self.allocator, "}");
-            first = false;
-        }
-
-        if (embed.author) |author| {
-            if (!first) try json.appendSlice(self.allocator, ",");
-            try json.print(
-                self.allocator,
-                "\"author\":{{\"name\":\"{}\"",
-                .{json_utils.jsonEscape(author.name)},
-            );
-            if (author.url) |url_val| {
-                try json.print(self.allocator, ",\"url\":\"{s}\"", .{url_val});
-            }
-            if (author.icon_url) |icon| {
-                try json.print(self.allocator, ",\"icon_url\":\"{s}\"", .{icon});
-            }
-            try json.appendSlice(self.allocator, "}");
-            first = false;
-        }
-
-        if (embed.fields.len > 0) {
-            if (!first) try json.appendSlice(self.allocator, ",");
-            try json.appendSlice(self.allocator, "\"fields\":[");
-            for (embed.fields, 0..) |field, i| {
-                if (i > 0) try json.appendSlice(self.allocator, ",");
-                try json.print(
-                    self.allocator,
-                    "{{\"name\":\"{}\",\"value\":\"{}\",\"inline\":{s}}}",
-                    .{
-                        json_utils.jsonEscape(field.name),
-                        json_utils.jsonEscape(field.value),
-                        if (field.inline_field) "true" else "false",
-                    },
-                );
-            }
-            try json.appendSlice(self.allocator, "]");
-        }
-
-        try json.appendSlice(self.allocator, "}]}");
-
-        return try json.toOwnedSlice(self.allocator);
-    }
-
-    fn encodeApplicationCommand(
-        self: *Client,
-        name: []const u8,
-        description: []const u8,
-        options: []const ApplicationCommandOption,
-    ) ![]u8 {
-        var json = std.ArrayListUnmanaged(u8){};
-        errdefer json.deinit(self.allocator);
-
-        try json.print(
-            self.allocator,
-            "{{\"name\":\"{s}\",\"description\":\"{}\"",
-            .{ name, json_utils.jsonEscape(description) },
-        );
-
-        if (options.len > 0) {
-            try json.appendSlice(self.allocator, ",\"options\":[");
-            for (options, 0..) |opt, i| {
-                if (i > 0) try json.appendSlice(self.allocator, ",");
-                try json.print(
-                    self.allocator,
-                    "{{\"type\":{d},\"name\":\"{s}\",\"description\":\"{}\",\"required\":{s}}}",
-                    .{
-                        opt.option_type,
-                        opt.name,
-                        json_utils.jsonEscape(opt.description),
-                        if (opt.required) "true" else "false",
-                    },
-                );
-            }
-            try json.appendSlice(self.allocator, "]");
-        }
-
-        try json.appendSlice(self.allocator, "}");
-
-        return try json.toOwnedSlice(self.allocator);
-    }
-
-    // ========================================================================
-    // JSON Parsing Helpers
-    // ========================================================================
-
-    fn parseUser(self: *Client, json: []const u8) !User {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const object = try json_utils.getRequiredObject(parsed.value);
-
-        return User{
-            .id = try json_utils.parseStringField(object, "id", self.allocator),
-            .username = try json_utils.parseStringField(object, "username", self.allocator),
-            .discriminator = try json_utils.parseStringField(
-                object,
-                "discriminator",
-                self.allocator,
-            ),
-            .global_name = json_utils.parseOptionalStringField(
-                object,
-                "global_name",
-                self.allocator,
-            ) catch null,
-            .avatar = json_utils.parseOptionalStringField(
-                object,
-                "avatar",
-                self.allocator,
-            ) catch null,
-            .bot = json_utils.parseBoolField(object, "bot") catch false,
-        };
-    }
-
-    fn parseGuild(self: *Client, json: []const u8) !Guild {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const object = try json_utils.getRequiredObject(parsed.value);
-
-        return Guild{
-            .id = try json_utils.parseStringField(object, "id", self.allocator),
-            .name = try json_utils.parseStringField(object, "name", self.allocator),
-            .owner_id = try json_utils.parseStringField(object, "owner_id", self.allocator),
-            .icon = json_utils.parseOptionalStringField(
-                object,
-                "icon",
-                self.allocator,
-            ) catch null,
-        };
-    }
-
-    fn parseGuildArray(self: *Client, json: []const u8) ![]Guild {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const array = parsed.value.array;
-        var guilds = try self.allocator.alloc(Guild, array.items.len);
-        errdefer self.allocator.free(guilds);
-
-        for (array.items, 0..) |item, i| {
-            const object = try json_utils.getRequiredObject(item);
-            guilds[i] = Guild{
-                .id = try json_utils.parseStringField(object, "id", self.allocator),
-                .name = try json_utils.parseStringField(object, "name", self.allocator),
-                .owner_id = (json_utils.parseOptionalStringField(
-                    object,
-                    "owner_id",
-                    self.allocator,
-                ) catch null) orelse "",
-                .icon = json_utils.parseOptionalStringField(
-                    object,
-                    "icon",
-                    self.allocator,
-                ) catch null,
-            };
-        }
-
-        return guilds;
-    }
-
-    fn parseChannel(self: *Client, json: []const u8) !Channel {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const object = try json_utils.getRequiredObject(parsed.value);
-
-        return Channel{
-            .id = try json_utils.parseStringField(object, "id", self.allocator),
-            .channel_type = @intCast(try json_utils.parseIntField(object, "type")),
-            .name = json_utils.parseOptionalStringField(
-                object,
-                "name",
-                self.allocator,
-            ) catch null,
-            .guild_id = json_utils.parseOptionalStringField(
-                object,
-                "guild_id",
-                self.allocator,
-            ) catch null,
-        };
-    }
-
-    fn parseChannelArray(self: *Client, json: []const u8) ![]Channel {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const array = parsed.value.array;
-        var channels = try self.allocator.alloc(Channel, array.items.len);
-        errdefer self.allocator.free(channels);
-
-        for (array.items, 0..) |item, i| {
-            const object = try json_utils.getRequiredObject(item);
-            channels[i] = Channel{
-                .id = try json_utils.parseStringField(object, "id", self.allocator),
-                .channel_type = @intCast(try json_utils.parseIntField(object, "type")),
-                .name = json_utils.parseOptionalStringField(
-                    object,
-                    "name",
-                    self.allocator,
-                ) catch null,
-                .guild_id = json_utils.parseOptionalStringField(
-                    object,
-                    "guild_id",
-                    self.allocator,
-                ) catch null,
-            };
-        }
-
-        return channels;
-    }
-
-    fn parseGuildMember(self: *Client, json: []const u8) !GuildMember {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const object = try json_utils.getRequiredObject(parsed.value);
-
-        return GuildMember{
-            .joined_at = try json_utils.parseStringField(object, "joined_at", self.allocator),
-            .nick = json_utils.parseOptionalStringField(
-                object,
-                "nick",
-                self.allocator,
-            ) catch null,
-            .deaf = json_utils.parseBoolField(object, "deaf") catch false,
-            .mute = json_utils.parseBoolField(object, "mute") catch false,
-        };
-    }
-
-    fn parseRoleArray(self: *Client, json: []const u8) ![]Role {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const array = parsed.value.array;
-        var roles = try self.allocator.alloc(Role, array.items.len);
-        errdefer self.allocator.free(roles);
-
-        for (array.items, 0..) |item, i| {
-            const object = try json_utils.getRequiredObject(item);
-            roles[i] = Role{
-                .id = try json_utils.parseStringField(object, "id", self.allocator),
-                .name = try json_utils.parseStringField(object, "name", self.allocator),
-                .permissions = try json_utils.parseStringField(
-                    object,
-                    "permissions",
-                    self.allocator,
-                ),
-                .color = @intCast(json_utils.parseIntField(object, "color") catch 0),
-                .position = @intCast(json_utils.parseIntField(object, "position") catch 0),
-            };
-        }
-
-        return roles;
-    }
-
-    fn parseMessage(self: *Client, json: []const u8) !Message {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const object = try json_utils.getRequiredObject(parsed.value);
-
-        const author_obj = try json_utils.parseObjectField(object, "author");
-
-        return Message{
-            .id = try json_utils.parseStringField(object, "id", self.allocator),
-            .channel_id = try json_utils.parseStringField(object, "channel_id", self.allocator),
-            .content = try json_utils.parseStringField(object, "content", self.allocator),
-            .timestamp = try json_utils.parseStringField(object, "timestamp", self.allocator),
-            .author = User{
-                .id = try json_utils.parseStringField(author_obj, "id", self.allocator),
-                .username = try json_utils.parseStringField(
-                    author_obj,
-                    "username",
-                    self.allocator,
-                ),
-                .discriminator = try json_utils.parseStringField(
-                    author_obj,
-                    "discriminator",
-                    self.allocator,
-                ),
-            },
-        };
-    }
-
-    fn parseMessageArray(self: *Client, json: []const u8) ![]Message {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const array = parsed.value.array;
-        var messages = try self.allocator.alloc(Message, array.items.len);
-        errdefer self.allocator.free(messages);
-
-        for (array.items, 0..) |item, i| {
-            const object = try json_utils.getRequiredObject(item);
-            const author_obj = try json_utils.parseObjectField(object, "author");
-
-            messages[i] = Message{
-                .id = try json_utils.parseStringField(object, "id", self.allocator),
-                .channel_id = try json_utils.parseStringField(
-                    object,
-                    "channel_id",
-                    self.allocator,
-                ),
-                .content = try json_utils.parseStringField(object, "content", self.allocator),
-                .timestamp = try json_utils.parseStringField(
-                    object,
-                    "timestamp",
-                    self.allocator,
-                ),
-                .author = User{
-                    .id = try json_utils.parseStringField(author_obj, "id", self.allocator),
-                    .username = try json_utils.parseStringField(
-                        author_obj,
-                        "username",
-                        self.allocator,
-                    ),
-                    .discriminator = try json_utils.parseStringField(
-                        author_obj,
-                        "discriminator",
-                        self.allocator,
-                    ),
-                },
-            };
-        }
-
-        return messages;
-    }
-
-    fn parseApplicationCommand(self: *Client, json: []const u8) !ApplicationCommand {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const object = try json_utils.getRequiredObject(parsed.value);
-
-        return ApplicationCommand{
-            .id = try json_utils.parseStringField(object, "id", self.allocator),
-            .application_id = try json_utils.parseStringField(
-                object,
-                "application_id",
-                self.allocator,
-            ),
-            .name = try json_utils.parseStringField(object, "name", self.allocator),
-            .description = try json_utils.parseStringField(
-                object,
-                "description",
-                self.allocator,
-            ),
-            .version = try json_utils.parseStringField(object, "version", self.allocator),
-        };
-    }
-
-    fn parseApplicationCommandArray(self: *Client, json: []const u8) ![]ApplicationCommand {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const array = parsed.value.array;
-        var commands = try self.allocator.alloc(ApplicationCommand, array.items.len);
-        errdefer self.allocator.free(commands);
-
-        for (array.items, 0..) |item, i| {
-            const object = try json_utils.getRequiredObject(item);
-            commands[i] = ApplicationCommand{
-                .id = try json_utils.parseStringField(object, "id", self.allocator),
-                .application_id = try json_utils.parseStringField(
-                    object,
-                    "application_id",
-                    self.allocator,
-                ),
-                .name = try json_utils.parseStringField(object, "name", self.allocator),
-                .description = try json_utils.parseStringField(
-                    object,
-                    "description",
-                    self.allocator,
-                ),
-                .version = try json_utils.parseStringField(object, "version", self.allocator),
-            };
-        }
-
-        return commands;
-    }
-
-    fn parseWebhook(self: *Client, json: []const u8) !Webhook {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const object = try json_utils.getRequiredObject(parsed.value);
-
-        return Webhook{
-            .id = try json_utils.parseStringField(object, "id", self.allocator),
-            .webhook_type = @intCast(try json_utils.parseIntField(object, "type")),
-            .name = json_utils.parseOptionalStringField(
-                object,
-                "name",
-                self.allocator,
-            ) catch null,
-            .token = json_utils.parseOptionalStringField(
-                object,
-                "token",
-                self.allocator,
-            ) catch null,
-        };
-    }
-
-    fn parseVoiceRegionArray(self: *Client, json: []const u8) ![]VoiceRegion {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const array = parsed.value.array;
-        var regions = try self.allocator.alloc(VoiceRegion, array.items.len);
-        errdefer self.allocator.free(regions);
-
-        for (array.items, 0..) |item, i| {
-            const object = try json_utils.getRequiredObject(item);
-            regions[i] = VoiceRegion{
-                .id = try json_utils.parseStringField(object, "id", self.allocator),
-                .name = try json_utils.parseStringField(object, "name", self.allocator),
-                .optimal = json_utils.parseBoolField(object, "optimal") catch false,
-                .deprecated = json_utils.parseBoolField(object, "deprecated") catch false,
-            };
-        }
-
-        return regions;
-    }
-
-    fn parseOAuth2Token(self: *Client, json: []const u8) !OAuth2Token {
-        const parsed = try std.json.parseFromSlice(
-            std.json.Value,
-            self.allocator,
-            json,
-            .{ .ignore_unknown_fields = true },
-        );
-        defer parsed.deinit();
-
-        const object = try json_utils.getRequiredObject(parsed.value);
-
-        return OAuth2Token{
-            .access_token = try json_utils.parseStringField(
-                object,
-                "access_token",
-                self.allocator,
-            ),
-            .token_type = try json_utils.parseStringField(
-                object,
-                "token_type",
-                self.allocator,
-            ),
-            .expires_in = @intCast(try json_utils.parseIntField(object, "expires_in")),
-            .refresh_token = json_utils.parseOptionalStringField(
-                object,
-                "refresh_token",
-                self.allocator,
-            ) catch null,
-            .scope = try json_utils.parseStringField(object, "scope", self.allocator),
-        };
+        return try parsers.parseOAuth2Token(self.allocator, response.body);
     }
 };
