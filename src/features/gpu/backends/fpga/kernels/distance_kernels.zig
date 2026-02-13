@@ -395,7 +395,9 @@ export const Quantization = struct {
         vector: []const f32,
         precision: Precision,
     ) ![]u8 {
-        const bits_needed = (vector.len * @intFromEnum(precision) + 7) / 8;
+        const bits_per_element: usize = precision.bits();
+        const total_bits = std.math.mul(usize, vector.len, bits_per_element) catch return error.Overflow;
+        const bits_needed = (total_bits + 7) / 8;
         var buffer = try allocator.alloc(u8, bits_needed);
 
         switch (precision) {

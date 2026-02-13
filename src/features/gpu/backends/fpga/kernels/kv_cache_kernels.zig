@@ -184,7 +184,8 @@ pub const HierarchicalKVCache = struct {
 
     /// Calculate block size in bytes
     pub fn blockSizeBytes(self: *const HierarchicalKVCache) usize {
-        return self.config.block_size * self.config.head_dim * self.config.num_kv_heads * 4; // FP32
+        // Widen u32 → usize before multiplying to prevent overflow
+        return @as(usize, self.config.block_size) * @as(usize, self.config.head_dim) * @as(usize, self.config.num_kv_heads) * 4; // FP32
     }
 
     /// Allocate a new block for a layer/sequence position

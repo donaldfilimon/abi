@@ -273,8 +273,9 @@ pub const MultiHeadAttentionKernel = struct {
             .softmax_kernel = try StreamingSoftmaxKernel.init(allocator, config),
         };
 
-        // Pre-allocate for max sequence
-        const max_scores = config.max_seq_len * config.max_seq_len;
+        // Pre-allocate for max sequence (overflow-checked: u32*u32 can exceed 2^32)
+        const seq_len: usize = config.max_seq_len;
+        const max_scores = std.math.mul(usize, seq_len, seq_len) catch return error.Overflow;
         kernel.qk_scores = try allocator.alloc(f32, max_scores);
         kernel.attn_weights = try allocator.alloc(f32, max_scores);
 
