@@ -134,6 +134,9 @@ pub const DatabaseHandle = wdbx.DatabaseHandle;
 pub const SearchResult = wdbx.SearchResult;
 pub const VectorView = wdbx.VectorView;
 pub const Stats = wdbx.Stats;
+pub const DatabaseError = database.DatabaseError;
+pub const BatchItem = Database.BatchItem;
+pub const DiagnosticsInfo = database.DiagnosticsInfo;
 
 // Full-text search exports
 pub const InvertedIndex = fulltext.InvertedIndex;
@@ -485,6 +488,10 @@ pub fn list(handle: *DatabaseHandle, allocator: std.mem.Allocator, limit: usize)
 
 pub fn stats(handle: *DatabaseHandle) Stats {
     return wdbx.getStats(handle);
+}
+
+pub fn diagnostics(handle: *DatabaseHandle) DiagnosticsInfo {
+    return handle.db.diagnostics();
 }
 
 pub fn optimize(handle: *DatabaseHandle) !void {

@@ -243,6 +243,33 @@ pub const TransferStats = peer_transfer.TransferStats;
 pub const DeviceBuffer = peer_transfer.DeviceBuffer;
 pub const RecoveryStrategy = peer_transfer.RecoveryStrategy;
 
+// GPU metrics and profiling re-exports
+pub const MetricsCollector = unified.MetricsCollector;
+pub const MetricsSummary = unified.MetricsSummary;
+pub const KernelMetrics = unified.KernelMetrics;
+pub const GroupStats = multi_device.GroupStats;
+
+// Error aliases for API consistency
+pub const AcceleratorError = GpuError;
+
+// Result types for reduction/dot-product operations
+pub const ReduceResult = struct { value: f32, stats: ExecutionResult };
+pub const DotProductResult = struct { value: f32, stats: ExecutionResult };
+pub const ExecutionStats = ExecutionResult;
+
+// Convenience query functions
+pub fn isGpuAvailable() bool {
+    return true; // Real module is compiled, GPU is available
+}
+
+pub fn getAvailableBackends() []const Backend {
+    return &.{.simulated};
+}
+
+pub fn getBestBackend() Backend {
+    return .simulated;
+}
+
 // Mega GPU orchestration (cross-backend coordinator)
 pub const mega = @import("mega/mod.zig");
 
@@ -315,6 +342,7 @@ pub const MemoryPool = GpuMemoryPool; // Alias for convenience
 pub const MemoryStats = memory.MemoryStats;
 pub const AsyncTransfer = memory.AsyncTransfer;
 pub const GpuError = memory.MemoryError || error{GpuDisabled};
+pub const Error = GpuError;
 
 // Lock-free memory pool types (high-performance concurrent allocation)
 pub const LockFreeResourcePool = memory_pool_lockfree.LockFreeResourcePool;

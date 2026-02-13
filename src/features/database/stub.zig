@@ -38,10 +38,10 @@ pub const DatabaseError = error{
 // Local Stubs Imports
 // ============================================================================
 
-pub const types = @import("stubs/types.zig");
-pub const wdbx_mod = @import("stubs/wdbx.zig");
-pub const parallel = @import("stubs/parallel.zig");
-pub const misc = @import("stubs/misc.zig");
+const types = @import("stubs/types.zig");
+const wdbx_mod = @import("stubs/wdbx.zig");
+const parallel = @import("stubs/parallel.zig");
+const misc = @import("stubs/misc.zig");
 
 // ============================================================================
 // Core Types Re-exports

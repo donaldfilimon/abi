@@ -46,24 +46,24 @@ pub const CompileError = Error;
 // Local Stubs Imports
 // ============================================================================
 
-pub const backend = @import("stubs/backend.zig");
+const backend = @import("stubs/backend.zig");
 pub const device = @import("stubs/device.zig");
-pub const memory = @import("stubs/memory.zig");
+const memory = @import("stubs/memory.zig");
 pub const stream = @import("stubs/stream.zig");
-pub const kernel = @import("stubs/kernel.zig");
-pub const dsl_mod = @import("stubs/dsl.zig");
-pub const execution = @import("stubs/execution.zig");
-pub const profiler = @import("stubs/profiler.zig");
-pub const recovery_mod = @import("stubs/recovery.zig");
-pub const multi_gpu = @import("stubs/multi_gpu.zig");
-pub const config = @import("stubs/config.zig");
-pub const platform_mod = @import("stubs/platform.zig");
-pub const backend_factory_mod = @import("stubs/backend_factory.zig");
-pub const dispatcher_mod = @import("stubs/dispatcher.zig");
-pub const diagnostics_mod = @import("stubs/diagnostics.zig");
-pub const execution_coordinator_mod = @import("stubs/execution_coordinator.zig");
-pub const std_gpu_mod = @import("stubs/std_gpu.zig");
-pub const misc = @import("stubs/misc.zig");
+const kernel = @import("stubs/kernel.zig");
+const dsl_mod = @import("stubs/dsl.zig");
+const execution = @import("stubs/execution.zig");
+const profiler = @import("stubs/profiler.zig");
+const recovery_mod = @import("stubs/recovery.zig");
+const multi_gpu = @import("stubs/multi_gpu.zig");
+const config = @import("stubs/config.zig");
+const platform_mod = @import("stubs/platform.zig");
+const backend_factory_mod = @import("stubs/backend_factory.zig");
+const dispatcher_mod = @import("stubs/dispatcher.zig");
+const diagnostics_mod = @import("stubs/diagnostics.zig");
+const execution_coordinator_mod = @import("stubs/execution_coordinator.zig");
+const std_gpu_mod = @import("stubs/std_gpu.zig");
+const misc = @import("stubs/misc.zig");
 
 // ============================================================================
 // Backend Re-exports

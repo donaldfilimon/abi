@@ -26,28 +26,32 @@ const config_module = @import("../../core/config/mod.zig");
 // Local Stubs Imports
 // ============================================================================
 
-pub const types = @import("stubs/types.zig");
-pub const protocol_mod = @import("stubs/protocol.zig");
-pub const scheduler_mod = @import("stubs/scheduler.zig");
-pub const ha_mod = @import("stubs/ha.zig");
-pub const discovery_mod = @import("stubs/discovery.zig");
-pub const loadbalancer_mod = @import("stubs/loadbalancer.zig");
-pub const retry_mod = @import("stubs/retry.zig");
-pub const rate_limiter_mod = @import("stubs/rate_limiter.zig");
-pub const connection_pool_mod = @import("stubs/connection_pool.zig");
-pub const raft_mod = @import("stubs/raft.zig");
-pub const transport_mod = @import("stubs/transport.zig");
-pub const raft_transport_mod = @import("stubs/raft_transport.zig");
-pub const circuit_breaker_mod = @import("stubs/circuit_breaker.zig");
-pub const failover_mod = @import("stubs/failover.zig");
-pub const unified_memory_mod = @import("stubs/unified_memory.zig");
-pub const linking_mod = @import("stubs/linking.zig");
+const types = @import("stubs/types.zig");
+const protocol_mod = @import("stubs/protocol.zig");
+const scheduler_mod = @import("stubs/scheduler.zig");
+const ha_mod = @import("stubs/ha.zig");
+const discovery_mod = @import("stubs/discovery.zig");
+const loadbalancer_mod = @import("stubs/loadbalancer.zig");
+const retry_mod = @import("stubs/retry.zig");
+const rate_limiter_mod = @import("stubs/rate_limiter.zig");
+const connection_pool_mod = @import("stubs/connection_pool.zig");
+const raft_mod = @import("stubs/raft.zig");
+const transport_mod = @import("stubs/transport.zig");
+const raft_transport_mod = @import("stubs/raft_transport.zig");
+const circuit_breaker_mod = @import("stubs/circuit_breaker.zig");
+const failover_mod = @import("stubs/failover.zig");
+const unified_memory_mod = @import("stubs/unified_memory.zig");
+const linking_mod = @import("stubs/linking.zig");
 
 // ============================================================================
 // Core Types Re-exports
 // ============================================================================
 
 pub const Error = types.Error;
+pub const NetworkError = error{
+    NetworkDisabled,
+    NotInitialized,
+};
 pub const NetworkConfig = types.NetworkConfig;
 pub const NetworkState = types.NetworkState;
 pub const Node = types.Node;

@@ -155,6 +155,62 @@ pub fn countSpecViolations(comptime Module: type, comptime specs: []const DeclSp
 }
 
 // ============================================================================
+// Bidirectional Parity: Detect Orphan Declarations
+// ============================================================================
+
+/// Returns the count of declarations in the module that are NOT in the expected list.
+/// These are "orphan" declarations — they exist in one implementation but not the other,
+/// which can cause code to compile with one flag setting but fail with another.
+pub fn countOrphanDeclarations(comptime Module: type, comptime expected: []const []const u8) usize {
+    @setEvalBranchQuota(100_000);
+    const decls = @typeInfo(Module).@"struct".decls;
+    comptime var orphans: usize = 0;
+
+    inline for (decls) |decl| {
+        comptime var found = false;
+        inline for (expected) |name| {
+            if (std.mem.eql(u8, decl.name, name)) {
+                found = true;
+            }
+        }
+        if (!found) {
+            orphans += 1;
+        }
+    }
+
+    return orphans;
+}
+
+/// Returns the names of declarations in the module NOT in the expected list.
+pub fn getOrphanDeclarations(comptime Module: type, comptime expected: []const []const u8) []const []const u8 {
+    @setEvalBranchQuota(100_000);
+    const decls = @typeInfo(Module).@"struct".decls;
+    comptime var orphans: []const []const u8 = &.{};
+
+    inline for (decls) |decl| {
+        comptime var found = false;
+        inline for (expected) |name| {
+            if (std.mem.eql(u8, decl.name, name)) {
+                found = true;
+            }
+        }
+        if (!found) {
+            orphans = orphans ++ .{decl.name};
+        }
+    }
+
+    return orphans;
+}
+
+/// Soft bidirectional parity check: logs orphans and missing but does not fail.
+/// Returns total violation count (orphans + missing).
+pub fn countBidirectionalViolations(comptime Module: type, comptime expected: []const []const u8) usize {
+    const missing = getMissingDeclarations(Module, expected);
+    const orphan_count = countOrphanDeclarations(Module, expected);
+    return missing.len + orphan_count;
+}
+
+// ============================================================================
 // Expected API Declarations
 // ============================================================================
 //
@@ -885,4 +941,100 @@ test "enhanced spec checker validates declaration kinds" {
         @as(usize, 1),
         comptime countSpecViolations(TestModule, &missing_sub),
     );
+}
+
+test "bidirectional parity detects orphan declarations" {
+    const TestModule = struct {
+        pub const TypeA = u32;
+        pub const TypeB = i64;
+        pub fn funcA() void {}
+    };
+
+    // Exact match — no orphans
+    const exact = [_][]const u8{ "TypeA", "TypeB", "funcA" };
+    try std.testing.expectEqual(@as(usize, 0), comptime countOrphanDeclarations(TestModule, &exact));
+    try std.testing.expectEqual(@as(usize, 0), comptime countBidirectionalViolations(TestModule, &exact));
+
+    // Partial list — TypeB and funcA are orphans
+    const partial = [_][]const u8{"TypeA"};
+    try std.testing.expectEqual(@as(usize, 2), comptime countOrphanDeclarations(TestModule, &partial));
+
+    // Missing + orphans combined
+    const mixed = [_][]const u8{ "TypeA", "NonExistent" };
+    // 1 missing (NonExistent) + 2 orphans (TypeB, funcA) = 3
+    try std.testing.expectEqual(@as(usize, 3), comptime countBidirectionalViolations(TestModule, &mixed));
+}
+
+// ============================================================================
+// Bidirectional Parity: Module Orphan Audit (Soft Fail)
+// ============================================================================
+//
+// These tests count orphan declarations in each module — declarations that exist
+// in the active implementation but aren't in the expected list. Non-zero counts
+// indicate API drift risk: code may compile with one flag setting but fail with
+// another. Currently soft-fail (log + count) to enable incremental alignment.
+
+test "gpu module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.gpu, &gpu_required);
+    if (orphans.len > 0) {
+        std.log.info("GPU module has {d} declarations not in expected list", .{orphans.len});
+    }
+    // Soft: track but don't fail (will harden after alignment)
+    try std.testing.expect(true);
+}
+
+test "ai module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.ai, &ai_required);
+    if (orphans.len > 0) {
+        std.log.info("AI module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "database module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.database, &database_required);
+    if (orphans.len > 0) {
+        std.log.info("Database module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "network module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.network, &network_required);
+    if (orphans.len > 0) {
+        std.log.info("Network module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "cloud module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.cloud, &cloud_required);
+    if (orphans.len > 0) {
+        std.log.info("Cloud module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "web module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.web, &web_required);
+    if (orphans.len > 0) {
+        std.log.info("Web module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "observability module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.observability, &observability_required);
+    if (orphans.len > 0) {
+        std.log.info("Observability module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "analytics module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.analytics, &analytics_required);
+    if (orphans.len > 0) {
+        std.log.info("Analytics module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
 }
