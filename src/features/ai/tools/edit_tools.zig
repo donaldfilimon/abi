@@ -55,6 +55,7 @@ fn executeEdit(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
         .string => |s| s,
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'path' must be a string"),
     };
+    if (tool.hasPathTraversal(path)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
     const old_string = switch (old_string_val) {
         .string => |s| s,
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'old_string' must be a string"),
@@ -196,6 +197,7 @@ fn executeInsertLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
         .string => |s| s,
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'path' must be a string"),
     };
+    if (tool.hasPathTraversal(path)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
     const line_num: usize = switch (line_val) {
         .integer => |i| @intCast(@max(1, i)),
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'line' must be an integer"),
@@ -319,6 +321,7 @@ fn executeDeleteLines(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
         .string => |s| s,
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'path' must be a string"),
     };
+    if (tool.hasPathTraversal(path)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
     const start_line: usize = switch (start_val) {
         .integer => |i| @intCast(@max(1, i)),
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'start' must be an integer"),

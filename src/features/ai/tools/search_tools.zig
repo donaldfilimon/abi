@@ -40,6 +40,7 @@ fn executeGrep(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     if (obj.get("path")) |path_val| {
         switch (path_val) {
             .string => |s| {
+                if (tool.hasPathTraversal(s)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
                 if (std.fs.path.isAbsolute(s)) {
                     search_path = s;
                 } else {
@@ -203,6 +204,7 @@ fn executeFind(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
     if (obj.get("path")) |path_val| {
         switch (path_val) {
             .string => |s| {
+                if (tool.hasPathTraversal(s)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
                 if (std.fs.path.isAbsolute(s)) {
                     search_path = s;
                 } else {

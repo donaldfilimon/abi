@@ -71,6 +71,28 @@ pub fn createContext(allocator: std.mem.Allocator, wd: []const u8) Context {
     };
 }
 
+/// Check if a path contains traversal patterns that could escape the working directory.
+/// Returns true if the path is unsafe (contains `..`, null bytes, or encoded traversal).
+pub fn hasPathTraversal(path: []const u8) bool {
+    if (path.len == 0) return false;
+    // Null bytes can truncate paths at the OS level
+    if (std.mem.indexOfScalar(u8, path, 0) != null) return true;
+    // URL-encoded traversal: %2e = '.', %2f = '/'
+    if (std.mem.indexOf(u8, path, "%2e") != null) return true;
+    if (std.mem.indexOf(u8, path, "%2E") != null) return true;
+    // Check for ".." path components
+    var it = std.mem.splitScalar(u8, path, '/');
+    while (it.next()) |component| {
+        if (std.mem.eql(u8, component, "..")) return true;
+    }
+    // Also check backslash-separated (Windows paths)
+    var it2 = std.mem.splitScalar(u8, path, '\\');
+    while (it2.next()) |component| {
+        if (std.mem.eql(u8, component, "..")) return true;
+    }
+    return false;
+}
+
 pub const ToolExecutionError = error{
     OutOfMemory,
     InvalidArguments,

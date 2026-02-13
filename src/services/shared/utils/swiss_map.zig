@@ -203,8 +203,8 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
                 pos = (pos + probe) & (self.capacity - 1);
             }
 
-            // Should never reach here if load factor is maintained
-            unreachable;
+            // Probing exhausted all slots — capacity invariant violated
+            return error.OutOfMemory;
         }
 
         pub fn remove(self: *Self, key: K) bool {
@@ -299,6 +299,9 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
                 pos = (pos + probe) & (self.capacity - 1);
             }
 
+            // Safety: insertUnchecked is only called from rehash() with a
+            // freshly-allocated table sized to fit all entries. If we exhaust
+            // probing, the capacity calculation in ensureCapacity is wrong.
             unreachable;
         }
 

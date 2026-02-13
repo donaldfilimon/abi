@@ -37,6 +37,8 @@ fn executeReadFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolResul
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'path' must be a string"),
     };
 
+    if (tool.hasPathTraversal(path)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
+
     // Get optional offset and limit
     var offset_str: []const u8 = "";
     var limit_str: []const u8 = "";
@@ -136,6 +138,7 @@ fn executeWriteFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
         .string => |s| s,
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'path' must be a string"),
     };
+    if (tool.hasPathTraversal(path)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
     const content = switch (content_val) {
         .string => |s| s,
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'content' must be a string"),
@@ -221,6 +224,8 @@ fn executeListDir(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'path' must be a string"),
     };
 
+    if (tool.hasPathTraversal(path)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
+
     // Check for recursive flag
     var recursive = false;
     if (obj.get("recursive")) |rec_val| {
@@ -295,6 +300,8 @@ fn executeFileExists(ctx: *Context, args: json.Value) ToolExecutionError!ToolRes
         .string => |s| s,
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'path' must be a string"),
     };
+
+    if (tool.hasPathTraversal(path)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
 
     // Resolve path relative to working directory
     const full_path = if (std.fs.path.isAbsolute(path))
@@ -371,11 +378,14 @@ fn executeGlob(ctx: *Context, args: json.Value) ToolExecutionError!ToolResult {
         else => return ToolResult.fromError(ctx.allocator, "Parameter 'pattern' must be a string"),
     };
 
+    if (tool.hasPathTraversal(pattern)) return ToolResult.fromError(ctx.allocator, "Pattern contains directory traversal");
+
     // Get optional path
     var base_path: []const u8 = ctx.working_directory;
     if (obj.get("path")) |path_val| {
         switch (path_val) {
             .string => |s| {
+                if (tool.hasPathTraversal(s)) return ToolResult.fromError(ctx.allocator, "Path contains directory traversal");
                 if (std.fs.path.isAbsolute(s)) {
                     base_path = s;
                 } else {
