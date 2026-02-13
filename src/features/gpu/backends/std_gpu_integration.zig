@@ -40,7 +40,7 @@ const std_gpu_available = @hasDecl(std, "gpu");
 pub const StdGpuError = error{
     InitializationFailed,
     QueueCreationFailed,
-    BufferAllocationFailed,
+    BufferCreationFailed,
     ShaderCompilationFailed,
     PipelineCreationFailed,
     OutOfMemory,

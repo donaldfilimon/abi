@@ -86,12 +86,14 @@ pub const DeviceCapability = device.DeviceCapability;
 pub const DeviceFeature = device.DeviceFeature;
 pub const DeviceSelector = device.DeviceSelector;
 pub const DeviceManager = device.DeviceManager;
+pub const Vendor = device.Vendor;
 
 // ============================================================================
 // Memory Re-exports
 // ============================================================================
 
 pub const Buffer = memory.Buffer;
+pub const GpuBuffer = Buffer;
 pub const UnifiedBuffer = memory.UnifiedBuffer;
 pub const BufferFlags = memory.BufferFlags;
 pub const BufferOptions = memory.BufferOptions;
@@ -99,16 +101,21 @@ pub const BufferView = memory.BufferView;
 pub const BufferStats = memory.BufferStats;
 pub const MappedBuffer = memory.MappedBuffer;
 pub const MemoryPool = memory.MemoryPool;
+pub const GpuMemoryPool = MemoryPool;
 pub const MemoryStats = memory.MemoryStats;
 pub const MemoryInfo = memory.MemoryInfo;
 pub const MemoryMode = memory.MemoryMode;
 pub const MemoryLocation = memory.MemoryLocation;
+pub const AccessHint = memory.AccessHint;
+pub const ElementType = memory.ElementType;
+pub const AsyncTransfer = memory.AsyncTransfer;
 
 // ============================================================================
 // Stream Re-exports
 // ============================================================================
 
 pub const Stream = stream.Stream;
+pub const GpuStream = Stream;
 pub const StreamOptions = stream.StreamOptions;
 pub const StreamPriority = stream.StreamPriority;
 pub const StreamFlags = stream.StreamFlags;
@@ -152,6 +159,18 @@ pub const BuiltinVar = dsl_mod.BuiltinVar;
 pub const Stmt = dsl_mod.Stmt;
 pub const GeneratedSource = dsl_mod.GeneratedSource;
 pub const CompileOptions = dsl_mod.CompileOptions;
+
+pub fn compile(_: std.mem.Allocator, _: *const KernelIR, _: Backend, _: CompileOptions) Error!GeneratedSource {
+    return error.GpuDisabled;
+}
+
+pub fn compileToKernelSource(_: std.mem.Allocator, _: *const KernelIR, _: Backend, _: CompileOptions) Error!KernelSource {
+    return error.GpuDisabled;
+}
+
+pub fn compileAll(_: std.mem.Allocator, _: *const KernelIR, _: CompileOptions) Error![]GeneratedSource {
+    return error.GpuDisabled;
+}
 
 // ============================================================================
 // Execution Re-exports
@@ -657,6 +676,10 @@ pub fn backendFromString(_: []const u8) ?Backend {
 
 pub fn backendSupportsKernels(_: Backend) bool {
     return false;
+}
+
+pub fn backendFlag(_: Backend) []const u8 {
+    return "disabled";
 }
 
 pub fn defaultDeviceLabel() []const u8 {

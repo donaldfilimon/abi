@@ -64,3 +64,34 @@ pub const MemoryInfo = struct {
 };
 pub const MemoryMode = enum { automatic, explicit, unified };
 pub const MemoryLocation = enum { device, host };
+pub const AccessHint = enum { read_only, write_only, read_write };
+pub const ElementType = enum {
+    u8,
+    u16,
+    u32,
+    u64,
+    i8,
+    i16,
+    i32,
+    i64,
+    f16,
+    f32,
+    f64,
+
+    pub fn size(self: ElementType) usize {
+        return switch (self) {
+            .u8, .i8 => 1,
+            .u16, .i16, .f16 => 2,
+            .u32, .i32, .f32 => 4,
+            .u64, .i64, .f64 => 8,
+        };
+    }
+};
+pub const AsyncTransfer = struct {
+    pub fn isComplete(_: *const AsyncTransfer) bool {
+        return true;
+    }
+    pub fn wait(_: *AsyncTransfer) Error!void {
+        return error.GpuDisabled;
+    }
+};

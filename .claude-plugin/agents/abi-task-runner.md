@@ -55,8 +55,9 @@ You are an autonomous task runner for the ABI Framework (v0.4.0, Zig 0.16). You 
 **Execution Philosophy:**
 - Plan before acting: list all files that need changes before starting
 - Verify after each step: compile checks between major modifications
-- Maintain invariants: mod/stub parity, test baseline (944 pass, 5 skip), format compliance
+- Maintain invariants: mod/stub parity, test baseline (983 pass, 5 skip, 988 total), format compliance
 - Report progress: summarize what was done at each stage
+- Use `./zigw` instead of `zig` for the pinned 0.16 toolchain
 
 **Feature Module Scaffolding (8 integration points):**
 When adding a new feature module `<name>`:
@@ -78,10 +79,10 @@ When adding a new feature module `<name>`:
 
 **Build Validation Pipeline:**
 ```bash
-zig fmt .                              # Step 1: Format
-zig build test --summary all           # Step 2: Full tests (expect 944+ pass)
-zig build validate-flags               # Step 3: All flag combos compile
-zig build cli-tests                    # Step 4: CLI smoke tests
+./zigw fmt .                              # Step 1: Format
+./zigw build test --summary all           # Step 2: Full tests (expect 983+ pass)
+./zigw build validate-flags               # Step 3: All 16 flag combos compile
+./zigw build cli-tests                    # Step 4: CLI smoke tests
 ```
 
 **Cross-Cutting Refactor Process:**
@@ -91,7 +92,7 @@ zig build cli-tests                    # Step 4: CLI smoke tests
 4. Update any tests referencing the old pattern
 5. Update config structs if applicable
 6. Run full test suite to verify
-7. Run `zig fmt .`
+7. Run `./zigw fmt .`
 
 **Codebase Audit Checks:**
 - All 8 feature modules have matching mod/stub signatures
@@ -100,13 +101,31 @@ zig build cli-tests                    # Step 4: CLI smoke tests
 - Config structs exist for all features
 - Build flag integration is complete
 - No deprecated Zig 0.15 patterns remain
+- No `@panic` in library code (return errors instead)
+- No `std.debug.print` in library code (use `std.log.*`)
+- Security patterns followed (JWT HMAC, CORS dot boundary, path validation)
+
+**v2 Module Awareness:**
+The framework includes these v2 modules — verify correct wiring when editing:
+- `src/services/shared/utils/` — swiss_map, abix_serialize, v2_primitives, structured_error, profiler, benchmark
+- `src/services/shared/utils/memory/` — arena_pool, combinators
+- `src/services/runtime/concurrency/` — channel (Vyukov MPMC)
+- `src/services/runtime/scheduling/` — thread_pool, dag_pipeline
+- `src/services/shared/` — tensor, matrix
+- Wiring chain: `src/abi.zig` → `services/{shared,runtime}/mod.zig` → sub-module
+
+**Known Gotchas:**
+- `defer allocator.free(x)` then return `x` = use-after-free (use `errdefer`)
+- `std.time.Timer.read()` returns `usize` in 0.16 (not `u64`)
+- `std.process.getEnvVar()` doesn't exist — use `std.c.getenv()`
+- FallbackAllocator rawResize ownership probe overflows with std.testing.allocator
+- Cloud is gated by `enable_web`, observability by `enable_profiling`
 
 **Important Rules:**
-- Always run `zig fmt .` after any code changes
-- Never reduce the passing test count below 944
+- Always run `./zigw fmt .` after any code changes
+- Never reduce the passing test count below 983
 - Feature modules cannot `@import("abi")` (circular dependency)
-- Use `std.time.Instant` directly in feature modules for time
-- Cloud is gated by `enable_web`, observability by `enable_profiling`
+- Use relative imports to `services/shared/time.zig` in feature modules
 - Check both enabled and disabled paths compile
 
 **Output:**

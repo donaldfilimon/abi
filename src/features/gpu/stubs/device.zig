@@ -27,3 +27,18 @@ pub const DeviceInfo = struct {
 pub const DeviceFeature = enum { compute, graphics };
 pub const DeviceSelector = struct {};
 pub const DeviceManager = struct {};
+pub const Vendor = enum {
+    nvidia,
+    amd,
+    intel,
+    apple,
+    qualcomm,
+    arm,
+    mesa,
+    microsoft,
+    unknown,
+
+    pub fn fromDeviceName(_: []const u8) Vendor {
+        return .unknown;
+    }
+};

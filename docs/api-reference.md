@@ -139,6 +139,8 @@ pub const Config = struct {
     network: ?NetworkConfig = null,    // Distributed networking
     observability: ?ObservabilityConfig = null,  // Metrics/tracing
     web: ?WebConfig = null,           // HTTP utilities
+    cloud: ?CloudConfig = null,       // Cloud provider integration
+    analytics: ?AnalyticsConfig = null, // Analytics event tracking
     plugins: PluginConfig = .{},      // Plugin system
 };
 ```
@@ -164,6 +166,8 @@ const config = builder
     .withNetworkDefaults()
     .withObservabilityDefaults()
     .withWebDefaults()
+    .withCloudDefaults()
+    .withAnalyticsDefaults()
     .build();
 ```
 
@@ -177,11 +181,13 @@ pub const Feature = enum {
     embeddings,   // Vector embeddings
     agents,       // AI agent runtime
     training,     // Model training
-    personas,     // Multi-persona system
     database,     // Vector database
     network,      // Distributed compute
     observability,// Metrics and tracing
     web,          // HTTP utilities
+    personas,     // Multi-persona AI assistant
+    cloud,        // Cloud provider integration
+    analytics,    // Analytics event tracking
 };
 
 // Check compile-time availability
@@ -194,6 +200,8 @@ const name = abi.Feature.ai.name();              // "ai"
 const desc = abi.Feature.ai.description();       // "AI core functionality"
 ```
 
+> **Note:** `cloud` shares the `enable_web` build flag (no separate `-Denable-cloud`). `analytics` uses `-Denable-analytics`.
+
 ## Framework Types
 
 ### Framework Struct
@@ -203,6 +211,7 @@ The `abi.Framework` struct is the central coordinator for all ABI functionality.
 ```zig
 pub const Framework = struct {
     allocator: std.mem.Allocator,
+    io: ?std.Io,               // Optional I/O backend
     config: Config,
     state: State,
     registry: Registry,
@@ -214,6 +223,9 @@ pub const Framework = struct {
     network: ?*network.Context,
     observability: ?*observability.Context,
     web: ?*web.Context,
+    cloud: ?*cloud.Context,
+    analytics: ?*analytics.Context,
+    ha: ?ha.HaManager,
     runtime: *runtime.Context,  // Always available
 
     pub const State = enum {
@@ -245,6 +257,8 @@ pub const Framework = struct {
 | `getNetwork()` | Get network context (error if not enabled) |
 | `getObservability()` | Get observability context (error if not enabled) |
 | `getWeb()` | Get web context (error if not enabled) |
+| `getCloud()` | Get cloud context (error if not enabled) |
+| `getAnalytics()` | Get analytics context (error if not enabled) |
 | `getRuntime()` | Get runtime context (always available) |
 | `getRegistry()` | Get feature registry |
 
@@ -307,6 +321,8 @@ Top-level domain modules (flat structure):
 | `abi.network` | Distributed compute and Raft | ![Stable](https://img.shields.io/badge/-Stable-success) |
 | `abi.web` | HTTP helpers, web utilities | ![Stable](https://img.shields.io/badge/-Stable-success) |
 | `abi.observability` | Metrics, tracing, profiling | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.cloud` | Cloud function adapters | ![Stable](https://img.shields.io/badge/-Stable-success) |
+| `abi.analytics` | Event tracking and experiments | ![Stable](https://img.shields.io/badge/-Stable-success) |
 | `abi.connectors` | External connectors | ![Stable](https://img.shields.io/badge/-Stable-success) |
 
 > **Note:** `abi.monitoring` is deprecated; use `abi.observability` instead.
@@ -573,7 +589,7 @@ defer cuda.destroyKernel(allocator, kernel);
 try cuda.launchKernel(allocator, kernel, config, args);
 ```
 
-See the [GPU Guide](docs/content/gpu.html) for detailed usage.
+See the [GPU Guide](docs/api/gpu.md) for detailed usage.
 
 ## Network API
 
@@ -605,7 +621,7 @@ _ = net_ctx;
 // Network features available through context
 ```
 
-See the [Network Guide](docs/content/network.html) for detailed usage.
+See the [Network Guide](docs/api/network.md) for detailed usage.
 
 ## AI & Agent API
 
@@ -634,7 +650,7 @@ defer allocator.free(response);
 std.debug.print("Agent: {s}\n", .{response});
 ```
 
-See the [AI Guide](docs/content/ai.html) for detailed usage.
+See the [AI Guide](docs/api/ai.md) for detailed usage.
 
 ## Streaming API
 
@@ -654,11 +670,15 @@ zig build run -- llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token my-secre
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/v1/chat/completions` | OpenAI-compatible (SSE) |
+| POST | `/v1/chat/completions` | OpenAI-compatible chat completions (SSE) |
 | POST | `/api/stream` | Custom ABI streaming (SSE) |
 | WS | `/api/stream/ws` | WebSocket with cancellation |
+| GET | `/v1/models` | OpenAI-compatible model listing |
+| GET | `/metrics` | Server metrics |
 | POST | `/admin/reload` | Hot-reload model |
 | GET | `/health` | Health check |
+
+> **Note:** `/v1/chat/completions` and `/v1/models` require `enable_openai_compat` in server config. `/api/stream/ws` requires `enable_websocket`. `/health` and `/metrics` can optionally bypass authentication via `allow_health_without_auth`.
 
 ### Client Example
 
@@ -805,7 +825,7 @@ const abbey_response = try orchestrator.processWithPersona(.abbey, .{
 });
 ```
 
-See [AI Guide](docs/content/ai.html) for persona capabilities and routing.
+See [AI Guide](docs/api/ai.md) for persona capabilities and routing.
 
 ## Connectors API
 
@@ -892,19 +912,19 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Guides
-- [Documentation](docs/README.md) — Documentation site source
-- [Framework Guide](docs/framework.md) — Configuration and lifecycle
-- [Compute Guide](docs/compute.md) — Task execution
-- [AI Guide](docs/ai.md) — LLM connectors and agents
-- [GPU Guide](docs/gpu.md) — GPU backends
+- [Documentation](docs/README.md) -- Documentation site source
+- [API Index](docs/api/index.md) -- Full API module listing
+- [Framework Reference](docs/api/framework.md) -- Configuration and lifecycle
+- [AI Reference](docs/api/ai.md) -- LLM connectors and agents
+- [GPU Reference](docs/api/gpu.md) -- GPU backends
 
 </td>
 <td>
 
 ### Project
-- [Roadmap](roadmap.md) — Upcoming milestones
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — Development guidelines
-- [CHANGELOG.md](../CHANGELOG.md) — Version history
+- [Roadmap](roadmap.md) -- Upcoming milestones
+- [CONTRIBUTING.md](../CONTRIBUTING.md) -- Development guidelines
+- [CHANGELOG.md](../CHANGELOG.md) -- Version history
 
 </td>
 </tr>
