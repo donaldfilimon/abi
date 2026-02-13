@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1167 pass, 5 skip (1172 total) — must be maintained |
+| **Test baseline** | 1179 pass, 5 skip (1184 total) — must be maintained |
 
 ## Build & Test Commands
 
@@ -171,13 +171,12 @@ var fw = try abi.Framework.builder(allocator)
     .build();
 ```
 
-### Legacy Compatibility Layer
+### Convenience Aliases
 
-`src/abi.zig` re-exports many types at the top level for backward compatibility:
-`Gpu`, `GpuConfig`, `TransformerConfig`, `DiscordClient`, etc. For new code, prefer
-the namespaced versions (`abi.gpu.Gpu`, `abi.ai.TransformerConfig`). Deprecated
-functions `createDefaultFramework` and `createFramework` wrap the new `initDefault`
-and `initWithConfig`.
+`src/abi.zig` re-exports a small set of commonly used types at the top level:
+`vectorAdd`, `vectorDot`, `hasSimdSupport`, `Gpu`, `GpuBackend`, `discord`,
+`DiscordTools`. For new code, prefer the namespaced versions (`abi.simd.vectorAdd`,
+`abi.gpu.Gpu`, `abi.ai.DiscordTools`).
 
 ## AI Module (Largest Module — 255 files)
 
@@ -243,7 +242,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Current baseline**: 1167 pass, 5 skip (1172 total). **This baseline must be maintained** — any
+**Current baseline**: 1179 pass, 5 skip (1184 total). **This baseline must be maintained** — any
 PR that reduces passing tests or increases skipped tests requires justification.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are
