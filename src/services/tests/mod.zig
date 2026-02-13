@@ -131,6 +131,16 @@ test {
         _ = abi.analytics;
         _ = @import("analytics_test.zig");
     }
+
+    // AI math correctness tests (Phase 5B)
+    if (build_options.enable_ai) {
+        _ = @import("ai_eval_test.zig");
+    }
+    if (build_options.enable_llm) {
+        _ = @import("ai_sampler_test.zig");
+        _ = @import("ai_quantization_test.zig");
+        _ = @import("ai_attention_test.zig");
+    }
 }
 
 // Connector tests
@@ -190,6 +200,12 @@ pub const e2e = @import("e2e/mod.zig");
 
 // Comptime API parity verification (stub/real module consistency)
 pub const parity = @import("parity/mod.zig");
+
+// AI math correctness tests (Phase 5B)
+pub const ai_eval_test = if (build_options.enable_ai) @import("ai_eval_test.zig") else struct {};
+pub const ai_sampler_test = if (build_options.enable_llm) @import("ai_sampler_test.zig") else struct {};
+pub const ai_quantization_test = if (build_options.enable_llm) @import("ai_quantization_test.zig") else struct {};
+pub const ai_attention_test = if (build_options.enable_llm) @import("ai_attention_test.zig") else struct {};
 
 test "abi version returns build package version" {
     try std.testing.expectEqualStrings("0.4.0", abi.version());
