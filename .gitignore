@@ -106,8 +106,11 @@ training_data.txt
 # Development checkpoints and evaluation data
 checkpoints/
 
-# Auto Claude workspace data
-abi/
+# Auto Claude workspace data (repo-root only)
+/abi/
+
+# Rust build artifacts in bindings
+bindings/**/target/
 
 # Backup files created by CLI
 backups/
@@ -147,7 +150,6 @@ perf.data*
 # Backup files
 *.bak
 *.backup
-*~
 
 # Distribution
 dist/
