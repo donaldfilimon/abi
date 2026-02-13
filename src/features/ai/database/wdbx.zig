@@ -334,3 +334,117 @@ fn mapWdbxError(err: anyerror) DatasetError {
         else => error.ReadFailed,
     };
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "encodeTokenBlock roundtrip without text" {
+    const allocator = std.testing.allocator;
+    const tokens = [_]u32{ 100, 200, 300, 400 };
+
+    const encoded = try encodeTokenBlock(allocator, &tokens, null);
+    defer allocator.free(encoded);
+
+    var block = try decodeTokenBlock(allocator, encoded);
+    defer block.deinit();
+
+    try std.testing.expectEqual(@as(usize, 4), block.tokens.len);
+    try std.testing.expectEqual(@as(u32, 100), block.tokens[0]);
+    try std.testing.expectEqual(@as(u32, 200), block.tokens[1]);
+    try std.testing.expectEqual(@as(u32, 300), block.tokens[2]);
+    try std.testing.expectEqual(@as(u32, 400), block.tokens[3]);
+    try std.testing.expect(block.text == null);
+}
+
+test "encodeTokenBlock roundtrip with text" {
+    const allocator = std.testing.allocator;
+    const tokens = [_]u32{ 1, 2, 3 };
+
+    const encoded = try encodeTokenBlock(allocator, &tokens, "hello world");
+    defer allocator.free(encoded);
+
+    var block = try decodeTokenBlock(allocator, encoded);
+    defer block.deinit();
+
+    try std.testing.expectEqual(@as(usize, 3), block.tokens.len);
+    try std.testing.expectEqual(@as(u32, 1), block.tokens[0]);
+    try std.testing.expectEqualStrings("hello world", block.text.?);
+}
+
+test "encodeTokenBlock empty tokens" {
+    const allocator = std.testing.allocator;
+    const empty = [_]u32{};
+
+    const encoded = try encodeTokenBlock(allocator, &empty, null);
+    defer allocator.free(encoded);
+
+    var block = try decodeTokenBlock(allocator, encoded);
+    defer block.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), block.tokens.len);
+    try std.testing.expect(block.text == null);
+}
+
+test "decodeTokenBlock rejects invalid magic" {
+    const bad_data = "BADM\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+    const result = decodeTokenBlock(std.testing.allocator, bad_data);
+    try std.testing.expectError(error.InvalidFormat, result);
+}
+
+test "decodeTokenBlock rejects truncated data" {
+    const result = decodeTokenBlock(std.testing.allocator, "short");
+    try std.testing.expectError(error.InvalidFormat, result);
+}
+
+test "appendTokensFromBlock respects max_tokens" {
+    const allocator = std.testing.allocator;
+    const tokens = [_]u32{ 10, 20, 30, 40, 50 };
+
+    const encoded = try encodeTokenBlock(allocator, &tokens, null);
+    defer allocator.free(encoded);
+
+    var out = std.ArrayListUnmanaged(u32){};
+    defer out.deinit(allocator);
+
+    const appended = try appendTokensFromBlock(allocator, &out, encoded, 3);
+    try std.testing.expectEqual(@as(usize, 3), appended);
+    try std.testing.expectEqual(@as(usize, 3), out.items.len);
+    try std.testing.expectEqual(@as(u32, 10), out.items[0]);
+    try std.testing.expectEqual(@as(u32, 20), out.items[1]);
+    try std.testing.expectEqual(@as(u32, 30), out.items[2]);
+}
+
+test "appendTokensFromBlock zero max means unlimited" {
+    const allocator = std.testing.allocator;
+    const tokens = [_]u32{ 1, 2, 3 };
+
+    const encoded = try encodeTokenBlock(allocator, &tokens, null);
+    defer allocator.free(encoded);
+
+    var out = std.ArrayListUnmanaged(u32){};
+    defer out.deinit(allocator);
+
+    const appended = try appendTokensFromBlock(allocator, &out, encoded, 0);
+    try std.testing.expectEqual(@as(usize, 3), appended);
+    try std.testing.expectEqual(@as(usize, 3), out.items.len);
+}
+
+test "readHeader validates format" {
+    // Valid header
+    const allocator = std.testing.allocator;
+    const tokens = [_]u32{42};
+    const encoded = try encodeTokenBlock(allocator, &tokens, null);
+    defer allocator.free(encoded);
+
+    const header = try readHeader(encoded);
+    try std.testing.expectEqual(@as(u32, 1), header.token_count);
+    try std.testing.expectEqual(@as(u32, 0), header.text_len);
+}
+
+test "mapWdbxError maps known errors" {
+    try std.testing.expectEqual(DatasetError.OutOfMemory, mapWdbxError(error.OutOfMemory));
+    try std.testing.expectEqual(DatasetError.FileNotFound, mapWdbxError(error.FileNotFound));
+    try std.testing.expectEqual(DatasetError.InvalidFormat, mapWdbxError(error.InvalidFormat));
+    try std.testing.expectEqual(DatasetError.ReadFailed, mapWdbxError(error.Unexpected));
+}

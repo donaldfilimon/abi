@@ -21,6 +21,9 @@ test {
         _ = @import("features/ai/tools/mod.zig");
         _ = @import("features/ai/streaming/mod.zig");
         // _ = @import("features/ai/abbey/mod.zig");       // 13 errors (deep refactor needed)
+
+        // AI database submodule (wdbx token dataset tests)
+        _ = @import("features/ai/database/wdbx.zig");
     }
 
     // Skipped pending fix (6 errors in backward_ops, cache, generation, ops):

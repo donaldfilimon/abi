@@ -38,6 +38,7 @@ test {
         _ = abi.ai.streaming;
         _ = abi.ai.documents;
         _ = abi.ai.abbey;
+        _ = abi.ai.database;
     }
     if (@hasDecl(build_options, "enable_vision") and build_options.enable_vision) {
         _ = abi.ai.vision;

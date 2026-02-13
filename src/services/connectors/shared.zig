@@ -162,7 +162,7 @@ pub fn jsonGetUint(comptime T: type, value: std.json.Value, field: []const u8) ?
 
 const json_utils = @import("../shared/utils.zig").json;
 
-/// Encode an array of ChatMessages as JSON array elements into a writer.
+/// Encode an array of ChatMessages as JSON array elements.
 /// Produces: {"role":"...","content":"..."},{"role":"...","content":"..."}
 /// The caller is responsible for the surrounding `[` and `]`.
 pub fn encodeMessageArray(
@@ -172,15 +172,15 @@ pub fn encodeMessageArray(
 ) !void {
     for (messages, 0..) |msg, i| {
         if (i > 0) try buf.append(allocator, ',');
-        try buf.print(
-            allocator,
-            "{{\"role\":\"{s}\",\"content\":\"{}\"}}",
-            .{ msg.role, json_utils.jsonEscape(msg.content) },
-        );
+        try buf.appendSlice(allocator, "{\"role\":\"");
+        try json_utils.appendJsonEscaped(allocator, buf, msg.role);
+        try buf.appendSlice(allocator, "\",\"content\":\"");
+        try json_utils.appendJsonEscaped(allocator, buf, msg.content);
+        try buf.appendSlice(allocator, "\"}");
     }
 }
 
-/// Encode an array of strings as JSON string array elements into a writer.
+/// Encode an array of strings as JSON string array elements.
 /// Produces: "str1","str2","str3"
 /// The caller is responsible for the surrounding `[` and `]`.
 pub fn encodeStringArray(
@@ -190,7 +190,9 @@ pub fn encodeStringArray(
 ) !void {
     for (strings, 0..) |s, i| {
         if (i > 0) try buf.append(allocator, ',');
-        try buf.print(allocator, "\"{}\"", .{json_utils.jsonEscape(s)});
+        try buf.append(allocator, '"');
+        try json_utils.appendJsonEscaped(allocator, buf, s);
+        try buf.append(allocator, '"');
     }
 }
 
