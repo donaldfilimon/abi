@@ -47,11 +47,13 @@ pub const Template = struct {
         }
         self.allocator.free(self.variables);
         for (self.tokens) |token| {
-            if (token == .variable) {
-                self.allocator.free(token.variable.name);
-                if (token.variable.default) |d| {
-                    self.allocator.free(d);
-                }
+            switch (token) {
+                .text => |t| self.allocator.free(t),
+                .variable => |v| {
+                    self.allocator.free(v.name);
+                    if (v.default) |d| self.allocator.free(d);
+                    if (v.filters.len > 0) self.allocator.free(v.filters);
+                },
             }
         }
         self.allocator.free(self.tokens);

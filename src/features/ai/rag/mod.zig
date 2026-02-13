@@ -108,7 +108,13 @@ pub const RagPipeline = struct {
 
         // Chunk the document
         const doc_chunks = try self.chunker_inst.chunk(doc.content);
-        defer self.allocator.free(doc_chunks);
+        defer {
+            for (doc_chunks) |c| {
+                self.allocator.free(c.content);
+                if (c.metadata) |m| self.allocator.free(m);
+            }
+            self.allocator.free(doc_chunks);
+        }
 
         // Index chunks
         for (doc_chunks) |chunk| {

@@ -546,13 +546,15 @@ pub fn build(b: *std.Build) void {
     // each source file to one module. Feature files already belong to the 'abi'
     // module, so they cannot also be imported by the main test module. This step
     // discovers test blocks inside feature source files (eval, rag, streaming, etc.).
-    // NOT wired into the main 'test' step yet — stabilize before gating builds.
+    var feature_tests_step: ?*std.Build.Step = null;
     if (pathExists(b, "src/feature_test_root.zig")) {
         const feature_tests = b.addTest(.{ .root_module = b.createModule(.{ .root_source_file = b.path("src/feature_test_root.zig"), .target = target, .optimize = optimize, .link_libc = true }) });
         feature_tests.root_module.addImport("build_options", build_opts);
         const run_feature_tests = b.addRunArtifact(feature_tests);
         run_feature_tests.skip_foreign_checks = true;
-        b.step("feature-tests", "Run feature module inline tests").dependOn(&run_feature_tests.step);
+        const ft_step = b.step("feature-tests", "Run feature module inline tests");
+        ft_step.dependOn(&run_feature_tests.step);
+        feature_tests_step = &run_feature_tests.step;
     }
 
     // ---------------------------------------------------------------------------
@@ -571,6 +573,9 @@ pub fn build(b: *std.Build) void {
     }
     full_check_step.dependOn(cli_tests_step);
     full_check_step.dependOn(validate_flags_step);
+    if (feature_tests_step) |fts| {
+        full_check_step.dependOn(fts);
+    }
     const bench_all_step = b.step("bench-all", "Run all benchmark suites");
     buildTargets(b, &benchmark_targets, abi_module, build_opts, target, optimize, bench_all_step, true);
 
