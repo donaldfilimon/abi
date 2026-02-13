@@ -78,9 +78,12 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 ```bash
 git clone https://github.com/donaldfilimon/abi.git
 cd abi
-zig build
-zig build run -- --help
+./zigw build
+./zigw build run -- --help
 ```
+
+If your `zig` on `PATH` is older (for example `0.15.x`), use `./zigw` to run
+the pinned toolchain from `.zigversion`.
 
 ### Requirements
 
@@ -334,7 +337,7 @@ abi/
 │
 ├── tools/cli/            # CLI implementation
 ├── examples/             # Usage examples
-└── docs/                 # Documentation
+└── docs/api/             # Auto-generated API docs (zig build gendocs)
 ```
 
 <details>
@@ -416,48 +419,11 @@ zig build -Dgpu-backend=auto
 
 ---
 
-## Language Bindings
-
-Complete FFI bindings are available for multiple languages in the `bindings/` directory:
-
-| Language | Location | Features |
-|:---------|:---------|:---------|
-| **C** | `bindings/c/` | Full FFI layer with `abi_` prefixed functions, header generation via `zig build c-header` |
-| **Python** | `bindings/python/` | pip-installable package, VectorDatabase, GPU backend selection, 4400+ QPS benchmarks |
-| **Go** | `bindings/go/` | Context cancellation support, SIMD operations, vector search examples |
-| **Rust** | `bindings/rust/` | Safe wrappers for Framework, SIMD, VectorDatabase, GPU, Agent modules |
-| **JavaScript/TypeScript** | `bindings/js/` | WASM SIMD support, VectorDatabase, WebGPU acceleration, TypeScript definitions |
-
-```bash
-# Build the C shared library (required for Python/Go/Rust bindings)
-cd bindings/c && zig build
-
-# Set library path (required for runtime)
-export DYLD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$DYLD_LIBRARY_PATH  # macOS
-export LD_LIBRARY_PATH=$PWD/bindings/c/zig-out/lib:$LD_LIBRARY_PATH      # Linux
-```
-
-See [AGENTS.md](AGENTS.md) for baseline agent guidance and
-[CLAUDE.md](CLAUDE.md#language-bindings) for detailed usage examples.
-
----
-
 ## Documentation
 
 | Resource | Description |
 |:---------|:------------|
-| [Online Docs](https://donaldfilimon.github.io/abi/) | Searchable documentation site |
-| [Docs Index](docs/content/index.html) | Offline docs landing page |
-| [API Reference](docs/api-reference.md) | Public API summary |
-| [Deployment Guide](docs/deployment.md) | Production deployment |
-| [Configuration](docs/content/configuration.html) | Config and feature flags |
-| [CLI Guide](docs/content/cli.html) | Command reference and usage |
-| [AI Guide](docs/content/ai.html) | LLM, agents, training |
-| [GPU Guide](docs/content/gpu.html) | Multi-backend GPU acceleration |
-| [Database Guide](docs/content/database.html) | WDBX vector database |
-| [Network Guide](docs/content/network.html) | Distributed compute |
-| [Observability Guide](docs/content/observability.html) | Metrics and tracing |
-| [Security Guide](docs/content/security.html) | Security practices |
+| [API Reference](docs/api/index.md) | Auto-generated API docs (`zig build gendocs`) |
 | [Agent Guidelines](AGENTS.md) | Baseline rules for AI agents |
 | [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and project conventions |
 
@@ -506,7 +472,7 @@ zig build lint
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Modular Refactor | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
-See [docs/plan.md](docs/plan.md) for current sprint status and [docs/roadmap.md](docs/roadmap.md) for version history.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
 
 ---
 

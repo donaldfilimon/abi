@@ -51,6 +51,7 @@
 //! for concurrent access from multiple threads.
 
 const std = @import("std");
+const time = @import("../../services/shared/time.zig");
 const build_options = @import("build_options");
 
 // GPU integration (conditional)
@@ -438,7 +439,7 @@ pub const GpuAgent = struct {
     /// Routes the workload to the optimal backend based on
     /// workload characteristics and learned performance data.
     pub fn process(self: *GpuAgent, request: GpuAwareRequest) !GpuAwareResponse {
-        const start_time = std.time.milliTimestamp();
+        const start_time = time.nowMs();
         self.stats.total_requests += 1;
 
         // Determine GPU scheduling
@@ -453,7 +454,7 @@ pub const GpuAgent = struct {
 
         const tokens: u32 = @intCast(@max(1, content.len / 4));
 
-        const end_time = std.time.milliTimestamp();
+        const end_time = time.nowMs();
         const latency = @as(u64, @intCast(@max(0, end_time - start_time)));
 
         // Update statistics

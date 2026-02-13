@@ -178,36 +178,14 @@ pub const Coordinator = struct {
     /// Execute agents sequentially.
     fn executeSequential(self: *Coordinator, task: []const u8) Error!void {
         for (self.agents.items, 0..) |ag, i| {
-            var timer = time.Timer.start() catch {
-                // Timer unavailable, proceed without timing
-                const response = ag.process(task, self.allocator) catch {
-                    self.results.append(self.allocator, .{
-                        .agent_index = i,
-                        .response = self.allocator.dupe(u8, "[Error: execution failed]") catch return Error.ExecutionFailed,
-                        .success = false,
-                        .duration_ns = 0,
-                    }) catch return Error.ExecutionFailed;
-                    continue;
-                };
-
-                self.results.append(self.allocator, .{
-                    .agent_index = i,
-                    .response = response,
-                    .success = true,
-                    .duration_ns = 0,
-                }) catch {
-                    self.allocator.free(response);
-                    return Error.ExecutionFailed;
-                };
-                continue;
-            };
+            var timer = time.Timer.start() catch null;
 
             const response = ag.process(task, self.allocator) catch {
                 self.results.append(self.allocator, .{
                     .agent_index = i,
                     .response = self.allocator.dupe(u8, "[Error: execution failed]") catch return Error.ExecutionFailed,
                     .success = false,
-                    .duration_ns = timer.read(),
+                    .duration_ns = if (timer) |*t| t.read() else 0,
                 }) catch return Error.ExecutionFailed;
                 continue;
             };
@@ -216,7 +194,7 @@ pub const Coordinator = struct {
                 .agent_index = i,
                 .response = response,
                 .success = true,
-                .duration_ns = timer.read(),
+                .duration_ns = if (timer) |*t| t.read() else 0,
             }) catch {
                 self.allocator.free(response);
                 return Error.ExecutionFailed;
@@ -244,41 +222,14 @@ pub const Coordinator = struct {
         defer if (owned_input) |o| self.allocator.free(o);
 
         for (self.agents.items, 0..) |ag, i| {
-            var timer = time.Timer.start() catch {
-                const response = ag.process(current_input, self.allocator) catch {
-                    self.results.append(self.allocator, .{
-                        .agent_index = i,
-                        .response = self.allocator.dupe(u8, "[Error: pipeline stage failed]") catch return Error.ExecutionFailed,
-                        .success = false,
-                        .duration_ns = 0,
-                    }) catch return Error.ExecutionFailed;
-                    return Error.ExecutionFailed; // Pipeline broken
-                };
-
-                // Store result
-                self.results.append(self.allocator, .{
-                    .agent_index = i,
-                    .response = response,
-                    .success = true,
-                    .duration_ns = 0,
-                }) catch {
-                    self.allocator.free(response);
-                    return Error.ExecutionFailed;
-                };
-
-                // Update input for next stage
-                if (owned_input) |o| self.allocator.free(o);
-                owned_input = self.allocator.dupe(u8, response) catch return Error.ExecutionFailed;
-                current_input = owned_input.?;
-                continue;
-            };
+            var timer = time.Timer.start() catch null;
 
             const response = ag.process(current_input, self.allocator) catch {
                 self.results.append(self.allocator, .{
                     .agent_index = i,
                     .response = self.allocator.dupe(u8, "[Error: pipeline stage failed]") catch return Error.ExecutionFailed,
                     .success = false,
-                    .duration_ns = timer.read(),
+                    .duration_ns = if (timer) |*t| t.read() else 0,
                 }) catch return Error.ExecutionFailed;
                 return Error.ExecutionFailed; // Pipeline broken
             };
@@ -288,7 +239,7 @@ pub const Coordinator = struct {
                 .agent_index = i,
                 .response = response,
                 .success = true,
-                .duration_ns = timer.read(),
+                .duration_ns = if (timer) |*t| t.read() else 0,
             }) catch {
                 self.allocator.free(response);
                 return Error.ExecutionFailed;

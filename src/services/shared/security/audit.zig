@@ -324,19 +324,57 @@ pub const AuditLogger = struct {
         });
         errdefer self.allocator.free(id);
 
-        // Build the event
+        // Build the event — extract allocations with errdefer protection
+        const event_type = try self.allocator.dupe(u8, event_builder.event_type);
+        errdefer self.allocator.free(event_type);
+        var actor = if (event_builder.actor) |a| try self.dupeActor(a) else null;
+        errdefer if (actor) |*a| {
+            self.allocator.free(a.id);
+            if (a.ip_address) |ip| self.allocator.free(ip);
+            if (a.user_agent) |ua| self.allocator.free(ua);
+            if (a.session_id) |sid| self.allocator.free(sid);
+            if (a.api_key_id) |kid| self.allocator.free(kid);
+        };
+        var target = if (event_builder.target) |t| try self.dupeTarget(t) else null;
+        errdefer if (target) |*t| {
+            self.allocator.free(t.type);
+            if (t.id) |tid| self.allocator.free(tid);
+            if (t.path) |path| self.allocator.free(path);
+            if (t.metadata) |*meta| {
+                var it = meta.iterator();
+                while (it.next()) |entry| {
+                    self.allocator.free(entry.key_ptr.*);
+                    self.allocator.free(entry.value_ptr.*);
+                }
+                meta.deinit(self.allocator);
+            }
+        };
+        const message = try self.maskSensitiveData(event_builder.message);
+        errdefer self.allocator.free(message);
+        var context = if (event_builder.context) |c| try self.dupeContext(c) else null;
+        errdefer if (context) |*c| {
+            var it = c.iterator();
+            while (it.next()) |entry| {
+                self.allocator.free(entry.key_ptr.*);
+                self.allocator.free(entry.value_ptr.*);
+            }
+            c.deinit(self.allocator);
+        };
+        const source = try self.allocator.dupe(u8, event_builder.source);
+        errdefer self.allocator.free(source);
+
         var event = AuditEvent{
             .id = id,
             .timestamp = @as(i128, time.nowNanoseconds()),
             .severity = event_builder.severity,
             .category = event_builder.category,
-            .event_type = try self.allocator.dupe(u8, event_builder.event_type),
+            .event_type = event_type,
             .outcome = event_builder.outcome,
-            .actor = if (event_builder.actor) |a| try self.dupeActor(a) else null,
-            .target = if (event_builder.target) |t| try self.dupeTarget(t) else null,
-            .message = try self.maskSensitiveData(event_builder.message),
-            .context = if (event_builder.context) |c| try self.dupeContext(c) else null,
-            .source = try self.allocator.dupe(u8, event_builder.source),
+            .actor = actor,
+            .target = target,
+            .message = message,
+            .context = context,
+            .source = source,
             .prev_hash = if (self.config.enable_hash_chain) self.last_hash else null,
             .event_hash = null,
             .related_events = null,

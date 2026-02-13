@@ -6,7 +6,6 @@
 const std = @import("std");
 const platform_time = @import("../../services/shared/utils.zig");
 const time = platform_time;
-const sync = @import("../../services/shared/sync.zig");
 
 pub const ProfilingError = error{
     TimerFailed,

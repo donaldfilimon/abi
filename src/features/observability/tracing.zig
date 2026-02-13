@@ -289,18 +289,9 @@ pub const TraceContext = struct {
     }
 
     pub fn parseHexByte(hex: []const u8) !u8 {
-        const high = try hexDigit(hex[0]);
-        const low = try hexDigit(hex[1]);
+        const high = try std.fmt.charToDigit(hex[0], 16);
+        const low = try std.fmt.charToDigit(hex[1], 16);
         return (high << 4) | low;
-    }
-
-    fn hexDigit(c: u8) !u8 {
-        return switch (c) {
-            '0'...'9' => c - '0',
-            'a'...'f' => c - 'a' + 10,
-            'A'...'F' => c - 'A' + 10,
-            else => error.InvalidHexDigit,
-        };
     }
 };
 

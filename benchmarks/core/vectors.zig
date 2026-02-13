@@ -69,8 +69,9 @@ fn generateUniform(
     const rand = prng.random();
 
     const vectors = try allocator.alloc([]f32, count);
+    var vectors_allocated: usize = 0;
     errdefer {
-        for (vectors) |v| {
+        for (vectors[0..vectors_allocated]) |v| {
             allocator.free(v);
         }
         allocator.free(vectors);
@@ -78,6 +79,7 @@ fn generateUniform(
 
     for (vectors) |*vec| {
         vec.* = try allocator.alloc(f32, dim);
+        vectors_allocated += 1;
         for (vec.*) |*val| {
             val.* = rand.float(f32) * 2.0 - 1.0;
         }
@@ -97,8 +99,9 @@ pub fn generateNormalized(
     const rand = prng.random();
 
     const vectors = try allocator.alloc([]f32, count);
+    var vectors_allocated: usize = 0;
     errdefer {
-        for (vectors) |v| {
+        for (vectors[0..vectors_allocated]) |v| {
             allocator.free(v);
         }
         allocator.free(vectors);
@@ -106,6 +109,7 @@ pub fn generateNormalized(
 
     for (vectors) |*vec| {
         vec.* = try allocator.alloc(f32, dim);
+        vectors_allocated += 1;
         var norm: f32 = 0;
 
         for (vec.*) |*val| {
@@ -139,8 +143,9 @@ pub fn generateClustered(
 
     // Generate cluster centers
     const centers = try allocator.alloc([]f32, num_clusters);
+    var centers_allocated: usize = 0;
     defer {
-        for (centers) |c| {
+        for (centers[0..centers_allocated]) |c| {
             allocator.free(c);
         }
         allocator.free(centers);
@@ -148,6 +153,7 @@ pub fn generateClustered(
 
     for (centers) |*center| {
         center.* = try allocator.alloc(f32, dim);
+        centers_allocated += 1;
         for (center.*) |*val| {
             val.* = rand.float(f32) * 2.0 - 1.0;
         }
@@ -155,8 +161,9 @@ pub fn generateClustered(
 
     // Generate points around clusters
     const vectors = try allocator.alloc([]f32, count);
+    var vectors_allocated: usize = 0;
     errdefer {
-        for (vectors) |v| {
+        for (vectors[0..vectors_allocated]) |v| {
             allocator.free(v);
         }
         allocator.free(vectors);
@@ -164,6 +171,7 @@ pub fn generateClustered(
 
     for (vectors) |*vec| {
         vec.* = try allocator.alloc(f32, dim);
+        vectors_allocated += 1;
         const cluster_idx = rand.intRangeLessThan(usize, 0, num_clusters);
         const center = centers[cluster_idx];
 
@@ -196,8 +204,9 @@ fn generateGaussian(
     const rand = prng.random();
 
     const vectors = try allocator.alloc([]f32, count);
+    var vectors_allocated: usize = 0;
     errdefer {
-        for (vectors) |v| {
+        for (vectors[0..vectors_allocated]) |v| {
             allocator.free(v);
         }
         allocator.free(vectors);
@@ -205,6 +214,7 @@ fn generateGaussian(
 
     for (vectors) |*vec| {
         vec.* = try allocator.alloc(f32, dim);
+        vectors_allocated += 1;
         var i: usize = 0;
         while (i < dim) {
             // Box-Muller transform for Gaussian distribution

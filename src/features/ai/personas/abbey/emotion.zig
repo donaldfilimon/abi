@@ -10,6 +10,7 @@
 //! - Emotional trajectory tracking
 
 const std = @import("std");
+const string_utils = @import("../../../../services/shared/utils.zig");
 const core_types = @import("../../core/types.zig");
 
 /// Emotion types detected in user input.
@@ -438,11 +439,7 @@ pub const EmotionProcessor = struct {
 
     /// Convert text to lowercase for pattern matching.
     fn toLower(self: *const Self, text: []const u8) ![]u8 {
-        const result = try self.allocator.alloc(u8, text.len);
-        for (text, 0..) |c, i| {
-            result[i] = std.ascii.toLower(c);
-        }
-        return result;
+        return string_utils.toLowerAscii(self.allocator, text);
     }
 };
 

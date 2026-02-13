@@ -142,7 +142,10 @@ fn benchmarkAbiInsert(
 
     const elapsed_ns = timer.read();
     const elapsed_sec = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0;
-    const throughput = @as(f64, @floatFromInt(vectors.len)) / elapsed_sec;
+    const throughput = if (elapsed_sec > 0.0)
+        @as(f64, @floatFromInt(vectors.len)) / elapsed_sec
+    else
+        0.0;
 
     const mem_stats = tracker.getStats();
 
@@ -215,7 +218,10 @@ fn benchmarkAbiQuery(
     for (latencies) |l| {
         total_ns += l;
     }
-    const throughput = @as(f64, @floatFromInt(queries.len)) / (@as(f64, @floatFromInt(total_ns)) / 1_000_000_000.0);
+    const throughput = if (total_ns > 0)
+        @as(f64, @floatFromInt(queries.len)) / (@as(f64, @floatFromInt(total_ns)) / 1_000_000_000.0)
+    else
+        0.0;
     const avg_recall = total_recall / @as(f64, @floatFromInt(queries.len));
 
     return .{

@@ -478,6 +478,7 @@ pub const KernelBuilder = struct {
         args: []const *const expr.Expr,
     ) !*const expr.Expr {
         const args_copy = try self.allocator.dupe(*const expr.Expr, args);
+        errdefer self.allocator.free(args_copy);
         const e = try self.allocator.create(expr.Expr);
         e.* = .{
             .call = .{
@@ -496,6 +497,7 @@ pub const KernelBuilder = struct {
     ) !*const expr.Expr {
         std.debug.assert(components.len >= 2 and components.len <= 4);
         const components_copy = try self.allocator.dupe(*const expr.Expr, components);
+        errdefer self.allocator.free(components_copy);
         const e = try self.allocator.create(expr.Expr);
         e.* = .{
             .vector_construct = .{
@@ -558,6 +560,7 @@ pub const KernelBuilder = struct {
         else_body: ?[]const *const stmt.Stmt,
     ) !void {
         const then_copy = try self.allocator.dupe(*const stmt.Stmt, then_body);
+        errdefer self.allocator.free(then_copy);
         const else_copy = if (else_body) |eb|
             try self.allocator.dupe(*const stmt.Stmt, eb)
         else
@@ -585,6 +588,7 @@ pub const KernelBuilder = struct {
         body: []const *const stmt.Stmt,
     ) !void {
         const body_copy = try self.allocator.dupe(*const stmt.Stmt, body);
+        errdefer self.allocator.free(body_copy);
         const s = try stmt.forLoop(self.allocator, init_s, condition, update, body_copy);
         try self.statements.append(self.allocator, s);
     }
@@ -596,6 +600,7 @@ pub const KernelBuilder = struct {
         body: []const *const stmt.Stmt,
     ) !void {
         const body_copy = try self.allocator.dupe(*const stmt.Stmt, body);
+        errdefer self.allocator.free(body_copy);
         const s = try stmt.whileLoop(self.allocator, condition, body_copy);
         try self.statements.append(self.allocator, s);
     }

@@ -80,7 +80,7 @@ pub const Connection = struct {
 
     /// Creates a new connection.
     pub fn init(allocator: std.mem.Allocator, id: u64, address: std.net.Address) Connection {
-        const now = std.time.milliTimestamp();
+        const now = time.nowMs();
         return .{
             .id = id,
             .address = address,
@@ -92,17 +92,17 @@ pub const Connection = struct {
 
     /// Updates the last activity timestamp.
     pub fn touch(self: *Connection) void {
-        self.last_activity = std.time.milliTimestamp();
+        self.last_activity = time.nowMs();
     }
 
     /// Returns the connection age in milliseconds.
     pub fn ageMs(self: Connection) i64 {
-        return std.time.milliTimestamp() - self.created_at;
+        return time.nowMs() - self.created_at;
     }
 
     /// Returns the idle time in milliseconds.
     pub fn idleMs(self: Connection) i64 {
-        return std.time.milliTimestamp() - self.last_activity;
+        return time.nowMs() - self.last_activity;
     }
 
     /// Checks if the connection has timed out.
@@ -175,7 +175,7 @@ pub const ServerStats = struct {
     /// Returns server uptime in milliseconds.
     pub fn uptimeMs(self: ServerStats) i64 {
         if (self.started_at == 0) return 0;
-        return std.time.milliTimestamp() - self.started_at;
+        return time.nowMs() - self.started_at;
     }
 
     /// Returns requests per second (averaged over uptime).
@@ -244,7 +244,7 @@ test "Connection lifecycle" {
 
 test "ServerStats calculations" {
     var stats = ServerStats{
-        .started_at = std.time.milliTimestamp() - 1000, // Started 1 second ago
+        .started_at = time.nowMs() - 1000, // Started 1 second ago
         .total_requests = 100,
     };
 

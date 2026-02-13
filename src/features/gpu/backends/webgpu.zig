@@ -6,8 +6,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const types = @import("../kernel_types.zig");
-const shared = @import("shared.zig");
-const fallback = @import("fallback.zig");
 
 pub const WebGpuError = error{
     InitializationFailed,

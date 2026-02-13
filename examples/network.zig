@@ -25,13 +25,7 @@ pub fn main() !void {
         .build();
     defer framework.deinit();
 
-    // Explicitly initialize the network subsystem before accessing the registry.
-    abi.network.init(allocator) catch |err| {
-        std.debug.print("Network init failed: {t}\n", .{err});
-        return err;
-    };
-    defer abi.network.deinit();
-
+    // The network registry is available after Framework initialization.
     const registry = abi.network.defaultRegistry() catch |err| {
         std.debug.print("Failed to get default registry: {t}\n", .{err});
         return err;

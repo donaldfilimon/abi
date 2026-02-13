@@ -8,33 +8,14 @@
 
 const std = @import("std");
 
+// Re-export extracted type definitions for build discovery
+pub const vulkan_types = @import("vulkan_types.zig");
+
 // ============================================================================
 // Errors
 // ============================================================================
 
-pub const VulkanError = error{
-    InitializationFailed,
-    DeviceNotFound,
-    InstanceCreationFailed,
-    PhysicalDeviceNotFound,
-    LogicalDeviceCreationFailed,
-    DeviceCreationFailed,
-    QueueFamilyNotFound,
-    MemoryTypeNotFound,
-    ShaderCompilationFailed,
-    PipelineCreationFailed,
-    CommandBufferAllocationFailed,
-    BufferCreationFailed,
-    MemoryAllocationFailed,
-    MemoryCopyFailed,
-    CommandRecordingFailed,
-    SubmissionFailed,
-    InvalidHandle,
-    SynchronizationFailed,
-    DeviceLost,
-    ValidationLayerNotAvailable,
-    NotFound,
-};
+pub const VulkanError = vulkan_types.VulkanError;
 
 // ============================================================================
 // Vulkan Types

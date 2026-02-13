@@ -305,7 +305,7 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_ANTHROPIC_MODEL",
         "ANTHROPIC_MODEL",
     })) orelse try allocator.dupe(u8, "claude-3-5-sonnet-20241022");
-    defer allocator.free(model);
+    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,

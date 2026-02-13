@@ -50,23 +50,23 @@ pub const RouteMatch = struct {
 /// Route group for organizing routes with common prefix/middleware.
 pub const RouteGroup = struct {
     prefix: []const u8,
-    routes: std.ArrayList(Route),
+    routes: std.ArrayListUnmanaged(Route),
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, prefix: []const u8) RouteGroup {
         return .{
             .prefix = prefix,
-            .routes = std.ArrayList(Route).init(allocator),
+            .routes = .empty,
             .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *RouteGroup) void {
-        self.routes.deinit();
+        self.routes.deinit(self.allocator);
     }
 
     pub fn addRoute(self: *RouteGroup, method: Method, pattern: []const u8, handler: HandlerFn) !void {
-        try self.routes.append(.{
+        try self.routes.append(self.allocator, .{
             .method = method,
             .pattern = pattern,
             .handler = handler,
@@ -74,10 +74,22 @@ pub const RouteGroup = struct {
     }
 };
 
+fn isParamSegment(segment: []const u8) bool {
+    return segment.len > 0 and segment[0] == ':';
+}
+
+fn isWildcardSegment(segment: []const u8) bool {
+    return std.mem.eql(u8, segment, "*") or std.mem.eql(u8, segment, "**");
+}
+
+fn splitPathSegments(path: []const u8) std.mem.SplitIterator(u8, .scalar) {
+    return std.mem.splitScalar(u8, path, '/');
+}
+
 /// Checks if a pattern matches a path.
 pub fn matchPattern(pattern: []const u8, path: []const u8) bool {
-    var pattern_parts = std.mem.splitScalar(u8, pattern, '/');
-    var path_parts = std.mem.splitScalar(u8, path, '/');
+    var pattern_parts = splitPathSegments(pattern);
+    var path_parts = splitPathSegments(path);
 
     while (true) {
         const pattern_part = pattern_parts.next();
@@ -102,18 +114,13 @@ pub fn matchPattern(pattern: []const u8, path: []const u8) bool {
         }
 
         // Parameter matches anything non-empty
-        if (pp.len > 0 and pp[0] == ':') {
+        if (isParamSegment(pp)) {
             if (pa.len == 0) return false;
             continue;
         }
 
-        // Wildcard matches rest of path
-        if (std.mem.eql(u8, pp, "*")) {
-            return true;
-        }
-
-        // Double wildcard matches any depth
-        if (std.mem.eql(u8, pp, "**")) {
+        // Wildcards match rest of path
+        if (isWildcardSegment(pp)) {
             return true;
         }
 
@@ -133,13 +140,13 @@ pub fn extractParams(
     var params = std.StringHashMap([]const u8).init(allocator);
     errdefer params.deinit();
 
-    var pattern_parts = std.mem.splitScalar(u8, pattern, '/');
-    var path_parts = std.mem.splitScalar(u8, path, '/');
+    var pattern_parts = splitPathSegments(pattern);
+    var path_parts = splitPathSegments(path);
 
     while (pattern_parts.next()) |pattern_part| {
         const path_part = path_parts.next() orelse break;
 
-        if (pattern_part.len > 0 and pattern_part[0] == ':') {
+        if (isParamSegment(pattern_part)) {
             const param_name = pattern_part[1..];
             try params.put(param_name, path_part);
         }
@@ -163,8 +170,8 @@ pub fn normalizePath(path: []const u8) []const u8 {
 
 /// Joins path segments.
 pub fn joinPath(allocator: std.mem.Allocator, segments: []const []const u8) ![]u8 {
-    var result = std.ArrayList(u8).init(allocator);
-    errdefer result.deinit();
+    var result = std.ArrayListUnmanaged(u8).empty;
+    errdefer result.deinit(allocator);
 
     for (segments) |segment| {
         if (segment.len == 0) continue;
@@ -172,7 +179,7 @@ pub fn joinPath(allocator: std.mem.Allocator, segments: []const []const u8) ![]u
         // Add separator if needed
         if (result.items.len > 0 and result.items[result.items.len - 1] != '/') {
             if (segment[0] != '/') {
-                try result.append('/');
+                try result.append(allocator, '/');
             }
         }
 
@@ -181,14 +188,14 @@ pub fn joinPath(allocator: std.mem.Allocator, segments: []const []const u8) ![]u
             result.items[result.items.len - 1] == '/' and
             segment[0] == '/') 1 else 0;
 
-        try result.appendSlice(segment[start..]);
+        try result.appendSlice(allocator, segment[start..]);
     }
 
     if (result.items.len == 0) {
-        try result.append('/');
+        try result.append(allocator, '/');
     }
 
-    return result.toOwnedSlice();
+    return result.toOwnedSlice(allocator);
 }
 
 test "matchPattern basic" {

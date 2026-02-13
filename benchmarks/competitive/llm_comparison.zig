@@ -89,7 +89,10 @@ fn benchmarkTokenGeneration(
     const gen_end = timer.read();
 
     const gen_time_sec = @as(f64, @floatFromInt(gen_end - gen_start)) / 1_000_000_000.0;
-    const tokens_per_sec = @as(f64, @floatFromInt(num_tokens)) / gen_time_sec;
+    const tokens_per_sec = if (gen_time_sec > 0.0)
+        @as(f64, @floatFromInt(num_tokens)) / gen_time_sec
+    else
+        0.0;
     const ttft_ms = @as(f64, @floatFromInt(ttft_ns)) / 1_000_000.0;
 
     return .{
@@ -104,12 +107,15 @@ fn benchmarkBatchThroughput(
     batch_size: usize,
     tokens_per_request: usize,
 ) !struct { total_tokens_per_sec: f64, latency_per_request_ms: f64 } {
+    if (batch_size == 0) return error.InvalidBatchSize;
+
     var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
 
     // Simulate batch processing
     const batch_results = try allocator.alloc([]u32, batch_size);
+    var batch_allocated: usize = 0;
     defer {
-        for (batch_results) |r| {
+        for (batch_results[0..batch_allocated]) |r| {
             allocator.free(r);
         }
         allocator.free(batch_results);
@@ -117,6 +123,7 @@ fn benchmarkBatchThroughput(
 
     for (batch_results) |*result| {
         result.* = try allocator.alloc(u32, tokens_per_request);
+        batch_allocated += 1;
         for (result.*, 0..) |*token, i| {
             token.* = @intCast(i % 32000);
         }
@@ -125,7 +132,10 @@ fn benchmarkBatchThroughput(
     const elapsed_ns = timer.read();
     const elapsed_sec = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000_000.0;
     const total_tokens = batch_size * tokens_per_request;
-    const total_tokens_per_sec = @as(f64, @floatFromInt(total_tokens)) / elapsed_sec;
+    const total_tokens_per_sec = if (elapsed_sec > 0.0)
+        @as(f64, @floatFromInt(total_tokens)) / elapsed_sec
+    else
+        0.0;
     const latency_per_request_ms = @as(f64, @floatFromInt(elapsed_ns)) / 1_000_000.0 / @as(f64, @floatFromInt(batch_size));
 
     return .{

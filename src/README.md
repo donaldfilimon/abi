@@ -3,86 +3,174 @@ title: "Source Directory"
 tags: [source, architecture, modules]
 ---
 # Source Directory
-> **Codebase Status:** Synced with repository as of 2026-02-04.
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Architecture-Modular-blue?style=for-the-badge" alt="Modular"/>
-  <img src="https://img.shields.io/badge/Modules-15+-green?style=for-the-badge" alt="15+ Modules"/>
-  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
-</p>
+> **Codebase Status:** Synced with repository as of 2026-02-08.
 
 Core source modules of the ABI framework organized by function.
 
 ## Structure
 
-The codebase uses a modular architecture with top-level modules that expose
-stable APIs and Context structs for Framework integration.
+The codebase uses comptime feature gating: each feature module has `mod.zig`
+(real implementation) and `stub.zig` (returns `error.FeatureDisabled`), selected
+at compile time via `build_options`.
 
 | Directory | Description |
 |-----------|-------------|
-| `api/` | Entry points (`main.zig`) |
-| `core/` | Framework orchestration, config, flags, registry |
-| `features/` | Feature modules (ai, gpu, database, network, observability, web) |
-| `services/` | Shared infrastructure (runtime, platform, shared, connectors, cloud, ha, tasks, tests) |
+| `api/` | Executable entry points (`main.zig`) |
+| `core/` | Framework orchestration, config, registry, startup, WASM support |
+| `features/` | 8 feature modules with comptime gating |
+| `lib/` | Library and WASM entry points (`lib_main.zig`, `wasm_main.zig`) |
+| `services/` | Always-available infrastructure: runtime, platform, shared, connectors, HA, tasks, tests |
 
 ## Module Hierarchy
 
 ```
 src/
-├── abi.zig              # Public API module root
-├── api/                 # Entry points
-│   └── main.zig         # CLI entrypoint fallback
+├── abi.zig                  # Public API root — comptime feature selection
+├── root.zig                 # Root module (build system entry)
+├── comptime_checks.zig      # Compile-time validation
 │
-├── core/                # Framework orchestration and config
-│   ├── config/          # Unified configuration
-│   ├── framework.zig    # Framework lifecycle
-│   └── registry/        # Feature registry system
+├── api/                     # Executable entry points
+│   └── main.zig
 │
-├── features/            # Feature modules
-│   ├── ai/              # AI module (agents, llm, training, personas)
-│   ├── analytics/       # Event tracking and experiments
-│   ├── cloud/           # Cloud function adapters (AWS, GCP, Azure)
-│   ├── database/        # Vector database
-│   ├── gpu/             # GPU acceleration
-│   ├── network/         # Distributed compute
-│   ├── observability/   # Metrics and tracing
-│   └── web/             # Web/HTTP utilities
+├── core/                    # Framework orchestration
+│   ├── config/              # Unified configuration (per-feature configs)
+│   ├── framework.zig        # Framework lifecycle state machine
+│   ├── mod.zig              # Core module aggregator
+│   ├── registry/            # Feature registry and discovery
+│   ├── startup/             # Banner and bootstrap (banner.zig, mod.zig)
+│   └── wasm/                # WASM-specific support (mod.zig, stub.zig)
 │
-└── services/            # Shared infrastructure
-    ├── runtime/         # Scheduling, concurrency, memory
-    ├── platform/        # Platform detection and SIMD capabilities
-    ├── shared/          # Logging, io, utils, security
-    ├── connectors/      # External API connectors
-    ├── ha/              # High availability
-    ├── tasks/           # Task management
-    └── tests/           # Test infrastructure
+├── features/                # Feature modules (mod.zig + stub.zig each)
+│   ├── ai/                  # AI/ML — 17 submodules, 255+ files
+│   ├── analytics/           # Event tracking and experiments
+│   ├── cloud/               # Cloud adapters (AWS, GCP, Azure) — gated by enable_web
+│   ├── database/            # Vector database (HNSW, clustering)
+│   ├── gpu/                 # GPU compute — 11 backends, DSL, multi-GPU
+│   ├── network/             # Distributed compute and networking
+│   ├── observability/       # Metrics and tracing — gated by enable_profiling
+│   └── web/                 # Web/HTTP framework and middleware
+│
+├── lib/                     # Library entry points
+│   ├── lib_main.zig         # Shared/static library entry
+│   └── wasm_main.zig        # WASM library entry
+│
+└── services/                # Always-available infrastructure
+    ├── connectors/          # External API connectors
+    │   ├── mod.zig          #   Aggregator + stub.zig
+    │   ├── anthropic.zig    #   Claude API
+    │   ├── openai.zig       #   OpenAI API
+    │   ├── ollama.zig       #   Local Ollama
+    │   ├── huggingface.zig  #   HuggingFace Hub
+    │   ├── cohere.zig       #   Cohere API
+    │   ├── mistral.zig      #   Mistral API
+    │   └── discord/         #   Discord bot (mod, types, utils, rest)
+    │
+    ├── ha/                  # High availability
+    │   ├── consensus.zig    #   Raft consensus
+    │   ├── failover.zig     #   Automatic failover
+    │   ├── pitr.zig         #   Point-in-time recovery
+    │   └── replication.zig  #   Data replication
+    │
+    ├── platform/            # Platform detection and capabilities
+    │   ├── mod.zig          #   Platform aggregator + SIMD detection
+    │   ├── android.zig      #   Android support
+    │   ├── ios.zig          #   iOS support
+    │   ├── linux.zig        #   Linux support
+    │   ├── macos.zig        #   macOS support
+    │   ├── wasm.zig         #   WASM support
+    │   └── windows.zig      #   Windows support
+    │
+    ├── runtime/             # Scheduling, concurrency, memory
+    │   ├── mod.zig          #   Runtime aggregator
+    │   ├── concurrency/     #   Vyukov MPMC channel
+    │   └── scheduling/      #   Work-stealing thread pool, DAG pipeline
+    │
+    ├── shared/              # Cross-cutting utilities
+    │   ├── mod.zig          #   Shared aggregator
+    │   ├── time.zig         #   Cross-platform time (sleepMs, getSeed)
+    │   ├── tensor.zig       #   Tensor primitives (v2)
+    │   ├── matrix.zig       #   Matrix primitives (v2)
+    │   ├── simd.zig         #   SIMD kernels (euclidean, softmax, saxpy, etc.)
+    │   ├── security/        #   16 security modules (auth, JWT, CORS, TLS, etc.)
+    │   └── utils/           #   v2 utilities (see below)
+    │
+    ├── tasks/               # Task management and pipelines
+    │   ├── scheduler.zig
+    │   └── pipeline.zig
+    │
+    └── tests/               # Test infrastructure
+        ├── mod.zig          #   Test root (944 pass, 5 skip baseline)
+        ├── parity/          #   DeclSpec mod/stub parity tests
+        ├── integration/     #   Integration tests
+        ├── stress/          #   Stress tests
+        ├── chaos/           #   Chaos/fault injection tests
+        ├── property/        #   Property-based tests
+        └── <feature>/       #   Per-feature test suites (ai, analytics, cloud, ...)
 ```
+
+## v2 Module Integration
+
+Newer v2 primitives are wired through `shared` and `runtime`, not feature-local imports.
+
+| Module | Location | Public Access |
+|--------|----------|---------------|
+| Primitive helpers | `shared/utils/v2_primitives.zig` | `abi.shared.utils.v2_primitives` |
+| Structured errors | `shared/utils/structured_error.zig` | `abi.shared.utils.structured_error` |
+| SwissMap | `shared/utils/swiss_map.zig` | `abi.shared.utils.swiss_map` |
+| ABIX serialization | `shared/utils/abix_serialize.zig` | `abi.shared.utils.abix_serialize` |
+| Profiler | `shared/utils/profiler.zig` | `abi.shared.utils.profiler` |
+| Benchmark | `shared/utils/benchmark.zig` | `abi.shared.utils.benchmark` |
+| Arena pool | `shared/utils/memory/arena_pool.zig` | `abi.shared.memory.ArenaPool` |
+| Allocator combinators | `shared/utils/memory/combinators.zig` | `abi.shared.memory.FallbackAllocator` |
+| Tensor ops | `shared/tensor.zig` | `abi.shared.tensor` |
+| Matrix ops | `shared/matrix.zig` | `abi.shared.matrix` |
+| SIMD kernels | `shared/simd.zig` | `abi.shared.simd` / `abi.vectorAdd`, etc. |
+| MPMC channel | `runtime/concurrency/channel.zig` | `abi.runtime.Channel` |
+| Thread pool | `runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
+| DAG pipeline | `runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
 
 ## Key Entry Points
 
-- **Public API**: `abi.zig` - `abi.initDefault()`, `Framework.builder()`, `Framework.deinit()`, `abi.version()`
-- **Configuration**: `core/config/mod.zig` - Unified `Config` struct with `Builder` API
-- **Framework**: `core/framework.zig` - `Framework` struct manages feature lifecycle
-- **Runtime**: `services/runtime/mod.zig` - Always-available scheduling and concurrency
+- **Public API**: `abi.zig` — `abi.initDefault()`, `abi.initWithConfig()`, `Framework.builder()`, `abi.version()`
+- **Configuration**: `core/config/mod.zig` — Unified `Config` struct with `Builder` API
+- **Framework**: `core/framework.zig` — State machine: uninitialized -> initializing -> running -> stopping -> stopped
+- **Runtime**: `services/runtime/mod.zig` — Always-available scheduling and concurrency (not feature-gated)
 
-## Module Pattern
+## Feature Gating Pattern
 
-Top-level modules (gpu, ai, database, network, observability, web) follow this pattern:
+Every feature module in `features/` follows this comptime pattern in `abi.zig`:
 
-1. Re-export types and functions from implementation directories
-2. Add a `Context` struct for Framework integration
-3. Provide `isEnabled()` function for compile-time feature detection
-4. Have a corresponding `stub.zig` for when the feature is disabled
+```zig
+pub const gpu = if (build_options.enable_gpu)
+    @import("features/gpu/mod.zig")    // Real implementation
+else
+    @import("features/gpu/stub.zig");  // Returns error.FeatureDisabled
+```
+
+| Feature | Build Flag | Notes |
+|---------|-----------|-------|
+| `ai` | `enable_ai` | 17 submodules, each with own mod/stub |
+| `analytics` | `enable_analytics` | Event tracking, experiments |
+| `cloud` | `enable_web` | Shares flag with web (intentional coupling) |
+| `database` | `enable_database` | Vector DB, HNSW, clustering |
+| `gpu` | `enable_gpu` | 11 backends via `-Dgpu-backend=` |
+| `network` | `enable_network` | Distributed compute |
+| `observability` | `enable_profiling` | Metrics and tracing |
+| `web` | `enable_web` | HTTP framework |
+
+All default to `true` except `enable_mobile`. Validate combinations: `zig build validate-flags`.
+
+## Module Integration Contract
+
+Top-level feature modules expose:
+
+1. **Types and functions** — re-exported from internal implementation files
+2. **`Context` struct** — for `Framework` integration (init/deinit lifecycle)
+3. **`isEnabled()` function** — returns `true` in mod.zig, `false` in stub.zig
+4. **Matching `stub.zig`** — identical public signatures, returns `error.FeatureDisabled`
 
 ```zig
 // Example: src/features/gpu/mod.zig
-const unified = @import("unified.zig");
-
-// Re-exports
-pub const Gpu = unified.Gpu;
-pub const Buffer = unified.GpuBuffer;
-
-// Context for Framework integration
 pub const Context = struct {
     allocator: std.mem.Allocator,
     config: config_module.GpuConfig,
@@ -97,9 +185,15 @@ pub fn isEnabled() bool {
 }
 ```
 
+## Import Conventions
+
+- Public API: `@import("abi")` — never deep file paths across module boundaries
+- Feature modules cannot `@import("abi")` (circular) — use relative imports
+- For time/sync in feature code: relative import to `services/shared/time.zig`
+- Files that import `abi`: use `abi.shared.time` and `abi.shared.sync`
+
 ## See Also
 
-- [CLAUDE.md](../CLAUDE.md) - Full project documentation
-- [API Reference](../docs/api-reference.md)
-- [Docs Map](../docs/README.md) - Documentation layout and entry points
-- [docs/README.md](../docs/README.md) - Documentation site source
+- [CLAUDE.md](../CLAUDE.md) — Build commands, gotchas, architecture guide
+- [AGENTS.md](../AGENTS.md) — Agent instructions, v2 notes, style guide
+- [API Reference](../docs/api/index.md) — Auto-generated (`zig build gendocs`)

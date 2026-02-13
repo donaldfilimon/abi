@@ -490,7 +490,7 @@ pub const StreamRecovery = struct {
     ) void {
         if (self.cache) |cache| {
             cache.storeToken(session_id, event_id, text, backend, prompt_hash) catch |err| {
-                std.debug.print("StreamRecovery: failed to cache token: {t}\n", .{err});
+                std.log.warn("StreamRecovery: failed to cache token: {t}", .{err});
             };
         }
     }

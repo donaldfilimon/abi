@@ -16,9 +16,16 @@ import platform
 
 __version__ = "0.4.0"
 __all__ = [
-    "Framework", "VectorDatabase", "GPU", "Agent",
-    "AbiError", "SimdCaps", "VersionInfo",
-    "SearchResult", "AgentResponse", "AgentStats",
+    "Framework",
+    "VectorDatabase",
+    "GPU",
+    "Agent",
+    "AbiError",
+    "SimdCaps",
+    "VersionInfo",
+    "SearchResult",
+    "AgentResponse",
+    "AgentStats",
 ]
 
 # ============================================================================
@@ -81,6 +88,7 @@ _ERROR_MESSAGES = {
 # C structures (matching abi.h)
 # ============================================================================
 
+
 class _AbiOptions(ctypes.Structure):
     _fields_ = [
         ("enable_ai", ctypes.c_bool),
@@ -91,6 +99,7 @@ class _AbiOptions(ctypes.Structure):
         ("enable_profiling", ctypes.c_bool),
     ]
 
+
 class _AbiVersionInfo(ctypes.Structure):
     _fields_ = [
         ("major", ctypes.c_int),
@@ -98,6 +107,7 @@ class _AbiVersionInfo(ctypes.Structure):
         ("patch", ctypes.c_int),
         ("full", ctypes.c_char_p),
     ]
+
 
 class _AbiSimdCaps(ctypes.Structure):
     _fields_ = [
@@ -113,12 +123,14 @@ class _AbiSimdCaps(ctypes.Structure):
         ("neon", ctypes.c_bool),
     ]
 
+
 class _AbiDatabaseConfig(ctypes.Structure):
     _fields_ = [
         ("name", ctypes.c_char_p),
         ("dimension", ctypes.c_size_t),
         ("initial_capacity", ctypes.c_size_t),
     ]
+
 
 class _AbiGpuConfig(ctypes.Structure):
     _fields_ = [
@@ -127,11 +139,13 @@ class _AbiGpuConfig(ctypes.Structure):
         ("enable_profiling", ctypes.c_bool),
     ]
 
+
 class _AbiSearchResult(ctypes.Structure):
     _fields_ = [
         ("id", ctypes.c_uint64),
         ("score", ctypes.c_float),
     ]
+
 
 class _AbiAgentConfig(ctypes.Structure):
     _fields_ = [
@@ -145,12 +159,14 @@ class _AbiAgentConfig(ctypes.Structure):
         ("enable_history", ctypes.c_bool),
     ]
 
+
 class _AbiAgentResponse(ctypes.Structure):
     _fields_ = [
         ("text", ctypes.c_char_p),
         ("length", ctypes.c_size_t),
         ("tokens_used", ctypes.c_uint64),
     ]
+
 
 class _AbiAgentStats(ctypes.Structure):
     _fields_ = [
@@ -165,6 +181,7 @@ class _AbiAgentStats(ctypes.Structure):
 # ============================================================================
 # Error handling
 # ============================================================================
+
 
 class AbiError(Exception):
     """Exception raised for ABI C API errors."""
@@ -187,6 +204,7 @@ def _check(code, context=""):
 # ============================================================================
 # Library loader
 # ============================================================================
+
 
 def _load_lib(lib_path=None):
     """Load the ABI shared library."""
@@ -226,7 +244,8 @@ def _setup_signatures(lib):
 
     lib.abi_init_with_options.restype = ctypes.c_int
     lib.abi_init_with_options.argtypes = [
-        ctypes.POINTER(_AbiOptions), ctypes.POINTER(ctypes.c_void_p)
+        ctypes.POINTER(_AbiOptions),
+        ctypes.POINTER(ctypes.c_void_p),
     ]
 
     lib.abi_shutdown.restype = None
@@ -241,6 +260,12 @@ def _setup_signatures(lib):
     lib.abi_is_feature_enabled.restype = ctypes.c_bool
     lib.abi_is_feature_enabled.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
+    lib.abi_get_state.restype = ctypes.c_char_p
+    lib.abi_get_state.argtypes = [ctypes.c_void_p]
+
+    lib.abi_enabled_feature_count.restype = ctypes.c_int
+    lib.abi_enabled_feature_count.argtypes = [ctypes.c_void_p]
+
     # SIMD
     lib.abi_simd_get_caps.restype = None
     lib.abi_simd_get_caps.argtypes = [ctypes.POINTER(_AbiSimdCaps)]
@@ -250,27 +275,37 @@ def _setup_signatures(lib):
 
     lib.abi_simd_vector_add.restype = None
     lib.abi_simd_vector_add.argtypes = [
-        ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float),
-        ctypes.POINTER(ctypes.c_float), ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.c_size_t,
     ]
 
     lib.abi_simd_vector_dot.restype = ctypes.c_float
     lib.abi_simd_vector_dot.argtypes = [
-        ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.c_size_t,
     ]
 
     lib.abi_simd_vector_l2_norm.restype = ctypes.c_float
-    lib.abi_simd_vector_l2_norm.argtypes = [ctypes.POINTER(ctypes.c_float), ctypes.c_size_t]
+    lib.abi_simd_vector_l2_norm.argtypes = [
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.c_size_t,
+    ]
 
     lib.abi_simd_cosine_similarity.restype = ctypes.c_float
     lib.abi_simd_cosine_similarity.argtypes = [
-        ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float), ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.c_size_t,
     ]
 
     # Database
     lib.abi_database_create.restype = ctypes.c_int
     lib.abi_database_create.argtypes = [
-        ctypes.POINTER(_AbiDatabaseConfig), ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(_AbiDatabaseConfig),
+        ctypes.POINTER(ctypes.c_void_p),
     ]
 
     lib.abi_database_close.restype = None
@@ -278,14 +313,21 @@ def _setup_signatures(lib):
 
     lib.abi_database_insert.restype = ctypes.c_int
     lib.abi_database_insert.argtypes = [
-        ctypes.c_void_p, ctypes.c_uint64,
-        ctypes.POINTER(ctypes.c_float), ctypes.c_size_t, ctypes.c_char_p,
+        ctypes.c_void_p,
+        ctypes.c_uint64,
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.c_size_t,
+        ctypes.c_char_p,
     ]
 
     lib.abi_database_search.restype = ctypes.c_int
     lib.abi_database_search.argtypes = [
-        ctypes.c_void_p, ctypes.POINTER(ctypes.c_float), ctypes.c_size_t,
-        ctypes.c_size_t, ctypes.POINTER(_AbiSearchResult), ctypes.POINTER(ctypes.c_size_t),
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.c_size_t,
+        ctypes.c_size_t,
+        ctypes.POINTER(_AbiSearchResult),
+        ctypes.POINTER(ctypes.c_size_t),
     ]
 
     lib.abi_database_delete.restype = ctypes.c_int
@@ -296,7 +338,10 @@ def _setup_signatures(lib):
 
     # GPU
     lib.abi_gpu_init.restype = ctypes.c_int
-    lib.abi_gpu_init.argtypes = [ctypes.POINTER(_AbiGpuConfig), ctypes.POINTER(ctypes.c_void_p)]
+    lib.abi_gpu_init.argtypes = [
+        ctypes.POINTER(_AbiGpuConfig),
+        ctypes.POINTER(ctypes.c_void_p),
+    ]
 
     lib.abi_gpu_shutdown.restype = None
     lib.abi_gpu_shutdown.argtypes = [ctypes.c_void_p]
@@ -310,7 +355,8 @@ def _setup_signatures(lib):
     # Agent
     lib.abi_agent_create.restype = ctypes.c_int
     lib.abi_agent_create.argtypes = [
-        ctypes.POINTER(_AbiAgentConfig), ctypes.POINTER(ctypes.c_void_p),
+        ctypes.POINTER(_AbiAgentConfig),
+        ctypes.POINTER(ctypes.c_void_p),
     ]
 
     lib.abi_agent_destroy.restype = None
@@ -318,7 +364,9 @@ def _setup_signatures(lib):
 
     lib.abi_agent_send.restype = ctypes.c_int
     lib.abi_agent_send.argtypes = [
-        ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(_AbiAgentResponse),
+        ctypes.c_void_p,
+        ctypes.c_char_p,
+        ctypes.POINTER(_AbiAgentResponse),
     ]
 
     lib.abi_agent_get_status.restype = ctypes.c_int
@@ -352,6 +400,7 @@ def _setup_signatures(lib):
 # ============================================================================
 # Data classes
 # ============================================================================
+
 
 class VersionInfo:
     """Detailed version information."""
@@ -408,8 +457,14 @@ class AgentResponse:
 class AgentStats:
     """Agent conversation statistics."""
 
-    def __init__(self, history_length, user_messages, assistant_messages,
-                 total_characters, total_tokens_used):
+    def __init__(
+        self,
+        history_length,
+        user_messages,
+        assistant_messages,
+        total_characters,
+        total_tokens_used,
+    ):
         self.history_length = history_length
         self.user_messages = user_messages
         self.assistant_messages = assistant_messages
@@ -421,6 +476,7 @@ class AgentStats:
 # Framework
 # ============================================================================
 
+
 class Framework:
     """ABI framework instance.
 
@@ -431,14 +487,29 @@ class Framework:
         >>> fw.shutdown()
     """
 
-    def __init__(self, lib_path=None, enable_ai=True, enable_gpu=True,
-                 enable_database=True, enable_network=True, enable_web=True,
-                 enable_profiling=True):
+    def __init__(
+        self,
+        lib_path=None,
+        enable_ai=True,
+        enable_gpu=True,
+        enable_database=True,
+        enable_network=True,
+        enable_web=True,
+        enable_profiling=True,
+    ):
         self._lib = _setup_signatures(_load_lib(lib_path))
         self._handle = ctypes.c_void_p()
 
-        all_defaults = all([enable_ai, enable_gpu, enable_database,
-                           enable_network, enable_web, enable_profiling])
+        all_defaults = all(
+            [
+                enable_ai,
+                enable_gpu,
+                enable_database,
+                enable_network,
+                enable_web,
+                enable_profiling,
+            ]
+        )
 
         if all_defaults:
             code = self._lib.abi_init(ctypes.byref(self._handle))
@@ -468,7 +539,7 @@ class Framework:
 
     def shutdown(self):
         """Shutdown the framework and release all resources."""
-        if hasattr(self, '_handle') and self._handle:
+        if hasattr(self, "_handle") and self._handle:
             self._lib.abi_shutdown(self._handle)
             self._handle = None
 
@@ -480,8 +551,12 @@ class Framework:
         """Return detailed version information."""
         info = _AbiVersionInfo()
         self._lib.abi_version_info(ctypes.byref(info))
-        return VersionInfo(info.major, info.minor, info.patch,
-                          info.full.decode("utf-8") if info.full else "")
+        return VersionInfo(
+            info.major,
+            info.minor,
+            info.patch,
+            info.full.decode("utf-8") if info.full else "",
+        )
 
     def is_feature_enabled(self, feature):
         """Check if a feature is enabled.
@@ -489,9 +564,15 @@ class Framework:
         Args:
             feature: Feature name ("ai", "gpu", "database", "network", "web", "profiling").
         """
-        return self._lib.abi_is_feature_enabled(
-            self._handle, feature.encode("utf-8")
-        )
+        return self._lib.abi_is_feature_enabled(self._handle, feature.encode("utf-8"))
+
+    def state(self):
+        """Get the current framework state (e.g. 'running', 'stopped')."""
+        return self._lib.abi_get_state(self._handle).decode("utf-8")
+
+    def enabled_feature_count(self):
+        """Get the number of features that initialized successfully."""
+        return self._lib.abi_enabled_feature_count(self._handle)
 
     def error_string(self, code):
         """Return human-readable error message for an error code."""
@@ -555,8 +636,9 @@ class Framework:
 
     # GPU operations
 
-    def gpu_init(self, backend=ABI_GPU_BACKEND_AUTO, device_index=0,
-                 enable_profiling=False):
+    def gpu_init(
+        self, backend=ABI_GPU_BACKEND_AUTO, device_index=0, enable_profiling=False
+    ):
         """Initialize a GPU context.
 
         Args:
@@ -575,9 +657,17 @@ class Framework:
 
     # Agent operations
 
-    def create_agent(self, name="agent", backend=ABI_AGENT_BACKEND_ECHO,
-                     model="gpt-4", system_prompt=None, temperature=0.7,
-                     top_p=0.9, max_tokens=1024, enable_history=True):
+    def create_agent(
+        self,
+        name="agent",
+        backend=ABI_AGENT_BACKEND_ECHO,
+        model="gpt-4",
+        system_prompt=None,
+        temperature=0.7,
+        top_p=0.9,
+        max_tokens=1024,
+        enable_history=True,
+    ):
         """Create a new AI agent.
 
         Args:
@@ -593,13 +683,23 @@ class Framework:
         Returns:
             Agent instance.
         """
-        return Agent(self._lib, name, backend, model, system_prompt,
-                     temperature, top_p, max_tokens, enable_history)
+        return Agent(
+            self._lib,
+            name,
+            backend,
+            model,
+            system_prompt,
+            temperature,
+            top_p,
+            max_tokens,
+            enable_history,
+        )
 
 
 # ============================================================================
 # VectorDatabase
 # ============================================================================
+
 
 class VectorDatabase:
     """Vector database instance."""
@@ -628,7 +728,7 @@ class VectorDatabase:
 
     def close(self):
         """Close the database and release resources."""
-        if hasattr(self, '_handle') and self._handle:
+        if hasattr(self, "_handle") and self._handle:
             self._lib.abi_database_close(self._handle)
             self._handle = None
 
@@ -666,8 +766,9 @@ class VectorDatabase:
             self._handle, c_query, n, k, results, ctypes.byref(count)
         )
         _check(code, "Database search")
-        return [SearchResult(results[i].id, results[i].score)
-                for i in range(count.value)]
+        return [
+            SearchResult(results[i].id, results[i].score) for i in range(count.value)
+        ]
 
     def delete(self, id):
         """Delete a vector by ID."""
@@ -686,6 +787,7 @@ class VectorDatabase:
 # GPU
 # ============================================================================
 
+
 class GPU:
     """GPU context instance."""
 
@@ -697,9 +799,7 @@ class GPU:
             device_index=device_index,
             enable_profiling=enable_profiling,
         )
-        code = self._lib.abi_gpu_init(
-            ctypes.byref(config), ctypes.byref(self._handle)
-        )
+        code = self._lib.abi_gpu_init(ctypes.byref(config), ctypes.byref(self._handle))
         _check(code, "GPU init")
 
     def __del__(self):
@@ -713,7 +813,7 @@ class GPU:
 
     def shutdown(self):
         """Shutdown GPU context and release resources."""
-        if hasattr(self, '_handle') and self._handle:
+        if hasattr(self, "_handle") and self._handle:
             self._lib.abi_gpu_shutdown(self._handle)
             self._handle = None
 
@@ -726,11 +826,22 @@ class GPU:
 # Agent
 # ============================================================================
 
+
 class Agent:
     """AI agent instance."""
 
-    def __init__(self, lib, name, backend, model, system_prompt,
-                 temperature, top_p, max_tokens, enable_history):
+    def __init__(
+        self,
+        lib,
+        name,
+        backend,
+        model,
+        system_prompt,
+        temperature,
+        top_p,
+        max_tokens,
+        enable_history,
+    ):
         self._lib = lib
         self._handle = ctypes.c_void_p()
         config = _AbiAgentConfig(
@@ -759,7 +870,7 @@ class Agent:
 
     def destroy(self):
         """Destroy the agent and release resources."""
-        if hasattr(self, '_handle') and self._handle:
+        if hasattr(self, "_handle") and self._handle:
             self._lib.abi_agent_destroy(self._handle)
             self._handle = None
 
@@ -789,9 +900,13 @@ class Agent:
         s = _AbiAgentStats()
         code = self._lib.abi_agent_get_stats(self._handle, ctypes.byref(s))
         _check(code, "Agent get stats")
-        return AgentStats(s.history_length, s.user_messages,
-                         s.assistant_messages, s.total_characters,
-                         s.total_tokens_used)
+        return AgentStats(
+            s.history_length,
+            s.user_messages,
+            s.assistant_messages,
+            s.total_characters,
+            s.total_tokens_used,
+        )
 
     def clear_history(self):
         """Clear the conversation history."""

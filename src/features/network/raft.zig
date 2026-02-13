@@ -473,8 +473,9 @@ pub const RaftNode = struct {
         // Update leader info
         if (self.leader_id) |lid| {
             if (!std.mem.eql(u8, lid, request.leader_id)) {
+                const new_leader = try self.allocator.dupe(u8, request.leader_id);
                 self.allocator.free(lid);
-                self.leader_id = try self.allocator.dupe(u8, request.leader_id);
+                self.leader_id = new_leader;
             }
         } else {
             self.leader_id = try self.allocator.dupe(u8, request.leader_id);
@@ -509,6 +510,7 @@ pub const RaftNode = struct {
                 if (self.log.items[log_idx].term != entry.term) {
                     self.truncateLog(log_idx);
                     const data_copy = try self.allocator.dupe(u8, entry.data);
+                    errdefer self.allocator.free(data_copy);
                     const new_entry = LogEntry{
                         .term = entry.term,
                         .index = entry.index,
@@ -520,6 +522,7 @@ pub const RaftNode = struct {
             } else {
                 // New entry
                 const data_copy = try self.allocator.dupe(u8, entry.data);
+                errdefer self.allocator.free(data_copy);
                 const new_entry = LogEntry{
                     .term = entry.term,
                     .index = entry.index,
@@ -674,8 +677,9 @@ pub const RaftNode = struct {
         // Update leader_id
         if (self.leader_id) |lid| {
             if (!std.mem.eql(u8, lid, self.node_id)) {
+                const new_leader = try self.allocator.dupe(u8, self.node_id);
                 self.allocator.free(lid);
-                self.leader_id = try self.allocator.dupe(u8, self.node_id);
+                self.leader_id = new_leader;
             }
         } else {
             self.leader_id = try self.allocator.dupe(u8, self.node_id);
@@ -691,6 +695,7 @@ pub const RaftNode = struct {
 
         // Append no-op entry
         const noop_data = try self.allocator.dupe(u8, "");
+        errdefer self.allocator.free(noop_data);
         const noop = LogEntry{
             .term = self.current_term,
             .index = self.getLastLogIndex() + 1,
@@ -1316,8 +1321,9 @@ pub const RaftSnapshotManager = struct {
                     {
                         latest_index = parsed.index;
                         latest_term = parsed.term;
+                        const new_filename = try self.allocator.dupe(u8, entry.name);
                         if (latest_filename) |f| self.allocator.free(f);
-                        latest_filename = try self.allocator.dupe(u8, entry.name);
+                        latest_filename = new_filename;
                     }
                 }
             }
@@ -1404,8 +1410,10 @@ pub const RaftSnapshotManager = struct {
         while (try dir_iter.next(io)) |entry| {
             if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".snap")) {
                 if (parseSnapshotFilename(entry.name)) |parsed| {
+                    const filename = try self.allocator.dupe(u8, entry.name);
+                    errdefer self.allocator.free(filename);
                     try snapshots.append(self.allocator, .{
-                        .filename = try self.allocator.dupe(u8, entry.name),
+                        .filename = filename,
                         .last_included_index = parsed.index,
                         .last_included_term = parsed.term,
                     });

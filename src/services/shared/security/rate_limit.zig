@@ -464,7 +464,7 @@ pub const RateLimiter = struct {
         if (current < limit) {
             // If we can't track the request, deny it (fail-safe for security)
             bucket.requests.append(self.allocator, now) catch {
-                std.debug.print("[rate_limit] Failed to track request - denying for safety\n", .{});
+                std.log.warn("rate_limit: failed to track request, denying for safety", .{});
                 return .{
                     .allowed = false,
                     .remaining = 0,

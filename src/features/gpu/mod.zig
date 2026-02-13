@@ -267,6 +267,18 @@ comptime {
         _ = @import("platform.zig");
         // Built-in kernel tests (includes linalg, reduction, etc.)
         _ = @import("builtin_kernels.zig");
+        // Extracted submodule tests
+        _ = @import("dispatcher_test.zig");
+        _ = @import("multi_device_test.zig");
+        // Extracted type modules (compile-check)
+        _ = @import("dispatch_types.zig");
+        _ = @import("batched_dispatch.zig");
+        _ = @import("device_group.zig");
+        _ = @import("gpu_cluster.zig");
+        _ = @import("gradient_sync.zig");
+        // Backend extracted tests
+        _ = @import("backends/metal_test.zig");
+        _ = @import("backends/vulkan_test.zig");
     }
 }
 
@@ -555,11 +567,14 @@ pub const Context = struct {
         // Convert config_module.GpuConfig to unified.GpuConfig
         const preferred_backend: ?Backend = switch (cfg.backend) {
             .auto => null,
-            .vulkan => .vulkan,
             .cuda => .cuda,
+            .vulkan => .vulkan,
+            .stdgpu => .stdgpu,
             .metal => .metal,
             .webgpu => .webgpu,
             .opengl => .opengl,
+            .opengles => .opengles,
+            .webgl2 => .webgl2,
             .fpga => .fpga,
             .cpu => .stdgpu, // CPU fallback uses stdgpu backend
         };

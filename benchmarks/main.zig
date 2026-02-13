@@ -26,6 +26,7 @@ const memory = @import("infrastructure/memory.zig");
 const concurrency = @import("infrastructure/concurrency.zig");
 const network = @import("infrastructure/network.zig");
 const crypto = @import("infrastructure/crypto.zig");
+const v2_modules = @import("infrastructure/v2_modules.zig");
 
 // Consolidated domain modules
 const database = @import("domain/database/mod.zig");
@@ -45,6 +46,7 @@ const BenchmarkSuite = enum {
     crypto,
     ai,
     gpu,
+    v2,
     quick,
 };
 
@@ -100,6 +102,7 @@ fn parseSuite(name: []const u8) BenchmarkSuite {
     if (std.mem.eql(u8, name, "crypto")) return .crypto;
     if (std.mem.eql(u8, name, "ai")) return .ai;
     if (std.mem.eql(u8, name, "gpu")) return .gpu;
+    if (std.mem.eql(u8, name, "v2")) return .v2;
     if (std.mem.eql(u8, name, "quick")) return .quick;
     if (std.mem.eql(u8, name, "all")) return .all;
     return .all; // Default to all if unknown
@@ -114,7 +117,7 @@ fn printHelp() void {
         \\Options:
         \\  --suite=<name>    Run specific benchmark suite
         \\                    Available: all, simd, memory, concurrency,
-        \\                               database, network, crypto, ai, gpu, quick
+        \\                               database, network, crypto, ai, gpu, v2, quick
         \\  --output=<file>   Output results to JSON file
         \\  --json            Output results as JSON to stdout
         \\  --verbose, -v     Show verbose output
@@ -130,6 +133,7 @@ fn printHelp() void {
         \\  crypto        Cryptographic operations (hashing, encryption, KDF)
         \\  ai            AI/ML inference (GEMM, attention, activations, LLM metrics)
         \\  gpu           GPU kernel operations (matmul, vector ops, reductions, memory)
+        \\  v2            v2 modules (SIMD activations, matrix, SwissMap, primitives)
         \\  quick         Fast subset for continuous integration
         \\  all           Run all benchmark suites (default)
         \\
@@ -285,6 +289,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
             printSuiteHeader("GPU Kernel Operations");
             try gpu_bench.runAllBenchmarks(allocator, .standard);
+
+            printSuiteHeader("v2 Module Benchmarks");
+            try v2_modules.runV2Benchmarks(allocator, .{});
         },
         .simd => {
             printSuiteHeader("SIMD/Vector Operations");
@@ -317,6 +324,10 @@ pub fn main(init: std.process.Init.Minimal) !void {
         .gpu => {
             printSuiteHeader("GPU Kernel Operations");
             try gpu_bench.runAllBenchmarks(allocator, .standard);
+        },
+        .v2 => {
+            printSuiteHeader("v2 Module Benchmarks");
+            try v2_modules.runV2Benchmarks(allocator, .{});
         },
         .quick => {
             printSuiteHeader("Quick Benchmark Suite (CI Mode)");
@@ -351,6 +362,13 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
             // GPU - quick config
             try gpu_bench.runAllBenchmarks(allocator, .quick);
+
+            // v2 modules - quick config
+            try v2_modules.runV2Benchmarks(allocator, .{
+                .vector_sizes = &.{ 64, 256 },
+                .matrix_sizes = &.{ 32, 64 },
+                .map_sizes = &.{100},
+            });
         },
     }
 
@@ -407,5 +425,6 @@ test "benchmark imports" {
     _ = crypto;
     _ = ai;
     _ = gpu_bench;
+    _ = v2_modules;
     _ = core;
 }

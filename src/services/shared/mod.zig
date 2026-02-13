@@ -72,7 +72,7 @@ pub const plugins = @import("plugins.zig");
 /// SIMD (Single Instruction, Multiple Data) vector operations.
 /// Provides optimized vector math with automatic fallback to scalar operations
 /// when SIMD is not available. Includes dot product, L2 norm, and cosine similarity.
-pub const simd = @import("simd.zig");
+pub const simd = @import("simd/mod.zig");
 
 /// General-purpose utility functions: time, math, string, lifecycle management.
 /// See sub-modules for specialized utilities (crypto, encoding, fs, http, json, net).
@@ -98,6 +98,12 @@ pub const io = @import("io.zig");
 /// Provides consistent error types and placeholder implementations.
 pub const stub_common = @import("stub_common.zig");
 
+/// Dense matrix operations with SIMD-accelerated multiply (v2).
+pub const matrix = @import("matrix.zig");
+
+/// Multi-dimensional tensor operations with broadcasting (v2).
+pub const tensor = @import("tensor.zig");
+
 // ============================================================================
 // Security Sub-module
 // ============================================================================
@@ -118,37 +124,13 @@ pub const stub_common = @import("stub_common.zig");
 /// See `security/mod.zig` for full API documentation.
 pub const security = @import("security/mod.zig");
 
-// ============================================================================
-// Utils Sub-modules (Direct Access)
-// ============================================================================
+/// POSIX signal handling for graceful shutdown.
+/// Sets a shared atomic flag on SIGINT/SIGTERM.
+pub const signal = @import("signal.zig");
 
-/// Memory management utilities including pools, arenas, and leak detection.
-/// Provides specialized allocators for different use cases.
-pub const memory = @import("utils/memory/mod.zig");
-
-/// Cryptographic utilities: hashing, random generation, secure comparison.
-/// Wraps std.crypto with convenient higher-level APIs.
-pub const crypto = @import("utils/crypto/mod.zig");
-
-/// Encoding and decoding utilities: Base64, hex, URL encoding.
-/// Supports both allocating and buffer-based APIs.
-pub const encoding = @import("utils/encoding/mod.zig");
-
-/// Filesystem utilities for file and directory operations.
-/// Compatible with Zig 0.16's I/O backend model.
-pub const fs = @import("utils/fs/mod.zig");
-
-/// HTTP client utilities for making web requests.
-/// Includes retry logic, timeouts, and connection pooling.
-pub const http = @import("utils/http/mod.zig");
-
-/// JSON parsing and serialization utilities.
-/// Provides both streaming and DOM-based parsing.
-pub const json = @import("utils/json/mod.zig");
-
-/// Network utilities: address parsing, DNS resolution, socket helpers.
-/// Platform-independent networking primitives.
-pub const net = @import("utils/net/mod.zig");
+// Utils sub-modules are accessible via `shared.utils.*` (e.g., `shared.utils.memory`,
+// `shared.utils.json`, `shared.utils.crypto`). No direct re-exports here to avoid
+// duplicate paths to the same modules.
 
 // ============================================================================
 // Legacy Compatibility

@@ -6,7 +6,7 @@ pub const ExecutionResult = struct {
     execution_time_ns: u64 = 0,
     elements_processed: usize = 0,
     bytes_transferred: usize = 0,
-    backend: backend_mod.Backend = .cpu,
+    backend: backend_mod.Backend = .stdgpu,
     device_id: u32 = 0,
 };
 pub const ExecutionStats = struct {};

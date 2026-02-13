@@ -128,6 +128,73 @@ pub const SimpleModuleLifecycle = utils.SimpleModuleLifecycle;
 pub const LifecycleError = utils.LifecycleError;
 
 // ============================================================================
+// Matrix Module Stub (v2)
+// ============================================================================
+
+pub const matrix = struct {
+    pub fn Matrix(comptime T: type) type {
+        _ = T;
+        return struct {
+            const Self = @This();
+            pub fn alloc(_: std.mem.Allocator, _: usize, _: usize) !Self {
+                return error.SharedDisabled;
+            }
+            pub fn free(_: *Self, _: std.mem.Allocator) void {}
+            pub fn rows(_: Self) usize {
+                return 0;
+            }
+            pub fn cols(_: Self) usize {
+                return 0;
+            }
+        };
+    }
+    pub const Mat32 = Matrix(f32);
+    pub const Mat64 = Matrix(f64);
+};
+
+// ============================================================================
+// Tensor Module Stub (v2)
+// ============================================================================
+
+pub const tensor = struct {
+    pub const max_rank = 8;
+    pub const Shape = struct {
+        dims: [max_rank]usize = .{0} ** max_rank,
+        rank: usize = 0,
+        pub fn init(dims: []const usize) Shape {
+            var s = Shape{};
+            for (dims, 0..) |d, i| {
+                if (i >= max_rank) break;
+                s.dims[i] = d;
+            }
+            s.rank = @min(dims.len, max_rank);
+            return s;
+        }
+        pub fn totalElements(self: Shape) usize {
+            if (self.rank == 0) return 0;
+            var total: usize = 1;
+            for (self.dims[0..self.rank]) |d| total *= d;
+            return total;
+        }
+    };
+    pub fn Tensor(comptime T: type) type {
+        _ = T;
+        return struct {
+            const Self = @This();
+            pub fn alloc(_: std.mem.Allocator, _: Shape) !Self {
+                return error.SharedDisabled;
+            }
+            pub fn free(_: *Self, _: std.mem.Allocator) void {}
+            pub fn shape(_: Self) Shape {
+                return .{};
+            }
+        };
+    }
+    pub const Tensor32 = Tensor(f32);
+    pub const Tensor64 = Tensor(f64);
+};
+
+// ============================================================================
 // OS Module Stub
 // ============================================================================
 

@@ -20,25 +20,11 @@ const std = @import("std");
 const builtin = @import("builtin");
 const types = @import("../kernel_types.zig");
 const shared = @import("shared.zig");
-const fallback = @import("fallback.zig");
 
-pub const MetalError = error{
-    InitializationFailed,
-    DeviceNotFound,
-    LibraryCompilationFailed,
-    PipelineCreationFailed,
-    CommandQueueCreationFailed,
-    BufferCreationFailed,
-    CommandBufferCreationFailed,
-    KernelExecutionFailed,
-    MemoryCopyFailed,
-    ObjcRuntimeUnavailable,
-    SelectorNotFound,
-    InvalidGridSize,
-    InvalidBlockSize,
-    NSStringCreationFailed,
-    DeviceQueryFailed,
-};
+// Re-export extracted type definitions for build discovery
+pub const metal_types = @import("metal_types.zig");
+
+pub const MetalError = metal_types.MetalError;
 
 // Objective-C runtime types
 const SEL = *anyopaque;
@@ -1161,7 +1147,6 @@ pub fn isAvailable() bool {
 
 const Device = @import("../device.zig").Device;
 const DeviceType = @import("../device.zig").DeviceType;
-const Backend = @import("../backend.zig").Backend;
 
 /// Query properties from a Metal device object.
 fn queryDeviceInfo(mtl_device: ID, allocator: std.mem.Allocator, device_id: u32) !Device {

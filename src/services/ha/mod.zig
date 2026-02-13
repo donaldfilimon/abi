@@ -25,16 +25,8 @@
 const std = @import("std");
 const platform_time = @import("../shared/time.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../shared/sync.zig");
+const Mutex = sync.Mutex;
 
 pub const replication = @import("replication.zig");
 pub const backup = @import("backup.zig");

@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const router_types = @import("../router/types.zig");
 
 /// Parsed HTTP request.
 pub const ParsedRequest = struct {
@@ -137,7 +138,10 @@ pub fn parseRequest(
     };
 
     const request_line = header_section[0..first_line_end];
-    const method, const raw_path, const version = try parseRequestLine(request_line);
+    const parsed_line = try parseRequestLine(request_line);
+    const method = parsed_line.method;
+    const raw_path = parsed_line.raw_path;
+    const version = parsed_line.version;
 
     // Parse path and query
     const path, const query = splitPathQuery(raw_path);
@@ -174,8 +178,14 @@ pub fn parseRequest(
     };
 }
 
+const RequestLine = struct {
+    method: types.Method,
+    raw_path: []const u8,
+    version: HttpVersion,
+};
+
 /// Parses the HTTP request line (e.g., "GET /path HTTP/1.1").
-fn parseRequestLine(line: []const u8) ParseError!struct { types.Method, []const u8, HttpVersion } {
+fn parseRequestLine(line: []const u8) ParseError!RequestLine {
     var parts = std.mem.splitScalar(u8, line, ' ');
 
     const method_str = parts.next() orelse return ParseError.InvalidMethod;
@@ -185,30 +195,28 @@ fn parseRequestLine(line: []const u8) ParseError!struct { types.Method, []const 
     const method = methodFromString(method_str) orelse return ParseError.InvalidMethod;
     const version = HttpVersion.fromString(version_str);
 
-    return .{ method, path, version };
+    return .{
+        .method = method,
+        .raw_path = path,
+        .version = version,
+    };
 }
+
+const method_map = std.StaticStringMap(types.Method).initComptime(.{
+    .{ "GET", .GET },
+    .{ "POST", .POST },
+    .{ "PUT", .PUT },
+    .{ "DELETE", .DELETE },
+    .{ "PATCH", .PATCH },
+    .{ "HEAD", .HEAD },
+    .{ "OPTIONS", .OPTIONS },
+    .{ "CONNECT", .CONNECT },
+    .{ "TRACE", .TRACE },
+});
 
 /// Converts a method string to enum.
 fn methodFromString(s: []const u8) ?types.Method {
-    const methods = [_]struct { []const u8, types.Method }{
-        .{ "GET", .GET },
-        .{ "POST", .POST },
-        .{ "PUT", .PUT },
-        .{ "DELETE", .DELETE },
-        .{ "PATCH", .PATCH },
-        .{ "HEAD", .HEAD },
-        .{ "OPTIONS", .OPTIONS },
-        .{ "CONNECT", .CONNECT },
-        .{ "TRACE", .TRACE },
-    };
-
-    for (methods) |entry| {
-        if (std.mem.eql(u8, s, entry[0])) {
-            return entry[1];
-        }
-    }
-
-    return null;
+    return method_map.get(s);
 }
 
 /// Splits path and query string.
@@ -291,68 +299,35 @@ pub fn extractPathParams(
 }
 
 /// Checks if a path matches a pattern.
-pub fn matchesPattern(pattern: []const u8, path: []const u8) bool {
-    var pattern_parts = std.mem.splitScalar(u8, pattern, '/');
-    var path_parts = std.mem.splitScalar(u8, path, '/');
-
-    while (true) {
-        const pattern_part = pattern_parts.next();
-        const path_part = path_parts.next();
-
-        if (pattern_part == null and path_part == null) {
-            return true; // Both exhausted, match
-        }
-
-        if (pattern_part == null or path_part == null) {
-            return false; // One exhausted before other
-        }
-
-        const pp = pattern_part.?;
-        const pa = path_part.?;
-
-        // Parameter matches anything
-        if (pp.len > 0 and pp[0] == ':') {
-            continue;
-        }
-
-        // Wildcard matches anything
-        if (std.mem.eql(u8, pp, "*")) {
-            continue;
-        }
-
-        // Exact match required
-        if (!std.mem.eql(u8, pp, pa)) {
-            return false;
-        }
-    }
-}
+/// Delegates to the canonical implementation in router/types.zig.
+pub const matchesPattern = router_types.matchPattern;
 
 /// URL decodes a string.
 pub fn urlDecode(allocator: std.mem.Allocator, encoded: []const u8) ![]u8 {
-    var result = std.ArrayList(u8).init(allocator);
-    errdefer result.deinit();
+    var result = std.ArrayListUnmanaged(u8).empty;
+    errdefer result.deinit(allocator);
 
     var i: usize = 0;
     while (i < encoded.len) {
         if (encoded[i] == '%' and i + 2 < encoded.len) {
             const hex = encoded[i + 1 .. i + 3];
             const byte = std.fmt.parseInt(u8, hex, 16) catch {
-                try result.append(encoded[i]);
+                try result.append(allocator, encoded[i]);
                 i += 1;
                 continue;
             };
-            try result.append(byte);
+            try result.append(allocator, byte);
             i += 3;
         } else if (encoded[i] == '+') {
-            try result.append(' ');
+            try result.append(allocator, ' ');
             i += 1;
         } else {
-            try result.append(encoded[i]);
+            try result.append(allocator, encoded[i]);
             i += 1;
         }
     }
 
-    return result.toOwnedSlice();
+    return result.toOwnedSlice(allocator);
 }
 
 test "parse simple GET request" {
@@ -440,4 +415,17 @@ test "keep-alive detection" {
     var req3 = try parseRequest(allocator, raw_3, 8192, 1024);
     defer req3.deinit();
     try std.testing.expect(!req3.wantsKeepAlive());
+}
+
+test "header lookup is case-insensitive" {
+    const allocator = std.testing.allocator;
+    const raw_request =
+        "GET / HTTP/1.1\r\n" ++
+        "content-type: text/plain\r\n" ++
+        "\r\n";
+
+    var request = try parseRequest(allocator, raw_request, 8192, 1024);
+    defer request.deinit();
+
+    try std.testing.expectEqualStrings("text/plain", request.getHeader("Content-Type").?);
 }

@@ -404,31 +404,40 @@ pub const KeyWrapper = struct {
         crypto.secureZero(u8, &self.master_key);
     }
 
-    /// Wrap (encrypt) a data encryption key
-    pub fn wrap(self: *KeyWrapper, dek: [32]u8) ![48]u8 {
+    /// Wrap (encrypt) a data encryption key.
+    /// Returns [60]u8: 12-byte nonce + 32-byte ciphertext + 16-byte tag.
+    pub fn wrap(self: *KeyWrapper, dek: [32]u8) ![60]u8 {
         var nonce: [12]u8 = undefined;
         crypto.random.bytes(&nonce);
 
-        var wrapped: [48]u8 = undefined;
+        var ciphertext: [32]u8 = undefined;
         var tag: [16]u8 = undefined;
 
         const aes = crypto.aead.aes_gcm.Aes256Gcm;
-        aes.encrypt(wrapped[0..32], &tag, &dek, &.{}, nonce, self.master_key);
+        aes.encrypt(&ciphertext, &tag, &dek, &.{}, nonce, self.master_key);
 
-        @memcpy(wrapped[32..48], &tag);
+        var wrapped: [60]u8 = undefined;
+        @memcpy(wrapped[0..12], &nonce);
+        @memcpy(wrapped[12..44], &ciphertext);
+        @memcpy(wrapped[44..60], &tag);
 
         return wrapped;
     }
 
-    /// Unwrap (decrypt) a data encryption key
-    pub fn unwrap(self: *KeyWrapper, wrapped: [48]u8, nonce: [12]u8) ![32]u8 {
+    /// Unwrap (decrypt) a data encryption key.
+    /// Accepts [60]u8: 12-byte nonce + 32-byte ciphertext + 16-byte tag.
+    pub fn unwrap(self: *KeyWrapper, wrapped: [60]u8) ![32]u8 {
+        const nonce = wrapped[0..12].*;
+        const ciphertext = wrapped[12..44];
+        const tag = wrapped[44..60].*;
+
         var dek: [32]u8 = undefined;
 
         const aes = crypto.aead.aes_gcm.Aes256Gcm;
         aes.decrypt(
             &dek,
-            wrapped[0..32],
-            wrapped[32..48].*,
+            ciphertext,
+            tag,
             &.{},
             nonce,
             self.master_key,
@@ -592,13 +601,8 @@ test "key wrapper" {
 
     const dek = generateKey();
 
-    var nonce: [12]u8 = undefined;
-    crypto.random.bytes(&nonce);
-
     const wrapped = try wrapper.wrap(dek);
-    const unwrapped = try wrapper.unwrap(wrapped, nonce);
+    const unwrapped = try wrapper.unwrap(wrapped);
 
-    // Note: This test will fail because we use a random nonce for wrapping
-    // but a different one for unwrapping. In real use, the nonce must be stored.
-    _ = unwrapped;
+    try std.testing.expectEqualSlices(u8, &dek, &unwrapped);
 }

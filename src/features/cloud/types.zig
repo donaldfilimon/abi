@@ -130,10 +130,14 @@ pub const CloudEvent = struct {
     /// Get a header value (case-insensitive lookup).
     pub fn getHeader(self: *const CloudEvent, key: []const u8) ?[]const u8 {
         if (self.headers) |hdrs| {
-            // Headers are typically lowercase in the map
-            var lower_key_buf: [256]u8 = undefined;
-            const lower_key = std.ascii.lowerString(&lower_key_buf, key);
-            return hdrs.get(lower_key[0..@min(key.len, 256)]);
+            if (hdrs.get(key)) |value| return value;
+
+            var it = hdrs.iterator();
+            while (it.next()) |entry| {
+                if (std.ascii.eqlIgnoreCase(entry.key_ptr.*, key)) {
+                    return entry.value_ptr.*;
+                }
+            }
         }
         return null;
     }
@@ -351,6 +355,87 @@ pub const InvocationMetadata = struct {
         return null;
     }
 };
+
+// ============================================================================
+// Shared Helpers
+// ============================================================================
+
+/// Extract a string value from a JSON value, returning null for non-strings.
+pub fn jsonStringOrNull(value: std.json.Value) ?[]const u8 {
+    return switch (value) {
+        .string => |s| s,
+        else => null,
+    };
+}
+
+/// Parse a JSON object into a StringHashMap (string values only).
+pub fn parseJsonStringMap(
+    allocator: std.mem.Allocator,
+    object_value: std.json.Value,
+) !std.StringHashMap([]const u8) {
+    var out = std.StringHashMap([]const u8).init(allocator);
+    errdefer out.deinit();
+
+    var iter = object_value.object.iterator();
+    while (iter.next()) |entry| {
+        if (entry.value_ptr.* == .string) {
+            try out.put(entry.key_ptr.*, entry.value_ptr.string);
+        }
+    }
+
+    return out;
+}
+
+/// Parse a JSON object of headers into a StringHashMap.
+/// Handles both string values and array-of-string values (takes the first).
+pub fn parseJsonHeaderMap(
+    allocator: std.mem.Allocator,
+    object_value: std.json.Value,
+) !std.StringHashMap([]const u8) {
+    var out = std.StringHashMap([]const u8).init(allocator);
+    errdefer out.deinit();
+
+    var iter = object_value.object.iterator();
+    while (iter.next()) |entry| {
+        const header_value = switch (entry.value_ptr.*) {
+            .string => |s| s,
+            .array => |arr| if (arr.items.len > 0 and arr.items[0] == .string) arr.items[0].string else continue,
+            else => continue,
+        };
+        // Keep original key storage; CloudEvent.getHeader performs case-insensitive lookup.
+        try out.put(entry.key_ptr.*, header_value);
+    }
+
+    return out;
+}
+
+/// Clone a StringHashMap, preserving original keys.
+/// CloudEvent.getHeader performs case-insensitive lookup at query time.
+pub fn cloneStringMap(
+    allocator: std.mem.Allocator,
+    source: std.StringHashMap([]const u8),
+) !std.StringHashMap([]const u8) {
+    var clone = std.StringHashMap([]const u8).init(allocator);
+    errdefer clone.deinit();
+
+    var iter = source.iterator();
+    while (iter.next()) |entry| {
+        // Keep original key storage; CloudEvent.getHeader performs case-insensitive lookup.
+        try clone.put(entry.key_ptr.*, entry.value_ptr.*);
+    }
+
+    return clone;
+}
+
+/// Parse raw JSON into a parsed value, returning CloudError on failure.
+pub fn parseJsonRoot(
+    allocator: std.mem.Allocator,
+    raw_event: []const u8,
+) !std.json.Parsed(std.json.Value) {
+    return std.json.parseFromSlice(std.json.Value, allocator, raw_event, .{}) catch {
+        return CloudError.EventParseFailed;
+    };
+}
 
 // ============================================================================
 // Tests

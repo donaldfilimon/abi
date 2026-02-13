@@ -312,7 +312,7 @@ pub const RecoveryManager = struct {
 
         // Record in history
         self.recordRecovery(key, strategy, result.action != .fail, state.recovery_attempts) catch {
-            std.debug.print("[gpu_recovery] Failed to record recovery history for key: {d}\n", .{key});
+            std.log.warn("gpu_recovery: failed to record recovery history for key: {d}", .{key});
         };
 
         // Emit recovery completed event

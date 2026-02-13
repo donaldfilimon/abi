@@ -45,16 +45,11 @@ const kernel_types = @import("kernel_types.zig");
 const builtin_kernels = @import("builtin_kernels.zig");
 const kernel_ring_mod = @import("kernel_ring.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const Mutex = sync.Mutex;
+
+// Re-export extracted submodules for build discovery
+pub const dispatch_types = @import("dispatch_types.zig");
+pub const batched_dispatch = @import("batched_dispatch.zig");
 
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
 const cublas = if (build_options.enable_gpu)
@@ -506,7 +501,7 @@ pub const KernelDispatcher = struct {
         // CPU fallback if needed
         if (!gpu_executed) {
             self.executeOnCpu(kernel, config, args) catch |err| {
-                std.log.err("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
+                std.log.debug("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
                 return DispatchError.ExecutionFailed;
             };
         }
@@ -557,7 +552,7 @@ pub const KernelDispatcher = struct {
 
         // Execute on CPU fallback
         self.executeOnCpu(kernel, config, args) catch |err| {
-            std.log.err("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
+            std.log.debug("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
             return DispatchError.ExecutionFailed;
         };
 

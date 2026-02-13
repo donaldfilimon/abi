@@ -114,7 +114,7 @@ pub fn save(
 
     const dir_path = std.fs.path.dirname(storage_path) orelse ".";
     std.Io.Dir.cwd().createDirPath(io, dir_path) catch |err| {
-        std.debug.print("Warning: Failed to create directory '{s}': {t}\n", .{ dir_path, err });
+        std.log.warn("persistence: failed to create directory '{s}': {t}", .{ dir_path, err });
     };
 
     var file = std.Io.Dir.cwd().createFile(io, storage_path, .{ .truncate = true }) catch |err| {

@@ -37,6 +37,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const time = @import("../../../../services/shared/time.zig");
 const accelerate = @import("accelerate.zig");
 
 /// Configuration for the unified memory manager
@@ -153,7 +154,7 @@ pub const UnifiedMemoryManager = struct {
                 .size = size,
                 .alignment = alignment,
                 .storage_mode = mode,
-                .timestamp = std.time.milliTimestamp(),
+                .timestamp = time.nowMs(),
             });
         }
 

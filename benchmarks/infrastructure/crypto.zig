@@ -764,14 +764,6 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, config: CryptoBenchConf
     runner.printSummaryDebug();
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    try runCryptoBenchmarks(allocator, .{});
-}
-
 test "hash functions" {
     const data = "test data for hashing";
 

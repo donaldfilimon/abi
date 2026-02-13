@@ -152,8 +152,9 @@ pub fn generateRandomVectors(
     const random = prng.random();
 
     const vectors = try allocator.alloc([]f32, count);
+    var vectors_allocated: usize = 0;
     errdefer {
-        for (vectors) |v| {
+        for (vectors[0..vectors_allocated]) |v| {
             allocator.free(v);
         }
         allocator.free(vectors);
@@ -161,6 +162,7 @@ pub fn generateRandomVectors(
 
     for (vectors, 0..) |*vec, i| {
         vec.* = try allocator.alloc(f32, dimension);
+        vectors_allocated += 1;
         for (vec.*) |*val| {
             val.* = random.float(f32) * 2.0 - 1.0;
         }
@@ -196,6 +198,7 @@ pub fn calculateRecall(
     k: usize,
 ) f64 {
     const limit = @min(k, @min(ground_truth.len, results.len));
+    if (limit == 0) return 0.0;
     var matches: usize = 0;
 
     for (results[0..limit]) |r| {

@@ -402,43 +402,6 @@ pub const AnnDataset = enum {
 };
 
 // ============================================================================
-// Utility Functions
-// ============================================================================
-
-/// Get configuration based on profile name
-pub fn getDatabaseConfig(profile: []const u8) DatabaseBenchConfig {
-    if (std.mem.eql(u8, profile, "quick")) return DatabaseBenchConfig.quick;
-    if (std.mem.eql(u8, profile, "standard")) return DatabaseBenchConfig.standard;
-    if (std.mem.eql(u8, profile, "comprehensive")) return DatabaseBenchConfig.comprehensive;
-    if (std.mem.eql(u8, profile, "ann")) return DatabaseBenchConfig.ann_benchmarks;
-    return DatabaseBenchConfig.standard;
-}
-
-/// Get configuration based on profile name
-pub fn getAIConfig(profile: []const u8) AIBenchConfig {
-    if (std.mem.eql(u8, profile, "quick")) return AIBenchConfig.quick;
-    if (std.mem.eql(u8, profile, "standard")) return AIBenchConfig.standard;
-    if (std.mem.eql(u8, profile, "comprehensive")) return AIBenchConfig.comprehensive;
-    return AIBenchConfig.standard;
-}
-
-/// Get configuration based on profile name
-pub fn getLLMConfig(profile: []const u8) LLMBenchConfig {
-    if (std.mem.eql(u8, profile, "quick")) return LLMBenchConfig.quick;
-    if (std.mem.eql(u8, profile, "standard")) return LLMBenchConfig.standard;
-    if (std.mem.eql(u8, profile, "comprehensive")) return LLMBenchConfig.comprehensive;
-    return LLMBenchConfig.standard;
-}
-
-/// Get streaming benchmark configuration based on profile name
-pub fn getStreamingConfig(profile: []const u8) StreamingBenchConfig {
-    if (std.mem.eql(u8, profile, "quick")) return StreamingBenchConfig.quick;
-    if (std.mem.eql(u8, profile, "standard")) return StreamingBenchConfig.standard;
-    if (std.mem.eql(u8, profile, "comprehensive")) return StreamingBenchConfig.comprehensive;
-    return StreamingBenchConfig.standard;
-}
-
-// ============================================================================
 // Tests
 // ============================================================================
 

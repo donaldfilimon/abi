@@ -108,6 +108,17 @@ pub const TaskHandle = scheduling.TaskHandle;
 pub const AsyncTaskGroup = scheduling.AsyncTaskGroup;
 pub const AsyncError = scheduling.AsyncError;
 
+// v2 work-stealing thread pool
+pub const ThreadPool = scheduling.ThreadPool;
+pub const ThreadPoolTask = scheduling.ThreadPoolTask;
+
+// v2 DAG pipeline scheduler
+pub const DagPipeline = scheduling.Pipeline;
+pub const DagPipelineResult = scheduling.PipelineResult;
+pub const DagStage = scheduling.PipelineStage;
+pub const DagStageStatus = scheduling.StageStatus;
+pub const createInferencePipeline = scheduling.createInferencePipeline;
+
 // ============================================================================
 // Concurrency Types (re-exported for convenience)
 // ============================================================================
@@ -127,6 +138,12 @@ pub const EpochReclamation = concurrency.EpochReclamation;
 pub const LockFreeStackEBR = concurrency.LockFreeStackEBR;
 pub const MpmcQueue = concurrency.MpmcQueue;
 pub const BlockingMpmcQueue = concurrency.BlockingMpmcQueue;
+
+// v2 Vyukov MPMC channel
+pub const Channel = concurrency.Channel;
+pub const ByteChannel = concurrency.ByteChannel;
+pub const MessageChannel = concurrency.MessageChannel;
+pub const ChannelMessage = concurrency.Message;
 
 // Result caching for fast-path task completion
 pub const ResultCache = engine.ResultCache;

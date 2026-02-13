@@ -366,6 +366,8 @@ pub const SessionData = struct {
     updated_at: i64 = 0,
     messages: []Message = &.{},
     config: SessionConfig = .{},
+    owns_model: bool = false,
+    owns_system_prompt: bool = false,
 
     pub fn deinit(self: *SessionData, allocator: std.mem.Allocator) void {
         _ = allocator;

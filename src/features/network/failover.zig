@@ -169,7 +169,9 @@ pub const FailoverManager = struct {
 
     fn logEvent(self: *Self, event: FailoverEvent) !void {
         const node_id_copy = try self.allocator.dupe(u8, event.node_id);
+        errdefer self.allocator.free(node_id_copy);
         const details_copy = if (event.details) |d| try self.allocator.dupe(u8, d) else null;
+        errdefer if (details_copy) |d| self.allocator.free(d);
 
         var e = event;
         e.node_id = node_id_copy;

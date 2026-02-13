@@ -111,16 +111,8 @@ const SessionState = struct {
     pub fn load(self: *SessionState, session_id: []const u8) !void {
         var store = self.store orelse return error.PersistenceDisabled;
 
-        const data = try store.loadSession(session_id);
-        defer {
-            self.allocator.free(data.id);
-            self.allocator.free(data.name);
-            for (data.messages) |msg| {
-                self.allocator.free(msg.content);
-                if (msg.name) |n| self.allocator.free(n);
-            }
-            self.allocator.free(data.messages);
-        }
+        var data = try store.loadSession(session_id);
+        defer data.deinit(self.allocator);
 
         // Clear current messages
         for (self.messages.items) |*msg| {

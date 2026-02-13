@@ -155,7 +155,7 @@ fn executeWriteFile(ctx: *Context, args: json.Value) ToolExecutionError!ToolResu
         const mkdir_cmd = std.fmt.allocPrint(ctx.allocator, "mkdir -p \"{s}\"", .{dir}) catch return error.OutOfMemory;
         defer ctx.allocator.free(mkdir_cmd);
         _ = os.exec(ctx.allocator, mkdir_cmd) catch |err| {
-            std.debug.print("Warning: Failed to create directory '{s}': {t}\n", .{ dir, err });
+            std.log.warn("Failed to create directory '{s}': {t}", .{ dir, err });
         };
     }
 

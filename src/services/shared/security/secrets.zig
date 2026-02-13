@@ -517,7 +517,6 @@ pub const SecretsManager = struct {
 
         const aead = crypto.aead.aes_gcm.Aes256Gcm;
         aead.decrypt(plaintext, ciphertext, tag, &.{}, nonce, self.master_key) catch {
-            self.allocator.free(plaintext);
             self.allocator.free(encrypted_data);
             return error.DecryptionFailed;
         };

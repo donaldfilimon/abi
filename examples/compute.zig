@@ -7,6 +7,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const v2 = abi.shared.utils.v2_primitives;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -20,6 +21,7 @@ pub fn main() !void {
     defer framework.deinit();
 
     std.debug.print("Compute runtime initialized successfully\n", .{});
+    std.debug.print("Platform: {s}\n", .{v2.Platform.description()});
 
     // Check SIMD support
     const has_simd = abi.hasSimdSupport();
@@ -39,4 +41,7 @@ pub fn main() !void {
     var vec_sum = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
     abi.vectorAdd(&vec_a, &vec_b, &vec_sum);
     std.debug.print("SIMD vector addition result: [{d:.1}, {d:.1}, {d:.1}, {d:.1}]\n", .{ vec_sum[0], vec_sum[1], vec_sum[2], vec_sum[3] });
+
+    const bounded_dot = v2.Math.clamp(f32, dot_result, -1_000_000.0, 1_000_000.0);
+    std.debug.print("Bounded dot product (v2 clamp): {d:.3}\n", .{bounded_dot});
 }

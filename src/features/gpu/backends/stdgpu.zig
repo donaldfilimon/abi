@@ -26,7 +26,7 @@ pub const GpuError = error{
     DispatchFailed,
     OutOfMemory,
     InvalidKernelConfig,
-    LaunchFailed,
+    KernelLaunchFailed,
 };
 
 /// Device memory errors for CPU-backed allocation
@@ -925,13 +925,16 @@ test "simd softmax sums to one" {
 
 test "GpuError enum covers all cases" {
     const errors = [_]GpuError{
-        error.NotAvailable,
+        error.InitializationFailed,
+        error.DeviceNotFound,
+        error.ShaderCompilationFailed,
+        error.PipelineCreationFailed,
+        error.DispatchFailed,
         error.OutOfMemory,
-        error.InvalidKernel,
-        error.LaunchFailed,
-        error.BindingError,
+        error.InvalidKernelConfig,
+        error.KernelLaunchFailed,
     };
-    try std.testing.expectEqual(@as(usize, 5), errors.len);
+    try std.testing.expectEqual(@as(usize, 8), errors.len);
 }
 
 test "DeviceMemoryError enum covers all cases" {

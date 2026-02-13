@@ -204,14 +204,11 @@ pub const Engine = struct {
 
     /// Load a model from a GGUF file
     pub fn loadModel(self: *Engine, path: []const u8) !void {
-        var timer = time.Timer.start() catch {
-            self.stats.load_time_ns = 0;
-            return self.loadModelImpl(path);
-        };
+        var timer = time.Timer.start() catch null;
 
         try self.loadModelImpl(path);
 
-        self.stats.load_time_ns = timer.read();
+        self.stats.load_time_ns = if (timer) |*t| t.read() else 0;
     }
 
     fn loadModelImpl(self: *Engine, path: []const u8) !void {

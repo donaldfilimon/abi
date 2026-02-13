@@ -91,14 +91,6 @@ pub fn runAIBenchmarks(allocator: std.mem.Allocator, config: core.config.AIBench
     try kernels.runKernelBenchmarks(allocator, config);
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    try runAllBenchmarks(allocator, .standard);
-}
-
 test {
     _ = kernels;
     _ = llm_metrics;

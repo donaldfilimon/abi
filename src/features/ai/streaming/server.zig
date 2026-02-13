@@ -31,6 +31,11 @@ const json_utils = shared_utils.json;
 const recovery = @import("recovery.zig");
 const RecoveryConfig = recovery.RecoveryConfig;
 const RecoveryEvent = recovery.RecoveryEvent;
+const request_types = @import("request_types.zig");
+
+pub const AbiStreamRequest = request_types.AbiStreamRequest;
+const parseAbiStreamRequest = request_types.parseAbiStreamRequest;
+const extractJsonString = request_types.extractJsonString;
 
 pub const StreamingServerError = std.mem.Allocator.Error || error{
     InvalidAddress,
@@ -146,24 +151,24 @@ pub const StreamingServer = struct {
         var server = try listen_addr.listen(io, .{ .reuse_address = true });
         defer server.deinit(io);
 
-        std.debug.print("Streaming inference server listening on {s}\n", .{self.config.address});
-        std.debug.print("  - SSE endpoint: POST /api/stream\n", .{});
+        std.log.info("Streaming inference server listening on {s}", .{self.config.address});
+        std.log.info("  SSE endpoint: POST /api/stream", .{});
         if (self.config.enable_openai_compat) {
-            std.debug.print("  - OpenAI endpoint: POST /v1/chat/completions\n", .{});
+            std.log.info("  OpenAI endpoint: POST /v1/chat/completions", .{});
         }
         if (self.config.enable_websocket) {
-            std.debug.print("  - WebSocket endpoint: GET /api/stream/ws\n", .{});
+            std.log.info("  WebSocket endpoint: GET /api/stream/ws", .{});
         }
 
         while (true) {
             var stream = server.accept(io) catch |err| {
-                std.debug.print("Streaming server accept error: {t}\n", .{err});
+                std.log.err("Streaming server accept error: {t}", .{err});
                 continue;
             };
             defer stream.close(io);
 
             self.handleConnection(io, stream) catch |err| {
-                std.debug.print("Streaming server connection error: {t}\n", .{err});
+                std.log.err("Streaming server connection error: {t}", .{err});
             };
         }
     }
@@ -193,7 +198,7 @@ pub const StreamingServer = struct {
             };
 
             self.dispatchRequest(&request, &conn_ctx) catch |err| {
-                std.debug.print("Streaming request error: {t}\n", .{err});
+                std.log.err("Streaming request error: {t}", .{err});
                 const error_body = if (err == StreamingServerError.Unauthorized)
                     "{\"error\":{\"message\":\"unauthorized\",\"type\":\"authentication_error\"}}"
                 else
@@ -203,7 +208,7 @@ pub const StreamingServer = struct {
                 else
                     .internal_server_error;
                 self.respondJson(&request, error_body, status) catch |resp_err| {
-                    std.debug.print("Streaming server: failed to send error response: {t}\n", .{resp_err});
+                    std.log.err("Streaming server: failed to send error response: {t}", .{resp_err});
                 };
                 return;
             };
@@ -774,7 +779,7 @@ pub const StreamingServer = struct {
                 const close_frame = try ws_handler.sendClose(.protocol_error, "invalid frame");
                 defer allocator.free(close_frame);
                 try conn_ctx.write(close_frame);
-                std.debug.print("WebSocket parse error: {t}\n", .{err});
+                std.log.err("WebSocket parse error: {t}", .{err});
                 break;
             };
             defer allocator.free(parse_result.frame.payload);
@@ -1228,54 +1233,9 @@ pub const StreamingServer = struct {
     }
 };
 
-/// ABI streaming request format
-pub const AbiStreamRequest = struct {
-    prompt: []const u8,
-    backend: ?backends.BackendType,
-    config: backends.GenerationConfig,
-    stream_id: ?[]const u8,
-
-    pub fn deinit(self: *const AbiStreamRequest, allocator: std.mem.Allocator) void {
-        allocator.free(self.prompt);
-        if (self.stream_id) |id| allocator.free(id);
-    }
-};
-
-/// Parse ABI stream request from JSON
-fn parseAbiStreamRequest(allocator: std.mem.Allocator, body: []const u8) !AbiStreamRequest {
-    // Simple JSON parsing - in production would use a proper JSON parser
-    const prompt = extractJsonString(body, "prompt") orelse return StreamingServerError.InvalidRequest;
-    const prompt_copy = try allocator.dupe(u8, prompt);
-    errdefer allocator.free(prompt_copy);
-
-    const backend_str = extractJsonString(body, "backend");
-    const backend: ?backends.BackendType = if (backend_str) |b|
-        backends.BackendType.fromString(b)
-    else
-        null;
-
-    const max_tokens = extractJsonInt(body, "max_tokens") orelse 1024;
-    const temperature = extractJsonFloat(body, "temperature") orelse 0.7;
-
-    const stream_id = if (extractJsonString(body, "stream_id")) |id|
-        try allocator.dupe(u8, id)
-    else
-        null;
-
-    return .{
-        .prompt = prompt_copy,
-        .backend = backend,
-        .config = .{
-            .max_tokens = @intCast(max_tokens),
-            .temperature = @floatCast(temperature),
-        },
-        .stream_id = stream_id,
-    };
-}
-
 // Helper functions
 
-fn splitTarget(target: []const u8) struct { path: []const u8, query: []const u8 } {
+pub fn splitTarget(target: []const u8) struct { path: []const u8, query: []const u8 } {
     if (std.mem.indexOfScalar(u8, target, '?')) |idx| {
         return .{ .path = target[0..idx], .query = target[idx + 1 ..] };
     }
@@ -1309,179 +1269,7 @@ fn timingSafeEqual(a: []const u8, b: []const u8) bool {
     return diff == 0;
 }
 
-fn extractJsonString(json: []const u8, key: []const u8) ?[]const u8 {
-    // Build search key without allocation using a fixed buffer
-    var key_buf: [256]u8 = undefined;
-    const search_key = std.fmt.bufPrint(&key_buf, "\"{s}\":", .{key}) catch return null;
-
-    const key_pos = std.mem.indexOf(u8, json, search_key) orelse return null;
-    const value_start = key_pos + search_key.len;
-
-    // Skip whitespace
-    var pos = value_start;
-    while (pos < json.len and (json[pos] == ' ' or json[pos] == '\t')) : (pos += 1) {}
-
-    if (pos >= json.len or json[pos] != '"') return null;
-    pos += 1; // Skip opening quote
-
-    const str_start = pos;
-    while (pos < json.len and json[pos] != '"') : (pos += 1) {
-        if (json[pos] == '\\' and pos + 1 < json.len) pos += 1; // Skip escaped char
-    }
-
-    return json[str_start..pos];
-}
-
-fn extractJsonInt(json: []const u8, key: []const u8) ?i64 {
-    // Build search key without allocation using a fixed buffer
-    var key_buf: [256]u8 = undefined;
-    const search_key = std.fmt.bufPrint(&key_buf, "\"{s}\":", .{key}) catch return null;
-
-    const key_pos = std.mem.indexOf(u8, json, search_key) orelse return null;
-    var pos = key_pos + search_key.len;
-
-    while (pos < json.len and (json[pos] == ' ' or json[pos] == '\t')) : (pos += 1) {}
-
-    const num_start = pos;
-    while (pos < json.len and (json[pos] >= '0' and json[pos] <= '9')) : (pos += 1) {}
-
-    if (pos == num_start) return null;
-    return std.fmt.parseInt(i64, json[num_start..pos], 10) catch null;
-}
-
-fn extractJsonFloat(json: []const u8, key: []const u8) ?f64 {
-    // Build search key without allocation using a fixed buffer
-    var key_buf: [256]u8 = undefined;
-    const search_key = std.fmt.bufPrint(&key_buf, "\"{s}\":", .{key}) catch return null;
-
-    const key_pos = std.mem.indexOf(u8, json, search_key) orelse return null;
-    var pos = key_pos + search_key.len;
-
-    while (pos < json.len and (json[pos] == ' ' or json[pos] == '\t')) : (pos += 1) {}
-
-    const num_start = pos;
-    while (pos < json.len and ((json[pos] >= '0' and json[pos] <= '9') or json[pos] == '.')) : (pos += 1) {}
-
-    if (pos == num_start) return null;
-    return std.fmt.parseFloat(f64, json[num_start..pos]) catch null;
-}
-
-// Tests
-test "streaming server config defaults" {
-    const config = ServerConfig{};
-    try std.testing.expectEqualStrings("127.0.0.1:8080", config.address);
-    try std.testing.expect(config.auth_token == null);
-    try std.testing.expect(config.enable_openai_compat);
-    try std.testing.expect(config.enable_websocket);
-}
-
-test "heartbeat configuration" {
-    // Default heartbeat interval is 15 seconds
-    const default_config = ServerConfig{};
-    try std.testing.expectEqual(@as(u64, 15000), default_config.heartbeat_interval_ms);
-
-    // Custom heartbeat interval
-    const custom_config = ServerConfig{ .heartbeat_interval_ms = 5000 };
-    try std.testing.expectEqual(@as(u64, 5000), custom_config.heartbeat_interval_ms);
-
-    // Heartbeat can be disabled by setting to 0
-    const disabled_config = ServerConfig{ .heartbeat_interval_ms = 0 };
-    try std.testing.expectEqual(@as(u64, 0), disabled_config.heartbeat_interval_ms);
-}
-
-test "heartbeat interval conversion to nanoseconds" {
-    // Verify the nanosecond conversion used in streaming loops
-    const interval_ms: u64 = 15000;
-    const interval_ns: u64 = interval_ms * 1_000_000;
-    try std.testing.expectEqual(@as(u64, 15_000_000_000), interval_ns);
-}
-
-test "split target" {
-    const parts = splitTarget("/api/stream?model=gpt");
-    try std.testing.expectEqualStrings("/api/stream", parts.path);
-    try std.testing.expectEqualStrings("model=gpt", parts.query);
-}
-
-test "extract json string" {
-    const json = "{\"prompt\":\"hello world\",\"model\":\"gpt-4\"}";
-    const prompt = extractJsonString(json, "prompt");
-    try std.testing.expect(prompt != null);
-    try std.testing.expectEqualStrings("hello world", prompt.?);
-}
-
-test "extract json int" {
-    const json = "{\"max_tokens\":1024,\"other\":\"value\"}";
-    const max_tokens = extractJsonInt(json, "max_tokens");
-    try std.testing.expect(max_tokens != null);
-    try std.testing.expectEqual(@as(i64, 1024), max_tokens.?);
-}
-
-test "websocket message parsing - cancel message" {
-    // Test that cancel messages are correctly identified
-    const cancel_json = "{\"type\":\"cancel\"}";
-    const msg_type = extractJsonString(cancel_json, "type");
-    try std.testing.expect(msg_type != null);
-    try std.testing.expectEqualStrings("cancel", msg_type.?);
-}
-
-test "websocket message parsing - stream request" {
-    const allocator = std.testing.allocator;
-
-    const request_json = "{\"prompt\":\"Hello world\",\"backend\":\"local\",\"max_tokens\":100}";
-    const request = try parseAbiStreamRequest(allocator, request_json);
-    defer request.deinit(allocator);
-
-    try std.testing.expectEqualStrings("Hello world", request.prompt);
-    try std.testing.expectEqual(backends.BackendType.local, request.backend.?);
-    try std.testing.expectEqual(@as(u32, 100), request.config.max_tokens);
-}
-
-test "websocket handler initialization" {
-    const allocator = std.testing.allocator;
-
-    var handler = try websocket.WebSocketHandler.init(allocator, .{});
-    defer handler.deinit();
-
-    try std.testing.expectEqual(websocket.ConnectionState.connecting, handler.state);
-}
-
-test "websocket frame encoding for streaming" {
-    const allocator = std.testing.allocator;
-
-    var handler = try websocket.WebSocketHandler.init(allocator, .{});
-    defer handler.deinit();
-
-    // Encode a token message
-    const msg = try websocket.createStreamingMessage(allocator, "token", "hello");
-    defer allocator.free(msg);
-
-    const frame = try handler.sendText(msg);
-    defer allocator.free(frame);
-
-    // Verify frame structure: FIN + text opcode = 0x81
-    try std.testing.expectEqual(@as(u8, 0x81), frame[0]);
-    // Payload length should be > 0
-    try std.testing.expect(frame[1] > 0);
-}
-
-test "admin reload request parsing" {
-    // Test JSON parsing for reload endpoint
-    const json = "{\"model_path\":\"/path/to/model.gguf\"}";
-    const model_path = extractJsonString(json, "model_path");
-    try std.testing.expect(model_path != null);
-    try std.testing.expectEqualStrings("/path/to/model.gguf", model_path.?);
-}
-
-test "admin reload missing model_path" {
-    // Test that missing model_path is detected
-    const json = "{\"other_field\":\"value\"}";
-    const model_path = extractJsonString(json, "model_path");
-    try std.testing.expect(model_path == null);
-}
-
-test "admin reload error types" {
-    // Test that new error types are available
-    const err1: StreamingServerError = StreamingServerError.ModelReloadFailed;
-    const err2: StreamingServerError = StreamingServerError.ModelReloadTimeout;
-    try std.testing.expect(err1 != err2);
+test {
+    _ = @import("request_types.zig");
+    _ = @import("server_test.zig");
 }

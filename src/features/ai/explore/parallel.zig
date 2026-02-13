@@ -80,7 +80,7 @@ pub const ParallelExplorer = struct {
             if (chunk.len == 0) continue;
 
             thread.* = std.Thread.spawn(.{}, workerThread, .{ self, chunk }) catch |err| {
-                std.debug.print("Failed to spawn worker thread: {}\n", .{err});
+                std.log.warn("Failed to spawn worker thread: {}", .{err});
                 // Process files on main thread as fallback
                 for (chunk) |file_stat| {
                     self.lock.lock();

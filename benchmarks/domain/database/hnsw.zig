@@ -240,6 +240,10 @@ pub fn benchBuildTime(
 ) !struct { build_time_ns: u64, index: *EuclideanHNSW } {
     var index = try allocator.create(EuclideanHNSW);
     index.* = EuclideanHNSW.init(allocator, m, ef_construction);
+    errdefer {
+        index.deinit();
+        allocator.destroy(index);
+    }
 
     var prng = std.Random.DefaultPrng.init(12345);
 

@@ -13,16 +13,8 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../../core/config/mod.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../../services/shared/sync.zig");
+const Mutex = sync.Mutex;
 
 // ============================================================================
 // Metrics Primitives
@@ -97,10 +89,13 @@ pub const FloatGauge = struct {
     }
 };
 
+/// Histogram metric - tracks value distributions across buckets.
+/// Uses a mutex for thread-safe concurrent recording.
 pub const Histogram = struct {
     name: []const u8,
     buckets: []u64,
     bounds: []u64,
+    mutex: Mutex = .{},
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8, bounds: []u64) !Histogram {
         const bucket_copy = try allocator.alloc(u64, bounds.len + 1);
@@ -123,6 +118,8 @@ pub const Histogram = struct {
     }
 
     pub fn record(self: *Histogram, value: u64) void {
+        self.mutex.lock();
+        defer self.mutex.unlock();
         for (self.bounds, 0..) |bound, i| {
             if (value <= bound) {
                 self.buckets[i] += 1;
@@ -574,12 +571,21 @@ pub const Context = struct {
 
     pub fn recordMetric(self: *Context, name: []const u8, value: f64) !void {
         if (self.metrics) |m| {
-            // MetricsCollector in v2 uses record(f64) for histogram-like behavior if wanted,
-            // or we just map it.
-            _ = m;
-            _ = name;
-            _ = value;
+            // Find existing gauge by name, or register a new one
+            for (m.float_gauges.items) |gauge| {
+                if (std.mem.eql(u8, gauge.name, name)) {
+                    gauge.set(value);
+                    return;
+                }
+            }
+            // Auto-register on first use
+            const gauge = try m.registerFloatGauge(name);
+            gauge.set(value);
         }
+    }
+
+    pub fn getSummary(_: *Context) ?MetricsSummary {
+        return null;
     }
 
     pub fn startSpan(self: *Context, name: []const u8) !Span {

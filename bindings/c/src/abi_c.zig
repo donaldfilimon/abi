@@ -150,6 +150,33 @@ export fn abi_is_feature_enabled(framework: ?*FrameworkHandle, feature: [*:0]con
     return false;
 }
 
+/// Get the current framework state as a string.
+export fn abi_get_state(framework: ?*FrameworkHandle) [*:0]const u8 {
+    if (framework) |fw| {
+        const wrapper: *FrameworkWrapper = @ptrCast(@alignCast(fw));
+        return @tagName(wrapper.framework.state);
+    }
+    return "unknown";
+}
+
+/// Get the number of features that initialized successfully.
+export fn abi_enabled_feature_count(framework: ?*FrameworkHandle) c_int {
+    if (framework) |fw| {
+        const wrapper: *FrameworkWrapper = @ptrCast(@alignCast(fw));
+        var count: c_int = 0;
+        if (wrapper.framework.gpu != null) count += 1;
+        if (wrapper.framework.ai != null) count += 1;
+        if (wrapper.framework.database != null) count += 1;
+        if (wrapper.framework.network != null) count += 1;
+        if (wrapper.framework.web != null) count += 1;
+        if (wrapper.framework.observability != null) count += 1;
+        if (wrapper.framework.analytics != null) count += 1;
+        if (wrapper.framework.cloud != null) count += 1;
+        return count;
+    }
+    return 0;
+}
+
 // ============================================================================
 // SIMD Operations
 // ============================================================================

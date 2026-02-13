@@ -41,16 +41,7 @@ const metrics_mod = @import("metrics.zig");
 const dispatcher_mod = @import("dispatcher.zig");
 const adaptive_tiling_mod = @import("adaptive_tiling.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const Mutex = sync.Mutex;
 
 // Re-export key types
 pub const Backend = backend_mod.Backend;

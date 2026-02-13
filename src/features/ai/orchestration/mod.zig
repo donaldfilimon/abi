@@ -36,16 +36,8 @@ const build_options = @import("build_options");
 // Shared utilities for timestamps
 const utils = @import("../../../services/shared/utils.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../../../services/shared/sync.zig");
+const Mutex = sync.Mutex;
 
 // Sub-modules
 pub const router = @import("router.zig");
@@ -475,7 +467,10 @@ pub const Orchestrator = struct {
 
         for (available.items) |model| {
             const resp = self.executeSingle(model.config.id, prompt, response_allocator) catch continue;
-            responses.append(self.allocator, resp) catch continue;
+            responses.append(self.allocator, resp) catch {
+                response_allocator.free(resp);
+                continue;
+            };
         }
 
         if (responses.items.len == 0) {
@@ -725,14 +720,19 @@ pub const Orchestrator = struct {
         prompt: []const u8,
         response_allocator: std.mem.Allocator,
     ) OrchestrationError![]u8 {
-        const model = self.getModel(model_id) orelse return OrchestrationError.ModelNotFound;
+        // Hold mutex for lookup and initial state check to prevent data race
+        self.mutex.lock();
+        const model = self.models.getPtr(model_id) orelse {
+            self.mutex.unlock();
+            return OrchestrationError.ModelNotFound;
+        };
 
         if (!model.config.enabled) {
+            self.mutex.unlock();
             return OrchestrationError.ModelDisabled;
         }
 
-        // Update stats
-        self.mutex.lock();
+        // Update stats while still holding the lock
         model.active_requests += 1;
         model.total_requests += 1;
         model.last_request_time = utils.unixMs();

@@ -38,9 +38,9 @@ const is_gpu_target = builtin.cpu.arch.isSpirV();
 const std_gpu_available = @hasDecl(std, "gpu");
 
 pub const StdGpuError = error{
-    DeviceInitFailed,
+    InitializationFailed,
     QueueCreationFailed,
-    BufferAllocationFailed,
+    BufferCreationFailed,
     ShaderCompilationFailed,
     PipelineCreationFailed,
     OutOfMemory,

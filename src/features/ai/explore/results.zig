@@ -135,62 +135,58 @@ pub const ExploreResult = struct {
         }
     }
 
-    pub fn formatHuman(self: *ExploreResult, writer: anytype) void {
-        _ = writer;
-        std.debug.print("Exploration Results for: \"{s}\"\n", .{self.query});
-        std.debug.print("Level: {t}\n", .{self.level});
-        std.debug.print("Files Scanned: {d}\n", .{self.files_scanned});
-        std.debug.print("Matches Found: {d}\n", .{self.matches_found});
-        std.debug.print("Duration: {d}ms\n\n", .{self.duration_ms});
+    pub fn formatHuman(self: *ExploreResult, writer: anytype) !void {
+        try writer.print("Exploration Results for: \"{s}\"\n", .{self.query});
+        try writer.print("Level: {t}\n", .{self.level});
+        try writer.print("Files Scanned: {d}\n", .{self.files_scanned});
+        try writer.print("Matches Found: {d}\n", .{self.matches_found});
+        try writer.print("Duration: {d}ms\n\n", .{self.duration_ms});
 
         if (self.explore_error) |err| {
-            std.debug.print("Error: {t}\n", .{err});
+            try writer.print("Error: {t}\n", .{err});
             if (self.error_message) |msg| {
-                std.debug.print("Details: {s}\n", .{msg});
+                try writer.print("Details: {s}\n", .{msg});
             }
             return;
         }
 
-        std.debug.print("Top Matches:\n", .{});
-        std.debug.print("-------------\n", .{});
+        try writer.print("Top Matches:\n", .{});
+        try writer.print("-------------\n", .{});
 
         const top_matches = self.getTopMatches(20);
         // Note: top_matches is a slice view into self.matches.items, not a separate allocation
 
         for (top_matches, 0..) |match, i| {
-            std.debug.print("{d}. {s}:{d}\n", .{ i + 1, match.file_path, match.line_number });
-            std.debug.print("   {s}\n", .{match.match_text});
-            std.debug.print("   Score: {d:.2}\n\n", .{match.relevance_score});
+            try writer.print("{d}. {s}:{d}\n", .{ i + 1, match.file_path, match.line_number });
+            try writer.print("   {s}\n", .{match.match_text});
+            try writer.print("   Score: {d:.2}\n\n", .{match.relevance_score});
         }
     }
 
-    pub fn formatJSON(self: *ExploreResult, writer: anytype) void {
-        _ = writer;
-
-        // Build JSON manually for compatibility with Zig 0.16 API changes
-        std.debug.print("{{", .{});
-        std.debug.print("\"query\":\"{s}\",", .{self.query});
-        std.debug.print("\"level\":\"{t}\",", .{self.level});
-        std.debug.print("\"files_scanned\":{d},", .{self.files_scanned});
-        std.debug.print("\"matches_found\":{d},", .{self.matches_found});
-        std.debug.print("\"duration_ms\":{d},", .{self.duration_ms});
-        std.debug.print("\"cancelled\":{},", .{self.cancelled});
+    pub fn formatJSON(self: *ExploreResult, writer: anytype) !void {
+        try writer.print("{{", .{});
+        try writer.print("\"query\":\"{s}\",", .{self.query});
+        try writer.print("\"level\":\"{t}\",", .{self.level});
+        try writer.print("\"files_scanned\":{d},", .{self.files_scanned});
+        try writer.print("\"matches_found\":{d},", .{self.matches_found});
+        try writer.print("\"duration_ms\":{d},", .{self.duration_ms});
+        try writer.print("\"cancelled\":{},", .{self.cancelled});
 
         if (self.explore_error) |err| {
-            std.debug.print("\"error\":\"{t}\",", .{err});
+            try writer.print("\"error\":\"{t}\",", .{err});
         }
 
-        std.debug.print("\"matches\":[", .{});
+        try writer.print("\"matches\":[", .{});
         for (self.matches.items, 0..) |match, idx| {
-            if (idx > 0) std.debug.print(",", .{});
-            std.debug.print("{{", .{});
-            std.debug.print("\"file\":\"{s}\",", .{match.file_path});
-            std.debug.print("\"line\":{d},", .{match.line_number});
-            std.debug.print("\"type\":\"{t}\",", .{match.match_type});
-            std.debug.print("\"score\":{d:.2}", .{match.relevance_score});
-            std.debug.print("}}", .{});
+            if (idx > 0) try writer.print(",", .{});
+            try writer.print("{{", .{});
+            try writer.print("\"file\":\"{s}\",", .{match.file_path});
+            try writer.print("\"line\":{d},", .{match.line_number});
+            try writer.print("\"type\":\"{t}\",", .{match.match_type});
+            try writer.print("\"score\":{d:.2}", .{match.relevance_score});
+            try writer.print("}}", .{});
         }
-        std.debug.print("]}}\n", .{});
+        try writer.print("]}}\n", .{});
     }
 
     fn getTopMatches(self: *ExploreResult, limit: usize) []Match {

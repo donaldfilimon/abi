@@ -2,44 +2,60 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Read `AGENTS.md` first for baseline rules (code style, post-edit checklist, Zig 0.16 API
-migration table). This file adds deeper architectural context that requires reading multiple
-files to understand.
+## Quick Reference
 
 | Key | Value |
 |-----|-------|
-| **Zig Required** | 0.16.x (`0.16.0-dev.2471+e9eadee00`+) — pinned in `.zigversion` |
+| **Zig** | 0.16.x (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
+| **Test baseline** | 982 pass, 6 skip — must be maintained |
 
-## Build Commands
+## Build & Test Commands
+
+Use `./zigw` instead of `zig` to ensure the pinned toolchain version from `.zigversion` is used.
+If your system `zig` is already 0.16.x, plain `zig` works too.
 
 ```bash
-zig build                                    # Build
-zig build test --summary all                 # Full test suite (expect: 944 pass, 5 skip)
-zig build run -- --help                      # CLI help
-zig test src/path/to/file.zig --test-filter "pattern"  # Single test
-zig fmt .                                    # Format (required after edits)
-zig build full-check                         # Pre-commit check: format + tests + validate-flags + CLI tests
-zig build lint                               # CI formatting check
+zig build                                    # Build with default flags
+zig build test --summary all                 # Run full test suite
+zig test src/path/to/file.zig                # Test a single file
+zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
+zig fmt .                                    # Format all source
+zig build full-check                         # Format + tests + flag validation + CLI smoke tests
+zig build validate-flags                     # Compile-check 16 feature flag combos
 zig build cli-tests                          # CLI smoke tests
+zig build lint                               # CI formatting check
 zig build benchmarks                         # Performance benchmarks
 zig build examples                           # Build all examples
-zig build validate-flags                     # Compile with all feature-flag combos (16 configurations)
-zig build bench-all                          # All benchmark suites
-zig build docs-site                          # Generate documentation website
 zig build check-wasm                         # Check WASM compilation
 ```
 
-Feature flags: `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
+### Running the CLI
 
-All features default to `true` except `-Denable-mobile`. Additional flags:
-`-Denable-web`, `-Denable-explore`, `-Denable-llm`, `-Denable-vision`,
-`-Denable-profiling`, `-Denable-analytics`. GPU backends accept comma-separated values: `auto`, `none`,
+```bash
+zig build run -- --help                      # CLI help
+zig build run -- system-info                 # System and feature status
+zig build run -- plugins list                # List plugins
+```
+
+### Feature Flags
+
+`zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
+
+All features default to `true` except `-Denable-mobile`. GPU backends: `auto`, `none`,
 `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `webgl2`, `opengl`, `opengles`, `fpga`.
 
-**Note:** Cloud module has no separate flag — it is gated by `-Denable-web` (intentional coupling).
-Observability is gated by `-Denable-profiling`.
+| Feature Module | Build Flag | Notes |
+|----------------|------------|-------|
+| `ai` | `-Denable-ai` | Also: `-Denable-llm`, `-Denable-vision`, `-Denable-explore` |
+| `analytics` | `-Denable-analytics` | |
+| `cloud` | `-Denable-web` | Shares flag with web (no separate flag) |
+| `database` | `-Denable-database` | |
+| `gpu` | `-Denable-gpu` | Backend selection via `-Dgpu-backend=` |
+| `network` | `-Denable-network` | |
+| `observability` | `-Denable-profiling` | Not `-Denable-observability` |
+| `web` | `-Denable-web` | Also gates cloud module |
 
 ## Critical Gotchas
 
@@ -50,13 +66,17 @@ These are the mistakes most likely to cause compilation failures:
 | `std.fs.cwd()` | `std.Io.Dir.cwd()` — Zig 0.16 moved filesystem to I/O backend |
 | `std.time.Instant.now()` for elapsed time | `std.time.Timer.start()` — use Timer for benchmarks/elapsed |
 | `list.init()` | `std.ArrayListUnmanaged(T).empty` |
-| `@tagName(x)` in format | `{t}` format specifier for errors and enums |
-| Editing `mod.zig` only | **Always update `stub.zig` too** — signatures must match |
+| `@tagName(x)` / `@errorName(e)` in format | `{t}` format specifier for errors and enums |
+| Editing `mod.zig` only | Update `stub.zig` to match exported signatures |
 | `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
+| `file.read()` / `file.write()` | `file.reader(io).read()` / `file.writer(io).write()` — I/O ops need `io` handle |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
 | `std.time.nanoTimestamp()` | Doesn't exist in 0.16 — use `Instant.now()` + `.since(anchor)` for absolute time |
-| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in 0.16: `.type`, `.@"fn"`, `.@"struct"` |
+| `std.process.getEnvVar()` | Doesn't exist in 0.16 — use `std.c.getenv()` for POSIX |
+| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in 0.16: `.type`, `.@"fn"`, `.@"struct"`, `.@"enum"`, `.@"union"` |
 | `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
+| `defer allocator.free(x)` then return `x` | Use `errdefer` — `defer` frees on success too (use-after-free) |
+| `@panic` in library code | Return an error instead — library code should never panic |
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -87,8 +107,7 @@ else
 
 This means:
 - Every feature directory has `mod.zig` (real) and `stub.zig` (stub)
-- **Both files must export identical public signatures** — if you add/change a function
-  in `mod.zig`, the same signature must exist in `stub.zig` returning an error
+- `mod.zig` and `stub.zig` must keep matching public signatures
 - Test both paths: `zig build -Denable-<feature>=true` and `=false`
 - Disabled features have zero binary overhead
 
@@ -99,11 +118,32 @@ src/abi.zig              → Public API, comptime feature selection, type aliase
 src/core/                → Framework lifecycle, config builder, registry
 src/features/<name>/     → mod.zig + stub.zig per feature (8 modules: ai, analytics, cloud, database, gpu, network, observability, web)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
-tools/cli/               → CLI entry point and 24 commands
+tools/cli/               → Primary CLI entry point and command registration
+src/api/                 → Additional executable entry points (e.g., `main.zig`)
 ```
 
 Import convention: public API uses `@import("abi")`, internal modules import
 via their parent `mod.zig`. Never use direct file paths for cross-module imports.
+
+### v2 Integration Map
+
+The v2 adoption is wired through `shared` and `runtime` surfaces, not feature-local deep
+imports.
+
+| Area | Source Location | Public Access Path |
+|------|------------------|--------------------|
+| Primitive helpers | `src/services/shared/utils/v2_primitives.zig` | `abi.shared.utils.v2_primitives` |
+| Structured errors | `src/services/shared/utils/structured_error.zig` | `abi.shared.utils.structured_error` |
+| SwissMap | `src/services/shared/utils/swiss_map.zig` | `abi.shared.utils.swiss_map` |
+| ABIX serialization | `src/services/shared/utils/abix_serialize.zig` | `abi.shared.utils.abix_serialize` |
+| Profiler / benchmark | `src/services/shared/utils/{profiler,benchmark}.zig` | `abi.shared.utils.{profiler,benchmark}` |
+| Arena/combinator allocators | `src/services/shared/utils/memory/{arena_pool,combinators}.zig` | `abi.shared.memory.{ArenaPool,FallbackAllocator}` |
+| Vyukov channel | `src/services/runtime/concurrency/channel.zig` | `abi.runtime.Channel` |
+| Work-stealing thread pool | `src/services/runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
+| DAG pipeline scheduler | `src/services/runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
+
+When updating any entry above, verify import-chain stability:
+`src/abi.zig` -> `src/services/{shared,runtime}/mod.zig` -> sub-module.
 
 ### Framework Lifecycle
 
@@ -164,7 +204,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Write integration tests | `src/services/tests/` |
 | Add a GPU backend | `src/features/gpu/backends/` |
 | Security infrastructure | `src/services/shared/security/` (16 modules) |
-| Language bindings | `bindings/` (C, Python, Go, JS, Rust) — build C lib first |
+| Generate API docs | `zig build gendocs` → `docs/api/` |
 | Examples | `examples/` (19 examples) |
 
 ## Environment Variables
@@ -179,22 +219,24 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | `ABI_MASTER_KEY` | Secrets encryption (production) |
 | `DISCORD_BOT_TOKEN` | Discord bot token |
 
+## Coding Style
+
+- 4 spaces, no tabs; lines under 100 chars
+- `PascalCase` types, `camelCase` functions/variables, `*Config` for config structs
+- Explicit imports only (no `usingnamespace`); prefer `std.ArrayListUnmanaged`
+- Always `zig fmt .` before committing
+- Import public API via `@import("abi")`, not deep file paths
+- Feature modules cannot `@import("abi")` (circular) — use relative imports to `services/shared/`
+- `std.log.*` in library code; `std.debug.print` only in CLI tools and display functions
+
 ## Commit Convention
 
-Format: `<type>: <short summary>`
-
-| Type | Use for |
-|------|---------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `refactor` | Code change (no feature/fix) |
-| `test` | Adding or updating tests |
-| `chore` | Maintenance, deps, CI |
+`<type>: <short summary>` — types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
+Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Current baseline**: 944 pass, 5 skip (949 total). **This baseline must be maintained** — any
+**Current baseline**: 982 pass, 6 skip (988 total). **This baseline must be maintained** — any
 PR that reduces passing tests or increases skipped tests requires justification.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are
@@ -208,11 +250,6 @@ path — use `abi.<feature>` instead.
 
 ## References
 
-| Document | Purpose |
-|----------|---------|
-| `AGENTS.md` | Baseline rules, code style, Zig 0.16 migration table |
-| `CONTRIBUTING.md` | Development workflow |
-| `docs/plan.md` | Development roadmap |
-| `docs/deployment.md` | Production deployment |
-| `SECURITY.md` | Security practices |
-| `~/.claude/projects/.../memory/` | Auto memory: Records learnings across sessions (200 line limit in MEMORY.md) |
+- `AGENTS.md` — Project structure overview and v2 module notes
+- `CONTRIBUTING.md` — Development workflow and PR checklist
+- `docs/api/` — Auto-generated API docs (`zig build gendocs`)

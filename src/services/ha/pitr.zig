@@ -7,18 +7,10 @@
 //! - Efficient recovery with minimal data loss
 
 const std = @import("std");
-const time = @import("../shared/utils.zig");
+const time = @import("../shared/time.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../shared/sync.zig");
+const Mutex = sync.Mutex;
 
 /// PITR configuration
 pub const PitrConfig = struct {
@@ -159,10 +151,11 @@ pub const PitrManager = struct {
         if (previous_value) |v| {
             prev_copy = try self.allocator.dupe(u8, v);
         }
+        errdefer if (prev_copy) |v| self.allocator.free(v);
 
         const op = Operation{
             .type = op_type,
-            .timestamp = @intCast(time.time.timestampSec()),
+            .timestamp = @intCast(time.timestampSec()),
             .key = key_copy,
             .value = value_copy,
             .previous_value = prev_copy,
@@ -177,7 +170,7 @@ pub const PitrManager = struct {
     }
 
     fn shouldCheckpoint(self: *PitrManager) bool {
-        const now = time.time.timestampSec();
+        const now = time.timestampSec();
         const interval = @as(u64, self.config.checkpoint_interval_sec);
 
         // Time-based trigger
@@ -226,7 +219,7 @@ pub const PitrManager = struct {
 
         const recovery_point = RecoveryPoint{
             .sequence = sequence,
-            .timestamp = @as(u64, time.time.timestampSec()),
+            .timestamp = @as(u64, time.timestampSec()),
             .size_bytes = total_size,
             .operation_count = self.pending_operations.items.len,
             .checksum = checksum,
@@ -242,7 +235,7 @@ pub const PitrManager = struct {
         }
         self.pending_operations.clearRetainingCapacity();
 
-        self.last_checkpoint_time = time.time.timestampSec();
+        self.last_checkpoint_time = time.timestampSec();
 
         self.emitEvent(.{ .checkpoint_created = .{
             .sequence = sequence,
@@ -350,7 +343,7 @@ pub const PitrManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        const now = time.time.timestampSec();
+        const now = time.timestampSec();
         const retention_sec = @as(u64, self.config.retention_hours) * 3600;
         const cutoff = now - retention_sec;
 

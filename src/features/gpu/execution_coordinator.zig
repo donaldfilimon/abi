@@ -32,14 +32,12 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
 const sync = @import("../../services/shared/sync.zig");
 const backend_factory = @import("backend_factory.zig");
 const simd = @import("../../services/shared/simd.zig");
 const dispatcher_mod = @import("dispatcher.zig");
 const device_mod = @import("device.zig");
 const unified_buffer = @import("unified_buffer.zig");
-const dsl = @import("dsl/mod.zig");
 
 const KernelDispatcher = dispatcher_mod.KernelDispatcher;
 const LaunchConfig = dispatcher_mod.LaunchConfig;

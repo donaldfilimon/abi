@@ -70,16 +70,16 @@ pub fn serveDatabaseWithConfig(
     var server = try listen_addr.listen(io, .{ .reuse_address = true });
     defer server.deinit(io);
 
-    std.debug.print("Database HTTP server listening on {s}\n", .{address});
+    std.log.info("Database HTTP server listening on {s}", .{address});
 
     while (true) {
         var stream = server.accept(io) catch |err| {
-            std.debug.print("Database HTTP accept error: {t}\n", .{err});
+            std.log.err("Database HTTP accept error: {t}", .{err});
             continue;
         };
         defer stream.close(io);
         handleConnectionWithConfig(allocator, io, handle, stream, config) catch |err| {
-            std.debug.print("Database HTTP connection error: {t}\n", .{err});
+            std.log.err("Database HTTP connection error: {t}", .{err});
         };
     }
 }
@@ -127,7 +127,7 @@ fn handleConnectionWithConfig(
             else => return err,
         };
         dispatchRequestWithConfig(allocator, handle, &request, config) catch |err| {
-            std.debug.print("Database HTTP request error: {t}\n", .{err});
+            std.log.err("Database HTTP request error: {t}", .{err});
             const error_body = if (err == HttpError.Unauthorized)
                 "{\"error\":\"unauthorized\"}"
             else

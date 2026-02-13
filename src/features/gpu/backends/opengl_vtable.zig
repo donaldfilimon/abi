@@ -5,7 +5,6 @@
 //! Requires OpenGL 4.3+ for compute shader support.
 
 const std = @import("std");
-const builtin = @import("builtin");
 const build_options = @import("build_options");
 const interface = @import("../interface.zig");
 const opengl = @import("opengl.zig");

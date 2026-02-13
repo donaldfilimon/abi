@@ -14,7 +14,7 @@ pub const CudaError = error{
     DriverNotFound,
     DeviceNotFound,
     OutOfMemory,
-    LaunchFailed,
+    KernelLaunchFailed,
     MemoryCopyFailed,
     InvalidKernel,
 };
@@ -384,10 +384,10 @@ pub fn destroyStream(stream: *anyopaque) void {
 
 pub fn synchronizeStream(stream: *anyopaque) !void {
     const cu_stream: *CuStream = @ptrCast(@alignCast(stream));
-    const sync_fn = cuStreamSynchronize orelse return CudaError.LaunchFailed;
+    const sync_fn = cuStreamSynchronize orelse return CudaError.KernelLaunchFailed;
 
     if (sync_fn(cu_stream.ptr) != .success) {
-        return CudaError.LaunchFailed;
+        return CudaError.KernelLaunchFailed;
     }
 }
 
@@ -616,7 +616,7 @@ pub fn getOptimalBlockSize(kernel_handle: *anyopaque, dynamic_smem: usize) !stru
     var block_size: i32 = 0;
 
     if (occupancy_fn(&min_grid_size, &block_size, handle.function, null, dynamic_smem, 0) != .success) {
-        return CudaError.LaunchFailed;
+        return CudaError.KernelLaunchFailed;
     }
 
     return .{ .min_grid = min_grid_size, .block_size = block_size };

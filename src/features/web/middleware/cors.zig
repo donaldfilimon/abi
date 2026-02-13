@@ -74,35 +74,52 @@ pub fn addCorsHeaders(ctx: *MiddlewareContext, config: CorsConfig) !void {
 
     // Add exposed headers
     if (config.exposed_headers.len > 0) {
-        var buf: [1024]u8 = undefined;
-        var stream = std.io.fixedBufferStream(&buf);
-        for (config.exposed_headers, 0..) |header, i| {
-            if (i > 0) stream.writer().writeAll(", ") catch break;
-            stream.writer().writeAll(header) catch break;
-        }
-        _ = try ctx.response.setHeader("Access-Control-Expose-Headers", stream.getWritten());
+        var exposed_headers_buf: [1024]u8 = undefined;
+        const exposed_headers = joinStringList(&exposed_headers_buf, config.exposed_headers);
+        _ = try ctx.response.setHeader("Access-Control-Expose-Headers", exposed_headers);
     }
+}
+
+fn joinMethodList(buf: []u8, methods: []const server.Method) []const u8 {
+    var stream = std.io.fixedBufferStream(buf);
+    const writer = stream.writer();
+    for (methods, 0..) |method, i| {
+        if (i > 0) writer.writeAll(", ") catch break;
+        writer.print("{t}", .{method}) catch break;
+    }
+    return stream.getWritten();
+}
+
+fn joinStringList(buf: []u8, items: []const []const u8) []const u8 {
+    var stream = std.io.fixedBufferStream(buf);
+    const writer = stream.writer();
+    for (items, 0..) |item, i| {
+        if (i > 0) writer.writeAll(", ") catch break;
+        writer.writeAll(item) catch break;
+    }
+    return stream.getWritten();
+}
+
+fn setStringListHeader(
+    ctx: *MiddlewareContext,
+    name: []const u8,
+    items: []const []const u8,
+    buf: []u8,
+) !void {
+    const joined = joinStringList(buf, items);
+    _ = try ctx.response.setHeader(name, joined);
 }
 
 /// Handles CORS preflight (OPTIONS) requests.
 pub fn handlePreflight(ctx: *MiddlewareContext, config: CorsConfig) !void {
     // Add allowed methods
     var methods_buf: [256]u8 = undefined;
-    var methods_stream = std.io.fixedBufferStream(&methods_buf);
-    for (config.allowed_methods, 0..) |method, i| {
-        if (i > 0) methods_stream.writer().writeAll(", ") catch break;
-        methods_stream.writer().writeAll(@tagName(method)) catch break;
-    }
-    _ = try ctx.response.setHeader("Access-Control-Allow-Methods", methods_stream.getWritten());
+    const allowed_methods = joinMethodList(&methods_buf, config.allowed_methods);
+    _ = try ctx.response.setHeader("Access-Control-Allow-Methods", allowed_methods);
 
     // Add allowed headers
     var headers_buf: [1024]u8 = undefined;
-    var headers_stream = std.io.fixedBufferStream(&headers_buf);
-    for (config.allowed_headers, 0..) |header, i| {
-        if (i > 0) headers_stream.writer().writeAll(", ") catch break;
-        headers_stream.writer().writeAll(header) catch break;
-    }
-    _ = try ctx.response.setHeader("Access-Control-Allow-Headers", headers_stream.getWritten());
+    try setStringListHeader(ctx, "Access-Control-Allow-Headers", config.allowed_headers, &headers_buf);
 
     // Add max age
     var age_buf: [16]u8 = undefined;
@@ -199,4 +216,41 @@ test "areHeadersAllowed" {
     try std.testing.expect(areHeadersAllowed("content-type", &allowed)); // Case insensitive
     try std.testing.expect(areHeadersAllowed("Content-Type, Authorization", &allowed));
     try std.testing.expect(!areHeadersAllowed("X-Custom-Header", &allowed));
+}
+
+test "handlePreflight sets headers and aborts" {
+    const allocator = std.testing.allocator;
+
+    var request = server.ParsedRequest{
+        .method = .OPTIONS,
+        .path = "/",
+        .query = null,
+        .version = .http_1_1,
+        .headers = std.StringHashMap([]const u8).init(allocator),
+        .body = null,
+        .raw_path = "/",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+    defer request.deinit();
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    try handlePreflight(&ctx, default_config);
+
+    try std.testing.expectEqual(server.Status.no_content, response.status);
+    try std.testing.expectEqualStrings(
+        "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+        response.getHeader("Access-Control-Allow-Methods").?,
+    );
+    try std.testing.expectEqualStrings(
+        "Content-Type, Authorization, X-Request-Id",
+        response.getHeader("Access-Control-Allow-Headers").?,
+    );
+    try std.testing.expectEqualStrings("86400", response.getHeader("Access-Control-Max-Age").?);
+    try std.testing.expect(!ctx.should_continue);
 }

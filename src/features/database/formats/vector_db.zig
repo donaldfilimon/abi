@@ -5,12 +5,11 @@
 
 const std = @import("std");
 const unified = @import("unified.zig");
-const compression = @import("compression.zig");
-const mod = @import("mod.zig");
 const simd = @import("../../../services/shared/simd.zig");
 
 pub const VectorDbError = error{
     InvalidDimension,
+    DuplicateId,
     VectorNotFound,
     IndexCorrupted,
     OutOfMemory,
@@ -60,7 +59,7 @@ pub const VectorDatabase = struct {
     /// Insert a vector
     pub fn insert(self: *VectorDatabase, id: u64, vector: []const f32, metadata: ?[]const u8) VectorDbError!void {
         if (vector.len != self.dimension) return error.InvalidDimension;
-        if (self.id_index.contains(id)) return error.InvalidDimension; // Duplicate
+        if (self.id_index.contains(id)) return error.DuplicateId;
 
         const data = self.allocator.alloc(f32, vector.len) catch return error.OutOfMemory;
         @memcpy(data, vector);

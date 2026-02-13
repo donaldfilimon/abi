@@ -568,7 +568,7 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_COHERE_MODEL",
         "COHERE_MODEL",
     })) orelse try allocator.dupe(u8, "command-r-plus");
-    defer allocator.free(model);
+    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,

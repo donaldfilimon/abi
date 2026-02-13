@@ -302,16 +302,16 @@ pub const SecurityHeaders = struct {
 
     /// Get headers that should be removed
     pub fn getHeadersToRemove(self: *SecurityHeaders) []const []const u8 {
-        // Capacity 10 is sufficient: max 4 headers can be added
+        // Capacity 10 is sufficient: max 4 headers can be added (provably safe)
         var to_remove = std.BoundedArray([]const u8, 10){};
 
         if (self.config.remove_server_header) {
-            to_remove.append("Server") catch unreachable;
+            to_remove.appendAssumeCapacity("Server");
         }
         if (self.config.remove_powered_by) {
-            to_remove.append("X-Powered-By") catch unreachable;
-            to_remove.append("X-AspNet-Version") catch unreachable;
-            to_remove.append("X-AspNetMvc-Version") catch unreachable;
+            to_remove.appendAssumeCapacity("X-Powered-By");
+            to_remove.appendAssumeCapacity("X-AspNet-Version");
+            to_remove.appendAssumeCapacity("X-AspNetMvc-Version");
         }
 
         return to_remove.slice();

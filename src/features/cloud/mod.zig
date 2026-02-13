@@ -57,7 +57,6 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const config_module = @import("../../core/config/mod.zig");
 
 // Re-export types
 pub const types = @import("types.zig");
@@ -99,7 +98,7 @@ pub const Context = struct {
         };
 
         // Auto-detect provider from environment
-        ctx.provider = detectProvider();
+        ctx.provider = detectProviderWithAllocator(allocator);
 
         return ctx;
     }
@@ -174,7 +173,7 @@ pub fn detectProviderWithAllocator(allocator: std.mem.Allocator) ?CloudProvider 
 /// Run a handler on the detected cloud provider.
 /// Automatically selects the appropriate runtime based on environment detection.
 pub fn runHandler(allocator: std.mem.Allocator, handler: CloudHandler) !void {
-    const provider = detectProvider() orelse {
+    const provider = detectProviderWithAllocator(allocator) orelse {
         // Not running in a cloud environment
         std.log.warn("No cloud provider detected. Running in local mode.", .{});
         return Error.UnsupportedProvider;

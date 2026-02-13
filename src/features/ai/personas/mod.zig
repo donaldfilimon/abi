@@ -260,7 +260,7 @@ pub const MultiPersonaSystem = struct {
             primary_score = 1.0;
         } else if (self.ctx.config.enable_dynamic_routing) {
             // 2. Determine routing via Abi.
-            var route_decision = try self.router.route(request);
+            const route_decision = try self.router.route(request);
             decision = route_decision;
             selected_persona = route_decision.selected_persona;
             primary_score = route_decision.confidence;

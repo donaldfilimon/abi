@@ -808,6 +808,7 @@ pub fn loadDatabaseV2(
             @memcpy(metadata.?, data[cursor..][0..meta_len]);
             cursor += meta_len;
         }
+        errdefer if (metadata) |m| allocator.free(m);
 
         try db.insertOwned(id, vector, metadata);
     }

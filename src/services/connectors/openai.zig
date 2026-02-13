@@ -187,7 +187,7 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s\",\"messages\":[", .{request.model});
+        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"messages\":[", .{request.model});
 
         for (request.messages, 0..) |msg, i| {
             if (i > 0) try json_str.append(self.allocator, ',');

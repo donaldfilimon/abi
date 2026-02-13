@@ -5,7 +5,7 @@
 //! - Smart buffer management with automatic memory modes
 //! - High-level operations (vectorAdd, matrixMultiply, reduceSum, dotProduct)
 //! - Profiling and metrics collection
-//! - Multi-GPU support
+//! - Basic matrix math output verification
 
 const std = @import("std");
 const abi = @import("abi");
@@ -133,6 +133,64 @@ pub fn main() !void {
     std.debug.print("A + B:    ", .{});
     for (output) |v| std.debug.print("{d:.1} ", .{v});
     std.debug.print("\n", .{});
+
+    // === Matrix Multiply Demo ===
+    std.debug.print("\n--- Matrix Multiply ---\n", .{});
+
+    // A is 2x3, B is 3x2, result is 2x2 (row-major layout)
+    const mat_a_data = [_]f32{
+        1.0, 2.0, 3.0,
+        4.0, 5.0, 6.0,
+    };
+    const mat_b_data = [_]f32{
+        7.0,  8.0,
+        9.0,  10.0,
+        11.0, 12.0,
+    };
+
+    const mat_a = gpu.createBufferFromSlice(f32, &mat_a_data, .{}) catch |err| {
+        std.debug.print("Failed to create matrix A buffer: {t}\n", .{err});
+        return;
+    };
+    defer gpu.destroyBuffer(mat_a);
+
+    const mat_b = gpu.createBufferFromSlice(f32, &mat_b_data, .{}) catch |err| {
+        std.debug.print("Failed to create matrix B buffer: {t}\n", .{err});
+        return;
+    };
+    defer gpu.destroyBuffer(mat_b);
+
+    const mat_result = gpu.createBuffer(4 * @sizeOf(f32), .{}) catch |err| {
+        std.debug.print("Failed to create matrix result buffer: {t}\n", .{err});
+        return;
+    };
+    defer gpu.destroyBuffer(mat_result);
+
+    const mat_exec = gpu.matrixMultiply(mat_a, mat_b, mat_result, .{
+        .m = 2,
+        .n = 2,
+        .k = 3,
+    }) catch |err| {
+        std.debug.print("matrixMultiply failed: {t}\n", .{err});
+        return;
+    };
+
+    var mat_output: [4]f32 = undefined;
+    mat_result.read(f32, &mat_output) catch |err| {
+        std.debug.print("Failed to read matrix result: {t}\n", .{err});
+        return;
+    };
+
+    std.debug.print("matrixMultiply: {d} elements in {d:.3}us\n", .{
+        mat_exec.elements_processed,
+        @as(f64, @floatFromInt(mat_exec.execution_time_ns)) / 1000.0,
+    });
+    std.debug.print("A*B result (2x2): [{d:.1}, {d:.1}; {d:.1}, {d:.1}] (expected: [58, 64; 139, 154])\n", .{
+        mat_output[0],
+        mat_output[1],
+        mat_output[2],
+        mat_output[3],
+    });
 
     // === Reduce Sum Demo ===
     std.debug.print("\n--- Reduce Sum ---\n", .{});

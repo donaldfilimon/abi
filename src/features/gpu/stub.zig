@@ -57,9 +57,16 @@ pub const profiler = @import("stubs/profiler.zig");
 pub const recovery_mod = @import("stubs/recovery.zig");
 pub const multi_gpu = @import("stubs/multi_gpu.zig");
 pub const config = @import("stubs/config.zig");
+pub const platform_mod = @import("stubs/platform.zig");
+pub const backend_factory_mod = @import("stubs/backend_factory.zig");
+pub const dispatcher_mod = @import("stubs/dispatcher.zig");
+pub const diagnostics_mod = @import("stubs/diagnostics.zig");
+pub const execution_coordinator_mod = @import("stubs/execution_coordinator.zig");
+pub const std_gpu_mod = @import("stubs/std_gpu.zig");
+pub const misc = @import("stubs/misc.zig");
 
 // ============================================================================
-// Re-exports
+// Backend Re-exports
 // ============================================================================
 
 pub const Backend = backend.Backend;
@@ -68,6 +75,10 @@ pub const DetectionLevel = backend.DetectionLevel;
 pub const BackendAvailability = backend.BackendAvailability;
 pub const Summary = backend.Summary;
 
+// ============================================================================
+// Device Re-exports
+// ============================================================================
+
 pub const Device = device.Device;
 pub const DeviceType = device.DeviceType;
 pub const DeviceInfo = device.DeviceInfo;
@@ -75,8 +86,14 @@ pub const DeviceCapability = device.DeviceCapability;
 pub const DeviceFeature = device.DeviceFeature;
 pub const DeviceSelector = device.DeviceSelector;
 pub const DeviceManager = device.DeviceManager;
+pub const Vendor = device.Vendor;
+
+// ============================================================================
+// Memory Re-exports
+// ============================================================================
 
 pub const Buffer = memory.Buffer;
+pub const GpuBuffer = Buffer;
 pub const UnifiedBuffer = memory.UnifiedBuffer;
 pub const BufferFlags = memory.BufferFlags;
 pub const BufferOptions = memory.BufferOptions;
@@ -84,12 +101,21 @@ pub const BufferView = memory.BufferView;
 pub const BufferStats = memory.BufferStats;
 pub const MappedBuffer = memory.MappedBuffer;
 pub const MemoryPool = memory.MemoryPool;
+pub const GpuMemoryPool = MemoryPool;
 pub const MemoryStats = memory.MemoryStats;
 pub const MemoryInfo = memory.MemoryInfo;
 pub const MemoryMode = memory.MemoryMode;
 pub const MemoryLocation = memory.MemoryLocation;
+pub const AccessHint = memory.AccessHint;
+pub const ElementType = memory.ElementType;
+pub const AsyncTransfer = memory.AsyncTransfer;
+
+// ============================================================================
+// Stream Re-exports
+// ============================================================================
 
 pub const Stream = stream.Stream;
+pub const GpuStream = Stream;
 pub const StreamOptions = stream.StreamOptions;
 pub const StreamPriority = stream.StreamPriority;
 pub const StreamFlags = stream.StreamFlags;
@@ -100,6 +126,10 @@ pub const EventOptions = stream.EventOptions;
 pub const EventFlags = stream.EventFlags;
 pub const EventState = stream.EventState;
 
+// ============================================================================
+// Kernel Re-exports
+// ============================================================================
+
 pub const KernelBuilder = kernel.KernelBuilder;
 pub const KernelIR = kernel.KernelIR;
 pub const KernelSource = kernel.KernelSource;
@@ -109,6 +139,10 @@ pub const KernelCache = kernel.KernelCache;
 pub const KernelCacheConfig = kernel.KernelCacheConfig;
 pub const CacheStats = kernel.CacheStats;
 pub const PortableKernelSource = kernel.PortableKernelSource;
+
+// ============================================================================
+// DSL Re-exports
+// ============================================================================
 
 pub const dsl = dsl_mod.dsl;
 pub const ScalarType = dsl_mod.ScalarType;
@@ -126,6 +160,22 @@ pub const Stmt = dsl_mod.Stmt;
 pub const GeneratedSource = dsl_mod.GeneratedSource;
 pub const CompileOptions = dsl_mod.CompileOptions;
 
+pub fn compile(_: std.mem.Allocator, _: *const KernelIR, _: Backend, _: CompileOptions) Error!GeneratedSource {
+    return error.GpuDisabled;
+}
+
+pub fn compileToKernelSource(_: std.mem.Allocator, _: *const KernelIR, _: Backend, _: CompileOptions) Error!KernelSource {
+    return error.GpuDisabled;
+}
+
+pub fn compileAll(_: std.mem.Allocator, _: *const KernelIR, _: CompileOptions) Error![]GeneratedSource {
+    return error.GpuDisabled;
+}
+
+// ============================================================================
+// Execution Re-exports
+// ============================================================================
+
 pub const LaunchConfig = execution.LaunchConfig;
 pub const ExecutionResult = execution.ExecutionResult;
 pub const ExecutionStats = execution.ExecutionStats;
@@ -137,6 +187,10 @@ pub const LoadBalanceStrategy = execution.LoadBalanceStrategy;
 pub const ReduceResult = execution.ReduceResult;
 pub const DotProductResult = execution.DotProductResult;
 
+// ============================================================================
+// Profiler Re-exports
+// ============================================================================
+
 pub const Profiler = profiler.Profiler;
 pub const TimingResult = profiler.TimingResult;
 pub const OccupancyResult = profiler.OccupancyResult;
@@ -145,18 +199,169 @@ pub const MetricsSummary = profiler.MetricsSummary;
 pub const KernelMetrics = profiler.KernelMetrics;
 pub const MetricsCollector = profiler.MetricsCollector;
 
+// ============================================================================
+// Recovery Re-exports
+// ============================================================================
+
 pub const recovery = recovery_mod.recovery;
 pub const failover = recovery_mod.failover;
 pub const RecoveryManager = recovery_mod.RecoveryManager;
 pub const FailoverManager = recovery_mod.FailoverManager;
 
+// ============================================================================
+// Multi-GPU Re-exports
+// ============================================================================
+
 pub const DeviceGroup = multi_gpu.DeviceGroup;
 pub const WorkDistribution = multi_gpu.WorkDistribution;
 pub const GroupStats = multi_gpu.GroupStats;
+pub const GPUCluster = multi_gpu.GPUCluster;
+pub const GPUClusterConfig = multi_gpu.GPUClusterConfig;
+pub const ReduceOp = multi_gpu.ReduceOp;
+pub const AllReduceAlgorithm = multi_gpu.AllReduceAlgorithm;
+pub const ParallelismStrategy = multi_gpu.ParallelismStrategy;
+pub const ModelPartition = multi_gpu.ModelPartition;
+pub const DeviceBarrier = multi_gpu.DeviceBarrier;
+pub const GradientBucket = multi_gpu.GradientBucket;
+pub const GradientBucketManager = multi_gpu.GradientBucketManager;
+
+// ============================================================================
+// Config Re-exports
+// ============================================================================
 
 pub const GpuConfig = config.GpuConfig;
 
-// Lock-free memory pool stubs (from gpu-lock-free-pools branch)
+// ============================================================================
+// Platform Re-exports
+// ============================================================================
+
+pub const PlatformCapabilities = platform_mod.PlatformCapabilities;
+pub const BackendSupport = platform_mod.BackendSupport;
+pub const GpuVendor = platform_mod.GpuVendor;
+pub const isCudaSupported = platform_mod.isCudaSupported;
+pub const isMetalSupported = platform_mod.isMetalSupported;
+pub const isVulkanSupported = platform_mod.isVulkanSupported;
+pub const isWebGpuSupported = platform_mod.isWebGpuSupported;
+pub const platformDescription = platform_mod.platformDescription;
+
+// ============================================================================
+// Backend Factory Re-exports
+// ============================================================================
+
+pub const BackendFactory = backend_factory_mod.BackendFactory;
+pub const BackendInstance = backend_factory_mod.BackendInstance;
+pub const BackendFeature = backend_factory_mod.BackendFeature;
+pub const createBackend = backend_factory_mod.createBackend;
+pub const createBestBackend = backend_factory_mod.createBestBackend;
+pub const destroyBackend = backend_factory_mod.destroyBackend;
+
+// ============================================================================
+// Dispatcher Re-exports
+// ============================================================================
+
+pub const KernelDispatcher = dispatcher_mod.KernelDispatcher;
+pub const DispatchError = dispatcher_mod.DispatchError;
+pub const CompiledKernelHandle = dispatcher_mod.CompiledKernelHandle;
+pub const KernelArgs = dispatcher_mod.KernelArgs;
+
+// ============================================================================
+// Diagnostics Re-exports
+// ============================================================================
+
+pub const DiagnosticsInfo = diagnostics_mod.DiagnosticsInfo;
+pub const ErrorContext = diagnostics_mod.ErrorContext;
+pub const GpuErrorCode = diagnostics_mod.GpuErrorCode;
+pub const GpuErrorType = diagnostics_mod.GpuErrorType;
+
+// ============================================================================
+// Execution Coordinator Re-exports
+// ============================================================================
+
+pub const ExecutionCoordinator = execution_coordinator_mod.ExecutionCoordinator;
+pub const ExecutionMethod = execution_coordinator_mod.ExecutionMethod;
+
+// ============================================================================
+// std.gpu Re-exports (Zig native GPU address spaces and shader built-ins)
+// ============================================================================
+
+pub const GlobalPtr = std_gpu_mod.GlobalPtr;
+pub const SharedPtr = std_gpu_mod.SharedPtr;
+pub const StoragePtr = std_gpu_mod.StoragePtr;
+pub const UniformPtr = std_gpu_mod.UniformPtr;
+pub const ConstantPtr = std_gpu_mod.ConstantPtr;
+pub const globalInvocationId = std_gpu_mod.globalInvocationId;
+pub const workgroupId = std_gpu_mod.workgroupId;
+pub const localInvocationId = std_gpu_mod.localInvocationId;
+pub const workgroupBarrier = std_gpu_mod.workgroupBarrier;
+pub const setLocalSize = std_gpu_mod.setLocalSize;
+
+// ============================================================================
+// Peer Transfer Re-exports
+// ============================================================================
+
+pub const PeerTransferManager = misc.peer_transfer.PeerTransferManager;
+pub const TransferCapability = misc.peer_transfer.TransferCapability;
+pub const TransferHandle = misc.peer_transfer.TransferHandle;
+pub const TransferStatus = misc.peer_transfer.TransferStatus;
+pub const TransferOptions = misc.peer_transfer.TransferOptions;
+pub const TransferError = misc.peer_transfer.TransferError;
+pub const TransferStats = misc.peer_transfer.TransferStats;
+pub const DeviceBuffer = misc.peer_transfer.DeviceBuffer;
+pub const RecoveryStrategy = misc.peer_transfer.RecoveryStrategy;
+
+// ============================================================================
+// Mega GPU Orchestration Re-exports
+// ============================================================================
+
+pub const MegaCoordinator = misc.mega.Coordinator;
+pub const MegaBackendInstance = misc.mega.BackendInstance;
+pub const MegaWorkloadProfile = misc.mega.WorkloadProfile;
+pub const MegaWorkloadCategory = misc.mega.WorkloadCategory;
+pub const MegaScheduleDecision = misc.mega.ScheduleDecision;
+pub const MegaPrecision = misc.mega.Precision;
+
+// ============================================================================
+// Sync/Performance Re-exports
+// ============================================================================
+
+pub const SyncEvent = misc.sync_event.SyncEvent;
+pub const KernelRing = misc.kernel_ring.KernelRing;
+pub const AdaptiveTiling = misc.adaptive_tiling.AdaptiveTiling;
+pub const TileConfig = misc.adaptive_tiling.AdaptiveTiling.TileConfig;
+
+// ============================================================================
+// Sub-module Namespace Stubs
+// ============================================================================
+
+pub const profiling = misc.profiling;
+pub const occupancy = misc.occupancy;
+pub const fusion = misc.fusion;
+pub const execution_coordinator = misc.execution_coordinator;
+pub const memory_pool_advanced = misc.memory_pool_advanced;
+pub const memory_pool_lockfree = misc.memory_pool_lockfree;
+pub const sync_event = misc.sync_event;
+pub const kernel_ring = misc.kernel_ring;
+pub const adaptive_tiling = misc.adaptive_tiling;
+pub const std_gpu = misc.std_gpu;
+pub const std_gpu_kernels = misc.std_gpu_kernels;
+pub const unified = misc.unified;
+pub const unified_buffer = misc.unified_buffer;
+pub const interface = misc.interface;
+pub const cuda_loader = misc.cuda_loader;
+pub const builtin_kernels = misc.builtin_kernels;
+pub const diagnostics = misc.diagnostics_ns;
+pub const error_handling = misc.error_handling;
+pub const multi_device = misc.multi_device;
+pub const peer_transfer = misc.peer_transfer;
+pub const mega = misc.mega;
+pub const platform = misc.platform_ns;
+pub const backend_factory = misc.backend_factory_ns;
+pub const dispatcher = misc.dispatcher_ns;
+
+// ============================================================================
+// Lock-free memory pool stubs
+// ============================================================================
+
 pub const CACHE_LINE_SIZE: usize = 64;
 pub const INVALID_HANDLE: ResourceHandle = .{ .value = std.math.maxInt(u64) };
 
@@ -263,6 +468,10 @@ pub const ConcurrentCommandPool = struct {
 
     pub fn release(_: *ConcurrentCommandPool, _: *CommandBuffer) void {}
 };
+
+// ============================================================================
+// Gpu struct
+// ============================================================================
 
 pub const Gpu = struct {
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!Gpu {
@@ -430,7 +639,7 @@ pub fn availableBackends(allocator: std.mem.Allocator) Error![]Backend {
 }
 
 pub fn getBestBackend() Backend {
-    return .cpu;
+    return .stdgpu;
 }
 
 pub fn listBackendInfo(_: std.mem.Allocator) Error![]BackendInfo {
@@ -459,6 +668,26 @@ pub fn backendDisplayName(_: Backend) []const u8 {
 
 pub fn backendDescription(_: Backend) []const u8 {
     return "GPU feature is disabled at compile time";
+}
+
+pub fn backendFromString(_: []const u8) ?Backend {
+    return null;
+}
+
+pub fn backendSupportsKernels(_: Backend) bool {
+    return false;
+}
+
+pub fn backendFlag(_: Backend) []const u8 {
+    return "disabled";
+}
+
+pub fn defaultDeviceLabel() []const u8 {
+    return "disabled";
+}
+
+pub fn getBestKernelBackend() Backend {
+    return .stdgpu;
 }
 
 pub fn moduleEnabled() bool {

@@ -16,6 +16,7 @@ pub const suites = struct {
     pub const memory = @import("memory.zig");
     pub const simd = @import("simd.zig");
     pub const network = @import("network.zig");
+    pub const v2_modules = @import("v2_modules.zig");
 };
 
 pub fn runAll(allocator: std.mem.Allocator) !void {
@@ -27,20 +28,11 @@ pub fn runAll(allocator: std.mem.Allocator) !void {
     try suites.memory.run(allocator);
     try suites.simd.run(allocator);
     try suites.network.run(allocator);
+    try suites.v2_modules.run(allocator);
 
     std.debug.print("\nInfrastructure Benchmarks Complete\n", .{});
     std.debug.print("==============================\n", .{});
 }
-
-pub const InfrastructureBenchmarkConfig = struct {
-    iterations: u64 = 10000,
-    warmup_iterations: u64 = 1000,
-    timeout_seconds: u64 = 30,
-
-    pub const default = InfrastructureBenchmarkConfig{};
-    pub const quick = InfrastructureBenchmarkConfig{ .iterations = 1000, .warmup_iterations = 100 };
-    pub const thorough = InfrastructureBenchmarkConfig{ .iterations = 100000, .warmup_iterations = 5000 };
-};
 
 test {
     _ = suites.concurrency;
@@ -48,4 +40,5 @@ test {
     _ = suites.memory;
     _ = suites.simd;
     _ = suites.network;
+    _ = suites.v2_modules;
 }

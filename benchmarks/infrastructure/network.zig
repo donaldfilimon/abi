@@ -851,14 +851,6 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, config: NetworkBenchCo
     runner.printSummaryDebug();
 }
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    try runNetworkBenchmarks(allocator, .{});
-}
-
 test "url parsing" {
     const url = "https://api.example.com:8443/v1/users?page=1#section";
     const parsed = parseUrl(url);

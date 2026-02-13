@@ -101,6 +101,22 @@ impl Framework {
         let c_feature = CString::new(feature).unwrap_or_default();
         unsafe { ffi::abi_is_feature_enabled(self.handle, c_feature.as_ptr()) }
     }
+
+    /// Returns the current framework lifecycle state as a string.
+    pub fn state(&self) -> &str {
+        unsafe {
+            let ptr = ffi::abi_get_state(self.handle);
+            if ptr.is_null() {
+                return "unknown";
+            }
+            std::ffi::CStr::from_ptr(ptr).to_str().unwrap_or("unknown")
+        }
+    }
+
+    /// Returns the number of enabled feature modules.
+    pub fn enabled_feature_count(&self) -> i32 {
+        unsafe { ffi::abi_enabled_feature_count(self.handle) }
+    }
 }
 
 impl Drop for Framework {

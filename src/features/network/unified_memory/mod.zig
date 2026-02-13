@@ -411,7 +411,7 @@ pub const UnifiedMemoryManager = struct {
         if (self.coherence_manager) |cm| {
             cm.invalidateRegion(region_id) catch {
                 // Cache invalidation failure could cause stale data on remote nodes
-                std.debug.print("[unified_memory] Failed to invalidate remote cache for region {d} - remote nodes may have stale data\n", .{region_id});
+                std.log.warn("unified_memory: failed to invalidate remote cache for region {d} — remote nodes may have stale data", .{region_id});
             };
             self.stats.coherence_invalidations += 1;
         }

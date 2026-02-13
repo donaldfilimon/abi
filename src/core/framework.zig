@@ -220,6 +220,15 @@ pub const Framework = struct {
         WebDisabled,
         RequestFailed,
         InvalidUrl,
+        // Cloud errors
+        CloudDisabled,
+        UnsupportedProvider,
+        InvalidEvent,
+        EventParseFailed,
+        ResponseSerializeFailed,
+        HandlerFailed,
+        TimeoutExceeded,
+        ProviderError,
     } || std.mem.Allocator.Error || ConfigError || RegistryError;
 
     /// Initialize the framework with the given configuration.
@@ -315,10 +324,16 @@ pub const Framework = struct {
             }
         }
 
-        if (cfg.cloud) |_| {
-            // Note: cfg.cloud is core/config CloudConfig (detailed) but cloud_mod.Context
-            // expects features/cloud CloudConfig (runtime). Using defaults until types are unified.
-            fw.cloud = try cloud_mod.Context.init(allocator, cloud_mod.CloudConfig.defaults());
+        if (cfg.cloud) |core_cloud| {
+            // Map core/config CloudConfig fields to features/cloud runtime CloudConfig.
+            const runtime_cloud = cloud_mod.CloudConfig{
+                .memory_mb = core_cloud.memory_mb,
+                .timeout_seconds = core_cloud.timeout_seconds,
+                .tracing_enabled = core_cloud.tracing_enabled,
+                .logging_enabled = core_cloud.logging_enabled,
+                .log_level = @enumFromInt(@intFromEnum(core_cloud.log_level)),
+            };
+            fw.cloud = try cloud_mod.Context.init(allocator, runtime_cloud);
             if (comptime build_options.enable_web) {
                 try fw.registry.registerComptime(.cloud);
             }
@@ -454,6 +469,13 @@ pub const Framework = struct {
         self.registry.deinit();
         self.runtime.deinit();
         self.state = .stopped;
+    }
+
+    /// Shutdown with timeout. Currently synchronous (timeout reserved for
+    /// future async cleanup). Returns true if clean shutdown completed.
+    pub fn shutdownWithTimeout(self: *Framework, _: u64) bool {
+        self.deinit();
+        return self.state == .stopped;
     }
 
     fn deinitOptionalContext(comptime Context: type, slot: *?*Context) void {

@@ -534,69 +534,31 @@ fn benchWorkStealing(allocator: std.mem.Allocator, thread_count: usize, total_wo
     return state.counter.load(.acquire);
 }
 
-// ============================================================================
-// Channel/Message Passing Benchmark
-// ============================================================================
-
-fn Channel(comptime T: type, comptime capacity: usize) type {
-    return struct {
-        const Self = @This();
-
-        buffer: [capacity]T = undefined,
-        head: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
-        tail: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
-        mutex: sync.Mutex = .{},
-        not_empty: sync.Condition = .{},
-        not_full: sync.Condition = .{},
-
-        pub fn send(self: *Self, item: T) void {
-            self.mutex.lock();
-            defer self.mutex.unlock();
-
-            while ((self.tail.load(.monotonic) + 1) % capacity == self.head.load(.monotonic)) {
-                self.not_full.wait(&self.mutex);
-            }
-
-            const tail = self.tail.load(.monotonic);
-            self.buffer[tail] = item;
-            self.tail.store((tail + 1) % capacity, .release);
-            self.not_empty.signal();
-        }
-
-        pub fn recv(self: *Self) T {
-            self.mutex.lock();
-            defer self.mutex.unlock();
-
-            while (self.head.load(.monotonic) == self.tail.load(.monotonic)) {
-                self.not_empty.wait(&self.mutex);
-            }
-
-            const head = self.head.load(.monotonic);
-            const item = self.buffer[head];
-            self.head.store((head + 1) % capacity, .release);
-            self.not_full.signal();
-            return item;
-        }
-    };
-}
-
 fn benchChannel(allocator: std.mem.Allocator, message_count: usize) !u64 {
-    var channel = Channel(u64, 1024){};
+    var channel = SPSCQueue(u64, 1024){};
     var result_sum = std.atomic.Value(u64).init(0);
 
     const producer = try std.Thread.spawn(.{}, struct {
-        fn work(ch: *Channel(u64, 1024), count: usize) void {
+        fn work(ch: *SPSCQueue(u64, 1024), count: usize) void {
             for (0..count) |i| {
-                ch.send(i);
+                while (!ch.push(i)) {
+                    std.atomic.spinLoopHint();
+                }
             }
         }
     }.work, .{ &channel, message_count });
 
     const consumer = try std.Thread.spawn(.{}, struct {
-        fn work(ch: *Channel(u64, 1024), count: usize, sum_out: *std.atomic.Value(u64)) void {
+        fn work(ch: *SPSCQueue(u64, 1024), count: usize, sum_out: *std.atomic.Value(u64)) void {
             var sum: u64 = 0;
-            for (0..count) |_| {
-                sum +%= ch.recv();
+            var received: usize = 0;
+            while (received < count) {
+                if (ch.pop()) |value| {
+                    sum +%= value;
+                    received += 1;
+                } else {
+                    std.atomic.spinLoopHint();
+                }
             }
             sum_out.store(sum, .release);
         }
@@ -864,14 +826,6 @@ pub fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, config: Concurrenc
 
     std.debug.print("\n", .{});
     runner.printSummaryDebug();
-}
-
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    try runConcurrencyBenchmarks(allocator, .{});
 }
 
 test "concurrency primitives" {

@@ -2,8 +2,8 @@
  * Main ABI framework interface.
  */
 
-import { AbiError, ErrorCode } from './error';
-import { WasmModule, loadWasm } from './wasm';
+import { AbiError, ErrorCode } from "./error";
+import { WasmModule, loadWasm } from "./wasm";
 
 /**
  * ABI initialization options.
@@ -62,7 +62,10 @@ export class Abi {
    */
   static getInstance(): Abi {
     if (!Abi.instance || !Abi.instance._initialized) {
-      throw new AbiError(ErrorCode.NotInitialized, 'ABI not initialized. Call Abi.init() first.');
+      throw new AbiError(
+        ErrorCode.NotInitialized,
+        "ABI not initialized. Call Abi.init() first.",
+      );
     }
     return Abi.instance;
   }
@@ -87,7 +90,7 @@ export class Abi {
   version(): string {
     const ptr = this.wasm.getExports().abi_version();
     if (ptr === 0) {
-      return 'unknown';
+      return "unknown";
     }
     return this.wasm.readString(ptr);
   }
@@ -98,13 +101,36 @@ export class Abi {
   isFeatureEnabled(feature: string): boolean {
     // In WASM, we check based on build configuration
     switch (feature) {
-      case 'simd':
+      case "simd":
         return this.wasm.getExports().abi_simd_available() !== 0;
-      case 'gpu':
-        return typeof navigator !== 'undefined' && 'gpu' in navigator;
+      case "gpu":
+        return typeof navigator !== "undefined" && "gpu" in navigator;
       default:
         return false;
     }
+  }
+
+  /**
+   * Returns the current framework lifecycle state.
+   */
+  state(): string {
+    const exports = this.wasm.getExports();
+    if (typeof exports.abi_get_state === "function") {
+      const ptr = exports.abi_get_state(this.handle);
+      return this.wasm.readString(ptr) || "unknown";
+    }
+    return "unknown";
+  }
+
+  /**
+   * Returns the number of enabled feature modules.
+   */
+  enabledFeatureCount(): number {
+    const exports = this.wasm.getExports();
+    if (typeof exports.abi_enabled_feature_count === "function") {
+      return exports.abi_enabled_feature_count(this.handle);
+    }
+    return 0;
   }
 
   /**

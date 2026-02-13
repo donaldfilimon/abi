@@ -634,6 +634,7 @@ pub const TcpTransport = struct {
 
         // Store with copied key
         const key_copy = try self.allocator.dupe(u8, key);
+        errdefer self.allocator.free(key_copy);
         try self.peers.put(self.allocator, key_copy, peer);
 
         self.stats.connections_total += 1;

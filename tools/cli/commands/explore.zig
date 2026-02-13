@@ -4,6 +4,12 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 
+const DebugWriter = struct {
+    pub fn print(_: @This(), comptime fmt: []const u8, args: anytype) !void {
+        std.debug.print(fmt, args);
+    }
+};
+
 /// Run the explore command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var parser = utils.args.ArgParser.init(allocator, args);
@@ -127,10 +133,10 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     switch (output_format) {
         .human => {
-            result.formatHuman(std.debug);
+            try result.formatHuman(DebugWriter{});
         },
         .json => {
-            result.formatJSON(std.debug);
+            try result.formatJSON(DebugWriter{});
         },
         .compact => {
             std.debug.print("Query: \"{s}\" | Found: {d} matches in {d}ms\n", .{

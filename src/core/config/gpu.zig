@@ -28,11 +28,14 @@ pub const GpuConfig = struct {
 
     pub const Backend = enum {
         auto,
-        vulkan,
         cuda,
+        vulkan,
+        stdgpu,
         metal,
         webgpu,
         opengl,
+        opengles,
+        webgl2,
         fpga,
         cpu,
     };

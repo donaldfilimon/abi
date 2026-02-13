@@ -577,7 +577,22 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
             .mouse => |mouse| {
                 if (mouse.pressed and mouse.button == .left) {
                     if (state.handleMouseClick(mouse.row)) {
-                        // Double-click could run the command
+                        // Execute the selected action
+                        if (state.selectedItem()) |item| {
+                            if (item.action == .quit) break;
+
+                            if (item.action == .command) {
+                                try state.addToHistory(item.action.command);
+                            }
+
+                            try state.terminal.exit();
+                            try runAction(state.allocator, state.framework, item.action);
+
+                            std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
+                            _ = state.terminal.readKey() catch {};
+
+                            try state.terminal.enter();
+                        }
                     }
                 } else if (mouse.button == .wheel_up) {
                     state.moveUp();

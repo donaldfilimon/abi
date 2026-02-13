@@ -74,7 +74,7 @@ pub const Server = struct {
     pub const Response = struct {
         status: types.Status,
         headers: std.StringHashMap([]const u8),
-        body: std.ArrayList(u8),
+        body: std.ArrayListUnmanaged(u8),
         sent: bool,
         allocator: std.mem.Allocator,
 
@@ -82,7 +82,7 @@ pub const Server = struct {
             return .{
                 .status = .ok,
                 .headers = std.StringHashMap([]const u8).init(allocator),
-                .body = std.ArrayList(u8).init(allocator),
+                .body = .empty,
                 .sent = false,
                 .allocator = allocator,
             };
@@ -90,7 +90,7 @@ pub const Server = struct {
 
         pub fn deinit(self: *Response) void {
             self.headers.deinit();
-            self.body.deinit();
+            self.body.deinit(self.allocator);
         }
 
         /// Sets the response status.
@@ -108,34 +108,39 @@ pub const Server = struct {
         /// Sets the response body as raw bytes.
         pub fn setBody(self: *Response, body: []const u8) !*Response {
             self.body.clearRetainingCapacity();
-            try self.body.appendSlice(body);
+            try self.body.appendSlice(self.allocator, body);
+            return self;
+        }
+
+        fn setJsonBodyWithOptions(self: *Response, value: anytype, options: anytype) !*Response {
+            self.body.clearRetainingCapacity();
+            try std.json.stringify(value, options, self.body.writer(self.allocator));
+            _ = try self.setHeader(types.Header.content_type, types.MimeType.json);
             return self;
         }
 
         /// Sets the response body as JSON.
         pub fn json(self: *Response, value: anytype) !*Response {
-            self.body.clearRetainingCapacity();
-            try std.json.stringify(value, .{}, self.body.writer());
-            _ = try self.setHeader(types.Header.content_type, types.MimeType.json);
+            return self.setJsonBodyWithOptions(value, .{});
+        }
+
+        fn setTypedBody(self: *Response, content: []const u8, mime_type: []const u8) !*Response {
+            _ = try self.setBody(content);
+            _ = try self.setHeader(types.Header.content_type, mime_type);
             return self;
         }
 
         /// Sets the response body as plain text.
         pub fn text(self: *Response, content: []const u8) !*Response {
-            _ = try self.setBody(content);
-            _ = try self.setHeader(types.Header.content_type, types.MimeType.plain);
-            return self;
+            return self.setTypedBody(content, types.MimeType.plain);
         }
 
         /// Sets the response body as HTML.
         pub fn html(self: *Response, content: []const u8) !*Response {
-            _ = try self.setBody(content);
-            _ = try self.setHeader(types.Header.content_type, types.MimeType.html);
-            return self;
+            return self.setTypedBody(content, types.MimeType.html);
         }
 
-        /// Serializes the response to a writer.
-        pub fn writeTo(self: *Response, writer: anytype) !void {
+        fn writeHttpResponse(self: *Response, writer: anytype) !void {
             // Write status line
             try writer.print("HTTP/1.1 {d} {s}\r\n", .{
                 @intFromEnum(self.status),
@@ -162,6 +167,11 @@ pub const Server = struct {
             }
 
             self.sent = true;
+        }
+
+        /// Serializes the response to a writer.
+        pub fn writeTo(self: *Response, writer: anytype) !void {
+            try self.writeHttpResponse(writer);
         }
     };
 
@@ -225,7 +235,7 @@ pub const Server = struct {
 
         self.listener = sock;
         self.state = .running;
-        self.stats.started_at = std.time.milliTimestamp();
+        self.stats.started_at = time.nowMs();
 
         std.log.info("Server started on {s}:{d}", .{ self.config.host, self.config.port });
     }
@@ -263,7 +273,9 @@ pub const Server = struct {
             std.log.err("Accept failed: {t}", .{err});
             return ServerError.InternalError;
         };
-        _ = client_sock;
+        // Close the socket since this stub server doesn't process connections yet.
+        // A full implementation would pass client_sock to a connection handler.
+        std.posix.close(client_sock);
 
         self.mutex.lock();
         const conn_id = self.next_conn_id;

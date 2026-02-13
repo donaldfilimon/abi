@@ -35,16 +35,13 @@ const build_options = @import("build_options");
 const unified = @import("unified.zig");
 const peer_transfer = @import("peer_transfer/mod.zig");
 
-// Zig 0.16 compatibility: Simple spinlock Mutex
-const Mutex = struct {
-    locked: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
-    pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) std.atomic.spinLoopHint();
-    }
-    pub fn unlock(self: *Mutex) void {
-        self.locked.store(false, .release);
-    }
-};
+const sync = @import("../../services/shared/sync.zig");
+const Mutex = sync.Mutex;
+
+// Re-export extracted submodules for build discovery
+pub const device_group_mod = @import("device_group.zig");
+pub const gpu_cluster_mod = @import("gpu_cluster.zig");
+pub const gradient_sync_mod = @import("gradient_sync.zig");
 
 /// Device identifier.
 pub const DeviceId = u32;

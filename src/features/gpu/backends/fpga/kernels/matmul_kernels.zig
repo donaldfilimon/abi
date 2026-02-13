@@ -636,31 +636,17 @@ pub const BatchMatMulKernel = struct {
         // Use empty static slice instead of allocating - avoids allocation errors
         const empty_weights: []const u8 = &[_]u8{};
 
+        var timer = if (metrics != null) (time.Timer.start() catch null) else null;
+
+        // FPGA would have specialized pipeline for batch processing
+        for (batch_activations, batch_outputs, 0..) |activations, output, i| {
+            const weights = if (batch_weights) |bw| bw[i] else empty_weights;
+            try self.executeSingleHead(activations, weights, output);
+        }
+
         if (metrics) |m| {
-            // Use Timer for Zig 0.16 compatibility (no std.time.nanoTimestamp())
-            var timer = time.Timer.start() catch {
-                // If timer fails, execute without timing
-                for (batch_activations, batch_outputs, 0..) |activations, output, i| {
-                    const weights = if (batch_weights) |bw| bw[i] else empty_weights;
-                    try self.executeSingleHead(activations, weights, output);
-                }
-                return;
-            };
-
-            // FPGA would have specialized pipeline for batch processing
-
-            for (batch_activations, batch_outputs, 0..) |activations, output, i| {
-                const weights = if (batch_weights) |bw| bw[i] else empty_weights;
-                try self.executeSingleHead(activations, weights, output);
-            }
-
-            m.execution_time_ns = @intCast(timer.read());
+            m.execution_time_ns = if (timer) |*t| @intCast(t.read()) else 0;
             m.total_flops = @as(u64, batch_size) * 2 * self.config.m * self.config.n * self.config.k;
-        } else {
-            for (batch_activations, batch_outputs, 0..) |activations, output, i| {
-                const weights = if (batch_weights) |bw| bw[i] else empty_weights;
-                try self.executeSingleHead(activations, weights, output);
-            }
         }
     }
 };

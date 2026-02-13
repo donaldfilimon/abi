@@ -87,16 +87,16 @@ fn runServer(
     var server = try listen_addr.listen(io, .{ .reuse_address = true });
     defer server.deinit(io);
 
-    std.debug.print("Abbey HTTP server listening on {s}\n", .{address});
+    std.log.info("Abbey HTTP server listening on {s}", .{address});
 
     while (true) {
         var stream = server.accept(io) catch |err| {
-            std.debug.print("Abbey HTTP accept error: {t}\n", .{err});
+            std.log.err("Abbey HTTP accept error: {t}", .{err});
             continue;
         };
         defer stream.close(io);
         handleConnection(allocator, io, abbey_engine, stream, config) catch |err| {
-            std.debug.print("Abbey HTTP connection error: {t}\n", .{err});
+            std.log.err("Abbey HTTP connection error: {t}", .{err});
         };
     }
 }
@@ -135,7 +135,7 @@ fn handleConnection(
             else => return err,
         };
         dispatchRequest(allocator, abbey_engine, &request, config) catch |err| {
-            std.debug.print("Abbey HTTP request error: {t}\n", .{err});
+            std.log.err("Abbey HTTP request error: {t}", .{err});
             const error_body = switch (err) {
                 ServerError.Unauthorized => "{\"error\":\"unauthorized\"}",
                 ServerError.SessionNotActive => "{\"error\":\"no active session\"}",

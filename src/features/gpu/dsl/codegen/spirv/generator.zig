@@ -308,6 +308,7 @@ pub const SpirvGenerator = struct {
         // Convert to byte slice
         const word_bytes = std.mem.sliceAsBytes(self.words.items);
         const code = try self.allocator.dupe(u8, word_bytes);
+        errdefer self.allocator.free(code);
         const entry_point_name = try self.allocator.dupe(u8, "main");
 
         return .{

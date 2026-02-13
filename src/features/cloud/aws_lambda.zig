@@ -24,7 +24,6 @@
 
 const std = @import("std");
 const types = @import("types.zig");
-// Shared utilities for time handling (Unix ms)
 const utils = @import("../../services/shared/utils.zig");
 
 pub const CloudEvent = types.CloudEvent;
@@ -33,6 +32,11 @@ pub const CloudHandler = types.CloudHandler;
 pub const CloudError = types.CloudError;
 pub const HttpMethod = types.HttpMethod;
 pub const InvocationMetadata = types.InvocationMetadata;
+
+// Shared helpers from types.zig
+const jsonStringOrNull = types.jsonStringOrNull;
+const parseJsonStringMap = types.parseJsonStringMap;
+const parseJsonHeaderMap = types.parseJsonHeaderMap;
 
 /// AWS Lambda runtime API client.
 pub const LambdaRuntime = struct {
@@ -89,7 +93,8 @@ pub const LambdaRuntime = struct {
         if (self.handler(&event, self.allocator)) |resp| {
             response = resp;
         } else |err| {
-            error_message = @errorName(err);
+            var err_name_buf: [128]u8 = undefined;
+            error_message = std.fmt.bufPrint(&err_name_buf, "{t}", .{err}) catch "HandlerError";
             response = try CloudResponse.err(self.allocator, 500, error_message.?);
         }
         defer response.deinit();
@@ -198,40 +203,19 @@ fn parseApiGatewayEvent(event: *CloudEvent, root: std.json.Value, method: []cons
         event.path = path.string;
     }
 
-    if (root.object.get("body")) |body| {
-        event.body = switch (body) {
-            .string => |s| s,
-            else => null,
-        };
-    }
+    if (root.object.get("body")) |body| event.body = jsonStringOrNull(body);
 
     // Parse query parameters
     if (root.object.get("queryStringParameters")) |params| {
         if (params != .null) {
-            event.query_params = std.StringHashMap([]const u8).init(event.allocator);
-            var iter = params.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    try event.query_params.?.put(entry.key_ptr.*, entry.value_ptr.string);
-                }
-            }
+            event.query_params = try parseJsonStringMap(event.allocator, params);
         }
     }
 
-    // Parse headers
+    // Parse headers (lowercase keys for case-insensitive lookup)
     if (root.object.get("headers")) |headers| {
         if (headers != .null) {
-            event.headers = std.StringHashMap([]const u8).init(event.allocator);
-            var iter = headers.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    // Store headers with lowercase keys
-                    var lower_key_buf: [256]u8 = undefined;
-                    const key_len = @min(entry.key_ptr.len, 256);
-                    const lower_key = std.ascii.lowerString(lower_key_buf[0..key_len], entry.key_ptr.*[0..key_len]);
-                    try event.headers.?.put(lower_key, entry.value_ptr.string);
-                }
-            }
+            event.headers = try parseJsonHeaderMap(event.allocator, headers);
         }
     }
 }
@@ -249,36 +233,19 @@ fn parseHttpApiEvent(event: *CloudEvent, root: std.json.Value) !void {
         }
     }
 
-    if (root.object.get("body")) |body| {
-        event.body = switch (body) {
-            .string => |s| s,
-            else => null,
-        };
-    }
+    if (root.object.get("body")) |body| event.body = jsonStringOrNull(body);
 
     // Parse query parameters (already decoded in v2)
     if (root.object.get("queryStringParameters")) |params| {
         if (params != .null) {
-            event.query_params = std.StringHashMap([]const u8).init(event.allocator);
-            var iter = params.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    try event.query_params.?.put(entry.key_ptr.*, entry.value_ptr.string);
-                }
-            }
+            event.query_params = try parseJsonStringMap(event.allocator, params);
         }
     }
 
-    // Parse headers (lowercase in v2)
+    // Parse headers (already lowercase in v2, but normalize for consistency)
     if (root.object.get("headers")) |headers| {
         if (headers != .null) {
-            event.headers = std.StringHashMap([]const u8).init(event.allocator);
-            var iter = headers.object.iterator();
-            while (iter.next()) |entry| {
-                if (entry.value_ptr.* == .string) {
-                    try event.headers.?.put(entry.key_ptr.*, entry.value_ptr.string);
-                }
-            }
+            event.headers = try parseJsonHeaderMap(event.allocator, headers);
         }
     }
 }

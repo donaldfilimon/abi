@@ -24,6 +24,7 @@ pub const infrastructure = struct {
     pub const memory = @import("infrastructure/memory.zig");
     pub const simd = @import("infrastructure/simd.zig");
     pub const network = @import("infrastructure/network.zig");
+    pub const v2_modules = @import("infrastructure/v2_modules.zig");
 
     // Utility functions
     pub const runner = struct {
@@ -51,16 +52,6 @@ pub const utilities = struct {
     pub const reporter = struct {};
     pub const runner = struct {};
     pub const statistics = struct {};
-};
-
-// Re-export commonly used types
-pub const BenchmarkConfig = struct {
-    iterations: u64 = 10000,
-    warmup: u64 = 1000,
-    timeout_seconds: u64 = 30,
-
-    pub const quick = BenchmarkConfig{ .iterations = 1000, .warmup = 100 };
-    pub const thorough = BenchmarkConfig{ .iterations = 100000, .warmup = 5000 };
 };
 
 pub fn runAllBenchmarks(allocator: std.mem.Allocator) !void {

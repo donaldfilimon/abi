@@ -300,10 +300,17 @@ pub const ServiceDiscovery = struct {
 
             const status = self.parseConsulStatus(entry);
 
+            const id_copy = try self.allocator.dupe(u8, id.?);
+            errdefer self.allocator.free(id_copy);
+            const name_copy = try self.allocator.dupe(u8, name.?);
+            errdefer self.allocator.free(name_copy);
+            const addr_copy = try self.allocator.dupe(u8, address.?);
+            errdefer self.allocator.free(addr_copy);
+
             const instance = ServiceInstance{
-                .id = try self.allocator.dupe(u8, id.?),
-                .name = try self.allocator.dupe(u8, name.?),
-                .address = try self.allocator.dupe(u8, address.?),
+                .id = id_copy,
+                .name = name_copy,
+                .address = addr_copy,
                 .port = port.?,
                 .tags = &.{},
                 .status = status,

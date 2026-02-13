@@ -6,6 +6,8 @@
 const std = @import("std");
 const parser = @import("parser.zig");
 const Token = parser.Token;
+const string_utils = @import("../../../services/shared/utils.zig");
+const json_utils = @import("../../../services/shared/utils/json/mod.zig");
 
 pub const RenderError = error{
     MissingVariable,
@@ -166,19 +168,11 @@ pub const Renderer = struct {
     }
 
     fn toUpper(self: *Renderer, value: []const u8) ![]const u8 {
-        var result = try self.allocator.alloc(u8, value.len);
-        for (value, 0..) |c, i| {
-            result[i] = std.ascii.toUpper(c);
-        }
-        return result;
+        return string_utils.toUpperAscii(self.allocator, value);
     }
 
     fn toLower(self: *Renderer, value: []const u8) ![]const u8 {
-        var result = try self.allocator.alloc(u8, value.len);
-        for (value, 0..) |c, i| {
-            result[i] = std.ascii.toLower(c);
-        }
-        return result;
+        return string_utils.toLowerAscii(self.allocator, value);
     }
 
     fn escapeHtml(self: *Renderer, value: []const u8) ![]const u8 {
@@ -200,30 +194,7 @@ pub const Renderer = struct {
     }
 
     fn escapeJson(self: *Renderer, value: []const u8) ![]const u8 {
-        var result = std.ArrayListUnmanaged(u8){};
-        errdefer result.deinit(self.allocator);
-
-        for (value) |c| {
-            switch (c) {
-                '"' => try result.appendSlice(self.allocator, "\\\""),
-                '\\' => try result.appendSlice(self.allocator, "\\\\"),
-                '\n' => try result.appendSlice(self.allocator, "\\n"),
-                '\r' => try result.appendSlice(self.allocator, "\\r"),
-                '\t' => try result.appendSlice(self.allocator, "\\t"),
-                else => {
-                    if (c < 0x20) {
-                        try result.appendSlice(self.allocator, "\\u00");
-                        const hex = "0123456789abcdef";
-                        try result.append(self.allocator, hex[c >> 4]);
-                        try result.append(self.allocator, hex[c & 0xf]);
-                    } else {
-                        try result.append(self.allocator, c);
-                    }
-                },
-            }
-        }
-
-        return result.toOwnedSlice(self.allocator);
+        return json_utils.escapeJsonContent(self.allocator, value);
     }
 };
 

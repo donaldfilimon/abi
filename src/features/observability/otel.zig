@@ -549,18 +549,9 @@ pub const OtelContext = struct {
     }
 
     fn parseHexByte(high: u8, low: u8) ?u8 {
-        const h = hexDigit(high) orelse return null;
-        const l = hexDigit(low) orelse return null;
+        const h = std.fmt.charToDigit(high, 16) catch return null;
+        const l = std.fmt.charToDigit(low, 16) catch return null;
         return (h << 4) | l;
-    }
-
-    fn hexDigit(c: u8) ?u8 {
-        return switch (c) {
-            '0'...'9' => c - '0',
-            'a'...'f' => c - 'a' + 10,
-            'A'...'F' => c - 'A' + 10,
-            else => null,
-        };
     }
 };
 

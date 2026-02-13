@@ -705,7 +705,7 @@ pub fn trainWithResult(
                             .timestamp = @as(u64, @intCast(time_utils.unixSeconds())),
                             .weights = model.weights,
                         }) catch |err| {
-                            std.debug.print("Warning: failed to save checkpoint: {t}\n", .{err});
+                            std.log.warn("failed to save checkpoint: {t}", .{err});
                         };
                     }
                 }
@@ -782,6 +782,12 @@ fn calculateAccuracy(weights: []f32, gradients: []f32) f32 {
         if (prediction == 1) correct += 1;
     }
     return @as(f32, @floatFromInt(correct)) / @as(f32, @floatFromInt(weights.len));
+}
+
+// Test discovery for extracted test files
+test {
+    _ = @import("self_learning_test.zig");
+    _ = @import("trainable_model_test.zig");
 }
 
 test "training result includes checkpoints" {

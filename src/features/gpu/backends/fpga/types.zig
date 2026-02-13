@@ -543,7 +543,7 @@ pub const FpgaError = error{
     // Initialization errors
     PlatformNotSupported,
     DeviceNotFound,
-    DriverNotInstalled,
+    DriverNotFound,
     InitializationFailed,
 
     // Bitstream errors

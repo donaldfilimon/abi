@@ -103,6 +103,9 @@ training_data.txt
 # ABI local user state
 .abi/
 
+# Development checkpoints and evaluation data
+checkpoints/
+
 # Auto Claude workspace data
 abi/
 
@@ -132,11 +135,12 @@ perf.data*
 
 *.core
 
-# Binary executables
+# Binary executables and object files
 *.exe
 *.dll
 *.so
 *.dylib
+*.o
 *.pdb
 *.pdb.*
 # Backup files

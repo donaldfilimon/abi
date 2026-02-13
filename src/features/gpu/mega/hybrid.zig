@@ -369,7 +369,7 @@ pub const HybridCoordinator = struct {
             .decision = decision,
             .actual_latency_ns = actual_latency_ns,
             .success = success,
-            .timestamp = std.time.milliTimestamp(),
+            .timestamp = time.nowMs(),
         });
 
         if (success) {

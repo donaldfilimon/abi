@@ -201,6 +201,16 @@ func (f *Framework) IsFeatureEnabled(feature string) bool {
 	return bool(C.abi_is_feature_enabled(f.handle, cFeature))
 }
 
+// State returns the current framework state as a string.
+func (f *Framework) State() string {
+	return C.GoString(C.abi_get_state(f.handle))
+}
+
+// EnabledFeatureCount returns the number of active features.
+func (f *Framework) EnabledFeatureCount() int {
+	return int(C.abi_enabled_feature_count(f.handle))
+}
+
 // Version returns the ABI framework version string.
 func Version() string {
 	return C.GoString(C.abi_version())
@@ -232,16 +242,16 @@ func GetVersionInfo() VersionInfo {
 
 // SimdCaps describes CPU SIMD capabilities.
 type SimdCaps struct {
-	SSE    bool
-	SSE2   bool
-	SSE3   bool
-	SSSE3  bool
-	SSE4_1 bool
-	SSE4_2 bool
-	AVX    bool
-	AVX2   bool
+	SSE     bool
+	SSE2    bool
+	SSE3    bool
+	SSSE3   bool
+	SSE4_1  bool
+	SSE4_2  bool
+	AVX     bool
+	AVX2    bool
 	AVX512F bool
-	NEON   bool
+	NEON    bool
 }
 
 // SimdAvailable returns true if any SIMD instruction set is available.
