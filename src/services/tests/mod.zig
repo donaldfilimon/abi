@@ -280,7 +280,7 @@ test "framework initialization" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework_instance = try abi.createDefaultFramework(gpa.allocator());
+    var framework_instance = try abi.initDefault(gpa.allocator());
     defer framework_instance.deinit();
 
     try std.testing.expect(framework_instance.isRunning());

@@ -128,9 +128,6 @@ pub const observability = if (build_options.enable_profiling)
 else
     @import("features/observability/stub.zig");
 
-/// Convenience alias for system information utilities.
-pub const systemInfo = observability.SystemInfo;
-
 /// Web utilities.
 pub const web = if (build_options.enable_web)
     @import("features/web/mod.zig")
@@ -165,14 +162,8 @@ pub const core = @import("services/shared/legacy/mod.zig");
 /// Connectors (legacy).
 pub const connectors = @import("services/connectors/mod.zig");
 
-/// Monitoring (legacy - use observability).
-pub const monitoring = observability;
-
-// Legacy framework types
+// Legacy framework types (FrameworkOptions still widely used in tests/CLI)
 pub const FrameworkOptions = framework.FrameworkOptions;
-pub const FrameworkConfiguration = framework.FrameworkConfiguration;
-pub const RuntimeConfig = framework.RuntimeConfig;
-pub const runtimeConfigFromOptions = framework.runtimeConfigFromOptions;
 
 // Shared utilities (direct imports from shared/)
 pub const logging = @import("services/shared/logging.zig");
@@ -180,9 +171,6 @@ pub const plugins = @import("services/shared/plugins.zig");
 pub const simd = @import("services/shared/simd.zig");
 pub const utils = @import("services/shared/utils.zig");
 pub const os = @import("services/shared/os.zig");
-
-// Legacy platform re-export (use platform module instead)
-pub const legacy_platform = @import("services/shared/platform.zig");
 
 // SIMD functions exported directly for convenience.
 // These provide hardware-accelerated vector operations when available.
@@ -195,14 +183,6 @@ pub const vectorAdd = simd.vectorAdd;
 /// Returns the sum of element-wise products.
 pub const vectorDot = simd.vectorDot;
 
-/// Compute the L2 (Euclidean) norm of a vector using SIMD acceleration.
-/// Returns sqrt(sum of squared elements).
-pub const vectorL2Norm = simd.vectorL2Norm;
-
-/// Compute cosine similarity between two vectors using SIMD acceleration.
-/// Returns a value between -1.0 (opposite) and 1.0 (identical direction).
-pub const cosineSimilarity = simd.cosineSimilarity;
-
 /// Check if SIMD acceleration is available on the current platform.
 /// Returns true if hardware vector instructions can be used.
 pub const hasSimdSupport = simd.hasSimdSupport;
@@ -214,62 +194,13 @@ pub const hasSimdSupport = simd.hasSimdSupport;
 /// Create via `abi.gpu.Gpu.init()` or through the Framework.
 pub const Gpu = gpu.Gpu;
 
-/// Configuration options for GPU initialization (backend selection, device preferences).
-pub const GpuConfig = gpu.GpuConfig;
-
 /// Enumeration of available GPU backends (cuda, vulkan, metal, webgpu, etc.).
 pub const GpuBackend = gpu.Backend;
-
-/// Builder for constructing GPU compute kernels using the kernel DSL.
-/// Provides a high-level interface for defining parallel operations.
-pub const KernelBuilder = gpu.KernelBuilder;
-
-/// Intermediate representation for GPU kernels before backend-specific compilation.
-pub const KernelIR = gpu.KernelIR;
-
-/// Platform-independent kernel source that can be compiled to any supported backend.
-pub const PortableKernelSource = gpu.PortableKernelSource;
-
-// Network type aliases for distributed computing and Raft consensus.
-
-/// Configuration for the distributed network layer (node discovery, Raft settings).
-pub const NetworkConfig = network.NetworkConfig;
-
-/// Current state of a network node (leader, follower, candidate, etc.).
-pub const NetworkState = network.NetworkState;
-
-// AI type aliases for transformer models and text generation.
-
-/// Configuration for transformer model architecture (layers, heads, dimensions).
-pub const TransformerConfig = ai.TransformerConfig;
-
-/// A loaded transformer model ready for inference or fine-tuning.
-pub const TransformerModel = ai.TransformerModel;
-
-/// Generator for streaming token-by-token text output from LLMs.
-/// Enables real-time response streaming for chat applications.
-pub const StreamingGenerator = ai.StreamingGenerator;
-
-/// A single token emitted during streaming generation, includes token ID and text.
-pub const StreamToken = ai.StreamToken;
-
-/// State of a streaming generation session (active, finished, error).
-pub const StreamState = ai.StreamState;
-
-/// Parameters controlling text generation (temperature, top_k, top_p, max_tokens).
-pub const GenerationConfig = ai.GenerationConfig;
 
 // Discord bot integration for AI-powered Discord applications.
 
 /// Discord connector module providing bot functionality.
 pub const discord = connectors.discord;
-
-/// Discord bot client for connecting to Discord's Gateway API.
-/// Handles authentication, message events, and command dispatch.
-pub const DiscordClient = discord.Client;
-
-/// Configuration for Discord bot (token, intents, presence settings).
-pub const DiscordConfig = discord.Config;
 
 /// AI-powered tools for Discord bots (message analysis, auto-moderation, etc.).
 pub const DiscordTools = ai.DiscordTools;
@@ -482,59 +413,6 @@ pub fn shutdown(fw: *Framework) void {
 /// ```
 pub fn version() []const u8 {
     return build_options.package_version;
-}
-
-/// Create a framework with default configuration.
-///
-/// **Deprecated**: Use `initDefault` instead. This function exists for
-/// backward compatibility and will be removed in a future version.
-///
-/// ## Parameters
-///
-/// - `allocator`: Memory allocator for framework resources
-///
-/// ## Returns
-///
-/// A fully initialized `Framework` instance with default configuration.
-///
-/// ## Example
-///
-/// ```zig
-/// // Preferred (new API):
-/// var fw = try abi.initDefault(allocator);
-///
-/// // Legacy (deprecated):
-/// var fw = try abi.createDefaultFramework(allocator);
-/// ```
-pub fn createDefaultFramework(allocator: std.mem.Allocator) !Framework {
-    return initDefault(allocator);
-}
-
-/// Create a framework with custom configuration.
-///
-/// **Deprecated**: Use `initWithConfig` instead. This function exists for
-/// backward compatibility and will be removed in a future version.
-///
-/// ## Parameters
-///
-/// - `allocator`: Memory allocator for framework resources
-/// - `config_or_options`: Configuration for the framework (same as `initWithConfig`)
-///
-/// ## Returns
-///
-/// A fully initialized `Framework` instance with the specified configuration.
-///
-/// ## Example
-///
-/// ```zig
-/// // Preferred (new API):
-/// var fw = try abi.initWithConfig(allocator, .{ .gpu = .{} });
-///
-/// // Legacy (deprecated):
-/// var fw = try abi.createFramework(allocator, .{ .gpu = .{} });
-/// ```
-pub fn createFramework(allocator: std.mem.Allocator, config_or_options: anytype) !Framework {
-    return initWithConfig(allocator, config_or_options);
 }
 
 // ============================================================================

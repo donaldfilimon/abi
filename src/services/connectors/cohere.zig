@@ -579,6 +579,15 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     return try Client.init(allocator, config);
 }
 
+/// Check if the Cohere connector is available (API key env var is set).
+/// This is a zero-allocation health check suitable for status dashboards.
+pub fn isAvailable() bool {
+    return shared.anyEnvIsSet(&.{
+        "ABI_COHERE_API_KEY",
+        "COHERE_API_KEY",
+    });
+}
+
 test "cohere config deinit" {
     const allocator = std.testing.allocator;
     var config = Config{
@@ -656,4 +665,9 @@ test "cohere chat role to string" {
     try std.testing.expectEqualStrings("CHATBOT", ChatRole.assistant.toString());
     try std.testing.expectEqualStrings("SYSTEM", ChatRole.system.toString());
     try std.testing.expectEqualStrings("TOOL", ChatRole.tool.toString());
+}
+
+test "isAvailable returns bool" {
+    // Just verify it returns without crashing - actual availability depends on env
+    _ = isAvailable();
 }

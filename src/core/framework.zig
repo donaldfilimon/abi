@@ -762,21 +762,6 @@ pub const FrameworkOptions = struct {
     }
 };
 
-/// Legacy FrameworkConfiguration for backward compatibility.
-/// @deprecated Use Config directly.
-pub const FrameworkConfiguration = FrameworkOptions;
-
-/// Legacy RuntimeConfig for backward compatibility.
-/// @deprecated Use Config directly.
-pub const RuntimeConfig = Config;
-
-/// Convert legacy options to new config.
-/// @deprecated Use Config directly.
-pub fn runtimeConfigFromOptions(allocator: std.mem.Allocator, options: FrameworkOptions) !Config {
-    _ = allocator;
-    return options.toConfig();
-}
-
 // ============================================================================
 // Tests
 // ============================================================================

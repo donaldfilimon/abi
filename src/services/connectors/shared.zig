@@ -197,6 +197,31 @@ pub fn encodeStringArray(
 }
 
 // ============================================================================
+// Availability Helpers
+// ============================================================================
+
+const c_stdlib = @cImport(@cInclude("stdlib.h"));
+
+/// Check if an environment variable is set (non-null).
+/// Used by connector isAvailable() functions for zero-allocation health checks.
+pub fn envIsSet(name: []const u8) bool {
+    // Use stack buffer for null-terminated string to avoid allocation
+    var buf: [256]u8 = undefined;
+    if (name.len >= buf.len) return false;
+    @memcpy(buf[0..name.len], name);
+    buf[name.len] = 0;
+    return c_stdlib.getenv(@ptrCast(buf[0..name.len :0])) != null;
+}
+
+/// Check if any of the given environment variable names are set.
+pub fn anyEnvIsSet(names: []const []const u8) bool {
+    for (names) |name| {
+        if (envIsSet(name)) return true;
+    }
+    return false;
+}
+
+// ============================================================================
 // Retry Helpers
 // ============================================================================
 
@@ -305,4 +330,13 @@ test "secureFree wipes memory" {
     // After secureFree, data is wiped (we can't read it, but the function shouldn't crash)
     secureFree(allocator, @constCast(data));
     // Note: data is now freed and invalid - this test just ensures no crash
+}
+
+test "envIsSet returns false for nonexistent var" {
+    try std.testing.expect(!envIsSet("ABI_NONEXISTENT_TEST_VAR_12345"));
+}
+
+test "anyEnvIsSet returns false for empty list" {
+    const empty = [_][]const u8{};
+    try std.testing.expect(!anyEnvIsSet(&empty));
 }

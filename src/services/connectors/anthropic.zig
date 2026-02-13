@@ -313,6 +313,15 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     return try Client.init(allocator, config);
 }
 
+/// Check if the Anthropic connector is available (API key env var is set).
+/// This is a zero-allocation health check suitable for status dashboards.
+pub fn isAvailable() bool {
+    return shared.anyEnvIsSet(&.{
+        "ABI_ANTHROPIC_API_KEY",
+        "ANTHROPIC_API_KEY",
+    });
+}
+
 test "anthropic config deinit" {
     const allocator = std.testing.allocator;
     var config = Config{
@@ -346,4 +355,9 @@ test "anthropic message encoding" {
     try std.testing.expect(std.mem.indexOf(u8, json, "\"model\":\"claude-3-5-sonnet-20241022\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"max_tokens\":1024") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"role\":\"user\"") != null);
+}
+
+test "isAvailable returns bool" {
+    // Just verify it returns without crashing - actual availability depends on env
+    _ = isAvailable();
 }

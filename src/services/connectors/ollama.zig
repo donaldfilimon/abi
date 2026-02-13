@@ -306,6 +306,16 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     return try Client.init(allocator, config);
 }
 
+/// Check if the Ollama connector is available (host env var is set).
+/// Ollama doesn't require an API key, only a reachable host.
+/// This is a zero-allocation health check suitable for status dashboards.
+pub fn isAvailable() bool {
+    return shared.anyEnvIsSet(&.{
+        "ABI_OLLAMA_HOST",
+        "OLLAMA_HOST",
+    });
+}
+
 test "ollama endpoint join" {
     var config = Config{ .host = try std.testing.allocator.dupe(u8, "http://localhost:11434") };
     defer config.deinit(std.testing.allocator);
@@ -313,4 +323,9 @@ test "ollama endpoint join" {
     const url = try std.fmt.allocPrint(std.testing.allocator, "{s}/api/generate", .{config.host});
     defer std.testing.allocator.free(url);
     try std.testing.expectEqualStrings("http://localhost:11434/api/generate", url);
+}
+
+test "isAvailable returns bool" {
+    // Just verify it returns without crashing - actual availability depends on env
+    _ = isAvailable();
 }

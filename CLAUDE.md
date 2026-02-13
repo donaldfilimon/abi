@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1158 pass, 5 skip (1163 total) — must be maintained |
+| **Test baseline** | 1167 pass, 5 skip (1172 total) — must be maintained |
 
 ## Build & Test Commands
 
@@ -18,10 +18,11 @@ Ensure your system `zig` matches `.zigversion` (e.g. via `zvm use master`).
 ```bash
 zig build                                    # Build with default flags
 zig build test --summary all                 # Run full test suite
+zig build feature-tests --summary all        # Run feature module inline tests
 zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
-zig build full-check                         # Format + tests + flag validation + CLI smoke tests
+zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke tests
 zig build validate-flags                     # Compile-check 16 feature flag combos
 zig build cli-tests                          # CLI smoke tests
 zig build lint                               # CI formatting check
@@ -242,7 +243,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Current baseline**: 1158 pass, 5 skip (1163 total). **This baseline must be maintained** — any
+**Current baseline**: 1167 pass, 5 skip (1172 total). **This baseline must be maintained** — any
 PR that reduces passing tests or increases skipped tests requires justification.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are

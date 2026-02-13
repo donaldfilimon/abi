@@ -310,6 +310,15 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     return try Client.init(allocator, config);
 }
 
+/// Check if the OpenAI connector is available (API key env var is set).
+/// This is a zero-allocation health check suitable for status dashboards.
+pub fn isAvailable() bool {
+    return shared.anyEnvIsSet(&.{
+        "ABI_OPENAI_API_KEY",
+        "OPENAI_API_KEY",
+    });
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -351,4 +360,9 @@ test "streaming choice default finish_reason" {
         .delta = null,
     };
     try std.testing.expectEqual(@as(?[]const u8, null), choice.finish_reason);
+}
+
+test "isAvailable returns bool" {
+    // Just verify it returns without crashing - actual availability depends on env
+    _ = isAvailable();
 }

@@ -39,7 +39,10 @@ pub const strict_config = CorsConfig{
 ///
 /// Usage:
 /// ```zig
-/// const cors = CorsMiddleware.init(.{ .allowed_origins = &.{"https://mysite.com"} });
+/// const cors = CorsMiddleware.init(.{
+///     .allowed_origins = &.{"https://mysite.com"},
+///     .allow_credentials = true,
+/// });
 /// cors.handle(&ctx);
 /// ```
 pub const CorsMiddleware = struct {
@@ -50,19 +53,63 @@ pub const CorsMiddleware = struct {
     }
 
     /// Apply CORS headers and handle preflight for this request.
+    ///
+    /// For simple requests: adds `Access-Control-Allow-Origin` and credential
+    /// headers when the request origin matches the config.
+    ///
+    /// For preflight (OPTIONS) requests: additionally validates the requested
+    /// method (from `Access-Control-Request-Method`) and headers (from
+    /// `Access-Control-Request-Headers`) against the config before setting
+    /// the corresponding response headers. If the requested method is not
+    /// allowed, the preflight response omits the allow-methods header.
     pub fn handle(self: *const CorsMiddleware, ctx: *MiddlewareContext) !void {
         try addCorsHeaders(ctx, self.config);
         if (ctx.request.method == .OPTIONS) {
-            try handlePreflight(ctx, self.config);
+            try self.handleCheckedPreflight(ctx);
         }
+    }
+
+    /// Handles preflight with validation of the request method and headers
+    /// against the stored config.
+    fn handleCheckedPreflight(
+        self: *const CorsMiddleware,
+        ctx: *MiddlewareContext,
+    ) !void {
+        const config = self.config;
+
+        // Validate Access-Control-Request-Method if present.
+        if (ctx.request.getHeader("Access-Control-Request-Method")) |rm| {
+            const requested_method = parseMethod(rm);
+            if (requested_method) |method| {
+                if (!isMethodAllowed(method, config.allowed_methods)) {
+                    // Method not allowed — respond without allow headers.
+                    _ = ctx.response.setStatus(.forbidden);
+                    ctx.abort();
+                    return;
+                }
+            }
+        }
+
+        // Validate Access-Control-Request-Headers if present.
+        if (ctx.request.getHeader("Access-Control-Request-Headers")) |rh| {
+            if (!areHeadersAllowed(rh, config.allowed_headers)) {
+                _ = ctx.response.setStatus(.forbidden);
+                ctx.abort();
+                return;
+            }
+        }
+
+        // Validation passed — set the standard preflight headers.
+        try handlePreflight(ctx, config);
     }
 };
 
 /// Creates a CORS middleware function pointer (always permissive).
 ///
-/// Zig function pointers cannot capture state, so this ignores the config
-/// parameter and returns a permissive handler. For config-aware CORS,
-/// use `CorsMiddleware.init(config)` instead.
+/// **Deprecated**: Zig function pointers cannot capture state, so this
+/// ignores the `config` parameter and always returns a permissive handler
+/// that allows all origins. Use `CorsMiddleware.init(config)` instead for
+/// config-aware CORS enforcement.
 pub fn createCorsMiddleware(config: CorsConfig) types.MiddlewareFn {
     _ = config;
     return &permissiveCors;
@@ -188,6 +235,29 @@ pub fn isMethodAllowed(method: server.Method, allowed: []const server.Method) bo
         }
     }
     return false;
+}
+
+/// Parses an HTTP method string (e.g. from Access-Control-Request-Method)
+/// into a `server.Method`. Returns `null` for unrecognized methods.
+fn parseMethod(method_str: []const u8) ?server.Method {
+    const trimmed = std.mem.trim(u8, method_str, " \t");
+    const methods = [_]struct { name: []const u8, value: server.Method }{
+        .{ .name = "GET", .value = .GET },
+        .{ .name = "HEAD", .value = .HEAD },
+        .{ .name = "POST", .value = .POST },
+        .{ .name = "PUT", .value = .PUT },
+        .{ .name = "DELETE", .value = .DELETE },
+        .{ .name = "CONNECT", .value = .CONNECT },
+        .{ .name = "OPTIONS", .value = .OPTIONS },
+        .{ .name = "TRACE", .value = .TRACE },
+        .{ .name = "PATCH", .value = .PATCH },
+    };
+    for (methods) |entry| {
+        if (std.ascii.eqlIgnoreCase(trimmed, entry.name)) {
+            return entry.value;
+        }
+    }
+    return null;
 }
 
 /// Validates request headers against allowed headers.
@@ -320,4 +390,276 @@ test "handlePreflight sets headers and aborts" {
     );
     try std.testing.expectEqualStrings("86400", response.getHeader("Access-Control-Max-Age").?);
     try std.testing.expect(!ctx.should_continue);
+}
+
+test "CorsMiddleware rejects disallowed origin" {
+    const allocator = std.testing.allocator;
+
+    const cors = CorsMiddleware.init(.{
+        .allowed_origins = &.{"https://allowed.com"},
+    });
+
+    var request = server.ParsedRequest{
+        .method = .GET,
+        .path = "/api/data",
+        .query = null,
+        .version = .http_1_1,
+        .headers = std.StringHashMap([]const u8).init(allocator),
+        .body = null,
+        .raw_path = "/api/data",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+    defer request.deinit();
+    try request.headers.put("Origin", "https://evil.com");
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    try cors.handle(&ctx);
+
+    // Origin not allowed — no Access-Control-Allow-Origin header set.
+    try std.testing.expect(response.getHeader("Access-Control-Allow-Origin") == null);
+}
+
+test "CorsMiddleware preflight validates request method" {
+    const allocator = std.testing.allocator;
+
+    const cors = CorsMiddleware.init(.{
+        .allowed_origins = &.{"*"},
+        .allowed_methods = &.{ .GET, .POST },
+    });
+
+    // Preflight requesting DELETE (not in allowed list).
+    var request = server.ParsedRequest{
+        .method = .OPTIONS,
+        .path = "/api/data",
+        .query = null,
+        .version = .http_1_1,
+        .headers = std.StringHashMap([]const u8).init(allocator),
+        .body = null,
+        .raw_path = "/api/data",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+    defer request.deinit();
+    try request.headers.put("Origin", "https://example.com");
+    try request.headers.put("Access-Control-Request-Method", "DELETE");
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    try cors.handle(&ctx);
+
+    // Should be forbidden and aborted.
+    try std.testing.expectEqual(server.Status.forbidden, response.status);
+    try std.testing.expect(!ctx.should_continue);
+    // No allow-methods header should be set.
+    try std.testing.expect(
+        response.getHeader("Access-Control-Allow-Methods") == null,
+    );
+}
+
+test "CorsMiddleware preflight validates request headers" {
+    const allocator = std.testing.allocator;
+
+    const cors = CorsMiddleware.init(.{
+        .allowed_origins = &.{"*"},
+        .allowed_headers = &.{"Content-Type"},
+    });
+
+    var request = server.ParsedRequest{
+        .method = .OPTIONS,
+        .path = "/api/data",
+        .query = null,
+        .version = .http_1_1,
+        .headers = std.StringHashMap([]const u8).init(allocator),
+        .body = null,
+        .raw_path = "/api/data",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+    defer request.deinit();
+    try request.headers.put("Origin", "https://example.com");
+    try request.headers.put(
+        "Access-Control-Request-Headers",
+        "X-Custom-Secret",
+    );
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    try cors.handle(&ctx);
+
+    // Should be forbidden — requested header not in allowed list.
+    try std.testing.expectEqual(server.Status.forbidden, response.status);
+    try std.testing.expect(!ctx.should_continue);
+}
+
+test "CorsMiddleware preflight succeeds with valid method and headers" {
+    const allocator = std.testing.allocator;
+
+    const cors = CorsMiddleware.init(.{
+        .allowed_origins = &.{"https://app.example.com"},
+        .allowed_methods = &.{ .GET, .POST, .PUT },
+        .allowed_headers = &.{ "Content-Type", "Authorization" },
+        .max_age = 3600,
+    });
+
+    var request = server.ParsedRequest{
+        .method = .OPTIONS,
+        .path = "/api/resource",
+        .query = null,
+        .version = .http_1_1,
+        .headers = std.StringHashMap([]const u8).init(allocator),
+        .body = null,
+        .raw_path = "/api/resource",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+    defer request.deinit();
+    try request.headers.put("Origin", "https://app.example.com");
+    try request.headers.put("Access-Control-Request-Method", "PUT");
+    try request.headers.put("Access-Control-Request-Headers", "Authorization");
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    try cors.handle(&ctx);
+
+    // Preflight succeeded — 204 with proper headers.
+    try std.testing.expectEqual(server.Status.no_content, response.status);
+    try std.testing.expect(!ctx.should_continue);
+    try std.testing.expectEqualStrings(
+        "https://app.example.com",
+        response.getHeader("Access-Control-Allow-Origin").?,
+    );
+    try std.testing.expectEqualStrings(
+        "GET, POST, PUT",
+        response.getHeader("Access-Control-Allow-Methods").?,
+    );
+    try std.testing.expectEqualStrings(
+        "Content-Type, Authorization",
+        response.getHeader("Access-Control-Allow-Headers").?,
+    );
+    try std.testing.expectEqualStrings(
+        "3600",
+        response.getHeader("Access-Control-Max-Age").?,
+    );
+}
+
+test "CorsMiddleware strict config rejects all origins" {
+    const allocator = std.testing.allocator;
+
+    const cors = CorsMiddleware.init(strict_config);
+
+    var request = server.ParsedRequest{
+        .method = .GET,
+        .path = "/",
+        .query = null,
+        .version = .http_1_1,
+        .headers = std.StringHashMap([]const u8).init(allocator),
+        .body = null,
+        .raw_path = "/",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+    defer request.deinit();
+    try request.headers.put("Origin", "https://any-origin.com");
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    try cors.handle(&ctx);
+
+    // Strict config has empty allowed_origins — nothing should be set.
+    try std.testing.expect(response.getHeader("Access-Control-Allow-Origin") == null);
+    try std.testing.expect(response.getHeader("Access-Control-Allow-Credentials") == null);
+}
+
+test "CorsMiddleware credentials not set when allow_credentials is false" {
+    const allocator = std.testing.allocator;
+
+    const cors = CorsMiddleware.init(.{
+        .allowed_origins = &.{"https://example.com"},
+        .allow_credentials = false,
+    });
+
+    var request = server.ParsedRequest{
+        .method = .GET,
+        .path = "/",
+        .query = null,
+        .version = .http_1_1,
+        .headers = std.StringHashMap([]const u8).init(allocator),
+        .body = null,
+        .raw_path = "/",
+        .allocator = allocator,
+        .owned_data = null,
+    };
+    defer request.deinit();
+    try request.headers.put("Origin", "https://example.com");
+
+    var response = server.ResponseBuilder.init(allocator);
+    defer response.deinit();
+
+    var ctx = MiddlewareContext.init(allocator, &request, &response);
+    defer ctx.deinit();
+
+    try cors.handle(&ctx);
+
+    // Origin should be allowed.
+    try std.testing.expectEqualStrings(
+        "https://example.com",
+        response.getHeader("Access-Control-Allow-Origin").?,
+    );
+    // Credentials header should NOT be set.
+    try std.testing.expect(
+        response.getHeader("Access-Control-Allow-Credentials") == null,
+    );
+}
+
+test "parseMethod recognizes standard methods" {
+    try std.testing.expectEqual(server.Method.GET, parseMethod("GET").?);
+    try std.testing.expectEqual(server.Method.POST, parseMethod("POST").?);
+    try std.testing.expectEqual(server.Method.PUT, parseMethod("PUT").?);
+    try std.testing.expectEqual(server.Method.DELETE, parseMethod("DELETE").?);
+    try std.testing.expectEqual(server.Method.PATCH, parseMethod("PATCH").?);
+    try std.testing.expectEqual(server.Method.OPTIONS, parseMethod("OPTIONS").?);
+    try std.testing.expectEqual(server.Method.HEAD, parseMethod("HEAD").?);
+
+    // Case insensitive
+    try std.testing.expectEqual(server.Method.GET, parseMethod("get").?);
+    try std.testing.expectEqual(server.Method.POST, parseMethod("post").?);
+
+    // Whitespace trimming
+    try std.testing.expectEqual(server.Method.PUT, parseMethod("  PUT  ").?);
+
+    // Unknown method
+    try std.testing.expect(parseMethod("UNKNOWN") == null);
+    try std.testing.expect(parseMethod("") == null);
+}
+
+test "createCorsMiddleware returns permissive handler" {
+    // Verify the deprecated fn still works for backward compatibility.
+    const handler = createCorsMiddleware(.{
+        .allowed_origins = &.{"https://specific.com"},
+    });
+
+    // The returned handler should be the permissive one (ignores config).
+    try std.testing.expectEqual(@as(types.MiddlewareFn, &permissiveCors), handler);
 }

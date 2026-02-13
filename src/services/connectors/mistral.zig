@@ -418,6 +418,15 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     return try Client.init(allocator, config);
 }
 
+/// Check if the Mistral connector is available (API key env var is set).
+/// This is a zero-allocation health check suitable for status dashboards.
+pub fn isAvailable() bool {
+    return shared.anyEnvIsSet(&.{
+        "ABI_MISTRAL_API_KEY",
+        "MISTRAL_API_KEY",
+    });
+}
+
 test "mistral config deinit" {
     const allocator = std.testing.allocator;
     var config = Config{
@@ -471,4 +480,9 @@ test "mistral embedding request encoding" {
     try std.testing.expect(std.mem.indexOf(u8, json, "\"model\":\"mistral-embed\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"Hello\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"World\"") != null);
+}
+
+test "isAvailable returns bool" {
+    // Just verify it returns without crashing - actual availability depends on env
+    _ = isAvailable();
 }

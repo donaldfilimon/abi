@@ -243,6 +243,15 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     return try Client.init(allocator, config);
 }
 
+/// Check if the HuggingFace connector is available (API token env var is set).
+/// This is a zero-allocation health check suitable for status dashboards.
+pub fn isAvailable() bool {
+    return shared.anyEnvIsSet(&.{
+        "ABI_HF_API_TOKEN",
+        "HF_API_TOKEN",
+    });
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -283,4 +292,9 @@ test "text generation request" {
     };
     try std.testing.expectEqualStrings("Hello, world!", request.inputs);
     try std.testing.expectEqual(@as(?Parameters, null), request.parameters);
+}
+
+test "isAvailable returns bool" {
+    // Just verify it returns without crashing - actual availability depends on env
+    _ = isAvailable();
 }
