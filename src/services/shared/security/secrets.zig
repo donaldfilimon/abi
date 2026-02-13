@@ -186,7 +186,8 @@ pub const SecretsManager = struct {
             master_key = key;
         } else {
             // Generate from environment or random
-            if (std.posix.getenv("ABI_MASTER_KEY")) |env_key| {
+            if (std.c.getenv("ABI_MASTER_KEY")) |env_key_ptr| {
+                const env_key = std.mem.span(env_key_ptr);
                 if (env_key.len >= 32) {
                     @memcpy(&master_key, env_key[0..32]);
                 } else {
@@ -463,10 +464,15 @@ pub const SecretsManager = struct {
         });
         defer self.allocator.free(env_name);
 
-        const value = std.posix.getenv(env_name) orelse
-            std.posix.getenv(name) orelse
-            return error.SecretNotFound;
+        const env_name_z = try std.cstr.addNullTerminator(self.allocator, env_name);
+        defer self.allocator.free(env_name_z);
+        const name_z = try std.cstr.addNullTerminator(self.allocator, name);
+        defer self.allocator.free(name_z);
 
+        const value_ptr = std.c.getenv(env_name_z.ptr) orelse
+            std.c.getenv(name_z.ptr) orelse
+            return error.SecretNotFound;
+        const value = std.mem.span(value_ptr);
         return self.allocator.dupe(u8, value);
     }
 
@@ -714,7 +720,11 @@ pub const SecretsManager = struct {
         }) catch return false;
         defer self.allocator.free(env_name);
 
-        return std.posix.getenv(env_name) != null or std.posix.getenv(name) != null;
+        const env_name_z = std.cstr.addNullTerminator(self.allocator, env_name) catch return false;
+        defer self.allocator.free(env_name_z);
+        const name_z = std.cstr.addNullTerminator(self.allocator, name) catch return false;
+        defer self.allocator.free(name_z);
+        return std.c.getenv(env_name_z.ptr) != null or std.c.getenv(name_z.ptr) != null;
     }
 
     fn fileExists(self: *SecretsManager, name: []const u8) bool {

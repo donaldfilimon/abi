@@ -843,14 +843,13 @@ fn analyzeClasses(password: []const u8) ClassFlags {
     return flags;
 }
 
-fn appendFeedback(feedback: *std.BoundedArray([]const u8, 10), message: []const u8) void {
-    // BoundedArray has fixed capacity - failure means we've hit the limit
+fn appendFeedback(feedback: *std.StaticArrayList([]const u8, 10), message: []const u8) void {
     feedback.append(message) catch |err| {
         std.log.debug("Password feedback limit reached: {t}", .{err});
     };
 }
 
-fn scoreClasses(feedback: *std.BoundedArray([]const u8, 10), flags: ClassFlags) u32 {
+fn scoreClasses(feedback: *std.StaticArrayList([]const u8, 10), flags: ClassFlags) u32 {
     var score: u32 = 0;
 
     if (flags.has_lower) score += 10 else appendFeedback(feedback, "Add lowercase letters");
@@ -861,7 +860,7 @@ fn scoreClasses(feedback: *std.BoundedArray([]const u8, 10), flags: ClassFlags) 
     return score;
 }
 
-fn applyPenalty(feedback: *std.BoundedArray([]const u8, 10), score: *u32, condition: bool, penalty: u32, message: []const u8) void {
+fn applyPenalty(feedback: *std.StaticArrayList([]const u8, 10), score: *u32, condition: bool, penalty: u32, message: []const u8) void {
     if (!condition) return;
     score.* -|= penalty;
     appendFeedback(feedback, message);
@@ -896,7 +895,7 @@ fn crackTimeFromScore(score: u32) []const u8 {
 /// Analyze password strength
 pub fn analyzeStrength(password: []const u8) StrengthAnalysis {
     var score: u32 = scoreLength(password.len);
-    var feedback = std.BoundedArray([]const u8, 10){};
+    var feedback: std.StaticArrayList([]const u8, 10) = .{};
 
     // Character class analysis
     const class_flags = analyzeClasses(password);
@@ -921,7 +920,7 @@ pub fn analyzeStrength(password: []const u8) StrengthAnalysis {
     return .{
         .strength = strength,
         .score = score,
-        .feedback = feedback.slice(),
+        .feedback = feedback.items,
         .has_lowercase = class_flags.has_lower,
         .has_uppercase = class_flags.has_upper,
         .has_digits = class_flags.has_digit,

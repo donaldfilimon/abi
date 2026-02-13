@@ -85,10 +85,16 @@ jobs:
       - name: Build docs site
         run: zig build docs-site
 
+      - name: Verify tracked files unchanged
+        run: |
+          git update-index -q --refresh
+          git diff --exit-code
+          git diff --cached --exit-code
+
       - name: Build C library and header
         run: |
-          zig build lib
-          zig build c-header
+          zig build lib -Denable-gpu=false -Dgpu-backend=none
+          zig build c-header -Denable-gpu=false -Dgpu-backend=none
 
       - name: Verify C header installed
         run: |

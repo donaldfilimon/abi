@@ -487,6 +487,9 @@ fn detectStdGpu() BackendAvailability {
 }
 
 fn detectCuda() BackendAvailability {
+    if (comptime !shared.dynlibSupported) {
+        return unavailableAvailability("cuda dynamic loader unsupported on this target");
+    }
     if (cudaLibNames().len == 0) {
         return unavailableAvailability("cuda unsupported on this platform");
     }

@@ -39,6 +39,7 @@ const build_options = @import("build_options");
 const backend_mod = @import("backend.zig");
 const device_mod = @import("device.zig");
 const interface = @import("interface.zig");
+const backend_shared = @import("backends/shared.zig");
 const dsl = @import("dsl/mod.zig");
 const unified_buffer = @import("unified_buffer.zig");
 const kernel_types = @import("kernel_types.zig");
@@ -47,12 +48,18 @@ const kernel_ring_mod = @import("kernel_ring.zig");
 
 const Mutex = sync.Mutex;
 
+/// Only compiles init() when Ctx is not void (CUDA compiled). Avoids type-checking void.init().
+fn initCublasOptional(comptime Ctx: type) ?Ctx {
+    if (Ctx == void) return null;
+    return cublas.CublasContext.init() catch null;
+}
+
 // Re-export extracted submodules for build discovery
 pub const dispatch_types = @import("dispatch_types.zig");
 pub const batched_dispatch = @import("batched_dispatch.zig");
 
 // Conditionally import CUDA/cuBLAS for optimized BLAS operations
-const cublas = if (build_options.enable_gpu)
+const cublas = if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
     @import("backends/cuda/cublas.zig")
 else
     struct {
@@ -208,7 +215,7 @@ pub const KernelDispatcher = struct {
     backend_interface: ?interface.Backend,
 
     /// cuBLAS context for optimized BLAS operations (CUDA only).
-    cublas_ctx: if (build_options.enable_gpu) ?cublas.CublasContext else void,
+    cublas_ctx: if (build_options.gpu_cuda) ?cublas.CublasContext else void,
 
     /// Statistics.
     kernels_compiled: u64,
@@ -244,7 +251,7 @@ pub const KernelDispatcher = struct {
             .kernel_cache = .empty,
             .builtin_ir_cache = .empty,
             .backend_interface = null, // Will be set by backend factory
-            .cublas_ctx = if (build_options.enable_gpu) null else {},
+            .cublas_ctx = if (build_options.gpu_cuda) null else {},
             .kernels_compiled = 0,
             .kernels_executed = 0,
             .cache_hits = 0,
@@ -257,10 +264,10 @@ pub const KernelDispatcher = struct {
             .max_queue_size = 32,
         };
 
-        // Try to initialize cuBLAS for CUDA backend
-        if (build_options.enable_gpu and backend == .cuda) {
-            if (cublas.isAvailable()) {
-                self.cublas_ctx = cublas.CublasContext.init() catch null;
+        // Try to initialize cuBLAS for CUDA backend (only when field is ?CublasContext, not void)
+        if (comptime @TypeOf(@as(Self, undefined).cublas_ctx) != void) {
+            if (backend == .cuda and cublas.isAvailable() and @TypeOf(cublas.CublasContext) != void) {
+                self.cublas_ctx = initCublasOptional(cublas.CublasContext);
                 if (self.cublas_ctx != null) {
                     std.log.info("cuBLAS initialized for optimized BLAS operations", .{});
                 }
@@ -272,10 +279,10 @@ pub const KernelDispatcher = struct {
 
     /// Deinitialize and release resources.
     pub fn deinit(self: *Self) void {
-        // Clean up cuBLAS context
-        if (build_options.enable_gpu) {
+        // Clean up cuBLAS context (only when field is optional, not void)
+        if (comptime @TypeOf(@as(Self, undefined).cublas_ctx) != void) {
             if (self.cublas_ctx) |*ctx| {
-                ctx.deinit();
+                if (@TypeOf(ctx.*) != void) ctx.deinit();
             }
         }
 
@@ -306,7 +313,7 @@ pub const KernelDispatcher = struct {
 
     /// Check if cuBLAS is available for optimized BLAS operations.
     pub fn hasCublas(self: *const Self) bool {
-        if (!build_options.enable_gpu) return false;
+        if (!build_options.gpu_cuda) return false;
         return self.cublas_ctx != null;
     }
 
@@ -466,8 +473,8 @@ pub const KernelDispatcher = struct {
         var gpu_executed = false;
         var used_cublas = false;
 
-        // Check for cuBLAS optimization for batch_matmul and matrix_multiply
-        if (build_options.enable_gpu) {
+        // Check for cuBLAS optimization for batch_matmul and matrix_multiply (only when field is ?CublasContext)
+        if (@TypeOf(@as(Self, undefined).cublas_ctx) != void and @TypeOf(cublas.CublasContext) != void) {
             if (self.cublas_ctx != null and
                 (std.mem.eql(u8, kernel.name, "batch_matmul") or
                     std.mem.eql(u8, kernel.name, "matrix_multiply")))
@@ -616,103 +623,107 @@ pub const KernelDispatcher = struct {
     }
 
     /// Execute matrix multiplication using cuBLAS (optimized BLAS library).
+    /// Only compiled when CublasContext is not void (CUDA backend built).
     fn executeCublasGemm(
         self: *Self,
         kernel: CompiledKernelHandle,
         config: LaunchConfig,
         args: KernelArgs,
     ) DispatchError!void {
+        if (comptime @TypeOf(cublas.CublasContext) == void) return DispatchError.UnsupportedOperation;
         if (!build_options.enable_gpu) return DispatchError.UnsupportedOperation;
 
-        var ctx = self.cublas_ctx orelse return DispatchError.UnsupportedOperation;
-        const bufs = args.buffers;
+        if (comptime @TypeOf(cublas.CublasContext) != void) {
+            var ctx = self.cublas_ctx orelse return DispatchError.UnsupportedOperation;
+            const bufs = args.buffers;
 
-        if (bufs.len < 3) return DispatchError.InvalidArguments;
+            if (bufs.len < 3) return DispatchError.InvalidArguments;
 
-        // Get device pointers
-        const a_ptr = bufs[0].getDevicePtr() catch return DispatchError.BufferNotReady;
-        const b_ptr = bufs[1].getDevicePtr() catch return DispatchError.BufferNotReady;
-        const c_ptr = bufs[2].getDevicePtr() catch return DispatchError.BufferNotReady;
+            // Get device pointers
+            const a_ptr = bufs[0].getDevicePtr() catch return DispatchError.BufferNotReady;
+            const b_ptr = bufs[1].getDevicePtr() catch return DispatchError.BufferNotReady;
+            const c_ptr = bufs[2].getDevicePtr() catch return DispatchError.BufferNotReady;
 
-        if (std.mem.eql(u8, kernel.name, "matrix_multiply")) {
-            // Standard matrix multiply: C = A * B
-            // Dimensions from config: global_size[0] = n, global_size[1] = m, global_size[2] = k
-            // Validate dimensions before casting
-            try validateMatrixDimensions(config.global_size[1], config.global_size[0], config.global_size[2]);
+            if (std.mem.eql(u8, kernel.name, "matrix_multiply")) {
+                // Standard matrix multiply: C = A * B
+                // Dimensions from config: global_size[0] = n, global_size[1] = m, global_size[2] = k
+                // Validate dimensions before casting
+                try validateMatrixDimensions(config.global_size[1], config.global_size[0], config.global_size[2]);
 
-            const n = try safeCastToI32(config.global_size[0]);
-            const m = try safeCastToI32(config.global_size[1]);
-            const k = try safeCastToI32(config.global_size[2]);
+                const n = try safeCastToI32(config.global_size[0]);
+                const m = try safeCastToI32(config.global_size[1]);
+                const k = try safeCastToI32(config.global_size[2]);
 
-            ctx.sgemm(
-                .no_trans,
-                .no_trans,
-                n,
-                m,
-                k,
-                1.0, // alpha
-                b_ptr,
-                n, // ldb
-                a_ptr,
-                k, // lda
-                0.0, // beta
-                c_ptr,
-                n, // ldc
-            ) catch return DispatchError.ExecutionFailed;
-        } else if (std.mem.eql(u8, kernel.name, "batch_matmul")) {
-            // Batched matrix multiply: C[b] = A[b] * B[b]
-            // Dimensions: global_size[0] = n, global_size[1] = m, global_size[2] = batch_size
-            // k is passed via uniforms or inferred
-            const n_u32 = config.global_size[0];
-            const m_u32 = config.global_size[1];
-            const batch_count_u32 = config.global_size[2];
+                ctx.sgemm(
+                    .no_trans,
+                    .no_trans,
+                    n,
+                    m,
+                    k,
+                    1.0, // alpha
+                    b_ptr,
+                    n, // ldb
+                    a_ptr,
+                    k, // lda
+                    0.0, // beta
+                    c_ptr,
+                    n, // ldc
+                ) catch return DispatchError.ExecutionFailed;
+            } else if (std.mem.eql(u8, kernel.name, "batch_matmul")) {
+                // Batched matrix multiply: C[b] = A[b] * B[b]
+                // Dimensions: global_size[0] = n, global_size[1] = m, global_size[2] = batch_size
+                // k is passed via uniforms or inferred
+                const n_u32 = config.global_size[0];
+                const m_u32 = config.global_size[1];
+                const batch_count_u32 = config.global_size[2];
 
-            // Get k from uniforms if available, otherwise assume square matrices
-            const k_u32: u32 = blk: {
-                const k_from_uniform = readUniformAs(i32, args, 0, 0);
-                if (k_from_uniform > 0) {
-                    break :blk @intCast(k_from_uniform);
+                // Get k from uniforms if available, otherwise assume square matrices
+                const k_u32: u32 = blk: {
+                    const k_from_uniform = readUniformAs(i32, args, 0, 0);
+                    if (k_from_uniform > 0) {
+                        break :blk @intCast(k_from_uniform);
+                    }
+                    break :blk n_u32;
+                };
+
+                // Validate all dimensions
+                try validateMatrixDimensions(m_u32, n_u32, k_u32);
+                if (batch_count_u32 > MAX_MATRIX_DIM) {
+                    return DispatchError.InvalidArguments;
                 }
-                break :blk n_u32;
-            };
 
-            // Validate all dimensions
-            try validateMatrixDimensions(m_u32, n_u32, k_u32);
-            if (batch_count_u32 > MAX_MATRIX_DIM) {
-                return DispatchError.InvalidArguments;
+                const n = try safeCastToI32(n_u32);
+                const m = try safeCastToI32(m_u32);
+                const k = try safeCastToI32(k_u32);
+                const batch_count = try safeCastToI32(batch_count_u32);
+
+                // Calculate strides for strided batched GEMM (safe due to dimension validation)
+                const stride_a: i64 = @as(i64, m) * @as(i64, k);
+                const stride_b: i64 = @as(i64, k) * @as(i64, n);
+                const stride_c: i64 = @as(i64, m) * @as(i64, n);
+
+                ctx.sgemmStridedBatched(
+                    .no_trans,
+                    .no_trans,
+                    n,
+                    m,
+                    k,
+                    1.0, // alpha
+                    b_ptr,
+                    n, // ldb
+                    stride_b,
+                    a_ptr,
+                    k, // lda
+                    stride_a,
+                    0.0, // beta
+                    c_ptr,
+                    n, // ldc
+                    stride_c,
+                    batch_count,
+                ) catch return DispatchError.ExecutionFailed;
+            } else {
+                return DispatchError.UnsupportedOperation;
             }
-
-            const n = try safeCastToI32(n_u32);
-            const m = try safeCastToI32(m_u32);
-            const k = try safeCastToI32(k_u32);
-            const batch_count = try safeCastToI32(batch_count_u32);
-
-            // Calculate strides for strided batched GEMM (safe due to dimension validation)
-            const stride_a: i64 = @as(i64, m) * @as(i64, k);
-            const stride_b: i64 = @as(i64, k) * @as(i64, n);
-            const stride_c: i64 = @as(i64, m) * @as(i64, n);
-
-            ctx.sgemmStridedBatched(
-                .no_trans,
-                .no_trans,
-                n,
-                m,
-                k,
-                1.0, // alpha
-                b_ptr,
-                n, // ldb
-                stride_b,
-                a_ptr,
-                k, // lda
-                stride_a,
-                0.0, // beta
-                c_ptr,
-                n, // ldc
-                stride_c,
-                batch_count,
-            ) catch return DispatchError.ExecutionFailed;
-        } else {
-            return DispatchError.UnsupportedOperation;
         }
     }
 

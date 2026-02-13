@@ -8,9 +8,11 @@
 const std = @import("std");
 
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
+    var buf: [4096]u8 = undefined;
+    var stdout = std.io.getStdOut().writer(&buf);
 
     try stdout.print("=== Distributed WDBX Integration Test ===\n", .{});
+    try stdout.flush();
 
     // Test summary
     try stdout.print("\n✅ Core ABI Framework: 194/198 tests pass\n", .{});
@@ -35,4 +37,5 @@ pub fn main() !void {
 
     try stdout.print("\n🎯 OVERALL COMPLETION: ~80%\n", .{});
     try stdout.print("   Core infrastructure complete, needs final integration.\n", .{});
+    try stdout.flush();
 }

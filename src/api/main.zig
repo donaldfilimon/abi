@@ -12,16 +12,16 @@ const abi = @import("../abi.zig");
 // works without requiring the build system to define an "io" package/module.
 const IoBackend = abi.shared.io.IoBackend;
 
-pub fn main() !void {
+pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    var args_iter = try std.process.Args.Iterator.initAllocator(init.args, allocator);
+    defer args_iter.deinit();
 
-    // Skip program name
-    const command = if (args.len > 1) args[1] else {
+    _ = args_iter.next(); // skip exe name
+    const command = args_iter.next() orelse {
         printHelp();
         return;
     };

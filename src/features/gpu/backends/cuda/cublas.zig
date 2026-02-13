@@ -8,6 +8,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const cuda_loader = @import("loader.zig");
+const shared = @import("../shared.zig");
 
 /// cuBLAS status codes
 pub const CublasStatus = enum(i32) {
@@ -135,51 +136,72 @@ var cublas_load_attempted: bool = false;
 
 /// Load cuBLAS library
 pub fn load() !*const CublasFunctions {
+    if (!shared.canUseDynLib()) {
+        cublas_load_attempted = true;
+        return error.PlatformNotSupported;
+    }
+
     if (cublas_load_attempted) {
         if (cublas_lib != null) return &cublas_functions;
         return error.LibraryNotFound;
     }
     cublas_load_attempted = true;
 
-    // Try platform-specific library names
-    const lib_names: []const []const u8 = switch (builtin.os.tag) {
-        .windows => &.{
-            "cublas64_12.dll",
-            "cublas64_11.dll",
-            "cublas64_10.dll",
-        },
-        .linux => &.{
-            "libcublas.so.12",
-            "libcublas.so.11",
-            "libcublas.so.10",
-            "libcublas.so",
-        },
-        else => return error.PlatformNotSupported,
-    };
-
-    for (lib_names) |name| {
-        if (std.DynLib.open(name)) |lib| {
-            cublas_lib = lib;
-            break;
-        } else |_| {}
+    if (!shared.canUseDynLib()) {
+        return error.PlatformNotSupported;
     }
 
-    if (cublas_lib == null) return error.LibraryNotFound;
+    comptime if (shared.dynlibSupported) {
+        // Try platform-specific library names
+        const lib_names: []const []const u8 = switch (builtin.os.tag) {
+            .windows => &.{
+                "cublas64_12.dll",
+                "cublas64_11.dll",
+                "cublas64_10.dll",
+            },
+            .linux => &.{
+                "libcublas.so.12",
+                "libcublas.so.11",
+                "libcublas.so.10",
+                "libcublas.so",
+            },
+            else => return error.PlatformNotSupported,
+        };
 
-    // Load functions
-    cublas_functions.cublasCreate = cublas_lib.?.lookup(CublasCreateFn, "cublasCreate_v2");
-    cublas_functions.cublasDestroy = cublas_lib.?.lookup(CublasDestroyFn, "cublasDestroy_v2");
-    cublas_functions.cublasSetStream = cublas_lib.?.lookup(CublasSetStreamFn, "cublasSetStream_v2");
-    cublas_functions.cublasGetVersion = cublas_lib.?.lookup(CublasGetVersionFn, "cublasGetVersion_v2");
-    cublas_functions.cublasSgemm = cublas_lib.?.lookup(CublasSgemmFn, "cublasSgemm_v2");
-    cublas_functions.cublasSgemmBatched = cublas_lib.?.lookup(CublasSgemmBatchedFn, "cublasSgemmBatched");
-    cublas_functions.cublasSgemmStridedBatched = cublas_lib.?.lookup(CublasSgemmStridedBatchedFn, "cublasSgemmStridedBatched");
+        for (lib_names) |name| {
+            const lib = std.DynLib.open(name) catch continue;
+            cublas_lib = lib;
+            break;
+        }
 
-    return &cublas_functions;
+        if (cublas_lib == null) return error.LibraryNotFound;
+
+        if (cublas_lib) |*lib| {
+            cublas_functions.cublasCreate = lib.lookup(CublasCreateFn, "cublasCreate_v2");
+            cublas_functions.cublasDestroy = lib.lookup(CublasDestroyFn, "cublasDestroy_v2");
+            cublas_functions.cublasSetStream = lib.lookup(CublasSetStreamFn, "cublasSetStream_v2");
+            cublas_functions.cublasGetVersion = lib.lookup(CublasGetVersionFn, "cublasGetVersion_v2");
+            cublas_functions.cublasSgemm = lib.lookup(CublasSgemmFn, "cublasSgemm_v2");
+            cublas_functions.cublasSgemmBatched = lib.lookup(CublasSgemmBatchedFn, "cublasSgemmBatched");
+            cublas_functions.cublasSgemmStridedBatched = lib.lookup(CublasSgemmStridedBatchedFn, "cublasSgemmStridedBatched");
+        } else {
+            return error.LibraryNotFound;
+        }
+
+        return &cublas_functions;
+    } else {
+        return error.PlatformNotSupported;
+    };
 }
 
 /// Unload cuBLAS library
 pub fn unload() void {
+    if (!shared.canUseDynLib()) {
+        cublas_functions = .{};
+        cublas_load_attempted = false;
+        return;
+    }
+
     if (cublas_lib) |*lib| {
         lib.close();
         cublas_lib = null;
@@ -190,6 +212,7 @@ pub fn unload() void {
 
 /// Check if cuBLAS is available
 pub fn isAvailable() bool {
+    if (!shared.canUseDynLib()) return false;
     if (!cublas_load_attempted) {
         _ = load() catch return false;
     }

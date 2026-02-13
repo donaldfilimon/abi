@@ -449,7 +449,9 @@ export fn abi_gpu_init(config: ?*const GpuConfig, out_gpu: *?*GpuHandle) c_int {
 export fn abi_gpu_shutdown(gpu: ?*GpuHandle) void {
     if (gpu) |g| {
         const wrapper: *GpuWrapper = @ptrCast(@alignCast(g));
-        wrapper.handle.deinit();
+        if (comptime build_options.enable_gpu) {
+            wrapper.handle.deinit();
+        }
         wrapper.allocator.destroy(wrapper);
     }
 }
@@ -474,20 +476,32 @@ export fn abi_gpu_backend_name(gpu: ?*GpuHandle) [*:0]const u8 {
         const wrapper: *GpuWrapper = @ptrCast(@alignCast(g));
         if (wrapper.handle.getBackend()) |backend| {
             // Convert the slice to a null-terminated string
-            return switch (backend) {
-                .cuda => "cuda",
-                .vulkan => "vulkan",
-                .metal => "metal",
-                .webgpu => "webgpu",
-                .stdgpu => "stdgpu",
-                .opengl => "opengl",
-                .opengles => "opengles",
-                .webgl2 => "webgl2",
-                .fpga => "fpga",
-            };
+            return backendName(backend);
         }
     }
     return "none";
+}
+
+fn backendName(backend: abi.gpu.Backend) [*:0]const u8 {
+    return switch (backend) {
+        .cuda => "cuda",
+        .vulkan => "vulkan",
+        .stdgpu => "stdgpu",
+        .metal => "metal",
+        .webgpu => "webgpu",
+        .opengl => "opengl",
+        .opengles => "opengles",
+        .webgl2 => "webgl2",
+        .fpga => "fpga",
+        .simulated => "simulated",
+    };
+}
+
+test "gpu backend name mapping is exhaustive" {
+    inline for (std.meta.tags(abi.gpu.Backend)) |backend| {
+        const name = backendName(backend);
+        try std.testing.expect(name[0] != 0);
+    }
 }
 
 // ============================================================================

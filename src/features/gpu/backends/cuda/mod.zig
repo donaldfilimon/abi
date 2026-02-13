@@ -14,6 +14,7 @@
 const std = @import("std");
 const time = @import("../../../../services/shared/time.zig");
 const sync = @import("../../../../services/shared/sync.zig");
+const build_options = @import("build_options");
 const types = @import("../../kernel_types.zig");
 const shared = @import("../shared.zig");
 const fallback = @import("../fallback.zig");
@@ -28,7 +29,15 @@ pub const memory = @import("memory.zig");
 pub const stream = @import("stream.zig");
 pub const device_query = @import("device_query.zig");
 pub const nvrtc = @import("nvrtc.zig");
-pub const cublas = @import("cublas.zig");
+pub const cublas = if (build_options.enable_gpu and build_options.gpu_cuda)
+    @import("cublas.zig")
+else
+    struct {
+        pub const CublasContext = void;
+        pub fn isAvailable() bool {
+            return false;
+        }
+    };
 pub const llm_kernels = @import("llm_kernels.zig");
 pub const quantized_kernels = @import("quantized_kernels.zig");
 pub const vtable = @import("vtable.zig");

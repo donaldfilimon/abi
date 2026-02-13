@@ -54,14 +54,14 @@ pub const AzureConfig = struct {
     pub fn fromEnvironment() AzureConfig {
         return .{
             .port = blk: {
-                if (std.posix.getenv("FUNCTIONS_HTTPWORKER_PORT")) |port_str| {
-                    break :blk std.fmt.parseInt(u16, port_str, 10) catch 7071;
+                if (std.c.getenv("FUNCTIONS_HTTPWORKER_PORT")) |port_str| {
+                    break :blk std.fmt.parseInt(u16, std.mem.span(port_str), 10) catch 7071;
                 }
                 break :blk 7071;
             },
-            .function_name = std.posix.getenv("FUNCTION_NAME"),
-            .website_name = std.posix.getenv("WEBSITE_SITE_NAME"),
-            .region = std.posix.getenv("REGION_NAME"),
+            .function_name = if (std.c.getenv("FUNCTION_NAME")) |p| std.mem.span(p) else null,
+            .website_name = if (std.c.getenv("WEBSITE_SITE_NAME")) |p| std.mem.span(p) else null,
+            .region = if (std.c.getenv("REGION_NAME")) |p| std.mem.span(p) else null,
         };
     }
 };

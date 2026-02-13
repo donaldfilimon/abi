@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const shared = @import("../shared.zig");
 
 // libc import for environment access (Zig 0.16 compatible)
 const c = if (builtin.target.os.tag != .freestanding and
@@ -161,6 +162,9 @@ var load_attempted: bool = false;
 
 // Helper to lookup a symbol from the optional library.
 fn bind(comptime T: type, name: []const u8) ?T {
+    if (!shared.canUseDynLib()) {
+        return null;
+    }
     if (cuda_lib) |lib| {
         return lib.lookup(T, name);
     }
@@ -238,6 +242,11 @@ pub const LoadError = error{ LibraryNotFound, SymbolNotFound, PlatformNotSupport
 
 /// Load CUDA library and all functions
 pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
+    if (!shared.canUseDynLib()) {
+        load_attempted = true;
+        return error.PlatformNotSupported;
+    }
+
     // If we already attempted loading, return the existing state.
     if (load_attempted) {
         if (cuda_lib != null) return &cuda_functions;
@@ -345,6 +354,12 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
 
 /// Unload CUDA library
 pub fn unload() void {
+    if (!shared.canUseDynLib()) {
+        cuda_functions = .{};
+        load_attempted = false;
+        return;
+    }
+
     if (cuda_lib) |*lib| {
         lib.close();
         cuda_lib = null;

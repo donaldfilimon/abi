@@ -136,7 +136,7 @@ fn detectXilinxDevices() u32 {
     // 3. Query device properties
 
     // For now, check environment variable for development/testing
-    if (std.posix.getenv("ABI_FPGA_XILINX_DEVICE")) |_| {
+    if (std.c.getenv("ABI_FPGA_XILINX_DEVICE")) |_| {
         // Populate device cache with simulated device
         device_cache[0] = .{
             .index = 0,
@@ -162,7 +162,7 @@ fn detectIntelDevices() u32 {
     // 3. Filter for FPGA devices
 
     // For now, check environment variable for development/testing
-    if (std.posix.getenv("ABI_FPGA_INTEL_DEVICE")) |_| {
+    if (std.c.getenv("ABI_FPGA_INTEL_DEVICE")) |_| {
         const idx: usize = if (detected_devices < 8) detected_devices else 7;
         device_cache[idx] = .{
             .index = @intCast(idx),

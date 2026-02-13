@@ -21,49 +21,37 @@ const CounterInt = if (isWasmTarget()) u32 else u64;
 var wasm_counter: std.atomic.Value(CounterInt) = .{ .raw = 0 };
 
 /// Platform-aware Instant type
-/// Uses POSIX clock_gettime for monotonic time on supported platforms
+/// Uses OS monotonic clocks on supported platforms.
 pub const Instant = struct {
-    nanos: u128, // Absolute nanoseconds from arbitrary epoch
+    nanos: u128, // Monotonic nanoseconds
 
     pub fn now() error{Unsupported}!@This() {
         if (isWasmTarget()) {
             return error.Unsupported;
         }
 
-        // Windows: use QueryPerformanceCounter
         if (builtin.os.tag == .windows) {
-            if (@hasDecl(std.os, "windows")) {
-                const qpc = std.os.windows.QueryPerformanceCounter();
-                const freq = std.os.windows.QueryPerformanceFrequency();
-                if (freq > 0) {
-                    // Convert to nanoseconds: (counter * 1e9) / freq
-                    const nanos: u128 = @as(u128, @intCast(qpc)) * std.time.ns_per_s / @as(u128, @intCast(freq));
-                    return .{ .nanos = nanos };
-                }
+            var qpc: std.os.windows.LARGE_INTEGER = undefined;
+            var freq: std.os.windows.LARGE_INTEGER = undefined;
+            if (std.os.windows.ntdll.RtlQueryPerformanceCounter(&qpc) == 0) {
+                return error.Unsupported;
             }
+            if (std.os.windows.ntdll.RtlQueryPerformanceFrequency(&freq) == 0 or freq <= 0) {
+                return error.Unsupported;
+            }
+            const ticks: u64 = @intCast(qpc);
+            const hz: u64 = @intCast(freq);
+            const nanos = (@as(u128, ticks) * std.time.ns_per_s) / @as(u128, hz);
+            return .{ .nanos = nanos };
+        }
+
+        var ts: std.posix.timespec = undefined;
+        if (std.posix.errno(std.posix.system.clock_gettime(.MONOTONIC, &ts)) != .SUCCESS) {
             return error.Unsupported;
         }
-
-        // POSIX: use C clock_gettime
-        if (@hasDecl(std, "c") and @hasDecl(std.c, "clock_gettime")) {
-            var ts: std.c.timespec = undefined;
-            // Use MONOTONIC clock (enum value varies by platform)
-            const clock_id = if (@hasField(std.c.clockid_t, "MONOTONIC"))
-                std.c.clockid_t.MONOTONIC
-            else
-                @as(std.c.clockid_t, @enumFromInt(1)); // Fallback for Linux
-            const result = std.c.clock_gettime(clock_id, &ts);
-            if (result == 0) {
-                // Field names vary by platform (tv_sec/tv_nsec on Linux, sec/nsec on macOS)
-                const sec = if (@hasField(std.c.timespec, "tv_sec")) ts.tv_sec else ts.sec;
-                const nsec = if (@hasField(std.c.timespec, "tv_nsec")) ts.tv_nsec else ts.nsec;
-                const nanos: u128 = @as(u128, @intCast(sec)) * std.time.ns_per_s +
-                    @as(u128, @intCast(nsec));
-                return .{ .nanos = nanos };
-            }
-        }
-
-        return error.Unsupported;
+        const sec = @as(u128, @intCast(if (ts.sec < 0) 0 else ts.sec));
+        const nsec = @as(u128, @intCast(if (ts.nsec < 0) 0 else ts.nsec));
+        return .{ .nanos = sec * std.time.ns_per_s + nsec };
     }
 
     pub fn since(self: @This(), earlier: @This()) u64 {

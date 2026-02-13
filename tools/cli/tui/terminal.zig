@@ -114,6 +114,39 @@ const ENABLE_ECHO_INPUT: windows.DWORD = 0x0004;
 const ENABLE_LINE_INPUT: windows.DWORD = 0x0002;
 const ENABLE_PROCESSED_INPUT: windows.DWORD = 0x0001;
 const ENABLE_VIRTUAL_TERMINAL_INPUT: windows.DWORD = 0x0200;
+const STD_INPUT_HANDLE: windows.DWORD = @bitCast(@as(i32, -10));
+const STD_OUTPUT_HANDLE: windows.DWORD = @bitCast(@as(i32, -11));
+
+const ConsoleCoord = extern struct {
+    X: windows.SHORT,
+    Y: windows.SHORT,
+};
+
+const ConsoleSmallRect = extern struct {
+    Left: windows.SHORT,
+    Top: windows.SHORT,
+    Right: windows.SHORT,
+    Bottom: windows.SHORT,
+};
+
+const ConsoleScreenBufferInfo = extern struct {
+    dwSize: ConsoleCoord,
+    dwCursorPosition: ConsoleCoord,
+    wAttributes: windows.WORD,
+    srWindow: ConsoleSmallRect,
+    dwMaximumWindowSize: ConsoleCoord,
+};
+
+const k32 = if (is_windows)
+    struct {
+        extern "kernel32" fn GetStdHandle(nStdHandle: windows.DWORD) callconv(.winapi) ?windows.HANDLE;
+        extern "kernel32" fn GetConsoleMode(hConsoleHandle: windows.HANDLE, lpMode: *windows.DWORD) callconv(.winapi) windows.BOOL;
+        extern "kernel32" fn SetConsoleMode(hConsoleHandle: windows.HANDLE, dwMode: windows.DWORD) callconv(.winapi) windows.BOOL;
+        extern "kernel32" fn GetConsoleScreenBufferInfo(hConsoleOutput: windows.HANDLE, lpConsoleScreenBufferInfo: *ConsoleScreenBufferInfo) callconv(.winapi) windows.BOOL;
+        extern "kernel32" fn ReadFile(hFile: windows.HANDLE, lpBuffer: *anyopaque, nNumberOfBytesToRead: windows.DWORD, lpNumberOfBytesRead: *windows.DWORD, lpOverlapped: ?*anyopaque) callconv(.winapi) windows.BOOL;
+    }
+else
+    struct {};
 
 pub const Terminal = struct {
     allocator: std.mem.Allocator,
@@ -270,8 +303,8 @@ pub const Terminal = struct {
         }
 
         if (comptime builtin.os.tag == .windows) {
-            var info: windows.CONSOLE_SCREEN_BUFFER_INFO = undefined;
-            if (windows.kernel32.GetConsoleScreenBufferInfo(self.stdout_file.handle, &info) != windows.FALSE) {
+            var info: ConsoleScreenBufferInfo = undefined;
+            if (k32.GetConsoleScreenBufferInfo(self.stdout_file.handle, &info) != 0) {
                 // Window coordinates are 0-indexed, so add 1 for actual row count
                 const screen_height: i16 = info.srWindow.Bottom - info.srWindow.Top + 1;
                 const screen_width: i16 = info.srWindow.Right - info.srWindow.Left + 1;
@@ -327,8 +360,8 @@ pub const Terminal = struct {
                 .none => return,
                 .posix => return,
                 .windows => |state| {
-                    _ = windows.kernel32.SetConsoleMode(state.input_handle, state.input_mode);
-                    _ = windows.kernel32.SetConsoleMode(state.output_handle, state.output_mode);
+                    _ = k32.SetConsoleMode(state.input_handle, state.input_mode);
+                    _ = k32.SetConsoleMode(state.output_handle, state.output_mode);
                 },
             }
         } else if (comptime is_posix) {
@@ -374,19 +407,19 @@ pub const Terminal = struct {
 
     fn enterRawModeWindows(self: *Terminal) !void {
         if (self.raw_state == .none) {
-            const input_handle = windows.kernel32.GetStdHandle(windows.STD_INPUT_HANDLE) orelse {
+            const input_handle = k32.GetStdHandle(STD_INPUT_HANDLE) orelse {
                 return error.ConsoleUnavailable;
             };
-            const output_handle = windows.kernel32.GetStdHandle(windows.STD_OUTPUT_HANDLE) orelse {
+            const output_handle = k32.GetStdHandle(STD_OUTPUT_HANDLE) orelse {
                 return error.ConsoleUnavailable;
             };
 
             var input_mode: windows.DWORD = 0;
             var output_mode: windows.DWORD = 0;
-            if (windows.kernel32.GetConsoleMode(input_handle, &input_mode) == windows.FALSE) {
+            if (k32.GetConsoleMode(input_handle, &input_mode) == 0) {
                 return error.ConsoleModeFailed;
             }
-            if (windows.kernel32.GetConsoleMode(output_handle, &output_mode) == windows.FALSE) {
+            if (k32.GetConsoleMode(output_handle, &output_mode) == 0) {
                 return error.ConsoleModeFailed;
             }
 
@@ -407,8 +440,8 @@ pub const Terminal = struct {
             ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT);
         const output_mode = state.output_mode | windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 
-        _ = windows.kernel32.SetConsoleMode(state.input_handle, input_mode);
-        _ = windows.kernel32.SetConsoleMode(state.output_handle, output_mode);
+        _ = k32.SetConsoleMode(state.input_handle, input_mode);
+        _ = k32.SetConsoleMode(state.output_handle, output_mode);
     }
 
     fn readEscapeEvent(self: *Terminal) !events.Event {
@@ -570,14 +603,14 @@ pub const Terminal = struct {
 
         if (comptime is_windows) {
             var bytes_read: windows.DWORD = 0;
-            const result = windows.kernel32.ReadFile(
+            const result = k32.ReadFile(
                 self.stdin_file.handle,
-                &self.input_buf,
+                @ptrCast(&self.input_buf),
                 @intCast(self.input_buf.len),
                 &bytes_read,
                 null,
             );
-            if (result == windows.FALSE) {
+            if (result == 0) {
                 self.input_len = 0;
             } else {
                 self.input_len = @intCast(bytes_read);

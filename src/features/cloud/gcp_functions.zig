@@ -53,14 +53,14 @@ pub const GcpConfig = struct {
     pub fn fromEnvironment() GcpConfig {
         return .{
             .port = blk: {
-                if (std.posix.getenv("PORT")) |port_str| {
-                    break :blk std.fmt.parseInt(u16, port_str, 10) catch 8080;
+                if (std.c.getenv("PORT")) |port_str| {
+                    break :blk std.fmt.parseInt(u16, std.mem.span(port_str), 10) catch 8080;
                 }
                 break :blk 8080;
             },
-            .project_id = std.posix.getenv("GCP_PROJECT") orelse std.posix.getenv("GCLOUD_PROJECT"),
-            .region = std.posix.getenv("FUNCTION_REGION"),
-            .function_name = std.posix.getenv("K_SERVICE") orelse std.posix.getenv("FUNCTION_NAME"),
+            .project_id = if (std.c.getenv("GCP_PROJECT")) |p| std.mem.span(p) else if (std.c.getenv("GCLOUD_PROJECT")) |p| std.mem.span(p) else null,
+            .region = if (std.c.getenv("FUNCTION_REGION")) |p| std.mem.span(p) else null,
+            .function_name = if (std.c.getenv("K_SERVICE")) |p| std.mem.span(p) else if (std.c.getenv("FUNCTION_NAME")) |p| std.mem.span(p) else null,
         };
     }
 };

@@ -47,9 +47,10 @@ pub const LambdaRuntime = struct {
 
     /// Initialize the Lambda runtime.
     pub fn init(allocator: std.mem.Allocator, handler: CloudHandler) !LambdaRuntime {
-        const runtime_api = std.posix.getenv("AWS_LAMBDA_RUNTIME_API") orelse {
+        const runtime_api_ptr = std.c.getenv("AWS_LAMBDA_RUNTIME_API") orelse {
             return CloudError.InvalidConfig;
         };
+        const runtime_api = std.mem.span(runtime_api_ptr);
 
         return .{
             .allocator = allocator,

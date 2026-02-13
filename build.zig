@@ -95,22 +95,30 @@ fn parseGpuBackends(b: *std.Build, enable_gpu: bool, enable_web: bool) []const G
             } else std.log.warn("Unknown GPU backend: '{s}'", .{trimmed});
         }
         if (use_auto) {
-            if (enable_gpu) addBackend(.vulkan, &buffer, &count, &seen);
+            if (enable_gpu) {
+                if (builtin.os.tag == .windows) {
+                    addBackend(.stdgpu, &buffer, &count, &seen);
+                } else {
+                    addBackend(.vulkan, &buffer, &count, &seen);
+                }
+            }
             if (enable_web) {
-                addBackend(.webgpu, &buffer, &count, &seen);
-                addBackend(.webgl2, &buffer, &count, &seen);
+                if (builtin.os.tag != .windows) {
+                    addBackend(.webgpu, &buffer, &count, &seen);
+                    addBackend(.webgl2, &buffer, &count, &seen);
+                }
             }
         }
     } else {
         // Legacy defaults
         if (legacy.cuda orelse false) addBackend(.cuda, &buffer, &count, &seen);
-        if (legacy.vulkan orelse enable_gpu) addBackend(.vulkan, &buffer, &count, &seen);
-        if (legacy.stdgpu orelse false) addBackend(.stdgpu, &buffer, &count, &seen);
+        if (legacy.vulkan orelse (enable_gpu and builtin.os.tag != .windows)) addBackend(.vulkan, &buffer, &count, &seen);
+        if (legacy.stdgpu orelse (enable_gpu and builtin.os.tag == .windows)) addBackend(.stdgpu, &buffer, &count, &seen);
         if (legacy.metal orelse false) addBackend(.metal, &buffer, &count, &seen);
-        if (legacy.webgpu orelse enable_web) addBackend(.webgpu, &buffer, &count, &seen);
+        if (legacy.webgpu orelse (enable_web and builtin.os.tag != .windows)) addBackend(.webgpu, &buffer, &count, &seen);
         if (legacy.opengl orelse false) addBackend(.opengl, &buffer, &count, &seen);
         if (legacy.opengles orelse false) addBackend(.opengles, &buffer, &count, &seen);
-        if (legacy.webgl2 orelse enable_web) addBackend(.webgl2, &buffer, &count, &seen);
+        if (legacy.webgl2 orelse (enable_web and builtin.os.tag != .windows)) addBackend(.webgl2, &buffer, &count, &seen);
         if (legacy.fpga orelse false) addBackend(.fpga, &buffer, &count, &seen);
     }
     return b.allocator.dupe(GpuBackend, buffer[0..count]) catch &.{};
@@ -629,6 +637,7 @@ pub fn build(b: *std.Build) void {
                 .root_source_file = b.path("bindings/c/src/abi_c.zig"),
                 .target = target,
                 .optimize = optimize,
+                .link_libc = true,
             }),
             .linkage = .dynamic,
         });

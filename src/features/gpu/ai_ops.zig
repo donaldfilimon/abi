@@ -856,7 +856,7 @@ else
 
 /// cuBLAS operations re-exports.
 /// Provides CublasContext with sgemm, sgemmStridedBatched, and matmulRowMajor.
-pub const cublas = if (build_options.enable_gpu)
+pub const cublas = if (build_options.enable_gpu and build_options.gpu_cuda)
     @import("backends/cuda/cublas.zig")
 else
     struct {

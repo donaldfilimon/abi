@@ -85,17 +85,22 @@ pub const Suite = struct {
     }
 
     pub fn runAll(self: *Self) !void {
-        const out = std.io.getStdOut().writer();
+        var buf: [4096]u8 = undefined;
+        var out = std.io.getStdOut().writer(&buf);
         try out.print("\n=== Running {d} benchmarks ===\n\n", .{self.benchmarks.items.len});
+        try out.flush();
 
         for (self.benchmarks.items, 0..) |b, idx| {
             try out.print("[{d}/{d}] {s}...\n", .{ idx + 1, self.benchmarks.items.len, b.name });
+            try out.flush();
             const result = try self.runOne(b);
             try self.results.append(self.allocator, result);
             try printResult(out, &result);
+            try out.flush();
         }
 
         try self.printSummary(out);
+        try out.flush();
     }
 
     fn runOne(self: *Self, b: NamedBench) !Result {

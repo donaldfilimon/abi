@@ -135,8 +135,13 @@ pub const ConfigLoader = struct {
 
     fn getEnv(self: *Self, name: []const u8) ?[]const u8 {
         _ = self;
-        // Use std.posix.getenv for build-time safe env access
-        return std.posix.getenv(name);
+        var key_buf: [256]u8 = undefined;
+        const key_len = @min(name.len, 255);
+        @memcpy(key_buf[0..key_len], name[0..key_len]);
+        key_buf[key_len] = 0;
+        const key_z: [*:0]const u8 = @ptrCast(&key_buf);
+        const ptr = std.c.getenv(key_z) orelse return null;
+        return std.mem.span(ptr);
     }
 
     fn parseGpuBackend(s: []const u8) ?GpuConfig.Backend {

@@ -21,6 +21,7 @@
 
 const std = @import("std");
 const backend_mod = @import("backend.zig");
+const build_options = @import("build_options");
 
 pub const Backend = backend_mod.Backend;
 pub const DeviceCapability = backend_mod.DeviceCapability;
@@ -654,13 +655,16 @@ pub fn enumerateDevicesForBackend(
     }
 
     return switch (backend_type) {
-        .cuda => try enumerateCudaDevices(allocator),
-        .vulkan => try enumerateVulkanDevices(allocator),
-        .metal => try enumerateMetalDevices(allocator),
-        .webgpu => try enumerateWebGPUDevices(allocator),
-        .opengl, .opengles => try enumerateOpenGLDevices(allocator),
-        .stdgpu => try enumerateStdgpuDevices(allocator),
+        .cuda => if (comptime build_options.gpu_cuda) try enumerateCudaDevices(allocator) else &[_]Device{},
+        .vulkan => if (comptime build_options.gpu_vulkan) try enumerateVulkanDevices(allocator) else &[_]Device{},
+        .stdgpu => if (comptime build_options.gpu_stdgpu) try enumerateStdgpuDevices(allocator) else &[_]Device{},
+        .metal => if (comptime build_options.gpu_metal) try enumerateMetalDevices(allocator) else &[_]Device{},
+        .webgpu => if (comptime build_options.gpu_webgpu) try enumerateWebGPUDevices(allocator) else &[_]Device{},
+        .opengl => if (comptime build_options.gpu_opengl) try enumerateOpenGLDevices(allocator) else &[_]Device{},
+        .opengles => if (comptime build_options.gpu_opengles) try enumerateOpenGLDevices(allocator) else &[_]Device{},
         .webgl2 => &[_]Device{}, // Not yet implemented
+        .fpga => &[_]Device{}, // Not yet implemented
+        .simulated => if (comptime build_options.enable_gpu) try enumerateStdgpuDevices(allocator) else &[_]Device{},
     };
 }
 
