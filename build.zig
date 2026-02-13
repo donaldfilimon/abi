@@ -566,6 +566,11 @@ pub fn build(b: *std.Build) void {
     // Full verification step – formatting, tests, CLI smoke test, flag validation
     // Cross-platform: chains format check, tests, CLI smoke tests, and flag matrix
     // ---------------------------------------------------------------------------
+    // Import rule validation — prevents @import("abi") in feature modules
+    const import_check = b.addSystemCommand(&.{ "bash", "scripts/check_import_rules.sh" });
+    const import_check_step = b.step("check-imports", "Verify no @import(\"abi\") in feature modules");
+    import_check_step.dependOn(&import_check.step);
+
     const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and flag validation");
     full_check_step.dependOn(&lint_fmt.step);
     if (test_step) |ts| {
@@ -573,6 +578,7 @@ pub fn build(b: *std.Build) void {
     }
     full_check_step.dependOn(cli_tests_step);
     full_check_step.dependOn(validate_flags_step);
+    full_check_step.dependOn(&import_check.step);
     if (feature_tests_step) |fts| {
         full_check_step.dependOn(fts);
     }
