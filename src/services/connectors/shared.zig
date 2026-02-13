@@ -157,6 +157,44 @@ pub fn jsonGetUint(comptime T: type, value: std.json.Value, field: []const u8) ?
 }
 
 // ============================================================================
+// JSON Encoding Helpers
+// ============================================================================
+
+const json_utils = @import("../shared/utils.zig").json;
+
+/// Encode an array of ChatMessages as JSON array elements into a writer.
+/// Produces: {"role":"...","content":"..."},{"role":"...","content":"..."}
+/// The caller is responsible for the surrounding `[` and `]`.
+pub fn encodeMessageArray(
+    allocator: std.mem.Allocator,
+    buf: *std.ArrayListUnmanaged(u8),
+    messages: []const ChatMessage,
+) !void {
+    for (messages, 0..) |msg, i| {
+        if (i > 0) try buf.append(allocator, ',');
+        try buf.print(
+            allocator,
+            "{{\"role\":\"{s}\",\"content\":\"{}\"}}",
+            .{ msg.role, json_utils.jsonEscape(msg.content) },
+        );
+    }
+}
+
+/// Encode an array of strings as JSON string array elements into a writer.
+/// Produces: "str1","str2","str3"
+/// The caller is responsible for the surrounding `[` and `]`.
+pub fn encodeStringArray(
+    allocator: std.mem.Allocator,
+    buf: *std.ArrayListUnmanaged(u8),
+    strings: []const []const u8,
+) !void {
+    for (strings, 0..) |s, i| {
+        if (i > 0) try buf.append(allocator, ',');
+        try buf.print(allocator, "\"{}\"", .{json_utils.jsonEscape(s)});
+    }
+}
+
+// ============================================================================
 // Retry Helpers
 // ============================================================================
 
@@ -202,6 +240,57 @@ test "exponentialBackoff calculates correctly" {
     try std.testing.expectEqual(@as(u64, 2000), exponentialBackoff(1, 1000, 60000));
     try std.testing.expectEqual(@as(u64, 4000), exponentialBackoff(2, 1000, 60000));
     try std.testing.expectEqual(@as(u64, 60000), exponentialBackoff(10, 1000, 60000)); // capped
+}
+
+test "encodeMessageArray encodes messages" {
+    const allocator = std.testing.allocator;
+    var buf = std.ArrayListUnmanaged(u8){};
+    defer buf.deinit(allocator);
+
+    const messages = [_]ChatMessage{
+        .{ .role = "user", .content = "Hello" },
+        .{ .role = "assistant", .content = "Hi there" },
+    };
+
+    try encodeMessageArray(allocator, &buf, &messages);
+    const result = buf.items;
+
+    try std.testing.expect(std.mem.indexOf(u8, result, "\"role\":\"user\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "\"content\":\"Hello\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "\"role\":\"assistant\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "\"content\":\"Hi there\"") != null);
+}
+
+test "encodeMessageArray empty" {
+    const allocator = std.testing.allocator;
+    var buf = std.ArrayListUnmanaged(u8){};
+    defer buf.deinit(allocator);
+
+    try encodeMessageArray(allocator, &buf, &.{});
+    try std.testing.expectEqual(@as(usize, 0), buf.items.len);
+}
+
+test "encodeStringArray encodes strings" {
+    const allocator = std.testing.allocator;
+    var buf = std.ArrayListUnmanaged(u8){};
+    defer buf.deinit(allocator);
+
+    const strings = [_][]const u8{ "Hello", "World" };
+    try encodeStringArray(allocator, &buf, &strings);
+    const result = buf.items;
+
+    try std.testing.expect(std.mem.indexOf(u8, result, "\"Hello\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, result, "\"World\"") != null);
+}
+
+test "encodeStringArray empty" {
+    const allocator = std.testing.allocator;
+    var buf = std.ArrayListUnmanaged(u8){};
+    defer buf.deinit(allocator);
+
+    const empty = [_][]const u8{};
+    try encodeStringArray(allocator, &buf, &empty);
+    try std.testing.expectEqual(@as(usize, 0), buf.items.len);
 }
 
 test "secureFree wipes memory" {

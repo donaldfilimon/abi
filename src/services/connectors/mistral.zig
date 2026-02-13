@@ -226,14 +226,7 @@ pub const Client = struct {
 
         try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"messages\":[", .{request.model});
 
-        for (request.messages, 0..) |msg, i| {
-            if (i > 0) try json_str.append(self.allocator, ',');
-            try json_str.print(
-                self.allocator,
-                "{{\"role\":\"{s}\",\"content\":\"{}\"}}",
-                .{ msg.role, json_utils.jsonEscape(msg.content) },
-            );
-        }
+        try shared.encodeMessageArray(self.allocator, &json_str, request.messages);
 
         try json_str.print(self.allocator, "],\"temperature\":{d:.2},\"top_p\":{d:.2}", .{
             request.temperature,
@@ -263,10 +256,7 @@ pub const Client = struct {
 
         try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"input\":[", .{request.model});
 
-        for (request.input, 0..) |text, i| {
-            if (i > 0) try json_str.append(self.allocator, ',');
-            try json_str.print(self.allocator, "\"{}\"", .{json_utils.jsonEscape(text)});
-        }
+        try shared.encodeStringArray(self.allocator, &json_str, request.input);
 
         try json_str.print(self.allocator, "],\"encoding_format\":\"{s}\"}}", .{request.encoding_format});
 

@@ -210,16 +210,9 @@ pub const Client = struct {
 
         try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"messages\":[", .{request.model});
 
-        for (request.messages, 0..) |msg, i| {
-            if (i > 0) try json_str.append(self.allocator, ',');
-            try json_str.print(
-                self.allocator,
-                "{{\"role\":\"{s}\",\"content\":\"{}\"}}",
-                .{ msg.role, json_utils.jsonEscape(msg.content) },
-            );
-        }
+        try shared.encodeMessageArray(self.allocator, &json_str, request.messages);
 
-        try json_str.append(self.allocator, '}');
+        try json_str.appendSlice(self.allocator, "]}");
 
         return json_str.toOwnedSlice(self.allocator);
     }

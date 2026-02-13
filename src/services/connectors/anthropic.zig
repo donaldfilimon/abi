@@ -37,10 +37,7 @@ pub const Config = struct {
     }
 };
 
-pub const Message = struct {
-    role: []const u8,
-    content: []const u8,
-};
+pub const Message = shared.ChatMessage;
 
 pub const MessagesRequest = struct {
     model: []const u8,
@@ -196,14 +193,7 @@ pub const Client = struct {
             request.max_tokens,
         });
 
-        for (request.messages, 0..) |msg, i| {
-            if (i > 0) try json_str.append(self.allocator, ',');
-            try json_str.print(
-                self.allocator,
-                "{{\"role\":\"{s}\",\"content\":\"{}\"}}",
-                .{ msg.role, json_utils.jsonEscape(msg.content) },
-            );
-        }
+        try shared.encodeMessageArray(self.allocator, &json_str, request.messages);
 
         try json_str.appendSlice(self.allocator, "]");
 

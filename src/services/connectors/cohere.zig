@@ -352,10 +352,7 @@ pub const Client = struct {
 
         try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"texts\":[", .{request.model});
 
-        for (request.texts, 0..) |text, i| {
-            if (i > 0) try json_str.append(self.allocator, ',');
-            try json_str.print(self.allocator, "\"{}\"", .{json_utils.jsonEscape(text)});
-        }
+        try shared.encodeStringArray(self.allocator, &json_str, request.texts);
 
         try json_str.print(self.allocator, "],\"input_type\":\"{s}\",\"truncate\":\"{s}\"}}", .{
             request.input_type,
@@ -374,10 +371,7 @@ pub const Client = struct {
             json_utils.jsonEscape(request.query),
         });
 
-        for (request.documents, 0..) |doc, i| {
-            if (i > 0) try json_str.append(self.allocator, ',');
-            try json_str.print(self.allocator, "\"{}\"", .{json_utils.jsonEscape(doc)});
-        }
+        try shared.encodeStringArray(self.allocator, &json_str, request.documents);
 
         try json_str.append(self.allocator, ']');
 
