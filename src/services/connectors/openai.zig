@@ -42,11 +42,12 @@ pub const Config = struct {
     api_key: []u8,
     base_url: []u8,
     model: []const u8 = "gpt-4",
+    model_owned: bool = false,
     timeout_ms: u32 = 60_000,
 
     pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-        // Use shared secure cleanup helper
         shared.deinitConfig(allocator, self.api_key, self.base_url);
+        if (self.model_owned) allocator.free(@constCast(self.model));
         self.* = undefined;
     }
 };
@@ -299,6 +300,7 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         .api_key = api_key,
         .base_url = base_url,
         .model = model,
+        .model_owned = true,
         .timeout_ms = 60_000,
     };
 }
