@@ -37,6 +37,8 @@ pub const HuggingFaceError = error{
     ApiRequestFailed,
     /// The API response could not be parsed.
     InvalidResponse,
+    /// Rate limit exceeded (HTTP 429). Retry after backoff.
+    RateLimitExceeded,
 };
 
 pub const Config = struct {

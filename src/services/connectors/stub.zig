@@ -180,6 +180,7 @@ pub const huggingface = struct {
         ModelLoading,
         ApiRequestFailed,
         InvalidResponse,
+        RateLimitExceeded,
     };
 
     pub const Config = struct {

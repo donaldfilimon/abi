@@ -33,6 +33,8 @@ pub const OllamaError = error{
     InvalidResponse,
     /// The model is not available or still loading.
     ModelNotAvailable,
+    /// Rate limit exceeded (HTTP 429). Retry after backoff.
+    RateLimitExceeded,
 };
 
 /// Configuration for connecting to an Ollama instance.
