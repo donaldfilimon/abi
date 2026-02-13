@@ -45,6 +45,8 @@ test {
     }
     // Connector tests
     _ = @import("connectors_test.zig");
+    // Connector integration tests (isAvailable consistency, boundary conditions)
+    _ = @import("connector_integration_test.zig");
     // Integration test matrix
     _ = @import("test_matrix.zig");
     // Include training demo test
@@ -175,6 +177,9 @@ test {
 
 // Connector tests
 pub const connectors_test = @import("connectors_test.zig");
+
+// Connector integration tests (isAvailable consistency, boundary conditions)
+pub const connector_integration_test = @import("connector_integration_test.zig");
 
 // Integration test matrix
 pub const test_matrix = @import("test_matrix.zig");

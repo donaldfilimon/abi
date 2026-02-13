@@ -663,3 +663,79 @@ test "createCorsMiddleware returns permissive handler" {
     // The returned handler should be the permissive one (ignores config).
     try std.testing.expectEqual(@as(types.MiddlewareFn, &permissiveCors), handler);
 }
+
+// ============================================================================
+// Edge Case Tests
+// ============================================================================
+
+test "isOriginAllowed: empty origin vs wildcard" {
+    try std.testing.expect(isOriginAllowed("", &.{"*"}));
+    try std.testing.expect(!isOriginAllowed("", &.{"https://example.com"}));
+}
+
+test "isOriginAllowed: empty allowed list rejects all" {
+    try std.testing.expect(!isOriginAllowed("https://example.com", &.{}));
+    try std.testing.expect(!isOriginAllowed("", &.{}));
+}
+
+test "isOriginAllowed: wildcard subdomain rejects base domain" {
+    // *.example.com must NOT match example.com itself
+    try std.testing.expect(!isOriginAllowed("https://example.com", &.{"*.example.com"}));
+}
+
+test "isOriginAllowed: deeply nested subdomains" {
+    try std.testing.expect(isOriginAllowed("https://a.b.c.d.example.com", &.{"*.example.com"}));
+}
+
+test "isOriginAllowed: multiple wildcard patterns" {
+    const allowed = [_][]const u8{ "*.example.com", "*.test.com" };
+    try std.testing.expect(isOriginAllowed("https://app.example.com", &allowed));
+    try std.testing.expect(isOriginAllowed("https://app.test.com", &allowed));
+    try std.testing.expect(!isOriginAllowed("https://app.other.com", &allowed));
+}
+
+test "areHeadersAllowed: extra whitespace" {
+    const allowed = [_][]const u8{ "Content-Type", "Authorization" };
+    try std.testing.expect(areHeadersAllowed("  Content-Type  ,  Authorization  ", &allowed));
+}
+
+test "areHeadersAllowed: one bad header rejects all" {
+    const allowed = [_][]const u8{ "Content-Type", "Authorization" };
+    try std.testing.expect(!areHeadersAllowed("Content-Type, X-Evil", &allowed));
+}
+
+test "areHeadersAllowed: empty allowed list" {
+    try std.testing.expect(!areHeadersAllowed("Content-Type", &.{}));
+}
+
+test "parseMethod: all standard methods" {
+    try std.testing.expectEqual(server.Method.GET, parseMethod("GET").?);
+    try std.testing.expectEqual(server.Method.HEAD, parseMethod("HEAD").?);
+    try std.testing.expectEqual(server.Method.POST, parseMethod("POST").?);
+    try std.testing.expectEqual(server.Method.PUT, parseMethod("PUT").?);
+    try std.testing.expectEqual(server.Method.DELETE, parseMethod("DELETE").?);
+    try std.testing.expectEqual(server.Method.CONNECT, parseMethod("CONNECT").?);
+    try std.testing.expectEqual(server.Method.OPTIONS, parseMethod("OPTIONS").?);
+    try std.testing.expectEqual(server.Method.TRACE, parseMethod("TRACE").?);
+    try std.testing.expectEqual(server.Method.PATCH, parseMethod("PATCH").?);
+}
+
+test "parseMethod: case insensitive" {
+    try std.testing.expectEqual(server.Method.GET, parseMethod("get").?);
+    try std.testing.expectEqual(server.Method.POST, parseMethod("post").?);
+    try std.testing.expectEqual(server.Method.DELETE, parseMethod("Delete").?);
+}
+
+test "CorsConfig defaults are sensible" {
+    const config = CorsConfig{};
+    try std.testing.expect(isOriginAllowed("https://anything.com", config.allowed_origins));
+    try std.testing.expect(isMethodAllowed(.GET, config.allowed_methods));
+    try std.testing.expect(isMethodAllowed(.POST, config.allowed_methods));
+    try std.testing.expect(!config.allow_credentials);
+    try std.testing.expectEqual(@as(u32, 86400), config.max_age);
+}
+
+test "strict_config rejects all origins" {
+    try std.testing.expectEqual(@as(usize, 0), strict_config.allowed_origins.len);
+    try std.testing.expect(!strict_config.allow_credentials);
+}
