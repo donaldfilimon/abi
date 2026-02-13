@@ -61,7 +61,9 @@ comptime {
     _ = @import("ha_network_test.zig");
     _ = @import("cloud_lifecycle_test.zig");
     _ = @import("full_stack_test.zig");
-    _ = @import("streaming_recovery.zig");
+    if (build_options.enable_ai) {
+        _ = @import("streaming_recovery.zig");
+    }
     _ = @import("c_api_test.zig");
 }
 

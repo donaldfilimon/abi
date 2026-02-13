@@ -49,11 +49,11 @@ const sync = abi.shared.sync;
 
 // Sub-modules
 pub const vector_search = @import("vector_search_e2e.zig");
-pub const ai_agent = @import("ai_agent_e2e.zig");
+pub const ai_agent = if (build_options.enable_ai) @import("ai_agent_e2e.zig") else struct {};
 pub const distributed = @import("distributed_e2e.zig");
 pub const gpu_pipeline = @import("gpu_pipeline_e2e.zig");
 pub const cli = @import("cli_e2e.zig");
-pub const llm_training = @import("llm_training_e2e.zig");
+pub const llm_training = if (build_options.enable_ai) @import("llm_training_e2e.zig") else struct {};
 
 // Force-reference test modules to include them in test build
 comptime {

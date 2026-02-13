@@ -64,7 +64,9 @@ test {
     _ = @import("parity/mod.zig");
 
     // End-to-end integration tests (issue #397)
-    _ = @import("e2e_llm_test.zig");
+    if (build_options.enable_ai) {
+        _ = @import("e2e_llm_test.zig");
+    }
     _ = @import("e2e_database_test.zig");
     _ = @import("e2e_personas_test.zig");
     _ = @import("error_handling_test.zig");
@@ -154,7 +156,7 @@ pub const os_test = @import("os_test.zig");
 pub const llm_reference_vectors = if (build_options.enable_llm) @import("llm_reference_vectors.zig") else struct {};
 
 // End-to-end integration tests (issue #397)
-pub const e2e_llm_test = @import("e2e_llm_test.zig");
+pub const e2e_llm_test = if (build_options.enable_ai) @import("e2e_llm_test.zig") else struct {};
 pub const e2e_database_test = @import("e2e_database_test.zig");
 pub const e2e_personas_test = @import("e2e_personas_test.zig");
 pub const error_handling_test = @import("error_handling_test.zig");

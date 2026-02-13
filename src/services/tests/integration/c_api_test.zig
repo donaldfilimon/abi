@@ -554,5 +554,7 @@ test {
     _ = @import("c_api_simd_test.zig");
     _ = @import("c_api_database_test.zig");
     _ = @import("c_api_gpu_test.zig");
-    _ = @import("c_api_agent_test.zig");
+    if (build_options.enable_ai) {
+        _ = @import("c_api_agent_test.zig");
+    }
 }
