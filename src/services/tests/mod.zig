@@ -104,6 +104,10 @@ test {
     // Observability module comprehensive tests
     if (build_options.enable_profiling) {
         _ = @import("observability_test.zig");
+        _ = @import("observability_alerting_test.zig");
+        _ = @import("observability_metrics_test.zig");
+        _ = @import("observability_edge_test.zig");
+        _ = @import("observability_tracing_test.zig");
     }
 
     // Stress test infrastructure (HA, observability, database stress tests)
@@ -211,6 +215,10 @@ pub const integration = @import("integration/mod.zig");
 
 // Observability module comprehensive tests
 pub const observability_test = if (build_options.enable_profiling) @import("observability_test.zig") else struct {};
+pub const observability_alerting_test = if (build_options.enable_profiling) @import("observability_alerting_test.zig") else struct {};
+pub const observability_metrics_test = if (build_options.enable_profiling) @import("observability_metrics_test.zig") else struct {};
+pub const observability_edge_test = if (build_options.enable_profiling) @import("observability_edge_test.zig") else struct {};
+pub const observability_tracing_test = if (build_options.enable_profiling) @import("observability_tracing_test.zig") else struct {};
 
 // Stress test infrastructure (production-grade stress tests)
 pub const stress = @import("stress/mod.zig");
