@@ -14,8 +14,8 @@ const sync = @import("../../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 
 // Centralized GPU interface - handles compile-time gating and stubs
-// Import from the top-level gpu module
-const ai_ops = @import("abi").gpu.ai_ops;
+// Direct import avoids circular dependency (feature modules cannot @import("abi"))
+const ai_ops = @import("../../../gpu/ai_ops.zig");
 
 // Re-export GPU modules from ai_ops (stubs provided when GPU disabled)
 const cuda_mod = struct {
