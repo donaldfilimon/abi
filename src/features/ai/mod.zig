@@ -337,6 +337,18 @@ pub const StreamState = streaming.StreamState;
 /// Configuration for text generation (temperature, top_p, etc.).
 pub const GenerationConfig = streaming.GenerationConfig;
 
+/// Configuration for streaming HTTP server.
+pub const ServerConfig = streaming.ServerConfig;
+
+/// HTTP server for streaming AI responses.
+pub const StreamingServer = streaming.StreamingServer;
+
+/// Errors from streaming server operations.
+pub const StreamingServerError = streaming.StreamingServerError;
+
+/// Type of backend used for streaming.
+pub const BackendType = streaming.BackendType;
+
 // LLM Engine
 
 /// LLM inference engine for local model execution.
@@ -369,6 +381,9 @@ pub const PersonaType = prompts.PersonaType;
 pub const PromptFormat = prompts.PromptFormat;
 
 // Abbey / Core AI
+
+/// Abbey engine instance for advanced reasoning operations.
+pub const AbbeyInstance = abbey.AbbeyEngine;
 
 /// Abbey AI assistant with advanced reasoning capabilities.
 pub const Abbey = abbey.Abbey;

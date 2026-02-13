@@ -384,8 +384,8 @@ test "c_api: gpu availability check" {
             return;
         };
         defer allocator.free(backends);
-        // At minimum, we should have the CPU backend
-        try testing.expect(backends.len >= 0);
+        // At minimum, we should have at least one backend (e.g. simulated)
+        try testing.expect(backends.len >= 1);
     }
 }
 

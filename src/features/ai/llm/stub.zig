@@ -364,6 +364,9 @@ pub const io = struct {
     pub const gguf = struct {
         pub const GgufFile = stub_root.GgufFile;
     };
+    pub const gguf_writer = struct {
+        pub const TokenizerConfig = @import("io/gguf_writer.zig").TokenizerConfig;
+    };
 };
 const stub_root = @This();
 

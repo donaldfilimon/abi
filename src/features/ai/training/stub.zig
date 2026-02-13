@@ -228,6 +228,14 @@ pub const TrainableModel = struct {
     pub fn numParams(_: @This()) u64 {
         return 0;
     }
+    pub fn exportToGguf(
+        _: *const @This(),
+        _: std.mem.Allocator,
+        _: []const u8,
+        _: anytype,
+    ) Error!void {
+        return error.TrainingDisabled;
+    }
 };
 
 /// Configuration for trainable ViT model (stub).
