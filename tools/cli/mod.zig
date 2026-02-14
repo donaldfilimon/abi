@@ -72,6 +72,7 @@ const command_infos = [_]CommandInfo{
     .{ .name = "profile", .description = "User profile and settings management" },
     .{ .name = "completions", .description = "Generate shell completions (bash, zsh, fish, powershell)" },
     .{ .name = "status", .description = "Show framework health and component status" },
+    .{ .name = "os-agent", .description = "OS-aware AI agent with tools, memory, and self-learning" },
     .{ .name = "toolchain", .description = "Build and install Zig/ZLS from master (install, update, status)" },
     .{ .name = "version", .description = "Show framework version" },
     .{ .name = "help", .description = "Show help (use: abi help <command>)" },
@@ -223,6 +224,7 @@ const command_map = std.StaticStringMap(CommandFn).initComptime(.{
     .{ "completions", wrap(commands.completions) },
     .{ "plugins", wrap(commands.plugins) },
     .{ "profile", wrap(commands.profile) },
+    .{ "os-agent", wrap(commands.os_agent) },
     .{ "status", wrap(commands.status) },
     .{ "toolchain", wrap(commands.toolchain) },
 });
@@ -249,6 +251,7 @@ const alias_map = std.StaticStringMap([]const u8).initComptime(.{
     .{ "dashboard", "gpu-dashboard" },
     .{ "chat", "llm" },
     .{ "reasoning", "llm" },
+    .{ "osa", "os-agent" },
 });
 
 fn resolveAlias(command: []const u8) []const u8 {
