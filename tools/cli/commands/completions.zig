@@ -1,9 +1,11 @@
 //! Shell completion generation for ABI CLI.
 //!
-//! Generates shell completion scripts for bash, zsh, and fish.
+//! Generates shell completion scripts for bash, zsh, fish, and powershell.
 
 const std = @import("std");
 const utils = @import("../utils/mod.zig");
+const spec = @import("../spec.zig");
+const Feature = @import("abi").config.Feature;
 
 /// Entry point for the completions command.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -35,117 +37,91 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn generateBash() void {
-    const script =
+    emitScriptLine(
         \\# ABI CLI Bash Completion
         \\# Add to ~/.bashrc: source <(abi completions bash)
         \\
         \\_abi_completions() {
         \\    local cur prev commands subcommands
         \\    COMPREPLY=()
-        \\    cur="${COMP_WORDS[COMP_CWORD]}"
-        \\    prev="${COMP_WORDS[COMP_CWORD-1]}"
+        \\    cur="${COMP_WORDS[$COMP_CWORD]}"
+        \\    prev="${COMP_WORDS[$COMP_CWORD-1]}"
         \\
-        \\    commands="db agent bench config discord embed explore gpu llm network simd system-info train task tui completions version help"
-        \\
-        \\    case "${prev}" in
+        \\    commands="
+    );
+
+    for (spec.command_names_with_aliases, 0..) |name, index| {
+        if (index > 0) {
+            std.debug.print(" ", .{});
+        }
+        std.debug.print("{s}", .{name});
+    }
+
+    emitScriptLine(
+        \\"
+        \\    case "$prev" in
         \\        abi)
-        \\            COMPREPLY=( $(compgen -W "${commands}" -- ${cur}) )
+        \\            COMPREPLY=( $(compgen -W "$commands" -- $cur) )
         \\            return 0
         \\            ;;
-        \\        db)
-        \\            COMPREPLY=( $(compgen -W "add query stats optimize backup restore" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        agent)
-        \\            COMPREPLY=( $(compgen -W "--message --persona --debug help" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        gpu)
-        \\            COMPREPLY=( $(compgen -W "backends devices summary default" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        llm)
-        \\            COMPREPLY=( $(compgen -W "chat generate info bench download" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        train)
-        \\            COMPREPLY=( $(compgen -W "run resume info" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        network)
-        \\            COMPREPLY=( $(compgen -W "list register status" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        config)
-        \\            COMPREPLY=( $(compgen -W "init show validate" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        bench)
-        \\            COMPREPLY=( $(compgen -W "all simd memory ai quick" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        completions)
-        \\            COMPREPLY=( $(compgen -W "bash zsh fish" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        task)
-        \\            COMPREPLY=( $(compgen -W "add list done stats" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        discord)
-        \\            COMPREPLY=( $(compgen -W "status guilds send commands" -- ${cur}) )
-        \\            return 0
-        \\            ;;
-        \\        embed)
-        \\            COMPREPLY=( $(compgen -W "--provider openai mistral cohere ollama" -- ${cur}) )
-        \\            return 0
-        \\            ;;
+        \\
+    );
+
+    for (spec.command_subcommands) |entry| {
+        std.debug.print("        {s})\n", .{entry.command});
+        std.debug.print("            COMPREPLY=( $(compgen -W \"", .{});
+        printSpaceSeparated(entry.subcommands);
+        std.debug.print("\" -- $cur) )\n", .{});
+        std.debug.print("            return 0\n            ;;\n", .{});
+    }
+
+    emitScriptLine(
         \\        *)
         \\            ;;
         \\    esac
         \\
-        \\    # Global flags
-        \\    if [[ ${cur} == --* ]]; then
-        \\        COMPREPLY=( $(compgen -W "--help --enable-gpu --disable-gpu --enable-ai --disable-ai --enable-database --disable-database --list-features" -- ${cur}) )
+    );
+
+    emitScriptLine(
+        \\    if [[ $cur == --* ]]; then
+    );
+    std.debug.print(
+        "        COMPREPLY=( $(compgen -W \"--help --list-features --help-features --no-color ",
+        .{},
+    );
+    printFeatureGlobalFlags();
+    std.debug.print("\" -- $cur) )\n", .{});
+    emitScriptLine(
         \\        return 0
         \\    fi
         \\}
         \\
         \\complete -F _abi_completions abi
         \\
-    ;
-    std.debug.print("{s}", .{script});
+    );
 }
 
 fn generateZsh() void {
-    const script =
+    std.debug.print(
         \\#compdef abi
         \\# ABI CLI Zsh Completion
         \\# Add to ~/.zshrc: source <(abi completions zsh)
         \\
-        \\_abi() {
+        \\_abi() {{
         \\    local -a commands
         \\    local -a subcommands
         \\
         \\    commands=(
-        \\        'db:Database operations'
-        \\        'agent:Interactive AI assistant'
-        \\        'bench:Performance benchmarks'
-        \\        'config:Configuration management'
-        \\        'discord:Discord bot integration'
-        \\        'embed:Generate embeddings'
-        \\        'explore:Search the codebase'
-        \\        'gpu:GPU devices and backends'
-        \\        'llm:Local LLM inference'
-        \\        'network:Cluster management'
-        \\        'simd:SIMD performance demo'
-        \\        'system-info:System and framework status'
-        \\        'train:Training pipeline'
-        \\        'task:Task management'
-        \\        'tui:Interactive terminal UI'
-        \\        'completions:Generate shell completions'
-        \\        'version:Show version'
-        \\        'help:Show help'
+    , .{});
+
+    for (spec.command_infos) |info| {
+        std.debug.print("        '{s}:{s}'\n", .{ info.name, info.description });
+    }
+    for (spec.aliases) |alias| {
+        std.debug.print("        '{s}:Alias for {s}'\n", .{ alias.alias, alias.target });
+    }
+
+    std.debug.print(
         \\    )
         \\
         \\    _arguments -C \
@@ -158,59 +134,38 @@ fn generateZsh() void {
         \\            ;;
         \\        args)
         \\            case $words[2] in
-        \\                db)
-        \\                    subcommands=('add' 'query' 'stats' 'optimize' 'backup' 'restore')
-        \\                    _describe -t subcommands 'db subcommands' subcommands
-        \\                    ;;
-        \\                gpu)
-        \\                    subcommands=('backends' 'devices' 'summary' 'default')
-        \\                    _describe -t subcommands 'gpu subcommands' subcommands
-        \\                    ;;
-        \\                llm)
-        \\                    subcommands=('chat' 'generate' 'info' 'bench' 'download')
-        \\                    _describe -t subcommands 'llm subcommands' subcommands
-        \\                    ;;
-        \\                train)
-        \\                    subcommands=('run' 'resume' 'info')
-        \\                    _describe -t subcommands 'train subcommands' subcommands
-        \\                    ;;
-        \\                network)
-        \\                    subcommands=('list' 'register' 'status')
-        \\                    _describe -t subcommands 'network subcommands' subcommands
-        \\                    ;;
-        \\                config)
-        \\                    subcommands=('init' 'show' 'validate')
-        \\                    _describe -t subcommands 'config subcommands' subcommands
-        \\                    ;;
-        \\                bench)
-        \\                    subcommands=('all' 'simd' 'memory' 'ai' 'quick')
-        \\                    _describe -t subcommands 'bench subcommands' subcommands
-        \\                    ;;
-        \\                task)
-        \\                    subcommands=('add' 'list' 'done' 'stats')
-        \\                    _describe -t subcommands 'task subcommands' subcommands
-        \\                    ;;
-        \\                discord)
-        \\                    subcommands=('status' 'guilds' 'send' 'commands')
-        \\                    _describe -t subcommands 'discord subcommands' subcommands
-        \\                    ;;
-        \\                completions)
-        \\                    subcommands=('bash' 'zsh' 'fish')
-        \\                    _describe -t subcommands 'shell types' subcommands
+    , .{});
+
+    for (spec.command_subcommands) |entry| {
+        std.debug.print("\\                ", .{});
+        printCommandMatchers(entry.command);
+        std.debug.print(")\n", .{});
+        std.debug.print("\\                subcommands=(", .{});
+        for (entry.subcommands) |subcommand| {
+            std.debug.print("'{s}' ", .{subcommand});
+        }
+        std.debug.print(
+            \\)
+            \\                _describe -t subcommands 'subcommands' subcommands
+            \\                ;;
+        , .{});
+    }
+
+    std.debug.print(
+        \\                *)
         \\                    ;;
         \\            esac
         \\            ;;
         \\    esac
-        \\}
+        \\}}
         \\
         \\_abi "$@"
         \\
-    ;
-    std.debug.print("{s}", .{script});
+    , .{});
 }
 
 fn generateFish() void {
-    const script =
+    std.debug.print(
         \\# ABI CLI Fish Completion
         \\# Add to ~/.config/fish/completions/abi.fish
         \\
@@ -218,180 +173,132 @@ fn generateFish() void {
         \\complete -c abi -f
         \\
         \\# Main commands
-        \\complete -c abi -n "__fish_use_subcommand" -a "db" -d "Database operations"
-        \\complete -c abi -n "__fish_use_subcommand" -a "agent" -d "Interactive AI assistant"
-        \\complete -c abi -n "__fish_use_subcommand" -a "bench" -d "Performance benchmarks"
-        \\complete -c abi -n "__fish_use_subcommand" -a "config" -d "Configuration management"
-        \\complete -c abi -n "__fish_use_subcommand" -a "discord" -d "Discord bot integration"
-        \\complete -c abi -n "__fish_use_subcommand" -a "embed" -d "Generate embeddings"
-        \\complete -c abi -n "__fish_use_subcommand" -a "explore" -d "Search the codebase"
-        \\complete -c abi -n "__fish_use_subcommand" -a "gpu" -d "GPU devices and backends"
-        \\complete -c abi -n "__fish_use_subcommand" -a "llm" -d "Local LLM inference"
-        \\complete -c abi -n "__fish_use_subcommand" -a "network" -d "Cluster management"
-        \\complete -c abi -n "__fish_use_subcommand" -a "simd" -d "SIMD performance demo"
-        \\complete -c abi -n "__fish_use_subcommand" -a "system-info" -d "System and framework status"
-        \\complete -c abi -n "__fish_use_subcommand" -a "train" -d "Training pipeline"
-        \\complete -c abi -n "__fish_use_subcommand" -a "task" -d "Task management"
-        \\complete -c abi -n "__fish_use_subcommand" -a "tui" -d "Interactive terminal UI"
-        \\complete -c abi -n "__fish_use_subcommand" -a "completions" -d "Generate shell completions"
-        \\complete -c abi -n "__fish_use_subcommand" -a "version" -d "Show version"
-        \\complete -c abi -n "__fish_use_subcommand" -a "help" -d "Show help"
         \\
-        \\# db subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from db" -a "add" -d "Add data"
-        \\complete -c abi -n "__fish_seen_subcommand_from db" -a "query" -d "Query data"
-        \\complete -c abi -n "__fish_seen_subcommand_from db" -a "stats" -d "Show statistics"
-        \\complete -c abi -n "__fish_seen_subcommand_from db" -a "optimize" -d "Optimize database"
-        \\complete -c abi -n "__fish_seen_subcommand_from db" -a "backup" -d "Backup database"
-        \\complete -c abi -n "__fish_seen_subcommand_from db" -a "restore" -d "Restore database"
-        \\
-        \\# gpu subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from gpu" -a "backends" -d "List GPU backends"
-        \\complete -c abi -n "__fish_seen_subcommand_from gpu" -a "devices" -d "List GPU devices"
-        \\complete -c abi -n "__fish_seen_subcommand_from gpu" -a "summary" -d "GPU summary"
-        \\complete -c abi -n "__fish_seen_subcommand_from gpu" -a "default" -d "Show default device"
-        \\
-        \\# llm subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from llm" -a "chat" -d "Interactive chat"
-        \\complete -c abi -n "__fish_seen_subcommand_from llm" -a "generate" -d "Generate text"
-        \\complete -c abi -n "__fish_seen_subcommand_from llm" -a "info" -d "Model info"
-        \\complete -c abi -n "__fish_seen_subcommand_from llm" -a "bench" -d "Benchmark"
-        \\complete -c abi -n "__fish_seen_subcommand_from llm" -a "download" -d "Download model"
-        \\
-        \\# train subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from train" -a "run" -d "Run training"
-        \\complete -c abi -n "__fish_seen_subcommand_from train" -a "resume" -d "Resume training"
-        \\complete -c abi -n "__fish_seen_subcommand_from train" -a "info" -d "Training info"
-        \\
-        \\# network subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from network" -a "list" -d "List nodes"
-        \\complete -c abi -n "__fish_seen_subcommand_from network" -a "register" -d "Register node"
-        \\complete -c abi -n "__fish_seen_subcommand_from network" -a "status" -d "Network status"
-        \\
-        \\# config subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from config" -a "init" -d "Initialize config"
-        \\complete -c abi -n "__fish_seen_subcommand_from config" -a "show" -d "Show config"
-        \\complete -c abi -n "__fish_seen_subcommand_from config" -a "validate" -d "Validate config"
-        \\
-        \\# bench subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from bench" -a "all" -d "Run all benchmarks"
-        \\complete -c abi -n "__fish_seen_subcommand_from bench" -a "simd" -d "SIMD benchmarks"
-        \\complete -c abi -n "__fish_seen_subcommand_from bench" -a "memory" -d "Memory benchmarks"
-        \\complete -c abi -n "__fish_seen_subcommand_from bench" -a "ai" -d "AI benchmarks"
-        \\complete -c abi -n "__fish_seen_subcommand_from bench" -a "quick" -d "Quick benchmarks"
-        \\
-        \\# task subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from task" -a "add" -d "Add task"
-        \\complete -c abi -n "__fish_seen_subcommand_from task" -a "list" -d "List tasks"
-        \\complete -c abi -n "__fish_seen_subcommand_from task" -a "done" -d "Mark done"
-        \\complete -c abi -n "__fish_seen_subcommand_from task" -a "stats" -d "Task stats"
-        \\
-        \\# discord subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from discord" -a "status" -d "Bot status"
-        \\complete -c abi -n "__fish_seen_subcommand_from discord" -a "guilds" -d "List guilds"
-        \\complete -c abi -n "__fish_seen_subcommand_from discord" -a "send" -d "Send message"
-        \\complete -c abi -n "__fish_seen_subcommand_from discord" -a "commands" -d "Bot commands"
-        \\
-        \\# completions subcommands
-        \\complete -c abi -n "__fish_seen_subcommand_from completions" -a "bash" -d "Bash completions"
-        \\complete -c abi -n "__fish_seen_subcommand_from completions" -a "zsh" -d "Zsh completions"
-        \\complete -c abi -n "__fish_seen_subcommand_from completions" -a "fish" -d "Fish completions"
-        \\
+    , .{});
+
+    for (spec.command_infos) |info| {
+        std.debug.print(
+            \\complete -c abi -n "__fish_use_subcommand" -a "{s}" -d "{s}"
+            \\
+        , .{ info.name, info.description });
+    }
+    for (spec.aliases) |alias| {
+        std.debug.print(
+            \\complete -c abi -n "__fish_use_subcommand" -a "{s}" -d "Alias for {s}"
+            \\
+        , .{ alias.alias, alias.target });
+    }
+
+    for (spec.command_subcommands) |entry| {
+        emitFishSubcommands(entry.command, entry.subcommands);
+    }
+
+    std.debug.print(
         \\# Global flags
         \\complete -c abi -l help -d "Show help"
-        \\complete -c abi -l enable-gpu -d "Enable GPU feature"
-        \\complete -c abi -l disable-gpu -d "Disable GPU feature"
-        \\complete -c abi -l enable-ai -d "Enable AI feature"
-        \\complete -c abi -l disable-ai -d "Disable AI feature"
-        \\complete -c abi -l enable-database -d "Enable database feature"
-        \\complete -c abi -l disable-database -d "Disable database feature"
+        \\complete -c abi -l enable -d "Enable feature (use --enable-<feature>)"
+        \\complete -c abi -l disable -d "Disable feature (use --disable-<feature>)"
         \\complete -c abi -l list-features -d "List features"
+        \\complete -c abi -l help-features -d "List features"
+        \\complete -c abi -l no-color -d "Disable colored output"
         \\
-    ;
-    std.debug.print("{s}", .{script});
+    , .{});
+
+    emitFishFlagCompletions();
 }
 
 fn generatePowerShell() void {
-    const script =
+    std.debug.print(
         \\# ABI CLI PowerShell Completion
         \\# Add to your PowerShell profile: abi completions powershell | Out-String | Invoke-Expression
         \\# Or save to a file and dot-source it: . $HOME\abi-completions.ps1
         \\
         \\$script:AbiCommands = @(
-        \\    'db', 'agent', 'bench', 'config', 'discord', 'embed', 'explore',
-        \\    'gpu', 'gpu-dashboard', 'llm', 'network', 'simd', 'system-info',
-        \\    'multi-agent', 'train', 'convert', 'task', 'tui', 'plugins',
-        \\    'profile', 'completions', 'version', 'help'
+    , .{});
+
+    for (spec.command_names_with_aliases) |name| {
+        std.debug.print("    '{s}',\n", .{name});
+    }
+
+    std.debug.print(
         \\)
         \\
-        \\$script:AbiSubcommands = @{
-        \\    'db' = @('add', 'query', 'stats', 'optimize', 'backup', 'restore')
-        \\    'agent' = @('--message', '--persona', '--debug', 'help')
-        \\    'gpu' = @('backends', 'devices', 'summary', 'default')
-        \\    'llm' = @('chat', 'generate', 'info', 'bench', 'download')
-        \\    'train' = @('run', 'resume', 'info')
-        \\    'network' = @('list', 'register', 'status')
-        \\    'config' = @('init', 'show', 'validate')
-        \\    'bench' = @('all', 'simd', 'memory', 'ai', 'quick')
-        \\    'completions' = @('bash', 'zsh', 'fish', 'powershell')
-        \\    'task' = @('add', 'list', 'done', 'stats')
-        \\    'discord' = @('status', 'guilds', 'send', 'commands')
-        \\    'embed' = @('--provider', 'openai', 'mistral', 'cohere', 'ollama')
-        \\    'plugins' = @('list', 'info', 'enable', 'disable', 'search')
-        \\    'profile' = @('show', 'list', 'create', 'switch', 'delete', 'set', 'get', 'api-key', 'export', 'import')
-        \\}
+        \\$script:AbiSubcommands = @{{
+    , .{});
+
+    for (spec.command_subcommands) |entry| {
+        std.debug.print("    '{s}' = @(", .{entry.command});
+        for (entry.subcommands, 0..) |subcommand, index| {
+            if (index > 0) std.debug.print(", ", .{});
+            std.debug.print("'{s}'", .{subcommand});
+        }
+        std.debug.print(
+            \\),
+            \\
+        , .{});
+    }
+
+    emitPowerShellAliasSubcommands();
+
+    std.debug.print(
+        \\}}
         \\
         \\$script:AbiGlobalFlags = @(
-        \\    '--help', '--list-features',
-        \\    '--enable-gpu', '--disable-gpu',
-        \\    '--enable-ai', '--disable-ai',
-        \\    '--enable-database', '--disable-database',
-        \\    '--enable-network', '--disable-network'
+        \\    '--help',
+        \\    '--list-features',
+        \\    '--help-features',
+        \\    '--no-color',
+    , .{});
+    emitPowerShellFeatureFlags();
+    std.debug.print(
         \\)
         \\
-        \\Register-ArgumentCompleter -Native -CommandName abi -ScriptBlock {
+        \\Register-ArgumentCompleter -Native -CommandName abi -ScriptBlock {{
         \\    param($wordToComplete, $commandAst, $cursorPosition)
         \\
         \\    $tokens = $commandAst.CommandElements
         \\    $command = $null
         \\
         \\    # Find the command (skip 'abi' and any global flags)
-        \\    for ($i = 1; $i -lt $tokens.Count; $i++) {
+        \\    for ($i = 1; $i -lt $tokens.Count; $i++) {{
         \\        $token = $tokens[$i].Extent.Text
-        \\        if (-not $token.StartsWith('-')) {
+        \\        if (-not $token.StartsWith('-')) {{
         \\            $command = $token
         \\            break
-        \\        }
-        \\    }
+        \\        }}
+        \\    }}
         \\
         \\    # Completing global flags
-        \\    if ($wordToComplete.StartsWith('-')) {
-        \\        $script:AbiGlobalFlags | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        \\    if ($wordToComplete.StartsWith('-')) {{
+        \\        $script:AbiGlobalFlags | Where-Object {{ $_ -like "$wordToComplete*" }} | ForEach-Object {{
         \\            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterName', $_)
-        \\        }
+        \\        }}
         \\        return
-        \\    }
+        \\    }}
         \\
         \\    # Completing commands
-        \\    if (-not $command -or $command -eq $wordToComplete) {
-        \\        $script:AbiCommands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        \\    if (-not $command -or $command -eq $wordToComplete) {{
+        \\        $script:AbiCommands | Where-Object {{ $_ -like "$wordToComplete*" }} | ForEach-Object {{
         \\            [System.Management.Automation.CompletionResult]::new($_, $_, 'Command', $_)
-        \\        }
+        \\        }}
         \\        return
-        \\    }
+        \\    }}
         \\
         \\    # Completing subcommands
-        \\    if ($script:AbiSubcommands.ContainsKey($command)) {
-        \\        $script:AbiSubcommands[$command] | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+        \\    if ($script:AbiSubcommands.ContainsKey($command)) {{
+        \\        $script:AbiSubcommands[$command] | Where-Object {{ $_ -like "$wordToComplete*" }} | ForEach-Object {{
         \\            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-        \\        }
-        \\    }
-        \\}
+        \\        }}
+        \\    }}
+        \\}}
         \\
         \\Write-Host "ABI CLI completions loaded. Press Tab after 'abi' to see commands."
         \\
-    ;
-    std.debug.print("{s}", .{script});
+    , .{});
+}
+
+fn emitScriptLine(text: []const u8) void {
+    std.debug.print("{s}", .{text});
 }
 
 fn printHelp() void {
@@ -425,4 +332,80 @@ fn printHelp() void {
         \\
     ;
     std.debug.print("{s}", .{help});
+}
+
+fn printFeatureGlobalFlags() void {
+    const fields = std.meta.fields(Feature);
+    inline for (fields, 0..) |field, index| {
+        if (index > 0) {
+            std.debug.print(" ", .{});
+        }
+        std.debug.print("--enable-{s} --disable-{s}", .{ field.name, field.name });
+    }
+}
+
+fn emitPowerShellFeatureFlags() void {
+    const fields = std.meta.fields(Feature);
+    inline for (fields) |field| {
+        std.debug.print("    '--enable-{s}',\n", .{field.name});
+        std.debug.print("    '--disable-{s}',\n", .{field.name});
+    }
+}
+
+fn emitPowerShellAliasSubcommands() void {
+    for (spec.aliases) |alias| {
+        if (spec.findSubcommands(alias.target) != null) {
+            std.debug.print("    '{s}' = $script:AbiSubcommands['{s}']\n", .{ alias.alias, alias.target });
+        }
+    }
+}
+
+fn emitFishFlagCompletions() void {
+    const fields = std.meta.fields(Feature);
+    inline for (fields) |field| {
+        std.debug.print(
+            \\complete -c abi -l "enable-{s}" -d "Enable {s} feature at runtime"
+            \\
+        , .{ field.name, field.name });
+        std.debug.print(
+            \\complete -c abi -l "disable-{s}" -d "Disable {s} feature at runtime"
+            \\
+        , .{ field.name, field.name });
+    }
+}
+
+fn printCommandMatchers(command: []const u8) void {
+    std.debug.print("{s}", .{command});
+    for (spec.aliases) |alias| {
+        if (std.mem.eql(u8, alias.target, command)) {
+            std.debug.print("|{s}", .{alias.alias});
+        }
+    }
+}
+
+fn emitFishSubcommands(target: []const u8, subcommands: []const []const u8) void {
+    emitFishSubcommandsForCommand(target, subcommands);
+    for (spec.aliases) |alias| {
+        if (std.mem.eql(u8, alias.target, target)) {
+            emitFishSubcommandsForCommand(alias.alias, subcommands);
+        }
+    }
+}
+
+fn emitFishSubcommandsForCommand(command: []const u8, subcommands: []const []const u8) void {
+    for (subcommands) |subcommand| {
+        std.debug.print(
+            \\complete -c abi -n "__fish_seen_subcommand_from {s}" -a "{s}" -d "{s} subcommand"
+            \\
+        , .{ command, subcommand, subcommand });
+    }
+}
+
+fn printSpaceSeparated(words: []const []const u8) void {
+    for (words, 0..) |word, index| {
+        if (index > 0) {
+            std.debug.print(" ", .{});
+        }
+        std.debug.print("{s}", .{word});
+    }
 }

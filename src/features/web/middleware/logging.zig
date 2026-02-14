@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const types = @import("types.zig");
+const time = @import("../../../services/shared/time.zig");
 const MiddlewareContext = types.MiddlewareContext;
 const logging_key = "_logging";
 const access_log_key = "_access_log";
@@ -114,7 +115,7 @@ pub fn logJson(
     bytes: usize,
 ) !void {
     const log_entry = .{
-        .timestamp = std.time.timestamp(),
+        .timestamp = time.unixSeconds(),
         .method = @tagName(ctx.request.method),
         .path = ctx.request.path,
         .query = ctx.request.query orelse "",

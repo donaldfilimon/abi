@@ -131,6 +131,7 @@ fn runDashboard(allocator: std.mem.Allocator) !void {
         return;
     };
     defer terminal.exit() catch {};
+    terminal.setTitle("ABI GPU Dashboard") catch {};
 
     var state = DashboardState.init(allocator, &terminal);
     defer state.deinit();
@@ -236,11 +237,20 @@ fn handleKeyEvent(state: *DashboardState, key: tui.Key) !bool {
 // Rendering
 // ===============================================================================
 
+const MIN_COLS: u16 = 40;
+const MIN_ROWS: u16 = 10;
+
 fn renderDashboard(state: *DashboardState) !void {
     const term = state.terminal;
     const theme = state.theme();
     const width = state.term_size.cols;
     const height = state.term_size.rows;
+
+    // Require minimum terminal size to avoid layout overflow
+    if (width < MIN_COLS or height < MIN_ROWS) {
+        try renderResizeMessage(term, theme, width, height);
+        return;
+    }
 
     // Render help overlay if active
     if (state.show_help) {
@@ -274,6 +284,25 @@ fn renderDashboard(state: *DashboardState) !void {
     try renderHelpBar(term, theme, height - 1, width);
 }
 
+fn renderResizeMessage(term: *tui.Terminal, theme: *const tui.Theme, width: u16, height: u16) !void {
+    const msg = "Resize terminal to at least 40×10";
+    const row: u16 = if (height >= 2) (height - 1) / 2 else 0;
+    const msg_len_u16: u16 = @intCast(msg.len);
+    const col: u16 = if (width >= msg_len_u16 + 2) (width - msg_len_u16) / 2 else 0;
+    try setCursorPosition(term, row, col);
+    try term.write(theme.warning);
+    try term.write(msg);
+    try term.write(theme.reset);
+    try setCursorPosition(term, row + 1, 0);
+    try term.write(theme.text_dim);
+    try term.write("Current: ");
+    var buf: [32]u8 = undefined;
+    const size_str = std.fmt.bufPrint(&buf, "{d}×{d}", .{ width, height }) catch "?×?";
+    try term.write(size_str);
+    try term.write("  [q] Quit");
+    try term.write(theme.reset);
+}
+
 fn renderTitleBar(term: *tui.Terminal, theme: *const tui.Theme, state: *const DashboardState, width: u16) !void {
     // Top border
     try term.write(theme.border);
@@ -291,13 +320,17 @@ fn renderTitleBar(term: *tui.Terminal, theme: *const tui.Theme, state: *const Da
     const title = " ABI GPU Dashboard ";
     const status = if (state.paused) "[PAUSED]" else "[LIVE]";
     const theme_name = state.theme_manager.current.name;
-    const frame_str_buf: [32]u8 = undefined;
-    _ = frame_str_buf;
+    const inner = if (width >= 2) width - 2 else 0;
 
-    // Center title
-    const title_area = title.len + status.len + theme_name.len + 6;
-    const left_pad = (@as(usize, width) - 2 - title_area) / 2;
-    const right_pad = @as(usize, width) - 2 - title_area - left_pad;
+    // Build center content; truncate theme name if needed so we don't overflow
+    const max_theme_len = if (inner > title.len + status.len + 8)
+        @min(theme_name.len, inner - title.len - status.len - 8)
+    else
+        0;
+    const theme_display = if (max_theme_len > 0) theme_name[0..max_theme_len] else "";
+    const title_area = title.len + status.len + (if (max_theme_len > 0) theme_display.len + 4 else 0);
+    const left_pad = if (inner >= title_area) (inner - title_area) / 2 else 0;
+    const right_pad = if (inner >= title_area) inner - title_area - left_pad else 0;
 
     try writeRepeat(term, " ", left_pad);
     try term.write(theme.bold);
@@ -305,7 +338,6 @@ fn renderTitleBar(term: *tui.Terminal, theme: *const tui.Theme, state: *const Da
     try term.write(title);
     try term.write(theme.reset);
 
-    // Status indicator
     try term.write(" ");
     if (state.paused) {
         try term.write(theme.warning);
@@ -315,12 +347,13 @@ fn renderTitleBar(term: *tui.Terminal, theme: *const tui.Theme, state: *const Da
     try term.write(status);
     try term.write(theme.reset);
 
-    // Theme indicator
-    try term.write(" [");
-    try term.write(theme.text_muted);
-    try term.write(theme_name);
-    try term.write(theme.reset);
-    try term.write("]");
+    if (max_theme_len > 0) {
+        try term.write(" [");
+        try term.write(theme.text_muted);
+        try term.write(theme_display);
+        try term.write(theme.reset);
+        try term.write("]");
+    }
 
     try writeRepeat(term, " ", right_pad);
     try term.write(theme.border);
@@ -408,10 +441,11 @@ fn renderStatusBar(term: *tui.Terminal, theme: *const tui.Theme, state: *const D
     const eps_str = std.fmt.bufPrint(&buf, "{d:.2}", .{state.agent_panel.exploration_rate}) catch "?";
     try term.write(eps_str);
 
-    // Pad to width
+    // Pad to width (safe for narrow terminals)
+    const status_inner: usize = if (width >= 2) @as(usize, width) - 2 else 0;
     const status_len = 8 + frame_str.len + 9 + gpu_count.len + 13 + ep_str.len + 6 + eps_str.len;
-    if (status_len < @as(usize, width) - 2) {
-        try writeRepeat(term, " ", @as(usize, width) - 2 - status_len);
+    if (status_len < status_inner) {
+        try writeRepeat(term, " ", status_inner - status_len);
     }
 
     try term.write(theme.border);
@@ -422,46 +456,94 @@ fn renderStatusBar(term: *tui.Terminal, theme: *const tui.Theme, state: *const D
 fn renderHelpBar(term: *tui.Terminal, theme: *const tui.Theme, row: u16, width: u16) !void {
     try setCursorPosition(term, row, 0);
 
-    // Bottom border with help
+    const inner: usize = if (width >= 2) @as(usize, width) - 2 else 0;
     try term.write(theme.border);
     try term.write(box.bl);
-    try writeRepeat(term, box.h, @as(usize, width) - 2);
+    try writeRepeat(term, box.h, inner);
     try term.write(box.br);
     try term.write(theme.reset);
     try term.write("\n");
 
-    // Help text
-    try term.write(" ");
-    try term.write(theme.accent);
-    try term.write("q");
-    try term.write(theme.reset);
-    try term.write(theme.text_dim);
-    try term.write(" Quit │ ");
-    try term.write(theme.reset);
-    try term.write(theme.accent);
-    try term.write("p");
-    try term.write(theme.reset);
-    try term.write(theme.text_dim);
-    try term.write(" Pause │ ");
-    try term.write(theme.reset);
-    try term.write(theme.accent);
-    try term.write("t");
-    try term.write(theme.reset);
-    try term.write(theme.text_dim);
-    try term.write(" Theme │ ");
-    try term.write(theme.reset);
-    try term.write(theme.accent);
-    try term.write("r");
-    try term.write(theme.reset);
-    try term.write(theme.text_dim);
-    try term.write(" Reset │ ");
-    try term.write(theme.reset);
-    try term.write(theme.accent);
-    try term.write("h");
-    try term.write(theme.reset);
-    try term.write(theme.text_dim);
-    try term.write(" Help");
-    try term.write(theme.reset);
+    // Full: " q Quit │ p Pause │ t Theme │ r Reset │ h Help" (~45 chars). Short: " q Quit p Pause t Theme h Help" (~32)
+    const full_help_len = 45;
+    if (inner >= full_help_len) {
+        try term.write(" ");
+        try term.write(theme.accent);
+        try term.write("q");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Quit ");
+        try term.write(box.v);
+        try term.write(" ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("p");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Pause ");
+        try term.write(box.v);
+        try term.write(" ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("t");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Theme ");
+        try term.write(box.v);
+        try term.write(" ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("r");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Reset ");
+        try term.write(box.v);
+        try term.write(" ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("h");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Help");
+        try term.write(theme.reset);
+    } else if (inner >= 28) {
+        try term.write(" ");
+        try term.write(theme.accent);
+        try term.write("q");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Quit ");
+        try term.write(theme.reset);
+        try term.write(theme.accent);
+        try term.write("p");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Pause ");
+        try term.write(theme.accent);
+        try term.write("t");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Theme ");
+        try term.write(theme.accent);
+        try term.write("h");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Help");
+        try term.write(theme.reset);
+    } else if (inner > 8) {
+        try term.write(" ");
+        try term.write(theme.accent);
+        try term.write("q");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Quit ");
+        try term.write(theme.accent);
+        try term.write("h");
+        try term.write(theme.reset);
+        try term.write(theme.text_dim);
+        try term.write(" Help");
+        try term.write(theme.reset);
+    }
 }
 
 fn renderHelpOverlay(term: *tui.Terminal, theme: *const tui.Theme, width: u16, height: u16) !void {

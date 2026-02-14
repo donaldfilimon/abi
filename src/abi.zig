@@ -98,6 +98,9 @@ pub const tasks = @import("services/tasks/mod.zig");
 /// MCP (Model Context Protocol) server for WDBX database.
 pub const mcp = @import("services/mcp/mod.zig");
 
+/// ACP (Agent Communication Protocol) for agent-to-agent communication.
+pub const acp = @import("services/acp/mod.zig");
+
 /// SIMD operations (shorthand for `shared.simd`).
 pub const simd = @import("services/shared/simd.zig");
 
@@ -223,7 +226,9 @@ else
 // Convenience Aliases (minimal)
 // ============================================================================
 
+/// GPU handle and backend type; use `abi.gpu` for full API.
 pub const Gpu = gpu.Gpu;
+/// GPU backend enum (cuda, vulkan, metal, webgpu, tpu, etc.); use `abi.gpu` for full API.
 pub const GpuBackend = gpu.Backend;
 
 // ============================================================================

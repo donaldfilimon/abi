@@ -154,6 +154,28 @@ pub const MemoryManager = struct {
         return self.semantic_memory.search(query_embedding, top_k);
     }
 
+    /// Build a context string from stored skills (category .skill) for Ralph and similar agents.
+    /// Caller owns the returned slice. Returns null if no skills are stored.
+    pub fn getSkillsContext(self: *Self, allocator: std.mem.Allocator, max_chars: usize) !?[]u8 {
+        const skills = self.semantic_memory.getByCategory(.skill);
+        if (skills.len == 0) return null;
+
+        var buf = std.ArrayListUnmanaged(u8){};
+        errdefer buf.deinit(allocator);
+        try buf.appendSlice(allocator, "\n\n[Learned skills — use these when relevant]\n");
+        for (skills) |k| {
+            try buf.appendSlice(allocator, "- ");
+            try buf.appendSlice(allocator, k.content);
+            try buf.appendSlice(allocator, "\n");
+            if (buf.items.len >= max_chars) break;
+        }
+        if (buf.items.len > max_chars) {
+            buf.shrinkRetainingCapacity(max_chars);
+            try buf.appendSlice(allocator, "...");
+        }
+        return try buf.toOwnedSlice(allocator);
+    }
+
     /// Get recent episodes
     pub fn getRecentEpisodes(self: *Self, count: usize) []const *Episode {
         self.total_retrievals += 1;
@@ -338,6 +360,34 @@ test "memory manager hybrid context" {
     defer hybrid.deinit(allocator);
 
     try std.testing.expect(hybrid.working.len > 0);
+}
+
+test "memory manager getSkillsContext" {
+    const allocator = std.testing.allocator;
+
+    var manager = try MemoryManager.init(allocator, .{});
+    defer manager.deinit();
+
+    try manager.storeKnowledge("Always run tests after refactoring", .skill, .learned);
+    try manager.storeKnowledge("Prefer small steps in Ralph loops", .skill, .learned);
+
+    const ctx = try manager.getSkillsContext(allocator, 2048);
+    try std.testing.expect(ctx != null);
+    defer if (ctx) |c| allocator.free(c);
+
+    try std.testing.expect(std.mem.indexOf(u8, ctx.?, "Learned skills") != null);
+    try std.testing.expect(std.mem.indexOf(u8, ctx.?, "run tests after refactoring") != null);
+    try std.testing.expect(std.mem.indexOf(u8, ctx.?, "small steps") != null);
+}
+
+test "memory manager getSkillsContext empty" {
+    const allocator = std.testing.allocator;
+
+    var manager = try MemoryManager.init(allocator, .{});
+    defer manager.deinit();
+
+    const ctx = try manager.getSkillsContext(allocator, 1024);
+    try std.testing.expect(ctx == null);
 }
 
 test "memory manager consolidation" {

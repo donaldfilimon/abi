@@ -294,7 +294,12 @@ pub const ModelManagementPanel = struct {
         if (height < 6) return; // Minimum height required
 
         try self.renderHeader(start_row, start_col, width);
-        try self.renderModelList(start_row + 2, start_col, width, height - 6);
+        // Reserve 8 rows: 4 for local servers, 3 for downloads, 1 for footer
+        const server_rows: usize = 4;
+        const reserved = server_rows + 4;
+        const list_height = if (height > reserved + 2) height - reserved - 2 else 1;
+        try self.renderModelList(start_row + 2, start_col, width, list_height);
+        try self.renderLocalServers(start_row + 2 + list_height, start_col, width);
         try self.renderDownloads(start_row + height - 4, start_col, width);
         try self.renderFooter(start_row + height - 1, start_col, width);
     }
@@ -454,6 +459,96 @@ pub const ModelManagementPanel = struct {
             try self.term.write(self.theme.reset);
 
             try self.term.moveTo(remaining_row, col + width - 1);
+            try self.term.write(self.theme.border);
+            try self.term.write(box.v);
+            try self.term.write(self.theme.reset);
+        }
+    }
+
+    fn renderLocalServers(self: *Self, row: usize, col: usize, width: usize) !void {
+        // Separator
+        try self.term.moveTo(row, col);
+        try self.term.write(self.theme.border);
+        try self.term.write(box.lsep);
+        try self.term.write(box.h);
+        try self.term.write(" ");
+        try self.term.write(self.theme.accent);
+        try self.term.write("Local Servers");
+        try self.term.write(self.theme.reset);
+        try self.term.write(self.theme.border);
+        try self.term.write(" ");
+        {
+            // Fill rest of line
+            const used: usize = 4 + 13; // lsep + h + space + text + space
+            var i: usize = used;
+            while (i < width - 1) : (i += 1) {
+                try self.term.write(box.h);
+            }
+        }
+        try self.term.write(box.rsep);
+        try self.term.write(self.theme.reset);
+
+        const servers = [_]struct {
+            name: []const u8,
+            available: bool,
+            host: []const u8,
+        }{
+            .{
+                .name = "Ollama",
+                .available = abi.connectors.ollama.isAvailable(),
+                .host = "ABI_OLLAMA_HOST",
+            },
+            .{
+                .name = "LM Studio",
+                .available = abi.connectors.lm_studio.isAvailable(),
+                .host = "ABI_LM_STUDIO_HOST",
+            },
+            .{
+                .name = "vLLM",
+                .available = abi.connectors.vllm.isAvailable(),
+                .host = "ABI_VLLM_HOST",
+            },
+        };
+
+        for (servers, 0..) |srv, idx| {
+            try self.term.moveTo(row + 1 + idx, col);
+            try self.term.write(self.theme.border);
+            try self.term.write(box.v);
+            try self.term.write(self.theme.reset);
+
+            if (srv.available) {
+                try self.term.write(self.theme.success);
+                try self.term.write(" ● ");
+            } else {
+                try self.term.write(self.theme.text_dim);
+                try self.term.write(" ○ ");
+            }
+            try self.term.write(self.theme.reset);
+            try self.term.write(srv.name);
+
+            // Pad to status column
+            const name_len = srv.name.len;
+            const pad_to: usize = 14;
+            if (name_len < pad_to) {
+                var p: usize = name_len;
+                while (p < pad_to) : (p += 1) {
+                    try self.term.write(" ");
+                }
+            }
+
+            if (srv.available) {
+                try self.term.write(self.theme.success);
+                try self.term.write("configured");
+            } else {
+                try self.term.write(self.theme.text_dim);
+                try self.term.write("not set (");
+                try self.term.write(srv.host);
+                try self.term.write(")");
+            }
+            try self.term.write(self.theme.reset);
+
+            // Right border
+            try self.term.moveTo(row + 1 + idx, col + width - 1);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);

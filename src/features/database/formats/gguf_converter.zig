@@ -66,7 +66,41 @@ pub const GgufTensorType = enum(u32) {
     i32 = 26,
     i64 = 27,
     f64 = 28,
-    bf16 = 29,
+    iq1_m = 29,
+    bf16 = 30,
+    tq1_0 = 34,
+    tq2_0 = 35,
+    mxfp4 = 39,
+
+    pub fn fromInt(value: u32) ?GgufTensorType {
+        return switch (value) {
+            0 => .f32,
+            1 => .f16,
+            2 => .q4_0,
+            3 => .q4_1,
+            6 => .q5_0,
+            7 => .q5_1,
+            8 => .q8_0,
+            9 => .q8_1,
+            10 => .q2_k,
+            11 => .q3_k,
+            12 => .q4_k,
+            13 => .q5_k,
+            14 => .q6_k,
+            15 => .q8_k,
+            24 => .i8,
+            25 => .i16,
+            26 => .i32,
+            27 => .i64,
+            28 => .f64,
+            29 => .iq1_m,
+            30 => .bf16,
+            34 => .tq1_0,
+            35 => .tq2_0,
+            39 => .mxfp4,
+            else => null,
+        };
+    }
 
     pub fn toUnified(self: GgufTensorType) unified.DataType {
         return switch (self) {
@@ -90,6 +124,7 @@ pub const GgufTensorType = enum(u32) {
             .q5_k => .q5_k,
             .q6_k => .q6_k,
             .q8_k => .q8_k,
+            .iq1_m, .tq1_0, .tq2_0, .mxfp4 => .custom,
         };
     }
 
@@ -140,6 +175,10 @@ pub const GgufTensorType = enum(u32) {
             .q5_k => 176,
             .q6_k => 210,
             .q8_k => 292,
+            .iq1_m => 56,
+            .tq1_0 => 54,
+            .tq2_0 => 66,
+            .mxfp4 => 17,
         };
     }
 
@@ -147,6 +186,8 @@ pub const GgufTensorType = enum(u32) {
         return switch (self) {
             .q4_0, .q4_1, .q5_0, .q5_1, .q8_0, .q8_1 => 32,
             .q2_k, .q3_k, .q4_k, .q5_k, .q6_k, .q8_k => 256,
+            .mxfp4 => 32,
+            .iq1_m, .tq1_0, .tq2_0 => 256,
             else => 1,
         };
     }
@@ -203,8 +244,7 @@ pub fn fromGguf(allocator: std.mem.Allocator, data: []const u8) GgufConversionEr
         }
 
         const tensor_type_int = readU32(data, &cursor) orelse return error.ParseError;
-        if (tensor_type_int > @intFromEnum(GgufTensorType.bf16)) return error.InvalidTensorType;
-        const tensor_type: GgufTensorType = @enumFromInt(tensor_type_int);
+        const tensor_type = GgufTensorType.fromInt(tensor_type_int) orelse return error.InvalidTensorType;
 
         const offset = readU64(data, &cursor) orelse return error.ParseError;
 

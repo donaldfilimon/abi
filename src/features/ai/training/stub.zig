@@ -131,6 +131,7 @@ pub const LlmTrainingConfig = struct {
     epochs: u32 = 1,
     batch_size: u32 = 4,
     learning_rate: f32 = 1e-5,
+    use_gpu: bool = false,
     grad_accum_steps: u32 = 1,
     max_seq_len: u32 = 512,
     warmup_steps: u32 = 100,
@@ -242,6 +243,8 @@ pub const TrainableModel = struct {
 pub const TrainableViTConfig = struct {
     /// Vision Transformer architecture config
     vit_config: vision.ViTConfig = .{},
+    /// Maximum batch size for forward pass (activation cache)
+    max_batch_size: u32 = 1,
     /// Number of output classes (for classification)
     num_classes: u32 = 1000,
     /// Projection dimension for contrastive learning (0 = disabled)
@@ -537,6 +540,136 @@ pub fn parseInstructionDataset(
 ) Error!std.ArrayListUnmanaged(InstructionSample) {
     return error.TrainingDisabled;
 }
+
+// Self-learning types (stub) for API compatibility with train auto
+pub const ExperienceType = enum {
+    text_conversation,
+    vision,
+    video,
+    audio,
+    document,
+    code,
+    reasoning,
+    multi_modal,
+    any,
+};
+pub const DataKind = enum {
+    text,
+    image,
+    video,
+    audio,
+    document,
+    other,
+};
+pub const FeedbackType = enum {
+    positive,
+    negative,
+    implicit_accept,
+    implicit_reject,
+    self_eval,
+    none,
+};
+pub const SelfLearningConfig = struct {
+    enable_rlhf: bool = true,
+    enable_vision: bool = true,
+    enable_documents: bool = true,
+    enable_video: bool = true,
+    enable_audio: bool = true,
+    enable_all_modalities: bool = true,
+    replay_buffer_size: usize = 10000,
+    batch_size: u32 = 16,
+    learning_rate: f32 = 1e-6,
+    gamma: f32 = 0.99,
+    ppo_clip: f32 = 0.2,
+    value_coef: f32 = 0.5,
+    entropy_coef: f32 = 0.01,
+    kl_target: f32 = 0.01,
+    max_grad_norm: f32 = 0.5,
+    ppo_epochs: u32 = 4,
+    min_buffer_size: usize = 100,
+    update_frequency: usize = 64,
+    reward_shaping: bool = true,
+    self_eval_threshold: f32 = 0.7,
+    checkpoint_interval: u32 = 100,
+    continuous_learning: bool = true,
+};
+pub const LearningStats = struct {
+    total_experiences: u64 = 0,
+    total_updates: u64 = 0,
+    avg_reward: f32 = 0,
+    avg_loss: f32 = 0,
+    positive_feedback_count: u64 = 0,
+    negative_feedback_count: u64 = 0,
+    vision_samples: u64 = 0,
+    video_samples: u64 = 0,
+    audio_samples: u64 = 0,
+    document_samples: u64 = 0,
+    any_samples: u64 = 0,
+    improvement_rate: f32 = 0,
+};
+pub const SelfLearningSystem = struct {
+    pub fn init(_: std.mem.Allocator, _: SelfLearningConfig) Error!SelfLearningSystem {
+        return error.TrainingDisabled;
+    }
+    pub fn deinit(_: *SelfLearningSystem) void {}
+    pub fn recordExperience(
+        _: *SelfLearningSystem,
+        _: []const u32,
+        _: []const u32,
+        _: FeedbackType,
+        _: f32,
+        _: ExperienceType,
+    ) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn recordVisionExperience(
+        _: *SelfLearningSystem,
+        _: []const u32,
+        _: []const u32,
+        _: []const u8,
+        _: FeedbackType,
+        _: f32,
+    ) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn recordVideoExperience(
+        _: *SelfLearningSystem,
+        _: []const u32,
+        _: []const u32,
+        _: []const u8,
+        _: FeedbackType,
+        _: f32,
+    ) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn recordAudioExperience(
+        _: *SelfLearningSystem,
+        _: []const u32,
+        _: []const u32,
+        _: []const u8,
+        _: FeedbackType,
+        _: f32,
+    ) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn recordGenericExperience(
+        _: *SelfLearningSystem,
+        _: []const u32,
+        _: []const u32,
+        _: []const u8,
+        _: ?[]const u8,
+        _: FeedbackType,
+        _: f32,
+    ) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn update(_: *SelfLearningSystem) Error!void {
+        return error.TrainingDisabled;
+    }
+    pub fn getStats(_: *const SelfLearningSystem) LearningStats {
+        return .{};
+    }
+};
 
 pub const WdbxTokenDataset = struct {
     pub fn init(_: std.mem.Allocator, _: []const u8) Error!WdbxTokenDataset {

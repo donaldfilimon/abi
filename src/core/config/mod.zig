@@ -2,6 +2,9 @@
 //!
 //! Re-exports all configuration types from domain-specific files.
 //! Import this module for access to all configuration types.
+//!
+//! Use `ConfigLoader` (see `loader.zig`) to load config from environment variables
+//! (e.g. `ABI_GPU_BACKEND`, `ABI_LLM_MODEL_PATH`). Use `Config.Builder` for fluent construction.
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -29,38 +32,33 @@ pub const loader = @import("loader.zig");
 pub const ConfigLoader = loader.ConfigLoader;
 pub const LoadError = loader.LoadError;
 
-// Re-export all config types for convenience
+// Re-export config types by domain (convenience; use *_config for defaults/helpers)
+// Compute
 pub const GpuConfig = gpu_config.GpuConfig;
 pub const RecoveryConfig = gpu_config.RecoveryConfig;
-
 pub const AiConfig = ai_config.AiConfig;
 pub const LlmConfig = ai_config.LlmConfig;
 pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
 pub const AgentsConfig = ai_config.AgentsConfig;
 pub const TrainingConfig = ai_config.TrainingConfig;
-
+pub const ContentKind = ai_config.ContentKind;
 pub const DatabaseConfig = database_config.DatabaseConfig;
-
+// Network & platform
 pub const NetworkConfig = network_config.NetworkConfig;
 pub const UnifiedMemoryConfig = network_config.UnifiedMemoryConfig;
 pub const LinkingConfig = network_config.LinkingConfig;
-
 pub const ObservabilityConfig = observability_config.ObservabilityConfig;
-
 pub const WebConfig = web_config.WebConfig;
-
 pub const CloudConfig = cloud_config.CloudConfig;
-
 pub const AnalyticsConfig = analytics_config.AnalyticsConfig;
-
 pub const AuthConfig = auth_config.AuthConfig;
+// Data & infra
 pub const MessagingConfig = messaging_config.MessagingConfig;
 pub const CacheConfig = cache_config.CacheConfig;
 pub const StorageConfig = storage_config.StorageConfig;
 pub const SearchConfig = search_config.SearchConfig;
-pub const MobileConfig = mobile_config.MobileConfig;
 pub const GatewayConfig = gateway_config.GatewayConfig;
-
+pub const MobileConfig = mobile_config.MobileConfig;
 pub const PluginConfig = plugin_config.PluginConfig;
 
 // ============================================================================
@@ -442,6 +440,7 @@ pub const Builder = struct {
         return self;
     }
 
+    /// Finalize and return the built config; no allocation.
     pub fn build(self: *Builder) Config {
         return self.config;
     }

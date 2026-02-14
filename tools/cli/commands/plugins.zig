@@ -234,48 +234,60 @@ fn getPlugin(allocator: std.mem.Allocator, name: []const u8) !?PluginInfo {
 }
 
 /// Entry point for the plugins command.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-
-    if (parser.wantsHelp()) {
-        printHelp();
-        return;
-    }
-
-    const subcommand = parser.next() orelse {
-        try listPlugins(allocator);
+fn plList(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try listPlugins(alloc);
+}
+fn plInfo(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const name = parser.next() orelse {
+        utils.output.printError("Usage: abi plugins info <name>", .{});
         return;
     };
+    try showPluginInfo(alloc, name);
+}
+fn plEnable(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const name = parser.next() orelse {
+        utils.output.printError("Usage: abi plugins enable <name>", .{});
+        return;
+    };
+    try enablePlugin(alloc, name);
+}
+fn plDisable(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const name = parser.next() orelse {
+        utils.output.printError("Usage: abi plugins disable <name>", .{});
+        return;
+    };
+    try disablePlugin(alloc, name);
+}
+fn plSearch(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const query = parser.next() orelse "";
+    try searchPlugins(alloc, query);
+}
+fn plUnknown(cmd: []const u8) void {
+    utils.output.printError("Unknown subcommand: {s}", .{cmd});
+}
+fn printHelpAlloc(_: std.mem.Allocator) void {
+    printHelp();
+}
 
-    if (std.mem.eql(u8, subcommand, "list")) {
-        try listPlugins(allocator);
-    } else if (std.mem.eql(u8, subcommand, "info")) {
-        const plugin_name = parser.next() orelse {
-            utils.output.printError("Usage: abi plugins info <name>", .{});
-            return;
-        };
-        try showPluginInfo(allocator, plugin_name);
-    } else if (std.mem.eql(u8, subcommand, "enable")) {
-        const plugin_name = parser.next() orelse {
-            utils.output.printError("Usage: abi plugins enable <name>", .{});
-            return;
-        };
-        try enablePlugin(allocator, plugin_name);
-    } else if (std.mem.eql(u8, subcommand, "disable")) {
-        const plugin_name = parser.next() orelse {
-            utils.output.printError("Usage: abi plugins disable <name>", .{});
-            return;
-        };
-        try disablePlugin(allocator, plugin_name);
-    } else if (std.mem.eql(u8, subcommand, "search")) {
-        const query = parser.next() orelse "";
-        try searchPlugins(allocator, query);
-    } else if (std.mem.eql(u8, subcommand, "help")) {
-        printHelp();
-    } else {
-        utils.output.printError("Unknown subcommand: {s}", .{subcommand});
-        printHelp();
-    }
+const plugin_commands = [_]utils.subcommand.Command{
+    .{ .names = &.{"list"}, .run = plList },
+    .{ .names = &.{"info"}, .run = plInfo },
+    .{ .names = &.{"enable"}, .run = plEnable },
+    .{ .names = &.{"disable"}, .run = plDisable },
+    .{ .names = &.{"search"}, .run = plSearch },
+};
+
+pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &plugin_commands,
+        plList,
+        printHelpAlloc,
+        plUnknown,
+    );
 }
 
 fn listPlugins(allocator: std.mem.Allocator) !void {

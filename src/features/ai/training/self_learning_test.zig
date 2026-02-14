@@ -32,7 +32,11 @@ test "ExperienceBuffer basic operations" {
         .advantage = 0,
         .done = true,
         .image_data = null,
+        .video_data = null,
+        .audio_data = null,
         .document_content = null,
+        .raw_data = null,
+        .content_type = null,
         .metadata = .{},
     };
 

@@ -8,6 +8,8 @@
 //! - **HuggingFace**: Hosted inference API
 //! - **Mistral**: Mistral AI models with OpenAI-compatible API
 //! - **Cohere**: Chat, embeddings, and reranking
+//! - **LM Studio**: Local LLM inference with OpenAI-compatible API
+//! - **vLLM**: High-throughput local LLM serving with OpenAI-compatible API
 //! - **Discord**: Bot integration for Discord
 //!
 //! ## Usage
@@ -40,21 +42,27 @@ pub const discord = @import("discord/mod.zig");
 pub const anthropic = @import("anthropic.zig");
 pub const mistral = @import("mistral.zig");
 pub const cohere = @import("cohere.zig");
+pub const lm_studio = @import("lm_studio.zig");
+pub const vllm = @import("vllm.zig");
 
 var initialized: bool = false;
 
+/// Initialize the connectors subsystem (idempotent; no-op if already initialized).
 pub fn init(_: std.mem.Allocator) !void {
     initialized = true;
 }
 
+/// Tear down the connectors subsystem; safe to call multiple times.
 pub fn deinit() void {
     initialized = false;
 }
 
+/// Returns true; connectors are always available when this module is compiled in.
 pub fn isEnabled() bool {
     return true;
 }
 
+/// Returns true after `init()` has been called.
 pub fn isInitialized() bool {
     return initialized;
 }
@@ -64,6 +72,7 @@ const builtin = @import("builtin");
 // libc import for environment access - required for Zig 0.16
 const c = @cImport(@cInclude("stdlib.h"));
 
+/// Read environment variable by name; returns owned slice or null if unset. Caller must free.
 pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8 {
     // Zig 0.16: Environment access via libc getenv (build links libc)
     const name_z = allocator.dupeZ(u8, name) catch return error.OutOfMemory;
@@ -178,6 +187,22 @@ pub fn tryLoadCohere(allocator: std.mem.Allocator) !?cohere.Config {
         cohere.CohereError.MissingApiKey => null,
         else => return err,
     };
+}
+
+pub fn loadLMStudio(allocator: std.mem.Allocator) !lm_studio.Config {
+    return lm_studio.loadFromEnv(allocator);
+}
+
+pub fn tryLoadLMStudio(allocator: std.mem.Allocator) !?lm_studio.Config {
+    return lm_studio.loadFromEnv(allocator) catch null;
+}
+
+pub fn loadVLLM(allocator: std.mem.Allocator) !vllm.Config {
+    return vllm.loadFromEnv(allocator);
+}
+
+pub fn tryLoadVLLM(allocator: std.mem.Allocator) !?vllm.Config {
+    return vllm.loadFromEnv(allocator) catch null;
 }
 
 test "connectors init toggles state" {

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "zig-docs": {
+      "command": "npx",
+      "args": ["-y", "@nicholasq/zig-docs-mcp"]
+    }
+  }
+}

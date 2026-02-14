@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/storage.zig");
+const stub_context = @import("../../core/stub_context.zig");
 
 pub const StorageConfig = core_config.StorageConfig;
 pub const StorageBackend = core_config.StorageBackend;
@@ -43,19 +44,7 @@ pub const StorageStats = struct {
     backend: StorageBackend = .memory,
 };
 
-pub const Context = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator, _: StorageConfig) !*Context {
-        const ctx = try allocator.create(Context);
-        ctx.* = .{ .allocator = allocator };
-        return ctx;
-    }
-
-    pub fn deinit(self: *Context) void {
-        self.allocator.destroy(self);
-    }
-};
+pub const Context = stub_context.StubContext(StorageConfig);
 
 pub fn init(_: std.mem.Allocator, _: StorageConfig) StorageError!void {
     return error.FeatureDisabled;

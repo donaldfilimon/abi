@@ -2,7 +2,7 @@
 //!
 //! Defines the framework's error taxonomy as composable error sets.
 //! Feature modules can import and extend these base categories.
-//! Framework.Error composes from these sets instead of listing variants inline.
+//! `FrameworkError` composes lifecycle, feature, config, and allocator errors.
 
 /// Lifecycle errors for framework state transitions.
 pub const LifecycleError = error{

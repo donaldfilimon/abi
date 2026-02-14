@@ -4,50 +4,54 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 
+fn runBackends(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printBackends(alloc);
+}
+fn runSummary(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printSummaryCommand(alloc);
+}
+fn runDevices(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printDevices(alloc);
+}
+fn runDefault(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printDefaultDevice(alloc);
+}
+fn runStatus(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printStatus(alloc);
+}
+fn runDefaultAction(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printBackends(alloc);
+    try printDevices(alloc);
+}
+fn onUnknownGpu(cmd: []const u8) void {
+    utils.output.printError("Unknown gpu command: {s}", .{cmd});
+}
+
+const gpu_commands = [_]utils.subcommand.Command{
+    .{ .names = &.{"backends"}, .run = runBackends },
+    .{ .names = &.{"summary"}, .run = runSummary },
+    .{ .names = &.{ "devices", "list" }, .run = runDevices },
+    .{ .names = &.{"default"}, .run = runDefault },
+    .{ .names = &.{"status"}, .run = runStatus },
+};
+
 /// Run the GPU command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var parser = utils.args.ArgParser.init(allocator, args);
-
-    if (parser.wantsHelp()) {
-        printHelp(allocator);
-        return;
-    }
-
-    if (!parser.hasMore()) {
-        try printBackends(allocator);
-        try printDevices(allocator);
-        return;
-    }
-
-    const command = parser.next().?;
-
-    if (std.mem.eql(u8, command, "backends")) {
-        try printBackends(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "summary")) {
-        try printSummaryCommand(allocator);
-        return;
-    }
-
-    if (utils.args.matchesAny(command, &[_][]const u8{ "devices", "list" })) {
-        try printDevices(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "default")) {
-        try printDefaultDevice(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "status")) {
-        try printStatus(allocator);
-        return;
-    }
-
-    utils.output.printError("Unknown gpu command: {s}", .{command});
-    printHelp(allocator);
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &gpu_commands,
+        runDefaultAction,
+        printHelp,
+        onUnknownGpu,
+    );
 }
 
 /// Print a short GPU summary for system-info.
@@ -113,10 +117,17 @@ fn printBackends(allocator: std.mem.Allocator) !void {
     utils.output.printHeader("GPU Backends");
     for (infos) |info| {
         if (!info.enabled) {
-            std.debug.print(
-                "  {s} (disabled) - {s} [enable {s}]\n",
-                .{ info.name, info.description, info.build_flag },
-            );
+            if (info.build_flag.len > 0) {
+                std.debug.print(
+                    "  {s} (disabled) - {s} [enable {s}]\n",
+                    .{ info.name, info.description, info.build_flag },
+                );
+            } else {
+                std.debug.print(
+                    "  {s} (disabled) - {s}\n",
+                    .{ info.name, info.description },
+                );
+            }
             continue;
         }
 
@@ -134,11 +145,15 @@ fn printBackends(allocator: std.mem.Allocator) !void {
                 .{ info.name, info.description, info.device_count },
             );
         } else {
+            const suffix = if (std.mem.eql(u8, info.name, "simulated")) " (fallback)" else "";
             std.debug.print(
-                "  {s} (enabled) - {s}\n",
-                .{ info.name, info.description },
+                "  {s} (enabled) - {s}{s}\n",
+                .{ info.name, info.description, suffix },
             );
         }
+    }
+    if (abi.gpu.moduleEnabled()) {
+        std.debug.print("\n  Simulated is always available as a fallback when no hardware backend is detected.\n", .{});
     }
 }
 

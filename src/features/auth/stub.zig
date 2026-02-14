@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/auth.zig");
+const stub_context = @import("../../core/stub_context.zig");
 
 pub const AuthConfig = core_config.AuthConfig;
 
@@ -69,19 +70,7 @@ pub const Permission = enum { read, write, admin };
 // Feature Context (stub)
 // ============================================================================
 
-pub const Context = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator, _: AuthConfig) !*Context {
-        const ctx = try allocator.create(Context);
-        ctx.* = .{ .allocator = allocator };
-        return ctx;
-    }
-
-    pub fn deinit(self: *Context) void {
-        self.allocator.destroy(self);
-    }
-};
+pub const Context = stub_context.StubContext(AuthConfig);
 
 // ============================================================================
 // Module-level API (stub — returns FeatureDisabled)

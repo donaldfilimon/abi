@@ -48,6 +48,8 @@ pub const default_profiles = struct {
             .stdgpu => stdgpu,
             .opengl, .opengles => vulkan,
             .webgl2 => webgpu,
+            .tpu => cuda, // TPU: use high-throughput profile until TPU-specific data
+            .simulated => stdgpu,
         };
     }
 };
@@ -112,7 +114,10 @@ pub const PowerMonitor = struct {
     }
 
     fn loadDefaultProfiles(self: *PowerMonitor) !void {
-        const backends = [_]backend_mod.Backend{ .cuda, .vulkan, .metal, .fpga, .webgpu, .stdgpu, .opengl, .opengles, .webgl2 };
+        const backends = [_]backend_mod.Backend{
+            .cuda,   .vulkan,   .metal,  .fpga,      .tpu, .webgpu, .stdgpu,
+            .opengl, .opengles, .webgl2, .simulated,
+        };
         for (backends) |backend| {
             try self.profiles.put(backend, default_profiles.getProfile(backend));
         }

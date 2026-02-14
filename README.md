@@ -9,7 +9,7 @@
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-983_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-1220_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
@@ -17,6 +17,8 @@
 **A modern Zig 0.16.0-dev.2535+b5bd49460 framework for AI services, vector search, and high-performance systems**
 
 [Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
+
+**Contents:** [Why ABI?](#why-abi) · [Highlights](#highlights) · [Quick Start](#-quick-start) · [Examples](#-examples) · [CLI Reference](#cli-reference) · [Architecture](#architecture) · [Feature Flags](#feature-flags) · [Documentation](#documentation)
 
 <br/>
 
@@ -42,7 +44,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 988 tests (983 passing), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 1225 tests (1220 passing), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -62,7 +64,7 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 |:--------|:------------|:------:|
 | **AI Runtime** | LLM inference with Llama-CPP parity, agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, real-time analytics | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **GPU Acceleration** | CUDA, Vulkan, Metal (Accelerate/AMX), WebGPU, FPGA with unified API | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU Acceleration** | CUDA, Vulkan, Metal, WebGPU, TPU (stub), FPGA; multi-threaded CPU fallback | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
@@ -267,8 +269,20 @@ abi gpu summary               # Quick status
 
 # Training
 abi train run --epochs 10     # Start training
+abi train auto               # Auto-train Abbey/Aviva/Abi with default data
+abi train auto --multimodal  # Include vision/multimodal micro-steps
 abi train resume ./checkpoint # Resume from checkpoint
 abi train monitor             # Real-time metrics
+
+# Plugins & Info
+abi plugins list              # List available plugins
+abi --list-features           # Show feature status
+
+# MCP/ACP Servers
+abi mcp serve                 # Start MCP server (stdio JSON-RPC)
+abi mcp tools                 # List available MCP tools
+abi acp card                  # Print agent card JSON
+abi serve -m model.gguf       # Alias for llm serve
 
 # Runtime Feature Flags
 abi --list-features           # Show feature status
@@ -315,21 +329,34 @@ abi/
 │   │   ├── framework.zig # Lifecycle orchestration
 │   │   └── registry/     # Feature registry
 │   │
-│   ├── features/         # Feature modules
+│   ├── features/         # Feature modules (19 total, each with mod.zig + stub.zig)
 │   │   ├── ai/           # AI Module (llm, agents, training, embeddings)
+│   │   ├── ai_core/      # Agents, tools, prompts, personas, memory
+│   │   ├── ai_inference/  # LLM, embeddings, vision, streaming
+│   │   ├── ai_training/   # Training pipelines, federated learning
+│   │   ├── ai_reasoning/  # Abbey, RAG, eval, templates, orchestration
 │   │   ├── analytics/    # Event Tracking & Experiments
+│   │   ├── auth/         # Security infrastructure (16 modules)
+│   │   ├── cache/        # In-memory LRU/LFU, TTL, eviction
 │   │   ├── cloud/        # Cloud Function Adapters (AWS, GCP, Azure)
 │   │   ├── database/     # Vector Database (WDBX)
-│   │   ├── gpu/          # GPU Acceleration
+│   │   ├── gateway/      # API gateway: routing, rate limiting, circuit breaker
+│   │   ├── gpu/          # GPU Acceleration (10 backends)
+│   │   ├── messaging/    # Event bus, pub/sub, message queues
+│   │   ├── mobile/       # Mobile platform support
 │   │   ├── network/      # Distributed Compute
 │   │   ├── observability/ # Metrics & Tracing
+│   │   ├── search/       # Full-text BM25 search
+│   │   ├── storage/      # Unified file/object storage
 │   │   └── web/          # Web/HTTP utilities
 │   │
 │   └── services/         # Shared infrastructure
 │       ├── runtime/      # Compute infrastructure (engine, concurrency, memory)
 │       ├── platform/     # Platform detection (OS, arch, CPU)
 │       ├── shared/       # Utilities (security, io, utils)
-│       ├── connectors/   # External API connectors
+│       ├── connectors/   # LLM provider connectors (8 providers + discord)
+│       ├── mcp/          # MCP server (JSON-RPC 2.0 over stdio)
+│       ├── acp/          # Agent Communication Protocol
 │       ├── ha/           # High availability (backup, PITR, replication)
 │       ├── tasks/        # Task management
 │       └── tests/        # Test infrastructure
@@ -400,6 +427,14 @@ All features are enabled by default. Disable unused features to reduce binary si
 | `-Denable-network` | true | Distributed compute |
 | `-Denable-web` | true | HTTP client utilities |
 | `-Denable-profiling` | true | Performance profiling |
+| `-Denable-cache` | true | In-memory LRU/LFU cache |
+| `-Denable-gateway` | true | API gateway, rate limiting, circuit breaker |
+| `-Denable-messaging` | true | Pub/sub, message queues |
+| `-Denable-search` | true | Full-text BM25 search |
+| `-Denable-storage` | true | Unified object storage |
+| `-Denable-cloud` | true | Cloud function adapters |
+| `-Denable-auth` | true | Security infrastructure |
+| `-Denable-mobile` | false | Mobile platform support |
 
 ### GPU Backend Selection
 
@@ -408,6 +443,8 @@ All features are enabled by default. Disable unused features to reduce binary si
 zig build -Dgpu-backend=vulkan
 zig build -Dgpu-backend=cuda
 zig build -Dgpu-backend=metal
+zig build -Dgpu-backend=webgpu
+zig build -Dgpu-backend=tpu    # Stub until TPU runtime linked
 
 # Multiple backends (comma-separated)
 zig build -Dgpu-backend=cuda,vulkan
@@ -449,11 +486,16 @@ zig build lint
 
 | Variable | Description |
 |:---------|:------------|
+| `ABI_GPU_BACKEND` | GPU backend: `auto`, `cuda`, `vulkan`, `metal`, `webgpu`, `tpu`, `none` |
 | `ABI_OPENAI_API_KEY` | OpenAI API key |
 | `ABI_ANTHROPIC_API_KEY` | Anthropic/Claude API key |
 | `ABI_OLLAMA_HOST` | Ollama host (default: `http://127.0.0.1:11434`) |
 | `ABI_OLLAMA_MODEL` | Default Ollama model |
 | `ABI_HF_API_TOKEN` | HuggingFace API token |
+| `ABI_LM_STUDIO_HOST` | LM Studio host (default: `http://localhost:1234`) |
+| `ABI_LM_STUDIO_MODEL` | Default LM Studio model |
+| `ABI_VLLM_HOST` | vLLM host (default: `http://localhost:8000`) |
+| `ABI_VLLM_MODEL` | Default vLLM model |
 | `DISCORD_BOT_TOKEN` | Discord bot token |
 
 ---
@@ -470,6 +512,10 @@ zig build lint
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Modular Refactor | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| v2 Architecture Rewrite | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Phase 9 Feature Modules | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| MCP/ACP Server Infrastructure | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Local Server Connectors | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
 
@@ -479,9 +525,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
 
 We welcome contributions! Please see:
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow
-- [AGENTS.md](AGENTS.md) - Baseline agent guidelines
-- [CLAUDE.md](CLAUDE.md) - Detailed coding guidelines and patterns
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Development workflow and PR checklist
+- [AGENTS.md](AGENTS.md) — Baseline agent guidelines
+- [CLAUDE.md](CLAUDE.md) — Detailed coding guidelines and patterns
+- [SECURITY.md](SECURITY.md) — Security policy and reporting
 
 <div align="center">
 

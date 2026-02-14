@@ -37,4 +37,9 @@ test {
     if (build_options.enable_messaging) _ = @import("features/messaging/mod.zig");
     if (build_options.enable_search) _ = @import("features/search/mod.zig");
     if (build_options.enable_storage) _ = @import("features/storage/mod.zig");
+
+    // MCP/ACP service tests (types + server only — mod.zig has database dep)
+    _ = @import("services/mcp/server.zig");
+    _ = @import("services/mcp/types.zig");
+    _ = @import("services/acp/mod.zig");
 }

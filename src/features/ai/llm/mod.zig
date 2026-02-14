@@ -23,7 +23,7 @@
 
 const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const connectors = @import("../../../services/connectors/mod.zig");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 
@@ -121,7 +121,8 @@ pub const InferenceConfig = struct {
     repetition_penalty: f32 = 1.1,
     /// Use GPU acceleration if available
     use_gpu: bool = true,
-    /// Number of threads for CPU inference
+    /// Number of threads for CPU inference (0 = auto). When use_gpu is false, batch
+    /// parallelism can use this with abi.runtime.ThreadPool.parallelFor for multi-threaded CPU.
     num_threads: u32 = 0, // 0 = auto-detect
     /// Enable streaming output
     streaming: bool = true,
@@ -129,6 +130,10 @@ pub const InferenceConfig = struct {
     batch_size: u32 = 512,
     /// Context size (for framework compatibility)
     context_size: u32 = 2048,
+    /// Fall back to Ollama when a local model cannot be executed by ABI.
+    allow_ollama_fallback: bool = true,
+    /// Optional Ollama model override (otherwise connector/env default is used).
+    ollama_model: ?[]const u8 = null,
 };
 
 /// Statistics from inference
@@ -179,10 +184,27 @@ pub const InferenceStats = struct {
     }
 };
 
+/// Active execution backend used by Engine.
+pub const EngineBackend = enum {
+    none,
+    local_gguf,
+    ollama,
+
+    pub fn label(self: EngineBackend) []const u8 {
+        return switch (self) {
+            .none => "none",
+            .local_gguf => "local-gguf",
+            .ollama => "ollama",
+        };
+    }
+};
+
 /// High-level interface for loading and running models
 pub const Engine = struct {
     allocator: std.mem.Allocator,
     loaded_model: ?*Model = null,
+    ollama_client: ?*connectors.ollama.Client = null,
+    backend: EngineBackend = .none,
     config: InferenceConfig,
     stats: InferenceStats,
 
@@ -195,10 +217,8 @@ pub const Engine = struct {
     }
 
     pub fn deinit(self: *Engine) void {
-        if (self.loaded_model) |m| {
-            m.deinit();
-            self.allocator.destroy(m);
-        }
+        self.unloadLocalModel();
+        self.unloadOllama();
         self.* = undefined;
     }
 
@@ -212,39 +232,90 @@ pub const Engine = struct {
     }
 
     fn loadModelImpl(self: *Engine, path: []const u8) !void {
-        // Unload existing model if any
-        if (self.loaded_model) |m| {
-            m.deinit();
-            self.allocator.destroy(m);
-            self.loaded_model = null;
+        self.unloadLocalModel();
+        self.unloadOllama();
+        self.backend = .none;
+
+        if (looksLikeExternalModelName(path)) {
+            try self.loadOllama(resolveOllamaModelHint(self.config.ollama_model, path));
+            return;
         }
 
         const m = try self.allocator.create(Model);
         errdefer self.allocator.destroy(m);
 
-        m.* = try Model.load(self.allocator, path);
+        m.* = Model.load(self.allocator, path) catch |err| {
+            if (err == error.UnsupportedArchitecture and self.config.allow_ollama_fallback) {
+                self.allocator.destroy(m);
+                try self.loadOllama(resolveOllamaModelHint(self.config.ollama_model, path));
+                return;
+            }
+            return err;
+        };
+
         self.loaded_model = m;
+        self.backend = .local_gguf;
     }
 
     /// Generate text from a prompt
     pub fn generate(self: *Engine, allocator: std.mem.Allocator, prompt: []const u8) ![]u8 {
-        const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
+        var timer = time.Timer.start() catch null;
+        self.stats.prefill_time_ns = 0;
+        self.stats.decode_time_ns = 0;
+        self.stats.prompt_tokens = 0;
+        self.stats.generated_tokens = 0;
 
-        // Encode prompt to tokens
-        const prompt_tokens = try m.encode(prompt);
-        defer allocator.free(prompt_tokens);
+        if (self.loaded_model) |m| {
+            // Encode prompt to tokens
+            const prompt_tokens = try m.encode(prompt);
+            defer self.allocator.free(prompt_tokens);
 
-        // Generate output tokens
-        const output_tokens = try m.generate(prompt_tokens, .{
-            .max_tokens = self.config.max_new_tokens,
-            .temperature = self.config.temperature,
-            .top_p = self.config.top_p,
-            .top_k = self.config.top_k,
-        });
-        defer allocator.free(output_tokens);
+            // Generate output tokens
+            const output_tokens = try m.generate(prompt_tokens, .{
+                .max_tokens = self.config.max_new_tokens,
+                .temperature = self.config.temperature,
+                .top_p = self.config.top_p,
+                .top_k = self.config.top_k,
+            });
+            defer self.allocator.free(output_tokens);
 
-        // Decode tokens to text
-        return m.decode(output_tokens);
+            // Decode tokens to text
+            const decoded = try m.decode(output_tokens);
+            defer self.allocator.free(decoded);
+
+            self.stats.prompt_tokens = @intCast(prompt_tokens.len);
+            self.stats.generated_tokens = @intCast(output_tokens.len);
+            self.stats.decode_time_ns = if (timer) |*t| t.read() else 0;
+            self.stats.used_gpu = self.config.use_gpu;
+
+            return allocator.dupe(u8, decoded);
+        }
+
+        if (self.ollama_client) |client| {
+            var res = try client.generate(.{
+                .model = client.config.model,
+                .prompt = prompt,
+                .stream = false,
+                .options = .{
+                    .temperature = self.config.temperature,
+                    .num_predict = self.config.max_new_tokens,
+                    .top_p = self.config.top_p,
+                    .top_k = self.config.top_k,
+                },
+            });
+            defer res.deinit(self.allocator);
+
+            self.stats.prompt_tokens = res.prompt_eval_count orelse estimateTokenCount(prompt);
+            self.stats.generated_tokens = res.eval_count orelse estimateTokenCount(res.response);
+            self.stats.prefill_time_ns = res.prompt_eval_duration_ns orelse 0;
+            self.stats.decode_time_ns = res.eval_duration_ns orelse if (timer) |*t| t.read() else 0;
+            self.stats.load_time_ns = res.load_duration_ns orelse self.stats.load_time_ns;
+            self.stats.used_gpu = false;
+
+            return allocator.dupe(u8, res.response);
+        }
+
+        return LlmError.InvalidModelFormat;
     }
 
     /// Generate with streaming callback (per-token)
@@ -256,6 +327,13 @@ pub const Engine = struct {
         prompt: []const u8,
         callback: *const fn ([]const u8) void,
     ) !void {
+        if (self.ollama_client != null) {
+            const output = try self.generate(self.allocator, prompt);
+            defer self.allocator.free(output);
+            callback(output);
+            return;
+        }
+
         const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
 
         // Encode prompt to tokens
@@ -360,22 +438,126 @@ pub const Engine = struct {
     /// Tokenize text
     pub fn tokenize(self: *Engine, allocator: std.mem.Allocator, text: []const u8) ![]u32 {
         var m = self.loaded_model orelse return LlmError.InvalidModelFormat;
-        _ = allocator;
-        return m.encode(text);
+        const tokens = try m.encode(text);
+        defer self.allocator.free(tokens);
+
+        const out = try allocator.alloc(u32, tokens.len);
+        @memcpy(out, tokens);
+        return out;
     }
 
     /// Detokenize tokens
     pub fn detokenize(self: *Engine, allocator: std.mem.Allocator, tokens: []const u32) ![]u8 {
         var m = self.loaded_model orelse return LlmError.InvalidModelFormat;
-        _ = allocator;
-        return m.decode(tokens);
+        const text = try m.decode(tokens);
+        defer self.allocator.free(text);
+        return allocator.dupe(u8, text);
+    }
+
+    /// Get active backend.
+    pub fn getBackend(self: *const Engine) EngineBackend {
+        return self.backend;
+    }
+
+    /// Return true when token-level local streaming is available.
+    pub fn supportsStreaming(self: *const Engine) bool {
+        return self.loaded_model != null;
+    }
+
+    /// Return active model name for connector-backed engines.
+    pub fn getBackendModelName(self: *const Engine) ?[]const u8 {
+        if (self.ollama_client) |client| return client.config.model;
+        return null;
     }
 
     /// Get current statistics
     pub fn getStats(self: *Engine) InferenceStats {
         return self.stats;
     }
+
+    fn unloadLocalModel(self: *Engine) void {
+        if (self.loaded_model) |m| {
+            m.deinit();
+            self.allocator.destroy(m);
+            self.loaded_model = null;
+        }
+    }
+
+    fn unloadOllama(self: *Engine) void {
+        if (self.ollama_client) |client| {
+            client.deinit();
+            self.allocator.destroy(client);
+            self.ollama_client = null;
+        }
+    }
+
+    fn loadOllama(self: *Engine, model_override: ?[]const u8) !void {
+        const client_ptr = try self.allocator.create(connectors.ollama.Client);
+        errdefer self.allocator.destroy(client_ptr);
+
+        client_ptr.* = try connectors.ollama.createClient(self.allocator);
+        errdefer client_ptr.deinit();
+
+        if (model_override) |model_name| {
+            if (model_name.len > 0) {
+                if (client_ptr.config.model_owned) {
+                    self.allocator.free(@constCast(client_ptr.config.model));
+                }
+                client_ptr.config.model = try self.allocator.dupe(u8, model_name);
+                client_ptr.config.model_owned = true;
+            }
+        }
+
+        self.ollama_client = client_ptr;
+        self.backend = .ollama;
+    }
 };
+
+fn estimateTokenCount(text: []const u8) u32 {
+    if (text.len == 0) return 0;
+
+    var count: u32 = 0;
+    var in_word = false;
+    for (text) |c| {
+        const is_space = std.ascii.isWhitespace(c);
+        if (is_space) {
+            in_word = false;
+            continue;
+        }
+        if (!in_word) {
+            count += 1;
+            in_word = true;
+        }
+    }
+    return count;
+}
+
+fn looksLikeExternalModelName(path: []const u8) bool {
+    if (path.len == 0) return false;
+    if (std.mem.indexOfScalar(u8, path, '/')) |_| return false;
+    if (std.mem.indexOfScalar(u8, path, '\\')) |_| return false;
+    if (std.mem.endsWith(u8, path, ".gguf")) return false;
+    if (std.mem.endsWith(u8, path, ".bin")) return false;
+    if (std.mem.endsWith(u8, path, ".safetensors")) return false;
+    if (std.mem.endsWith(u8, path, ".mlx")) return false;
+    return true;
+}
+
+fn resolveOllamaModelHint(config_model: ?[]const u8, path: []const u8) ?[]const u8 {
+    if (config_model) |name| {
+        if (name.len > 0) return name;
+    }
+
+    if (looksLikeExternalModelName(path)) {
+        return path;
+    }
+
+    const base = std.fs.path.basename(path);
+    if (std.mem.indexOf(u8, base, "gpt-oss") != null or std.mem.indexOf(u8, base, "GPT-OSS") != null) {
+        return "gpt-oss";
+    }
+    return null;
+}
 
 /// LLM context for framework integration.
 pub const Context = struct {

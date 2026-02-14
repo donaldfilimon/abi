@@ -90,6 +90,7 @@ fn backendOps(which_backend: backend.Backend) ?BackendOps {
                 .destroy = webgl2_module.destroyKernel,
             };
         } else null,
+        .fpga, .tpu, .simulated => null, // TPU/fpga/simulated kernel ops via other paths
     };
 }
 

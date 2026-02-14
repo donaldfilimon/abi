@@ -33,18 +33,25 @@ pub fn Channel(comptime T: type) type {
         slots: []Slot,
         capacity: usize,
         mask: usize,
-        head: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
-        tail: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
         allocator: std.mem.Allocator,
 
-        /// Closed flag — no more sends allowed
+        /// Closed flag — shared read by both producers and consumers
         closed: std.atomic.Value(bool) = std.atomic.Value(bool).init(false),
 
-        // ── Statistics ──────────────────────────────────────────────
-
+        // ── Producer side (own cache line to avoid false sharing) ──
+        // Padding ensures tail/send counters don't share a cache line with head/recv.
+        _pad0: [cache_line_pad_size]u8 = undefined,
+        tail: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
         send_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-        recv_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
         send_fail_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+
+        // ── Consumer side (own cache line) ──────────────────────────
+        _pad1: [cache_line_pad_size]u8 = undefined,
+        head: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
+        recv_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+
+        const cache_line_size = 64;
+        const cache_line_pad_size = cache_line_size;
 
         // ── Lifecycle ───────────────────────────────────────────────
 

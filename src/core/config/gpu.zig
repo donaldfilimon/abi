@@ -37,6 +37,7 @@ pub const GpuConfig = struct {
         opengles,
         webgl2,
         fpga,
+        tpu,
         cpu,
     };
 
@@ -56,6 +57,7 @@ pub const GpuConfig = struct {
         if (build_options.gpu_vulkan) return .vulkan;
         if (build_options.gpu_metal) return .metal;
         if (@hasDecl(build_options, "gpu_fpga") and build_options.gpu_fpga) return .fpga;
+        if (@hasDecl(build_options, "gpu_tpu") and build_options.gpu_tpu) return .tpu;
         if (build_options.gpu_webgpu) return .webgpu;
         if (build_options.gpu_opengl) return .opengl;
         return .cpu;

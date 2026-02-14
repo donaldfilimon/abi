@@ -52,6 +52,7 @@ pub const builder = struct {
         system,
         user,
         assistant,
+        tool,
     };
 
     const OuterMessage = struct {
@@ -84,7 +85,15 @@ pub const builder = struct {
             return error.FeatureDisabled;
         }
 
+        pub fn addMessage(_: *OuterPromptBuilder, _: OuterRole, _: []const u8) !void {
+            return error.FeatureDisabled;
+        }
+
         pub fn build(_: *OuterPromptBuilder, _: OuterPromptFormat) ![]u8 {
+            return error.FeatureDisabled;
+        }
+
+        pub fn exportDebug(_: *OuterPromptBuilder) ![]u8 {
             return error.FeatureDisabled;
         }
     };

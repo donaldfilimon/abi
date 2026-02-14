@@ -99,6 +99,7 @@ fn generateSource(
             result.backend = .fpga;
             break :blk result;
         },
+        .tpu => return CompileError.UnsupportedBackend,
         .simulated => return CompileError.UnsupportedBackend,
     };
 }

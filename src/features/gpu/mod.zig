@@ -615,6 +615,7 @@ pub const Context = struct {
             .opengles => .opengles,
             .webgl2 => .webgl2,
             .fpga => .fpga,
+            .tpu => .tpu,
             .cpu => .stdgpu, // CPU fallback uses stdgpu backend
         };
 
@@ -641,7 +642,7 @@ pub const Context = struct {
     }
 
     /// Get the underlying Gpu instance.
-    pub fn getGpu(self: *Context) *Gpu {
+    pub fn getGpu(self: *Context) Error!*Gpu {
         return &self.gpu;
     }
 

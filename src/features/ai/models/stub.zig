@@ -28,7 +28,7 @@ pub fn isEnabled() bool {
 pub const ManagerConfig = struct {
     cache_dir: ?[]const u8 = null,
     auto_scan: bool = true,
-    extensions: []const []const u8 = &.{ ".gguf", ".bin", ".safetensors" },
+    extensions: []const []const u8 = &.{ ".gguf", ".mlx", ".bin", ".safetensors" },
 };
 
 /// Model format enum (stub).

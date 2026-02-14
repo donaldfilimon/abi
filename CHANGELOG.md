@@ -3,12 +3,38 @@ title: "Changelog"
 tags: [changelog, releases, history]
 ---
 # Changelog
-> **Codebase Status:** Synced with repository as of 2026-02-04.
+
+> **Codebase Status:** Synced with repository as of 2026-02-14.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=for-the-badge" alt="Version 0.4.0"/>
   <img src="https://img.shields.io/badge/Status-Stable-success?style=for-the-badge" alt="Stable"/>
 </p>
+
+## Unreleased
+
+### MCP & ACP Server Infrastructure
+- **MCP server** (`src/services/mcp/`): JSON-RPC 2.0 over stdio, 5 WDBX tools (db_query, db_insert, db_stats, db_list, db_delete)
+- **ACP server** (`src/services/acp/`): Agent Communication Protocol with AgentCard, Task lifecycle, skills
+- CLI commands: `mcp serve`, `mcp tools`, `acp card`, `acp serve`
+
+### New Connectors
+- **LM Studio** (`connectors/lm_studio.zig`): OpenAI-compatible local server, default port 1234
+- **vLLM** (`connectors/vllm.zig`): OpenAI-compatible local server, default port 8000
+- Total connectors: 8 LLM providers + discord + scheduler
+
+### Gateway Module
+- **Gateway** (`features/gateway/`): Radix tree router, 3 rate limiters (token bucket, sliding window, fixed window), circuit breaker
+
+### Training CLI
+- 11 subcommands: run, new, llm, vision, clip, auto, resume, monitor, info, generate-data, help
+- Synthetic data generation, external quantization support
+
+### Bug Fixes & Hardening
+- Fixed ACP `createTask` errdefer double-free (ensureUnusedCapacity pattern)
+- MCP: JSON-RPC version validation, 6 new security/edge-case tests
+- ACP: 4 new tests (unknown ID, sequential IDs, message content, control chars)
+- Feature tests: 675 → 684 (13 new inline tests)
 
 ## 0.4.0 - 2026-01-23
 
@@ -29,19 +55,20 @@ All GPU backends now have complete VTable implementations with full production r
   - Proper memory management and kernel lifecycle
 
 - **Backend Factory Integration**
-  - All 10 GPU backends integrated with `backend_factory.zig`
-  - Priority selection: CUDA > Metal > Vulkan > WebGPU > OpenGL > OpenGL ES > FPGA > std.gpu
-  - Build flags: `-Dgpu-backend=cuda,vulkan,metal` (comma-separated selection)
+  - All 11 GPU backends integrated with `backend_factory.zig`
+  - Priority selection (NN): CUDA → TPU → Metal → Vulkan → WebGPU → OpenGL → … → simulated
+  - Build flags: `-Dgpu-backend=cuda,vulkan,metal,webgpu,tpu` (comma-separated)
 
 - **GPU Backend Status Matrix**
   | Backend | Status | Production Ready |
   |---------|--------|-----------------|
   | CUDA | ✅ Complete | Yes |
-  | Vulkan | ✅ Now Complete | Yes |
+  | Vulkan | ✅ Complete | Yes |
   | Metal | ✅ Complete | Yes |
   | WebGPU | ✅ Complete | Yes |
+  | TPU | ⚠️ Stub (runtime not linked) | When linked |
   | OpenGL | ✅ Complete | Yes |
-  | OpenGL ES | ✅ Now Complete | Yes |
+  | OpenGL ES | ✅ Complete | Yes |
   | WebGL2 | ⚠️ Stub (design limitation) | No |
   | std.gpu | ✅ Complete | Yes |
   | Simulated | ✅ Complete (CPU fallback) | Yes |

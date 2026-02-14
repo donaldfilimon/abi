@@ -359,15 +359,27 @@ pub fn initVulkanGlobal(allocator: std.mem.Allocator) VulkanError!void {
     defer allocator.free(p_devices);
     _ = vkEnumeratePhysicalDevices.?(instance, &device_count, p_devices.ptr);
 
-    const physical_device = p_devices[0]; // Just pick the first one for now
+    const physical_device = p_devices[0]; // Prefer first device
 
-    // Find Compute Queue Family
-    var queue_count: u32 = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties.?(physical_device, &queue_count, null);
+    // Find a queue family with compute support
+    var queue_family_count: u32 = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties.?(physical_device, &queue_family_count, null);
+    if (queue_family_count == 0) return VulkanError.QueueFamilyNotFound;
 
-    // Note: VkQueueFamilyProperties is opaque-ish in types above, simplifying for now
-    // In a real impl we'd iterate. Assuming index 0 has compute for simplicity or fallback
-    const queue_family_index: u32 = 0;
+    const queue_props_buf = try allocator.alloc(VkQueueFamilyProperties, queue_family_count);
+    defer allocator.free(queue_props_buf);
+    vkGetPhysicalDeviceQueueFamilyProperties.?(physical_device, &queue_family_count, queue_props_buf.ptr);
+
+    var queue_family_index: u32 = 0;
+    var found_compute = false;
+    for (queue_props_buf, 0..) |props, i| {
+        if (props.queueFlags & VK_QUEUE_COMPUTE_BIT != 0 and props.queueCount > 0) {
+            queue_family_index = @intCast(i);
+            found_compute = true;
+            break;
+        }
+    }
+    if (!found_compute) return VulkanError.QueueFamilyNotFound;
 
     // Create Logical Device
     const queue_priority: f32 = 1.0;
@@ -515,7 +527,7 @@ pub const VulkanBackend = struct {
             vkDestroyPipelineLayout.?(ctx.device, kernel.pipeline_layout, null);
             vkDestroyDescriptorSetLayout.?(ctx.device, kernel.descriptor_set_layout, null);
             vkDestroyDescriptorPool.?(ctx.device, kernel.descriptor_pool, null);
-            // shader_module is usually destroyed after pipeline creation
+            vkDestroyShaderModule.?(ctx.device, kernel.shader_module, null);
             self.allocator.destroy(kernel);
             self.allocator.free(k.name);
         }
@@ -531,20 +543,36 @@ pub const VulkanBackend = struct {
 
     pub fn getDeviceCaps(_: *Self, device_id: u32) interface.BackendError!interface.DeviceCaps {
         if (device_id != 0) return interface.BackendError.DeviceNotFound;
+        const ctx = vulkan_context orelse return interface.BackendError.NotAvailable;
 
-        // Return dummy caps for now or query actual device props
-        return interface.DeviceCaps{
-            .name = "Vulkan Device",
-            .name_len = 13,
-            .total_memory = 0, // Should query
+        var caps = interface.DeviceCaps{
             .max_threads_per_block = 1024,
             .max_shared_memory = 32768,
             .warp_size = 32,
             .supports_fp16 = true,
-            .supports_fp64 = false,
+            .supports_fp64 = true,
             .supports_int8 = true,
             .unified_memory = false,
         };
+
+        var props: VkPhysicalDeviceProperties = undefined;
+        vkGetPhysicalDeviceProperties.?(ctx.physical_device, @ptrCast(&props));
+
+        const name_len = std.mem.indexOfScalar(u8, &props.deviceName, 0) orelse 256;
+        @memcpy(caps.name[0..name_len], props.deviceName[0..name_len]);
+        caps.name_len = name_len;
+
+        caps.max_threads_per_block = props.limits.maxComputeWorkGroupInvocations;
+        caps.max_shared_memory = props.limits.maxComputeSharedMemorySize;
+
+        // Total device memory from memory heaps
+        var total_mem: u64 = 0;
+        for (0..ctx.memory_properties.memoryHeapCount) |h| {
+            total_mem += ctx.memory_properties.memoryHeaps[h].size;
+        }
+        caps.total_memory = total_mem;
+
+        return caps;
     }
 
     pub fn allocate(self: *Self, size: usize, flags: interface.MemoryFlags) interface.MemoryError!*anyopaque {
@@ -659,7 +687,6 @@ pub const VulkanBackend = struct {
         if (vkCreateShaderModule.?(ctx.device, &create_info, null, &shader_module) != .success) {
             return interface.KernelError.CompileFailed;
         }
-        defer vkDestroyShaderModule.?(ctx.device, shader_module, null);
 
         // 2. Create Descriptor Set Layout
         // Simple bindless-like layout: binding 0..N are storage buffers
@@ -732,7 +759,7 @@ pub const VulkanBackend = struct {
 
         const vulkan_kernel = allocator.create(VulkanKernel) catch return interface.KernelError.CompileFailed;
         vulkan_kernel.* = .{
-            .shader_module = shader_module, // Actually destroyed already, just placeholder in struct
+            .shader_module = shader_module,
             .pipeline_layout = pipeline_layout,
             .pipeline = pipeline,
             .descriptor_set_layout = descriptor_set_layout,
@@ -854,7 +881,7 @@ pub const VulkanBackend = struct {
             }
         }
 
-        // Destroy Vulkan resources
+        // Destroy Vulkan resources (shader module can be destroyed after pipeline creation)
         if (vkDestroyPipeline) |destroy_pipeline| {
             destroy_pipeline(ctx.device, kernel.pipeline, null);
         }
@@ -867,7 +894,9 @@ pub const VulkanBackend = struct {
         if (vkDestroyDescriptorPool) |destroy_descriptor_pool| {
             destroy_descriptor_pool(ctx.device, kernel.descriptor_pool, null);
         }
-        // shader_module is usually destroyed after pipeline creation
+        if (vkDestroyShaderModule) |destroy_shader_module| {
+            destroy_shader_module(ctx.device, kernel.shader_module, null);
+        }
 
         self.allocator.destroy(kernel);
     }

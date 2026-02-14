@@ -18,6 +18,7 @@ pub const LlmConfig = ai_config.LlmConfig;
 pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
 pub const AgentsConfig = ai_config.AgentsConfig;
 pub const TrainingConfig = ai_config.TrainingConfig;
+pub const ContentKind = ai_config.ContentKind;
 pub const PersonasConfig = ai_config.PersonasConfig;
 
 pub const DatabaseConfig = database_config.DatabaseConfig;

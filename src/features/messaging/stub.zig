@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/messaging.zig");
+const stub_context = @import("../../core/stub_context.zig");
 
 pub const MessagingConfig = core_config.MessagingConfig;
 
@@ -60,19 +61,7 @@ pub const DeadLetter = struct {
 
 pub const SubscriberCallback = *const fn (msg: Message, ctx: ?*anyopaque) DeliveryResult;
 
-pub const Context = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator, _: MessagingConfig) !*Context {
-        const ctx = try allocator.create(Context);
-        ctx.* = .{ .allocator = allocator };
-        return ctx;
-    }
-
-    pub fn deinit(self: *Context) void {
-        self.allocator.destroy(self);
-    }
-};
+pub const Context = stub_context.StubContext(MessagingConfig);
 
 pub fn init(_: std.mem.Allocator, _: MessagingConfig) MessagingError!void {
     return error.FeatureDisabled;

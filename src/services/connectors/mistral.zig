@@ -225,7 +225,9 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"messages\":[", .{request.model});
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"messages\":[");
 
         try shared.encodeMessageArray(self.allocator, &json_str, request.messages);
 
@@ -255,11 +257,15 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"input\":[", .{request.model});
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"input\":[");
 
         try shared.encodeStringArray(self.allocator, &json_str, request.input);
 
-        try json_str.print(self.allocator, "],\"encoding_format\":\"{s}\"}}", .{request.encoding_format});
+        try json_str.appendSlice(self.allocator, "],\"encoding_format\":\"");
+        try json_str.appendSlice(self.allocator, request.encoding_format);
+        try json_str.appendSlice(self.allocator, "\"}");
 
         return json_str.toOwnedSlice(self.allocator);
     }

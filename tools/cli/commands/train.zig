@@ -21,9 +21,11 @@ const train_subcommands = [_][]const u8{
     "llm",
     "vision",
     "clip",
+    "auto",
     "resume",
     "monitor",
     "info",
+    "generate-data",
     "help",
 };
 
@@ -61,6 +63,11 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
+    if (std.mem.eql(u8, command, "auto")) {
+        try runAutoTrain(allocator, args[1..]);
+        return;
+    }
+
     if (std.mem.eql(u8, command, "resume")) {
         try runResume(allocator, args[1..]);
         return;
@@ -73,6 +80,11 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     if (std.mem.eql(u8, command, "info")) {
         runInfo();
+        return;
+    }
+
+    if (std.mem.eql(u8, command, "generate-data")) {
+        try runGenerateData(args[1..]);
         return;
     }
 
@@ -357,6 +369,7 @@ fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var log_interval: u32 = 10;
     var export_gguf_path: ?[]const u8 = null;
     var export_gguf_name: ?[]const u8 = null;
+    var external_quantize: ?[]const u8 = null;
     var dataset_path: ?[]const u8 = null;
     var dataset_format: DatasetFormat = .text;
     var dataset_max_tokens: usize = 0;
@@ -529,6 +542,14 @@ fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--export-name")) {
             if (i < args.len) {
                 export_gguf_name = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--external-quantize")) {
+            if (i < args.len) {
+                external_quantize = std.mem.sliceTo(args[i], 0);
                 i += 1;
             }
             continue;
@@ -753,7 +774,85 @@ fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             return;
         };
         std.debug.print("Model exported to:{s}\n", .{path});
+
+        // External quantization via llama-quantize
+        if (external_quantize) |quant_type| {
+            runExternalQuantize(path, quant_type);
+        }
     }
+}
+
+fn runExternalQuantize(gguf_path: []const u8, quant_type: []const u8) void {
+    const alloc = std.heap.page_allocator;
+    std.debug.print("\nExternal quantization: {s}\n", .{quant_type});
+
+    // Initialize I/O backend for subprocess
+    var io_backend = cli_io.initIoBackend(alloc);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    // Check if llama-quantize is available
+    const which_result = std.process.run(alloc, io, .{
+        .argv = &.{ "which", "llama-quantize" },
+    }) catch {
+        printQuantizeHelp();
+        return;
+    };
+    defer {
+        alloc.free(which_result.stdout);
+        alloc.free(which_result.stderr);
+    }
+
+    if (which_result.term != .exited or which_result.term.exited != 0) {
+        printQuantizeHelp();
+        return;
+    }
+
+    // Build output path: input.gguf -> input-Q4_K_M.gguf
+    const dot_pos = std.mem.lastIndexOfScalar(u8, gguf_path, '.') orelse gguf_path.len;
+    var out_buf: [512]u8 = undefined;
+    const out_path = std.fmt.bufPrint(&out_buf, "{s}-{s}.gguf", .{
+        gguf_path[0..dot_pos],
+        quant_type,
+    }) catch {
+        std.debug.print("Error: output path too long\n", .{});
+        return;
+    };
+
+    std.debug.print("Running: llama-quantize {s} {s} {s}\n", .{ gguf_path, out_path, quant_type });
+
+    const result = std.process.run(alloc, io, .{
+        .argv = &.{ "llama-quantize", gguf_path, out_path, quant_type },
+    }) catch |err| {
+        std.debug.print("Error running llama-quantize: {t}\n", .{err});
+        return;
+    };
+    defer {
+        alloc.free(result.stdout);
+        alloc.free(result.stderr);
+    }
+
+    if (result.term == .exited and result.term.exited == 0) {
+        std.debug.print("Quantized model saved to: {s}\n", .{out_path});
+    } else {
+        std.debug.print("llama-quantize failed\n", .{});
+        if (result.stderr.len > 0) {
+            std.debug.print("{s}\n", .{result.stderr});
+        }
+    }
+}
+
+fn printQuantizeHelp() void {
+    std.debug.print(
+        \\llama-quantize not found in PATH.
+        \\
+        \\To install llama.cpp tools:
+        \\  macOS:  brew install llama.cpp
+        \\  Linux:  git clone https://github.com/ggerganov/llama.cpp && cd llama.cpp && make
+        \\
+        \\Common quantization types: q4_0, q4_k_m, q5_k_m, q8_0
+        \\
+    , .{});
 }
 
 fn printNewHelp() void {
@@ -793,12 +892,14 @@ fn printNewHelp() void {
         \\Export:
         \\  --export-gguf <path>   Export trained model as GGUF
         \\  --export-name <name>   Model name in GGUF metadata
+        \\  --external-quantize <type>  Quantize via llama-quantize after export
         \\
         \\Examples:
         \\  abi train new --epochs 5
         \\  abi train new --hidden-dim 512 --num-layers 8 --num-heads 8
         \\  abi train new --dataset-path data.txt --epochs 10
         \\  abi train new --export-gguf model.gguf --export-name my-model
+        \\  abi train new --export-gguf model.gguf --external-quantize q4_k_m
         \\
     ;
     std.debug.print("{s}", .{help_text});
@@ -889,7 +990,7 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     // Parse LLM training options
     var config = abi.ai.LlmTrainingConfig{};
-    var use_gpu: bool = false;
+    var use_gpu: bool = true;
     var dataset_url: ?[]const u8 = null;
     var dataset_path: ?[]const u8 = null;
     var dataset_cache: ?[]const u8 = null;
@@ -1037,6 +1138,13 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--cpu-only") or
+            std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--no-gpu"))
+        {
+            use_gpu = false;
+            continue;
+        }
+
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--mixed-precision")) {
             config.mixed_precision = true;
             continue;
@@ -1166,7 +1274,8 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (config.checkpoint_path) |path| {
         std.debug.print("Checkpoint path:  {s}\n", .{path});
     }
-    std.debug.print("Use GPU:          {}\n", .{use_gpu});
+    config.use_gpu = use_gpu;
+    std.debug.print("Use GPU:          {}\n", .{config.use_gpu});
     std.debug.print("Dataset format:   {t}\n", .{dataset_format});
     if (dataset_url) |url| {
         std.debug.print("Dataset URL:      {s}\n", .{url});
@@ -1292,6 +1401,286 @@ fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("Tokens processed: {d}\n", .{report.total_tokens});
     std.debug.print("Total time:       {d:.2}s\n", .{@as(f64, @floatFromInt(report.total_time_ns)) / 1e9});
     std.debug.print("Checkpoints saved:{d}\n", .{report.checkpoints_saved});
+}
+
+fn runAutoTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printAutoHelp();
+        return;
+    }
+
+    var run_multimodal = false;
+    for (args) |arg| {
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--multimodal")) {
+            run_multimodal = true;
+            break;
+        }
+    }
+
+    std.debug.print("Auto-train: Abbey, Aviva, Abi (basic data + vision/multimodal)\n", .{});
+    std.debug.print("============================================================\n\n", .{});
+
+    const vision_enabled = abi.ai.vision.isEnabled();
+    const config = abi.ai.training.SelfLearningConfig{
+        .enable_vision = vision_enabled,
+        .enable_video = true,
+        .enable_audio = true,
+        .enable_all_modalities = true,
+        .enable_documents = true,
+        .replay_buffer_size = 1000,
+        .batch_size = 16,
+        .min_buffer_size = 16,
+    };
+
+    var system = abi.ai.training.SelfLearningSystem.init(allocator, config) catch |err| {
+        std.debug.print("Error: Self-learning init failed: {t}\n", .{err});
+        return;
+    };
+    defer system.deinit();
+
+    // Seed text experiences for Abbey, Aviva, Abi (dummy token IDs per persona)
+    const abbey_in: []const u32 = &[_]u32{ 1, 2, 3, 4, 5 };
+    const abbey_out: []const u32 = &[_]u32{ 1, 2, 3, 4, 5, 6 };
+    const aviva_in: []const u32 = &[_]u32{ 10, 11, 12, 13, 14 };
+    const aviva_out: []const u32 = &[_]u32{ 10, 11, 12, 13, 14, 15 };
+    const abi_in: []const u32 = &[_]u32{ 20, 21, 22, 23, 24 };
+    const abi_out: []const u32 = &[_]u32{ 20, 21, 22, 23, 24, 25 };
+
+    var i: usize = 0;
+    while (i < 6) : (i += 1) {
+        system.recordExperience(
+            abbey_in,
+            abbey_out,
+            .positive,
+            0.9,
+            .text_conversation,
+        ) catch |e| {
+            std.debug.print("Error recording Abbey experience: {t}\n", .{e});
+            return;
+        };
+    }
+    i = 0;
+    while (i < 6) : (i += 1) {
+        system.recordExperience(
+            aviva_in,
+            aviva_out,
+            .positive,
+            0.9,
+            .text_conversation,
+        ) catch |e| {
+            std.debug.print("Error recording Aviva experience: {t}\n", .{e});
+            return;
+        };
+    }
+    i = 0;
+    while (i < 6) : (i += 1) {
+        system.recordExperience(
+            abi_in,
+            abi_out,
+            .positive,
+            0.9,
+            .text_conversation,
+        ) catch |e| {
+            std.debug.print("Error recording Abi experience: {t}\n", .{e});
+            return;
+        };
+    }
+
+    if (vision_enabled) {
+        // Synthetic 224x224x3 image bytes for vision experience
+        const synth_img = allocator.alloc(u8, 224 * 224 * 3) catch return;
+        defer allocator.free(synth_img);
+        for (synth_img, 0..) |*p, j| {
+            p.* = @intCast((j % 256));
+        }
+        const vision_in: []const u32 = &[_]u32{ 100, 101 };
+        const vision_out: []const u32 = &[_]u32{ 100, 101, 102 };
+        system.recordVisionExperience(vision_in, vision_out, synth_img, .positive, 0.85) catch |e| {
+            std.debug.print("Error recording vision experience: {t}\n", .{e});
+            return;
+        };
+        system.recordVisionExperience(vision_in, vision_out, synth_img, .positive, 0.8) catch |e| {
+            std.debug.print("Error recording vision experience 2: {t}\n", .{e});
+            return;
+        };
+    }
+
+    system.update() catch |e| {
+        std.debug.print("Error during self-learning update: {t}\n", .{e});
+        return;
+    };
+
+    const stats = system.getStats();
+    std.debug.print("Self-learning complete\n", .{});
+    std.debug.print("=====================\n", .{});
+    std.debug.print("Total experiences: {d}\n", .{stats.total_experiences});
+    std.debug.print("Total updates:      {d}\n", .{stats.total_updates});
+    std.debug.print("Vision samples:     {d}\n", .{stats.vision_samples});
+    std.debug.print("Document samples:   {d}\n", .{stats.document_samples});
+    std.debug.print("Avg reward:          {d:.4}\n", .{stats.avg_reward});
+    std.debug.print("Improvement rate:    {d:.4}\n\n", .{stats.improvement_rate});
+
+    if (vision_enabled and run_multimodal) {
+        std.debug.print("Multimodal micro-steps (vision + CLIP)...\n", .{});
+        runAutoTrainMicroVision(allocator) catch |e| {
+            std.debug.print("Warning: vision micro-step failed: {t}\n", .{e});
+        };
+        runAutoTrainMicroClip(allocator) catch |e| {
+            std.debug.print("Warning: CLIP micro-step failed: {t}\n", .{e});
+        };
+        std.debug.print("Multimodal micro-steps done.\n\n", .{});
+    }
+
+    std.debug.print("Auto-train complete.\n", .{});
+}
+
+fn runAutoTrainMicroVision(allocator: std.mem.Allocator) !void {
+    const image_size: u32 = 224;
+    const patch_size: u32 = 16;
+    const batch_size: u32 = 4;
+    const num_classes: u32 = 5;
+    const num_batches: u32 = 2;
+    const learning_rate: f32 = 1e-4;
+    const gradient_clip: f32 = 1.0;
+
+    const vit_config = abi.ai.vision.ViTConfig{
+        .image_size = image_size,
+        .patch_size = patch_size,
+        .hidden_size = 96,
+        .num_layers = 2,
+        .num_heads = 2,
+        .mlp_dim = 384,
+        .in_channels = 3,
+        .use_class_token = true,
+    };
+    const trainable_vit_config = abi.ai.TrainableViTConfig{
+        .vit_config = vit_config,
+        .max_batch_size = batch_size,
+        .num_classes = num_classes,
+        .dropout = 0.1,
+    };
+
+    var model = abi.ai.TrainableViTModel.init(allocator, trainable_vit_config) catch return;
+    defer model.deinit();
+
+    const image_dim = image_size * image_size * 3;
+    const num_samples = batch_size * num_batches;
+    var train_images = try allocator.alloc(f32, num_samples * image_dim);
+    defer allocator.free(train_images);
+    const train_labels = try allocator.alloc(u32, num_samples);
+    defer allocator.free(train_labels);
+
+    var rng = std.Random.DefaultPrng.init(123);
+    for (train_images) |*p| p.* = rng.random().float(f32);
+    for (train_labels) |*l| l.* = rng.random().intRangeLessThan(u32, 0, num_classes);
+
+    var step: u32 = 0;
+    while (step < num_batches) : (step += 1) {
+        const batch_start = step * batch_size * image_dim;
+        const batch_images = train_images[batch_start .. batch_start + batch_size * image_dim];
+        const logits = try allocator.alloc(f32, batch_size * num_classes);
+        defer allocator.free(logits);
+        model.forward(batch_images, batch_size, logits) catch return;
+        _ = model.clipGradients(gradient_clip);
+        model.applySgdUpdate(learning_rate);
+        model.zeroGradients();
+    }
+    std.debug.print("  ViT micro: {d} batches\n", .{num_batches});
+}
+
+fn runAutoTrainMicroClip(allocator: std.mem.Allocator) !void {
+    const image_size: u32 = 224;
+    const patch_size: u32 = 16;
+    const batch_size: u32 = 4;
+    const num_batches: u32 = 2;
+    const projection_dim: u32 = 64;
+    const text_max_len: u32 = 16;
+    const text_vocab: u32 = 256;
+
+    const vit_config = abi.ai.vision.ViTConfig{
+        .image_size = image_size,
+        .patch_size = patch_size,
+        .hidden_size = 96,
+        .num_layers = 2,
+        .num_heads = 2,
+        .mlp_dim = 384,
+        .in_channels = 3,
+        .use_class_token = true,
+    };
+    const vision_config = abi.ai.TrainableViTConfig{
+        .vit_config = vit_config,
+        .max_batch_size = batch_size,
+        .num_classes = 0,
+        .projection_dim = projection_dim,
+    };
+    const clip_config = abi.ai.CLIPTrainingConfig{
+        .vision_config = vision_config,
+        .text_hidden_size = 64,
+        .text_vocab_size = text_vocab,
+        .text_max_len = text_max_len,
+        .text_num_layers = 2,
+        .text_num_heads = 2,
+        .projection_dim = projection_dim,
+        .temperature = 0.07,
+        .learnable_temperature = false,
+    };
+
+    var model = abi.ai.TrainableCLIPModel.init(allocator, clip_config) catch return;
+    defer model.deinit();
+
+    const image_dim = image_size * image_size * 3;
+    const num_samples = batch_size * num_batches;
+    var train_images = try allocator.alloc(f32, num_samples * image_dim);
+    defer allocator.free(train_images);
+    var train_tokens = try allocator.alloc(u32, num_samples * text_max_len);
+    defer allocator.free(train_tokens);
+
+    var rng = std.Random.DefaultPrng.init(456);
+    for (train_images) |*p| p.* = rng.random().float(f32);
+    for (train_tokens) |*t| t.* = rng.random().intRangeLessThan(u32, 0, text_vocab);
+
+    const image_emb = try allocator.alloc(f32, batch_size * projection_dim);
+    defer allocator.free(image_emb);
+    const text_emb = try allocator.alloc(f32, batch_size * projection_dim);
+    defer allocator.free(text_emb);
+    const d_img = try allocator.alloc(f32, batch_size * projection_dim);
+    defer allocator.free(d_img);
+    const d_txt = try allocator.alloc(f32, batch_size * projection_dim);
+    defer allocator.free(d_txt);
+
+    var step: u32 = 0;
+    while (step < num_batches) : (step += 1) {
+        const img_start = step * batch_size * image_dim;
+        const txt_start = step * batch_size * text_max_len;
+        const batch_images = train_images[img_start .. img_start + batch_size * image_dim];
+        const batch_tokens = train_tokens[txt_start .. txt_start + batch_size * text_max_len];
+        model.encodeImages(batch_images, batch_size, image_emb) catch return;
+        model.encodeText(batch_tokens, batch_size, text_emb) catch return;
+        _ = model.computeContrastiveLoss(image_emb, text_emb, batch_size, d_img, d_txt);
+        model.zeroGradients();
+        model.applySgdUpdate(1e-4);
+    }
+    std.debug.print("  CLIP micro: {d} batches\n", .{num_batches});
+}
+
+fn printAutoHelp() void {
+    std.debug.print(
+        \\Usage: train auto [options]
+        \\Auto-train Abbey, Aviva, and Abi with basic seed data and optional vision/multimodal.
+        \\
+        \\  Seeds the self-learning system with:
+        \\  - Text experiences for Abbey (empathetic), Aviva (direct), Abi (adaptive)
+        \\  - Vision experiences if -Denable-vision=true
+        \\  Runs one update step and prints stats.
+        \\
+        \\  With --multimodal (and -Denable-vision=true): also runs minimal ViT and CLIP
+        \\  micro-training steps to exercise vision and multimodal pipelines.
+        \\
+        \\Options:
+        \\  --help, -h       Show this help
+        \\  --multimodal     Run vision + CLIP micro-steps when vision is enabled
+        \\
+    , .{});
 }
 
 fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -1489,6 +1878,7 @@ fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
 
     const trainable_vit_config = abi.ai.TrainableViTConfig{
         .vit_config = vit_config,
+        .max_batch_size = batch_size,
         .num_classes = num_classes,
         .dropout = dropout,
     };
@@ -1835,6 +2225,7 @@ fn runClipTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 
     const vision_config = abi.ai.TrainableViTConfig{
         .vit_config = vit_config,
+        .max_batch_size = batch_size,
         .num_classes = 0, // CLIP uses projection
         .projection_dim = projection_dim,
     };
@@ -2510,6 +2901,135 @@ fn fileExists(path: []const u8) bool {
     return true;
 }
 
+fn runGenerateData(args: []const [:0]const u8) !void {
+    var num_samples: u32 = 1024;
+    var seq_length: u32 = 128;
+    var vocab_size: u32 = 32000;
+    var output_path: []const u8 = "synthetic.bin";
+
+    if (utils.args.containsHelpArgs(args)) {
+        std.debug.print(
+            \\Usage: abi train generate-data [options]
+            \\
+            \\Generate synthetic tokenized training data for pipeline testing.
+            \\Produces random token ID sequences in binary format compatible
+            \\with TokenizedDataset.load().
+            \\
+            \\Options:
+            \\  --num-samples <n>    Number of sequences to generate (default: 1024)
+            \\  --seq-length <n>     Tokens per sequence (default: 128)
+            \\  --vocab-size <n>     Vocabulary size / max token ID (default: 32000)
+            \\  --output <path>      Output file path (default: synthetic.bin)
+            \\
+            \\Examples:
+            \\  abi train generate-data
+            \\  abi train generate-data --num-samples 100 --seq-length 32 --vocab-size 1000
+            \\  abi train generate-data --output /tmp/train.bin
+            \\
+        , .{});
+        return;
+    }
+
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        i += 1;
+
+        if (std.mem.eql(u8, arg, "--num-samples")) {
+            if (i < args.len) {
+                num_samples = std.fmt.parseInt(u32, std.mem.sliceTo(args[i], 0), 10) catch 1024;
+                i += 1;
+            }
+        } else if (std.mem.eql(u8, arg, "--seq-length")) {
+            if (i < args.len) {
+                seq_length = std.fmt.parseInt(u32, std.mem.sliceTo(args[i], 0), 10) catch 128;
+                i += 1;
+            }
+        } else if (std.mem.eql(u8, arg, "--vocab-size")) {
+            if (i < args.len) {
+                vocab_size = std.fmt.parseInt(u32, std.mem.sliceTo(args[i], 0), 10) catch 32000;
+                i += 1;
+            }
+        } else if (std.mem.eql(u8, arg, "--output")) {
+            if (i < args.len) {
+                output_path = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+        }
+    }
+
+    const total_tokens: u64 = @as(u64, num_samples) * @as(u64, seq_length);
+    const file_size = 8 + total_tokens * 4; // header (2 x u32) + tokens (u32 each)
+
+    std.debug.print("Generating synthetic training data:\n", .{});
+    std.debug.print("  Samples:    {d}\n", .{num_samples});
+    std.debug.print("  Seq length: {d}\n", .{seq_length});
+    std.debug.print("  Vocab size: {d}\n", .{vocab_size});
+    std.debug.print("  Total tokens: {d}\n", .{total_tokens});
+    std.debug.print("  File size: {d} bytes\n", .{file_size});
+    std.debug.print("  Output:     {s}\n", .{output_path});
+
+    // Initialize I/O backend for file writing
+    var io_backend = cli_io.initIoBackend(std.heap.page_allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    // Create output file
+    const file = std.Io.Dir.cwd().createFile(io, output_path, .{}) catch |err| {
+        std.debug.print("Error: could not create output file '{s}': {t}\n", .{ output_path, err });
+        return;
+    };
+    defer file.close(io);
+
+    var write_buf: [4096]u8 = undefined;
+    var file_writer = file.writer(io, &write_buf);
+    const w = &file_writer.interface;
+
+    // Helper: write a u32 as little-endian via the generic writer interface
+    const writeU32LE = struct {
+        fn f(writer: *std.Io.Writer, value: u32) !void {
+            var tmp: [4]u8 = undefined;
+            std.mem.writeInt(u32, &tmp, value, .little);
+            try writer.writeAll(&tmp);
+        }
+    }.f;
+
+    // Write header: num_samples (u32 LE) + seq_length (u32 LE)
+    writeU32LE(w, num_samples) catch |err| {
+        std.debug.print("Error writing header: {t}\n", .{err});
+        return;
+    };
+    writeU32LE(w, seq_length) catch |err| {
+        std.debug.print("Error writing header: {t}\n", .{err});
+        return;
+    };
+
+    // Generate pseudorandom token sequences using a simple xoshiro PRNG
+    var prng = std.Random.DefaultPrng.init(42);
+    const random = prng.random();
+
+    var written: u64 = 0;
+    for (0..num_samples) |_| {
+        for (0..seq_length) |_| {
+            const token: u32 = random.intRangeLessThan(u32, 0, vocab_size);
+            writeU32LE(w, token) catch |err| {
+                std.debug.print("Error writing token data: {t}\n", .{err});
+                return;
+            };
+            written += 1;
+        }
+    }
+
+    // Flush remaining buffered data
+    file_writer.flush() catch |err| {
+        std.debug.print("Error flushing output: {t}\n", .{err});
+        return;
+    };
+
+    std.debug.print("\nWrote {d} tokens to {s}\n", .{ written, output_path });
+    std.debug.print("Use with: abi train new --dataset-path {s}\n", .{output_path});
+}
+
 fn printHelp() void {
     const help_text =
         \\Usage: abi train <command> [options]
@@ -2524,6 +3044,7 @@ fn printHelp() void {
         \\  clip [options]          Train CLIP multimodal model (vision + text)
         \\  resume <checkpoint>     Resume training from a checkpoint file
         \\  monitor [run-id]        Monitor training progress (TUI dashboard)
+        \\  generate-data [options]  Generate synthetic tokenized training data
         \\  info                    Show default training configuration
         \\  help                    Show this help message
         \\
@@ -2561,7 +3082,8 @@ fn printHelp() void {
         \\  --checkpoint-interval <n>  Steps between checkpoints (default: 0)
         \\  --checkpoint-path <path>   Path to save checkpoints
         \\  --max-checkpoints <n>      Max checkpoints to retain (default: 3)
-        \\  --use-gpu                  Enable GPU acceleration (cuBLAS)
+        \\  --use-gpu                  Enable GPU acceleration (default behavior)
+        \\  --cpu-only, --no-gpu       Disable GPU/NPU acceleration and force CPU
         \\  --mixed-precision          Enable mixed precision training
         \\  --log-interval <n>         Steps between log outputs (default: 10)
         \\  --export-gguf <path>       Export GGUF weights after training
@@ -2574,6 +3096,13 @@ fn printHelp() void {
         \\  --dataset-block-tokens <n> Tokens per WDBX block (default: 2048)
         \\  --dataset-max-tokens <n>   Limit tokens used for training
         \\  --dataset-max-bytes <n>    Limit download size in bytes
+        \\  --external-quantize <type> Quantize GGUF via llama-quantize (q4_0, q4_k_m, q5_k_m, q8_0)
+        \\
+        \\Synthetic data options (for 'generate-data'):
+        \\  --num-samples <n>          Number of sequences (default: 1024)
+        \\  --seq-length <n>           Tokens per sequence (default: 128)
+        \\  --vocab-size <n>           Max token ID (default: 32000)
+        \\  --output <path>            Output file path (default: synthetic.bin)
         \\
         \\LR schedules: constant, cosine, warmup_cosine, step, polynomial
         \\Optimizers: sgd, adam, adamw
@@ -2593,6 +3122,8 @@ fn printHelp() void {
         \\  abi train vision --image-size 224 --num-layers 12 --num-heads 6
         \\  abi train clip --epochs 10 --batch-size 256 --projection-dim 512
         \\  abi train clip --vision-hidden 768 --text-hidden 512 --temperature 0.07
+        \\  abi train generate-data --num-samples 1024 --seq-length 128 --vocab-size 32000
+        \\  abi train generate-data --output /tmp/test.bin --num-samples 100 --seq-length 32
         \\  abi train resume ./checkpoints/model.ckpt
         \\  abi train info
         \\

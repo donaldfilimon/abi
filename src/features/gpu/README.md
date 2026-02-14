@@ -3,17 +3,32 @@ title: "README"
 tags: []
 ---
 # GPU Module Overview
-> **Codebase Status:** Synced with repository as of 2026-02-04.
 
-This directory contains the GPU acceleration layer of the ABI framework.
+> **Codebase Status:** Synced with repository as of 2026-02-14.
+
+This directory contains the GPU acceleration layer of the ABI framework. Neural network workloads can use **GPU** (CUDA, Metal, Vulkan), **WebGPU**, **TPU** (when a runtime is linked), or **multi-threaded CPU** via `abi.runtime.ThreadPool` and `InferenceConfig.num_threads`.
 
 ## Structure
 
-The files are grouped by responsibility:
+| Directory | Description |
+|-----------|-------------|
+| **backends/** | Concrete implementations: Vulkan, CUDA, Metal, WebGPU, OpenGL, OpenGL ES, WebGL2, FPGA, TPU (stub), simulated |
+| **dsl/** | Domain-specific language and codegen for kernel generation |
+| **mega/** | Multi-GPU orchestration and hybrid workload routing |
+| **tests/** | Unit tests for the GPU API |
 
-- **backends/** – Concrete implementations for each GPU backend (Vulkan, CUDA, Metal, WebGPU, OpenGL, FPGA, etc.)
-- **dsl/** – Domain-specific language utilities for kernel generation
-- **tests/** – Unit tests exercising the GPU API
+## Backends
+
+| Backend | Build flag | Use case |
+|---------|------------|----------|
+| CUDA | `-Dgpu-backend=cuda` | NVIDIA GPUs, best GPGPU/NN support |
+| Vulkan | `-Dgpu-backend=vulkan` | Cross-platform compute |
+| Metal | `-Dgpu-backend=metal` | Apple Silicon / macOS |
+| WebGPU | `-Dgpu-backend=webgpu` | Browser and native (Dawn/wgpu), NN-first-class |
+| TPU | `-Dgpu-backend=tpu` | Tensor Processing Unit (stub until runtime linked) |
+| stdgpu / simulated | Always available | CPU fallback for testing |
+
+Auto-selection priority (neural networks): CUDA → TPU → Metal → Vulkan → WebGPU → … → simulated.
 
 ## Core Files
 
@@ -22,8 +37,8 @@ The files are grouped by responsibility:
 | `mod.zig` | Public API entry point |
 | `stub.zig` | Feature-disabled placeholder |
 | `unified.zig` | Unified GPU API with multi-backend support |
-| `backend.zig` | Backend abstraction layer |
-| `backend_factory.zig` | Backend auto-detection and selection |
+| `backend.zig` | Backend metadata and availability |
+| `backend_factory.zig` | Backend instantiation and priority |
 | `device.zig` | Device enumeration and selection |
 | `execution_coordinator.zig` | GPU→SIMD→scalar fallback coordinator |
 | `profiling.zig` | GPU profiling and metrics |
@@ -49,4 +64,5 @@ _ = try gpu.vectorAdd(a, b, result);
 
 - [GPU Documentation](../../docs/content/gpu.html)
 - [API Reference](../../docs/api-reference.md)
+- [CLAUDE.md](../../../CLAUDE.md) — GPU backends and feature flags
 

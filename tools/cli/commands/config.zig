@@ -8,37 +8,44 @@ const cli_io = utils.io_backend;
 // Use the shared config module for file-based configuration (legacy format)
 const shared_config = @import("abi").shared.utils.config;
 
+fn cfgInit(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runInit(alloc, parser.remaining());
+}
+fn cfgShow(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runShow(alloc, parser.remaining());
+}
+fn cfgValidate(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runValidate(alloc, parser.remaining());
+}
+fn cfgEnv(_: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    runEnv();
+}
+fn cfgUnknown(cmd: []const u8) void {
+    std.debug.print("Unknown config command: {s}\n", .{cmd});
+}
+fn printHelpAlloc(_: std.mem.Allocator) void {
+    printHelp();
+}
+
+const config_commands = [_]utils.subcommand.Command{
+    .{ .names = &.{"init"}, .run = cfgInit },
+    .{ .names = &.{"show"}, .run = cfgShow },
+    .{ .names = &.{"validate"}, .run = cfgValidate },
+    .{ .names = &.{"env"}, .run = cfgEnv },
+};
+
 /// Run the config command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
-        printHelp();
-        return;
-    }
-
-    const command = std.mem.sliceTo(args[0], 0);
-
-    if (std.mem.eql(u8, command, "init")) {
-        try runInit(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "show")) {
-        try runShow(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "validate")) {
-        try runValidate(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "env")) {
-        runEnv();
-        return;
-    }
-
-    std.debug.print("Unknown config command: {s}\n", .{command});
-    printHelp();
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &config_commands,
+        null,
+        printHelpAlloc,
+        cfgUnknown,
+    );
 }
 
 fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

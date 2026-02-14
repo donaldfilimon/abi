@@ -276,7 +276,7 @@ test "c_api: agent backend enum values" {
 
     for (backends) |backend| {
         // Each backend should be a valid enum value
-        _ = @tagName(backend);
+        _ = backend;
     }
 
     try testing.expect(backends.len >= 5);

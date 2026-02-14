@@ -21,14 +21,20 @@
 //! defer vtable_backend.deinit();
 //! ```
 //!
-//! ## Supported Backends
+//! ## Supported Backends (Neural Networks: GPU, WebGPU, TPU, CPU)
+//!
+//! Neural network inference and training can use:
+//! - **GPU**: CUDA, Metal, Vulkan, WebGPU (preferred when available).
+//! - **TPU**: Tensor Processing Unit slot; use `-Dgpu-backend=tpu` and link a TPU runtime (e.g. libtpu/cloud API) for availability.
+//! - **CPU**: Multi-threaded CPU via `abi.runtime.ThreadPool` and `parallelFor`; set `InferenceConfig.num_threads` for LLM CPU inference.
 //!
 //! | Backend | Platform | Hardware Required |
 //! |---------|----------|-------------------|
 //! | CUDA    | Windows/Linux | NVIDIA GPU |
 //! | Vulkan  | Windows/Linux/macOS | Vulkan 1.2+ driver |
 //! | Metal   | macOS/iOS | Apple Silicon or AMD GPU |
-//! | WebGPU  | All (browser/native) | WebGPU-capable browser or Dawn/wgpu |
+//! | WebGPU  | All (browser/native) | WebGPU-capable browser or Dawn/wgpu; first-class for NN |
+//! | TPU     | When runtime linked | Cloud TPU / libtpu (stub until linked) |
 //! | OpenGL  | All | OpenGL 4.3+ |
 //! | OpenGL ES | Mobile/Embedded | OpenGL ES 3.1+ |
 //! | stdgpu  | All | None (CPU emulation) |
@@ -93,16 +99,20 @@ pub const BackendFeature = enum {
     mps,
 };
 
-/// Backend priority order for auto-selection.
+/// Backend priority order for auto-selection (neural networks, inference, training).
+/// TPU and WebGPU are first-class for NN when available; simulated is last.
 const backend_priority = [_]Backend{
-    .cuda, // Highest priority - best GPGPU support
+    .cuda, // Best GPGPU and NN support
+    .tpu, // Tensor Processing Unit (neural network accelerator when runtime linked)
     .metal, // Excellent on Apple hardware
-    .vulkan, // Cross-platform with compute shaders
-    .webgpu, // Modern cross-platform
+    .vulkan, // Cross-platform compute
+    .webgpu, // WebGPU: neural networks in browser and native (Dawn/wgpu)
     .opengl, // Wide support but limited compute
     .opengles, // Mobile
+    .webgl2, // WebGL 2.0 (browser)
     .fpga, // Specialized hardware
-    .stdgpu, // CPU fallback - always available
+    .stdgpu, // Zig std.gpu (CPU/SPIR-V)
+    .simulated, // Software fallback - always available for testing
 };
 
 /// Create a backend instance for the specified type.
@@ -113,12 +123,12 @@ pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) Factor
 
     instance.allocator = allocator;
     instance.backend_type = backend_type;
-    instance.is_emulated = backend_type == .stdgpu;
+    instance.is_emulated = backend_type == .stdgpu or backend_type == .simulated;
     instance.backend = try createVTableBackend(allocator, backend_type);
     instance.total_memory = queryDeviceMemory(backend_type);
     instance.max_threads_per_block = switch (backend_type) {
-        .cuda, .vulkan, .metal, .opengl, .opengles => 1024,
-        .webgpu, .stdgpu, .webgl2 => 256,
+        .cuda, .vulkan, .metal, .opengl, .opengles, .tpu => 1024,
+        .webgpu, .stdgpu, .webgl2, .simulated => 256,
         .fpga => 1,
     };
 
@@ -202,9 +212,10 @@ pub fn selectBestBackendWithFallback(
         }
     }
 
-    // Last resort: CPU if allowed
-    if (options.fallback_to_cpu and isBackendAvailable(.stdgpu)) {
-        return .stdgpu;
+    // Last resort: std.gpu or simulated if allowed
+    if (options.fallback_to_cpu) {
+        if (isBackendAvailable(.stdgpu)) return .stdgpu;
+        if (isBackendAvailable(.simulated)) return .simulated;
     }
 
     return null;
@@ -236,9 +247,10 @@ pub fn selectBackendWithFeatures(
         }
     }
 
-    // Fallback to CPU if allowed
+    // Fallback to CPU/simulated if allowed
     if (options.fallback_to_cpu) {
-        return .stdgpu;
+        if (isBackendAvailable(.stdgpu)) return .stdgpu;
+        if (isBackendAvailable(.simulated)) return .simulated;
     }
 
     return null;
@@ -281,8 +293,9 @@ fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bool {
 
 fn queryDeviceMemory(backend_type: Backend) ?u64 {
     return switch (backend_type) {
-        .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .webgl2, .fpga => null,
+        .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .webgl2, .fpga, .tpu => null,
         .stdgpu => null,
+        .simulated => 2 * 1024 * 1024 * 1024, // 2 GiB (matches backend_meta)
     };
 }
 
@@ -457,7 +470,8 @@ pub fn createVTableBackend(allocator: std.mem.Allocator, backend_type: Backend) 
         .webgpu => createWebGPUVTableBackend(allocator),
         .opengl, .opengles => createOpenGLVTableBackend(allocator),
         .fpga => createFpgaVTableBackend(allocator),
-        .stdgpu => createSimulatedVTableBackend(allocator),
+        .tpu => return FactoryError.BackendNotAvailable, // TPU runtime (libtpu/cloud API) not yet linked
+        .stdgpu, .simulated => createSimulatedVTableBackend(allocator),
         .webgl2 => createWebGL2VTableBackend(allocator),
     };
 }

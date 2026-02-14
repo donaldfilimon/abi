@@ -74,8 +74,8 @@ pub const LlmTrainingConfig = struct {
     export_gguf_path: ?[]const u8 = null,
     /// GGUF model name metadata
     export_name: []const u8 = "abi-llama",
-    /// Enable GPU acceleration
-    use_gpu: bool = false,
+    /// Enable accelerator path by default (GPU/NPU backends auto-selected when available).
+    use_gpu: bool = true,
     /// GPU acceleration backend preference
     gpu_backend: ?[]const u8 = null, // null = auto-select best available
     /// Threshold for GPU dispatch (batch size below this uses CPU)

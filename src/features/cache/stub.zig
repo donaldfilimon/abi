@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/cache.zig");
+const stub_context = @import("../../core/stub_context.zig");
 
 pub const CacheConfig = core_config.CacheConfig;
 pub const EvictionPolicy = core_config.EvictionPolicy;
@@ -32,19 +33,7 @@ pub const CacheStats = struct {
     expired: u64 = 0,
 };
 
-pub const Context = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator, _: CacheConfig) !*Context {
-        const ctx = try allocator.create(Context);
-        ctx.* = .{ .allocator = allocator };
-        return ctx;
-    }
-
-    pub fn deinit(self: *Context) void {
-        self.allocator.destroy(self);
-    }
-};
+pub const Context = stub_context.StubContext(CacheConfig);
 
 pub fn init(_: std.mem.Allocator, _: CacheConfig) CacheError!void {
     return error.FeatureDisabled;

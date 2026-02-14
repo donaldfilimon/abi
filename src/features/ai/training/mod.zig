@@ -1,6 +1,9 @@
 //! Training Sub-module
 //!
 //! Training pipeline utilities, gradient aggregation, and checkpointing.
+//! Models can be trained to handle and generate all types of data: text, images,
+//! video, audio, documents, and arbitrary payloads (see ExperienceType, DataKind, and
+//! SelfLearningSystem.recordVideoExperience / recordAudioExperience / recordGenericExperience).
 //!
 //! Provides neural network training with SGD, Adam optimizers, learning rate scheduling,
 //! gradient clipping, loss functions, and mixed precision support.
@@ -103,6 +106,23 @@ pub const TrainingLogMetric = logging.Metric;
 pub const self_learning = @import("self_learning.zig");
 pub const SelfLearningSystem = self_learning.SelfLearningSystem;
 pub const SelfLearningConfig = self_learning.SelfLearningConfig;
+
+/// Build SelfLearningConfig from system-level TrainingConfig (Zig 0.16).
+/// Flows enable_vision, enable_video, enable_audio, enable_all_modalities from core config.
+pub fn selfLearningConfigFromCore(core_cfg: config_module.TrainingConfig) SelfLearningConfig {
+    return .{
+        .enable_vision = core_cfg.enable_vision,
+        .enable_video = core_cfg.enable_video,
+        .enable_audio = core_cfg.enable_audio,
+        .enable_all_modalities = core_cfg.enable_all_modalities,
+        .enable_rlhf = true,
+        .enable_documents = true,
+        .replay_buffer_size = 10000,
+        .batch_size = core_cfg.batch_size,
+        .min_buffer_size = 100,
+        .update_frequency = 64,
+    };
+}
 pub const LearningExperience = self_learning.LearningExperience;
 pub const ExperienceBuffer = self_learning.ExperienceBuffer;
 pub const RewardModel = self_learning.RewardModel;
@@ -110,6 +130,7 @@ pub const SelfLearningVisionTrainer = self_learning.VisionTrainer;
 pub const DocumentTrainer = self_learning.DocumentTrainer;
 pub const ExperienceType = self_learning.ExperienceType;
 pub const FeedbackType = self_learning.FeedbackType;
+pub const DataKind = self_learning.DataKind;
 
 // Vision Transformer training exports
 pub const vision_trainer = @import("vision_trainer.zig");

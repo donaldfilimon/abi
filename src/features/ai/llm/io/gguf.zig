@@ -95,7 +95,55 @@ pub const GgufTensorType = enum(u32) {
     i32 = 26,
     i64 = 27,
     f64 = 28,
-    bf16 = 29,
+    iq1_m = 29,
+    bf16 = 30,
+    // q4_0_4_4 = 31, // deprecated in GGUF
+    // q4_0_4_8 = 32, // deprecated in GGUF
+    // q4_0_8_8 = 33, // deprecated in GGUF
+    tq1_0 = 34,
+    tq2_0 = 35,
+    // iq4_nl_4_4 = 36, // deprecated in GGUF
+    // iq4_nl_4_8 = 37, // deprecated in GGUF
+    // iq4_nl_8_8 = 38, // deprecated in GGUF
+    mxfp4 = 39,
+
+    pub fn fromInt(value: u32) ?GgufTensorType {
+        return switch (value) {
+            0 => .f32,
+            1 => .f16,
+            2 => .q4_0,
+            3 => .q4_1,
+            6 => .q5_0,
+            7 => .q5_1,
+            8 => .q8_0,
+            9 => .q8_1,
+            10 => .q2_k,
+            11 => .q3_k,
+            12 => .q4_k,
+            13 => .q5_k,
+            14 => .q6_k,
+            15 => .q8_k,
+            16 => .iq2_xxs,
+            17 => .iq2_xs,
+            18 => .iq3_xxs,
+            19 => .iq1_s,
+            20 => .iq4_nl,
+            21 => .iq3_s,
+            22 => .iq2_s,
+            23 => .iq4_xs,
+            24 => .i8,
+            25 => .i16,
+            26 => .i32,
+            27 => .i64,
+            28 => .f64,
+            29 => .iq1_m,
+            30 => .bf16,
+            34 => .tq1_0,
+            35 => .tq2_0,
+            39 => .mxfp4,
+            else => null,
+        };
+    }
 
     /// Get bytes per element for unquantized types
     pub fn elementSize(self: GgufTensorType) ?usize {
@@ -118,7 +166,9 @@ pub const GgufTensorType = enum(u32) {
             .q4_0, .q4_1 => 32,
             .q5_0, .q5_1 => 32,
             .q8_0, .q8_1 => 32,
+            .mxfp4 => 32,
             .q2_k, .q3_k, .q4_k, .q5_k, .q6_k, .q8_k => 256,
+            .iq1_m, .tq1_0, .tq2_0 => 256,
             else => 1,
         };
     }
@@ -140,6 +190,10 @@ pub const GgufTensorType = enum(u32) {
             .q5_k => 176,
             .q6_k => 210,
             .q8_k => 292,
+            .iq1_m => 56,
+            .tq1_0 => 54,
+            .tq2_0 => 66,
+            .mxfp4 => 17,
             .i8 => 1,
             .i16 => 2,
             .i32 => 4,
@@ -360,10 +414,9 @@ pub const GgufFile = struct {
             }
 
             const tensor_type_int = cursor.read(u32) orelse return GgufError.ParseError;
-            if (tensor_type_int > @intFromEnum(GgufTensorType.bf16)) {
+            const tensor_type = GgufTensorType.fromInt(tensor_type_int) orelse {
                 return GgufError.InvalidTensorType;
-            }
-            const tensor_type: GgufTensorType = @enumFromInt(tensor_type_int);
+            };
             const offset = cursor.read(u64) orelse return GgufError.ParseError;
 
             try self.tensors.put(allocator, name, .{
@@ -466,6 +519,22 @@ pub const GgufFile = struct {
         var buf: [64]u8 = undefined;
         const key = std.fmt.bufPrint(&buf, "{s}.attention.head_count_kv", .{arch}) catch return null;
         const val = self.getMetadata(key) orelse self.getMetadata("llama.attention.head_count_kv") orelse return null;
+        return val.asU32();
+    }
+
+    pub fn getAttentionKeyLength(self: *const GgufFile) ?u32 {
+        const arch = self.getArchitecture() orelse "llama";
+        var buf: [64]u8 = undefined;
+        const key = std.fmt.bufPrint(&buf, "{s}.attention.key_length", .{arch}) catch return null;
+        const val = self.getMetadata(key) orelse self.getMetadata("llama.attention.key_length") orelse return null;
+        return val.asU32();
+    }
+
+    pub fn getAttentionValueLength(self: *const GgufFile) ?u32 {
+        const arch = self.getArchitecture() orelse "llama";
+        var buf: [64]u8 = undefined;
+        const key = std.fmt.bufPrint(&buf, "{s}.attention.value_length", .{arch}) catch return null;
+        const val = self.getMetadata(key) orelse self.getMetadata("llama.attention.value_length") orelse return null;
         return val.asU32();
     }
 
@@ -604,6 +673,12 @@ pub const GgufFile = struct {
         if (self.getHeadCount()) |heads| {
             try writer.print("Attention heads: {d}\n", .{heads});
         }
+        if (self.getAttentionKeyLength()) |key_len| {
+            try writer.print("Attention key length: {d}\n", .{key_len});
+        }
+        if (self.getAttentionValueLength()) |value_len| {
+            try writer.print("Attention value length: {d}\n", .{value_len});
+        }
         if (self.getVocabSize()) |vocab| {
             try writer.print("Vocab size: {d}\n", .{vocab});
         }
@@ -721,6 +796,17 @@ test "tensor type bytes calculation" {
 
     // F32: 4 bytes per element
     try std.testing.expectEqual(@as(u64, 256), GgufTensorType.f32.tensorBytes(64));
+
+    // MXFP4: 32 values packed into 17 bytes per block
+    try std.testing.expectEqual(@as(usize, 17), GgufTensorType.mxfp4.bytesPerBlock());
+    try std.testing.expectEqual(@as(usize, 32), GgufTensorType.mxfp4.blockSize());
+    try std.testing.expectEqual(@as(u64, 34), GgufTensorType.mxfp4.tensorBytes(64));
+}
+
+test "tensor type fromInt handles sparse GGUF ids" {
+    try std.testing.expectEqual(GgufTensorType.bf16, GgufTensorType.fromInt(30).?);
+    try std.testing.expectEqual(GgufTensorType.mxfp4, GgufTensorType.fromInt(39).?);
+    try std.testing.expect(GgufTensorType.fromInt(31) == null);
 }
 
 test "tensor info element count" {

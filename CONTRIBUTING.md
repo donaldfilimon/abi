@@ -3,7 +3,7 @@ title: "CONTRIBUTING"
 tags: []
 ---
 # Contributing
-> **Codebase Status:** Synced with repository as of 2026-02-05.
+> **Codebase Status:** Synced with repository as of 2026-02-14.
 
 <p align="center">
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
@@ -26,12 +26,13 @@ tags: []
 | Clone | `git clone https://github.com/donaldfilimon/abi.git && cd abi` |
 | Build | `zig build` |
 | Test | `zig build test --summary all` |
+| Feature tests | `zig build feature-tests --summary all` |
 | Format | `zig fmt .` |
-| CLI Smoke Test | `zig build cli-tests` |
-| Validate Flags | `zig build validate-flags` |
-| Zig Version Consistency | `scripts/check_zig_version_consistency.sh` |
-| Full Check | `zig build full-check` |
-| Single File Test | `zig test src/path/to/file.zig` |
+| CLI smoke test | `zig build cli-tests` |
+| Validate flags | `zig build validate-flags` |
+| Zig version check | `scripts/check_zig_version_consistency.sh` |
+| Full check (gate) | `zig build full-check` |
+| Single-file test | `zig test src/path/to/file.zig` |
 
 ## Workflow
 
@@ -162,9 +163,14 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 
 </details>
 
+## Security
+
+Do not open PRs for security vulnerabilities. See [SECURITY.md](SECURITY.md) for reporting.
+
 ---
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="CLAUDE.md">Development Guide →</a>
+  <a href="CLAUDE.md">Development Guide</a> •
+  <a href="SECURITY.md">Security</a>
 </p>

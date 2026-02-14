@@ -46,44 +46,47 @@ const workflow_templates = [_]WorkflowTemplate{
     },
 };
 
+fn cmdInfo(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try runInfo(alloc);
+}
+fn cmdRun(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runWorkflow(alloc, parser);
+}
+fn cmdList(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try listWorkflows(alloc);
+}
+fn cmdCreate(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try createWorkflow(alloc, parser);
+}
+fn cmdStatus(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try showStatus(alloc);
+}
+fn onUnknown(cmd: []const u8) void {
+    utils.output.printError("unknown subcommand: {s}", .{cmd});
+}
+
+const ma_commands = [_]utils.subcommand.Command{
+    .{ .names = &.{"info"}, .run = cmdInfo },
+    .{ .names = &.{"run"}, .run = cmdRun },
+    .{ .names = &.{"list"}, .run = cmdList },
+    .{ .names = &.{"create"}, .run = cmdCreate },
+    .{ .names = &.{"status"}, .run = cmdStatus },
+};
+
 /// Entry point for the `multi-agent` command.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var parser = utils.args.ArgParser.init(allocator, args);
-
-    // Show help if no sub‑command or help flag is present.
-    if (!parser.hasMore() or parser.wantsHelp()) {
-        printHelp(allocator);
-        return;
-    }
-
-    const sub = parser.next().?; // safe after hasMore check
-    if (std.mem.eql(u8, sub, "info")) {
-        try runInfo(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, sub, "run")) {
-        try runWorkflow(allocator, &parser);
-        return;
-    }
-
-    if (std.mem.eql(u8, sub, "list")) {
-        try listWorkflows(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, sub, "create")) {
-        try createWorkflow(allocator, &parser);
-        return;
-    }
-
-    if (std.mem.eql(u8, sub, "status")) {
-        try showStatus(allocator);
-        return;
-    }
-
-    utils.output.printError("unknown subcommand: {s}", .{sub});
-    printHelp(allocator);
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &ma_commands,
+        null,
+        printHelp,
+        onUnknown,
+    );
 }
 
 fn runInfo(allocator: std.mem.Allocator) !void {

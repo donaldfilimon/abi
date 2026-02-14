@@ -9,7 +9,7 @@
 //! abi <command> [options]
 //! ```
 //!
-//! ## Commands (26 total)
+//! ## Commands (28 total)
 //! - `db` - Database operations (add, query, stats, optimize, backup)
 //! - `agent` - Run AI agent (interactive or one-shot)
 //! - `bench` - Run performance benchmarks (all, simd, memory, ai, quick)
@@ -22,10 +22,10 @@
 //! - `simd` - Run SIMD performance demo
 //! - `config` - Configuration management (init, show, validate)
 //! - `discord` - Discord bot operations (status, guilds, send, commands)
-//! - `llm` - LLM inference (info, generate, chat, bench, download)
+//! - `llm` - LLM inference (info, generate, chat, bench, download, serve)
 //! - `model` - Model management (list, download, remove, search)
 //! - `embed` - Generate embeddings (openai, mistral, cohere, ollama)
-//! - `train` - Training pipeline (run, resume, info)
+//! - `train` - Training pipeline (run, resume, info, generate-data)
 //! - `convert` - Dataset conversion tools (tokenbin, text, jsonl, wdbx)
 //! - `task` - Task management (add, list, done, stats)
 //! - `tui` - Launch interactive TUI command menu
@@ -34,6 +34,8 @@
 //! - `completions` - Shell completions (bash, zsh, fish, powershell)
 //! - `status` - Show framework health and component status
 //! - `toolchain` - Zig/ZLS toolchain (install, update, status)
+//! - `mcp` - MCP server for WDBX database (serve, tools)
+//! - `acp` - Agent Communication Protocol (card, serve)
 //! - `version` - Show framework version
 //! - `help` - Show help (use: abi help <command>)
 
@@ -42,48 +44,7 @@ const abi = @import("abi");
 const commands = @import("commands/mod.zig");
 const utils = @import("utils/mod.zig");
 const cli_io = utils.io_backend;
-
-const CommandInfo = struct {
-    name: []const u8,
-    description: []const u8,
-};
-
-const command_infos = [_]CommandInfo{
-    .{ .name = "db", .description = "Database operations (add, query, stats, optimize, backup)" },
-    .{ .name = "agent", .description = "Run AI agent (interactive or one-shot)" },
-    .{ .name = "bench", .description = "Run performance benchmarks (all, simd, memory, ai, quick)" },
-    .{ .name = "gpu", .description = "GPU commands (backends, devices, summary, default)" },
-    .{ .name = "gpu-dashboard", .description = "Interactive GPU + Agent monitoring dashboard" },
-    .{ .name = "network", .description = "Manage network registry (list, register, status)" },
-    .{ .name = "system-info", .description = "Show system and framework status" },
-    .{ .name = "multi-agent", .description = "Run multi-agent workflows" },
-    .{ .name = "explore", .description = "Search and explore codebase" },
-    .{ .name = "simd", .description = "Run SIMD performance demo" },
-    .{ .name = "config", .description = "Configuration management (init, show, validate)" },
-    .{ .name = "discord", .description = "Discord bot operations (status, guilds, send, commands)" },
-    .{ .name = "llm", .description = "LLM inference (info, generate, chat, bench, download)" },
-    .{ .name = "model", .description = "Model management (list, download, remove, search)" },
-    .{ .name = "embed", .description = "Generate embeddings from text (openai, mistral, cohere, ollama)" },
-    .{ .name = "train", .description = "Training pipeline (run, resume, info)" },
-    .{ .name = "convert", .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)" },
-    .{ .name = "task", .description = "Task management (add, list, done, stats)" },
-    .{ .name = "tui", .description = "Launch interactive TUI command menu" },
-    .{ .name = "plugins", .description = "Plugin management (list, enable, disable, info)" },
-    .{ .name = "profile", .description = "User profile and settings management" },
-    .{ .name = "completions", .description = "Generate shell completions (bash, zsh, fish, powershell)" },
-    .{ .name = "status", .description = "Show framework health and component status" },
-    .{ .name = "toolchain", .description = "Build and install Zig/ZLS from master (install, update, status)" },
-    .{ .name = "version", .description = "Show framework version" },
-    .{ .name = "help", .description = "Show help (use: abi help <command>)" },
-};
-
-const command_names = blk: {
-    var names: []const []const u8 = &.{};
-    for (command_infos) |info| {
-        names = names ++ &[_][]const u8{info.name};
-    }
-    break :blk names;
-};
+const spec = @import("spec.zig");
 
 /// Main entry point with args from Zig 0.16 Init.Minimal
 pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !void {
@@ -174,7 +135,7 @@ fn printHelp() void {
         \\
     , .{});
 
-    for (command_infos) |info| {
+    for (spec.command_infos) |info| {
         const padding = if (info.name.len < 14) 14 - info.name.len else 2;
         std.debug.print("  {s}", .{info.name});
         for (0..padding) |_| std.debug.print(" ", .{});
@@ -190,13 +151,14 @@ fn printHelp() void {
         \\  abi help llm generate            # Show help for nested subcommand
         \\
         \\Aliases:
-        \\  info, sysinfo         system-info
-        \\  dashboard             gpu-dashboard
-        \\  chat                  llm
         \\
         \\Run 'abi <command> help' or 'abi help <command>' for command-specific help.
         \\
     , .{});
+
+    for (spec.aliases) |alias| {
+        std.debug.print("  {s} -> {s}\n", .{ alias.alias, alias.target });
+    }
 }
 
 const CommandFn = *const fn (std.mem.Allocator, []const [:0]const u8) anyerror!void;
@@ -225,6 +187,8 @@ const command_map = std.StaticStringMap(CommandFn).initComptime(.{
     .{ "profile", wrap(commands.profile) },
     .{ "status", wrap(commands.status) },
     .{ "toolchain", wrap(commands.toolchain) },
+    .{ "mcp", wrap(commands.mcp) },
+    .{ "acp", wrap(commands.acp) },
 });
 
 const io_command_map = std.StaticStringMap(IoCommandFn).initComptime(.{
@@ -240,28 +204,13 @@ fn wrapIo(comptime cmd: type) IoCommandFn {
     return cmd.run;
 }
 
-/// Command aliases for common shortcuts.
-const alias_map = std.StaticStringMap([]const u8).initComptime(.{
-    .{ "info", "system-info" },
-    .{ "sysinfo", "system-info" },
-    .{ "ls", "db" }, // common alias
-    .{ "run", "bench" },
-    .{ "dashboard", "gpu-dashboard" },
-    .{ "chat", "llm" },
-    .{ "reasoning", "llm" },
-});
-
-fn resolveAlias(command: []const u8) []const u8 {
-    return alias_map.get(command) orelse command;
-}
-
 fn runCommand(
     allocator: std.mem.Allocator,
     io: std.Io,
     command: []const u8,
     args: []const [:0]const u8,
 ) !bool {
-    const resolved = resolveAlias(command);
+    const resolved = spec.resolveAlias(command);
     if (io_command_map.get(resolved)) |run_fn| {
         try run_fn(allocator, io, args);
         return true;
@@ -280,7 +229,7 @@ fn runHelpTarget(
     raw_command: []const u8,
     extra_args: []const [:0]const u8,
 ) !void {
-    const command = resolveAlias(raw_command);
+    const command = spec.resolveAlias(raw_command);
     var forwarded = std.ArrayListUnmanaged([:0]const u8){};
     for (extra_args) |arg| {
         try forwarded.append(arena_allocator, arg);
@@ -301,7 +250,7 @@ fn runHelpTarget(
 
 fn printUnknownCommand(command: []const u8) void {
     std.debug.print("Unknown command: {s}\n", .{command});
-    if (utils.args.suggestCommand(command, command_names)) |suggestion| {
+    if (utils.args.suggestCommand(command, spec.command_names_with_aliases)) |suggestion| {
         std.debug.print("Did you mean: {s}\n", .{suggestion});
     }
     std.debug.print("Use 'help' for usage.\n", .{});

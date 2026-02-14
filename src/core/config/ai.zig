@@ -1,7 +1,8 @@
 //! AI Configuration
 //!
 //! Configuration for AI features including LLM inference, embeddings,
-//! agents, and training pipelines.
+//! agents, and training pipelines. System-level support for all data types:
+//! text, images, video, audio, documents, and arbitrary payloads (Zig 0.16).
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -126,6 +127,16 @@ pub const AgentsConfig = struct {
     }
 };
 
+/// System-level content/data type for models that process and generate all modalities (Zig 0.16).
+pub const ContentKind = enum {
+    text,
+    image,
+    video,
+    audio,
+    document,
+    other,
+};
+
 /// Training pipeline configuration.
 pub const TrainingConfig = struct {
     /// Number of training epochs.
@@ -145,6 +156,18 @@ pub const TrainingConfig = struct {
 
     /// Checkpoint frequency (epochs).
     checkpoint_frequency: u32 = 1,
+
+    /// Max checkpoints to retain (null = use default 5).
+    max_checkpoints: ?u32 = null,
+
+    /// Enable vision (image) training.
+    enable_vision: bool = true,
+    /// Enable video training.
+    enable_video: bool = true,
+    /// Enable audio training.
+    enable_audio: bool = true,
+    /// Enable training on arbitrary data types (raw payloads).
+    enable_all_modalities: bool = true,
 
     pub const Optimizer = enum {
         sgd,

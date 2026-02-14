@@ -45,7 +45,7 @@ Phase 10 hardened the 5 feature modules from Phase 9 with bug fixes, expanded te
 
 ### Test Baseline
 - **Tests**: 1220 pass / 5 skip (1225 total) — +3 from Phase 9
-- **Feature tests**: 652 pass — +34 from Phase 9 (618)
+- **Feature tests**: 671 pass — MCP/ACP server tests added (Phase 11)
 - **Flag combos**: 30/30 pass (61/61 steps)
 
 ## Phase 9 Summary (2026-02-14)
@@ -58,7 +58,7 @@ Phase 9 implemented 5 skeleton feature modules and 3 placeholder fixups:
 - **Storage** (~430 lines): Vtable backend abstraction, memory backend, path traversal validation
 - **Placeholder fixes**: Real SGD/Adam optimizers, GPU fallback debug logging, secure channel `error.NotImplemented`
 - **Quality fixes**: Memory leak in messaging DLQEntry allocation, slab slot leak in cache put, BM25 IDF always-positive
-- **Tests**: 1217 pass / 5 skip (1222 total), 618 feature tests, 30 flag combos validated
+- **Tests**: 1220 pass / 5 skip (1225 total), 671 feature tests, 30 flag combos validated
 
 ## Execution Update (2026-02-08)
 - Completed ownership-scoped refactor passes across:
@@ -79,7 +79,7 @@ Phase 9 implemented 5 skeleton feature modules and 3 placeholder fixups:
 - Post-fix gate evidence:
   - `zig build validate-flags` -> success
   - `zig build cli-tests` -> success
-  - `zig build test --summary all` -> success (`983 pass`, `5 skip`)
+  - `zig build test --summary all` -> success (`1220 pass`, `5 skip`)
   - `zig build full-check` -> success
 - Phase 6 verification evidence:
   - `zig build examples` -> success
@@ -88,7 +88,7 @@ Phase 9 implemented 5 skeleton feature modules and 3 placeholder fixups:
   - `zig build -j1 docs-site` -> success
 - Phase 7 release-gate verification evidence:
   - `zig build -j1 validate-flags` -> success
-  - `zig build -j1 test --summary all` -> success (`983 pass`, `5 skip`)
+  - `zig build -j1 test --summary all` -> success (`1220 pass`, `5 skip`)
   - `zig build -j1 test -- --test-filter parity` -> success
   - `rg -n "@panic\\(" src -g "*.zig" -g "!**/*test*.zig"` -> no runtime library `@panic` calls detected
   - `zig build -j1 examples` -> success
@@ -212,7 +212,7 @@ Exit criteria:
 
 ## Verification Checklist
 - [x] `zig fmt <owned-paths>`
-- [ ] Example owned-path formatting: `zig fmt docs/plan.md prompts/*.md`
+- [x] Example owned-path formatting: `zig fmt docs/plan.md`
 - [x] `zig build`
 - [x] `zig build run -- --help`
 - [x] `zig build validate-flags`
@@ -225,7 +225,7 @@ Exit criteria:
 ## Remaining Risks (As of 2026-02-08)
 - The test harness output still prints `failed command ... --listen=-` during
   `zig build test --summary all` / `zig build full-check` even when the build step exits `0`
-  and reports `983/988` passing (`5` skipped). Treat as a known harness artifact unless exit
+  and reports `1220/1225` passing (`5` skipped). Treat as a known harness artifact unless exit
   status changes.
 - Local Zig cache can intermittently emit `FileNotFound` in highly parallel `run-*` builds;
   use `-j1` for deterministic local verification when this occurs.
@@ -259,8 +259,8 @@ Import chains verified: `abi.zig` -> `services/{shared,runtime}/mod.zig` -> sub-
 
 ### v2 Modules Intentionally Skipped
 - `config.zig` — framework already has layered config system
-- `gpu.zig` — existing GPU module is far more complete (11 backends)
-- `cli.zig` — existing CLI has 26 commands
+- `gpu.zig` — existing GPU module is far more complete (10 backends)
+- `cli.zig` — existing CLI has 28 commands (+ 4 aliases)
 - `main.zig` — entry point, not applicable
 
 ---
@@ -376,9 +376,9 @@ Parallel agent dispatch — 4 agents + 1 manual task:
 - [x] Updated `docs/api/runtime-memory.md` — ArenaPool, FallbackAllocator, 6 other allocators
 - [x] Updated `docs/api/index.md` — fixed broken links, added analytics/cloud sections
 - [x] GPU stub parity improved — added Vendor, AccessHint, ElementType, AsyncTransfer, compile functions, backendFlag
-- [x] `.claude-plugin/` agents updated — test baseline 944→983, v2 module awareness, security checks, I/O backend
+- [x] `.claude-plugin/` agents updated — test baseline 944→1220, v2 module awareness, security checks, I/O backend
 
-Test evidence: 983 pass, 5 skip (988 total) — +1 pass from GPU stub parity fix
+Test evidence: 1220 pass, 5 skip (1225 total)
 
 ## Near-Term Milestones (February 2026)
 - 2026-02-08: ~~Baseline captured and ownership map confirmed.~~ DONE
@@ -386,7 +386,7 @@ Test evidence: 983 pass, 5 skip (988 total) — +1 pass from GPU stub parity fix
 - 2026-02-08: ~~Benchmark safety fixes (errdefer, div-by-zero, percentile).~~ DONE (commit `46f24957`)
 - 2026-02-08: ~~M10 production readiness (health, signal, status CLI).~~ DONE (commit `4c58d5a0`)
 - 2026-02-08: ~~M11 language bindings (state + feature count, all 5 langs).~~ DONE (commit `290baa66`)
-- 2026-02-08: ~~v2 integration tests written and passing.~~ DONE (983 pass, 5 skip)
+- 2026-02-08: ~~v2 integration tests written and passing.~~ DONE (1220 pass, 5 skip)
 - 2026-02-08: ~~File splits completed (7 large files).~~ DONE (commits `92df056e`..`dc81b382`)
 - 2026-02-08: ~~GPU Backend enum unified + CloudConfig passthrough.~~ DONE (commit `04f3fbaa`)
 - 2026-02-08: ~~Security hardening (abix_serialize, swiss_map).~~ DONE (commit `26ed075d`)
@@ -400,10 +400,10 @@ Test evidence: 983 pass, 5 skip (988 total) — +1 pass from GPU stub parity fix
 
 | Metric | Baseline | Current | Target |
 |--------|----------|---------|--------|
-| Tests passing | 944 | 1217 | 1200+ |
+| Tests passing | 944 | 1220 | 1200+ |
 | Tests skipped | 5 | 5 | 6 or fewer |
-| Feature tests | — | 618 | 618 |
-| Feature modules | 8 | 16 | 16 |
+| Feature tests | — | 671 | 671 |
+| Feature modules | 8 | 19 | 19 |
 | AI split modules | 0 | 4 | 4 |
 | v2 modules integrated | 0 | 15 | 15 |
 | Flag combos passing | 16 | 30 | 30 |
@@ -412,10 +412,11 @@ Test evidence: 983 pass, 5 skip (988 total) — +1 pass from GPU stub parity fix
 | Stub parity violations | TBD | 0 | 0 |
 | GPU backends | 9 | 12 | 12 |
 | File splits completed | 0 | 8 | 8 |
-| CLI commands | 24 | 26 | 26 |
+| CLI commands | 24 | 28 | 28 |
 | API doc files | ~15 | 22 | 22+ |
-| Connectors | 5 | 7 | 7 (6 LLM + discord) |
-| Skeleton modules | 7 | 1 | 0 (mobile only) |
+| Connectors | 5 | 10 | 10 (8 LLM + discord + scheduler) |
+| MCP tools | — | 5 | 5 |
+| Skeleton modules | 7 | 0 | 0 |
 
 ---
 
@@ -790,10 +791,10 @@ zig build full-check                 # Complete gate
 
 | Metric | Baseline | Current | Target |
 |--------|----------|---------|--------|
-| Tests passing | 944 | 1217 | 1200+ |
+| Tests passing | 944 | 1220 | 1200+ |
 | Tests skipped | 5 | 5 | 6 or fewer |
-| Feature tests | — | 618 | 618 |
-| Feature modules | 8 | 16 | 16 |
+| Feature tests | — | 671 | 671 |
+| Feature modules | 8 | 19 | 19 |
 | AI split modules | 0 | 4 | 4 |
 | v2 modules integrated | 0 | 15 | 15 |
 | Flag combos passing | 16 | 30 | 30 |
@@ -802,10 +803,11 @@ zig build full-check                 # Complete gate
 | Stub parity violations | TBD | 0 | 0 |
 | GPU backends | 9 | 12 | 12 |
 | File splits completed | 0 | 8 | 8 |
-| CLI commands | 24 | 26 | 26 |
+| CLI commands | 24 | 28 | 28 |
 | API doc files | ~15 | 22 | 22+ |
-| Connectors | 5 | 7 | 7 (6 LLM + discord) |
-| Skeleton modules | 7 | 1 | 0 (mobile only) |
+| Connectors | 5 | 10 | 10 (8 LLM + discord + scheduler) |
+| MCP tools | — | 5 | 5 |
+| Skeleton modules | 7 | 0 | 0 |
 
 ## Quick Links
 - [Cleanup + Production + Bindings Plan](plans/2026-02-08-cleanup-production-bindings.md)

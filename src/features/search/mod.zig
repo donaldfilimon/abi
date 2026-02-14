@@ -69,11 +69,24 @@ const stop_words = [_][]const u8{
     "you",   "he",    "she", "they", "not",
 };
 
+const stop_word_set = std.StaticStringMap(void).initComptime(.{
+    .{ "a", {} },     .{ "an", {} },    .{ "the", {} },   .{ "and", {} },
+    .{ "or", {} },    .{ "but", {} },   .{ "in", {} },    .{ "on", {} },
+    .{ "at", {} },    .{ "to", {} },    .{ "for", {} },   .{ "of", {} },
+    .{ "with", {} },  .{ "by", {} },    .{ "from", {} },  .{ "is", {} },
+    .{ "are", {} },   .{ "was", {} },   .{ "were", {} },  .{ "be", {} },
+    .{ "been", {} },  .{ "being", {} }, .{ "have", {} },  .{ "has", {} },
+    .{ "had", {} },   .{ "do", {} },    .{ "does", {} },  .{ "did", {} },
+    .{ "will", {} },  .{ "would", {} }, .{ "could", {} }, .{ "should", {} },
+    .{ "may", {} },   .{ "might", {} }, .{ "shall", {} }, .{ "can", {} },
+    .{ "it", {} },    .{ "its", {} },   .{ "this", {} },  .{ "that", {} },
+    .{ "these", {} }, .{ "those", {} }, .{ "i", {} },     .{ "we", {} },
+    .{ "you", {} },   .{ "he", {} },    .{ "she", {} },   .{ "they", {} },
+    .{ "not", {} },
+});
+
 fn isStopWord(word: []const u8) bool {
-    for (stop_words) |sw| {
-        if (std.mem.eql(u8, word, sw)) return true;
-    }
-    return false;
+    return stop_word_set.has(word);
 }
 
 fn tokenize(
@@ -99,17 +112,17 @@ fn tokenize(
         const word = text[start..i];
         if (word.len == 0 or word.len > 100) continue;
 
-        // Lowercase
-        const lower = try allocator.alloc(u8, word.len);
+        // Lowercase into stack buffer first to check stop words without allocation
+        var lower_buf: [100]u8 = undefined;
         for (word, 0..) |c, j| {
-            lower[j] = std.ascii.toLower(c);
+            lower_buf[j] = std.ascii.toLower(c);
         }
+        const lower_word = lower_buf[0..word.len];
 
-        if (filter_stops and isStopWord(lower)) {
-            allocator.free(lower);
-            continue;
-        }
+        if (filter_stops and isStopWord(lower_word)) continue;
 
+        // Only allocate for non-stop words
+        const lower = try allocator.dupe(u8, lower_word);
         try tokens.append(allocator, lower);
     }
 

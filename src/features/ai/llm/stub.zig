@@ -114,6 +114,20 @@ pub const Model = struct {
     }
 };
 pub const ModelConfig = struct {
+    dim: u32 = 0,
+    n_layers: u32 = 0,
+    n_heads: u32 = 0,
+    n_kv_heads: u32 = 0,
+    vocab_size: u32 = 0,
+    max_seq_len: u32 = 0,
+    ffn_dim: u32 = 0,
+    norm_eps: f32 = 1e-6,
+    rope_theta: f32 = 10000.0,
+    tie_embeddings: bool = false,
+    arch: []const u8 = "",
+    attention_key_length: u32 = 0,
+    attention_value_length: u32 = 0,
+
     pub fn fromGguf(_: *const GgufFile) ModelConfig {
         return .{};
     }
@@ -122,6 +136,34 @@ pub const ModelConfig = struct {
     }
     pub fn estimateParameters(_: ModelConfig) u64 {
         return 0;
+    }
+    pub fn queryHeadDim(self: ModelConfig) u32 {
+        _ = self;
+        return 0;
+    }
+    pub fn keyHeadDim(self: ModelConfig) u32 {
+        _ = self;
+        return 0;
+    }
+    pub fn valueHeadDim(self: ModelConfig) u32 {
+        _ = self;
+        return 0;
+    }
+    pub fn queryDim(self: ModelConfig) u32 {
+        _ = self;
+        return 0;
+    }
+    pub fn kvDim(self: ModelConfig) u32 {
+        _ = self;
+        return 0;
+    }
+    pub fn valueDim(self: ModelConfig) u32 {
+        _ = self;
+        return 0;
+    }
+    pub fn supportsLlamaAttentionLayout(self: ModelConfig) bool {
+        _ = self;
+        return false;
     }
 };
 pub const Generator = struct {};
@@ -294,6 +336,22 @@ pub const InferenceConfig = struct {
     streaming: bool = true,
     batch_size: u32 = 512,
     context_size: u32 = 2048,
+    allow_ollama_fallback: bool = true,
+    ollama_model: ?[]const u8 = null,
+};
+
+pub const EngineBackend = enum {
+    none,
+    local_gguf,
+    ollama,
+
+    pub fn label(self: EngineBackend) []const u8 {
+        return switch (self) {
+            .none => "none",
+            .local_gguf => "local-gguf",
+            .ollama => "ollama",
+        };
+    }
 };
 
 pub const InferenceStats = struct {
@@ -351,6 +409,18 @@ pub const Engine = struct {
 
     pub fn getStats(_: *Engine) InferenceStats {
         return .{};
+    }
+
+    pub fn getBackend(_: *const Engine) EngineBackend {
+        return .none;
+    }
+
+    pub fn supportsStreaming(_: *const Engine) bool {
+        return false;
+    }
+
+    pub fn getBackendModelName(_: *const Engine) ?[]const u8 {
+        return null;
     }
 };
 

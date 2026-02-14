@@ -3,7 +3,8 @@ title: "API_REFERENCE"
 tags: []
 ---
 # API Reference
-> **Codebase Status:** Synced with repository as of 2026-02-08.
+
+> **Codebase Status:** Synced with repository as of 2026-02-14.
 
 <p align="center">
   <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>
@@ -12,9 +13,9 @@ tags: []
 </p>
 
 <p align="center">
-  <a href="docs/README.md">Documentation</a> |
-  <a href="CONTRIBUTING.md">Coding Patterns</a> |
-  <a href="CLAUDE.md">Development Guide</a>
+  <a href="README.md">Documentation</a> ·
+  <a href="../CONTRIBUTING.md">Contributing</a> ·
+  <a href="../CLAUDE.md">Development Guide</a>
 </p>
 
 ---
@@ -45,10 +46,9 @@ const abi = @import("abi");
 | Function | Description |
 |----------|-------------|
 | `abi.initDefault(allocator)` | Initialize with all default settings |
-| `abi.initWithConfig(allocator, config)` | Initialize with custom configuration |
-| `abi.init(allocator, config_or_options)` | Flexible initialization (backward-compatible) |
-| `abi.shutdown(framework)` | Clean up and release resources |
+| `abi.init(allocator, config)` | Initialize with custom configuration |
 | `abi.version()` | Get the framework version string |
+| `framework.deinit()` | Clean up and release resources |
 
 ### Quick Start Example
 
@@ -91,7 +91,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     // Initialize with specific features enabled
-    var fw = try abi.initWithConfig(allocator, .{
+    var fw = try abi.init(allocator, .{
         .gpu = .{ .backend = .vulkan },
         .ai = .{
             .llm = .{ .model_path = "./models/llama-7b.gguf" },
@@ -200,7 +200,7 @@ const name = abi.Feature.ai.name();              // "ai"
 const desc = abi.Feature.ai.description();       // "AI core functionality"
 ```
 
-> **Note:** `cloud` shares the `enable_web` build flag (no separate `-Denable-cloud`). `analytics` uses `-Denable-analytics`.
+> **Note:** `cloud` has its own `-Denable-cloud` build flag (decoupled from web). `analytics` uses `-Denable-analytics`.
 
 ## Framework Types
 
@@ -829,13 +829,22 @@ See [AI Guide](docs/api/ai.md) for persona capabilities and routing.
 
 ## Connectors API
 
+8 LLM provider connectors + Discord REST client:
+
 - `abi.connectors.openai` - OpenAI API connector
-- `abi.connectors.ollama` - Ollama API connector
+- `abi.connectors.anthropic` - Anthropic (Claude) API connector
+- `abi.connectors.ollama` - Ollama API connector (local)
 - `abi.connectors.huggingface` - HuggingFace API connector
+- `abi.connectors.mistral` - Mistral API connector
+- `abi.connectors.cohere` - Cohere API connector
+- `abi.connectors.lm_studio` - LM Studio connector (local, OpenAI-compatible)
+- `abi.connectors.vllm` - vLLM connector (local, OpenAI-compatible)
+- `abi.connectors.discord` - Discord REST client
 
 Each connector provides:
 - `Client.init(allocator, config)` - Initialize client
 - `Client.deinit()` - Clean up resources
+- `Client.isAvailable()` - Zero-allocation env var check
 - Connector-specific methods for inference/chat/completion
 
 ## SIMD API

@@ -3,9 +3,12 @@ title: "Source Directory"
 tags: [source, architecture, modules]
 ---
 # Source Directory
-> **Codebase Status:** Synced with repository as of 2026-02-08.
+
+> **Codebase Status:** Synced with repository as of 2026-02-14.
 
 Core source modules of the ABI framework organized by function.
+
+**Contents:** [Structure](#structure) · [Module Hierarchy](#module-hierarchy) · [v2 Integration](#v2-module-integration) · [Key Entry Points](#key-entry-points) · [Feature Gating](#feature-gating-pattern) · [See Also](#see-also)
 
 ## Structure
 
@@ -17,7 +20,7 @@ at compile time via `build_options`.
 |-----------|-------------|
 | `api/` | Executable entry points (`main.zig`) |
 | `core/` | Framework orchestration, config, registry, startup, WASM support |
-| `features/` | 8 feature modules with comptime gating |
+| `features/` | 19 feature modules with comptime gating |
 | `lib/` | Library and WASM entry points (`lib_main.zig`, `wasm_main.zig`) |
 | `services/` | Always-available infrastructure: runtime, platform, shared, connectors, HA, tasks, tests |
 
@@ -42,12 +45,23 @@ src/
 │
 ├── features/                # Feature modules (mod.zig + stub.zig each)
 │   ├── ai/                  # AI/ML — 17 submodules, 255+ files
+│   ├── ai_core/             # AI agents, tools, prompts, personas, memory
+│   ├── ai_inference/        # LLM, embeddings, vision, streaming
+│   ├── ai_training/         # Training pipelines, federated learning
+│   ├── ai_reasoning/        # Abbey, RAG, eval, templates, orchestration
 │   ├── analytics/           # Event tracking and experiments
-│   ├── cloud/               # Cloud adapters (AWS, GCP, Azure) — gated by enable_web
+│   ├── auth/                # Security (re-exports shared/security/)
+│   ├── cache/               # In-memory LRU/LFU, TTL, eviction
+│   ├── cloud/               # Cloud adapters (AWS, GCP, Azure)
 │   ├── database/            # Vector database (HNSW, clustering)
-│   ├── gpu/                 # GPU compute — 11 backends, DSL, multi-GPU
+│   ├── gateway/             # API gateway: routing, rate limiting, circuit breaker
+│   ├── gpu/                 # GPU compute — 11 backends (CUDA, Vulkan, Metal, WebGPU, TPU, …), DSL, multi-GPU
+│   ├── messaging/           # Event bus, pub/sub, message queues
+│   ├── mobile/              # Mobile platform support (defaults disabled)
 │   ├── network/             # Distributed compute and networking
 │   ├── observability/       # Metrics and tracing — gated by enable_profiling
+│   ├── search/              # Full-text search with BM25 scoring
+│   ├── storage/             # Unified file/object storage
 │   └── web/                 # Web/HTTP framework and middleware
 │
 ├── lib/                     # Library entry points
@@ -55,15 +69,22 @@ src/
 │   └── wasm_main.zig        # WASM library entry
 │
 └── services/                # Always-available infrastructure
-    ├── connectors/          # External API connectors
-    │   ├── mod.zig          #   Aggregator + stub.zig
+    ├── connectors/          # External API connectors (8 LLM + discord + scheduler)
+    │   ├── mod.zig          #   Aggregator + loader helpers
     │   ├── anthropic.zig    #   Claude API
     │   ├── openai.zig       #   OpenAI API
     │   ├── ollama.zig       #   Local Ollama
     │   ├── huggingface.zig  #   HuggingFace Hub
     │   ├── cohere.zig       #   Cohere API
     │   ├── mistral.zig      #   Mistral API
+    │   ├── lm_studio.zig    #   LM Studio (OpenAI-compatible)
+    │   ├── vllm.zig         #   vLLM (OpenAI-compatible)
+    │   ├── local_scheduler.zig  #  Job scheduling
     │   └── discord/         #   Discord bot (mod, types, utils, rest)
+    │
+    ├── mcp/                 # MCP server (JSON-RPC 2.0 over stdio, 5 WDBX tools)
+    │
+    ├── acp/                 # ACP server (agent communication protocol)
     │
     ├── ha/                  # High availability
     │   ├── consensus.zig    #   Raft consensus
@@ -99,7 +120,7 @@ src/
     │   └── pipeline.zig
     │
     └── tests/               # Test infrastructure
-        ├── mod.zig          #   Test root (983 pass, 5 skip baseline)
+        ├── mod.zig          #   Test root (1220 pass, 5 skip baseline)
         ├── parity/          #   DeclSpec mod/stub parity tests
         ├── integration/     #   Integration tests
         ├── stress/          #   Stress tests
@@ -151,9 +172,9 @@ else
 |---------|-----------|-------|
 | `ai` | `enable_ai` | 17 submodules, each with own mod/stub |
 | `analytics` | `enable_analytics` | Event tracking, experiments |
-| `cloud` | `enable_web` | Shares flag with web (intentional coupling) |
+| `cloud` | `enable_cloud` | Cloud adapters (decoupled from web) |
 | `database` | `enable_database` | Vector DB, HNSW, clustering |
-| `gpu` | `enable_gpu` | 11 backends via `-Dgpu-backend=` |
+| `gpu` | `enable_gpu` | 11 backends via `-Dgpu-backend=` (cuda, vulkan, metal, webgpu, tpu, …) |
 | `network` | `enable_network` | Distributed compute |
 | `observability` | `enable_profiling` | Metrics and tracing |
 | `web` | `enable_web` | HTTP framework |
