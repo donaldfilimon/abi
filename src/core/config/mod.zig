@@ -25,6 +25,7 @@ pub const storage_config = @import("storage.zig");
 pub const search_config = @import("search.zig");
 pub const mobile_config = @import("mobile.zig");
 pub const gateway_config = @import("gateway.zig");
+pub const benchmarks_config = @import("benchmarks.zig");
 pub const plugin_config = @import("plugin.zig");
 pub const loader = @import("loader.zig");
 
@@ -58,6 +59,7 @@ pub const CacheConfig = cache_config.CacheConfig;
 pub const StorageConfig = storage_config.StorageConfig;
 pub const SearchConfig = search_config.SearchConfig;
 pub const GatewayConfig = gateway_config.GatewayConfig;
+pub const BenchmarksConfig = benchmarks_config.BenchmarksConfig;
 pub const MobileConfig = mobile_config.MobileConfig;
 pub const PluginConfig = plugin_config.PluginConfig;
 
@@ -87,6 +89,7 @@ pub const Feature = enum {
     search,
     mobile,
     gateway,
+    benchmarks,
     reasoning,
 
     /// Number of features in the enum
@@ -115,6 +118,7 @@ pub const Feature = enum {
         descs[@intFromEnum(Feature.search)] = "Full-text search";
         descs[@intFromEnum(Feature.mobile)] = "Mobile platform support";
         descs[@intFromEnum(Feature.gateway)] = "API gateway (routing, rate limiting, circuit breaker)";
+        descs[@intFromEnum(Feature.benchmarks)] = "Performance benchmarking and timing";
         descs[@intFromEnum(Feature.reasoning)] = "AI reasoning (Abbey, eval, RAG)";
         break :blk descs;
     };
@@ -142,6 +146,7 @@ pub const Feature = enum {
         enabled[@intFromEnum(Feature.search)] = build_options.enable_search;
         enabled[@intFromEnum(Feature.mobile)] = build_options.enable_mobile;
         enabled[@intFromEnum(Feature.gateway)] = build_options.enable_gateway;
+        enabled[@intFromEnum(Feature.benchmarks)] = build_options.enable_benchmarks;
         enabled[@intFromEnum(Feature.reasoning)] = build_options.enable_reasoning;
         break :blk enabled;
     };
@@ -183,6 +188,7 @@ pub const Config = struct {
     search: ?SearchConfig = null,
     mobile: ?MobileConfig = null,
     gateway: ?GatewayConfig = null,
+    benchmarks: ?BenchmarksConfig = null,
     plugins: PluginConfig = .{},
 
     /// Create a config with all compile-time enabled features using defaults.
@@ -203,6 +209,7 @@ pub const Config = struct {
             .search = if (build_options.enable_search) SearchConfig.defaults() else null,
             .mobile = if (build_options.enable_mobile) MobileConfig.defaults() else null,
             .gateway = if (build_options.enable_gateway) GatewayConfig.defaults() else null,
+            .benchmarks = if (build_options.enable_benchmarks) BenchmarksConfig.defaults() else null,
         };
     }
 
@@ -234,6 +241,7 @@ pub const Config = struct {
             .search => self.search != null,
             .mobile => self.mobile != null,
             .gateway => self.gateway != null,
+            .benchmarks => self.benchmarks != null,
             .reasoning => self.ai != null and build_options.enable_reasoning,
         };
     }
@@ -435,6 +443,16 @@ pub const Builder = struct {
         return self;
     }
 
+    pub fn withBenchmarks(self: *Builder, cfg: BenchmarksConfig) *Builder {
+        self.config.benchmarks = cfg;
+        return self;
+    }
+
+    pub fn withBenchmarksDefaults(self: *Builder) *Builder {
+        self.config.benchmarks = BenchmarksConfig.defaults();
+        return self;
+    }
+
     pub fn withPlugins(self: *Builder, cfg: PluginConfig) *Builder {
         self.config.plugins = cfg;
         return self;
@@ -480,6 +498,7 @@ pub fn validate(cfg: Config) ConfigError!void {
         .{ .is_enabled_in_config = cfg.search != null, .is_enabled_at_build = build_options.enable_search },
         .{ .is_enabled_in_config = cfg.mobile != null, .is_enabled_at_build = build_options.enable_mobile },
         .{ .is_enabled_in_config = cfg.gateway != null, .is_enabled_at_build = build_options.enable_gateway },
+        .{ .is_enabled_in_config = cfg.benchmarks != null, .is_enabled_at_build = build_options.enable_benchmarks },
     };
     inline for (validations) |entry| {
         if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {

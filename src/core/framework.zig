@@ -98,6 +98,7 @@ const cache_mod = if (build_options.enable_cache) @import("../features/cache/mod
 const storage_mod = if (build_options.enable_storage) @import("../features/storage/mod.zig") else @import("../features/storage/stub.zig");
 const search_mod = if (build_options.enable_search) @import("../features/search/mod.zig") else @import("../features/search/stub.zig");
 const gateway_mod = if (build_options.enable_gateway) @import("../features/gateway/mod.zig") else @import("../features/gateway/stub.zig");
+const benchmarks_mod = if (build_options.enable_benchmarks) @import("../features/benchmarks/mod.zig") else @import("../features/benchmarks/stub.zig");
 const mobile_mod = if (build_options.enable_mobile) @import("../features/mobile/mod.zig") else @import("../features/mobile/stub.zig");
 const ai_core_mod = if (build_options.enable_ai) @import("../features/ai_core/mod.zig") else @import("../features/ai_core/stub.zig");
 const ai_inference_mod = if (build_options.enable_llm) @import("../features/ai_inference/mod.zig") else @import("../features/ai_inference/stub.zig");
@@ -186,6 +187,8 @@ pub const Framework = struct {
     search: ?*search_mod.Context = null,
     /// Gateway context, or null if gateway is not enabled.
     gateway: ?*gateway_mod.Context = null,
+    /// Benchmarks context, or null if benchmarks is not enabled.
+    benchmarks: ?*benchmarks_mod.Context = null,
     /// Mobile context, or null if mobile is not enabled.
     mobile: ?*mobile_mod.Context = null,
     /// AI Core context (agents, tools, prompts), or null if not enabled.
@@ -374,6 +377,13 @@ pub const Framework = struct {
             fw.gateway = try gateway_mod.Context.init(allocator, gateway_cfg);
             if (comptime build_options.enable_gateway) {
                 try fw.registry.registerComptime(.gateway);
+            }
+        }
+
+        if (cfg.benchmarks) |benchmarks_cfg| {
+            fw.benchmarks = try benchmarks_mod.Context.init(allocator, benchmarks_cfg);
+            if (comptime build_options.enable_benchmarks) {
+                try fw.registry.registerComptime(.benchmarks);
             }
         }
 
@@ -575,6 +585,7 @@ pub const Framework = struct {
         // Then standard feature modules
         deinitOptionalContext(mobile_mod.Context, &self.mobile);
         deinitOptionalContext(gateway_mod.Context, &self.gateway);
+        deinitOptionalContext(benchmarks_mod.Context, &self.benchmarks);
         deinitOptionalContext(search_mod.Context, &self.search);
         deinitOptionalContext(storage_mod.Context, &self.storage);
         deinitOptionalContext(cache_mod.Context, &self.cache);
@@ -677,6 +688,11 @@ pub const Framework = struct {
     /// Get gateway context (returns error if not enabled).
     pub fn getGateway(self: *Framework) Error!*gateway_mod.Context {
         return requireFeature(gateway_mod.Context, self.gateway);
+    }
+
+    /// Get benchmarks context (returns error if not enabled).
+    pub fn getBenchmarks(self: *Framework) Error!*benchmarks_mod.Context {
+        return requireFeature(benchmarks_mod.Context, self.benchmarks);
     }
 
     /// Get mobile context (returns error if not enabled).
@@ -925,6 +941,18 @@ pub const FrameworkBuilder = struct {
     /// Enable gateway with defaults.
     pub fn withGatewayDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
         _ = self.config_builder.withGatewayDefaults();
+        return self;
+    }
+
+    /// Enable benchmarks with configuration.
+    pub fn withBenchmarks(self: *FrameworkBuilder, benchmarks_cfg: config_module.BenchmarksConfig) *FrameworkBuilder {
+        _ = self.config_builder.withBenchmarks(benchmarks_cfg);
+        return self;
+    }
+
+    /// Enable benchmarks with defaults.
+    pub fn withBenchmarksDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withBenchmarksDefaults();
         return self;
     }
 

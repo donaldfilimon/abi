@@ -443,6 +443,19 @@ test "gateway stub parity - types exist" {
 }
 
 // ============================================================================
+// Benchmarks Module Parity
+// ============================================================================
+
+test "benchmarks stub parity - types exist" {
+    const Benchmarks = abi.benchmarks;
+
+    try testing.expect(@hasDecl(Benchmarks, "Config"));
+    try testing.expect(@hasDecl(Benchmarks, "BenchmarksError"));
+    try testing.expect(@hasDecl(Benchmarks, "Context"));
+    try testing.expect(@hasDecl(Benchmarks, "isEnabled"));
+}
+
+// ============================================================================
 // Mobile Module Parity
 // ============================================================================
 

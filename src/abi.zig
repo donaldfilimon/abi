@@ -222,6 +222,12 @@ pub const search = if (build_options.enable_search)
 else
     @import("features/search/stub.zig");
 
+/// Performance benchmarking and timing.
+pub const benchmarks = if (build_options.enable_benchmarks)
+    @import("features/benchmarks/mod.zig")
+else
+    @import("features/benchmarks/stub.zig");
+
 // ============================================================================
 // Convenience Aliases (minimal)
 // ============================================================================
