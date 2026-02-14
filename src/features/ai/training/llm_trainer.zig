@@ -444,8 +444,7 @@ pub const LlamaTrainer = struct {
         );
 
         // Apply gradient clipping
-        // In real implementation, clip model.weights.d_*
-        const grad_norm = self.config.max_grad_norm;
+        const grad_norm = self.model.clipGradients(self.config.max_grad_norm);
 
         // Apply optimizer update based on type
         switch (self.config.optimizer) {
@@ -476,11 +475,52 @@ pub const LlamaTrainer = struct {
         try self.maybeLog();
     }
 
-    /// Apply SGD update.
+    /// Collect gradients into a flat array (same layout as collectWeights).
+    fn collectGradients(self: *LlamaTrainer) ![]f32 {
+        const n = self.model.numParams();
+        const grads = try self.allocator.alloc(f32, n);
+        errdefer self.allocator.free(grads);
+
+        var off: usize = 0;
+        const w = &self.model.weights;
+
+        @memcpy(grads[off..][0..w.d_token_embedding.len], w.d_token_embedding);
+        off += w.d_token_embedding.len;
+
+        for (w.layers) |layer| {
+            inline for (.{
+                layer.d_w_q,       layer.d_w_k,    layer.d_w_v,  layer.d_w_o,
+                layer.d_attn_norm, layer.d_w_gate, layer.d_w_up, layer.d_w_down,
+                layer.d_ffn_norm,
+            }) |slice| {
+                @memcpy(grads[off..][0..slice.len], slice);
+                off += slice.len;
+            }
+        }
+
+        @memcpy(grads[off..][0..w.d_final_norm.len], w.d_final_norm);
+        off += w.d_final_norm.len;
+
+        if (w.d_output_proj) |d_op| {
+            @memcpy(grads[off..][0..d_op.len], d_op);
+            off += d_op.len;
+        }
+
+        return grads;
+    }
+
+    /// Apply SGD update: weight -= lr * gradient
     fn applySgdUpdate(self: *LlamaTrainer, lr: f32) void {
-        // Placeholder: would iterate over model weights
-        _ = self;
-        _ = lr;
+        const weights = self.model.collectWeights() catch return;
+        defer self.allocator.free(weights);
+        const grads = self.collectGradients() catch return;
+        defer self.allocator.free(grads);
+
+        for (weights, grads) |*w, g| {
+            w.* -= lr * g;
+        }
+
+        self.model.distributeWeights(weights) catch return;
     }
 
     /// Apply Adam/AdamW update.
@@ -490,23 +530,36 @@ pub const LlamaTrainer = struct {
         const eps = self.optimizer_state.epsilon;
         const t = @as(f32, @floatFromInt(self.stats.global_step + 1));
 
-        // Bias correction
         const bias_correction1 = 1.0 - std.math.pow(f32, beta1, t);
         const bias_correction2 = 1.0 - std.math.pow(f32, beta2, t);
 
-        // In real implementation:
-        // 1. m = beta1 * m + (1 - beta1) * grad
-        // 2. v = beta2 * v + (1 - beta2) * grad^2
-        // 3. m_hat = m / bias_correction1
-        // 4. v_hat = v / bias_correction2
-        // 5. If AdamW: weight -= lr * weight_decay * weight
-        // 6. weight -= lr * m_hat / (sqrt(v_hat) + eps)
+        const m = self.optimizer_state.m orelse return;
+        const v = self.optimizer_state.v orelse return;
 
-        _ = lr;
-        _ = bias_correction1;
-        _ = bias_correction2;
-        _ = eps;
-        _ = weight_decay;
+        const weights = self.model.collectWeights() catch return;
+        defer self.allocator.free(weights);
+        const grads = self.collectGradients() catch return;
+        defer self.allocator.free(grads);
+
+        const wd = self.config.weight_decay;
+
+        for (weights, grads, m, v) |*w, g, *mi, *vi| {
+            // Update biased first moment estimate
+            mi.* = beta1 * mi.* + (1.0 - beta1) * g;
+            // Update biased second raw moment estimate
+            vi.* = beta2 * vi.* + (1.0 - beta2) * g * g;
+            // Bias-corrected estimates
+            const m_hat = mi.* / bias_correction1;
+            const v_hat = vi.* / bias_correction2;
+            // AdamW: decoupled weight decay
+            if (weight_decay) {
+                w.* -= lr * wd * w.*;
+            }
+            // Parameter update
+            w.* -= lr * m_hat / (@sqrt(v_hat) + eps);
+        }
+
+        self.model.distributeWeights(weights) catch return;
     }
 
     /// Train for one epoch.

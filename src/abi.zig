@@ -38,7 +38,7 @@
 //! - `abi.ai` / `abi.ai_core` / `abi.inference` / `abi.training` / `abi.reasoning`
 //! - `abi.gpu`, `abi.database`, `abi.network`, `abi.web`, `abi.cloud`
 //! - `abi.observability`, `abi.analytics`, `abi.auth`, `abi.messaging`
-//! - `abi.cache`, `abi.storage`, `abi.search`
+//! - `abi.cache`, `abi.storage`, `abi.search`, `abi.gateway`
 //! - `abi.shared.simd`, `abi.connectors.discord`
 
 const std = @import("std");
@@ -94,6 +94,9 @@ pub const ha = @import("services/ha/mod.zig");
 
 /// Task management system.
 pub const tasks = @import("services/tasks/mod.zig");
+
+/// MCP (Model Context Protocol) server for WDBX database.
+pub const mcp = @import("services/mcp/mod.zig");
 
 /// SIMD operations (shorthand for `shared.simd`).
 pub const simd = @import("services/shared/simd.zig");
@@ -203,6 +206,12 @@ pub const mobile = if (build_options.enable_mobile)
     @import("features/mobile/mod.zig")
 else
     @import("features/mobile/stub.zig");
+
+/// API gateway (routing, rate limiting, circuit breaker).
+pub const gateway = if (build_options.enable_gateway)
+    @import("features/gateway/mod.zig")
+else
+    @import("features/gateway/stub.zig");
 
 /// Full-text search.
 pub const search = if (build_options.enable_search)

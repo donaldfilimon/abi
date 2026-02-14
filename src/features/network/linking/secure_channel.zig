@@ -428,103 +428,34 @@ pub const SecureChannel = struct {
 
     /// Noise XX pattern handshake.
     ///
-    /// **WARNING: PLACEHOLDER IMPLEMENTATION - NOT FOR PRODUCTION USE**
-    ///
-    /// This is a simplified placeholder that derives keys from local public key only.
-    /// A real Noise XX implementation requires:
-    /// 1. Actual key exchange with the remote peer
-    /// 2. Ephemeral key generation and exchange
-    /// 3. Proper Noise pattern state machine
-    ///
-    /// Do NOT use this for securing sensitive communications until a proper
-    /// Noise Protocol implementation is added.
-    fn noiseXXHandshake(self: *SecureChannel) ChannelError!void {
-        const kp = self.local_keypair orelse return error.NoKeyPair;
-
-        // PLACEHOLDER: Derives keys from local public key only - NO ACTUAL KEY EXCHANGE
-        var hash = std.crypto.hash.Blake2b256.init(.{});
-        hash.update(&kp.public_key);
-        hash.update("noise-xx-handshake");
-        hash.final(&self.send_key);
-
-        @memcpy(&self.recv_key, &self.send_key);
+    /// Requires a full Noise Protocol Framework implementation with
+    /// ephemeral key exchange and proper state machine. Not yet implemented.
+    fn noiseXXHandshake(_: *SecureChannel) ChannelError!void {
+        return error.NotImplemented;
     }
 
     /// WireGuard-style handshake.
     ///
-    /// **WARNING: PLACEHOLDER IMPLEMENTATION - NOT FOR PRODUCTION USE**
-    ///
-    /// This is a simplified placeholder that derives keys locally without peer exchange.
-    /// A real WireGuard implementation requires:
-    /// 1. Noise_IKpsk2 handshake pattern
-    /// 2. Peer public key exchange
-    /// 3. Cookie/MAC computation for DoS protection
-    ///
-    /// Do NOT use this for securing sensitive communications until a proper
-    /// WireGuard implementation is added.
-    fn wireguardHandshake(self: *SecureChannel) ChannelError!void {
-        const kp = self.local_keypair orelse return error.NoKeyPair;
-
-        // PLACEHOLDER: Derives keys locally - NO ACTUAL KEY EXCHANGE
-        var hash = std.crypto.hash.Blake2b256.init(.{});
-        hash.update(&kp.public_key);
-        hash.update("wireguard-handshake");
-
-        if (self.config.psk) |psk| {
-            hash.update(&psk);
-        }
-
-        hash.final(&self.send_key);
-        @memcpy(&self.recv_key, &self.send_key);
+    /// Requires Noise_IKpsk2 pattern, peer key exchange, and DoS protection.
+    /// Not yet implemented.
+    fn wireguardHandshake(_: *SecureChannel) ChannelError!void {
+        return error.NotImplemented;
     }
 
     /// TLS handshake.
     ///
-    /// **WARNING: PLACEHOLDER IMPLEMENTATION - NOT FOR PRODUCTION USE**
-    ///
-    /// This is a simplified placeholder that does NOT perform actual TLS negotiation.
-    /// A real TLS implementation requires:
-    /// 1. Full TLS handshake state machine
-    /// 2. Certificate validation
-    /// 3. Cipher suite negotiation
-    /// 4. Use of a proper TLS library (e.g., OpenSSL, BoringSSL, s2n)
-    ///
-    /// Do NOT use this for securing sensitive communications. Use a real TLS
-    /// library for production deployments.
-    fn tlsHandshake(self: *SecureChannel) ChannelError!void {
-        const kp = self.local_keypair orelse return error.NoKeyPair;
-
-        // PLACEHOLDER: Derives keys locally - NO ACTUAL TLS NEGOTIATION
-        var hash = std.crypto.hash.Blake2b256.init(.{});
-        hash.update(&kp.public_key);
-        hash.update("tls-handshake");
-        hash.final(&self.send_key);
-
-        @memcpy(&self.recv_key, &self.send_key);
+    /// Requires a full TLS library (OpenSSL, BoringSSL, or s2n) for
+    /// certificate validation and cipher suite negotiation. Not yet implemented.
+    fn tlsHandshake(_: *SecureChannel) ChannelError!void {
+        return error.NotImplemented;
     }
 
     /// Custom X25519-based handshake.
     ///
-    /// **WARNING: PLACEHOLDER IMPLEMENTATION - NOT FOR PRODUCTION USE**
-    ///
-    /// This is a simplified placeholder that derives keys from local public key only.
-    /// A real implementation requires:
-    /// 1. X25519 Diffie-Hellman key exchange with peer
-    /// 2. Nonce/session ID exchange
-    /// 3. Proper key derivation function (HKDF)
-    ///
-    /// Do NOT use this for securing sensitive communications until proper
-    /// X25519 key exchange is implemented.
-    fn customHandshake(self: *SecureChannel) ChannelError!void {
-        const kp = self.local_keypair orelse return error.NoKeyPair;
-
-        // PLACEHOLDER: Derives keys from local public key only - NO PEER EXCHANGE
-        var hash = std.crypto.hash.Blake2b256.init(.{});
-        hash.update(&kp.public_key);
-        hash.update("custom-handshake");
-        hash.final(&self.send_key);
-
-        @memcpy(&self.recv_key, &self.send_key);
+    /// Requires X25519 DH key exchange with peer, nonce exchange, and HKDF.
+    /// Not yet implemented.
+    fn customHandshake(_: *SecureChannel) ChannelError!void {
+        return error.NotImplemented;
     }
 
     fn deriveNewKeys(self: *SecureChannel) ChannelError!void {
@@ -588,6 +519,7 @@ pub const ChannelError = error{
     OutOfMemory,
     Timeout,
     Closed,
+    NotImplemented,
 };
 
 /// Encrypted message format.

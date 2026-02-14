@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1216 pass, 5 skip (1221 total) — must be maintained |
+| **Test baseline** | 1220 pass, 5 skip (1225 total) — must be maintained |
 
 ## Build & Test Commands
 
@@ -23,8 +23,8 @@ zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
 zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke tests
-zig build validate-flags                     # Compile-check 26 feature flag combos
-zig build cli-tests                          # CLI smoke tests
+zig build validate-flags                     # Compile-check 30 feature flag combos
+zig build cli-tests                          # CLI smoke tests (top-level + nested, e.g. help llm, bench micro hash)
 zig build lint                               # CI formatting check
 zig build benchmarks                         # Performance benchmarks
 zig build bench-all                          # Run all benchmark suites
@@ -69,6 +69,7 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 | `observability` | `-Denable-profiling` | Not `-Denable-observability` |
 | `search` | `-Denable-search` | Full-text search |
 | `storage` | `-Denable-storage` | Unified file/object storage |
+| `gateway` | `-Denable-gateway` | API gateway: routing, rate limiting, circuit breaker |
 | `web` | `-Denable-web` | |
 
 ## Critical Gotchas
@@ -93,6 +94,10 @@ These are the mistakes most likely to cause compilation failures:
 | `@panic` in library code | Return an error instead — library code should never panic |
 | `std.time.Timer.read()` → `u64` | Returns `usize` in `0.16.0-dev.2535+b5bd49460`, not `u64` — cast or use `@as(u64, timer.read())` |
 | `std.log.err` in tests | Test runner treats error-level log output as a test failure, even if caught. Skip the test before entering error paths |
+| `opaque` as identifier | `opaque` is a keyword in 0.16 — use `is_opaque` or `@"opaque"` |
+| `FallbackAllocator` double-free | Can't call `rawFree` on both backing allocators — use `rawResize(..0..)` to probe ownership |
+| `Timer.start() catch` with bogus fallback | `catch std.time.Timer{ .started = .{...} }` produces wrong `.read()` values — only acceptable because `Timer.start()` virtually never fails |
+| SwissMap `@typeInfo(.int)` branch | Matches all integer types — explicit checks after it are unreachable |
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -132,7 +137,7 @@ This means:
 ```
 src/abi.zig              → Public API, comptime feature selection, type aliases
 src/core/                → Framework lifecycle, config builder, registry
-src/features/<name>/     → mod.zig + stub.zig per feature (15 modules + 4 AI split modules)
+src/features/<name>/     → mod.zig + stub.zig per feature (15 core + 4 AI split = 19 modules)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
 tools/cli/               → Primary CLI entry point and command registration
 src/api/                 → Additional executable entry points (e.g., `main.zig`)
@@ -166,19 +171,13 @@ When updating any entry above, verify import-chain stability:
 The `Framework` struct (`src/core/framework.zig`) manages feature initialization through
 a state machine: `uninitialized → initializing → running → stopping → stopped` (or `failed`).
 
-Three initialization patterns:
+Two initialization patterns:
 ```zig
 // 1. Default (all compile-time features enabled)
 var fw = try abi.initDefault(allocator);
 
 // 2. Custom config
-var fw = try abi.initWithConfig(allocator, .{ .gpu = .{ .backend = .vulkan } });
-
-// 3. Builder pattern
-var fw = try abi.Framework.builder(allocator)
-    .withGpuDefaults()
-    .withAiDefaults()
-    .build();
+var fw = try abi.init(allocator, .{ .gpu = .{ .backend = .vulkan } });
 ```
 
 ### Convenience Aliases
@@ -208,20 +207,44 @@ SPIR-V and other backends. `mega/` handles multi-GPU orchestration.
 Prefer one primary backend to avoid conflicts. On macOS, `metal` is the natural
 choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 
+## Connectors
+
+`src/services/connectors/` provides LLM provider integrations accessed via `abi.connectors`:
+- 6 LLM providers: `openai`, `anthropic`, `ollama`, `huggingface`, `mistral`, `cohere`
+- Discord REST client: `abi.connectors.discord`
+- Job scheduler: `abi.connectors.local_scheduler`
+- All expose `isAvailable()` for zero-allocation env var checks
+- Shared types in `shared.zig`: `ChatMessage`, `Role`, `ConnectorError`, `secureFree`
+- All use `model_owned: bool` for ownership tracking (prevents use-after-free in `loadFromEnv`)
+
 ## Key File Locations
 
 | Need to... | Look at |
 |------------|---------|
 | Add/modify public API | `src/abi.zig` |
 | Change build flags | `build.zig` |
-| Add a new feature module | 8+ files: `features/<name>/{mod,stub}.zig`, `build/options.zig`, `build/flags.zig`, `src/abi.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig`, `src/core/framework.zig`, `src/services/tests/stub_parity.zig`. **Verify:** `zig build validate-flags` |
+| Add a new feature module | See checklist below (8 integration points) |
 | Add a CLI command | `tools/cli/commands/`, register in `tools/cli/main.zig` |
 | Add config for a feature | `src/core/config/` |
 | Write integration tests | `src/services/tests/` |
 | Add a GPU backend | `src/features/gpu/backends/` |
 | Security infrastructure | `src/services/shared/security/` (16 modules) |
+| C API bindings | `bindings/c/src/abi_c.zig` (36 exports) |
 | Generate API docs | `zig build gendocs` → `docs/api/` |
-| Examples | `examples/` (21 examples) |
+| Examples | `examples/` (23 examples) |
+
+### Adding a New Feature Module (8 integration points)
+
+1. `build/options.zig` — add `enable_<name>` field + CLI option
+2. `build/flags.zig` — add to `FlagCombo`, `validation_matrix`, `comboToBuildOptions()`
+3. `src/features/<name>/mod.zig` + `stub.zig` — implementation + disabled stub
+4. `src/abi.zig` — comptime conditional import
+5. `src/core/config/mod.zig` — Feature enum, description, Config field, Builder methods, validation
+6. `src/core/registry/types.zig` — `isFeatureCompiledIn` switch case
+7. `src/core/framework.zig` — import, context field, init/deinit, getter, builder
+8. `src/services/tests/stub_parity.zig` — basic parity test
+
+**Verify:** `zig build validate-flags`
 
 ## Environment Variables
 
@@ -244,6 +267,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 - Import public API via `@import("abi")`, not deep file paths
 - Feature modules cannot `@import("abi")` (circular) — use relative imports to `services/shared/`
 - `std.log.*` in library code; `std.debug.print` only in CLI tools and display functions
+- Modern format specifiers: `{t}` for enums/errors, `{B}`/`{Bi}` for byte sizes, `{D}` for durations, `{b64}` for base64
 - For null-terminated C strings: `std.fmt.allocPrintSentinel(alloc, fmt, args, sentinel)` or use string literal `.ptr` (which is `[*:0]const u8`)
 
 ## Commit Convention
@@ -253,7 +277,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Current baseline**: 1216 pass, 5 skip (1221 total). **This baseline must be maintained** — any
+**Current baseline**: 1220 pass, 5 skip (1225 total). **This baseline must be maintained** — any
 PR that reduces passing tests or increases skipped tests requires justification.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are
@@ -264,6 +288,25 @@ path — use `abi.<feature>` instead.
 - Integration/stress/chaos/parity/property tests: `src/services/tests/`
 - Skip hardware-gated tests with `error.SkipZigTest`
 - Parity tests verify `mod.zig` and `stub.zig` export the same interface
+
+## After Making Changes
+
+| Changed... | Run |
+|------------|-----|
+| Any `.zig` file | `zig fmt .` |
+| Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
+| Build flags / options | `zig build validate-flags` |
+| Public API | `zig build test --summary all` + update examples |
+| Anything (full gate) | `zig build full-check` |
+| Build artifacts in `exe/` | Add `exe/` to `.gitignore` (see .gitignore) — standard output is `zig-out/` |
+
+## Claude Code Configuration
+
+- **Project agents** (`.claude/agents/`): Canonical — used in this repo
+- **Plugin agents** (`abi-framework-assistant`): Superset — adds module-health-checker, cross-module-analyzer, plus 3 commands (`/abi:health`, `/abi:preflight`, `/abi:module-status`)
+- **Overlap**: Plugin duplicates project agents. Project agents take precedence. Update project agents first; plugin is optional enhancement.
+- **MCP servers** (`.mcp.json`): `zig-docs` — Zig stdlib documentation lookup (auto-loaded for all team members)
+- **Hooks** (`.claude/settings.json`): Auto-format `.zig` on save, sensitive file guard, force-push blocker, test baseline guard
 
 ## References
 

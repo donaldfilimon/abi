@@ -13,6 +13,8 @@ pub const SearchError = error{
     InvalidQuery,
     IndexCorrupted,
     OutOfMemory,
+    IndexAlreadyExists,
+    DocumentNotFound,
 };
 
 pub const SearchResult = struct {
@@ -25,6 +27,12 @@ pub const SearchIndex = struct {
     name: []const u8 = "",
     doc_count: u64 = 0,
     size_bytes: u64 = 0,
+};
+
+pub const SearchStats = struct {
+    total_indexes: u32 = 0,
+    total_documents: u64 = 0,
+    total_terms: u64 = 0,
 };
 
 pub const Context = struct {
@@ -55,9 +63,18 @@ pub fn isInitialized() bool {
 pub fn createIndex(_: std.mem.Allocator, _: []const u8) SearchError!SearchIndex {
     return error.FeatureDisabled;
 }
+pub fn deleteIndex(_: []const u8) SearchError!void {
+    return error.FeatureDisabled;
+}
 pub fn indexDocument(_: []const u8, _: []const u8, _: []const u8) SearchError!void {
+    return error.FeatureDisabled;
+}
+pub fn deleteDocument(_: []const u8, _: []const u8) SearchError!bool {
     return error.FeatureDisabled;
 }
 pub fn query(_: std.mem.Allocator, _: []const u8, _: []const u8) SearchError![]SearchResult {
     return error.FeatureDisabled;
+}
+pub fn stats() SearchStats {
+    return .{};
 }

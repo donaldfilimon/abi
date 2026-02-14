@@ -28,6 +28,8 @@ pub const CacheStats = struct {
     misses: u64 = 0,
     entries: u32 = 0,
     memory_used: u64 = 0,
+    evictions: u64 = 0,
+    expired: u64 = 0,
 };
 
 pub const Context = struct {
@@ -61,8 +63,18 @@ pub fn get(_: []const u8) CacheError!?[]const u8 {
 pub fn put(_: []const u8, _: []const u8) CacheError!void {
     return error.FeatureDisabled;
 }
+pub fn putWithTtl(_: []const u8, _: []const u8, _: u64) CacheError!void {
+    return error.FeatureDisabled;
+}
 pub fn delete(_: []const u8) CacheError!bool {
     return error.FeatureDisabled;
+}
+pub fn contains(_: []const u8) bool {
+    return false;
+}
+pub fn clear() void {}
+pub fn size() u32 {
+    return 0;
 }
 pub fn stats() CacheStats {
     return .{};

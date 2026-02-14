@@ -466,12 +466,47 @@ const auth_required = [_][]const u8{
     "checkPermission",
 };
 
+/// Gateway module required declarations
+const gateway_required = [_][]const u8{
+    "GatewayConfig",
+    "RateLimitConfig",
+    "RateLimitAlgorithm",
+    "CircuitBreakerConfig",
+    "CircuitBreakerState",
+    "GatewayError",
+    "HttpMethod",
+    "Route",
+    "MiddlewareType",
+    "GatewayStats",
+    "MatchResult",
+    "RateLimitResult",
+    "Context",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "addRoute",
+    "removeRoute",
+    "getRoutes",
+    "matchRoute",
+    "checkRateLimit",
+    "recordUpstreamResult",
+    "stats",
+    "getCircuitState",
+    "resetCircuit",
+};
+
 /// Messaging module required declarations
 const messaging_required = [_][]const u8{
     "MessagingConfig",
     "MessagingError",
     "Message",
     "Channel",
+    "MessagingStats",
+    "TopicInfo",
+    "DeadLetter",
+    "DeliveryResult",
+    "SubscriberCallback",
     "Context",
     "init",
     "deinit",
@@ -479,6 +514,12 @@ const messaging_required = [_][]const u8{
     "isInitialized",
     "publish",
     "subscribe",
+    "unsubscribe",
+    "listTopics",
+    "topicStats",
+    "getDeadLetters",
+    "clearDeadLetters",
+    "messagingStats",
 };
 
 /// Cache module required declarations
@@ -495,7 +536,11 @@ const cache_required = [_][]const u8{
     "isInitialized",
     "get",
     "put",
+    "putWithTtl",
     "delete",
+    "contains",
+    "clear",
+    "size",
     "stats",
 };
 
@@ -505,15 +550,20 @@ const storage_required = [_][]const u8{
     "StorageBackend",
     "StorageError",
     "StorageObject",
+    "ObjectMetadata",
+    "StorageStats",
     "Context",
     "init",
     "deinit",
     "isEnabled",
     "isInitialized",
     "putObject",
+    "putObjectWithMetadata",
     "getObject",
     "deleteObject",
+    "objectExists",
     "listObjects",
+    "stats",
 };
 
 /// Search module required declarations
@@ -522,14 +572,18 @@ const search_required = [_][]const u8{
     "SearchError",
     "SearchResult",
     "SearchIndex",
+    "SearchStats",
     "Context",
     "init",
     "deinit",
     "isEnabled",
     "isInitialized",
     "createIndex",
+    "deleteIndex",
     "indexDocument",
+    "deleteDocument",
     "query",
+    "stats",
 };
 
 // ============================================================================
@@ -746,12 +800,40 @@ const auth_specs = [_]DeclSpec{
     .{ .name = "checkPermission", .kind = .function, .min_params = 2 },
 };
 
+/// Gateway module specs.
+const gateway_specs = [_]DeclSpec{
+    .{ .name = "GatewayConfig", .kind = .type_decl },
+    .{ .name = "GatewayError", .kind = .type_decl },
+    .{ .name = "HttpMethod", .kind = .type_decl },
+    .{ .name = "Route", .kind = .type_decl },
+    .{ .name = "MiddlewareType", .kind = .type_decl },
+    .{ .name = "GatewayStats", .kind = .type_decl },
+    .{ .name = "MatchResult", .kind = .type_decl, .sub_decls = &.{"getParam"} },
+    .{ .name = "RateLimitResult", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "init", .kind = .function },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "addRoute", .kind = .function, .min_params = 1 },
+    .{ .name = "removeRoute", .kind = .function, .min_params = 1 },
+    .{ .name = "matchRoute", .kind = .function, .min_params = 2 },
+    .{ .name = "checkRateLimit", .kind = .function, .min_params = 1 },
+    .{ .name = "recordUpstreamResult", .kind = .function, .min_params = 2 },
+    .{ .name = "stats", .kind = .function },
+    .{ .name = "getCircuitState", .kind = .function, .min_params = 1 },
+    .{ .name = "resetCircuit", .kind = .function, .min_params = 1 },
+};
+
 /// Messaging module specs.
 const messaging_specs = [_]DeclSpec{
     .{ .name = "MessagingConfig", .kind = .type_decl },
     .{ .name = "MessagingError", .kind = .type_decl },
     .{ .name = "Message", .kind = .type_decl },
     .{ .name = "Channel", .kind = .type_decl },
+    .{ .name = "MessagingStats", .kind = .type_decl },
+    .{ .name = "TopicInfo", .kind = .type_decl },
+    .{ .name = "DeadLetter", .kind = .type_decl },
     .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
     .{ .name = "init", .kind = .function },
     .{ .name = "deinit", .kind = .function },
@@ -759,6 +841,12 @@ const messaging_specs = [_]DeclSpec{
     .{ .name = "isInitialized", .kind = .function },
     .{ .name = "publish", .kind = .function, .min_params = 3 },
     .{ .name = "subscribe", .kind = .function, .min_params = 2 },
+    .{ .name = "unsubscribe", .kind = .function, .min_params = 1 },
+    .{ .name = "listTopics", .kind = .function, .min_params = 1 },
+    .{ .name = "topicStats", .kind = .function, .min_params = 1 },
+    .{ .name = "getDeadLetters", .kind = .function, .min_params = 1 },
+    .{ .name = "clearDeadLetters", .kind = .function },
+    .{ .name = "messagingStats", .kind = .function },
 };
 
 /// Cache module specs.
@@ -775,7 +863,11 @@ const cache_specs = [_]DeclSpec{
     .{ .name = "isInitialized", .kind = .function },
     .{ .name = "get", .kind = .function, .min_params = 1 },
     .{ .name = "put", .kind = .function, .min_params = 2 },
+    .{ .name = "putWithTtl", .kind = .function, .min_params = 3 },
     .{ .name = "delete", .kind = .function, .min_params = 1 },
+    .{ .name = "contains", .kind = .function, .min_params = 1 },
+    .{ .name = "clear", .kind = .function },
+    .{ .name = "size", .kind = .function },
     .{ .name = "stats", .kind = .function },
 };
 
@@ -785,15 +877,20 @@ const storage_specs = [_]DeclSpec{
     .{ .name = "StorageBackend", .kind = .type_decl },
     .{ .name = "StorageError", .kind = .type_decl },
     .{ .name = "StorageObject", .kind = .type_decl },
+    .{ .name = "ObjectMetadata", .kind = .type_decl },
+    .{ .name = "StorageStats", .kind = .type_decl },
     .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
     .{ .name = "init", .kind = .function },
     .{ .name = "deinit", .kind = .function },
     .{ .name = "isEnabled", .kind = .function },
     .{ .name = "isInitialized", .kind = .function },
     .{ .name = "putObject", .kind = .function, .min_params = 3 },
+    .{ .name = "putObjectWithMetadata", .kind = .function, .min_params = 4 },
     .{ .name = "getObject", .kind = .function, .min_params = 2 },
     .{ .name = "deleteObject", .kind = .function, .min_params = 1 },
+    .{ .name = "objectExists", .kind = .function, .min_params = 1 },
     .{ .name = "listObjects", .kind = .function, .min_params = 2 },
+    .{ .name = "stats", .kind = .function },
 };
 
 /// Search module specs.
@@ -802,14 +899,18 @@ const search_specs = [_]DeclSpec{
     .{ .name = "SearchError", .kind = .type_decl },
     .{ .name = "SearchResult", .kind = .type_decl },
     .{ .name = "SearchIndex", .kind = .type_decl },
+    .{ .name = "SearchStats", .kind = .type_decl },
     .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
     .{ .name = "init", .kind = .function },
     .{ .name = "deinit", .kind = .function },
     .{ .name = "isEnabled", .kind = .function },
     .{ .name = "isInitialized", .kind = .function },
     .{ .name = "createIndex", .kind = .function, .min_params = 2 },
+    .{ .name = "deleteIndex", .kind = .function, .min_params = 1 },
     .{ .name = "indexDocument", .kind = .function, .min_params = 3 },
+    .{ .name = "deleteDocument", .kind = .function, .min_params = 2 },
     .{ .name = "query", .kind = .function, .min_params = 3 },
+    .{ .name = "stats", .kind = .function },
 };
 
 // ============================================================================
@@ -1207,6 +1308,28 @@ test "storage module declaration kinds and signatures" {
 }
 
 // ============================================================================
+// Gateway Module Parity Tests
+// ============================================================================
+
+test "gateway module has required declarations" {
+    const missing = comptime getMissingDeclarations(abi.gateway, &gateway_required);
+
+    if (missing.len > 0) {
+        inline for (missing) |name| {
+            std.log.err("Gateway module missing: {s}", .{name});
+        }
+        try std.testing.expect(false);
+    }
+
+    comptime verifyDeclarations(abi.gateway, &gateway_required);
+}
+
+test "gateway module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.gateway, &gateway_specs);
+    try std.testing.expectEqual(@as(usize, 0), comptime countSpecViolations(abi.gateway, &gateway_specs));
+}
+
+// ============================================================================
 // Search Module Parity Tests
 // ============================================================================
 
@@ -1248,6 +1371,7 @@ test "all feature modules follow Context pattern" {
         abi.cache,
         abi.storage,
         abi.search,
+        abi.gateway,
         abi.ai_core,
         abi.inference,
         abi.training,
@@ -1279,6 +1403,7 @@ test "all feature modules have lifecycle functions" {
         abi.cache,
         abi.storage,
         abi.search,
+        abi.gateway,
     };
 
     inline for (modules) |mod| {
@@ -1487,6 +1612,14 @@ test "search module bidirectional parity audit" {
     const orphans = comptime getOrphanDeclarations(abi.search, &search_required);
     if (orphans.len > 0) {
         std.log.info("Search module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+test "gateway module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.gateway, &gateway_required);
+    if (orphans.len > 0) {
+        std.log.info("Gateway module has {d} declarations not in expected list", .{orphans.len});
     }
     try std.testing.expect(true);
 }

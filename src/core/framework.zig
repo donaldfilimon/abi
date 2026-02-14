@@ -97,6 +97,7 @@ const messaging_mod = if (build_options.enable_messaging) @import("../features/m
 const cache_mod = if (build_options.enable_cache) @import("../features/cache/mod.zig") else @import("../features/cache/stub.zig");
 const storage_mod = if (build_options.enable_storage) @import("../features/storage/mod.zig") else @import("../features/storage/stub.zig");
 const search_mod = if (build_options.enable_search) @import("../features/search/mod.zig") else @import("../features/search/stub.zig");
+const gateway_mod = if (build_options.enable_gateway) @import("../features/gateway/mod.zig") else @import("../features/gateway/stub.zig");
 const mobile_mod = if (build_options.enable_mobile) @import("../features/mobile/mod.zig") else @import("../features/mobile/stub.zig");
 const ai_core_mod = if (build_options.enable_ai) @import("../features/ai_core/mod.zig") else @import("../features/ai_core/stub.zig");
 const ai_inference_mod = if (build_options.enable_llm) @import("../features/ai_inference/mod.zig") else @import("../features/ai_inference/stub.zig");
@@ -183,6 +184,8 @@ pub const Framework = struct {
     storage: ?*storage_mod.Context = null,
     /// Search context, or null if search is not enabled.
     search: ?*search_mod.Context = null,
+    /// Gateway context, or null if gateway is not enabled.
+    gateway: ?*gateway_mod.Context = null,
     /// Mobile context, or null if mobile is not enabled.
     mobile: ?*mobile_mod.Context = null,
     /// AI Core context (agents, tools, prompts), or null if not enabled.
@@ -364,6 +367,13 @@ pub const Framework = struct {
             fw.search = try search_mod.Context.init(allocator, search_cfg);
             if (comptime build_options.enable_search) {
                 try fw.registry.registerComptime(.search);
+            }
+        }
+
+        if (cfg.gateway) |gateway_cfg| {
+            fw.gateway = try gateway_mod.Context.init(allocator, gateway_cfg);
+            if (comptime build_options.enable_gateway) {
+                try fw.registry.registerComptime(.gateway);
             }
         }
 
@@ -564,6 +574,7 @@ pub const Framework = struct {
         deinitOptionalContext(ai_core_mod.Context, &self.ai_core);
         // Then standard feature modules
         deinitOptionalContext(mobile_mod.Context, &self.mobile);
+        deinitOptionalContext(gateway_mod.Context, &self.gateway);
         deinitOptionalContext(search_mod.Context, &self.search);
         deinitOptionalContext(storage_mod.Context, &self.storage);
         deinitOptionalContext(cache_mod.Context, &self.cache);
@@ -661,6 +672,11 @@ pub const Framework = struct {
     /// Get search context (returns error if not enabled).
     pub fn getSearch(self: *Framework) Error!*search_mod.Context {
         return requireFeature(search_mod.Context, self.search);
+    }
+
+    /// Get gateway context (returns error if not enabled).
+    pub fn getGateway(self: *Framework) Error!*gateway_mod.Context {
+        return requireFeature(gateway_mod.Context, self.gateway);
     }
 
     /// Get mobile context (returns error if not enabled).
@@ -897,6 +913,18 @@ pub const FrameworkBuilder = struct {
     /// Enable search with defaults.
     pub fn withSearchDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
         _ = self.config_builder.withSearchDefaults();
+        return self;
+    }
+
+    /// Enable gateway with configuration.
+    pub fn withGateway(self: *FrameworkBuilder, gateway_cfg: config_module.GatewayConfig) *FrameworkBuilder {
+        _ = self.config_builder.withGateway(gateway_cfg);
+        return self;
+    }
+
+    /// Enable gateway with defaults.
+    pub fn withGatewayDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withGatewayDefaults();
         return self;
     }
 

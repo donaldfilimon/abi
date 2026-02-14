@@ -30,4 +30,11 @@ test {
     if (@hasDecl(build_options, "enable_llm") and build_options.enable_llm) {
         _ = @import("features/ai/llm/mod.zig");
     }
+
+    // Phase 9 feature modules (inline tests)
+    if (build_options.enable_cache) _ = @import("features/cache/mod.zig");
+    if (build_options.enable_gateway) _ = @import("features/gateway/mod.zig");
+    if (build_options.enable_messaging) _ = @import("features/messaging/mod.zig");
+    if (build_options.enable_search) _ = @import("features/search/mod.zig");
+    if (build_options.enable_storage) _ = @import("features/storage/mod.zig");
 }

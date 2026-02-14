@@ -59,7 +59,9 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const features = std.enums.values(abi.Feature);
     for (features) |tag| {
         const enabled = framework.isEnabled(tag);
-        utils.output.printKeyValue(@tagName(tag), utils.output.boolLabel(enabled));
+        var tag_buf: [32]u8 = undefined;
+        const tag_str = std.fmt.bufPrint(&tag_buf, "{t}", .{tag}) catch "unknown";
+        utils.output.printKeyValue(tag_str, utils.output.boolLabel(enabled));
     }
 }
 

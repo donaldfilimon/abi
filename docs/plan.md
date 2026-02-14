@@ -1,7 +1,7 @@
 ---
 title: "ABI Multi-Agent Execution Plan"
 status: "active"
-updated: "2026-02-08"
+updated: "2026-02-14"
 tags: [planning, execution, zig-0.16, multi-agent]
 ---
 # ABI Multi-Agent Execution Plan
@@ -9,6 +9,56 @@ tags: [planning, execution, zig-0.16, multi-agent]
 ## Current Objective
 Deliver a stable ABI baseline on Zig 0.16.0-dev.2535+b5bd49460 with verified feature-gated parity, reproducible
 build/test outcomes, and a clear release-readiness decision in February 2026.
+
+## Execution Update (2026-02-14) — Phase 10 Complete + Cleanup & CLI
+
+**Cleanup (2026-02-14):** Removed obsolete/local artifacts: `exe/` (build output dir, added to `.gitignore`), `.swift-version` (Zig project), generated `abi.json` from repo root. No backup/temp files found.
+
+**CLI smoke tests:** Expanded to 58 invocations including deeply nested commands: `help llm generate`, `help train llm`, `discord commands list`, `bench micro hash`, `plugins info openai-connector`, `multi-agent info/list/status`, `completions bash/zsh`, `toolchain status`, and full `help <cmd>` coverage for db, config, task, network, bench, plugins, profile, convert, embed, toolchain.
+
+Phase 10 hardened the 5 feature modules from Phase 9 with bug fixes, expanded tests, and parity infrastructure:
+
+### Bug Fixes (7 total)
+- **Storage `putImpl` double-free**: Removed redundant catch-block cleanup (errdefer handles it)
+- **Search `deleteDocument` posting list leak**: Iterates `term_index`, removes stale postings
+- **Search `addDocument` re-index posting leak**: Cleans old postings before re-indexing
+- **Search `addDocument` use-after-free**: Remove from map before freeing key (hashmap reads freed memory)
+- **Gateway `matchRoute` broken logic**: Propagates `matched_route_idx` from terminal radix node
+- **Gateway `removeRoute` stale indices**: Rebuilds radix tree after `orderedRemove`
+- **Gateway `addRoute` leak**: Rolls back route entry if `insertRadixRoute` fails
+- **Cache `get()` TOCTOU race**: Single write lock for entire get+promote (prevents eviction between unlock/re-lock)
+
+### Test Expansion (+38 inline tests)
+- **Gateway**: 15 new tests (matchRoute, path params, wildcards, sliding/fixed window, circuit breaker half-open, getParam, stats, re-init guard, remove-then-match)
+- **Cache**: 7 new tests (LFU eviction, putWithTtl, update value, stats after eviction, memory budget, re-init guard)
+- **Search**: 6 new tests (delete-then-query, re-index, multi-term BM25, large doc, non-existent index, single doc edge case)
+- **Messaging**: 4 new tests (fan-out, listTopics, topicStats, auto-create on publish)
+- **Storage**: 5 new tests (metadata, path separators, overwrite size tracking, capacity limit)
+
+### Parity Infrastructure
+- Added gateway DeclSpec (22 required declarations, 21 specs)
+- Expanded messaging specs: +11 declarations (unsubscribe, listTopics, topicStats, getDeadLetters, clearDeadLetters, messagingStats, MessagingStats, TopicInfo, DeadLetter, DeliveryResult, SubscriberCallback)
+- Expanded cache specs: +4 declarations (putWithTtl, contains, clear, size)
+- Expanded storage specs: +4 declarations (putObjectWithMetadata, objectExists, ObjectMetadata, StorageStats)
+- Expanded search specs: +4 declarations (deleteIndex, deleteDocument, SearchStats, stats)
+- Gateway added to cross-module Context pattern + lifecycle tests
+
+### Test Baseline
+- **Tests**: 1220 pass / 5 skip (1225 total) — +3 from Phase 9
+- **Feature tests**: 652 pass — +34 from Phase 9 (618)
+- **Flag combos**: 30/30 pass (61/61 steps)
+
+## Phase 9 Summary (2026-02-14)
+
+Phase 9 implemented 5 skeleton feature modules and 3 placeholder fixups:
+- **Cache** (~530 lines): LRU eviction, slab allocator, TTL with lazy expiration, RwLock concurrency
+- **Gateway** (~920 lines): Radix-tree routing, 3 rate limiters (token bucket/sliding/fixed window), circuit breaker FSM
+- **Messaging** (~600 lines): Topic pub/sub, MQTT-style pattern matching (`*`/`#`), dead letter queue
+- **Search** (~450 lines): Inverted index, BM25 scoring (Lucene variant), tokenization, snippet generation
+- **Storage** (~430 lines): Vtable backend abstraction, memory backend, path traversal validation
+- **Placeholder fixes**: Real SGD/Adam optimizers, GPU fallback debug logging, secure channel `error.NotImplemented`
+- **Quality fixes**: Memory leak in messaging DLQEntry allocation, slab slot leak in cache put, BM25 IDF always-positive
+- **Tests**: 1217 pass / 5 skip (1222 total), 618 feature tests, 30 flag combos validated
 
 ## Execution Update (2026-02-08)
 - Completed ownership-scoped refactor passes across:
@@ -301,11 +351,11 @@ zig build docs-site            # documentation generates
 ```
 
 Exit criteria:
-- [x] 983 tests passing, 5 skipped
-- [x] All feature flag combos compile (validate-flags green)
-- [x] All examples build
+- [x] 1217 tests passing, 5 skipped (updated 2026-02-14)
+- [x] All 30 feature flag combos compile (validate-flags green)
+- [x] All 23 examples build
 - [x] No `@panic` in library code paths
-- [x] Stub parity confirmed for all 8 feature modules
+- [x] Stub parity confirmed for all 16 feature modules
 - [x] v2 module benchmarks show expected performance characteristics
 - [x] CLAUDE.md, AGENTS.md, SECURITY.md up to date
 
@@ -344,23 +394,418 @@ Test evidence: 983 pass, 5 skip (988 total) — +1 pass from GPU stub parity fix
 - 2026-02-16: ~~Documentation and examples updated.~~ DONE
 - 2026-02-08: ~~Documentation refresh (Phase 8).~~ DONE (4 new doc files, api-reference.md fixed, CLI ref updated, plugin agents updated)
 - 2026-02-21: Release-readiness review and v0.4.1 go/no-go.
+- 2026-02-14: ~~Feature module implementation (Phase 9).~~ DONE (5 modules: cache, gateway, messaging, search, storage + 3 placeholder fixups)
 
 ## Metrics Dashboard
 
 | Metric | Baseline | Current | Target |
 |--------|----------|---------|--------|
-| Tests passing | 944 | 983 | 950+ |
+| Tests passing | 944 | 1217 | 1200+ |
 | Tests skipped | 5 | 5 | 6 or fewer |
-| Feature modules | 8 | 8 | 8 |
+| Feature tests | — | 618 | 618 |
+| Feature modules | 8 | 16 | 16 |
+| AI split modules | 0 | 4 | 4 |
 | v2 modules integrated | 0 | 15 | 15 |
-| Flag combos passing | 16 | 16 | 16 |
-| Examples | 19 | 21 | 21+ |
+| Flag combos passing | 16 | 30 | 30 |
+| Examples | 19 | 23 | 23+ |
 | Known `@panic` in lib | 0 | 0 | 0 |
 | Stub parity violations | TBD | 0 | 0 |
-| GPU Backend enum members | 9 | 10 | 10 (unified) |
+| GPU backends | 9 | 12 | 12 |
 | File splits completed | 0 | 8 | 8 |
 | CLI commands | 24 | 26 | 26 |
 | API doc files | ~15 | 22 | 22+ |
+| Connectors | 5 | 7 | 7 (6 LLM + discord) |
+| Skeleton modules | 7 | 1 | 0 (mobile only) |
+
+---
+
+## Phase 9: Feature Module Implementation (2026-02-14) — COMPLETE
+
+### Overview
+
+7 feature modules are fully wired (build system, config, registry, framework lifecycle) but
+contain only skeleton implementations where every function is a no-op. This phase implements
+real logic for 5 priority modules and fixes high-value placeholders in 3 existing modules.
+
+**Scope:**
+- **Implement (5):** cache, gateway, messaging, search, storage (~6,500 lines total)
+- **Fix placeholders (3):** ai/training SGD/Adam, database GPU fallback logging, network secure_channel honesty
+- **Not in scope:** mobile (platform-specific), auth (already a real facade over 16 security modules)
+
+### Specialist Agent Analysis (2026-02-14)
+
+Three specialist agents audited the implementation plan:
+
+#### Async I/O Analysis
+- **Only storage needs `std.Io.Threaded`** for filesystem operations (local backend)
+- Cache, gateway, messaging, search are pure in-memory — no I/O backend required
+- **Recommendation:** Storage should accept an `io` handle from the caller (dependency injection),
+  not create its own `std.Io.Threaded` internally. This avoids double-init if the framework
+  already has an I/O backend running.
+
+#### Dependency Audit
+- All 5 modules pass with **zero circular dependency violations**
+- All planned imports validated:
+  - `../../services/shared/utils/swiss_map.zig` — OK for all modules
+  - `../../services/shared/sync.zig` — OK for cache, gateway, messaging
+  - `../../services/shared/time.zig` — OK for cache, gateway, messaging
+  - `../../core/config/<module>.zig` — OK for all modules
+- No feature module imports `@import("abi")` (which would be circular)
+
+#### Performance Analysis (Critical Optimizations)
+
+| Module | Issue | Fix |
+|--------|-------|-----|
+| **Cache** | `sync.Mutex` blocks concurrent reads | Use `std.Thread.RwLock` — read-heavy workloads get parallel reads |
+| **Cache** | Doubly-linked list LRU has poor cache locality | Consider ring buffer with index array for better L1 utilization |
+| **Gateway** | Sliding window stores all timestamps (O(n) memory) | Use histogram buckets (7 buckets) — 100x memory reduction |
+| **Gateway** | Per-route `SwissMap` lookup on every request | Cache last-matched route in thread-local or atomic pointer |
+| **Messaging** | Thread-per-topic scales poorly (100+ topics = 100+ threads) | Use shared `ThreadPool` from `runtime/scheduling/thread_pool.zig` |
+| **Messaging** | Custom ring buffer for message queue | Use existing `Channel` from `runtime/concurrency/channel.zig` |
+| **Search** | Content cache unbounded (stores full document text) | Make optional with LRU eviction, max 10% of `max_index_size_mb` |
+| **Search** | Prefix search requires scanning all terms | Maintain sorted term list alongside SwissMap for binary search |
+| **Storage** | Single mutex for all file operations | Per-file lock sharding (SwissMap of path → RwLock) |
+| **Storage** | JSON metadata sidecar for every file | Make optional via config flag; skip for memory backend |
+
+### Phase 9.1: Cache Module (~900 lines)
+
+**Files:** `src/features/cache/mod.zig` (rewrite), `src/features/cache/stub.zig` (update)
+
+**Architecture:** Single-file with 4 eviction strategies as tagged union variants.
+
+```
+CacheState (module singleton)
+├── StorageBackend: union(EvictionPolicy)
+│   ├── LruCache — doubly-linked list + SwissMap(key → *LruNode)
+│   ├── LfuCache — frequency-bucketed linked lists + SwissMap
+│   ├── FifoCache — singly-linked queue + SwissMap
+│   └── RandomCache — SwissMap + key array + RNG
+├── TtlTracker — lazy expiration on get() + periodic sweep
+└── CacheStatsInternal — atomic counters
+```
+
+**Key decisions:**
+- SwissMap with `initWithSeed` for untrusted keys (HashDoS resistance)
+- `std.Thread.RwLock` for read-heavy workloads (perf optimization)
+- Cache **owns** all keys/values (copies on `put`, caller borrows on `get`)
+- Memory tracking: `@sizeOf(Node) + key.len + value.len`, enforced on every `put`
+- Time via `services/shared/time.zig` Instant for TTL
+
+**API surface:**
+```zig
+pub fn init(allocator, config) CacheError!void
+pub fn deinit() void
+pub fn isEnabled() bool
+pub fn isInitialized() bool
+pub fn get(key) CacheError!?[]const u8
+pub fn put(key, value) CacheError!void
+pub fn putWithTtl(key, value, ttl_ms) CacheError!void  // NEW
+pub fn delete(key) CacheError!bool
+pub fn contains(key) bool                                // NEW
+pub fn clear() void                                      // NEW
+pub fn size() u32                                        // NEW
+pub fn stats() CacheStats
+```
+
+**Config** (`src/core/config/cache.zig` — no changes needed):
+- `max_entries: u32 = 10_000`, `max_memory_mb: u32 = 256`
+- `default_ttl_ms: u64 = 300_000`, `eviction_policy: EvictionPolicy = .lru`
+
+### Phase 9.2: Gateway Module (~900 lines)
+
+**Files:** `src/features/gateway/mod.zig` (rewrite), `src/features/gateway/stub.zig` (update)
+
+**Architecture:** Single-file with radix router, rate limiting, and circuit breaker.
+
+```
+GatewayState (module singleton)
+├── routes: ArrayListUnmanaged(RouteEntry)
+├── RadixRouter — trie for O(path_segments) route matching
+│   └── RadixNode { segment, children, is_param, route_idx }
+├── route_limiters: SwissMap(path → *RateLimiter)
+│   └── RateLimiter: union(RateLimitAlgorithm)
+│       ├── TokenBucketState { tokens, last_refill, capacity }
+│       ├── SlidingWindowState { histogram_buckets[7], window_ms }
+│       └── FixedWindowState { count, window_start, duration }
+├── circuit_breakers: SwissMap(upstream → *CircuitBreaker)
+│   └── CircuitBreaker { state, failure_count, open_until_ms }
+└── LatencyHistogram { buckets[7], total, count }
+```
+
+**Key decisions:**
+- Radix tree for route matching with path params (`/users/{id}`) and wildcards (`/api/*`)
+- Sliding window uses **histogram buckets** (7 fixed bins) — not timestamp array (100x memory savings)
+- Circuit breaker state machine: `closed → open → half_open → closed`
+- Only 3 rate limit algorithms (matches `RateLimitAlgorithm` enum): `token_bucket`, `sliding_window`, `fixed_window`
+
+**API surface:**
+```zig
+pub fn init(allocator, config) GatewayError!void
+pub fn deinit() void
+pub fn isEnabled() bool
+pub fn isInitialized() bool
+pub fn addRoute(route) GatewayError!void
+pub fn removeRoute(path) GatewayError!bool
+pub fn getRoutes() []const Route
+pub fn matchRoute(path, method) GatewayError!?MatchResult   // NEW
+pub fn checkRateLimit(path) RateLimitResult                  // NEW
+pub fn recordUpstreamResult(upstream, success: bool) void    // NEW
+pub fn stats() GatewayStats
+pub fn getCircuitState(upstream) CircuitBreakerState
+pub fn resetCircuit(upstream) void
+```
+
+### Phase 9.3: Messaging Module (~1000 lines)
+
+**Files:** `src/features/messaging/mod.zig` (rewrite), `src/features/messaging/stub.zig` (update)
+
+**Architecture:** Topic-based pub/sub with shared ThreadPool delivery.
+
+```
+MessagingState (module singleton)
+├── topics: StringHashMapUnmanaged(*Topic)
+│   └── Topic
+│       ├── subscribers: ArrayListUnmanaged(*Subscriber)
+│       ├── message_channel: Channel(Message) (from runtime/concurrency)
+│       └── atomic counters (published, delivered, failed)
+├── thread_pool: *ThreadPool (from runtime/scheduling, shared across topics)
+├── DeadLetterQueue { messages[], max_size }
+└── next_subscriber_id: atomic u64
+```
+
+**Key decisions:**
+- Use existing `Channel` from `runtime/concurrency/channel.zig` (Vyukov MPMC) instead of custom ring buffer
+- Use shared `ThreadPool` from `runtime/scheduling/thread_pool.zig` instead of thread-per-topic
+- MQTT-style pattern matching: `events.*` (single-level), `events.#` (multi-level)
+- Subscriber callbacks: `*const fn (msg: Message, ctx: ?*anyopaque) DeliveryResult`
+- Backpressure: bounded channel (`buffer_size` from config), return `ChannelFull` when exceeded
+- Dead letter queue for failed/discarded messages
+
+**Breaking change:** `subscribe()` signature changes from `(allocator, topic) → void` to
+`(allocator, topic_pattern, callback, context) → u64`. Acceptable since old function was a no-op.
+
+**API surface:**
+```zig
+pub fn init(allocator, config) MessagingError!void
+pub fn deinit() void
+pub fn isEnabled() bool
+pub fn isInitialized() bool
+pub fn publish(allocator, topic, payload) MessagingError!void
+pub fn subscribe(allocator, topic_pattern, callback, context) MessagingError!u64  // CHANGED
+pub fn unsubscribe(subscriber_id: u64) MessagingError!bool                        // NEW
+pub fn listTopics(allocator) MessagingError![][]const u8                          // NEW
+pub fn topicStats(topic) MessagingError!TopicInfo                                 // NEW
+pub fn getDeadLetters(allocator) MessagingError![]DeadLetter                      // NEW
+pub fn clearDeadLetters() void                                                    // NEW
+pub fn stats() MessagingStats
+```
+
+### Phase 9.4: Search Module (~2000 lines across 5 files)
+
+**Files:**
+- `src/features/search/mod.zig` (rewrite, ~600 lines)
+- `src/features/search/inverted_index.zig` (new, ~500 lines)
+- `src/features/search/tokenizer.zig` (new, ~400 lines)
+- `src/features/search/scoring.zig` (new, ~200 lines)
+- `src/features/search/snippet.zig` (new, ~200 lines)
+- `src/features/search/stub.zig` (update)
+
+**Architecture:** Multi-file with inverted index at the core.
+
+```
+GlobalState
+├── indexes: SwissMap(name → *InvertedIndex)
+│   └── InvertedIndex
+│       ├── term_index: SwissMap(term → *PostingList)
+│       │   └── PostingList { doc_freq, postings[] }
+│       │       └── Posting { doc_id, term_freq, positions[] }
+│       ├── documents: SwissMap(doc_hash → DocumentMeta)
+│       ├── sorted_terms: ArrayListUnmanaged([]const u8)  // for prefix search
+│       └── stats { total_docs, total_terms, avg_doc_length }
+├── tokenizer: *Tokenizer
+│   ├── stop_words: SwissMap(word → void)
+│   └── config { lowercase, remove_stop_words, stemming }
+└── content_cache: ?LruContentCache (optional, max 10% of max_index_size_mb)
+```
+
+**Key algorithms:**
+- **Tokenization**: Whitespace split → lowercase → stop word removal → Porter stemming
+- **BM25 scoring**: `score = Σ(IDF × TF_component)` where
+  `IDF = log((N-df+0.5)/(df+0.5))` and
+  `TF = (tf×(k1+1))/(tf+k1×(1-b+b×(dl/avgdl)))`
+- **Snippet generation**: Find window with highest match density, wrap matches in `<mark>` tags
+- **Prefix search**: Binary search on sorted term list (maintained alongside SwissMap)
+
+**API surface:**
+```zig
+pub fn init(allocator, config) SearchError!void
+pub fn deinit() void
+pub fn isEnabled() bool
+pub fn isInitialized() bool
+pub fn createIndex(allocator, name) SearchError!void
+pub fn deleteIndex(name) SearchError!void                                          // NEW
+pub fn indexDocument(allocator, index, doc_id, content) SearchError!void
+pub fn deleteDocument(index, doc_id) SearchError!bool                              // NEW
+pub fn query(allocator, index, query_str, limit) SearchError![]SearchResult
+pub fn prefixSearch(allocator, index, prefix, limit) SearchError![][]const u8      // NEW
+pub fn stats() SearchStats
+```
+
+### Phase 9.5: Storage Module (~1800 lines across 5 files)
+
+**Files:**
+- `src/features/storage/mod.zig` (rewrite, ~500 lines)
+- `src/features/storage/backend.zig` (new, ~150 lines: vtable interface)
+- `src/features/storage/memory_backend.zig` (new, ~300 lines)
+- `src/features/storage/local_backend.zig` (new, ~400 lines)
+- `src/features/storage/stub.zig` (update)
+- `src/core/config/storage.zig` (edit: add `memory` to StorageBackend enum)
+
+**Architecture:** Vtable-based backend abstraction.
+
+```
+GlobalState
+├── backend: Backend (vtable-dispatched)
+│   ├── MemoryBackend — SwissMap-based, for testing/ephemeral use
+│   └── LocalBackend — std.Io file operations, path traversal protection
+│       └── per-file RwLock sharding (SwissMap of path → *RwLock)
+└── config: StorageConfig
+```
+
+**Backend vtable:**
+```zig
+pub const Backend = struct {
+    ptr: *anyopaque,
+    vtable: *const VTable,
+    const VTable = struct {
+        put: *const fn (*anyopaque, key, data, meta) anyerror!void,
+        get: *const fn (*anyopaque, allocator, key) anyerror!Object,
+        delete: *const fn (*anyopaque, key) anyerror!bool,
+        list: *const fn (*anyopaque, allocator, prefix, opts) anyerror![]ObjectInfo,
+        deinit: *const fn (*anyopaque) void,
+    };
+};
+```
+
+**Key decisions:**
+- `StorageBackend` enum needs `memory` variant added to `src/core/config/storage.zig`
+- Storage accepts `io` handle from caller (dependency injection per async-io analysis)
+- Per-file RwLock sharding instead of single global mutex (per performance analysis)
+- Path traversal validation: reject keys containing `..` or absolute paths
+- Metadata sidecar files (`.meta` JSON) optional via config flag
+- S3/GCS: Interface stubs returning `error.NotImplemented` (need HTTP client)
+
+**API surface:**
+```zig
+pub fn init(allocator, config) StorageError!void
+pub fn deinit() void
+pub fn isEnabled() bool
+pub fn isInitialized() bool
+pub fn putObject(allocator, key, data) StorageError!void
+pub fn putObjectWithMetadata(allocator, key, data, metadata) StorageError!void     // NEW
+pub fn getObject(allocator, key) StorageError!StorageObject
+pub fn deleteObject(key) StorageError!bool
+pub fn listObjects(allocator, prefix) StorageError![]ObjectInfo
+pub fn objectExists(key) StorageError!bool                                         // NEW
+pub fn copyObject(src_key, dst_key) StorageError!void                              // NEW
+pub fn stats() StorageStats
+```
+
+### Phase 9.6: Placeholder Fixups (~200 lines total)
+
+**Fix 1: SGD/Adam optimizers** (`src/features/ai/training/llm_trainer.zig`, ~110 lines)
+- Implement `applySgdUpdate()`: `weight -= lr * gradient`
+- Implement `applyAdamUpdate()`: Standard Adam with `m`, `v` momentum/variance buffers
+- Add optimizer state (beta1=0.9, beta2=0.999, epsilon=1e-8) to trainer struct
+
+**Fix 2: GPU fallback logging** (`src/features/database/gpu_accel.zig`, ~5 lines)
+- Add `std.log.debug` when GPU init fails and falls back to SIMD
+
+**Fix 3: Secure channel honesty** (`src/features/network/linking/secure_channel.zig`, ~50 lines)
+- Replace fake `noiseXXHandshake()`, `wireguardHandshake()`, `tlsHandshake()` with `return error.NotImplemented`
+- Keep `customHandshake()` as only implemented path (uses real X25519 from `std.crypto.dh`)
+- Remove misleading placeholder comments
+
+### Phase 9.7: Stub Updates + Verification
+
+For each module after implementing `mod.zig`:
+1. Update `stub.zig` to match all new `pub fn` signatures (return `error.FeatureDisabled`)
+2. Update `stub.zig` to export all new `pub const` types
+3. Verify: `zig build -Denable-<feature>=false` (stub compiles)
+4. Verify: `zig build -Denable-<feature>=true` (real impl compiles)
+
+Post-implementation gate:
+```sh
+zig fmt .                            # Format
+zig build test --summary all         # Full suite (baseline: 1216 pass)
+zig build validate-flags             # All 30 flag combos compile
+zig build full-check                 # Complete gate
+```
+
+### Infrastructure Reuse Map
+
+| Need | Use | Import path |
+|------|-----|------------|
+| Hash map | `SwissMap` | `../../services/shared/utils/swiss_map.zig` |
+| Thread sync (reads) | `std.Thread.RwLock` | stdlib |
+| Thread sync (exclusive) | `sync.Mutex` | `../../services/shared/sync.zig` |
+| Time/timestamps | `time.Instant` | `../../services/shared/time.zig` |
+| Atomics | `std.atomic.Value(T)` | stdlib |
+| Dynamic arrays | `std.ArrayListUnmanaged(T)` | stdlib |
+| MPMC queue | `Channel(T)` | `../../services/runtime/concurrency/channel.zig` |
+| Work dispatch | `ThreadPool` | `../../services/runtime/scheduling/thread_pool.zig` |
+| File I/O | `std.Io.Threaded` + `std.Io.Dir.cwd()` | stdlib (storage only) |
+| Crypto (DH) | `std.crypto.dh.X25519` | stdlib (secure_channel only) |
+
+### Files Summary
+
+| File | Action | ~Lines |
+|------|--------|--------|
+| `src/features/cache/mod.zig` | Rewrite | 900 |
+| `src/features/cache/stub.zig` | Update | 80 |
+| `src/features/gateway/mod.zig` | Rewrite | 900 |
+| `src/features/gateway/stub.zig` | Update | 110 |
+| `src/features/messaging/mod.zig` | Rewrite | 1000 |
+| `src/features/messaging/stub.zig` | Update | 90 |
+| `src/features/search/mod.zig` | Rewrite | 600 |
+| `src/features/search/inverted_index.zig` | Create | 500 |
+| `src/features/search/tokenizer.zig` | Create | 400 |
+| `src/features/search/scoring.zig` | Create | 200 |
+| `src/features/search/snippet.zig` | Create | 200 |
+| `src/features/search/stub.zig` | Update | 75 |
+| `src/features/storage/mod.zig` | Rewrite | 500 |
+| `src/features/storage/backend.zig` | Create | 150 |
+| `src/features/storage/memory_backend.zig` | Create | 300 |
+| `src/features/storage/local_backend.zig` | Create | 400 |
+| `src/features/storage/stub.zig` | Update | 75 |
+| `src/core/config/storage.zig` | Edit | +1 |
+| `src/features/ai/training/llm_trainer.zig` | Edit | +110 |
+| `src/features/database/gpu_accel.zig` | Edit | +5 |
+| `src/features/network/linking/secure_channel.zig` | Edit | ~50 |
+| **Total** | | **~6,645** |
+
+---
+
+## Metrics Dashboard
+
+| Metric | Baseline | Current | Target |
+|--------|----------|---------|--------|
+| Tests passing | 944 | 1217 | 1200+ |
+| Tests skipped | 5 | 5 | 6 or fewer |
+| Feature tests | — | 618 | 618 |
+| Feature modules | 8 | 16 | 16 |
+| AI split modules | 0 | 4 | 4 |
+| v2 modules integrated | 0 | 15 | 15 |
+| Flag combos passing | 16 | 30 | 30 |
+| Examples | 19 | 23 | 23+ |
+| Known `@panic` in lib | 0 | 0 | 0 |
+| Stub parity violations | TBD | 0 | 0 |
+| GPU backends | 9 | 12 | 12 |
+| File splits completed | 0 | 8 | 8 |
+| CLI commands | 24 | 26 | 26 |
+| API doc files | ~15 | 22 | 22+ |
+| Connectors | 5 | 7 | 7 (6 LLM + discord) |
+| Skeleton modules | 7 | 1 | 0 (mobile only) |
 
 ## Quick Links
 - [Cleanup + Production + Bindings Plan](plans/2026-02-08-cleanup-production-bindings.md)
