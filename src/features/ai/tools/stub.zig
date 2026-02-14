@@ -123,6 +123,24 @@ pub const edit_tools = struct {
     }
 };
 
+pub const process_tools = struct {
+    pub fn registerAll(_: *tool.OuterToolRegistry) !void {
+        return error.FeatureDisabled;
+    }
+};
+
+pub const network_tools = struct {
+    pub fn registerAll(_: *tool.OuterToolRegistry) !void {
+        return error.FeatureDisabled;
+    }
+};
+
+pub const system_tools = struct {
+    pub fn registerAll(_: *tool.OuterToolRegistry) !void {
+        return error.FeatureDisabled;
+    }
+};
+
 // Top-level re-exports
 pub const Tool = tool.OuterTool;
 pub const ToolResult = tool.OuterToolResult;
@@ -163,7 +181,24 @@ pub const registerSearchTools = search_tools.registerAll;
 pub const EditTools = edit_tools;
 pub const registerEditTools = edit_tools.registerAll;
 
+// Process tool exports
+pub const ProcessTools = process_tools;
+pub const registerProcessTools = process_tools.registerAll;
+
+// Network tool exports
+pub const NetworkTools = network_tools;
+pub const registerNetworkTools = network_tools.registerAll;
+
+// System tool exports
+pub const SystemTools = system_tools;
+pub const registerSystemTools = system_tools.registerAll;
+
 /// Stub: register all code agent tools.
 pub fn registerCodeAgentTools(_: *ToolRegistry) !void {
+    return error.FeatureDisabled;
+}
+
+/// Stub: register all agent tools including extended OS capabilities.
+pub fn registerAllAgentTools(_: *ToolRegistry) !void {
     return error.FeatureDisabled;
 }

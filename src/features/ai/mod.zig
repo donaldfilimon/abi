@@ -93,6 +93,15 @@ pub const eval = if (build_options.enable_ai) @import("eval/mod.zig") else @impo
 pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
 pub const orchestration = if (build_options.enable_ai) @import("orchestration/mod.zig") else @import("orchestration/stub.zig");
 
+// Tool-augmented agent with tool execution loop
+pub const tool_agent = @import("tool_agent.zig");
+
+// Codebase self-awareness via indexing and RAG
+pub const codebase_index = @import("codebase_index.zig");
+
+// Self-improvement and performance tracking
+pub const self_improve = @import("self_improve.zig");
+
 // GPU-aware agent (always available, uses stubs when GPU disabled)
 pub const gpu_agent = @import("gpu_agent.zig");
 
@@ -314,6 +323,33 @@ pub const OsTools = tools.OsTools;
 
 /// Register OS tools with a tool registry.
 pub const registerOsTools = tools.registerOsTools;
+
+/// Register all agent tools (file, search, edit, OS, process, network, system).
+pub const registerAllAgentTools = tools.registerAllAgentTools;
+
+// Tool-augmented agent
+
+/// AI agent enhanced with tool-use capabilities (file I/O, shell, search, etc.).
+pub const ToolAugmentedAgent = tool_agent.ToolAugmentedAgent;
+
+/// Configuration for the tool-augmented agent.
+pub const ToolAgentConfig = tool_agent.ToolAgentConfig;
+
+// Codebase self-awareness
+
+/// Index for codebase self-awareness and retrieval.
+pub const CodebaseIndex = codebase_index.CodebaseIndex;
+
+/// Result of a codebase query.
+pub const CodebaseAnswer = codebase_index.CodebaseAnswer;
+
+// Self-improvement
+
+/// Performance tracker and improvement proposer.
+pub const SelfImprover = self_improve.SelfImprover;
+
+/// Quality metrics for a response.
+pub const ResponseMetrics = self_improve.ResponseMetrics;
 
 // Transformer
 

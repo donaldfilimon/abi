@@ -248,6 +248,13 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var show_prompt = false;
     var persona_type: prompts.PersonaType = .assistant;
 
+    // Tool and learning flags
+    var enable_all_tools = false;
+    var enable_os_tools = false;
+    var enable_file_tools = false;
+    var enable_learn = false;
+    var no_confirm = false;
+
     var i: usize = 0;
     while (i < args.len) {
         const arg = args[i];
@@ -309,6 +316,28 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        // Tool and learning flags
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--all-tools")) {
+            enable_all_tools = true;
+            continue;
+        }
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--os-tools")) {
+            enable_os_tools = true;
+            continue;
+        }
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--file-tools")) {
+            enable_file_tools = true;
+            continue;
+        }
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--learn")) {
+            enable_learn = true;
+            continue;
+        }
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--no-confirm")) {
+            no_confirm = true;
+            continue;
+        }
+
         if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
             printHelp();
             return;
@@ -328,12 +357,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     // Get persona for system prompt
     const persona = prompts.getPersona(persona_type);
 
-    var agent = try agent_mod.Agent.init(allocator, .{
-        .name = name,
-        .system_prompt = persona.system_prompt,
-        .temperature = persona.suggested_temperature,
-    });
-    defer agent.deinit();
+    const use_tools = enable_all_tools or enable_os_tools or enable_file_tools;
 
     // Initialize session state
     var session = try SessionState.init(allocator, session_name);
@@ -346,29 +370,103 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         };
     }
 
-    if (message) |msg| {
-        // Show prompt if requested
-        if (show_prompt) {
-            var builder = prompts.PromptBuilder.init(allocator, persona_type);
-            defer builder.deinit();
-            try builder.addUserMessage(msg);
-            const exported = try builder.exportDebug();
-            defer allocator.free(exported);
-            std.debug.print("{s}\n", .{exported});
+    if (use_tools) {
+        // Tool-augmented agent mode
+        var tool_agent = try abi.ai.ToolAugmentedAgent.init(allocator, .{
+            .agent = .{
+                .name = name,
+                .system_prompt = persona.system_prompt,
+                .temperature = persona.suggested_temperature,
+            },
+            .require_confirmation = !no_confirm,
+            .enable_memory = enable_learn,
+        });
+        defer tool_agent.deinit();
+
+        // Register requested tools
+        if (enable_all_tools) {
+            try tool_agent.registerAllAgentTools();
+        } else {
+            if (enable_os_tools) {
+                abi.ai.tools.os_tools.registerAll(&tool_agent.tool_registry) catch {};
+            }
+            if (enable_file_tools) {
+                abi.ai.tools.file_tools.registerAll(&tool_agent.tool_registry) catch {};
+                abi.ai.tools.search_tools.registerAll(&tool_agent.tool_registry) catch {};
+                abi.ai.tools.edit_tools.registerAll(&tool_agent.tool_registry) catch {};
+            }
         }
 
-        const response = try agent.process(msg, allocator);
-        defer allocator.free(response);
-        std.debug.print("User: {s}\n", .{msg});
-        std.debug.print("Agent: {s}\n", .{response});
+        if (message) |msg| {
+            if (show_prompt) {
+                var builder = prompts.PromptBuilder.init(allocator, persona_type);
+                defer builder.deinit();
+                try builder.addUserMessage(msg);
+                const exported = try builder.exportDebug();
+                defer allocator.free(exported);
+                std.debug.print("{s}\n", .{exported});
+            }
 
-        // Save to session
-        try session.addMessage(.user, msg);
-        try session.addMessage(.assistant, response);
-        return;
+            const response = try tool_agent.processWithTools(msg, allocator);
+            defer allocator.free(response);
+
+            // Show tool calls
+            const log = tool_agent.getToolCallLog();
+            if (log.len > 0) {
+                std.debug.print("\n[Tool Calls: {d}]\n", .{log.len});
+                for (log) |record| {
+                    const status = if (record.success) "ok" else "FAIL";
+                    std.debug.print("  {s}: [{s}]\n", .{ record.tool_name, status });
+                }
+                std.debug.print("\n", .{});
+            }
+
+            std.debug.print("User: {s}\n", .{msg});
+            std.debug.print("Agent: {s}\n", .{response});
+
+            try session.addMessage(.user, msg);
+            try session.addMessage(.assistant, response);
+            return;
+        }
+
+        // Interactive with tools — use basic agent path for now
+        // (tool-augmented interactive REPL uses the os-agent command)
+        std.debug.print("Tool-augmented interactive mode. Tools: {d} registered.\n", .{tool_agent.toolCount()});
+        std.debug.print("Tip: Use 'abi os-agent' for the full interactive tool experience.\n\n", .{});
+
+        // Fall through to standard interactive with the inner agent
+        try runInteractive(allocator, &tool_agent.agent, &session, persona_type, show_prompt);
+    } else {
+        // Standard agent mode (no tools)
+        var agent = try agent_mod.Agent.init(allocator, .{
+            .name = name,
+            .system_prompt = persona.system_prompt,
+            .temperature = persona.suggested_temperature,
+        });
+        defer agent.deinit();
+
+        if (message) |msg| {
+            if (show_prompt) {
+                var builder = prompts.PromptBuilder.init(allocator, persona_type);
+                defer builder.deinit();
+                try builder.addUserMessage(msg);
+                const exported = try builder.exportDebug();
+                defer allocator.free(exported);
+                std.debug.print("{s}\n", .{exported});
+            }
+
+            const response = try agent.process(msg, allocator);
+            defer allocator.free(response);
+            std.debug.print("User: {s}\n", .{msg});
+            std.debug.print("Agent: {s}\n", .{response});
+
+            try session.addMessage(.user, msg);
+            try session.addMessage(.assistant, response);
+            return;
+        }
+
+        try runInteractive(allocator, &agent, &session, persona_type, show_prompt);
     }
-
-    try runInteractive(allocator, &agent, &session, persona_type, show_prompt);
 }
 
 fn runInteractive(
@@ -675,6 +773,13 @@ fn printHelp() void {
         \\  --list-personas     List available persona types
         \\  -h, --help          Show this help
         \\
+        \\Tool & Learning Options:
+        \\  --all-tools         Enable all tools (file, search, edit, OS, process, network)
+        \\  --os-tools          Enable OS tools only (shell, env, clipboard, etc.)
+        \\  --file-tools        Enable file tools only (read, write, search, edit)
+        \\  --learn             Enable hybrid memory with long-term learning
+        \\  --no-confirm        Skip confirmation for destructive operations
+        \\
         \\Personas:
         \\  assistant  - General-purpose helpful assistant (default)
         \\  coder      - Programming and code-focused assistant
@@ -703,6 +808,8 @@ fn printHelp() void {
         \\  abi agent --show-prompt -m "Hi"    # Show prompt, then send
         \\  abi agent --session "project-x"    # Named session
         \\  abi agent --list-personas          # Show all personas
+        \\  abi agent --all-tools -m "ls src"  # One-shot with tools
+        \\  abi agent --all-tools --learn      # Interactive with tools + learning
         \\
         \\Ralph Mode (Iterative Loop, auto-training):
         \\  abi agent ralph --task "..."       # Run a task in a self-correcting loop

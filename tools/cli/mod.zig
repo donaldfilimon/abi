@@ -185,6 +185,7 @@ const command_map = std.StaticStringMap(CommandFn).initComptime(.{
     .{ "completions", wrap(commands.completions) },
     .{ "plugins", wrap(commands.plugins) },
     .{ "profile", wrap(commands.profile) },
+    .{ "os-agent", wrap(commands.os_agent) },
     .{ "status", wrap(commands.status) },
     .{ "toolchain", wrap(commands.toolchain) },
     .{ "mcp", wrap(commands.mcp) },

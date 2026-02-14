@@ -58,6 +58,9 @@ pub const abbey = @import("abbey/stub.zig");
 // Local stubs for single-file modules (stubs/ directory)
 pub const agent = @import("stubs/agent.zig");
 pub const model_registry = @import("stubs/model_registry.zig");
+pub const tool_agent = @import("stubs/tool_agent.zig");
+pub const codebase_index = @import("stubs/codebase_index.zig");
+pub const self_improve = @import("self_improve.zig");
 pub const gpu_agent = @import("stubs/gpu_agent.zig");
 pub const discovery = @import("stubs/discovery.zig");
 
@@ -113,6 +116,19 @@ pub const DiscordTools = tools.DiscordTools;
 pub const OsTools = tools.OsTools;
 pub const registerDiscordTools = tools.registerDiscordTools;
 pub const registerOsTools = tools.registerOsTools;
+pub const registerAllAgentTools = tools.registerAllAgentTools;
+
+// Tool-augmented agent
+pub const ToolAugmentedAgent = tool_agent.ToolAugmentedAgent;
+pub const ToolAgentConfig = tool_agent.ToolAgentConfig;
+
+// Codebase self-awareness
+pub const CodebaseIndex = codebase_index.CodebaseIndex;
+pub const CodebaseAnswer = codebase_index.CodebaseAnswer;
+
+// Self-improvement
+pub const SelfImprover = self_improve.SelfImprover;
+pub const ResponseMetrics = self_improve.ResponseMetrics;
 
 // Transformer
 pub const TransformerConfig = transformer.TransformerConfig;
