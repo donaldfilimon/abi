@@ -27,6 +27,7 @@
 const std = @import("std");
 const config_module = @import("abi").config;
 const registry_mod = @import("abi").registry;
+const output = @import("output.zig");
 
 pub const Feature = config_module.Feature;
 
@@ -175,6 +176,11 @@ pub fn parseGlobalFlagsWithOptions(
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
         const arg = std.mem.sliceTo(args[i], 0);
+
+        if (std.mem.eql(u8, arg, "--no-color")) {
+            output.disableColor();
+            continue;
+        }
 
         if (std.mem.eql(u8, arg, "--list-features")) {
             flags.show_features = true;

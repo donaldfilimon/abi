@@ -196,7 +196,7 @@ pub const AgentPanel = struct {
             const workloads = [_][]const u8{ "MatMul", "Attention", "FFN", "Embed" };
 
             try self.recordDecision(.{
-                .timestamp = abi.utils.unixMs(),
+                .timestamp = abi.shared.utils.unixMs(),
                 .workload_type = workloads[self.update_counter % 4],
                 .selected_backend = backends[(self.update_counter / 5) % 4],
                 .actual_time_ms = 50 + (self.update_counter % 100),

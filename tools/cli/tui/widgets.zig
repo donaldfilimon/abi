@@ -106,13 +106,13 @@ pub const ProgressIndicator = struct {
             .style = style,
             .frame = 0,
             .active = false,
-            .start_time = abi.utils.unixMs(),
+            .start_time = abi.shared.utils.unixMs(),
         };
     }
 
     pub fn start(self: *ProgressIndicator) !void {
         self.active = true;
-        self.start_time = abi.utils.unixMs();
+        self.start_time = abi.shared.utils.unixMs();
         try self.render();
     }
 
@@ -160,7 +160,7 @@ pub const ProgressIndicator = struct {
         try self.term.write(self.message);
 
         // Show elapsed time
-        const elapsed = abi.utils.unixMs() - self.start_time;
+        const elapsed = abi.shared.utils.unixMs() - self.start_time;
         const elapsed_secs = @as(f64, @floatFromInt(elapsed)) / 1000.0;
         var buf: [32]u8 = undefined;
         const time_str = std.fmt.bufPrint(&buf, " ({d:.1}s)", .{elapsed_secs}) catch "";

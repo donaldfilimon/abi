@@ -159,7 +159,7 @@ pub const ModelManagementPanel = struct {
     /// Update panel data (poll for changes)
     pub fn update(self: *Self) !void {
         // Get current timestamp
-        const now = abi.utils.unixMs();
+        const now = abi.shared.utils.unixMs();
 
         // Check if enough time has passed for refresh
         if (now - self.last_refresh < @as(i64, @intCast(self.refresh_interval_ms))) {

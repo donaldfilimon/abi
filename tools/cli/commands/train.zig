@@ -2343,10 +2343,10 @@ fn defaultDatasetCachePath(allocator: std.mem.Allocator, url: []const u8) ![]con
 }
 
 fn downloadToFile(allocator: std.mem.Allocator, url: []const u8, path: []const u8, max_bytes: usize) !void {
-    var client = try abi.utils.async_http.AsyncHttpClient.init(allocator);
+    var client = try abi.shared.utils.async_http.AsyncHttpClient.init(allocator);
     defer client.deinit();
 
-    var request = try abi.utils.async_http.HttpRequest.init(allocator, .get, url);
+    var request = try abi.shared.utils.async_http.HttpRequest.init(allocator, .get, url);
     defer request.deinit();
 
     var response = try client.fetch(&request);

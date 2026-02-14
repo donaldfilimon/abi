@@ -166,6 +166,7 @@ fn printHelp() void {
         \\  --list-features       List available features and their status
         \\  --enable-<feature>    Enable a feature at runtime
         \\  --disable-<feature>   Disable a feature at runtime
+        \\  --no-color            Disable colored output (also respects NO_COLOR env var)
         \\
         \\Features: gpu, ai, llm, embeddings, agents, training, database, network, observability, web
         \\
@@ -187,6 +188,11 @@ fn printHelp() void {
         \\  abi --disable-gpu db stats       # Run db stats with GPU disabled
         \\  abi --enable-ai llm chat         # Run LLM chat with AI enabled
         \\  abi help llm generate            # Show help for nested subcommand
+        \\
+        \\Aliases:
+        \\  info, sysinfo         system-info
+        \\  dashboard             gpu-dashboard
+        \\  chat                  llm
         \\
         \\Run 'abi <command> help' or 'abi help <command>' for command-specific help.
         \\
@@ -234,17 +240,33 @@ fn wrapIo(comptime cmd: type) IoCommandFn {
     return cmd.run;
 }
 
+/// Command aliases for common shortcuts.
+const alias_map = std.StaticStringMap([]const u8).initComptime(.{
+    .{ "info", "system-info" },
+    .{ "sysinfo", "system-info" },
+    .{ "ls", "db" }, // common alias
+    .{ "run", "bench" },
+    .{ "dashboard", "gpu-dashboard" },
+    .{ "chat", "llm" },
+    .{ "reasoning", "llm" },
+});
+
+fn resolveAlias(command: []const u8) []const u8 {
+    return alias_map.get(command) orelse command;
+}
+
 fn runCommand(
     allocator: std.mem.Allocator,
     io: std.Io,
     command: []const u8,
     args: []const [:0]const u8,
 ) !bool {
-    if (io_command_map.get(command)) |run_fn| {
+    const resolved = resolveAlias(command);
+    if (io_command_map.get(resolved)) |run_fn| {
         try run_fn(allocator, io, args);
         return true;
     }
-    if (command_map.get(command)) |run_fn| {
+    if (command_map.get(resolved)) |run_fn| {
         try run_fn(allocator, args);
         return true;
     }
@@ -255,9 +277,10 @@ fn runHelpTarget(
     allocator: std.mem.Allocator,
     arena_allocator: std.mem.Allocator,
     io: std.Io,
-    command: []const u8,
+    raw_command: []const u8,
     extra_args: []const [:0]const u8,
 ) !void {
+    const command = resolveAlias(raw_command);
     var forwarded = std.ArrayListUnmanaged([:0]const u8){};
     for (extra_args) |arg| {
         try forwarded.append(arena_allocator, arg);

@@ -206,6 +206,22 @@ pub fn cliErrorWithSuggestion(err: anyerror, context: []const u8, suggestion: []
     return .{ .code = err, .context = context, .suggestion = suggestion };
 }
 
+/// Parse a required positional ID argument (common pattern for task/model commands).
+/// Prints an error and returns null if missing or invalid.
+pub fn parseRequiredId(args: []const [:0]const u8, comptime entity: []const u8) ?u64 {
+    if (args.len == 0) {
+        const output = @import("output.zig");
+        output.printError("{s} ID required", .{entity});
+        return null;
+    }
+    const id_str = std.mem.sliceTo(args[0], 0);
+    return std.fmt.parseInt(u64, id_str, 10) catch {
+        const output = @import("output.zig");
+        output.printError("Invalid {s} ID: {s}", .{ entity, id_str });
+        return null;
+    };
+}
+
 /// Parse enum from string (case-insensitive).
 pub fn parseEnum(comptime E: type, text: []const u8) ?E {
     inline for (@typeInfo(E).@"enum".fields) |field| {

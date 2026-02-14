@@ -102,7 +102,7 @@ pub const StreamingDashboard = struct {
 
         pub fn init(method: []const u8, path: []const u8, status: u16, latency: u32, tokens: u32) RequestLogEntry {
             var entry = RequestLogEntry{
-                .timestamp = abi.utils.unixMs(),
+                .timestamp = abi.shared.utils.unixMs(),
                 .method = undefined,
                 .method_len = @intCast(@min(method.len, 8)),
                 .path = undefined,
@@ -171,7 +171,7 @@ pub const StreamingDashboard = struct {
 
     /// Poll metrics from the streaming server
     pub fn pollMetrics(self: *Self) !void {
-        const now = abi.utils.unixMs();
+        const now = abi.shared.utils.unixMs();
 
         // Check if enough time has passed
         if (now - self.last_poll < @as(i64, @intCast(self.poll_interval_ms))) {

@@ -323,17 +323,7 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0) {
-        utils.output.printError("Task ID required", .{});
-        std.debug.print("Usage: abi task show <id>\n", .{});
-        return;
-    }
-
-    const id_str = std.mem.sliceTo(args[0], 0);
-    const id = std.fmt.parseInt(u64, id_str, 10) catch {
-        utils.output.printError("Invalid task ID: {s}", .{id_str});
-        return;
-    };
+    const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
         utils.output.printError("Failed to initialize task manager: {t}", .{err});
@@ -392,17 +382,7 @@ fn runShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runDone(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0) {
-        utils.output.printError("Task ID required", .{});
-        std.debug.print("Usage: abi task done <id>\n", .{});
-        return;
-    }
-
-    const id_str = std.mem.sliceTo(args[0], 0);
-    const id = std.fmt.parseInt(u64, id_str, 10) catch {
-        utils.output.printError("Invalid task ID: {s}", .{id_str});
-        return;
-    };
+    const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
         utils.output.printError("Failed to initialize task manager: {t}", .{err});
@@ -423,17 +403,7 @@ fn runDone(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runStart(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0) {
-        utils.output.printError("Task ID required", .{});
-        std.debug.print("Usage: abi task start <id>\n", .{});
-        return;
-    }
-
-    const id_str = std.mem.sliceTo(args[0], 0);
-    const id = std.fmt.parseInt(u64, id_str, 10) catch {
-        utils.output.printError("Invalid task ID: {s}", .{id_str});
-        return;
-    };
+    const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
         utils.output.printError("Failed to initialize task manager: {t}", .{err});
@@ -454,17 +424,7 @@ fn runStart(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runCancel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0) {
-        utils.output.printError("Task ID required", .{});
-        std.debug.print("Usage: abi task cancel <id>\n", .{});
-        return;
-    }
-
-    const id_str = std.mem.sliceTo(args[0], 0);
-    const id = std.fmt.parseInt(u64, id_str, 10) catch {
-        utils.output.printError("Invalid task ID: {s}", .{id_str});
-        return;
-    };
+    const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
         utils.output.printError("Failed to initialize task manager: {t}", .{err});
@@ -485,17 +445,7 @@ fn runCancel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runDelete(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0) {
-        utils.output.printError("Task ID required", .{});
-        std.debug.print("Usage: abi task delete <id>\n", .{});
-        return;
-    }
-
-    const id_str = std.mem.sliceTo(args[0], 0);
-    const id = std.fmt.parseInt(u64, id_str, 10) catch {
-        utils.output.printError("Invalid task ID: {s}", .{id_str});
-        return;
-    };
+    const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
         utils.output.printError("Failed to initialize task manager: {t}", .{err});
@@ -564,18 +514,7 @@ fn runImportRoadmap(allocator: std.mem.Allocator) !void {
 }
 
 fn runEdit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0) {
-        utils.output.printError("Task ID required", .{});
-        std.debug.print("Usage: abi task edit <id> [options]\n", .{});
-        std.debug.print("Options: --title, --desc, --priority, --category\n", .{});
-        return;
-    }
-
-    const id_str = std.mem.sliceTo(args[0], 0);
-    const id = std.fmt.parseInt(u64, id_str, 10) catch {
-        utils.output.printError("Invalid task ID: {s}", .{id_str});
-        return;
-    };
+    const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
         utils.output.printError("Failed to initialize task manager: {t}", .{err});
@@ -706,17 +645,7 @@ fn runBlock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn runUnblock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0) {
-        utils.output.printError("Task ID required", .{});
-        std.debug.print("Usage: abi task unblock <task_id>\n", .{});
-        return;
-    }
-
-    const id_str = std.mem.sliceTo(args[0], 0);
-    const id = std.fmt.parseInt(u64, id_str, 10) catch {
-        utils.output.printError("Invalid task ID: {s}", .{id_str});
-        return;
-    };
+    const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
         utils.output.printError("Failed to initialize task manager: {t}", .{err});
