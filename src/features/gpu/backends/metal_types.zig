@@ -25,6 +25,11 @@ pub const MetalError = error{
     InvalidBlockSize,
     NSStringCreationFailed,
     DeviceQueryFailed,
+    MPSError,
+    CoreMLError,
+    MeshShaderError,
+    RayTracingError,
+    UnsupportedFeature,
 };
 
 // ============================================================================
@@ -165,4 +170,10 @@ pub const DeviceInfo = struct {
     max_buffer_length: u64,
     max_threads_per_threadgroup: u32,
     has_unified_memory: bool,
+    // Metal 3+ feature detection
+    gpu_family: u32 = 0,
+    supports_mesh_shaders: bool = false,
+    supports_ray_tracing: bool = false,
+    supports_mps: bool = false,
+    supports_neural_engine: bool = false,
 };

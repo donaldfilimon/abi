@@ -133,14 +133,6 @@ pub const signal = @import("signal.zig");
 // duplicate paths to the same modules.
 
 // ============================================================================
-// Legacy Compatibility
-// ============================================================================
-
-/// Legacy utilities maintained for backward compatibility.
-/// New code should use the modern equivalents in this module.
-pub const legacy = @import("legacy/mod.zig");
-
-// ============================================================================
 // Commonly Used Re-exports
 // ============================================================================
 

@@ -6,6 +6,79 @@
 const std = @import("std");
 const shared = @import("../shared.zig");
 
+/// CUDA GPU architecture generation derived from compute capability.
+pub const CudaArchitecture = enum {
+    kepler, // sm_30-37 (CC 3.x)
+    maxwell, // sm_50-53 (CC 5.x)
+    pascal, // sm_60-62 (CC 6.x)
+    volta, // sm_70-72 (CC 7.0-7.2)
+    turing, // sm_75 (CC 7.5)
+    ampere, // sm_80-87 (CC 8.0-8.7)
+    ada_lovelace, // sm_89 (CC 8.9)
+    hopper, // sm_90 (CC 9.0)
+    blackwell, // sm_100+ (CC 10.x)
+    unknown,
+
+    pub fn fromComputeCapability(major: i32, minor: i32) CudaArchitecture {
+        return switch (major) {
+            3 => .kepler,
+            5 => .maxwell,
+            6 => .pascal,
+            7 => if (minor >= 5) .turing else .volta,
+            8 => if (minor >= 9) .ada_lovelace else .ampere,
+            9 => .hopper,
+            10 => .blackwell,
+            else => if (major > 10) .blackwell else .unknown,
+        };
+    }
+
+    pub fn name(self: CudaArchitecture) []const u8 {
+        return switch (self) {
+            .kepler => "Kepler",
+            .maxwell => "Maxwell",
+            .pascal => "Pascal",
+            .volta => "Volta",
+            .turing => "Turing",
+            .ampere => "Ampere",
+            .ada_lovelace => "Ada Lovelace",
+            .hopper => "Hopper",
+            .blackwell => "Blackwell",
+            .unknown => "Unknown",
+        };
+    }
+};
+
+/// Feature support matrix derived from CUDA compute capability.
+/// Single source of truth for which features each architecture supports.
+pub const CudaFeatureSupport = struct {
+    fp16: bool,
+    bf16: bool,
+    tf32: bool,
+    fp8: bool,
+    tensor_cores: bool,
+    int8_tensor_cores: bool,
+    cooperative_groups: bool,
+    dynamic_parallelism: bool,
+    async_copy: bool,
+    unified_memory: bool,
+
+    pub fn fromComputeCapability(major: i32, minor: i32) CudaFeatureSupport {
+        const cc = major * 10 + minor;
+        return .{
+            .fp16 = cc >= 53,
+            .bf16 = cc >= 80,
+            .tf32 = cc >= 80,
+            .fp8 = cc >= 89,
+            .tensor_cores = cc >= 70,
+            .int8_tensor_cores = cc >= 72,
+            .cooperative_groups = cc >= 60,
+            .dynamic_parallelism = cc >= 35,
+            .async_copy = cc >= 80,
+            .unified_memory = cc >= 60,
+        };
+    }
+};
+
 pub const DeviceProperty = enum(u32) {
     major = 75,
     minor = 76,
@@ -21,6 +94,11 @@ pub const DeviceProperty = enum(u32) {
     multi_processor_count = 16,
     l2_cache_size = 38,
     max_threads_per_multi_processor = 39,
+    memory_clock_rate = 36,
+    global_memory_bus_width = 37,
+    managed_memory = 83,
+    cooperative_launch = 95,
+    max_blocks_per_multiprocessor = 106,
     compute_mode = 103,
     concurrent_kernels = 31,
     ecc_enabled = 32,
@@ -49,6 +127,24 @@ pub const CudaDeviceInfo = struct {
     can_map_host_memory: bool,
     unified_addressing: bool,
     concurrent_kernels: bool,
+    // Extended fields
+    architecture: CudaArchitecture = .unknown,
+    feature_support: CudaFeatureSupport = .{
+        .fp16 = false,
+        .bf16 = false,
+        .tf32 = false,
+        .fp8 = false,
+        .tensor_cores = false,
+        .int8_tensor_cores = false,
+        .cooperative_groups = false,
+        .dynamic_parallelism = false,
+        .async_copy = false,
+        .unified_memory = false,
+    },
+    memory_clock_rate_khz: i32 = 0,
+    global_memory_bus_width: i32 = 0,
+    managed_memory: bool = false,
+    cooperative_launch: bool = false,
 };
 
 const CUdevice = i32;
@@ -215,6 +311,33 @@ pub fn getDeviceInfo(device_id: i32) !CudaDeviceInfo {
         info.concurrent_kernels = mem != 0;
     }
 
+    // Extended attribute queries
+    if (attr_fn(&mem, .memory_clock_rate, device) == .success) {
+        info.memory_clock_rate_khz = mem;
+    }
+
+    if (attr_fn(&mem, .global_memory_bus_width, device) == .success) {
+        info.global_memory_bus_width = mem;
+    }
+
+    if (attr_fn(&mem, .managed_memory, device) == .success) {
+        info.managed_memory = mem != 0;
+    }
+
+    if (attr_fn(&mem, .cooperative_launch, device) == .success) {
+        info.cooperative_launch = mem != 0;
+    }
+
+    // Derive architecture and feature support from compute capability
+    info.architecture = CudaArchitecture.fromComputeCapability(
+        info.compute_capability.major,
+        info.compute_capability.minor,
+    );
+    info.feature_support = CudaFeatureSupport.fromComputeCapability(
+        info.compute_capability.major,
+        info.compute_capability.minor,
+    );
+
     return info;
 }
 
@@ -236,6 +359,7 @@ pub fn listDevices(allocator: std.mem.Allocator) ![]CudaDeviceInfo {
 
 pub fn formatDeviceInfo(info: CudaDeviceInfo, writer: anytype) !void {
     try writer.print("Device {d}: {s}\n", .{ info.device_id, std.mem.span(&info.name) });
+    try writer.print("  Architecture: {s}\n", .{info.architecture.name()});
     try writer.print("  Compute Capability: {d}.{d}\n", .{ info.compute_capability.major, info.compute_capability.minor });
     try writer.print("  Total Memory: {B}\n", .{info.total_memory});
     try writer.print("  Shared Memory per Block: {B}\n", .{info.shared_memory_per_block});
@@ -247,10 +371,20 @@ pub fn formatDeviceInfo(info: CudaDeviceInfo, writer: anytype) !void {
     try writer.print("  Multiprocessors: {d}\n", .{info.multi_processor_count});
     try writer.print("  Max Threads per Multiprocessor: {d}\n", .{info.max_threads_per_multi_processor});
     try writer.print("  L2 Cache: {B}\n", .{info.l2_cache_size});
+    try writer.print("  Memory Clock: {d} MHz\n", .{@divTrunc(info.memory_clock_rate_khz, 1000)});
+    try writer.print("  Memory Bus Width: {d} bit\n", .{info.global_memory_bus_width});
     try writer.print("  ECC Enabled: {any}\n", .{info.ecc_enabled});
     try writer.print("  Integrated: {any}\n", .{info.integrated});
     try writer.print("  Unified Addressing: {any}\n", .{info.unified_addressing});
     try writer.print("  Concurrent Kernels: {any}\n", .{info.concurrent_kernels});
+    try writer.print("  Managed Memory: {any}\n", .{info.managed_memory});
+    try writer.print("  Cooperative Launch: {any}\n", .{info.cooperative_launch});
+    try writer.print("  Tensor Cores: {any}\n", .{info.feature_support.tensor_cores});
+    try writer.print("  BF16: {any}, TF32: {any}, FP8: {any}\n", .{
+        info.feature_support.bf16,
+        info.feature_support.tf32,
+        info.feature_support.fp8,
+    });
 }
 
 fn tryLoadCuda() bool {

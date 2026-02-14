@@ -14,7 +14,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     // Check if SIMD is available
-    const has_simd = abi.hasSimdSupport();
+    const has_simd = abi.simd.hasSimdSupport();
     utils.output.printKeyValue("SIMD Support", if (has_simd) "available" else "unavailable");
 
     if (!has_simd) {

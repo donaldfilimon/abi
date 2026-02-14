@@ -12,7 +12,7 @@ const abi = @import("abi");
 // Framework initialization benchmark
 fn frameworkInitBenchmark(allocator: std.mem.Allocator) !void {
     var framework = try abi.initDefault(allocator);
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
     std.mem.doNotOptimizeAway(&framework);
 }
 
@@ -21,7 +21,7 @@ fn databaseInsertBenchmark(allocator: std.mem.Allocator) !void {
     var framework = try abi.init(allocator, abi.Config{
         .database = .{}, // Enabled with defaults
     });
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     var db_handle = try abi.database.open(allocator, "bench");
     defer abi.database.close(&db_handle);
@@ -34,7 +34,7 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
     var framework = try abi.init(allocator, abi.Config{
         .database = .{}, // Enabled with defaults
     });
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     var db_handle = try abi.database.open(allocator, "bench");
     defer abi.database.close(&db_handle);
@@ -61,7 +61,7 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
 // Compute benchmarks
 fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
     var framework = try abi.init(allocator, abi.Config{});
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // Simple compute benchmark using SIMD operations
     var sum: f32 = 0.0;
@@ -69,7 +69,7 @@ fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
     while (i < 10000) : (i += 1) {
         const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
         const vec_b = [_]f32{ @floatFromInt(@mod(i, 10)), @floatFromInt(@mod(i + 1, 10)), @floatFromInt(@mod(i + 2, 10)), @floatFromInt(@mod(i + 3, 10)) };
-        sum += abi.vectorDot(&vec_a, &vec_b);
+        sum += abi.simd.vectorDot(&vec_a, &vec_b);
     }
     std.mem.doNotOptimizeAway(sum);
 }
@@ -78,7 +78,7 @@ fn computeTaskBenchmark(allocator: std.mem.Allocator) !void {
 fn simdVectorBenchmark(_: std.mem.Allocator) !void {
     const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vec_b = [_]f32{ 4.0, 3.0, 2.0, 1.0 };
-    const result = abi.vectorDot(&vec_a, &vec_b);
+    const result = abi.simd.vectorDot(&vec_a, &vec_b);
     std.mem.doNotOptimizeAway(result);
 }
 
@@ -86,7 +86,7 @@ fn simdAddBenchmark(_: std.mem.Allocator) !void {
     const vec_a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
     const vec_b = [_]f32{ 4.0, 3.0, 2.0, 1.0 };
     var result = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
-    abi.vectorAdd(&vec_a, &vec_b, &result);
+    abi.simd.vectorAdd(&vec_a, &vec_b, &result);
     std.mem.doNotOptimizeAway(&result);
 }
 
@@ -107,7 +107,7 @@ fn gpuAvailabilityBenchmark(allocator: std.mem.Allocator) !void {
         std.mem.doNotOptimizeAway(@as(bool, false));
         return;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     const available = abi.gpu.moduleEnabled();
     std.mem.doNotOptimizeAway(available);
@@ -119,7 +119,7 @@ fn networkRegistryBenchmark(allocator: std.mem.Allocator) !void {
     // Initialize the framework with network enabled, but gracefully handle any errors
     // during registry operations so the benchmark suite reports no errors.
     var framework = abi.init(allocator, abi.Config{ .network = .{} }) catch return;
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // Attempt to obtain the default registry; if that fails, simply skip the benchmark.
     const registry = abi.network.defaultRegistry() catch return;
@@ -141,7 +141,7 @@ fn jsonBenchmark(allocator: std.mem.Allocator) !void {
 // Logging benchmark - measures format string processing overhead without I/O
 fn loggingBenchmark(allocator: std.mem.Allocator) !void {
     var framework = try abi.init(allocator, abi.Config{});
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // Measure format string preparation without stdout I/O
     var buffer: [256]u8 = undefined;

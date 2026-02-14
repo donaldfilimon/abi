@@ -456,8 +456,12 @@ pub const FeatureFlags = packed struct {
     atomics: bool = false,
     /// Requires dynamic shared memory.
     dynamic_shared_memory: bool = false,
+    /// Requires mesh shader support (Metal 3+ / Vulkan).
+    mesh_shaders: bool = false,
+    /// Requires ray tracing support (Metal 3+ / Vulkan RT).
+    ray_tracing: bool = false,
     /// Reserved bits for future use.
-    _reserved: u8 = 0,
+    _reserved: u6 = 0,
 };
 
 /// Result of kernel IR validation.

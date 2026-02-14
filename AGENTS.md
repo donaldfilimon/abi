@@ -1,72 +1,46 @@
 # Repository Guidelines
 
-For deeper architecture notes, see `CLAUDE.md`. For vulnerability reporting and security
-practices, see `SECURITY.md`.
-
-**AI agents**: Claude Code and other AI tools use `CLAUDE.md` and these docs for
-consistent behavior.
-
 ## Project Structure & Module Organization
-ABI is a Zig 0.16.0-dev.2535+b5bd49460 framework with `src/abi.zig` as the public API root. Core layout:
-- `src/api/`: executable entry points (`main.zig`).
-- `src/core/`: framework orchestration and config.
-- `src/features/`: feature modules (`ai`, `gpu`, `database`, `network`, `web`, etc.).
-- `src/services/`: shared runtime/platform infrastructure and test suites.
-- `src/services/tests/`: integration, parity, and stress tests.
-- `tests/`: additional top-level test harnesses.
-- `examples/`, `benchmarks/`, `docs/api/`: samples, performance, and auto-generated API docs.
-
-Import public APIs via `@import("abi")` rather than deep file paths. For feature-gated modules, keep `mod.zig` and `stub.zig` signatures aligned.
-
-## v2 Module Integration Notes
-- Shared v2 utilities are rooted at `src/services/shared/utils/`:
-  `v2_primitives.zig`, `structured_error.zig`, `swiss_map.zig`,
-  `abix_serialize.zig`, `profiler.zig`, `benchmark.zig`.
-- Shared v2 memory primitives are rooted at `src/services/shared/utils/memory/`:
-  `arena_pool.zig`, `combinators.zig`.
-- Runtime v2 primitives are rooted at:
-  - `src/services/runtime/concurrency/channel.zig`
-  - `src/services/runtime/scheduling/thread_pool.zig`
-  - `src/services/runtime/scheduling/dag_pipeline.zig`
-- Prefer re-exported public paths when possible:
-  - `abi.shared.utils.v2_primitives`, `abi.shared.utils.swiss_map`
-  - `abi.runtime.Channel`, `abi.runtime.ThreadPool`, `abi.runtime.DagPipeline`
-- Avoid cross-module deep imports from feature code into `src/services/**`.
-  Depend on `@import("abi")` namespaced exports at module boundaries.
+ABI is a Zig framework with `src/abi.zig` as the public API root.
+- Core code: `src/api/`, `src/core/`, `src/services/`, `src/features/`
+- Feature modules: `src/features/{ai,analytics,auth,cache,cloud,database,gpu,messaging,mobile,network,observability,search,storage,web,...}`
+- Shared runtime and tests: `src/services/tests/`
+- Additional tests: `tests/`
+- Examples and docs: `examples/`, `benchmarks/`, `docs/api/`
 
 ## Build, Test, and Development Commands
-- `zig build`: build with default feature flags.
-- `zig build run -- plugins list`: list ABI plugins.
-- `zig build run -- --help`: run CLI entry point.
-- `zig build test --summary all`: run full test suite.
-- `zig test src/path/to/file.zig --test-filter "pattern"`: run focused tests.
-- `zig build validate-flags`: verify feature-flag combinations compile.
-- `zig build cli-tests`: CLI smoke tests.
-- `scripts/check_zig_version_consistency.sh`: verify pinned Zig version consistency in metadata/docs.
-- `zig build full-check`: full local gate (format + tests + flag validation + CLI smoke tests).
-- `zig fmt .`: format source.
-- `zig build lint`: CI formatting check.
+- `zig build` – build with default feature flags.
+- `zig build run -- --help` – show CLI entry help.
+- `zig build run -- plugins list` – list available plugins.
+- `zig build test --summary all` – run the full test suite.
+- `zig test src/path/to/file.zig --test-filter "pattern"` – run focused tests.
+- `zig build validate-flags` – validates feature-flag combinations.
+- `zig build cli-tests` – run CLI smoke tests.
+- `zig build full-check` – run local gate (format + tests + flags + CLI smoke).
+- `zig fmt .` – format source before opening PR.
+- `zig build lint` – formatting/lint check used in CI.
 
 ## Coding Style & Naming Conventions
 - Use Zig `0.16.0-dev.2535+b5bd49460` or newer.
-- Indentation: 4 spaces, no tabs; keep lines under 100 chars.
-- Naming: `PascalCase` for types, `camelCase` for functions/variables, `*Config` for config structs.
-- Prefer explicit imports (no `usingnamespace`), specific error sets, and `defer`/`errdefer` for cleanup.
-- Prefer `std.ArrayListUnmanaged(T).empty` patterns used across this codebase.
+- Indentation: 4 spaces, no tabs.
+- Naming: `PascalCase` for types, `camelCase` for funcs/vars, `*Config` suffix for config structs.
+- Prefer explicit imports (`@import(...)`) over `usingnamespace`.
+- Prefer `defer`/`errdefer` for cleanup and specific error sets.
+- Use `std.ArrayListUnmanaged(T).empty` style in code that follows this pattern.
 
 ## Testing Guidelines
-- Unit tests should live alongside implementation files as `*_test.zig`.
-- Integration/stress/parity suites live under `src/services/tests/`.
-- Hardware-gated tests should skip cleanly with `error.SkipZigTest` when prerequisites are unavailable.
-- Before opening a PR, run at minimum `zig fmt .` and `zig build test --summary all`.
+- Unit tests belong beside implementation in `*_test.zig` files.
+- Integration/stress/parity suites go under `src/services/tests/`.
+- Hardware-dependent tests must skip cleanly with `error.SkipZigTest`.
+- Naming should reflect intent (e.g., `test "Feature ..."`).
+- Minimum PR check: at least run relevant focused tests and ideally `zig build test --summary all`.
 
 ## Commit & Pull Request Guidelines
-- Follow Conventional Commit prefixes seen in history: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
-- Keep commits focused and avoid mixing refactors with behavior changes.
-- PRs should include a clear summary, linked issue (if applicable), tests run, and documentation updates for API/flag changes.
+- Use conventional commits (e.g., `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
+- PRs should include: clear summary, linked issue (when applicable), test commands run, and docs updates for API/flag changes.
 
-## Security & Configuration Tips
-- Never hardcode secrets; pass credentials via environment variables.
-- When touching feature-gated code, validate both paths:
+## Security & Configuration Notes
+- Do not hardcode secrets; pass credentials via environment variables.
+- When touching feature-gated modules, validate both paths:
   - `zig build -Denable-<feature>=true`
   - `zig build -Denable-<feature>=false`

@@ -57,12 +57,12 @@ const DashboardState = struct {
 
     pub fn showNotification(self: *DashboardState, msg: []const u8) void {
         self.notification = msg;
-        self.notification_time = abi.utils.unixMs();
+        self.notification_time = abi.shared.utils.unixMs();
     }
 
     pub fn clearExpiredNotification(self: *DashboardState) void {
         if (self.notification != null) {
-            const elapsed = abi.utils.unixMs() - self.notification_time;
+            const elapsed = abi.shared.utils.unixMs() - self.notification_time;
             if (elapsed > 2000) { // 2 second display
                 self.notification = null;
             }
@@ -143,7 +143,7 @@ fn runDashboard(allocator: std.mem.Allocator) !void {
 
         // Update widgets if not paused
         if (!state.paused) {
-            const now = abi.utils.unixMs();
+            const now = abi.shared.utils.unixMs();
             // Update at ~10 FPS
             if (now - state.last_update_ms >= 100) {
                 try state.gpu_monitor.update();

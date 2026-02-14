@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1179 pass, 5 skip (1184 total) — must be maintained |
+| **Test baseline** | 1216 pass, 5 skip (1221 total) — must be maintained |
 
 ## Build & Test Commands
 
@@ -23,7 +23,7 @@ zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
 zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke tests
-zig build validate-flags                     # Compile-check 16 feature flag combos
+zig build validate-flags                     # Compile-check 26 feature flag combos
 zig build cli-tests                          # CLI smoke tests
 zig build lint                               # CI formatting check
 zig build benchmarks                         # Performance benchmarks
@@ -53,13 +53,23 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 | Feature Module | Build Flag | Notes |
 |----------------|------------|-------|
 | `ai` | `-Denable-ai` | Also: `-Denable-llm`, `-Denable-vision`, `-Denable-explore` |
+| `ai_core` | `-Denable-ai` | Agents, tools, prompts, personas, memory |
+| `inference` | `-Denable-llm` | LLM, embeddings, vision, streaming, transformer |
+| `training` | `-Denable-training` | Training pipelines, federated learning |
+| `reasoning` | `-Denable-reasoning` | Abbey, RAG, eval, templates, orchestration |
 | `analytics` | `-Denable-analytics` | |
-| `cloud` | `-Denable-web` | Shares flag with web (no separate flag) |
+| `auth` | `-Denable-auth` | Re-exports `services/shared/security/` (16 modules) |
+| `cache` | `-Denable-cache` | In-memory LRU/LFU, TTL, eviction |
+| `cloud` | `-Denable-cloud` | Own flag (decoupled from web) |
 | `database` | `-Denable-database` | |
 | `gpu` | `-Denable-gpu` | Backend selection via `-Dgpu-backend=` |
+| `messaging` | `-Denable-messaging` | Event bus, pub/sub, message queues |
+| `mobile` | `-Denable-mobile` | Defaults to `false` |
 | `network` | `-Denable-network` | |
 | `observability` | `-Denable-profiling` | Not `-Denable-observability` |
-| `web` | `-Denable-web` | Also gates cloud module |
+| `search` | `-Denable-search` | Full-text search |
+| `storage` | `-Denable-storage` | Unified file/object storage |
+| `web` | `-Denable-web` | |
 
 ## Critical Gotchas
 
@@ -122,7 +132,7 @@ This means:
 ```
 src/abi.zig              → Public API, comptime feature selection, type aliases
 src/core/                → Framework lifecycle, config builder, registry
-src/features/<name>/     → mod.zig + stub.zig per feature (8 modules: ai, analytics, cloud, database, gpu, network, observability, web)
+src/features/<name>/     → mod.zig + stub.zig per feature (15 modules + 4 AI split modules)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
 tools/cli/               → Primary CLI entry point and command registration
 src/api/                 → Additional executable entry points (e.g., `main.zig`)
@@ -173,24 +183,25 @@ var fw = try abi.Framework.builder(allocator)
 
 ### Convenience Aliases
 
-`src/abi.zig` re-exports a small set of commonly used types at the top level:
-`vectorAdd`, `vectorDot`, `hasSimdSupport`, `Gpu`, `GpuBackend`, `discord`,
-`DiscordTools`. For new code, prefer the namespaced versions (`abi.simd.vectorAdd`,
-`abi.gpu.Gpu`, `abi.ai.DiscordTools`).
+`src/abi.zig` re-exports `Gpu` and `GpuBackend` at the top level. All other
+functions use namespaced paths: `abi.simd.vectorAdd`, `abi.simd.hasSimdSupport`,
+`abi.connectors.discord`.
 
-## AI Module (Largest Module — 255 files)
+## AI Modules
 
-Located at `src/features/ai/`. Has 17 submodules that follow the stub pattern
-(agents, database, documents, embeddings, eval, explore, llm, memory, models,
-multi_agent, orchestration, personas, rag, streaming, templates, training, vision)
-and 6 that don't (abbey, core, prompts, tools, transformer, federated).
+The AI feature is split into 5 independent modules:
+- `ai` (`src/features/ai/`) — Full monolith (17 submodules with stubs + 6 without)
+- `ai_core` (`src/features/ai_core/`) — Agents, tools, prompts, personas, memory
+- `inference` (`src/features/ai_inference/`) — LLM, embeddings, vision, streaming
+- `training` (`src/features/ai_training/`) — Training pipelines, federated learning
+- `reasoning` (`src/features/ai_reasoning/`) — Abbey, RAG, eval, templates, orchestration
 
 The `abbey/` submodule is the advanced reasoning system with meta-learning,
 self-reflection, theory of mind, and neural attention mechanisms.
 
 ## GPU Module
 
-`src/features/gpu/` supports 11 backends through a vtable-based abstraction in
+`src/features/gpu/` supports 12 backends through a vtable-based abstraction in
 `backends/`. The `dsl/` directory provides a kernel DSL with codegen targeting
 SPIR-V and other backends. `mega/` handles multi-GPU orchestration.
 
@@ -203,14 +214,14 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 |------------|---------|
 | Add/modify public API | `src/abi.zig` |
 | Change build flags | `build.zig` |
-| Add a new feature module | 8 files: `mod.zig` + `stub.zig`, `build.zig` (5 places), `src/abi.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig`, `src/core/framework.zig`, `src/services/tests/parity/mod.zig`. **Verify:** `zig build validate-flags` |
+| Add a new feature module | 8+ files: `features/<name>/{mod,stub}.zig`, `build/options.zig`, `build/flags.zig`, `src/abi.zig`, `src/core/config/mod.zig`, `src/core/registry/types.zig`, `src/core/framework.zig`, `src/services/tests/stub_parity.zig`. **Verify:** `zig build validate-flags` |
 | Add a CLI command | `tools/cli/commands/`, register in `tools/cli/main.zig` |
 | Add config for a feature | `src/core/config/` |
 | Write integration tests | `src/services/tests/` |
 | Add a GPU backend | `src/features/gpu/backends/` |
 | Security infrastructure | `src/services/shared/security/` (16 modules) |
 | Generate API docs | `zig build gendocs` → `docs/api/` |
-| Examples | `examples/` (19 examples) |
+| Examples | `examples/` (21 examples) |
 
 ## Environment Variables
 
@@ -242,7 +253,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Current baseline**: 1179 pass, 5 skip (1184 total). **This baseline must be maintained** — any
+**Current baseline**: 1216 pass, 5 skip (1221 total). **This baseline must be maintained** — any
 PR that reduces passing tests or increases skipped tests requires justification.
 
 **Test root**: `src/services/tests/mod.zig` (NOT `src/abi.zig`). Feature tests are

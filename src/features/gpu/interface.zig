@@ -92,8 +92,45 @@ pub const DeviceCaps = struct {
     unified_memory: bool = false,
     async_engine_count: u32 = 0,
 
+    // Extended capabilities (CUDA sm_XX / Metal GPU Family)
+    supports_bf16: bool = false,
+    supports_tf32: bool = false,
+    supports_fp8: bool = false,
+    supports_tensor_cores: bool = false,
+    supports_int8_tensor_cores: bool = false,
+    supports_cooperative_groups: bool = false,
+    supports_dynamic_parallelism: bool = false,
+    supports_async_copy: bool = false,
+    managed_memory: bool = false,
+    supports_mesh_shaders: bool = false,
+    supports_ray_tracing: bool = false,
+    supports_neural_engine: bool = false,
+    supports_mps: bool = false,
+    metal_gpu_family: u32 = 0,
+
+    // Hardware topology
+    sm_count: u32 = 0,
+    memory_clock_rate_khz: u32 = 0,
+    memory_bus_width: u32 = 0,
+    architecture_name: [64]u8 = .{0} ** 64,
+    architecture_name_len: usize = 0,
+
     pub fn getName(self: *const DeviceCaps) []const u8 {
         return self.name[0..self.name_len];
+    }
+
+    pub fn getArchitectureName(self: *const DeviceCaps) []const u8 {
+        return self.architecture_name[0..self.architecture_name_len];
+    }
+
+    /// Estimate memory bandwidth in GB/s from clock rate and bus width.
+    pub fn memoryBandwidthGBps(self: *const DeviceCaps) f64 {
+        if (self.memory_clock_rate_khz == 0 or self.memory_bus_width == 0)
+            return 0;
+        // bandwidth = 2 * clock_rate_hz * bus_width_bytes / 1e9
+        const clock_hz: f64 = @as(f64, @floatFromInt(self.memory_clock_rate_khz)) * 1000.0;
+        const bus_bytes: f64 = @as(f64, @floatFromInt(self.memory_bus_width)) / 8.0;
+        return 2.0 * clock_hz * bus_bytes / 1_000_000_000.0;
     }
 };
 

@@ -36,6 +36,11 @@ pub const MTLSize = metal_types.MTLSize;
 pub const MTLOrigin = metal_types.MTLOrigin;
 pub const MTLRegion = metal_types.MTLRegion;
 
+// Metal GPU Family / Feature detection
+pub const gpu_family = @import("metal/gpu_family.zig");
+pub const MetalGpuFamily = gpu_family.MetalGpuFamily;
+pub const MetalFeatureSet = gpu_family.MetalFeatureSet;
+
 var metal_lib: ?std.DynLib = null;
 var objc_lib: ?std.DynLib = null;
 var foundation_lib: ?std.DynLib = null;
@@ -49,6 +54,9 @@ var device_name_len: usize = 0;
 var device_total_memory: u64 = 0;
 var device_max_threads_per_group: u32 = 0;
 var device_max_buffer_length: u64 = 0;
+
+// Cached GPU feature set (populated during queryDeviceProperties)
+var cached_feature_set: ?MetalFeatureSet = null;
 
 // Active command buffers for synchronization
 var pending_command_buffers: std.ArrayListUnmanaged(ID) = .empty;
@@ -299,6 +307,22 @@ fn queryDeviceProperties(device: ID) void {
     // This returns an MTLSize struct, which we need to handle specially
     // For now, use default values based on Apple Silicon capabilities
     device_max_threads_per_group = 1024; // Common default for Apple Silicon
+
+    // Detect GPU family and build feature set
+    if (sel_registerName) |sel_fn| {
+        const family_sel = sel_fn("supportsFamily:");
+        const family_fn: *const fn (
+            ID,
+            SEL,
+            u32,
+        ) callconv(.c) bool = @ptrCast(objc_msgSend);
+        const family = gpu_family.detectGpuFamily(
+            @ptrCast(device),
+            @ptrCast(family_sel),
+            @ptrCast(&family_fn),
+        );
+        cached_feature_set = gpu_family.buildFeatureSet(family);
+    }
 }
 
 pub fn deinit() void {
@@ -1236,17 +1260,33 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
 pub fn getDeviceInfo() ?DeviceInfo {
     if (!metal_initialized or metal_device == null) return null;
 
-    return DeviceInfo{
+    var info = DeviceInfo{
         .name = if (device_name_len > 0) device_name_buf[0..device_name_len] else "Unknown",
         .total_memory = device_total_memory,
         .max_buffer_length = device_max_buffer_length,
         .max_threads_per_threadgroup = device_max_threads_per_group,
         .has_unified_memory = builtin.target.cpu.arch == .aarch64,
     };
+
+    if (cached_feature_set) |fs| {
+        info.gpu_family = @intFromEnum(fs.gpu_family);
+        info.supports_mesh_shaders = fs.supports_mesh_shaders;
+        info.supports_ray_tracing = fs.supports_ray_tracing;
+        info.supports_mps = fs.supports_mps;
+        info.supports_neural_engine = fs.has_neural_engine;
+    }
+
+    return info;
 }
 
 /// Detailed device information struct (re-exported from metal_types.zig).
 pub const DeviceInfo = metal_types.DeviceInfo;
+
+/// Get the detected GPU feature set (populated during init).
+/// Returns null if Metal is not initialized or feature detection failed.
+pub fn getFeatureSet() ?MetalFeatureSet {
+    return cached_feature_set;
+}
 
 // ============================================================================
 // Test discovery for extracted submodules
@@ -1255,4 +1295,9 @@ pub const DeviceInfo = metal_types.DeviceInfo;
 test {
     _ = @import("metal_types.zig");
     _ = @import("metal_test.zig");
+    _ = @import("metal/gpu_family.zig");
+    _ = @import("metal/mps.zig");
+    _ = @import("metal/coreml.zig");
+    _ = @import("metal/mesh_shaders.zig");
+    _ = @import("metal/ray_tracing.zig");
 }

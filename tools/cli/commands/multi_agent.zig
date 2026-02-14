@@ -88,8 +88,8 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
 fn runInfo(allocator: std.mem.Allocator) !void {
     // Initialise the framework to access runtime feature matrix.
-    var framework = try abi.init(allocator, abi.FrameworkOptions{});
-    defer abi.shutdown(&framework);
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     utils.output.printHeader("Multi‑Agent Coordinator");
 

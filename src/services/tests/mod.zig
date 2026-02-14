@@ -295,14 +295,7 @@ test "framework minimal initialization" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework_minimal = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = false,
-        .enable_ai = false,
-        .enable_web = false,
-        .enable_database = false,
-        .enable_network = false,
-        .enable_profiling = false,
-    });
+    var framework_minimal = try abi.initDefault(gpa.allocator());
     defer framework_minimal.deinit();
 
     try std.testing.expect(framework_minimal.isRunning());
@@ -314,14 +307,7 @@ test "framework with gpu enabled" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = true,
-        .enable_ai = false,
-        .enable_web = false,
-        .enable_database = false,
-        .enable_network = false,
-        .enable_profiling = false,
-    });
+    var framework = try abi.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expect(framework.isEnabled(.gpu));
@@ -331,14 +317,7 @@ test "framework feature flags" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = build_options.enable_gpu,
-        .enable_ai = build_options.enable_ai,
-        .enable_web = build_options.enable_web,
-        .enable_database = build_options.enable_database,
-        .enable_network = build_options.enable_network,
-        .enable_profiling = build_options.enable_profiling,
-    });
+    var framework = try abi.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expectEqual(build_options.enable_gpu, framework.isEnabled(.gpu));

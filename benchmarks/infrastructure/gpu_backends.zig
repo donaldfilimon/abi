@@ -15,7 +15,7 @@ pub fn runGpuBackendBenchmarks(allocator: std.mem.Allocator) !void {
         std.debug.print("No GPU backends available\n", .{});
         return;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     if (!abi.gpu.moduleEnabled()) {
         std.debug.print("GPU module not enabled\n", .{});
@@ -103,7 +103,7 @@ fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void
     var fw = try abi.init(allocator, abi.Config{
         .gpu = .{ .backend = backend },
     });
-    defer abi.shutdown(&fw);
+    defer fw.deinit();
 
     // Vector addition benchmark
     const vec_size = 1024 * 1024;
@@ -124,14 +124,14 @@ fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void
 
     // Warmup
     for (0..10) |_| {
-        abi.vectorAdd(vec_a, vec_b, result);
+        abi.simd.vectorAdd(vec_a, vec_b, result);
     }
 
     // Benchmark
     var timer = try abi.shared.time.Timer.start();
     const iterations: usize = 100;
     for (0..iterations) |_| {
-        abi.vectorAdd(vec_a, vec_b, result);
+        abi.simd.vectorAdd(vec_a, vec_b, result);
     }
     const elapsed = timer.read();
 

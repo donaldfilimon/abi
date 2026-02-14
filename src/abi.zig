@@ -4,14 +4,6 @@
 //! and high-performance compute. This is the primary entry point for all
 //! ABI functionality.
 //!
-//! ## Features
-//!
-//! - **AI Module**: Local LLM inference, embeddings, agents, training pipelines
-//! - **GPU Acceleration**: Multi-backend support (CUDA, Vulkan, Metal, WebGPU)
-//! - **Vector Database**: WDBX with HNSW/IVF-PQ indexing
-//! - **Distributed Compute**: Raft consensus, task distribution
-//! - **Observability**: Metrics, tracing, and profiling
-//!
 //! ## Quick Start
 //!
 //! ```zig
@@ -21,20 +13,15 @@
 //! pub fn main() !void {
 //!     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 //!     defer _ = gpa.deinit();
-//!     const allocator = gpa.allocator();
 //!
-//!     // Minimal initialization with defaults
-//!     var fw = try abi.initDefault(allocator);
+//!     var fw = try abi.initDefault(gpa.allocator());
 //!     defer fw.deinit();
 //!
-//!     // Check framework version
 //!     std.debug.print("ABI v{s}\n", .{abi.version()});
 //! }
 //! ```
 //!
 //! ## Builder Pattern
-//!
-//! For more control over which features are enabled:
 //!
 //! ```zig
 //! var fw = try abi.Framework.builder(allocator)
@@ -43,23 +30,16 @@
 //!     .withDatabase(.{ .path = "./data" })
 //!     .build();
 //! defer fw.deinit();
-//!
-//! // Access enabled features
-//! if (fw.isEnabled(.gpu)) {
-//!     const gpu_ctx = try fw.getGpu();
-//!     // Use GPU features...
-//! }
 //! ```
 //!
 //! ## Feature Modules
 //!
-//! Access feature modules through the namespace exports:
-//! - `abi.ai` - AI capabilities (LLM, embeddings, agents, training)
-//! - `abi.gpu` - GPU acceleration and compute
-//! - `abi.database` - Vector database operations
-//! - `abi.network` - Distributed networking
-//! - `abi.observability` - Metrics and tracing
-//! - `abi.web` - HTTP utilities
+//! Access features through namespace exports:
+//! - `abi.ai` / `abi.ai_core` / `abi.inference` / `abi.training` / `abi.reasoning`
+//! - `abi.gpu`, `abi.database`, `abi.network`, `abi.web`, `abi.cloud`
+//! - `abi.observability`, `abi.analytics`, `abi.auth`, `abi.messaging`
+//! - `abi.cache`, `abi.storage`, `abi.search`
+//! - `abi.shared.simd`, `abi.connectors.discord`
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -72,7 +52,7 @@ comptime {
 }
 
 // ============================================================================
-// New Modular Architecture (v2)
+// Core (always available)
 // ============================================================================
 
 /// Unified configuration system.
@@ -93,14 +73,34 @@ pub const FrameworkError = errors.FrameworkError;
 pub const registry = @import("core/registry/mod.zig");
 pub const Registry = registry.Registry;
 
-/// Runtime infrastructure (always available).
+// ============================================================================
+// Services (always available)
+// ============================================================================
+
+/// Runtime infrastructure (thread pool, channels, scheduling).
 pub const runtime = @import("services/runtime/mod.zig");
 
 /// Platform detection and abstraction.
 pub const platform = @import("services/platform/mod.zig");
 
-/// Shared utilities.
+/// Shared utilities (SIMD, time, sync, security, etc.).
 pub const shared = @import("services/shared/mod.zig");
+
+/// External service connectors (OpenAI, Anthropic, Ollama, etc.).
+pub const connectors = @import("services/connectors/mod.zig");
+
+/// High availability (replication, backup, PITR).
+pub const ha = @import("services/ha/mod.zig");
+
+/// Task management system.
+pub const tasks = @import("services/tasks/mod.zig");
+
+/// SIMD operations (shorthand for `shared.simd`).
+pub const simd = @import("services/shared/simd.zig");
+
+// ============================================================================
+// Feature Modules (comptime-gated)
+// ============================================================================
 
 /// GPU acceleration.
 pub const gpu = if (build_options.enable_gpu)
@@ -198,228 +198,40 @@ pub const storage = if (build_options.enable_storage)
 else
     @import("features/storage/stub.zig");
 
+/// Mobile platform (lifecycle, sensors, notifications).
+pub const mobile = if (build_options.enable_mobile)
+    @import("features/mobile/mod.zig")
+else
+    @import("features/mobile/stub.zig");
+
 /// Full-text search.
 pub const search = if (build_options.enable_search)
     @import("features/search/mod.zig")
 else
     @import("features/search/stub.zig");
 
-/// High availability (replication, backup, PITR).
-pub const ha = @import("services/ha/mod.zig");
-
-/// Task management system.
-pub const tasks = @import("services/tasks/mod.zig");
-
 // ============================================================================
-// Service Modules (always available)
+// Convenience Aliases (minimal)
 // ============================================================================
 
-/// External service connectors (OpenAI, Anthropic, Ollama, etc.).
-pub const connectors = @import("services/connectors/mod.zig");
-
-// Legacy framework types (still used in tests/CLI — scheduled for removal)
-pub const FrameworkOptions = framework.FrameworkOptions;
-
-// Shared utilities (direct imports from shared/)
-pub const logging = @import("services/shared/logging.zig");
-pub const plugins = @import("services/shared/plugins.zig");
-pub const simd = @import("services/shared/simd.zig");
-pub const utils = @import("services/shared/utils.zig");
-pub const os = @import("services/shared/os.zig");
-
-// Convenience re-exports. For new code, prefer the namespaced versions:
-//   abi.simd.vectorAdd, abi.gpu.Gpu, abi.ai.DiscordTools, etc.
-pub const vectorAdd = simd.vectorAdd;
-pub const vectorDot = simd.vectorDot;
-pub const hasSimdSupport = simd.hasSimdSupport;
 pub const Gpu = gpu.Gpu;
 pub const GpuBackend = gpu.Backend;
-pub const discord = connectors.discord;
-pub const DiscordTools = ai.DiscordTools;
 
 // ============================================================================
 // Primary API
 // ============================================================================
 
 /// Initialize the ABI framework with the given configuration.
-///
-/// This is a flexible initialization function that accepts multiple configuration types
-/// for backward compatibility. For new code, prefer using `initDefault` or `initWithConfig`.
-///
-/// ## Parameters
-///
-/// - `allocator`: Memory allocator for framework resources. The framework stores this
-///   allocator and uses it for all internal allocations. The caller retains ownership
-///   and must ensure the allocator outlives the framework.
-/// - `config_or_options`: Configuration for the framework. Accepts:
-///   - `Config`: The new unified configuration struct
-///   - `FrameworkOptions`: Legacy options struct (deprecated)
-///   - `void`: Uses default configuration
-///   - Struct literal: Coerced to `Config`
-///
-/// ## Returns
-///
-/// A fully initialized `Framework` instance, or an error if initialization fails.
-///
-/// ## Errors
-///
-/// - `ConfigError.FeatureDisabled`: A feature is enabled in config but disabled at compile time
-/// - `error.OutOfMemory`: Memory allocation failed
-/// - `error.FeatureInitFailed`: A feature module failed to initialize
-///
-/// ## Example
-///
-/// ```zig
-/// // With explicit Config
-/// var fw = try abi.init(allocator, abi.Config.defaults());
-/// defer fw.deinit();
-///
-/// // With struct literal
-/// var fw = try abi.init(allocator, .{
-///     .gpu = .{ .backend = .vulkan },
-/// });
-/// defer fw.deinit();
-/// ```
-pub fn init(allocator: std.mem.Allocator, config_or_options: anytype) !Framework {
-    const T = @TypeOf(config_or_options);
-
-    if (T == Config) {
-        return Framework.init(allocator, config_or_options);
-    } else if (T == FrameworkOptions) {
-        return Framework.init(allocator, config_or_options.toConfig());
-    } else if (T == void) {
-        return Framework.initDefault(allocator);
-    } else {
-        // Assume it's a struct literal that can be coerced to Config
-        const config_val: Config = config_or_options;
-        return Framework.init(allocator, config_val);
-    }
+pub fn init(allocator: std.mem.Allocator, cfg: Config) !Framework {
+    return Framework.init(allocator, cfg);
 }
 
 /// Initialize the ABI framework with default configuration.
-///
-/// This is the simplest way to initialize the framework. It enables all features
-/// that are available at compile time with their default settings.
-///
-/// ## Parameters
-///
-/// - `allocator`: Memory allocator for framework resources
-///
-/// ## Returns
-///
-/// A fully initialized `Framework` instance with default configuration.
-///
-/// ## Example
-///
-/// ```zig
-/// var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-/// defer _ = gpa.deinit();
-///
-/// var fw = try abi.initDefault(gpa.allocator());
-/// defer fw.deinit();
-///
-/// // Framework is ready to use with all default features
-/// std.debug.print("Version: {s}\n", .{abi.version()});
-/// ```
 pub fn initDefault(allocator: std.mem.Allocator) !Framework {
     return Framework.initDefault(allocator);
 }
 
-/// Initialize the ABI framework with custom configuration.
-///
-/// Use this function when you need fine-grained control over which features
-/// are enabled and their configuration. Accepts multiple configuration formats
-/// for backward compatibility.
-///
-/// ## Parameters
-///
-/// - `allocator`: Memory allocator for framework resources
-/// - `cfg`: Configuration, one of:
-///   - `Config`: New unified configuration struct (recommended)
-///   - `FrameworkOptions`: Legacy options (deprecated)
-///   - Struct literal: Coerced to `Config`
-///   - Empty struct `{}`: Uses default configuration
-///
-/// ## Returns
-///
-/// A fully initialized `Framework` instance with the specified configuration.
-///
-/// ## Example
-///
-/// ```zig
-/// // Enable only specific features
-/// var fw = try abi.initWithConfig(allocator, .{
-///     .gpu = .{ .backend = .cuda },
-///     .ai = .{
-///         .llm = .{ .model_path = "./models/llama-7b.gguf" },
-///     },
-///     .database = .{ .path = "./vector_db" },
-/// });
-/// defer fw.deinit();
-/// ```
-pub fn initWithConfig(allocator: std.mem.Allocator, cfg: anytype) !Framework {
-    const T = @TypeOf(cfg);
-
-    if (T == Config) {
-        return Framework.init(allocator, cfg);
-    } else if (T == FrameworkOptions) {
-        return Framework.init(allocator, cfg.toConfig());
-    } else if (T == @TypeOf(.{})) {
-        // Empty struct literal - use defaults
-        return Framework.initDefault(allocator);
-    } else {
-        // Assume it's a struct literal that can be coerced to Config
-        const config_val: Config = cfg;
-        return Framework.init(allocator, config_val);
-    }
-}
-
-/// Shutdown and clean up the framework.
-///
-/// This is a convenience wrapper around `Framework.deinit()`. It releases all
-/// resources held by the framework, including feature contexts, the registry,
-/// and internal state.
-///
-/// After calling this function, the framework instance should not be used.
-///
-/// ## Parameters
-///
-/// - `fw`: Pointer to the framework instance to shut down
-///
-/// ## Example
-///
-/// ```zig
-/// var fw = try abi.initDefault(allocator);
-/// // ... use the framework ...
-/// abi.shutdown(&fw);  // Clean up resources
-/// ```
-///
-/// ## Note
-///
-/// Using `defer fw.deinit()` directly is equivalent and often preferred:
-/// ```zig
-/// var fw = try abi.initDefault(allocator);
-/// defer fw.deinit();  // Automatically clean up on scope exit
-/// ```
-pub fn shutdown(fw: *Framework) void {
-    fw.deinit();
-}
-
 /// Get the ABI framework version string.
-///
-/// Returns the semantic version of the ABI framework as defined at build time.
-/// This can be used for logging, compatibility checks, or displaying version
-/// information to users.
-///
-/// ## Returns
-///
-/// A compile-time constant string containing the version (e.g., "0.1.0").
-///
-/// ## Example
-///
-/// ```zig
-/// std.debug.print("Running ABI Framework v{s}\n", .{abi.version()});
-/// ```
 pub fn version() []const u8 {
     return build_options.package_version;
 }
@@ -437,8 +249,6 @@ test "abi.version returns build package version" {
 }
 
 test "framework initialization with defaults" {
-    // Note: Full framework init requires feature modules to be properly set up
-    // This test verifies the API compiles correctly
     const cfg = Config.defaults();
     try std.testing.expect(cfg.gpu != null or !build_options.enable_gpu);
 }

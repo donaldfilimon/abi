@@ -68,16 +68,7 @@ pub const BackendInstance = struct {
 
     /// Check if this backend supports a specific feature.
     pub fn supportsFeature(self: *const BackendInstance, feature: BackendFeature) bool {
-        return switch (feature) {
-            .fp16 => self.backend_type == .cuda or self.backend_type == .metal,
-            .fp64 => self.backend_type == .cuda,
-            .atomics => self.backend_type != .stdgpu,
-            .shared_memory => self.backend_type != .stdgpu,
-            .subgroups => self.backend_type == .cuda or self.backend_type == .vulkan,
-            .cooperative_groups => self.backend_type == .cuda,
-            .tensor_cores => self.backend_type == .cuda,
-            .dynamic_parallelism => self.backend_type == .cuda,
-        };
+        return backendSupportsFeature(self.backend_type, feature);
     }
 };
 
@@ -91,6 +82,15 @@ pub const BackendFeature = enum {
     cooperative_groups,
     tensor_cores,
     dynamic_parallelism,
+    bf16,
+    tf32,
+    fp8,
+    async_copy,
+    int8_tensor_cores,
+    mesh_shaders,
+    ray_tracing,
+    neural_engine,
+    mps,
 };
 
 /// Backend priority order for auto-selection.
@@ -263,6 +263,15 @@ fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bool {
         .cooperative_groups => backend_type == .cuda,
         .tensor_cores => backend_type == .cuda,
         .dynamic_parallelism => backend_type == .cuda,
+        .bf16 => backend_type == .cuda,
+        .tf32 => backend_type == .cuda,
+        .fp8 => backend_type == .cuda,
+        .async_copy => backend_type == .cuda,
+        .int8_tensor_cores => backend_type == .cuda,
+        .mesh_shaders => backend_type == .metal,
+        .ray_tracing => backend_type == .metal or backend_type == .vulkan,
+        .neural_engine => backend_type == .metal,
+        .mps => backend_type == .metal,
     };
 }
 

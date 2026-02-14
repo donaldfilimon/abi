@@ -5,7 +5,7 @@
 const std = @import("std");
 const testing = std.testing;
 const abi = @import("abi");
-const os = abi.os;
+const os = abi.shared.os;
 
 // ============================================================================
 // Platform Detection Tests

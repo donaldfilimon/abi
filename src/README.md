@@ -124,14 +124,14 @@ Newer v2 primitives are wired through `shared` and `runtime`, not feature-local 
 | Allocator combinators | `shared/utils/memory/combinators.zig` | `abi.shared.memory.FallbackAllocator` |
 | Tensor ops | `shared/tensor.zig` | `abi.shared.tensor` |
 | Matrix ops | `shared/matrix.zig` | `abi.shared.matrix` |
-| SIMD kernels | `shared/simd.zig` | `abi.shared.simd` / `abi.vectorAdd`, etc. |
+| SIMD kernels | `shared/simd.zig` | `abi.simd` / `abi.shared.simd` |
 | MPMC channel | `runtime/concurrency/channel.zig` | `abi.runtime.Channel` |
 | Thread pool | `runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
 | DAG pipeline | `runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
 
 ## Key Entry Points
 
-- **Public API**: `abi.zig` — `abi.initDefault()`, `abi.initWithConfig()`, `Framework.builder()`, `abi.version()`
+- **Public API**: `abi.zig` — `abi.init()`, `abi.initDefault()`, `Framework.builder()`, `abi.version()`
 - **Configuration**: `core/config/mod.zig` — Unified `Config` struct with `Builder` API
 - **Framework**: `core/framework.zig` — State machine: uninitialized -> initializing -> running -> stopping -> stopped
 - **Runtime**: `services/runtime/mod.zig` — Always-available scheduling and concurrency (not feature-gated)

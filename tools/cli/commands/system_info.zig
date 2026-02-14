@@ -19,8 +19,8 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     // Load framework instance for feature matrix (required for runtime checks)
-    var framework = try abi.init(allocator, abi.FrameworkOptions{});
-    defer abi.shutdown(&framework);
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     const info = abi.platform.getPlatformInfo();
 
@@ -34,7 +34,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printKeyValue("ABI Version", abi.version());
 
     // Hardware Capabilities
-    utils.output.printKeyValue("SIMD Support", if (abi.hasSimdSupport()) "available" else "unavailable");
+    utils.output.printKeyValue("SIMD Support", if (abi.simd.hasSimdSupport()) "available" else "unavailable");
 
     // GPU and Network Summaries (using modernized summary functions)
     try gpu.printSummary(allocator);

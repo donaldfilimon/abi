@@ -6,7 +6,7 @@ const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
 // Use the shared config module for file-based configuration (legacy format)
-const shared_config = @import("abi").utils.config;
+const shared_config = @import("abi").shared.utils.config;
 
 /// Run the config command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

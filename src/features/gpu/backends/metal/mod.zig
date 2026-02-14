@@ -9,6 +9,11 @@
 //! - vBLAS/vDSP integration via Accelerate framework (AMX-accelerated)
 //! - Unified memory architecture support for zero-copy operations
 //! - Neural network primitives optimized for Apple Silicon
+//! - GPU Family detection (Apple1-9, Mac1-2)
+//! - Metal Performance Shaders (MPS) for linear algebra and neural networks
+//! - CoreML integration for model inference via Neural Engine
+//! - Mesh Shaders (Metal 3+ / Apple7+)
+//! - Ray Tracing with acceleration structures (Metal 3+ / Apple7+)
 //!
 //! ## Usage
 //! ```zig
@@ -29,9 +34,17 @@
 //! }
 //! ```
 
+// Core submodules
 pub const quantized_kernels = @import("quantized_kernels.zig");
 pub const accelerate = @import("accelerate.zig");
 pub const unified_memory = @import("unified_memory.zig");
+
+// Metal 3+ feature submodules
+pub const gpu_family = @import("gpu_family.zig");
+pub const mps = @import("mps.zig");
+pub const coreml = @import("coreml.zig");
+pub const mesh_shaders = @import("mesh_shaders.zig");
+pub const ray_tracing = @import("ray_tracing.zig");
 
 /// Re-export key types for convenience
 pub const QuantizedKernelModule = quantized_kernels.QuantizedKernelModule;
@@ -48,6 +61,28 @@ pub const UnifiedMemoryConfig = unified_memory.UnifiedMemoryConfig;
 pub const UnifiedTensor = unified_memory.UnifiedTensor;
 pub const StorageMode = unified_memory.StorageMode;
 pub const MemoryStats = unified_memory.MemoryStats;
+
+/// GPU Family types
+pub const MetalGpuFamily = gpu_family.MetalGpuFamily;
+pub const MetalFeatureSet = gpu_family.MetalFeatureSet;
+
+/// MPS types
+pub const MpsMatMul = mps.MpsMatMul;
+pub const MpsConvolution = mps.MpsConvolution;
+pub const MpsGraph = mps.MpsGraph;
+
+/// CoreML types
+pub const CoreMlModel = coreml.CoreMlModel;
+pub const ComputeUnit = coreml.ComputeUnit;
+
+/// Mesh shader types
+pub const MeshPipeline = mesh_shaders.MeshPipeline;
+pub const MeshPipelineConfig = mesh_shaders.MeshPipelineConfig;
+
+/// Ray tracing types
+pub const AccelerationStructure = ray_tracing.AccelerationStructure;
+pub const TriangleGeometry = ray_tracing.TriangleGeometry;
+pub const InstanceDescriptor = ray_tracing.InstanceDescriptor;
 
 /// Quantization block sizes
 pub const Q4_BLOCK_SIZE = quantized_kernels.Q4_BLOCK_SIZE;
@@ -75,8 +110,23 @@ pub fn unifiedMemoryAlignment() usize {
     return accelerate.unifiedMemoryAlignment();
 }
 
+/// Check if MPS framework is available on this system.
+pub fn hasMps() bool {
+    return mps.isAvailable();
+}
+
+/// Check if CoreML framework is available on this system.
+pub fn hasCoreml() bool {
+    return coreml.isAvailable();
+}
+
 test {
     _ = quantized_kernels;
     _ = accelerate;
     _ = unified_memory;
+    _ = gpu_family;
+    _ = mps;
+    _ = coreml;
+    _ = mesh_shaders;
+    _ = ray_tracing;
 }

@@ -246,7 +246,7 @@ const TuiState = struct {
         // Add to front
         try self.history.insert(self.allocator, 0, .{
             .command = cmd,
-            .timestamp = abi.utils.unixMs(),
+            .timestamp = abi.shared.utils.unixMs(),
         });
         // Keep only last 10
         while (self.history.items.len > 10) {
@@ -257,12 +257,12 @@ const TuiState = struct {
     fn showNotification(self: *TuiState, message: []const u8, level: tui.Toast.Level) void {
         self.notification = message;
         self.notification_level = level;
-        self.notification_time = abi.utils.unixMs();
+        self.notification_time = abi.shared.utils.unixMs();
     }
 
     fn clearExpiredNotification(self: *TuiState) void {
         if (self.notification != null) {
-            const elapsed = abi.utils.unixMs() - self.notification_time;
+            const elapsed = abi.shared.utils.unixMs() - self.notification_time;
             if (elapsed > 3000) { // 3 second display
                 self.notification = null;
             }
@@ -509,9 +509,9 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8)
         return;
     }
 
-    const fw_config = (abi.FrameworkOptions{}).toConfig();
+    const fw_config = abi.Config.defaults();
     var framework = try abi.Framework.initWithIo(allocator, fw_config, io);
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     try runInteractive(allocator, &framework);
 }

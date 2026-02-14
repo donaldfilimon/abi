@@ -87,6 +87,7 @@ pub const CuLaunchKernelFn = *const fn (
 pub const CuDeviceGetNameFn = *const fn ([*]u8, i32, i32) callconv(.c) CuResult;
 pub const CuDeviceGetAttributeFn = *const fn (*i32, i32, i32) callconv(.c) CuResult;
 pub const CuDeviceTotalMemFn = *const fn (*usize, i32) callconv(.c) CuResult;
+pub const CuMemGetInfoFn = *const fn (*usize, *usize) callconv(.c) CuResult;
 
 /// All CUDA core functions
 pub const CoreFunctions = struct {
@@ -143,6 +144,7 @@ pub const DeviceFunctions = struct {
     cuDeviceGetName: ?CuDeviceGetNameFn = null,
     cuDeviceGetAttribute: ?CuDeviceGetAttributeFn = null,
     cuDeviceTotalMem: ?CuDeviceTotalMemFn = null,
+    cuMemGetInfo: ?CuMemGetInfoFn = null,
 };
 
 /// Complete CUDA function set
@@ -348,6 +350,7 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
     cuda_functions.device.cuDeviceGetName = bind(CuDeviceGetNameFn, "cuDeviceGetName");
     cuda_functions.device.cuDeviceGetAttribute = bind(CuDeviceGetAttributeFn, "cuDeviceGetAttribute");
     cuda_functions.device.cuDeviceTotalMem = bind(CuDeviceTotalMemFn, "cuDeviceTotalMem_v2");
+    cuda_functions.device.cuMemGetInfo = bind(CuMemGetInfoFn, "cuMemGetInfo_v2");
 
     return &cuda_functions;
 }

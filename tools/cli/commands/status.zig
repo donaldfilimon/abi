@@ -13,7 +13,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         std.debug.print("\nStatus: UNHEALTHY\n", .{});
         return;
     };
-    defer abi.shutdown(&fw);
+    defer fw.deinit();
 
     std.debug.print("ABI Framework Status\n", .{});
     std.debug.print("====================\n\n", .{});

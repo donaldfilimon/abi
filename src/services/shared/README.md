@@ -38,7 +38,7 @@ tags: []
 //! const json = try abi.utils.json.parse(allocator, text);
 //!
 //! // SIMD operations
-//! const dot = abi.vectorDot(a, b);
+//! const dot = abi.simd.vectorDot(a, b);
 //! ```
 //!
 //! **Direct imports (for internal framework code)**

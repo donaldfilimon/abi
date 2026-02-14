@@ -70,7 +70,7 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
         .llm => build_options.enable_llm,
         .embeddings => build_options.enable_ai,
         .agents => build_options.enable_ai,
-        .training => build_options.enable_ai,
+        .training => build_options.enable_training,
         .personas => build_options.enable_ai,
         .database => build_options.enable_database,
         .network => build_options.enable_network,
@@ -83,6 +83,8 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
         .cache => build_options.enable_cache,
         .storage => build_options.enable_storage,
         .search => build_options.enable_search,
+        .mobile => build_options.enable_mobile,
+        .reasoning => build_options.enable_reasoning,
     };
 }
 

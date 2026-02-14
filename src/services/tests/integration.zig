@@ -9,12 +9,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = try abi.init(allocator, abi.FrameworkOptions{
-        .enable_ai = true,
-        .enable_database = true,
-        .enable_gpu = true,
-    });
-    defer abi.shutdown(&framework);
+    var framework = try abi.initDefault(allocator);
+    defer framework.deinit();
 
     std.debug.print("Framework initialized\n", .{});
 

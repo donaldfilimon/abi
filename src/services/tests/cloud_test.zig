@@ -362,7 +362,7 @@ test "invocation metadata initialization" {
     var metadata = cloud.InvocationMetadata{
         .request_id = "req-123",
         .provider = .aws_lambda,
-        .start_time = abi.utils.unixSeconds(),
+        .start_time = abi.shared.utils.unixSeconds(),
         .cold_start = true,
     };
 

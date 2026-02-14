@@ -20,6 +20,9 @@ pub const CompileOptions = struct {
     generate_debug_info: bool = false,
     generate_line_info: bool = false,
     cache_dir: ?[]const u8 = null,
+    /// When set, emit -arch=sm_XY instead of -arch=native.
+    compute_capability_major: ?u32 = null,
+    compute_capability_minor: ?u32 = null,
 };
 
 pub const CompileResult = struct {
@@ -231,8 +234,20 @@ fn buildCompileOptions(allocator: std.mem.Allocator, options: CompileOptions) ![
         try opts.append(allocator, opt.ptr);
     }
 
-    const arch = try allocator.dupeZ(u8, "-arch=native");
-    try opts.append(allocator, arch.ptr);
+    // Use targeted architecture when compute capability is known
+    if (options.compute_capability_major) |cc_major| {
+        const cc_minor = options.compute_capability_minor orelse 0;
+        const arch = try std.fmt.allocPrintSentinel(
+            allocator,
+            "-arch=sm_{d}{d}",
+            .{ cc_major, cc_minor },
+            0,
+        );
+        try opts.append(allocator, arch.ptr);
+    } else {
+        const arch = try allocator.dupeZ(u8, "-arch=native");
+        try opts.append(allocator, arch.ptr);
+    }
 
     const opt_level: [:0]const u8 = switch (options.optimization_level) {
         0 => "-O0",

@@ -92,14 +92,7 @@ test "matrix: framework minimal config" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = false,
-        .enable_ai = false,
-        .enable_web = false,
-        .enable_database = false,
-        .enable_network = false,
-        .enable_profiling = false,
-    });
+    var framework = try abi.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expect(framework.isRunning());
@@ -109,14 +102,7 @@ test "matrix: framework all features" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = build_options.enable_gpu,
-        .enable_ai = build_options.enable_ai,
-        .enable_web = build_options.enable_web,
-        .enable_database = build_options.enable_database,
-        .enable_network = build_options.enable_network,
-        .enable_profiling = build_options.enable_profiling,
-    });
+    var framework = try abi.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expect(framework.isRunning());
@@ -252,14 +238,7 @@ test "matrix: feature isolation" {
     defer _ = gpa.deinit();
 
     // Initialize with only monitoring
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = false,
-        .enable_ai = false,
-        .enable_web = false,
-        .enable_database = false,
-        .enable_network = false,
-        .enable_profiling = true,
-    });
+    var framework = try abi.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expect(framework.isRunning());
@@ -292,14 +271,14 @@ test "matrix: framework reinit" {
 
     // Initialize, deinit, and reinitialize
     {
-        var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+        var framework = try abi.initDefault(gpa.allocator());
         defer framework.deinit();
         try std.testing.expect(framework.isRunning());
     }
 
     // Should be able to reinitialize
     {
-        var framework2 = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+        var framework2 = try abi.initDefault(gpa.allocator());
         defer framework2.deinit();
         try std.testing.expect(framework2.isRunning());
     }

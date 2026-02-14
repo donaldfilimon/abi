@@ -120,6 +120,27 @@ pub const builtin_fns = mod.BuiltinFunctions{
     .any = "any",
 };
 
+/// MSL mesh shader attributes (Metal 3+ / Apple7+).
+pub const mesh_attributes = struct {
+    pub const object_payload = "[[payload]]";
+    pub const mesh_grid_properties = "[[mesh_grid_properties]]";
+    pub const object_thread_position_in_grid = "[[thread_position_in_grid]]";
+    pub const object_threadgroup_position_in_grid = "[[threadgroup_position_in_grid]]";
+    pub const object_threads_per_grid = "[[threads_per_grid]]";
+};
+
+/// MSL ray tracing attributes (Metal 3+ / Apple7+).
+pub const ray_tracing_attributes = struct {
+    pub const ray_data = "[[ray_data]]";
+    pub const intersection_result = "[[intersection_result]]";
+    pub const primitive_id = "[[primitive_id]]";
+    pub const instance_id = "[[instance_id]]";
+    pub const geometry_id = "[[geometry_id]]";
+    pub const world_space_origin = "[[world_space_origin]]";
+    pub const world_space_direction = "[[world_space_direction]]";
+    pub const ray_flags = "[[ray_flags]]";
+};
+
 /// Complete MSL backend configuration.
 pub const config = mod.BackendConfig{
     .language = .msl,

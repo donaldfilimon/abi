@@ -3,7 +3,7 @@
 //! Demonstrates a small end-to-end numeric path using v2 modules:
 //! - Matrix multiply via `abi.shared.matrix.Mat32`
 //! - Tensor transforms via `abi.shared.tensor.Tensor32`
-//! - SIMD vector ops via `abi.vectorAdd` / `abi.vectorDot`
+//! - SIMD vector ops via `abi.simd.vectorAdd` / `abi.simd.vectorDot`
 //! - v2 timing/clamp helpers via `abi.shared.utils.v2_primitives`
 //!
 //! Run with: `zig build run-tensor-ops`
@@ -105,8 +105,8 @@ pub fn main() !void {
     // 3) SIMD pass on flattened tensors
     // ---------------------------------------------------------------------
     var simd_add: [4]f32 = undefined;
-    abi.vectorAdd(input.flat(), bias.flat(), simd_add[0..]);
-    const alignment_dot = abi.vectorDot(relu_out.flat(), softmax_out.flat());
+    abi.simd.vectorAdd(input.flat(), bias.flat(), simd_add[0..]);
+    const alignment_dot = abi.simd.vectorDot(relu_out.flat(), softmax_out.flat());
     const clamped_dot = v2.Math.clamp(f32, alignment_dot, 0.0, 1_000_000.0);
 
     std.debug.print("SIMD add(flat input+bias): [{d:.2}, {d:.2}, {d:.2}, {d:.2}]\n", .{

@@ -46,6 +46,10 @@ pub const vtable = @import("vtable.zig");
 pub const CudaBackend = vtable.CudaBackend;
 pub const createCudaVTable = vtable.createCudaVTable;
 
+// Architecture detection exports
+pub const CudaArchitecture = device_query.CudaArchitecture;
+pub const CudaFeatureSupport = device_query.CudaFeatureSupport;
+
 // Quantized kernel exports
 pub const QuantizedKernelModule = quantized_kernels.QuantizedKernelModule;
 pub const QuantConfig = quantized_kernels.QuantConfig;

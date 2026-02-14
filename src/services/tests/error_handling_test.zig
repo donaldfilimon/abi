@@ -25,14 +25,7 @@ test "framework: successful initialization" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = false,
-        .enable_ai = false,
-        .enable_web = false,
-        .enable_database = false,
-        .enable_network = false,
-        .enable_profiling = false,
-    });
+    var framework = try abi.initDefault(gpa.allocator());
     defer framework.deinit();
 
     try std.testing.expect(framework.isRunning());
@@ -50,7 +43,7 @@ test "framework: multiple init cycles" {
 
     // Multiple cycles
     for (0..5) |_| {
-        var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{});
+        var framework = try abi.initDefault(gpa.allocator());
         defer framework.deinit();
         try std.testing.expect(framework.isRunning());
     }
@@ -62,12 +55,7 @@ test "framework: feature flag consistency" {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = build_options.enable_gpu,
-        .enable_ai = build_options.enable_ai,
-        .enable_database = build_options.enable_database,
-        .enable_network = build_options.enable_network,
-    });
+    var framework = try abi.initDefault(gpa.allocator());
     defer framework.deinit();
 
     // Feature states should match what was requested (limited by build options)
@@ -289,14 +277,7 @@ test "memory: framework lifecycle" {
         if (check == .leak) @panic("Memory leak in framework lifecycle");
     }
 
-    var framework = try abi.init(gpa.allocator(), abi.FrameworkOptions{
-        .enable_gpu = false,
-        .enable_ai = false,
-        .enable_web = false,
-        .enable_database = false,
-        .enable_network = false,
-        .enable_profiling = false,
-    });
+    var framework = try abi.initDefault(gpa.allocator());
     framework.deinit();
 }
 

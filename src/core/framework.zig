@@ -97,6 +97,7 @@ const messaging_mod = if (build_options.enable_messaging) @import("../features/m
 const cache_mod = if (build_options.enable_cache) @import("../features/cache/mod.zig") else @import("../features/cache/stub.zig");
 const storage_mod = if (build_options.enable_storage) @import("../features/storage/mod.zig") else @import("../features/storage/stub.zig");
 const search_mod = if (build_options.enable_search) @import("../features/search/mod.zig") else @import("../features/search/stub.zig");
+const mobile_mod = if (build_options.enable_mobile) @import("../features/mobile/mod.zig") else @import("../features/mobile/stub.zig");
 const ai_core_mod = if (build_options.enable_ai) @import("../features/ai_core/mod.zig") else @import("../features/ai_core/stub.zig");
 const ai_inference_mod = if (build_options.enable_llm) @import("../features/ai_inference/mod.zig") else @import("../features/ai_inference/stub.zig");
 const ai_training_mod = if (build_options.enable_training) @import("../features/ai_training/mod.zig") else @import("../features/ai_training/stub.zig");
@@ -182,6 +183,8 @@ pub const Framework = struct {
     storage: ?*storage_mod.Context = null,
     /// Search context, or null if search is not enabled.
     search: ?*search_mod.Context = null,
+    /// Mobile context, or null if mobile is not enabled.
+    mobile: ?*mobile_mod.Context = null,
     /// AI Core context (agents, tools, prompts), or null if not enabled.
     ai_core: ?*ai_core_mod.Context = null,
     /// AI Inference context (LLM, embeddings, vision), or null if not enabled.
@@ -364,6 +367,13 @@ pub const Framework = struct {
             }
         }
 
+        if (cfg.mobile) |mobile_cfg| {
+            fw.mobile = try mobile_mod.Context.init(allocator, mobile_cfg);
+            if (comptime build_options.enable_mobile) {
+                try fw.registry.registerComptime(.mobile);
+            }
+        }
+
         // Initialize split AI modules (use shared AI config)
         if (cfg.ai) |ai_cfg| {
             if (comptime build_options.enable_ai) {
@@ -534,6 +544,7 @@ pub const Framework = struct {
         deinitOptionalContext(ai_inference_mod.Context, &self.ai_inference);
         deinitOptionalContext(ai_core_mod.Context, &self.ai_core);
         // Then standard feature modules
+        deinitOptionalContext(mobile_mod.Context, &self.mobile);
         deinitOptionalContext(search_mod.Context, &self.search);
         deinitOptionalContext(storage_mod.Context, &self.storage);
         deinitOptionalContext(cache_mod.Context, &self.cache);
@@ -631,6 +642,11 @@ pub const Framework = struct {
     /// Get search context (returns error if not enabled).
     pub fn getSearch(self: *Framework) Error!*search_mod.Context {
         return requireFeature(search_mod.Context, self.search);
+    }
+
+    /// Get mobile context (returns error if not enabled).
+    pub fn getMobile(self: *Framework) Error!*mobile_mod.Context {
+        return requireFeature(mobile_mod.Context, self.mobile);
     }
 
     /// Get AI core context (agents, tools, prompts).
@@ -865,6 +881,18 @@ pub const FrameworkBuilder = struct {
         return self;
     }
 
+    /// Enable mobile with configuration.
+    pub fn withMobile(self: *FrameworkBuilder, mobile_cfg: config_module.MobileConfig) *FrameworkBuilder {
+        _ = self.config_builder.withMobile(mobile_cfg);
+        return self;
+    }
+
+    /// Enable mobile with defaults.
+    pub fn withMobileDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withMobileDefaults();
+        return self;
+    }
+
     /// Configure plugins.
     pub fn withPlugins(self: *FrameworkBuilder, plugin_config: config_module.PluginConfig) *FrameworkBuilder {
         _ = self.config_builder.withPlugins(plugin_config);
@@ -885,46 +913,6 @@ pub const FrameworkBuilder = struct {
 };
 
 // ============================================================================
-// Legacy compatibility layer
-// ============================================================================
-
-/// Legacy FrameworkOptions for backward compatibility.
-/// @deprecated Use Config directly.
-pub const FrameworkOptions = struct {
-    enable_ai: bool = build_options.enable_ai,
-    enable_gpu: bool = build_options.enable_gpu,
-    enable_web: bool = build_options.enable_web,
-    enable_database: bool = build_options.enable_database,
-    enable_network: bool = build_options.enable_network,
-    enable_profiling: bool = build_options.enable_profiling,
-    disabled_features: []const Feature = &.{},
-    plugin_paths: []const []const u8 = &.{},
-    auto_discover_plugins: bool = false,
-
-    /// Convert to new Config format.
-    pub fn toConfig(self: FrameworkOptions) Config {
-        return .{
-            .gpu = if (self.enable_gpu) config_module.GpuConfig.defaults() else null,
-            .ai = if (self.enable_ai) config_module.AiConfig.defaults() else null,
-            .database = if (self.enable_database) config_module.DatabaseConfig.defaults() else null,
-            .network = if (self.enable_network) config_module.NetworkConfig.defaults() else null,
-            .observability = if (self.enable_profiling) config_module.ObservabilityConfig.defaults() else null,
-            .web = if (self.enable_web) config_module.WebConfig.defaults() else null,
-            .cloud = if (self.enable_web) config_module.CloudConfig.defaults() else null,
-            .auth = config_module.AuthConfig.defaults(),
-            .messaging = config_module.MessagingConfig.defaults(),
-            .cache = config_module.CacheConfig.defaults(),
-            .storage = config_module.StorageConfig.defaults(),
-            .search = config_module.SearchConfig.defaults(),
-            .plugins = .{
-                .paths = self.plugin_paths,
-                .auto_discover = self.auto_discover_plugins,
-            },
-        };
-    }
-};
-
-// ============================================================================
 // Tests
 // ============================================================================
 
@@ -935,17 +923,6 @@ test "Framework.builder creates valid framework" {
     // Just test that builder compiles and creates config
     const config = builder_inst.config_builder.build();
     try config_module.validate(config);
-}
-
-test "FrameworkOptions.toConfig converts correctly" {
-    const options = FrameworkOptions{
-        .enable_gpu = true,
-        .enable_ai = false,
-    };
-    const config = options.toConfig();
-
-    try std.testing.expect(config.gpu != null);
-    try std.testing.expect(config.ai == null);
 }
 
 test "Framework initializes registry with enabled features" {

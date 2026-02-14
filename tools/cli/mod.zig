@@ -118,9 +118,9 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    const fw_config = (abi.FrameworkOptions{}).toConfig();
+    const fw_config = abi.Config.defaults();
     var framework = try abi.Framework.initWithIo(allocator, fw_config, io);
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     // Apply runtime feature overrides to registry
     const registry = framework.getRegistry();

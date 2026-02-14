@@ -21,14 +21,7 @@ test "framework init/shutdown ordering" {
     const allocator = gpa.allocator();
 
     // Initialize framework with default options
-    var fw = try abi.init(allocator, abi.FrameworkOptions{
-        .enable_gpu = false,
-        .enable_ai = false,
-        .enable_web = false,
-        .enable_database = false,
-        .enable_network = false,
-        .enable_profiling = false,
-    });
+    var fw = try abi.initDefault(allocator);
 
     // Verify framework is in valid state
     const version = abi.version();
@@ -45,27 +38,13 @@ test "framework reinitialize after shutdown" {
 
     // First initialization
     {
-        var fw = try abi.init(allocator, abi.FrameworkOptions{
-            .enable_gpu = false,
-            .enable_ai = false,
-            .enable_web = false,
-            .enable_database = false,
-            .enable_network = false,
-            .enable_profiling = false,
-        });
+        var fw = try abi.initDefault(allocator);
         fw.deinit();
     }
 
     // Second initialization should work
     {
-        var fw = try abi.init(allocator, abi.FrameworkOptions{
-            .enable_gpu = false,
-            .enable_ai = false,
-            .enable_web = false,
-            .enable_database = false,
-            .enable_network = false,
-            .enable_profiling = false,
-        });
+        var fw = try abi.initDefault(allocator);
         fw.deinit();
     }
 }
@@ -75,14 +54,7 @@ test "framework with features enabled" {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var fw = try abi.init(allocator, abi.FrameworkOptions{
-        .enable_gpu = build_options.enable_gpu,
-        .enable_ai = build_options.enable_ai,
-        .enable_web = build_options.enable_web,
-        .enable_database = build_options.enable_database,
-        .enable_network = build_options.enable_network,
-        .enable_profiling = build_options.enable_profiling,
-    });
+    var fw = try abi.initDefault(allocator);
     defer fw.deinit();
 
     // Check feature flags match build options

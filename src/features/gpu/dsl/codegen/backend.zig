@@ -118,6 +118,10 @@ pub const BackendCapabilities = struct {
     supports_dynamic_shared_memory: bool = true,
     /// Supports atomics.
     supports_atomics: bool = true,
+    /// Supports mesh shaders (Metal 3+ / Vulkan mesh shading).
+    supports_mesh_shaders: bool = false,
+    /// Supports ray tracing (Metal 3+ / Vulkan RT).
+    supports_ray_tracing: bool = false,
 
     /// Get default capabilities for a backend.
     pub fn forBackend(backend: gpu_backend.Backend) BackendCapabilities {
@@ -144,6 +148,8 @@ pub const BackendCapabilities = struct {
                 .supports_fp16 = true,
                 .supports_fp64 = false,
                 .supports_subgroups = true, // simdgroups
+                .supports_mesh_shaders = true, // Metal 3+ (Apple7+)
+                .supports_ray_tracing = true, // Metal 3+ (Apple7+)
             },
             .webgpu => .{
                 .max_workgroup_size = 256,

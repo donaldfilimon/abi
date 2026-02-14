@@ -8,6 +8,7 @@ const build_options = @import("build_options");
 const interface = @import("../../interface.zig");
 const loader = @import("loader.zig");
 const nvrtc = @import("nvrtc.zig");
+const device_query = @import("device_query.zig");
 
 pub const CudaBackend = struct {
     allocator: std.mem.Allocator,
@@ -270,17 +271,51 @@ pub const CudaBackend = struct {
                 caps.unified_memory = val != 0;
             }
 
-            // FP16 support: compute capability >= 5.3
-            caps.supports_fp16 = caps.compute_capability_major > 5 or
-                (caps.compute_capability_major == 5 and caps.compute_capability_minor >= 3);
+            // SM count (attribute 16)
+            if (cu_device_get_attribute(&val, 16, device) == .success) {
+                caps.sm_count = @intCast(val);
+            }
 
-            // FP64 support: compute capability >= 1.3
+            // Memory clock rate (attribute 36)
+            if (cu_device_get_attribute(&val, 36, device) == .success) {
+                caps.memory_clock_rate_khz = @intCast(val);
+            }
+
+            // Memory bus width (attribute 37)
+            if (cu_device_get_attribute(&val, 37, device) == .success) {
+                caps.memory_bus_width = @intCast(val);
+            }
+
+            // Managed memory (attribute 83)
+            if (cu_device_get_attribute(&val, 83, device) == .success) {
+                caps.managed_memory = val != 0;
+            }
+
+            // Derive features from compute capability
+            const major_i: i32 = @intCast(caps.compute_capability_major);
+            const minor_i: i32 = @intCast(caps.compute_capability_minor);
+            const fs = device_query.CudaFeatureSupport.fromComputeCapability(major_i, minor_i);
+            const arch = device_query.CudaArchitecture.fromComputeCapability(major_i, minor_i);
+
+            caps.supports_fp16 = fs.fp16;
             caps.supports_fp64 = caps.compute_capability_major > 1 or
                 (caps.compute_capability_major == 1 and caps.compute_capability_minor >= 3);
-
-            // INT8 support: compute capability >= 6.1
             caps.supports_int8 = caps.compute_capability_major > 6 or
                 (caps.compute_capability_major == 6 and caps.compute_capability_minor >= 1);
+            caps.supports_bf16 = fs.bf16;
+            caps.supports_tf32 = fs.tf32;
+            caps.supports_fp8 = fs.fp8;
+            caps.supports_tensor_cores = fs.tensor_cores;
+            caps.supports_int8_tensor_cores = fs.int8_tensor_cores;
+            caps.supports_cooperative_groups = fs.cooperative_groups;
+            caps.supports_dynamic_parallelism = fs.dynamic_parallelism;
+            caps.supports_async_copy = fs.async_copy;
+
+            // Set architecture name
+            const arch_name = arch.name();
+            const copy_len = @min(arch_name.len, caps.architecture_name.len);
+            @memcpy(caps.architecture_name[0..copy_len], arch_name[0..copy_len]);
+            caps.architecture_name_len = copy_len;
         }
 
         return caps;

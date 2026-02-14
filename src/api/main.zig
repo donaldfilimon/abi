@@ -66,7 +66,7 @@ fn printHelp() void {
 fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
     std.debug.print("=== ABI Framework Information ===\n", .{});
     std.debug.print("Version: {s}\n", .{abi.version()});
-    std.debug.print("SIMD Support: {s}\n", .{if (abi.hasSimdSupport()) "Yes" else "No"});
+    std.debug.print("SIMD Support: {s}\n", .{if (abi.simd.hasSimdSupport()) "Yes" else "No"});
 
     // Initialise the shared I/O backend (Zig 0.16)
     var io_backend = try IoBackend.init(allocator);
@@ -88,12 +88,12 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
 
         // Minimal framework – builder without any feature defaults.
         var minimal_framework = try abi.Framework.builder(allocator).build();
-        defer abi.shutdown(&minimal_framework);
+        defer minimal_framework.deinit();
 
         std.debug.print("Minimal framework initialized successfully\n", .{});
         return;
     };
-    defer abi.shutdown(&framework);
+    defer framework.deinit();
 
     std.debug.print("Framework initialized successfully\n", .{});
 

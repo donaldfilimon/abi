@@ -56,10 +56,10 @@ const std = @import("std");
 const build_options = @import("build_options");
 const abi = @import("abi");
 
-// Memory tracking for peak usage (via abi.utils.memory)
-pub const TrackingAllocator = abi.utils.memory.TrackingAllocator;
-pub const TrackingConfig = abi.utils.memory.tracking.TrackingConfig;
-pub const TrackingStats = abi.utils.memory.tracking.TrackingStats;
+// Memory tracking for peak usage (via abi.shared.utils.memory)
+pub const TrackingAllocator = abi.shared.utils.memory.TrackingAllocator;
+pub const TrackingConfig = abi.shared.utils.memory.tracking.TrackingConfig;
+pub const TrackingStats = abi.shared.utils.memory.tracking.TrackingStats;
 
 // Core infrastructure
 pub const profiles = @import("profiles.zig");

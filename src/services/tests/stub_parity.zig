@@ -287,6 +287,24 @@ test "auth stub parity - types exist" {
     try testing.expect(@hasDecl(Auth, "verifyToken"));
     try testing.expect(@hasDecl(Auth, "createSession"));
     try testing.expect(@hasDecl(Auth, "checkPermission"));
+
+    // Security sub-modules (re-exported from services/shared/security)
+    try testing.expect(@hasDecl(Auth, "jwt"));
+    try testing.expect(@hasDecl(Auth, "api_keys"));
+    try testing.expect(@hasDecl(Auth, "rbac"));
+    try testing.expect(@hasDecl(Auth, "cors"));
+    try testing.expect(@hasDecl(Auth, "rate_limit"));
+    try testing.expect(@hasDecl(Auth, "encryption"));
+    try testing.expect(@hasDecl(Auth, "tls"));
+    try testing.expect(@hasDecl(Auth, "mtls"));
+    try testing.expect(@hasDecl(Auth, "certificates"));
+    try testing.expect(@hasDecl(Auth, "secrets"));
+    try testing.expect(@hasDecl(Auth, "session"));
+    try testing.expect(@hasDecl(Auth, "audit"));
+    try testing.expect(@hasDecl(Auth, "password"));
+    try testing.expect(@hasDecl(Auth, "validation"));
+    try testing.expect(@hasDecl(Auth, "ip_filter"));
+    try testing.expect(@hasDecl(Auth, "headers"));
 }
 
 // ============================================================================
@@ -365,6 +383,26 @@ test "search stub parity - types exist" {
     try testing.expect(@hasDecl(Search, "createIndex"));
     try testing.expect(@hasDecl(Search, "indexDocument"));
     try testing.expect(@hasDecl(Search, "query"));
+}
+
+// ============================================================================
+// Mobile Module Parity
+// ============================================================================
+
+test "mobile stub parity - types exist" {
+    const Mobile = abi.mobile;
+
+    try testing.expect(@hasDecl(Mobile, "MobileConfig"));
+    try testing.expect(@hasDecl(Mobile, "MobilePlatform"));
+    try testing.expect(@hasDecl(Mobile, "MobileError"));
+    try testing.expect(@hasDecl(Mobile, "LifecycleState"));
+    try testing.expect(@hasDecl(Mobile, "SensorData"));
+    try testing.expect(@hasDecl(Mobile, "Context"));
+    try testing.expect(@hasDecl(Mobile, "init"));
+    try testing.expect(@hasDecl(Mobile, "isEnabled"));
+    try testing.expect(@hasDecl(Mobile, "getLifecycleState"));
+    try testing.expect(@hasDecl(Mobile, "readSensor"));
+    try testing.expect(@hasDecl(Mobile, "sendNotification"));
 }
 
 // ============================================================================
@@ -451,6 +489,7 @@ test "all feature modules have consistent API surface" {
     try verifyContextPattern(abi.cache);
     try verifyContextPattern(abi.storage);
     try verifyContextPattern(abi.search);
+    try verifyContextPattern(abi.mobile);
 
     if (build_options.enable_ai) {
         try verifyContextPattern(abi.ai);
