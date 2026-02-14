@@ -23,6 +23,8 @@ pub const VisionTrainingError = error{
 pub const TrainableViTConfig = struct {
     /// Vision Transformer architecture config
     vit_config: vit.ViTConfig,
+    /// Maximum batch size for forward pass (activation cache is sized for this)
+    max_batch_size: u32 = 1,
     /// Number of output classes (for classification)
     num_classes: u32 = 1000,
     /// Projection dimension for contrastive learning (0 = disabled)
@@ -513,6 +515,7 @@ pub const TrainableViTModel = struct {
         batch_size: u32,
         output: []f32,
     ) !void {
+        if (batch_size > self.config.max_batch_size) return error.InvalidBatchSize;
         const cfg = self.config.vit_config;
         const hidden = cfg.hidden_size;
         const seq_len = cfg.seqLength();
@@ -891,7 +894,8 @@ pub const ViTActivationCache = struct {
 
     pub fn init(allocator: std.mem.Allocator, config: TrainableViTConfig) !ViTActivationCache {
         const cfg = config.vit_config;
-        const batch_seq_hidden = cfg.seqLength() * cfg.hidden_size;
+        const max_batch = config.max_batch_size;
+        const batch_seq_hidden = max_batch * cfg.seqLength() * cfg.hidden_size;
 
         const embeddings = try allocator.alloc(f32, batch_seq_hidden);
         errdefer allocator.free(embeddings);
@@ -908,7 +912,7 @@ pub const ViTActivationCache = struct {
         }
 
         for (layer_caches) |*cache| {
-            cache.* = try ViTLayerCache.init(allocator, cfg);
+            cache.* = try ViTLayerCache.init(allocator, cfg, max_batch);
             initialized += 1;
         }
 
@@ -937,8 +941,8 @@ pub const ViTLayerCache = struct {
     pre_ln2: []f32,
     post_ffn: []f32,
 
-    pub fn init(allocator: std.mem.Allocator, config: vit.ViTConfig) !ViTLayerCache {
-        const size = config.seqLength() * config.hidden_size;
+    pub fn init(allocator: std.mem.Allocator, config: vit.ViTConfig, max_batch_size: u32) !ViTLayerCache {
+        const size = max_batch_size * config.seqLength() * config.hidden_size;
 
         const pre_ln1 = try allocator.alloc(f32, size);
         errdefer allocator.free(pre_ln1);

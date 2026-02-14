@@ -45,6 +45,7 @@
 
 const std = @import("std");
 const memory = @import("base.zig");
+const time = @import("../../../services/shared/time.zig");
 
 /// Cache line size for alignment (x86/ARM64)
 pub const CACHE_LINE_SIZE: usize = 64;
@@ -390,7 +391,7 @@ pub const LockFreeResourcePool = struct {
 
         // Mark as allocated
         slot.state.store(.allocated, .release);
-        slot.alloc_time.store(std.time.timestamp(), .release);
+        slot.alloc_time.store(time.unixSeconds(), .release);
         slot.size.store(self.config.slot_size, .release);
 
         // Ensure buffer exists

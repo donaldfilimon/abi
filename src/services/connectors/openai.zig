@@ -188,7 +188,9 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"messages\":[", .{request.model});
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"messages\":[");
 
         try shared.encodeMessageArray(self.allocator, &json_str, request.messages);
 

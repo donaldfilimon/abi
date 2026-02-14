@@ -509,6 +509,12 @@ pub const Gpu = struct {
     pub fn dotProduct(_: *Gpu, _: *Buffer, _: *Buffer) Error!DotProductResult {
         return error.GpuDisabled;
     }
+    pub fn matrixMultiply(_: *Gpu, _: *Buffer, _: *Buffer, _: *Buffer, _: MatrixDims) Error!ExecutionResult {
+        return error.GpuDisabled;
+    }
+    pub fn getHealth(_: *const Gpu) Error!HealthStatus {
+        return error.GpuDisabled;
+    }
     pub fn getStats(_: *const Gpu) GpuStats {
         return .{};
     }

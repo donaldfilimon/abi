@@ -3,14 +3,14 @@ title: "ROADMAP"
 tags: [planning, roadmap]
 ---
 # ABI Framework Roadmap
-> **Codebase Status:** Synced with repository as of 2026-02-08.
+> **Codebase Status:** Synced with repository as of 2026-02-14.
 > **Zig Version:** `0.16.0-dev.2535+b5bd49460` (master branch)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Status-Active-success?style=for-the-badge" alt="Active"/>
   <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=for-the-badge" alt="Version"/>
   <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
-  <img src="https://img.shields.io/badge/Tests-944%2F949_(5_skip)-success?style=for-the-badge" alt="Tests"/>
+  <img src="https://img.shields.io/badge/Tests-1220%2F1225_(5_skip)-success?style=for-the-badge" alt="Tests"/>
 </p>
 
 > **Developer Guide**: See [CONTRIBUTING.md](CONTRIBUTING.md) for coding patterns and [CLAUDE.md](CLAUDE.md) for development guidelines.

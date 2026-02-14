@@ -67,7 +67,7 @@ pub const DiscoveryConfig = struct {
     /// Maximum depth for recursive scan
     max_depth: u32 = 5,
     /// File extensions to look for
-    extensions: []const []const u8 = &.{ ".gguf", ".bin", ".safetensors" },
+    extensions: []const []const u8 = &.{ ".gguf", ".mlx", ".bin", ".safetensors" },
     /// Whether to validate model files
     validate_files: bool = true,
     /// Timeout for validation in milliseconds
@@ -102,6 +102,7 @@ pub const DiscoveredModel = struct {
 /// Model file formats
 pub const ModelFormat = enum {
     gguf,
+    mlx,
     safetensors,
     pytorch_bin,
     onnx,
@@ -109,6 +110,7 @@ pub const ModelFormat = enum {
 
     pub fn fromExtension(ext: []const u8) ModelFormat {
         if (std.mem.eql(u8, ext, ".gguf")) return .gguf;
+        if (std.mem.eql(u8, ext, ".mlx")) return .mlx;
         if (std.mem.eql(u8, ext, ".safetensors")) return .safetensors;
         if (std.mem.eql(u8, ext, ".bin")) return .pytorch_bin;
         if (std.mem.eql(u8, ext, ".onnx")) return .onnx;
@@ -231,7 +233,7 @@ pub const AdaptiveConfig = struct {
     /// Context length (tokens)
     context_length: u32 = 2048,
     /// Whether to use GPU acceleration
-    use_gpu: bool = false,
+    use_gpu: bool = true,
     /// Whether to use memory mapping
     use_mmap: bool = true,
     /// Whether to lock model in memory
@@ -478,6 +480,7 @@ pub const ModelDiscovery = struct {
 
         // Prefer GGUF format
         if (model.format == .gguf) score += 5;
+        if (model.format == .mlx and self.capabilities.os == .macos) score += 4;
 
         // Score based on size match (prefer larger that still fits)
         const size_ratio = @as(f32, @floatFromInt(model.size_bytes)) /
@@ -723,7 +726,7 @@ test "AdaptiveConfig defaults" {
     const config = AdaptiveConfig{};
     try std.testing.expectEqual(@as(u32, 4), config.num_threads);
     try std.testing.expectEqual(@as(u32, 1), config.batch_size);
-    try std.testing.expect(!config.use_gpu);
+    try std.testing.expect(config.use_gpu);
     try std.testing.expect(config.use_mmap);
 }
 
@@ -736,6 +739,7 @@ test "QuantizationType bits per weight" {
 
 test "ModelFormat from extension" {
     try std.testing.expectEqual(ModelFormat.gguf, ModelFormat.fromExtension(".gguf"));
+    try std.testing.expectEqual(ModelFormat.mlx, ModelFormat.fromExtension(".mlx"));
     try std.testing.expectEqual(ModelFormat.safetensors, ModelFormat.fromExtension(".safetensors"));
     try std.testing.expectEqual(ModelFormat.pytorch_bin, ModelFormat.fromExtension(".bin"));
     try std.testing.expectEqual(ModelFormat.unknown, ModelFormat.fromExtension(".xyz"));

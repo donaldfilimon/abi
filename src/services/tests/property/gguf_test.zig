@@ -215,13 +215,17 @@ fn tensorTypeGen() Generator(u32) {
         .generateFn = struct {
             fn generate(prng: *std.Random.DefaultPrng, _: usize) u32 {
                 // Mix of valid and invalid tensor type values
-                const max_valid = @intFromEnum(GgufTensorType.bf16);
                 if (prng.random().float(f32) < 0.7) {
                     // 70% valid types
-                    return prng.random().intRangeAtMost(u32, 0, max_valid);
+                    const type_idx = prng.random().intRangeLessThan(usize, 0, valid_tensor_types.len);
+                    return valid_tensor_types[type_idx];
                 } else {
                     // 30% invalid types
-                    return prng.random().intRangeAtMost(u32, max_valid + 1, 255);
+                    var candidate = prng.random().intRangeAtMost(u32, 0, 255);
+                    while (GgufTensorType.fromInt(candidate) != null) {
+                        candidate = prng.random().intRangeAtMost(u32, 0, 255);
+                    }
+                    return candidate;
                 }
             }
         }.generate,
@@ -293,7 +297,8 @@ const valid_tensor_types = [_]u32{
     6, 7, 8, 9, // q5_0, q5_1, q8_0, q8_1
     10, 11, 12, 13, 14, 15, // q2_k through q8_k
     16, 17, 18, 19, 20, 21, 22, 23, // iq variants
-    24, 25, 26, 27, 28, 29, // i8 through bf16
+    24, 25, 26, 27, 28, 29, 30, // i8 through bf16 (plus iq1_m)
+    34, 35, 39, // tq1_0, tq2_0, mxfp4
 };
 
 fn tensorInfoGen() Generator(RandomTensorInfo) {

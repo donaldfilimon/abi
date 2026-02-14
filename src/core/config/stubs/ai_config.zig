@@ -35,7 +35,7 @@ pub const LlmConfig = struct {
     model_name: []const u8 = "gpt2",
     context_size: u32 = 2048,
     threads: ?u32 = null,
-    use_gpu: bool = false,
+    use_gpu: bool = true,
     batch_size: u32 = 512,
 
     pub fn defaults() LlmConfig {
@@ -63,6 +63,15 @@ pub const AgentsConfig = struct {
     }
 };
 
+pub const ContentKind = enum {
+    text,
+    image,
+    video,
+    audio,
+    document,
+    other,
+};
+
 pub const TrainingConfig = struct {
     epochs: u32 = 0,
     batch_size: u32 = 0,
@@ -70,6 +79,11 @@ pub const TrainingConfig = struct {
     optimizer: Optimizer = .adamw,
     checkpoint_dir: ?[]const u8 = null,
     checkpoint_frequency: u32 = 1,
+    max_checkpoints: ?u32 = null,
+    enable_vision: bool = true,
+    enable_video: bool = true,
+    enable_audio: bool = true,
+    enable_all_modalities: bool = true,
 
     pub const Optimizer = enum {
         sgd,

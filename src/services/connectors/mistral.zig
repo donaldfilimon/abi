@@ -225,7 +225,9 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"messages\":[", .{request.model});
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"messages\":[");
 
         try shared.encodeMessageArray(self.allocator, &json_str, request.messages);
 
@@ -255,11 +257,15 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"input\":[", .{request.model});
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"input\":[");
 
         try shared.encodeStringArray(self.allocator, &json_str, request.input);
 
-        try json_str.print(self.allocator, "],\"encoding_format\":\"{s}\"}}", .{request.encoding_format});
+        try json_str.appendSlice(self.allocator, "],\"encoding_format\":\"");
+        try json_str.appendSlice(self.allocator, request.encoding_format);
+        try json_str.appendSlice(self.allocator, "\"}");
 
         return json_str.toOwnedSlice(self.allocator);
     }
@@ -392,17 +398,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_MISTRAL_API_KEY",
         "MISTRAL_API_KEY",
     })) orelse return MistralError.MissingApiKey;
+    errdefer allocator.free(api_key);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_MISTRAL_BASE_URL",
         "MISTRAL_BASE_URL",
     })) orelse try allocator.dupe(u8, "https://api.mistral.ai/v1");
+    errdefer allocator.free(base_url);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_MISTRAL_MODEL",
         "MISTRAL_MODEL",
     })) orelse try allocator.dupe(u8, "mistral-large-latest");
-    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,

@@ -49,6 +49,8 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         .{ .name = "HuggingFace", .available = abi.connectors.huggingface.isAvailable() },
         .{ .name = "Mistral", .available = abi.connectors.mistral.isAvailable() },
         .{ .name = "Cohere", .available = abi.connectors.cohere.isAvailable() },
+        .{ .name = "LM Studio", .available = abi.connectors.lm_studio.isAvailable() },
+        .{ .name = "vLLM", .available = abi.connectors.vllm.isAvailable() },
     };
     for (connector_status) |conn| {
         utils.output.printKeyValue(conn.name, if (conn.available) "configured" else "not configured");
@@ -59,7 +61,9 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const features = std.enums.values(abi.Feature);
     for (features) |tag| {
         const enabled = framework.isEnabled(tag);
-        utils.output.printKeyValue(@tagName(tag), utils.output.boolLabel(enabled));
+        var tag_buf: [32]u8 = undefined;
+        const tag_str = std.fmt.bufPrint(&tag_buf, "{t}", .{tag}) catch "unknown";
+        utils.output.printKeyValue(tag_str, utils.output.boolLabel(enabled));
     }
 }
 

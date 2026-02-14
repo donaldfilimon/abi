@@ -184,6 +184,15 @@ pub const BackendCapabilities = struct {
                 .supports_subgroups = false,
                 .supports_dynamic_shared_memory = false,
             },
+            .tpu => .{
+                .max_workgroup_size = 1024,
+                .max_shared_memory = 128 * 1024,
+                .supports_fp16 = true,
+                .supports_fp64 = false,
+                .supports_int64 = true,
+                .supports_subgroups = true,
+                .supports_dynamic_shared_memory = true,
+            },
             .simulated => .{
                 .max_workgroup_size = 256,
                 .max_shared_memory = 16 * 1024,

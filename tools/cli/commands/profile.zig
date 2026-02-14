@@ -340,71 +340,120 @@ fn saveProfileStore(allocator: std.mem.Allocator, store: *const ProfileStore) !v
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var parser = utils.args.ArgParser.init(allocator, args);
 
-    if (parser.wantsHelp()) {
-        printHelp();
-        return;
-    }
-
-    const subcommand = parser.next() orelse {
-        try showCurrentProfile(allocator);
-        return;
+    const commands = [_]utils.subcommand.Command{
+        .{ .names = &.{"show"}, .run = runShowSubcommand },
+        .{ .names = &.{"list"}, .run = runListSubcommand },
+        .{ .names = &.{"create"}, .run = runCreateSubcommand },
+        .{ .names = &.{"switch"}, .run = runSwitchSubcommand },
+        .{ .names = &.{"delete"}, .run = runDeleteSubcommand },
+        .{ .names = &.{"set"}, .run = runSetSubcommand },
+        .{ .names = &.{"get"}, .run = runGetSubcommand },
+        .{ .names = &.{"api-key"}, .run = runApiKeySubcommand },
+        .{ .names = &.{"export"}, .run = runExportSubcommand },
+        .{ .names = &.{"import"}, .run = runImportSubcommand },
     };
 
-    if (std.mem.eql(u8, subcommand, "show")) {
-        try showCurrentProfile(allocator);
-    } else if (std.mem.eql(u8, subcommand, "list")) {
-        try listProfiles(allocator);
-    } else if (std.mem.eql(u8, subcommand, "create")) {
-        const name = parser.next() orelse {
-            utils.output.printError("Usage: abi profile create <name>", .{});
-            return;
-        };
-        try createProfile(allocator, name);
-    } else if (std.mem.eql(u8, subcommand, "switch")) {
-        const name = parser.next() orelse {
-            utils.output.printError("Usage: abi profile switch <name>", .{});
-            return;
-        };
-        try switchProfile(allocator, name);
-    } else if (std.mem.eql(u8, subcommand, "delete")) {
-        const name = parser.next() orelse {
-            utils.output.printError("Usage: abi profile delete <name>", .{});
-            return;
-        };
-        try deleteProfile(allocator, name);
-    } else if (std.mem.eql(u8, subcommand, "set")) {
-        const key = parser.next() orelse {
-            utils.output.printError("Usage: abi profile set <key> <value>", .{});
-            return;
-        };
-        const value = parser.next() orelse {
-            utils.output.printError("Usage: abi profile set <key> <value>", .{});
-            return;
-        };
-        try setProfileValue(allocator, key, value);
-    } else if (std.mem.eql(u8, subcommand, "get")) {
-        const key = parser.next() orelse {
-            utils.output.printError("Usage: abi profile get <key>", .{});
-            return;
-        };
-        try getProfileValue(allocator, key);
-    } else if (std.mem.eql(u8, subcommand, "api-key")) {
-        try handleApiKey(allocator, &parser);
-    } else if (std.mem.eql(u8, subcommand, "export")) {
-        const path = parser.next();
-        try exportProfile(allocator, path);
-    } else if (std.mem.eql(u8, subcommand, "import")) {
-        const path = parser.next() orelse {
-            utils.output.printError("Usage: abi profile import <path>", .{});
-            return;
-        };
-        try importProfile(allocator, path);
-    } else if (std.mem.eql(u8, subcommand, "help")) {
-        printHelp();
-    } else {
-        utils.output.printError("Unknown subcommand: {s}", .{subcommand});
-        printHelp();
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &commands,
+        runDefaultProfileAction,
+        printHelpWithAllocator,
+        onUnknownSubcommand,
+    );
+}
+
+fn runDefaultProfileAction(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try showCurrentProfile(allocator);
+}
+
+fn runShowSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try showCurrentProfile(allocator);
+}
+
+fn runListSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try listProfiles(allocator);
+}
+
+fn runCreateSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const name = parser.next() orelse {
+        utils.output.printError("Usage: abi profile create <name>", .{});
+        return;
+    };
+    try createProfile(allocator, name);
+}
+
+fn runSwitchSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const name = parser.next() orelse {
+        utils.output.printError("Usage: abi profile switch <name>", .{});
+        return;
+    };
+    try switchProfile(allocator, name);
+}
+
+fn runDeleteSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const name = parser.next() orelse {
+        utils.output.printError("Usage: abi profile delete <name>", .{});
+        return;
+    };
+    try deleteProfile(allocator, name);
+}
+
+fn runSetSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const key = parser.next() orelse {
+        utils.output.printError("Usage: abi profile set <key> <value>", .{});
+        return;
+    };
+    const value = parser.next() orelse {
+        utils.output.printError("Usage: abi profile set <key> <value>", .{});
+        return;
+    };
+    try setProfileValue(allocator, key, value);
+}
+
+fn runGetSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const key = parser.next() orelse {
+        utils.output.printError("Usage: abi profile get <key>", .{});
+        return;
+    };
+    try getProfileValue(allocator, key);
+}
+
+fn runApiKeySubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try handleApiKey(allocator, parser);
+}
+
+fn runExportSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const path = parser.next();
+    if (parser.hasMore()) {
+        utils.output.printError("Usage: abi profile export [path]", .{});
+        return;
     }
+    try exportProfile(allocator, path);
+}
+
+fn runImportSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const path = parser.next() orelse {
+        utils.output.printError("Usage: abi profile import <path>", .{});
+        return;
+    };
+    if (parser.hasMore()) {
+        utils.output.printError("Usage: abi profile import <path>", .{});
+        return;
+    }
+    try importProfile(allocator, path);
+}
+
+fn printHelpWithAllocator(allocator: std.mem.Allocator) void {
+    _ = allocator;
+    printHelp();
+}
+
+fn onUnknownSubcommand(command: []const u8) void {
+    utils.output.printError("Unknown subcommand: {s}", .{command});
 }
 
 fn getConfigPath(allocator: std.mem.Allocator) ![]const u8 {

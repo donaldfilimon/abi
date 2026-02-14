@@ -20,82 +20,74 @@ const utils = @import("../utils/mod.zig");
 const tasks = abi.tasks;
 const time_utils = abi.shared.utils;
 
+fn tAdd(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runAdd(a, p.remaining());
+}
+fn tList(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runList(a, p.remaining());
+}
+fn tShow(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runShow(a, p.remaining());
+}
+fn tDone(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runDone(a, p.remaining());
+}
+fn tStart(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runStart(a, p.remaining());
+}
+fn tCancel(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runCancel(a, p.remaining());
+}
+fn tDelete(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runDelete(a, p.remaining());
+}
+fn tStats(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    _ = p;
+    try runStats(a);
+}
+fn tImport(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    _ = p;
+    try runImportRoadmap(a);
+}
+fn tEdit(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runEdit(a, p.remaining());
+}
+fn tBlock(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runBlock(a, p.remaining());
+}
+fn tUnblock(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runUnblock(a, p.remaining());
+}
+fn tDue(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    try runDue(a, p.remaining());
+}
+fn tUnknown(cmd: []const u8) void {
+    utils.output.printError("Unknown task command: {s}", .{cmd});
+}
+fn tHelp(_: std.mem.Allocator) void {
+    printHelp();
+}
+
+const task_commands = [_]utils.subcommand.Command{
+    .{ .names = &.{"add"}, .run = tAdd },
+    .{ .names = &.{ "list", "ls" }, .run = tList },
+    .{ .names = &.{"show"}, .run = tShow },
+    .{ .names = &.{"done"}, .run = tDone },
+    .{ .names = &.{"start"}, .run = tStart },
+    .{ .names = &.{"cancel"}, .run = tCancel },
+    .{ .names = &.{ "delete", "rm" }, .run = tDelete },
+    .{ .names = &.{"stats"}, .run = tStats },
+    .{ .names = &.{"import-roadmap"}, .run = tImport },
+    .{ .names = &.{"edit"}, .run = tEdit },
+    .{ .names = &.{"block"}, .run = tBlock },
+    .{ .names = &.{"unblock"}, .run = tUnblock },
+    .{ .names = &.{"due"}, .run = tDue },
+};
+
 /// Run the task command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0 or utils.args.matchesAny(args[0], &.{ "help", "--help", "-h" })) {
-        printHelp();
-        return;
-    }
-
-    const command = std.mem.sliceTo(args[0], 0);
-
-    if (std.mem.eql(u8, command, "add")) {
-        try runAdd(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "list") or std.mem.eql(u8, command, "ls")) {
-        try runList(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "show")) {
-        try runShow(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "done")) {
-        try runDone(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "start")) {
-        try runStart(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "cancel")) {
-        try runCancel(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "delete") or std.mem.eql(u8, command, "rm")) {
-        try runDelete(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "stats")) {
-        try runStats(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "import-roadmap")) {
-        try runImportRoadmap(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "edit")) {
-        try runEdit(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "block")) {
-        try runBlock(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "unblock")) {
-        try runUnblock(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "due")) {
-        try runDue(allocator, args[1..]);
-        return;
-    }
-
-    utils.output.printError("Unknown task command: {s}", .{command});
-    printHelp();
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try utils.subcommand.runSubcommand(allocator, &parser, &task_commands, null, tHelp, tUnknown);
 }
 
 fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

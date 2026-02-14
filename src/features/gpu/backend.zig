@@ -14,6 +14,7 @@ pub const Backend = enum {
     opengles,
     webgl2,
     fpga,
+    tpu,
     simulated,
 
     /// Get backend name as a string.
@@ -28,6 +29,7 @@ pub const Backend = enum {
             .opengles => "opengles",
             .webgl2 => "webgl2",
             .fpga => "fpga",
+            .tpu => "tpu",
             .simulated => "simulated",
         };
     }
@@ -254,6 +256,25 @@ const backend_meta = [_]BackendMeta{
         .aliases = &.{},
     },
     .{
+        .name = "tpu",
+        .display_name = "TPU",
+        .description = "Tensor Processing Unit (Cloud TPU / libtpu; neural network accelerator)",
+        .build_flag = "-Dgpu-backend=tpu",
+        .device_name = "TPU",
+        .device_name_emulated = "TPU (emulated)",
+        .memory_bytes = 16 * GiB,
+        .capability = .{
+            .unified_memory = false,
+            .supports_fp16 = true,
+            .supports_int8 = true,
+            .supports_async_transfers = true,
+            .max_threads_per_block = 1024,
+            .max_shared_memory_bytes = 128 * 1024,
+        },
+        .supports_kernels = true,
+        .aliases = &.{},
+    },
+    .{
         .name = "simulated",
         .display_name = "Simulated",
         .description = "Software-simulated backend for testing and fallback",
@@ -294,6 +315,7 @@ pub fn isEnabled(backend: Backend) bool {
         .opengles => build_options.gpu_opengles,
         .webgl2 => build_options.gpu_webgl2,
         .fpga => if (@hasDecl(build_options, "gpu_fpga")) build_options.gpu_fpga else false,
+        .tpu => if (@hasDecl(build_options, "gpu_tpu")) build_options.gpu_tpu else false,
         .simulated => true, // always available as software fallback
     };
 }
@@ -403,6 +425,13 @@ pub fn backendAvailability(backend: Backend) BackendAvailability {
         .opengles => detectOpenGles(),
         .webgl2 => detectWebGl2(),
         .fpga => detectFpga(),
+        .tpu => .{
+            .enabled = true,
+            .available = false,
+            .reason = "TPU runtime not linked (libtpu or cloud TPU API required)",
+            .device_count = 0,
+            .level = .none,
+        },
         .simulated => .{
             .enabled = true,
             .available = true,

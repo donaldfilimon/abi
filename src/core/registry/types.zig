@@ -84,6 +84,7 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
         .storage => build_options.enable_storage,
         .search => build_options.enable_search,
         .mobile => build_options.enable_mobile,
+        .gateway => build_options.enable_gateway,
         .reasoning => build_options.enable_reasoning,
     };
 }

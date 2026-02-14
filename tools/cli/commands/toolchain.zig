@@ -14,6 +14,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
+const subcommand = @import("../utils/subcommand.zig");
 
 // libc import for environment and process access - required for Zig 0.16
 const c = @cImport({
@@ -41,31 +42,56 @@ const zls_repo = "https://github.com/zigtools/zls.git";
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var parser = ArgParser.init(allocator, args);
 
-    if (!parser.hasMore() or parser.wantsHelp()) {
+    if (parser.wantsHelp()) {
         printHelp(allocator);
         return;
     }
 
-    const command = parser.next().?;
+    const commands = [_]subcommand.Command{
+        .{ .names = &.{"install"}, .run = runInstallBoth },
+        .{ .names = &.{"zig"}, .run = runInstallZig },
+        .{ .names = &.{"zls"}, .run = runInstallZls },
+        .{ .names = &.{"status"}, .run = runStatusSubcommand },
+        .{ .names = &.{"update"}, .run = runUpdateSubcommand },
+        .{ .names = &.{"path"}, .run = runPathSubcommand },
+    };
 
-    if (std.mem.eql(u8, command, "install")) {
-        try runInstall(allocator, &parser, .both);
-    } else if (std.mem.eql(u8, command, "zig")) {
-        try runInstall(allocator, &parser, .zig_only);
-    } else if (std.mem.eql(u8, command, "zls")) {
-        try runInstall(allocator, &parser, .zls_only);
-    } else if (std.mem.eql(u8, command, "status")) {
-        try runStatus(allocator, &parser);
-    } else if (std.mem.eql(u8, command, "update")) {
-        try runUpdate(allocator, &parser);
-    } else if (std.mem.eql(u8, command, "path")) {
-        try runPath(allocator, &parser);
-    } else if (std.mem.eql(u8, command, "help")) {
-        printHelp(allocator);
-    } else {
-        output.printError("Unknown subcommand: {s}", .{command});
-        printHelp(allocator);
-    }
+    try subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &commands,
+        null,
+        printHelp,
+        onUnknownCommand,
+    );
+}
+
+fn runInstallBoth(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    try runInstall(allocator, parser, .both);
+}
+
+fn runInstallZig(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    try runInstall(allocator, parser, .zig_only);
+}
+
+fn runInstallZls(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    try runInstall(allocator, parser, .zls_only);
+}
+
+fn runStatusSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    try runStatus(allocator, parser);
+}
+
+fn runUpdateSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    try runUpdate(allocator, parser);
+}
+
+fn runPathSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    try runPath(allocator, parser);
+}
+
+fn onUnknownCommand(command: []const u8) void {
+    output.printError("Unknown subcommand: {s}", .{command});
 }
 
 const InstallTarget = enum { both, zig_only, zls_only };

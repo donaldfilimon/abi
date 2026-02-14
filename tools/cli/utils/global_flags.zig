@@ -194,26 +194,42 @@ pub fn parseGlobalFlagsWithOptions(
 
         if (std.mem.startsWith(u8, arg, "--enable-")) {
             const feature_name = arg["--enable-".len..];
-            if (parseFeature(feature_name)) |feature| {
-                try flags.feature_overrides.put(allocator, feature, true);
-            } else {
-                printUnknownFeatureError(feature_name);
-                if (options.strict) {
-                    return FlagError.UnknownFeature;
-                }
-            }
+            try applyFeatureOverride(allocator, &flags, feature_name, true, options.strict);
             continue;
         }
 
         if (std.mem.startsWith(u8, arg, "--disable-")) {
             const feature_name = arg["--disable-".len..];
-            if (parseFeature(feature_name)) |feature| {
-                try flags.feature_overrides.put(allocator, feature, false);
-            } else {
-                printUnknownFeatureError(feature_name);
+            try applyFeatureOverride(allocator, &flags, feature_name, false, options.strict);
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, arg, "--enable=")) {
+            const feature_name = arg["--enable=".len..];
+            try applyFeatureOverride(allocator, &flags, feature_name, true, options.strict);
+            continue;
+        }
+
+        if (std.mem.startsWith(u8, arg, "--disable=")) {
+            const feature_name = arg["--disable=".len..];
+            try applyFeatureOverride(allocator, &flags, feature_name, false, options.strict);
+            continue;
+        }
+
+        if (std.mem.eql(u8, arg, "--enable") or std.mem.eql(u8, arg, "--disable")) {
+            if (i + 1 >= args.len) {
+                printInvalidFlagFormat(arg);
                 if (options.strict) {
-                    return FlagError.UnknownFeature;
+                    return FlagError.InvalidFlagFormat;
                 }
+                continue;
+            }
+            i += 1;
+            const feature_name = std.mem.sliceTo(args[i], 0);
+            if (std.mem.eql(u8, arg, "--enable")) {
+                try applyFeatureOverride(allocator, &flags, feature_name, true, options.strict);
+            } else {
+                try applyFeatureOverride(allocator, &flags, feature_name, false, options.strict);
             }
             continue;
         }
@@ -224,6 +240,40 @@ pub fn parseGlobalFlagsWithOptions(
 
     flags.remaining_args = try remaining.toOwnedSlice(allocator);
     return flags;
+}
+
+fn applyFeatureOverride(
+    allocator: std.mem.Allocator,
+    flags: *GlobalFlags,
+    feature_name: []const u8,
+    enabled: bool,
+    strict: bool,
+) !void {
+    if (feature_name.len == 0) {
+        printInvalidFeatureName();
+        if (strict) {
+            return FlagError.InvalidFlagFormat;
+        }
+        return;
+    }
+
+    if (parseFeature(feature_name)) |feature| {
+        try flags.feature_overrides.put(allocator, feature, enabled);
+        return;
+    }
+
+    printUnknownFeatureError(feature_name);
+    if (strict) {
+        return FlagError.UnknownFeature;
+    }
+}
+
+fn printInvalidFeatureName() void {
+    std.debug.print("\nError: Missing feature name. Use --enable-<feature> or --disable-<feature>.\n\n", .{});
+}
+
+fn printInvalidFlagFormat(flag: []const u8) void {
+    std.debug.print("\nError: Invalid flag format '{s}'. Expected a feature value after it.\n\n", .{flag});
 }
 
 /// Print error message for unknown feature.
@@ -337,6 +387,28 @@ test "parseGlobalFlags with enable/disable" {
     try std.testing.expectEqual(@as(usize, 2), flags.remaining_args.len);
 }
 
+test "parseGlobalFlags supports equals style flags" {
+    const args = [_][:0]const u8{ "abi", "--enable=gpu", "--disable=ai", "llm" };
+    var flags = try parseGlobalFlags(std.testing.allocator, &args);
+    defer flags.deinit();
+    defer std.testing.allocator.free(flags.remaining_args);
+
+    try std.testing.expect(flags.isFeatureEnabled(.gpu, false));
+    try std.testing.expect(!flags.isFeatureEnabled(.ai, true));
+    try std.testing.expectEqual(@as(usize, 2), flags.remaining_args.len);
+}
+
+test "parseGlobalFlags supports --enable/--disable value args" {
+    const args = [_][:0]const u8{ "abi", "--enable", "gpu", "--disable", "ai", "llm" };
+    var flags = try parseGlobalFlags(std.testing.allocator, &args);
+    defer flags.deinit();
+    defer std.testing.allocator.free(flags.remaining_args);
+
+    try std.testing.expect(flags.isFeatureEnabled(.gpu, false));
+    try std.testing.expect(!flags.isFeatureEnabled(.ai, true));
+    try std.testing.expectEqual(@as(usize, 2), flags.remaining_args.len);
+}
+
 test "parseFeature recognizes valid features" {
     try std.testing.expectEqual(Feature.gpu, parseFeature("gpu").?);
     try std.testing.expectEqual(Feature.ai, parseFeature("ai").?);
@@ -382,6 +454,12 @@ test "validate passes for compiled features" {
 
 test "strict mode returns error for unknown feature" {
     const args = [_][:0]const u8{ "abi", "--enable-foobar" };
+    const result = parseGlobalFlagsWithOptions(std.testing.allocator, &args, .{ .strict = true });
+    try std.testing.expectError(FlagError.UnknownFeature, result);
+}
+
+test "strict mode returns error for equals style unknown feature" {
+    const args = [_][:0]const u8{ "abi", "--enable=foobar" };
     const result = parseGlobalFlagsWithOptions(std.testing.allocator, &args, .{ .strict = true });
     try std.testing.expectError(FlagError.UnknownFeature, result);
 }

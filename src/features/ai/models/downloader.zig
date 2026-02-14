@@ -400,12 +400,18 @@ pub const Downloader = struct {
             }
         }
 
-        // Stream response body to file
+        // Stream response body to file.
+        // Keep reader internals and payload copy buffers separate; aliasing them
+        // can panic in std.Io.Reader when it copies from its internal window.
+        const reader_buffer = self.allocator.alloc(u8, config.buffer_size) catch
+            return error.OutOfMemory;
+        defer self.allocator.free(reader_buffer);
+
         const transfer_buffer = self.allocator.alloc(u8, config.buffer_size) catch
             return error.OutOfMemory;
         defer self.allocator.free(transfer_buffer);
 
-        const reader = response.reader(transfer_buffer);
+        const reader = response.reader(reader_buffer);
 
         var write_offset: u64 = resume_from;
         var downloaded_total: u64 = resume_from;

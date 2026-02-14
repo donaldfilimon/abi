@@ -38,9 +38,16 @@ pub const TensorLoader = struct {
                     result[i] = @floatCast(v);
                 }
             },
+            .bf16 => {
+                const src: []const u16 = @alignCast(std.mem.bytesAsSlice(u16, data));
+                for (src, 0..) |v, i| {
+                    result[i] = bf16ToF32(v);
+                }
+            },
             .q4_0 => try dequantizeQ4_0(data, result),
             .q8_0 => try dequantizeQ8_0(data, result),
             .q6_k => try dequantizeQ6_K(data, result),
+            .mxfp4 => try dequantizeMXFP4(data, result),
             else => return error.UnsupportedQuantization,
         }
 
@@ -86,6 +93,13 @@ pub const Q4_0Block = extern struct {
 pub const Q8_0Block = extern struct {
     scale: f16,
     quants: [32]i8,
+};
+
+/// MXFP4 block: 32 values with shared E8M0 scale.
+/// Layout matches ggml `block_mxfp4`.
+pub const MXFP4Block = extern struct {
+    e: u8,
+    qs: [16]u8,
 };
 
 /// Q6_K block: 256 values with per-16 scale and a global scale
@@ -197,6 +211,51 @@ pub fn dequantizeQ6_K(data: []const u8, output: []f32) !void {
     }
 }
 
+const mxfp4_values = [_]i8{
+    0, 1, 2, 3, 4, 6, 8, 12,
+    0, -1, -2, -3, -4, -6, -8, -12,
+};
+
+fn e8m0ToF32Half(x: u8) f32 {
+    const bits: u32 = if (x < 2)
+        @as(u32, 0x0020_0000) << @intCast(x)
+    else
+        @as(u32, x - 1) << 23;
+    return @bitCast(bits);
+}
+
+pub fn bf16ToF32(value: u16) f32 {
+    const bits: u32 = @as(u32, value) << 16;
+    return @bitCast(bits);
+}
+
+/// Dequantize MXFP4 data to f32.
+pub fn dequantizeMXFP4(data: []const u8, output: []f32) !void {
+    const block_size = 32;
+    const bytes_per_block = @sizeOf(MXFP4Block);
+    const num_blocks = data.len / bytes_per_block;
+
+    if (output.len < num_blocks * block_size) {
+        return error.ShapeMismatch;
+    }
+
+    const blocks: []const MXFP4Block = @alignCast(std.mem.bytesAsSlice(MXFP4Block, data[0 .. num_blocks * bytes_per_block]));
+
+    for (blocks, 0..) |block, block_idx| {
+        const d = e8m0ToF32Half(block.e);
+        const base = block_idx * block_size;
+
+        for (0..16) |j| {
+            const packed_byte = block.qs[j];
+            const lo = mxfp4_values[@as(usize, packed_byte & 0x0F)];
+            const hi = mxfp4_values[@as(usize, packed_byte >> 4)];
+
+            output[base + j] = @as(f32, @floatFromInt(lo)) * d;
+            output[base + j + 16] = @as(f32, @floatFromInt(hi)) * d;
+        }
+    }
+}
+
 /// Calculate total memory needed for dequantized tensors
 pub fn calculateDequantizedSize(tensor_type: gguf.GgufTensorType, element_count: u64) u64 {
     _ = tensor_type; // All dequantize to f32
@@ -259,4 +318,21 @@ test "q6_k dequantization" {
     for (output) |v| {
         try std.testing.expectApproxEqAbs(@as(f32, -32.0), v, 0.001);
     }
+}
+
+test "mxfp4 dequantization" {
+    var block_data: [@sizeOf(MXFP4Block)]u8 = undefined;
+    const block: *MXFP4Block = @ptrCast(@alignCast(&block_data));
+
+    // Produces d = 1.0 in e8m0ToF32Half.
+    block.e = 128;
+    for (0..16) |i| {
+        block.qs[i] = 0x21; // low nibble = +1, high nibble = +2
+    }
+
+    var output: [32]f32 = undefined;
+    try dequantizeMXFP4(block_data[0..], output[0..]);
+
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), output[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), output[16], 0.001);
 }

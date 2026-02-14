@@ -78,6 +78,8 @@ pub const LlamaWeights = struct {
             if (layer.gate_proj.len > 0) self.allocator.free(@constCast(layer.gate_proj));
             if (layer.up_proj.len > 0) self.allocator.free(@constCast(layer.up_proj));
             if (layer.down_proj.len > 0) self.allocator.free(@constCast(layer.down_proj));
+            if (layer.input_norm.len > 0) self.allocator.free(@constCast(layer.input_norm));
+            if (layer.post_attn_norm.len > 0) self.allocator.free(@constCast(layer.post_attn_norm));
         }
 
         self.allocator.free(self.layers);
@@ -124,7 +126,8 @@ pub const LlamaWeights = struct {
 
         // Load final norm
         if (file.getTensorData("output_norm.weight")) |data| {
-            self.final_norm = try self.allocator.dupe(f32, @alignCast(std.mem.bytesAsSlice(f32, data)));
+            const info = file.getTensor("output_norm.weight").?;
+            self.final_norm = try self.dequantizeTensor(data, info);
         }
 
         // Load output projection
@@ -164,10 +167,17 @@ pub const LlamaWeights = struct {
             self.layers[layer_idx].v_proj = try self.dequantizeTensor(data, info);
         }
 
+        // Some GGUF exporters use attn_out.weight instead of attn_output.weight.
         const o_name = try std.fmt.bufPrint(&buf, "blk.{d}.attn_output.weight", .{layer_idx});
         if (file.getTensorData(o_name)) |data| {
             const info = file.getTensor(o_name).?;
             self.layers[layer_idx].o_proj = try self.dequantizeTensor(data, info);
+        } else {
+            const alt_o_name = try std.fmt.bufPrint(&buf, "blk.{d}.attn_out.weight", .{layer_idx});
+            if (file.getTensorData(alt_o_name)) |data| {
+                const info = file.getTensor(alt_o_name).?;
+                self.layers[layer_idx].o_proj = try self.dequantizeTensor(data, info);
+            }
         }
 
         // FFN weights
@@ -192,12 +202,14 @@ pub const LlamaWeights = struct {
         // Normalization weights
         const input_norm_name = try std.fmt.bufPrint(&buf, "blk.{d}.attn_norm.weight", .{layer_idx});
         if (file.getTensorData(input_norm_name)) |data| {
-            self.layers[layer_idx].input_norm = @alignCast(std.mem.bytesAsSlice(f32, data));
+            const info = file.getTensor(input_norm_name).?;
+            self.layers[layer_idx].input_norm = try self.dequantizeTensor(data, info);
         }
 
         const post_norm_name = try std.fmt.bufPrint(&buf, "blk.{d}.ffn_norm.weight", .{layer_idx});
         if (file.getTensorData(post_norm_name)) |data| {
-            self.layers[layer_idx].post_attn_norm = @alignCast(std.mem.bytesAsSlice(f32, data));
+            const info = file.getTensor(post_norm_name).?;
+            self.layers[layer_idx].post_attn_norm = try self.dequantizeTensor(data, info);
         }
     }
 
@@ -217,6 +229,12 @@ pub const LlamaWeights = struct {
                     result[i] = @floatCast(v);
                 }
             },
+            .bf16 => {
+                const bf16_data: []const u16 = @alignCast(std.mem.bytesAsSlice(u16, data));
+                for (bf16_data, 0..) |v, i| {
+                    result[i] = tensor_loader.bf16ToF32(v);
+                }
+            },
             .q4_0 => {
                 try tensor_loader.dequantizeQ4_0(data, result);
             },
@@ -225,6 +243,9 @@ pub const LlamaWeights = struct {
             },
             .q6_k => {
                 try tensor_loader.dequantizeQ6_K(data, result);
+            },
+            .mxfp4 => {
+                try tensor_loader.dequantizeMXFP4(data, result);
             },
             else => {
                 return error.UnsupportedQuantization;

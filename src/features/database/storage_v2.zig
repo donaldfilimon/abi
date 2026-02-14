@@ -273,10 +273,12 @@ pub const BloomFilter = struct {
         // Use double hashing: h(i) = h1 + i * h2
         const h1 = std.hash.XxHash3.hash(0, std.mem.asBytes(&id));
         const h2 = std.hash.XxHash3.hash(1, std.mem.asBytes(&id));
+        const max_usize_u64: u64 = std.math.maxInt(usize);
 
         var hashes: [16]usize = undefined;
         for (0..16) |i| {
-            hashes[i] = @intCast((h1 +% i * h2) % std.math.maxInt(usize));
+            const step = @as(u64, @intCast(i)) *% h2;
+            hashes[i] = @intCast((h1 +% step) % max_usize_u64);
         }
         return hashes;
     }

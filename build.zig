@@ -59,6 +59,12 @@ pub fn build(b: *std.Build) void {
     if (targets.pathExists(b, "tools/cli/main.zig"))
         exe.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
     targets.applyPerformanceTweaks(exe, optimize);
+    if (target.result.os.tag == .macos and options.gpu_metal()) {
+        exe.root_module.linkFramework("Metal", .{});
+        exe.root_module.linkFramework("CoreML", .{});
+        exe.root_module.linkFramework("MetalPerformanceShaders", .{});
+        exe.root_module.linkFramework("Foundation", .{});
+    }
     b.installArtifact(exe);
 
     const run_cli = b.addRunArtifact(exe);
@@ -77,8 +83,72 @@ pub fn build(b: *std.Build) void {
         &.{"system-info"},
         &.{ "db", "stats" },
         &.{ "gpu", "status" },
+        &.{ "gpu", "backends" },
+        &.{ "gpu", "devices" },
+        &.{ "gpu", "summary" },
+        &.{ "gpu", "default" },
         &.{ "task", "list" },
+        &.{ "task", "stats" },
         &.{ "config", "show" },
+        &.{ "config", "validate" },
+        &.{ "help", "llm" },
+        &.{ "help", "gpu" },
+        &.{ "help", "db" },
+        &.{ "help", "train" },
+        &.{ "help", "model" },
+        &.{ "help", "config" },
+        &.{ "help", "task" },
+        &.{ "help", "network" },
+        &.{ "help", "discord" },
+        &.{ "help", "bench" },
+        &.{ "help", "plugins" },
+        &.{ "help", "completions" },
+        &.{ "help", "multi-agent" },
+        &.{ "help", "profile" },
+        &.{ "help", "convert" },
+        &.{ "help", "embed" },
+        &.{ "help", "toolchain" },
+        &.{ "help", "explore" },
+        &.{ "help", "simd" },
+        &.{ "help", "agent" },
+        &.{ "help", "status" },
+        &.{ "help", "mcp" },
+        &.{ "help", "acp" },
+        &.{ "help", "gpu-dashboard" },
+        &.{ "help", "llm", "generate" },
+        &.{ "help", "llm", "chat" },
+        &.{ "help", "train", "run" },
+        &.{ "help", "train", "llm" },
+        &.{ "help", "db", "add" },
+        &.{ "help", "bench", "simd" },
+        &.{ "help", "discord", "commands" },
+        &.{ "llm", "info" },
+        &.{ "llm", "list" },
+        &.{ "llm", "demo" },
+        &.{ "llm", "demo", "--prompt", "Hello" },
+        &.{ "train", "info" },
+        &.{ "train", "auto" },
+        &.{ "train", "auto", "--help" },
+        &.{ "model", "list" },
+        &.{ "network", "list" },
+        &.{ "network", "status" },
+        &.{ "discord", "status" },
+        &.{ "discord", "commands", "list" },
+        &.{ "plugins", "list" },
+        &.{ "plugins", "info", "openai-connector" },
+        &.{"bench"},
+        &.{ "bench", "list" },
+        &.{ "bench", "micro", "hash" },
+        &.{ "bench", "micro", "alloc" },
+        &.{ "completions", "bash" },
+        &.{ "completions", "zsh" },
+        &.{ "multi-agent", "info" },
+        &.{ "multi-agent", "list" },
+        &.{ "multi-agent", "status" },
+        &.{ "toolchain", "status" },
+        &.{ "mcp", "tools" },
+        &.{ "acp", "card" },
+        &.{ "acp", "serve", "--help" },
     };
     for (cli_commands) |args| {
         const run_cmd = b.addRunArtifact(exe);
@@ -103,6 +173,12 @@ pub fn build(b: *std.Build) void {
         });
         tests.root_module.addImport("abi", abi_module);
         tests.root_module.addImport("build_options", build_opts);
+        if (target.result.os.tag == .macos and options.gpu_metal()) {
+            tests.root_module.linkFramework("Metal", .{});
+            tests.root_module.linkFramework("CoreML", .{});
+            tests.root_module.linkFramework("MetalPerformanceShaders", .{});
+            tests.root_module.linkFramework("Foundation", .{});
+        }
         b.step("typecheck", "Compile tests without running").dependOn(&tests.step);
         const run_tests = b.addRunArtifact(tests);
         run_tests.skip_foreign_checks = true;
@@ -195,10 +271,17 @@ pub fn build(b: *std.Build) void {
                 .link_libc = true,
             }),
         });
-        profile_exe.root_module.addImport("abi", abi_profile);
-        profile_exe.root_module.addImport("cli", modules.createCliModule(b, abi_profile, target, optimize));
-        profile_exe.root_module.strip = false;
-        profile_exe.root_module.omit_frame_pointer = false;
+        const profile_mod = profile_exe.root_module;
+        profile_mod.addImport("abi", abi_profile);
+        profile_mod.addImport("cli", modules.createCliModule(b, abi_profile, target, optimize));
+        profile_mod.strip = false;
+        profile_mod.omit_frame_pointer = false;
+        if (target.result.os.tag == .macos and options.gpu_metal()) {
+            profile_mod.linkFramework("Metal", .{});
+            profile_mod.linkFramework("CoreML", .{});
+            profile_mod.linkFramework("MetalPerformanceShaders", .{});
+            profile_mod.linkFramework("Foundation", .{});
+        }
         b.installArtifact(profile_exe);
         b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
     }

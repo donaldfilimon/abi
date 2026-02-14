@@ -43,6 +43,32 @@ pub const TransformerLayer = struct {
         self.* = undefined;
     }
 
+    fn validateWeights(self: *const TransformerLayer, layer_weights: *const weights_mod.LayerWeights) !void {
+        const dim = self.config.dim;
+        const q_dim = self.config.queryDim();
+        const kv_dim = self.config.kvDim();
+        const v_dim = self.config.valueDim();
+        const hidden_dim = self.config.ffn_dim;
+
+        const need_q = @as(usize, q_dim) * dim;
+        const need_k = @as(usize, kv_dim) * dim;
+        const need_v = @as(usize, v_dim) * dim;
+        const need_o = @as(usize, dim) * q_dim;
+        const need_norm = @as(usize, dim);
+        const need_gate_up = @as(usize, hidden_dim) * dim;
+        const need_down = @as(usize, dim) * hidden_dim;
+
+        if (layer_weights.input_norm.len < need_norm) return error.WeightsNotLoaded;
+        if (layer_weights.post_attn_norm.len < need_norm) return error.WeightsNotLoaded;
+        if (layer_weights.q_proj.len < need_q) return error.WeightsNotLoaded;
+        if (layer_weights.k_proj.len < need_k) return error.WeightsNotLoaded;
+        if (layer_weights.v_proj.len < need_v) return error.WeightsNotLoaded;
+        if (layer_weights.o_proj.len < need_o) return error.WeightsNotLoaded;
+        if (layer_weights.gate_proj.len < need_gate_up) return error.WeightsNotLoaded;
+        if (layer_weights.up_proj.len < need_gate_up) return error.WeightsNotLoaded;
+        if (layer_weights.down_proj.len < need_down) return error.WeightsNotLoaded;
+    }
+
     /// Forward pass for a single position.
     pub fn forward(
         self: *TransformerLayer,
@@ -52,44 +78,51 @@ pub const TransformerLayer = struct {
         kv_cache_layer: *cache.LayerKvCache,
         rope_cache: *const ops.rope.RopeCache,
     ) !void {
+        try self.validateWeights(layer_weights);
+
         const dim = self.config.dim;
-        const head_dim = self.config.headDim();
+        const q_dim = self.config.queryDim();
+        const q_head_dim = self.config.queryHeadDim();
+        const k_head_dim = self.config.keyHeadDim();
         const kv_dim = self.config.kvDim();
+        const v_dim = self.config.valueDim();
+
+        std.debug.assert(q_dim == dim and kv_dim == v_dim);
 
         // 1. Input normalization
         ops.rmsnorm.rmsNorm(x, layer_weights.input_norm, self.hidden_scratch, self.config.norm_eps);
 
         // 2. Compute Q, K, V projections
-        const q = try self.allocator.alloc(f32, dim);
+        const q = try self.allocator.alloc(f32, q_dim);
         defer self.allocator.free(q);
         const k = try self.allocator.alloc(f32, kv_dim);
         defer self.allocator.free(k);
-        const v = try self.allocator.alloc(f32, kv_dim);
+        const v = try self.allocator.alloc(f32, v_dim);
         defer self.allocator.free(v);
 
         // Q = x @ W_q
-        ops.matmul.matrixVectorMultiply(layer_weights.q_proj, self.hidden_scratch, q, dim, dim);
+        ops.matmul.matrixVectorMultiply(layer_weights.q_proj, self.hidden_scratch, q, q_dim, dim);
         // K = x @ W_k
         ops.matmul.matrixVectorMultiply(layer_weights.k_proj, self.hidden_scratch, k, kv_dim, dim);
         // V = x @ W_v
-        ops.matmul.matrixVectorMultiply(layer_weights.v_proj, self.hidden_scratch, v, kv_dim, dim);
+        ops.matmul.matrixVectorMultiply(layer_weights.v_proj, self.hidden_scratch, v, v_dim, dim);
 
         // 3. Apply RoPE to Q and K
         for (0..self.config.n_heads) |h| {
-            const q_offset = h * head_dim;
-            ops.rope.applyRope(q[q_offset .. q_offset + head_dim], pos, rope_cache);
+            const q_offset = h * q_head_dim;
+            ops.rope.applyRope(q[q_offset .. q_offset + q_head_dim], pos, rope_cache);
         }
 
         for (0..self.config.n_kv_heads) |h| {
-            const k_offset = h * head_dim;
-            ops.rope.applyRope(k[k_offset .. k_offset + head_dim], pos, rope_cache);
+            const k_offset = h * k_head_dim;
+            ops.rope.applyRope(k[k_offset .. k_offset + k_head_dim], pos, rope_cache);
         }
 
         // 4. Update KV cache
         kv_cache_layer.update(k, v, pos);
 
         // 5. Compute attention
-        const attn_config = ops.attention.AttentionConfig.fromModel(dim, self.config.n_heads, self.config.n_kv_heads);
+        const attn_config = ops.attention.AttentionConfig.fromModel(q_dim, self.config.n_heads, self.config.n_kv_heads);
 
         try ops.attention.selfAttention(
             self.allocator,
@@ -104,7 +137,7 @@ pub const TransformerLayer = struct {
         // 6. Output projection
         const attn_out = try self.allocator.alloc(f32, dim);
         defer self.allocator.free(attn_out);
-        ops.matmul.matrixVectorMultiply(layer_weights.o_proj, self.attn_scratch, attn_out, dim, dim);
+        ops.matmul.matrixVectorMultiply(layer_weights.o_proj, self.attn_scratch, attn_out, dim, q_dim);
 
         // 7. Residual connection
         for (0..dim) |i| {
@@ -147,16 +180,23 @@ pub const TransformerLayer = struct {
         kv_cache_layer: *cache.LayerKvCache,
         rope_cache: *const ops.rope.RopeCache,
     ) !void {
+        try self.validateWeights(layer_weights);
+
         const dim = self.config.dim;
-        const head_dim = self.config.headDim();
+        const q_dim = self.config.queryDim();
+        const q_head_dim = self.config.queryHeadDim();
+        const k_head_dim = self.config.keyHeadDim();
         const kv_dim = self.config.kvDim();
+        const v_dim = self.config.valueDim();
+
+        std.debug.assert(q_dim == dim and kv_dim == v_dim);
 
         // Pre-allocate buffers ONCE outside the loop to avoid repeated allocations
-        const q = try self.allocator.alloc(f32, dim);
+        const q = try self.allocator.alloc(f32, q_dim);
         defer self.allocator.free(q);
         const k = try self.allocator.alloc(f32, kv_dim);
         defer self.allocator.free(k);
-        const v = try self.allocator.alloc(f32, kv_dim);
+        const v = try self.allocator.alloc(f32, v_dim);
         defer self.allocator.free(v);
         const attn_out = try self.allocator.alloc(f32, dim);
         defer self.allocator.free(attn_out);
@@ -173,26 +213,26 @@ pub const TransformerLayer = struct {
             ops.rmsnorm.rmsNorm(x_pos, layer_weights.input_norm, self.hidden_scratch, self.config.norm_eps);
 
             // 2. Compute Q, K, V projections (reusing pre-allocated buffers)
-            ops.matmul.matrixVectorMultiply(layer_weights.q_proj, self.hidden_scratch, q, dim, dim);
+            ops.matmul.matrixVectorMultiply(layer_weights.q_proj, self.hidden_scratch, q, q_dim, dim);
             ops.matmul.matrixVectorMultiply(layer_weights.k_proj, self.hidden_scratch, k, kv_dim, dim);
-            ops.matmul.matrixVectorMultiply(layer_weights.v_proj, self.hidden_scratch, v, kv_dim, dim);
+            ops.matmul.matrixVectorMultiply(layer_weights.v_proj, self.hidden_scratch, v, v_dim, dim);
 
             // 3. Apply RoPE to Q and K
             for (0..self.config.n_heads) |h| {
-                const q_offset = h * head_dim;
-                ops.rope.applyRope(q[q_offset .. q_offset + head_dim], pos, rope_cache);
+                const q_offset = h * q_head_dim;
+                ops.rope.applyRope(q[q_offset .. q_offset + q_head_dim], pos, rope_cache);
             }
 
             for (0..self.config.n_kv_heads) |h| {
-                const k_offset = h * head_dim;
-                ops.rope.applyRope(k[k_offset .. k_offset + head_dim], pos, rope_cache);
+                const k_offset = h * k_head_dim;
+                ops.rope.applyRope(k[k_offset .. k_offset + k_head_dim], pos, rope_cache);
             }
 
             // 4. Update KV cache
             kv_cache_layer.update(k, v, pos);
 
             // 5. Compute attention
-            const attn_config = ops.attention.AttentionConfig.fromModel(dim, self.config.n_heads, self.config.n_kv_heads);
+            const attn_config = ops.attention.AttentionConfig.fromModel(q_dim, self.config.n_heads, self.config.n_kv_heads);
 
             try ops.attention.selfAttention(
                 self.allocator,
@@ -205,7 +245,7 @@ pub const TransformerLayer = struct {
             );
 
             // 6. Output projection (reusing pre-allocated attn_out)
-            ops.matmul.matrixVectorMultiply(layer_weights.o_proj, self.attn_scratch, attn_out, dim, dim);
+            ops.matmul.matrixVectorMultiply(layer_weights.o_proj, self.attn_scratch, attn_out, dim, q_dim);
 
             // 7. Residual connection
             for (0..dim) |j| {

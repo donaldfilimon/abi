@@ -4,13 +4,14 @@ pub const DiscoveryConfig = struct {
     custom_paths: []const []const u8 = &.{},
     recursive: bool = true,
     max_depth: u32 = 5,
-    extensions: []const []const u8 = &.{ ".gguf", ".bin", ".safetensors" },
+    extensions: []const []const u8 = &.{ ".gguf", ".mlx", ".bin", ".safetensors" },
     validate_files: bool = true,
     validation_timeout_ms: u32 = 5000,
 };
 
 pub const ModelFormat = enum {
     gguf,
+    mlx,
     safetensors,
     pytorch_bin,
     onnx,
@@ -104,7 +105,7 @@ pub const AdaptiveConfig = struct {
     num_threads: u32 = 4,
     batch_size: u32 = 1,
     context_length: u32 = 2048,
-    use_gpu: bool = false,
+    use_gpu: bool = true,
     use_mmap: bool = true,
     mlock: bool = false,
     kv_cache_type: KvCacheType = .standard,

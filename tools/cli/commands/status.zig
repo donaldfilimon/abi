@@ -22,7 +22,9 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printHeader("ABI Framework Status");
 
     utils.output.printKeyValue("Version", abi.version());
-    utils.output.printKeyValue("State", @tagName(fw.state));
+    var state_buf: [32]u8 = undefined;
+    const state_str = std.fmt.bufPrint(&state_buf, "{t}", .{fw.state}) catch "unknown";
+    utils.output.printKeyValue("State", state_str);
 
     // Feature status using the registry for complete coverage
     std.debug.print("\n", .{});
@@ -33,7 +35,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         const icon = if (enabled) utils.output.Color.get(utils.output.Color.green) else utils.output.Color.get(utils.output.Color.dim);
         const marker = if (enabled) "[ok]" else "[--]";
         const reset = utils.output.Color.get(utils.output.Color.reset);
-        std.debug.print("  {s}{s}{s} {s}\n", .{ icon, marker, reset, @tagName(tag) });
+        std.debug.print("  {s}{s}{s} {t}\n", .{ icon, marker, reset, tag });
         if (enabled) enabled_count += 1;
     }
 

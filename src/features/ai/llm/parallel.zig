@@ -1,6 +1,7 @@
 //! Parallel processing utilities for LLM workloads.
 //! Provides helpers to run inference across multiple threads.
-//! This is a simple wrapper around std.Thread and std.atomic.
+//! For framework integration, abi.runtime.ThreadPool.parallelFor offers work-stealing
+//! parallelism; num_threads in InferenceConfig drives CPU thread count when use_gpu is false.
 
 const std = @import("std");
 const Allocator = std.mem.Allocator;

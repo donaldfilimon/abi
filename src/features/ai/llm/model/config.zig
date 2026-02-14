@@ -27,20 +27,62 @@ pub const LlamaConfig = struct {
     tie_embeddings: bool,
     /// Architecture name
     arch: []const u8,
+    /// Key/query head dimension from GGUF metadata. If zero, derive from dim / n_heads.
+    attention_key_length: u32 = 0,
+    /// Value head dimension from GGUF metadata. If zero, derive from key head dimension.
+    attention_value_length: u32 = 0,
 
     /// Compute head dimension.
     pub fn headDim(self: LlamaConfig) u32 {
+        return self.queryHeadDim();
+    }
+
+    /// Compute query/key head dimension.
+    pub fn queryHeadDim(self: LlamaConfig) u32 {
+        if (self.attention_key_length != 0) return self.attention_key_length;
+        if (self.n_heads == 0) return 0;
         return self.dim / self.n_heads;
+    }
+
+    /// Compute key head dimension.
+    pub fn keyHeadDim(self: LlamaConfig) u32 {
+        return self.queryHeadDim();
+    }
+
+    /// Compute value head dimension.
+    pub fn valueHeadDim(self: LlamaConfig) u32 {
+        if (self.attention_value_length != 0) return self.attention_value_length;
+        return self.keyHeadDim();
+    }
+
+    /// Compute query projection output dimension.
+    pub fn queryDim(self: LlamaConfig) u32 {
+        return self.queryHeadDim() * self.n_heads;
     }
 
     /// Compute KV dimension.
     pub fn kvDim(self: LlamaConfig) u32 {
-        return (self.dim / self.n_heads) * self.n_kv_heads;
+        return self.keyHeadDim() * self.n_kv_heads;
+    }
+
+    /// Compute V projection dimension.
+    pub fn valueDim(self: LlamaConfig) u32 {
+        return self.valueHeadDim() * self.n_kv_heads;
     }
 
     /// Compute GQA ratio (heads per KV head).
     pub fn gqaRatio(self: LlamaConfig) u32 {
+        if (self.n_kv_heads == 0) return 0;
         return self.n_heads / self.n_kv_heads;
+    }
+
+    /// Check if attention layout is compatible with the current local LLaMA forward path.
+    pub fn supportsLlamaAttentionLayout(self: LlamaConfig) bool {
+        if (self.n_heads == 0 or self.n_kv_heads == 0) return false;
+        return self.queryDim() == self.dim and
+            self.kvDim() == self.valueDim() and
+            self.queryHeadDim() == self.keyHeadDim() and
+            self.keyHeadDim() == self.valueHeadDim();
     }
 
     /// Create default LLaMA 7B configuration.
@@ -97,6 +139,9 @@ pub const LlamaConfig = struct {
     /// Load configuration from GGUF file.
     pub fn fromGguf(gguf_file: *const gguf.GgufFile) LlamaConfig {
         const arch = gguf_file.getArchitecture() orelse "llama";
+        const key_length = gguf_file.getAttentionKeyLength() orelse 0;
+        const value_length_raw = gguf_file.getAttentionValueLength() orelse 0;
+        const value_length = if (value_length_raw != 0) value_length_raw else key_length;
 
         return .{
             .dim = gguf_file.getEmbeddingLength() orelse 4096,
@@ -105,11 +150,19 @@ pub const LlamaConfig = struct {
             .n_kv_heads = gguf_file.getHeadCountKV() orelse gguf_file.getHeadCount() orelse 32,
             .vocab_size = gguf_file.getVocabSize() orelse 32000,
             .max_seq_len = gguf_file.getContextLength() orelse 2048,
-            .ffn_dim = getMetadataU32(gguf_file, "llama.feed_forward_length") orelse 11008,
-            .norm_eps = getMetadataF32(gguf_file, "llama.attention.layer_norm_rms_epsilon") orelse 1e-6,
-            .rope_theta = getMetadataF32(gguf_file, "llama.rope.freq_base") orelse 10000.0,
+            .ffn_dim = getArchMetadataU32(gguf_file, arch, "feed_forward_length") orelse
+                getMetadataU32(gguf_file, "llama.feed_forward_length") orelse
+                11008,
+            .norm_eps = getArchMetadataF32(gguf_file, arch, "attention.layer_norm_rms_epsilon") orelse
+                getMetadataF32(gguf_file, "llama.attention.layer_norm_rms_epsilon") orelse
+                1e-6,
+            .rope_theta = getArchMetadataF32(gguf_file, arch, "rope.freq_base") orelse
+                getMetadataF32(gguf_file, "llama.rope.freq_base") orelse
+                10000.0,
             .tie_embeddings = false,
             .arch = arch,
+            .attention_key_length = key_length,
+            .attention_value_length = value_length,
         };
     }
 
@@ -122,16 +175,25 @@ pub const LlamaConfig = struct {
         try writer.print("  Attention heads: {d}\n", .{self.n_heads});
         try writer.print("  KV heads: {d}\n", .{self.n_kv_heads});
         try writer.print("  GQA ratio: {d}\n", .{self.gqaRatio()});
+        try writer.print("  Q head dim: {d}\n", .{self.queryHeadDim()});
+        try writer.print("  KV head dim: {d}\n", .{self.keyHeadDim()});
+        try writer.print("  V head dim: {d}\n", .{self.valueHeadDim()});
+        try writer.print("  Q dim: {d}\n", .{self.queryDim()});
+        try writer.print("  KV dim: {d}\n", .{self.kvDim()});
+        try writer.print("  V dim: {d}\n", .{self.valueDim()});
         try writer.print("  Vocab size: {d}\n", .{self.vocab_size});
         try writer.print("  Max seq len: {d}\n", .{self.max_seq_len});
         try writer.print("  FFN dim: {d}\n", .{self.ffn_dim});
         try writer.print("  RoPE theta: {d:.1}\n", .{self.rope_theta});
+        try writer.print("  Local LLaMA layout: {s}\n", .{if (self.supportsLlamaAttentionLayout()) "compatible" else "unsupported"});
     }
 
     /// Estimate model memory requirements in bytes.
     pub fn estimateMemory(self: LlamaConfig) u64 {
         const dim: u64 = self.dim;
+        const q_dim: u64 = self.queryDim();
         const kv_dim: u64 = self.kvDim();
+        const v_dim: u64 = self.valueDim();
         const ffn_dim: u64 = self.ffn_dim;
 
         // Embedding: vocab_size * dim
@@ -139,10 +201,10 @@ pub const LlamaConfig = struct {
 
         // Per layer:
         // - attention: q_proj + k_proj + v_proj + o_proj
-        const attn_bytes = (dim * dim + // q_proj
+        const attn_bytes = (q_dim * dim + // q_proj
             dim * kv_dim + // k_proj
-            dim * kv_dim + // v_proj
-            dim * dim) * 4; // o_proj
+            dim * v_dim + // v_proj
+            dim * q_dim) * 4; // o_proj
 
         // - FFN: gate + up + down
         const ffn_bytes = (dim * ffn_dim * 2 + // gate + up
@@ -158,7 +220,7 @@ pub const LlamaConfig = struct {
         const output_bytes = if (!self.tie_embeddings) @as(u64, self.vocab_size) * self.dim * 4 else 0;
 
         // KV cache estimate (at max seq len)
-        const kv_cache = @as(u64, self.n_layers) * self.max_seq_len * kv_dim * 2 * 4;
+        const kv_cache = @as(u64, self.n_layers) * self.max_seq_len * (kv_dim + v_dim) * 4;
 
         return embed_bytes + all_layers + output_bytes + kv_cache;
     }
@@ -166,15 +228,17 @@ pub const LlamaConfig = struct {
     /// Estimate model parameters.
     pub fn estimateParameters(self: LlamaConfig) u64 {
         const dim: u64 = self.dim;
+        const q_dim: u64 = self.queryDim();
         const kv_dim: u64 = self.kvDim();
+        const v_dim: u64 = self.valueDim();
         const ffn_dim: u64 = self.ffn_dim;
 
         const embed_params = @as(u64, self.vocab_size) * dim;
 
-        const attn_params_per_layer = dim * dim + // q
+        const attn_params_per_layer = dim * q_dim + // q
             dim * kv_dim + // k
-            dim * kv_dim + // v
-            dim * dim; // o
+            dim * v_dim + // v
+            dim * q_dim; // o
 
         const ffn_params_per_layer = dim * ffn_dim * 2 + // gate + up
             ffn_dim * dim; // down
@@ -205,6 +269,18 @@ fn getMetadataF32(file: *const gguf.GgufFile, key: []const u8) ?f32 {
     return val.asF32();
 }
 
+fn getArchMetadataU32(file: *const gguf.GgufFile, arch: []const u8, suffix: []const u8) ?u32 {
+    var key_buf: [128]u8 = undefined;
+    const key = std.fmt.bufPrint(&key_buf, "{s}.{s}", .{ arch, suffix }) catch return null;
+    return getMetadataU32(file, key);
+}
+
+fn getArchMetadataF32(file: *const gguf.GgufFile, arch: []const u8, suffix: []const u8) ?f32 {
+    var key_buf: [128]u8 = undefined;
+    const key = std.fmt.bufPrint(&key_buf, "{s}.{s}", .{ arch, suffix }) catch return null;
+    return getMetadataF32(file, key);
+}
+
 test "llama config defaults" {
     const config = LlamaConfig.llama7B();
 
@@ -212,6 +288,7 @@ test "llama config defaults" {
     try std.testing.expectEqual(@as(u32, 32), config.n_layers);
     try std.testing.expectEqual(@as(u32, 128), config.headDim());
     try std.testing.expectEqual(@as(u32, 1), config.gqaRatio());
+    try std.testing.expect(config.supportsLlamaAttentionLayout());
 }
 
 test "mistral config gqa" {
@@ -220,6 +297,29 @@ test "mistral config gqa" {
     try std.testing.expectEqual(@as(u32, 8), config.n_kv_heads);
     try std.testing.expectEqual(@as(u32, 4), config.gqaRatio());
     try std.testing.expectEqual(@as(u32, 1024), config.kvDim()); // 8 * 128
+    try std.testing.expect(config.supportsLlamaAttentionLayout());
+}
+
+test "non-llama attention layout is detected" {
+    const config = LlamaConfig{
+        .dim = 2880,
+        .n_layers = 24,
+        .n_heads = 64,
+        .n_kv_heads = 8,
+        .vocab_size = 200000,
+        .max_seq_len = 131072,
+        .ffn_dim = 2880,
+        .norm_eps = 1e-5,
+        .rope_theta = 150000.0,
+        .tie_embeddings = false,
+        .arch = "gptoss",
+        .attention_key_length = 64,
+        .attention_value_length = 64,
+    };
+
+    try std.testing.expectEqual(@as(u32, 4096), config.queryDim());
+    try std.testing.expectEqual(@as(u32, 512), config.kvDim());
+    try std.testing.expect(!config.supportsLlamaAttentionLayout());
 }
 
 test "memory estimation" {

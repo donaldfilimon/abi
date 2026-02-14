@@ -3,10 +3,10 @@ title: "Examples"
 tags: [examples, tutorials, getting-started]
 ---
 # ABI Framework Examples
-> **Codebase Status:** Synced with repository as of 2026-02-08.
+> **Codebase Status:** Synced with repository as of 2026-02-14.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Examples-21-blue?style=for-the-badge" alt="21 Examples"/>
+  <img src="https://img.shields.io/badge/Examples-22-blue?style=for-the-badge" alt="22 Examples"/>
   <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
   <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
 </p>
@@ -190,6 +190,22 @@ Local LLM inference with GGUF models.
 zig build -Denable-llm=true run-llm -- path/to/model.gguf
 ```
 
+### llm_real.zig
+
+Real LLM inference via ABI connectors (Ollama, LM Studio, vLLM).
+Tries backends in order and uses the first available for a chat completion.
+No GGUF file required.
+
+**Prerequisites:**
+- At least one local LLM backend running (Ollama, LM Studio, or vLLM)
+
+**Run:**
+
+```bash
+zig build run-llm-real
+zig build run-llm-real -- "Your prompt here"
+```
+
 ### train_ava.zig
 
 Train the Ava assistant model based on gpt-oss.
@@ -311,6 +327,7 @@ zig build run-embeddings
 zig build run-gpu
 zig build run-ha
 zig build run-llm
+zig build run-llm-real
 zig build run-network
 zig build run-observability
 zig build run-orchestration
@@ -344,12 +361,13 @@ zig build benchmarks
 9. **Check `discord.zig`** - Discord bot integration
 10. **Explore `training.zig`** - Model training and checkpointing
 11. **Try `training/train_demo.zig`** - Focused LLM training demo
-12. **Try `llm.zig`** - Local LLM inference
-13. **Study `orchestration.zig`** - Multi-model routing and fallback
-14. **Study `ha.zig`** - High availability features
-15. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
-16. **Build `concurrent_pipeline.zig`** - Multi-stage pipeline with channels and thread pools
-17. **Explore `tensor_ops.zig`** - Tensor and matrix math with SIMD
+12. **Try `llm.zig`** - Local LLM inference with GGUF
+13. **Try `llm_real.zig`** - Real inference via Ollama/LM Studio/vLLM
+14. **Study `orchestration.zig`** - Multi-model routing and fallback
+15. **Study `ha.zig`** - High availability features
+16. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
+17. **Build `concurrent_pipeline.zig`** - Multi-stage pipeline with channels and thread pools
+18. **Explore `tensor_ops.zig`** - Tensor and matrix math with SIMD
 
 ## Common Patterns
 

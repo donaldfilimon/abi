@@ -97,6 +97,7 @@ const messaging_mod = if (build_options.enable_messaging) @import("../features/m
 const cache_mod = if (build_options.enable_cache) @import("../features/cache/mod.zig") else @import("../features/cache/stub.zig");
 const storage_mod = if (build_options.enable_storage) @import("../features/storage/mod.zig") else @import("../features/storage/stub.zig");
 const search_mod = if (build_options.enable_search) @import("../features/search/mod.zig") else @import("../features/search/stub.zig");
+const gateway_mod = if (build_options.enable_gateway) @import("../features/gateway/mod.zig") else @import("../features/gateway/stub.zig");
 const mobile_mod = if (build_options.enable_mobile) @import("../features/mobile/mod.zig") else @import("../features/mobile/stub.zig");
 const ai_core_mod = if (build_options.enable_ai) @import("../features/ai_core/mod.zig") else @import("../features/ai_core/stub.zig");
 const ai_inference_mod = if (build_options.enable_llm) @import("../features/ai_inference/mod.zig") else @import("../features/ai_inference/stub.zig");
@@ -183,6 +184,8 @@ pub const Framework = struct {
     storage: ?*storage_mod.Context = null,
     /// Search context, or null if search is not enabled.
     search: ?*search_mod.Context = null,
+    /// Gateway context, or null if gateway is not enabled.
+    gateway: ?*gateway_mod.Context = null,
     /// Mobile context, or null if mobile is not enabled.
     mobile: ?*mobile_mod.Context = null,
     /// AI Core context (agents, tools, prompts), or null if not enabled.
@@ -367,6 +370,13 @@ pub const Framework = struct {
             }
         }
 
+        if (cfg.gateway) |gateway_cfg| {
+            fw.gateway = try gateway_mod.Context.init(allocator, gateway_cfg);
+            if (comptime build_options.enable_gateway) {
+                try fw.registry.registerComptime(.gateway);
+            }
+        }
+
         if (cfg.mobile) |mobile_cfg| {
             fw.mobile = try mobile_mod.Context.init(allocator, mobile_cfg);
             if (comptime build_options.enable_mobile) {
@@ -374,31 +384,45 @@ pub const Framework = struct {
             }
         }
 
-        // Initialize split AI modules (use shared AI config)
+        // Initialize split AI modules (use shared AI config).
+        // Non-fatal: log a warning if init fails so users know why the
+        // feature is unavailable, but allow the framework to continue.
         if (cfg.ai) |ai_cfg| {
             if (comptime build_options.enable_ai) {
                 fw.ai_core = ai_core_mod.Context.init(
                     allocator,
                     ai_cfg,
-                ) catch null;
+                ) catch |err| blk: {
+                    std.log.warn("ai_core init failed: {t}", .{err});
+                    break :blk null;
+                };
             }
             if (comptime build_options.enable_llm) {
                 fw.ai_inference = ai_inference_mod.Context.init(
                     allocator,
                     ai_cfg,
-                ) catch null;
+                ) catch |err| blk: {
+                    std.log.warn("ai_inference init failed: {t}", .{err});
+                    break :blk null;
+                };
             }
             if (comptime build_options.enable_training) {
                 fw.ai_training = ai_training_mod.Context.init(
                     allocator,
                     ai_cfg,
-                ) catch null;
+                ) catch |err| blk: {
+                    std.log.warn("ai_training init failed: {t}", .{err});
+                    break :blk null;
+                };
             }
             if (comptime build_options.enable_reasoning) {
                 fw.ai_reasoning = ai_reasoning_mod.Context.init(
                     allocator,
                     ai_cfg,
-                ) catch null;
+                ) catch |err| blk: {
+                    std.log.warn("ai_reasoning init failed: {t}", .{err});
+                    break :blk null;
+                };
             }
         }
 
@@ -538,13 +562,19 @@ pub const Framework = struct {
 
     fn deinitFeatures(self: *Framework) void {
         // Deinitialize in reverse order of initialization.
-        // Split AI modules first (initialized last)
+        // HA manager first (initialized last, after AI modules)
+        if (self.ha) |*ha| {
+            ha.deinit();
+            self.ha = null;
+        }
+        // Split AI modules (initialized second-to-last)
         deinitOptionalContext(ai_reasoning_mod.Context, &self.ai_reasoning);
         deinitOptionalContext(ai_training_mod.Context, &self.ai_training);
         deinitOptionalContext(ai_inference_mod.Context, &self.ai_inference);
         deinitOptionalContext(ai_core_mod.Context, &self.ai_core);
         // Then standard feature modules
         deinitOptionalContext(mobile_mod.Context, &self.mobile);
+        deinitOptionalContext(gateway_mod.Context, &self.gateway);
         deinitOptionalContext(search_mod.Context, &self.search);
         deinitOptionalContext(storage_mod.Context, &self.storage);
         deinitOptionalContext(cache_mod.Context, &self.cache);
@@ -642,6 +672,11 @@ pub const Framework = struct {
     /// Get search context (returns error if not enabled).
     pub fn getSearch(self: *Framework) Error!*search_mod.Context {
         return requireFeature(search_mod.Context, self.search);
+    }
+
+    /// Get gateway context (returns error if not enabled).
+    pub fn getGateway(self: *Framework) Error!*gateway_mod.Context {
+        return requireFeature(gateway_mod.Context, self.gateway);
     }
 
     /// Get mobile context (returns error if not enabled).
@@ -878,6 +913,18 @@ pub const FrameworkBuilder = struct {
     /// Enable search with defaults.
     pub fn withSearchDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
         _ = self.config_builder.withSearchDefaults();
+        return self;
+    }
+
+    /// Enable gateway with configuration.
+    pub fn withGateway(self: *FrameworkBuilder, gateway_cfg: config_module.GatewayConfig) *FrameworkBuilder {
+        _ = self.config_builder.withGateway(gateway_cfg);
+        return self;
+    }
+
+    /// Enable gateway with defaults.
+    pub fn withGatewayDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withGatewayDefaults();
         return self;
     }
 

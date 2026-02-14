@@ -189,8 +189,9 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"max_tokens\":{d},\"messages\":[", .{
-            request.model,
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.print(self.allocator, "\",\"max_tokens\":{d},\"messages\":[", .{
             request.max_tokens,
         });
 
@@ -286,17 +287,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_ANTHROPIC_API_KEY",
         "ANTHROPIC_API_KEY",
     })) orelse return AnthropicError.MissingApiKey;
+    errdefer allocator.free(api_key);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_ANTHROPIC_BASE_URL",
         "ANTHROPIC_BASE_URL",
     })) orelse try allocator.dupe(u8, "https://api.anthropic.com/v1");
+    errdefer allocator.free(base_url);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_ANTHROPIC_MODEL",
         "ANTHROPIC_MODEL",
     })) orelse try allocator.dupe(u8, "claude-3-5-sonnet-20241022");
-    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,

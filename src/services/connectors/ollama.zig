@@ -64,7 +64,7 @@ pub const GenerateRequest = struct {
 
 pub const ChatRequest = struct {
     model: []const u8,
-    messages: []Message,
+    messages: []const Message,
     stream: bool = false,
 };
 
@@ -80,6 +80,12 @@ pub const GenerateResponse = struct {
     response: []const u8,
     done: bool,
     context: ?[]u64 = null,
+    total_duration_ns: ?u64 = null,
+    load_duration_ns: ?u64 = null,
+    prompt_eval_count: ?u32 = null,
+    prompt_eval_duration_ns: ?u64 = null,
+    eval_count: ?u32 = null,
+    eval_duration_ns: ?u64 = null,
 
     pub fn deinit(self: *GenerateResponse, allocator: std.mem.Allocator) void {
         allocator.free(self.model);
@@ -133,12 +139,12 @@ pub const Client = struct {
         const json = try self.encodeGenerateRequest(request);
         defer self.allocator.free(json);
 
-        var http_req = try async_http.HttpRequest.init(self.allocator, .POST, url);
+        var http_req = try async_http.HttpRequest.init(self.allocator, .post, url);
         defer http_req.deinit();
 
         try http_req.setJsonBody(json);
 
-        const http_res = try self.http.fetchJson(&http_req);
+        var http_res = try self.http.fetchJson(&http_req);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
@@ -165,12 +171,12 @@ pub const Client = struct {
         const json = try self.encodeChatRequest(request);
         defer self.allocator.free(json);
 
-        var http_req = try async_http.HttpRequest.init(self.allocator, .POST, url);
+        var http_req = try async_http.HttpRequest.init(self.allocator, .post, url);
         defer http_req.deinit();
 
         try http_req.setJsonBody(json);
 
-        const http_res = try self.http.fetchJson(&http_req);
+        var http_res = try self.http.fetchJson(&http_req);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
@@ -189,7 +195,7 @@ pub const Client = struct {
         };
         return try self.chat(.{
             .model = self.config.model,
-            .messages = &messages,
+            .messages = messages[0..],
         });
     }
 
@@ -197,11 +203,12 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(
-            self.allocator,
-            "{{\"model\":\"{s}\",\"prompt\":\"{}\",\"stream\":{d}}}",
-            .{ request.model, json_utils.jsonEscape(request.prompt), @intFromBool(request.stream) },
-        );
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"prompt\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.prompt);
+        try json_str.appendSlice(self.allocator, "\",\"stream\":");
+        try json_str.appendSlice(self.allocator, if (request.stream) "true}" else "false}");
 
         return json_str.toOwnedSlice(self.allocator);
     }
@@ -210,7 +217,9 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"messages\":[", .{request.model});
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"messages\":[");
 
         try shared.encodeMessageArray(self.allocator, &json_str, request.messages);
 
@@ -250,6 +259,12 @@ pub const Client = struct {
             .response = response,
             .done = done,
             .context = context,
+            .total_duration_ns = json_utils.parseOptionalUintField(object, "total_duration"),
+            .load_duration_ns = json_utils.parseOptionalUintField(object, "load_duration"),
+            .prompt_eval_count = parseOptionalU32(object, "prompt_eval_count"),
+            .prompt_eval_duration_ns = json_utils.parseOptionalUintField(object, "prompt_eval_duration"),
+            .eval_count = parseOptionalU32(object, "eval_count"),
+            .eval_duration_ns = json_utils.parseOptionalUintField(object, "eval_duration"),
         };
     }
 
@@ -286,12 +301,12 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_OLLAMA_HOST",
         "OLLAMA_HOST",
     })) orelse try allocator.dupe(u8, "http://127.0.0.1:11434");
+    errdefer allocator.free(host);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OLLAMA_MODEL",
         "OLLAMA_MODEL",
     })) orelse try allocator.dupe(u8, "gpt-oss");
-    errdefer allocator.free(model);
 
     return .{
         .host = host,
@@ -314,6 +329,11 @@ pub fn isAvailable() bool {
         "ABI_OLLAMA_HOST",
         "OLLAMA_HOST",
     });
+}
+
+fn parseOptionalU32(object: std.json.ObjectMap, field: []const u8) ?u32 {
+    const raw = json_utils.parseOptionalUintField(object, field) orelse return null;
+    return std.math.cast(u32, raw);
 }
 
 test "ollama endpoint join" {

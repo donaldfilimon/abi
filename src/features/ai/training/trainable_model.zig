@@ -12,6 +12,7 @@ const ops = @import("../llm/ops/mod.zig");
 const backward_ops = ops.backward;
 const gguf = @import("../llm/io/gguf.zig");
 const gguf_writer = @import("../llm/io/gguf_writer.zig");
+const tensor_loader = @import("../llm/io/tensor_loader.zig");
 const quantized = @import("../llm/tensor/quantized.zig");
 const model_config = @import("model/config.zig");
 const checkpoint = @import("checkpoint.zig");
@@ -27,8 +28,6 @@ const trainable_ckpt = @import("trainable_checkpoint.zig");
 pub const GradientCheckpointer = trainable_ckpt.GradientCheckpointer;
 pub const ModelCheckpoint = trainable_ckpt.ModelCheckpoint;
 pub const LoadError = trainable_ckpt.LoadError;
-const dequantizeQ4_0 = trainable_ckpt.dequantizeQ4_0;
-const dequantizeQ8_0 = trainable_ckpt.dequantizeQ8_0;
 
 /// Gradient checkpointing strategy.
 pub const CheckpointingStrategy = model_config.CheckpointingStrategy;
@@ -777,6 +776,7 @@ pub const TrainableModel = struct {
 
     /// Load a single tensor from GGUF, dequantizing if necessary.
     fn loadTensor(self: *TrainableModel, gguf_file: *gguf.GgufFile, name: []const u8, dest: []f32) !void {
+        _ = self;
         const info = gguf_file.getTensor(name) orelse {
             std.log.warn("Tensor not found: {s}", .{name});
             return error.TensorNotFound;
@@ -800,11 +800,20 @@ pub const TrainableModel = struct {
                     d.* = @floatCast(s);
                 }
             },
+            .bf16 => {
+                const src = std.mem.bytesAsSlice(u16, data);
+                for (dest[0..src.len], src) |*d, s| {
+                    d.* = tensor_loader.bf16ToF32(s);
+                }
+            },
             .q4_0 => {
-                try dequantizeQ4_0(data, dest[0..@intCast(elem_count)], self.allocator);
+                try tensor_loader.dequantizeQ4_0(data, dest[0..@intCast(elem_count)]);
             },
             .q8_0 => {
-                try dequantizeQ8_0(data, dest[0..@intCast(elem_count)], self.allocator);
+                try tensor_loader.dequantizeQ8_0(data, dest[0..@intCast(elem_count)]);
+            },
+            .mxfp4 => {
+                try tensor_loader.dequantizeMXFP4(data, dest[0..@intCast(elem_count)]);
             },
             else => {
                 std.log.warn("Unsupported tensor type for training: {t}", .{info.tensor_type});

@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const core_config = @import("../../core/config/search.zig");
+const stub_context = @import("../../core/stub_context.zig");
 
 pub const SearchConfig = core_config.SearchConfig;
 
@@ -13,6 +14,8 @@ pub const SearchError = error{
     InvalidQuery,
     IndexCorrupted,
     OutOfMemory,
+    IndexAlreadyExists,
+    DocumentNotFound,
 };
 
 pub const SearchResult = struct {
@@ -27,19 +30,13 @@ pub const SearchIndex = struct {
     size_bytes: u64 = 0,
 };
 
-pub const Context = struct {
-    allocator: std.mem.Allocator,
-
-    pub fn init(allocator: std.mem.Allocator, _: SearchConfig) !*Context {
-        const ctx = try allocator.create(Context);
-        ctx.* = .{ .allocator = allocator };
-        return ctx;
-    }
-
-    pub fn deinit(self: *Context) void {
-        self.allocator.destroy(self);
-    }
+pub const SearchStats = struct {
+    total_indexes: u32 = 0,
+    total_documents: u64 = 0,
+    total_terms: u64 = 0,
 };
+
+pub const Context = stub_context.StubContext(SearchConfig);
 
 pub fn init(_: std.mem.Allocator, _: SearchConfig) SearchError!void {
     return error.FeatureDisabled;
@@ -55,9 +52,18 @@ pub fn isInitialized() bool {
 pub fn createIndex(_: std.mem.Allocator, _: []const u8) SearchError!SearchIndex {
     return error.FeatureDisabled;
 }
+pub fn deleteIndex(_: []const u8) SearchError!void {
+    return error.FeatureDisabled;
+}
 pub fn indexDocument(_: []const u8, _: []const u8, _: []const u8) SearchError!void {
+    return error.FeatureDisabled;
+}
+pub fn deleteDocument(_: []const u8, _: []const u8) SearchError!bool {
     return error.FeatureDisabled;
 }
 pub fn query(_: std.mem.Allocator, _: []const u8, _: []const u8) SearchError![]SearchResult {
     return error.FeatureDisabled;
+}
+pub fn stats() SearchStats {
+    return .{};
 }

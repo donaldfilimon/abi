@@ -1,7 +1,10 @@
 # Configuration Module
-> **Last reviewed:** 2026-01-31
+
+> **Last reviewed:** 2026-02-14
 
 The configuration module (`src/core/config/`) provides a unified, feature-aware configuration system for the ABI framework. It manages settings for all major subsystems and supports environment variable overrides through the `ConfigLoader`.
+
+**Contents:** [Overview](#overview) · [Key Components](#key-components) · [Configuration Patterns](#configuration-patterns) · [Builder Pattern](#builder-pattern) · [Environment Variables](#supported-environment-variables) · [Compile-Time Control](#compile-time-feature-control)
 
 ## Overview
 
@@ -143,7 +146,7 @@ Supported environment variables:
 
 | Variable | Purpose |
 |----------|---------|
-| `ABI_GPU_BACKEND` | GPU backend (auto, cuda, vulkan, metal, none) |
+| `ABI_GPU_BACKEND` | GPU backend (auto, cuda, vulkan, metal, webgpu, tpu, none) |
 | `ABI_LLM_MODEL_PATH` | Path to LLM model file |
 | `ABI_LLM_TEMPERATURE` | LLM sampling temperature (0.0-1.0) |
 | `ABI_LLM_MAX_TOKENS` | Maximum tokens for generation |
@@ -220,3 +223,8 @@ pub fn main() !void {
 - Environment variables override default values via `ConfigLoader`
 - Compile-time feature flags prevent configuration of disabled features
 - Use `validate()` to ensure your config matches the binary's capabilities
+
+## See also
+
+- [CLAUDE.md](../../../CLAUDE.md) — Feature flags and GPU backends
+- [loader.zig](loader.zig) — Full list of environment variables

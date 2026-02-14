@@ -21,7 +21,7 @@ pub fn registerComptime(
 ) Error!void {
     // Compile-time check that feature is enabled
     if (!comptime isFeatureCompiledIn(feature)) {
-        @compileError("Feature " ++ @tagName(feature) ++ " not enabled at compile time");
+        @compileError(std.fmt.comptimePrint("Feature {t} not enabled at compile time", .{feature}));
     }
 
     // Check if already registered
@@ -49,7 +49,7 @@ pub fn registerRuntimeToggle(
 ) Error!void {
     // Compile-time validation
     if (!comptime isFeatureCompiledIn(feature)) {
-        @compileError("Feature " ++ @tagName(feature) ++ " not compiled in");
+        @compileError(std.fmt.comptimePrint("Feature {t} not compiled in", .{feature}));
     }
 
     // Check if already registered

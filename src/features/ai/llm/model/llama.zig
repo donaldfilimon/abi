@@ -27,6 +27,10 @@ pub const LlamaModel = struct {
     hidden: []f32,
 
     pub fn init(allocator: std.mem.Allocator, llama_config: config_mod.LlamaConfig) !LlamaModel {
+        if (!llama_config.supportsLlamaAttentionLayout()) {
+            return error.UnsupportedArchitecture;
+        }
+
         // Initialize weights (empty initially)
         var w = try weights_mod.LlamaWeights.init(allocator, llama_config);
         errdefer w.deinit();
@@ -43,13 +47,13 @@ pub const LlamaModel = struct {
         const kv_cache = try cache_mod.KvCache.init(allocator, .{
             .num_layers = llama_config.n_layers,
             .num_kv_heads = llama_config.n_kv_heads,
-            .head_dim = llama_config.headDim(),
+            .head_dim = llama_config.keyHeadDim(),
             .max_seq_len = llama_config.max_seq_len,
         });
 
         // Initialize RoPE cache
         const rope_cache = try ops.rope.RopeCache.init(allocator, .{
-            .head_dim = llama_config.headDim(),
+            .head_dim = llama_config.queryHeadDim(),
             .max_seq_len = llama_config.max_seq_len,
             .theta_base = llama_config.rope_theta,
         });
@@ -97,6 +101,12 @@ pub const LlamaModel = struct {
         var temp_gguf = try gguf.GgufFile.open(allocator, path);
         defer temp_gguf.deinit();
         const llama_config = config_mod.LlamaConfig.fromGguf(&temp_gguf);
+
+        // Only LLaMA-compatible attention layouts are supported by the current
+        // local forward path.
+        if (!llama_config.supportsLlamaAttentionLayout()) {
+            return error.UnsupportedArchitecture;
+        }
 
         // Initialize model with detected config
         var model = try init(allocator, llama_config);

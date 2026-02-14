@@ -47,6 +47,9 @@ test {
     _ = @import("connectors_test.zig");
     // Connector integration tests (isAvailable consistency, boundary conditions)
     _ = @import("connector_integration_test.zig");
+    // MCP/ACP service tests (force test discovery through abi module)
+    _ = abi.mcp;
+    _ = abi.acp;
     // Integration test matrix
     _ = @import("test_matrix.zig");
     // Include training demo test

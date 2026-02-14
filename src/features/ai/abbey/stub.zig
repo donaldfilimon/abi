@@ -708,6 +708,18 @@ const StubAbbeyEngine = struct {
     pub fn runRalphLoop(_: *StubAbbeyEngine, _: []const u8, _: usize) ![]const u8 {
         return error.FeatureDisabled;
     }
+
+    pub fn storeSkill(_: *StubAbbeyEngine, _: []const u8) !u64 {
+        return error.FeatureDisabled;
+    }
+
+    pub fn extractAndStoreSkill(_: *StubAbbeyEngine, _: []const u8, _: []const u8) !bool {
+        return error.FeatureDisabled;
+    }
+
+    pub fn recordRalphRun(_: *StubAbbeyEngine, _: []const u8, _: usize, _: usize, _: f32) !void {
+        return error.FeatureDisabled;
+    }
 };
 
 const StubReasoningChain = struct {

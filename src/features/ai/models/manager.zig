@@ -27,7 +27,7 @@ pub const ManagerConfig = struct {
     /// Whether to scan cache directory on init.
     auto_scan: bool = true,
     /// File extensions to recognize as models.
-    extensions: []const []const u8 = &.{ ".gguf", ".bin", ".safetensors" },
+    extensions: []const []const u8 = &.{ ".gguf", ".mlx", ".bin", ".safetensors" },
 };
 
 /// Metadata for a cached model.

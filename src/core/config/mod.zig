@@ -2,6 +2,9 @@
 //!
 //! Re-exports all configuration types from domain-specific files.
 //! Import this module for access to all configuration types.
+//!
+//! Use `ConfigLoader` (see `loader.zig`) to load config from environment variables
+//! (e.g. `ABI_GPU_BACKEND`, `ABI_LLM_MODEL_PATH`). Use `Config.Builder` for fluent construction.
 
 const std = @import("std");
 const build_options = @import("build_options");
@@ -21,6 +24,7 @@ pub const cache_config = @import("cache.zig");
 pub const storage_config = @import("storage.zig");
 pub const search_config = @import("search.zig");
 pub const mobile_config = @import("mobile.zig");
+pub const gateway_config = @import("gateway.zig");
 pub const plugin_config = @import("plugin.zig");
 pub const loader = @import("loader.zig");
 
@@ -28,37 +32,33 @@ pub const loader = @import("loader.zig");
 pub const ConfigLoader = loader.ConfigLoader;
 pub const LoadError = loader.LoadError;
 
-// Re-export all config types for convenience
+// Re-export config types by domain (convenience; use *_config for defaults/helpers)
+// Compute
 pub const GpuConfig = gpu_config.GpuConfig;
 pub const RecoveryConfig = gpu_config.RecoveryConfig;
-
 pub const AiConfig = ai_config.AiConfig;
 pub const LlmConfig = ai_config.LlmConfig;
 pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
 pub const AgentsConfig = ai_config.AgentsConfig;
 pub const TrainingConfig = ai_config.TrainingConfig;
-
+pub const ContentKind = ai_config.ContentKind;
 pub const DatabaseConfig = database_config.DatabaseConfig;
-
+// Network & platform
 pub const NetworkConfig = network_config.NetworkConfig;
 pub const UnifiedMemoryConfig = network_config.UnifiedMemoryConfig;
 pub const LinkingConfig = network_config.LinkingConfig;
-
 pub const ObservabilityConfig = observability_config.ObservabilityConfig;
-
 pub const WebConfig = web_config.WebConfig;
-
 pub const CloudConfig = cloud_config.CloudConfig;
-
 pub const AnalyticsConfig = analytics_config.AnalyticsConfig;
-
 pub const AuthConfig = auth_config.AuthConfig;
+// Data & infra
 pub const MessagingConfig = messaging_config.MessagingConfig;
 pub const CacheConfig = cache_config.CacheConfig;
 pub const StorageConfig = storage_config.StorageConfig;
 pub const SearchConfig = search_config.SearchConfig;
+pub const GatewayConfig = gateway_config.GatewayConfig;
 pub const MobileConfig = mobile_config.MobileConfig;
-
 pub const PluginConfig = plugin_config.PluginConfig;
 
 // ============================================================================
@@ -86,6 +86,7 @@ pub const Feature = enum {
     storage,
     search,
     mobile,
+    gateway,
     reasoning,
 
     /// Number of features in the enum
@@ -113,6 +114,7 @@ pub const Feature = enum {
         descs[@intFromEnum(Feature.storage)] = "Unified file/object storage";
         descs[@intFromEnum(Feature.search)] = "Full-text search";
         descs[@intFromEnum(Feature.mobile)] = "Mobile platform support";
+        descs[@intFromEnum(Feature.gateway)] = "API gateway (routing, rate limiting, circuit breaker)";
         descs[@intFromEnum(Feature.reasoning)] = "AI reasoning (Abbey, eval, RAG)";
         break :blk descs;
     };
@@ -139,6 +141,7 @@ pub const Feature = enum {
         enabled[@intFromEnum(Feature.storage)] = build_options.enable_storage;
         enabled[@intFromEnum(Feature.search)] = build_options.enable_search;
         enabled[@intFromEnum(Feature.mobile)] = build_options.enable_mobile;
+        enabled[@intFromEnum(Feature.gateway)] = build_options.enable_gateway;
         enabled[@intFromEnum(Feature.reasoning)] = build_options.enable_reasoning;
         break :blk enabled;
     };
@@ -179,6 +182,7 @@ pub const Config = struct {
     storage: ?StorageConfig = null,
     search: ?SearchConfig = null,
     mobile: ?MobileConfig = null,
+    gateway: ?GatewayConfig = null,
     plugins: PluginConfig = .{},
 
     /// Create a config with all compile-time enabled features using defaults.
@@ -198,6 +202,7 @@ pub const Config = struct {
             .storage = if (build_options.enable_storage) StorageConfig.defaults() else null,
             .search = if (build_options.enable_search) SearchConfig.defaults() else null,
             .mobile = if (build_options.enable_mobile) MobileConfig.defaults() else null,
+            .gateway = if (build_options.enable_gateway) GatewayConfig.defaults() else null,
         };
     }
 
@@ -228,7 +233,8 @@ pub const Config = struct {
             .storage => self.storage != null,
             .search => self.search != null,
             .mobile => self.mobile != null,
-            .reasoning => self.ai != null,
+            .gateway => self.gateway != null,
+            .reasoning => self.ai != null and build_options.enable_reasoning,
         };
     }
 
@@ -419,11 +425,22 @@ pub const Builder = struct {
         return self;
     }
 
+    pub fn withGateway(self: *Builder, cfg: GatewayConfig) *Builder {
+        self.config.gateway = cfg;
+        return self;
+    }
+
+    pub fn withGatewayDefaults(self: *Builder) *Builder {
+        self.config.gateway = GatewayConfig.defaults();
+        return self;
+    }
+
     pub fn withPlugins(self: *Builder, cfg: PluginConfig) *Builder {
         self.config.plugins = cfg;
         return self;
     }
 
+    /// Finalize and return the built config; no allocation.
     pub fn build(self: *Builder) Config {
         return self.config;
     }
@@ -462,6 +479,7 @@ pub fn validate(cfg: Config) ConfigError!void {
         .{ .is_enabled_in_config = cfg.storage != null, .is_enabled_at_build = build_options.enable_storage },
         .{ .is_enabled_in_config = cfg.search != null, .is_enabled_at_build = build_options.enable_search },
         .{ .is_enabled_in_config = cfg.mobile != null, .is_enabled_at_build = build_options.enable_mobile },
+        .{ .is_enabled_in_config = cfg.gateway != null, .is_enabled_at_build = build_options.enable_gateway },
     };
     inline for (validations) |entry| {
         if (entry.is_enabled_in_config and !entry.is_enabled_at_build) {

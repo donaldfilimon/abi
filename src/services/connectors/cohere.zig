@@ -310,20 +310,21 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"message\":\"{}\"", .{
-            request.model,
-            json_utils.jsonEscape(request.message),
-        });
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"message\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.message);
+        try json_str.append(self.allocator, '"');
 
         if (request.chat_history.len > 0) {
             try json_str.appendSlice(self.allocator, ",\"chat_history\":[");
             for (request.chat_history, 0..) |msg, i| {
                 if (i > 0) try json_str.append(self.allocator, ',');
-                try json_str.print(
-                    self.allocator,
-                    "{{\"role\":\"{s}\",\"message\":\"{}\"}}",
-                    .{ msg.role.toString(), json_utils.jsonEscape(msg.message) },
-                );
+                try json_str.appendSlice(self.allocator, "{\"role\":\"");
+                try json_str.appendSlice(self.allocator, msg.role.toString());
+                try json_str.appendSlice(self.allocator, "\",\"message\":\"");
+                try json_utils.appendJsonEscaped(self.allocator, &json_str, msg.message);
+                try json_str.appendSlice(self.allocator, "\"}");
             }
             try json_str.append(self.allocator, ']');
         }
@@ -351,14 +352,17 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"texts\":[", .{request.model});
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"texts\":[");
 
         try shared.encodeStringArray(self.allocator, &json_str, request.texts);
 
-        try json_str.print(self.allocator, "],\"input_type\":\"{s}\",\"truncate\":\"{s}\"}}", .{
-            request.input_type,
-            request.truncate,
-        });
+        try json_str.appendSlice(self.allocator, "],\"input_type\":\"");
+        try json_str.appendSlice(self.allocator, request.input_type);
+        try json_str.appendSlice(self.allocator, "\",\"truncate\":\"");
+        try json_str.appendSlice(self.allocator, request.truncate);
+        try json_str.appendSlice(self.allocator, "\"}");
 
         return json_str.toOwnedSlice(self.allocator);
     }
@@ -367,10 +371,11 @@ pub const Client = struct {
         var json_str = std.ArrayListUnmanaged(u8){};
         errdefer json_str.deinit(self.allocator);
 
-        try json_str.print(self.allocator, "{{\"model\":\"{s}\",\"query\":\"{}\",\"documents\":[", .{
-            request.model,
-            json_utils.jsonEscape(request.query),
-        });
+        try json_str.appendSlice(self.allocator, "{\"model\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.model);
+        try json_str.appendSlice(self.allocator, "\",\"query\":\"");
+        try json_utils.appendJsonEscaped(self.allocator, &json_str, request.query);
+        try json_str.appendSlice(self.allocator, "\",\"documents\":[");
 
         try shared.encodeStringArray(self.allocator, &json_str, request.documents);
 
@@ -553,17 +558,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "COHERE_API_KEY",
         "CO_API_KEY",
     })) orelse return CohereError.MissingApiKey;
+    errdefer allocator.free(api_key);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_COHERE_BASE_URL",
         "COHERE_BASE_URL",
     })) orelse try allocator.dupe(u8, "https://api.cohere.ai/v1");
+    errdefer allocator.free(base_url);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_COHERE_MODEL",
         "COHERE_MODEL",
     })) orelse try allocator.dupe(u8, "command-r-plus");
-    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,

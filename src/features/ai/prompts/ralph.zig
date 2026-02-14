@@ -2,6 +2,11 @@
 //!
 //! Prompt templates for the Ralph iterative agent loop.
 //! These prompts drive the "stop hook" and "loop injection" mechanisms.
+//!
+//! Learned skills (stored via `storeSkill` / `--store-skill` or `extractAndStoreSkill` / `--auto-skill`)
+//! are injected into the system prompt by the Abbey engine so Ralph can self-improve across runs.
+//! With `--auto-skill`, the LLM extracts a lesson from each run and stores it, effectively
+//! auto-training the model's behavior by growing the skill bank from its own outcomes.
 
 const std = @import("std");
 

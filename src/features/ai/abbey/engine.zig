@@ -278,6 +278,7 @@ pub const AbbeyEngine = struct {
 
     /// Execute an iterative Ralph loop for a complex task
     /// Returns the final output from the agent. Caller owns the returned slice.
+    /// Injects learned skills from memory (category .skill) into the system prompt when present.
     pub fn runRalphLoop(self: *Self, goal: []const u8, max_iterations: usize) ![]u8 {
         // Ensure conversation is active
         if (!self.conversation_active) {
@@ -285,6 +286,21 @@ pub const AbbeyEngine = struct {
         }
 
         const ralph_persona = prompts.getPersona(.ralph);
+
+        // Build system prompt: base persona + optional learned skills (Zig 0.16 / self-improving Ralph)
+        var system_content = try self.allocator.dupe(u8, ralph_persona.system_prompt);
+        defer self.allocator.free(system_content);
+        const skills_text = self.memory.getSkillsContext(self.allocator, 1024) catch null;
+        if (skills_text) |text| {
+            defer self.allocator.free(text);
+            const combined = try std.fmt.allocPrint(
+                self.allocator,
+                "{s}{s}",
+                .{ system_content, text },
+            );
+            self.allocator.free(system_content);
+            system_content = combined;
+        }
 
         // Loop history
         var history = std.ArrayListUnmanaged(client.ChatMessage){};
@@ -296,10 +312,10 @@ pub const AbbeyEngine = struct {
             history.deinit(self.allocator);
         }
 
-        // 1. System Prompt
+        // 1. System Prompt (with learned skills when available)
         try history.append(self.allocator, .{
             .role = "system",
-            .content = try self.allocator.dupe(u8, ralph_persona.system_prompt),
+            .content = try self.allocator.dupe(u8, system_content),
         });
 
         // 2. User Goal
@@ -489,6 +505,72 @@ pub const AbbeyEngine = struct {
         return self.memory.storeKnowledge(content, category, .user_stated);
     }
 
+    /// Store a Ralph skill for self-improvement. Injected into future runRalphLoop system prompts.
+    pub fn storeSkill(self: *Self, content: []const u8) !u64 {
+        return self.memory.storeKnowledge(content, .skill, .learned);
+    }
+
+    /// Auto-train: use the LLM to extract one lesson from a Ralph run and store it as a skill.
+    /// Call after runRalphLoop(goal, n) with the same goal and the returned result.
+    /// The model self-improves by growing the skill bank from its own outcomes.
+    pub fn extractAndStoreSkill(self: *Self, goal: []const u8, result: []const u8) !bool {
+        const excerpt_len = @min(400, result.len);
+        const excerpt = result[0..excerpt_len];
+
+        const prompt = try std.fmt.allocPrint(
+            self.allocator,
+            \\Task: {s}
+            \\
+            \\Outcome excerpt: {s}
+            \\
+            \\State one concise skill or lesson in one sentence (e.g. "Always run tests after refactoring."). Reply with only that sentence, no quotes or prefix.
+        ,
+            .{ goal, excerpt },
+        );
+        defer self.allocator.free(prompt);
+
+        var messages = [_]client.ChatMessage{
+            .{ .role = "system", .content = "You extract a single lesson from a task outcome. Reply with only one sentence." },
+            .{ .role = "user", .content = prompt },
+        };
+
+        var response = try self.llm_client.complete(.{
+            .messages = &messages,
+            .model = self.config.llm.model,
+            .temperature = 0.2,
+            .max_tokens = 80,
+        });
+        defer response.deinit(self.allocator);
+
+        const raw = std.mem.trim(u8, response.content, " \t\n\r\"'");
+        if (raw.len == 0) return false;
+
+        const first = firstSentenceSlice(raw);
+        if (first.len == 0) return false;
+
+        const lesson = try self.allocator.dupe(u8, first);
+        defer self.allocator.free(lesson);
+        _ = try self.memory.storeKnowledge(lesson, .skill, .learned);
+        return true;
+    }
+
+    /// Record a Ralph run for self-improvement (stores in episodic/semantic for future strategy or analytics).
+    pub fn recordRalphRun(
+        self: *Self,
+        goal: []const u8,
+        iterations_used: usize,
+        result_len: usize,
+        success_score: f32,
+    ) !void {
+        const summary = try std.fmt.allocPrint(
+            self.allocator,
+            "Ralph run: goal_len={d} iterations={d} result_len={d} success={d:.2}",
+            .{ goal.len, iterations_used, result_len, success_score },
+        );
+        defer self.allocator.free(summary);
+        _ = try self.memory.storeKnowledge(summary, .context, .learned);
+    }
+
     // ========================================================================
     // State Access
     // ========================================================================
@@ -576,6 +658,13 @@ pub const EngineStats = struct {
     llm_backend: []const u8,
     conversation_active: bool,
 };
+
+fn firstSentenceSlice(s: []const u8) []const u8 {
+    for (s, 0..) |c, i| {
+        if (c == '.' or c == '\n') return s[0 .. i + 1];
+    }
+    return s;
+}
 
 // ============================================================================
 // Tests

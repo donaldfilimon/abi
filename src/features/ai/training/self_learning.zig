@@ -5,7 +5,8 @@
 //! - Vision and document understanding training
 //! - Continuous experience replay
 //! - Self-evaluation and correction
-//! - Multi-modal learning (text, images, documents)
+//! - Multi-modal learning: text, images, video, audio, documents, and any data type.
+//! Models can be trained to process and generate all types (video, images, text, and anything passed in).
 //!
 //! Architecture:
 //! ```
@@ -42,6 +43,7 @@ const learning_types_mod = @import("learning_types.zig");
 pub const SelfLearningConfig = learning_types_mod.SelfLearningConfig;
 pub const ExperienceType = learning_types_mod.ExperienceType;
 pub const FeedbackType = learning_types_mod.FeedbackType;
+pub const DataKind = learning_types_mod.DataKind;
 pub const LearningExperience = learning_types_mod.LearningExperience;
 
 const experience_buffer_mod = @import("experience_buffer.zig");
@@ -286,7 +288,8 @@ pub const VisionTrainer = struct {
         }
 
         // Scale by reward
-        const loss = -reward * std.math.log(@max(1e-7, (similarity + 1.0) / 2.0));
+        const x = @max(1e-7, (similarity + 1.0) / 2.0);
+        const loss = -reward * std.math.log(f32, std.math.e, x);
 
         // Gradient update (simplified)
         for (0..@min(self.encoder_weights.len, min_len)) |i| {
@@ -474,7 +477,10 @@ pub const SelfLearningSystem = struct {
         positive_feedback_count: u64 = 0,
         negative_feedback_count: u64 = 0,
         vision_samples: u64 = 0,
+        video_samples: u64 = 0,
+        audio_samples: u64 = 0,
         document_samples: u64 = 0,
+        any_samples: u64 = 0,
         improvement_rate: f32 = 0,
     };
 
@@ -540,7 +546,11 @@ pub const SelfLearningSystem = struct {
             .advantage = 0,
             .done = true,
             .image_data = null,
+            .video_data = null,
+            .audio_data = null,
             .document_content = null,
+            .raw_data = null,
+            .content_type = null,
             .metadata = .{},
         };
 
@@ -593,13 +603,158 @@ pub const SelfLearningSystem = struct {
             .advantage = 0,
             .done = true,
             .image_data = image_copy,
+            .video_data = null,
+            .audio_data = null,
             .document_content = null,
+            .raw_data = null,
+            .content_type = null,
             .metadata = .{},
         };
 
         try self.experience_buffer.add(experience);
         self.stats.total_experiences += 1;
         self.stats.vision_samples += 1;
+    }
+
+    /// Record a video learning experience (frames or encoded clip).
+    pub fn recordVideoExperience(
+        self: *Self,
+        input: []const u32,
+        output: []const u32,
+        video_data: []const u8,
+        feedback: FeedbackType,
+        confidence: f32,
+    ) !void {
+        if (!self.config.enable_video) return;
+        const reward = self.computeReward(feedback, confidence);
+
+        const input_copy = try self.allocator.dupe(u32, input);
+        errdefer self.allocator.free(input_copy);
+        const output_copy = try self.allocator.dupe(u32, output);
+        errdefer self.allocator.free(output_copy);
+        const video_copy = try self.allocator.dupe(u8, video_data);
+        errdefer self.allocator.free(video_copy);
+
+        const experience = LearningExperience{
+            .id = 0,
+            .exp_type = .video,
+            .input = input_copy,
+            .output = output_copy,
+            .reward = reward,
+            .confidence = confidence,
+            .feedback = feedback,
+            .timestamp = getCurrentTimestamp(),
+            .log_probs = null,
+            .value = 0,
+            .advantage = 0,
+            .done = true,
+            .image_data = null,
+            .video_data = video_copy,
+            .audio_data = null,
+            .document_content = null,
+            .raw_data = null,
+            .content_type = null,
+            .metadata = .{},
+        };
+
+        try self.experience_buffer.add(experience);
+        self.stats.total_experiences += 1;
+        self.stats.video_samples += 1;
+    }
+
+    /// Record an audio learning experience.
+    pub fn recordAudioExperience(
+        self: *Self,
+        input: []const u32,
+        output: []const u32,
+        audio_data: []const u8,
+        feedback: FeedbackType,
+        confidence: f32,
+    ) !void {
+        if (!self.config.enable_audio) return;
+        const reward = self.computeReward(feedback, confidence);
+
+        const input_copy = try self.allocator.dupe(u32, input);
+        errdefer self.allocator.free(input_copy);
+        const output_copy = try self.allocator.dupe(u32, output);
+        errdefer self.allocator.free(output_copy);
+        const audio_copy = try self.allocator.dupe(u8, audio_data);
+        errdefer self.allocator.free(audio_copy);
+
+        const experience = LearningExperience{
+            .id = 0,
+            .exp_type = .audio,
+            .input = input_copy,
+            .output = output_copy,
+            .reward = reward,
+            .confidence = confidence,
+            .feedback = feedback,
+            .timestamp = getCurrentTimestamp(),
+            .log_probs = null,
+            .value = 0,
+            .advantage = 0,
+            .done = true,
+            .image_data = null,
+            .video_data = null,
+            .audio_data = audio_copy,
+            .document_content = null,
+            .raw_data = null,
+            .content_type = null,
+            .metadata = .{},
+        };
+
+        try self.experience_buffer.add(experience);
+        self.stats.total_experiences += 1;
+        self.stats.audio_samples += 1;
+    }
+
+    /// Record a generic/arbitrary data experience (any type via raw_data + content_type).
+    pub fn recordGenericExperience(
+        self: *Self,
+        input: []const u32,
+        output: []const u32,
+        raw_data: []const u8,
+        content_type: ?[]const u8,
+        feedback: FeedbackType,
+        confidence: f32,
+    ) !void {
+        if (!self.config.enable_all_modalities) return;
+        const reward = self.computeReward(feedback, confidence);
+
+        const input_copy = try self.allocator.dupe(u32, input);
+        errdefer self.allocator.free(input_copy);
+        const output_copy = try self.allocator.dupe(u32, output);
+        errdefer self.allocator.free(output_copy);
+        const raw_copy = try self.allocator.dupe(u8, raw_data);
+        errdefer self.allocator.free(raw_copy);
+        const ct_copy = if (content_type) |ct| try self.allocator.dupe(u8, ct) else null;
+        errdefer if (ct_copy) |ct| self.allocator.free(ct);
+
+        const experience = LearningExperience{
+            .id = 0,
+            .exp_type = .any,
+            .input = input_copy,
+            .output = output_copy,
+            .reward = reward,
+            .confidence = confidence,
+            .feedback = feedback,
+            .timestamp = getCurrentTimestamp(),
+            .log_probs = null,
+            .value = 0,
+            .advantage = 0,
+            .done = true,
+            .image_data = null,
+            .video_data = null,
+            .audio_data = null,
+            .document_content = null,
+            .raw_data = raw_copy,
+            .content_type = ct_copy,
+            .metadata = .{},
+        };
+
+        try self.experience_buffer.add(experience);
+        self.stats.total_experiences += 1;
+        self.stats.any_samples += 1;
     }
 
     /// Record a document learning experience
@@ -634,7 +789,11 @@ pub const SelfLearningSystem = struct {
             .advantage = 0,
             .done = true,
             .image_data = null,
+            .video_data = null,
+            .audio_data = null,
             .document_content = doc_copy,
+            .raw_data = null,
+            .content_type = null,
             .metadata = .{},
         };
 

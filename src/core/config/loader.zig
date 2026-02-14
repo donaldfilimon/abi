@@ -10,7 +10,7 @@
 //! | Variable | Description | Default |
 //! |----------|-------------|---------|
 //! | ABI_LOG_LEVEL | Logging level (debug, info, warn, error) | info |
-//! | ABI_GPU_BACKEND | GPU backend (auto, cuda, vulkan, metal) | auto |
+//! | ABI_GPU_BACKEND | GPU backend (auto, cuda, vulkan, metal, webgpu, tpu, none) | auto |
 //! | ABI_LLM_MODEL_PATH | Path to LLM model file | none |
 //! | ABI_DB_PATH | Database file path | abi.db |
 //! | ABI_OPENAI_API_KEY | OpenAI API key | none |
@@ -152,7 +152,8 @@ pub const ConfigLoader = struct {
             .{ "metal", .metal },
             .{ "webgpu", .webgpu },
             .{ "opengl", .opengl },
-            .{ "none", .none },
+            .{ "tpu", .tpu },
+            .{ "none", .cpu }, // no GPU → CPU fallback
         });
         return map.get(s);
     }
@@ -188,11 +189,13 @@ test "parseGpuBackend" {
 
     try std.testing.expectEqual(GpuConfig.Backend.cuda, ConfigLoader.parseGpuBackend("cuda").?);
     try std.testing.expectEqual(GpuConfig.Backend.vulkan, ConfigLoader.parseGpuBackend("vulkan").?);
+    try std.testing.expectEqual(GpuConfig.Backend.tpu, ConfigLoader.parseGpuBackend("tpu").?);
+    try std.testing.expectEqual(GpuConfig.Backend.cpu, ConfigLoader.parseGpuBackend("none").?);
     try std.testing.expect(ConfigLoader.parseGpuBackend("invalid") == null);
 }
 
 test "parseGpuBackend handles all valid backends" {
-    const backends = [_][]const u8{ "auto", "cuda", "vulkan", "metal", "webgpu", "opengl", "none" };
+    const backends = [_][]const u8{ "auto", "cuda", "vulkan", "metal", "webgpu", "opengl", "tpu", "none" };
     for (backends) |backend| {
         const result = ConfigLoader.parseGpuBackend(backend);
         try std.testing.expect(result != null);

@@ -27,50 +27,54 @@ const model_subcommands = [_][]const u8{
     "help",
 };
 
-/// Run the model command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
-        printHelp();
-        return;
-    }
-
-    const command = std.mem.sliceTo(args[0], 0);
-
-    if (std.mem.eql(u8, command, "list")) {
-        try runList(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "info")) {
-        try runInfo(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "download")) {
-        try runDownload(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "remove")) {
-        try runRemove(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "search")) {
-        try runSearch(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "path")) {
-        try runPath(allocator, args[1..]);
-        return;
-    }
-
-    std.debug.print("Unknown model command: {s}\n", .{command});
-    if (utils.args.suggestCommand(command, &model_subcommands)) |suggestion| {
+fn mdList(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runList(alloc, parser.remaining());
+}
+fn mdInfo(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runInfo(alloc, parser.remaining());
+}
+fn mdDownload(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runDownload(alloc, parser.remaining());
+}
+fn mdRemove(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runRemove(alloc, parser.remaining());
+}
+fn mdSearch(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runSearch(alloc, parser.remaining());
+}
+fn mdPath(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runPath(alloc, parser.remaining());
+}
+fn mdUnknown(cmd: []const u8) void {
+    std.debug.print("Unknown model command: {s}\n", .{cmd});
+    if (utils.args.suggestCommand(cmd, &model_subcommands)) |suggestion| {
         std.debug.print("Did you mean: {s}\n", .{suggestion});
     }
+}
+fn printHelpAlloc(_: std.mem.Allocator) void {
     printHelp();
+}
+
+const md_commands = [_]utils.subcommand.Command{
+    .{ .names = &.{"list"}, .run = mdList },
+    .{ .names = &.{"info"}, .run = mdInfo },
+    .{ .names = &.{"download"}, .run = mdDownload },
+    .{ .names = &.{"remove"}, .run = mdRemove },
+    .{ .names = &.{"search"}, .run = mdSearch },
+    .{ .names = &.{"path"}, .run = mdPath },
+};
+
+/// Run the model command with the provided arguments.
+pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &md_commands,
+        null,
+        printHelpAlloc,
+        mdUnknown,
+    );
 }
 
 // ============================================================================
@@ -134,13 +138,22 @@ fn runInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const model_ref = std.mem.sliceTo(args[0], 0);
 
     // Check if it's a path or a name
+    const has_model_ext = std.mem.endsWith(u8, model_ref, ".gguf") or
+        std.mem.endsWith(u8, model_ref, ".mlx") or
+        std.mem.endsWith(u8, model_ref, ".safetensors") or
+        std.mem.endsWith(u8, model_ref, ".bin") or
+        std.mem.endsWith(u8, model_ref, ".onnx");
     const is_path = std.mem.indexOf(u8, model_ref, "/") != null or
         std.mem.indexOf(u8, model_ref, "\\") != null or
-        std.mem.endsWith(u8, model_ref, ".gguf");
+        has_model_ext;
 
     if (is_path) {
-        // Direct file path - use GGUF parser
-        showGgufInfo(allocator, model_ref);
+        // Direct file path
+        if (std.mem.endsWith(u8, model_ref, ".gguf")) {
+            showGgufInfo(allocator, model_ref);
+        } else {
+            showModelPathInfo(model_ref);
+        }
     } else {
         // Model name - look up in cache
         var manager = abi.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
@@ -423,6 +436,20 @@ fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {
 
     std.debug.print("\nEstimated Parameters: {d:.2}B\n", .{@as(f64, @floatFromInt(param_estimate)) / 1e9});
     std.debug.print("Estimated Memory: {d:.2} GB\n", .{@as(f64, @floatFromInt(mem_estimate)) / (1024 * 1024 * 1024)});
+    std.debug.print("Attention dims: q={d}, kv={d}, v={d}\n", .{ config.queryDim(), config.kvDim(), config.valueDim() });
+    std.debug.print("Local LLaMA layout: {s}\n", .{if (config.supportsLlamaAttentionLayout()) "compatible" else "unsupported"});
+}
+
+fn showModelPathInfo(path: []const u8) void {
+    const ext = std.fs.path.extension(path);
+    const format = abi.ai.discovery.ModelFormat.fromExtension(ext);
+
+    std.debug.print("\nModel path: {s}\n", .{path});
+    std.debug.print("Format: {t}\n", .{format});
+
+    if (format == .mlx and builtin.os.tag == .macos) {
+        std.debug.print("MLX format detected (macOS): prefer Metal backend for local execution.\n", .{});
+    }
 }
 
 fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?[]const u8, verify_checksum: bool) void {
@@ -480,7 +507,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
             // Build progress bar (40 chars wide)
             var bar: [42]u8 = undefined;
             bar[0] = '[';
-            const filled = @min(40, (progress.percent * 40) / 100);
+            const filled = @min(@as(usize, 40), (@as(usize, progress.percent) * 40) / 100);
             for (1..41) |j| {
                 if (j <= filled) {
                     bar[j] = '=';
@@ -575,6 +602,8 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
     });
 
     if (result) |download_result| {
+        defer allocator.free(download_result.path);
+
         // Clear progress lines one final time
         if (ProgressState.lines_printed > 0) {
             var i: usize = 0;

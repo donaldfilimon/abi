@@ -318,11 +318,22 @@ test "messaging stub parity - types exist" {
     try testing.expect(@hasDecl(Messaging, "MessagingError"));
     try testing.expect(@hasDecl(Messaging, "Message"));
     try testing.expect(@hasDecl(Messaging, "Channel"));
+    try testing.expect(@hasDecl(Messaging, "DeliveryResult"));
+    try testing.expect(@hasDecl(Messaging, "MessagingStats"));
+    try testing.expect(@hasDecl(Messaging, "TopicInfo"));
+    try testing.expect(@hasDecl(Messaging, "DeadLetter"));
+    try testing.expect(@hasDecl(Messaging, "SubscriberCallback"));
     try testing.expect(@hasDecl(Messaging, "Context"));
     try testing.expect(@hasDecl(Messaging, "init"));
     try testing.expect(@hasDecl(Messaging, "isEnabled"));
     try testing.expect(@hasDecl(Messaging, "publish"));
     try testing.expect(@hasDecl(Messaging, "subscribe"));
+    try testing.expect(@hasDecl(Messaging, "unsubscribe"));
+    try testing.expect(@hasDecl(Messaging, "listTopics"));
+    try testing.expect(@hasDecl(Messaging, "topicStats"));
+    try testing.expect(@hasDecl(Messaging, "getDeadLetters"));
+    try testing.expect(@hasDecl(Messaging, "clearDeadLetters"));
+    try testing.expect(@hasDecl(Messaging, "messagingStats"));
 }
 
 // ============================================================================
@@ -342,7 +353,11 @@ test "cache stub parity - types exist" {
     try testing.expect(@hasDecl(Cache, "isEnabled"));
     try testing.expect(@hasDecl(Cache, "get"));
     try testing.expect(@hasDecl(Cache, "put"));
+    try testing.expect(@hasDecl(Cache, "putWithTtl"));
     try testing.expect(@hasDecl(Cache, "delete"));
+    try testing.expect(@hasDecl(Cache, "contains"));
+    try testing.expect(@hasDecl(Cache, "clear"));
+    try testing.expect(@hasDecl(Cache, "size"));
     try testing.expect(@hasDecl(Cache, "stats"));
 }
 
@@ -357,13 +372,18 @@ test "storage stub parity - types exist" {
     try testing.expect(@hasDecl(Storage, "StorageBackend"));
     try testing.expect(@hasDecl(Storage, "StorageError"));
     try testing.expect(@hasDecl(Storage, "StorageObject"));
+    try testing.expect(@hasDecl(Storage, "ObjectMetadata"));
+    try testing.expect(@hasDecl(Storage, "StorageStats"));
     try testing.expect(@hasDecl(Storage, "Context"));
     try testing.expect(@hasDecl(Storage, "init"));
     try testing.expect(@hasDecl(Storage, "isEnabled"));
     try testing.expect(@hasDecl(Storage, "putObject"));
+    try testing.expect(@hasDecl(Storage, "putObjectWithMetadata"));
     try testing.expect(@hasDecl(Storage, "getObject"));
     try testing.expect(@hasDecl(Storage, "deleteObject"));
+    try testing.expect(@hasDecl(Storage, "objectExists"));
     try testing.expect(@hasDecl(Storage, "listObjects"));
+    try testing.expect(@hasDecl(Storage, "stats"));
 }
 
 // ============================================================================
@@ -377,12 +397,49 @@ test "search stub parity - types exist" {
     try testing.expect(@hasDecl(Search, "SearchError"));
     try testing.expect(@hasDecl(Search, "SearchResult"));
     try testing.expect(@hasDecl(Search, "SearchIndex"));
+    try testing.expect(@hasDecl(Search, "SearchStats"));
     try testing.expect(@hasDecl(Search, "Context"));
     try testing.expect(@hasDecl(Search, "init"));
     try testing.expect(@hasDecl(Search, "isEnabled"));
     try testing.expect(@hasDecl(Search, "createIndex"));
+    try testing.expect(@hasDecl(Search, "deleteIndex"));
     try testing.expect(@hasDecl(Search, "indexDocument"));
+    try testing.expect(@hasDecl(Search, "deleteDocument"));
     try testing.expect(@hasDecl(Search, "query"));
+    try testing.expect(@hasDecl(Search, "stats"));
+}
+
+// ============================================================================
+// Gateway Module Parity
+// ============================================================================
+
+test "gateway stub parity - types exist" {
+    const Gateway = abi.gateway;
+
+    try testing.expect(@hasDecl(Gateway, "GatewayConfig"));
+    try testing.expect(@hasDecl(Gateway, "GatewayError"));
+    try testing.expect(@hasDecl(Gateway, "GatewayStats"));
+    try testing.expect(@hasDecl(Gateway, "HttpMethod"));
+    try testing.expect(@hasDecl(Gateway, "Route"));
+    try testing.expect(@hasDecl(Gateway, "MiddlewareType"));
+    try testing.expect(@hasDecl(Gateway, "MatchResult"));
+    try testing.expect(@hasDecl(Gateway, "RateLimitResult"));
+    try testing.expect(@hasDecl(Gateway, "RateLimitConfig"));
+    try testing.expect(@hasDecl(Gateway, "RateLimitAlgorithm"));
+    try testing.expect(@hasDecl(Gateway, "CircuitBreakerConfig"));
+    try testing.expect(@hasDecl(Gateway, "CircuitBreakerState"));
+    try testing.expect(@hasDecl(Gateway, "Context"));
+    try testing.expect(@hasDecl(Gateway, "init"));
+    try testing.expect(@hasDecl(Gateway, "isEnabled"));
+    try testing.expect(@hasDecl(Gateway, "addRoute"));
+    try testing.expect(@hasDecl(Gateway, "removeRoute"));
+    try testing.expect(@hasDecl(Gateway, "getRoutes"));
+    try testing.expect(@hasDecl(Gateway, "matchRoute"));
+    try testing.expect(@hasDecl(Gateway, "checkRateLimit"));
+    try testing.expect(@hasDecl(Gateway, "recordUpstreamResult"));
+    try testing.expect(@hasDecl(Gateway, "stats"));
+    try testing.expect(@hasDecl(Gateway, "getCircuitState"));
+    try testing.expect(@hasDecl(Gateway, "resetCircuit"));
 }
 
 // ============================================================================
@@ -490,6 +547,7 @@ test "all feature modules have consistent API surface" {
     try verifyContextPattern(abi.storage);
     try verifyContextPattern(abi.search);
     try verifyContextPattern(abi.mobile);
+    try verifyContextPattern(abi.gateway);
 
     if (build_options.enable_ai) {
         try verifyContextPattern(abi.ai);

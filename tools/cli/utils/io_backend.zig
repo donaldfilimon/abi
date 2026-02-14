@@ -12,7 +12,12 @@ pub fn initIoBackendWithEnv(
     allocator: std.mem.Allocator,
     environ: std.process.Environ,
 ) std.Io.Threaded {
-    return std.Io.Threaded.init(allocator, .{
-        .environ = environ,
-    });
+    const Result = @TypeOf(std.Io.Threaded.init(allocator, .{ .environ = environ }));
+    if (@typeInfo(Result) == .error_union) {
+        return std.Io.Threaded.init(allocator, .{
+            .environ = environ,
+        }) catch @panic("I/O backend initialization failed");
+    }
+
+    return std.Io.Threaded.init(allocator, .{ .environ = environ });
 }

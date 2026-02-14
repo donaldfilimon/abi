@@ -323,11 +323,12 @@ pub const AgentPanel = struct {
     }
 
     fn renderSparkline(self: *AgentPanel, row: u16, col: u16, width: u16) !void {
+        const inner_width: u16 = if (width >= 2) width - 2 else 0;
         // Separator line
         try self.setCursorPosition(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.lsep);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try self.writeRepeat(widgets.box.h, inner_width);
         try self.term.write(widgets.box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -339,7 +340,8 @@ pub const AgentPanel = struct {
         try self.term.write(" Reward: ");
 
         const history = self.reward_history.getValues();
-        const max_chars = @min(RewardHistory.HISTORY_SIZE, width - 15);
+        const available = if (width > 15) width - 15 else 0;
+        const max_chars = @min(RewardHistory.HISTORY_SIZE, available);
 
         for (0..max_chars) |i| {
             const val = history[i];
@@ -358,10 +360,10 @@ pub const AgentPanel = struct {
         }
         try self.term.write(self.theme.reset);
 
-        // Pad and close
-        const content_len = 9 + max_chars;
-        if (content_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - content_len);
+        // Pad and close (use u32 for content_len to avoid overflow; max_chars is at most HISTORY_SIZE)
+        const content_len: u32 = 9 + @as(u32, max_chars);
+        if (content_len < inner_width) {
+            try self.writeRepeat(" ", inner_width - @as(u16, @intCast(content_len)));
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);

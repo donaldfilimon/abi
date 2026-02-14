@@ -1,9 +1,8 @@
 //! Learning Types for Self-Learning Module
 //!
-//! Configuration and type definitions for the self-learning system:
-//! - SelfLearningConfig
-//! - ExperienceType, FeedbackType
-//! - LearningExperience
+//! Configuration and type definitions for the self-learning system. Models can be
+//! trained to handle and generate all types of data: text, images, video, audio,
+//! documents, and arbitrary payloads (raw_data + content_type).
 
 const std = @import("std");
 
@@ -15,10 +14,16 @@ const std = @import("std");
 pub const SelfLearningConfig = struct {
     /// Enable RLHF training
     enable_rlhf: bool = true,
-    /// Enable vision training
+    /// Enable vision training (images)
     enable_vision: bool = true,
     /// Enable document training
     enable_documents: bool = true,
+    /// Enable video training (frames / video clips)
+    enable_video: bool = true,
+    /// Enable audio training
+    enable_audio: bool = true,
+    /// Enable training on arbitrary data types (raw_data + content_type)
+    enable_all_modalities: bool = true,
     /// Experience replay buffer size
     replay_buffer_size: usize = 10000,
     /// Batch size for training
@@ -57,20 +62,26 @@ pub const SelfLearningConfig = struct {
 // Learning Experience Types
 // ============================================================================
 
-/// Type of learning experience
+/// Type of learning experience. Covers all data types: text, images, video, audio, and any.
 pub const ExperienceType = enum {
     /// Text-based conversation
     text_conversation,
     /// Image understanding
     vision,
+    /// Video (frames or clips)
+    video,
+    /// Audio
+    audio,
     /// Document parsing
     document,
     /// Code generation
     code,
     /// Reasoning task
     reasoning,
-    /// Multi-modal (combined)
+    /// Multi-modal (combined modalities)
     multi_modal,
+    /// Arbitrary / other data (use raw_data + content_type)
+    any,
 };
 
 /// Feedback type from user or self-evaluation
@@ -89,7 +100,17 @@ pub const FeedbackType = enum {
     none,
 };
 
-/// A learning experience for replay
+/// Data kind for arbitrary payloads (process/generate all types).
+pub const DataKind = enum {
+    text,
+    image,
+    video,
+    audio,
+    document,
+    other,
+};
+
+/// A learning experience for replay. Supports all data types: text, images, video, audio, documents, and raw payloads.
 pub const LearningExperience = struct {
     /// Unique experience ID
     id: u64,
@@ -117,8 +138,16 @@ pub const LearningExperience = struct {
     done: bool,
     /// Optional image data (for vision)
     image_data: ?[]const u8,
+    /// Optional video data (frames or encoded clip)
+    video_data: ?[]const u8 = null,
+    /// Optional audio data
+    audio_data: ?[]const u8 = null,
     /// Optional document content
-    document_content: ?[]const u8,
+    document_content: ?[]const u8 = null,
+    /// Arbitrary payload (when exp_type == .any or multi-modal)
+    raw_data: ?[]const u8 = null,
+    /// Content type for raw_data (e.g. "video/mp4", "image/png", "application/octet-stream")
+    content_type: ?[]const u8 = null,
     /// Metadata
     metadata: ExperienceMetadata,
 
@@ -135,6 +164,10 @@ pub const LearningExperience = struct {
         allocator.free(self.output);
         if (self.log_probs) |lp| allocator.free(lp);
         if (self.image_data) |img| allocator.free(img);
+        if (self.video_data) |v| allocator.free(v);
+        if (self.audio_data) |a| allocator.free(a);
         if (self.document_content) |doc| allocator.free(doc);
+        if (self.raw_data) |r| allocator.free(r);
+        if (self.content_type) |ct| allocator.free(ct);
     }
 };

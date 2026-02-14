@@ -329,20 +329,12 @@ pub const AsyncHttpClient = struct {
 
         // Read response body
         var transfer_buffer: [16384]u8 = undefined;
-        const body_reader = res.reader(&transfer_buffer);
-
-        var body_list = std.ArrayListUnmanaged(u8){};
-        errdefer body_list.deinit(self.allocator);
-
-        // Read all body data using readSliceShort
-        var read_buf: [4096]u8 = undefined;
-        while (true) {
-            const bytes_read = body_reader.readSliceShort(&read_buf) catch break;
-            if (bytes_read == 0) break;
-            try body_list.appendSlice(self.allocator, read_buf[0..bytes_read]);
-        }
-
-        response.body = try body_list.toOwnedSlice(self.allocator);
+        var body_reader = res.reader(&transfer_buffer);
+        response.body = body_reader.allocRemaining(self.allocator, .limited(64 * 1024 * 1024)) catch |err| switch (err) {
+            error.StreamTooLong => return HttpError.ResponseTooLarge,
+            error.ReadFailed => return HttpError.ReadFailed,
+            else => return err,
+        };
 
         return response;
     }

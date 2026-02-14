@@ -16,6 +16,7 @@ pub const GpuConfig = struct {
         webgpu,
         opengl,
         fpga,
+        tpu,
         cpu,
     };
 

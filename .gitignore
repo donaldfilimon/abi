@@ -1,6 +1,7 @@
 # Zig build artifacts
 zig-cache/
 zig-out/
+exe/
 docs_html/
 build/
 .zig-cache/

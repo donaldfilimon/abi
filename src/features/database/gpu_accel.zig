@@ -140,12 +140,12 @@ pub const GpuAccelerator = struct {
             };
 
             const ctx = allocator.create(gpu.Gpu) catch {
-                // Failed to allocate, use SIMD fallback
+                std.log.debug("GPU accelerator: allocation failed, using SIMD fallback", .{});
                 return self;
             };
 
             ctx.* = gpu.Gpu.init(allocator, gpu_config) catch {
-                // GPU init failed, use SIMD fallback
+                std.log.debug("GPU accelerator: init failed, using SIMD fallback", .{});
                 allocator.destroy(ctx);
                 return self;
             };
@@ -160,6 +160,7 @@ pub const GpuAccelerator = struct {
                     };
 
                     disp.* = gpu.KernelDispatcher.init(allocator, backend, device) catch {
+                        std.log.debug("GPU accelerator: kernel dispatcher init failed, GPU dispatch unavailable", .{});
                         allocator.destroy(disp);
                         return self;
                     };

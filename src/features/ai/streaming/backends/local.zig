@@ -157,19 +157,28 @@ pub const LocalBackend = struct {
         prompt: []const u8,
         config: mod.GenerationConfig,
     ) ![]u8 {
-        var stream = try self.startStream(prompt, config);
-        defer stream.deinit();
+        const engine = self.engine orelse return LocalBackendError.ModelNotLoaded;
 
-        var result = std.ArrayListUnmanaged(u8).empty;
-        errdefer result.deinit(self.allocator);
-
-        while (try stream.next(self.allocator)) |token| {
-            try result.appendSlice(self.allocator, token.text);
-            self.allocator.free(@constCast(token.text));
-            if (token.is_end) break;
+        // Lazy load model if path is set but model not loaded
+        if (!self.model_loaded) {
+            if (self.model_path) |path| {
+                try self.loadModel(path);
+            } else {
+                return LocalBackendError.ModelNotLoaded;
+            }
         }
 
-        return result.toOwnedSlice(self.allocator);
+        engine.config.max_new_tokens = config.max_tokens;
+        engine.config.temperature = config.temperature;
+        engine.config.top_p = config.top_p;
+        engine.config.top_k = config.top_k;
+        engine.config.repetition_penalty = config.repetition_penalty;
+
+        return engine.generate(self.allocator, prompt) catch |err| switch (err) {
+            error.OutOfMemory => LocalBackendError.OutOfMemory,
+            error.TokenizationFailed => LocalBackendError.TokenizationFailed,
+            else => LocalBackendError.InferenceError,
+        };
     }
 
     /// Check if backend is available (has engine and optionally model)
@@ -184,11 +193,12 @@ pub const LocalBackend = struct {
 
     /// Get model information
     pub fn getModelInfo(self: Self) mod.ModelInfo {
+        const supports_streaming = if (self.engine) |engine| engine.supportsStreaming() else true;
         return .{
             .name = self.model_name,
             .backend = .local,
             .max_tokens = self.inference_config.max_new_tokens,
-            .supports_streaming = true,
+            .supports_streaming = supports_streaming,
         };
     }
 

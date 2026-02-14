@@ -108,9 +108,10 @@ pub const TaskHandle = scheduling.TaskHandle;
 pub const AsyncTaskGroup = scheduling.AsyncTaskGroup;
 pub const AsyncError = scheduling.AsyncError;
 
-// v2 work-stealing thread pool
+// v2 work-stealing thread pool (use for parallel batch work, e.g. CPU inference)
 pub const ThreadPool = scheduling.ThreadPool;
 pub const ThreadPoolTask = scheduling.ThreadPoolTask;
+pub const parallelFor = scheduling.parallelFor;
 
 // v2 DAG pipeline scheduler
 pub const DagPipeline = scheduling.Pipeline;

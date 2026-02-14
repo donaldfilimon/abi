@@ -843,12 +843,15 @@ pub const UnifiedEmbeddingSpace = struct {
     /// Store embeddings with their modality type
     embeddings: std.ArrayListUnmanaged(EmbeddingEntry),
 
+    /// Data modalities for unified embedding; models can process and generate all types.
     pub const Modality = enum {
         image,
         text,
         document,
         audio,
         video,
+        /// Arbitrary / other data (any type passed in)
+        other,
     };
 
     pub const EmbeddingEntry = struct {

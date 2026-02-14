@@ -13,66 +13,65 @@ const utils = @import("../utils/mod.zig");
 
 const discord = abi.connectors.discord;
 
+fn dcStatus(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printStatus(alloc);
+}
+fn dcInfo(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printBotInfo(alloc);
+}
+fn dcGuilds(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try listGuilds(alloc);
+}
+fn dcSend(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try sendMessage(alloc, parser.remaining());
+}
+fn dcCommands(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try manageCommands(alloc, parser);
+}
+fn dcWebhook(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try executeWebhook(alloc, parser.remaining());
+}
+fn dcChannel(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try channelInfo(alloc, parser.remaining());
+}
+fn dcDefault(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = parser;
+    try printStatus(alloc);
+}
+fn dcUnknown(cmd: []const u8) void {
+    utils.output.printError("Unknown discord command: {s}", .{cmd});
+}
+
+const discord_commands = [_]utils.subcommand.Command{
+    .{ .names = &.{"status"}, .run = dcStatus },
+    .{ .names = &.{"info"}, .run = dcInfo },
+    .{ .names = &.{"guilds"}, .run = dcGuilds },
+    .{ .names = &.{"send"}, .run = dcSend },
+    .{ .names = &.{"commands"}, .run = dcCommands },
+    .{ .names = &.{"webhook"}, .run = dcWebhook },
+    .{ .names = &.{"channel"}, .run = dcChannel },
+};
+
 /// Run the discord command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-
-    if (parser.wantsHelp()) {
-        printHelp(allocator);
-        return;
-    }
-
     // Check if web feature is enabled (Discord requires web/HTTP support)
     if (!abi.web.isEnabled()) {
         utils.output.printError("Web feature is disabled.", .{});
         utils.output.printInfo("Rebuild with: zig build -Denable-web=true", .{});
         return;
     }
-
-    if (!parser.hasMore()) {
-        try printStatus(allocator);
-        return;
-    }
-
-    const command = parser.next().?;
-
-    if (std.mem.eql(u8, command, "status")) {
-        try printStatus(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "info")) {
-        try printBotInfo(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "guilds")) {
-        try listGuilds(allocator);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "send")) {
-        try sendMessage(allocator, parser.remaining());
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "commands")) {
-        try manageCommands(allocator, parser.remaining());
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "webhook")) {
-        try executeWebhook(allocator, parser.remaining());
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "channel")) {
-        try channelInfo(allocator, parser.remaining());
-        return;
-    }
-
-    utils.output.printError("Unknown discord command: {s}", .{command});
-    printHelp(allocator);
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &discord_commands,
+        dcDefault,
+        printHelp,
+        dcUnknown,
+    );
 }
 
 /// Print a short discord summary for system-info.
@@ -267,15 +266,70 @@ fn channelInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn manageCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len < 1) {
-        utils.output.printError("Missing application command subcommand", .{});
-        utils.output.printInfo("Usage: abi discord commands <list|create|delete> [options]", .{});
+fn manageCommands(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    var subparser = utils.args.ArgParser.init(allocator, parser.remaining());
+
+    const commands = [_]utils.subcommand.Command{
+        .{ .names = &.{"list"}, .run = dcCommandsList },
+        .{ .names = &.{"create"}, .run = dcCommandsCreate },
+        .{ .names = &.{"delete"}, .run = dcCommandsDelete },
+    };
+
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &subparser,
+        &commands,
+        dcCommandsDefault,
+        printCommandsHelp,
+        dcCommandsUnknown,
+    );
+}
+
+fn dcCommandsDefault(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    _ = allocator;
+    _ = parser;
+    utils.output.printError("Missing application command subcommand", .{});
+    utils.output.printInfo("Usage: abi discord commands <list|create|delete> [options]", .{});
+}
+
+fn dcCommandsUnknown(command: []const u8) void {
+    utils.output.printError("Unknown commands subcommand: {s}", .{command});
+    utils.output.printInfo("Usage: abi discord commands <list|create|delete> [options]", .{});
+}
+
+fn printCommandsHelp(allocator: std.mem.Allocator) void {
+    var builder = utils.help.HelpBuilder.init(allocator);
+    defer builder.deinit();
+
+    _ = builder
+        .usage("abi discord commands", "<subcommand> [options]")
+        .description("Manage Discord application commands.")
+        .section("Subcommands")
+        .subcommand(.{ .name = "list [guild_id]", .description = "List global commands or guild commands" })
+        .subcommand(.{ .name = "create <name> <description>", .description = "Create a global command" })
+        .subcommand(.{ .name = "delete <command_id>", .description = "Delete a global command" })
+        .newline()
+        .section("Options")
+        .option(utils.help.common_options.help)
+        .newline()
+        .section("Examples")
+        .example("abi discord commands list", "List global application commands")
+        .example("abi discord commands list 1234567890", "List guild commands")
+        .example("abi discord commands create ping \"Replies with pong\"", "Create global command")
+        .example("abi discord commands delete 1234567890", "Delete global command");
+
+    builder.print();
+}
+
+fn dcCommandsList(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const guild_id: ?[]const u8 = if (parser.hasMore())
+        parser.next().?
+    else
+        null;
+    if (parser.hasMore()) {
+        utils.output.printError("Usage: abi discord commands list [guild_id]", .{});
         return;
     }
-
-    const subcommand = std.mem.sliceTo(args[0], 0);
-    const remaining = if (args.len > 1) args[1..] else &[_][:0]const u8{};
 
     var client = discord.createClient(allocator) catch |err| {
         utils.output.printError("Failed to create Discord client: {t}", .{err});
@@ -283,91 +337,104 @@ fn manageCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     };
     defer client.deinit();
 
-    if (std.mem.eql(u8, subcommand, "list")) {
-        const app_id = client.config.client_id orelse {
-            utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
-            utils.output.printInfo("Set DISCORD_CLIENT_ID environment variable to your application ID.", .{});
+    const app_id = client.config.client_id orelse {
+        utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
+        utils.output.printInfo("Set DISCORD_CLIENT_ID environment variable to your application ID.", .{});
+        return;
+    };
+
+    const commands = if (guild_id) |gid|
+        client.getGuildApplicationCommands(app_id, gid) catch |err| {
+            utils.output.printError("Failed to get guild commands: {t}", .{err});
+            return;
+        }
+    else
+        client.getGlobalApplicationCommands(app_id) catch |err| {
+            utils.output.printError("Failed to get global commands: {t}", .{err});
             return;
         };
+    defer allocator.free(commands);
 
-        const guild_id: ?[]const u8 = if (remaining.len > 0)
-            std.mem.sliceTo(remaining[0], 0)
-        else
-            null;
-
-        const commands = if (guild_id) |gid|
-            client.getGuildApplicationCommands(app_id, gid) catch |err| {
-                utils.output.printError("Failed to get guild commands: {t}", .{err});
-                return;
-            }
-        else
-            client.getGlobalApplicationCommands(app_id) catch |err| {
-                utils.output.printError("Failed to get global commands: {t}", .{err});
-                return;
-            };
-        defer allocator.free(commands);
-
-        if (commands.len == 0) {
-            utils.output.printInfo("No application commands found.", .{});
-            return;
-        }
-
-        utils.output.printHeaderFmt("Application Commands ({d})", .{commands.len});
-        for (commands) |cmd| {
-            std.debug.print("  " ++ utils.output.color.cyan ++ "/" ++ utils.output.color.reset ++ "{s: <15} - {s} (ID: {s})\n", .{ cmd.name, cmd.description, cmd.id });
-        }
+    if (commands.len == 0) {
+        utils.output.printInfo("No application commands found.", .{});
         return;
     }
 
-    if (std.mem.eql(u8, subcommand, "create")) {
-        const app_id = client.config.client_id orelse {
-            utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
-            return;
-        };
+    utils.output.printHeaderFmt("Application Commands ({d})", .{commands.len});
+    for (commands) |cmd| {
+        std.debug.print("  " ++ utils.output.color.cyan ++ "/" ++ utils.output.color.reset ++ "{s: <15} - {s} (ID: {s})\n", .{ cmd.name, cmd.description, cmd.id });
+    }
+}
 
-        if (remaining.len < 2) {
-            utils.output.printError("Missing command name or description", .{});
-            utils.output.printInfo("Usage: abi discord commands create <name> <description>", .{});
-            return;
-        }
-
-        const name = std.mem.sliceTo(remaining[0], 0);
-        const description = std.mem.sliceTo(remaining[1], 0);
-
-        const cmd = client.createGlobalApplicationCommand(app_id, name, description, &.{}) catch |err| {
-            utils.output.printError("Failed to create command: {t}", .{err});
-            return;
-        };
-
-        utils.output.printSuccess("Command created successfully!", .{});
-        utils.output.printKeyValueFmt("Name", "/{s}", .{cmd.name});
-        utils.output.printKeyValue("ID", cmd.id);
+fn dcCommandsCreate(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const name = parser.next() orelse {
+        utils.output.printError("Missing command name", .{});
+        utils.output.printInfo("Usage: abi discord commands create <name> <description>", .{});
+        return;
+    };
+    if (!parser.hasMore()) {
+        utils.output.printError("Missing command description", .{});
+        utils.output.printInfo("Usage: abi discord commands create <name> <description>", .{});
         return;
     }
 
-    if (std.mem.eql(u8, subcommand, "delete")) {
-        const app_id = client.config.client_id orelse {
-            utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
-            return;
-        };
+    var description = std.ArrayListUnmanaged(u8).empty;
+    defer description.deinit(allocator);
+    while (parser.hasMore()) {
+        const token = parser.next().?;
+        if (description.items.len > 0) try description.append(allocator, ' ');
+        try description.appendSlice(allocator, token);
+    }
 
-        if (remaining.len < 1) {
-            utils.output.printError("Missing command ID", .{});
-            utils.output.printInfo("Usage: abi discord commands delete <command_id>", .{});
-            return;
-        }
+    var client = discord.createClient(allocator) catch |err| {
+        utils.output.printError("Failed to create Discord client: {t}", .{err});
+        return;
+    };
+    defer client.deinit();
 
-        const command_id = std.mem.sliceTo(remaining[0], 0);
-        client.deleteGlobalApplicationCommand(app_id, command_id) catch |err| {
-            utils.output.printError("Failed to delete command: {t}", .{err});
-            return;
-        };
+    const app_id = client.config.client_id orelse {
+        utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
+        return;
+    };
 
-        utils.output.printSuccess("Command deleted successfully.", .{});
+    const cmd = client.createGlobalApplicationCommand(app_id, name, description.items, &.{}) catch |err| {
+        utils.output.printError("Failed to create command: {t}", .{err});
+        return;
+    };
+
+    utils.output.printSuccess("Command created successfully!", .{});
+    utils.output.printKeyValueFmt("Name", "/{s}", .{cmd.name});
+    utils.output.printKeyValue("ID", cmd.id);
+}
+
+fn dcCommandsDelete(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    const command_id = parser.next() orelse {
+        utils.output.printError("Missing command ID", .{});
+        utils.output.printInfo("Usage: abi discord commands delete <command_id>", .{});
+        return;
+    };
+    if (parser.hasMore()) {
+        utils.output.printError("Usage: abi discord commands delete <command_id>", .{});
         return;
     }
 
-    utils.output.printError("Unknown commands subcommand: {s}", .{subcommand});
+    var client = discord.createClient(allocator) catch |err| {
+        utils.output.printError("Failed to create Discord client: {t}", .{err});
+        return;
+    };
+    defer client.deinit();
+
+    const app_id = client.config.client_id orelse {
+        utils.output.printError("DISCORD_CLIENT_ID not configured.", .{});
+        return;
+    };
+
+    client.deleteGlobalApplicationCommand(app_id, command_id) catch |err| {
+        utils.output.printError("Failed to delete command: {t}", .{err});
+        return;
+    };
+
+    utils.output.printSuccess("Command deleted successfully.", .{});
 }
 
 fn executeWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
