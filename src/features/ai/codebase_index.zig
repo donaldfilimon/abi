@@ -285,11 +285,11 @@ fn extractKeywords(allocator: std.mem.Allocator, question: []const u8) ![]u8 {
     errdefer result.deinit(allocator);
 
     const stop_words = [_][]const u8{
-        "the", "a", "an", "is", "are", "was", "were", "be", "been",
-        "how", "does", "what", "where", "when", "why", "who", "which",
-        "do", "did", "will", "can", "could", "would", "should",
-        "in", "on", "at", "to", "for", "of", "with", "by", "from",
-        "and", "or", "but", "not", "this", "that", "it", "its",
+        "the", "a",    "an",   "is",    "are",   "was",    "were", "be",    "been",
+        "how", "does", "what", "where", "when",  "why",    "who",  "which", "do",
+        "did", "will", "can",  "could", "would", "should", "in",   "on",    "at",
+        "to",  "for",  "of",   "with",  "by",    "from",   "and",  "or",    "but",
+        "not", "this", "that", "it",    "its",
     };
 
     var words = std.mem.splitScalar(u8, question, ' ');

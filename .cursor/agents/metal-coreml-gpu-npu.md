@@ -1,5 +1,6 @@
 ---
 name: metal-coreml-gpu-npu
+model: default
 description: Expert for GPU and NPU (Neural Engine) on Apple Silicon via Metal 4 and CoreML in Zig. Use proactively when working on macOS M-series acceleration, Metal backends, CoreML linking, MPS, or ensuring the ABI framework uses GPU/ANE on M5 MacBook.
 ---
 

@@ -51,6 +51,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         .{ .name = "Cohere", .available = abi.connectors.cohere.isAvailable() },
         .{ .name = "LM Studio", .available = abi.connectors.lm_studio.isAvailable() },
         .{ .name = "vLLM", .available = abi.connectors.vllm.isAvailable() },
+        .{ .name = "MLX", .available = abi.connectors.mlx.isAvailable() },
     };
     for (connector_status) |conn| {
         utils.output.printKeyValue(conn.name, if (conn.available) "configured" else "not configured");

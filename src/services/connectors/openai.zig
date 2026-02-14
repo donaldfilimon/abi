@@ -281,10 +281,16 @@ pub const Client = struct {
 };
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const api_key = (try connectors.getFirstEnvOwned(allocator, &.{
+    const api_key_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OPENAI_API_KEY",
         "OPENAI_API_KEY",
-    })) orelse return OpenAIError.MissingApiKey;
+    });
+    const api_key = api_key_raw orelse return OpenAIError.MissingApiKey;
+    // Treat empty string as missing (e.g., OPENAI_API_KEY="")
+    if (api_key.len == 0) {
+        allocator.free(api_key);
+        return OpenAIError.MissingApiKey;
+    }
     errdefer allocator.free(api_key);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
@@ -293,10 +299,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     })) orelse try allocator.dupe(u8, "https://api.openai.com/v1");
     errdefer allocator.free(base_url);
 
-    const model = (try connectors.getFirstEnvOwned(allocator, &.{
+    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OPENAI_MODEL",
         "OPENAI_MODEL",
-    })) orelse try allocator.dupe(u8, "gpt-4");
+    });
+    // Treat empty model as unset — fall through to default
+    const model = if (model_raw) |m| blk: {
+        if (m.len == 0) {
+            allocator.free(m);
+            break :blk try allocator.dupe(u8, "gpt-4");
+        }
+        break :blk m;
+    } else try allocator.dupe(u8, "gpt-4");
 
     return .{
         .api_key = api_key,

@@ -213,11 +213,17 @@ pub const Client = struct {
 };
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const api_token = (try connectors.getFirstEnvOwned(allocator, &.{
+    const api_token_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_HF_API_TOKEN",
         "HF_API_TOKEN",
         "HUGGING_FACE_HUB_TOKEN",
-    })) orelse return HuggingFaceError.MissingApiToken;
+    });
+    const api_token = api_token_raw orelse return HuggingFaceError.MissingApiToken;
+    // Treat empty string as missing (e.g., HF_API_TOKEN="")
+    if (api_token.len == 0) {
+        allocator.free(api_token);
+        return HuggingFaceError.MissingApiToken;
+    }
     errdefer allocator.free(api_token);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
@@ -225,10 +231,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     })) orelse try allocator.dupe(u8, "https://api-inference.huggingface.co");
     errdefer allocator.free(base_url);
 
-    const model = (try connectors.getFirstEnvOwned(allocator, &.{
+    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_HF_MODEL",
         "HF_MODEL",
-    })) orelse try allocator.dupe(u8, "gpt2");
+    });
+    // Treat empty model as unset — fall through to default
+    const model = if (model_raw) |m| blk: {
+        if (m.len == 0) {
+            allocator.free(m);
+            break :blk try allocator.dupe(u8, "gpt2");
+        }
+        break :blk m;
+    } else try allocator.dupe(u8, "gpt2");
 
     return .{
         .api_token = api_token,

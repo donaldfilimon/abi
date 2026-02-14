@@ -294,8 +294,8 @@ pub const ModelManagementPanel = struct {
         if (height < 6) return; // Minimum height required
 
         try self.renderHeader(start_row, start_col, width);
-        // Reserve 8 rows: 4 for local servers, 3 for downloads, 1 for footer
-        const server_rows: usize = 4;
+        // Reserve 9 rows: 5 for local servers, 3 for downloads, 1 for footer
+        const server_rows: usize = 5;
         const reserved = server_rows + 4;
         const list_height = if (height > reserved + 2) height - reserved - 2 else 1;
         try self.renderModelList(start_row + 2, start_col, width, list_height);
@@ -507,6 +507,11 @@ pub const ModelManagementPanel = struct {
                 .name = "vLLM",
                 .available = abi.connectors.vllm.isAvailable(),
                 .host = "ABI_VLLM_HOST",
+            },
+            .{
+                .name = "MLX",
+                .available = abi.connectors.mlx.isAvailable(),
+                .host = "ABI_MLX_HOST",
             },
         };
 

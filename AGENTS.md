@@ -8,7 +8,7 @@ ABI is a Zig 0.16 framework (v0.4.0) with `src/abi.zig` as the public API entryp
 
 - `src/api/`, `src/core/`, `src/services/`, and `src/features/` for primary code.
 - **19 feature modules** (each with `mod.zig` + `stub.zig`): `ai`, `ai_core`, `ai_inference`, `ai_training`, `ai_reasoning`, `analytics`, `auth`, `cache`, `cloud`, `database`, `gateway`, `gpu`, `messaging`, `mobile`, `network`, `observability`, `search`, `storage`, `web`.
-- **Services**: `connectors/` (8 LLM providers + discord + scheduler), `mcp/` (JSON-RPC 2.0 server), `acp/` (agent protocol), `runtime/`, `shared/`, `ha/`, `platform/`, `tasks/`.
+- **Services**: `connectors/` (9 LLM providers + discord + scheduler), `mcp/` (JSON-RPC 2.0 server), `acp/` (agent protocol), `runtime/`, `shared/`, `ha/`, `platform/`, `tasks/`.
 - **28 CLI commands** + 4 aliases (`info`/`sysinfo`, `dashboard`, `chat`, `serve`).
 - Shared runtime and integration tests: `src/services/tests/`.
 - Feature inline tests: `src/feature_test_root.zig`.

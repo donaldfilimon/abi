@@ -297,16 +297,32 @@ pub const Client = struct {
 };
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const host = (try connectors.getFirstEnvOwned(allocator, &.{
+    const host_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OLLAMA_HOST",
         "OLLAMA_HOST",
-    })) orelse try allocator.dupe(u8, "http://127.0.0.1:11434");
+    });
+    // Treat empty host as unset — fall through to default
+    const host = if (host_raw) |h| blk: {
+        if (h.len == 0) {
+            allocator.free(h);
+            break :blk try allocator.dupe(u8, "http://127.0.0.1:11434");
+        }
+        break :blk h;
+    } else try allocator.dupe(u8, "http://127.0.0.1:11434");
     errdefer allocator.free(host);
 
-    const model = (try connectors.getFirstEnvOwned(allocator, &.{
+    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OLLAMA_MODEL",
         "OLLAMA_MODEL",
-    })) orelse try allocator.dupe(u8, "gpt-oss");
+    });
+    // Treat empty model as unset — fall through to default
+    const model = if (model_raw) |m| blk: {
+        if (m.len == 0) {
+            allocator.free(m);
+            break :blk try allocator.dupe(u8, "gpt-oss");
+        }
+        break :blk m;
+    } else try allocator.dupe(u8, "gpt-oss");
 
     return .{
         .host = host,

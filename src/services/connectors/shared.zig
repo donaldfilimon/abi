@@ -1,8 +1,8 @@
 //! Shared types and utilities for connector modules.
 //!
 //! Provides common data structures, error types, and helper functions
-//! used across different AI service connectors such as OpenAI, Anthropic,
-//! Ollama, Mistral, Cohere, and HuggingFace.
+//! used across all 9 AI service connectors: OpenAI, Anthropic, Ollama,
+//! HuggingFace, Mistral, Cohere, LM Studio, vLLM, and MLX.
 //!
 //! ## Design Pattern
 //!
@@ -232,6 +232,37 @@ pub fn exponentialBackoff(attempt: u32, base_ms: u64, max_ms: u64) u64 {
     return @min(base_ms * multiplier, max_ms);
 }
 
+/// Calculate retry delay with jitter for production use.
+/// Adds ±25% jitter to prevent thundering herd on retry storms.
+pub fn calculateRetryDelay(attempt: u32, base_ms: u64, max_ms: u64) u64 {
+    const delay = exponentialBackoff(attempt, base_ms, max_ms);
+    return addJitter(delay, attempt);
+}
+
+/// Add deterministic jitter to a delay value.
+/// Uses attempt number to alternate between adding and subtracting.
+fn addJitter(delay: u64, attempt: u32) u64 {
+    const jitter_range = delay / 4;
+    if (jitter_range == 0) return delay;
+    if (attempt % 2 == 0) {
+        return delay + jitter_range / 2;
+    } else {
+        return delay -| jitter_range / 2; // saturating subtract
+    }
+}
+
+/// Re-export RetryOptions from async_http for connector convenience.
+pub const RetryOptions = @import("../shared/utils.zig").async_http.RetryOptions;
+
+/// Default retry options for AI API connectors.
+/// 3 retries, 1s base, 30s max, retries on 429/5xx/network errors.
+pub const DEFAULT_RETRY_OPTIONS = RetryOptions.DEFAULT;
+
+/// Check if an HTTP error is retryable.
+pub fn isRetryableStatus(status: u16) bool {
+    return status == 429 or status >= 500;
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -267,6 +298,23 @@ test "exponentialBackoff calculates correctly" {
     try std.testing.expectEqual(@as(u64, 2000), exponentialBackoff(1, 1000, 60000));
     try std.testing.expectEqual(@as(u64, 4000), exponentialBackoff(2, 1000, 60000));
     try std.testing.expectEqual(@as(u64, 60000), exponentialBackoff(10, 1000, 60000)); // capped
+}
+
+test "calculateRetryDelay with jitter" {
+    const d0 = calculateRetryDelay(0, 1000, 60000);
+    try std.testing.expect(d0 >= 750 and d0 <= 1500);
+
+    const d1 = calculateRetryDelay(1, 1000, 60000);
+    try std.testing.expect(d1 >= 1500 and d1 <= 2500);
+}
+
+test "isRetryableStatus" {
+    try std.testing.expect(isRetryableStatus(429));
+    try std.testing.expect(isRetryableStatus(500));
+    try std.testing.expect(isRetryableStatus(503));
+    try std.testing.expect(!isRetryableStatus(200));
+    try std.testing.expect(!isRetryableStatus(400));
+    try std.testing.expect(!isRetryableStatus(404));
 }
 
 test "encodeMessageArray encodes messages" {

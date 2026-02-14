@@ -22,6 +22,10 @@ test {
         _ = @import("features/ai/streaming/mod.zig");
         // _ = @import("features/ai/abbey/mod.zig");       // 13 errors (deep refactor needed)
 
+        // Multi-agent coordination (aggregation, messaging, coordinator)
+        _ = @import("features/ai/multi_agent/aggregation.zig");
+        _ = @import("features/ai/multi_agent/messaging.zig");
+
         // AI database submodule (wdbx token dataset tests)
         _ = @import("features/ai/database/wdbx.zig");
     }

@@ -212,7 +212,7 @@ pub fn dequantizeQ6_K(data: []const u8, output: []f32) !void {
 }
 
 const mxfp4_values = [_]i8{
-    0, 1, 2, 3, 4, 6, 8, 12,
+    0, 1,  2,  3,  4,  6,  8,  12,
     0, -1, -2, -3, -4, -6, -8, -12,
 };
 

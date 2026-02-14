@@ -50,6 +50,9 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         .{ .name = "huggingface", .available = abi.connectors.huggingface.isAvailable() },
         .{ .name = "mistral", .available = abi.connectors.mistral.isAvailable() },
         .{ .name = "cohere", .available = abi.connectors.cohere.isAvailable() },
+        .{ .name = "lm_studio", .available = abi.connectors.lm_studio.isAvailable() },
+        .{ .name = "vllm", .available = abi.connectors.vllm.isAvailable() },
+        .{ .name = "mlx", .available = abi.connectors.mlx.isAvailable() },
     };
     var conn_count: usize = 0;
     for (connectors) |c| {

@@ -1,20 +1,24 @@
-//! vLLM API connector.
+//! MLX API connector.
 //!
-//! Provides integration with vLLM inference servers via the OpenAI-compatible
-//! API at `/v1/chat/completions`.
+//! Provides integration with locally-running MLX inference servers via
+//! the OpenAI-compatible API at `/v1/chat/completions`.
+//!
+//! MLX is Apple's machine learning framework optimized for Apple Silicon.
+//! The `mlx-lm` Python package includes a server (`python -m mlx_lm.server`)
+//! that exposes an OpenAI-compatible endpoint.
 //!
 //! ## Environment Variables
 //!
-//! - `ABI_VLLM_HOST`: Host URL (default: http://localhost:8000)
-//! - `ABI_VLLM_MODEL`: Default model name
-//! - `ABI_VLLM_API_KEY`: Optional API key
+//! - `ABI_MLX_HOST`: Host URL (default: http://localhost:8080)
+//! - `ABI_MLX_MODEL`: Default model name
+//! - `ABI_MLX_API_KEY`: Optional API key
 //!
 //! ## Example
 //!
 //! ```zig
-//! const vllm = @import("abi").connectors.vllm;
+//! const mlx = @import("abi").connectors.mlx;
 //!
-//! var client = try vllm.createClient(allocator);
+//! var client = try mlx.createClient(allocator);
 //! defer client.deinit();
 //!
 //! const response = try client.chatSimple("Hello, world!");
@@ -26,8 +30,8 @@ const shared = @import("shared.zig");
 const async_http = @import("../shared/utils.zig").async_http;
 const json_utils = @import("../shared/utils.zig").json;
 
-/// Errors that can occur when interacting with vLLM.
-pub const VLLMError = error{
+/// Errors that can occur when interacting with MLX.
+pub const MLXError = error{
     /// The API request failed (network error or non-2xx status).
     ApiRequestFailed,
     /// The API response could not be parsed.
@@ -125,9 +129,9 @@ pub const Client = struct {
 
         if (!http_res.isSuccess()) {
             if (http_res.status_code == 429) {
-                return VLLMError.RateLimitExceeded;
+                return MLXError.RateLimitExceeded;
             }
-            return VLLMError.ApiRequestFailed;
+            return MLXError.ApiRequestFailed;
         }
 
         return try self.decodeChatResponse(http_res.body);
@@ -145,6 +149,34 @@ pub const Client = struct {
             .{ .role = "user", .content = prompt },
         };
         return try self.chat(&msgs);
+    }
+
+    /// Generate text (convenience wrapper around chat completion).
+    /// Returns the first choice's message content.
+    pub fn generate(self: *Client, prompt: []const u8, max_tokens: ?u32) ![]u8 {
+        const msgs = [_]Message{
+            .{ .role = "user", .content = prompt },
+        };
+        const response = try self.chatCompletion(.{
+            .model = self.config.model,
+            .messages = &msgs,
+            .max_tokens = max_tokens,
+        });
+        // The response fields are allocated — caller owns the content string.
+        // We need to free the other parts and return just the content.
+        defer self.allocator.free(response.id);
+        defer self.allocator.free(response.model);
+        defer {
+            for (response.choices) |choice| {
+                self.allocator.free(choice.finish_reason);
+                self.allocator.free(choice.message.role);
+            }
+            self.allocator.free(response.choices);
+        }
+
+        if (response.choices.len == 0) return MLXError.InvalidResponse;
+        // Caller takes ownership of content
+        return @constCast(response.choices[0].message.content);
     }
 
     fn encodeChatRequest(self: *Client, request: ChatCompletionRequest) ![]u8 {
@@ -194,7 +226,7 @@ pub const Client = struct {
 
         const choices_array = try json_utils.parseArrayField(object, "choices");
         if (choices_array.items.len == 0) {
-            return VLLMError.InvalidResponse;
+            return MLXError.InvalidResponse;
         }
 
         var choices = try self.allocator.alloc(Choice, choices_array.items.len);
@@ -235,22 +267,22 @@ pub const Client = struct {
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     const host_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_VLLM_HOST",
-        "VLLM_HOST",
+        "ABI_MLX_HOST",
+        "MLX_HOST",
     });
     // Treat empty host as unset — fall through to default
     const host = if (host_raw) |h| blk: {
         if (h.len == 0) {
             allocator.free(h);
-            break :blk try allocator.dupe(u8, "http://localhost:8000");
+            break :blk try allocator.dupe(u8, "http://localhost:8080");
         }
         break :blk h;
-    } else try allocator.dupe(u8, "http://localhost:8000");
+    } else try allocator.dupe(u8, "http://localhost:8080");
     errdefer allocator.free(host);
 
     const api_key_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_VLLM_API_KEY",
-        "VLLM_API_KEY",
+        "ABI_MLX_API_KEY",
+        "MLX_API_KEY",
     });
     // Treat empty API key as unset (optional field)
     const api_key: ?[]u8 = if (api_key_raw) |k| blk: {
@@ -263,8 +295,8 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     errdefer if (api_key) |k| shared.secureFree(allocator, k);
 
     const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
-        "ABI_VLLM_MODEL",
-        "VLLM_MODEL",
+        "ABI_MLX_MODEL",
+        "MLX_MODEL",
     });
     const model = if (model_raw) |m| blk: {
         if (m.len == 0) {
@@ -288,37 +320,37 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     return try Client.init(allocator, config);
 }
 
-/// Check if the vLLM connector is available (host env var is set).
+/// Check if the MLX connector is available (host env var is set).
 /// This is a zero-allocation health check suitable for status dashboards.
 pub fn isAvailable() bool {
     return shared.anyEnvIsSet(&.{
-        "ABI_VLLM_HOST",
-        "VLLM_HOST",
+        "ABI_MLX_HOST",
+        "MLX_HOST",
     });
 }
 
-test "vllm config deinit" {
+test "mlx config deinit" {
     const allocator = std.testing.allocator;
     var config = Config{
-        .host = try allocator.dupe(u8, "http://localhost:8000"),
+        .host = try allocator.dupe(u8, "http://localhost:8080"),
     };
     config.deinit(allocator);
 }
 
-test "vllm config deinit with api key" {
+test "mlx config deinit with api key" {
     const allocator = std.testing.allocator;
     var config = Config{
-        .host = try allocator.dupe(u8, "http://localhost:8000"),
+        .host = try allocator.dupe(u8, "http://localhost:8080"),
         .api_key = try allocator.dupe(u8, "test-key"),
     };
     config.deinit(allocator);
 }
 
-test "vllm chat request encoding" {
+test "mlx chat request encoding" {
     const allocator = std.testing.allocator;
 
     const config = Config{
-        .host = try allocator.dupe(u8, "http://localhost:8000"),
+        .host = try allocator.dupe(u8, "http://localhost:8080"),
     };
     var client = try Client.init(allocator, config);
     defer client.deinit();
@@ -328,13 +360,14 @@ test "vllm chat request encoding" {
     };
 
     const json = try client.encodeChatRequest(.{
-        .model = "meta-llama/Llama-3-8B",
+        .model = "test-model",
         .messages = &msgs,
     });
     defer allocator.free(json);
 
-    try std.testing.expect(std.mem.indexOf(u8, json, "\"model\":\"meta-llama/Llama-3-8B\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "\"model\":\"test-model\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, json, "\"role\":\"user\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json, "/v1/chat/completions") == null);
 }
 
 test "isAvailable returns bool" {

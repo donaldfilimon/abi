@@ -642,6 +642,8 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var prompt_text: ?[]const u8 = null;
     var compare_ollama: bool = false;
     var ollama_model: ?[]const u8 = null;
+    var compare_mlx: bool = false;
+    var mlx_model: ?[]const u8 = null;
     var wdbx_out: ?[]const u8 = null;
 
     var i: usize = 0;
@@ -697,6 +699,19 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--compare-mlx")) {
+            compare_mlx = true;
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--mlx-model")) {
+            if (i < args.len) {
+                mlx_model = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--wdbx-out")) {
             if (i < args.len) {
                 wdbx_out = std.mem.sliceTo(args[i], 0);
@@ -710,8 +725,8 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         }
     }
 
-    if (model_path == null and !compare_ollama) {
-        std.debug.print("Usage: abi llm bench <model> [--prompt-tokens N] [--gen-tokens N] [--runs N] [--compare-ollama]\n", .{});
+    if (model_path == null and !compare_ollama and !compare_mlx) {
+        std.debug.print("Usage: abi llm bench <model> [--prompt-tokens N] [--gen-tokens N] [--runs N] [--compare-ollama] [--compare-mlx]\n", .{});
         return;
     }
 
@@ -734,6 +749,12 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
     if (ollama_model) |name| {
         std.debug.print("Ollama model override: {s}\n", .{name});
+    }
+    if (compare_mlx) {
+        std.debug.print("Compare with MLX: enabled\n", .{});
+    }
+    if (mlx_model) |name| {
+        std.debug.print("MLX model override: {s}\n", .{name});
     }
     if (wdbx_out) |path| {
         std.debug.print("WDBX output: {s}\n", .{path});
@@ -770,6 +791,15 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
     defer if (ollama_runtime) |*res| res.deinit(allocator);
 
+    var mlx_runtime: ?MlxRuntimeBenchResult = null;
+    if (compare_mlx) {
+        mlx_runtime = runMlxRuntimeBenchmark(allocator, bench_prompt, gen_tokens, mlx_model, runtime_runs) catch |err| blk: {
+            std.debug.print("\nMLX benchmark unavailable: {t}\n", .{err});
+            break :blk null;
+        };
+    }
+    defer if (mlx_runtime) |*res| res.deinit(allocator);
+
     if (local_runtime) |local| {
         std.debug.print("\nLocal Runtime Benchmark\n", .{});
         std.debug.print("-----------------------\n", .{});
@@ -795,14 +825,64 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
     }
 
-    if (local_runtime) |local| {
-        if (ollama_runtime) |res| {
-            if (local.summary.decode_tok_s.mean > 0 and res.summary.decode_tok_s.mean > 0) {
-                std.debug.print("\nDecode Speed Comparison\n", .{});
-                std.debug.print("-----------------------\n", .{});
-                std.debug.print("  Ollama / Local ratio (mean): {d:.2}x\n", .{res.summary.decode_tok_s.mean / local.summary.decode_tok_s.mean});
-                if (local.summary.decode_tok_s.p50 > 0 and res.summary.decode_tok_s.p50 > 0) {
-                    std.debug.print("  Ollama / Local ratio (p50):  {d:.2}x\n", .{res.summary.decode_tok_s.p50 / local.summary.decode_tok_s.p50});
+    if (mlx_runtime) |res| {
+        std.debug.print("\nMLX Runtime Benchmark\n", .{});
+        std.debug.print("---------------------\n", .{});
+        std.debug.print("  Backend: mlx\n", .{});
+        std.debug.print("  Model: {s}\n", .{res.model_name});
+        std.debug.print("  Runs: {d}\n", .{res.runs.len});
+        std.debug.print("  Prompt tokens (mean): {d}\n", .{res.summary.prompt_tokens_mean});
+        std.debug.print("  Generated tokens (mean): {d}\n", .{res.summary.generated_tokens_mean});
+        printRuntimeStats("Wall time ms", res.summary.elapsed_ms);
+        printRuntimeStats("Prefill tok/s", res.summary.prefill_tok_s);
+        printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
+    }
+
+    // Cross-backend comparisons
+    {
+        var has_comparison = false;
+        if (local_runtime) |local| {
+            if (ollama_runtime) |res| {
+                if (local.summary.decode_tok_s.mean > 0 and res.summary.decode_tok_s.mean > 0) {
+                    if (!has_comparison) {
+                        std.debug.print("\nDecode Speed Comparison\n", .{});
+                        std.debug.print("-----------------------\n", .{});
+                        has_comparison = true;
+                    }
+                    std.debug.print("  Ollama / Local ratio (mean): {d:.2}x\n", .{res.summary.decode_tok_s.mean / local.summary.decode_tok_s.mean});
+                    if (local.summary.decode_tok_s.p50 > 0 and res.summary.decode_tok_s.p50 > 0) {
+                        std.debug.print("  Ollama / Local ratio (p50):  {d:.2}x\n", .{res.summary.decode_tok_s.p50 / local.summary.decode_tok_s.p50});
+                    }
+                }
+            }
+        }
+        if (ollama_runtime) |ollama| {
+            if (mlx_runtime) |mlx_res| {
+                if (ollama.summary.decode_tok_s.mean > 0 and mlx_res.summary.decode_tok_s.mean > 0) {
+                    if (!has_comparison) {
+                        std.debug.print("\nDecode Speed Comparison\n", .{});
+                        std.debug.print("-----------------------\n", .{});
+                        has_comparison = true;
+                    }
+                    std.debug.print("  MLX / Ollama ratio (mean):   {d:.2}x\n", .{mlx_res.summary.decode_tok_s.mean / ollama.summary.decode_tok_s.mean});
+                    if (ollama.summary.decode_tok_s.p50 > 0 and mlx_res.summary.decode_tok_s.p50 > 0) {
+                        std.debug.print("  MLX / Ollama ratio (p50):    {d:.2}x\n", .{mlx_res.summary.decode_tok_s.p50 / ollama.summary.decode_tok_s.p50});
+                    }
+                }
+            }
+        }
+        if (local_runtime) |local| {
+            if (mlx_runtime) |mlx_res| {
+                if (local.summary.decode_tok_s.mean > 0 and mlx_res.summary.decode_tok_s.mean > 0) {
+                    if (!has_comparison) {
+                        std.debug.print("\nDecode Speed Comparison\n", .{});
+                        std.debug.print("-----------------------\n", .{});
+                        has_comparison = true;
+                    }
+                    std.debug.print("  MLX / Local ratio (mean):    {d:.2}x\n", .{mlx_res.summary.decode_tok_s.mean / local.summary.decode_tok_s.mean});
+                    if (local.summary.decode_tok_s.p50 > 0 and mlx_res.summary.decode_tok_s.p50 > 0) {
+                        std.debug.print("  MLX / Local ratio (p50):     {d:.2}x\n", .{mlx_res.summary.decode_tok_s.p50 / local.summary.decode_tok_s.p50});
+                    }
                 }
             }
         }
@@ -1195,6 +1275,83 @@ fn runOllamaRuntimeBenchmark(
             .generated_tokens = generated_count,
             .elapsed_ms = elapsed_ms,
             .prefill_tok_s = prefill_tok_s,
+            .decode_tok_s = decode_tok_s,
+        };
+    }
+
+    const summary = try summarizeRuntimeSamples(allocator, samples);
+    return .{
+        .model_name = model_name_copy,
+        .runs = samples,
+        .summary = summary,
+    };
+}
+
+const MlxRuntimeBenchResult = struct {
+    model_name: []u8,
+    runs: []RuntimeBenchSample,
+    summary: RuntimeSampleSummary,
+
+    pub fn deinit(self: *MlxRuntimeBenchResult, allocator: std.mem.Allocator) void {
+        allocator.free(self.model_name);
+        allocator.free(self.runs);
+        self.* = undefined;
+    }
+};
+
+fn runMlxRuntimeBenchmark(
+    allocator: std.mem.Allocator,
+    prompt: []const u8,
+    gen_tokens: u32,
+    model_override: ?[]const u8,
+    runs: u32,
+) !MlxRuntimeBenchResult {
+    const run_count: usize = @intCast(@max(runs, @as(u32, 1)));
+    const samples = try allocator.alloc(RuntimeBenchSample, run_count);
+    errdefer allocator.free(samples);
+
+    var client = try abi.connectors.mlx.createClient(allocator);
+    defer client.deinit();
+
+    if (model_override) |model_name| {
+        if (model_name.len > 0) {
+            if (client.config.model_owned) {
+                allocator.free(@constCast(client.config.model));
+            }
+            client.config.model = try allocator.dupe(u8, model_name);
+            client.config.model_owned = true;
+        }
+    }
+
+    const model_name_copy = try allocator.dupe(u8, client.config.model);
+    errdefer allocator.free(model_name_copy);
+
+    for (samples) |*sample| {
+        var timer = try abi.shared.time.Timer.start();
+
+        // MLX uses OpenAI-compatible chat completions; use generate() for simplicity
+        const response_text = try client.generate(prompt, gen_tokens);
+        defer allocator.free(response_text);
+
+        const elapsed_ms = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
+
+        // MLX server returns usage in the chat response but generate() consumes it.
+        // Estimate token counts from text length as fallback.
+        const prompt_count = estimateTokenCount(prompt);
+        const generated_count = estimateTokenCount(response_text);
+
+        // Derive throughput from wall time since MLX chat API doesn't expose
+        // per-phase timing like Ollama's eval_duration_ns fields.
+        const decode_tok_s = if (elapsed_ms > 0)
+            @as(f64, @floatFromInt(generated_count)) / (elapsed_ms / 1000.0)
+        else
+            0.0;
+
+        sample.* = .{
+            .prompt_tokens = prompt_count,
+            .generated_tokens = generated_count,
+            .elapsed_ms = elapsed_ms,
+            .prefill_tok_s = 0.0, // Not available from chat completions API
             .decode_tok_s = decode_tok_s,
         };
     }
@@ -1662,6 +1819,8 @@ fn printHelp() void {
         "  --prompt <text>         Prompt text for runtime benchmark\n" ++
         "  --compare-ollama        Run Ollama benchmark and compare decode speed\n" ++
         "  --ollama-model <name>   Override Ollama model for compare run\n" ++
+        "  --compare-mlx           Run MLX benchmark and compare decode speed\n" ++
+        "  --mlx-model <name>      Override MLX model for compare run\n" ++
         "  --wdbx-out <path>       Append benchmark record to WDBX database\n\n" ++
         "Serve options:\n" ++
         "  -m, --model <path>      Path to GGUF model file (required for local inference)\n" ++
@@ -1677,6 +1836,7 @@ fn printHelp() void {
         "  abi llm generate ./model.gguf -p \"Code:\" --tfs 0.95 --top-k 50\n" ++
         "  abi llm generate ./gpt-oss-20b.gguf -p \"Hi\" --ollama-model gpt-oss\n" ++
         "  abi llm bench ./llama-7b.gguf --gen-tokens 128 --runs 5 --compare-ollama\n" ++
+        "  abi llm bench --compare-ollama --compare-mlx --runs 5 --gen-tokens 128\n" ++
         "  abi llm bench ./llama-7b.gguf --compare-ollama --runs 7 --wdbx-out ./bench.wdbx\n" ++
         "  abi llm serve -m ./llama-7b.gguf --preload\n" ++
         "  abi llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token secret\n" ++

@@ -234,22 +234,45 @@ pub const Client = struct {
 };
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const host = (try connectors.getFirstEnvOwned(allocator, &.{
+    const host_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_LM_STUDIO_HOST",
         "LM_STUDIO_HOST",
-    })) orelse try allocator.dupe(u8, "http://localhost:1234");
+    });
+    // Treat empty host as unset — fall through to default
+    const host = if (host_raw) |h| blk: {
+        if (h.len == 0) {
+            allocator.free(h);
+            break :blk try allocator.dupe(u8, "http://localhost:1234");
+        }
+        break :blk h;
+    } else try allocator.dupe(u8, "http://localhost:1234");
     errdefer allocator.free(host);
 
-    const api_key = try connectors.getFirstEnvOwned(allocator, &.{
+    const api_key_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_LM_STUDIO_API_KEY",
         "LM_STUDIO_API_KEY",
     });
+    // Treat empty API key as unset (optional field)
+    const api_key: ?[]u8 = if (api_key_raw) |k| blk: {
+        if (k.len == 0) {
+            shared.secureFree(allocator, k);
+            break :blk null;
+        }
+        break :blk k;
+    } else null;
     errdefer if (api_key) |k| shared.secureFree(allocator, k);
 
-    const model = (try connectors.getFirstEnvOwned(allocator, &.{
+    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_LM_STUDIO_MODEL",
         "LM_STUDIO_MODEL",
-    })) orelse try allocator.dupe(u8, "default");
+    });
+    const model = if (model_raw) |m| blk: {
+        if (m.len == 0) {
+            allocator.free(m);
+            break :blk try allocator.dupe(u8, "default");
+        }
+        break :blk m;
+    } else try allocator.dupe(u8, "default");
 
     return .{
         .host = host,

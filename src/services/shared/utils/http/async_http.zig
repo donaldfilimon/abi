@@ -10,6 +10,7 @@
 const std = @import("std");
 
 const http_mod = @import("mod.zig");
+const time_mod = @import("../../time.zig");
 
 pub const Method = http_mod.Method;
 
@@ -221,17 +222,54 @@ pub const HttpResponse = struct {
     }
 };
 
+/// Retry configuration for transient HTTP failures.
+pub const RetryOptions = struct {
+    /// Maximum number of retry attempts (0 = no retries).
+    max_retries: u32 = 3,
+    /// Base delay between retries in milliseconds.
+    base_delay_ms: u64 = 1000,
+    /// Maximum delay between retries in milliseconds.
+    max_delay_ms: u64 = 30_000,
+    /// Whether to retry on 429 (rate limit) responses.
+    retry_on_rate_limit: bool = true,
+    /// Whether to retry on 5xx (server error) responses.
+    retry_on_server_error: bool = true,
+    /// Whether to retry on connection/network errors.
+    retry_on_network_error: bool = true,
+
+    /// Default retry options for production connectors.
+    pub const DEFAULT = RetryOptions{};
+
+    /// No retries — for tests or single-shot requests.
+    pub const NONE = RetryOptions{ .max_retries = 0 };
+};
+
 pub const AsyncHttpClient = struct {
     allocator: std.mem.Allocator,
     io_backend: *std.Io.Threaded,
     client: *std.http.Client,
     redirect_count: u8 = 0,
 
+    /// Initialize with empty environ (safe default for library/test use).
+    /// NOTE: HTTPS to external hosts may fail TLS cert verification.
+    /// Use `initWithEnv()` for production connectors that need HTTPS.
     pub fn init(allocator: std.mem.Allocator) !AsyncHttpClient {
+        return initWithEnviron(allocator, std.process.Environ.empty);
+    }
+
+    /// Initialize with explicit environ for TLS cert discovery.
+    /// Use this when making HTTPS requests to external APIs.
+    /// Pass the process environ for full TLS/CA cert support.
+    pub fn initWithEnv(allocator: std.mem.Allocator, environ: std.process.Environ) !AsyncHttpClient {
+        return initWithEnviron(allocator, environ);
+    }
+
+    /// Initialize with explicit environ (allows caller full control).
+    fn initWithEnviron(allocator: std.mem.Allocator, environ: std.process.Environ) !AsyncHttpClient {
         // Create the I/O backend
         const io_backend = try allocator.create(std.Io.Threaded);
         errdefer allocator.destroy(io_backend);
-        io_backend.* = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        io_backend.* = std.Io.Threaded.init(allocator, .{ .environ = environ });
 
         // Create and initialize the HTTP client
         const client = try allocator.create(std.http.Client);
@@ -361,6 +399,78 @@ pub const AsyncHttpClient = struct {
         return try self.fetch(http_request);
     }
 
+    /// Fetch with automatic retry on transient failures.
+    /// Retries on 429, 5xx, and network errors with exponential backoff.
+    pub fn fetchWithRetry(
+        self: *AsyncHttpClient,
+        http_request: *HttpRequest,
+        options: RetryOptions,
+    ) !HttpResponse {
+        var last_err: ?anyerror = null;
+        var attempt: u32 = 0;
+
+        while (attempt <= options.max_retries) : (attempt += 1) {
+            if (attempt > 0) {
+                // Exponential backoff with jitter
+                const delay = calculateRetryDelay(attempt - 1, options.base_delay_ms, options.max_delay_ms);
+                time_mod.sleepMs(delay);
+            }
+
+            const response = self.fetch(http_request) catch |err| {
+                // Network/connection errors
+                if (options.retry_on_network_error and attempt < options.max_retries) {
+                    last_err = err;
+                    std.log.warn("HTTP request failed (attempt {d}/{d}): {t}", .{
+                        attempt + 1,
+                        options.max_retries + 1,
+                        err,
+                    });
+                    continue;
+                }
+                return err;
+            };
+
+            // Check if we should retry based on status code
+            if (response.status_code == 429 and options.retry_on_rate_limit and attempt < options.max_retries) {
+                std.log.warn("Rate limited (429), retrying (attempt {d}/{d})", .{
+                    attempt + 1,
+                    options.max_retries + 1,
+                });
+                // Must free response before retrying
+                var resp_mut = response;
+                resp_mut.deinit();
+                continue;
+            }
+
+            if (response.status_code >= 500 and options.retry_on_server_error and attempt < options.max_retries) {
+                std.log.warn("Server error ({d}), retrying (attempt {d}/{d})", .{
+                    response.status_code,
+                    attempt + 1,
+                    options.max_retries + 1,
+                });
+                var resp_mut = response;
+                resp_mut.deinit();
+                continue;
+            }
+
+            return response;
+        }
+
+        // All retries exhausted
+        if (last_err) |err| return err;
+        return HttpError.ConnectionFailed;
+    }
+
+    /// Fetch JSON with automatic retry on transient failures.
+    pub fn fetchJsonWithRetry(
+        self: *AsyncHttpClient,
+        http_request: *HttpRequest,
+        options: RetryOptions,
+    ) !HttpResponse {
+        try http_request.setHeader("Accept", "application/json");
+        return try self.fetchWithRetry(http_request, options);
+    }
+
     /// Async version of fetch - delegates to standard fetch in Zig 0.16
     pub fn fetchAsync(self: *AsyncHttpClient, http_request: *HttpRequest) !HttpResponse {
         return try self.fetch(http_request);
@@ -411,6 +521,26 @@ pub const AsyncHttpClient = struct {
         return try self.post(url, json);
     }
 };
+
+/// Calculate retry delay with exponential backoff and jitter.
+/// Jitter prevents thundering herd when multiple clients retry simultaneously.
+fn calculateRetryDelay(attempt: u32, base_ms: u64, max_ms: u64) u64 {
+    // Exponential: base_ms * 2^attempt, capped at max_ms
+    const multiplier = std.math.shl(u64, 1, @min(attempt, 10));
+    const delay = @min(base_ms * multiplier, max_ms);
+
+    // Add ±25% jitter using a simple hash of the attempt count
+    // (deterministic per attempt, but varies across retries)
+    const jitter_range = delay / 4;
+    if (jitter_range == 0) return delay;
+
+    // Simple jitter: alternate between adding and subtracting
+    if (attempt % 2 == 0) {
+        return delay + jitter_range / 2;
+    } else {
+        return delay -| jitter_range / 2; // saturating subtract
+    }
+}
 
 test "http request lifecycle" {
     const allocator = std.testing.allocator;
@@ -467,4 +597,34 @@ test "url validation rejects invalid urls" {
     try std.testing.expectError(HttpError.InvalidUrl, validateUrl(""));
     try std.testing.expectError(HttpError.InvalidUrl, validateUrl("ftp://example.com"));
     try std.testing.expectError(HttpError.InvalidUrl, validateUrl("javascript:alert(1)"));
+}
+
+test "retry options defaults" {
+    const defaults = RetryOptions.DEFAULT;
+    try std.testing.expectEqual(@as(u32, 3), defaults.max_retries);
+    try std.testing.expectEqual(@as(u64, 1000), defaults.base_delay_ms);
+    try std.testing.expect(defaults.retry_on_rate_limit);
+    try std.testing.expect(defaults.retry_on_server_error);
+    try std.testing.expect(defaults.retry_on_network_error);
+
+    const none = RetryOptions.NONE;
+    try std.testing.expectEqual(@as(u32, 0), none.max_retries);
+}
+
+test "calculateRetryDelay exponential backoff" {
+    // Attempt 0: ~1000ms (base)
+    const d0 = calculateRetryDelay(0, 1000, 60_000);
+    try std.testing.expect(d0 >= 750 and d0 <= 1500);
+
+    // Attempt 1: ~2000ms
+    const d1 = calculateRetryDelay(1, 1000, 60_000);
+    try std.testing.expect(d1 >= 1500 and d1 <= 2500);
+
+    // Attempt 2: ~4000ms
+    const d2 = calculateRetryDelay(2, 1000, 60_000);
+    try std.testing.expect(d2 >= 3000 and d2 <= 5000);
+
+    // High attempt: capped at max_ms (±jitter)
+    const d10 = calculateRetryDelay(10, 1000, 60_000);
+    try std.testing.expect(d10 <= 60_000 + 15_000);
 }

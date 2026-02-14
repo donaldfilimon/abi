@@ -9,8 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1220 pass, 5 skip (1225 total) — must be maintained |
-| **Feature tests** | 684 pass (684 total) — `zig build feature-tests` |
+| **Test baseline** | 1221 pass, 5 skip (1226 total) — must be maintained |
+| **Feature tests** | 718 pass (719 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 7 aliases |
 
 ## Build & Test Commands
@@ -184,7 +184,7 @@ src/features/<name>/     → mod.zig + stub.zig per feature (15 core + 4 AI spli
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
 src/services/mcp/        → MCP server (JSON-RPC 2.0 over stdio, WDBX tools)
 src/services/acp/        → ACP server (agent communication protocol)
-src/services/connectors/ → LLM provider connectors (8 providers + discord + scheduler)
+src/services/connectors/ → LLM provider connectors (9 providers + discord + scheduler)
 tools/cli/               → Primary CLI entry point and command registration (28 commands)
 src/api/                 → Additional executable entry points (e.g., `main.zig`)
 ```
@@ -261,7 +261,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 ## Connectors
 
 `src/services/connectors/` provides LLM provider integrations accessed via `abi.connectors`:
-- 8 LLM providers: `openai`, `anthropic`, `ollama`, `huggingface`, `mistral`, `cohere`, `lm_studio`, `vllm`
+- 9 LLM providers: `openai`, `anthropic`, `ollama`, `huggingface`, `mistral`, `cohere`, `lm_studio`, `vllm`, `mlx`
 - Discord REST client: `abi.connectors.discord`
 - Job scheduler: `abi.connectors.local_scheduler`
 - Local servers (LM Studio, vLLM) use OpenAI-compatible `/v1/chat/completions` endpoint
@@ -317,6 +317,9 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | `ABI_VLLM_HOST` | vLLM host (default: `http://localhost:8000`) |
 | `ABI_VLLM_MODEL` | Default vLLM model |
 | `ABI_VLLM_API_KEY` | vLLM API key (optional) |
+| `ABI_MLX_HOST` | MLX host (default: `http://localhost:8080`) |
+| `ABI_MLX_MODEL` | Default MLX model |
+| `ABI_MLX_API_KEY` | MLX API key (optional) |
 
 ## Coding Style
 
@@ -337,8 +340,8 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Main tests**: 1220 pass, 5 skip (1225 total) — `zig build test --summary all`
-**Feature tests**: 684 pass (684 total) — `zig build feature-tests --summary all`
+**Main tests**: 1221 pass, 5 skip (1226 total) — `zig build test --summary all`
+**Feature tests**: 718 pass (719 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -361,7 +364,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 684+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 718+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |

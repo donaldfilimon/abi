@@ -714,8 +714,8 @@ pub fn kill(pid: Pid, sig: Signal) !void {
     }
 
     // POSIX (macOS, Linux, BSD, etc.)
-    const native_sig = sig.toNative();
-    const ret = std.c.kill(@intCast(pid), native_sig);
+    const native_sig: std.c.SIG = @enumFromInt(sig.toNative());
+    const ret = std.c.kill(pid, native_sig);
     if (ret != 0) {
         return error.OperationFailed;
     }

@@ -10,6 +10,7 @@
 //! - **Cohere**: Chat, embeddings, and reranking
 //! - **LM Studio**: Local LLM inference with OpenAI-compatible API
 //! - **vLLM**: High-throughput local LLM serving with OpenAI-compatible API
+//! - **MLX**: Apple Silicon-optimized inference via mlx-lm server
 //! - **Discord**: Bot integration for Discord
 //!
 //! ## Usage
@@ -44,6 +45,8 @@ pub const mistral = @import("mistral.zig");
 pub const cohere = @import("cohere.zig");
 pub const lm_studio = @import("lm_studio.zig");
 pub const vllm = @import("vllm.zig");
+pub const mlx = @import("mlx.zig");
+pub const shared = @import("shared.zig");
 
 var initialized: bool = false;
 
@@ -141,6 +144,10 @@ pub fn loadOllama(allocator: std.mem.Allocator) !ollama.Config {
     return ollama.loadFromEnv(allocator);
 }
 
+pub fn tryLoadOllama(allocator: std.mem.Allocator) !?ollama.Config {
+    return ollama.loadFromEnv(allocator) catch null;
+}
+
 pub fn loadLocalScheduler(allocator: std.mem.Allocator) !local_scheduler.Config {
     return local_scheduler.loadFromEnv(allocator);
 }
@@ -203,6 +210,14 @@ pub fn loadVLLM(allocator: std.mem.Allocator) !vllm.Config {
 
 pub fn tryLoadVLLM(allocator: std.mem.Allocator) !?vllm.Config {
     return vllm.loadFromEnv(allocator) catch null;
+}
+
+pub fn loadMLX(allocator: std.mem.Allocator) !mlx.Config {
+    return mlx.loadFromEnv(allocator);
+}
+
+pub fn tryLoadMLX(allocator: std.mem.Allocator) !?mlx.Config {
+    return mlx.loadFromEnv(allocator) catch null;
 }
 
 test "connectors init toggles state" {

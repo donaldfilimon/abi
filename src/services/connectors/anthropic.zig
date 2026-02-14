@@ -283,10 +283,16 @@ pub const Client = struct {
 };
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const api_key = (try connectors.getFirstEnvOwned(allocator, &.{
+    const api_key_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_ANTHROPIC_API_KEY",
         "ANTHROPIC_API_KEY",
-    })) orelse return AnthropicError.MissingApiKey;
+    });
+    const api_key = api_key_raw orelse return AnthropicError.MissingApiKey;
+    // Treat empty string as missing (e.g., ANTHROPIC_API_KEY="")
+    if (api_key.len == 0) {
+        allocator.free(api_key);
+        return AnthropicError.MissingApiKey;
+    }
     errdefer allocator.free(api_key);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
@@ -295,10 +301,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     })) orelse try allocator.dupe(u8, "https://api.anthropic.com/v1");
     errdefer allocator.free(base_url);
 
-    const model = (try connectors.getFirstEnvOwned(allocator, &.{
+    const model_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_ANTHROPIC_MODEL",
         "ANTHROPIC_MODEL",
-    })) orelse try allocator.dupe(u8, "claude-3-5-sonnet-20241022");
+    });
+    // Treat empty model as unset — fall through to default
+    const model = if (model_raw) |m| blk: {
+        if (m.len == 0) {
+            allocator.free(m);
+            break :blk try allocator.dupe(u8, "claude-3-5-sonnet-20241022");
+        }
+        break :blk m;
+    } else try allocator.dupe(u8, "claude-3-5-sonnet-20241022");
 
     return .{
         .api_key = api_key,

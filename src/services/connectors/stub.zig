@@ -76,11 +76,13 @@ pub const openai = struct {
         api_key: []u8,
         base_url: []u8,
         model: []const u8 = "gpt-4",
+        model_owned: bool = false,
         timeout_ms: u32 = 60_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
             allocator.free(self.api_key);
             allocator.free(self.base_url);
+            if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
     };
@@ -168,6 +170,10 @@ pub const openai = struct {
     pub fn createClient(_: std.mem.Allocator) !Client {
         return Error.ConnectorsDisabled;
     }
+
+    pub fn isAvailable() bool {
+        return false;
+    }
 };
 
 // ============================================================================
@@ -187,11 +193,13 @@ pub const huggingface = struct {
         api_token: []u8,
         base_url: []u8,
         model: []const u8 = "gpt2",
+        model_owned: bool = false,
         timeout_ms: u32 = 60_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
             allocator.free(self.api_token);
             allocator.free(self.base_url);
+            if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
     };
@@ -246,6 +254,10 @@ pub const huggingface = struct {
 
     pub fn createClient(_: std.mem.Allocator) !Client {
         return Error.ConnectorsDisabled;
+    }
+
+    pub fn isAvailable() bool {
+        return false;
     }
 };
 
@@ -344,6 +356,10 @@ pub const ollama = struct {
     pub fn createClient(_: std.mem.Allocator) !Client {
         return Error.ConnectorsDisabled;
     }
+
+    pub fn isAvailable() bool {
+        return false;
+    }
 };
 
 // ============================================================================
@@ -363,12 +379,14 @@ pub const anthropic = struct {
         api_key: []u8,
         base_url: []u8,
         model: []const u8 = "claude-3-5-sonnet-20241022",
+        model_owned: bool = false,
         max_tokens: u32 = 4096,
         timeout_ms: u32 = 120_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
             allocator.free(self.api_key);
             allocator.free(self.base_url);
+            if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
     };
@@ -467,6 +485,10 @@ pub const anthropic = struct {
     pub fn createClient(_: std.mem.Allocator) !Client {
         return Error.ConnectorsDisabled;
     }
+
+    pub fn isAvailable() bool {
+        return false;
+    }
 };
 
 // ============================================================================
@@ -485,11 +507,13 @@ pub const mistral = struct {
         api_key: []u8,
         base_url: []u8,
         model: []const u8 = "mistral-large-latest",
+        model_owned: bool = false,
         timeout_ms: u32 = 60_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
             allocator.free(self.api_key);
             allocator.free(self.base_url);
+            if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
     };
@@ -596,6 +620,10 @@ pub const mistral = struct {
     pub fn createClient(_: std.mem.Allocator) !Client {
         return Error.ConnectorsDisabled;
     }
+
+    pub fn isAvailable() bool {
+        return false;
+    }
 };
 
 // ============================================================================
@@ -614,11 +642,13 @@ pub const cohere = struct {
         api_key: []u8,
         base_url: []u8,
         model: []const u8 = "command-r-plus",
+        model_owned: bool = false,
         timeout_ms: u32 = 60_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
             allocator.free(self.api_key);
             allocator.free(self.base_url);
+            if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
     };
@@ -783,6 +813,296 @@ pub const cohere = struct {
     pub fn createClient(_: std.mem.Allocator) !Client {
         return Error.ConnectorsDisabled;
     }
+
+    pub fn isAvailable() bool {
+        return false;
+    }
+};
+
+// ============================================================================
+// LM Studio Connector Stub
+// ============================================================================
+
+pub const lm_studio = struct {
+    pub const LMStudioError = error{
+        ApiRequestFailed,
+        InvalidResponse,
+        RateLimitExceeded,
+    };
+
+    pub const Config = struct {
+        host: []u8,
+        api_key: ?[]u8 = null,
+        model: []const u8 = "default",
+        model_owned: bool = false,
+        timeout_ms: u32 = 120_000,
+
+        pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
+            allocator.free(self.host);
+            if (self.api_key) |key| allocator.free(key);
+            if (self.model_owned) allocator.free(@constCast(self.model));
+            self.* = undefined;
+        }
+    };
+
+    pub const Message = struct {
+        role: []const u8,
+        content: []const u8,
+    };
+
+    pub const ChatCompletionRequest = struct {
+        model: []const u8,
+        messages: []const Message,
+        temperature: f32 = 0.7,
+        max_tokens: ?u32 = null,
+        top_p: f32 = 1.0,
+        stream: bool = false,
+    };
+
+    pub const ChatCompletionResponse = struct {
+        id: []const u8,
+        model: []const u8,
+        choices: []Choice,
+        usage: Usage,
+    };
+
+    pub const Choice = struct {
+        index: u32,
+        message: Message,
+        finish_reason: []const u8,
+    };
+
+    pub const Usage = struct {
+        prompt_tokens: u32,
+        completion_tokens: u32,
+        total_tokens: u32,
+    };
+
+    pub const Client = struct {
+        allocator: std.mem.Allocator,
+
+        pub fn init(_: std.mem.Allocator, _: Config) !Client {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn deinit(_: *Client) void {}
+
+        pub fn chatCompletion(_: *Client, _: ChatCompletionRequest) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn chat(_: *Client, _: []const Message) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn chatSimple(_: *Client, _: []const u8) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+    };
+
+    pub fn loadFromEnv(_: std.mem.Allocator) !Config {
+        return Error.ConnectorsDisabled;
+    }
+
+    pub fn createClient(_: std.mem.Allocator) !Client {
+        return Error.ConnectorsDisabled;
+    }
+
+    pub fn isAvailable() bool {
+        return false;
+    }
+};
+
+// ============================================================================
+// vLLM Connector Stub
+// ============================================================================
+
+pub const vllm = struct {
+    pub const VLLMError = error{
+        ApiRequestFailed,
+        InvalidResponse,
+        RateLimitExceeded,
+    };
+
+    pub const Config = struct {
+        host: []u8,
+        api_key: ?[]u8 = null,
+        model: []const u8 = "default",
+        model_owned: bool = false,
+        timeout_ms: u32 = 120_000,
+
+        pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
+            allocator.free(self.host);
+            if (self.api_key) |key| allocator.free(key);
+            if (self.model_owned) allocator.free(@constCast(self.model));
+            self.* = undefined;
+        }
+    };
+
+    pub const Message = struct {
+        role: []const u8,
+        content: []const u8,
+    };
+
+    pub const ChatCompletionRequest = struct {
+        model: []const u8,
+        messages: []const Message,
+        temperature: f32 = 0.7,
+        max_tokens: ?u32 = null,
+        top_p: f32 = 1.0,
+        stream: bool = false,
+    };
+
+    pub const ChatCompletionResponse = struct {
+        id: []const u8,
+        model: []const u8,
+        choices: []Choice,
+        usage: Usage,
+    };
+
+    pub const Choice = struct {
+        index: u32,
+        message: Message,
+        finish_reason: []const u8,
+    };
+
+    pub const Usage = struct {
+        prompt_tokens: u32,
+        completion_tokens: u32,
+        total_tokens: u32,
+    };
+
+    pub const Client = struct {
+        allocator: std.mem.Allocator,
+
+        pub fn init(_: std.mem.Allocator, _: Config) !Client {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn deinit(_: *Client) void {}
+
+        pub fn chatCompletion(_: *Client, _: ChatCompletionRequest) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn chat(_: *Client, _: []const Message) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn chatSimple(_: *Client, _: []const u8) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+    };
+
+    pub fn loadFromEnv(_: std.mem.Allocator) !Config {
+        return Error.ConnectorsDisabled;
+    }
+
+    pub fn createClient(_: std.mem.Allocator) !Client {
+        return Error.ConnectorsDisabled;
+    }
+
+    pub fn isAvailable() bool {
+        return false;
+    }
+};
+
+// ============================================================================
+// MLX Connector Stub
+// ============================================================================
+
+pub const mlx = struct {
+    pub const MLXError = error{
+        ApiRequestFailed,
+        InvalidResponse,
+        RateLimitExceeded,
+    };
+
+    pub const Config = struct {
+        host: []u8,
+        api_key: ?[]u8 = null,
+        model: []const u8 = "default",
+        model_owned: bool = false,
+        timeout_ms: u32 = 120_000,
+
+        pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
+            allocator.free(self.host);
+            if (self.api_key) |key| allocator.free(key);
+            if (self.model_owned) allocator.free(@constCast(self.model));
+            self.* = undefined;
+        }
+    };
+
+    pub const Message = struct {
+        role: []const u8,
+        content: []const u8,
+    };
+
+    pub const ChatCompletionRequest = struct {
+        model: []const u8,
+        messages: []const Message,
+        temperature: f32 = 0.7,
+        max_tokens: ?u32 = null,
+        top_p: f32 = 1.0,
+        stream: bool = false,
+    };
+
+    pub const ChatCompletionResponse = struct {
+        id: []const u8,
+        model: []const u8,
+        choices: []Choice,
+        usage: Usage,
+    };
+
+    pub const Choice = struct {
+        index: u32,
+        message: Message,
+        finish_reason: []const u8,
+    };
+
+    pub const Usage = struct {
+        prompt_tokens: u32,
+        completion_tokens: u32,
+        total_tokens: u32,
+    };
+
+    pub const Client = struct {
+        allocator: std.mem.Allocator,
+
+        pub fn init(_: std.mem.Allocator, _: Config) !Client {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn deinit(_: *Client) void {}
+
+        pub fn chatCompletion(_: *Client, _: ChatCompletionRequest) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn chat(_: *Client, _: []const Message) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn chatSimple(_: *Client, _: []const u8) !ChatCompletionResponse {
+            return Error.ConnectorsDisabled;
+        }
+
+        pub fn generate(_: *Client, _: []const u8, _: ?u32) ![]u8 {
+            return Error.ConnectorsDisabled;
+        }
+    };
+
+    pub fn loadFromEnv(_: std.mem.Allocator) !Config {
+        return Error.ConnectorsDisabled;
+    }
+
+    pub fn createClient(_: std.mem.Allocator) !Client {
+        return Error.ConnectorsDisabled;
+    }
+
+    pub fn isAvailable() bool {
+        return false;
+    }
 };
 
 // ============================================================================
@@ -942,6 +1262,10 @@ pub fn loadOllama(_: std.mem.Allocator) !ollama.Config {
     return Error.ConnectorsDisabled;
 }
 
+pub fn tryLoadOllama(_: std.mem.Allocator) !?ollama.Config {
+    return null;
+}
+
 pub fn loadLocalScheduler(_: std.mem.Allocator) !local_scheduler.Config {
     return Error.ConnectorsDisabled;
 }
@@ -978,6 +1302,30 @@ pub fn tryLoadCohere(_: std.mem.Allocator) !?cohere.Config {
     return null;
 }
 
+pub fn loadLMStudio(_: std.mem.Allocator) !lm_studio.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadLMStudio(_: std.mem.Allocator) !?lm_studio.Config {
+    return null;
+}
+
+pub fn loadVLLM(_: std.mem.Allocator) !vllm.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadVLLM(_: std.mem.Allocator) !?vllm.Config {
+    return null;
+}
+
+pub fn loadMLX(_: std.mem.Allocator) !mlx.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadMLX(_: std.mem.Allocator) !?mlx.Config {
+    return null;
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -994,10 +1342,34 @@ test "connectors stub init returns error" {
 test "connectors stub loaders return disabled or null" {
     try std.testing.expectError(Error.ConnectorsDisabled, loadOpenAI(std.testing.allocator));
     try std.testing.expectError(Error.ConnectorsDisabled, loadAnthropic(std.testing.allocator));
+    try std.testing.expectError(Error.ConnectorsDisabled, loadLMStudio(std.testing.allocator));
+    try std.testing.expectError(Error.ConnectorsDisabled, loadVLLM(std.testing.allocator));
+    try std.testing.expectError(Error.ConnectorsDisabled, loadMLX(std.testing.allocator));
 
     const openai_opt = try tryLoadOpenAI(std.testing.allocator);
     try std.testing.expectEqual(@as(?openai.Config, null), openai_opt);
 
     const anthropic_opt = try tryLoadAnthropic(std.testing.allocator);
     try std.testing.expectEqual(@as(?anthropic.Config, null), anthropic_opt);
+
+    const lm_studio_opt = try tryLoadLMStudio(std.testing.allocator);
+    try std.testing.expectEqual(@as(?lm_studio.Config, null), lm_studio_opt);
+
+    const vllm_opt = try tryLoadVLLM(std.testing.allocator);
+    try std.testing.expectEqual(@as(?vllm.Config, null), vllm_opt);
+
+    const mlx_opt = try tryLoadMLX(std.testing.allocator);
+    try std.testing.expectEqual(@as(?mlx.Config, null), mlx_opt);
+}
+
+test "connectors stub isAvailable returns false" {
+    try std.testing.expect(!openai.isAvailable());
+    try std.testing.expect(!huggingface.isAvailable());
+    try std.testing.expect(!ollama.isAvailable());
+    try std.testing.expect(!anthropic.isAvailable());
+    try std.testing.expect(!mistral.isAvailable());
+    try std.testing.expect(!cohere.isAvailable());
+    try std.testing.expect(!lm_studio.isAvailable());
+    try std.testing.expect(!vllm.isAvailable());
+    try std.testing.expect(!mlx.isAvailable());
 }
