@@ -713,9 +713,10 @@ pub fn kill(pid: Pid, sig: Signal) !void {
         return error.Unsupported;
     }
 
-    // POSIX
-    const result = linux.kill(pid, sig.toNative());
-    if (result != 0) {
+    // POSIX (macOS, Linux, BSD, etc.)
+    const native_sig = sig.toNative();
+    const ret = std.c.kill(@intCast(pid), native_sig);
+    if (ret != 0) {
         return error.OperationFailed;
     }
 }

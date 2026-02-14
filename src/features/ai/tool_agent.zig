@@ -437,13 +437,10 @@ pub fn parseToolCalls(response: []const u8, allocator: std.mem.Allocator) !std.A
         const args_val = obj.get("args");
         var args_json: []u8 = undefined;
         if (args_val) |av| {
-            var args_buf = std.ArrayListUnmanaged(u8){};
-            errdefer args_buf.deinit(allocator);
-            json.stringify(av, .{}, args_buf.writer(allocator)) catch {
+            args_json = json.Stringify.valueAlloc(allocator, av, .{}) catch {
                 pos = end + close_tag.len;
                 continue;
             };
-            args_json = try args_buf.toOwnedSlice(allocator);
         } else {
             args_json = try allocator.dupe(u8, "{}");
         }

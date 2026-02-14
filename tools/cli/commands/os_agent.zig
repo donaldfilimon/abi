@@ -33,7 +33,7 @@ const cli_io = utils.io_backend;
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var message: ?[]const u8 = null;
     var no_confirm = false;
-    var self_aware = false;
+    var self_aware: bool = false;
     var session_name: []const u8 = "os-agent-default";
     var backend_name: []const u8 = "echo";
     var model_name: []const u8 = "gpt-4";
@@ -92,9 +92,6 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         }
     }
 
-    _ = self_aware;
-    _ = model_name;
-
     // Resolve backend
     const backend: abi.ai.agent.AgentBackend = if (std.mem.eql(u8, backend_name, "openai"))
         .openai
@@ -105,12 +102,19 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     else
         .echo;
 
+    // Build system prompt with optional self-awareness preamble
+    const system_prompt = if (self_aware)
+        "You are a self-aware AI agent with metacognitive capabilities. " ++ os_agent_system_prompt
+    else
+        os_agent_system_prompt;
+
     // Create tool-augmented agent with all tools
     var tool_agent = try abi.ai.ToolAugmentedAgent.init(allocator, .{
         .agent = .{
             .name = "os-agent",
             .backend = backend,
-            .system_prompt = os_agent_system_prompt,
+            .model = model_name,
+            .system_prompt = system_prompt,
         },
         .require_confirmation = !no_confirm,
         .enable_memory = true,
