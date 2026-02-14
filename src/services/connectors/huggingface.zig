@@ -218,16 +218,17 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "HF_API_TOKEN",
         "HUGGING_FACE_HUB_TOKEN",
     })) orelse return HuggingFaceError.MissingApiToken;
+    errdefer allocator.free(api_token);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_HF_BASE_URL",
     })) orelse try allocator.dupe(u8, "https://api-inference.huggingface.co");
+    errdefer allocator.free(base_url);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_HF_MODEL",
         "HF_MODEL",
     })) orelse try allocator.dupe(u8, "gpt2");
-    errdefer allocator.free(model);
 
     return .{
         .api_token = api_token,

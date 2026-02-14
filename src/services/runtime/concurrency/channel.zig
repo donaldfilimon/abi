@@ -86,7 +86,9 @@ pub fn Channel(comptime T: type) type {
         }
 
         fn diffSeq(seq: usize, pos: usize) isize {
-            return @as(isize, @intCast(seq)) - @as(isize, @intCast(pos));
+            // Wrapping subtraction is correct for lock-free sequence tracking:
+            // avoids @intCast panic if values exceed isize range.
+            return @bitCast(seq -% pos);
         }
 
         // ── Send ────────────────────────────────────────────────────

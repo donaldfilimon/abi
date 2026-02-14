@@ -553,17 +553,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "COHERE_API_KEY",
         "CO_API_KEY",
     })) orelse return CohereError.MissingApiKey;
+    errdefer allocator.free(api_key);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_COHERE_BASE_URL",
         "COHERE_BASE_URL",
     })) orelse try allocator.dupe(u8, "https://api.cohere.ai/v1");
+    errdefer allocator.free(base_url);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_COHERE_MODEL",
         "COHERE_MODEL",
     })) orelse try allocator.dupe(u8, "command-r-plus");
-    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,

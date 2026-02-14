@@ -286,12 +286,12 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_OLLAMA_HOST",
         "OLLAMA_HOST",
     })) orelse try allocator.dupe(u8, "http://127.0.0.1:11434");
+    errdefer allocator.free(host);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_OLLAMA_MODEL",
         "OLLAMA_MODEL",
     })) orelse try allocator.dupe(u8, "gpt-oss");
-    errdefer allocator.free(model);
 
     return .{
         .host = host,

@@ -228,7 +228,7 @@ pub const Config = struct {
             .storage => self.storage != null,
             .search => self.search != null,
             .mobile => self.mobile != null,
-            .reasoning => self.ai != null,
+            .reasoning => self.ai != null and build_options.enable_reasoning,
         };
     }
 

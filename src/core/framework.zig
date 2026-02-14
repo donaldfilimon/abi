@@ -374,31 +374,45 @@ pub const Framework = struct {
             }
         }
 
-        // Initialize split AI modules (use shared AI config)
+        // Initialize split AI modules (use shared AI config).
+        // Non-fatal: log a warning if init fails so users know why the
+        // feature is unavailable, but allow the framework to continue.
         if (cfg.ai) |ai_cfg| {
             if (comptime build_options.enable_ai) {
                 fw.ai_core = ai_core_mod.Context.init(
                     allocator,
                     ai_cfg,
-                ) catch null;
+                ) catch |err| blk: {
+                    std.log.warn("ai_core init failed: {t}", .{err});
+                    break :blk null;
+                };
             }
             if (comptime build_options.enable_llm) {
                 fw.ai_inference = ai_inference_mod.Context.init(
                     allocator,
                     ai_cfg,
-                ) catch null;
+                ) catch |err| blk: {
+                    std.log.warn("ai_inference init failed: {t}", .{err});
+                    break :blk null;
+                };
             }
             if (comptime build_options.enable_training) {
                 fw.ai_training = ai_training_mod.Context.init(
                     allocator,
                     ai_cfg,
-                ) catch null;
+                ) catch |err| blk: {
+                    std.log.warn("ai_training init failed: {t}", .{err});
+                    break :blk null;
+                };
             }
             if (comptime build_options.enable_reasoning) {
                 fw.ai_reasoning = ai_reasoning_mod.Context.init(
                     allocator,
                     ai_cfg,
-                ) catch null;
+                ) catch |err| blk: {
+                    std.log.warn("ai_reasoning init failed: {t}", .{err});
+                    break :blk null;
+                };
             }
         }
 
@@ -538,7 +552,12 @@ pub const Framework = struct {
 
     fn deinitFeatures(self: *Framework) void {
         // Deinitialize in reverse order of initialization.
-        // Split AI modules first (initialized last)
+        // HA manager first (initialized last, after AI modules)
+        if (self.ha) |*ha| {
+            ha.deinit();
+            self.ha = null;
+        }
+        // Split AI modules (initialized second-to-last)
         deinitOptionalContext(ai_reasoning_mod.Context, &self.ai_reasoning);
         deinitOptionalContext(ai_training_mod.Context, &self.ai_training);
         deinitOptionalContext(ai_inference_mod.Context, &self.ai_inference);

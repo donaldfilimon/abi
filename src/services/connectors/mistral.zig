@@ -392,17 +392,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
         "ABI_MISTRAL_API_KEY",
         "MISTRAL_API_KEY",
     })) orelse return MistralError.MissingApiKey;
+    errdefer allocator.free(api_key);
 
     const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_MISTRAL_BASE_URL",
         "MISTRAL_BASE_URL",
     })) orelse try allocator.dupe(u8, "https://api.mistral.ai/v1");
+    errdefer allocator.free(base_url);
 
     const model = (try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_MISTRAL_MODEL",
         "MISTRAL_MODEL",
     })) orelse try allocator.dupe(u8, "mistral-large-latest");
-    errdefer allocator.free(model);
 
     return .{
         .api_key = api_key,
