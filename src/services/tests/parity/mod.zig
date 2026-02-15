@@ -1163,6 +1163,46 @@ test "pages module bidirectional parity audit" {
 }
 
 // ============================================================================
+// Benchmarks Module Parity
+// ============================================================================
+
+/// Benchmarks module required declarations.
+const benchmarks_required = [_][]const u8{
+    "Config",
+    "BenchmarksError",
+    "Context",
+    "isEnabled",
+};
+
+/// Benchmarks module specs.
+const benchmarks_specs = [_]DeclSpec{
+    .{ .name = "Config", .kind = .type_decl },
+    .{ .name = "BenchmarksError", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "isEnabled", .kind = .function },
+};
+
+test "benchmarks module has required declarations" {
+    comptime verifyDeclarations(abi.benchmarks, &benchmarks_required);
+}
+
+test "benchmarks module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.benchmarks, &benchmarks_specs);
+    try std.testing.expectEqual(
+        @as(usize, 0),
+        comptime countSpecViolations(abi.benchmarks, &benchmarks_specs),
+    );
+}
+
+test "benchmarks module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.benchmarks, &benchmarks_required);
+    if (orphans.len > 0) {
+        std.log.info("Benchmarks module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+// ============================================================================
 // GPU Module Parity Tests
 // ============================================================================
 
@@ -1505,6 +1545,9 @@ test "all feature modules follow Context pattern" {
         abi.inference,
         abi.training,
         abi.reasoning,
+        abi.mobile,
+        abi.pages,
+        abi.benchmarks,
     };
 
     inline for (modules) |mod| {

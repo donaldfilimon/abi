@@ -238,6 +238,7 @@ pub const Client = struct {
         errdefer self.allocator.free(model);
 
         const stop_reason = json_utils.parseOptionalStringField(object, "stop_reason", self.allocator) catch null;
+        errdefer if (stop_reason) |sr| self.allocator.free(sr);
 
         const content_array = try json_utils.parseArrayField(object, "content");
         var content_blocks = try self.allocator.alloc(ContentBlock, content_array.items.len);

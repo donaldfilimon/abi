@@ -527,6 +527,7 @@ pub const Client = struct {
             const relevance_score: f32 = @floatCast(try json_utils.parseFloatField(result_obj, "relevance_score"));
 
             const document = json_utils.parseOptionalStringField(result_obj, "document", self.allocator) catch null;
+            errdefer if (document) |d| self.allocator.free(d);
 
             results[i] = .{
                 .index = index,
