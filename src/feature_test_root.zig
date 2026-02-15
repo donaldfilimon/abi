@@ -103,4 +103,17 @@ test {
     _ = @import("services/connectors/mod.zig");
     _ = @import("services/connectors/discord/utils.zig");
     _ = @import("services/connectors/discord/rest_encoders.zig");
+
+    // HA (high availability) sub-modules
+    _ = @import("services/ha/mod.zig");
+    _ = @import("services/ha/replication.zig");
+    _ = @import("services/ha/backup.zig");
+    _ = @import("services/ha/pitr.zig");
+
+    // Platform detection
+    _ = @import("services/platform/mod.zig");
+
+    // Additional shared utilities
+    _ = @import("services/shared/utils/benchmark.zig");
+    _ = @import("services/shared/time.zig");
 }
