@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
 | **Test baseline** | 1222 pass, 5 skip (1227 total) — must be maintained |
-| **Feature tests** | 762 pass (762 total) — `zig build feature-tests` |
+| **Feature tests** | 770 pass (770 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 7 aliases |
 
 ## Build & Test Commands
@@ -120,6 +120,8 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 | `comptime { _ = @import(...); }` for tests | Doesn't discover tests — use `test { _ = @import(...); }` blocks |
 | Importing `mod.zig` in `feature_test_root.zig` | If mod.zig re-exports sub-modules with compile errors, all errors surface. Create standalone `*_test.zig` alongside mod.zig instead |
 | `catch {}` in library code | Never silently swallow errors — use `catch \|err\| { std.log.warn(...); }` or propagate |
+| `&.{ "a", "b" }` in non-inline for | Produces a tuple, not a slice — use `[_][]const u8{ "a", "b" }` for runtime iteration |
+| `.Pointer` / `.Slice` in `@typeInfo` | Zig 0.16 uses lowercase: `.pointer`, `.slice`, `.array`, `.int` |
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -211,6 +213,7 @@ imports.
 | Vyukov channel | `src/services/runtime/concurrency/channel.zig` | `abi.runtime.Channel` |
 | Work-stealing thread pool | `src/services/runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
 | DAG pipeline scheduler | `src/services/runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
+| Shared radix tree | `src/services/shared/utils/radix_tree.zig` | Used by gateway + pages for URL routing |
 
 When updating any entry above, verify import-chain stability:
 `src/abi.zig` -> `src/services/{shared,runtime}/mod.zig` -> sub-module.
@@ -286,7 +289,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Security infrastructure | `src/services/shared/security/` (16 modules) |
 | C API bindings | `bindings/c/src/abi_c.zig` (36 exports) |
 | Generate API docs | `zig build gendocs` → `docs/api/` |
-| Examples | `examples/` (28 examples) |
+| Examples | `examples/` (32 examples) |
 | MCP service | `src/services/mcp/` (JSON-RPC 2.0 server for WDBX) |
 | ACP service | `src/services/acp/` (agent communication protocol) |
 
@@ -344,7 +347,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 ## Testing Patterns
 
 **Main tests**: 1222 pass, 5 skip (1227 total) — `zig build test --summary all`
-**Feature tests**: 762 pass (762 total) — `zig build feature-tests --summary all`
+**Feature tests**: 770 pass (770 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -368,7 +371,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 762+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 770+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |
