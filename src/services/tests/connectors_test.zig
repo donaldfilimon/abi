@@ -151,6 +151,7 @@ test "json parse string field" {
 
     const object = try abi.shared.utils.json.getRequiredObject(parsed.value);
     const name = try abi.shared.utils.json.parseStringField(object, "name", allocator);
+    defer allocator.free(name);
     try std.testing.expectEqualStrings("test", name);
 
     const value = try abi.shared.utils.json.parseIntField(object, "value");
@@ -167,9 +168,11 @@ test "json parse optional fields" {
     const object = try abi.shared.utils.json.getRequiredObject(parsed.value);
 
     const required = try abi.shared.utils.json.parseStringField(object, "required", allocator);
+    defer allocator.free(required);
     try std.testing.expectEqualStrings("present", required);
 
     const missing = abi.shared.utils.json.parseOptionalStringField(object, "missing", allocator) catch null;
+    if (missing) |m| allocator.free(m);
     try std.testing.expect(missing == null);
 }
 

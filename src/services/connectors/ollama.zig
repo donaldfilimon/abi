@@ -240,10 +240,13 @@ pub const Client = struct {
         const object = try json_utils.getRequiredObject(parsed.value);
 
         const model = try json_utils.parseStringField(object, "model", self.allocator);
+        errdefer self.allocator.free(model);
         const response = try json_utils.parseStringField(object, "response", self.allocator);
+        errdefer self.allocator.free(response);
         const done = try json_utils.parseBoolField(object, "done");
 
         var context: ?[]u64 = null;
+        errdefer if (context) |ctx| self.allocator.free(ctx);
         if (object.get("context")) |context_val| {
             if (context_val == .array) {
                 context = try self.allocator.alloc(u64, context_val.array.items.len);
@@ -280,9 +283,12 @@ pub const Client = struct {
         const object = try json_utils.getRequiredObject(parsed.value);
 
         const model = try json_utils.parseStringField(object, "model", self.allocator);
+        errdefer self.allocator.free(model);
         const message_obj = try json_utils.parseObjectField(object, "message");
         const role = try json_utils.parseStringField(message_obj, "role", self.allocator);
+        errdefer self.allocator.free(role);
         const content = try json_utils.parseStringField(message_obj, "content", self.allocator);
+        errdefer self.allocator.free(content);
         const done = try json_utils.parseBoolField(object, "done");
 
         return ChatResponse{
@@ -364,4 +370,194 @@ test "ollama endpoint join" {
 test "isAvailable returns bool" {
     // Just verify it returns without crashing - actual availability depends on env
     _ = isAvailable();
+}
+
+test "ollama config lifecycle" {
+    const allocator = std.testing.allocator;
+    var config = Config{
+        .host = try allocator.dupe(u8, "http://myhost:11434"),
+        .model = try allocator.dupe(u8, "llama3"),
+        .model_owned = true,
+        .timeout_ms = 60_000,
+    };
+    defer config.deinit(allocator);
+    try std.testing.expectEqualStrings("http://myhost:11434", config.host);
+    try std.testing.expectEqualStrings("llama3", config.model);
+    try std.testing.expect(config.model_owned);
+    try std.testing.expectEqual(@as(u32, 60_000), config.timeout_ms);
+}
+
+test "ollama config defaults" {
+    const allocator = std.testing.allocator;
+    var config = Config{
+        .host = try allocator.dupe(u8, "http://localhost:11434"),
+    };
+    defer config.deinit(allocator);
+    // Default model should be gpt-oss, not owned
+    try std.testing.expectEqualStrings("gpt-oss", config.model);
+    try std.testing.expect(!config.model_owned);
+    try std.testing.expectEqual(@as(u32, 120_000), config.timeout_ms);
+}
+
+test "ollama chat endpoint" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .host = try allocator.dupe(u8, "http://ollama.local:11434") };
+    defer config.deinit(allocator);
+
+    const url = try std.fmt.allocPrint(allocator, "{s}/api/chat", .{config.host});
+    defer allocator.free(url);
+    try std.testing.expectEqualStrings("http://ollama.local:11434/api/chat", url);
+}
+
+test "ollama encodeGenerateRequest" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .host = try allocator.dupe(u8, "http://localhost:11434") };
+    var client = Client{
+        .allocator = allocator,
+        .config = config,
+        .http = undefined,
+    };
+
+    const json = try client.encodeGenerateRequest(.{
+        .model = "llama3",
+        .prompt = "Hello, world!",
+    });
+    defer allocator.free(json);
+
+    // Verify it's valid JSON by parsing
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json, .{});
+    defer parsed.deinit();
+
+    const obj = try json_utils.getRequiredObject(parsed.value);
+    const model_str = try json_utils.parseStringField(obj, "model", allocator);
+    defer allocator.free(model_str);
+    try std.testing.expectEqualStrings("llama3", model_str);
+    const prompt_str = try json_utils.parseStringField(obj, "prompt", allocator);
+    defer allocator.free(prompt_str);
+    try std.testing.expectEqualStrings("Hello, world!", prompt_str);
+    const stream = try json_utils.parseBoolField(obj, "stream");
+    try std.testing.expect(!stream);
+
+    config.deinit(allocator);
+}
+
+test "ollama encodeChatRequest" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .host = try allocator.dupe(u8, "http://localhost:11434") };
+    var client = Client{
+        .allocator = allocator,
+        .config = config,
+        .http = undefined,
+    };
+
+    const messages = [_]Message{
+        .{ .role = "system", .content = "You are helpful." },
+        .{ .role = "user", .content = "Hi!" },
+    };
+    const json = try client.encodeChatRequest(.{
+        .model = "llama3",
+        .messages = messages[0..],
+    });
+    defer allocator.free(json);
+
+    // Verify valid JSON
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json, .{});
+    defer parsed.deinit();
+
+    const obj = try json_utils.getRequiredObject(parsed.value);
+    const model_str = try json_utils.parseStringField(obj, "model", allocator);
+    defer allocator.free(model_str);
+    try std.testing.expectEqualStrings("llama3", model_str);
+    const arr = try json_utils.parseArrayField(obj, "messages");
+    try std.testing.expectEqual(@as(usize, 2), arr.items.len);
+
+    config.deinit(allocator);
+}
+
+test "ollama decodeGenerateResponse" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .host = try allocator.dupe(u8, "http://localhost:11434") };
+    var client = Client{
+        .allocator = allocator,
+        .config = config,
+        .http = undefined,
+    };
+
+    const json =
+        \\{"model":"llama3","response":"Hello!","done":true,"total_duration":1234567}
+    ;
+    var resp = try client.decodeGenerateResponse(json);
+    defer resp.deinit(allocator);
+
+    try std.testing.expectEqualStrings("llama3", resp.model);
+    try std.testing.expectEqualStrings("Hello!", resp.response);
+    try std.testing.expect(resp.done);
+    try std.testing.expectEqual(@as(?u64, 1234567), resp.total_duration_ns);
+    try std.testing.expect(resp.context == null);
+
+    config.deinit(allocator);
+}
+
+test "ollama decodeChatResponse" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .host = try allocator.dupe(u8, "http://localhost:11434") };
+    var client = Client{
+        .allocator = allocator,
+        .config = config,
+        .http = undefined,
+    };
+
+    const json =
+        \\{"model":"llama3","message":{"role":"assistant","content":"Hi there!"},"done":true}
+    ;
+    var resp = try client.decodeChatResponse(json);
+    defer resp.deinit(allocator);
+
+    try std.testing.expectEqualStrings("llama3", resp.model);
+    try std.testing.expectEqualStrings("assistant", resp.message.role);
+    try std.testing.expectEqualStrings("Hi there!", resp.message.content);
+    try std.testing.expect(resp.done);
+
+    config.deinit(allocator);
+}
+
+test "ollama encodeGenerateRequest with special chars" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .host = try allocator.dupe(u8, "http://localhost:11434") };
+    var client = Client{
+        .allocator = allocator,
+        .config = config,
+        .http = undefined,
+    };
+
+    const json = try client.encodeGenerateRequest(.{
+        .model = "llama3",
+        .prompt = "Say \"hello\" with\nnewlines",
+    });
+    defer allocator.free(json);
+
+    // Should be valid JSON even with special characters
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json, .{});
+    defer parsed.deinit();
+
+    const obj = try json_utils.getRequiredObject(parsed.value);
+    const prompt = try json_utils.parseStringField(obj, "prompt", allocator);
+    defer allocator.free(prompt);
+    try std.testing.expectEqualStrings("Say \"hello\" with\nnewlines", prompt);
+
+    config.deinit(allocator);
+}
+
+test "ollama parseOptionalU32" {
+    const allocator = std.testing.allocator;
+    const json_text = "{\"count\":42,\"big\":999999999999}";
+    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_text, .{});
+    defer parsed.deinit();
+
+    const obj = try json_utils.getRequiredObject(parsed.value);
+    const count = parseOptionalU32(obj, "count");
+    try std.testing.expectEqual(@as(?u32, 42), count);
+
+    const missing = parseOptionalU32(obj, "nonexistent");
+    try std.testing.expect(missing == null);
 }

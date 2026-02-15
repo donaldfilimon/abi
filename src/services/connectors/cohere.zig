@@ -421,6 +421,7 @@ pub const Client = struct {
 
         const api_version_obj = try json_utils.parseObjectField(meta_obj, "api_version");
         const api_version_str = try json_utils.parseStringField(api_version_obj, "version", self.allocator);
+        errdefer self.allocator.free(api_version_str);
 
         const billed_obj = try json_utils.parseObjectField(meta_obj, "billed_units");
         const billed_units = BilledUnits{
@@ -476,13 +477,15 @@ pub const Client = struct {
 
         const texts_array = try json_utils.parseArrayField(object, "texts");
         var texts = try self.allocator.alloc([]const u8, texts_array.items.len);
+        errdefer self.allocator.free(texts);
         for (texts_array.items, 0..) |text_val, i| {
-            texts[i] = try json_utils.parseString(text_val, self.allocator);
+            texts[i] = try json_utils.parseString(self.allocator, text_val);
         }
 
         const meta_obj = try json_utils.parseObjectField(object, "meta");
         const api_version_obj = try json_utils.parseObjectField(meta_obj, "api_version");
         const api_version_str = try json_utils.parseStringField(api_version_obj, "version", self.allocator);
+        errdefer self.allocator.free(api_version_str);
 
         const billed_obj = try json_utils.parseObjectField(meta_obj, "billed_units");
         const billed_units = EmbedBilledUnits{
@@ -535,6 +538,7 @@ pub const Client = struct {
         const meta_obj = try json_utils.parseObjectField(object, "meta");
         const api_version_obj = try json_utils.parseObjectField(meta_obj, "api_version");
         const api_version_str = try json_utils.parseStringField(api_version_obj, "version", self.allocator);
+        errdefer self.allocator.free(api_version_str);
 
         const billed_obj = try json_utils.parseObjectField(meta_obj, "billed_units");
         const billed_units = RerankBilledUnits{

@@ -121,10 +121,11 @@ pub const JsonError = error{
     ParseError,
 };
 
+/// Parse a JSON string value and return an owned copy.
+/// The caller is responsible for freeing the returned slice.
 pub fn parseString(allocator: std.mem.Allocator, value: std.json.Value) ![]const u8 {
-    _ = allocator;
     if (value != .string) return JsonError.TypeMismatch;
-    return value.string;
+    return allocator.dupe(u8, value.string);
 }
 
 pub fn parseNumber(value: std.json.Value) !f64 {
@@ -262,6 +263,7 @@ test "parse string field" {
 
     const object = try getRequiredObject(parsed.value);
     const name = try parseStringField(object, "name", allocator);
+    defer allocator.free(name);
     try std.testing.expectEqualStrings("test", name);
 
     const value = try parseIntField(object, "value");
@@ -278,9 +280,11 @@ test "parse optional fields" {
     const object = try getRequiredObject(parsed.value);
 
     const required = try parseStringField(object, "required", allocator);
+    defer allocator.free(required);
     try std.testing.expectEqualStrings("present", required);
 
     const missing = try parseOptionalStringField(object, "missing", allocator);
+    if (missing) |m| allocator.free(m);
     try std.testing.expect(missing == null);
 }
 

@@ -64,3 +64,47 @@ test "local scheduler endpoint join" {
     defer std.testing.allocator.free(url);
     try std.testing.expectEqualStrings("http://localhost:9090/jobs/submit", url);
 }
+
+test "local scheduler health url" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .url = try allocator.dupe(u8, "http://scheduler.local:8080") };
+    defer config.deinit(allocator);
+
+    const url = try config.healthUrl(allocator);
+    defer allocator.free(url);
+    try std.testing.expectEqualStrings("http://scheduler.local:8080/health", url);
+}
+
+test "local scheduler custom endpoint" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .url = try allocator.dupe(u8, "http://localhost:9090") };
+    defer config.deinit(allocator);
+
+    // With leading slash
+    const url1 = try config.endpoint(allocator, "/api/v1/jobs");
+    defer allocator.free(url1);
+    try std.testing.expectEqualStrings("http://localhost:9090/api/v1/jobs", url1);
+
+    // Without leading slash — should add one
+    const url2 = try config.endpoint(allocator, "status");
+    defer allocator.free(url2);
+    try std.testing.expectEqualStrings("http://localhost:9090/status", url2);
+}
+
+test "local scheduler config lifecycle" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .url = try allocator.dupe(u8, "http://custom:5555") };
+    // deinit should free without leaks
+    config.deinit(allocator);
+}
+
+test "local scheduler empty path endpoint" {
+    const allocator = std.testing.allocator;
+    var config = Config{ .url = try allocator.dupe(u8, "http://localhost:9090") };
+    defer config.deinit(allocator);
+
+    const url = try config.endpoint(allocator, "");
+    defer allocator.free(url);
+    // Empty path should produce just the base URL with prefix
+    try std.testing.expectEqualStrings("http://localhost:9090/", url);
+}
