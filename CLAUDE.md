@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
 | **Test baseline** | 1222 pass, 5 skip (1227 total) — must be maintained |
-| **Feature tests** | 730 pass (730 total) — `zig build feature-tests` |
+| **Feature tests** | 762 pass (762 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 7 aliases |
 
 ## Build & Test Commands
@@ -118,6 +118,8 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 | `std.io.fixedBufferStream()` | Removed — use `std.Io.Writer.fixed(&buf)`, read via `buf[0..writer.end]` |
 | `ArrayListUnmanaged.writer()` | Doesn't exist in 0.16 — build output manually with `appendSlice` |
 | `comptime { _ = @import(...); }` for tests | Doesn't discover tests — use `test { _ = @import(...); }` blocks |
+| Importing `mod.zig` in `feature_test_root.zig` | If mod.zig re-exports sub-modules with compile errors, all errors surface. Create standalone `*_test.zig` alongside mod.zig instead |
+| `catch {}` in library code | Never silently swallow errors — use `catch \|err\| { std.log.warn(...); }` or propagate |
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -342,7 +344,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 ## Testing Patterns
 
 **Main tests**: 1222 pass, 5 skip (1227 total) — `zig build test --summary all`
-**Feature tests**: 730 pass (730 total) — `zig build feature-tests --summary all`
+**Feature tests**: 762 pass (762 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -358,6 +360,7 @@ can reach both `features/` and `services/` subdirectories.
 - Skip hardware-gated tests with `error.SkipZigTest`
 - Parity tests verify `mod.zig` and `stub.zig` export the same interface
 - **Test discovery**: Use `test { _ = @import(...); }` to include submodule tests — `comptime {}` does NOT discover tests
+- **Standalone test files**: For modules whose `mod.zig` re-exports sub-modules with compile issues (gpu, auth, database), create `*_test.zig` alongside mod.zig that imports only the parent — avoids triggering lazy compilation of broken sub-modules
 
 ## After Making Changes
 
@@ -365,7 +368,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 719+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 762+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |

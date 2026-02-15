@@ -157,3 +157,14 @@ test "ai_inference module loads" {
     try std.testing.expect(@TypeOf(StreamingGenerator) != void);
     try std.testing.expect(@TypeOf(TransformerConfig) != void);
 }
+
+test "ai_inference isEnabled reflects build flag" {
+    try std.testing.expectEqual(build_options.enable_llm, isEnabled());
+}
+
+test "ai_inference type sizes are reasonable" {
+    // Verify key types are instantiable (non-zero size = real structs, not void)
+    try std.testing.expect(@sizeOf(TransformerConfig) > 0);
+    try std.testing.expect(@sizeOf(GenerationConfig) > 0);
+    try std.testing.expect(@sizeOf(StreamToken) > 0);
+}

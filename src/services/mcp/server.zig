@@ -590,6 +590,39 @@ test "handleMessage non-string method" {
     try std.testing.expect(std.mem.indexOf(u8, written, "Method must be string") != null);
 }
 
+test "handleMessage tools/call with no params" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    var out: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+
+    try server.handleMessage(
+        \\{"jsonrpc":"2.0","method":"tools/call","id":10}
+    , &writer);
+
+    const written = out[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, written, "Missing params") != null);
+}
+
+test "handleMessage with string request ID" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    var out: [256]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+
+    try server.handleMessage(
+        \\{"jsonrpc":"2.0","method":"ping","id":"abc-123"}
+    , &writer);
+
+    const written = out[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, written, "\"abc-123\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "\"result\":{}") != null);
+}
+
 test "handleMessage tool error returns isError" {
     const allocator = std.testing.allocator;
     var server = Server.init(allocator, "test", "0.1.0");

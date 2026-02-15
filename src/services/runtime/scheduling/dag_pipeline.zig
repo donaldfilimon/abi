@@ -386,3 +386,69 @@ test "Pipeline skips dependents when dependency fails" {
     try std.testing.expectEqual(StageStatus.failed, pipeline.stages[fail_stage_id].status);
     try std.testing.expectEqual(StageStatus.skipped, pipeline.stages[dependent_stage_id].status);
 }
+
+test "Pipeline linear chain executes in order" {
+    var pipeline = Pipeline.init();
+
+    const a = try pipeline.addStage("input", .input);
+    const b = try pipeline.addStage("compute", .compute);
+    const c = try pipeline.addStage("output", .output);
+
+    try pipeline.addDependency(b, a);
+    try pipeline.addDependency(c, b);
+
+    const pass_exec = struct {
+        fn run(_: ?*anyopaque) bool {
+            return true;
+        }
+    }.run;
+
+    pipeline.bindExecutor(a, pass_exec, null);
+    pipeline.bindExecutor(b, pass_exec, null);
+    pipeline.bindExecutor(c, pass_exec, null);
+
+    const result = try pipeline.execute();
+    try std.testing.expect(result.success);
+    try std.testing.expectEqual(@as(u8, 3), result.stages_run);
+    try std.testing.expectEqual(@as(u8, 0), result.stages_skipped);
+    try std.testing.expectEqual(StageStatus.completed, pipeline.stages[a].status);
+    try std.testing.expectEqual(StageStatus.completed, pipeline.stages[b].status);
+    try std.testing.expectEqual(StageStatus.completed, pipeline.stages[c].status);
+}
+
+test "Pipeline empty pipeline executes successfully" {
+    var pipeline = Pipeline.init();
+    const result = try pipeline.execute();
+    try std.testing.expect(result.success);
+    try std.testing.expectEqual(@as(u8, 0), result.stages_run);
+}
+
+test "Pipeline self-dependency rejected" {
+    var pipeline = Pipeline.init();
+    const a = try pipeline.addStage("self", .compute);
+    try std.testing.expectError(error.SelfDependency, pipeline.addDependency(a, a));
+}
+
+test "Pipeline stage getName" {
+    var pipeline = Pipeline.init();
+    const id = try pipeline.addStage("test_stage", .preprocess);
+    try std.testing.expectEqualStrings("test_stage", pipeline.stages[id].getName());
+}
+
+test "Pipeline addStage respects max_stages" {
+    var pipeline = Pipeline.init();
+    // Fill to capacity
+    for (0..max_stages) |i| {
+        _ = try pipeline.addStage("stage", if (i % 2 == 0) .compute else .input);
+    }
+    // Next add should fail
+    try std.testing.expectError(error.PipelineFull, pipeline.addStage("overflow", .compute));
+}
+
+test "Pipeline stages without executors pass by default" {
+    var pipeline = Pipeline.init();
+    _ = try pipeline.addStage("auto_pass", .compute);
+    const result = try pipeline.execute();
+    try std.testing.expect(result.success);
+    try std.testing.expectEqual(@as(u8, 1), result.stages_run);
+}

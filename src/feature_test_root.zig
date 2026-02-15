@@ -51,4 +51,9 @@ test {
     _ = @import("services/mcp/server.zig");
     _ = @import("services/mcp/types.zig");
     _ = @import("services/acp/mod.zig");
+
+    // Runtime concurrency and scheduling tests
+    _ = @import("services/runtime/concurrency/channel.zig");
+    _ = @import("services/runtime/scheduling/thread_pool.zig");
+    _ = @import("services/runtime/scheduling/dag_pipeline.zig");
 }

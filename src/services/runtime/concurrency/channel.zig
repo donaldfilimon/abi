@@ -291,3 +291,72 @@ test "Channel preserves FIFO order for single producer/consumer" {
     try std.testing.expectEqual(@as(u32, 2), try channel.recv());
     try std.testing.expectEqual(@as(u32, 3), try channel.recv());
 }
+
+test "Channel send to closed channel fails" {
+    var channel = try Channel(u32).init(std.testing.allocator, 4);
+    defer channel.deinit();
+
+    try channel.send(1);
+    channel.close();
+
+    // Can still recv existing items
+    try std.testing.expectEqual(@as(u32, 1), try channel.recv());
+    // But send should fail
+    try std.testing.expect(!channel.trySend(2));
+}
+
+test "Channel stats tracking" {
+    var channel = try Channel(u32).init(std.testing.allocator, 4);
+    defer channel.deinit();
+
+    try channel.send(10);
+    try channel.send(20);
+    _ = try channel.recv();
+
+    const stats = channel.stats();
+    try std.testing.expectEqual(@as(u64, 2), stats.total_sent);
+    try std.testing.expectEqual(@as(u64, 1), stats.total_received);
+}
+
+test "Channel capacity rounds up to power of two" {
+    // Request 3, should get 4 (next power of two)
+    var channel = try Channel(u32).init(std.testing.allocator, 3);
+    defer channel.deinit();
+    try std.testing.expectEqual(@as(usize, 4), channel.capacity);
+
+    // Request 5, should get 8
+    var channel2 = try Channel(u32).init(std.testing.allocator, 5);
+    defer channel2.deinit();
+    try std.testing.expectEqual(@as(usize, 8), channel2.capacity);
+}
+
+test "Channel works with struct types" {
+    const Msg = struct { id: u32, value: f64 };
+    var channel = try Channel(Msg).init(std.testing.allocator, 4);
+    defer channel.deinit();
+
+    try channel.send(.{ .id = 1, .value = 3.14 });
+    try channel.send(.{ .id = 2, .value = 2.71 });
+
+    const msg1 = try channel.recv();
+    try std.testing.expectEqual(@as(u32, 1), msg1.id);
+    try std.testing.expect(msg1.value > 3.0 and msg1.value < 3.2);
+
+    const msg2 = try channel.recv();
+    try std.testing.expectEqual(@as(u32, 2), msg2.id);
+}
+
+test "Message initTag and payload" {
+    var msg = Message.initTag(.token_ids);
+    msg.setPayloadBytes("hello world");
+    try std.testing.expectEqual(Message.MessageTag.token_ids, msg.tag);
+
+    // Verify payload bytes were copied
+    try std.testing.expect(std.mem.startsWith(u8, &msg.payload, "hello world"));
+}
+
+test "MessageChannel type alias" {
+    // Verify the MessageChannel type alias works (Channel(Message))
+    try std.testing.expect(@sizeOf(Message) <= 128);
+    try std.testing.expect(@TypeOf(MessageChannel) != void);
+}

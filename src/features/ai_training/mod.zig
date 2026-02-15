@@ -149,3 +149,14 @@ test "ai_training module loads" {
     try std.testing.expect(@TypeOf(TrainingConfig) != void);
     try std.testing.expect(@TypeOf(TrainableModel) != void);
 }
+
+test "ai_training isEnabled reflects build flag" {
+    try std.testing.expectEqual(build_options.enable_training, isEnabled());
+}
+
+test "ai_training type re-exports" {
+    try std.testing.expect(@sizeOf(TrainingConfig) > 0);
+    try std.testing.expect(@TypeOf(TrainingReport) != void);
+    try std.testing.expect(@TypeOf(OptimizerType) != void);
+    try std.testing.expect(@TypeOf(LearningRateSchedule) != void);
+}

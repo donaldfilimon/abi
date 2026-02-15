@@ -376,3 +376,35 @@ test "ThreadPool executes scheduled tasks and reaches idle state" {
     try std.testing.expectEqual(@as(u64, task_count), counter.load(.acquire));
     try std.testing.expectEqual(stats.tasks_submitted, stats.tasks_completed);
 }
+
+test "ThreadPool stats reflect submissions" {
+    var pool = try ThreadPool.init(std.testing.allocator, .{ .thread_count = 1 });
+    defer pool.deinit();
+
+    const noop = struct {
+        fn run() void {}
+    }.run;
+
+    try std.testing.expect(pool.schedule(noop, .{}));
+    try std.testing.expect(pool.schedule(noop, .{}));
+
+    pool.waitIdle();
+    const stats = pool.stats();
+    try std.testing.expectEqual(@as(u64, 2), stats.tasks_submitted);
+    try std.testing.expectEqual(@as(u64, 2), stats.tasks_completed);
+}
+
+test "ThreadPool isIdle starts true" {
+    var pool = try ThreadPool.init(std.testing.allocator, .{ .thread_count = 1 });
+    defer pool.deinit();
+
+    // Pool should be idle initially (no tasks submitted)
+    pool.waitIdle();
+    try std.testing.expect(pool.isIdle());
+}
+
+test "Task type has correct max_capture_size" {
+    // Verify the Task frame can hold reasonable closures
+    try std.testing.expect(Task.max_capture_size >= 64);
+    try std.testing.expect(@sizeOf(Task) > 0);
+}
