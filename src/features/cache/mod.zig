@@ -108,7 +108,10 @@ const EntrySlab = struct {
             .created_at_ns = 0,
             .active = false,
         };
-        self.free_list.append(allocator, idx) catch {};
+        self.free_list.append(allocator, idx) catch |err| {
+            // Slot won't be reused until next resize — minor fragmentation, not data loss
+            std.log.debug("cache: free list append failed, slot {d} leaked: {t}", .{ idx, err });
+        };
     }
 
     fn getEntry(self: *EntrySlab, idx: NodeIndex) *InternalEntry {

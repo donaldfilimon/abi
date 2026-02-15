@@ -187,7 +187,7 @@ test "llm checkpoint roundtrip" {
     };
 
     saveLlmCheckpoint(allocator, test_path, view) catch |err| {
-        std.debug.print("saveLlmCheckpoint failed: {t}\n", .{err});
+        std.log.warn("saveLlmCheckpoint failed: {t}", .{err});
         return err;
     };
 
@@ -199,7 +199,7 @@ test "llm checkpoint roundtrip" {
     }
 
     var loaded = loadLlmCheckpoint(allocator, test_path) catch |err| {
-        std.debug.print("loadLlmCheckpoint failed: {t}\n", .{err});
+        std.log.warn("loadLlmCheckpoint failed: {t}", .{err});
         return err;
     };
     defer loaded.deinit(allocator);

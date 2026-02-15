@@ -280,7 +280,9 @@ fn handleHttpConnection(
         };
         dispatchHttpRequest(allocator, acp_server, card, &request) catch |err| {
             std.log.err("ACP request error: {t}", .{err});
-            acpRespondJson(&request, "{\"error\":\"internal server error\"}", .internal_server_error) catch {};
+            acpRespondJson(&request, "{\"error\":\"internal server error\"}", .internal_server_error) catch |response_err| {
+                std.log.err("ACP: failed to send error response: {t}", .{response_err});
+            };
         };
     }
 }

@@ -392,7 +392,9 @@ pub fn subscribe(
         std.mem.indexOf(u8, topic_pattern, "#") == null)
     {
         if (s.getOrCreateTopic(topic_pattern)) |topic| {
-            topic.subscribers.append(s.allocator, sub) catch {};
+            topic.subscribers.append(s.allocator, sub) catch |err| {
+                std.log.warn("messaging: failed to add subscriber to topic index: {t}", .{err});
+            };
         } else |_| {}
     }
 

@@ -94,7 +94,13 @@ pub const Context = struct {
             .timestamp_ns = 0,
         };
         var writer = std.Io.Writer.fixed(&ctx.message);
-        writer.print(fmt, args) catch {};
+        writer.print(fmt, args) catch {
+            // Message truncated to fit fixed buffer — append "..." indicator
+            if (writer.end + 3 <= ctx.message.len) {
+                @memcpy(ctx.message[writer.end..][0..3], "...");
+                writer.end += 3;
+            }
+        };
         ctx.message_len = @intCast(writer.end);
         return ctx;
     }
@@ -241,7 +247,11 @@ pub const Logger = struct {
             if (ctx.category != filter) return;
         }
         const stderr = std.io.getStdErr().writer();
-        ctx.format(stderr) catch {};
+        ctx.format(stderr) catch |err| {
+            // Can't use structured logging here (recursive) — use std.log as fallback
+            std.log.warn("structured_error: stderr write failed: {t}", .{err});
+            return; // Don't increment counter for failed writes
+        };
         _ = self.total_logged.fetchAdd(1, .monotonic);
     }
 

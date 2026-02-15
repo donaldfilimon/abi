@@ -449,7 +449,10 @@ pub fn removePage(path: []const u8) PagesError!bool {
             s.radix_root.deinitRecursive(s.allocator);
             s.radix_root.* = .{};
             for (s.pages.items, 0..) |remaining, new_idx| {
-                s.insertRadixPage(remaining.path_owned, @intCast(new_idx)) catch {};
+                s.insertRadixPage(remaining.path_owned, @intCast(new_idx)) catch |err| {
+                    std.log.err("pages: radix rebuild failed after removePage: {t}", .{err});
+                    return error.OutOfMemory;
+                };
             }
             return true;
         }

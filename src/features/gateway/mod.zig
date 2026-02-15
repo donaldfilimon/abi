@@ -711,7 +711,10 @@ pub fn removeRoute(path: []const u8) GatewayError!bool {
             s.radix_root.deinitRecursive(s.allocator);
             s.radix_root.* = .{};
             for (s.routes.items, 0..) |remaining, new_idx| {
-                s.insertRadixRoute(remaining.path_owned, @intCast(new_idx)) catch {};
+                s.insertRadixRoute(remaining.path_owned, @intCast(new_idx)) catch |err| {
+                    std.log.err("gateway: radix rebuild failed after removeRoute: {t}", .{err});
+                    return error.OutOfMemory;
+                };
             }
             return true;
         }
