@@ -43,6 +43,10 @@ test {
     if (build_options.enable_storage) _ = @import("features/storage/mod.zig");
     if (build_options.enable_pages) _ = @import("features/pages/mod.zig");
 
+    // Phase 10 — expanded test coverage (standalone test files to avoid
+    // pulling in sub-modules with pre-existing Zig 0.16 compile issues)
+    if (build_options.enable_auth) _ = @import("features/auth/auth_test.zig");
+
     // MCP/ACP service tests (types + server only — mod.zig has database dep)
     _ = @import("services/mcp/server.zig");
     _ = @import("services/mcp/types.zig");

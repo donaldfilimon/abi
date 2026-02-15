@@ -676,3 +676,58 @@ pub const Context = struct {
         return self.gpu.getHealth();
     }
 };
+
+// ============================================================================
+// Inline Tests
+// ============================================================================
+
+test "gpu module enabled status" {
+    try std.testing.expect(moduleEnabled());
+    try std.testing.expect(isEnabled());
+}
+
+test "gpu context init and deinit" {
+    const allocator = std.testing.allocator;
+    const cfg = config_module.GpuConfig{
+        .backend = .auto,
+        .memory_limit = null,
+    };
+    const ctx = Context.init(allocator, cfg) catch |err| switch (err) {
+        error.NoDeviceAvailable => return error.SkipZigTest,
+        else => return err,
+    };
+    defer ctx.deinit();
+    try std.testing.expect(@intFromPtr(ctx) != 0);
+}
+
+test "gpu health status with simulated backend" {
+    const allocator = std.testing.allocator;
+    const gpu_config = GpuConfig{
+        .preferred_backend = .simulated,
+        .allow_fallback = true,
+    };
+    var gpu = Gpu.init(allocator, gpu_config) catch |err| switch (err) {
+        error.NoDeviceAvailable => return error.SkipZigTest,
+        else => return err,
+    };
+    defer gpu.deinit();
+    const health = try gpu.getHealth();
+    try std.testing.expect(health.is_available);
+}
+
+test "gpu backend enum completeness" {
+    // Verify that simulated backend is always selectable (compile-time check)
+    const simulated: Backend = .simulated;
+    try std.testing.expect(simulated == .simulated);
+    // Verify all known backends are representable
+    const all_backends = [_]Backend{ .cuda, .vulkan, .metal, .webgpu, .opengl, .stdgpu, .simulated };
+    try std.testing.expect(all_backends.len >= 7);
+}
+
+test "gpu type exports" {
+    // Verify key types are accessible (compile-time check)
+    _ = GpuConfig{};
+    _ = BufferOptions{};
+    _ = MatrixDims{ .m = 1, .n = 1, .k = 1 };
+    try std.testing.expect(true);
+}

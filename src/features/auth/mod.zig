@@ -133,3 +133,9 @@ pub fn createSession(
 pub fn checkPermission(_: []const u8, _: Permission) AuthError!bool {
     return true;
 }
+
+// Test discovery — standalone test file avoids pulling in security sub-modules
+// that have pre-existing Zig 0.16 compile issues
+test {
+    _ = @import("auth_test.zig");
+}
