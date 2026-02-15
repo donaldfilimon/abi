@@ -542,7 +542,9 @@ pub fn putWithTtl(key: []const u8, value: []const u8, ttl_ms: u64) CacheError!vo
 
     const entry = s.slab.getEntry(idx);
     entry.key_buf = s.allocator.dupe(u8, key) catch return error.OutOfMemory;
+    errdefer s.allocator.free(entry.key_buf);
     entry.value_buf = s.allocator.dupe(u8, value) catch return error.OutOfMemory;
+    errdefer s.allocator.free(entry.value_buf);
     entry.ttl_ms = effective_ttl;
     entry.created_at_ns = now_ns;
     entry.frequency = 1;

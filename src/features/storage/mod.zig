@@ -181,19 +181,15 @@ const MemoryBackend = struct {
     fn putImpl(ctx: *anyopaque, key: []const u8, data: []const u8, meta: ?ObjectMetadata) StorageError!void {
         const self: *MemoryBackend = @ptrCast(@alignCast(ctx));
 
-        // Remove existing if present
-        if (self.objects.fetchRemove(key)) |kv| {
-            const old = kv.value;
-            self.total_bytes -= old.size;
-            self.allocator.free(old.data);
-            self.allocator.free(old.key);
-            self.allocator.free(old.content_type);
-            self.allocator.destroy(old);
-        }
-
-        // Check capacity
-        if (self.max_bytes > 0 and self.total_bytes + data.len > self.max_bytes) {
-            return error.StorageFull;
+        // Capacity check: account for freed size if overwriting existing entry
+        if (self.max_bytes > 0) {
+            var effective_total = self.total_bytes;
+            if (self.objects.get(key)) |existing| {
+                effective_total -= existing.size;
+            }
+            if (effective_total + data.len > self.max_bytes) {
+                return error.StorageFull;
+            }
         }
 
         const obj = self.allocator.create(MemoryObject) catch return error.OutOfMemory;
@@ -216,8 +212,21 @@ const MemoryBackend = struct {
             .size = data.len,
         };
 
-        self.objects.put(self.allocator, obj.key, obj) catch
+        // Ensure hashmap capacity so putAssumeCapacity can't fail below
+        self.objects.ensureUnusedCapacity(self.allocator, 1) catch
             return error.OutOfMemory;
+
+        // Past this point, nothing can fail — safe to remove old entry
+        if (self.objects.fetchRemove(key)) |kv| {
+            const old = kv.value;
+            self.total_bytes -= old.size;
+            self.allocator.free(old.data);
+            self.allocator.free(old.key);
+            self.allocator.free(old.content_type);
+            self.allocator.destroy(old);
+        }
+
+        self.objects.putAssumeCapacity(obj.key, obj);
         self.total_bytes += data.len;
     }
 

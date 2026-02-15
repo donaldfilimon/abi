@@ -424,6 +424,9 @@ pub const KernelCache = struct {
 
         try self.evictIfNeeded(binary.len);
 
+        // Ensure capacity so putAssumeCapacity can't fail after fetchRemove
+        try self.entries.ensureUnusedCapacity(self.allocator, 1);
+
         if (self.entries.fetchRemove(key)) |removed| {
             self.allocator.free(removed.key);
             self.allocator.free(removed.value.binary);
@@ -432,7 +435,7 @@ pub const KernelCache = struct {
             self.current_size -= removed.value.meta.binary_size;
         }
 
-        try self.entries.put(self.allocator, key, entry);
+        self.entries.putAssumeCapacity(key, entry);
         self.addToFront(lru_node);
         self.current_size += binary.len;
     }

@@ -518,6 +518,17 @@ pub fn addRoute(route: Route) GatewayError!void {
     if (s.routes.items.len >= s.config.max_routes) return error.TooManyRoutes;
     if (route.path.len == 0) return error.InvalidRoute;
 
+    // Pre-create rate limiter if configured (before adding route to avoid
+    // orphan routes if limiter allocation fails)
+    var limiter: ?*RateLimiter = null;
+    if (route.rate_limit) |rl_config| {
+        s.route_limiters.ensureUnusedCapacity(s.allocator, 1) catch
+            return error.OutOfMemory;
+        limiter = s.allocator.create(RateLimiter) catch return error.OutOfMemory;
+        limiter.?.* = RateLimiter.init(rl_config, nowNs());
+    }
+    errdefer if (limiter) |l| s.allocator.destroy(l);
+
     const route_idx: u32 = @intCast(s.routes.items.len);
 
     // Copy owned data — explicit cleanup on each failure (no errdefer since ownership
@@ -553,14 +564,9 @@ pub fn addRoute(route: Route) GatewayError!void {
         return error.OutOfMemory;
     };
 
-    // Create rate limiter if configured
-    if (route.rate_limit) |rl_config| {
-        const limiter = s.allocator.create(RateLimiter) catch return error.OutOfMemory;
-        limiter.* = RateLimiter.init(rl_config, nowNs());
-        s.route_limiters.put(s.allocator, path_owned, limiter) catch {
-            s.allocator.destroy(limiter);
-            return error.OutOfMemory;
-        };
+    // Register pre-created rate limiter — infallible due to ensureUnusedCapacity
+    if (limiter) |l| {
+        s.route_limiters.putAssumeCapacity(path_owned, l);
     }
 }
 
