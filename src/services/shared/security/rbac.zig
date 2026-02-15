@@ -30,6 +30,13 @@ pub const Role = struct {
     permissions: []const Permission,
     is_system: bool,
     description: []const u8,
+
+    pub fn deinit(self: *Role, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.permissions);
+        allocator.free(self.description);
+        self.* = undefined;
+    }
 };
 
 pub const RoleAssignment = struct {
@@ -392,7 +399,7 @@ pub const RbacManager = struct {
 };
 
 fn isSystemRoleName(name: []const u8) bool {
-    const system_roles = &.{
+    const system_roles = [_][]const u8{
         "admin",
         "user",
         "readonly",
@@ -403,7 +410,7 @@ fn isSystemRoleName(name: []const u8) bool {
         "link_user",
         "link_admin",
     };
-    for (system_roles) |role| {
+    for (&system_roles) |role| {
         if (std.mem.eql(u8, name, role)) return true;
     }
     return false;

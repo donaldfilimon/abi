@@ -19,6 +19,7 @@ const time = @import("../../services/shared/time.zig");
 pub const CacheConfig = core_config.CacheConfig;
 pub const EvictionPolicy = core_config.EvictionPolicy;
 
+/// Errors returned by cache operations.
 pub const CacheError = error{
     FeatureDisabled,
     CacheFull,
@@ -27,17 +28,23 @@ pub const CacheError = error{
     OutOfMemory,
 };
 
+/// A single cached key-value pair with time-to-live metadata.
 pub const CacheEntry = struct {
     key: []const u8 = "",
     value: []const u8 = "",
+    /// Time-to-live in milliseconds (0 = no expiry).
     ttl_ms: u64 = 0,
+    /// Timestamp when the entry was inserted (epoch ms).
     created_at: u64 = 0,
 };
 
+/// Aggregate statistics for the cache instance.
 pub const CacheStats = struct {
     hits: u64 = 0,
     misses: u64 = 0,
+    /// Current number of live entries.
     entries: u32 = 0,
+    /// Approximate heap bytes consumed by keys + values.
     memory_used: u64 = 0,
     evictions: u64 = 0,
     expired: u64 = 0,
@@ -384,11 +391,14 @@ const CacheState = struct {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/// Initialize the global cache singleton with the given configuration.
+/// No-op if already initialized.
 pub fn init(allocator: std.mem.Allocator, config: CacheConfig) CacheError!void {
     if (state != null) return;
     state = CacheState.create(allocator, config) catch return error.OutOfMemory;
 }
 
+/// Tear down the cache, freeing all entries and internal structures.
 pub fn deinit() void {
     if (state) |s| {
         s.destroy();
@@ -396,14 +406,18 @@ pub fn deinit() void {
     }
 }
 
+/// Returns `true` — the cache module is always enabled at compile time.
 pub fn isEnabled() bool {
     return true;
 }
 
+/// Returns whether the cache has been initialized via `init`.
 pub fn isInitialized() bool {
     return state != null;
 }
 
+/// Look up a cached value by key. Returns the value slice (borrowed from
+/// the cache) or `null` if the key is absent or expired. Thread-safe.
 pub fn get(key: []const u8) CacheError!?[]const u8 {
     const s = state orelse return error.FeatureDisabled;
 
@@ -433,10 +447,13 @@ pub fn get(key: []const u8) CacheError!?[]const u8 {
     return null;
 }
 
+/// Insert a key-value pair using the default TTL from config.
 pub fn put(key: []const u8, value: []const u8) CacheError!void {
     return putWithTtl(key, value, 0);
 }
 
+/// Insert a key-value pair with a specific TTL in milliseconds.
+/// Evicts entries as needed if the cache is at capacity.
 pub fn putWithTtl(key: []const u8, value: []const u8, ttl_ms: u64) CacheError!void {
     const s = state orelse return error.FeatureDisabled;
 
@@ -512,6 +529,7 @@ pub fn putWithTtl(key: []const u8, value: []const u8, ttl_ms: u64) CacheError!vo
     s.memory_used += CacheState.entryMemory(entry);
 }
 
+/// Remove an entry by key. Returns `true` if the key was present.
 pub fn delete(key: []const u8) CacheError!bool {
     const s = state orelse return error.FeatureDisabled;
 
@@ -524,6 +542,7 @@ pub fn delete(key: []const u8) CacheError!bool {
     return true;
 }
 
+/// Test whether a key exists and has not expired (read-only, no eviction promotion).
 pub fn contains(key: []const u8) bool {
     const s = state orelse return false;
     s.rw_lock.lockShared();
@@ -532,6 +551,7 @@ pub fn contains(key: []const u8) bool {
     return result != null;
 }
 
+/// Remove all entries from the cache.
 pub fn clear() void {
     const s = state orelse return;
     s.rw_lock.lock();
@@ -549,6 +569,7 @@ pub fn clear() void {
     s.memory_used = 0;
 }
 
+/// Return the current number of live entries.
 pub fn size() u32 {
     const s = state orelse return 0;
     s.rw_lock.lockShared();
@@ -556,6 +577,7 @@ pub fn size() u32 {
     return @intCast(s.key_map.count());
 }
 
+/// Snapshot hit/miss counters, entry count, memory usage, and eviction stats.
 pub fn stats() CacheStats {
     const s = state orelse return .{};
     return .{

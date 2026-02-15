@@ -16,6 +16,7 @@ const sync = @import("../../services/shared/sync.zig");
 
 pub const SearchConfig = core_config.SearchConfig;
 
+/// Errors returned by search operations.
 pub const SearchError = error{
     FeatureDisabled,
     IndexNotFound,
@@ -26,18 +27,23 @@ pub const SearchError = error{
     DocumentNotFound,
 };
 
+/// A single search hit with BM25 relevance score and context snippet.
 pub const SearchResult = struct {
     doc_id: []const u8 = "",
+    /// BM25 relevance score (higher = more relevant).
     score: f32 = 0.0,
+    /// Text excerpt around the best matching region.
     snippet: []const u8 = "",
 };
 
+/// Metadata about a named full-text search index.
 pub const SearchIndex = struct {
     name: []const u8 = "",
     doc_count: u64 = 0,
     size_bytes: u64 = 0,
 };
 
+/// Aggregate statistics across all search indexes.
 pub const SearchStats = struct {
     total_indexes: u32 = 0,
     total_documents: u64 = 0,
@@ -426,11 +432,13 @@ const SearchState = struct {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/// Initialize the global search engine singleton.
 pub fn init(allocator: std.mem.Allocator, config: SearchConfig) SearchError!void {
     if (search_state != null) return;
     search_state = SearchState.create(allocator, config) catch return error.OutOfMemory;
 }
 
+/// Tear down the search engine, destroying all indexes and postings.
 pub fn deinit() void {
     if (search_state) |s| {
         s.destroy();
@@ -446,6 +454,8 @@ pub fn isInitialized() bool {
     return search_state != null;
 }
 
+/// Create a new named full-text index. Returns `IndexAlreadyExists` if
+/// an index with the same name exists.
 pub fn createIndex(allocator: std.mem.Allocator, name: []const u8) SearchError!SearchIndex {
     _ = allocator;
     const s = search_state orelse return error.FeatureDisabled;
@@ -464,6 +474,7 @@ pub fn createIndex(allocator: std.mem.Allocator, name: []const u8) SearchError!S
     return .{ .name = idx.name };
 }
 
+/// Delete a named index and all its documents.
 pub fn deleteIndex(name: []const u8) SearchError!void {
     const s = search_state orelse return error.FeatureDisabled;
 
@@ -477,6 +488,8 @@ pub fn deleteIndex(name: []const u8) SearchError!void {
     }
 }
 
+/// Add or update a document in a named index. Tokenizes the content
+/// and builds inverted-index postings for BM25 retrieval.
 pub fn indexDocument(
     index_name: []const u8,
     doc_id: []const u8,
@@ -491,6 +504,7 @@ pub fn indexDocument(
     idx.addDocument(doc_id, content) catch return error.OutOfMemory;
 }
 
+/// Remove a document from an index. Returns `true` if the document existed.
 pub fn deleteDocument(index_name: []const u8, doc_id: []const u8) SearchError!bool {
     const s = search_state orelse return error.FeatureDisabled;
 
@@ -527,6 +541,8 @@ pub fn deleteDocument(index_name: []const u8, doc_id: []const u8) SearchError!bo
     return false;
 }
 
+/// Execute a BM25-scored full-text query against a named index.
+/// Results are sorted by relevance and include context snippets.
 pub fn query(
     allocator: std.mem.Allocator,
     index_name: []const u8,
@@ -542,6 +558,7 @@ pub fn query(
         return error.OutOfMemory;
 }
 
+/// Return aggregate statistics across all search indexes.
 pub fn stats() SearchStats {
     const s = search_state orelse return .{};
 

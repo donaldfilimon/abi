@@ -38,10 +38,10 @@ fn secureWipe(data: anytype) void {
     const T = @TypeOf(data);
     const info = @typeInfo(T);
 
-    if (info == .Pointer) {
-        const slice = switch (info.Pointer.size) {
-            .Slice => data,
-            .One => if (@typeInfo(info.Pointer.child) == .Array)
+    if (info == .pointer) {
+        const slice = switch (info.pointer.size) {
+            .slice => data,
+            .one => if (@typeInfo(info.pointer.child) == .array)
                 @as([]u8, data)
             else
                 @as(*[1]u8, @ptrCast(data))[0..1],

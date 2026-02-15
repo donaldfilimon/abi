@@ -17,6 +17,7 @@ const sync = @import("../../services/shared/sync.zig");
 pub const StorageConfig = core_config.StorageConfig;
 pub const StorageBackend = core_config.StorageBackend;
 
+/// Errors returned by storage operations.
 pub const StorageError = error{
     FeatureDisabled,
     ObjectNotFound,
@@ -24,10 +25,12 @@ pub const StorageError = error{
     PermissionDenied,
     StorageFull,
     OutOfMemory,
+    /// Key contains path traversal sequences (e.g. `../`).
     InvalidKey,
     BackendNotAvailable,
 };
 
+/// Metadata descriptor for a stored object (key, size, MIME type, mtime).
 pub const StorageObject = struct {
     key: []const u8 = "",
     size: u64 = 0,
@@ -35,6 +38,7 @@ pub const StorageObject = struct {
     last_modified: u64 = 0,
 };
 
+/// Optional per-object metadata (content type and up to 4 custom key-value pairs).
 pub const ObjectMetadata = struct {
     content_type: []const u8 = "application/octet-stream",
     custom: [4]MetadataEntry = [_]MetadataEntry{.{}} ** 4,
@@ -46,6 +50,7 @@ pub const ObjectMetadata = struct {
     };
 };
 
+/// Aggregate statistics for the storage backend.
 pub const StorageStats = struct {
     total_objects: u64 = 0,
     total_bytes: u64 = 0,
@@ -304,6 +309,8 @@ const StorageState = struct {
 
 // ── Public API ────────────────────────────────────────────────────────
 
+/// Initialize the global storage singleton. Only the `memory` backend is
+/// currently available; `local`, `s3`, and `gcs` return `BackendNotAvailable`.
 pub fn init(allocator: std.mem.Allocator, config: StorageConfig) StorageError!void {
     if (storage_state != null) return;
 
@@ -326,6 +333,7 @@ pub fn init(allocator: std.mem.Allocator, config: StorageConfig) StorageError!vo
     storage_state = s;
 }
 
+/// Tear down the storage backend, freeing all stored objects.
 pub fn deinit() void {
     if (storage_state) |s| {
         s.active_backend.deinitBackend();
@@ -342,6 +350,7 @@ pub fn isInitialized() bool {
     return storage_state != null;
 }
 
+/// Store an object by key. Validates the key for path traversal.
 pub fn putObject(
     _: std.mem.Allocator,
     key: []const u8,
@@ -356,6 +365,7 @@ pub fn putObject(
     return s.active_backend.put(key, data, null);
 }
 
+/// Store an object with custom metadata (content type, key-value pairs).
 pub fn putObjectWithMetadata(
     _: std.mem.Allocator,
     key: []const u8,
@@ -371,6 +381,7 @@ pub fn putObjectWithMetadata(
     return s.active_backend.put(key, data, metadata);
 }
 
+/// Retrieve an object's data by key. Caller owns the returned slice.
 pub fn getObject(allocator: std.mem.Allocator, key: []const u8) StorageError![]const u8 {
     const s = storage_state orelse return error.FeatureDisabled;
     if (!isValidKey(key)) return error.InvalidKey;
@@ -381,6 +392,7 @@ pub fn getObject(allocator: std.mem.Allocator, key: []const u8) StorageError![]c
     return s.active_backend.get(allocator, key);
 }
 
+/// Delete an object by key. Returns `true` if the key was present.
 pub fn deleteObject(key: []const u8) StorageError!bool {
     const s = storage_state orelse return error.FeatureDisabled;
     if (!isValidKey(key)) return error.InvalidKey;
@@ -391,6 +403,7 @@ pub fn deleteObject(key: []const u8) StorageError!bool {
     return s.active_backend.delete(key);
 }
 
+/// Check whether an object exists without reading it.
 pub fn objectExists(key: []const u8) StorageError!bool {
     const s = storage_state orelse return error.FeatureDisabled;
     if (!isValidKey(key)) return error.InvalidKey;
@@ -401,6 +414,7 @@ pub fn objectExists(key: []const u8) StorageError!bool {
     return s.active_backend.exists(key);
 }
 
+/// List objects whose keys start with `prefix`. Caller owns the returned slice.
 pub fn listObjects(
     allocator: std.mem.Allocator,
     prefix: []const u8,
@@ -413,6 +427,7 @@ pub fn listObjects(
     return s.active_backend.list(allocator, prefix);
 }
 
+/// Snapshot object count, byte usage, and active backend type.
 pub fn stats() StorageStats {
     const s = storage_state orelse return .{};
 

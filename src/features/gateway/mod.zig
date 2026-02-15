@@ -485,11 +485,14 @@ fn nowNs() u128 {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/// Initialize the API gateway singleton with routing, rate limiting,
+/// and circuit breaker configuration.
 pub fn init(allocator: std.mem.Allocator, config: GatewayConfig) GatewayError!void {
     if (gw_state != null) return;
     gw_state = GatewayState.create(allocator, config) catch return error.OutOfMemory;
 }
 
+/// Tear down the gateway, freeing all routes and internal state.
 pub fn deinit() void {
     if (gw_state) |s| {
         s.destroy();
@@ -505,6 +508,8 @@ pub fn isInitialized() bool {
     return gw_state != null;
 }
 
+/// Register an API route (method + path pattern). Supports path parameters
+/// (`{id}`) and wildcards (`*`).
 pub fn addRoute(route: Route) GatewayError!void {
     const s = gw_state orelse return error.FeatureDisabled;
     s.rw_lock.lock();
@@ -559,6 +564,7 @@ pub fn addRoute(route: Route) GatewayError!void {
     }
 }
 
+/// Remove all routes registered under a given path. Returns `true` if any were removed.
 pub fn removeRoute(path: []const u8) GatewayError!bool {
     const s = gw_state orelse return error.FeatureDisabled;
     s.rw_lock.lock();
@@ -598,6 +604,8 @@ pub fn getRoutes() []const Route {
     return &.{}; // Simplified — full impl would return route array
 }
 
+/// Match an incoming request path and method against the radix tree.
+/// Returns the matching route and extracted path parameters, or `null`.
 pub fn matchRoute(path: []const u8, method: HttpMethod) GatewayError!?MatchResult {
     const s = gw_state orelse return error.FeatureDisabled;
     _ = s.stat_total_requests.fetchAdd(1, .monotonic);
@@ -626,6 +634,7 @@ pub fn matchRoute(path: []const u8, method: HttpMethod) GatewayError!?MatchResul
     return null;
 }
 
+/// Check whether a request to `path` is allowed under the configured rate limiter.
 pub fn checkRateLimit(path: []const u8) RateLimitResult {
     const s = gw_state orelse return .{};
 
@@ -642,6 +651,7 @@ pub fn checkRateLimit(path: []const u8) RateLimitResult {
     return result;
 }
 
+/// Record a success/failure for circuit breaker state tracking on `upstream`.
 pub fn recordUpstreamResult(upstream: []const u8, success: bool) void {
     const s = gw_state orelse return;
     s.rw_lock.lock();
@@ -669,6 +679,7 @@ pub fn recordUpstreamResult(upstream: []const u8, success: bool) void {
     }
 }
 
+/// Snapshot route count, request/error counters, and latency histogram.
 pub fn stats() GatewayStats {
     const s = gw_state orelse return .{};
     return .{
@@ -681,6 +692,7 @@ pub fn stats() GatewayStats {
     };
 }
 
+/// Query the circuit breaker state for an upstream service.
 pub fn getCircuitState(upstream: []const u8) CircuitBreakerState {
     const s = gw_state orelse return .closed;
     s.rw_lock.lockShared();
@@ -689,6 +701,7 @@ pub fn getCircuitState(upstream: []const u8) CircuitBreakerState {
     return cb.cb_state;
 }
 
+/// Force-close the circuit breaker for an upstream, clearing failure counters.
 pub fn resetCircuit(upstream: []const u8) void {
     const s = gw_state orelse return;
     s.rw_lock.lock();

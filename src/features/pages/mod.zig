@@ -241,11 +241,13 @@ fn lookupVar(vars: []const TemplateVar, key: []const u8) ?[]const u8 {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/// Initialize the pages module singleton for URL-routed dashboard/UI pages.
 pub fn init(allocator: std.mem.Allocator, config: PagesConfig) PagesError!void {
     if (pg_state != null) return;
     pg_state = PagesState.create(allocator, config) catch return error.OutOfMemory;
 }
 
+/// Tear down the pages module, freeing all registered pages.
 pub fn deinit() void {
     if (pg_state) |s| {
         s.destroy();
@@ -261,6 +263,8 @@ pub fn isInitialized() bool {
     return pg_state != null;
 }
 
+/// Register a page at a URL path. Supports path parameters (`{id}`)
+/// and wildcard segments (`*`).
 pub fn addPage(page: Page) PagesError!void {
     const s = pg_state orelse return error.FeatureDisabled;
     s.rw_lock.lock();
@@ -313,6 +317,7 @@ pub fn addPage(page: Page) PagesError!void {
     };
 }
 
+/// Remove a page by its registered path. Returns `true` if found.
 pub fn removePage(path: []const u8) PagesError!bool {
     const s = pg_state orelse return error.FeatureDisabled;
     s.rw_lock.lock();
@@ -339,6 +344,7 @@ pub fn removePage(path: []const u8) PagesError!bool {
     return false;
 }
 
+/// Look up a page by exact path (no pattern matching).
 pub fn getPage(path: []const u8) ?Page {
     const s = pg_state orelse return null;
     s.rw_lock.lockShared();
@@ -352,6 +358,8 @@ pub fn getPage(path: []const u8) ?Page {
     return null;
 }
 
+/// Match an incoming URL path against the radix tree.
+/// Returns the page and extracted path parameters, or `null`.
 pub fn matchPage(path: []const u8) PagesError!?PageMatch {
     const s = pg_state orelse return error.FeatureDisabled;
     s.rw_lock.lockShared();
@@ -373,6 +381,8 @@ pub fn matchPage(path: []const u8) PagesError!?PageMatch {
     return null;
 }
 
+/// Render a page's template, substituting `{{variable}}` placeholders with
+/// the provided parameters and path captures.
 pub fn renderPage(
     allocator: std.mem.Allocator,
     path: []const u8,
@@ -429,6 +439,7 @@ pub fn renderPage(
     }
 }
 
+/// Return all registered pages (slice into internal storage).
 pub fn listPages() []const Page {
     const s = pg_state orelse return &.{};
     // Return a simple empty slice — callers should iterate via getPage
@@ -436,6 +447,7 @@ pub fn listPages() []const Page {
     return &.{};
 }
 
+/// Snapshot page count, render count, and cache hit ratio.
 pub fn stats() PagesStats {
     const s = pg_state orelse return .{};
 
