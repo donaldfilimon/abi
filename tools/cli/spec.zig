@@ -63,7 +63,7 @@ pub const aliases = [_]AliasInfo{
 
 /// Command-specific completions for command families that expose subcommands.
 pub const command_subcommands = [_]CommandSubcommands{
-    .{ .command = "bench", .subcommands = &.{ "all", "simd", "memory", "ai", "quick", "list", "micro" } },
+    .{ .command = "bench", .subcommands = &.{ "all", "simd", "memory", "ai", "quick", "compare-training", "list", "micro" } },
     .{ .command = "config", .subcommands = &.{ "init", "show", "validate", "env", "help" } },
     .{ .command = "convert", .subcommands = &.{ "dataset", "model", "embeddings" } },
     .{ .command = "db", .subcommands = &.{ "add", "query", "stats", "optimize", "backup", "restore", "serve", "help" } },

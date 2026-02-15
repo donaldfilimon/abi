@@ -644,6 +644,11 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var ollama_model: ?[]const u8 = null;
     var compare_mlx: bool = false;
     var mlx_model: ?[]const u8 = null;
+    var compare_vllm: bool = false;
+    var vllm_model: ?[]const u8 = null;
+    var compare_lmstudio: bool = false;
+    var lmstudio_model: ?[]const u8 = null;
+    var json_output: bool = false;
     var wdbx_out: ?[]const u8 = null;
 
     var i: usize = 0;
@@ -712,6 +717,45 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
             continue;
         }
 
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--compare-vllm")) {
+            compare_vllm = true;
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--vllm-model")) {
+            if (i < args.len) {
+                vllm_model = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--compare-lmstudio")) {
+            compare_lmstudio = true;
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--lmstudio-model")) {
+            if (i < args.len) {
+                lmstudio_model = std.mem.sliceTo(args[i], 0);
+                i += 1;
+            }
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--compare-all")) {
+            compare_ollama = true;
+            compare_mlx = true;
+            compare_vllm = true;
+            compare_lmstudio = true;
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--json")) {
+            json_output = true;
+            continue;
+        }
+
         if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--wdbx-out")) {
             if (i < args.len) {
                 wdbx_out = std.mem.sliceTo(args[i], 0);
@@ -725,8 +769,8 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         }
     }
 
-    if (model_path == null and !compare_ollama and !compare_mlx) {
-        std.debug.print("Usage: abi llm bench <model> [--prompt-tokens N] [--gen-tokens N] [--runs N] [--compare-ollama] [--compare-mlx]\n", .{});
+    if (model_path == null and !compare_ollama and !compare_mlx and !compare_vllm and !compare_lmstudio) {
+        std.debug.print("Usage: abi llm bench <model> [--prompt-tokens N] [--gen-tokens N] [--runs N] [--compare-ollama] [--compare-mlx] [--compare-vllm] [--compare-lmstudio] [--compare-all] [--json]\n", .{});
         return;
     }
 
@@ -755,6 +799,21 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
     if (mlx_model) |name| {
         std.debug.print("MLX model override: {s}\n", .{name});
+    }
+    if (compare_vllm) {
+        std.debug.print("Compare with vLLM: enabled\n", .{});
+    }
+    if (vllm_model) |name| {
+        std.debug.print("vLLM model override: {s}\n", .{name});
+    }
+    if (compare_lmstudio) {
+        std.debug.print("Compare with LM Studio: enabled\n", .{});
+    }
+    if (lmstudio_model) |name| {
+        std.debug.print("LM Studio model override: {s}\n", .{name});
+    }
+    if (json_output) {
+        std.debug.print("Output: JSON\n", .{});
     }
     if (wdbx_out) |path| {
         std.debug.print("WDBX output: {s}\n", .{path});
@@ -800,6 +859,24 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
     defer if (mlx_runtime) |*res| res.deinit(allocator);
 
+    var vllm_runtime: ?VllmRuntimeBenchResult = null;
+    if (compare_vllm) {
+        vllm_runtime = runVllmRuntimeBenchmark(allocator, bench_prompt, gen_tokens, vllm_model, runtime_runs) catch |err| blk: {
+            std.debug.print("\nvLLM benchmark unavailable: {t}\n", .{err});
+            break :blk null;
+        };
+    }
+    defer if (vllm_runtime) |*res| res.deinit(allocator);
+
+    var lmstudio_runtime: ?LmStudioRuntimeBenchResult = null;
+    if (compare_lmstudio) {
+        lmstudio_runtime = runLmStudioRuntimeBenchmark(allocator, bench_prompt, gen_tokens, lmstudio_model, runtime_runs) catch |err| blk: {
+            std.debug.print("\nLM Studio benchmark unavailable: {t}\n", .{err});
+            break :blk null;
+        };
+    }
+    defer if (lmstudio_runtime) |*res| res.deinit(allocator);
+
     if (local_runtime) |local| {
         std.debug.print("\nLocal Runtime Benchmark\n", .{});
         std.debug.print("-----------------------\n", .{});
@@ -838,54 +915,164 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
     }
 
-    // Cross-backend comparisons
+    if (vllm_runtime) |res| {
+        std.debug.print("\nvLLM Runtime Benchmark\n", .{});
+        std.debug.print("----------------------\n", .{});
+        std.debug.print("  Backend: vllm\n", .{});
+        std.debug.print("  Model: {s}\n", .{res.model_name});
+        std.debug.print("  Runs: {d}\n", .{res.runs.len});
+        std.debug.print("  Prompt tokens (mean): {d}\n", .{res.summary.prompt_tokens_mean});
+        std.debug.print("  Generated tokens (mean): {d}\n", .{res.summary.generated_tokens_mean});
+        printRuntimeStats("Wall time ms", res.summary.elapsed_ms);
+        printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
+    }
+
+    if (lmstudio_runtime) |res| {
+        std.debug.print("\nLM Studio Runtime Benchmark\n", .{});
+        std.debug.print("---------------------------\n", .{});
+        std.debug.print("  Backend: lm-studio\n", .{});
+        std.debug.print("  Model: {s}\n", .{res.model_name});
+        std.debug.print("  Runs: {d}\n", .{res.runs.len});
+        std.debug.print("  Prompt tokens (mean): {d}\n", .{res.summary.prompt_tokens_mean});
+        std.debug.print("  Generated tokens (mean): {d}\n", .{res.summary.generated_tokens_mean});
+        printRuntimeStats("Wall time ms", res.summary.elapsed_ms);
+        printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
+    }
+
+    // Comparison summary table
     {
-        var has_comparison = false;
+        const BackendEntry = struct {
+            name: []const u8,
+            status: []const u8,
+            decode_mean: f64,
+            decode_p50: f64,
+            prefill_mean: f64,
+            wall_mean: f64,
+        };
+
+        var entries: [5]BackendEntry = undefined;
+        var entry_count: usize = 0;
+
         if (local_runtime) |local| {
+            entries[entry_count] = .{
+                .name = "local-gguf",
+                .status = "OK",
+                .decode_mean = local.summary.decode_tok_s.mean,
+                .decode_p50 = local.summary.decode_tok_s.p50,
+                .prefill_mean = local.summary.prefill_tok_s.mean,
+                .wall_mean = local.summary.elapsed_ms.mean,
+            };
+            entry_count += 1;
+        } else if (model_path != null) {
+            entries[entry_count] = .{ .name = "local-gguf", .status = "FAIL", .decode_mean = 0, .decode_p50 = 0, .prefill_mean = 0, .wall_mean = 0 };
+            entry_count += 1;
+        }
+        if (compare_ollama) {
             if (ollama_runtime) |res| {
-                if (local.summary.decode_tok_s.mean > 0 and res.summary.decode_tok_s.mean > 0) {
-                    if (!has_comparison) {
-                        std.debug.print("\nDecode Speed Comparison\n", .{});
-                        std.debug.print("-----------------------\n", .{});
-                        has_comparison = true;
+                entries[entry_count] = .{
+                    .name = "ollama",
+                    .status = "OK",
+                    .decode_mean = res.summary.decode_tok_s.mean,
+                    .decode_p50 = res.summary.decode_tok_s.p50,
+                    .prefill_mean = res.summary.prefill_tok_s.mean,
+                    .wall_mean = res.summary.elapsed_ms.mean,
+                };
+            } else {
+                entries[entry_count] = .{ .name = "ollama", .status = "SKIP", .decode_mean = 0, .decode_p50 = 0, .prefill_mean = 0, .wall_mean = 0 };
+            }
+            entry_count += 1;
+        }
+        if (compare_mlx) {
+            if (mlx_runtime) |res| {
+                entries[entry_count] = .{
+                    .name = "mlx",
+                    .status = "OK",
+                    .decode_mean = res.summary.decode_tok_s.mean,
+                    .decode_p50 = res.summary.decode_tok_s.p50,
+                    .prefill_mean = res.summary.prefill_tok_s.mean,
+                    .wall_mean = res.summary.elapsed_ms.mean,
+                };
+            } else {
+                entries[entry_count] = .{ .name = "mlx", .status = "SKIP", .decode_mean = 0, .decode_p50 = 0, .prefill_mean = 0, .wall_mean = 0 };
+            }
+            entry_count += 1;
+        }
+        if (compare_vllm) {
+            if (vllm_runtime) |res| {
+                entries[entry_count] = .{
+                    .name = "vllm",
+                    .status = "OK",
+                    .decode_mean = res.summary.decode_tok_s.mean,
+                    .decode_p50 = res.summary.decode_tok_s.p50,
+                    .prefill_mean = res.summary.prefill_tok_s.mean,
+                    .wall_mean = res.summary.elapsed_ms.mean,
+                };
+            } else {
+                entries[entry_count] = .{ .name = "vllm", .status = "SKIP", .decode_mean = 0, .decode_p50 = 0, .prefill_mean = 0, .wall_mean = 0 };
+            }
+            entry_count += 1;
+        }
+        if (compare_lmstudio) {
+            if (lmstudio_runtime) |res| {
+                entries[entry_count] = .{
+                    .name = "lm-studio",
+                    .status = "OK",
+                    .decode_mean = res.summary.decode_tok_s.mean,
+                    .decode_p50 = res.summary.decode_tok_s.p50,
+                    .prefill_mean = res.summary.prefill_tok_s.mean,
+                    .wall_mean = res.summary.elapsed_ms.mean,
+                };
+            } else {
+                entries[entry_count] = .{ .name = "lm-studio", .status = "SKIP", .decode_mean = 0, .decode_p50 = 0, .prefill_mean = 0, .wall_mean = 0 };
+            }
+            entry_count += 1;
+        }
+
+        if (entry_count >= 2) {
+            std.debug.print("\nBackend Comparison\n", .{});
+            std.debug.print("==================\n", .{});
+            std.debug.print("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}\n", .{ "Backend", "Decode tok/s", "Prefill tok/s", "Wall ms", "Status" });
+            std.debug.print("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}\n", .{ "-" ** 14, "-" ** 14, "-" ** 14, "-" ** 12, "-" ** 6 });
+            for (entries[0..entry_count]) |e| {
+                if (std.mem.eql(u8, e.status, "OK")) {
+                    if (e.prefill_mean > 0) {
+                        std.debug.print("  {s:<14} {d:>7.1} ({d:.1}) {d:>14.1} {d:>12.1} {s:>6}\n", .{ e.name, e.decode_mean, e.decode_p50, e.prefill_mean, e.wall_mean, e.status });
+                    } else {
+                        std.debug.print("  {s:<14} {d:>7.1} ({d:.1}) {s:>14} {d:>12.1} {s:>6}\n", .{ e.name, e.decode_mean, e.decode_p50, "N/A", e.wall_mean, e.status });
                     }
-                    std.debug.print("  Ollama / Local ratio (mean): {d:.2}x\n", .{res.summary.decode_tok_s.mean / local.summary.decode_tok_s.mean});
-                    if (local.summary.decode_tok_s.p50 > 0 and res.summary.decode_tok_s.p50 > 0) {
-                        std.debug.print("  Ollama / Local ratio (p50):  {d:.2}x\n", .{res.summary.decode_tok_s.p50 / local.summary.decode_tok_s.p50});
-                    }
+                } else {
+                    std.debug.print("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}\n", .{ e.name, "-", "-", "-", e.status });
+                }
+            }
+
+            // Pairwise decode speed ratios
+            std.debug.print("\n  Decode Speed Ratios (mean):\n", .{});
+            for (entries[0..entry_count], 0..) |a, ai| {
+                if (a.decode_mean <= 0) continue;
+                for (entries[0..entry_count], 0..) |b, bi| {
+                    if (bi <= ai) continue;
+                    if (b.decode_mean <= 0) continue;
+                    const ratio = b.decode_mean / a.decode_mean;
+                    std.debug.print("    {s} / {s}: {d:.2}x\n", .{ b.name, a.name, ratio });
                 }
             }
         }
-        if (ollama_runtime) |ollama| {
-            if (mlx_runtime) |mlx_res| {
-                if (ollama.summary.decode_tok_s.mean > 0 and mlx_res.summary.decode_tok_s.mean > 0) {
-                    if (!has_comparison) {
-                        std.debug.print("\nDecode Speed Comparison\n", .{});
-                        std.debug.print("-----------------------\n", .{});
-                        has_comparison = true;
-                    }
-                    std.debug.print("  MLX / Ollama ratio (mean):   {d:.2}x\n", .{mlx_res.summary.decode_tok_s.mean / ollama.summary.decode_tok_s.mean});
-                    if (ollama.summary.decode_tok_s.p50 > 0 and mlx_res.summary.decode_tok_s.p50 > 0) {
-                        std.debug.print("  MLX / Ollama ratio (p50):    {d:.2}x\n", .{mlx_res.summary.decode_tok_s.p50 / ollama.summary.decode_tok_s.p50});
-                    }
-                }
-            }
-        }
-        if (local_runtime) |local| {
-            if (mlx_runtime) |mlx_res| {
-                if (local.summary.decode_tok_s.mean > 0 and mlx_res.summary.decode_tok_s.mean > 0) {
-                    if (!has_comparison) {
-                        std.debug.print("\nDecode Speed Comparison\n", .{});
-                        std.debug.print("-----------------------\n", .{});
-                        has_comparison = true;
-                    }
-                    std.debug.print("  MLX / Local ratio (mean):    {d:.2}x\n", .{mlx_res.summary.decode_tok_s.mean / local.summary.decode_tok_s.mean});
-                    if (local.summary.decode_tok_s.p50 > 0 and mlx_res.summary.decode_tok_s.p50 > 0) {
-                        std.debug.print("  MLX / Local ratio (p50):     {d:.2}x\n", .{mlx_res.summary.decode_tok_s.p50 / local.summary.decode_tok_s.p50});
-                    }
-                }
-            }
-        }
+    }
+
+    // JSON export
+    if (json_output) {
+        printBenchJson(
+            allocator,
+            prompt_tokens,
+            gen_tokens,
+            runtime_runs,
+            bench_result,
+            local_runtime,
+            ollama_runtime,
+            mlx_runtime,
+            vllm_runtime,
+            lmstudio_runtime,
+        );
     }
 
     if (wdbx_out) |path| {
@@ -904,8 +1091,10 @@ fn runBench(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         };
     }
 
-    std.debug.print("\nNote: Local runtime requires ABI-native support for the GGUF architecture.\n", .{});
-    std.debug.print("When unsupported, use Ollama fallback for execution and compare decode throughput.\n", .{});
+    if (!json_output) {
+        std.debug.print("\nNote: Local runtime requires ABI-native support for the GGUF architecture.\n", .{});
+        std.debug.print("When unsupported, use Ollama fallback for execution and compare decode throughput.\n", .{});
+    }
 }
 
 const BenchResult = struct {
@@ -1299,6 +1488,30 @@ const MlxRuntimeBenchResult = struct {
     }
 };
 
+const VllmRuntimeBenchResult = struct {
+    model_name: []u8,
+    runs: []RuntimeBenchSample,
+    summary: RuntimeSampleSummary,
+
+    pub fn deinit(self: *VllmRuntimeBenchResult, allocator: std.mem.Allocator) void {
+        allocator.free(self.model_name);
+        allocator.free(self.runs);
+        self.* = undefined;
+    }
+};
+
+const LmStudioRuntimeBenchResult = struct {
+    model_name: []u8,
+    runs: []RuntimeBenchSample,
+    summary: RuntimeSampleSummary,
+
+    pub fn deinit(self: *LmStudioRuntimeBenchResult, allocator: std.mem.Allocator) void {
+        allocator.free(self.model_name);
+        allocator.free(self.runs);
+        self.* = undefined;
+    }
+};
+
 fn runMlxRuntimeBenchmark(
     allocator: std.mem.Allocator,
     prompt: []const u8,
@@ -1352,6 +1565,244 @@ fn runMlxRuntimeBenchmark(
             .generated_tokens = generated_count,
             .elapsed_ms = elapsed_ms,
             .prefill_tok_s = 0.0, // Not available from chat completions API
+            .decode_tok_s = decode_tok_s,
+        };
+    }
+
+    const summary = try summarizeRuntimeSamples(allocator, samples);
+    return .{
+        .model_name = model_name_copy,
+        .runs = samples,
+        .summary = summary,
+    };
+}
+
+fn printBenchJson(
+    _: std.mem.Allocator,
+    prompt_tokens: u32,
+    gen_tokens: u32,
+    runs: u32,
+    compute: BenchResult,
+    local_runtime: ?RuntimeBenchResult,
+    ollama_runtime: ?OllamaRuntimeBenchResult,
+    mlx_runtime: ?MlxRuntimeBenchResult,
+    vllm_runtime: ?VllmRuntimeBenchResult,
+    lmstudio_runtime: ?LmStudioRuntimeBenchResult,
+) void {
+    std.debug.print("{{\n", .{});
+    std.debug.print("  \"prompt_tokens\": {d},\n", .{prompt_tokens});
+    std.debug.print("  \"gen_tokens\": {d},\n", .{gen_tokens});
+    std.debug.print("  \"runs\": {d},\n", .{runs});
+    std.debug.print("  \"compute\": {{ \"gflops\": {d:.2}, \"est_prefill_tok_s\": {d:.1}, \"est_decode_tok_s\": {d:.1} }},\n", .{
+        compute.gflops,
+        compute.est_prefill_tok_s,
+        compute.est_decode_tok_s,
+    });
+    std.debug.print("  \"backends\": {{\n", .{});
+
+    var printed_any = false;
+
+    if (local_runtime) |local| {
+        if (printed_any) std.debug.print(",\n", .{});
+        std.debug.print("    \"local_gguf\": {{ \"status\": \"ok\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"prefill_tok_s\": {{ \"mean\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+            local.summary.decode_tok_s.mean,
+            local.summary.decode_tok_s.p50,
+            local.summary.decode_tok_s.p90,
+            local.summary.prefill_tok_s.mean,
+            local.summary.elapsed_ms.mean,
+        });
+        printed_any = true;
+    }
+    if (ollama_runtime) |res| {
+        if (printed_any) std.debug.print(",\n", .{});
+        std.debug.print("    \"ollama\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"prefill_tok_s\": {{ \"mean\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+            res.model_name,
+            res.summary.decode_tok_s.mean,
+            res.summary.decode_tok_s.p50,
+            res.summary.decode_tok_s.p90,
+            res.summary.prefill_tok_s.mean,
+            res.summary.elapsed_ms.mean,
+        });
+        printed_any = true;
+    }
+    if (mlx_runtime) |res| {
+        if (printed_any) std.debug.print(",\n", .{});
+        std.debug.print("    \"mlx\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+            res.model_name,
+            res.summary.decode_tok_s.mean,
+            res.summary.decode_tok_s.p50,
+            res.summary.decode_tok_s.p90,
+            res.summary.elapsed_ms.mean,
+        });
+        printed_any = true;
+    }
+    if (vllm_runtime) |res| {
+        if (printed_any) std.debug.print(",\n", .{});
+        std.debug.print("    \"vllm\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+            res.model_name,
+            res.summary.decode_tok_s.mean,
+            res.summary.decode_tok_s.p50,
+            res.summary.decode_tok_s.p90,
+            res.summary.elapsed_ms.mean,
+        });
+        printed_any = true;
+    }
+    if (lmstudio_runtime) |res| {
+        if (printed_any) std.debug.print(",\n", .{});
+        std.debug.print("    \"lm_studio\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+            res.model_name,
+            res.summary.decode_tok_s.mean,
+            res.summary.decode_tok_s.p50,
+            res.summary.decode_tok_s.p90,
+            res.summary.elapsed_ms.mean,
+        });
+        printed_any = true;
+    }
+
+    std.debug.print("\n  }}\n", .{});
+    std.debug.print("}}\n", .{});
+}
+
+fn runVllmRuntimeBenchmark(
+    allocator: std.mem.Allocator,
+    prompt: []const u8,
+    gen_tokens: u32,
+    model_override: ?[]const u8,
+    runs: u32,
+) !VllmRuntimeBenchResult {
+    const run_count: usize = @intCast(@max(runs, @as(u32, 1)));
+    const samples = try allocator.alloc(RuntimeBenchSample, run_count);
+    errdefer allocator.free(samples);
+
+    var client = try abi.connectors.vllm.createClient(allocator);
+    defer client.deinit();
+
+    if (model_override) |model_name| {
+        if (model_name.len > 0) {
+            if (client.config.model_owned) {
+                allocator.free(@constCast(client.config.model));
+            }
+            client.config.model = try allocator.dupe(u8, model_name);
+            client.config.model_owned = true;
+        }
+    }
+
+    const model_name_copy = try allocator.dupe(u8, client.config.model);
+    errdefer allocator.free(model_name_copy);
+
+    for (samples) |*sample| {
+        var timer = try abi.shared.time.Timer.start();
+
+        var res = try client.chatCompletion(.{
+            .model = client.config.model,
+            .messages = &.{
+                .{ .role = "user", .content = prompt },
+            },
+            .max_tokens = gen_tokens,
+            .temperature = 0.7,
+        });
+
+        const elapsed_ms = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
+
+        const prompt_count = res.usage.prompt_tokens;
+        const generated_count = res.usage.completion_tokens;
+
+        // Free response strings
+        allocator.free(res.id);
+        allocator.free(res.model);
+        for (res.choices) |choice| {
+            allocator.free(choice.message.role);
+            allocator.free(choice.message.content);
+            allocator.free(choice.finish_reason);
+        }
+        allocator.free(res.choices);
+
+        const decode_tok_s = if (elapsed_ms > 0)
+            @as(f64, @floatFromInt(generated_count)) / (elapsed_ms / 1000.0)
+        else
+            0.0;
+
+        sample.* = .{
+            .prompt_tokens = prompt_count,
+            .generated_tokens = generated_count,
+            .elapsed_ms = elapsed_ms,
+            .prefill_tok_s = 0.0,
+            .decode_tok_s = decode_tok_s,
+        };
+    }
+
+    const summary = try summarizeRuntimeSamples(allocator, samples);
+    return .{
+        .model_name = model_name_copy,
+        .runs = samples,
+        .summary = summary,
+    };
+}
+
+fn runLmStudioRuntimeBenchmark(
+    allocator: std.mem.Allocator,
+    prompt: []const u8,
+    gen_tokens: u32,
+    model_override: ?[]const u8,
+    runs: u32,
+) !LmStudioRuntimeBenchResult {
+    const run_count: usize = @intCast(@max(runs, @as(u32, 1)));
+    const samples = try allocator.alloc(RuntimeBenchSample, run_count);
+    errdefer allocator.free(samples);
+
+    var client = try abi.connectors.lm_studio.createClient(allocator);
+    defer client.deinit();
+
+    if (model_override) |model_name| {
+        if (model_name.len > 0) {
+            if (client.config.model_owned) {
+                allocator.free(@constCast(client.config.model));
+            }
+            client.config.model = try allocator.dupe(u8, model_name);
+            client.config.model_owned = true;
+        }
+    }
+
+    const model_name_copy = try allocator.dupe(u8, client.config.model);
+    errdefer allocator.free(model_name_copy);
+
+    for (samples) |*sample| {
+        var timer = try abi.shared.time.Timer.start();
+
+        var res = try client.chatCompletion(.{
+            .model = client.config.model,
+            .messages = &.{
+                .{ .role = "user", .content = prompt },
+            },
+            .max_tokens = gen_tokens,
+            .temperature = 0.7,
+        });
+
+        const elapsed_ms = @as(f64, @floatFromInt(timer.read())) / 1_000_000.0;
+
+        const prompt_count = res.usage.prompt_tokens;
+        const generated_count = res.usage.completion_tokens;
+
+        // Free response strings
+        allocator.free(res.id);
+        allocator.free(res.model);
+        for (res.choices) |choice| {
+            allocator.free(choice.message.role);
+            allocator.free(choice.message.content);
+            allocator.free(choice.finish_reason);
+        }
+        allocator.free(res.choices);
+
+        const decode_tok_s = if (elapsed_ms > 0)
+            @as(f64, @floatFromInt(generated_count)) / (elapsed_ms / 1000.0)
+        else
+            0.0;
+
+        sample.* = .{
+            .prompt_tokens = prompt_count,
+            .generated_tokens = generated_count,
+            .elapsed_ms = elapsed_ms,
+            .prefill_tok_s = 0.0,
             .decode_tok_s = decode_tok_s,
         };
     }
@@ -1821,6 +2272,12 @@ fn printHelp() void {
         "  --ollama-model <name>   Override Ollama model for compare run\n" ++
         "  --compare-mlx           Run MLX benchmark and compare decode speed\n" ++
         "  --mlx-model <name>      Override MLX model for compare run\n" ++
+        "  --compare-vllm          Run vLLM benchmark and compare decode speed\n" ++
+        "  --vllm-model <name>     Override vLLM model for compare run\n" ++
+        "  --compare-lmstudio      Run LM Studio benchmark and compare decode speed\n" ++
+        "  --lmstudio-model <name> Override LM Studio model for compare run\n" ++
+        "  --compare-all           Compare all available backends\n" ++
+        "  --json                  Output results in JSON format\n" ++
         "  --wdbx-out <path>       Append benchmark record to WDBX database\n\n" ++
         "Serve options:\n" ++
         "  -m, --model <path>      Path to GGUF model file (required for local inference)\n" ++
@@ -1837,6 +2294,8 @@ fn printHelp() void {
         "  abi llm generate ./gpt-oss-20b.gguf -p \"Hi\" --ollama-model gpt-oss\n" ++
         "  abi llm bench ./llama-7b.gguf --gen-tokens 128 --runs 5 --compare-ollama\n" ++
         "  abi llm bench --compare-ollama --compare-mlx --runs 5 --gen-tokens 128\n" ++
+        "  abi llm bench --compare-all --runs 5 --json\n" ++
+        "  abi llm bench --compare-vllm --compare-lmstudio --runs 3\n" ++
         "  abi llm bench ./llama-7b.gguf --compare-ollama --runs 7 --wdbx-out ./bench.wdbx\n" ++
         "  abi llm serve -m ./llama-7b.gguf --preload\n" ++
         "  abi llm serve -m ./model.gguf -a 0.0.0.0:8000 --auth-token secret\n" ++
