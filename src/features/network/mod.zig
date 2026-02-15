@@ -477,3 +477,41 @@ test "network default state" {
     const config = defaultConfig() orelse return error.TestUnexpectedResult;
     try std.testing.expectEqualStrings("cluster-a", config.cluster_id);
 }
+
+test "isEnabled returns build option" {
+    try std.testing.expectEqual(build_options.enable_network, isEnabled());
+}
+
+test "defaultConfig returns null before init" {
+    deinit();
+    try std.testing.expect(defaultConfig() == null);
+}
+
+test "defaultRegistry errors before init" {
+    deinit();
+    try std.testing.expectError(error.NetworkDisabled, defaultRegistry());
+}
+
+test "initWithConfig sets config" {
+    if (!isEnabled()) return;
+    try initWithConfig(std.testing.allocator, .{
+        .cluster_id = "test-cluster",
+        .heartbeat_timeout_ms = 5000,
+        .max_nodes = 16,
+    });
+    defer deinit();
+
+    const config = defaultConfig() orelse return error.TestUnexpectedResult;
+    try std.testing.expectEqualStrings("test-cluster", config.cluster_id);
+    try std.testing.expectEqual(@as(u64, 5000), config.heartbeat_timeout_ms);
+    try std.testing.expectEqual(@as(usize, 16), config.max_nodes);
+}
+
+test "isInitialized tracks lifecycle" {
+    if (!isEnabled()) return;
+    try std.testing.expect(!isInitialized());
+    try init(std.testing.allocator);
+    try std.testing.expect(isInitialized());
+    deinit();
+    try std.testing.expect(!isInitialized());
+}

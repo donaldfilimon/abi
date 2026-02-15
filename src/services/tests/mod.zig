@@ -68,7 +68,6 @@ test {
     _ = @import("stub_parity.zig");
     // Comptime API parity tests (catches drift at compile time)
     _ = @import("parity/mod.zig");
-
     // End-to-end integration tests (issue #397)
     if (build_options.enable_ai) {
         _ = @import("e2e_llm_test.zig");

@@ -85,7 +85,7 @@ fn extractHeadSlice(
     const d_model = tensor_in.shape[1];
 
     var head_data = try allocator.alloc(f32, batch_size * d_k);
-    errdefer allocator.free(head_data);
+    defer allocator.free(head_data); // fromSlice copies via dupe, so free original
 
     // Copy data for this head's dimensions
     for (0..batch_size) |b| {
@@ -109,7 +109,7 @@ fn mergeHeadOutputs(
     const d_k = d_model / num_heads;
 
     var merged_data = try allocator.alloc(f32, batch_size * d_model);
-    errdefer allocator.free(merged_data);
+    defer allocator.free(merged_data); // fromSlice copies via dupe, so free original
 
     // Copy each head's output into the corresponding dimension range
     for (head_outputs, 0..) |head_out, h| {

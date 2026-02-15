@@ -176,7 +176,7 @@ pub const MemoryManager = struct {
         }
         if (self.short_term) |st| {
             // Clone messages for return
-            var result = std.ArrayListUnmanaged(Message){};
+            var result = std.ArrayListUnmanaged(Message).empty;
             for (st.getMessages()) |msg| {
                 try result.append(self.allocator, msg);
             }

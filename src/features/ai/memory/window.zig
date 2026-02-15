@@ -124,7 +124,7 @@ pub const SlidingWindowMemory = struct {
         self: *const SlidingWindowMemory,
         allocator: std.mem.Allocator,
     ) ![]Message {
-        var result = std.ArrayListUnmanaged(Message){};
+        var result = std.ArrayListUnmanaged(Message).empty;
         errdefer result.deinit(allocator);
 
         if (self.system_message) |sys| {
@@ -149,7 +149,7 @@ pub const SlidingWindowMemory = struct {
         budget: usize,
         allocator: std.mem.Allocator,
     ) ![]Message {
-        var result = std.ArrayListUnmanaged(Message){};
+        var result = std.ArrayListUnmanaged(Message).empty;
         errdefer result.deinit(allocator);
 
         var remaining = budget;
@@ -164,7 +164,7 @@ pub const SlidingWindowMemory = struct {
         }
 
         // Add from most recent, then reverse
-        var temp = std.ArrayListUnmanaged(Message){};
+        var temp = std.ArrayListUnmanaged(Message).empty;
         defer temp.deinit(allocator);
 
         var i = self.messages.items.len;

@@ -178,7 +178,7 @@ pub fn parseHttpRequest(
 }
 
 fn jsonValueToOwnedSlice(allocator: std.mem.Allocator, value: std.json.Value) ![]const u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     defer buffer.deinit(allocator);
     try std.json.stringify(value, .{}, buffer.writer(allocator));
     return buffer.toOwnedSlice(allocator);

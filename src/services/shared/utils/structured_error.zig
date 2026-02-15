@@ -94,7 +94,13 @@ pub const Context = struct {
             .timestamp_ns = 0,
         };
         var writer = std.Io.Writer.fixed(&ctx.message);
-        writer.print(fmt, args) catch {};
+        writer.print(fmt, args) catch {
+            // Message truncated to fit fixed buffer — append "..." indicator
+            if (writer.end + 3 <= ctx.message.len) {
+                @memcpy(ctx.message[writer.end..][0..3], "...");
+                writer.end += 3;
+            }
+        };
         ctx.message_len = @intCast(writer.end);
         return ctx;
     }
@@ -240,8 +246,14 @@ pub const Logger = struct {
         if (self.category_filter) |filter| {
             if (ctx.category != filter) return;
         }
-        const stderr = std.io.getStdErr().writer();
-        ctx.format(stderr) catch {};
+        // Format into stack buffer, then write to stderr via C fd
+        var buf: [4096]u8 = undefined;
+        var writer = std.Io.Writer.fixed(&buf);
+        ctx.format(&writer) catch return;
+        const output = buf[0..writer.end];
+        if (output.len > 0) {
+            _ = std.c.write(2, output.ptr, output.len);
+        }
         _ = self.total_logged.fetchAdd(1, .monotonic);
     }
 
@@ -253,3 +265,93 @@ pub const Logger = struct {
 
 /// Global logger instance — configure severity at startup.
 pub var global_logger: Logger = Logger.init(if (builtin.mode == .Debug) .debug else .warn);
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+test "Category labels" {
+    try std.testing.expectEqualStrings("MEMORY", Category.memory.label());
+    try std.testing.expectEqualStrings("GPU", Category.gpu.label());
+    try std.testing.expectEqualStrings("IO", Category.io.label());
+    try std.testing.expectEqualStrings("VALIDATION", Category.validation.label());
+}
+
+test "Severity labels and ordering" {
+    try std.testing.expectEqualStrings("TRACE", Severity.trace.label());
+    try std.testing.expectEqualStrings("ERROR", Severity.err.label());
+    try std.testing.expectEqualStrings("FATAL", Severity.fatal.label());
+
+    // Enum ordering: trace < debug < info < warn < err < fatal
+    try std.testing.expect(@intFromEnum(Severity.trace) < @intFromEnum(Severity.err));
+    try std.testing.expect(@intFromEnum(Severity.err) < @intFromEnum(Severity.fatal));
+}
+
+test "Context init and getMessage" {
+    const ctx = Context.init(.memory, .err, "allocation failed: {d} bytes", .{@as(u64, 1024)});
+    const msg = ctx.getMessage();
+    try std.testing.expect(msg.len > 0);
+    try std.testing.expect(std.mem.indexOf(u8, msg, "1024") != null);
+    try std.testing.expectEqual(Category.memory, ctx.category);
+    try std.testing.expectEqual(Severity.err, ctx.severity);
+}
+
+test "Context withSource" {
+    var ctx = Context.init(.gpu, .warn, "shader issue", .{});
+    _ = ctx.withSource("src/gpu.zig", 42);
+    try std.testing.expectEqual(@as(u32, 42), ctx.source_line);
+    try std.testing.expect(ctx.source_file_len > 0);
+}
+
+test "Context format output" {
+    const ctx = Context.init(.io, .info, "connected", .{});
+    var buf: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&buf);
+    try ctx.format(&writer);
+    const output = buf[0..writer.end];
+    try std.testing.expect(output.len > 0);
+    try std.testing.expect(std.mem.indexOf(u8, output, "INFO") != null);
+    try std.testing.expect(std.mem.indexOf(u8, output, "IO") != null);
+}
+
+test "ErrorAccumulator collects and reports" {
+    var acc = ErrorAccumulator(4){};
+    acc.pushMessage(.memory, .err, "alloc fail", .{});
+    acc.pushMessage(.gpu, .warn, "shader warn", .{});
+
+    try std.testing.expectEqual(@as(usize, 2), acc.count);
+    try std.testing.expect(acc.hasErrors());
+    try std.testing.expect(!acc.overflow);
+
+    acc.clear();
+    try std.testing.expectEqual(@as(usize, 0), acc.count);
+    try std.testing.expect(!acc.hasErrors());
+}
+
+test "ErrorAccumulator overflow" {
+    var acc = ErrorAccumulator(2){};
+    acc.pushMessage(.memory, .info, "first", .{});
+    acc.pushMessage(.gpu, .info, "second", .{});
+    acc.pushMessage(.io, .info, "overflow", .{}); // should overflow
+    try std.testing.expectEqual(@as(usize, 2), acc.count);
+    try std.testing.expect(acc.overflow);
+}
+
+test "convenience constructors" {
+    const e = memoryError("OOM at {d}", .{@as(usize, 0)});
+    try std.testing.expectEqual(Category.memory, e.category);
+    try std.testing.expectEqual(Severity.err, e.severity);
+
+    const g = gpuError("device lost", .{});
+    try std.testing.expectEqual(Category.gpu, g.category);
+
+    const i = info(.config, "loaded", .{});
+    try std.testing.expectEqual(Category.config, i.category);
+    try std.testing.expectEqual(Severity.info, i.severity);
+}
+
+test "Logger filtering by severity" {
+    var logger = Logger.init(.warn);
+    // Debug < warn → should be filtered out
+    var ctx = Context.init(.memory, .debug, "debug msg", .{});
+    logger.log(&ctx); // should not crash, just skip
+    try std.testing.expectEqual(@as(u64, 0), logger.total_logged.load(.acquire));
+}

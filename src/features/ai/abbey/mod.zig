@@ -323,7 +323,7 @@ pub const Abbey = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .memory_manager = try legacy_memory.MemoryManager.init(allocator, config.memory_config),
+            .memory_manager = legacy_memory.MemoryManager.init(allocator, config.memory_config),
             .tool_registry = tools.ToolRegistry.init(allocator),
             .emotional_state = emotions.EmotionalState.init(),
             .current_reasoning = null,
@@ -416,7 +416,7 @@ pub const Abbey = struct {
     }
 
     fn generateResponse(self: *Self, query: []const u8) ![]u8 {
-        var response = std.ArrayListUnmanaged(u8){};
+        var response = std.ArrayListUnmanaged(u8).empty;
         errdefer response.deinit(self.allocator);
 
         try response.appendSlice(self.allocator, "[Abbey] Echo: ");
@@ -491,7 +491,8 @@ test "abbey engine creation" {
 }
 
 test "abbey configuration builder" {
-    const config = try builder()
+    var b = builder();
+    const config = try b
         .name("TestAbbey")
         .temperature(0.8)
         .researchFirst(true)
@@ -551,7 +552,7 @@ test "theory of mind integration" {
 
     // Get/create mental model
     const model = try tom.getModel("user1");
-    try std.testing.expect(model.trust_level >= 0.0);
+    try std.testing.expectEqualStrings("user1", model.user_id);
 }
 
 test "self-reflection engine" {

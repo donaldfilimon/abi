@@ -122,7 +122,7 @@ pub const WdbxTokenDataset = struct {
         const views = db_wdbx.listVectors(&self.handle, self.allocator, stats.count) catch |err| return mapWdbxError(err);
         defer self.allocator.free(views);
 
-        var tokens = std.ArrayListUnmanaged(u32){};
+        var tokens = std.ArrayListUnmanaged(u32).empty;
         errdefer tokens.deinit(self.allocator);
 
         for (views) |view| {
@@ -404,7 +404,7 @@ test "appendTokensFromBlock respects max_tokens" {
     const encoded = try encodeTokenBlock(allocator, &tokens, null);
     defer allocator.free(encoded);
 
-    var out = std.ArrayListUnmanaged(u32){};
+    var out = std.ArrayListUnmanaged(u32).empty;
     defer out.deinit(allocator);
 
     const appended = try appendTokensFromBlock(allocator, &out, encoded, 3);
@@ -422,7 +422,7 @@ test "appendTokensFromBlock zero max means unlimited" {
     const encoded = try encodeTokenBlock(allocator, &tokens, null);
     defer allocator.free(encoded);
 
-    var out = std.ArrayListUnmanaged(u32){};
+    var out = std.ArrayListUnmanaged(u32).empty;
     defer out.deinit(allocator);
 
     const appended = try appendTokensFromBlock(allocator, &out, encoded, 0);

@@ -422,7 +422,7 @@ pub const ThunderboltTransport = struct {
 
         // On real hardware, this would query the Thunderbolt controller
         // For now, return empty list
-        var list = std.ArrayListUnmanaged(u64){};
+        var list = std.ArrayListUnmanaged(u64).empty;
         var kit = self.devices.keyIterator();
         while (kit.next()) |key| {
             try list.append(self.allocator, key.*);

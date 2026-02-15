@@ -164,30 +164,30 @@ pub const SemanticMemory = struct {
         return k;
     }
 
-    /// Retrieve knowledge by category
-    pub fn getByCategory(self: *Self, category: Knowledge.KnowledgeCategory) []const *Knowledge {
+    /// Retrieve knowledge by category (caller must free returned slice)
+    pub fn getByCategory(self: *Self, category: Knowledge.KnowledgeCategory) ![]*Knowledge {
         const cat_key = @intFromEnum(category);
         if (self.category_index.get(cat_key)) |indices| {
-            var results: [256]*Knowledge = undefined;
-            var count: usize = 0;
+            var results = std.ArrayListUnmanaged(*Knowledge).empty;
+            errdefer results.deinit(self.allocator);
 
             for (indices.items) |idx| {
-                if (idx < self.knowledge.items.len and count < 256) {
-                    results[count] = &self.knowledge.items[idx];
-                    results[count].accessed_at = types.getTimestampSec();
-                    results[count].access_count += 1;
-                    count += 1;
+                if (idx < self.knowledge.items.len) {
+                    var k = &self.knowledge.items[idx];
+                    k.accessed_at = types.getTimestampSec();
+                    k.access_count += 1;
+                    try results.append(self.allocator, k);
                 }
             }
 
-            return results[0..count];
+            return try results.toOwnedSlice(self.allocator);
         }
         return &.{};
     }
 
     /// Search by embedding similarity
     pub fn search(self: *Self, query_embedding: []const f32, top_k: usize) ![]const KnowledgeMatch {
-        var matches = std.ArrayListUnmanaged(KnowledgeMatch){};
+        var matches = std.ArrayListUnmanaged(KnowledgeMatch).empty;
         errdefer matches.deinit(self.allocator);
 
         for (self.knowledge.items, 0..) |*k, idx| {
@@ -210,7 +210,8 @@ pub const SemanticMemory = struct {
         }.lessThan);
 
         const result_count = @min(top_k, items.len);
-        return matches.toOwnedSlice(self.allocator)[0..result_count];
+        const all = try matches.toOwnedSlice(self.allocator);
+        return all[0..result_count];
     }
 
     pub const KnowledgeMatch = struct {
@@ -348,7 +349,7 @@ pub const EmbeddingIndex = struct {
     }
 
     pub fn search(self: *EmbeddingIndex, query: []const f32, top_k: usize) ![]const struct { id: u64, score: f32 } {
-        var results = std.ArrayListUnmanaged(struct { id: u64, score: f32 }){};
+        var results = std.ArrayListUnmanaged(struct { id: u64, score: f32 }).empty;
         errdefer results.deinit(self.allocator);
 
         for (self.entries.items) |entry| {
@@ -418,6 +419,7 @@ test "semantic memory category retrieval" {
     _ = try memory.store("Fact 2", .fact, .user_stated);
     _ = try memory.store("Preference 1", .preference, .user_stated);
 
-    const facts = memory.getByCategory(.fact);
+    const facts = try memory.getByCategory(.fact);
+    defer if (facts.len > 0) allocator.free(facts);
     try std.testing.expectEqual(@as(usize, 2), facts.len);
 }

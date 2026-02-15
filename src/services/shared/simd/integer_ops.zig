@@ -191,6 +191,72 @@ pub fn scaleInPlace(data: []f32, scalar: f32) void {
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// Tests
+// ════════════════════════════════════════════════════════════════════════
+
+test "vectorAddI32 basic" {
+    const a = [_]i32{ 1, 2, 3, 4, 5 };
+    const b = [_]i32{ 10, 20, 30, 40, 50 };
+    var result: [5]i32 = undefined;
+    vectorAddI32(&a, &b, &result);
+    try std.testing.expectEqual(@as(i32, 11), result[0]);
+    try std.testing.expectEqual(@as(i32, 55), result[4]);
+}
+
+test "sumI32 correct total" {
+    const data = [_]i32{ 1, 2, 3, 4, 5 };
+    try std.testing.expectEqual(@as(i64, 15), sumI32(&data));
+}
+
+test "sumI32 empty" {
+    const empty: []const i32 = &.{};
+    try std.testing.expectEqual(@as(i64, 0), sumI32(empty));
+}
+
+test "maxI32 finds maximum" {
+    const data = [_]i32{ 3, 1, 4, 1, 5, 9, 2, 6 };
+    try std.testing.expectEqual(@as(i32, 9), maxI32(&data));
+}
+
+test "minI32 finds minimum" {
+    const data = [_]i32{ 3, 1, 4, 1, 5, 9, 2, 6 };
+    try std.testing.expectEqual(@as(i32, 1), minI32(&data));
+}
+
+test "maxI32 empty returns min int" {
+    const empty: []const i32 = &.{};
+    try std.testing.expectEqual(std.math.minInt(i32), maxI32(empty));
+}
+
+test "fma result = a*b+c" {
+    const a = [_]f32{ 2.0, 3.0 };
+    const b = [_]f32{ 4.0, 5.0 };
+    const c = [_]f32{ 1.0, 1.0 };
+    var result: [2]f32 = undefined;
+    fma(&a, &b, &c, &result);
+    // 2*4+1=9, 3*5+1=16
+    try std.testing.expectApproxEqAbs(@as(f32, 9.0), result[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 16.0), result[1], 0.001);
+}
+
+test "fmaScalar result = s*a+b" {
+    const a = [_]f32{ 2.0, 3.0 };
+    const b = [_]f32{ 1.0, 1.0 };
+    var result: [2]f32 = undefined;
+    fmaScalar(10.0, &a, &b, &result);
+    // 10*2+1=21, 10*3+1=31
+    try std.testing.expectApproxEqAbs(@as(f32, 21.0), result[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 31.0), result[1], 0.001);
+}
+
+test "scaleInPlace multiplies" {
+    var data = [_]f32{ 1.0, 2.0, 3.0 };
+    scaleInPlace(&data, 5.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), data[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 15.0), data[2], 0.001);
+}
+
 /// Add scalar to vector in-place
 pub fn addScalarInPlace(data: []f32, scalar: f32) void {
     if (data.len == 0) return;
@@ -210,4 +276,11 @@ pub fn addScalarInPlace(data: []f32, scalar: f32) void {
     while (i < data.len) : (i += 1) {
         data[i] += scalar;
     }
+}
+
+test "addScalarInPlace offsets" {
+    var data = [_]f32{ 1.0, 2.0, 3.0 };
+    addScalarInPlace(&data, 10.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 11.0), data[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 13.0), data[2], 0.001);
 }

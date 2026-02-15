@@ -231,7 +231,7 @@ fn runHelpTarget(
     extra_args: []const [:0]const u8,
 ) !void {
     const command = spec.resolveAlias(raw_command);
-    var forwarded = std.ArrayListUnmanaged([:0]const u8){};
+    var forwarded = std.ArrayListUnmanaged([:0]const u8).empty;
     for (extra_args) |arg| {
         try forwarded.append(arena_allocator, arg);
     }

@@ -394,7 +394,7 @@ pub const CustomAI = struct {
 
         // Build full system prompt
         const seed = custom_config.getEffectiveSeedPrompt();
-        var prompt_builder = std.ArrayListUnmanaged(u8){};
+        var prompt_builder = std.ArrayListUnmanaged(u8).empty;
         errdefer prompt_builder.deinit(allocator);
 
         // Add name header

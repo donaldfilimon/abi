@@ -65,7 +65,7 @@ pub const RaftSnapshotManager = struct {
             0;
 
         // Build configuration data (peer list)
-        var config_data = std.ArrayListUnmanaged(u8){};
+        var config_data = std.ArrayListUnmanaged(u8).empty;
         defer config_data.deinit(self.allocator);
 
         var iter = node.peers.keyIterator();
@@ -260,7 +260,7 @@ pub const RaftSnapshotManager = struct {
 
     /// Get list of available snapshot files.
     pub fn listSnapshots(self: *RaftSnapshotManager) !std.ArrayListUnmanaged(SnapshotInfo) {
-        var snapshots = std.ArrayListUnmanaged(SnapshotInfo){};
+        var snapshots = std.ArrayListUnmanaged(SnapshotInfo).empty;
         errdefer {
             for (snapshots.items) |s| self.allocator.free(s.filename);
             snapshots.deinit(self.allocator);

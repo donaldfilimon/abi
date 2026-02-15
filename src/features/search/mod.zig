@@ -16,6 +16,7 @@ const sync = @import("../../services/shared/sync.zig");
 
 pub const SearchConfig = core_config.SearchConfig;
 
+/// Errors returned by search operations.
 pub const SearchError = error{
     FeatureDisabled,
     IndexNotFound,
@@ -26,18 +27,23 @@ pub const SearchError = error{
     DocumentNotFound,
 };
 
+/// A single search hit with BM25 relevance score and context snippet.
 pub const SearchResult = struct {
     doc_id: []const u8 = "",
+    /// BM25 relevance score (higher = more relevant).
     score: f32 = 0.0,
+    /// Text excerpt around the best matching region.
     snippet: []const u8 = "",
 };
 
+/// Metadata about a named full-text search index.
 pub const SearchIndex = struct {
     name: []const u8 = "",
     doc_count: u64 = 0,
     size_bytes: u64 = 0,
 };
 
+/// Aggregate statistics across all search indexes.
 pub const SearchStats = struct {
     total_indexes: u32 = 0,
     total_documents: u64 = 0,
@@ -237,18 +243,23 @@ const InvertedIndex = struct {
         if (self.documents.get(doc_id)) |existing| {
             self.total_terms -= existing.term_count;
 
-            // Clean up old posting list entries for this document
-            var pl_iter = self.term_index.iterator();
-            while (pl_iter.next()) |entry| {
-                const pl = entry.value_ptr.*;
-                var i: usize = 0;
-                while (i < pl.postings.items.len) {
-                    if (std.mem.eql(u8, pl.postings.items[i].doc_id, existing.id)) {
-                        const removed = pl.postings.swapRemove(i);
-                        self.allocator.free(removed.doc_id);
-                        pl.doc_freq -|= 1;
-                    } else {
-                        i += 1;
+            // Re-tokenize old content to find only its terms — O(terms_in_doc)
+            var old_tokens = try tokenize(self.allocator, existing.content, true);
+            defer {
+                for (old_tokens.items) |t| self.allocator.free(t);
+                old_tokens.deinit(self.allocator);
+            }
+            for (old_tokens.items) |term| {
+                if (self.term_index.get(term)) |pl| {
+                    var i: usize = 0;
+                    while (i < pl.postings.items.len) {
+                        if (std.mem.eql(u8, pl.postings.items[i].doc_id, existing.id)) {
+                            const removed = pl.postings.swapRemove(i);
+                            self.allocator.free(removed.doc_id);
+                            pl.doc_freq -|= 1;
+                        } else {
+                            i += 1;
+                        }
                     }
                 }
             }
@@ -331,11 +342,13 @@ const InvertedIndex = struct {
         query_text: []const u8,
         limit: u32,
     ) ![]SearchResult {
-        var query_tokens = try tokenize(allocator, query_text, true);
-        defer {
-            for (query_tokens.items) |t| allocator.free(t);
-            query_tokens.deinit(allocator);
-        }
+        // Use arena for query tokenization — tokens are only needed during scoring
+        // and this avoids per-token heap alloc/free overhead
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+        var query_tokens = try tokenize(arena.allocator(), query_text, true);
+        // No per-token free needed — arena handles bulk deallocation
+        _ = &query_tokens;
 
         if (query_tokens.items.len == 0) return &.{};
 
@@ -426,11 +439,13 @@ const SearchState = struct {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/// Initialize the global search engine singleton.
 pub fn init(allocator: std.mem.Allocator, config: SearchConfig) SearchError!void {
     if (search_state != null) return;
     search_state = SearchState.create(allocator, config) catch return error.OutOfMemory;
 }
 
+/// Tear down the search engine, destroying all indexes and postings.
 pub fn deinit() void {
     if (search_state) |s| {
         s.destroy();
@@ -446,6 +461,8 @@ pub fn isInitialized() bool {
     return search_state != null;
 }
 
+/// Create a new named full-text index. Returns `IndexAlreadyExists` if
+/// an index with the same name exists.
 pub fn createIndex(allocator: std.mem.Allocator, name: []const u8) SearchError!SearchIndex {
     _ = allocator;
     const s = search_state orelse return error.FeatureDisabled;
@@ -464,6 +481,7 @@ pub fn createIndex(allocator: std.mem.Allocator, name: []const u8) SearchError!S
     return .{ .name = idx.name };
 }
 
+/// Delete a named index and all its documents.
 pub fn deleteIndex(name: []const u8) SearchError!void {
     const s = search_state orelse return error.FeatureDisabled;
 
@@ -477,6 +495,8 @@ pub fn deleteIndex(name: []const u8) SearchError!void {
     }
 }
 
+/// Add or update a document in a named index. Tokenizes the content
+/// and builds inverted-index postings for BM25 retrieval.
 pub fn indexDocument(
     index_name: []const u8,
     doc_id: []const u8,
@@ -491,6 +511,7 @@ pub fn indexDocument(
     idx.addDocument(doc_id, content) catch return error.OutOfMemory;
 }
 
+/// Remove a document from an index. Returns `true` if the document existed.
 pub fn deleteDocument(index_name: []const u8, doc_id: []const u8) SearchError!bool {
     const s = search_state orelse return error.FeatureDisabled;
 
@@ -503,18 +524,46 @@ pub fn deleteDocument(index_name: []const u8, doc_id: []const u8) SearchError!bo
         const doc = kv.value;
         idx.total_terms -= doc.term_count;
 
-        // Clean up posting lists referencing this document
-        var term_iter = idx.term_index.iterator();
-        while (term_iter.next()) |entry| {
-            const pl = entry.value_ptr.*;
-            var i: usize = 0;
-            while (i < pl.postings.items.len) {
-                if (std.mem.eql(u8, pl.postings.items[i].doc_id, doc.id)) {
-                    const removed = pl.postings.swapRemove(i);
-                    idx.allocator.free(removed.doc_id);
-                    pl.doc_freq -|= 1;
-                } else {
-                    i += 1;
+        // Re-tokenize stored content to find exactly which terms this document
+        // contributes to — O(terms_in_doc) instead of O(total_terms)
+        var doc_tokens = tokenize(idx.allocator, doc.content, true) catch {
+            // Fallback: scan all terms (original O(T*P) path)
+            var term_iter = idx.term_index.iterator();
+            while (term_iter.next()) |entry| {
+                const pl = entry.value_ptr.*;
+                var i: usize = 0;
+                while (i < pl.postings.items.len) {
+                    if (std.mem.eql(u8, pl.postings.items[i].doc_id, doc.id)) {
+                        const removed = pl.postings.swapRemove(i);
+                        idx.allocator.free(removed.doc_id);
+                        pl.doc_freq -|= 1;
+                    } else {
+                        i += 1;
+                    }
+                }
+            }
+            idx.allocator.free(doc.id);
+            idx.allocator.free(doc.content);
+            idx.allocator.destroy(doc);
+            return true;
+        };
+        defer {
+            for (doc_tokens.items) |t| idx.allocator.free(t);
+            doc_tokens.deinit(idx.allocator);
+        }
+
+        // Only visit posting lists for terms in this document
+        for (doc_tokens.items) |term| {
+            if (idx.term_index.get(term)) |pl| {
+                var i: usize = 0;
+                while (i < pl.postings.items.len) {
+                    if (std.mem.eql(u8, pl.postings.items[i].doc_id, doc.id)) {
+                        const removed = pl.postings.swapRemove(i);
+                        idx.allocator.free(removed.doc_id);
+                        pl.doc_freq -|= 1;
+                    } else {
+                        i += 1;
+                    }
                 }
             }
         }
@@ -527,6 +576,8 @@ pub fn deleteDocument(index_name: []const u8, doc_id: []const u8) SearchError!bo
     return false;
 }
 
+/// Execute a BM25-scored full-text query against a named index.
+/// Results are sorted by relevance and include context snippets.
 pub fn query(
     allocator: std.mem.Allocator,
     index_name: []const u8,
@@ -542,6 +593,7 @@ pub fn query(
         return error.OutOfMemory;
 }
 
+/// Return aggregate statistics across all search indexes.
 pub fn stats() SearchStats {
     const s = search_state orelse return .{};
 
@@ -782,4 +834,61 @@ test "search BM25 single document edge case" {
     try std.testing.expectEqual(@as(usize, 1), results.len);
     // BM25 with single doc: IDF = log(1 + (1-1+0.5)/(1+0.5)) = log(1.333) > 0
     try std.testing.expect(results[0].score > 0);
+}
+
+test "search query with only stop words returns empty" {
+    const allocator = std.testing.allocator;
+    try init(allocator, SearchConfig.defaults());
+    defer deinit();
+
+    _ = try createIndex(allocator, "stops");
+    try indexDocument("stops", "doc1", "hello world programming");
+
+    // "the is a" are all stop words — should produce no results
+    const results = try query(allocator, "stops", "the is a");
+    defer allocator.free(results);
+    try std.testing.expectEqual(@as(usize, 0), results.len);
+}
+
+test "search case insensitive matching" {
+    const allocator = std.testing.allocator;
+    try init(allocator, SearchConfig.defaults());
+    defer deinit();
+
+    _ = try createIndex(allocator, "case");
+    try indexDocument("case", "doc1", "Hello World PROGRAMMING");
+
+    const results = try query(allocator, "case", "hello");
+    defer allocator.free(results);
+    try std.testing.expectEqual(@as(usize, 1), results.len);
+}
+
+test "search results ordered by BM25 descending" {
+    const allocator = std.testing.allocator;
+    try init(allocator, SearchConfig.defaults());
+    defer deinit();
+
+    _ = try createIndex(allocator, "order");
+    // doc2 has "rust" twice — should score higher
+    try indexDocument("order", "doc1", "rust programming language");
+    try indexDocument("order", "doc2", "rust rust systems programming");
+
+    const results = try query(allocator, "order", "rust");
+    defer allocator.free(results);
+    try std.testing.expect(results.len >= 2);
+    // First result should have higher or equal score
+    try std.testing.expect(results[0].score >= results[1].score);
+}
+
+test "search single character query" {
+    const allocator = std.testing.allocator;
+    try init(allocator, SearchConfig.defaults());
+    defer deinit();
+
+    _ = try createIndex(allocator, "char");
+    try indexDocument("char", "doc1", "x marks the spot");
+
+    const results = try query(allocator, "char", "x");
+    defer allocator.free(results);
+    try std.testing.expectEqual(@as(usize, 1), results.len);
 }

@@ -14,7 +14,9 @@
 //! // ... use allocator ...
 //! const stats = tracker.getStats();
 //! if (tracker.detectLeaks()) {
-//!     tracker.dumpLeaks(std.io.getStdErr().writer());
+//!     var buf: [4096]u8 = undefined;
+//!     var writer = std.Io.Writer.fixed(&buf);
+//!     tracker.dumpLeaks(&writer);
 //! }
 //! ```
 

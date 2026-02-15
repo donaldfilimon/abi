@@ -960,7 +960,7 @@ fn runStreamingBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListU
     const sample_tokens = [_][]const u8{ " the", " a", " is", " and", " to", " of", " in", " that", " it", " for" };
 
     for (token_counts) |token_count| {
-        var ttft_samples = std.ArrayListUnmanaged(u64){};
+        var ttft_samples = std.ArrayListUnmanaged(u64).empty;
         defer ttft_samples.deinit(allocator);
 
         var throughput_sum: f64 = 0;
@@ -1035,7 +1035,7 @@ fn runStreamingBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListU
     // SSE encoding overhead benchmark
     {
         const encode_iterations: u64 = 10000;
-        var buffer = std.ArrayListUnmanaged(u8){};
+        var buffer = std.ArrayListUnmanaged(u8).empty;
         defer buffer.deinit(allocator);
 
         const timer = abi.shared.time.Timer.start() catch return;

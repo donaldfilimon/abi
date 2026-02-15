@@ -394,7 +394,7 @@ pub const builtinVars = struct {
 
 /// Escape a string for use in generated code.
 pub fn escapeString(allocator: std.mem.Allocator, s: []const u8) ![]const u8 {
-    var result = std.ArrayListUnmanaged(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     for (s) |c| {
         switch (c) {
             '"' => try result.appendSlice(allocator, "\\\""),

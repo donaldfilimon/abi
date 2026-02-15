@@ -14,7 +14,7 @@ pub fn encodeMessageWithEmbed(
     content: ?[]const u8,
     embed: Embed,
 ) ![]u8 {
-    var json = std.ArrayListUnmanaged(u8){};
+    var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
     try json.appendSlice(allocator, "{");
@@ -127,7 +127,7 @@ pub fn encodeApplicationCommand(
     description: []const u8,
     options: []const ApplicationCommandOption,
 ) ![]u8 {
-    var json = std.ArrayListUnmanaged(u8){};
+    var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
     try json.print(
@@ -157,4 +157,75 @@ pub fn encodeApplicationCommand(
     try json.appendSlice(allocator, "}");
 
     return try json.toOwnedSlice(allocator);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Tests
+// ════════════════════════════════════════════════════════════════════════
+
+test "encodeMessageWithEmbed basic" {
+    const allocator = std.testing.allocator;
+    const embed = Embed{
+        .title = "Test",
+        .description = "Body",
+    };
+    const json_str = try encodeMessageWithEmbed(allocator, "Hello", embed);
+    defer allocator.free(json_str);
+
+    // Should contain content and embed structure
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"content\":") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"embeds\":[{") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"title\":") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"description\":") != null);
+}
+
+test "encodeMessageWithEmbed no content" {
+    const allocator = std.testing.allocator;
+    const embed = Embed{
+        .title = "Embed",
+    };
+    const json_str = try encodeMessageWithEmbed(allocator, null, embed);
+    defer allocator.free(json_str);
+
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"content\":") == null);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"title\":") != null);
+}
+
+test "encodeMessageWithEmbed with color" {
+    const allocator = std.testing.allocator;
+    const embed = Embed{
+        .title = "Colored",
+        .color = 0xFF0000,
+    };
+    const json_str = try encodeMessageWithEmbed(allocator, null, embed);
+    defer allocator.free(json_str);
+
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"color\":") != null);
+}
+
+test "encodeApplicationCommand basic" {
+    const allocator = std.testing.allocator;
+    const json_str = try encodeApplicationCommand(allocator, "ping", "Ping the bot", &.{});
+    defer allocator.free(json_str);
+
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"name\":\"ping\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"description\":") != null);
+}
+
+test "encodeApplicationCommand with options" {
+    const allocator = std.testing.allocator;
+    const options = [_]ApplicationCommandOption{
+        .{
+            .option_type = 3, // STRING
+            .name = "query",
+            .description = "Search query",
+            .required = true,
+        },
+    };
+    const json_str = try encodeApplicationCommand(allocator, "search", "Search for something", &options);
+    defer allocator.free(json_str);
+
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"options\":[") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"name\":\"query\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, json_str, "\"required\":true") != null);
 }

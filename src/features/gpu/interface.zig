@@ -76,6 +76,75 @@ pub fn mapToStandardError(err: anyerror) GpuError {
     return error.InvalidOperation;
 }
 
+/// Normalize backend-specific error naming to canonical `BackendError` values.
+///
+/// This is used at backend boundaries to absorb naming drift such as
+/// `InitializationFailed` vs `InitFailed` and backend-specific "not available"
+/// tags.
+pub fn normalizeBackendError(err: anyerror) BackendError {
+    if (err == error.NotAvailable or
+        err == error.ValidationLayerNotAvailable or
+        err == error.StdGpuNotAvailable or
+        err == error.WebGpuNotAvailable or
+        err == error.CudaNotAvailable or
+        err == error.BankNotAvailable)
+    {
+        return error.NotAvailable;
+    }
+    if (err == error.DeviceNotFound) return error.DeviceNotFound;
+    if (err == error.DriverNotFound) return error.DriverNotFound;
+    if (err == error.OutOfMemory) return error.OutOfMemory;
+    if (err == error.InitFailed or err == error.InitializationFailed or err == error.NotInitialized) {
+        return error.InitFailed;
+    }
+    if (err == error.KernelCompileFailed or err == error.CompileFailed or err == error.ShaderCompilationFailed or err == error.CompilationFailed) {
+        return error.KernelCompileFailed;
+    }
+    if (err == error.KernelLaunchFailed or err == error.LaunchFailed or err == error.ExecutionFailed or err == error.KernelExecutionFailed) {
+        return error.KernelLaunchFailed;
+    }
+    if (err == error.Timeout) return error.Timeout;
+    if (err == error.SynchronizationFailed) return error.SynchronizationFailed;
+
+    const name = @errorName(err);
+    if (std.mem.eql(u8, name, "NotAvailable") or
+        std.mem.eql(u8, name, "ValidationLayerNotAvailable") or
+        std.mem.eql(u8, name, "StdGpuNotAvailable") or
+        std.mem.eql(u8, name, "WebGpuNotAvailable") or
+        std.mem.eql(u8, name, "CudaNotAvailable") or
+        std.mem.eql(u8, name, "BankNotAvailable"))
+    {
+        return error.NotAvailable;
+    }
+    if (std.mem.eql(u8, name, "DeviceNotFound")) return error.DeviceNotFound;
+    if (std.mem.eql(u8, name, "DriverNotFound")) return error.DriverNotFound;
+    if (std.mem.eql(u8, name, "OutOfMemory")) return error.OutOfMemory;
+    if (std.mem.eql(u8, name, "InitFailed") or
+        std.mem.eql(u8, name, "InitializationFailed") or
+        std.mem.eql(u8, name, "NotInitialized"))
+    {
+        return error.InitFailed;
+    }
+    if (std.mem.eql(u8, name, "KernelCompileFailed") or
+        std.mem.eql(u8, name, "CompileFailed") or
+        std.mem.eql(u8, name, "ShaderCompilationFailed") or
+        std.mem.eql(u8, name, "CompilationFailed"))
+    {
+        return error.KernelCompileFailed;
+    }
+    if (std.mem.eql(u8, name, "KernelLaunchFailed") or
+        std.mem.eql(u8, name, "LaunchFailed") or
+        std.mem.eql(u8, name, "ExecutionFailed") or
+        std.mem.eql(u8, name, "KernelExecutionFailed"))
+    {
+        return error.KernelLaunchFailed;
+    }
+    if (std.mem.eql(u8, name, "Timeout")) return error.Timeout;
+    if (std.mem.eql(u8, name, "SynchronizationFailed")) return error.SynchronizationFailed;
+
+    return error.InitFailed;
+}
+
 /// Device capabilities
 pub const DeviceCaps = struct {
     name: [256]u8 = undefined,

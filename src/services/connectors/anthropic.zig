@@ -128,7 +128,7 @@ pub const Client = struct {
         try http_req.setHeader("anthropic-version", "2023-06-01");
         try http_req.setJsonBody(json);
 
-        const http_res = try self.http.fetchJson(&http_req);
+        const http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
@@ -186,7 +186,7 @@ pub const Client = struct {
     }
 
     fn encodeMessagesRequest(self: *Client, request: MessagesRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");
@@ -238,6 +238,7 @@ pub const Client = struct {
         errdefer self.allocator.free(model);
 
         const stop_reason = json_utils.parseOptionalStringField(object, "stop_reason", self.allocator) catch null;
+        errdefer if (stop_reason) |sr| self.allocator.free(sr);
 
         const content_array = try json_utils.parseArrayField(object, "content");
         var content_blocks = try self.allocator.alloc(ContentBlock, content_array.items.len);
@@ -269,7 +270,7 @@ pub const Client = struct {
 
     /// Get text content from response (combines all text blocks)
     pub fn getResponseText(self: *Client, response: MessagesResponse) ![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
         for (response.content) |block| {

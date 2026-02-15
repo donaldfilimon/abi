@@ -116,7 +116,7 @@ pub fn HNSWIndex(comptime distance_fn: fn ([]const f32, []const f32) f32) type {
                 const ul: usize = @intCast(l);
                 const max_neighbors: usize = if (l == 0) self.m_max else self.m;
 
-                var candidates = std.ArrayListUnmanaged(struct { idx: u32, dist: f32 }){};
+                var candidates = std.ArrayListUnmanaged(struct { idx: u32, dist: f32 }).empty;
                 defer candidates.deinit(self.allocator);
 
                 try candidates.append(self.allocator, .{ .idx = curr_node, .dist = curr_dist });
@@ -167,7 +167,7 @@ pub fn HNSWIndex(comptime distance_fn: fn ([]const f32, []const f32) f32) type {
                 }
             }
 
-            var candidates = std.ArrayListUnmanaged(SearchResult){};
+            var candidates = std.ArrayListUnmanaged(SearchResult).empty;
             errdefer candidates.deinit(self.allocator);
 
             var visited = std.AutoHashMapUnmanaged(u32, void){};

@@ -157,10 +157,11 @@ pub const MemoryManager = struct {
     /// Build a context string from stored skills (category .skill) for Ralph and similar agents.
     /// Caller owns the returned slice. Returns null if no skills are stored.
     pub fn getSkillsContext(self: *Self, allocator: std.mem.Allocator, max_chars: usize) !?[]u8 {
-        const skills = self.semantic_memory.getByCategory(.skill);
+        const skills = try self.semantic_memory.getByCategory(.skill);
+        defer if (skills.len > 0) self.semantic_memory.allocator.free(skills);
         if (skills.len == 0) return null;
 
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
         try buf.appendSlice(allocator, "\n\n[Learned skills — use these when relevant]\n");
         for (skills) |k| {
@@ -201,7 +202,7 @@ pub const MemoryManager = struct {
             defer self.allocator.free(matches);
 
             if (matches.len > 0) {
-                var kb = std.ArrayListUnmanaged(u8){};
+                var kb = std.ArrayListUnmanaged(u8).empty;
                 for (matches) |match| {
                     if (self.semantic_memory.get(match.id)) |k| {
                         try kb.appendSlice(self.allocator, "[Knowledge] ");
@@ -217,7 +218,7 @@ pub const MemoryManager = struct {
         const recent = self.episodic_memory.getRecent(3);
         var episode_context: ?[]u8 = null;
         if (recent.len > 0) {
-            var eb = std.ArrayListUnmanaged(u8){};
+            var eb = std.ArrayListUnmanaged(u8).empty;
             try eb.appendSlice(self.allocator, "[Recent conversation context available]\n");
             episode_context = try eb.toOwnedSlice(self.allocator);
         }
@@ -368,8 +369,8 @@ test "memory manager getSkillsContext" {
     var manager = try MemoryManager.init(allocator, .{});
     defer manager.deinit();
 
-    try manager.storeKnowledge("Always run tests after refactoring", .skill, .learned);
-    try manager.storeKnowledge("Prefer small steps in Ralph loops", .skill, .learned);
+    _ = try manager.storeKnowledge("Always run tests after refactoring", .skill, .learned);
+    _ = try manager.storeKnowledge("Prefer small steps in Ralph loops", .skill, .learned);
 
     const ctx = try manager.getSkillsContext(allocator, 2048);
     try std.testing.expect(ctx != null);

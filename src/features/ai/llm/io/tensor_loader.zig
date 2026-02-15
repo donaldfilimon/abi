@@ -71,7 +71,7 @@ pub const TensorLoader = struct {
 
     /// Get list of all tensor names.
     pub fn getTensorNames(self: *TensorLoader) []const []const u8 {
-        var names = std.ArrayListUnmanaged([]const u8){};
+        var names = std.ArrayListUnmanaged([]const u8).empty;
         errdefer names.deinit(self.allocator);
 
         var iter = self.gguf_file.tensors.keyIterator();

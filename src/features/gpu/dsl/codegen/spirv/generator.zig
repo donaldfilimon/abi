@@ -183,7 +183,7 @@ pub const SpirvGenerator = struct {
         try self.emitName(&self.debug_section, local_inv_index, "localInvocationIndex");
 
         // Generate buffer variables
-        var interface_ids = std.ArrayListUnmanaged(u32){};
+        var interface_ids = std.ArrayListUnmanaged(u32).empty;
         defer interface_ids.deinit(self.allocator);
 
         // Add built-ins to interface
@@ -231,7 +231,7 @@ pub const SpirvGenerator = struct {
         // Process uniforms
         if (ir.uniforms.len > 0) {
             // Create uniform block struct
-            var member_types = std.ArrayListUnmanaged(u32){};
+            var member_types = std.ArrayListUnmanaged(u32).empty;
             defer member_types.deinit(self.allocator);
 
             var member_offset: u32 = 0;
@@ -530,7 +530,7 @@ pub const SpirvGenerator = struct {
                 return result_id;
             },
             .vector_construct => |vc| {
-                var component_ids = std.ArrayListUnmanaged(u32){};
+                var component_ids = std.ArrayListUnmanaged(u32).empty;
                 defer component_ids.deinit(self.allocator);
 
                 for (vc.components) |comp| {
@@ -541,7 +541,7 @@ pub const SpirvGenerator = struct {
                 const vec_type = try self.getVectorType(elem_type, vc.size);
                 const result_id = self.allocId();
 
-                var operands = std.ArrayListUnmanaged(u32){};
+                var operands = std.ArrayListUnmanaged(u32).empty;
                 defer operands.deinit(self.allocator);
                 try operands.append(self.allocator, vec_type);
                 try operands.append(self.allocator, result_id);
@@ -564,7 +564,7 @@ pub const SpirvGenerator = struct {
                     const vec_type = try self.getVectorType(elem_type, @intCast(sw.components.len));
                     const result_id = self.allocId();
 
-                    var operands = std.ArrayListUnmanaged(u32){};
+                    var operands = std.ArrayListUnmanaged(u32).empty;
                     defer operands.deinit(self.allocator);
                     try operands.append(self.allocator, vec_type);
                     try operands.append(self.allocator, result_id);
@@ -955,7 +955,7 @@ pub const SpirvGenerator = struct {
         if (self.type_ids.get(key)) |id| return id;
 
         const id = self.allocId();
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, id);
         try operands.append(self.allocator, return_type);
@@ -1076,7 +1076,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitExtInstImport(self: *Self, result_id: u32, name_str: []const u8) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, result_id);
         try self.appendString(&operands, name_str);
@@ -1092,7 +1092,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitEntryPoint(self: *Self, model: ExecutionModel, func_id: u32, name_str: []const u8, interface: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, @intFromEnum(model));
         try operands.append(self.allocator, func_id);
@@ -1106,7 +1106,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitExecutionMode(self: *Self, func_id: u32, mode: ExecutionMode, params: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, func_id);
         try operands.append(self.allocator, @intFromEnum(mode));
@@ -1119,7 +1119,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitName(self: *Self, section: *std.ArrayListUnmanaged(u32), id: u32, name_str: []const u8) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, id);
         try self.appendString(&operands, name_str);
@@ -1131,7 +1131,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitMemberName(self: *Self, section: *std.ArrayListUnmanaged(u32), type_id: u32, member: u32, name_str: []const u8) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, type_id);
         try operands.append(self.allocator, member);
@@ -1144,7 +1144,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitDecorate(self: *Self, section: *std.ArrayListUnmanaged(u32), target: u32, decoration: Decoration, params: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, target);
         try operands.append(self.allocator, @intFromEnum(decoration));
@@ -1157,7 +1157,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitMemberDecorate(self: *Self, section: *std.ArrayListUnmanaged(u32), struct_type: u32, member: u32, decoration: Decoration, params: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, struct_type);
         try operands.append(self.allocator, member);
@@ -1171,7 +1171,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitTypeStruct(self: *Self, section: *std.ArrayListUnmanaged(u32), result_id: u32, member_types: []const u32) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, result_id);
         try operands.appendSlice(self.allocator, member_types);
@@ -1183,7 +1183,7 @@ pub const SpirvGenerator = struct {
     }
 
     pub fn emitVariable(self: *Self, section: *std.ArrayListUnmanaged(u32), result_id: u32, type_id: u32, storage_class: StorageClass, initializer: ?u32) !void {
-        var operands = std.ArrayListUnmanaged(u32){};
+        var operands = std.ArrayListUnmanaged(u32).empty;
         defer operands.deinit(self.allocator);
         try operands.append(self.allocator, type_id);
         try operands.append(self.allocator, result_id);

@@ -473,7 +473,7 @@ pub const EnhancedStreamingGenerator = struct {
 
     /// Flush buffered tokens.
     pub fn flush(self: *EnhancedStreamingGenerator) ![][]u8 {
-        var results = std.ArrayListUnmanaged([]u8){};
+        var results = std.ArrayListUnmanaged([]u8).empty;
         errdefer {
             for (results.items) |item| self.allocator.free(item);
             results.deinit(self.allocator);
@@ -550,7 +550,7 @@ pub fn createSseStream(
     allocator: std.mem.Allocator,
     chunks: []const []const u8,
 ) ![]u8 {
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     errdefer output.deinit(allocator);
 
     var encoder = SseEncoder.init(allocator, .{});

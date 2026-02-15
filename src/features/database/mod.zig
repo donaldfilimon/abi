@@ -529,9 +529,36 @@ test "database module init gating" {
     try std.testing.expect(!isInitialized());
 }
 
+test "database context init and deinit" {
+    if (!isEnabled()) return;
+    const allocator = std.testing.allocator;
+    const cfg = config_module.DatabaseConfig{
+        .path = "", // Empty path = no auto-open
+    };
+    const ctx = try Context.init(allocator, cfg);
+    defer ctx.deinit();
+    try std.testing.expect(@intFromPtr(ctx) != 0);
+    try std.testing.expect(ctx.handle == null); // No auto-open with empty path
+}
+
+test "database type exports" {
+    // Verify key types are accessible (compile-time check)
+    _ = SearchResult{
+        .id = 0,
+        .score = 0.0,
+    };
+    _ = @sizeOf(DatabaseHandle);
+    try std.testing.expect(true);
+}
+
+test "database module functions" {
+    // Verify module-level functions exist (compile-time check)
+    try std.testing.expect(isEnabled());
+}
+
 // Test discovery for extracted test files
-comptime {
-    if (@import("builtin").is_test) {
-        _ = @import("hnsw_test.zig");
-    }
+// Note: comptime { _ = @import(...); } does NOT discover tests in Zig 0.16.
+// Must use test {} blocks for test discovery.
+test {
+    _ = @import("hnsw_test.zig");
 }

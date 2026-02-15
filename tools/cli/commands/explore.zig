@@ -36,8 +36,8 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var root_path: []const u8 = ".";
     var level: abi.ai.explore.ExploreLevel = .medium;
     var output_format: abi.ai.explore.OutputFormat = .human;
-    var include_patterns = std.ArrayListUnmanaged([]const u8){};
-    var exclude_patterns = std.ArrayListUnmanaged([]const u8){};
+    var include_patterns = std.ArrayListUnmanaged([]const u8).empty;
+    var exclude_patterns = std.ArrayListUnmanaged([]const u8).empty;
     var case_sensitive = false;
     var use_regex = false;
     var max_files: usize = 0;

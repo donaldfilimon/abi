@@ -10,6 +10,7 @@ This directory is the source for the ABI documentation site and project docs.
 |----------|-------------|
 | [README.md](README.md) | This file — doc build and layout |
 | [api-reference.md](api-reference.md) | API overview and entry points |
+| [content/migration-vnext.html](content/migration-vnext.html) | Legacy-to-vNext API migration guide |
 | [deployment.md](deployment.md) | Deployment and production notes |
 | [roadmap.md](roadmap.md) | Product and technical roadmap |
 | [plan.md](plan.md) | Planning and design notes |
@@ -17,11 +18,22 @@ This directory is the source for the ABI documentation site and project docs.
 
 ## Requirements
 
-- Zig `0.16.0-dev.2535+b5bd49460` or newer (match `.zigversion`).
+- Zig `0.16.0-dev.2611+f996d2866` or newer (match `.zigversion`).
 
 ## Build
 
-Use the Zig toolchain pinned in `.zigversion`. Generate the docs site:
+Use the Zig toolchain pinned in `.zigversion`.
+
+```bash
+zvm upgrade
+zvm install master
+zvm use master
+zig version
+cat .zigversion
+# If needed: export PATH="$HOME/.zvm/bin:$PATH"
+```
+
+Generate the docs site:
 
 ```bash
 zig build docs-site

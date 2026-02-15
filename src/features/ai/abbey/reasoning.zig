@@ -192,6 +192,11 @@ pub const ReasoningChain = struct {
                 std.log.warn("Reasoning chain finalization failed: {t}", .{err});
             };
         }
+        return self.getConfidence();
+    }
+
+    /// Get confidence without auto-finalization (const-safe).
+    pub fn getConfidence(self: *const Self) Confidence {
         return self.overall_confidence orelse .{
             .level = .unknown,
             .score = 0.0,
@@ -218,7 +223,7 @@ pub const ReasoningChain = struct {
             try self.finalize();
         }
 
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(allocator);
 
         try result.appendSlice(allocator, "Reasoning Summary:\n");
@@ -245,7 +250,7 @@ pub const ReasoningChain = struct {
 
     /// Get reasoning as JSON-compatible structure
     pub fn toJson(self: *Self, allocator: std.mem.Allocator) ![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(allocator);
 
         try result.appendSlice(allocator, "{\"query\":\"");

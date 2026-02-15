@@ -67,7 +67,7 @@ pub const GpuOpsContext = struct {
         var memory_ready = false;
 
         if (gpu_available and (cublas_present or kernels_present)) {
-            if (cuda_mod.memory.init()) |_| {
+            if (cuda_mod.memory.init(allocator)) |_| {
                 memory_ready = true;
             } else |err| {
                 std.log.warn("CUDA memory init failed: {t}", .{err});

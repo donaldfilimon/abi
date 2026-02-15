@@ -2,23 +2,23 @@
 
 # ABI Framework
 
-<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2535+b5bd49460"/>
+<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2611%2Bf996d2866-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2611+f996d2866"/>
 <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Status"/>
 <img src="https://img.shields.io/github/license/donaldfilimon/abi?style=for-the-badge" alt="License"/>
 
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-1220_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-1252_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
 
-**A modern Zig 0.16.0-dev.2535+b5bd49460 framework for AI services, vector search, and high-performance systems**
+**A modern Zig 0.16.0-dev.2611+f996d2866 framework for AI services, vector search, and high-performance systems**
 
 [Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
 
-**Contents:** [Why ABI?](#why-abi) · [Highlights](#highlights) · [Quick Start](#-quick-start) · [Examples](#-examples) · [CLI Reference](#cli-reference) · [Architecture](#architecture) · [Feature Flags](#feature-flags) · [Documentation](#documentation)
+**Contents:** [Why ABI?](#why-abi) · [Highlights](#highlights) · [Quick Start](#-quick-start) · [vNext Migration](#vnext-migration) · [Examples](#-examples) · [CLI Reference](#cli-reference) · [Architecture](#architecture) · [Feature Flags](#feature-flags) · [Documentation](#documentation)
 
 <br/>
 
@@ -44,7 +44,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 1225 tests (1220 passing), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 1257 tests (1252 passing, 5 skip), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -84,13 +84,30 @@ zig build
 zig build run -- --help
 ```
 
-Ensure your `zig` matches the version in `.zigversion` (e.g. via `zvm use master`).
+Ensure your `zig` matches the version in `.zigversion`.
+
+```bash
+# Keep zvm current and install the latest master toolchain
+zvm upgrade
+zvm install master
+zvm use master
+
+# Verify active zig matches the repository pin
+zig version
+cat .zigversion
+
+# Diagnose PATH/version drift (recommended before running quality gates)
+bash scripts/toolchain_doctor.sh
+
+# If `which zig` is not ~/.zvm/bin/zig, fix PATH precedence first:
+export PATH="$HOME/.zvm/bin:$PATH"
+```
 
 ### Requirements
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | `0.16.0-dev.2535+b5bd49460` or newer | Yes |
+| Zig | `0.16.0-dev.2611+f996d2866` or newer | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
@@ -116,6 +133,19 @@ pub fn main() !void {
     std.debug.print("ABI v{s} ready!\n", .{abi.version()});
 }
 ```
+
+---
+
+## vNext Migration
+
+ABI now includes a staged-compatibility `abi.vnext` namespace:
+
+- `abi.vnext.App`
+- `abi.vnext.AppConfig`
+- `abi.vnext.Capability`
+
+Legacy `abi.Framework` and `abi.Config` remain available for one release cycle.
+Migration details and API mapping are documented in `docs/content/migration-vnext.html`.
 
 ---
 
@@ -461,7 +491,7 @@ zig build -Dgpu-backend=auto
 |:---------|:------------|
 | [API Reference](docs/api/index.md) | Auto-generated API docs (`zig build gendocs`) |
 | [Agent Guidelines](AGENTS.md) | Baseline rules for AI agents |
-| [Developer Guide](CLAUDE.md) | Zig 0.16.0-dev.2535+b5bd49460 patterns and project conventions |
+| [Developer Guide](CLAUDE.md) | Zig 0.16.0-dev.2611+f996d2866 patterns and project conventions |
 
 ```bash
 # Run all tests
@@ -504,7 +534,7 @@ zig build lint
 
 | Milestone | Status |
 |:----------|:------:|
-| Zig 0.16.0-dev.2535+b5bd49460 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Zig 0.16.0-dev.2611+f996d2866 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |

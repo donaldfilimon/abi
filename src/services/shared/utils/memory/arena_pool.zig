@@ -247,6 +247,7 @@ pub const VectorPool = struct {
 pub fn SlabPool(comptime T: type) type {
     const slot_size = @max(@sizeOf(T), @sizeOf(usize));
     const slot_align = @max(@alignOf(T), @alignOf(usize));
+    const slot_alignment: std.mem.Alignment = std.mem.Alignment.fromByteUnits(slot_align);
 
     return struct {
         const Self = @This();
@@ -263,7 +264,7 @@ pub fn SlabPool(comptime T: type) type {
 
         pub fn init(backing: std.mem.Allocator, count: usize) !Self {
             const total_size = slot_size * count;
-            const buf = try backing.alignedAlloc(u8, slot_align, total_size);
+            const buf = try backing.alignedAlloc(u8, slot_alignment, total_size);
 
             // Build free list (back to front so first alloc returns first slot)
             var head: ?*FreeNode = null;
@@ -347,3 +348,153 @@ pub const ScratchAllocator = struct {
         self.arenas[self.active].reset();
     }
 };
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+test "ArenaPool basic alloc and reset" {
+    const alloc = std.testing.allocator;
+    var arena = try ArenaPool.init(alloc, .{ .size = 4096 });
+    defer arena.deinit();
+
+    const a = arena.alloc(64, 8);
+    try std.testing.expect(a != null);
+    try std.testing.expectEqual(@as(usize, 64), a.?.len);
+    try std.testing.expect(arena.usedBytes() >= 64);
+
+    const b = arena.alloc(128, 16);
+    try std.testing.expect(b != null);
+    try std.testing.expect(arena.alloc_count == 2);
+
+    const used_before_reset = arena.usedBytes();
+    try std.testing.expect(used_before_reset > 0);
+
+    arena.reset();
+    try std.testing.expectEqual(@as(usize, 0), arena.usedBytes());
+    try std.testing.expectEqual(@as(usize, 0), arena.alloc_count);
+}
+
+test "ArenaPool returns null when exhausted" {
+    const alloc = std.testing.allocator;
+    // Minimum size is aligned to page_size (4096)
+    var arena = try ArenaPool.init(alloc, .{ .size = 4096 });
+    defer arena.deinit();
+
+    // Allocate nearly all space
+    const big = arena.alloc(4000, 1);
+    try std.testing.expect(big != null);
+
+    // This should fail — not enough space remaining
+    const too_big = arena.alloc(4096, 1);
+    try std.testing.expect(too_big == null);
+}
+
+test "ArenaPool typed create" {
+    const alloc = std.testing.allocator;
+    var arena = try ArenaPool.init(alloc, .{ .size = 4096 });
+    defer arena.deinit();
+
+    const Point = struct { x: f32, y: f32 };
+    const p = arena.create(Point);
+    try std.testing.expect(p != null);
+    p.?.x = 1.0;
+    p.?.y = 2.0;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), p.?.x, 0.001);
+}
+
+test "ArenaPool allocSlice" {
+    const alloc = std.testing.allocator;
+    var arena = try ArenaPool.init(alloc, .{ .size = 8192 });
+    defer arena.deinit();
+
+    const slice = arena.allocSlice(u32, 10);
+    try std.testing.expect(slice != null);
+    try std.testing.expectEqual(@as(usize, 10), slice.?.len);
+    for (slice.?, 0..) |*v, i| v.* = @intCast(i);
+    try std.testing.expectEqual(@as(u32, 5), slice.?[5]);
+}
+
+test "ArenaPool as std.mem.Allocator" {
+    const alloc = std.testing.allocator;
+    var arena = try ArenaPool.init(alloc, .{ .size = 8192 });
+    defer arena.deinit();
+
+    var a = arena.allocator();
+    const data = a.alloc(u8, 100) catch {
+        return; // arena may return null → OutOfMemory
+    };
+    @memset(data, 0xAB);
+    try std.testing.expectEqual(@as(u8, 0xAB), data[0]);
+    // arena.free is a no-op, but won't crash
+    a.free(data);
+}
+
+test "VectorPool basic alloc" {
+    const alloc = std.testing.allocator;
+    var pool = try VectorPool.init(alloc, .{ .size = 64 * 1024 });
+    defer pool.deinit();
+
+    const v = pool.allocF32(16);
+    try std.testing.expect(v != null);
+    try std.testing.expectEqual(@as(usize, 16), v.?.len);
+    // Check alignment
+    try std.testing.expectEqual(@as(usize, 0), @intFromPtr(v.?.ptr) % VectorPool.vector_alignment);
+
+    const v64 = pool.allocF64(8);
+    try std.testing.expect(v64 != null);
+    try std.testing.expectEqual(@as(usize, 8), v64.?.len);
+
+    const s = pool.stats();
+    try std.testing.expect(s.vectors == 2);
+    try std.testing.expect(s.used > 0);
+}
+
+test "SlabPool alloc and free" {
+    const alloc = std.testing.allocator;
+    const Item = struct { a: u32, b: u64 };
+    var slab = try SlabPool(Item).init(alloc, 4);
+    defer slab.deinit();
+
+    try std.testing.expectEqual(@as(usize, 4), slab.availableSlots());
+
+    const p1 = slab.create();
+    try std.testing.expect(p1 != null);
+    p1.?.a = 42;
+    p1.?.b = 100;
+
+    const p2 = slab.create();
+    try std.testing.expect(p2 != null);
+    try std.testing.expectEqual(@as(usize, 2), slab.availableSlots());
+
+    slab.destroy(p1.?);
+    try std.testing.expectEqual(@as(usize, 3), slab.availableSlots());
+
+    // Re-allocate should succeed (recycles freed slot)
+    const p3 = slab.create();
+    try std.testing.expect(p3 != null);
+}
+
+test "SlabPool exhaustion" {
+    const alloc = std.testing.allocator;
+    var slab = try SlabPool(u64).init(alloc, 2);
+    defer slab.deinit();
+
+    _ = slab.create();
+    _ = slab.create();
+    try std.testing.expect(slab.create() == null); // exhausted
+}
+
+test "ScratchAllocator swap" {
+    const alloc = std.testing.allocator;
+    var scratch = try ScratchAllocator.init(alloc, 4096);
+    defer scratch.deinit();
+
+    const a = scratch.current().alloc(100, 8);
+    try std.testing.expect(a != null);
+    try std.testing.expect(scratch.current().usedBytes() >= 100);
+
+    scratch.swap();
+    try std.testing.expectEqual(@as(usize, 0), scratch.current().usedBytes());
+
+    const b = scratch.current().alloc(200, 8);
+    try std.testing.expect(b != null);
+}

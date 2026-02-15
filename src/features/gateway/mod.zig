@@ -12,15 +12,23 @@
 //! - RwLock for concurrent route lookups
 
 const std = @import("std");
-const core_config = @import("../../core/config/gateway.zig");
 const sync = @import("../../services/shared/sync.zig");
 const time_mod = @import("../../services/shared/time.zig");
+const gateway_types = @import("types.zig");
+const routing = @import("routing.zig");
+const rate_limit_mod = @import("rate_limit.zig");
+const circuit_breaker_mod = @import("circuit_breaker.zig");
+const gateway_stats = @import("stats.zig");
+const middleware = @import("middleware.zig");
 
-pub const GatewayConfig = core_config.GatewayConfig;
-pub const RateLimitConfig = core_config.RateLimitConfig;
-pub const RateLimitAlgorithm = core_config.RateLimitAlgorithm;
-pub const CircuitBreakerConfig = core_config.CircuitBreakerConfig;
-pub const CircuitBreakerState = core_config.CircuitBreakerState;
+/// Shared radix tree instantiated for route indices.
+const RouteTree = routing.RouteTree;
+
+pub const GatewayConfig = gateway_types.GatewayConfig;
+pub const RateLimitConfig = gateway_types.RateLimitConfig;
+pub const RateLimitAlgorithm = gateway_types.RateLimitAlgorithm;
+pub const CircuitBreakerConfig = gateway_types.CircuitBreakerConfig;
+pub const CircuitBreakerState = gateway_types.CircuitBreakerState;
 
 pub const GatewayError = error{
     FeatureDisabled,
@@ -34,60 +42,12 @@ pub const GatewayError = error{
     OutOfMemory,
 };
 
-pub const HttpMethod = enum { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS };
-
-pub const Route = struct {
-    path: []const u8 = "/",
-    method: HttpMethod = .GET,
-    upstream: []const u8 = "",
-    timeout_ms: u64 = 30_000,
-    rate_limit: ?RateLimitConfig = null,
-    middlewares: []const MiddlewareType = &.{},
-};
-
-pub const MiddlewareType = enum {
-    auth,
-    rate_limit,
-    circuit_breaker,
-    access_log,
-    cors,
-    response_transform,
-    request_id,
-};
-
-pub const GatewayStats = struct {
-    total_requests: u64 = 0,
-    active_routes: u32 = 0,
-    rate_limited_count: u64 = 0,
-    circuit_breaker_trips: u64 = 0,
-    upstream_errors: u64 = 0,
-    avg_latency_ms: u64 = 0,
-};
-
-pub const MatchResult = struct {
-    route: Route,
-    params: [8]Param = [_]Param{.{}} ** 8,
-    param_count: u8 = 0,
-    matched_route_idx: ?u32 = null, // internal: radix tree match result
-
-    pub const Param = struct {
-        name: []const u8 = "",
-        value: []const u8 = "",
-    };
-
-    pub fn getParam(self: *const MatchResult, name: []const u8) ?[]const u8 {
-        for (self.params[0..self.param_count]) |p| {
-            if (std.mem.eql(u8, p.name, name)) return p.value;
-        }
-        return null;
-    }
-};
-
-pub const RateLimitResult = struct {
-    allowed: bool = true,
-    remaining: u32 = 0,
-    reset_after_ms: u64 = 0,
-};
+pub const HttpMethod = gateway_types.HttpMethod;
+pub const Route = gateway_types.Route;
+pub const MiddlewareType = middleware.MiddlewareType;
+pub const GatewayStats = gateway_types.GatewayStats;
+pub const MatchResult = gateway_types.MatchResult;
+pub const RateLimitResult = gateway_types.RateLimitResult;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -112,324 +72,11 @@ const RouteEntry = struct {
     upstream_owned: []u8,
 };
 
-/// Radix tree node for route matching.
-const RadixNode = struct {
-    segment: []const u8 = "",
-    is_param: bool = false,
-    param_name: []const u8 = "",
-    is_wildcard: bool = false,
-    route_idx: ?u32 = null, // index into routes array if terminal
-    children: std.ArrayListUnmanaged(*RadixNode) = .empty,
-
-    fn deinitRecursive(self: *RadixNode, allocator: std.mem.Allocator) void {
-        for (self.children.items) |child| {
-            child.deinitRecursive(allocator);
-            allocator.destroy(child);
-        }
-        self.children.deinit(allocator);
-    }
-
-    fn findChild(self: *const RadixNode, segment: []const u8) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (!child.is_param and !child.is_wildcard and
-                std.mem.eql(u8, child.segment, segment))
-            {
-                return child;
-            }
-        }
-        return null;
-    }
-
-    fn findParamChild(self: *const RadixNode) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (child.is_param) return child;
-        }
-        return null;
-    }
-
-    fn findWildcardChild(self: *const RadixNode) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (child.is_wildcard) return child;
-        }
-        return null;
-    }
-};
-
-/// Token bucket rate limiter state.
-const TokenBucket = struct {
-    tokens: f64,
-    capacity: f64,
-    refill_rate: f64, // tokens per nanosecond
-    last_refill_ns: u128,
-
-    fn init(config: RateLimitConfig, now_ns: u128) TokenBucket {
-        const cap = @as(f64, @floatFromInt(config.burst_size));
-        const rate = @as(f64, @floatFromInt(config.requests_per_second)) /
-            @as(f64, @floatFromInt(std.time.ns_per_s));
-        return .{
-            .tokens = cap,
-            .capacity = cap,
-            .refill_rate = rate,
-            .last_refill_ns = now_ns,
-        };
-    }
-
-    fn tryConsume(self: *TokenBucket, now_ns: u128) RateLimitResult {
-        // Refill
-        const elapsed_ns = now_ns - self.last_refill_ns;
-        const added = @as(f64, @floatFromInt(elapsed_ns)) * self.refill_rate;
-        self.tokens = @min(self.tokens + added, self.capacity);
-        self.last_refill_ns = now_ns;
-
-        if (self.tokens >= 1.0) {
-            self.tokens -= 1.0;
-            return .{
-                .allowed = true,
-                .remaining = @intFromFloat(@max(self.tokens, 0)),
-                .reset_after_ms = 0,
-            };
-        }
-
-        // Calculate time until 1 token available
-        const deficit = 1.0 - self.tokens;
-        const wait_ns = deficit / self.refill_rate;
-        return .{
-            .allowed = false,
-            .remaining = 0,
-            .reset_after_ms = @intFromFloat(wait_ns / @as(f64, std.time.ns_per_ms)),
-        };
-    }
-};
-
-/// Fixed window rate limiter state.
-const FixedWindow = struct {
-    count: u32,
-    window_start_ns: u128,
-    window_duration_ns: u128,
-    max_requests: u32,
-
-    fn init(config: RateLimitConfig, now_ns: u128) FixedWindow {
-        return .{
-            .count = 0,
-            .window_start_ns = now_ns,
-            .window_duration_ns = std.time.ns_per_s, // 1 second windows
-            .max_requests = config.requests_per_second,
-        };
-    }
-
-    fn tryConsume(self: *FixedWindow, now_ns: u128) RateLimitResult {
-        // Check if window has rolled over
-        if (now_ns >= self.window_start_ns + self.window_duration_ns) {
-            self.count = 0;
-            self.window_start_ns = now_ns;
-        }
-
-        if (self.count < self.max_requests) {
-            self.count += 1;
-            return .{
-                .allowed = true,
-                .remaining = self.max_requests - self.count,
-                .reset_after_ms = 0,
-            };
-        }
-
-        const remaining_ns = (self.window_start_ns + self.window_duration_ns) - now_ns;
-        return .{
-            .allowed = false,
-            .remaining = 0,
-            .reset_after_ms = @intCast(remaining_ns / std.time.ns_per_ms),
-        };
-    }
-};
-
-/// Sliding window rate limiter using histogram buckets.
-/// Uses 7 sub-buckets within a window for smooth rate estimation.
-const SlidingWindow = struct {
-    buckets: [7]u32 = [_]u32{0} ** 7,
-    bucket_start_ns: u128,
-    bucket_width_ns: u128,
-    max_requests: u32,
-    window_ns: u128,
-
-    fn init(config: RateLimitConfig, now_ns: u128) SlidingWindow {
-        const window_ns: u128 = std.time.ns_per_s; // 1 second
-        return .{
-            .bucket_start_ns = now_ns,
-            .bucket_width_ns = window_ns / 7,
-            .max_requests = config.requests_per_second,
-            .window_ns = window_ns,
-        };
-    }
-
-    fn tryConsume(self: *SlidingWindow, now_ns: u128) RateLimitResult {
-        // Advance buckets if needed
-        self.advanceBuckets(now_ns);
-
-        // Sum all bucket counts
-        var total: u32 = 0;
-        for (self.buckets) |b| total += b;
-
-        if (total < self.max_requests) {
-            // Add to current bucket
-            const current_bucket = self.currentBucketIdx(now_ns);
-            self.buckets[current_bucket] += 1;
-            return .{
-                .allowed = true,
-                .remaining = self.max_requests - total - 1,
-                .reset_after_ms = 0,
-            };
-        }
-
-        return .{
-            .allowed = false,
-            .remaining = 0,
-            .reset_after_ms = @intCast(self.bucket_width_ns / std.time.ns_per_ms),
-        };
-    }
-
-    fn currentBucketIdx(self: *const SlidingWindow, now_ns: u128) usize {
-        if (self.bucket_width_ns == 0) return 0;
-        const elapsed = now_ns -| self.bucket_start_ns;
-        return @intCast((elapsed / self.bucket_width_ns) % 7);
-    }
-
-    fn advanceBuckets(self: *SlidingWindow, now_ns: u128) void {
-        if (self.bucket_width_ns == 0) return;
-        const elapsed = now_ns -| self.bucket_start_ns;
-        const buckets_to_advance = elapsed / self.bucket_width_ns;
-
-        if (buckets_to_advance >= 7) {
-            // Full window has passed — clear everything
-            self.buckets = [_]u32{0} ** 7;
-            self.bucket_start_ns = now_ns;
-        } else if (buckets_to_advance > 0) {
-            // Clear old buckets
-            var i: usize = 0;
-            while (i < buckets_to_advance) : (i += 1) {
-                const old_idx = (self.currentBucketIdx(self.bucket_start_ns) + i) % 7;
-                self.buckets[old_idx] = 0;
-            }
-            self.bucket_start_ns += buckets_to_advance * self.bucket_width_ns;
-        }
-    }
-};
-
-/// Rate limiter wrapping the 3 algorithm variants.
-const RateLimiter = union(RateLimitAlgorithm) {
-    token_bucket: TokenBucket,
-    sliding_window: SlidingWindow,
-    fixed_window: FixedWindow,
-
-    fn init(config: RateLimitConfig, now_ns: u128) RateLimiter {
-        return switch (config.algorithm) {
-            .token_bucket => .{ .token_bucket = TokenBucket.init(config, now_ns) },
-            .sliding_window => .{ .sliding_window = SlidingWindow.init(config, now_ns) },
-            .fixed_window => .{ .fixed_window = FixedWindow.init(config, now_ns) },
-        };
-    }
-
-    fn tryConsume(self: *RateLimiter, now_ns: u128) RateLimitResult {
-        return switch (self.*) {
-            .token_bucket => |*tb| tb.tryConsume(now_ns),
-            .sliding_window => |*sw| sw.tryConsume(now_ns),
-            .fixed_window => |*fw| fw.tryConsume(now_ns),
-        };
-    }
-};
-
-/// Circuit breaker state machine.
-const CircuitBreaker = struct {
-    cb_state: CircuitBreakerState = .closed,
-    failure_count: u32 = 0,
-    success_count: u32 = 0,
-    open_until_ns: u128 = 0,
-    config: CircuitBreakerConfig,
-
-    fn init(config: CircuitBreakerConfig) CircuitBreaker {
-        return .{ .config = config };
-    }
-
-    fn recordSuccess(self: *CircuitBreaker) void {
-        switch (self.cb_state) {
-            .closed => {
-                self.failure_count = 0;
-            },
-            .half_open => {
-                self.success_count += 1;
-                if (self.success_count >= self.config.half_open_max_requests) {
-                    self.cb_state = .closed;
-                    self.failure_count = 0;
-                    self.success_count = 0;
-                }
-            },
-            .open => {},
-        }
-    }
-
-    fn recordFailure(self: *CircuitBreaker, now_ns: u128) void {
-        self.failure_count += 1;
-        switch (self.cb_state) {
-            .closed => {
-                if (self.failure_count >= self.config.failure_threshold) {
-                    self.cb_state = .open;
-                    self.open_until_ns = now_ns +
-                        @as(u128, self.config.reset_timeout_ms) * std.time.ns_per_ms;
-                }
-            },
-            .half_open => {
-                // Any failure in half-open sends back to open
-                self.cb_state = .open;
-                self.open_until_ns = now_ns +
-                    @as(u128, self.config.reset_timeout_ms) * std.time.ns_per_ms;
-                self.success_count = 0;
-            },
-            .open => {},
-        }
-    }
-
-    fn isAllowed(self: *CircuitBreaker, now_ns: u128) bool {
-        switch (self.cb_state) {
-            .closed => return true,
-            .open => {
-                if (now_ns >= self.open_until_ns) {
-                    self.cb_state = .half_open;
-                    self.success_count = 0;
-                    return true;
-                }
-                return false;
-            },
-            .half_open => return true,
-        }
-    }
-
-    fn reset(self: *CircuitBreaker) void {
-        self.cb_state = .closed;
-        self.failure_count = 0;
-        self.success_count = 0;
-        self.open_until_ns = 0;
-    }
-};
-
-/// Latency histogram with 7 log-scale buckets.
-const LatencyHistogram = struct {
-    // Buckets: <1ms, <5ms, <10ms, <50ms, <100ms, <500ms, >=500ms
-    buckets: [7]u64 = [_]u64{0} ** 7,
-    total_ns: u128 = 0,
-    count: u64 = 0,
-
-    fn record(self: *LatencyHistogram, latency_ns: u64) void {
-        const ms = latency_ns / std.time.ns_per_ms;
-        const bucket_idx: usize = if (ms < 1) 0 else if (ms < 5) 1 else if (ms < 10) 2 else if (ms < 50) 3 else if (ms < 100) 4 else if (ms < 500) 5 else 6;
-        self.buckets[bucket_idx] += 1;
-        self.total_ns += latency_ns;
-        self.count += 1;
-    }
-
-    fn avgMs(self: *const LatencyHistogram) u64 {
-        if (self.count == 0) return 0;
-        return @intCast(self.total_ns / self.count / std.time.ns_per_ms);
-    }
-};
+/// Radix tree node — shared implementation from `services/shared/utils/radix_tree.zig`.
+const RadixNode = RouteTree.Node;
+const RateLimiter = rate_limit_mod.RateLimiter;
+const CircuitBreaker = circuit_breaker_mod.CircuitBreaker;
+const LatencyHistogram = gateway_stats.LatencyHistogram;
 
 // ── Module State ───────────────────────────────────────────────────────
 
@@ -509,105 +156,13 @@ const GatewayState = struct {
         path: []const u8,
         route_idx: u32,
     ) !void {
-        var current = self.radix_root;
-        var segments = splitPath(path);
-
-        while (segments.next()) |segment| {
-            if (segment.len > 0 and segment[0] == '*') {
-                // Wildcard — terminal
-                const child = try self.allocator.create(RadixNode);
-                child.* = .{
-                    .is_wildcard = true,
-                    .route_idx = route_idx,
-                };
-                try current.children.append(self.allocator, child);
-                return;
-            }
-
-            if (segment.len > 2 and segment[0] == '{' and segment[segment.len - 1] == '}') {
-                // Path parameter: {name}
-                const param_name = segment[1 .. segment.len - 1];
-                if (current.findParamChild()) |child| {
-                    current = child;
-                } else {
-                    const child = try self.allocator.create(RadixNode);
-                    child.* = .{
-                        .is_param = true,
-                        .param_name = param_name,
-                    };
-                    try current.children.append(self.allocator, child);
-                    current = child;
-                }
-            } else {
-                // Static segment
-                if (current.findChild(segment)) |child| {
-                    current = child;
-                } else {
-                    const child = try self.allocator.create(RadixNode);
-                    child.* = .{ .segment = segment };
-                    try current.children.append(self.allocator, child);
-                    current = child;
-                }
-            }
-        }
-
-        current.route_idx = route_idx;
+        try RouteTree.insert(self.radix_root, self.allocator, path, route_idx);
     }
 };
 
+/// Split a URL path into segments (delegates to shared radix tree).
 fn splitPath(path: []const u8) std.mem.SplitIterator(u8, .scalar) {
-    const trimmed = if (path.len > 0 and path[0] == '/') path[1..] else path;
-    return std.mem.splitScalar(u8, trimmed, '/');
-}
-
-fn matchPath(
-    node: *const RadixNode,
-    segments: *std.mem.SplitIterator(u8, .scalar),
-    result: *MatchResult,
-) bool {
-    const segment = segments.next() orelse {
-        // No more segments — check if current node is terminal
-        if (node.route_idx) |idx| {
-            result.matched_route_idx = idx;
-            return true;
-        }
-        return false;
-    };
-
-    // Try exact match first
-    if (node.findChild(segment)) |child| {
-        var child_segments = segments.*;
-        if (matchPath(child, &child_segments, result)) {
-            segments.* = child_segments;
-            return true;
-        }
-    }
-
-    // Try param match
-    if (node.findParamChild()) |child| {
-        var child_segments = segments.*;
-        if (matchPath(child, &child_segments, result)) {
-            if (result.param_count < 8) {
-                result.params[result.param_count] = .{
-                    .name = child.param_name,
-                    .value = segment,
-                };
-                result.param_count += 1;
-            }
-            segments.* = child_segments;
-            return true;
-        }
-    }
-
-    // Try wildcard match
-    if (node.findWildcardChild()) |child| {
-        if (child.route_idx) |idx| {
-            result.matched_route_idx = idx;
-            return true;
-        }
-    }
-
-    return false;
+    return routing.splitPath(path);
 }
 
 fn nowNs() u128 {
@@ -616,11 +171,14 @@ fn nowNs() u128 {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/// Initialize the API gateway singleton with routing, rate limiting,
+/// and circuit breaker configuration.
 pub fn init(allocator: std.mem.Allocator, config: GatewayConfig) GatewayError!void {
     if (gw_state != null) return;
     gw_state = GatewayState.create(allocator, config) catch return error.OutOfMemory;
 }
 
+/// Tear down the gateway, freeing all routes and internal state.
 pub fn deinit() void {
     if (gw_state) |s| {
         s.destroy();
@@ -636,6 +194,8 @@ pub fn isInitialized() bool {
     return gw_state != null;
 }
 
+/// Register an API route (method + path pattern). Supports path parameters
+/// (`{id}`) and wildcards (`*`).
 pub fn addRoute(route: Route) GatewayError!void {
     const s = gw_state orelse return error.FeatureDisabled;
     s.rw_lock.lock();
@@ -643,6 +203,17 @@ pub fn addRoute(route: Route) GatewayError!void {
 
     if (s.routes.items.len >= s.config.max_routes) return error.TooManyRoutes;
     if (route.path.len == 0) return error.InvalidRoute;
+
+    // Pre-create rate limiter if configured (before adding route to avoid
+    // orphan routes if limiter allocation fails)
+    var limiter: ?*RateLimiter = null;
+    if (route.rate_limit) |rl_config| {
+        s.route_limiters.ensureUnusedCapacity(s.allocator, 1) catch
+            return error.OutOfMemory;
+        limiter = s.allocator.create(RateLimiter) catch return error.OutOfMemory;
+        limiter.?.* = RateLimiter.init(rl_config, nowNs());
+    }
+    errdefer if (limiter) |l| s.allocator.destroy(l);
 
     const route_idx: u32 = @intCast(s.routes.items.len);
 
@@ -679,17 +250,13 @@ pub fn addRoute(route: Route) GatewayError!void {
         return error.OutOfMemory;
     };
 
-    // Create rate limiter if configured
-    if (route.rate_limit) |rl_config| {
-        const limiter = s.allocator.create(RateLimiter) catch return error.OutOfMemory;
-        limiter.* = RateLimiter.init(rl_config, nowNs());
-        s.route_limiters.put(s.allocator, path_owned, limiter) catch {
-            s.allocator.destroy(limiter);
-            return error.OutOfMemory;
-        };
+    // Register pre-created rate limiter — infallible due to ensureUnusedCapacity
+    if (limiter) |l| {
+        s.route_limiters.putAssumeCapacity(path_owned, l);
     }
 }
 
+/// Remove all routes registered under a given path. Returns `true` if any were removed.
 pub fn removeRoute(path: []const u8) GatewayError!bool {
     const s = gw_state orelse return error.FeatureDisabled;
     s.rw_lock.lock();
@@ -711,7 +278,10 @@ pub fn removeRoute(path: []const u8) GatewayError!bool {
             s.radix_root.deinitRecursive(s.allocator);
             s.radix_root.* = .{};
             for (s.routes.items, 0..) |remaining, new_idx| {
-                s.insertRadixRoute(remaining.path_owned, @intCast(new_idx)) catch {};
+                s.insertRadixRoute(remaining.path_owned, @intCast(new_idx)) catch |err| {
+                    std.log.err("gateway: radix rebuild failed after removeRoute: {t}", .{err});
+                    return error.OutOfMemory;
+                };
             }
             return true;
         }
@@ -719,13 +289,28 @@ pub fn removeRoute(path: []const u8) GatewayError!bool {
     return false;
 }
 
+/// Module-level buffer for `getRoutes()` introspection results.
+/// Bounded to 256 routes — well above typical gateway configs.
+var route_view_buf: [256]Route = undefined;
+
 pub fn getRoutes() []const Route {
     const s = gw_state orelse return &.{};
-    // Return a view of the stored routes (not safe to hold long-term)
-    _ = s;
-    return &.{}; // Simplified — full impl would return route array
+    s.rw_lock.lockShared();
+    defer s.rw_lock.unlockShared();
+    const count = @min(s.routes.items.len, route_view_buf.len);
+    for (s.routes.items[0..count], 0..) |entry, i| {
+        route_view_buf[i] = entry.route;
+    }
+    return route_view_buf[0..count];
 }
 
+pub fn getRouteCount() usize {
+    const s = gw_state orelse return 0;
+    return s.routes.items.len;
+}
+
+/// Match an incoming request path and method against the radix tree.
+/// Returns the matching route and extracted path parameters, or `null`.
 pub fn matchRoute(path: []const u8, method: HttpMethod) GatewayError!?MatchResult {
     const s = gw_state orelse return error.FeatureDisabled;
     _ = s.stat_total_requests.fetchAdd(1, .monotonic);
@@ -733,16 +318,18 @@ pub fn matchRoute(path: []const u8, method: HttpMethod) GatewayError!?MatchResul
     s.rw_lock.lockShared();
     defer s.rw_lock.unlockShared();
 
-    var result = MatchResult{ .route = .{} };
-    var segments = splitPath(path);
-
-    if (matchPath(s.radix_root, &segments, &result)) {
-        // Use the route index propagated from the matched terminal node
-        if (result.matched_route_idx) |idx| {
+    // Use the shared radix tree match
+    var tree_result = RouteTree.MatchResult{};
+    if (RouteTree.match(s.radix_root, path, &tree_result)) {
+        if (tree_result.terminal_idx) |idx| {
             if (idx < s.routes.items.len) {
                 const entry = s.routes.items[idx];
                 if (entry.route.method == method) {
-                    result.route = entry.route;
+                    // Transfer params from shared result to gateway result
+                    var result = MatchResult{ .route = entry.route };
+                    result.matched_route_idx = idx;
+                    result.param_count = tree_result.param_count;
+                    result.params = tree_result.params;
                     return result;
                 }
             }
@@ -752,6 +339,7 @@ pub fn matchRoute(path: []const u8, method: HttpMethod) GatewayError!?MatchResul
     return null;
 }
 
+/// Check whether a request to `path` is allowed under the configured rate limiter.
 pub fn checkRateLimit(path: []const u8) RateLimitResult {
     const s = gw_state orelse return .{};
 
@@ -768,6 +356,7 @@ pub fn checkRateLimit(path: []const u8) RateLimitResult {
     return result;
 }
 
+/// Record a success/failure for circuit breaker state tracking on `upstream`.
 pub fn recordUpstreamResult(upstream: []const u8, success: bool) void {
     const s = gw_state orelse return;
     s.rw_lock.lock();
@@ -795,6 +384,7 @@ pub fn recordUpstreamResult(upstream: []const u8, success: bool) void {
     }
 }
 
+/// Snapshot route count, request/error counters, and latency histogram.
 pub fn stats() GatewayStats {
     const s = gw_state orelse return .{};
     return .{
@@ -807,6 +397,7 @@ pub fn stats() GatewayStats {
     };
 }
 
+/// Query the circuit breaker state for an upstream service.
 pub fn getCircuitState(upstream: []const u8) CircuitBreakerState {
     const s = gw_state orelse return .closed;
     s.rw_lock.lockShared();
@@ -815,6 +406,7 @@ pub fn getCircuitState(upstream: []const u8) CircuitBreakerState {
     return cb.cb_state;
 }
 
+/// Force-close the circuit breaker for an upstream, clearing failure counters.
 pub fn resetCircuit(upstream: []const u8) void {
     const s = gw_state orelse return;
     s.rw_lock.lock();
@@ -825,21 +417,7 @@ pub fn resetCircuit(upstream: []const u8) void {
 }
 
 fn pathMatchesRoute(request_path: []const u8, route_path: []const u8) bool {
-    var req_seg = splitPath(request_path);
-    var route_seg = splitPath(route_path);
-
-    while (true) {
-        const rs = route_seg.next();
-        const rq = req_seg.next();
-
-        if (rs == null and rq == null) return true;
-        if (rs == null or rq == null) return false;
-
-        const rseg = rs.?;
-        if (rseg.len > 0 and rseg[0] == '*') return true;
-        if (rseg.len > 2 and rseg[0] == '{') continue; // param matches anything
-        if (!std.mem.eql(u8, rseg, rq.?)) return false;
-    }
+    return routing.pathMatchesRoute(request_path, route_path);
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────
@@ -1195,4 +773,43 @@ test "gateway remove then match" {
 
     const after = try matchRoute("/api/temp", .GET);
     try std.testing.expect(after == null);
+}
+
+test "gateway resetCircuit on already closed is no-op" {
+    const allocator = std.testing.allocator;
+    try init(allocator, GatewayConfig.defaults());
+    defer deinit();
+
+    // resetCircuit on a circuit that was never opened — should not crash
+    resetCircuit("http://backend:80");
+
+    try addRoute(.{ .path = "/test", .method = .GET, .upstream = "http://backend:80" });
+    resetCircuit("http://backend:80");
+
+    // Route still works
+    const result = try matchRoute("/test", .GET);
+    try std.testing.expect(result != null);
+}
+
+test "gateway root path matches" {
+    const allocator = std.testing.allocator;
+    try init(allocator, GatewayConfig.defaults());
+    defer deinit();
+
+    try addRoute(.{ .path = "/", .method = .GET, .upstream = "http://root:80" });
+    const result = try matchRoute("/", .GET);
+    try std.testing.expect(result != null);
+}
+
+test "gateway getRoutes returns all routes" {
+    const allocator = std.testing.allocator;
+    try init(allocator, GatewayConfig.defaults());
+    defer deinit();
+
+    try addRoute(.{ .path = "/a", .method = .GET, .upstream = "http://a:80" });
+    try addRoute(.{ .path = "/b", .method = .POST, .upstream = "http://b:80" });
+    try addRoute(.{ .path = "/c", .method = .PUT, .upstream = "http://c:80" });
+
+    const routes = getRoutes();
+    try std.testing.expectEqual(@as(usize, 3), routes.len);
 }

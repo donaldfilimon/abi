@@ -596,49 +596,37 @@ pub const Sanitizer = struct {
 
 // Helper functions
 
-fn containsSqlInjection(input: []const u8) bool {
-    const patterns = &[_][]const u8{
-        "'--",
-        "'; --",
-        "' OR ",
-        "' AND ",
-        "1=1",
-        "1'='1",
-        "' OR '1'='1",
-        "UNION SELECT",
-        "UNION ALL SELECT",
-        "INSERT INTO",
-        "DELETE FROM",
-        "DROP TABLE",
-        "DROP DATABASE",
-        "TRUNCATE TABLE",
-        "UPDATE SET",
-        "xp_cmdshell",
-        "EXEC(",
-        "EXECUTE(",
-        "WAITFOR DELAY",
-        "BENCHMARK(",
-        "SLEEP(",
-        "/*",
-        "*/",
-        "@@",
-        "CHAR(",
-        "CONCAT(",
-        "LOAD_FILE(",
-        "INTO OUTFILE",
-        "INTO DUMPFILE",
-    };
+fn containsPatternIgnoreCase(input: []const u8, pattern: []const u8) bool {
+    if (pattern.len == 0 or input.len < pattern.len) return false;
 
-    const lower = std.ascii.lowerString(input) catch return false;
-
-    for (patterns) |pattern| {
-        const lower_pattern = std.ascii.lowerString(pattern) catch continue;
-        if (std.mem.indexOf(u8, lower, lower_pattern) != null) {
+    var i: usize = 0;
+    while (i + pattern.len <= input.len) : (i += 1) {
+        if (std.ascii.eqlIgnoreCase(input[i .. i + pattern.len], pattern)) {
             return true;
         }
     }
-
     return false;
+}
+
+fn containsAnyPatternIgnoreCase(input: []const u8, patterns: []const []const u8) bool {
+    for (patterns) |pattern| {
+        if (containsPatternIgnoreCase(input, pattern)) return true;
+    }
+    return false;
+}
+
+fn containsSqlInjection(input: []const u8) bool {
+    const patterns = &[_][]const u8{
+        "'--",              "'; --",          "' or ",         "' and ",
+        "1=1",              "1'='1",          "' or '1'='1",   "union select",
+        "union all select", "insert into",    "delete from",   "drop table",
+        "drop database",    "truncate table", "update set",    "xp_cmdshell",
+        "exec(",            "execute(",       "waitfor delay", "benchmark(",
+        "sleep(",           "/*",             "*/",            "@@",
+        "char(",            "concat(",        "load_file(",    "into outfile",
+        "into dumpfile",
+    };
+    return containsAnyPatternIgnoreCase(input, patterns);
 }
 
 fn containsXss(input: []const u8) bool {
@@ -681,17 +669,7 @@ fn containsXss(input: []const u8) bool {
         "data:",
         "base64,",
     };
-
-    const lower = std.ascii.lowerString(input) catch return false;
-
-    for (patterns) |pattern| {
-        const lower_pattern = std.ascii.lowerString(pattern) catch continue;
-        if (std.mem.indexOf(u8, lower, lower_pattern) != null) {
-            return true;
-        }
-    }
-
-    return false;
+    return containsAnyPatternIgnoreCase(input, patterns);
 }
 
 fn containsCommandInjection(input: []const u8) bool {
@@ -757,17 +735,7 @@ fn containsPathTraversal(input: []const u8) bool {
         "/proc/",
         "/dev/",
     };
-
-    const lower = std.ascii.lowerString(input) catch return false;
-
-    for (patterns) |pattern| {
-        const lower_pattern = std.ascii.lowerString(pattern) catch continue;
-        if (std.mem.indexOf(u8, lower, lower_pattern) != null) {
-            return true;
-        }
-    }
-
-    return false;
+    return containsAnyPatternIgnoreCase(input, patterns);
 }
 
 fn isValidEmailLocalChar(c: u8) bool {
@@ -884,6 +852,40 @@ test "detect path traversal" {
     try std.testing.expect(containsPathTraversal("%2e%2e%2f"));
     try std.testing.expect(!containsPathTraversal("/normal/path/file.txt"));
     try std.testing.expect(!containsPathTraversal("filename.txt"));
+}
+
+fn makePaddedInput(allocator: std.mem.Allocator, pad_len: usize, suffix: []const u8) ![]u8 {
+    var buf = std.ArrayListUnmanaged(u8).empty;
+    errdefer buf.deinit(allocator);
+
+    try buf.resize(allocator, pad_len);
+    @memset(buf.items, 'A');
+    try buf.appendSlice(allocator, suffix);
+    return buf.toOwnedSlice(allocator);
+}
+
+test "detect sql injection in oversized payload" {
+    const allocator = std.testing.allocator;
+    const input = try makePaddedInput(allocator, 5000, "' OR '1'='1");
+    defer allocator.free(input);
+
+    try std.testing.expect(containsSqlInjection(input));
+}
+
+test "detect xss in oversized payload" {
+    const allocator = std.testing.allocator;
+    const input = try makePaddedInput(allocator, 5000, "<script>alert(1)</script>");
+    defer allocator.free(input);
+
+    try std.testing.expect(containsXss(input));
+}
+
+test "detect path traversal in oversized payload" {
+    const allocator = std.testing.allocator;
+    const input = try makePaddedInput(allocator, 5000, "../../etc/passwd");
+    defer allocator.free(input);
+
+    try std.testing.expect(containsPathTraversal(input));
 }
 
 test "sanitize html" {

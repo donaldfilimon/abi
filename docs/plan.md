@@ -7,8 +7,14 @@ tags: [planning, execution, zig-0.16, multi-agent]
 # ABI Multi-Agent Execution Plan
 
 ## Current Objective
-Deliver a stable ABI baseline on Zig 0.16.0-dev.2535+b5bd49460 with verified feature-gated parity, reproducible
+Deliver a stable ABI baseline on Zig 0.16.0-dev.2611+f996d2866 with verified feature-gated parity, reproducible
 build/test outcomes, and a clear release-readiness decision in February 2026.
+
+## Canonical baseline (2026-02-15)
+- main: 1252/1257 (5 skip)
+- feature: 1512/1512
+- Canonical baseline: main 1252/1257 (5 skip), feature 1512/1512
+- source of truth: `scripts/project_baseline.env`
 
 ## Execution Update (2026-02-14) — Phase 10 Complete + Cleanup & CLI
 
@@ -103,7 +109,7 @@ Phase 9 implemented 5 skeleton feature modules and 3 placeholder fixups:
     `src/services/shared/utils/v2_primitives.zig` branch-quota overflow in `nextPowerOfTwo`
 
 ## Assumptions
-- Zig toolchain is `0.16.0-dev.2535+b5bd49460` or a compatible newer Zig build.
+- Zig toolchain is `0.16.0-dev.2611+f996d2866` or a compatible newer Zig build.
 - Public API usage stays on `@import("abi")`; deep internal imports are not relied on.
 - Parallel execution is done by explicit file/module ownership per agent.
 
@@ -205,7 +211,7 @@ Exit criteria:
   - If root cause is unclear, roll back to last known green state and reapply incrementally.
 
 ## Definition of Done
-- Zig 0.16.0-dev.2535+b5bd49460 path is stable for normal and feature-gated builds.
+- Zig 0.16.0-dev.2611+f996d2866 path is stable for normal and feature-gated builds.
 - Feature-gated parity is confirmed on touched modules.
 - Full validation matrix passes with no unresolved regressions.
 - Plan references remain accurate and current.
@@ -298,11 +304,11 @@ Import chains verified: `abi.zig` -> `services/{shared,runtime}/mod.zig` -> sub-
 
 ### 5.2 Known Technical Debt
 - [x] Three `Backend` enums with different members across GPU backends — unified: added `.simulated` to `Backend` in backend.zig and stubs/backend.zig (commit `04f3fbaa`)
-- [ ] Inconsistent error naming across GPU backends — standardize (low priority)
-- [ ] `createCorsMiddleware` limitation: Zig fn pointers can't capture config (always permissive) — architectural, no fix available
+- [x] Inconsistent error naming across GPU backends — standardized through `features/gpu/interface.zig:normalizeBackendError()` and factory-wide mapping in `features/gpu/backend_factory.zig`
+- [x] `createCorsMiddleware` limitation: Zig fn pointers can't capture config (always permissive) — documented and bounded with explicit warning + `CorsMiddleware.init(config).handle` migration path
 - [x] Cloud `CloudConfig` type mismatch: `core/config/cloud.zig` vs `features/cloud/types.zig` — fixed: framework.zig now maps core config fields to runtime config (commit `04f3fbaa`)
 - [ ] `TODO(gpu-tests)`: Enable GPU kernel tests once mock backend suppresses error logging
-- [ ] Stub parity gap: database (50+), gpu (60+), network (80+) missing deep sub-module re-exports — validate-flags passes so no compile failures, but stubs are incomplete for deep `abi.<feature>.SubType` access when disabled
+- [x] Stub parity gap: database/gpu/network deep sub-module access now covered by compile-time `build/validate/stub_surface_check.zig` matrix checks and aligned re-exports
 
 ### 5.4 File Splits (2026-02-08)
 Large files split into focused modules for maintainability:

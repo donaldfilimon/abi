@@ -330,3 +330,39 @@ test "web helpers parse json and status" {
     try std.testing.expect(isSuccessStatus(response.status));
     try std.testing.expect(parsed.value.object.get("ok").?.bool == true);
 }
+
+test "isEnabled returns build option" {
+    try std.testing.expectEqual(build_options.enable_web, isEnabled());
+}
+
+test "isSuccessStatus for 2xx codes" {
+    try std.testing.expect(isSuccessStatus(200));
+    try std.testing.expect(isSuccessStatus(201));
+    try std.testing.expect(isSuccessStatus(204));
+    try std.testing.expect(!isSuccessStatus(301));
+    try std.testing.expect(!isSuccessStatus(404));
+    try std.testing.expect(!isSuccessStatus(500));
+}
+
+test "parseJsonValue handles objects and arrays" {
+    const json_str = "{\"items\":[1,2,3]}";
+    const response = Response{ .status = 200, .body = json_str };
+    var parsed = try parseJsonValue(std.testing.allocator, response);
+    defer parsed.deinit();
+
+    const items = parsed.value.object.get("items").?.array;
+    try std.testing.expectEqual(@as(usize, 3), items.items.len);
+}
+
+test "parseJsonValue rejects invalid json" {
+    const response = Response{ .status = 200, .body = "not json{" };
+    const result = parseJsonValue(std.testing.allocator, response);
+    try std.testing.expect(if (result) |_| false else |_| true);
+}
+
+test "freeResponse releases body memory" {
+    const body = try std.testing.allocator.dupe(u8, "test body");
+    const response = Response{ .status = 200, .body = body };
+    freeResponse(std.testing.allocator, response);
+    // No leak = test passes (testing.allocator detects leaks)
+}

@@ -303,7 +303,7 @@ pub const BenchmarkRunner = struct {
         }
 
         // Collection phase
-        var samples = std.ArrayListUnmanaged(u64){};
+        var samples = std.ArrayListUnmanaged(u64).empty;
         defer samples.deinit(self.allocator);
 
         var total_time: u64 = 0;
@@ -375,7 +375,7 @@ pub const BenchmarkRunner = struct {
         }
 
         // Collection phase
-        var samples = std.ArrayListUnmanaged(u64){};
+        var samples = std.ArrayListUnmanaged(u64).empty;
         defer samples.deinit(self.allocator);
 
         var total_time: u64 = 0;
@@ -625,7 +625,7 @@ fn calculateStatistics(
     var outliers_removed: u64 = 0;
 
     if (config.remove_outliers and sorted.len > 10) {
-        var filtered_list = std.ArrayListUnmanaged(u64){};
+        var filtered_list = std.ArrayListUnmanaged(u64).empty;
         defer filtered_list.deinit(allocator);
 
         const threshold = config.outlier_threshold * std_dev;
@@ -713,7 +713,7 @@ pub fn compareWithBaseline(
     baseline: []const BenchResult,
     threshold_percent: f64,
 ) ![]RegressionResult {
-    var results = std.ArrayListUnmanaged(RegressionResult){};
+    var results = std.ArrayListUnmanaged(RegressionResult).empty;
     errdefer results.deinit(allocator);
 
     for (current) |curr| {

@@ -133,7 +133,7 @@ pub const CodebaseIndex = struct {
         var lines = std.mem.splitScalar(u8, content, '\n');
         var chunk_start: usize = 0;
         var chunk_lines: usize = 0;
-        var chunk_buf = std.ArrayListUnmanaged(u8){};
+        var chunk_buf = std.ArrayListUnmanaged(u8).empty;
         defer chunk_buf.deinit(self.allocator);
 
         while (lines.next()) |line| {
@@ -281,7 +281,7 @@ fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
 /// Extract simple keywords from a question for search.
 fn extractKeywords(allocator: std.mem.Allocator, question: []const u8) ![]u8 {
     // Filter out common stop words and return the rest
-    var result = std.ArrayListUnmanaged(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     const stop_words = [_][]const u8{

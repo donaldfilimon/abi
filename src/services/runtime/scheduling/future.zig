@@ -427,7 +427,7 @@ test "future resolved constructor" {
 
 test "future rejected constructor" {
     const allocator = std.testing.allocator;
-    var future = Future(i32).rejected(allocator, error.TestError);
+    var future = Future(i32).rejected(allocator, error.InvalidState);
     defer future.deinit();
 
     try std.testing.expect(future.isComplete());

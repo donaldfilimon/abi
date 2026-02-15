@@ -266,8 +266,8 @@ pub const BatchProcessor = struct {
         var failed: usize = 0;
         _ = &failed; // Reserved for future error handling
         var skipped: usize = 0;
-        var failed_ids = std.ArrayListUnmanaged(u64){};
-        var errors = std.ArrayListUnmanaged(BatchError){};
+        var failed_ids = std.ArrayListUnmanaged(u64).empty;
+        var errors = std.ArrayListUnmanaged(BatchError).empty;
         defer failed_ids.deinit(self.allocator);
         defer errors.deinit(self.allocator);
 
@@ -366,8 +366,8 @@ pub const BatchProcessor = struct {
         var failed: usize = 0;
         _ = &failed;
         var skipped: usize = 0;
-        var failed_ids = std.ArrayListUnmanaged(u64){};
-        var errors = std.ArrayListUnmanaged(BatchError){};
+        var failed_ids = std.ArrayListUnmanaged(u64).empty;
+        var errors = std.ArrayListUnmanaged(BatchError).empty;
         defer failed_ids.deinit(self.allocator);
         defer errors.deinit(self.allocator);
 
@@ -529,8 +529,8 @@ pub const BatchProcessor = struct {
         var successful: usize = 0;
         var failed: usize = 0;
         _ = &failed; // Reserved for future error handling
-        var failed_ids = std.ArrayListUnmanaged(u64){};
-        var errors = std.ArrayListUnmanaged(BatchError){};
+        var failed_ids = std.ArrayListUnmanaged(u64).empty;
+        var errors = std.ArrayListUnmanaged(BatchError).empty;
         defer failed_ids.deinit(self.allocator);
         defer errors.deinit(self.allocator);
 

@@ -10,6 +10,7 @@
 
 const std = @import("std");
 const crypto = std.crypto;
+const csprng = @import("csprng.zig");
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
     return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
@@ -122,7 +123,7 @@ pub const EncryptedHeader = struct {
             return error.InvalidMagic;
         }
 
-        const alg = std.meta.intToEnum(Algorithm, data[4]) catch return error.InvalidAlgorithm;
+        const alg = try parseAlgorithm(data[4]);
         const nonce_len = data[5];
 
         if (data.len < 6 + nonce_len + 1) return error.InvalidHeader;
@@ -151,6 +152,15 @@ pub const EncryptedHeader = struct {
         };
     }
 
+    fn parseAlgorithm(raw: u8) !Algorithm {
+        return switch (raw) {
+            @intFromEnum(Algorithm.aes_256_gcm) => .aes_256_gcm,
+            @intFromEnum(Algorithm.chacha20_poly1305) => .chacha20_poly1305,
+            @intFromEnum(Algorithm.xchacha20_poly1305) => .xchacha20_poly1305,
+            else => error.InvalidAlgorithm,
+        };
+    }
+
     pub fn headerSize(self: EncryptedHeader) usize {
         var size: usize = 4 + 1 + 1 + self.nonce.len + 1 + 4;
         if (self.salt != null) size += 16;
@@ -173,11 +183,11 @@ pub const Encryptor = struct {
     /// Encrypt data with a key
     pub fn encrypt(self: *Encryptor, plaintext: []const u8, key: [32]u8, aad: ?[]const u8) !EncryptedData {
         const nonce_size = self.config.algorithm.nonceSize();
-        const tag_size = self.config.algorithm.tagSize();
+        _ = self.config.algorithm.tagSize(); // validated implicitly by AEAD
 
         // Generate random nonce
         var nonce: [24]u8 = undefined;
-        crypto.random.bytes(nonce[0..nonce_size]);
+        csprng.fillRandom(nonce[0..nonce_size]);
 
         // Allocate ciphertext buffer
         const ciphertext = try self.allocator.alloc(u8, plaintext.len);
@@ -211,7 +221,7 @@ pub const Encryptor = struct {
         return EncryptedData{
             .header = header,
             .ciphertext = ciphertext,
-            .tag = tag[0..tag_size].*,
+            .tag = tag,
         };
     }
 
@@ -219,7 +229,7 @@ pub const Encryptor = struct {
     pub fn encryptWithPassword(self: *Encryptor, plaintext: []const u8, password: []const u8) !EncryptedData {
         // Generate salt
         var salt: [16]u8 = undefined;
-        crypto.random.bytes(&salt);
+        csprng.fillRandom(&salt);
 
         // Derive key
         const key = try self.deriveKey(password, &salt);
@@ -293,31 +303,40 @@ pub const Encryptor = struct {
 
         switch (self.config.kdf) {
             .hkdf_sha256 => {
-                var prk: [32]u8 = undefined;
-                crypto.kdf.hkdf.HkdfSha256.extract(&prk, salt, password);
-                crypto.kdf.hkdf.HkdfSha256.expand(&key, &prk, "encryption-key");
+                const Hkdf = crypto.kdf.hkdf.Hkdf(crypto.auth.hmac.sha2.HmacSha256);
+                const prk = Hkdf.extract(salt, password);
+                Hkdf.expand(&key, "encryption-key", prk);
             },
             .pbkdf2_sha256 => {
-                crypto.pwhash.pbkdf2(&key, password, salt[0..@min(salt.len, 16)].*, self.config.kdf_iterations, .sha256);
+                var salt_arr: [16]u8 = undefined;
+                const copy_len = @min(salt.len, 16);
+                @memcpy(salt_arr[0..copy_len], salt[0..copy_len]);
+                if (copy_len < 16) @memset(salt_arr[copy_len..], 0);
+                try crypto.pwhash.pbkdf2(&key, password, &salt_arr, self.config.kdf_iterations, crypto.auth.hmac.sha2.HmacSha256);
             },
             .argon2id => {
+                var io_backend = initIoBackend(self.allocator);
+                defer io_backend.deinit();
                 crypto.pwhash.argon2.kdf(
+                    self.allocator,
                     &key,
                     password,
-                    salt[0..@min(salt.len, 16)].*,
+                    salt,
                     .{
                         .t = self.config.argon2_time,
                         .m = self.config.argon2_memory,
                         .p = 4,
                     },
                     .argon2id,
+                    io_backend.io(),
                 ) catch return error.KeyDerivationFailed;
             },
             .scrypt => {
                 crypto.pwhash.scrypt.kdf(
+                    self.allocator,
                     &key,
                     password,
-                    salt[0..@min(salt.len, 16)].*,
+                    salt,
                     .{ .ln = 15, .r = 8, .p = 1 },
                 ) catch return error.KeyDerivationFailed;
             },
@@ -408,7 +427,7 @@ pub const KeyWrapper = struct {
     /// Returns [60]u8: 12-byte nonce + 32-byte ciphertext + 16-byte tag.
     pub fn wrap(self: *KeyWrapper, dek: [32]u8) ![60]u8 {
         var nonce: [12]u8 = undefined;
-        crypto.random.bytes(&nonce);
+        csprng.fillRandom(&nonce);
 
         var ciphertext: [32]u8 = undefined;
         var tag: [16]u8 = undefined;
@@ -461,34 +480,38 @@ pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) 
     const stat = try file.stat(io);
     const size = stat.size;
 
-    var buffer: [4096]u8 = undefined;
+    var rand_buf: [4096]u8 = undefined;
+    var write_buf: [4096]u8 = undefined;
 
     for (0..passes) |_| {
-        try file.seekTo(0);
+        var writer = file.writer(io, &write_buf);
+        try writer.seekTo(0);
 
         var remaining = size;
         while (remaining > 0) {
-            const to_write = @min(buffer.len, remaining);
-            crypto.random.bytes(buffer[0..to_write]);
-            _ = try file.writer(io).write(buffer[0..to_write]);
+            const to_write = @min(rand_buf.len, remaining);
+            csprng.fillRandom(rand_buf[0..to_write]);
+            try writer.interface.writeAll(rand_buf[0..to_write]);
             remaining -= to_write;
         }
-
-        try file.sync(io);
+        try writer.flush();
     }
 
     // Final pass with zeros
-    try file.seekTo(0);
-    @memset(&buffer, 0);
+    {
+        var writer = file.writer(io, &write_buf);
+        try writer.seekTo(0);
+        @memset(&rand_buf, 0);
 
-    var remaining = size;
-    while (remaining > 0) {
-        const to_write = @min(buffer.len, remaining);
-        _ = try file.writer(io).write(buffer[0..to_write]);
-        remaining -= to_write;
+        var remaining = size;
+        while (remaining > 0) {
+            const to_write = @min(rand_buf.len, remaining);
+            try writer.interface.writeAll(rand_buf[0..to_write]);
+            remaining -= to_write;
+        }
+        try writer.flush();
     }
 
-    try file.sync(io);
     file.close(io);
 
     // Delete file
@@ -498,7 +521,7 @@ pub fn secureDelete(allocator: std.mem.Allocator, path: []const u8, passes: u8) 
 /// Generate a random encryption key
 pub fn generateKey() [32]u8 {
     var key: [32]u8 = undefined;
-    crypto.random.bytes(&key);
+    csprng.fillRandom(&key);
     return key;
 }
 
@@ -590,6 +613,26 @@ test "serialization" {
     defer allocator.free(decrypted);
 
     try std.testing.expectEqualStrings(plaintext, decrypted);
+}
+
+test "deserialize rejects invalid algorithm id" {
+    const allocator = std.testing.allocator;
+    var encryptor = Encryptor.init(allocator, .{});
+
+    const plaintext = "Data to serialize";
+    const key = generateKey();
+
+    var encrypted = try encryptor.encrypt(plaintext, key, null);
+    defer encrypted.deinit(allocator);
+
+    const serialized = try encryptor.serialize(encrypted);
+    defer allocator.free(serialized);
+
+    var tampered = try allocator.dupe(u8, serialized);
+    defer allocator.free(tampered);
+    tampered[4] = 0xff;
+
+    try std.testing.expectError(error.InvalidAlgorithm, encryptor.deserialize(tampered));
 }
 
 test "key wrapper" {

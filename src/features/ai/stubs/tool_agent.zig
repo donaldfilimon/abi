@@ -1,7 +1,12 @@
 const std = @import("std");
+const agent_stub = @import("agent.zig");
+const tools_stub = @import("../tools/stub.zig");
+
+pub const AgentConfig = agent_stub.AgentConfig;
+pub const ToolRegistry = tools_stub.ToolRegistry;
 
 pub const ToolAgentConfig = struct {
-    agent: AgentConfig = .{},
+    agent: AgentConfig = .{ .name = "tool-agent" },
     max_tool_iterations: usize = 10,
     tool_result_max_chars: usize = 8000,
     require_confirmation: bool = true,
@@ -9,10 +14,6 @@ pub const ToolAgentConfig = struct {
     enable_memory: bool = false,
     enable_reflection: bool = false,
     working_directory: []const u8 = ".",
-};
-
-const AgentConfig = struct {
-    name: []const u8 = "",
 };
 
 pub const ToolCallRequest = struct {
@@ -30,6 +31,14 @@ pub const ToolCallRecord = struct {
 pub const ConfirmationFn = *const fn ([]const u8, []const u8) bool;
 
 pub const ToolAugmentedAgent = struct {
+    allocator: std.mem.Allocator = undefined,
+    agent: agent_stub.Agent = undefined,
+    tool_registry: ToolRegistry = undefined,
+    config: ToolAgentConfig = .{},
+    confirmation_callback: ?ConfirmationFn = null,
+    tool_call_log: std.ArrayListUnmanaged(ToolCallRecord) = .{},
+    tool_descriptions: ?[]u8 = null,
+
     const Self = @This();
 
     pub fn init(_: std.mem.Allocator, _: ToolAgentConfig) error{AiDisabled}!Self {

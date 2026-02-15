@@ -256,7 +256,7 @@ fn saveProfileStore(allocator: std.mem.Allocator, store: *const ProfileStore) !v
     defer allocator.free(config_path);
 
     // Build JSON content
-    var json_buf = std.ArrayListUnmanaged(u8){};
+    var json_buf = std.ArrayListUnmanaged(u8).empty;
     defer json_buf.deinit(allocator);
 
     try json_buf.appendSlice(allocator, "{\"active\":\"");

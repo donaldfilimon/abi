@@ -203,7 +203,7 @@ pub fn CodeGenMixin(comptime Self: type) type {
                     return result_id;
                 },
                 .vector_construct => |vc| {
-                    var component_ids = std.ArrayListUnmanaged(u32){};
+                    var component_ids = std.ArrayListUnmanaged(u32).empty;
                     defer component_ids.deinit(self.allocator);
 
                     for (vc.components) |comp| {
@@ -214,7 +214,7 @@ pub fn CodeGenMixin(comptime Self: type) type {
                     const vec_type = try self.getVectorType(elem_type, vc.size);
                     const result_id = self.allocId();
 
-                    var operands = std.ArrayListUnmanaged(u32){};
+                    var operands = std.ArrayListUnmanaged(u32).empty;
                     defer operands.deinit(self.allocator);
                     try operands.append(self.allocator, vec_type);
                     try operands.append(self.allocator, result_id);
@@ -237,7 +237,7 @@ pub fn CodeGenMixin(comptime Self: type) type {
                         const vec_type = try self.getVectorType(elem_type, @intCast(sw.components.len));
                         const result_id = self.allocId();
 
-                        var operands = std.ArrayListUnmanaged(u32){};
+                        var operands = std.ArrayListUnmanaged(u32).empty;
                         defer operands.deinit(self.allocator);
                         try operands.append(self.allocator, vec_type);
                         try operands.append(self.allocator, result_id);

@@ -444,6 +444,120 @@ pub fn layerNormInPlace(data: []f32, gamma: ?[]const f32, beta: ?[]const f32, ep
 // Helper Functions
 // ============================================================================
 
+// ════════════════════════════════════════════════════════════════════════
+// Tests
+// ════════════════════════════════════════════════════════════════════════
+
+test "reluInPlace zeros negatives" {
+    var data = [_]f32{ -3.0, -1.0, 0.0, 1.0, 5.0 };
+    reluInPlace(&data);
+    try std.testing.expectEqual(@as(f32, 0.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 0.0), data[1]);
+    try std.testing.expectEqual(@as(f32, 0.0), data[2]);
+    try std.testing.expectEqual(@as(f32, 1.0), data[3]);
+    try std.testing.expectEqual(@as(f32, 5.0), data[4]);
+}
+
+test "leakyReluInPlace scales negatives" {
+    var data = [_]f32{ -10.0, 0.0, 5.0 };
+    leakyReluInPlace(&data, 0.1);
+    try std.testing.expectApproxEqAbs(@as(f32, -1.0), data[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), data[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), data[2], 0.001);
+}
+
+test "siluInPlace at zero" {
+    var data = [_]f32{0.0};
+    siluInPlace(&data);
+    // SiLU(0) = 0 * sigmoid(0) = 0 * 0.5 = 0
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), data[0], 0.001);
+}
+
+test "siluInPlace positive value" {
+    var data = [_]f32{2.0};
+    siluInPlace(&data);
+    // SiLU(2) = 2 * sigmoid(2) = 2 * 0.8808 ≈ 1.7616
+    try std.testing.expectApproxEqAbs(@as(f32, 1.7616), data[0], 0.01);
+}
+
+test "geluInPlace at zero" {
+    var data = [_]f32{0.0};
+    geluInPlace(&data);
+    // GELU(0) = 0.5 * 0 * (1 + tanh(0)) = 0
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), data[0], 0.001);
+}
+
+test "softmaxInPlace sums to 1" {
+    var data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    softmaxInPlace(&data);
+    var total: f32 = 0;
+    for (data) |v| total += v;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 0.001);
+    // Largest input should have largest probability
+    try std.testing.expect(data[3] > data[2]);
+    try std.testing.expect(data[2] > data[1]);
+}
+
+test "logSoftmaxInPlace values are negative" {
+    var data = [_]f32{ 1.0, 2.0, 3.0 };
+    logSoftmaxInPlace(&data);
+    // All log-softmax values should be <= 0
+    for (data) |v| try std.testing.expect(v <= 0.001);
+    // exp(log-softmax) should sum to 1
+    var total: f32 = 0;
+    for (data) |v| total += @exp(v);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 0.01);
+}
+
+test "maxValue finds correct max" {
+    const data = [_]f32{ 1.0, 5.0, 3.0, 2.0 };
+    try std.testing.expectEqual(@as(f32, 5.0), maxValue(&data));
+}
+
+test "sum computes correct total" {
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    try std.testing.expectApproxEqAbs(@as(f32, 10.0), sum(&data), 0.001);
+}
+
+test "divideByScalar normalizes" {
+    var data = [_]f32{ 10.0, 20.0, 30.0 };
+    divideByScalar(&data, 10.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), data[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), data[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), data[2], 0.001);
+}
+
+test "squaredSum" {
+    const data = [_]f32{ 3.0, 4.0 };
+    // 9 + 16 = 25
+    try std.testing.expectApproxEqAbs(@as(f32, 25.0), squaredSum(&data), 0.001);
+}
+
+test "rmsNormInPlace without weights" {
+    var data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    rmsNormInPlace(&data, null, 1e-6);
+    // After RMSNorm, squared sum / N should ≈ 1 (within rounding)
+    var sq: f32 = 0;
+    for (data) |v| sq += v * v;
+    const rms = @sqrt(sq / 4.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), rms, 0.1);
+}
+
+test "layerNormInPlace centers data" {
+    var data = [_]f32{ 2.0, 4.0, 6.0, 8.0 };
+    layerNormInPlace(&data, null, null, 1e-6);
+    // After layernorm without gamma/beta, mean should be ~0
+    var mean: f32 = 0;
+    for (data) |v| mean += v;
+    mean /= 4.0;
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), mean, 0.01);
+}
+
+test "softmaxInPlace empty is safe" {
+    var empty: [0]f32 = .{};
+    softmaxInPlace(&empty); // should not crash
+}
+
 /// Fast vectorized tanh approximation
 /// Uses the identity: tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
 fn tanhVec(x: @Vector(VectorSize, f32)) @Vector(VectorSize, f32) {

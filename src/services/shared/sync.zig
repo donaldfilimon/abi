@@ -20,11 +20,18 @@ pub const Mutex = struct {
     }
 
     /// Acquires the mutex, blocking the caller's thread until it can.
-    /// Once acquired, call `unlock()` to release it.
+    /// Uses bounded exponential backoff to reduce CPU waste under contention.
     pub fn lock(self: *Mutex) void {
-        while (self.locked.swap(true, .acquire)) {
-            // Busy-wait spinloop - hint to CPU we're spinning
-            std.atomic.spinLoopHint();
+        // Fast path: try to acquire immediately
+        if (!self.locked.swap(true, .acquire)) return;
+
+        // Slow path: exponential backoff then yield
+        var spin: u8 = 1;
+        while (true) {
+            for (0..spin) |_| std.atomic.spinLoopHint();
+            if (!self.locked.swap(true, .acquire)) return;
+            spin = @min(spin *| 2, 32);
+            if (spin >= 32) std.Thread.yield() catch {};
         }
     }
 
@@ -70,14 +77,25 @@ pub const RwLock = struct {
     }
 
     pub fn lockShared(self: *RwLock) void {
+        // Fast path: try to acquire immediately
+        const state = self.state.load(.acquire);
+        if (state >= 0) {
+            if (self.state.cmpxchgWeak(state, state + 1, .acquire, .monotonic) == null) {
+                return;
+            }
+        }
+        // Slow path: exponential backoff
+        var spin: u8 = 1;
         while (true) {
-            const state = self.state.load(.acquire);
-            if (state >= 0) {
-                if (self.state.cmpxchgWeak(state, state + 1, .acquire, .monotonic) == null) {
+            for (0..spin) |_| std.atomic.spinLoopHint();
+            const s = self.state.load(.acquire);
+            if (s >= 0) {
+                if (self.state.cmpxchgWeak(s, s + 1, .acquire, .monotonic) == null) {
                     return;
                 }
             }
-            std.atomic.spinLoopHint();
+            spin = @min(spin *| 2, 32);
+            if (spin >= 32) std.Thread.yield() catch {};
         }
     }
 
@@ -86,8 +104,15 @@ pub const RwLock = struct {
     }
 
     pub fn lock(self: *RwLock) void {
-        while (self.state.cmpxchgWeak(0, -1, .acquire, .monotonic) != null) {
-            std.atomic.spinLoopHint();
+        // Fast path
+        if (self.state.cmpxchgWeak(0, -1, .acquire, .monotonic) == null) return;
+        // Slow path: exponential backoff
+        var spin: u8 = 1;
+        while (true) {
+            for (0..spin) |_| std.atomic.spinLoopHint();
+            if (self.state.cmpxchgWeak(0, -1, .acquire, .monotonic) == null) return;
+            spin = @min(spin *| 2, 32);
+            if (spin >= 32) std.Thread.yield() catch {};
         }
     }
 
@@ -123,6 +148,22 @@ pub const Condition = struct {
         // Cannot properly implement without OS-level futex/condvar support
         // Callers should use a polling pattern instead
     }
+
+    /// Timed wait — spinlock-based approximation.
+    /// Unlocks the mutex, waits up to `timeout_ns` nanoseconds, then re-locks.
+    /// Returns `error.Timeout` if the timeout expires without being signaled.
+    pub fn timedWait(self: *Condition, mutex: *Mutex, timeout_ns: u64) !void {
+        _ = self;
+        mutex.unlock();
+        defer mutex.lock();
+
+        // Spin-wait with yield for the specified duration
+        var timer = std.time.Timer.start() catch return error.Timeout;
+        while (timer.read() < timeout_ns) {
+            std.atomic.spinLoopHint();
+        }
+        return error.Timeout;
+    }
 };
 
 /// Wake event for signaling a sleeping thread.
@@ -138,13 +179,17 @@ pub const Wake = struct {
 
     /// Wait until signaled or until the timeout (in nanoseconds) elapses.
     /// Returns `.timed_out` if the timeout expired, `.signaled` otherwise.
+    /// Uses exponential backoff (spin → yield) to avoid burning CPU on long waits.
     pub fn timedWait(self: *Wake, timeout_ns: u64) TimedWaitResult {
         const time = @import("time.zig");
         const start = time.timestampNs();
+        var spin: u8 = 1;
         while (!self.signaled.load(.acquire)) {
             const elapsed: u64 = @intCast(time.timestampNs() - start);
             if (elapsed >= timeout_ns) return .timed_out;
-            std.atomic.spinLoopHint();
+            for (0..spin) |_| std.atomic.spinLoopHint();
+            spin = @min(spin *| 2, 32);
+            if (spin >= 32) std.Thread.yield() catch {};
         }
         self.signaled.store(false, .release);
         return .signaled;

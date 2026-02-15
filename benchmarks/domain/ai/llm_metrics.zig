@@ -54,7 +54,7 @@ pub fn runHelmEvaluation(
 ) !HelmEvaluation {
     std.debug.print("\n=== HELM-Style Evaluation: {s} ===\n", .{model_name});
 
-    var metrics = std.ArrayListUnmanaged(HelmMetric){};
+    var metrics = std.ArrayListUnmanaged(HelmMetric).empty;
     errdefer metrics.deinit(allocator);
 
     // Simulate metric computation
@@ -267,7 +267,7 @@ pub fn analyzeThroughputLatency(
 ) ![]ThroughputLatencyResult {
     std.debug.print("\n=== Throughput vs Latency Analysis ===\n", .{});
 
-    var results = std.ArrayListUnmanaged(ThroughputLatencyResult){};
+    var results = std.ArrayListUnmanaged(ThroughputLatencyResult).empty;
     errdefer results.deinit(allocator);
 
     for (batch_sizes) |batch_size| {
@@ -382,7 +382,7 @@ pub fn runQuantizationAnalysis(
         @as(f64, @floatFromInt(config.model_params)) / 1_000_000_000.0,
     });
 
-    var results = std.ArrayListUnmanaged(QuantizationAnalysis){};
+    var results = std.ArrayListUnmanaged(QuantizationAnalysis).empty;
     errdefer results.deinit(allocator);
 
     // FP32 baseline

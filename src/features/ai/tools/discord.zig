@@ -219,7 +219,7 @@ fn executeGetChannel(ctx: *Context, args: json.Value) ToolExecutionError!ToolRes
         return ToolResult.fromError(allocator, "Failed to get channel");
     };
 
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     errdefer output.deinit(allocator);
 
     output.print(allocator, "Channel ID: {s}\n", .{channel.id}) catch {
@@ -266,7 +266,7 @@ fn executeListGuilds(ctx: *Context, _: json.Value) ToolExecutionError!ToolResult
         return ToolResult.init(allocator, true, "Bot is not a member of any guilds.");
     }
 
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     errdefer output.deinit(allocator);
 
     output.print(allocator, "Guilds ({d}):\n", .{guilds.len}) catch {
@@ -298,7 +298,7 @@ fn executeGetBotInfo(ctx: *Context, _: json.Value) ToolExecutionError!ToolResult
         return ToolResult.fromError(allocator, "Failed to get bot user info");
     };
 
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     errdefer output.deinit(allocator);
 
     output.print(allocator, "Bot User Information:\n", .{}) catch {
@@ -425,7 +425,7 @@ fn executeGetMessages(ctx: *Context, args: json.Value) ToolExecutionError!ToolRe
         return ToolResult.init(allocator, true, "No messages found in channel.");
     }
 
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     errdefer output.deinit(allocator);
 
     output.print(allocator, "Messages ({d}):\n", .{messages.len}) catch {

@@ -19,6 +19,7 @@ const time = @import("../../services/shared/time.zig");
 pub const CacheConfig = core_config.CacheConfig;
 pub const EvictionPolicy = core_config.EvictionPolicy;
 
+/// Errors returned by cache operations.
 pub const CacheError = error{
     FeatureDisabled,
     CacheFull,
@@ -27,17 +28,23 @@ pub const CacheError = error{
     OutOfMemory,
 };
 
+/// A single cached key-value pair with time-to-live metadata.
 pub const CacheEntry = struct {
     key: []const u8 = "",
     value: []const u8 = "",
+    /// Time-to-live in milliseconds (0 = no expiry).
     ttl_ms: u64 = 0,
+    /// Timestamp when the entry was inserted (epoch ms).
     created_at: u64 = 0,
 };
 
+/// Aggregate statistics for the cache instance.
 pub const CacheStats = struct {
     hits: u64 = 0,
     misses: u64 = 0,
+    /// Current number of live entries.
     entries: u32 = 0,
+    /// Approximate heap bytes consumed by keys + values.
     memory_used: u64 = 0,
     evictions: u64 = 0,
     expired: u64 = 0,
@@ -108,7 +115,10 @@ const EntrySlab = struct {
             .created_at_ns = 0,
             .active = false,
         };
-        self.free_list.append(allocator, idx) catch {};
+        self.free_list.append(allocator, idx) catch |err| {
+            // Slot won't be reused until next resize — minor fragmentation, not data loss
+            std.log.debug("cache: free list append failed, slot {d} leaked: {t}", .{ idx, err });
+        };
     }
 
     fn getEntry(self: *EntrySlab, idx: NodeIndex) *InternalEntry {
@@ -381,11 +391,14 @@ const CacheState = struct {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/// Initialize the global cache singleton with the given configuration.
+/// No-op if already initialized.
 pub fn init(allocator: std.mem.Allocator, config: CacheConfig) CacheError!void {
     if (state != null) return;
     state = CacheState.create(allocator, config) catch return error.OutOfMemory;
 }
 
+/// Tear down the cache, freeing all entries and internal structures.
 pub fn deinit() void {
     if (state) |s| {
         s.destroy();
@@ -393,22 +406,53 @@ pub fn deinit() void {
     }
 }
 
+/// Returns `true` — the cache module is always enabled at compile time.
 pub fn isEnabled() bool {
     return true;
 }
 
+/// Returns whether the cache has been initialized via `init`.
 pub fn isInitialized() bool {
     return state != null;
 }
 
+/// Look up a cached value by key. Returns the value slice (borrowed from
+/// the cache) or `null` if the key is absent or expired. Thread-safe.
+///
+/// For FIFO/Random eviction (no promotion needed), uses a shared read lock
+/// to allow concurrent readers. For LRU/LFU, uses an exclusive lock since
+/// promotion mutates the list/frequency.
 pub fn get(key: []const u8) CacheError!?[]const u8 {
     const s = state orelse return error.FeatureDisabled;
 
-    // Hold write lock for entire get+promote to prevent TOCTOU race
-    // (entry could be evicted between read-unlock and write-lock)
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
+    const needs_promotion = switch (s.config.eviction_policy) {
+        .lru, .lfu => true,
+        .fifo, .random => false,
+    };
 
+    if (needs_promotion) {
+        // LRU/LFU: exclusive lock for get+promote (prevents TOCTOU race)
+        s.rw_lock.lock();
+        defer s.rw_lock.unlock();
+        return getLockedImpl(key);
+    } else {
+        // FIFO/Random: shared read lock allows concurrent readers
+        s.rw_lock.lockShared();
+        defer s.rw_lock.unlockShared();
+
+        const result = s.getInternal(key);
+        if (result) |value| {
+            _ = s.stat_hits.fetchAdd(1, .monotonic);
+            return value;
+        }
+        _ = s.stat_misses.fetchAdd(1, .monotonic);
+        return null;
+    }
+}
+
+/// Internal get with exclusive lock held — handles promotion and expired cleanup.
+fn getLockedImpl(key: []const u8) ?[]const u8 {
+    const s = state orelse return null;
     const result = s.getInternal(key);
     if (result) |value| {
         _ = s.stat_hits.fetchAdd(1, .monotonic);
@@ -430,10 +474,13 @@ pub fn get(key: []const u8) CacheError!?[]const u8 {
     return null;
 }
 
+/// Insert a key-value pair using the default TTL from config.
 pub fn put(key: []const u8, value: []const u8) CacheError!void {
     return putWithTtl(key, value, 0);
 }
 
+/// Insert a key-value pair with a specific TTL in milliseconds.
+/// Evicts entries as needed if the cache is at capacity.
 pub fn putWithTtl(key: []const u8, value: []const u8, ttl_ms: u64) CacheError!void {
     const s = state orelse return error.FeatureDisabled;
 
@@ -495,7 +542,9 @@ pub fn putWithTtl(key: []const u8, value: []const u8, ttl_ms: u64) CacheError!vo
 
     const entry = s.slab.getEntry(idx);
     entry.key_buf = s.allocator.dupe(u8, key) catch return error.OutOfMemory;
+    errdefer s.allocator.free(entry.key_buf);
     entry.value_buf = s.allocator.dupe(u8, value) catch return error.OutOfMemory;
+    errdefer s.allocator.free(entry.value_buf);
     entry.ttl_ms = effective_ttl;
     entry.created_at_ns = now_ns;
     entry.frequency = 1;
@@ -509,6 +558,7 @@ pub fn putWithTtl(key: []const u8, value: []const u8, ttl_ms: u64) CacheError!vo
     s.memory_used += CacheState.entryMemory(entry);
 }
 
+/// Remove an entry by key. Returns `true` if the key was present.
 pub fn delete(key: []const u8) CacheError!bool {
     const s = state orelse return error.FeatureDisabled;
 
@@ -521,6 +571,7 @@ pub fn delete(key: []const u8) CacheError!bool {
     return true;
 }
 
+/// Test whether a key exists and has not expired (read-only, no eviction promotion).
 pub fn contains(key: []const u8) bool {
     const s = state orelse return false;
     s.rw_lock.lockShared();
@@ -529,6 +580,7 @@ pub fn contains(key: []const u8) bool {
     return result != null;
 }
 
+/// Remove all entries from the cache.
 pub fn clear() void {
     const s = state orelse return;
     s.rw_lock.lock();
@@ -546,6 +598,7 @@ pub fn clear() void {
     s.memory_used = 0;
 }
 
+/// Return the current number of live entries.
 pub fn size() u32 {
     const s = state orelse return 0;
     s.rw_lock.lockShared();
@@ -553,6 +606,7 @@ pub fn size() u32 {
     return @intCast(s.key_map.count());
 }
 
+/// Snapshot hit/miss counters, entry count, memory usage, and eviction stats.
 pub fn stats() CacheStats {
     const s = state orelse return .{};
     return .{
@@ -825,4 +879,78 @@ test "cache re-initialization guard" {
     // Original config still active — can add more entries
     try put("key2", "value2");
     try std.testing.expectEqual(@as(u32, 2), size());
+}
+
+test "cache delete non-existent key is no-op" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 10 });
+    defer deinit();
+
+    try put("exists", "value");
+    const removed = try delete("nonexistent");
+    try std.testing.expect(!removed);
+    try std.testing.expectEqual(@as(u32, 1), size());
+}
+
+test "cache get after clear returns null" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 10 });
+    defer deinit();
+
+    try put("k1", "v1");
+    try put("k2", "v2");
+    clear();
+
+    const v1 = try get("k1");
+    const v2 = try get("k2");
+    try std.testing.expect(v1 == null);
+    try std.testing.expect(v2 == null);
+    try std.testing.expectEqual(@as(u32, 0), size());
+}
+
+test "cache exact capacity fill" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 3, .eviction_policy = .fifo });
+    defer deinit();
+
+    try put("a", "1");
+    try put("b", "2");
+    try put("c", "3");
+    try std.testing.expectEqual(@as(u32, 3), size());
+
+    // All should be accessible
+    try std.testing.expect((try get("a")) != null);
+    try std.testing.expect((try get("b")) != null);
+    try std.testing.expect((try get("c")) != null);
+}
+
+test "cache stats hit and miss accuracy" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 10 });
+    defer deinit();
+
+    try put("key", "val");
+
+    // 3 hits
+    _ = try get("key");
+    _ = try get("key");
+    _ = try get("key");
+    // 2 misses
+    _ = try get("missing1");
+    _ = try get("missing2");
+
+    const s = stats();
+    try std.testing.expectEqual(@as(u64, 3), s.hits);
+    try std.testing.expectEqual(@as(u64, 2), s.misses);
+}
+
+test "cache FIFO shared read lock path" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 10, .eviction_policy = .fifo });
+    defer deinit();
+
+    try put("k1", "hello");
+    const val = try get("k1");
+    try std.testing.expect(val != null);
+    try std.testing.expectEqualSlices(u8, "hello", val.?);
 }

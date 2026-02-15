@@ -226,3 +226,31 @@ test "connectors init toggles state" {
     deinit();
     try std.testing.expect(!isInitialized());
 }
+
+test "getEnvOwned returns null for unset var" {
+    const result = try getEnvOwned(std.testing.allocator, "ABI_TEST_NONEXISTENT_VAR_12345");
+    try std.testing.expect(result == null);
+}
+
+test "getFirstEnvOwned returns null for empty list" {
+    const result = try getFirstEnvOwned(std.testing.allocator, &.{});
+    try std.testing.expect(result == null);
+}
+
+test "buildBearerHeader formats correctly" {
+    var auth = try buildBearerHeader(std.testing.allocator, "test-token-123");
+    defer auth.deinit(std.testing.allocator);
+    try std.testing.expectEqualStrings("Bearer test-token-123", auth.value);
+}
+
+test "AuthHeader.header returns HTTP header" {
+    var auth = try buildBearerHeader(std.testing.allocator, "sk-abc");
+    defer auth.deinit(std.testing.allocator);
+    const hdr = auth.header();
+    try std.testing.expectEqualStrings("authorization", hdr.name);
+    try std.testing.expectEqualStrings("Bearer sk-abc", hdr.value);
+}
+
+test "isEnabled always returns true" {
+    try std.testing.expect(isEnabled());
+}

@@ -111,7 +111,7 @@ pub const Chunker = struct {
     fn chunkFixed(self: *Chunker, content: []const u8) ![]Chunk {
         if (content.len == 0) return &[_]Chunk{};
 
-        var chunks = std.ArrayListUnmanaged(Chunk){};
+        var chunks = std.ArrayListUnmanaged(Chunk).empty;
         errdefer {
             for (chunks.items) |*c| c.deinit(self.allocator);
             chunks.deinit(self.allocator);
@@ -148,13 +148,13 @@ pub const Chunker = struct {
 
     /// Sentence-based chunking.
     fn chunkSentence(self: *Chunker, content: []const u8) ![]Chunk {
-        var chunks = std.ArrayListUnmanaged(Chunk){};
+        var chunks = std.ArrayListUnmanaged(Chunk).empty;
         errdefer {
             for (chunks.items) |*c| c.deinit(self.allocator);
             chunks.deinit(self.allocator);
         }
 
-        var current_chunk = std.ArrayListUnmanaged(u8){};
+        var current_chunk = std.ArrayListUnmanaged(u8).empty;
         defer current_chunk.deinit(self.allocator);
 
         var chunk_start: usize = 0;
@@ -213,7 +213,7 @@ pub const Chunker = struct {
 
     /// Paragraph-based chunking.
     fn chunkParagraph(self: *Chunker, content: []const u8) ![]Chunk {
-        var chunks = std.ArrayListUnmanaged(Chunk){};
+        var chunks = std.ArrayListUnmanaged(Chunk).empty;
         errdefer {
             for (chunks.items) |*c| c.deinit(self.allocator);
             chunks.deinit(self.allocator);
@@ -293,7 +293,7 @@ pub const Chunker = struct {
         const separator = self.config.separators[sep_idx];
 
         // Split by separator
-        var parts = std.ArrayListUnmanaged([]const u8){};
+        var parts = std.ArrayListUnmanaged([]const u8).empty;
         defer parts.deinit(self.allocator);
 
         var start: usize = 0;
@@ -321,13 +321,13 @@ pub const Chunker = struct {
         }
 
         // Merge small parts and chunk large ones
-        var chunks = std.ArrayListUnmanaged(Chunk){};
+        var chunks = std.ArrayListUnmanaged(Chunk).empty;
         errdefer {
             for (chunks.items) |*c| c.deinit(self.allocator);
             chunks.deinit(self.allocator);
         }
 
-        var current = std.ArrayListUnmanaged(u8){};
+        var current = std.ArrayListUnmanaged(u8).empty;
         defer current.deinit(self.allocator);
 
         var offset: usize = 0;

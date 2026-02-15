@@ -4,7 +4,7 @@ const std = @import("std");
 
 /// Tokenize text by whitespace, returning slices into the original text.
 pub fn tokenize(allocator: std.mem.Allocator, text: []const u8) ![]const []const u8 {
-    var tokens = std.ArrayListUnmanaged([]const u8){};
+    var tokens = std.ArrayListUnmanaged([]const u8).empty;
     errdefer tokens.deinit(allocator);
 
     var start: usize = 0;

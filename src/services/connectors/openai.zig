@@ -138,7 +138,7 @@ pub const Client = struct {
         try http_req.setBearerToken(self.config.api_key);
         try http_req.setJsonBody(json);
 
-        const http_res = try self.http.fetchJson(&http_req);
+        const http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
@@ -185,7 +185,7 @@ pub const Client = struct {
     }
 
     pub fn encodeChatRequest(self: *Client, request: ChatCompletionRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");
@@ -348,13 +348,13 @@ pub fn isAvailable() bool {
 // ============================================================================
 
 test "chat completion request default values" {
-    const messages = [_]Message{.{
-        .role = .user,
+    var messages = [_]Message{.{
+        .role = shared.Role.USER,
         .content = "Hello",
     }};
     const request = ChatCompletionRequest{
         .model = "gpt-4",
-        .messages = &messages,
+        .messages = messages[0..],
     };
     try std.testing.expectEqual(@as(f32, 0.7), request.temperature);
     try std.testing.expectEqual(@as(?u32, null), request.max_tokens);

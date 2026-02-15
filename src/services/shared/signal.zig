@@ -34,8 +34,12 @@ pub fn install() void {
         .flags = .{},
     };
 
-    std.posix.sigaction(std.posix.SIG.INT, &handler, null) catch {};
-    std.posix.sigaction(std.posix.SIG.TERM, &handler, null) catch {};
+    std.posix.sigaction(std.posix.SIG.INT, &handler, null) catch |err| {
+        std.log.warn("Failed to register SIGINT handler: {t}", .{err});
+    };
+    std.posix.sigaction(std.posix.SIG.TERM, &handler, null) catch |err| {
+        std.log.warn("Failed to register SIGTERM handler: {t}", .{err});
+    };
 }
 
 fn handleSignal(sig: c_int) callconv(.c) void {

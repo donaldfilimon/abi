@@ -173,7 +173,7 @@ pub const LongTermMemory = struct {
         }
 
         // Score all memories
-        var scored = std.ArrayListUnmanaged(struct { idx: usize, score: f32 }){};
+        var scored = std.ArrayListUnmanaged(struct { idx: usize, score: f32 }).empty;
         defer scored.deinit(self.allocator);
 
         for (self.memories.items, 0..) |entry, idx| {

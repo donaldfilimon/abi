@@ -115,7 +115,7 @@ pub fn sectionMerge(allocator: std.mem.Allocator, outputs: []const AgentOutput) 
     var seen_hashes = std.AutoHashMapUnmanaged(u64, void).empty;
     defer seen_hashes.deinit(allocator);
 
-    var result = std.ArrayListUnmanaged(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     var has_content = false;
@@ -125,7 +125,7 @@ pub fn sectionMerge(allocator: std.mem.Allocator, outputs: []const AgentOutput) 
 
         // Split into sections by markdown heading lines
         var lines = std.mem.splitSequence(u8, output.response, "\n");
-        var current_section = std.ArrayListUnmanaged(u8){};
+        var current_section = std.ArrayListUnmanaged(u8).empty;
         defer current_section.deinit(allocator);
 
         while (lines.next()) |line| {

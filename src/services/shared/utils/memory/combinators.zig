@@ -288,3 +288,100 @@ pub const NullAllocator = struct {
 
     fn freeFn(_: *anyopaque, _: []u8, _: std.mem.Alignment, _: usize) void {}
 };
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+test "TrackingAllocator counts allocs and frees" {
+    var tracker = TrackingAllocator.init(std.testing.allocator);
+    const alloc = tracker.allocator();
+
+    const data = try alloc.alloc(u8, 100);
+    const s1 = tracker.stats();
+    try std.testing.expectEqual(@as(u64, 1), s1.alloc_count);
+    try std.testing.expect(s1.bytes_allocated >= 100);
+    try std.testing.expect(s1.bytes_live >= 100);
+
+    alloc.free(data);
+    const s2 = tracker.stats();
+    try std.testing.expectEqual(@as(u64, 1), s2.free_count);
+    try std.testing.expectEqual(@as(u64, 0), s2.bytes_live);
+}
+
+test "TrackingAllocator peak tracking" {
+    var tracker = TrackingAllocator.init(std.testing.allocator);
+    const alloc = tracker.allocator();
+
+    const a = try alloc.alloc(u8, 200);
+    const b = try alloc.alloc(u8, 300);
+    // Peak should be >= 500
+    try std.testing.expect(tracker.stats().peak_bytes >= 500);
+
+    alloc.free(a);
+    alloc.free(b);
+    // Peak should still be >= 500 even after freeing
+    try std.testing.expect(tracker.stats().peak_bytes >= 500);
+}
+
+test "LimitingAllocator enforces limit" {
+    var limiter = LimitingAllocator.init(std.testing.allocator, 256);
+    const alloc = limiter.allocator();
+
+    // Should succeed — within limit
+    const data = try alloc.alloc(u8, 100);
+    defer alloc.free(data);
+
+    try std.testing.expect(limiter.usage() >= 100);
+    try std.testing.expect(limiter.remaining() <= 156);
+
+    // Should fail — would exceed limit
+    const result = alloc.alloc(u8, 200);
+    try std.testing.expectError(error.OutOfMemory, result);
+}
+
+test "LimitingAllocator frees restore capacity" {
+    var limiter = LimitingAllocator.init(std.testing.allocator, 256);
+    const alloc = limiter.allocator();
+
+    const a = try alloc.alloc(u8, 128);
+    try std.testing.expect(limiter.remaining() <= 128);
+    alloc.free(a);
+    try std.testing.expectEqual(@as(usize, 256), limiter.remaining());
+
+    // Now we should be able to allocate the full limit again
+    const b = try alloc.alloc(u8, 200);
+    alloc.free(b);
+}
+
+test "NullAllocator always returns OutOfMemory" {
+    const alloc = NullAllocator.allocator();
+    try std.testing.expectError(error.OutOfMemory, alloc.alloc(u8, 1));
+}
+
+test "FallbackAllocator uses secondary on failure" {
+    // Use NullAllocator as primary (always fails)
+    var fb = FallbackAllocator.init(
+        NullAllocator.allocator(),
+        std.testing.allocator,
+    );
+    const alloc = fb.allocator();
+
+    // Should succeed via secondary
+    const data = try alloc.alloc(u8, 64);
+    defer alloc.free(data);
+
+    try std.testing.expect(fb.fallbackHits() >= 1);
+}
+
+test "TrackingAllocator reset" {
+    var tracker = TrackingAllocator.init(std.testing.allocator);
+    const alloc = tracker.allocator();
+
+    const data = try alloc.alloc(u8, 50);
+    alloc.free(data);
+
+    tracker.reset();
+    const s = tracker.stats();
+    try std.testing.expectEqual(@as(u64, 0), s.alloc_count);
+    try std.testing.expectEqual(@as(u64, 0), s.free_count);
+    try std.testing.expectEqual(@as(u64, 0), s.peak_bytes);
+}

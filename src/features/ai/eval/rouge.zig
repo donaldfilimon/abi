@@ -197,7 +197,7 @@ fn getNgrams(
     if (tokens.len < n) return ngrams;
 
     for (0..tokens.len - n + 1) |i| {
-        var key_parts = std.ArrayListUnmanaged(u8){};
+        var key_parts = std.ArrayListUnmanaged(u8).empty;
         defer key_parts.deinit(allocator);
 
         for (0..n) |j| {

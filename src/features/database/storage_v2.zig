@@ -284,7 +284,7 @@ pub const BloomFilter = struct {
     }
 
     pub fn serialize(self: *const BloomFilter, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         // Header: num_hashes (1) + size (4)

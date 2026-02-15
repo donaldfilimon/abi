@@ -303,7 +303,7 @@ pub const AbbeyEngine = struct {
         }
 
         // Loop history
-        var history = std.ArrayListUnmanaged(client.ChatMessage){};
+        var history = std.ArrayListUnmanaged(client.ChatMessage).empty;
         defer {
             for (history.items) |*msg| {
                 if (msg.role.len > 0) {} // role is usually static string literal
@@ -427,7 +427,7 @@ pub const AbbeyEngine = struct {
         _ = analysis;
 
         // Build messages
-        var messages = std.ArrayListUnmanaged(client.ChatMessage){};
+        var messages = std.ArrayListUnmanaged(client.ChatMessage).empty;
         defer messages.deinit(self.allocator);
 
         // Add context

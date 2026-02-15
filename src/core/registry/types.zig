@@ -5,6 +5,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("../config/mod.zig");
+const feature_catalog = @import("../feature_catalog.zig");
 
 pub const Feature = config_module.Feature;
 
@@ -64,39 +65,13 @@ pub const Error = error{
 
 /// Check if a feature is compiled in via build_options.
 pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
-    return switch (feature) {
-        .gpu => build_options.enable_gpu,
-        .ai => build_options.enable_ai,
-        .llm => build_options.enable_llm,
-        .embeddings => build_options.enable_ai,
-        .agents => build_options.enable_ai,
-        .training => build_options.enable_training,
-        .personas => build_options.enable_ai,
-        .database => build_options.enable_database,
-        .network => build_options.enable_network,
-        .observability => build_options.enable_profiling,
-        .web => build_options.enable_web,
-        .cloud => build_options.enable_cloud,
-        .analytics => build_options.enable_analytics,
-        .auth => build_options.enable_auth,
-        .messaging => build_options.enable_messaging,
-        .cache => build_options.enable_cache,
-        .storage => build_options.enable_storage,
-        .search => build_options.enable_search,
-        .mobile => build_options.enable_mobile,
-        .gateway => build_options.enable_gateway,
-        .pages => build_options.enable_pages,
-        .benchmarks => build_options.enable_benchmarks,
-        .reasoning => build_options.enable_reasoning,
-    };
+    const field_name = feature_catalog.compileFlagFieldFromEnum(feature);
+    return @field(build_options, field_name);
 }
 
 /// Get parent feature for sub-features.
 pub fn getParentFeature(feature: Feature) ?Feature {
-    return switch (feature) {
-        .llm, .embeddings, .agents, .training, .personas => .ai,
-        else => null,
-    };
+    return feature_catalog.parentAsEnum(Feature, feature);
 }
 
 // ============================================================================

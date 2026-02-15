@@ -211,7 +211,7 @@ fn sendMessage(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const channel_id = std.mem.sliceTo(args[0], 0);
 
     // Join remaining args as message
-    var message = std.ArrayListUnmanaged(u8){};
+    var message = std.ArrayListUnmanaged(u8).empty;
     defer message.deinit(allocator);
 
     for (args[1..], 0..) |arg, i| {
@@ -447,7 +447,7 @@ fn executeWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     const webhook_url = std.mem.sliceTo(args[0], 0);
 
     // Join remaining args as message
-    var message = std.ArrayListUnmanaged(u8){};
+    var message = std.ArrayListUnmanaged(u8).empty;
     defer message.deinit(allocator);
 
     for (args[1..], 0..) |arg, i| {

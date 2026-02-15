@@ -98,15 +98,23 @@ pub const Server = struct {
                     null,
                     types.ErrorCode.internal_error,
                     "Internal error",
-                ) catch break;
+                ) catch |write_err| {
+                    std.log.err("MCP: failed to write error response: {t}", .{write_err});
+                    break;
+                };
             };
 
             // Flush after each message to ensure client receives response
-            writer.flush() catch break;
+            writer.flush() catch |flush_err| {
+                std.log.err("MCP: flush error, closing connection: {t}", .{flush_err});
+                break;
+            };
         }
 
         // Final flush before exit
-        writer.flush() catch {};
+        writer.flush() catch |err| {
+            std.log.warn("MCP: final flush failed: {t}", .{err});
+        };
     }
 
     /// Run without I/O — logs readiness (for environments without I/O backend).
@@ -185,7 +193,7 @@ pub const Server = struct {
 
     fn handleInitialize(self: *Self, writer: anytype, id: ?types.RequestId) !void {
         const rid = id orelse return;
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         defer buf.deinit(self.allocator);
 
         try buf.appendSlice(self.allocator, "{\"protocolVersion\":\"");
@@ -207,7 +215,7 @@ pub const Server = struct {
 
     fn handleToolsList(self: *Self, writer: anytype, id: ?types.RequestId) !void {
         const rid = id orelse return;
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         defer buf.deinit(self.allocator);
 
         try buf.appendSlice(self.allocator, "{\"tools\":[");
@@ -255,26 +263,39 @@ pub const Server = struct {
         // Find and execute tool
         for (self.tools.items) |tool| {
             if (std.mem.eql(u8, tool.def.name, tool_name)) {
-                var result_buf = std.ArrayListUnmanaged(u8){};
+                var result_buf = std.ArrayListUnmanaged(u8).empty;
                 defer result_buf.deinit(self.allocator);
 
                 // Call tool handler
                 tool.handler(self.allocator, args, &result_buf) catch |err| {
                     // Tool error — return as MCP tool error content
-                    var err_buf = std.ArrayListUnmanaged(u8){};
+                    // Use individual catch blocks to avoid cascading OOM disconnecting the client
+                    var err_buf = std.ArrayListUnmanaged(u8).empty;
                     defer err_buf.deinit(self.allocator);
 
-                    try err_buf.appendSlice(self.allocator, "{\"content\":[{\"type\":\"text\",\"text\":\"Error: ");
+                    err_buf.appendSlice(self.allocator, "{\"content\":[{\"type\":\"text\",\"text\":\"Error: ") catch |alloc_err| {
+                        std.log.err("MCP: OOM formatting tool error: {t}", .{alloc_err});
+                        return;
+                    };
                     var err_msg_buf: [128]u8 = undefined;
                     const err_msg = std.fmt.bufPrint(&err_msg_buf, "{t}", .{err}) catch "unknown error";
-                    try appendJsonEscaped(self.allocator, &err_buf, err_msg);
-                    try err_buf.appendSlice(self.allocator, "\"}],\"isError\":true}");
-                    try types.writeResponse(writer, rid, err_buf.items);
+                    appendJsonEscaped(self.allocator, &err_buf, err_msg) catch |alloc_err| {
+                        std.log.err("MCP: OOM escaping tool error message: {t}", .{alloc_err});
+                        return;
+                    };
+                    err_buf.appendSlice(self.allocator, "\"}],\"isError\":true}") catch |alloc_err| {
+                        std.log.err("MCP: OOM formatting tool error suffix: {t}", .{alloc_err});
+                        return;
+                    };
+                    types.writeResponse(writer, rid, err_buf.items) catch |write_err| {
+                        std.log.err("MCP: failed to write tool error response: {t}", .{write_err});
+                        return;
+                    };
                     return;
                 };
 
                 // Wrap result in MCP content format
-                var out = std.ArrayListUnmanaged(u8){};
+                var out = std.ArrayListUnmanaged(u8).empty;
                 defer out.deinit(self.allocator);
 
                 try out.appendSlice(self.allocator, "{\"content\":[{\"type\":\"text\",\"text\":\"");
@@ -345,7 +366,7 @@ test "Server tool registration" {
 
 test "appendJsonEscaped" {
     const allocator = std.testing.allocator;
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
     try appendJsonEscaped(allocator, &buf, "hello \"world\"");
@@ -569,6 +590,39 @@ test "handleMessage non-string method" {
 
     const written = out[0..writer.end];
     try std.testing.expect(std.mem.indexOf(u8, written, "Method must be string") != null);
+}
+
+test "handleMessage tools/call with no params" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    var out: [512]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+
+    try server.handleMessage(
+        \\{"jsonrpc":"2.0","method":"tools/call","id":10}
+    , &writer);
+
+    const written = out[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, written, "Missing params") != null);
+}
+
+test "handleMessage with string request ID" {
+    const allocator = std.testing.allocator;
+    var server = Server.init(allocator, "test", "0.1.0");
+    defer server.deinit();
+
+    var out: [256]u8 = undefined;
+    var writer = std.Io.Writer.fixed(&out);
+
+    try server.handleMessage(
+        \\{"jsonrpc":"2.0","method":"ping","id":"abc-123"}
+    , &writer);
+
+    const written = out[0..writer.end];
+    try std.testing.expect(std.mem.indexOf(u8, written, "\"abc-123\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, written, "\"result\":{}") != null);
 }
 
 test "handleMessage tool error returns isError" {

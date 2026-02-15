@@ -196,7 +196,7 @@ pub const RagPipeline = struct {
         defer if (query_embedding) |emb| self.allocator.free(emb);
 
         // Score all chunks
-        var scored = std.ArrayListUnmanaged(ScoredChunk){};
+        var scored = std.ArrayListUnmanaged(ScoredChunk).empty;
         defer scored.deinit(self.allocator);
 
         for (self.chunks.items) |indexed| {
@@ -251,7 +251,7 @@ pub const RagPipeline = struct {
     ) ![]RetrievalResult {
         if (results.len <= 1) return results;
 
-        var unique = std.ArrayListUnmanaged(RetrievalResult){};
+        var unique = std.ArrayListUnmanaged(RetrievalResult).empty;
         errdefer unique.deinit(self.allocator);
 
         outer: for (results) |result| {

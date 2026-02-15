@@ -92,9 +92,9 @@ pub const EmotionalState = struct {
 
         // Frustration patterns
         const frustration_patterns = [_][]const u8{
-            "frustrated", "annoying", "annoyed",     "why won't", "doesn't work",
-            "broken",     "stupid",   "hate",        "ugh",       "argh",
-            "damn",       "wtf",      "not working", "still not", "again?!",
+            "frustrat", "annoying", "annoyed",     "why won't", "doesn't work",
+            "broken",   "stupid",   "hate",        "ugh",       "argh",
+            "damn",     "wtf",      "not working", "still not", "again?!",
             "!!",
         };
 
@@ -372,15 +372,15 @@ test "emotion detection" {
 }
 
 test "emotion tone suggestions" {
-    try std.testing.expectEqualStrings("direct and helpful", EmotionType.frustrated.getSuggestedTone());
-    try std.testing.expectEqualStrings("clear and patient", EmotionType.confused.getSuggestedTone());
-    try std.testing.expectEqualStrings("concise", EmotionType.impatient.getSuggestedTone());
+    try std.testing.expectEqualStrings("direct, solution-focused, and empathetic", EmotionType.frustrated.getResponseTone());
+    try std.testing.expectEqualStrings("clear, patient, and step-by-step", EmotionType.confused.getResponseTone());
+    try std.testing.expectEqualStrings("concise and actionable", EmotionType.impatient.getResponseTone());
 }
 
 test "temperature modifiers" {
-    try std.testing.expect(EmotionType.frustrated.getIntensityModifier() < 0);
-    try std.testing.expect(EmotionType.excited.getIntensityModifier() > 0);
-    try std.testing.expectEqual(@as(f32, 0.0), EmotionType.neutral.getIntensityModifier());
+    try std.testing.expect(EmotionType.frustrated.getTemperatureModifier() < 0);
+    try std.testing.expect(EmotionType.excited.getTemperatureModifier() > 0);
+    try std.testing.expectEqual(@as(f32, 0.0), EmotionType.neutral.getTemperatureModifier());
 }
 
 test "relationship memory" {

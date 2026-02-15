@@ -176,3 +176,25 @@ test "ai_core module loads" {
     try std.testing.expect(@TypeOf(ToolRegistry) != void);
     try std.testing.expect(@TypeOf(PromptBuilder) != void);
 }
+
+test "ai_core isEnabled reflects build flag" {
+    // isEnabled() should return the build-time ai flag
+    const enabled = isEnabled();
+    try std.testing.expectEqual(build_options.enable_ai, enabled);
+}
+
+test "ai_core createRegistry returns valid registry" {
+    var registry = createRegistry(std.testing.allocator);
+    defer registry.deinit();
+
+    // Registry should start empty
+    try std.testing.expectEqual(@as(usize, 0), registry.count());
+}
+
+test "ai_core type re-exports are distinct types" {
+    // Verify type aliases map to real types (not all void)
+    try std.testing.expect(@sizeOf(ModelInfo) > 0);
+    try std.testing.expect(@TypeOf(MultiAgentCoordinator) != void);
+    try std.testing.expect(@TypeOf(Persona) != void);
+    try std.testing.expect(@TypeOf(PersonaType) != void);
+}

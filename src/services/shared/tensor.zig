@@ -435,3 +435,141 @@ fn simdBinaryOp(comptime T: type, a: []const T, b: []const T, out: []T, comptime
 
 pub const Tensor32 = Tensor(f32);
 pub const Tensor64 = Tensor(f64);
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+test "Shape basics" {
+    const s = Shape.init(&.{ 2, 3, 4 });
+    try std.testing.expectEqual(@as(u8, 3), s.rank);
+    try std.testing.expectEqual(@as(usize, 24), s.totalElements());
+
+    const s2 = Shape.mat(3, 4);
+    try std.testing.expectEqual(@as(u8, 2), s2.rank);
+    try std.testing.expectEqual(@as(usize, 12), s2.totalElements());
+
+    const v = Shape.vec(5);
+    try std.testing.expectEqual(@as(u8, 1), v.rank);
+
+    const sc = Shape.scalar();
+    try std.testing.expectEqual(@as(u8, 0), sc.rank);
+    try std.testing.expectEqual(@as(usize, 1), sc.totalElements());
+}
+
+test "Shape broadcast compatibility" {
+    const a = Shape.init(&.{ 1, 3 });
+    const b = Shape.init(&.{ 4, 1 });
+    try std.testing.expect(a.broadcastable(&b));
+
+    const c = Shape.init(&.{ 4, 3 });
+    const d = Shape.init(&.{ 5, 3 });
+    try std.testing.expect(!c.broadcastable(&d));
+
+    const result = a.broadcastShape(&b);
+    try std.testing.expectEqual(@as(usize, 4), result.dims[0]);
+    try std.testing.expectEqual(@as(usize, 3), result.dims[1]);
+}
+
+test "Tensor init and element access" {
+    var data = [_]f32{ 1, 2, 3, 4, 5, 6 };
+    var t = Tensor32.init(&data, Shape.mat(2, 3));
+
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), t.at(&.{ 0, 0 }), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 4.0), t.at(&.{ 1, 0 }), 0.001);
+    t.set(&.{ 0, 1 }, 99.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 99.0), t.at(&.{ 0, 1 }), 0.001);
+}
+
+test "Tensor alloc, fill, and free" {
+    const alloc = std.testing.allocator;
+    var t = try Tensor32.alloc(alloc, Shape.vec(8));
+    defer t.free(alloc);
+
+    t.fill(3.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), t.at(&.{4}), 0.001);
+    t.arange();
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), t.at(&.{5}), 0.001);
+}
+
+test "Tensor add and mul" {
+    var a_data = [_]f32{ 1, 2, 3, 4 };
+    var b_data = [_]f32{ 10, 20, 30, 40 };
+    var out_data: [4]f32 = undefined;
+
+    const shape = Shape.vec(4);
+    var a = Tensor32.init(&a_data, shape);
+    const b = Tensor32.init(&b_data, shape);
+    var out = Tensor32.init(&out_data, shape);
+
+    Tensor32.add(&a, &b, &out);
+    try std.testing.expectApproxEqAbs(@as(f32, 11.0), out.data[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 44.0), out.data[3], 0.001);
+
+    Tensor32.mul(&a, &b, &out);
+    try std.testing.expectApproxEqAbs(@as(f32, 10.0), out.data[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 160.0), out.data[3], 0.001);
+}
+
+test "Tensor reductions" {
+    var data = [_]f32{ 1, 2, 3, 4, 5 };
+    const t = Tensor32.init(&data, Shape.vec(5));
+
+    try std.testing.expectApproxEqAbs(@as(f32, 15.0), t.sum(), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), t.mean(), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), t.max(), 0.001);
+    try std.testing.expectEqual(@as(usize, 4), t.argmax());
+}
+
+test "Tensor softmax sums to 1" {
+    var data = [_]f32{ 1.0, 2.0, 3.0 };
+    var out_data: [3]f32 = undefined;
+
+    const shape = Shape.vec(3);
+    const t = Tensor32.init(&data, shape);
+    var out = Tensor32.init(&out_data, shape);
+
+    t.softmax(&out);
+
+    // Softmax output must sum to ~1.0
+    var total: f32 = 0;
+    for (out.flat()) |v| total += v;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 0.001);
+
+    // Values should be ordered: out[2] > out[1] > out[0]
+    try std.testing.expect(out.data[2] > out.data[1]);
+    try std.testing.expect(out.data[1] > out.data[0]);
+}
+
+test "Tensor reshape and view" {
+    var data = [_]f32{ 1, 2, 3, 4, 5, 6 };
+    var t = Tensor32.init(&data, Shape.vec(6));
+
+    try t.reshape(Shape.mat(2, 3));
+    try std.testing.expectEqual(@as(u8, 2), t.shape.rank);
+    try std.testing.expectEqual(@as(usize, 2), t.shape.dims[0]);
+    try std.testing.expectEqual(@as(usize, 3), t.shape.dims[1]);
+
+    // Mismatched element count should error
+    try std.testing.expectError(error.ShapeMismatch, t.reshape(Shape.vec(5)));
+}
+
+test "Tensor scaleInPlace" {
+    var data = [_]f32{ 1, 2, 3, 4 };
+    var t = Tensor32.init(&data, Shape.vec(4));
+    t.scaleInPlace(2.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), t.data[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 8.0), t.data[3], 0.001);
+}
+
+test "Tensor relu" {
+    var data = [_]f32{ -2, -1, 0, 1, 2 };
+    var out_data: [5]f32 = undefined;
+    const shape = Shape.vec(5);
+    const t = Tensor32.init(&data, shape);
+    var out = Tensor32.init(&out_data, shape);
+    t.relu(&out);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), out.data[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), out.data[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), out.data[2], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), out.data[3], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), out.data[4], 0.001);
+}

@@ -366,7 +366,7 @@ pub const SelfReflectionEngine = struct {
         _ = response;
 
         if (chain) |c| {
-            return c.getOverallConfidence().score;
+            return c.getConfidence().score;
         }
         return 0.5; // Default uncertainty
     }
@@ -493,11 +493,11 @@ pub const SelfReflectionEngine = struct {
         // Evaluate based on reasoning chain
         const c = chain.?;
         return ReasoningQuality{
-            .logical_validity = c.getOverallConfidence().score,
+            .logical_validity = c.getConfidence().score,
             .evidence_support = 0.6,
             .assumption_clarity = 0.5,
             .counterargument_consideration = 0.4,
-            .conclusion_strength = c.getOverallConfidence().score,
+            .conclusion_strength = c.getConfidence().score,
             .issues = &[_]ReasoningQuality.ReasoningIssue{},
         };
     }

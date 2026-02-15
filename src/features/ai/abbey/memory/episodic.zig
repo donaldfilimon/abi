@@ -221,7 +221,7 @@ pub const EpisodicMemory = struct {
 
     /// Retrieve episodes by time range
     pub fn getByTimeRange(self: *Self, start: i64, end: i64) ![]const *Episode {
-        var results = std.ArrayListUnmanaged(*Episode){};
+        var results = std.ArrayListUnmanaged(*Episode).empty;
         errdefer results.deinit(self.allocator);
 
         for (self.episodes.items) |*ep| {
@@ -237,7 +237,7 @@ pub const EpisodicMemory = struct {
 
     /// Retrieve episodes by topic
     pub fn getByTopic(self: *Self, topic: []const u8) ![]const *Episode {
-        var results = std.ArrayListUnmanaged(*Episode){};
+        var results = std.ArrayListUnmanaged(*Episode).empty;
         errdefer results.deinit(self.allocator);
 
         if (self.topic_index.get(topic)) |indices| {
@@ -256,7 +256,7 @@ pub const EpisodicMemory = struct {
 
     /// Retrieve episodes by emotion
     pub fn getByEmotion(self: *Self, emotion: types.EmotionType) ![]const *Episode {
-        var results = std.ArrayListUnmanaged(*Episode){};
+        var results = std.ArrayListUnmanaged(*Episode).empty;
         errdefer results.deinit(self.allocator);
 
         const emotion_key = @intFromEnum(emotion);
@@ -299,7 +299,7 @@ pub const EpisodicMemory = struct {
         query_embedding: []const f32,
         top_k: usize,
     ) ![]const EpisodeMatch {
-        var matches = std.ArrayListUnmanaged(EpisodeMatch){};
+        var matches = std.ArrayListUnmanaged(EpisodeMatch).empty;
         errdefer matches.deinit(self.allocator);
 
         for (self.episodes.items, 0..) |*ep, idx| {

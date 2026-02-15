@@ -156,7 +156,7 @@ pub const TokenBuffer = struct {
 
     /// Flush all tokens as concatenated text.
     pub fn flushAsText(self: *TokenBuffer) ![]u8 {
-        var output = std.ArrayListUnmanaged(u8){};
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(self.allocator);
 
         while (self.pop()) |token| {

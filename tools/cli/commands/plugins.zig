@@ -144,7 +144,7 @@ fn savePluginState(allocator: std.mem.Allocator, state: *const PluginState) !voi
     defer allocator.free(config_path);
 
     // Build JSON content
-    var json_buf = std.ArrayListUnmanaged(u8){};
+    var json_buf = std.ArrayListUnmanaged(u8).empty;
     defer json_buf.deinit(allocator);
 
     try json_buf.appendSlice(allocator, "{\"plugins\":{");

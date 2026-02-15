@@ -89,7 +89,7 @@ pub const ShortTermMemory = struct {
         role: MessageRole,
         allocator: std.mem.Allocator,
     ) ![]Message {
-        var result = std.ArrayListUnmanaged(Message){};
+        var result = std.ArrayListUnmanaged(Message).empty;
         errdefer result.deinit(allocator);
 
         for (self.messages.items) |msg| {
@@ -142,7 +142,7 @@ pub const ShortTermMemory = struct {
         self: *const ShortTermMemory,
         allocator: std.mem.Allocator,
     ) ![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(allocator);
 
         for (self.messages.items) |msg| {

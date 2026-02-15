@@ -254,10 +254,13 @@ pub fn createSharedEvent(device_id: DeviceId) !*anyopaque {
     // Note: MTLSharedEvent enables cross-device sync on macOS/iOS
     // Unlike semaphores, shared events have monotonically increasing values
 
-    return error.NotImplemented;
+    return error.PlatformNotSupported;
 }
 
 /// Signal a shared event value.
+///
+/// Requires Metal runtime with MTLSharedEvent support (macOS 10.14+).
+/// Not yet implemented — requires Objective-C Metal bindings.
 pub fn signalSharedEvent(
     device_id: DeviceId,
     event: *anyopaque,
@@ -266,13 +269,14 @@ pub fn signalSharedEvent(
     _ = value;
     _ = event;
     _ = device_id;
-
-    // In a real implementation:
-    // id<MTLCommandBuffer> cmdBuf = ...;
-    // [cmdBuf encodeSignalEvent:event value:value];
+    return error.PlatformNotSupported;
 }
 
 /// Wait for a shared event value.
+///
+/// Requires Metal runtime with MTLSharedEvent support (macOS 10.14+).
+/// This is a platform-specific feature that cannot be implemented in
+/// pure Zig — requires Objective-C runtime calls to Metal framework.
 pub fn waitSharedEvent(
     device_id: DeviceId,
     event: *anyopaque,
@@ -283,10 +287,7 @@ pub fn waitSharedEvent(
     _ = value;
     _ = event;
     _ = device_id;
-
-    // In a real implementation:
-    // id<MTLCommandBuffer> cmdBuf = ...;
-    // [cmdBuf encodeWaitForEvent:event value:value];
+    return error.PlatformNotSupported;
 }
 
 /// Get device info.

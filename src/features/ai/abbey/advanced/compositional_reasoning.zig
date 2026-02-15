@@ -127,12 +127,17 @@ pub const ProblemDecomposer = struct {
         template: []const []const u8,
     };
 
-    pub fn init(allocator: std.mem.Allocator) Self {
+    pub const InitConfig = struct {
+        max_sub_problems: usize = 10,
+        max_depth: usize = 3,
+    };
+
+    pub fn init(allocator: std.mem.Allocator, config: InitConfig) Self {
         return Self{
             .allocator = allocator,
             .decomposition_patterns = .{},
-            .max_sub_problems = 10,
-            .max_depth = 3,
+            .max_sub_problems = config.max_sub_problems,
+            .max_depth = config.max_depth,
         };
     }
 
@@ -480,7 +485,7 @@ pub const ProblemDecomposer = struct {
         decomposition: *const ProblemDecomposition,
     ) !ExecutionPlan {
         // Simplified execution planning
-        var stages = std.ArrayListUnmanaged(ExecutionPlan.ExecutionStage){};
+        var stages = std.ArrayListUnmanaged(ExecutionPlan.ExecutionStage).empty;
 
         switch (decomposition.problem_type) {
             .parallel => {
@@ -512,15 +517,19 @@ pub const ProblemDecomposer = struct {
             },
         }
 
+        const owned_stages = try stages.toOwnedSlice(self.allocator);
         return ExecutionPlan{
-            .stages = stages.items,
-            .estimated_total_time_ms = @as(i64, @intCast(stages.items.len)) * 3000,
+            .stages = owned_stages,
+            .estimated_total_time_ms = @as(i64, @intCast(owned_stages.len)) * 3000,
             .parallelism_factor = if (decomposition.problem_type == .parallel) 0.5 else 1.0,
         };
     }
 
     /// Clean up a decomposition
     pub fn freeDecomposition(self: *Self, decomposition: *ProblemDecomposition) void {
+        if (decomposition.execution_plan) |plan| {
+            self.allocator.free(plan.stages);
+        }
         decomposition.sub_problems.deinit(self.allocator);
         decomposition.dependencies.deinit(self.allocator);
     }
@@ -603,7 +612,7 @@ pub const CounterfactualReasoner = struct {
 test "problem decomposer initialization" {
     const allocator = std.testing.allocator;
 
-    var decomposer = ProblemDecomposer.init(allocator);
+    var decomposer = ProblemDecomposer.init(allocator, .{});
     defer decomposer.deinit();
 
     try std.testing.expectEqual(@as(usize, 10), decomposer.max_sub_problems);
@@ -612,7 +621,7 @@ test "problem decomposer initialization" {
 test "problem decomposition" {
     const allocator = std.testing.allocator;
 
-    var decomposer = ProblemDecomposer.init(allocator);
+    var decomposer = ProblemDecomposer.init(allocator, .{});
     defer decomposer.deinit();
 
     var decomposition = try decomposer.decompose("What is X and how does it compare to Y?");
@@ -624,7 +633,7 @@ test "problem decomposition" {
 test "problem type detection" {
     const allocator = std.testing.allocator;
 
-    var decomposer = ProblemDecomposer.init(allocator);
+    var decomposer = ProblemDecomposer.init(allocator, .{});
     defer decomposer.deinit();
 
     const sequential = decomposer.detectProblemType("First do X, then do Y");

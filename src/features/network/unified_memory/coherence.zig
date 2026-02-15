@@ -295,7 +295,7 @@ pub const DirectoryEntry = struct {
         self.lock.lock();
         defer self.lock.unlock();
 
-        var list = std.ArrayListUnmanaged(u64){};
+        var list = std.ArrayListUnmanaged(u64).empty;
         var it = self.sharers.keyIterator();
         while (it.next()) |key| {
             try list.append(allocator, key.*);
@@ -355,7 +355,7 @@ pub const CoherenceProtocol = struct {
         requestor: u64,
         timestamp: i64,
         data_received: bool,
-        completion_event: std.Thread.ResetEvent,
+        completion_event: bool = false,
     };
 
     pub const ProtocolStats = struct {
@@ -556,7 +556,7 @@ pub const CoherenceProtocol = struct {
         defer self.mutex.unlock();
 
         // Find all blocks for this region and invalidate
-        var keys_to_remove = std.ArrayListUnmanaged(BlockKey){};
+        var keys_to_remove = std.ArrayListUnmanaged(BlockKey).empty;
         defer keys_to_remove.deinit(self.allocator);
 
         var it = self.block_states.iterator();

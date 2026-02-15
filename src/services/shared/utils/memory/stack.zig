@@ -88,6 +88,7 @@ pub const StackAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
+                .remap = remap,
                 .free = free,
             },
         };
@@ -162,10 +163,10 @@ pub const StackAllocator = struct {
     }
 
     // Allocator vtable implementations
-    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
-        const align_val = @as(usize, 1) << @as(u6, @intCast(ptr_align));
+        const align_val = @as(usize, 1) << @intFromEnum(ptr_align);
         const aligned_offset = (self.offset + align_val - 1) & ~(align_val - 1);
         const end_offset = aligned_offset + len;
 
@@ -193,7 +194,7 @@ pub const StackAllocator = struct {
         return null;
     }
 
-    fn resize(ctx: *anyopaque, memory: []u8, ptr_align: u8, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
         // Check if this is a stack allocation
@@ -227,7 +228,36 @@ pub const StackAllocator = struct {
         return false;
     }
 
-    fn free(ctx: *anyopaque, memory: []u8, ptr_align: u8, ret_addr: usize) void {
+    fn remap(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        // Stack allocator cannot relocate — try in-place resize only
+        _ = ret_addr;
+        _ = ptr_align;
+        const self: *Self = @ptrCast(@alignCast(ctx));
+
+        const mem_addr = @intFromPtr(memory.ptr);
+        const buf_start = @intFromPtr(self.buffer.ptr);
+        const buf_end = buf_start + self.buffer.len;
+
+        if (mem_addr >= buf_start and mem_addr < buf_end) {
+            const mem_end = mem_addr + memory.len;
+            const current_top = buf_start + self.offset;
+
+            if (mem_end == current_top) {
+                const new_end = mem_addr - buf_start + new_len;
+                if (new_end <= self.buffer.len) {
+                    self.offset = new_end;
+                    if (self.offset > self.peak_usage) {
+                        self.peak_usage = self.offset;
+                    }
+                    return memory.ptr;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    fn free(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, ret_addr: usize) void {
         const self: *Self = @ptrCast(@alignCast(ctx));
 
         // Check if this is a stack allocation

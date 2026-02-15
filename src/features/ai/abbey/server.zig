@@ -290,7 +290,7 @@ fn handleSessionStart(
     try abbey_engine.startConversation(user_id);
 
     // Build session info response
-    var response = std.ArrayListUnmanaged(u8){};
+    var response = std.ArrayListUnmanaged(u8).empty;
     defer response.deinit(allocator);
 
     try response.appendSlice(allocator, "{\"status\":\"session_started\"");
@@ -377,7 +377,7 @@ fn handleLearn(
     // Default to fact category
     const kid = try abbey_engine.learnFromUser(content, .fact);
 
-    var response = std.ArrayListUnmanaged(u8){};
+    var response = std.ArrayListUnmanaged(u8).empty;
     defer response.deinit(allocator);
     try response.appendSlice(allocator, "{\"status\":\"learned\",\"knowledge_id\":");
     try response.print(allocator, "{d}", .{kid});
@@ -391,7 +391,7 @@ fn handleLearn(
 // ============================================================================
 
 fn buildChatResponse(allocator: std.mem.Allocator, response: *const engine.Response) ![]u8 {
-    var json = std.ArrayListUnmanaged(u8){};
+    var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
     try json.appendSlice(allocator, "{\"content\":");
@@ -424,7 +424,7 @@ fn buildChatResponse(allocator: std.mem.Allocator, response: *const engine.Respo
 }
 
 fn buildStatsJson(allocator: std.mem.Allocator, stats: engine.EngineStats) ![]u8 {
-    var json = std.ArrayListUnmanaged(u8){};
+    var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
     try json.appendSlice(allocator, "{");
@@ -452,7 +452,7 @@ fn buildStatsJson(allocator: std.mem.Allocator, stats: engine.EngineStats) ![]u8
 }
 
 fn buildEmotionalStateJson(allocator: std.mem.Allocator, emotional: @import("emotions.zig").EmotionalState) ![]u8 {
-    var json = std.ArrayListUnmanaged(u8){};
+    var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
     try json.appendSlice(allocator, "{\"detected\":\"");

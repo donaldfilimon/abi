@@ -452,10 +452,37 @@ pub const SecureChannel = struct {
 
     /// Custom X25519-based handshake.
     ///
-    /// Requires X25519 DH key exchange with peer, nonce exchange, and HKDF.
-    /// Not yet implemented.
-    fn customHandshake(_: *SecureChannel) ChannelError!void {
-        return error.NotImplemented;
+    /// Uses Curve25519 Diffie-Hellman key exchange with HKDF-SHA256 key
+    /// derivation. Generates an ephemeral X25519 key pair, computes a
+    /// shared secret with the peer's public key, then derives separate
+    /// send and receive keys via HKDF.
+    ///
+    /// Requires `peer_public_key` to be set before calling.
+    fn customHandshake(self: *SecureChannel) ChannelError!void {
+        const X25519 = std.crypto.dh.X25519;
+        const Hkdf = std.crypto.hkdf.HkdfSha256;
+
+        // Generate ephemeral key pair
+        const kp = X25519.KeyPair.generate(null) catch return error.HandshakeFailed;
+        self.local_keypair = .{
+            .public_key = kp.public_key,
+            .secret_key = kp.secret_key,
+        };
+
+        // Compute shared secret via DH
+        const peer_pk = self.peer_public_key orelse return error.HandshakeFailed;
+        const shared_secret = X25519.scalarmult(kp.secret_key, peer_pk) catch
+            return error.HandshakeFailed;
+
+        // Derive send and receive keys via HKDF-SHA256
+        // Salt with session_id for domain separation
+        const prk = Hkdf.extract(&self.session_id, &shared_secret);
+        Hkdf.expand(&self.send_key, "abi-send-key", prk);
+        Hkdf.expand(&self.recv_key, "abi-recv-key", prk);
+
+        // Securely wipe shared secret
+        var ss_copy = shared_secret;
+        std.crypto.secureZero(u8, &ss_copy);
     }
 
     fn deriveNewKeys(self: *SecureChannel) ChannelError!void {
@@ -492,17 +519,12 @@ pub const SecureChannel = struct {
 };
 
 fn generateKeyPair() !SecureChannel.KeyPair {
-    var kp: SecureChannel.KeyPair = undefined;
-
-    // Generate random secret key
-    std.crypto.random.bytes(&kp.secret_key);
-
-    // Derive public key (using Blake2b as placeholder for X25519)
-    var hash = std.crypto.hash.Blake2b256.init(.{});
-    hash.update(&kp.secret_key);
-    hash.final(&kp.public_key);
-
-    return kp;
+    const X25519 = std.crypto.dh.X25519;
+    const inner = X25519.KeyPair.generate(null) catch return error.HandshakeFailed;
+    return .{
+        .public_key = inner.public_key,
+        .secret_key = inner.secret_key,
+    };
 }
 
 /// Channel error types.

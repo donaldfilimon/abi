@@ -358,14 +358,14 @@ pub const unified_buffer = misc.unified_buffer;
 pub const interface = misc.interface;
 pub const cuda_loader = misc.cuda_loader;
 pub const builtin_kernels = misc.builtin_kernels;
-pub const diagnostics = misc.diagnostics_ns;
+pub const diagnostics = diagnostics_mod;
 pub const error_handling = misc.error_handling;
 pub const multi_device = misc.multi_device;
 pub const peer_transfer = misc.peer_transfer;
 pub const mega = misc.mega;
-pub const platform = misc.platform_ns;
-pub const backend_factory = misc.backend_factory_ns;
-pub const dispatcher = misc.dispatcher_ns;
+pub const platform = platform_mod;
+pub const backend_factory = backend_factory_mod;
+pub const dispatcher = dispatcher_mod;
 
 // ============================================================================
 // Lock-free memory pool stubs

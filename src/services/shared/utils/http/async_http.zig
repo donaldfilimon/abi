@@ -313,7 +313,7 @@ pub const AsyncHttpClient = struct {
         };
 
         // Build extra headers from the request
-        var extra_headers_list = std.ArrayListUnmanaged(std.http.Header){};
+        var extra_headers_list = std.ArrayListUnmanaged(std.http.Header).empty;
         defer extra_headers_list.deinit(self.allocator);
 
         var header_iter = http_request.headers.iterator();

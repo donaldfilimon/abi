@@ -98,7 +98,7 @@ pub const ExploreAgent = struct {
         var result = ExploreResult.init(self.allocator, "", self.config.level);
         errdefer result.deinit();
 
-        var compiled_patterns = std.ArrayListUnmanaged(SearchPattern){};
+        var compiled_patterns = std.ArrayListUnmanaged(SearchPattern).empty;
         defer {
             for (compiled_patterns.items) |*p| {
                 p.deinit(self.allocator);
@@ -440,7 +440,7 @@ pub const ExploreAgent = struct {
 
         const parsed = try query_understander.parse(nl_query);
 
-        var compiled_patterns = std.ArrayListUnmanaged(SearchPattern){};
+        var compiled_patterns = std.ArrayListUnmanaged(SearchPattern).empty;
         defer {
             for (compiled_patterns.items) |*p| {
                 p.deinit(self.allocator);

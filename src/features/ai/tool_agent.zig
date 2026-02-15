@@ -211,7 +211,7 @@ pub const ToolAugmentedAgent = struct {
             if (tool_calls.items.len == 0) break;
 
             // Execute each tool call
-            var results_buf = std.ArrayListUnmanaged(u8){};
+            var results_buf = std.ArrayListUnmanaged(u8).empty;
             defer results_buf.deinit(allocator);
 
             for (tool_calls.items) |tc| {
@@ -339,7 +339,7 @@ pub const ToolAugmentedAgent = struct {
 
 /// Generate a formatted description of all registered tools for system prompt injection.
 pub fn generateToolDescriptions(registry: *const ToolRegistry, allocator: std.mem.Allocator) ![]u8 {
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     errdefer buf.deinit(allocator);
 
     // Iterate all tools in registry
@@ -385,7 +385,7 @@ pub fn generateToolDescriptions(registry: *const ToolRegistry, allocator: std.me
 /// <tool_call>{"name": "tool_name", "args": {...}}</tool_call>
 /// ```
 pub fn parseToolCalls(response: []const u8, allocator: std.mem.Allocator) !std.ArrayListUnmanaged(ToolCallRequest) {
-    var calls = std.ArrayListUnmanaged(ToolCallRequest){};
+    var calls = std.ArrayListUnmanaged(ToolCallRequest).empty;
     errdefer {
         for (calls.items) |tc| {
             allocator.free(tc.name);

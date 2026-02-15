@@ -167,7 +167,7 @@ pub const Evaluator = struct {
         );
 
         // Compute ROUGE
-        var rouge_results = std.ArrayListUnmanaged(RougeScore){};
+        var rouge_results = std.ArrayListUnmanaged(RougeScore).empty;
         errdefer rouge_results.deinit(self.allocator);
 
         for (self.config.rouge_types) |rouge_type| {
@@ -201,19 +201,19 @@ pub const Evaluator = struct {
             return error.EmptyInput;
         }
 
-        var bleu_scores = std.ArrayListUnmanaged(f64){};
+        var bleu_scores = std.ArrayListUnmanaged(f64).empty;
         defer bleu_scores.deinit(self.allocator);
 
-        var rouge1_scores = std.ArrayListUnmanaged(f64){};
+        var rouge1_scores = std.ArrayListUnmanaged(f64).empty;
         defer rouge1_scores.deinit(self.allocator);
 
-        var rouge2_scores = std.ArrayListUnmanaged(f64){};
+        var rouge2_scores = std.ArrayListUnmanaged(f64).empty;
         defer rouge2_scores.deinit(self.allocator);
 
-        var rougeL_scores = std.ArrayListUnmanaged(f64){};
+        var rougeL_scores = std.ArrayListUnmanaged(f64).empty;
         defer rougeL_scores.deinit(self.allocator);
 
-        var f1_scores = std.ArrayListUnmanaged(f64){};
+        var f1_scores = std.ArrayListUnmanaged(f64).empty;
         defer f1_scores.deinit(self.allocator);
 
         var exact_matches: usize = 0;

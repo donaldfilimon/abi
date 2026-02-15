@@ -282,7 +282,7 @@ fn parseEventSourceEvent(event: *CloudEvent, root: std.json.Value) !void {
 
 /// Format a CloudResponse for API Gateway.
 pub fn formatResponse(allocator: std.mem.Allocator, response: *const CloudResponse) ![]const u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     const writer = buffer.writer(allocator);

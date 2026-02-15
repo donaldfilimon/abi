@@ -50,7 +50,7 @@ pub const ServiceDiscovery = struct {
             .config = cfg,
             .registered = false,
             .last_heartbeat_ms = 0,
-            .cached_services = std.ArrayListUnmanaged(ServiceInstance){},
+            .cached_services = std.ArrayListUnmanaged(ServiceInstance).empty,
             .cache_valid_until_ms = 0,
             .node_registry = null,
             .owns_service_id = owns_id,
@@ -220,7 +220,7 @@ pub const ServiceDiscovery = struct {
     }
 
     pub fn buildConsulRegistration(self: *ServiceDiscovery) ![]const u8 {
-        var buffer = std.ArrayListUnmanaged(u8){};
+        var buffer = std.ArrayListUnmanaged(u8).empty;
         errdefer buffer.deinit(self.allocator);
 
         try buffer.appendSlice(self.allocator, "{\"ID\":\"");
@@ -418,7 +418,7 @@ pub const ServiceDiscovery = struct {
     }
 
     fn buildEtcdValue(self: *ServiceDiscovery) ![]const u8 {
-        var buffer = std.ArrayListUnmanaged(u8){};
+        var buffer = std.ArrayListUnmanaged(u8).empty;
         errdefer buffer.deinit(self.allocator);
 
         try buffer.appendSlice(self.allocator, "{\"id\":\"");

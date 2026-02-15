@@ -1,6 +1,28 @@
 const std = @import("std");
 const gpu = @import("gpu.zig");
+const feature_catalog = @import("../src/core/feature_catalog.zig");
 const GpuBackend = gpu.GpuBackend;
+
+const internal_allowed_flags = [_][]const u8{ "enable_explore", "enable_vision" };
+
+fn isCatalogFlag(comptime field_name: []const u8) bool {
+    @setEvalBranchQuota(4096);
+    inline for (feature_catalog.all) |entry| {
+        if (std.mem.eql(u8, field_name, entry.compile_flag_field)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn isAllowedInternalFlag(comptime field_name: []const u8) bool {
+    inline for (internal_allowed_flags) |flag| {
+        if (std.mem.eql(u8, field_name, flag)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 pub const BuildOptions = struct {
     // Existing feature flags
@@ -73,6 +95,25 @@ pub const BuildOptions = struct {
         return self.hasGpuBackend(.tpu);
     }
 };
+
+comptime {
+    for (feature_catalog.all) |entry| {
+        if (!@hasField(BuildOptions, entry.compile_flag_field)) {
+            @compileError("BuildOptions missing compile flag field from feature catalog: " ++ entry.compile_flag_field);
+        }
+    }
+
+    for (std.meta.fields(BuildOptions)) |field| {
+        if (std.mem.eql(u8, field.name, "gpu_backends")) continue;
+        if (std.mem.startsWith(u8, field.name, "enable_")) {
+            if (!isCatalogFlag(field.name) and !isAllowedInternalFlag(field.name)) {
+                @compileError("BuildOptions defines unknown feature flag: " ++ field.name);
+            }
+        } else if (!std.mem.eql(u8, field.name, "gpu_backends")) {
+            @compileError("BuildOptions contains unexpected non-flag field: " ++ field.name);
+        }
+    }
+}
 
 pub fn readBuildOptions(b: *std.Build) BuildOptions {
     const enable_gpu = b.option(bool, "enable-gpu", "Enable GPU support") orelse true;

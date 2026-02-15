@@ -152,3 +152,17 @@ test "ai_reasoning module loads" {
     try std.testing.expect(@TypeOf(Orchestrator) != void);
     try std.testing.expect(@TypeOf(DocumentPipeline) != void);
 }
+
+test "ai_reasoning isEnabled reflects build flag" {
+    try std.testing.expectEqual(build_options.enable_reasoning, isEnabled());
+}
+
+test "ai_reasoning type re-exports distinct types" {
+    // Verify all major subsystem types are real (non-void)
+    try std.testing.expect(@TypeOf(ExploreConfig) != void);
+    try std.testing.expect(@TypeOf(OrchestrationConfig) != void);
+    try std.testing.expect(@TypeOf(PipelineConfig) != void);
+    try std.testing.expect(@TypeOf(RoutingStrategy) != void);
+    try std.testing.expect(@TypeOf(DocumentFormat) != void);
+    try std.testing.expect(@TypeOf(EntityType) != void);
+}

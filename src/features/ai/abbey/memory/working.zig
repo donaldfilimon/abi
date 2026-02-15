@@ -251,7 +251,7 @@ pub const WorkingMemory = struct {
 
     /// Pop focus
     pub fn popFocus(self: *Self) ?u64 {
-        return self.focus_stack.popOrNull();
+        return self.focus_stack.pop();
     }
 
     /// Get current focus
@@ -281,7 +281,7 @@ pub const WorkingMemory = struct {
 
     /// Build context string for LLM
     pub fn buildContext(self: *Self, max_tokens: usize) ![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
         var token_count: usize = 0;

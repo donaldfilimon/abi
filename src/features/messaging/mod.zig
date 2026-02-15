@@ -18,6 +18,7 @@ const time_mod = @import("../../services/shared/time.zig");
 
 pub const MessagingConfig = core_config.MessagingConfig;
 
+/// Errors returned by messaging operations.
 pub const MessagingError = error{
     FeatureDisabled,
     ChannelFull,
@@ -28,12 +29,14 @@ pub const MessagingError = error{
     SubscriberNotFound,
 };
 
+/// Subscriber callback return value controlling message acknowledgement.
 pub const DeliveryResult = enum {
     ok,
     retry,
     discard,
 };
 
+/// A single message delivered to subscribers (topic, payload, timestamp, id).
 pub const Message = struct {
     topic: []const u8 = "",
     payload: []const u8 = "",
@@ -46,6 +49,7 @@ pub const Channel = struct {
     subscriber_count: u32 = 0,
 };
 
+/// Aggregate statistics for the messaging subsystem.
 pub const MessagingStats = struct {
     total_published: u64 = 0,
     total_delivered: u64 = 0,
@@ -277,11 +281,13 @@ fn nowMs() u64 {
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+/// Initialize the global messaging singleton.
 pub fn init(allocator: std.mem.Allocator, config: MessagingConfig) MessagingError!void {
     if (msg_state != null) return;
     msg_state = MessagingState.create(allocator, config) catch return error.OutOfMemory;
 }
 
+/// Tear down the messaging subsystem and all topics/subscribers.
 pub fn deinit() void {
     if (msg_state) |s| {
         s.destroy();
@@ -297,6 +303,8 @@ pub fn isInitialized() bool {
     return msg_state != null;
 }
 
+/// Publish a message to a topic. Delivers synchronously to all matching
+/// subscribers (exact match and MQTT-style wildcards `*`, `#`).
 pub fn publish(
     allocator: std.mem.Allocator,
     topic_name: []const u8,
@@ -357,6 +365,8 @@ pub fn publish(
     }
 }
 
+/// Register a callback for messages matching `topic_pattern`.
+/// Returns a subscriber ID that can be passed to `unsubscribe`.
 pub fn subscribe(
     _: std.mem.Allocator,
     topic_pattern: []const u8,
@@ -392,13 +402,16 @@ pub fn subscribe(
         std.mem.indexOf(u8, topic_pattern, "#") == null)
     {
         if (s.getOrCreateTopic(topic_pattern)) |topic| {
-            topic.subscribers.append(s.allocator, sub) catch {};
+            topic.subscribers.append(s.allocator, sub) catch |err| {
+                std.log.warn("messaging: failed to add subscriber to topic index: {t}", .{err});
+            };
         } else |_| {}
     }
 
     return sub_id;
 }
 
+/// Remove a subscriber by ID. Returns `true` if the subscriber was found.
 pub fn unsubscribe(subscriber_id: u64) MessagingError!bool {
     const s = msg_state orelse return error.FeatureDisabled;
 
@@ -426,6 +439,7 @@ pub fn unsubscribe(subscriber_id: u64) MessagingError!bool {
     return false;
 }
 
+/// List all active topic names. Caller owns the returned slice.
 pub fn listTopics(allocator: std.mem.Allocator) MessagingError![][]const u8 {
     const s = msg_state orelse return error.FeatureDisabled;
 
@@ -464,6 +478,7 @@ pub fn topicStats(topic_name: []const u8) MessagingError!TopicInfo {
     };
 }
 
+/// Retrieve all dead letter entries. Caller owns the returned slice.
 pub fn getDeadLetters(allocator: std.mem.Allocator) MessagingError![]DeadLetter {
     const s = msg_state orelse return error.FeatureDisabled;
 
@@ -489,6 +504,7 @@ pub fn getDeadLetters(allocator: std.mem.Allocator) MessagingError![]DeadLetter 
     return result;
 }
 
+/// Discard all dead letter entries.
 pub fn clearDeadLetters() void {
     const s = msg_state orelse return;
     s.rw_lock.lock();
@@ -502,6 +518,7 @@ pub fn clearDeadLetters() void {
     s.dead_letters.clearRetainingCapacity();
 }
 
+/// Snapshot publish/deliver/fail counters and active topic/subscriber counts.
 pub fn messagingStats() MessagingStats {
     const s = msg_state orelse return .{};
     return .{
@@ -687,4 +704,50 @@ test "messaging publish to non-existent topic auto-creates" {
     const info = try topicStats("auto.created");
     try std.testing.expectEqual(@as(u64, 1), info.messages_published);
     try std.testing.expectEqual(@as(u32, 0), info.subscriber_count);
+}
+
+test "messaging unsubscribe invalid ID is no-op" {
+    const allocator = std.testing.allocator;
+    try init(allocator, MessagingConfig.defaults());
+    defer deinit();
+
+    _ = try subscribe(allocator, "test/topic", struct {
+        fn cb(_: Message, _: ?*anyopaque) DeliveryResult {
+            return .ok;
+        }
+    }.cb, null);
+
+    // Unsubscribe with an ID that doesn't exist — should return false
+    const removed = try unsubscribe(999999);
+    try std.testing.expect(!removed);
+
+    const s = messagingStats();
+    try std.testing.expectEqual(@as(u32, 1), s.active_subscribers);
+}
+
+test "messaging publish to empty string topic" {
+    const allocator = std.testing.allocator;
+    try init(allocator, MessagingConfig.defaults());
+    defer deinit();
+
+    // Publishing to empty topic — should not crash
+    try publish(allocator, "", "data");
+}
+
+test "messaging multiple wildcard pattern" {
+    const allocator = std.testing.allocator;
+    try init(allocator, MessagingConfig.defaults());
+    defer deinit();
+
+    _ = try subscribe(allocator, "sensors/+/data", struct {
+        fn cb(_: Message, _: ?*anyopaque) DeliveryResult {
+            return .ok;
+        }
+    }.cb, null);
+
+    // Should match sensors/temp/data
+    try publish(allocator, "sensors/temp/data", "25C");
+
+    const info = try topicStats("sensors/temp/data");
+    try std.testing.expectEqual(@as(u64, 1), info.messages_published);
 }

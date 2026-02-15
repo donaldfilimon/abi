@@ -555,9 +555,11 @@ pub const LlmKernelModule = struct {
         const fn_ptr = self.softmax_fn orelse return LlmKernelError.NotInitialized;
 
         const block_size: u32 = 256;
+        var dev_ptr_arg = device_ptr;
+        var size_arg = size;
         var args = [_]?*anyopaque{
-            @ptrCast(&device_ptr),
-            @ptrCast(&size),
+            @ptrCast(&dev_ptr_arg),
+            @ptrCast(&size_arg),
         };
 
         if (launch_fn(
@@ -591,11 +593,15 @@ pub const LlmKernelModule = struct {
         const fn_ptr = self.rmsnorm_fn orelse return LlmKernelError.NotInitialized;
 
         const block_size: u32 = 256;
+        var x_arg = x_ptr;
+        var w_arg = weight_ptr;
+        var size_arg = size;
+        var eps_arg = eps;
         var args = [_]?*anyopaque{
-            @ptrCast(&x_ptr),
-            @ptrCast(&weight_ptr),
-            @ptrCast(&size),
-            @ptrCast(&eps),
+            @ptrCast(&x_arg),
+            @ptrCast(&w_arg),
+            @ptrCast(&size_arg),
+            @ptrCast(&eps_arg),
         };
 
         if (launch_fn(
@@ -624,9 +630,11 @@ pub const LlmKernelModule = struct {
         const block_size: u32 = 256;
         const grid_size: u32 = (n + block_size - 1) / block_size;
 
+        var dev_ptr_arg = device_ptr;
+        var n_arg = n;
         var args = [_]?*anyopaque{
-            @ptrCast(&device_ptr),
-            @ptrCast(&n),
+            @ptrCast(&dev_ptr_arg),
+            @ptrCast(&n_arg),
         };
 
         if (launch_fn(
@@ -656,9 +664,11 @@ pub const LlmKernelModule = struct {
         const block_size: u32 = 256;
         const grid_size: u32 = (n + block_size - 1) / block_size;
 
+        var dev_ptr_arg = device_ptr;
+        var n_arg = n;
         var args = [_]?*anyopaque{
-            @ptrCast(&device_ptr),
-            @ptrCast(&n),
+            @ptrCast(&dev_ptr_arg),
+            @ptrCast(&n_arg),
         };
 
         if (launch_fn(

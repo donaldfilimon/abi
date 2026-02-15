@@ -240,16 +240,15 @@ pub const CertificateAuthority = struct {
             .common_name = try self.allocator.dupe(u8, subject_cn),
             .organization = try self.allocator.dupe(u8, subject_o),
             .valid_from = now,
-            .valid_until = now + validity_days * 24 * 60 * 60,
+            .valid_until = now + @as(i64, @intCast(validity_days * 24 * 60 * 60)),
             .is_ca = false,
             .subject_alt_names = &.{},
         };
     }
 
     pub fn revokeCertificate(self: *CertificateAuthority, serial_number: []const u8) !void {
-        const removed = self.issued_certificates.remove(serial_number);
-        if (removed) |entry| {
-            self.allocator.free(entry.key_ptr.*);
+        if (self.issued_certificates.fetchOrderedRemove(serial_number)) |entry| {
+            self.allocator.free(entry.key);
         }
     }
 

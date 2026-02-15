@@ -128,7 +128,7 @@ pub const Client = struct {
         try http_req.setBearerToken(self.config.api_key);
         try http_req.setJsonBody(json);
 
-        const http_res = try self.http.fetchJson(&http_req);
+        const http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
@@ -187,7 +187,7 @@ pub const Client = struct {
         try http_req.setBearerToken(self.config.api_key);
         try http_req.setJsonBody(json);
 
-        const http_res = try self.http.fetchJson(&http_req);
+        const http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
@@ -222,7 +222,7 @@ pub const Client = struct {
     }
 
     fn encodeChatRequest(self: *Client, request: ChatCompletionRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");
@@ -254,7 +254,7 @@ pub const Client = struct {
     }
 
     fn encodeEmbeddingRequest(self: *Client, request: EmbeddingRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");

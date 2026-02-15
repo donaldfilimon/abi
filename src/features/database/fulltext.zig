@@ -247,7 +247,7 @@ pub const InvertedIndex = struct {
                         score_entry.value_ptr.* = .{
                             .score = 0,
                             .term_count = 0,
-                            .matched_terms = std.ArrayListUnmanaged([]const u8){},
+                            .matched_terms = std.ArrayListUnmanaged([]const u8).empty,
                         };
                     }
                     score_entry.value_ptr.score += term_score;
@@ -261,7 +261,7 @@ pub const InvertedIndex = struct {
         }
 
         // Convert to results and sort
-        var results = std.ArrayListUnmanaged(TextSearchResult){};
+        var results = std.ArrayListUnmanaged(TextSearchResult).empty;
         defer results.deinit(self.allocator);
 
         var score_iter = scores.iterator();
@@ -344,7 +344,7 @@ pub const InvertedIndex = struct {
 
     // Tokenization
     fn tokenize(self: *InvertedIndex, text: []const u8) !std.ArrayListUnmanaged([]u8) {
-        var tokens = std.ArrayListUnmanaged([]u8){};
+        var tokens = std.ArrayListUnmanaged([]u8).empty;
         errdefer {
             for (tokens.items) |token| {
                 self.allocator.free(token);
@@ -553,7 +553,7 @@ pub const QueryParser = struct {
 
     /// Parse a query string.
     pub fn parse(self: *QueryParser, query: []const u8) !ParsedQuery {
-        var tokens = std.ArrayListUnmanaged(Token){};
+        var tokens = std.ArrayListUnmanaged(Token).empty;
         defer tokens.deinit(self.allocator);
 
         // Tokenize the query
@@ -675,7 +675,7 @@ pub const QueryParser = struct {
     }
 
     fn parseAnd(self: *QueryParser, tokens: []const Token) !ParsedQuery {
-        var terms = std.ArrayListUnmanaged([]u8){};
+        var terms = std.ArrayListUnmanaged([]u8).empty;
         errdefer {
             for (terms.items) |term| self.allocator.free(term);
             terms.deinit(self.allocator);

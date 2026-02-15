@@ -36,6 +36,12 @@
       "section": "Core"
     },
     {
+      "title": "Migration (vNext)",
+      "slug": "migration-vnext",
+      "source": "content/migration-vnext.html",
+      "section": "Core"
+    },
+    {
       "title": "AI",
       "slug": "ai",
       "source": "content/ai.html",

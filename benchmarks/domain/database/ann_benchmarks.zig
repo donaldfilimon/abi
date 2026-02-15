@@ -37,7 +37,7 @@ pub const AnnBenchmarkResult = struct {
     parameters: []const u8,
 
     pub fn toJson(self: AnnBenchmarkResult, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         try buf.appendSlice(allocator, "{");
@@ -87,7 +87,7 @@ pub fn runAnnBenchmarks(
     allocator: std.mem.Allocator,
     config: AnnBenchConfig,
 ) ![]AnnBenchmarkResult {
-    var results = std.ArrayListUnmanaged(AnnBenchmarkResult){};
+    var results = std.ArrayListUnmanaged(AnnBenchmarkResult).empty;
     errdefer results.deinit(allocator);
 
     const dataset_size = if (config.dataset == .custom)
@@ -221,7 +221,7 @@ pub fn generateRecallQpsCurve(
     ef_search_values: []const usize,
     k: usize,
 ) ![]struct { recall: f64, qps: f64 } {
-    var curve = std.ArrayListUnmanaged(struct { recall: f64, qps: f64 }){};
+    var curve = std.ArrayListUnmanaged(struct { recall: f64, qps: f64 }).empty;
     errdefer curve.deinit(allocator);
 
     // Build index
@@ -291,7 +291,7 @@ pub fn printResults(results: []const AnnBenchmarkResult) void {
 
 /// Export results to JSON file
 pub fn exportResultsJson(allocator: std.mem.Allocator, results: []const AnnBenchmarkResult) ![]u8 {
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     errdefer buf.deinit(allocator);
 
     try buf.appendSlice(allocator, "{\n  \"results\": [\n");

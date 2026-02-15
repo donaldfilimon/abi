@@ -64,7 +64,7 @@ pub const SseEncoder = struct {
 
     /// Encode a stream event to SSE format.
     pub fn encode(self: *SseEncoder, event: StreamEvent) ![]u8 {
-        var output = std.ArrayListUnmanaged(u8){};
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(self.allocator);
 
         // Event ID
@@ -117,7 +117,7 @@ pub const SseEncoder = struct {
 
     /// Encode a heartbeat comment.
     pub fn encodeHeartbeat(self: *SseEncoder) ![]u8 {
-        var output = std.ArrayListUnmanaged(u8){};
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(self.allocator);
 
         try output.appendSlice(self.allocator, self.config.comment_prefix);
@@ -140,7 +140,7 @@ pub const SseEncoder = struct {
 
     /// Serialize event data to JSON-like format.
     fn serializeEventData(self: *SseEncoder, event: StreamEvent) ![]u8 {
-        var output = std.ArrayListUnmanaged(u8){};
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(self.allocator);
 
         try output.append(self.allocator, '{');
@@ -228,7 +228,7 @@ pub const SseDecoder = struct {
     pub fn feed(self: *SseDecoder, data: []const u8) ![]SseEvent {
         try self.buffer.appendSlice(self.allocator, data);
 
-        var events = std.ArrayListUnmanaged(SseEvent){};
+        var events = std.ArrayListUnmanaged(SseEvent).empty;
         errdefer {
             for (events.items) |*e| e.deinit(self.allocator);
             events.deinit(self.allocator);
@@ -254,7 +254,7 @@ pub const SseDecoder = struct {
     /// Parse a single SSE event.
     fn parseEvent(self: *SseDecoder, data: []const u8) !?SseEvent {
         var event_type: ?[]u8 = null;
-        var event_data = std.ArrayListUnmanaged(u8){};
+        var event_data = std.ArrayListUnmanaged(u8).empty;
         defer event_data.deinit(self.allocator);
         var event_id: ?[]u8 = null;
         var retry: ?u32 = null;

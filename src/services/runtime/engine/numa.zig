@@ -153,7 +153,7 @@ pub const AffinityMask = struct {
         }
         const byte_index = cpu_id / 8;
         const bit_index = cpu_id % 8;
-        self.mask[byte_index] |= @as(u8, 1) << bit_index;
+        self.mask[byte_index] |= @as(u8, 1) << @intCast(bit_index);
     }
 
     pub fn clear(self: *AffinityMask, cpu_id: usize) !void {
@@ -163,14 +163,14 @@ pub const AffinityMask = struct {
         }
         const byte_index = cpu_id / 8;
         const bit_index = cpu_id % 8;
-        self.mask[byte_index] &= ~(@as(u8, 1) << bit_index);
+        self.mask[byte_index] &= ~(@as(u8, 1) << @intCast(bit_index));
     }
 
     pub fn isSet(self: *const AffinityMask, cpu_id: usize) bool {
         if (cpu_id >= self.size) return false;
         const byte_index = cpu_id / 8;
         const bit_index = cpu_id % 8;
-        return (self.mask[byte_index] & (@as(u8, 1) << bit_index)) != 0;
+        return (self.mask[byte_index] & (@as(u8, 1) << @intCast(bit_index))) != 0;
     }
 };
 
@@ -463,7 +463,7 @@ test "affinity mask operations" {
 test "cpu topology detection" {
     const allocator = std.testing.allocator;
 
-    const topology = try CpuTopology.init(allocator);
+    var topology = try CpuTopology.init(allocator);
     defer topology.deinit(allocator);
 
     try std.testing.expect(topology.node_count >= 1);

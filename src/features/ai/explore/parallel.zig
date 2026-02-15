@@ -224,7 +224,7 @@ pub fn parallelExplore(
     var result = ExploreResult.init(allocator, query, config.level);
     errdefer result.deinit();
 
-    var patterns = std.ArrayListUnmanaged(SearchPattern){};
+    var patterns = std.ArrayListUnmanaged(SearchPattern).empty;
     defer {
         for (patterns.items) |*p| {
             p.deinit(allocator);

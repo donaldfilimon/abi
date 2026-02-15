@@ -78,6 +78,31 @@ pub const BackendInstance = struct {
     }
 };
 
+/// Stateful wrapper for backend creation APIs.
+///
+/// Maintained for compatibility with the public `abi.gpu.BackendFactory` export.
+pub const BackendFactory = struct {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) BackendFactory {
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(_: *BackendFactory) void {}
+
+    pub fn create(self: *BackendFactory, backend_type: Backend) FactoryError!*BackendInstance {
+        return createBackend(self.allocator, backend_type);
+    }
+
+    pub fn createBest(self: *BackendFactory) FactoryError!*BackendInstance {
+        return createBestBackend(self.allocator);
+    }
+
+    pub fn destroy(_: *BackendFactory, instance: *BackendInstance) void {
+        destroyBackend(instance);
+    }
+};
+
 /// GPU features that may be supported by backends.
 pub const BackendFeature = enum {
     fp16,
@@ -491,6 +516,14 @@ fn createSimulatedVTableBackend(allocator: std.mem.Allocator) FactoryError!inter
     return interface.createBackend(SimulatedBackend, impl);
 }
 
+fn mapBackendCreateError(err: anyerror) FactoryError {
+    return switch (interface.normalizeBackendError(err)) {
+        error.NotAvailable, error.DeviceNotFound, error.DriverNotFound => FactoryError.BackendNotAvailable,
+        error.OutOfMemory => FactoryError.OutOfMemory,
+        else => FactoryError.BackendInitializationFailed,
+    };
+}
+
 fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
     // Check if FPGA is available at comptime
     if (comptime !build_options.gpu_fpga) {
@@ -499,13 +532,7 @@ fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
 
     const fpga_vtable = @import("backends/fpga/vtable.zig");
     return fpga_vtable.createFpgaVTable(allocator) catch |err| {
-        return switch (err) {
-            error.NotAvailable => FactoryError.BackendNotAvailable,
-            error.DeviceNotFound => FactoryError.BackendNotAvailable,
-            error.InitFailed => FactoryError.BackendInitializationFailed,
-            error.OutOfMemory => FactoryError.OutOfMemory,
-            else => FactoryError.BackendInitializationFailed,
-        };
+        return mapBackendCreateError(err);
     };
 }
 
@@ -518,13 +545,7 @@ fn createCudaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
     // Try to create real CUDA backend
     const cuda_vtable = @import("backends/cuda/vtable.zig");
     return cuda_vtable.createCudaVTable(allocator) catch |err| {
-        return switch (err) {
-            error.NotAvailable => FactoryError.BackendNotAvailable,
-            error.DeviceNotFound => FactoryError.BackendNotAvailable,
-            error.InitFailed => FactoryError.BackendInitializationFailed,
-            error.OutOfMemory => FactoryError.OutOfMemory,
-            else => FactoryError.BackendInitializationFailed,
-        };
+        return mapBackendCreateError(err);
     };
 }
 
@@ -537,13 +558,7 @@ fn createVulkanVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     // Try to create real Vulkan backend
     const vulkan = @import("backends/vulkan.zig");
     return vulkan.createVulkanVTable(allocator) catch |err| {
-        return switch (err) {
-            error.NotAvailable => FactoryError.BackendNotAvailable,
-            error.DeviceNotFound => FactoryError.BackendNotAvailable,
-            error.InitFailed => FactoryError.BackendInitializationFailed,
-            error.OutOfMemory => FactoryError.OutOfMemory,
-            else => FactoryError.BackendInitializationFailed,
-        };
+        return mapBackendCreateError(err);
     };
 }
 
@@ -556,13 +571,7 @@ fn createMetalVTableBackend(allocator: std.mem.Allocator) FactoryError!interface
     // Try to create real Metal backend
     const metal_vtable = @import("backends/metal_vtable.zig");
     return metal_vtable.createMetalVTable(allocator) catch |err| {
-        return switch (err) {
-            error.NotAvailable => FactoryError.BackendNotAvailable,
-            error.DeviceNotFound => FactoryError.BackendNotAvailable,
-            error.InitFailed => FactoryError.BackendInitializationFailed,
-            error.OutOfMemory => FactoryError.OutOfMemory,
-            else => FactoryError.BackendInitializationFailed,
-        };
+        return mapBackendCreateError(err);
     };
 }
 
@@ -575,13 +584,7 @@ fn createWebGPUVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     // Try to create real WebGPU backend
     const webgpu_vtable = @import("backends/webgpu_vtable.zig");
     return webgpu_vtable.createWebGpuVTable(allocator) catch |err| {
-        return switch (err) {
-            error.NotAvailable => FactoryError.BackendNotAvailable,
-            error.DeviceNotFound => FactoryError.BackendNotAvailable,
-            error.InitFailed => FactoryError.BackendInitializationFailed,
-            error.OutOfMemory => FactoryError.OutOfMemory,
-            else => FactoryError.BackendInitializationFailed,
-        };
+        return mapBackendCreateError(err);
     };
 }
 
@@ -594,14 +597,7 @@ fn createOpenGLVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
     // Try to create real OpenGL backend
     const opengl_vtable = @import("backends/opengl_vtable.zig");
     return opengl_vtable.createOpenGLVTable(allocator) catch |err| {
-        return switch (err) {
-            error.NotAvailable => FactoryError.BackendNotAvailable,
-            error.DeviceNotFound => FactoryError.BackendNotAvailable,
-            error.DriverNotFound => FactoryError.BackendNotAvailable,
-            error.InitFailed => FactoryError.BackendInitializationFailed,
-            error.OutOfMemory => FactoryError.OutOfMemory,
-            else => FactoryError.BackendInitializationFailed,
-        };
+        return mapBackendCreateError(err);
     };
 }
 

@@ -100,6 +100,9 @@ pub fn removeRoute(_: []const u8) GatewayError!bool {
 pub fn getRoutes() []const Route {
     return &.{};
 }
+pub fn getRouteCount() usize {
+    return 0;
+}
 pub fn matchRoute(_: []const u8, _: HttpMethod) GatewayError!?MatchResult {
     return error.FeatureDisabled;
 }

@@ -204,13 +204,10 @@ pub const ErrorContext = struct {
 
     /// Format to allocated string
     pub fn formatToString(self: ErrorContext, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8).empty;
-        errdefer buf.deinit(allocator);
-
-        var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buf);
+        var aw = std.Io.Writer.Allocating.init(allocator);
+        errdefer aw.deinit();
         try self.format(&aw.writer);
-
-        return aw.toArrayList().toOwnedSlice(allocator);
+        return aw.toOwnedSlice();
     }
 
     /// Log error context at error level
@@ -397,10 +394,8 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build messages array JSON
-        var messages_json = std.ArrayListUnmanaged(u8).empty;
-        defer messages_json.deinit(allocator);
-        var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &messages_json);
-        errdefer aw.deinit();
+        var aw = std.Io.Writer.Allocating.init(allocator);
+        defer aw.deinit();
         var writer = &aw.writer;
 
         try writer.writeAll("[");
@@ -422,14 +417,13 @@ pub const Agent = struct {
             );
         }
         try writer.writeAll("]");
-        messages_json = aw.toArrayList();
 
         // Build request body
         const request_body = try std.fmt.allocPrint(allocator,
             \\{{"model":"{s}","messages":{s},"temperature":{d:.2},"max_tokens":{d}}}
         , .{
             self.config.model,
-            messages_json.items,
+            aw.written(),
             self.config.temperature,
             self.config.max_tokens,
         });
@@ -581,11 +575,9 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build messages array JSON
-        var messages_json = std.ArrayListUnmanaged(u8).empty;
-        defer messages_json.deinit(allocator);
-        var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &messages_json);
-        errdefer aw.deinit();
-        var writer = &aw.writer;
+        var aw_ollama = std.Io.Writer.Allocating.init(allocator);
+        defer aw_ollama.deinit();
+        var writer = &aw_ollama.writer;
 
         try writer.writeAll("[");
         for (self.history.items, 0..) |msg, i| {
@@ -606,14 +598,13 @@ pub const Agent = struct {
             );
         }
         try writer.writeAll("]");
-        messages_json = aw.toArrayList();
 
         // Build request body (Ollama format)
         const request_body = try std.fmt.allocPrint(allocator,
             \\{{"model":"{s}","messages":{s},"stream":false,"options":{{"temperature":{d:.2},"num_predict":{d}}}}}
         , .{
             model_name,
-            messages_json.items,
+            aw_ollama.written(),
             self.config.temperature,
             self.config.max_tokens,
         });
@@ -696,10 +687,8 @@ pub const Agent = struct {
         defer allocator.free(endpoint);
 
         // Build input from conversation history
-        var prompt = std.ArrayListUnmanaged(u8).empty;
-        defer prompt.deinit(allocator);
-        var paw: std.Io.Writer.Allocating = .fromArrayList(allocator, &prompt);
-        errdefer paw.deinit();
+        var paw = std.Io.Writer.Allocating.init(allocator);
+        defer paw.deinit();
         var prompt_writer = &paw.writer;
 
         for (self.history.items) |msg| {
@@ -711,7 +700,6 @@ pub const Agent = struct {
             try prompt_writer.print("{s}{s}\n", .{ role_prefix, msg.content });
         }
         try prompt_writer.writeAll("Assistant: ");
-        prompt = paw.toArrayList();
 
         // Build request body (HuggingFace Inference API format)
         const request_body = try std.fmt.allocPrint(allocator,
@@ -719,7 +707,7 @@ pub const Agent = struct {
         ++ "\"{s}\"" ++
             \\,"parameters":{{"temperature":{d:.2},"max_new_tokens":{d},"return_full_text":false}}}}
         , .{
-            prompt.items,
+            paw.written(),
             self.config.temperature,
             self.config.max_tokens,
         });
@@ -920,19 +908,18 @@ test "agent rejects invalid configuration" {
 }
 
 test "agent backend selection" {
+    // Echo backend works without API keys and is the default test backend
     var agent = try Agent.init(std.testing.allocator, .{
         .name = "test-agent",
-        .backend = .openai,
-        .model = "gpt-4",
+        .backend = .echo,
     });
     defer agent.deinit();
 
     const response = try agent.process("test input", std.testing.allocator);
     defer std.testing.allocator.free(response);
 
-    // OpenAI backend should include model info in response
-    try std.testing.expect(std.mem.indexOf(u8, response, "OpenAI") != null);
-    try std.testing.expect(std.mem.indexOf(u8, response, "gpt-4") != null);
+    // Echo backend returns "Echo: <input>"
+    try std.testing.expectEqualStrings("Echo: test input", response);
 }
 
 test "agent with system prompt" {

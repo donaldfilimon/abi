@@ -133,6 +133,7 @@ desktop.ini
 *.h5
 *.pb
 *.ckpt
+*.gguf
 testingllm.ckpt/
 
 # Profiling data
@@ -168,6 +169,7 @@ tmpclaude-*-cwd
 tmpclaude-*
 
 nul
+/hello
 examples/c_test
 docs/api/
 bindings/c/.zig-cache/

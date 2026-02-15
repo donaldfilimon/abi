@@ -67,7 +67,7 @@ pub const QueryUnderstanding = struct {
     }
 
     fn toLowercase(self: *QueryUnderstanding, text: []const u8) ![]const u8 {
-        return string_utils.toLowerAscii(self.allocator, text);
+        return string_utils.string.toLowerAscii(self.allocator, text);
     }
 
     fn classifyIntent(self: *QueryUnderstanding, query: []const u8) QueryIntent {
@@ -136,7 +136,7 @@ pub const QueryUnderstanding = struct {
     }
 
     fn extractPatterns(self: *QueryUnderstanding, allocator: std.mem.Allocator, query: []const u8, intent: QueryIntent) ![]const []const u8 {
-        var patterns = std.ArrayListUnmanaged([]const u8){};
+        var patterns = std.ArrayListUnmanaged([]const u8).empty;
         errdefer patterns.deinit(allocator);
 
         switch (intent) {
@@ -211,7 +211,7 @@ pub const QueryUnderstanding = struct {
     }
 
     fn extractTargetPaths(_: *QueryUnderstanding, allocator: std.mem.Allocator, query: []const u8) ![]const []const u8 {
-        var paths = std.ArrayListUnmanaged([]const u8){};
+        var paths = std.ArrayListUnmanaged([]const u8).empty;
         errdefer {
             for (paths.items) |path| {
                 allocator.free(path);
@@ -241,7 +241,7 @@ pub const QueryUnderstanding = struct {
     }
 
     fn extractFileExtensions(_: *QueryUnderstanding, allocator: std.mem.Allocator, query: []const u8) ![]const []const u8 {
-        var extensions = std.ArrayListUnmanaged([]const u8){};
+        var extensions = std.ArrayListUnmanaged([]const u8).empty;
         errdefer extensions.deinit(allocator);
 
         const ext_map = [_][2][]const u8{
@@ -294,7 +294,7 @@ pub const QueryUnderstanding = struct {
     }
 
     pub fn suggestPatterns(self: *QueryUnderstanding, parsed: *const ParsedQuery) ![]SearchPattern {
-        var patterns = std.ArrayListUnmanaged(SearchPattern){};
+        var patterns = std.ArrayListUnmanaged(SearchPattern).empty;
         var compiler = PatternCompiler.init(self.allocator);
 
         for (parsed.patterns) |pattern_str| {

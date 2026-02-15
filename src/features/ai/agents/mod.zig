@@ -44,9 +44,10 @@ pub const Context = struct {
     }
 
     pub fn deinit(self: *Context) void {
-        // Clean up agents
+        // Clean up agents (free duped key names + agent values)
         var it = self.agents.iterator();
         while (it.next()) |entry| {
+            self.allocator.free(@constCast(entry.key_ptr.*));
             entry.value_ptr.*.deinit();
             self.allocator.destroy(entry.value_ptr.*);
         }
@@ -126,13 +127,12 @@ test "agents context create and get agent" {
     const ctx = try Context.init(allocator, .{ .max_agents = 5 });
     defer ctx.deinit();
 
-    const agent = try ctx.createAgent("test-agent");
-    try std.testing.expect(agent != null);
+    const agent_ptr = try ctx.createAgent("test-agent");
     try std.testing.expect(ctx.agents.count() == 1);
 
     const retrieved = ctx.getAgent("test-agent");
     try std.testing.expect(retrieved != null);
-    try std.testing.expect(retrieved == agent);
+    try std.testing.expectEqual(agent_ptr, retrieved.?);
 
     const missing = ctx.getAgent("nonexistent");
     try std.testing.expect(missing == null);

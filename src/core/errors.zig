@@ -162,21 +162,19 @@ test "lifecycle errors are distinct" {
 }
 
 test "feature errors compose without overlap" {
-    // Verify the combined type compiles
+    // Verify the combined type compiles and variants are distinct
     const err: AllFeatureErrors = error.GpuDisabled;
-    _ = err;
     const err2: AllFeatureErrors = error.DatabaseDisabled;
-    _ = err2;
     const err3: AllFeatureErrors = error.SearchDisabled;
-    _ = err3;
+    try std.testing.expect(err != err2);
+    try std.testing.expect(err2 != err3);
 }
 
 test "framework error includes all categories" {
     // Verify FrameworkError includes lifecycle + feature + config
     const err1: FrameworkError = error.AlreadyInitialized;
-    _ = err1;
     const err2: FrameworkError = error.GpuDisabled;
-    _ = err2;
     const err3: FrameworkError = error.OutOfMemory;
-    _ = err3;
+    try std.testing.expect(err1 != err2);
+    try std.testing.expect(err2 != err3);
 }

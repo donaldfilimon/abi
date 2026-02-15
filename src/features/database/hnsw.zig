@@ -37,6 +37,8 @@ pub const HnswIndex = struct {
     distance_cache: ?*DistanceCache,
     /// Optional GPU accelerator for batch distance computation
     gpu_accelerator: ?*gpu_accel.GpuAccelerator,
+    /// Pre-computed L2 norms for each vector (eliminates redundant norm computation)
+    norms: []f32,
     /// Allocator used for construction
     allocator: std.mem.Allocator,
 
@@ -139,6 +141,14 @@ pub const HnswIndex = struct {
             allocator.destroy(accel);
         };
 
+        // Pre-compute L2 norms for all vectors (avoids redundant norm computation
+        // during construction — each norm would otherwise be computed O(ef_construction) times)
+        const norms = try allocator.alloc(f32, records.len);
+        errdefer allocator.free(norms);
+        for (records, 0..) |rec, idx| {
+            norms[idx] = if (rec.vector.len > 0) simd.vectorL2Norm(rec.vector) else 0.0;
+        }
+
         var self = HnswIndex{
             .m = config.m,
             .m_max = config.m,
@@ -150,6 +160,7 @@ pub const HnswIndex = struct {
             .state_pool = state_pool,
             .distance_cache = dist_cache_ptr,
             .gpu_accelerator = gpu_accelerator,
+            .norms = norms,
             .allocator = allocator,
         };
         errdefer allocator.free(self.nodes);
@@ -162,8 +173,15 @@ pub const HnswIndex = struct {
         const random = prng.random();
         const m_l = 1.0 / @as(f32, @log(@as(f32, @floatFromInt(config.m))));
 
+        // Use arena allocator for per-insertion temporaries (HashMaps, ArrayLists)
+        // — bulk-freed after each insert instead of individual alloc/free per container
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        defer arena.deinit();
+
         for (records, 0..) |_, i| {
-            try self.insert(allocator, records, @intCast(i), random, m_l);
+            try self.insert(allocator, arena.allocator(), records, @intCast(i), random, m_l);
+            // Reset arena for next insertion — frees all temporaries in bulk
+            _ = arena.reset(.retain_capacity);
         }
 
         return self;
@@ -179,6 +197,7 @@ pub const HnswIndex = struct {
     fn insert(
         self: *HnswIndex,
         allocator: std.mem.Allocator,
+        temp_allocator: std.mem.Allocator,
         records: []const index_mod.VectorRecordView,
         node_id: u32,
         random: std.Random,
@@ -228,7 +247,7 @@ pub const HnswIndex = struct {
         // 2. Perform layered insertion from target_layer down to 0
         lc = @min(target_layer, self.max_layer);
         while (lc >= 0) : (lc -= 1) {
-            try self.connectNeighbors(allocator, records, node_id, curr_node, @intCast(lc));
+            try self.connectNeighbors(allocator, temp_allocator, records, node_id, curr_node, @intCast(lc));
         }
 
         // 3. Update global entry point if new node is at a higher layer
@@ -246,6 +265,7 @@ pub const HnswIndex = struct {
     fn connectNeighbors(
         self: *HnswIndex,
         allocator: std.mem.Allocator,
+        temp_allocator: std.mem.Allocator,
         records: []const index_mod.VectorRecordView,
         node_id: u32,
         entry: u32,
@@ -254,21 +274,22 @@ pub const HnswIndex = struct {
         const m_val = if (layer == 0) self.m_max0 else self.m_max;
 
         // Build candidate list using ef_construction expansion
+        // (temporaries use arena allocator — bulk freed by caller)
         var candidates = std.AutoHashMapUnmanaged(u32, f32){};
-        defer candidates.deinit(allocator);
+        defer candidates.deinit(temp_allocator);
 
         var visited = std.AutoHashMapUnmanaged(u32, void){};
-        defer visited.deinit(allocator);
+        defer visited.deinit(temp_allocator);
 
         // Start with entry point (use cached distance)
         const entry_dist = self.computeNodeDistance(records, node_id, entry);
-        try candidates.put(allocator, entry, entry_dist);
-        try visited.put(allocator, entry, {});
+        try candidates.put(temp_allocator, entry, entry_dist);
+        try visited.put(temp_allocator, entry, {});
 
         // BFS expansion to find candidates
-        var queue = std.ArrayListUnmanaged(u32){};
-        defer queue.deinit(allocator);
-        try queue.append(allocator, entry);
+        var queue = std.ArrayListUnmanaged(u32).empty;
+        defer queue.deinit(temp_allocator);
+        try queue.append(temp_allocator, entry);
 
         var head: usize = 0;
         while (head < queue.items.len and candidates.count() < self.ef_construction) : (head += 1) {
@@ -285,17 +306,17 @@ pub const HnswIndex = struct {
 
                 for (neighbors) |neighbor| {
                     if (!visited.contains(neighbor)) {
-                        try visited.put(allocator, neighbor, {});
+                        try visited.put(temp_allocator, neighbor, {});
                         const dist = self.computeNodeDistance(records, node_id, neighbor);
-                        try candidates.put(allocator, neighbor, dist);
-                        try queue.append(allocator, neighbor);
+                        try candidates.put(temp_allocator, neighbor, dist);
+                        try queue.append(temp_allocator, neighbor);
                     }
                 }
             }
         }
 
         // Select best neighbors using heuristic pruning
-        const selected = try self.selectNeighborsHeuristic(allocator, records, node_id, &candidates, m_val);
+        const selected = try self.selectNeighborsHeuristic(allocator, temp_allocator, records, node_id, &candidates, m_val);
         self.nodes[node_id].layers[layer].nodes = selected;
 
         // Update bidirectional links with proper pruning
@@ -316,7 +337,7 @@ pub const HnswIndex = struct {
             }
 
             var neighbor_links = std.AutoHashMapUnmanaged(u32, f32){};
-            defer neighbor_links.deinit(allocator);
+            defer neighbor_links.deinit(temp_allocator);
 
             const existing_neighbors = self.nodes[neighbor].layers[layer].nodes;
 
@@ -334,23 +355,24 @@ pub const HnswIndex = struct {
             // Collect existing neighbors (use cached distances)
             for (existing_neighbors) |existing| {
                 const dist = self.computeNodeDistance(records, neighbor, existing);
-                try neighbor_links.put(allocator, existing, dist);
+                try neighbor_links.put(temp_allocator, existing, dist);
             }
 
             // Add new link if not exists
             if (!neighbor_links.contains(node_id)) {
                 const dist = self.computeNodeDistance(records, neighbor, node_id);
-                try neighbor_links.put(allocator, node_id, dist);
+                try neighbor_links.put(temp_allocator, node_id, dist);
             }
 
             // Prune if needed
             if (neighbor_links.count() > m_val) {
-                const pruned = try self.selectNeighborsHeuristic(allocator, records, neighbor, &neighbor_links, m_val);
+                // selectNeighborsHeuristic uses persistent allocator for the owned slice
+                const pruned = try self.selectNeighborsHeuristic(allocator, temp_allocator, records, neighbor, &neighbor_links, m_val);
                 allocator.free(self.nodes[neighbor].layers[layer].nodes);
                 self.nodes[neighbor].layers[layer].nodes = pruned;
             } else {
-                // Just update with new links
-                var new_links = std.ArrayListUnmanaged(u32){};
+                // Just update with new links (persistent allocation — outlives function)
+                var new_links = std.ArrayListUnmanaged(u32).empty;
                 errdefer new_links.deinit(allocator);
 
                 var it = neighbor_links.keyIterator();
@@ -371,24 +393,24 @@ pub const HnswIndex = struct {
     /// graph connectivity by preferring diverse directions over purely closest neighbors.
     /// Falls back to closest neighbors if heuristic yields fewer than m_val results.
     fn selectNeighborsHeuristic(
-        self: *HnswIndex,
+        self: *const HnswIndex,
         allocator: std.mem.Allocator,
+        temp_allocator: std.mem.Allocator,
         records: []const index_mod.VectorRecordView,
         node_id: u32,
         candidates: *std.AutoHashMapUnmanaged(u32, f32),
         m_val: usize,
     ) ![]u32 {
-        _ = self;
 
-        // Sort candidates by distance (ascending)
+        // Sort candidates by distance (ascending) — temp allocation
         const CandidatePair = struct { id: u32, dist: f32 };
-        var sorted = std.ArrayListUnmanaged(CandidatePair){};
-        defer sorted.deinit(allocator);
+        var sorted = std.ArrayListUnmanaged(CandidatePair).empty;
+        defer sorted.deinit(temp_allocator);
 
         var it = candidates.iterator();
         while (it.next()) |entry| {
             if (entry.key_ptr.* != node_id) { // Don't include self
-                try sorted.append(allocator, .{ .id = entry.key_ptr.*, .dist = entry.value_ptr.* });
+                try sorted.append(temp_allocator, .{ .id = entry.key_ptr.*, .dist = entry.value_ptr.* });
             }
         }
 
@@ -400,7 +422,7 @@ pub const HnswIndex = struct {
         }.lessThan);
 
         // Select using heuristic: prefer diverse neighbors over purely closest
-        var selected = std.ArrayListUnmanaged(u32){};
+        var selected = std.ArrayListUnmanaged(u32).empty;
         errdefer selected.deinit(allocator);
 
         for (sorted.items, 0..) |candidate, idx| {
@@ -421,7 +443,19 @@ pub const HnswIndex = struct {
             // Check if this candidate is closer to node than to any selected neighbor
             var should_add = true;
             for (selected.items) |existing| {
-                const dist_to_existing = 1.0 - simd.cosineSimilarity(
+                // Use pre-computed norms when available
+                const dist_to_existing = if (self.norms.len > candidate.id and self.norms.len > existing) blk: {
+                    const na = self.norms[candidate.id];
+                    const nb = self.norms[existing];
+                    if (na > 0.0 and nb > 0.0) {
+                        const dot = simd.vectorDot(
+                            records[candidate.id].vector,
+                            records[existing].vector,
+                        );
+                        break :blk 1.0 - dot / (na * nb);
+                    }
+                    break :blk 1.0;
+                } else 1.0 - simd.cosineSimilarity(
                     records[candidate.id].vector,
                     records[existing].vector,
                 );
@@ -612,8 +646,9 @@ pub const HnswIndex = struct {
     }
 
     /// Compute node-to-node distance with caching support.
-    /// Checks distance cache first; on miss, computes cosine distance and stores result.
-    /// Cache keys are order-independent (distance(a,b) == distance(b,a)).
+    /// Uses pre-computed norms to avoid redundant L2 norm computation.
+    /// Checks distance cache first; on miss, computes cosine distance via
+    /// vectorDot + cached norms (saves ~50% FLOPs vs full cosineSimilarity).
     fn computeNodeDistance(self: *const HnswIndex, records: []const index_mod.VectorRecordView, a: u32, b: u32) f32 {
         // Check cache first
         if (self.distance_cache) |cache| {
@@ -622,8 +657,16 @@ pub const HnswIndex = struct {
             }
         }
 
-        // Compute distance
-        const dist = 1.0 - simd.cosineSimilarity(records[a].vector, records[b].vector);
+        // Compute cosine distance — use pre-computed norms when available
+        const dist = if (self.norms.len > a and self.norms.len > b) blk: {
+            const na = self.norms[a];
+            const nb = self.norms[b];
+            if (na > 0.0 and nb > 0.0) {
+                const dot = simd.vectorDot(records[a].vector, records[b].vector);
+                break :blk 1.0 - dot / (na * nb);
+            }
+            break :blk 1.0;
+        } else 1.0 - simd.cosineSimilarity(records[a].vector, records[b].vector);
 
         // Store in cache
         if (self.distance_cache) |cache| {
@@ -652,6 +695,9 @@ pub const HnswIndex = struct {
             accel.deinit();
             allocator.destroy(accel);
         }
+
+        // Free pre-computed norms
+        if (self.norms.len > 0) allocator.free(self.norms);
 
         for (self.nodes) |node| {
             for (node.layers) |list| {
@@ -1076,6 +1122,7 @@ pub const HnswIndex = struct {
             .state_pool = null, // Not persisted, can be added via enableSearchPool
             .distance_cache = null, // Not persisted, can be added via enableDistanceCache
             .gpu_accelerator = null, // Not persisted, can be added via enableGpuAcceleration
+            .norms = &.{}, // Norms not persisted; computeNodeDistance falls back to full cosine
             .allocator = allocator,
         };
         errdefer allocator.free(self.nodes);

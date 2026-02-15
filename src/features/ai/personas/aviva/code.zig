@@ -134,7 +134,7 @@ pub const CodeGenerator = struct {
             first = false;
 
             // Trim trailing whitespace
-            const trimmed = std.mem.trimRight(u8, line, " \t\r");
+            const trimmed = std.mem.trimEnd(u8, line, " \t\r");
 
             // Apply line length limit if needed
             if (options.max_line_length > 0 and trimmed.len > options.max_line_length) {

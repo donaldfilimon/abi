@@ -157,7 +157,17 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Lint ─────────────────────────────────────────────────────────────
-    const lint_fmt = b.addFmt(.{ .paths = &.{"."}, .check = true });
+    const lint_fmt = b.addFmt(.{
+        .paths = &.{
+            "build.zig",
+            "build",
+            "src",
+            "tools",
+            "examples",
+            "benchmarks",
+        },
+        .check = true,
+    });
     b.step("lint", "Check code formatting").dependOn(&lint_fmt.step);
 
     // ── Tests ────────────────────────────────────────────────────────────
@@ -184,6 +194,25 @@ pub fn build(b: *std.Build) void {
         run_tests.skip_foreign_checks = true;
         test_step = b.step("test", "Run unit tests");
         test_step.?.dependOn(&run_tests.step);
+    }
+
+    // ── vNext compatibility tests ──────────────────────────────────────
+    var vnext_compat_step: ?*std.Build.Step = null;
+    if (targets.pathExists(b, "src/services/tests/vnext_compat_test.zig")) {
+        const vnext_compat = b.addTest(.{
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/services/tests/vnext_compat_test.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            }),
+        });
+        vnext_compat.root_module.addImport("abi", abi_module);
+        vnext_compat.root_module.addImport("build_options", build_opts);
+        const run_vnext_compat = b.addRunArtifact(vnext_compat);
+        run_vnext_compat.skip_foreign_checks = true;
+        vnext_compat_step = b.step("vnext-compat", "Run vnext compatibility tests");
+        vnext_compat_step.?.dependOn(&run_vnext_compat.step);
     }
 
     // ── Feature tests ────────────────────────────────────────────────────
@@ -213,6 +242,24 @@ pub fn build(b: *std.Build) void {
     const import_check_step = b.step("check-imports", "Verify no @import(\"abi\") in feature modules");
     import_check_step.dependOn(&import_check.step);
 
+    // ── Consistency checks ───────────────────────────────────────────────
+    const check_versions = b.addSystemCommand(&.{ "bash", "scripts/check_zig_version_consistency.sh" });
+    const check_baselines = b.addSystemCommand(&.{ "bash", "scripts/check_test_baseline_consistency.sh" });
+    const check_patterns = b.addSystemCommand(&.{ "bash", "scripts/check_zig_016_patterns.sh" });
+    const check_features = b.addSystemCommand(&.{ "bash", "scripts/check_feature_catalog_consistency.sh" });
+    const check_ralph = b.addSystemCommand(&.{ "bash", "scripts/check_ralph_gate.sh" });
+    const consistency_step = b.step(
+        "check-consistency",
+        "Verify Zig version/baseline consistency and Zig 0.16 conformance patterns",
+    );
+    consistency_step.dependOn(&check_versions.step);
+    consistency_step.dependOn(&check_baselines.step);
+    consistency_step.dependOn(&check_patterns.step);
+    consistency_step.dependOn(&check_features.step);
+
+    const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
+    ralph_gate_step.dependOn(&check_ralph.step);
+
     // ── Full check ───────────────────────────────────────────────────────
     const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and flag validation");
     full_check_step.dependOn(&lint_fmt.step);
@@ -220,6 +267,8 @@ pub fn build(b: *std.Build) void {
     full_check_step.dependOn(cli_tests_step);
     full_check_step.dependOn(validate_flags_step);
     full_check_step.dependOn(&import_check.step);
+    full_check_step.dependOn(consistency_step);
+    if (vnext_compat_step) |step| full_check_step.dependOn(step);
     if (feature_tests_step) |fts| full_check_step.dependOn(fts);
 
     // ── Benchmarks ───────────────────────────────────────────────────────
@@ -327,11 +376,11 @@ pub fn build(b: *std.Build) void {
     const check_wasm_step = wasm.addWasmBuild(b, options, abi_module, optimize);
 
     // ── Verify-all ───────────────────────────────────────────────────────
-    const version_script_run = b.addSystemCommand(&.{ "sh", "scripts/check_zig_version_consistency.sh" });
-    const verify_all_step = b.step("verify-all", "full-check + version script + examples + bench-all + check-wasm");
+    const verify_all_step = b.step("verify-all", "full-check + consistency checks + examples + bench-all + check-wasm + ralph-gate");
     verify_all_step.dependOn(full_check_step);
-    verify_all_step.dependOn(&version_script_run.step);
+    verify_all_step.dependOn(consistency_step);
     verify_all_step.dependOn(examples_step);
     verify_all_step.dependOn(bench_all_step);
+    verify_all_step.dependOn(ralph_gate_step);
     if (check_wasm_step) |s| verify_all_step.dependOn(s);
 }

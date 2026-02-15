@@ -296,7 +296,7 @@ fn handleSlashCommand(
         std.debug.print("  Positive feedback:   {d}\n", .{report.positive_feedback_count});
         std.debug.print("  Negative feedback:   {d}\n", .{report.negative_feedback_count});
         std.debug.print("  Tool usage count:    {d}\n", .{report.tool_usage_count});
-        std.debug.print("  Trend:               {s}\n\n", .{@tagName(report.trend)});
+        std.debug.print("  Trend:               {t}\n\n", .{report.trend});
         return;
     }
 

@@ -74,13 +74,14 @@ test "TaskGroup initialization" {
     var group = TaskGroup.init(std.testing.allocator, .{});
     defer group.deinit();
 
-    try std.testing.expect(!group.hasError());
+    const stats = group.getStats();
+    try std.testing.expectEqual(@as(usize, 0), stats.failed);
 }
 
 test "CancellationSource basic" {
     var source = CancellationSource.init(std.testing.allocator);
     defer source.deinit();
 
-    const token = source.token();
+    const token = source.getToken();
     try std.testing.expect(!token.isCancelled());
 }

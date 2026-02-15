@@ -282,7 +282,7 @@ test "checkpoint save/load roundtrip" {
 
     // Save checkpoint
     saveCheckpoint(allocator, test_path, ckpt) catch |err| {
-        std.debug.print("saveCheckpoint failed: {t}\n", .{err});
+        std.log.warn("saveCheckpoint failed: {t}", .{err});
         return err;
     };
 
@@ -296,7 +296,7 @@ test "checkpoint save/load roundtrip" {
 
     // Load checkpoint
     var loaded = loadCheckpoint(allocator, test_path) catch |err| {
-        std.debug.print("loadCheckpoint failed: {t}\n", .{err});
+        std.log.warn("loadCheckpoint failed: {t}", .{err});
         return err;
     };
     defer loaded.deinit(allocator);

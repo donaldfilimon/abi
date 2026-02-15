@@ -184,7 +184,7 @@ pub const Client = struct {
         var request = try self.makeRequest(.patch, "/users/@me");
         defer request.deinit();
 
-        var body = std.ArrayListUnmanaged(u8){};
+        var body = std.ArrayListUnmanaged(u8).empty;
         defer body.deinit(self.allocator);
 
         try body.appendSlice(self.allocator, "{");
@@ -718,7 +718,7 @@ pub const Client = struct {
         var request = try self.makeRequest(.post, endpoint);
         defer request.deinit();
 
-        var body = std.ArrayListUnmanaged(u8){};
+        var body = std.ArrayListUnmanaged(u8).empty;
         defer body.deinit(self.allocator);
 
         try body.print(self.allocator, "{{\"type\":{d}", .{@intFromEnum(response_type)});
@@ -993,7 +993,7 @@ pub const Client = struct {
         redirect_uri: []const u8,
         state: ?[]const u8,
     ) ![]u8 {
-        var scope_str = std.ArrayListUnmanaged(u8){};
+        var scope_str = std.ArrayListUnmanaged(u8).empty;
         defer scope_str.deinit(self.allocator);
 
         for (scopes, 0..) |scope, i| {
@@ -1003,7 +1003,7 @@ pub const Client = struct {
 
         const client_id = self.config.client_id orelse return DiscordError.MissingClientId;
 
-        var url = std.ArrayListUnmanaged(u8){};
+        var url = std.ArrayListUnmanaged(u8).empty;
         errdefer url.deinit(self.allocator);
 
         try url.print(

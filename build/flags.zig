@@ -2,13 +2,41 @@ const std = @import("std");
 const options_mod = @import("options.zig");
 const gpu_mod = @import("gpu.zig");
 const modules = @import("modules.zig");
+const feature_catalog = @import("../src/core/feature_catalog.zig");
 const BuildOptions = options_mod.BuildOptions;
+
+const internal_allowed_flags = [_][]const u8{
+    "enable_explore",
+    "enable_vision",
+};
+
+fn isCatalogFlag(comptime field_name: []const u8) bool {
+    @setEvalBranchQuota(4096);
+    inline for (feature_catalog.all) |entry| {
+        if (std.mem.eql(u8, field_name, entry.compile_flag_field)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn isAllowedInternalFlag(comptime field_name: []const u8) bool {
+    inline for (internal_allowed_flags) |flag| {
+        if (std.mem.eql(u8, field_name, flag)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 /// Compact flag combination for validation. Sub-feature flags (explore, llm,
 /// vision, training, reasoning) inherit from enable_ai.
 pub const FlagCombo = struct {
     name: []const u8,
     enable_ai: bool = false,
+    enable_llm: bool = false,
+    enable_training: bool = false,
+    enable_reasoning: bool = false,
     enable_gpu: bool = false,
     enable_web: bool = false,
     enable_database: bool = false,
@@ -21,10 +49,30 @@ pub const FlagCombo = struct {
     enable_cache: bool = false,
     enable_storage: bool = false,
     enable_search: bool = false,
+    enable_mobile: bool = false,
     enable_gateway: bool = false,
     enable_pages: bool = false,
     enable_benchmarks: bool = false,
 };
+
+comptime {
+    for (feature_catalog.all) |entry| {
+        if (!@hasField(FlagCombo, entry.compile_flag_field)) {
+            @compileError("FlagCombo missing compile flag field from feature catalog: " ++ entry.compile_flag_field);
+        }
+    }
+
+    for (std.meta.fields(FlagCombo)) |field| {
+        if (std.mem.eql(u8, field.name, "name")) continue;
+        if (!std.mem.startsWith(u8, field.name, "enable_")) {
+            @compileError("FlagCombo contains non-flag field: " ++ field.name);
+        }
+
+        if (!isCatalogFlag(field.name) and !isAllowedInternalFlag(field.name)) {
+            @compileError("FlagCombo defines unknown feature flag: " ++ field.name);
+        }
+    }
+}
 
 /// Critical flag combinations that must compile. Covers: all on, all off,
 /// each feature solo, and each feature disabled with the rest enabled.
@@ -73,7 +121,7 @@ pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
         .enable_ai = combo.enable_ai,
         .enable_gpu = combo.enable_gpu,
         .enable_explore = combo.enable_ai,
-        .enable_llm = combo.enable_ai,
+        .enable_llm = combo.enable_ai or combo.enable_llm,
         .enable_vision = combo.enable_ai,
         .enable_web = combo.enable_web,
         .enable_database = combo.enable_database,
@@ -81,8 +129,8 @@ pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
         .enable_profiling = combo.enable_profiling,
         .enable_analytics = combo.enable_analytics,
         .enable_cloud = combo.enable_cloud,
-        .enable_training = combo.enable_ai,
-        .enable_reasoning = combo.enable_ai,
+        .enable_training = combo.enable_ai or combo.enable_training,
+        .enable_reasoning = combo.enable_ai or combo.enable_reasoning,
         .enable_auth = combo.enable_auth,
         .enable_messaging = combo.enable_messaging,
         .enable_cache = combo.enable_cache,
@@ -91,7 +139,7 @@ pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
         .enable_gateway = combo.enable_gateway,
         .enable_pages = combo.enable_pages,
         .enable_benchmarks = combo.enable_benchmarks,
-        .enable_mobile = false,
+        .enable_mobile = combo.enable_mobile,
         .gpu_backends = if (combo.enable_gpu) &.{.vulkan} else &.{},
     };
 }
@@ -122,6 +170,22 @@ pub fn addFlagValidation(
             .linkage = .static,
         });
         validate_step.dependOn(&check.step);
+
+        // Compile deep symbol access under each flag combo to catch mod/stub
+        // surface drift that plain `@import("abi")` compile checks would miss.
+        const surface_mod = b.createModule(.{
+            .root_source_file = b.path("build/validate/stub_surface_check.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        surface_mod.addImport("abi", abi_mod);
+        surface_mod.addImport("build_options", build_opts_mod);
+        const surface_check = b.addLibrary(.{
+            .name = "validate-surface-" ++ combo.name,
+            .root_module = surface_mod,
+            .linkage = .static,
+        });
+        validate_step.dependOn(&surface_check.step);
     }
 
     return validate_step;

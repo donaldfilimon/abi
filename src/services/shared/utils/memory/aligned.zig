@@ -71,26 +71,33 @@ pub const AlignedAllocator = struct {
             .vtable = &.{
                 .alloc = alloc,
                 .resize = resize,
+                .remap = remap,
                 .free = free,
             },
         };
     }
 
-    fn alloc(ctx: *anyopaque, len: usize, ptr_align: u8, ret_addr: usize) ?[*]u8 {
+    fn alloc(ctx: *anyopaque, len: usize, ptr_align: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
-        const final_align = @max(ptr_align, @intFromEnum(self.alignment));
+        const final_align = ptr_align.max(self.alignment.toMemAlignment());
         return self.backing.rawAlloc(len, final_align, ret_addr);
     }
 
-    fn resize(ctx: *anyopaque, memory: []u8, ptr_align: u8, new_len: usize, ret_addr: usize) bool {
+    fn resize(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
         const self: *Self = @ptrCast(@alignCast(ctx));
-        const final_align = @max(ptr_align, @intFromEnum(self.alignment));
+        const final_align = ptr_align.max(self.alignment.toMemAlignment());
         return self.backing.rawResize(memory, final_align, new_len, ret_addr);
     }
 
-    fn free(ctx: *anyopaque, memory: []u8, ptr_align: u8, ret_addr: usize) void {
+    fn remap(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
         const self: *Self = @ptrCast(@alignCast(ctx));
-        const final_align = @max(ptr_align, @intFromEnum(self.alignment));
+        const final_align = ptr_align.max(self.alignment.toMemAlignment());
+        return self.backing.rawRemap(memory, final_align, new_len, ret_addr);
+    }
+
+    fn free(ctx: *anyopaque, memory: []u8, ptr_align: std.mem.Alignment, ret_addr: usize) void {
+        const self: *Self = @ptrCast(@alignCast(ctx));
+        const final_align = ptr_align.max(self.alignment.toMemAlignment());
         self.backing.rawFree(memory, final_align, ret_addr);
     }
 };
