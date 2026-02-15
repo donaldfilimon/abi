@@ -33,6 +33,7 @@ zvm use master
 which zig
 zig version
 cat .zigversion
+zig build toolchain-doctor
 bash scripts/toolchain_doctor.sh
 # Expected zig version: 0.16.0-dev.2611+f996d2866
 # Expected active binary: ~/.zvm/bin/zig
