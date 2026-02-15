@@ -165,7 +165,7 @@ fn runGenerate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var stream: bool = false;
     var allow_ollama_fallback: bool = true;
     var ollama_model: ?[]const u8 = null;
-    var stop_sequences = std.ArrayListUnmanaged([]const u8){};
+    var stop_sequences = std.ArrayListUnmanaged([]const u8).empty;
     defer stop_sequences.deinit(allocator);
     // Advanced sampling options (llama.cpp parity)
     var tfs_z: f32 = 1.0; // tail-free sampling (1.0 = disabled)
@@ -551,7 +551,7 @@ fn runChat(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var reader = stdin_file.reader(io, &read_buffer);
 
     // Conversation history (simplified - could be improved with proper context management)
-    var conversation = std.ArrayListUnmanaged(u8){};
+    var conversation = std.ArrayListUnmanaged(u8).empty;
     defer conversation.deinit(allocator);
 
     const system_prompt: []const u8 = "You are a helpful assistant.";

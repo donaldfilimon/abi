@@ -1,7 +1,8 @@
 //! Automatic API Documentation Generator
 //!
-//! Generates comprehensive markdown documentation from Zig doc comments.
-//! Supports module-level (`//!`) and item-level (`///`) documentation.
+//! Auto-discovers modules from `src/abi.zig` and generates markdown API
+//! documentation from Zig doc comments. No hardcoded module list needed —
+//! adding a new feature to `abi.zig` automatically generates its docs.
 //!
 //! ## Usage
 //! ```bash
@@ -9,17 +10,21 @@
 //! ```
 //!
 //! ## Output
-//! - `docs/api/index.md` - API index with all modules
-//! - `docs/api/<module>.md` - Individual module documentation
+//! - `docs/api/index.md` — Categorized module index
+//! - `docs/api/<module>.md` — Per-module API reference
 
 const std = @import("std");
 
-/// Module definition for documentation generation
+// =============================================================================
+// Types
+// =============================================================================
+
 const Module = struct {
-    path: []const u8,
     name: []const u8,
+    path: []const u8,
+    doc_comment: []const u8,
     category: Category,
-    description: []const u8,
+    build_flag: []const u8,
 
     const Category = enum {
         core,
@@ -40,48 +45,19 @@ const Module = struct {
             .utilities => "Utilities",
         };
     }
+
+    fn categoryOrder(self: Module) u8 {
+        return switch (self.category) {
+            .core => 0,
+            .compute => 1,
+            .ai => 2,
+            .data => 3,
+            .infrastructure => 4,
+            .utilities => 5,
+        };
+    }
 };
 
-/// All modules to document
-const modules = [_]Module{
-    // Core Framework
-    .{ .path = "src/abi.zig", .name = "abi", .category = .core, .description = "Main framework entry point and public API" },
-    .{ .path = "src/core/config/mod.zig", .name = "config", .category = .core, .description = "Unified configuration system with builder pattern" },
-    .{ .path = "src/core/framework.zig", .name = "framework", .category = .core, .description = "Framework orchestration and lifecycle management" },
-
-    // Compute & Runtime
-    .{ .path = "src/services/runtime/mod.zig", .name = "runtime", .category = .compute, .description = "Runtime infrastructure (engine, scheduling, memory)" },
-    .{ .path = "src/services/runtime/engine/mod.zig", .name = "runtime-engine", .category = .compute, .description = "Work-stealing task execution engine" },
-    .{ .path = "src/services/runtime/scheduling/mod.zig", .name = "runtime-scheduling", .category = .compute, .description = "Futures, cancellation, and task groups" },
-    .{ .path = "src/services/runtime/memory/mod.zig", .name = "runtime-memory", .category = .compute, .description = "Memory pools and custom allocators" },
-    .{ .path = "src/services/runtime/concurrency/mod.zig", .name = "runtime-concurrency", .category = .compute, .description = "Lock-free concurrent primitives" },
-
-    // GPU
-    .{ .path = "src/features/gpu/mod.zig", .name = "gpu", .category = .compute, .description = "GPU acceleration framework (Vulkan, CUDA, Metal, WebGPU)" },
-
-    // AI & Machine Learning
-    .{ .path = "src/features/ai/mod.zig", .name = "ai", .category = .ai, .description = "AI module with agents, LLM, embeddings, and training" },
-    .{ .path = "src/features/ai/agents/mod.zig", .name = "ai-agents", .category = .ai, .description = "Agent runtime and orchestration" },
-    .{ .path = "src/features/ai/embeddings/mod.zig", .name = "ai-embeddings", .category = .ai, .description = "Vector embeddings generation" },
-    .{ .path = "src/features/ai/llm/mod.zig", .name = "ai-llm", .category = .ai, .description = "Local LLM inference" },
-    .{ .path = "src/features/ai/training/mod.zig", .name = "ai-training", .category = .ai, .description = "Training pipelines and fine-tuning" },
-    .{ .path = "src/services/connectors/mod.zig", .name = "connectors", .category = .ai, .description = "API connectors (OpenAI, Ollama, Anthropic, HuggingFace)" },
-
-    // Data & Storage
-    .{ .path = "src/features/database/mod.zig", .name = "database", .category = .data, .description = "Vector database (WDBX with HNSW/IVF-PQ)" },
-
-    // Infrastructure
-    .{ .path = "src/features/network/mod.zig", .name = "network", .category = .infrastructure, .description = "Distributed compute and Raft consensus" },
-    .{ .path = "src/services/ha/mod.zig", .name = "ha", .category = .infrastructure, .description = "High availability (backup, PITR, replication)" },
-    .{ .path = "src/features/observability/mod.zig", .name = "observability", .category = .infrastructure, .description = "Metrics, tracing, and monitoring" },
-    .{ .path = "src/core/registry/mod.zig", .name = "registry", .category = .infrastructure, .description = "Plugin registry (comptime, runtime, dynamic)" },
-    .{ .path = "src/features/web/mod.zig", .name = "web", .category = .infrastructure, .description = "Web utilities and HTTP support" },
-
-    // Utilities
-    .{ .path = "src/services/shared/security/mod.zig", .name = "security", .category = .utilities, .description = "TLS, mTLS, API keys, and RBAC" },
-};
-
-/// Documentation item (function, type, constant)
 const DocItem = struct {
     signature: []const u8,
     doc: []const u8,
@@ -95,6 +71,194 @@ const DocItem = struct {
     };
 };
 
+// =============================================================================
+// Module Auto-Discovery
+// =============================================================================
+
+fn discoverModules(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) ![]Module {
+    const source = try cwd.readFileAlloc(io, "src/abi.zig", allocator, .limited(2 * 1024 * 1024));
+    defer allocator.free(source);
+
+    var modules = std.ArrayListUnmanaged(Module).empty;
+    errdefer modules.deinit(allocator);
+
+    var lines = std.mem.splitScalar(u8, source, '\n');
+    var prev_doc: []const u8 = "";
+
+    while (lines.next()) |raw_line| {
+        const line = std.mem.trim(u8, raw_line, " \r\t");
+
+        // Track doc comments (/// lines before pub const)
+        if (std.mem.startsWith(u8, line, "///")) {
+            prev_doc = if (line.len > 4) line[4..] else "";
+            continue;
+        }
+
+        // Pattern 1: pub const X = if (build_options.enable_Y) @import(...)
+        if (std.mem.startsWith(u8, line, "pub const ")) {
+            const after_const = line["pub const ".len..];
+
+            // Extract name
+            const eq_pos = std.mem.indexOf(u8, after_const, " = ") orelse {
+                prev_doc = "";
+                continue;
+            };
+            const name = after_const[0..eq_pos];
+            const rhs = after_const[eq_pos + 3 ..];
+
+            // Comptime-gated: if (build_options.enable_X)
+            if (std.mem.startsWith(u8, rhs, "if (build_options.enable_")) {
+                // Extract the build flag
+                const flag_start = "if (build_options.".len;
+                const flag_end = std.mem.indexOfScalar(u8, rhs[flag_start..], ')') orelse {
+                    prev_doc = "";
+                    continue;
+                };
+                const build_flag = rhs[flag_start .. flag_start + flag_end];
+
+                // Extract path from @import
+                const import_start = std.mem.indexOf(u8, rhs, "@import(\"") orelse {
+                    prev_doc = "";
+                    continue;
+                };
+                const path_start = import_start + "@import(\"".len;
+                const path_end = std.mem.indexOfScalar(u8, rhs[path_start..], '"') orelse {
+                    prev_doc = "";
+                    continue;
+                };
+                const rel_path = rhs[path_start .. path_start + path_end];
+
+                // Build full path
+                const full_path = std.fmt.allocPrint(allocator, "src/{s}", .{rel_path}) catch {
+                    prev_doc = "";
+                    continue;
+                };
+
+                const category = categorizeByPath(rel_path, name);
+
+                try modules.append(allocator, .{
+                    .name = try allocator.dupe(u8, name),
+                    .path = full_path,
+                    .doc_comment = try allocator.dupe(u8, prev_doc),
+                    .category = category,
+                    .build_flag = try allocator.dupe(u8, build_flag),
+                });
+            }
+            // Pattern 2: pub const X = @import("services/...") — always-on
+            else if (std.mem.startsWith(u8, rhs, "@import(\"")) {
+                const path_start = "@import(\"".len;
+                const path_end = std.mem.indexOfScalar(u8, rhs[path_start..], '"') orelse {
+                    prev_doc = "";
+                    continue;
+                };
+                const rel_path = rhs[path_start .. path_start + path_end];
+
+                // Skip non-module imports (build_options, builtin, std)
+                if (std.mem.eql(u8, rel_path, "build_options") or
+                    std.mem.eql(u8, rel_path, "builtin") or
+                    std.mem.eql(u8, rel_path, "std"))
+                {
+                    prev_doc = "";
+                    continue;
+                }
+
+                const full_path = std.fmt.allocPrint(allocator, "src/{s}", .{rel_path}) catch {
+                    prev_doc = "";
+                    continue;
+                };
+
+                const category = categorizeByPath(rel_path, name);
+
+                try modules.append(allocator, .{
+                    .name = try allocator.dupe(u8, name),
+                    .path = full_path,
+                    .doc_comment = try allocator.dupe(u8, prev_doc),
+                    .category = category,
+                    .build_flag = try allocator.dupe(u8, "always-on"),
+                });
+            }
+
+            prev_doc = "";
+        } else if (line.len > 0 and !std.mem.startsWith(u8, line, "//")) {
+            prev_doc = "";
+        }
+    }
+
+    return try modules.toOwnedSlice(allocator);
+}
+
+fn categorizeByPath(path: []const u8, name: []const u8) Module.Category {
+    // AI modules
+    if (std.mem.startsWith(u8, path, "features/ai") or
+        std.mem.eql(u8, name, "inference") or
+        std.mem.eql(u8, name, "training") or
+        std.mem.eql(u8, name, "reasoning"))
+    {
+        return .ai;
+    }
+
+    // Compute
+    if (std.mem.startsWith(u8, path, "features/gpu") or
+        std.mem.eql(u8, name, "runtime") or
+        std.mem.eql(u8, name, "simd") or
+        std.mem.eql(u8, name, "benchmarks"))
+    {
+        return .compute;
+    }
+
+    // Data
+    if (std.mem.eql(u8, name, "database") or
+        std.mem.eql(u8, name, "cache") or
+        std.mem.eql(u8, name, "storage") or
+        std.mem.eql(u8, name, "search"))
+    {
+        return .data;
+    }
+
+    // Core
+    if (std.mem.startsWith(u8, path, "core/") or
+        std.mem.eql(u8, name, "config") or
+        std.mem.eql(u8, name, "framework") or
+        std.mem.eql(u8, name, "errors") or
+        std.mem.eql(u8, name, "registry"))
+    {
+        return .core;
+    }
+
+    // Infrastructure
+    if (std.mem.eql(u8, name, "network") or
+        std.mem.eql(u8, name, "web") or
+        std.mem.eql(u8, name, "cloud") or
+        std.mem.eql(u8, name, "gateway") or
+        std.mem.eql(u8, name, "pages") or
+        std.mem.eql(u8, name, "messaging") or
+        std.mem.eql(u8, name, "observability") or
+        std.mem.eql(u8, name, "ha") or
+        std.mem.eql(u8, name, "mcp") or
+        std.mem.eql(u8, name, "acp") or
+        std.mem.eql(u8, name, "mobile"))
+    {
+        return .infrastructure;
+    }
+
+    // Utilities
+    if (std.mem.eql(u8, name, "shared") or
+        std.mem.eql(u8, name, "platform") or
+        std.mem.eql(u8, name, "tasks") or
+        std.mem.eql(u8, name, "connectors") or
+        std.mem.eql(u8, name, "auth") or
+        std.mem.eql(u8, name, "analytics"))
+    {
+        return .utilities;
+    }
+
+    return .utilities;
+}
+
+// =============================================================================
+// Main
+// =============================================================================
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
@@ -105,7 +269,7 @@ pub fn main() !void {
     const io = io_backend.io();
     const cwd = std.Io.Dir.cwd();
 
-    // Ensure docs/api directory exists for index
+    // Ensure output directory exists
     cwd.createDirPath(io, "docs/api") catch |err| {
         if (err != error.PathAlreadyExists) {
             std.debug.print("Warning: Could not create docs/api directory: {}\n", .{err});
@@ -114,31 +278,47 @@ pub fn main() !void {
 
     std.debug.print("=== ABI Auto Documentation Generator ===\n\n", .{});
 
-    var successful_modules = std.ArrayListUnmanaged(Module){};
-    defer successful_modules.deinit(allocator);
+    // Auto-discover modules
+    const modules = try discoverModules(allocator, io, cwd);
+    defer {
+        for (modules) |mod| {
+            allocator.free(mod.name);
+            allocator.free(mod.path);
+            allocator.free(mod.doc_comment);
+            allocator.free(mod.build_flag);
+        }
+        allocator.free(modules);
+    }
 
+    std.debug.print("  Discovered {d} modules from src/abi.zig\n\n", .{modules.len});
+
+    var successful = std.ArrayListUnmanaged(Module).empty;
+    defer successful.deinit(allocator);
     var failed_count: usize = 0;
 
-    // Generate documentation for each module
     for (modules) |mod| {
         generateModuleDoc(allocator, io, cwd, mod) catch |err| {
             std.debug.print("  [SKIP] {s}: {}\n", .{ mod.name, err });
             failed_count += 1;
             continue;
         };
-        successful_modules.append(allocator, mod) catch {};
+        successful.append(allocator, mod) catch {};
     }
 
     // Generate index
-    generateIndex(allocator, io, cwd, successful_modules.items) catch |err| {
+    generateIndex(allocator, io, cwd, successful.items) catch |err| {
         std.debug.print("Failed to generate index: {}\n", .{err});
     };
 
     std.debug.print("\n=== Documentation Generation Complete ===\n", .{});
-    std.debug.print("  Generated: {d} modules\n", .{successful_modules.items.len});
+    std.debug.print("  Generated: {d} modules\n", .{successful.items.len});
     std.debug.print("  Skipped:   {d} modules\n", .{failed_count});
     std.debug.print("  Output:    docs/api/\n", .{});
 }
+
+// =============================================================================
+// Doc Generation
+// =============================================================================
 
 fn generateModuleDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, mod: Module) !void {
     const source = cwd.readFileAlloc(io, mod.path, allocator, .limited(2 * 1024 * 1024)) catch |err| {
@@ -154,43 +334,38 @@ fn generateModuleDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, 
     };
     defer file.close(io);
 
-    // Write header
-    try print(allocator, io, file,
-        \\# {s} API Reference
-        \\
-        \\> {s}
-        \\
-        \\**Source:** [`{s}`](../../{s})
-        \\
-        \\---
-        \\
-        \\
-    , .{ mod.name, mod.description, mod.path, mod.path });
+    // Header
+    try print(allocator, io, file, "# {s}\n\n", .{mod.name});
 
-    // Parse and write module-level docs
-    var lines = std.mem.splitScalar(u8, source, '\n');
-    var doc_buffer = std.ArrayListUnmanaged(u8){};
-    defer doc_buffer.deinit(allocator);
-
-    var items = std.ArrayListUnmanaged(DocItem){};
-    defer {
-        for (items.items) |item| {
-            allocator.free(item.signature);
-            allocator.free(item.doc);
-        }
-        items.deinit(allocator);
+    if (mod.doc_comment.len > 0) {
+        try print(allocator, io, file, "> {s}\n\n", .{mod.doc_comment});
     }
+
+    try print(allocator, io, file, "**Source:** [`{s}`](../../{s})\n\n", .{ mod.path, mod.path });
+
+    if (!std.mem.eql(u8, mod.build_flag, "always-on")) {
+        try print(allocator, io, file, "**Build flag:** `-D{s}=true`\n\n", .{mod.build_flag});
+    } else {
+        try file.writeStreamingAll(io, "**Availability:** Always enabled\n\n");
+    }
+
+    try file.writeStreamingAll(io, "---\n\n");
+
+    // Parse source for doc items
+    var lines = std.mem.splitScalar(u8, source, '\n');
+    var doc_buffer = std.ArrayListUnmanaged(u8).empty;
+    defer doc_buffer.deinit(allocator);
 
     var in_module_docs = true;
     var module_doc_written = false;
 
-    while (lines.next()) |line| {
-        const trimmed = std.mem.trim(u8, line, " \r\t");
+    while (lines.next()) |raw_line| {
+        const line = std.mem.trim(u8, raw_line, " \r\t");
 
         // Module-level doc comments (//!)
-        if (std.mem.startsWith(u8, trimmed, "//!")) {
+        if (std.mem.startsWith(u8, line, "//!")) {
             if (in_module_docs) {
-                const content = if (trimmed.len > 3) trimmed[3..] else "";
+                const content = if (line.len > 3) line[3..] else "";
                 const trimmed_content = std.mem.trimStart(u8, content, " ");
                 try print(allocator, io, file, "{s}\n", .{trimmed_content});
                 module_doc_written = true;
@@ -199,14 +374,14 @@ fn generateModuleDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, 
         }
 
         // End of module docs section
-        if (in_module_docs and module_doc_written and trimmed.len > 0 and !std.mem.startsWith(u8, trimmed, "//")) {
+        if (in_module_docs and module_doc_written and line.len > 0 and !std.mem.startsWith(u8, line, "//")) {
             in_module_docs = false;
             try file.writeStreamingAll(io, "\n---\n\n## API\n\n");
         }
 
         // Item-level doc comments (///)
-        if (std.mem.startsWith(u8, trimmed, "///")) {
-            const content = if (trimmed.len > 3) trimmed[3..] else "";
+        if (std.mem.startsWith(u8, line, "///")) {
+            const content = if (line.len > 3) line[3..] else "";
             const trimmed_content = std.mem.trimStart(u8, content, " ");
             try doc_buffer.appendSlice(allocator, trimmed_content);
             try doc_buffer.append(allocator, '\n');
@@ -214,12 +389,11 @@ fn generateModuleDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, 
         }
 
         // Public declarations
-        if (std.mem.startsWith(u8, trimmed, "pub ")) {
+        if (std.mem.startsWith(u8, line, "pub ")) {
             if (doc_buffer.items.len > 0) {
-                const sig = extractDeclSignature(trimmed);
-                const item_type = detectItemType(trimmed);
+                const sig = extractDeclSignature(line);
+                const item_type = detectItemType(line);
 
-                // Write the item directly
                 const type_badge = switch (item_type) {
                     .function => "fn",
                     .constant => "const",
@@ -233,19 +407,18 @@ fn generateModuleDoc(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, 
 
                 doc_buffer.clearRetainingCapacity();
             }
-        } else if (trimmed.len > 0 and !std.mem.startsWith(u8, trimmed, "//")) {
-            // Non-doc, non-pub line - clear buffer
+        } else if (line.len > 0 and !std.mem.startsWith(u8, line, "//")) {
             doc_buffer.clearRetainingCapacity();
         }
     }
 
-    // Write footer
-    try print(allocator, io, file,
+    // Footer
+    try file.writeStreamingAll(io,
         \\---
         \\
         \\*Generated automatically by `zig build gendocs`*
         \\
-    , .{});
+    );
 
     std.debug.print("  [OK] {s} -> {s}\n", .{ mod.name, out_name });
 }
@@ -256,23 +429,27 @@ fn generateIndex(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, gene
     };
     defer file.close(io);
 
-    try print(allocator, io, file,
+    try file.writeStreamingAll(io,
         \\# ABI Framework API Reference
         \\
-        \\> Comprehensive API documentation auto-generated from source code
+        \\> Comprehensive API documentation auto-generated from source code.
         \\
         \\---
         \\
         \\## Quick Links
         \\
-        \\| Module | Description |
-        \\|--------|-------------|
+        \\| Module | Category | Description |
+        \\|--------|----------|-------------|
         \\
-    , .{});
+    );
 
-    // Quick links table
     for (generated_modules) |mod| {
-        try print(allocator, io, file, "| [{s}](../api/{s}.md) | {s} |\n", .{ mod.name, mod.name, mod.description });
+        try print(allocator, io, file, "| [{s}]({s}.md) | {s} | {s} |\n", .{
+            mod.name,
+            mod.name,
+            mod.categoryName(),
+            if (mod.doc_comment.len > 0) mod.doc_comment else "—",
+        });
     }
 
     try file.writeStreamingAll(io, "\n---\n\n");
@@ -285,36 +462,35 @@ fn generateIndex(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir, gene
         for (generated_modules) |mod| {
             if (mod.category == cat) {
                 if (!has_items) {
-                    const cat_name = mod.categoryName();
-                    try print(allocator, io, file, "## {s}\n\n", .{cat_name});
+                    try print(allocator, io, file, "## {s}\n\n", .{mod.categoryName()});
                     has_items = true;
                 }
-                try print(allocator, io, file, "### [{s}](../api/{s}.md)\n\n", .{ mod.name, mod.name });
-                try print(allocator, io, file, "{s}\n\n", .{mod.description});
-                try print(allocator, io, file, "**Source:** [`{s}`](../../{s})\n\n", .{ mod.path, mod.path });
+                try print(allocator, io, file, "### [{s}]({s}.md)\n\n", .{ mod.name, mod.name });
+                if (mod.doc_comment.len > 0) {
+                    try print(allocator, io, file, "{s}\n\n", .{mod.doc_comment});
+                }
+                try print(allocator, io, file, "**Source:** [`{s}`](../../{s})", .{ mod.path, mod.path });
+                if (!std.mem.eql(u8, mod.build_flag, "always-on")) {
+                    try print(allocator, io, file, " | **Flag:** `-D{s}`", .{mod.build_flag});
+                }
+                try file.writeStreamingAll(io, "\n\n");
             }
         }
     }
 
-    // Footer
-    try print(allocator, io, file,
-        \\---
-        \\
-        \\## Additional Resources
-        \\
-        \\- [Getting Started Guide](../tutorials/getting-started.md)
-        \\- [Architecture Overview](../architecture/overview.md)
-        \\- [Feature Flags](../feature-flags.md)
-        \\- [Troubleshooting](../troubleshooting.md)
-        \\
+    try file.writeStreamingAll(io,
         \\---
         \\
         \\*Generated automatically by `zig build gendocs`*
         \\
-    , .{});
+    );
 
     std.debug.print("  [OK] API index -> docs/api/index.md\n", .{});
 }
+
+// =============================================================================
+// Helpers
+// =============================================================================
 
 fn print(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File, comptime fmt: []const u8, args: anytype) !void {
     const s = try std.fmt.allocPrint(allocator, fmt, args);
@@ -323,7 +499,6 @@ fn print(allocator: std.mem.Allocator, io: std.Io, file: std.Io.File, comptime f
 }
 
 fn extractDeclSignature(line: []const u8) []const u8 {
-    // Extract signature up to opening brace, semicolon, or equals
     var end = line.len;
     var depth: usize = 0;
 
@@ -349,7 +524,6 @@ fn extractDeclSignature(line: []const u8) []const u8 {
 fn detectItemType(line: []const u8) DocItem.ItemType {
     if (std.mem.indexOf(u8, line, "pub fn ")) |_| return .function;
     if (std.mem.indexOf(u8, line, "pub const ")) |_| {
-        // Check if it's a type definition
         if (std.mem.indexOf(u8, line, "= struct") != null or
             std.mem.indexOf(u8, line, "= enum") != null or
             std.mem.indexOf(u8, line, "= union") != null or

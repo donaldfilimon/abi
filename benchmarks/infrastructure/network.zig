@@ -80,7 +80,7 @@ fn parseHttpRequest(allocator: std.mem.Allocator, raw: []const u8) !HttpRequest 
 }
 
 fn generateHttpRequest(allocator: std.mem.Allocator, path_segments: usize, header_count: usize, body_size: usize) ![]u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     // Request line
@@ -183,7 +183,7 @@ fn parseUrl(url: []const u8) ParsedUrl {
 }
 
 fn urlEncode(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    var result = std.ArrayListUnmanaged(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     for (input) |c| {
@@ -200,7 +200,7 @@ fn urlEncode(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
 }
 
 fn urlDecode(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    var result = std.ArrayListUnmanaged(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     var i: usize = 0;
@@ -246,7 +246,7 @@ fn benchUrlEncoding(allocator: std.mem.Allocator, input: []const u8) !void {
 // ============================================================================
 
 fn generateJsonObject(allocator: std.mem.Allocator, depth: usize, width: usize) ![]u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     try writeJsonObject(allocator, &buffer, depth, width, 0);
@@ -374,7 +374,7 @@ fn parseHeaders(allocator: std.mem.Allocator, raw: []const u8) !ParsedHeaders {
 }
 
 fn generateHeaders(allocator: std.mem.Allocator, count: usize) ![]u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     // Common headers
@@ -415,7 +415,7 @@ const WebSocketFrame = struct {
 };
 
 fn encodeWebSocketFrame(allocator: std.mem.Allocator, frame: WebSocketFrame) ![]u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     // First byte: FIN + opcode

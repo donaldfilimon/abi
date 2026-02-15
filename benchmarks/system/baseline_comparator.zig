@@ -266,7 +266,7 @@ pub const RegressionReport = struct {
 
     /// Format the report as JSON
     pub fn toJson(self: RegressionReport, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         try buf.appendSlice(allocator, "{\n");
@@ -364,7 +364,7 @@ pub const RegressionReport = struct {
 
     /// Format the report as Markdown
     pub fn toMarkdown(self: RegressionReport, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         // Header
@@ -496,7 +496,7 @@ pub fn compareAllWithConfig(
     allocator: std.mem.Allocator,
     config: ComparisonConfig,
 ) !RegressionReport {
-    var results = std.ArrayListUnmanaged(ComparisonResult){};
+    var results = std.ArrayListUnmanaged(ComparisonResult).empty;
     errdefer {
         for (results.items) |*r| r.deinit(allocator);
         results.deinit(allocator);

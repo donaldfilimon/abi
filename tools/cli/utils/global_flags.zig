@@ -170,7 +170,7 @@ pub fn parseGlobalFlagsWithOptions(
     };
     errdefer flags.feature_overrides.deinit(allocator);
 
-    var remaining = std.ArrayListUnmanaged([:0]const u8){};
+    var remaining = std.ArrayListUnmanaged([:0]const u8).empty;
     defer remaining.deinit(allocator);
 
     var i: usize = 0;

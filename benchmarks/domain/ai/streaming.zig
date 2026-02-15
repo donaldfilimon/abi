@@ -407,13 +407,13 @@ fn benchmarkTokenGeneration(
     min_delay_ns: u64,
     max_delay_ns: u64,
 ) !StreamingBenchResult {
-    var ttft_samples = std.ArrayListUnmanaged(u64){};
+    var ttft_samples = std.ArrayListUnmanaged(u64).empty;
     defer ttft_samples.deinit(allocator);
 
-    var itl_samples = std.ArrayListUnmanaged(u64){};
+    var itl_samples = std.ArrayListUnmanaged(u64).empty;
     defer itl_samples.deinit(allocator);
 
-    var throughput_samples = std.ArrayListUnmanaged(f64){};
+    var throughput_samples = std.ArrayListUnmanaged(f64).empty;
     defer throughput_samples.deinit(allocator);
 
     var total_time: u64 = 0;
@@ -515,7 +515,7 @@ fn benchmarkSseEncoding(allocator: std.mem.Allocator, token_count: usize, iterat
     var total_raw_bytes: usize = 0;
     var total_encoded_bytes: usize = 0;
 
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     defer buffer.deinit(allocator);
 
     for (0..iterations) |_| {
@@ -571,7 +571,7 @@ fn benchmarkWsFraming(allocator: std.mem.Allocator, message_count: usize, iterat
     var total_raw_bytes: usize = 0;
     var total_framed_bytes: usize = 0;
 
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     defer buffer.deinit(allocator);
 
     for (0..iterations) |_| {

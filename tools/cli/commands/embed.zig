@@ -292,7 +292,7 @@ fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []cons
     defer file.close(io);
 
     // Build output in memory then write at once
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     defer output.deinit(allocator);
 
     switch (format) {

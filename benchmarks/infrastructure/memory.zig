@@ -73,7 +73,7 @@ fn benchMixedPattern(allocator: std.mem.Allocator, size: usize, count: usize) !v
     var prng = std.Random.DefaultPrng.init(12345);
     const rand = prng.random();
 
-    var live_allocations = std.ArrayListUnmanaged([]u8){};
+    var live_allocations = std.ArrayListUnmanaged([]u8).empty;
     defer live_allocations.deinit(allocator);
 
     var operations: usize = 0;
@@ -273,7 +273,7 @@ fn benchFragmentationResistance(allocator: std.mem.Allocator, iterations: usize)
     var prng = std.Random.DefaultPrng.init(1337);
     const rand = prng.random();
 
-    var live = std.ArrayListUnmanaged([]u8){};
+    var live = std.ArrayListUnmanaged([]u8).empty;
     defer {
         for (live.items) |item| {
             allocator.free(item);

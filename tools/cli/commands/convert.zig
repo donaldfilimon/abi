@@ -305,7 +305,7 @@ fn runEmbeddings(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
         if (parsed.value == .object) {
             if (parsed.value.object.get("embedding")) |emb_val| {
                 if (emb_val == .array) {
-                    var list = std.ArrayListUnmanaged(f32){};
+                    var list = std.ArrayListUnmanaged(f32).empty;
                     for (emb_val.array.items) |item| {
                         if (item == .float) {
                             list.append(allocator, @floatCast(item.float)) catch continue;
@@ -319,7 +319,7 @@ fn runEmbeddings(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
                 }
             }
         } else if (parsed.value == .array) {
-            var list = std.ArrayListUnmanaged(f32){};
+            var list = std.ArrayListUnmanaged(f32).empty;
             for (parsed.value.array.items) |item| {
                 if (item == .float) {
                     list.append(allocator, @floatCast(item.float)) catch continue;
@@ -358,7 +358,7 @@ fn runEmbeddings(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
     }
 
     // Write output in requested format
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     defer output.deinit(allocator);
 
     if (std.mem.eql(u8, format.?, "json")) {

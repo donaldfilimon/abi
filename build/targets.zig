@@ -42,6 +42,11 @@ pub const example_targets = [_]BuildTarget{
     .{ .name = "example-analytics", .step_name = "run-analytics", .description = "Run analytics example", .source_path = "examples/analytics.zig" },
     .{ .name = "example-cloud", .step_name = "run-cloud", .description = "Run cloud example", .source_path = "examples/cloud.zig" },
     .{ .name = "example-web", .step_name = "run-web", .description = "Run web example", .source_path = "examples/web.zig" },
+    .{ .name = "example-ai-core", .step_name = "run-ai-core", .description = "Run AI core example", .source_path = "examples/ai_core.zig" },
+    .{ .name = "example-ai-inference", .step_name = "run-ai-inference", .description = "Run AI inference example", .source_path = "examples/ai_inference.zig" },
+    .{ .name = "example-ai-training", .step_name = "run-ai-training", .description = "Run AI training example", .source_path = "examples/ai_training.zig" },
+    .{ .name = "example-ai-reasoning", .step_name = "run-ai-reasoning", .description = "Run AI reasoning example", .source_path = "examples/ai_reasoning.zig" },
+    .{ .name = "example-mobile", .step_name = "run-mobile", .description = "Run mobile example", .source_path = "examples/mobile.zig" },
 };
 
 pub const benchmark_targets = [_]BuildTarget{
