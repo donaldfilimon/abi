@@ -213,6 +213,18 @@ pub fn build(b: *std.Build) void {
     const import_check_step = b.step("check-imports", "Verify no @import(\"abi\") in feature modules");
     import_check_step.dependOn(&import_check.step);
 
+    // ── Consistency checks ───────────────────────────────────────────────
+    const check_versions = b.addSystemCommand(&.{ "bash", "scripts/check_zig_version_consistency.sh" });
+    const check_baselines = b.addSystemCommand(&.{ "bash", "scripts/check_test_baseline_consistency.sh" });
+    const check_patterns = b.addSystemCommand(&.{ "bash", "scripts/check_zig_016_patterns.sh" });
+    const consistency_step = b.step(
+        "check-consistency",
+        "Verify Zig version/baseline consistency and Zig 0.16 conformance patterns",
+    );
+    consistency_step.dependOn(&check_versions.step);
+    consistency_step.dependOn(&check_baselines.step);
+    consistency_step.dependOn(&check_patterns.step);
+
     // ── Full check ───────────────────────────────────────────────────────
     const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and flag validation");
     full_check_step.dependOn(&lint_fmt.step);
@@ -220,6 +232,7 @@ pub fn build(b: *std.Build) void {
     full_check_step.dependOn(cli_tests_step);
     full_check_step.dependOn(validate_flags_step);
     full_check_step.dependOn(&import_check.step);
+    full_check_step.dependOn(consistency_step);
     if (feature_tests_step) |fts| full_check_step.dependOn(fts);
 
     // ── Benchmarks ───────────────────────────────────────────────────────
@@ -327,10 +340,9 @@ pub fn build(b: *std.Build) void {
     const check_wasm_step = wasm.addWasmBuild(b, options, abi_module, optimize);
 
     // ── Verify-all ───────────────────────────────────────────────────────
-    const version_script_run = b.addSystemCommand(&.{ "sh", "scripts/check_zig_version_consistency.sh" });
-    const verify_all_step = b.step("verify-all", "full-check + version script + examples + bench-all + check-wasm");
+    const verify_all_step = b.step("verify-all", "full-check + consistency checks + examples + bench-all + check-wasm");
     verify_all_step.dependOn(full_check_step);
-    verify_all_step.dependOn(&version_script_run.step);
+    verify_all_step.dependOn(consistency_step);
     verify_all_step.dependOn(examples_step);
     verify_all_step.dependOn(bench_all_step);
     if (check_wasm_step) |s| verify_all_step.dependOn(s);

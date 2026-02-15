@@ -8,6 +8,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const feature_catalog = @import("../feature_catalog.zig");
 
 // Domain-specific config imports
 pub const gpu_config = @import("gpu.zig");
@@ -98,76 +99,23 @@ pub const Feature = enum {
     /// Number of features in the enum
     pub const feature_count = @typeInfo(Feature).@"enum".fields.len;
 
-    /// Comptime-generated description lookup table for O(1) access.
-    const DESCRIPTIONS: [feature_count][]const u8 = blk: {
-        var descs: [feature_count][]const u8 = undefined;
-        descs[@intFromEnum(Feature.gpu)] = "GPU acceleration and compute";
-        descs[@intFromEnum(Feature.ai)] = "AI core functionality";
-        descs[@intFromEnum(Feature.llm)] = "Local LLM inference";
-        descs[@intFromEnum(Feature.embeddings)] = "Vector embeddings generation";
-        descs[@intFromEnum(Feature.agents)] = "AI agent runtime";
-        descs[@intFromEnum(Feature.training)] = "Model training pipelines";
-        descs[@intFromEnum(Feature.database)] = "Vector database (WDBX)";
-        descs[@intFromEnum(Feature.network)] = "Distributed compute network";
-        descs[@intFromEnum(Feature.observability)] = "Metrics, tracing, profiling";
-        descs[@intFromEnum(Feature.web)] = "Web/HTTP utilities";
-        descs[@intFromEnum(Feature.personas)] = "Multi-persona AI assistant";
-        descs[@intFromEnum(Feature.cloud)] = "Cloud provider integration";
-        descs[@intFromEnum(Feature.analytics)] = "Analytics event tracking";
-        descs[@intFromEnum(Feature.auth)] = "Authentication and security";
-        descs[@intFromEnum(Feature.messaging)] = "Event bus and messaging";
-        descs[@intFromEnum(Feature.cache)] = "In-memory caching";
-        descs[@intFromEnum(Feature.storage)] = "Unified file/object storage";
-        descs[@intFromEnum(Feature.search)] = "Full-text search";
-        descs[@intFromEnum(Feature.mobile)] = "Mobile platform support";
-        descs[@intFromEnum(Feature.gateway)] = "API gateway (routing, rate limiting, circuit breaker)";
-        descs[@intFromEnum(Feature.pages)] = "Dashboard/UI pages with URL routing";
-        descs[@intFromEnum(Feature.benchmarks)] = "Performance benchmarking and timing";
-        descs[@intFromEnum(Feature.reasoning)] = "AI reasoning (Abbey, eval, RAG)";
-        break :blk descs;
-    };
-
-    /// Comptime-generated compile-time enabled flags lookup table.
-    const COMPILE_TIME_ENABLED: [feature_count]bool = blk: {
-        var enabled: [feature_count]bool = undefined;
-        enabled[@intFromEnum(Feature.gpu)] = build_options.enable_gpu;
-        enabled[@intFromEnum(Feature.ai)] = build_options.enable_ai;
-        enabled[@intFromEnum(Feature.llm)] = build_options.enable_ai;
-        enabled[@intFromEnum(Feature.embeddings)] = build_options.enable_ai;
-        enabled[@intFromEnum(Feature.agents)] = build_options.enable_ai;
-        enabled[@intFromEnum(Feature.training)] = build_options.enable_training;
-        enabled[@intFromEnum(Feature.personas)] = build_options.enable_ai;
-        enabled[@intFromEnum(Feature.database)] = build_options.enable_database;
-        enabled[@intFromEnum(Feature.network)] = build_options.enable_network;
-        enabled[@intFromEnum(Feature.observability)] = build_options.enable_profiling;
-        enabled[@intFromEnum(Feature.web)] = build_options.enable_web;
-        enabled[@intFromEnum(Feature.cloud)] = build_options.enable_cloud;
-        enabled[@intFromEnum(Feature.analytics)] = build_options.enable_analytics;
-        enabled[@intFromEnum(Feature.auth)] = build_options.enable_auth;
-        enabled[@intFromEnum(Feature.messaging)] = build_options.enable_messaging;
-        enabled[@intFromEnum(Feature.cache)] = build_options.enable_cache;
-        enabled[@intFromEnum(Feature.storage)] = build_options.enable_storage;
-        enabled[@intFromEnum(Feature.search)] = build_options.enable_search;
-        enabled[@intFromEnum(Feature.mobile)] = build_options.enable_mobile;
-        enabled[@intFromEnum(Feature.gateway)] = build_options.enable_gateway;
-        enabled[@intFromEnum(Feature.pages)] = build_options.enable_pages;
-        enabled[@intFromEnum(Feature.benchmarks)] = build_options.enable_benchmarks;
-        enabled[@intFromEnum(Feature.reasoning)] = build_options.enable_reasoning;
-        break :blk enabled;
-    };
-
     pub fn name(self: Feature) []const u8 {
         return @tagName(self);
     }
 
-    /// Get feature description using O(1) comptime lookup table.
+    /// Get feature description from the canonical feature catalog.
     pub fn description(self: Feature) []const u8 {
-        return DESCRIPTIONS[@intFromEnum(self)];
+        return feature_catalog.descriptionFromEnum(self);
     }
 
-    /// Check if feature is compile-time enabled using O(1) comptime lookup table.
+    /// Check if feature is compile-time enabled via catalog flag mapping.
     pub fn isCompileTimeEnabled(self: Feature) bool {
-        return COMPILE_TIME_ENABLED[@intFromEnum(self)];
+        inline for (feature_catalog.all) |entry| {
+            if (self == comptime feature_catalog.toEnum(Feature, entry.feature)) {
+                return @field(build_options, entry.compile_flag_field);
+            }
+        }
+        return false;
     }
 };
 

@@ -2,6 +2,7 @@ const std = @import("std");
 const options_mod = @import("options.zig");
 const gpu_mod = @import("gpu.zig");
 const modules = @import("modules.zig");
+const feature_catalog = @import("../src/core/feature_catalog.zig");
 const BuildOptions = options_mod.BuildOptions;
 
 /// Compact flag combination for validation. Sub-feature flags (explore, llm,
@@ -9,6 +10,9 @@ const BuildOptions = options_mod.BuildOptions;
 pub const FlagCombo = struct {
     name: []const u8,
     enable_ai: bool = false,
+    enable_llm: bool = false,
+    enable_training: bool = false,
+    enable_reasoning: bool = false,
     enable_gpu: bool = false,
     enable_web: bool = false,
     enable_database: bool = false,
@@ -21,10 +25,19 @@ pub const FlagCombo = struct {
     enable_cache: bool = false,
     enable_storage: bool = false,
     enable_search: bool = false,
+    enable_mobile: bool = false,
     enable_gateway: bool = false,
     enable_pages: bool = false,
     enable_benchmarks: bool = false,
 };
+
+comptime {
+    for (feature_catalog.all) |entry| {
+        if (!@hasField(FlagCombo, entry.compile_flag_field)) {
+            @compileError("FlagCombo missing compile flag field from feature catalog: " ++ entry.compile_flag_field);
+        }
+    }
+}
 
 /// Critical flag combinations that must compile. Covers: all on, all off,
 /// each feature solo, and each feature disabled with the rest enabled.
@@ -73,7 +86,7 @@ pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
         .enable_ai = combo.enable_ai,
         .enable_gpu = combo.enable_gpu,
         .enable_explore = combo.enable_ai,
-        .enable_llm = combo.enable_ai,
+        .enable_llm = combo.enable_ai or combo.enable_llm,
         .enable_vision = combo.enable_ai,
         .enable_web = combo.enable_web,
         .enable_database = combo.enable_database,
@@ -81,8 +94,8 @@ pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
         .enable_profiling = combo.enable_profiling,
         .enable_analytics = combo.enable_analytics,
         .enable_cloud = combo.enable_cloud,
-        .enable_training = combo.enable_ai,
-        .enable_reasoning = combo.enable_ai,
+        .enable_training = combo.enable_ai or combo.enable_training,
+        .enable_reasoning = combo.enable_ai or combo.enable_reasoning,
         .enable_auth = combo.enable_auth,
         .enable_messaging = combo.enable_messaging,
         .enable_cache = combo.enable_cache,
@@ -91,7 +104,7 @@ pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
         .enable_gateway = combo.enable_gateway,
         .enable_pages = combo.enable_pages,
         .enable_benchmarks = combo.enable_benchmarks,
-        .enable_mobile = false,
+        .enable_mobile = combo.enable_mobile,
         .gpu_backends = if (combo.enable_gpu) &.{.vulkan} else &.{},
     };
 }

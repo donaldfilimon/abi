@@ -1,5 +1,6 @@
 const std = @import("std");
 const gpu = @import("gpu.zig");
+const feature_catalog = @import("../src/core/feature_catalog.zig");
 const GpuBackend = gpu.GpuBackend;
 
 pub const BuildOptions = struct {
@@ -73,6 +74,14 @@ pub const BuildOptions = struct {
         return self.hasGpuBackend(.tpu);
     }
 };
+
+comptime {
+    for (feature_catalog.all) |entry| {
+        if (!@hasField(BuildOptions, entry.compile_flag_field)) {
+            @compileError("BuildOptions missing compile flag field from feature catalog: " ++ entry.compile_flag_field);
+        }
+    }
+}
 
 pub fn readBuildOptions(b: *std.Build) BuildOptions {
     const enable_gpu = b.option(bool, "enable-gpu", "Enable GPU support") orelse true;

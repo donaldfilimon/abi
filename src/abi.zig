@@ -59,6 +59,7 @@ comptime {
 pub const config = @import("core/config/mod.zig");
 pub const Config = config.Config;
 pub const Feature = config.Feature;
+pub const feature_catalog = @import("core/feature_catalog.zig");
 
 /// Framework orchestration with builder pattern.
 pub const framework = @import("core/framework.zig");
@@ -68,6 +69,9 @@ pub const FrameworkBuilder = framework.FrameworkBuilder;
 /// Composable error hierarchy for framework operations.
 pub const errors = @import("core/errors.zig");
 pub const FrameworkError = errors.FrameworkError;
+
+/// vNext forward API surface (staged compatibility release).
+pub const vnext = @import("vnext/mod.zig");
 
 /// Plugin registry for feature management.
 pub const registry = @import("core/registry/mod.zig");
@@ -248,13 +252,25 @@ pub const GpuBackend = gpu.Backend;
 // ============================================================================
 
 /// Initialize the ABI framework with the given configuration.
+/// Deprecated migration path: Prefer `abi.vnext.App.init(...)` for new code.
 pub fn init(allocator: std.mem.Allocator, cfg: Config) !Framework {
     return Framework.init(allocator, cfg);
 }
 
 /// Initialize the ABI framework with default configuration.
+/// Deprecated migration path: Prefer `abi.vnext.App.initDefault(...)` for new code.
 pub fn initDefault(allocator: std.mem.Allocator) !Framework {
     return Framework.initDefault(allocator);
+}
+
+/// Initialize a vNext app with staged-compatibility config.
+pub fn initApp(allocator: std.mem.Allocator, cfg: vnext.AppConfig) !vnext.App {
+    return vnext.App.init(allocator, cfg);
+}
+
+/// Initialize a vNext app with default config.
+pub fn initAppDefault(allocator: std.mem.Allocator) !vnext.App {
+    return vnext.App.initDefault(allocator);
 }
 
 /// Get the ABI framework version string.

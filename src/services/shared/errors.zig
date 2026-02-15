@@ -84,11 +84,13 @@ pub const AuthError = error{
 // ============================================================================
 
 test "error sets are distinct" {
-    // Verify error sets don't overlap (would cause compile error if they did)
+    // Verify error sets compose and variants are distinct
     const Combined = ResourceError || IoError || FeatureError;
-    _ = @as(Combined, error.OutOfMemory);
-    _ = @as(Combined, error.ConnectionRefused);
-    _ = @as(Combined, error.FeatureDisabled);
+    const e1: Combined = error.OutOfMemory;
+    const e2: Combined = error.ConnectionRefused;
+    const e3: Combined = error.FeatureDisabled;
+    try std.testing.expect(e1 != e2);
+    try std.testing.expect(e2 != e3);
 }
 
 test "errors can be matched" {
@@ -109,7 +111,7 @@ test "config errors cover common cases" {
         error.ParseError,
     };
     for (test_errors) |err| {
-        _ = err;
+        try std.testing.expect(@intFromError(err) != 0);
     }
     try std.testing.expectEqual(@as(usize, 4), test_errors.len);
 }

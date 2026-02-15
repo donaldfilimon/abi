@@ -68,6 +68,8 @@ test {
     _ = @import("stub_parity.zig");
     // Comptime API parity tests (catches drift at compile time)
     _ = @import("parity/mod.zig");
+    // vNext staged-compatibility API tests
+    _ = @import("vnext_compat_test.zig");
 
     // End-to-end integration tests (issue #397)
     if (build_options.enable_ai) {
@@ -242,6 +244,9 @@ pub const e2e = @import("e2e/mod.zig");
 
 // Comptime API parity verification (stub/real module consistency)
 pub const parity = @import("parity/mod.zig");
+
+// vNext staged-compatibility tests
+pub const vnext_compat_test = @import("vnext_compat_test.zig");
 
 // AI math correctness tests (Phase 5B)
 pub const ai_eval_test = if (build_options.enable_ai) @import("ai_eval_test.zig") else struct {};

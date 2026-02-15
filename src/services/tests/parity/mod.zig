@@ -25,6 +25,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
+const parity_specs = @import("specs/mod.zig");
 
 /// Verifies that a module has all expected public declarations.
 /// Fails compilation if any expected declaration is missing.
@@ -218,44 +219,7 @@ pub fn countBidirectionalViolations(comptime Module: type, comptime expected: []
 // Both real and stub implementations must export these declarations.
 
 /// GPU module required declarations
-const gpu_required = [_][]const u8{
-    // Core types
-    "Context",
-    "Gpu",
-    "GpuConfig",
-    "GpuError",
-    "Backend",
-
-    // Buffer types
-    "Buffer",
-    "UnifiedBuffer",
-    "BufferOptions",
-    "BufferFlags",
-
-    // Device types
-    "Device",
-    "DeviceType",
-
-    // Stream types
-    "Stream",
-    "StreamOptions",
-    "Event",
-    "EventOptions",
-
-    // Execution types
-    "ExecutionResult",
-    "LaunchConfig",
-    "HealthStatus",
-
-    // DSL types
-    "KernelBuilder",
-
-    // Module functions
-    "init",
-    "deinit",
-    "isEnabled",
-    "isInitialized",
-};
+const gpu_required = parity_specs.gpu.required;
 
 /// AI module required declarations
 const ai_required = [_][]const u8{

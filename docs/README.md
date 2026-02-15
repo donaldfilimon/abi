@@ -10,6 +10,7 @@ This directory is the source for the ABI documentation site and project docs.
 |----------|-------------|
 | [README.md](README.md) | This file — doc build and layout |
 | [api-reference.md](api-reference.md) | API overview and entry points |
+| [content/migration-vnext.html](content/migration-vnext.html) | Legacy-to-vNext API migration guide |
 | [deployment.md](deployment.md) | Deployment and production notes |
 | [roadmap.md](roadmap.md) | Product and technical roadmap |
 | [plan.md](plan.md) | Planning and design notes |

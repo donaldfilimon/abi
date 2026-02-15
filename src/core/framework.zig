@@ -76,6 +76,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const config_module = @import("config/mod.zig");
 const registry_mod = @import("registry/mod.zig");
+const framework_state = @import("framework/state.zig");
 
 pub const Config = config_module.Config;
 pub const Feature = config_module.Feature;
@@ -208,14 +209,7 @@ pub const Framework = struct {
     runtime: *runtime_mod.Context,
 
     /// Framework lifecycle states.
-    pub const State = enum {
-        uninitialized,
-        initializing,
-        running,
-        stopping,
-        stopped,
-        failed,
-    };
+    pub const State = framework_state.State;
 
     /// Composable framework error set.
     /// See `core/errors.zig` for the full hierarchy.
