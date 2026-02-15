@@ -227,7 +227,7 @@ pub const BatchCosineSimilarityKernel = struct {
                                 (@as(u16, quantized_query[offset + 1]) << 8);
                             break :blk @as(f32, @floatFromInt(fp16_val));
                         },
-                        .fp32 => @as(f32, @bitCast(std.mem.readIntLittle(u32, quantized_query[i * 4 ..][0..4]))),
+                        .fp32 => @as(f32, @bitCast(std.mem.readInt(u32, quantized_query[i * 4 ..][0..4], .little))),
                         else => 0.0,
                     };
                 }
@@ -259,7 +259,7 @@ pub const BatchCosineSimilarityKernel = struct {
                                     (@as(u16, quantized_vectors[offset + 1]) << 8);
                                 break :blk @as(f32, @floatFromInt(fp16_val));
                             },
-                            .fp32 => @as(f32, @bitCast(std.mem.readIntLittle(u32, quantized_vectors[vec_offset + i * 4 ..][0..4]))),
+                            .fp32 => @as(f32, @bitCast(std.mem.readInt(u32, quantized_vectors[vec_offset + i * 4 ..][0..4], .little))),
                             else => 0.0,
                         };
                     }

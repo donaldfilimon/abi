@@ -284,7 +284,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Security infrastructure | `src/services/shared/security/` (16 modules) |
 | C API bindings | `bindings/c/src/abi_c.zig` (36 exports) |
 | Generate API docs | `zig build gendocs` → `docs/api/` |
-| Examples | `examples/` (22 examples) |
+| Examples | `examples/` (28 examples) |
 | MCP service | `src/services/mcp/` (JSON-RPC 2.0 server for WDBX) |
 | ACP service | `src/services/acp/` (agent communication protocol) |
 

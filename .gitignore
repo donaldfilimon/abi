@@ -3,7 +3,9 @@ zig-cache/
 zig-out/
 exe/
 docs_html/
-build/
+# Zig build output (not build/ source directory with *.zig files)
+build/*
+!build/*.zig
 .zig-cache/
 .zig/
 

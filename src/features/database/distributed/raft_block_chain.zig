@@ -239,28 +239,26 @@ pub const DistributedBlockChain = struct {
     fn serializeBlockConfig(self: *Self, config: block_chain.BlockConfig) ![]const u8 {
         // Simplified serialization - would need proper serialization in real impl
         var buffer = std.ArrayListUnmanaged(u8).empty;
-        defer buffer.deinit(self.allocator);
-
-        const writer = buffer.writer(self.allocator);
+        errdefer buffer.deinit(self.allocator);
 
         // Write dimension
-        try writer.writeIntLittle(u32, @intCast(config.query_embedding.len));
+        try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @intCast(config.query_embedding.len))));
 
         // Write embedding data
         const embedding_bytes = std.mem.sliceAsBytes(config.query_embedding);
-        try writer.writeIntLittle(u32, @intCast(embedding_bytes.len));
-        try writer.writeAll(embedding_bytes);
+        try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @intCast(embedding_bytes.len))));
+        try buffer.appendSlice(self.allocator, embedding_bytes);
 
         // Write persona tag
-        try writer.writeIntLittle(u8, @intFromEnum(config.persona_tag.primary_persona));
-        try writer.writeIntLittle(u32, @bitCast(config.persona_tag.blend_coefficient));
+        try buffer.append(self.allocator, @intFromEnum(config.persona_tag.primary_persona));
+        try buffer.appendSlice(self.allocator, &std.mem.toBytes(@as(u32, @bitCast(config.persona_tag.blend_coefficient))));
 
         // Write intent
-        try writer.writeIntLittle(u8, @intFromEnum(config.intent));
+        try buffer.append(self.allocator, @intFromEnum(config.intent));
 
         // Write timestamp (from when config was created)
         const timestamp = time.unixSeconds();
-        try writer.writeIntLittle(i64, timestamp);
+        try buffer.appendSlice(self.allocator, &std.mem.toBytes(timestamp));
 
         return buffer.toOwnedSlice(self.allocator);
     }

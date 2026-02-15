@@ -664,7 +664,7 @@ fn dequantizeWeightForPrecision(
         .fp32 => blk: {
             if (idx * 4 + 3 >= weights.len) break :blk 0.0;
             const bytes = weights[idx * 4 ..][0..4];
-            const bits = std.mem.readIntLittle(u32, bytes);
+            const bits = std.mem.readInt(u32, bytes, .little);
             break :blk @bitCast(bits);
         },
         .fp16, .bf16 => blk: {
