@@ -114,7 +114,7 @@ pub const SessionManager = struct {
     /// Clean up old sessions (older than max_age_seconds)
     pub fn cleanup(self: *Self, max_age_seconds: i64) void {
         const now = core_types.getTimestampSec();
-        var to_remove = std.ArrayListUnmanaged([]const u8){};
+        var to_remove = std.ArrayListUnmanaged([]const u8).empty;
         defer to_remove.deinit(self.allocator);
 
         var it = self.sessions.iterator();
@@ -293,7 +293,7 @@ pub const AbbeyDiscordBot = struct {
 
     /// Format Abbey response for Discord
     fn formatResponse(self: *Self, response: *const engine.Response) ![]u8 {
-        var output = std.ArrayListUnmanaged(u8){};
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(self.allocator);
 
         // Add content

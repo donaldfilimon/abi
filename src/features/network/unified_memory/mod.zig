@@ -563,7 +563,7 @@ pub const UnifiedMemoryManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var list = std.ArrayListUnmanaged(NodeId){};
+        var list = std.ArrayListUnmanaged(NodeId).empty;
         errdefer list.deinit(allocator);
 
         var it = self.nodes.keyIterator();
@@ -579,7 +579,7 @@ pub const UnifiedMemoryManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var list = std.ArrayListUnmanaged(RegionId){};
+        var list = std.ArrayListUnmanaged(RegionId).empty;
         errdefer list.deinit(allocator);
 
         var it = self.local_regions.keyIterator();

@@ -522,7 +522,7 @@ pub const MetadataStore = struct {
 
     /// Get all matching document IDs.
     pub fn getMatchingIds(self: *MetadataStore, filter: FilterExpression) ![]u64 {
-        var ids = std.ArrayListUnmanaged(u64){};
+        var ids = std.ArrayListUnmanaged(u64).empty;
         errdefer ids.deinit(self.allocator);
 
         var iter = self.documents.iterator();
@@ -590,7 +590,7 @@ pub const FilteredSearch = struct {
         results: []const FilteredResult,
         filter: FilterExpression,
     ) ![]FilteredResult {
-        var filtered = std.ArrayListUnmanaged(FilteredResult){};
+        var filtered = std.ArrayListUnmanaged(FilteredResult).empty;
         errdefer filtered.deinit(self.allocator);
 
         for (results) |result| {
@@ -609,7 +609,7 @@ pub const FilteredSearch = struct {
         filter: FilterExpression,
         top_k: usize,
     ) ![]FilteredResult {
-        var results = std.ArrayListUnmanaged(FilteredResult){};
+        var results = std.ArrayListUnmanaged(FilteredResult).empty;
         errdefer results.deinit(self.allocator);
 
         // Filter and collect results

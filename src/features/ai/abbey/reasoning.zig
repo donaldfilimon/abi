@@ -218,7 +218,7 @@ pub const ReasoningChain = struct {
             try self.finalize();
         }
 
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(allocator);
 
         try result.appendSlice(allocator, "Reasoning Summary:\n");
@@ -245,7 +245,7 @@ pub const ReasoningChain = struct {
 
     /// Get reasoning as JSON-compatible structure
     pub fn toJson(self: *Self, allocator: std.mem.Allocator) ![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(allocator);
 
         try result.appendSlice(allocator, "{\"query\":\"");

@@ -273,6 +273,10 @@ pub fn signalSharedEvent(
 }
 
 /// Wait for a shared event value.
+///
+/// Requires Metal runtime with MTLSharedEvent support (macOS 10.14+).
+/// This is a platform-specific feature that cannot be implemented in
+/// pure Zig — requires Objective-C runtime calls to Metal framework.
 pub fn waitSharedEvent(
     device_id: DeviceId,
     event: *anyopaque,
@@ -283,10 +287,7 @@ pub fn waitSharedEvent(
     _ = value;
     _ = event;
     _ = device_id;
-
-    // In a real implementation:
-    // id<MTLCommandBuffer> cmdBuf = ...;
-    // [cmdBuf encodeWaitForEvent:event value:value];
+    return error.PlatformNotSupported;
 }
 
 /// Get device info.

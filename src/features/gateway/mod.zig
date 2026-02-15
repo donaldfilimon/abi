@@ -597,11 +597,24 @@ pub fn removeRoute(path: []const u8) GatewayError!bool {
     return false;
 }
 
+/// Module-level buffer for `getRoutes()` introspection results.
+/// Bounded to 256 routes — well above typical gateway configs.
+var route_view_buf: [256]Route = undefined;
+
 pub fn getRoutes() []const Route {
     const s = gw_state orelse return &.{};
-    // Return a view of the stored routes (not safe to hold long-term)
-    _ = s;
-    return &.{}; // Simplified — full impl would return route array
+    s.rw_lock.lockShared();
+    defer s.rw_lock.unlockShared();
+    const count = @min(s.routes.items.len, route_view_buf.len);
+    for (s.routes.items[0..count], 0..) |entry, i| {
+        route_view_buf[i] = entry.route;
+    }
+    return route_view_buf[0..count];
+}
+
+pub fn getRouteCount() usize {
+    const s = gw_state orelse return 0;
+    return s.routes.items.len;
 }
 
 /// Match an incoming request path and method against the radix tree.
@@ -1082,4 +1095,43 @@ test "gateway remove then match" {
 
     const after = try matchRoute("/api/temp", .GET);
     try std.testing.expect(after == null);
+}
+
+test "gateway resetCircuit on already closed is no-op" {
+    const allocator = std.testing.allocator;
+    try init(allocator, GatewayConfig.defaults());
+    defer deinit();
+
+    // resetCircuit on a circuit that was never opened — should not crash
+    resetCircuit("http://backend:80");
+
+    try addRoute(.{ .path = "/test", .method = .GET, .upstream = "http://backend:80" });
+    resetCircuit("http://backend:80");
+
+    // Route still works
+    const result = try matchRoute("/test", .GET);
+    try std.testing.expect(result != null);
+}
+
+test "gateway root path matches" {
+    const allocator = std.testing.allocator;
+    try init(allocator, GatewayConfig.defaults());
+    defer deinit();
+
+    try addRoute(.{ .path = "/", .method = .GET, .upstream = "http://root:80" });
+    const result = try matchRoute("/", .GET);
+    try std.testing.expect(result != null);
+}
+
+test "gateway getRoutes returns all routes" {
+    const allocator = std.testing.allocator;
+    try init(allocator, GatewayConfig.defaults());
+    defer deinit();
+
+    try addRoute(.{ .path = "/a", .method = .GET, .upstream = "http://a:80" });
+    try addRoute(.{ .path = "/b", .method = .POST, .upstream = "http://b:80" });
+    try addRoute(.{ .path = "/c", .method = .PUT, .upstream = "http://c:80" });
+
+    const routes = getRoutes();
+    try std.testing.expectEqual(@as(usize, 3), routes.len);
 }

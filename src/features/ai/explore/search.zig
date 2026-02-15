@@ -240,7 +240,7 @@ pub fn match(pattern: SearchPattern, text: []const u8) bool {
 }
 
 pub fn findAllLiteral(pattern: SearchPattern, text: []const u8, allocator: std.mem.Allocator) !std.ArrayListUnmanaged(MatchPosition) {
-    var matches = std.ArrayListUnmanaged(MatchPosition){};
+    var matches = std.ArrayListUnmanaged(MatchPosition).empty;
     var start: usize = 0;
 
     const search_text = if (pattern.case_sensitive) text else blk: {
@@ -267,7 +267,7 @@ pub fn findAllLiteral(pattern: SearchPattern, text: []const u8, allocator: std.m
 }
 
 pub fn splitIntoTokens(text: []const u8, allocator: std.mem.Allocator) !std.ArrayListUnmanaged([]const u8) {
-    var tokens = std.ArrayListUnmanaged([]const u8){};
+    var tokens = std.ArrayListUnmanaged([]const u8).empty;
     var start: usize = 0;
     var in_token = false;
 

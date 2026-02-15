@@ -647,7 +647,7 @@ pub const RaftNode = struct {
 
     /// Get list of peer IDs.
     pub fn getPeerIds(self: *const RaftNode) !std.ArrayListUnmanaged([]const u8) {
-        var list = std.ArrayListUnmanaged([]const u8){};
+        var list = std.ArrayListUnmanaged([]const u8).empty;
         errdefer list.deinit(self.allocator);
 
         var iter = self.peers.keyIterator();
@@ -820,7 +820,7 @@ pub const RaftNode = struct {
 
 /// Create a Raft cluster for testing/simulation.
 pub fn createCluster(allocator: std.mem.Allocator, node_ids: []const []const u8, config: RaftConfig) !std.ArrayListUnmanaged(*RaftNode) {
-    var nodes = std.ArrayListUnmanaged(*RaftNode){};
+    var nodes = std.ArrayListUnmanaged(*RaftNode).empty;
     errdefer {
         for (nodes.items) |node| {
             node.deinit();

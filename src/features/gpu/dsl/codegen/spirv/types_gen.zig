@@ -168,7 +168,7 @@ pub fn TypeGenMixin(comptime Self: type) type {
             if (self.type_ids.get(key)) |id| return id;
 
             const id = self.allocId();
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, id);
             try operands.append(self.allocator, return_type);

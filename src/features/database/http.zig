@@ -503,7 +503,7 @@ fn getQueryParam(query: []const u8, key: []const u8) ?[]const u8 {
 /// URL-decode a percent-encoded string.
 /// Caller owns the returned memory.
 fn urlDecode(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     errdefer output.deinit(allocator);
 
     var i: usize = 0;

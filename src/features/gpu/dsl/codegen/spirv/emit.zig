@@ -30,7 +30,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitExtInstImport(self: *Self, result_id: u32, name_str: []const u8) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, result_id);
             try self.appendString(&operands, name_str);
@@ -46,7 +46,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitEntryPoint(self: *Self, model: ExecutionModel, func_id: u32, name_str: []const u8, interface: []const u32) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, @intFromEnum(model));
             try operands.append(self.allocator, func_id);
@@ -60,7 +60,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitExecutionMode(self: *Self, func_id: u32, mode: ExecutionMode, params: []const u32) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, func_id);
             try operands.append(self.allocator, @intFromEnum(mode));
@@ -73,7 +73,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitName(self: *Self, section: *std.ArrayListUnmanaged(u32), id: u32, name_str: []const u8) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, id);
             try self.appendString(&operands, name_str);
@@ -85,7 +85,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitMemberName(self: *Self, section: *std.ArrayListUnmanaged(u32), type_id: u32, member: u32, name_str: []const u8) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, type_id);
             try operands.append(self.allocator, member);
@@ -98,7 +98,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitDecorate(self: *Self, section: *std.ArrayListUnmanaged(u32), target: u32, decoration: Decoration, params: []const u32) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, target);
             try operands.append(self.allocator, @intFromEnum(decoration));
@@ -111,7 +111,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitMemberDecorate(self: *Self, section: *std.ArrayListUnmanaged(u32), struct_type: u32, member: u32, decoration: Decoration, params: []const u32) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, struct_type);
             try operands.append(self.allocator, member);
@@ -125,7 +125,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitTypeStruct(self: *Self, section: *std.ArrayListUnmanaged(u32), result_id: u32, member_types: []const u32) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, result_id);
             try operands.appendSlice(self.allocator, member_types);
@@ -137,7 +137,7 @@ pub fn EmitMixin(comptime Self: type) type {
         }
 
         pub fn emitVariable(self: *Self, section: *std.ArrayListUnmanaged(u32), result_id: u32, type_id: u32, storage_class: StorageClass, initializer: ?u32) !void {
-            var operands = std.ArrayListUnmanaged(u32){};
+            var operands = std.ArrayListUnmanaged(u32).empty;
             defer operands.deinit(self.allocator);
             try operands.append(self.allocator, type_id);
             try operands.append(self.allocator, result_id);

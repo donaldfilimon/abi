@@ -480,7 +480,7 @@ pub const ProblemDecomposer = struct {
         decomposition: *const ProblemDecomposition,
     ) !ExecutionPlan {
         // Simplified execution planning
-        var stages = std.ArrayListUnmanaged(ExecutionPlan.ExecutionStage){};
+        var stages = std.ArrayListUnmanaged(ExecutionPlan.ExecutionStage).empty;
 
         switch (decomposition.problem_type) {
             .parallel => {

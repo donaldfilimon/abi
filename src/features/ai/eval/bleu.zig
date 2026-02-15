@@ -78,7 +78,7 @@ pub fn computeBleuMultiRef(
     const hyp_tokens = try tokenizer.tokenize(allocator, hypothesis);
     defer allocator.free(hyp_tokens);
 
-    var ref_tokens_list = std.ArrayListUnmanaged([]const []const u8){};
+    var ref_tokens_list = std.ArrayListUnmanaged([]const []const u8).empty;
     defer {
         for (ref_tokens_list.items) |tokens| {
             allocator.free(tokens);
@@ -208,7 +208,7 @@ fn getNgrams(
 
     for (0..tokens.len - n + 1) |i| {
         // Create n-gram key
-        var key_parts = std.ArrayListUnmanaged(u8){};
+        var key_parts = std.ArrayListUnmanaged(u8).empty;
         defer key_parts.deinit(allocator);
 
         for (0..n) |j| {

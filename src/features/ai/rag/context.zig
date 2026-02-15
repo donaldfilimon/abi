@@ -105,10 +105,10 @@ pub const ContextBuilder = struct {
         results: []const RetrievalResult,
         max_tokens: usize,
     ) !RagContext {
-        var context_parts = std.ArrayListUnmanaged(u8){};
+        var context_parts = std.ArrayListUnmanaged(u8).empty;
         defer context_parts.deinit(self.allocator);
 
-        var sources = std.ArrayListUnmanaged(RagContext.SourceRef){};
+        var sources = std.ArrayListUnmanaged(RagContext.SourceRef).empty;
         errdefer sources.deinit(self.allocator);
 
         var chunks_used: usize = 0;
@@ -178,7 +178,7 @@ pub const ContextBuilder = struct {
 
     /// Format a single chunk using the template.
     fn formatChunk(self: *ContextBuilder, result: RetrievalResult, index: usize) ![]u8 {
-        var output = std.ArrayListUnmanaged(u8){};
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(self.allocator);
 
         var i: usize = 0;
@@ -225,7 +225,7 @@ pub const ContextBuilder = struct {
 
     /// Format the final prompt with context and query.
     fn formatPrompt(self: *ContextBuilder, query: []const u8, context_text: []const u8) ![]u8 {
-        var output = std.ArrayListUnmanaged(u8){};
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(self.allocator);
 
         var i: usize = 0;
@@ -266,7 +266,7 @@ pub const ContextBuilder = struct {
         self: *ContextBuilder,
         results: []const RetrievalResult,
     ) ![]u8 {
-        var output = std.ArrayListUnmanaged(u8){};
+        var output = std.ArrayListUnmanaged(u8).empty;
         errdefer output.deinit(self.allocator);
 
         for (results, 0..) |result, i| {
@@ -286,7 +286,7 @@ pub fn createRagPrompt(
     query: []const u8,
     context_text: []const u8,
 ) ![]u8 {
-    var output = std.ArrayListUnmanaged(u8){};
+    var output = std.ArrayListUnmanaged(u8).empty;
     errdefer output.deinit(allocator);
 
     try output.appendSlice(allocator, "Context:\n");

@@ -416,7 +416,7 @@ pub const Abbey = struct {
     }
 
     fn generateResponse(self: *Self, query: []const u8) ![]u8 {
-        var response = std.ArrayListUnmanaged(u8){};
+        var response = std.ArrayListUnmanaged(u8).empty;
         errdefer response.deinit(self.allocator);
 
         try response.appendSlice(self.allocator, "[Abbey] Echo: ");

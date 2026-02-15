@@ -187,7 +187,7 @@ pub const SemanticMemory = struct {
 
     /// Search by embedding similarity
     pub fn search(self: *Self, query_embedding: []const f32, top_k: usize) ![]const KnowledgeMatch {
-        var matches = std.ArrayListUnmanaged(KnowledgeMatch){};
+        var matches = std.ArrayListUnmanaged(KnowledgeMatch).empty;
         errdefer matches.deinit(self.allocator);
 
         for (self.knowledge.items, 0..) |*k, idx| {
@@ -348,7 +348,7 @@ pub const EmbeddingIndex = struct {
     }
 
     pub fn search(self: *EmbeddingIndex, query: []const f32, top_k: usize) ![]const struct { id: u64, score: f32 } {
-        var results = std.ArrayListUnmanaged(struct { id: u64, score: f32 }){};
+        var results = std.ArrayListUnmanaged(struct { id: u64, score: f32 }).empty;
         errdefer results.deinit(self.allocator);
 
         for (self.entries.items) |entry| {

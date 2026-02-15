@@ -151,7 +151,7 @@ pub const TaskScheduler = struct {
     }
 
     pub fn selectNode(self: *TaskScheduler) !?ComputeNode {
-        var online_nodes = std.ArrayListUnmanaged(*ComputeNode){};
+        var online_nodes = std.ArrayListUnmanaged(*ComputeNode).empty;
         defer online_nodes.deinit(self.allocator);
 
         var iter = self.nodes.iterator();

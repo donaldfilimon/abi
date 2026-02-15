@@ -131,7 +131,7 @@ pub fn compileAll(
     const available = try gpu_backend.availableBackends(allocator);
     defer allocator.free(available);
 
-    var sources = std.ArrayListUnmanaged(backend_mod.GeneratedSource){};
+    var sources = std.ArrayListUnmanaged(backend_mod.GeneratedSource).empty;
     errdefer {
         for (sources.items) |*src| {
             src.deinit(allocator);

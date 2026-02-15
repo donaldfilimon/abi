@@ -36,7 +36,7 @@ pub const BatchImporter = struct {
     /// Import from JSON lines format (JSONL).
     /// Each line should be a JSON object with fields: id, vector, metadata (optional), text (optional)
     pub fn importJsonLines(self: *BatchImporter, data: []const u8) ![]BatchRecord {
-        var records = std.ArrayListUnmanaged(BatchRecord){};
+        var records = std.ArrayListUnmanaged(BatchRecord).empty;
         errdefer {
             for (records.items) |record| {
                 self.allocator.free(record.vector);
@@ -123,7 +123,7 @@ pub const BatchImporter = struct {
     /// Format: id,vector[...],metadata,text
     /// Vector is comma-separated floats in square brackets or space-separated
     pub fn importCsv(self: *BatchImporter, data: []const u8) ![]BatchRecord {
-        var records = std.ArrayListUnmanaged(BatchRecord){};
+        var records = std.ArrayListUnmanaged(BatchRecord).empty;
         errdefer {
             for (records.items) |record| {
                 self.allocator.free(record.vector);
@@ -159,7 +159,7 @@ pub const BatchImporter = struct {
             const vector_trimmed = std.mem.trim(u8, vector_str, &std.ascii.whitespace);
 
             // Parse vector
-            var vector_list = std.ArrayListUnmanaged(f32){};
+            var vector_list = std.ArrayListUnmanaged(f32).empty;
             defer vector_list.deinit(self.allocator);
 
             // Check if vector is in brackets [1.0,2.0,3.0] or just space/comma separated
@@ -318,7 +318,7 @@ pub const BatchImporter = struct {
     ///     ...
     /// }
     pub fn importZon(self: *BatchImporter, data: []const u8) ![]BatchRecord {
-        var records = std.ArrayListUnmanaged(BatchRecord){};
+        var records = std.ArrayListUnmanaged(BatchRecord).empty;
         errdefer {
             for (records.items) |record| {
                 self.allocator.free(record.vector);

@@ -705,3 +705,49 @@ test "messaging publish to non-existent topic auto-creates" {
     try std.testing.expectEqual(@as(u64, 1), info.messages_published);
     try std.testing.expectEqual(@as(u32, 0), info.subscriber_count);
 }
+
+test "messaging unsubscribe invalid ID is no-op" {
+    const allocator = std.testing.allocator;
+    try init(allocator, MessagingConfig.defaults());
+    defer deinit();
+
+    _ = try subscribe(allocator, "test/topic", struct {
+        fn cb(_: Message, _: ?*anyopaque) DeliveryResult {
+            return .ok;
+        }
+    }.cb, null);
+
+    // Unsubscribe with an ID that doesn't exist — should return false
+    const removed = try unsubscribe(999999);
+    try std.testing.expect(!removed);
+
+    const s = messagingStats();
+    try std.testing.expectEqual(@as(u32, 1), s.active_subscribers);
+}
+
+test "messaging publish to empty string topic" {
+    const allocator = std.testing.allocator;
+    try init(allocator, MessagingConfig.defaults());
+    defer deinit();
+
+    // Publishing to empty topic — should not crash
+    try publish(allocator, "", "data");
+}
+
+test "messaging multiple wildcard pattern" {
+    const allocator = std.testing.allocator;
+    try init(allocator, MessagingConfig.defaults());
+    defer deinit();
+
+    _ = try subscribe(allocator, "sensors/+/data", struct {
+        fn cb(_: Message, _: ?*anyopaque) DeliveryResult {
+            return .ok;
+        }
+    }.cb, null);
+
+    // Should match sensors/temp/data
+    try publish(allocator, "sensors/temp/data", "25C");
+
+    const info = try topicStats("sensors/temp/data");
+    try std.testing.expectEqual(@as(u64, 1), info.messages_published);
+}

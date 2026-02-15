@@ -43,7 +43,7 @@ pub const Parser = struct {
 
     /// Parse a template string into tokens.
     pub fn parse(self: *Parser, source: []const u8) ParseError![]Token {
-        var tokens = std.ArrayListUnmanaged(Token){};
+        var tokens = std.ArrayListUnmanaged(Token).empty;
         errdefer {
             for (tokens.items) |token| {
                 self.freeToken(token);
@@ -105,7 +105,7 @@ pub const Parser = struct {
         // Check for default value (separated by |)
         var name: []const u8 = undefined;
         var default: ?[]const u8 = null;
-        var filters = std.ArrayListUnmanaged(Token.Filter){};
+        var filters = std.ArrayListUnmanaged(Token.Filter).empty;
         errdefer filters.deinit(self.allocator);
 
         // Split by | for default and filters
@@ -155,7 +155,7 @@ pub const Parser = struct {
 
     /// Extract all variable names from tokens.
     pub fn extractVariables(self: *Parser, tokens: []const Token) ![]const []const u8 {
-        var vars = std.ArrayListUnmanaged([]const u8){};
+        var vars = std.ArrayListUnmanaged([]const u8).empty;
         errdefer {
             for (vars.items) |v| {
                 self.allocator.free(v);

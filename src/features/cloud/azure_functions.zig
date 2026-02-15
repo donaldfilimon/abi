@@ -189,7 +189,7 @@ fn getStringField(root: std.json.Value, key: []const u8) ?[]const u8 {
 }
 
 fn jsonValueToOwnedSlice(allocator: std.mem.Allocator, value: std.json.Value) ![]const u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     defer buffer.deinit(allocator);
     try std.json.stringify(value, .{}, buffer.writer(allocator));
     return buffer.toOwnedSlice(allocator);
@@ -333,7 +333,7 @@ pub fn parseBlobTrigger(allocator: std.mem.Allocator, raw_event: []const u8) !Cl
 
 /// Format a CloudResponse for Azure Functions custom handler.
 pub fn formatInvocationResponse(allocator: std.mem.Allocator, response: *const CloudResponse) ![]const u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     const writer = buffer.writer(allocator);
@@ -378,7 +378,7 @@ pub fn generateFunctionJson(
     function_name: []const u8,
     trigger_type: TriggerType,
 ) ![]const u8 {
-    var buffer = std.ArrayListUnmanaged(u8){};
+    var buffer = std.ArrayListUnmanaged(u8).empty;
     errdefer buffer.deinit(allocator);
 
     const writer = buffer.writer(allocator);

@@ -130,7 +130,7 @@ pub const DependencyGraph = struct {
 
     /// Detect circular dependencies
     pub fn findCircularDependencies(self: *const DependencyGraph) !std.ArrayListUnmanaged([]const []const u8) {
-        var cycles = std.ArrayListUnmanaged([]const []const u8){};
+        var cycles = std.ArrayListUnmanaged([]const []const u8).empty;
         errdefer {
             for (cycles.items) |cycle| {
                 self.allocator.free(cycle);
@@ -142,7 +142,7 @@ pub const DependencyGraph = struct {
         defer visited.deinit(self.allocator);
 
         for (self.all_modules.items) |module| {
-            var path = std.ArrayListUnmanaged([]const u8){};
+            var path = std.ArrayListUnmanaged([]const u8).empty;
             defer path.deinit(self.allocator);
 
             try self.findCyclesDFS(module.name, &visited, &path, &cycles);
@@ -159,7 +159,7 @@ pub const DependencyGraph = struct {
         cycles: *std.ArrayListUnmanaged([]const []const u8),
     ) !void {
         if (path.items.len > 0 and std.mem.eql(u8, current, path.items[0])) {
-            var cycle = std.ArrayListUnmanaged([]const u8){};
+            var cycle = std.ArrayListUnmanaged([]const u8).empty;
             try cycle.appendSlice(self.allocator, path.items);
             try cycles.append(self.allocator, try cycle.toOwnedSlice(self.allocator));
             return;
@@ -169,7 +169,7 @@ pub const DependencyGraph = struct {
 
         for (path.items) |item| {
             if (std.mem.eql(u8, item, current)) {
-                var cycle = std.ArrayListUnmanaged([]const u8){};
+                var cycle = std.ArrayListUnmanaged([]const u8).empty;
                 const start_idx = for (path.items, 0..) |item2, i| {
                     if (std.mem.eql(u8, item2, current)) break i;
                 } else unreachable;
@@ -193,7 +193,7 @@ pub const DependencyGraph = struct {
 
     /// Get topological order of modules
     pub fn topologicalSort(self: *const DependencyGraph) !std.ArrayListUnmanaged([]const u8) {
-        var result = std.ArrayListUnmanaged([]const u8){};
+        var result = std.ArrayListUnmanaged([]const u8).empty;
         errdefer result.deinit(self.allocator);
 
         var visited = std.StringHashMapUnmanaged(void){};
@@ -384,7 +384,7 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    var parsed_files = std.ArrayListUnmanaged(*ParsedFile){};
+    var parsed_files = std.ArrayListUnmanaged(*ParsedFile).empty;
     defer {
         for (parsed_files.items) |file| {
             file.deinit();

@@ -165,7 +165,7 @@ pub const TemplateRegistry = struct {
 
     /// List all registered template names.
     pub fn listTemplates(self: *const TemplateRegistry, allocator: std.mem.Allocator) ![][]const u8 {
-        var names = std.ArrayListUnmanaged([]const u8){};
+        var names = std.ArrayListUnmanaged([]const u8).empty;
         errdefer names.deinit(allocator);
 
         var iter = self.templates.iterator();
@@ -191,7 +191,7 @@ pub fn formatChatMessage(allocator: std.mem.Allocator, role: []const u8, content
 
 /// Format multiple chat messages.
 pub fn formatChatHistory(allocator: std.mem.Allocator, messages: []const ChatMessage) ![]u8 {
-    var result = std.ArrayListUnmanaged(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     for (messages) |msg| {

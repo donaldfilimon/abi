@@ -117,7 +117,7 @@ pub const LoadBalancer = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .nodes = std.ArrayListUnmanaged(NodeState){},
+            .nodes = std.ArrayListUnmanaged(NodeState).empty,
             .round_robin_index = std.atomic.Value(usize).init(0),
             .session_map = std.StringArrayHashMapUnmanaged([]const u8){},
             .prng = std.Random.DefaultPrng.init(@intCast(time.unixMilliseconds())),

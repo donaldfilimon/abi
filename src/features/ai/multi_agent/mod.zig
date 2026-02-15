@@ -365,7 +365,7 @@ pub const Coordinator = struct {
 
     /// Concatenate all responses with separators.
     fn aggregateConcatenate(self: *Coordinator) Error![]u8 {
-        var builder = std.ArrayListUnmanaged(u8){};
+        var builder = std.ArrayListUnmanaged(u8).empty;
         errdefer builder.deinit(self.allocator);
 
         for (self.results.items, 0..) |result, i| {

@@ -256,7 +256,7 @@ const StagingPool = struct {
     pub fn init(allocator: std.mem.Allocator) !StagingPool {
         return .{
             .allocator = allocator,
-            .buffers = std.ArrayListUnmanaged(StagingBuffer){},
+            .buffers = std.ArrayListUnmanaged(StagingBuffer).empty,
             .mutex = .{},
         };
     }
@@ -341,7 +341,7 @@ const ThreadPool = struct {
         var pool = ThreadPool{
             .allocator = allocator,
             .threads = try allocator.alloc(std.Thread, num_threads),
-            .queue = std.ArrayListUnmanaged(TransferTask){},
+            .queue = std.ArrayListUnmanaged(TransferTask).empty,
             .mutex = .{},
             .condition = .{},
             .shutdown = std.atomic.Value(bool).init(false),

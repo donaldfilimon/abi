@@ -185,21 +185,21 @@ pub const Converter = struct {
             for (0..desc.n_dims) |i| {
                 if (i > 0) header.append(self.allocator, ',') catch return error.OutOfMemory;
                 var buf: [20]u8 = undefined;
-                const len = std.fmt.formatIntBuf(&buf, desc.dims[i], 10, .lower, .{});
-                header.appendSlice(self.allocator, buf[0..len]) catch return error.OutOfMemory;
+                const slice = std.fmt.bufPrint(&buf, "{d}", .{desc.dims[i]}) catch unreachable;
+                header.appendSlice(self.allocator, slice) catch return error.OutOfMemory;
             }
 
             header.appendSlice(self.allocator, "],\"data_offsets\":[") catch return error.OutOfMemory;
 
             // Write offsets
             var buf: [20]u8 = undefined;
-            var len = std.fmt.formatIntBuf(&buf, current_offset, 10, .lower, .{});
-            header.appendSlice(self.allocator, buf[0..len]) catch return error.OutOfMemory;
+            var slice = std.fmt.bufPrint(&buf, "{d}", .{current_offset}) catch unreachable;
+            header.appendSlice(self.allocator, slice) catch return error.OutOfMemory;
             header.append(self.allocator, ',') catch return error.OutOfMemory;
 
             current_offset += desc.data_size;
-            len = std.fmt.formatIntBuf(&buf, current_offset, 10, .lower, .{});
-            header.appendSlice(self.allocator, buf[0..len]) catch return error.OutOfMemory;
+            slice = std.fmt.bufPrint(&buf, "{d}", .{current_offset}) catch unreachable;
+            header.appendSlice(self.allocator, slice) catch return error.OutOfMemory;
             header.appendSlice(self.allocator, "]}") catch return error.OutOfMemory;
         }
 
@@ -260,16 +260,16 @@ pub const Converter = struct {
 
         const elem_size = desc.data_type.elementSize() orelse 4;
         var size_buf: [10]u8 = undefined;
-        const size_len = std.fmt.formatIntBuf(&size_buf, elem_size, 10, .lower, .{});
-        header.appendSlice(self.allocator, size_buf[0..size_len]) catch return error.OutOfMemory;
+        const size_slice = std.fmt.bufPrint(&size_buf, "{d}", .{elem_size}) catch unreachable;
+        header.appendSlice(self.allocator, size_slice) catch return error.OutOfMemory;
 
         header.appendSlice(self.allocator, "', 'fortran_order': False, 'shape': (") catch return error.OutOfMemory;
 
         for (0..desc.n_dims) |i| {
             if (i > 0) header.appendSlice(self.allocator, ", ") catch return error.OutOfMemory;
             var buf: [20]u8 = undefined;
-            const len = std.fmt.formatIntBuf(&buf, desc.dims[i], 10, .lower, .{});
-            header.appendSlice(self.allocator, buf[0..len]) catch return error.OutOfMemory;
+            const s = std.fmt.bufPrint(&buf, "{d}", .{desc.dims[i]}) catch unreachable;
+            header.appendSlice(self.allocator, s) catch return error.OutOfMemory;
         }
         if (desc.n_dims == 1) header.append(self.allocator, ',') catch return error.OutOfMemory;
 
@@ -482,16 +482,16 @@ pub const Converter = struct {
 
         const elem_size = desc.data_type.elementSize() orelse 4;
         var size_buf: [10]u8 = undefined;
-        const size_len = std.fmt.formatIntBuf(&size_buf, elem_size, 10, .lower, .{});
-        header.appendSlice(self.allocator, size_buf[0..size_len]) catch return error.OutOfMemory;
+        const size_slice = std.fmt.bufPrint(&size_buf, "{d}", .{elem_size}) catch unreachable;
+        header.appendSlice(self.allocator, size_slice) catch return error.OutOfMemory;
 
         header.appendSlice(self.allocator, "', 'fortran_order': False, 'shape': (") catch return error.OutOfMemory;
 
         for (0..desc.n_dims) |i| {
             if (i > 0) header.appendSlice(self.allocator, ", ") catch return error.OutOfMemory;
             var buf: [20]u8 = undefined;
-            const len = std.fmt.formatIntBuf(&buf, desc.dims[i], 10, .lower, .{});
-            header.appendSlice(self.allocator, buf[0..len]) catch return error.OutOfMemory;
+            const s = std.fmt.bufPrint(&buf, "{d}", .{desc.dims[i]}) catch unreachable;
+            header.appendSlice(self.allocator, s) catch return error.OutOfMemory;
         }
         if (desc.n_dims == 1) header.append(self.allocator, ',') catch return error.OutOfMemory;
 

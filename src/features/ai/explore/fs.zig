@@ -72,8 +72,8 @@ pub const FileVisitor = struct {
         return FileVisitor{
             .allocator = allocator,
             .config = config,
-            .files = std.ArrayListUnmanaged(FileStats){},
-            .directories = std.ArrayListUnmanaged([]const u8){},
+            .files = std.ArrayListUnmanaged(FileStats).empty,
+            .directories = std.ArrayListUnmanaged([]const u8).empty,
             .visited_paths = std.StringHashMapUnmanaged(bool){},
             .io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }),
         };
@@ -254,7 +254,7 @@ pub fn readFileLines(allocator: std.mem.Allocator, io: std.Io, path: []const u8)
     const content = try readFileContent(allocator, io, path, null);
     defer allocator.free(content);
 
-    var lines = std.ArrayListUnmanaged([]const u8){};
+    var lines = std.ArrayListUnmanaged([]const u8).empty;
     var start: usize = 0;
 
     for (content, 0..) |c, i| {

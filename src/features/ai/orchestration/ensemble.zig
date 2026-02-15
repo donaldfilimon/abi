@@ -165,7 +165,7 @@ pub const Ensemble = struct {
         // Parse responses as floats if possible
         var sum: f64 = 0.0;
         var valid_count: usize = 0;
-        var values = std.ArrayListUnmanaged(f64){};
+        var values = std.ArrayListUnmanaged(f64).empty;
         defer values.deinit(self.allocator);
 
         for (responses) |resp| {
@@ -281,7 +281,7 @@ pub const Ensemble = struct {
         var seen = std.StringHashMapUnmanaged(void){};
         defer seen.deinit(self.allocator);
 
-        var combined = std.ArrayListUnmanaged(u8){};
+        var combined = std.ArrayListUnmanaged(u8).empty;
         errdefer combined.deinit(self.allocator);
 
         var first = true;

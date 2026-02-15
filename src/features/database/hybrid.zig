@@ -285,7 +285,7 @@ pub const HybridSearchEngine = struct {
         }
 
         // Collect vector results that match text filter
-        var results = std.ArrayListUnmanaged(HybridResult){};
+        var results = std.ArrayListUnmanaged(HybridResult).empty;
         defer results.deinit(self.allocator);
 
         for (vector_results, 0..) |v_result, rank| {
@@ -325,7 +325,7 @@ pub const HybridSearchEngine = struct {
         scores: *std.AutoHashMapUnmanaged(u64, RrfAccum),
         top_k: usize,
     ) ![]HybridResult {
-        var results = std.ArrayListUnmanaged(HybridResult){};
+        var results = std.ArrayListUnmanaged(HybridResult).empty;
         defer results.deinit(self.allocator);
 
         var iter = scores.iterator();

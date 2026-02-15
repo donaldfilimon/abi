@@ -133,7 +133,7 @@ pub fn extractBearerToken(ctx: *MiddlewareContext, config: AuthConfig) ?[]const 
         if (token_start >= auth_header.len) return null;
 
         const rest = auth_header[token_start..];
-        const trimmed = std.mem.trimLeft(u8, rest, " ");
+        const trimmed = std.mem.trimStart(u8, rest, " ");
         if (trimmed.len == 0) return null;
         return trimmed;
     }

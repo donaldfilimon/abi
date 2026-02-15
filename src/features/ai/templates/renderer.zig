@@ -37,7 +37,7 @@ pub const Renderer = struct {
 
     /// Render tokens with struct values.
     pub fn render(self: *Renderer, tokens: []const Token, values: anytype) RenderError![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
         for (tokens) |token| {
@@ -95,7 +95,7 @@ pub const Renderer = struct {
 
     /// Render tokens with a string hashmap.
     pub fn renderWithMap(self: *Renderer, tokens: []const Token, values: std.StringHashMapUnmanaged([]const u8)) RenderError![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
         for (tokens) |token| {
@@ -182,7 +182,7 @@ pub const Renderer = struct {
     }
 
     fn escapeHtml(self: *Renderer, value: []const u8) ![]const u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
         for (value) |c| {

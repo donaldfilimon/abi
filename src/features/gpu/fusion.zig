@@ -468,7 +468,7 @@ pub const FusionOptimizer = struct {
         }
 
         // Build optimized node list (excluding fused nodes)
-        var result = std.ArrayListUnmanaged(OpNode){};
+        var result = std.ArrayListUnmanaged(OpNode).empty;
         for (self.nodes.items) |node| {
             if (!node.fused) {
                 try result.append(self.allocator, node);

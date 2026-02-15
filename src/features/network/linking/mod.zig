@@ -598,7 +598,7 @@ pub const LinkManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var list = std.ArrayListUnmanaged(u64){};
+        var list = std.ArrayListUnmanaged(u64).empty;
         errdefer list.deinit(allocator);
 
         var it = self.links.keyIterator();

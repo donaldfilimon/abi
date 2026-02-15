@@ -320,7 +320,7 @@ pub const FallbackManager = struct {
 
     /// Get all available models from the fallback chain.
     pub fn getAvailableModels(self: *FallbackManager, allocator: std.mem.Allocator) ![][]const u8 {
-        var available = std.ArrayListUnmanaged([]const u8){};
+        var available = std.ArrayListUnmanaged([]const u8).empty;
         errdefer available.deinit(allocator);
 
         for (self.fallback_chain.items) |model_id| {

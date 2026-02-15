@@ -196,7 +196,7 @@ pub const SummarizingMemory = struct {
 
     /// Default summarization (simple extraction of key points).
     fn defaultSummarize(self: *SummarizingMemory, messages: []const Message) ![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
         try result.appendSlice(self.allocator, "[Summary of ");
@@ -266,7 +266,7 @@ pub const SummarizingMemory = struct {
         self: *const SummarizingMemory,
         allocator: std.mem.Allocator,
     ) ![]Message {
-        var result = std.ArrayListUnmanaged(Message){};
+        var result = std.ArrayListUnmanaged(Message).empty;
         errdefer result.deinit(allocator);
 
         // Add system message first

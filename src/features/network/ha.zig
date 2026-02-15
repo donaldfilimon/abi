@@ -106,7 +106,7 @@ pub const HealthCheck = struct {
     }
 
     pub fn getHealthyNodes(self: *const HealthCheck) !std.ArrayListUnmanaged([]const u8) {
-        var list = std.ArrayListUnmanaged([]const u8){};
+        var list = std.ArrayListUnmanaged([]const u8).empty;
         errdefer list.deinit(self.allocator);
 
         var iter = self.node_health.iterator();
@@ -120,7 +120,7 @@ pub const HealthCheck = struct {
     }
 
     pub fn getUnhealthyNodes(self: *const HealthCheck) !std.ArrayListUnmanaged([]const u8) {
-        var list = std.ArrayListUnmanaged([]const u8){};
+        var list = std.ArrayListUnmanaged([]const u8).empty;
         errdefer list.deinit(self.allocator);
 
         var iter = self.node_health.iterator();

@@ -230,7 +230,7 @@ pub fn buildCallGraph(allocator: std.mem.Allocator, file_paths: []const []const 
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    var parsed_files = std.ArrayListUnmanaged(*ParsedFile){};
+    var parsed_files = std.ArrayListUnmanaged(*ParsedFile).empty;
     defer {
         for (parsed_files.items) |file| {
             file.deinit();

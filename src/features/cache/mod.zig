@@ -418,14 +418,41 @@ pub fn isInitialized() bool {
 
 /// Look up a cached value by key. Returns the value slice (borrowed from
 /// the cache) or `null` if the key is absent or expired. Thread-safe.
+///
+/// For FIFO/Random eviction (no promotion needed), uses a shared read lock
+/// to allow concurrent readers. For LRU/LFU, uses an exclusive lock since
+/// promotion mutates the list/frequency.
 pub fn get(key: []const u8) CacheError!?[]const u8 {
     const s = state orelse return error.FeatureDisabled;
 
-    // Hold write lock for entire get+promote to prevent TOCTOU race
-    // (entry could be evicted between read-unlock and write-lock)
-    s.rw_lock.lock();
-    defer s.rw_lock.unlock();
+    const needs_promotion = switch (s.config.eviction_policy) {
+        .lru, .lfu => true,
+        .fifo, .random => false,
+    };
 
+    if (needs_promotion) {
+        // LRU/LFU: exclusive lock for get+promote (prevents TOCTOU race)
+        s.rw_lock.lock();
+        defer s.rw_lock.unlock();
+        return getLockedImpl(key);
+    } else {
+        // FIFO/Random: shared read lock allows concurrent readers
+        s.rw_lock.lockShared();
+        defer s.rw_lock.unlockShared();
+
+        const result = s.getInternal(key);
+        if (result) |value| {
+            _ = s.stat_hits.fetchAdd(1, .monotonic);
+            return value;
+        }
+        _ = s.stat_misses.fetchAdd(1, .monotonic);
+        return null;
+    }
+}
+
+/// Internal get with exclusive lock held — handles promotion and expired cleanup.
+fn getLockedImpl(key: []const u8) ?[]const u8 {
+    const s = state orelse return null;
     const result = s.getInternal(key);
     if (result) |value| {
         _ = s.stat_hits.fetchAdd(1, .monotonic);
@@ -850,4 +877,78 @@ test "cache re-initialization guard" {
     // Original config still active — can add more entries
     try put("key2", "value2");
     try std.testing.expectEqual(@as(u32, 2), size());
+}
+
+test "cache delete non-existent key is no-op" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 10 });
+    defer deinit();
+
+    try put("exists", "value");
+    const removed = try delete("nonexistent");
+    try std.testing.expect(!removed);
+    try std.testing.expectEqual(@as(u32, 1), size());
+}
+
+test "cache get after clear returns null" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 10 });
+    defer deinit();
+
+    try put("k1", "v1");
+    try put("k2", "v2");
+    clear();
+
+    const v1 = try get("k1");
+    const v2 = try get("k2");
+    try std.testing.expect(v1 == null);
+    try std.testing.expect(v2 == null);
+    try std.testing.expectEqual(@as(u32, 0), size());
+}
+
+test "cache exact capacity fill" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 3, .eviction_policy = .fifo });
+    defer deinit();
+
+    try put("a", "1");
+    try put("b", "2");
+    try put("c", "3");
+    try std.testing.expectEqual(@as(u32, 3), size());
+
+    // All should be accessible
+    try std.testing.expect((try get("a")) != null);
+    try std.testing.expect((try get("b")) != null);
+    try std.testing.expect((try get("c")) != null);
+}
+
+test "cache stats hit and miss accuracy" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 10 });
+    defer deinit();
+
+    try put("key", "val");
+
+    // 3 hits
+    _ = try get("key");
+    _ = try get("key");
+    _ = try get("key");
+    // 2 misses
+    _ = try get("missing1");
+    _ = try get("missing2");
+
+    const s = stats();
+    try std.testing.expectEqual(@as(u64, 3), s.hits);
+    try std.testing.expectEqual(@as(u64, 2), s.misses);
+}
+
+test "cache FIFO shared read lock path" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .max_entries = 10, .eviction_policy = .fifo });
+    defer deinit();
+
+    try put("k1", "hello");
+    const val = try get("k1");
+    try std.testing.expect(val != null);
+    try std.testing.expectEqualSlices(u8, "hello", val.?);
 }

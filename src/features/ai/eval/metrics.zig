@@ -360,7 +360,7 @@ pub fn computeWER(
 }
 
 fn normalize(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
-    var result = std.ArrayListUnmanaged(u8){};
+    var result = std.ArrayListUnmanaged(u8).empty;
     errdefer result.deinit(allocator);
 
     var in_space = true;

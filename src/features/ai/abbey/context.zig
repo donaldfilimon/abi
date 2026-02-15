@@ -100,7 +100,7 @@ pub const TopicTracker = struct {
 
     /// Extract topics from text (simple keyword extraction)
     fn extractTopics(self: *Self, text: []const u8) ![][]const u8 {
-        var topics = std.ArrayListUnmanaged([]const u8){};
+        var topics = std.ArrayListUnmanaged([]const u8).empty;
         errdefer topics.deinit(self.allocator);
 
         // Technical topic patterns

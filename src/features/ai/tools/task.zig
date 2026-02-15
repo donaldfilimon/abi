@@ -89,7 +89,7 @@ pub const TaskTool = struct {
         return TaskTool{
             .allocator = allocator,
             .subagents = .{},
-            .tasks = std.ArrayListUnmanaged(Task){},
+            .tasks = std.ArrayListUnmanaged(Task).empty,
             .task_ids = .{},
             .semaphore = std.Thread.Semaphore.init(4),
         };
@@ -237,7 +237,7 @@ pub const TaskTool = struct {
     }
 
     pub fn listSubagents(self: *TaskTool) ![]const []const u8 {
-        var names = std.ArrayListUnmanaged([]const u8){};
+        var names = std.ArrayListUnmanaged([]const u8).empty;
         errdefer names.deinit(self.allocator);
         var iterator = self.subagents.keyIterator();
         while (iterator.next()) |key| {
