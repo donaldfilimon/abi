@@ -93,6 +93,82 @@ pub fn getSimdCapabilities() SimdCapabilities {
 // Matrix Multiplication
 // ============================================================================
 
+// ════════════════════════════════════════════════════════════════════════
+// Tests
+// ════════════════════════════════════════════════════════════════════════
+
+test "l2DistanceSquared identical vectors" {
+    const a = [_]f32{ 1.0, 2.0, 3.0 };
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), l2DistanceSquared(&a, &a), 0.001);
+}
+
+test "l2Distance known result" {
+    const a = [_]f32{ 0.0, 0.0 };
+    const b = [_]f32{ 3.0, 4.0 };
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), l2Distance(&a, &b), 0.001);
+}
+
+test "l2DistanceSquared empty" {
+    const empty: []const f32 = &.{};
+    try std.testing.expectEqual(@as(f32, 0.0), l2DistanceSquared(empty, empty));
+}
+
+test "getSimdCapabilities returns valid" {
+    const caps = getSimdCapabilities();
+    try std.testing.expect(caps.vector_size >= 1);
+    // has_simd should be consistent with vector_size
+    try std.testing.expectEqual(caps.vector_size > 1, caps.has_simd);
+}
+
+test "matrixMultiply 2x2" {
+    // [1 2] * [5 6] = [1*5+2*7  1*6+2*8] = [19 22]
+    // [3 4]   [7 8]   [3*5+4*7  3*6+4*8]   [43 50]
+    const a = [_]f32{ 1, 2, 3, 4 };
+    const b = [_]f32{ 5, 6, 7, 8 };
+    var result: [4]f32 = undefined;
+    matrixMultiply(&a, &b, &result, 2, 2, 2);
+    try std.testing.expectApproxEqAbs(@as(f32, 19.0), result[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 22.0), result[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 43.0), result[2], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 50.0), result[3], 0.001);
+}
+
+test "matrixMultiply identity" {
+    // A * I = A
+    const a = [_]f32{ 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    const identity = [_]f32{ 1, 0, 0, 0, 1, 0, 0, 0, 1 };
+    var result: [9]f32 = undefined;
+    matrixMultiply(&a, &identity, &result, 3, 3, 3);
+    for (a, result) |expected, actual| {
+        try std.testing.expectApproxEqAbs(expected, actual, 0.001);
+    }
+}
+
+test "matrixMultiply non-square" {
+    // [1 2 3] * [7  8 ]   [1*7+2*9+3*11  1*8+2*10+3*12] = [58 64]
+    // [4 5 6]   [9  10]   [4*7+5*9+6*11  4*8+5*10+6*12]   [139 154]
+    //           [11 12]
+    const a = [_]f32{ 1, 2, 3, 4, 5, 6 };
+    const b = [_]f32{ 7, 8, 9, 10, 11, 12 };
+    var result: [4]f32 = undefined;
+    matrixMultiply(&a, &b, &result, 2, 2, 3);
+    try std.testing.expectApproxEqAbs(@as(f32, 58.0), result[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 64.0), result[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 139.0), result[2], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 154.0), result[3], 0.001);
+}
+
+test "innerProduct alias" {
+    const a = [_]f32{ 1.0, 2.0 };
+    const b = [_]f32{ 3.0, 4.0 };
+    // innerProduct should be the same as vectorDot
+    try std.testing.expectApproxEqAbs(
+        vector_ops.vectorDot(&a, &b),
+        innerProduct(&a, &b),
+        0.001,
+    );
+}
+
 /// Matrix multiplication with blocking/tiling for cache efficiency and SIMD acceleration
 /// Computes result[m][n] = a[m][k] * b[k][n]
 /// @param a Matrix A (size m x k, row-major order)

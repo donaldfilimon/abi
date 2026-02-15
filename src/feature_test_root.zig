@@ -91,6 +91,14 @@ test {
     _ = @import("services/shared/tensor.zig");
     _ = @import("services/shared/matrix.zig");
 
+    // SIMD module inline tests
+    _ = @import("services/shared/simd/vector_ops.zig");
+    _ = @import("services/shared/simd/distances.zig");
+    _ = @import("services/shared/simd/activations.zig");
+    _ = @import("services/shared/simd/integer_ops.zig");
+    _ = @import("services/shared/simd/extras.zig");
+    _ = @import("services/shared/utils/radix_tree.zig");
+
     // Connector inline tests (not discovered through named abi module)
     _ = @import("services/connectors/mod.zig");
 }

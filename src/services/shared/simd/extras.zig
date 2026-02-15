@@ -324,6 +324,96 @@ pub fn reduceMax(data: []const f32) f32 {
     return result;
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// Tests
+// ════════════════════════════════════════════════════════════════════════
+
+test "hadamard product" {
+    const a = [_]f32{ 1.0, 2.0, 3.0 };
+    const b = [_]f32{ 4.0, 5.0, 6.0 };
+    var result: [3]f32 = undefined;
+    hadamard(&a, &b, &result);
+    try std.testing.expectApproxEqAbs(@as(f32, 4.0), result[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 10.0), result[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 18.0), result[2], 0.001);
+}
+
+test "absInPlace negates negatives" {
+    var data = [_]f32{ -3.0, 0.0, 5.0, -1.5 };
+    absInPlace(&data);
+    try std.testing.expectEqual(@as(f32, 3.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 0.0), data[1]);
+    try std.testing.expectEqual(@as(f32, 5.0), data[2]);
+    try std.testing.expectEqual(@as(f32, 1.5), data[3]);
+}
+
+test "clampInPlace restricts range" {
+    var data = [_]f32{ -5.0, 0.5, 3.0, 10.0 };
+    clampInPlace(&data, 0.0, 2.0);
+    try std.testing.expectEqual(@as(f32, 0.0), data[0]);
+    try std.testing.expectEqual(@as(f32, 0.5), data[1]);
+    try std.testing.expectEqual(@as(f32, 2.0), data[2]);
+    try std.testing.expectEqual(@as(f32, 2.0), data[3]);
+}
+
+test "countGreaterThan" {
+    const data = [_]f32{ 1.0, 5.0, 3.0, 7.0, 2.0 };
+    try std.testing.expectEqual(@as(usize, 2), countGreaterThan(&data, 4.0));
+    try std.testing.expectEqual(@as(usize, 5), countGreaterThan(&data, 0.0));
+    try std.testing.expectEqual(@as(usize, 0), countGreaterThan(&data, 10.0));
+}
+
+test "copyF32 duplicates data" {
+    const src = [_]f32{ 1.0, 2.0, 3.0 };
+    var dst: [3]f32 = undefined;
+    copyF32(&src, &dst);
+    for (src, dst) |s, d| {
+        try std.testing.expectEqual(s, d);
+    }
+}
+
+test "fillF32 sets all values" {
+    var data: [5]f32 = undefined;
+    fillF32(&data, 42.0);
+    for (data) |v| try std.testing.expectEqual(@as(f32, 42.0), v);
+}
+
+test "euclideanDistance known result" {
+    const a = [_]f32{ 0.0, 0.0 };
+    const b = [_]f32{ 3.0, 4.0 };
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), euclideanDistance(&a, &b), 0.001);
+}
+
+test "softmax out-of-place sums to 1" {
+    const data = [_]f32{ 1.0, 2.0, 3.0 };
+    var out: [3]f32 = undefined;
+    softmax(&data, &out);
+    var total: f32 = 0;
+    for (out) |v| total += v;
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), total, 0.001);
+}
+
+test "saxpy a*x+y" {
+    const x = [_]f32{ 1.0, 2.0, 3.0 };
+    var y = [_]f32{ 10.0, 20.0, 30.0 };
+    saxpy(2.0, &x, &y);
+    // y = 2*x + y_original
+    try std.testing.expectApproxEqAbs(@as(f32, 12.0), y[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 24.0), y[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 36.0), y[2], 0.001);
+}
+
+test "reduceMin and reduceMax" {
+    const data = [_]f32{ 3.0, 1.0, 4.0, 1.0, 5.0 };
+    try std.testing.expectEqual(@as(f32, 1.0), reduceMin(&data));
+    try std.testing.expectEqual(@as(f32, 5.0), reduceMax(&data));
+}
+
+test "reduceSum" {
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    try std.testing.expectApproxEqAbs(@as(f32, 10.0), reduceSum(&data), 0.001);
+}
+
 /// Scale vector into a separate output buffer: out[i] = data[i] * scalar
 /// Unlike scaleInPlace which modifies in-place, this writes to a distinct output slice.
 /// @param data Input vector (must not be empty)
@@ -349,4 +439,13 @@ pub fn scale(data: []const f32, scalar: f32, out: []f32) void {
     while (i < len) : (i += 1) {
         out[i] = data[i] * scalar;
     }
+}
+
+test "scale out-of-place" {
+    const data = [_]f32{ 1.0, 2.0, 3.0 };
+    var out: [3]f32 = undefined;
+    scale(&data, 3.0, &out);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), out[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 6.0), out[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 9.0), out[2], 0.001);
 }
