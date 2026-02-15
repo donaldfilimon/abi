@@ -243,6 +243,13 @@ pub fn build(b: *std.Build) void {
     import_check_step.dependOn(&import_check.step);
 
     // ── Consistency checks ───────────────────────────────────────────────
+    const toolchain_doctor = b.addSystemCommand(&.{ "bash", "scripts/toolchain_doctor.sh" });
+    const toolchain_doctor_step = b.step(
+        "toolchain-doctor",
+        "Diagnose local Zig PATH/version drift against repository pin",
+    );
+    toolchain_doctor_step.dependOn(&toolchain_doctor.step);
+
     const check_versions = b.addSystemCommand(&.{ "bash", "scripts/check_zig_version_consistency.sh" });
     const check_baselines = b.addSystemCommand(&.{ "bash", "scripts/check_test_baseline_consistency.sh" });
     const check_patterns = b.addSystemCommand(&.{ "bash", "scripts/check_zig_016_patterns.sh" });

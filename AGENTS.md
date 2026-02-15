@@ -27,6 +27,7 @@ ABI is a Zig 0.16 framework (v0.4.0) with `src/abi.zig` as the public API entryp
 - `zig build validate-flags`: validate 34 feature-flag combinations.
 - `zig build cli-tests`: run CLI smoke tests (top-level and nested commands).
 - `zig build full-check`: local quality gate (format + tests + flags + CLI smoke).
+- `zig build toolchain-doctor`: diagnose local Zig PATH/version drift against `.zigversion`.
 - `zig fmt .`: format sources before PR review.
 - `zig build lint`: formatting/lint check used in CI.
 

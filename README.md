@@ -97,6 +97,7 @@ zig version
 cat .zigversion
 
 # Diagnose PATH/version drift (recommended before running quality gates)
+zig build toolchain-doctor
 bash scripts/toolchain_doctor.sh
 
 # If `which zig` is not ~/.zvm/bin/zig, fix PATH precedence first:

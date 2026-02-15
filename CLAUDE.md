@@ -41,6 +41,7 @@ zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
 zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke tests
+zig build toolchain-doctor                  # Diagnose local Zig PATH/version drift vs .zigversion
 zig build validate-flags                     # Compile-check 34 feature flag combos
 zig build cli-tests                          # CLI smoke tests (top-level + nested, e.g. help llm, bench micro hash)
 zig build lint                               # CI formatting check
