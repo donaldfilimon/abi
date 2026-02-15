@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
 | **Test baseline** | 1222 pass, 5 skip (1227 total) — must be maintained |
-| **Feature tests** | 799 pass (799 total) — `zig build feature-tests` |
+| **Feature tests** | 846 pass (846 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 8 aliases |
 
 ## Build & Test Commands
@@ -347,7 +347,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 ## Testing Patterns
 
 **Main tests**: 1222 pass, 5 skip (1227 total) — `zig build test --summary all`
-**Feature tests**: 799 pass (799 total) — `zig build feature-tests --summary all`
+**Feature tests**: 846 pass (846 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -371,7 +371,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 799+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 846+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |

@@ -241,7 +241,7 @@ test "forward pass produces valid output" {
     // Initialize with small random values (Xavier-like)
     const scale: f32 = 0.1;
     for (model.weights.token_embedding) |*w| {
-        w.* = @as(f32, @floatFromInt(@as(i32, @truncate(@as(i64, @bitCast(@as(u64, @intFromPtr(w)))) % 1000)))) * scale * 0.001;
+        w.* = @as(f32, @floatFromInt(@as(i32, @truncate(@rem(@as(i64, @bitCast(@as(u64, @intFromPtr(w)))), 1000))))) * scale * 0.001;
     }
 
     // Simple input

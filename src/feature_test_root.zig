@@ -52,8 +52,20 @@ test {
     if (build_options.enable_network) _ = @import("features/network/mod.zig");
     if (build_options.enable_web) _ = @import("features/web/mod.zig");
 
-    // Phase 10 — expanded test coverage (standalone test files to avoid
-    // pulling in sub-modules with pre-existing Zig 0.16 compile issues)
+    // Cloud module
+    if (build_options.enable_cloud) _ = @import("features/cloud/mod.zig");
+
+    // AI facade modules (inference, training, reasoning compile cleanly;
+    // ai_core needs standalone test to avoid agent.zig const-cast issue)
+    if (@hasDecl(build_options, "enable_llm") and build_options.enable_llm)
+        _ = @import("features/ai_inference/mod.zig");
+    if (@hasDecl(build_options, "enable_training") and build_options.enable_training)
+        _ = @import("features/ai_training/mod.zig");
+    if (@hasDecl(build_options, "enable_reasoning") and build_options.enable_reasoning)
+        _ = @import("features/ai_reasoning/mod.zig");
+
+    // Standalone test files — avoid pulling in sub-modules with Zig 0.16 issues
+    // (ai_core, database, gpu need deep Zig 0.16 fixes before registration)
     if (build_options.enable_auth) _ = @import("features/auth/auth_test.zig");
 
     // MCP/ACP service tests (types + server only — mod.zig has database dep)

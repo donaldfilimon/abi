@@ -557,8 +557,8 @@ test "database module functions" {
 }
 
 // Test discovery for extracted test files
-comptime {
-    if (@import("builtin").is_test) {
-        _ = @import("hnsw_test.zig");
-    }
+// Note: comptime { _ = @import(...); } does NOT discover tests in Zig 0.16.
+// Must use test {} blocks for test discovery.
+test {
+    _ = @import("hnsw_test.zig");
 }
