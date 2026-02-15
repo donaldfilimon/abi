@@ -443,6 +443,37 @@ test "gateway stub parity - types exist" {
 }
 
 // ============================================================================
+// Pages Module Parity
+// ============================================================================
+
+test "pages stub parity - types exist" {
+    const Pages = abi.pages;
+
+    try testing.expect(@hasDecl(Pages, "PagesConfig"));
+    try testing.expect(@hasDecl(Pages, "PagesError"));
+    try testing.expect(@hasDecl(Pages, "HttpMethod"));
+    try testing.expect(@hasDecl(Pages, "Page"));
+    try testing.expect(@hasDecl(Pages, "PageContent"));
+    try testing.expect(@hasDecl(Pages, "PageMatch"));
+    try testing.expect(@hasDecl(Pages, "RenderResult"));
+    try testing.expect(@hasDecl(Pages, "PagesStats"));
+    try testing.expect(@hasDecl(Pages, "MetadataEntry"));
+    try testing.expect(@hasDecl(Pages, "TemplateVar"));
+    try testing.expect(@hasDecl(Pages, "TemplateRef"));
+    try testing.expect(@hasDecl(Pages, "Context"));
+    try testing.expect(@hasDecl(Pages, "init"));
+    try testing.expect(@hasDecl(Pages, "isEnabled"));
+    try testing.expect(@hasDecl(Pages, "isInitialized"));
+    try testing.expect(@hasDecl(Pages, "addPage"));
+    try testing.expect(@hasDecl(Pages, "removePage"));
+    try testing.expect(@hasDecl(Pages, "getPage"));
+    try testing.expect(@hasDecl(Pages, "matchPage"));
+    try testing.expect(@hasDecl(Pages, "renderPage"));
+    try testing.expect(@hasDecl(Pages, "listPages"));
+    try testing.expect(@hasDecl(Pages, "stats"));
+}
+
+// ============================================================================
 // Benchmarks Module Parity
 // ============================================================================
 
@@ -561,6 +592,7 @@ test "all feature modules have consistent API surface" {
     try verifyContextPattern(abi.search);
     try verifyContextPattern(abi.mobile);
     try verifyContextPattern(abi.gateway);
+    try verifyContextPattern(abi.pages);
 
     if (build_options.enable_ai) {
         try verifyContextPattern(abi.ai);

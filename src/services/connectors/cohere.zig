@@ -566,10 +566,18 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
     }
     errdefer allocator.free(api_key);
 
-    const base_url = (try connectors.getFirstEnvOwned(allocator, &.{
+    const base_url_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_COHERE_BASE_URL",
         "COHERE_BASE_URL",
-    })) orelse try allocator.dupe(u8, "https://api.cohere.ai/v1");
+    });
+    // Treat empty base URL as unset — fall through to default
+    const base_url = if (base_url_raw) |u| blk: {
+        if (u.len == 0) {
+            allocator.free(u);
+            break :blk try allocator.dupe(u8, "https://api.cohere.ai/v1");
+        }
+        break :blk u;
+    } else try allocator.dupe(u8, "https://api.cohere.ai/v1");
     errdefer allocator.free(base_url);
 
     const model_raw = try connectors.getFirstEnvOwned(allocator, &.{

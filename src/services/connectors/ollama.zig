@@ -40,7 +40,7 @@ pub const OllamaError = error{
 /// Configuration for connecting to an Ollama instance.
 pub const Config = struct {
     host: []u8,
-    model: []const u8 = "llama2",
+    model: []const u8 = "gpt-oss",
     model_owned: bool = false,
     timeout_ms: u32 = 120_000,
 

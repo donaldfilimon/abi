@@ -98,6 +98,7 @@ const cache_mod = if (build_options.enable_cache) @import("../features/cache/mod
 const storage_mod = if (build_options.enable_storage) @import("../features/storage/mod.zig") else @import("../features/storage/stub.zig");
 const search_mod = if (build_options.enable_search) @import("../features/search/mod.zig") else @import("../features/search/stub.zig");
 const gateway_mod = if (build_options.enable_gateway) @import("../features/gateway/mod.zig") else @import("../features/gateway/stub.zig");
+const pages_mod = if (build_options.enable_pages) @import("../features/pages/mod.zig") else @import("../features/pages/stub.zig");
 const benchmarks_mod = if (build_options.enable_benchmarks) @import("../features/benchmarks/mod.zig") else @import("../features/benchmarks/stub.zig");
 const mobile_mod = if (build_options.enable_mobile) @import("../features/mobile/mod.zig") else @import("../features/mobile/stub.zig");
 const ai_core_mod = if (build_options.enable_ai) @import("../features/ai_core/mod.zig") else @import("../features/ai_core/stub.zig");
@@ -187,6 +188,8 @@ pub const Framework = struct {
     search: ?*search_mod.Context = null,
     /// Gateway context, or null if gateway is not enabled.
     gateway: ?*gateway_mod.Context = null,
+    /// Pages context, or null if pages is not enabled.
+    pages: ?*pages_mod.Context = null,
     /// Benchmarks context, or null if benchmarks is not enabled.
     benchmarks: ?*benchmarks_mod.Context = null,
     /// Mobile context, or null if mobile is not enabled.
@@ -377,6 +380,13 @@ pub const Framework = struct {
             fw.gateway = try gateway_mod.Context.init(allocator, gateway_cfg);
             if (comptime build_options.enable_gateway) {
                 try fw.registry.registerComptime(.gateway);
+            }
+        }
+
+        if (cfg.pages) |pages_cfg| {
+            fw.pages = try pages_mod.Context.init(allocator, pages_cfg);
+            if (comptime build_options.enable_pages) {
+                try fw.registry.registerComptime(.pages);
             }
         }
 
@@ -585,6 +595,7 @@ pub const Framework = struct {
         // Then standard feature modules
         deinitOptionalContext(mobile_mod.Context, &self.mobile);
         deinitOptionalContext(gateway_mod.Context, &self.gateway);
+        deinitOptionalContext(pages_mod.Context, &self.pages);
         deinitOptionalContext(benchmarks_mod.Context, &self.benchmarks);
         deinitOptionalContext(search_mod.Context, &self.search);
         deinitOptionalContext(storage_mod.Context, &self.storage);
@@ -688,6 +699,11 @@ pub const Framework = struct {
     /// Get gateway context (returns error if not enabled).
     pub fn getGateway(self: *Framework) Error!*gateway_mod.Context {
         return requireFeature(gateway_mod.Context, self.gateway);
+    }
+
+    /// Get pages context (returns error if not enabled).
+    pub fn getPages(self: *Framework) Error!*pages_mod.Context {
+        return requireFeature(pages_mod.Context, self.pages);
     }
 
     /// Get benchmarks context (returns error if not enabled).
@@ -941,6 +957,18 @@ pub const FrameworkBuilder = struct {
     /// Enable gateway with defaults.
     pub fn withGatewayDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
         _ = self.config_builder.withGatewayDefaults();
+        return self;
+    }
+
+    /// Enable pages with configuration.
+    pub fn withPages(self: *FrameworkBuilder, pages_cfg: config_module.PagesConfig) *FrameworkBuilder {
+        _ = self.config_builder.withPages(pages_cfg);
+        return self;
+    }
+
+    /// Enable pages with defaults.
+    pub fn withPagesDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
+        _ = self.config_builder.withPagesDefaults();
         return self;
     }
 

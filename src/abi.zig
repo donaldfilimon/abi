@@ -38,7 +38,7 @@
 //! - `abi.ai` / `abi.ai_core` / `abi.inference` / `abi.training` / `abi.reasoning`
 //! - `abi.gpu`, `abi.database`, `abi.network`, `abi.web`, `abi.cloud`
 //! - `abi.observability`, `abi.analytics`, `abi.auth`, `abi.messaging`
-//! - `abi.cache`, `abi.storage`, `abi.search`, `abi.gateway`
+//! - `abi.cache`, `abi.storage`, `abi.search`, `abi.gateway`, `abi.pages`
 //! - `abi.shared.simd`, `abi.connectors.discord`
 
 const std = @import("std");
@@ -221,6 +221,12 @@ pub const search = if (build_options.enable_search)
     @import("features/search/mod.zig")
 else
     @import("features/search/stub.zig");
+
+/// Dashboard/UI pages with URL path routing.
+pub const pages = if (build_options.enable_pages)
+    @import("features/pages/mod.zig")
+else
+    @import("features/pages/stub.zig");
 
 /// Performance benchmarking and timing.
 pub const benchmarks = if (build_options.enable_benchmarks)

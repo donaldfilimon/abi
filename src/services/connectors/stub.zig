@@ -4,6 +4,9 @@
 
 const std = @import("std");
 
+/// Shared connector types (available even when connectors are disabled).
+pub const shared = @import("shared.zig");
+
 /// Connectors module errors.
 pub const Error = error{
     ConnectorsDisabled,
@@ -80,8 +83,7 @@ pub const openai = struct {
         timeout_ms: u32 = 60_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-            allocator.free(self.api_key);
-            allocator.free(self.base_url);
+            shared.deinitConfig(allocator, self.api_key, self.base_url);
             if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
@@ -197,7 +199,7 @@ pub const huggingface = struct {
         timeout_ms: u32 = 60_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-            allocator.free(self.api_token);
+            shared.secureFree(allocator, self.api_token);
             allocator.free(self.base_url);
             if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
@@ -268,7 +270,7 @@ pub const huggingface = struct {
 pub const ollama = struct {
     pub const Config = struct {
         host: []u8,
-        model: []const u8 = "llama2",
+        model: []const u8 = "gpt-oss",
         model_owned: bool = false,
         timeout_ms: u32 = 120_000,
 
@@ -384,8 +386,7 @@ pub const anthropic = struct {
         timeout_ms: u32 = 120_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-            allocator.free(self.api_key);
-            allocator.free(self.base_url);
+            shared.deinitConfig(allocator, self.api_key, self.base_url);
             if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
@@ -511,8 +512,7 @@ pub const mistral = struct {
         timeout_ms: u32 = 60_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-            allocator.free(self.api_key);
-            allocator.free(self.base_url);
+            shared.deinitConfig(allocator, self.api_key, self.base_url);
             if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
@@ -646,8 +646,7 @@ pub const cohere = struct {
         timeout_ms: u32 = 60_000,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-            allocator.free(self.api_key);
-            allocator.free(self.base_url);
+            shared.deinitConfig(allocator, self.api_key, self.base_url);
             if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
@@ -839,7 +838,7 @@ pub const lm_studio = struct {
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
             allocator.free(self.host);
-            if (self.api_key) |key| allocator.free(key);
+            if (self.api_key) |key| shared.secureFree(allocator, key);
             if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
@@ -933,7 +932,7 @@ pub const vllm = struct {
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
             allocator.free(self.host);
-            if (self.api_key) |key| allocator.free(key);
+            if (self.api_key) |key| shared.secureFree(allocator, key);
             if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
@@ -1027,7 +1026,7 @@ pub const mlx = struct {
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
             allocator.free(self.host);
-            if (self.api_key) |key| allocator.free(key);
+            if (self.api_key) |key| shared.secureFree(allocator, key);
             if (self.model_owned) allocator.free(@constCast(self.model));
             self.* = undefined;
         }
@@ -1161,10 +1160,10 @@ pub const discord = struct {
         public_key: ?[]u8 = null,
 
         pub fn deinit(self: *Config, allocator: std.mem.Allocator) void {
-            allocator.free(self.bot_token);
+            shared.secureFree(allocator, self.bot_token);
             if (self.client_id) |id| allocator.free(id);
-            if (self.client_secret) |secret| allocator.free(secret);
-            if (self.public_key) |key| allocator.free(key);
+            shared.secureFreeOptional(allocator, self.client_secret);
+            shared.secureFreeOptional(allocator, self.public_key);
             self.* = undefined;
         }
     };
@@ -1235,6 +1234,10 @@ pub const discord = struct {
 
     pub fn createClient(_: std.mem.Allocator) !Client {
         return Error.ConnectorsDisabled;
+    }
+
+    pub fn isAvailable() bool {
+        return false;
     }
 };
 

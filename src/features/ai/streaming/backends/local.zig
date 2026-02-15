@@ -292,7 +292,7 @@ test "local backend initialization" {
     try std.testing.expect(!backend.isModelLoaded());
     const info = backend.getModelInfo();
     try std.testing.expectEqualStrings("local-gguf", info.name);
-    try std.testing.expect(info.supports_streaming);
+    try std.testing.expect(!info.supports_streaming); // No model loaded yet
 }
 
 test "local backend with external engine" {

@@ -22,6 +22,7 @@ test "all connectors expose isAvailable()" {
     const lm_studio: bool = abi.connectors.lm_studio.isAvailable();
     const vllm_avail: bool = abi.connectors.vllm.isAvailable();
     const mlx_avail: bool = abi.connectors.mlx.isAvailable();
+    const discord_avail: bool = abi.connectors.discord.isAvailable();
 
     // Without env vars configured, all should return false in CI.
     // We can't assert false since local dev might have keys, but we
@@ -35,6 +36,7 @@ test "all connectors expose isAvailable()" {
     _ = lm_studio;
     _ = vllm_avail;
     _ = mlx_avail;
+    _ = discord_avail;
 }
 
 test "isAvailable is consistent across repeated calls" {
@@ -57,6 +59,7 @@ test "isAvailable idempotent for all connectors" {
         abi.connectors.lm_studio.isAvailable(),
         abi.connectors.vllm.isAvailable(),
         abi.connectors.mlx.isAvailable(),
+        abi.connectors.discord.isAvailable(),
     }) |first_result| {
         _ = first_result;
     }
@@ -140,6 +143,11 @@ test "tryLoad functions return null without env vars" {
     }
 
     if (try abi.connectors.tryLoadMLX(allocator)) |cfg| {
+        var config = cfg;
+        config.deinit(allocator);
+    }
+
+    if (try abi.connectors.tryLoadOllama(allocator)) |cfg| {
         var config = cfg;
         config.deinit(allocator);
     }

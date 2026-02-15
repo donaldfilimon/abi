@@ -121,10 +121,16 @@ pub const hasPermission = utils.hasPermission;
 // ============================================================================
 
 pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
-    const bot_token = (try connectors.getFirstEnvOwned(allocator, &.{
+    const bot_token_raw = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_DISCORD_BOT_TOKEN",
         "DISCORD_BOT_TOKEN",
-    })) orelse return DiscordError.MissingBotToken;
+    });
+    const bot_token = bot_token_raw orelse return DiscordError.MissingBotToken;
+    // Treat empty string as missing (e.g., DISCORD_BOT_TOKEN="")
+    if (bot_token.len == 0) {
+        allocator.free(bot_token);
+        return DiscordError.MissingBotToken;
+    }
 
     const client_id = try connectors.getFirstEnvOwned(allocator, &.{
         "ABI_DISCORD_CLIENT_ID",
@@ -152,6 +158,15 @@ pub fn loadFromEnv(allocator: std.mem.Allocator) !Config {
 pub fn createClient(allocator: std.mem.Allocator) !Client {
     const config = try loadFromEnv(allocator);
     return try Client.init(allocator, config);
+}
+
+/// Check if the Discord connector is available (bot token env var is set).
+/// This is a zero-allocation health check suitable for status dashboards.
+pub fn isAvailable() bool {
+    return connectors.shared.anyEnvIsSet(&.{
+        "ABI_DISCORD_BOT_TOKEN",
+        "DISCORD_BOT_TOKEN",
+    });
 }
 
 // ============================================================================

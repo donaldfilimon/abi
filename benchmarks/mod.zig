@@ -76,6 +76,55 @@ pub fn runAllBenchmarks(allocator: std.mem.Allocator) !void {
     std.debug.print("===================================\n", .{});
 }
 
+// ============================================================================
+// BenchmarkSuite — Convenience wrapper for quick benchmark scripts
+// ============================================================================
+
+/// Simple benchmark suite for running ad-hoc benchmark functions.
+/// Each benchmark function takes `(std.mem.Allocator) !void`.
+/// Wraps BenchmarkRunner with a simpler interface.
+pub const BenchmarkSuite = struct {
+    allocator: std.mem.Allocator,
+    runner: system.BenchmarkRunner,
+
+    pub fn init(allocator: std.mem.Allocator) BenchmarkSuite {
+        return .{
+            .allocator = allocator,
+            .runner = system.BenchmarkRunner.init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *BenchmarkSuite) void {
+        self.runner.deinit();
+    }
+
+    /// Run a benchmark function that takes (allocator) and returns !void.
+    pub fn runBenchmark(
+        self: *BenchmarkSuite,
+        name: []const u8,
+        comptime bench_fn: fn (std.mem.Allocator) anyerror!void,
+        args: anytype,
+    ) !void {
+        _ = args; // Allocator passed via runWithAllocator
+        _ = self.runner.runWithAllocator(.{
+            .name = name,
+            .category = "suite",
+            .warmup_iterations = 3,
+            .min_iterations = 5,
+            .min_time_ns = 50_000_000, // 50ms
+        }, bench_fn, .{}) catch |err| {
+            std.debug.print("  {s}: FAILED ({t})\n", .{ name, err });
+            return;
+        };
+        std.debug.print("  {s}: OK\n", .{name});
+    }
+
+    /// Print a formatted summary of results.
+    pub fn printSummary(self: *BenchmarkSuite) void {
+        self.runner.printSummaryDebug();
+    }
+};
+
 // Legacy compatibility exports
 pub const framework = system.framework;
 pub const DatabaseBenchConfig = core.config.DatabaseBenchConfig;

@@ -9,8 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1221 pass, 5 skip (1226 total) — must be maintained |
-| **Feature tests** | 718 pass (719 total) — `zig build feature-tests` |
+| **Test baseline** | 1222 pass, 5 skip (1227 total) — must be maintained |
+| **Feature tests** | 730 pass (730 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 7 aliases |
 
 ## Build & Test Commands
@@ -25,7 +25,7 @@ zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
 zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke tests
-zig build validate-flags                     # Compile-check 30 feature flag combos
+zig build validate-flags                     # Compile-check 32 feature flag combos
 zig build cli-tests                          # CLI smoke tests (top-level + nested, e.g. help llm, bench micro hash)
 zig build lint                               # CI formatting check
 zig build benchmarks                         # Performance benchmarks
@@ -78,6 +78,7 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 | `search` | `-Denable-search` | Full-text search |
 | `storage` | `-Denable-storage` | Unified file/object storage |
 | `gateway` | `-Denable-gateway` | API gateway: routing, rate limiting, circuit breaker |
+| `pages` | `-Denable-pages` | Dashboard/UI pages with URL path routing |
 | `web` | `-Denable-web` | |
 
 ## Critical Gotchas
@@ -180,7 +181,7 @@ build.zig                → Top-level build script (delegates to build/)
 build/                   → Split build system (options, modules, flags, targets, gpu, mobile, wasm)
 src/abi.zig              → Public API, comptime feature selection, type aliases
 src/core/                → Framework lifecycle, config builder, registry
-src/features/<name>/     → mod.zig + stub.zig per feature (15 core + 4 AI split = 19 modules)
+src/features/<name>/     → mod.zig + stub.zig per feature (16 core + 4 AI split = 20 modules)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
 src/services/mcp/        → MCP server (JSON-RPC 2.0 over stdio, WDBX tools)
 src/services/acp/        → ACP server (agent communication protocol)
@@ -340,8 +341,8 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Main tests**: 1221 pass, 5 skip (1226 total) — `zig build test --summary all`
-**Feature tests**: 718 pass (719 total) — `zig build feature-tests --summary all`
+**Main tests**: 1222 pass, 5 skip (1227 total) — `zig build test --summary all`
+**Feature tests**: 730 pass (730 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -364,7 +365,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 718+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 719+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |
