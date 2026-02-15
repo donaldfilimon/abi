@@ -250,3 +250,125 @@ fn vectorizedSaxpy(comptime T: type, a: T, x: []const T, y: []T) void {
 
 pub const Mat32 = Matrix(f32);
 pub const Mat64 = Matrix(f64);
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+test "Matrix alloc, set, at" {
+    const alloc = std.testing.allocator;
+    var m = try Mat32.alloc(alloc, 3, 3);
+    defer m.free(alloc);
+
+    m.set(0, 0, 1.0);
+    m.set(1, 2, 5.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), m.at(0, 0), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), m.at(1, 2), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), m.at(2, 2), 0.001);
+}
+
+test "Matrix identity" {
+    const alloc = std.testing.allocator;
+    var m = try Mat32.alloc(alloc, 3, 3);
+    defer m.free(alloc);
+
+    m.identity();
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), m.at(0, 0), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), m.at(1, 1), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), m.at(0, 1), 0.001);
+}
+
+test "Matrix multiply 2x2" {
+    const alloc = std.testing.allocator;
+    var a = try Mat32.alloc(alloc, 2, 2);
+    defer a.free(alloc);
+    var b = try Mat32.alloc(alloc, 2, 2);
+    defer b.free(alloc);
+    var c = try Mat32.alloc(alloc, 2, 2);
+    defer c.free(alloc);
+
+    // A = [[1,2],[3,4]] (column-major: col0=[1,3], col1=[2,4])
+    a.set(0, 0, 1);
+    a.set(0, 1, 2);
+    a.set(1, 0, 3);
+    a.set(1, 1, 4);
+
+    // B = [[5,6],[7,8]]
+    b.set(0, 0, 5);
+    b.set(0, 1, 6);
+    b.set(1, 0, 7);
+    b.set(1, 1, 8);
+
+    // C = A*B = [[19,22],[43,50]]
+    Mat32.multiply(&a, &b, &c);
+    try std.testing.expectApproxEqAbs(@as(f32, 19.0), c.at(0, 0), 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 22.0), c.at(0, 1), 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 43.0), c.at(1, 0), 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 50.0), c.at(1, 1), 0.01);
+}
+
+test "Matrix transpose" {
+    const alloc = std.testing.allocator;
+    var a = try Mat32.alloc(alloc, 2, 3);
+    defer a.free(alloc);
+    var b = try Mat32.alloc(alloc, 3, 2);
+    defer b.free(alloc);
+
+    a.set(0, 0, 1);
+    a.set(0, 1, 2);
+    a.set(0, 2, 3);
+    a.set(1, 0, 4);
+    a.set(1, 1, 5);
+    a.set(1, 2, 6);
+
+    Mat32.transpose(&a, &b);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), b.at(0, 0), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 4.0), b.at(0, 1), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), b.at(1, 0), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), b.at(1, 1), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), b.at(2, 0), 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 6.0), b.at(2, 1), 0.001);
+}
+
+test "Matrix matvec" {
+    const alloc = std.testing.allocator;
+    // A = [[1,2],[3,4],[5,6]], x = [1,1]
+    var a = try Mat32.alloc(alloc, 3, 2);
+    defer a.free(alloc);
+
+    a.set(0, 0, 1);
+    a.set(0, 1, 2);
+    a.set(1, 0, 3);
+    a.set(1, 1, 4);
+    a.set(2, 0, 5);
+    a.set(2, 1, 6);
+
+    var x = [_]f32{ 1.0, 1.0 };
+    var y: [3]f32 = undefined;
+    a.matvec(&x, &y);
+
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), y[0], 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 7.0), y[1], 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 11.0), y[2], 0.01);
+}
+
+test "Matrix frobenius norm" {
+    const alloc = std.testing.allocator;
+    var m = try Mat32.alloc(alloc, 2, 2);
+    defer m.free(alloc);
+
+    m.set(0, 0, 3.0);
+    m.set(1, 1, 4.0);
+    // frobenius = sqrt(9 + 16) = 5
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), m.frobeniusNorm(), 0.01);
+}
+
+test "Matrix scaleInPlace" {
+    const alloc = std.testing.allocator;
+    var m = try Mat32.alloc(alloc, 2, 2);
+    defer m.free(alloc);
+
+    m.set(0, 0, 2.0);
+    m.set(1, 1, 3.0);
+    m.scaleInPlace(10.0);
+    try std.testing.expectApproxEqAbs(@as(f32, 20.0), m.at(0, 0), 0.01);
+    try std.testing.expectApproxEqAbs(@as(f32, 30.0), m.at(1, 1), 0.01);
+}

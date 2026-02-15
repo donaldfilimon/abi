@@ -396,3 +396,132 @@ pub const MessageBuilder = struct {
         try self.writer.writeStruct(T, value);
     }
 };
+
+// ---- Tests ------------------------------------------------------------------
+
+test "Writer/Reader round-trip primitives" {
+    const alloc = std.testing.allocator;
+    var w = Writer.init(alloc);
+    defer w.deinit();
+
+    try w.writeU8(0xAB);
+    try w.writeU16(0x1234);
+    try w.writeU32(0xDEADBEEF);
+    try w.writeU64(0x0102030405060708);
+    try w.writeI32(-42);
+    try w.writeF32(3.14);
+    try w.writeBool(true);
+    try w.writeBool(false);
+
+    var r = Reader.init(w.getOutput());
+    try std.testing.expectEqual(@as(u8, 0xAB), try r.readU8());
+    try std.testing.expectEqual(@as(u16, 0x1234), try r.readU16());
+    try std.testing.expectEqual(@as(u32, 0xDEADBEEF), try r.readU32());
+    try std.testing.expectEqual(@as(u64, 0x0102030405060708), try r.readU64());
+    try std.testing.expectEqual(@as(i32, -42), try r.readI32());
+    try std.testing.expectApproxEqAbs(@as(f32, 3.14), try r.readF32(), 0.001);
+    try std.testing.expect(try r.readBool());
+    try std.testing.expect(!(try r.readBool()));
+    try std.testing.expect(r.isComplete());
+}
+
+test "Writer/Reader round-trip slices and strings" {
+    const alloc = std.testing.allocator;
+    var w = Writer.init(alloc);
+    defer w.deinit();
+
+    try w.writeString("hello world");
+    try w.writeSlice(&[_]u8{ 0xDE, 0xAD });
+
+    var r = Reader.init(w.getOutput());
+    const s = try r.readString();
+    try std.testing.expectEqualStrings("hello world", s);
+    const sl = try r.readSlice();
+    try std.testing.expectEqual(@as(usize, 2), sl.len);
+    try std.testing.expectEqual(@as(u8, 0xDE), sl[0]);
+    try std.testing.expect(r.isComplete());
+}
+
+test "header write/read and finalize" {
+    const alloc = std.testing.allocator;
+    var w = Writer.init(alloc);
+    defer w.deinit();
+
+    try w.writeHeader();
+    try w.writeU32(42);
+    try w.writeString("test");
+    w.finalize();
+
+    var r = Reader.init(w.getOutput());
+    const payload_len = try r.readHeader();
+    // payload = u32(42) + u32(len=4) + "test" = 4 + 4 + 4 = 12
+    try std.testing.expectEqual(@as(u32, 12), payload_len);
+    try std.testing.expectEqual(@as(u32, 42), try r.readU32());
+    try std.testing.expectEqualStrings("test", try r.readString());
+}
+
+test "Reader errors on truncated data" {
+    var r = Reader.init(&[_]u8{0x01});
+    try std.testing.expectEqual(@as(u8, 0x01), try r.readU8());
+    try std.testing.expectError(error.BufferTooSmall, r.readU8());
+
+    var r2 = Reader.init(&[_]u8{ 0x01, 0x02 });
+    try std.testing.expectError(error.BufferTooSmall, r2.readU32());
+}
+
+test "Reader rejects invalid magic" {
+    var bad_header = [_]u8{ 'X', 'Y', 'Z', 'W', 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    var r = Reader.init(&bad_header);
+    try std.testing.expectError(error.InvalidMagic, r.readHeader());
+}
+
+test "MessageBuilder convenience API" {
+    const alloc = std.testing.allocator;
+    var mb = try MessageBuilder.init(alloc);
+    defer mb.deinit();
+
+    try mb.writeU32(100);
+    try mb.writeString("payload");
+    const data = mb.finish();
+
+    var r = Reader.init(data);
+    _ = try r.readHeader();
+    try std.testing.expectEqual(@as(u32, 100), try r.readU32());
+    try std.testing.expectEqualStrings("payload", try r.readString());
+}
+
+test "struct round-trip via reflection" {
+    const TestStruct = struct {
+        x: u32,
+        y: i32,
+        z: f32,
+        flag: bool,
+    };
+
+    const alloc = std.testing.allocator;
+    var w = Writer.init(alloc);
+    defer w.deinit();
+
+    const original = TestStruct{ .x = 42, .y = -7, .z = 2.5, .flag = true };
+    try w.writeStruct(TestStruct, original);
+
+    var r = Reader.init(w.getOutput());
+    const decoded = try r.readStruct(TestStruct);
+    try std.testing.expectEqual(original.x, decoded.x);
+    try std.testing.expectEqual(original.y, decoded.y);
+    try std.testing.expectApproxEqAbs(original.z, decoded.z, 0.001);
+    try std.testing.expectEqual(original.flag, decoded.flag);
+}
+
+test "Writer reset and reuse" {
+    const alloc = std.testing.allocator;
+    var w = Writer.init(alloc);
+    defer w.deinit();
+
+    try w.writeU32(1);
+    try std.testing.expectEqual(@as(usize, 4), w.bytesWritten());
+    w.reset();
+    try std.testing.expectEqual(@as(usize, 0), w.bytesWritten());
+    try w.writeU8(2);
+    try std.testing.expectEqual(@as(usize, 1), w.bytesWritten());
+}

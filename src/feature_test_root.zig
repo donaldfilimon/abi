@@ -79,6 +79,18 @@ test {
     _ = @import("services/runtime/scheduling/thread_pool.zig");
     _ = @import("services/runtime/scheduling/dag_pipeline.zig");
 
+    // Shared utility inline tests
+    _ = @import("services/shared/utils/swiss_map.zig");
+    _ = @import("services/shared/utils/abix_serialize.zig");
+    _ = @import("services/shared/utils/v2_primitives.zig");
+    _ = @import("services/shared/utils/profiler.zig");
+    _ = @import("services/shared/utils/structured_error.zig");
+    _ = @import("services/shared/utils/memory/arena_pool.zig");
+    _ = @import("services/shared/utils/memory/combinators.zig");
+    _ = @import("services/shared/sync.zig");
+    _ = @import("services/shared/tensor.zig");
+    _ = @import("services/shared/matrix.zig");
+
     // Connector inline tests (not discovered through named abi module)
     _ = @import("services/connectors/mod.zig");
 }

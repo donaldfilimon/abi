@@ -411,3 +411,129 @@ pub const TypeUtils = struct {
         return std.mem.eql(u8, a, b);
     }
 };
+
+// ---- Tests ------------------------------------------------------------------
+
+test "Math.isPowerOfTwo" {
+    try std.testing.expect(Math.isPowerOfTwo(@as(u32, 1)));
+    try std.testing.expect(Math.isPowerOfTwo(@as(u32, 2)));
+    try std.testing.expect(Math.isPowerOfTwo(@as(u32, 256)));
+    try std.testing.expect(!Math.isPowerOfTwo(@as(u32, 0)));
+    try std.testing.expect(!Math.isPowerOfTwo(@as(u32, 3)));
+    try std.testing.expect(!Math.isPowerOfTwo(@as(u32, 100)));
+}
+
+test "Math.nextPowerOfTwo" {
+    try std.testing.expectEqual(@as(u32, 1), Math.nextPowerOfTwo(u32, 0));
+    try std.testing.expectEqual(@as(u32, 1), Math.nextPowerOfTwo(u32, 1));
+    try std.testing.expectEqual(@as(u32, 4), Math.nextPowerOfTwo(u32, 3));
+    try std.testing.expectEqual(@as(u32, 8), Math.nextPowerOfTwo(u32, 5));
+    try std.testing.expectEqual(@as(u32, 16), Math.nextPowerOfTwo(u32, 16));
+    try std.testing.expectEqual(@as(u32, 1024), Math.nextPowerOfTwo(u32, 513));
+}
+
+test "Math.alignUp" {
+    try std.testing.expectEqual(@as(u64, 64), Math.alignUp(u64, 50, 64));
+    try std.testing.expectEqual(@as(u64, 64), Math.alignUp(u64, 64, 64));
+    try std.testing.expectEqual(@as(u64, 128), Math.alignUp(u64, 65, 64));
+    try std.testing.expectEqual(@as(u32, 16), Math.alignUp(u32, 1, 16));
+}
+
+test "Math.clamp and divCeil" {
+    try std.testing.expectEqual(@as(i32, 5), Math.clamp(i32, 10, 0, 5));
+    try std.testing.expectEqual(@as(i32, 0), Math.clamp(i32, -1, 0, 5));
+    try std.testing.expectEqual(@as(i32, 3), Math.clamp(i32, 3, 0, 5));
+
+    try std.testing.expectEqual(@as(u32, 3), Math.divCeil(u32, 7, 3));
+    try std.testing.expectEqual(@as(u32, 2), Math.divCeil(u32, 6, 3));
+    try std.testing.expectEqual(@as(u32, 1), Math.divCeil(u32, 1, 4));
+}
+
+test "String.eqlIgnoreCase" {
+    try std.testing.expect(String.eqlIgnoreCase("Hello", "hello"));
+    try std.testing.expect(String.eqlIgnoreCase("ABC", "abc"));
+    try std.testing.expect(!String.eqlIgnoreCase("abc", "abcd"));
+    try std.testing.expect(!String.eqlIgnoreCase("abc", "abd"));
+}
+
+test "String.Builder" {
+    const alloc = std.testing.allocator;
+    var sb = String.Builder.init(alloc);
+    defer sb.deinit();
+
+    try sb.append("hello");
+    try sb.append(" world");
+    try std.testing.expectEqualStrings("hello world", sb.slice());
+
+    sb.reset();
+    try std.testing.expectEqual(@as(usize, 0), sb.slice().len);
+}
+
+test "RingBuffer basic operations" {
+    var rb = RingBuffer(u32, 4){};
+    try std.testing.expect(rb.isEmpty());
+    try std.testing.expect(!rb.isFull());
+
+    try std.testing.expect(rb.push(1));
+    try std.testing.expect(rb.push(2));
+    try std.testing.expect(rb.push(3));
+    try std.testing.expect(rb.push(4));
+    try std.testing.expect(rb.isFull());
+    try std.testing.expect(!rb.push(5)); // full
+
+    try std.testing.expectEqual(@as(?u32, 1), rb.pop());
+    try std.testing.expectEqual(@as(?u32, 2), rb.pop());
+    try std.testing.expectEqual(@as(usize, 2), rb.len());
+
+    // Can push again after popping
+    try std.testing.expect(rb.push(5));
+    try std.testing.expect(rb.push(6));
+    try std.testing.expectEqual(@as(?u32, 3), rb.pop());
+    try std.testing.expectEqual(@as(?u32, 4), rb.pop());
+    try std.testing.expectEqual(@as(?u32, 5), rb.pop());
+    try std.testing.expectEqual(@as(?u32, 6), rb.pop());
+    try std.testing.expect(rb.isEmpty());
+    try std.testing.expectEqual(@as(?u32, null), rb.pop());
+}
+
+test "Result monadic type" {
+    const R = Result(u32, error{NotFound});
+
+    const ok_val: R = .{ .ok = 42 };
+    try std.testing.expect(ok_val.isOk());
+    try std.testing.expect(!ok_val.isErr());
+    try std.testing.expectEqual(@as(u32, 42), try ok_val.unwrap());
+    try std.testing.expectEqual(@as(u32, 42), ok_val.unwrapOr(0));
+
+    const err_val: R = .{ .err = error.NotFound };
+    try std.testing.expect(err_val.isErr());
+    try std.testing.expectEqual(@as(u32, 99), err_val.unwrapOr(99));
+    try std.testing.expectError(error.UnwrapError, err_val.unwrap());
+}
+
+test "SpscQueue basic push/pop" {
+    var q = Atomic.SpscQueue(u32, 4){};
+    try std.testing.expect(q.isEmpty());
+    try std.testing.expect(q.push(10));
+    try std.testing.expect(q.push(20));
+    try std.testing.expectEqual(@as(usize, 2), q.len());
+    try std.testing.expectEqual(@as(?u32, 10), q.pop());
+    try std.testing.expectEqual(@as(?u32, 20), q.pop());
+    try std.testing.expectEqual(@as(?u32, null), q.pop());
+}
+
+test "Atomic.Counter" {
+    var c = Atomic.Counter{};
+    try std.testing.expectEqual(@as(u64, 0), c.load());
+    _ = c.increment();
+    _ = c.increment();
+    _ = c.add(3);
+    try std.testing.expectEqual(@as(u64, 5), c.load());
+    c.reset();
+    try std.testing.expectEqual(@as(u64, 0), c.load());
+}
+
+test "Platform description is non-empty" {
+    const desc = Platform.description();
+    try std.testing.expect(desc.len > 0);
+}
