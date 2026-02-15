@@ -79,7 +79,7 @@ stress tests, chaos tests, and parity checks.
 zig build feature-tests --summary all
 ```
 
-Expected: **1153 pass** (1153 total).
+Expected: **1198 pass** (1198 total).
 
 Feature tests are inline `test {}` blocks inside each module's source files, compiled
 through `src/feature_test_root.zig`.

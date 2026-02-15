@@ -7,6 +7,13 @@ const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 
+/// Common cancellation errors.
+pub const CancellationError = error{
+    Cancelled,
+    CancellationTimeout,
+    OperationCancelled,
+};
+
 /// Cancellation state.
 pub const CancellationState = enum {
     active,

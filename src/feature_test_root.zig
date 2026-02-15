@@ -65,8 +65,22 @@ test {
     if (@hasDecl(build_options, "enable_reasoning") and build_options.enable_reasoning)
         _ = @import("features/ai_reasoning/mod.zig");
 
+    // GPU standalone test files (no cross-module service imports)
+    // Note: mod.zig can't be registered (imports services/shared/time.zig, sync.zig)
+    // These test files use only relative imports within features/gpu/
+    if (build_options.enable_gpu) {
+        _ = @import("features/gpu/backends/cuda/loader_test.zig");
+        _ = @import("features/gpu/backends/metal_test.zig");
+        _ = @import("features/gpu/backends/vulkan_test.zig");
+        _ = @import("features/gpu/tests/all_backends_test.zig");
+        _ = @import("features/gpu/tests/backend_detection_test.zig");
+        _ = @import("features/gpu/tests/device_enumeration_test.zig");
+        _ = @import("features/gpu/tests/execution_fallback_test.zig");
+        _ = @import("features/gpu/tests/integration_test.zig");
+        _ = @import("features/gpu/tests/std_gpu_test.zig");
+    }
+
     // Standalone test files — avoid pulling in sub-modules with Zig 0.16 issues
-    // (database, gpu need deep Zig 0.16 fixes before registration)
     if (build_options.enable_auth) _ = @import("features/auth/auth_test.zig");
 
     // MCP/ACP service tests (types + server only — mod.zig has database dep)
@@ -121,7 +135,9 @@ test {
     _ = @import("services/shared/logging.zig");
     _ = @import("services/shared/plugins.zig");
 
-    // Shared memory utilities (aligned.zig + stack.zig need mem.Alignment migration)
+    // Shared memory utilities
+    _ = @import("services/shared/utils/memory/aligned.zig");
+    _ = @import("services/shared/utils/memory/stack.zig");
     _ = @import("services/shared/utils/memory/tracking.zig");
     _ = @import("services/shared/utils/memory/ring.zig");
     _ = @import("services/shared/utils/memory/pool.zig");
@@ -134,8 +150,10 @@ test {
     _ = @import("services/runtime/concurrency/priority_queue.zig");
     _ = @import("services/runtime/concurrency/epoch.zig");
 
-    // Runtime scheduling (future.zig + task_group.zig need error set migration)
+    // Runtime scheduling
     _ = @import("services/runtime/scheduling/cancellation.zig");
+    _ = @import("services/runtime/scheduling/future.zig");
+    _ = @import("services/runtime/scheduling/task_group.zig");
 
     // Runtime engine + workload
     _ = @import("services/runtime/workload.zig");
@@ -146,4 +164,7 @@ test {
 
     // Platform detection
     _ = @import("services/platform/detection.zig");
+
+    // Core module tests (errors.zig transitively pulls in config/mod.zig)
+    _ = @import("core/errors.zig");
 }
