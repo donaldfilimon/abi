@@ -15,6 +15,7 @@
 // ============================================================================
 
 const std = @import("std");
+const time = @import("../time.zig");
 
 // ─── Suite Configuration ─────────────────────────────────────────────────────
 
@@ -84,23 +85,17 @@ pub const Suite = struct {
         try self.benchmarks.append(self.allocator, .{ .name = name, .func = func });
     }
 
-    pub fn runAll(self: *Self) !void {
-        var buf: [4096]u8 = undefined;
-        var out = std.io.getStdOut().writer(&buf);
-        try out.print("\n=== Running {d} benchmarks ===\n\n", .{self.benchmarks.items.len});
-        try out.flush();
+    pub fn runAll(self: *Self, writer: anytype) !void {
+        try writer.print("\n=== Running {d} benchmarks ===\n\n", .{self.benchmarks.items.len});
 
         for (self.benchmarks.items, 0..) |b, idx| {
-            try out.print("[{d}/{d}] {s}...\n", .{ idx + 1, self.benchmarks.items.len, b.name });
-            try out.flush();
+            try writer.print("[{d}/{d}] {s}...\n", .{ idx + 1, self.benchmarks.items.len, b.name });
             const result = try self.runOne(b);
             try self.results.append(self.allocator, result);
-            try printResult(out, &result);
-            try out.flush();
+            try printResult(writer, &result);
         }
 
-        try self.printSummary(out);
-        try out.flush();
+        try self.printSummary(writer);
     }
 
     fn runOne(self: *Self, b: NamedBench) !Result {
@@ -117,8 +112,8 @@ pub const Suite = struct {
         while (count < max_samples and
             (count < self.config.measure_iters or total_ns < self.config.min_time_ns))
         {
-            var timer = std.time.Timer.start() catch std.time.Timer{
-                .started = .{ .sec = 0, .nsec = 0 },
+            var timer = time.Timer.start() catch time.Timer{
+                .start_instant = .{ .nanos = 0 },
             };
             b.func();
             const elapsed: u64 = timer.read();
@@ -209,7 +204,7 @@ fn filterOutliers(allocator: std.mem.Allocator, samples: []const u64, threshold:
     }
     const std_dev = @sqrt(var_sum / @as(f64, @floatFromInt(samples.len)));
 
-    var filtered = std.ArrayListUnmanaged(u64){};
+    var filtered = std.ArrayListUnmanaged(u64).empty;
     errdefer filtered.deinit(allocator);
 
     const limit = std_dev * threshold;

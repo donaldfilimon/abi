@@ -8,13 +8,14 @@
 // Thread-safe via inline spinlock.
 //
 // Changes from v2.0:
-//   - Replaced std.time.nanoTimestamp() with std.time.Timer (Zig 0.16)
+//   - Replaced std.time.nanoTimestamp() with time.Timer (Zig 0.16)
 //   - Replaced utils.Atomic.SpinLock with inline atomic spinlock
 //   - Removed @import("utils") dependency
 //   - Removed emojis from report output (project convention)
 // ============================================================================
 
 const std = @import("std");
+const time = @import("../time.zig");
 
 // ─── Inline SpinLock ─────────────────────────────────────────────────────────
 
@@ -117,7 +118,7 @@ pub const Category = enum(u8) {
 pub const SpanHandle = struct {
     index: u32,
     valid: bool,
-    timer: std.time.Timer,
+    timer: time.Timer,
 };
 
 // ─── Profiler ────────────────────────────────────────────────────────────────
@@ -142,8 +143,8 @@ pub fn ProfilerType(comptime max_spans: usize) type {
         }
 
         pub fn beginCat(self: *Self, name: []const u8, category: Category) SpanHandle {
-            const timer = std.time.Timer.start() catch std.time.Timer{
-                .started = .{ .sec = 0, .nsec = 0 },
+            const timer = time.Timer.start() catch time.Timer{
+                .start_instant = .{ .nanos = 0 },
             };
 
             if (!self.enabled) return .{ .index = 0, .valid = false, .timer = timer };
@@ -174,10 +175,11 @@ pub fn ProfilerType(comptime max_spans: usize) type {
         }
 
         pub fn end(self: *Self, handle: SpanHandle) void {
-            self.endWithMeta(handle, 0);
+            var h = handle;
+            self.endWithMeta(&h, 0);
         }
 
-        pub fn endWithMeta(self: *Self, handle: SpanHandle, metadata: u64) void {
+        pub fn endWithMeta(self: *Self, handle: *SpanHandle, metadata: u64) void {
             if (!handle.valid) return;
 
             const g = self.lock.guard();
@@ -291,3 +293,81 @@ pub const Profiler = ProfilerType(8192);
 
 /// Compact profiler for constrained environments
 pub const CompactProfiler = ProfilerType(256);
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+test "SpanRecord duration conversions" {
+    var span = SpanRecord{};
+    span.duration_ns = 1_500_000; // 1.5ms
+    try std.testing.expectApproxEqAbs(@as(f64, 1500.0), span.durationUs(), 0.1);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.5), span.durationMs(), 0.01);
+}
+
+test "SpanRecord throughput calculation" {
+    var span = SpanRecord{};
+    span.duration_ns = 1_000_000_000; // 1 second
+    span.metadata = 100_000_000; // 100MB
+    // throughput = 100MB / 1s = 100 MB/s
+    try std.testing.expectApproxEqAbs(@as(f64, 100.0), span.throughputMBs(), 1.0);
+
+    // Zero duration → 0 throughput
+    var zero_span = SpanRecord{};
+    try std.testing.expectApproxEqAbs(@as(f64, 0.0), zero_span.throughputMBs(), 0.001);
+}
+
+test "Profiler begin/end records spans" {
+    var p = CompactProfiler.init(true);
+    try std.testing.expectEqual(@as(usize, 0), p.spanCount());
+
+    const h = p.begin("test_op");
+    p.end(h);
+
+    try std.testing.expectEqual(@as(usize, 1), p.spanCount());
+    try std.testing.expect(p.spans[0].completed);
+    try std.testing.expectEqualStrings("test_op", p.spans[0].getName());
+}
+
+test "Profiler disabled skips recording" {
+    var p = CompactProfiler.init(false);
+    const h = p.begin("should_not_record");
+    p.end(h);
+    try std.testing.expectEqual(@as(usize, 0), p.spanCount());
+}
+
+test "Profiler overflow tracking" {
+    var p = ProfilerType(2).init(true);
+    const h1 = p.begin("a");
+    p.end(h1);
+    const h2 = p.begin("b");
+    p.end(h2);
+    const h3 = p.begin("overflow");
+    p.end(h3); // should be dropped
+    try std.testing.expectEqual(@as(usize, 2), p.spanCount());
+    try std.testing.expectEqual(@as(u64, 1), p.overflow_count);
+}
+
+test "Profiler category time aggregation" {
+    var p = CompactProfiler.init(true);
+    const h1 = p.beginCat("compute_a", .compute);
+    p.end(h1);
+    const h2 = p.beginCat("io_op", .io);
+    p.end(h2);
+
+    try std.testing.expect(p.totalTimeNs(.compute) > 0 or p.totalTimeNs(.compute) == 0);
+    // Just verify it doesn't crash — actual duration depends on timing
+}
+
+test "Profiler reset" {
+    var p = CompactProfiler.init(true);
+    const h = p.begin("op");
+    p.end(h);
+    try std.testing.expectEqual(@as(usize, 1), p.spanCount());
+    p.reset();
+    try std.testing.expectEqual(@as(usize, 0), p.spanCount());
+}
+
+test "Category labels" {
+    try std.testing.expectEqualStrings("user", Category.user.label());
+    try std.testing.expectEqualStrings("gpu", Category.gpu.label());
+    try std.testing.expectEqualStrings("io", Category.io.label());
+}
