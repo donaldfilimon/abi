@@ -355,7 +355,7 @@ pub const CoherenceProtocol = struct {
         requestor: u64,
         timestamp: i64,
         data_received: bool,
-        completion_event: std.Thread.ResetEvent,
+        completion_event: bool = false,
     };
 
     pub const ProtocolStats = struct {

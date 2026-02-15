@@ -5,6 +5,30 @@ const modules = @import("modules.zig");
 const feature_catalog = @import("../src/core/feature_catalog.zig");
 const BuildOptions = options_mod.BuildOptions;
 
+const internal_allowed_flags = [_][]const u8{
+    "enable_explore",
+    "enable_vision",
+};
+
+fn isCatalogFlag(comptime field_name: []const u8) bool {
+    @setEvalBranchQuota(4096);
+    inline for (feature_catalog.all) |entry| {
+        if (std.mem.eql(u8, field_name, entry.compile_flag_field)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn isAllowedInternalFlag(comptime field_name: []const u8) bool {
+    inline for (internal_allowed_flags) |flag| {
+        if (std.mem.eql(u8, field_name, flag)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// Compact flag combination for validation. Sub-feature flags (explore, llm,
 /// vision, training, reasoning) inherit from enable_ai.
 pub const FlagCombo = struct {
@@ -35,6 +59,17 @@ comptime {
     for (feature_catalog.all) |entry| {
         if (!@hasField(FlagCombo, entry.compile_flag_field)) {
             @compileError("FlagCombo missing compile flag field from feature catalog: " ++ entry.compile_flag_field);
+        }
+    }
+
+    for (std.meta.fields(FlagCombo)) |field| {
+        if (std.mem.eql(u8, field.name, "name")) continue;
+        if (!std.mem.startsWith(u8, field.name, "enable_")) {
+            @compileError("FlagCombo contains non-flag field: " ++ field.name);
+        }
+
+        if (!isCatalogFlag(field.name) and !isAllowedInternalFlag(field.name)) {
+            @compileError("FlagCombo defines unknown feature flag: " ++ field.name);
         }
     }
 }
@@ -135,6 +170,22 @@ pub fn addFlagValidation(
             .linkage = .static,
         });
         validate_step.dependOn(&check.step);
+
+        // Compile deep symbol access under each flag combo to catch mod/stub
+        // surface drift that plain `@import("abi")` compile checks would miss.
+        const surface_mod = b.createModule(.{
+            .root_source_file = b.path("build/validate/stub_surface_check.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        surface_mod.addImport("abi", abi_mod);
+        surface_mod.addImport("build_options", build_opts_mod);
+        const surface_check = b.addLibrary(.{
+            .name = "validate-surface-" ++ combo.name,
+            .root_module = surface_mod,
+            .linkage = .static,
+        });
+        validate_step.dependOn(&surface_check.step);
     }
 
     return validate_step;

@@ -192,6 +192,11 @@ pub const ReasoningChain = struct {
                 std.log.warn("Reasoning chain finalization failed: {t}", .{err});
             };
         }
+        return self.getConfidence();
+    }
+
+    /// Get confidence without auto-finalization (const-safe).
+    pub fn getConfidence(self: *const Self) Confidence {
         return self.overall_confidence orelse .{
             .level = .unknown,
             .score = 0.0,

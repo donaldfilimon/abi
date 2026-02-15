@@ -30,6 +30,7 @@
 const std = @import("std");
 const time = @import("../time.zig");
 const crypto = std.crypto;
+const csprng = @import("csprng.zig");
 const net = std.net;
 
 pub const TlsConfig = struct {
@@ -176,7 +177,7 @@ pub const TlsConnection = struct {
 
     fn performClientHandshake(self: *TlsConnection) !void {
         // Generate client random
-        crypto.random.bytes(&self.client_random);
+        csprng.fillRandom(&self.client_random);
 
         // Send ClientHello
         self.handshake_state = .client_hello_sent;
@@ -202,7 +203,7 @@ pub const TlsConnection = struct {
 
     fn performServerHandshake(self: *TlsConnection) !void {
         // Generate server random
-        crypto.random.bytes(&self.server_random);
+        csprng.fillRandom(&self.server_random);
 
         // Receive ClientHello
         try self.receiveClientHello();
@@ -297,8 +298,9 @@ pub const TlsConnection = struct {
         // Note: info would be used in full HKDF-Expand: "tls13 master secret"
 
         // Use HKDF to derive session key
-        const Hkdf = crypto.kdf.hkdf.Hkdf(crypto.hash.sha2.Sha256);
-        Hkdf.extract(&salt, &ikm, &self.session_key);
+        const Hkdf = crypto.kdf.hkdf.Hkdf(crypto.auth.hmac.sha2.HmacSha256);
+        const prk = Hkdf.extract(&salt, &ikm);
+        self.session_key = prk[0..32].*;
 
         // In production, would derive multiple keys for encryption, MAC, IV
     }
@@ -521,12 +523,12 @@ pub fn generateSelfSignedCertificate(
     organization: []const u8,
 ) !TlsCertificate {
     const der_encoding = try allocator.alloc(u8, 0);
-    const now = 1700000000;
+    const now = time.unixSeconds();
     return .{
         .der_encoding = der_encoding,
         .common_name = try allocator.dupe(u8, common_name),
         .organization = try allocator.dupe(u8, organization),
-        .valid_from = now,
+        .valid_from = now - 3600, // Valid since 1 hour ago
         .valid_until = now + 365 * 24 * 60 * 60,
         .is_ca = false,
         .subject_alt_names = &.{},
@@ -574,10 +576,10 @@ test "tls read write after handshake" {
     const written = try conn.write("Hello, TLS!");
     try std.testing.expectEqual(@as(usize, 11), written);
 
-    // Test read (returns 0 in stub implementation)
+    // Test read (returns simulated decrypted data)
     var buffer: [256]u8 = undefined;
     const read_len = try conn.read(&buffer);
-    try std.testing.expectEqual(@as(usize, 0), read_len);
+    try std.testing.expect(read_len > 0);
 }
 
 test "tls session info" {

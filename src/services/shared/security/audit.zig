@@ -12,6 +12,7 @@
 const std = @import("std");
 const time = @import("../time.zig");
 const sync = @import("../sync.zig");
+const csprng = @import("csprng.zig");
 
 /// Severity level for security events
 pub const Severity = enum(u8) {
@@ -766,7 +767,7 @@ test "audit logger basic operations" {
 test "audit hash chain integrity" {
     const allocator = std.testing.allocator;
     var hmac_key: [32]u8 = undefined;
-    std.crypto.random.bytes(&hmac_key);
+    csprng.fillRandom(&hmac_key);
 
     var logger = AuditLogger.init(allocator, .{
         .enable_hash_chain = true,
@@ -776,12 +777,14 @@ test "audit hash chain integrity" {
 
     // Log multiple events
     for (0..5) |i| {
+        const msg = try std.fmt.allocPrint(allocator, "Event {d}", .{i});
+        defer allocator.free(msg);
         try logger.log(.{
             .severity = .info,
             .category = .system,
             .event_type = "test_event",
             .outcome = .success,
-            .message = try std.fmt.allocPrint(allocator, "Event {d}", .{i}),
+            .message = msg,
             .source = "test",
         });
     }

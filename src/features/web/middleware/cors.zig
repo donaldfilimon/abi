@@ -112,6 +112,10 @@ pub const CorsMiddleware = struct {
 /// config-aware CORS enforcement.
 pub fn createCorsMiddleware(config: CorsConfig) types.MiddlewareFn {
     _ = config;
+    std.log.warn(
+        "createCorsMiddleware ignores config (fn pointer cannot capture state); use CorsMiddleware.init(config).handle for enforced CORS policy",
+        .{},
+    );
     return &permissiveCors;
 }
 

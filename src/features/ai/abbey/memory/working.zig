@@ -251,7 +251,7 @@ pub const WorkingMemory = struct {
 
     /// Pop focus
     pub fn popFocus(self: *Self) ?u64 {
-        return self.focus_stack.popOrNull();
+        return self.focus_stack.pop();
     }
 
     /// Get current focus

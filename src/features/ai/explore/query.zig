@@ -67,7 +67,7 @@ pub const QueryUnderstanding = struct {
     }
 
     fn toLowercase(self: *QueryUnderstanding, text: []const u8) ![]const u8 {
-        return string_utils.toLowerAscii(self.allocator, text);
+        return string_utils.string.toLowerAscii(self.allocator, text);
     }
 
     fn classifyIntent(self: *QueryUnderstanding, query: []const u8) QueryIntent {

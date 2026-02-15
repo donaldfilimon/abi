@@ -1,4 +1,5 @@
 const std = @import("std");
+const parallel_mod = @import("parallel.zig");
 
 pub const cli = struct {
     pub fn run(_: std.mem.Allocator, _: []const [:0]const u8) !void {
@@ -6,7 +7,15 @@ pub const cli = struct {
     }
 };
 
-pub const parallel_search = struct {};
+pub const parallel_search = struct {
+    pub const ParallelSearchConfig = parallel_mod.ParallelSearchConfig;
+    pub const ParallelSearchExecutor = parallel_mod.ParallelSearchExecutor;
+    pub const ParallelBeamState = parallel_mod.ParallelBeamState;
+    pub const ParallelWorkQueue = parallel_mod.ParallelWorkQueue;
+    pub const BatchSearchResult = parallel_mod.BatchSearchResult;
+    pub const ParallelSearchStats = parallel_mod.ParallelSearchStats;
+    pub const batchCosineDistances = parallel_mod.batchCosineDistances;
+};
 pub const database = struct {
     pub const Database = struct {
         pub fn init(_: std.mem.Allocator) !@This() {

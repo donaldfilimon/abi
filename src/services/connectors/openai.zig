@@ -348,13 +348,13 @@ pub fn isAvailable() bool {
 // ============================================================================
 
 test "chat completion request default values" {
-    const messages = [_]Message{.{
-        .role = .user,
+    var messages = [_]Message{.{
+        .role = shared.Role.USER,
         .content = "Hello",
     }};
     const request = ChatCompletionRequest{
         .model = "gpt-4",
-        .messages = &messages,
+        .messages = messages[0..],
     };
     try std.testing.expectEqual(@as(f32, 0.7), request.temperature);
     try std.testing.expectEqual(@as(?u32, null), request.max_tokens);

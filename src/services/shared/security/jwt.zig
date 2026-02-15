@@ -10,8 +10,19 @@
 
 const std = @import("std");
 const time = @import("../time.zig");
+
+/// Constant-time comparison for variable-length slices (timing-attack resistant).
+fn constantTimeEqlSlice(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    var diff: u8 = 0;
+    for (a, b) |x, y| {
+        diff |= x ^ y;
+    }
+    return diff == 0;
+}
 const sync = @import("../sync.zig");
 const crypto = std.crypto;
+const csprng = @import("csprng.zig");
 
 /// JWT signing algorithms
 pub const Algorithm = enum {
@@ -234,9 +245,13 @@ pub const JwtManager = struct {
         if (final_claims.jti == null) {
             // Generate unique token ID
             var jti_buf: [16]u8 = undefined;
-            crypto.random.bytes(&jti_buf);
+            csprng.fillRandom(&jti_buf);
             final_claims.jti = try self.allocator.dupe(u8, &jti_buf);
         }
+        // Free auto-generated jti after serialization (only if we created it)
+        defer if (claims.jti == null) {
+            if (final_claims.jti) |jti| self.allocator.free(jti);
+        };
 
         // Build header
         const header_json = try std.fmt.allocPrint(self.allocator, "{{\"alg\":\"{s}\",\"typ\":\"JWT\"}}", .{
@@ -502,7 +517,7 @@ pub const JwtManager = struct {
         const expected_decoded = try self.base64UrlDecode(expected);
         defer self.allocator.free(expected_decoded);
 
-        return crypto.utils.timingSafeEql(u8, signature, expected_decoded);
+        return constantTimeEqlSlice(signature, expected_decoded);
     }
 
     fn base64UrlEncode(self: *JwtManager, data: []const u8) ![]const u8 {
@@ -595,6 +610,8 @@ pub const JwtManager = struct {
             // Skip whitespace
             while (end < json.len and (json[end] == ' ' or json[end] == '\t')) : (end += 1) {}
             const num_start = end;
+            // Handle negative sign
+            if (end < json.len and json[end] == '-') end += 1;
             // Find number end
             while (end < json.len and (json[end] >= '0' and json[end] <= '9')) : (end += 1) {}
             if (end > num_start) {
@@ -614,40 +631,46 @@ pub const JwtManager = struct {
 
         if (claims.sub) |sub| {
             if (!first) try buffer.append(self.allocator, ',');
-            try std.fmt.format(buffer.writer(self.allocator), "\"sub\":\"{s}\"", .{sub});
+            try appendFmt(&buffer, self.allocator, "\"sub\":\"{s}\"", .{sub});
             first = false;
         }
         if (claims.iss) |iss| {
             if (!first) try buffer.append(self.allocator, ',');
-            try std.fmt.format(buffer.writer(self.allocator), "\"iss\":\"{s}\"", .{iss});
+            try appendFmt(&buffer, self.allocator, "\"iss\":\"{s}\"", .{iss});
             first = false;
         }
         if (claims.aud) |aud| {
             if (!first) try buffer.append(self.allocator, ',');
-            try std.fmt.format(buffer.writer(self.allocator), "\"aud\":\"{s}\"", .{aud});
+            try appendFmt(&buffer, self.allocator, "\"aud\":\"{s}\"", .{aud});
             first = false;
         }
         if (claims.jti) |jti| {
             if (!first) try buffer.append(self.allocator, ',');
-            // Encode jti as hex since it may be binary
+            // Encode jti as hex
+            // Encode jti bytes as hex string
             var hex_buf: [64]u8 = undefined;
-            const hex = std.fmt.bufPrint(&hex_buf, "{}", .{std.fmt.fmtSliceHexLower(jti)}) catch jti;
-            try std.fmt.format(buffer.writer(self.allocator), "\"jti\":\"{s}\"", .{hex});
+            const hex_chars = "0123456789abcdef";
+            const hlen = @min(jti.len, 32);
+            for (jti[0..hlen], 0..) |b, idx| {
+                hex_buf[idx * 2] = hex_chars[b >> 4];
+                hex_buf[idx * 2 + 1] = hex_chars[b & 0x0f];
+            }
+            try appendFmt(&buffer, self.allocator, "\"jti\":\"{s}\"", .{hex_buf[0 .. hlen * 2]});
             first = false;
         }
         if (claims.exp) |exp| {
             if (!first) try buffer.append(self.allocator, ',');
-            try std.fmt.format(buffer.writer(self.allocator), "\"exp\":{d}", .{exp});
+            try appendFmt(&buffer, self.allocator, "\"exp\":{d}", .{exp});
             first = false;
         }
         if (claims.nbf) |nbf| {
             if (!first) try buffer.append(self.allocator, ',');
-            try std.fmt.format(buffer.writer(self.allocator), "\"nbf\":{d}", .{nbf});
+            try appendFmt(&buffer, self.allocator, "\"nbf\":{d}", .{nbf});
             first = false;
         }
         if (claims.iat) |iat| {
             if (!first) try buffer.append(self.allocator, ',');
-            try std.fmt.format(buffer.writer(self.allocator), "\"iat\":{d}", .{iat});
+            try appendFmt(&buffer, self.allocator, "\"iat\":{d}", .{iat});
             first = false;
         }
 
@@ -656,7 +679,7 @@ pub const JwtManager = struct {
             var it = custom.iterator();
             while (it.next()) |entry| {
                 if (!first) try buffer.append(self.allocator, ',');
-                try std.fmt.format(buffer.writer(self.allocator), "\"{s}\":\"{s}\"", .{
+                try appendFmt(&buffer, self.allocator, "\"{s}\":\"{s}\"", .{
                     entry.key_ptr.*,
                     entry.value_ptr.*,
                 });
@@ -667,6 +690,18 @@ pub const JwtManager = struct {
         try buffer.append(self.allocator, '}');
 
         return buffer.toOwnedSlice(self.allocator);
+    }
+
+    /// Helper: format and append to an ArrayListUnmanaged (replaces removed writer() pattern).
+    fn appendFmt(
+        buffer: *std.ArrayListUnmanaged(u8),
+        allocator: std.mem.Allocator,
+        comptime fmt: []const u8,
+        args: anytype,
+    ) !void {
+        const tmp = try std.fmt.allocPrint(allocator, fmt, args);
+        defer allocator.free(tmp);
+        try buffer.appendSlice(allocator, tmp);
     }
 
     fn cleanupBlacklist(self: *JwtManager) !void {
@@ -684,7 +719,7 @@ pub const JwtManager = struct {
 
         // Remove expired entries
         for (to_remove.items) |key| {
-            if (self.blacklist.fetchRemove(key)) |kv| {
+            if (self.blacklist.fetchOrderedRemove(key)) |kv| {
                 self.allocator.free(kv.key);
             }
         }
@@ -723,7 +758,7 @@ pub fn extractBearerToken(auth_header: []const u8) ?[]const u8 {
 /// Generate a secure random secret key
 pub fn generateSecretKey(allocator: std.mem.Allocator, length: usize) ![]u8 {
     const key = try allocator.alloc(u8, length);
-    crypto.random.bytes(key);
+    csprng.fillRandom(key);
     return key;
 }
 

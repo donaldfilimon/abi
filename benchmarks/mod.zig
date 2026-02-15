@@ -13,6 +13,7 @@ pub const domains = struct {
     pub const ai = @import("domain/ai/mod.zig");
     pub const database = @import("domain/database/mod.zig");
     pub const gpu = @import("domain/gpu/mod.zig");
+    pub const services = @import("domain/services/mod.zig");
     // Network domain not yet implemented
     pub const network = struct {};
 };
@@ -63,6 +64,7 @@ pub fn runAllBenchmarks(allocator: std.mem.Allocator) !void {
     try domains.ai.runAllBenchmarks(allocator, .standard);
     try domains.database.runAllBenchmarks(allocator, .standard);
     try domains.gpu.runAllBenchmarks(allocator, .standard);
+    try domains.services.runAllBenchmarks(allocator);
 
     // Run infrastructure benchmarks
     std.debug.print("\nInfrastructure Benchmarks:\n", .{});

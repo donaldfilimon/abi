@@ -13,6 +13,7 @@ const std = @import("std");
 const crypto = std.crypto;
 const time = @import("../time.zig");
 const sync = @import("../sync.zig");
+const csprng = @import("csprng.zig");
 
 /// Certificate type
 pub const CertificateType = enum {
@@ -570,7 +571,7 @@ pub const CertificateManager = struct {
         offset += cert.serial_number.len;
 
         // Nonce (2 bytes)
-        crypto.random.bytes(request[offset .. offset + 2]);
+        csprng.fillRandom(request[offset .. offset + 2]);
 
         return request;
     }
@@ -622,9 +623,9 @@ pub const CertificateManager = struct {
 
         // Generate placeholder serial
         var serial_buf: [16]u8 = undefined;
-        crypto.random.bytes(&serial_buf);
+        csprng.fillRandom(&serial_buf);
 
-        const serial = try std.fmt.allocPrint(self.allocator, "{}", .{std.fmt.fmtSliceHexLower(&serial_buf)});
+        const serial = try std.fmt.allocPrint(self.allocator, "{x}", .{serial_buf});
         errdefer self.allocator.free(serial);
 
         const now = time.unixSeconds();
@@ -651,16 +652,16 @@ pub fn generateSelfSigned(allocator: std.mem.Allocator, options: GenerateOptions
 
     // Generate fingerprint
     var fingerprint: [32]u8 = undefined;
-    crypto.random.bytes(&fingerprint);
+    csprng.fillRandom(&fingerprint);
 
     // Generate serial
     var serial_buf: [16]u8 = undefined;
-    crypto.random.bytes(&serial_buf);
-    const serial = try std.fmt.allocPrint(allocator, "{}", .{std.fmt.fmtSliceHexLower(&serial_buf)});
+    csprng.fillRandom(&serial_buf);
+    const serial = try std.fmt.allocPrint(allocator, "{x}", .{serial_buf});
 
     // Generate placeholder DER data
     var der_data: [64]u8 = undefined;
-    crypto.random.bytes(&der_data);
+    csprng.fillRandom(&der_data);
 
     // Copy SANs
     const san = try allocator.alloc([]const u8, options.san.len);

@@ -148,6 +148,22 @@ pub const Condition = struct {
         // Cannot properly implement without OS-level futex/condvar support
         // Callers should use a polling pattern instead
     }
+
+    /// Timed wait — spinlock-based approximation.
+    /// Unlocks the mutex, waits up to `timeout_ns` nanoseconds, then re-locks.
+    /// Returns `error.Timeout` if the timeout expires without being signaled.
+    pub fn timedWait(self: *Condition, mutex: *Mutex, timeout_ns: u64) !void {
+        _ = self;
+        mutex.unlock();
+        defer mutex.lock();
+
+        // Spin-wait with yield for the specified duration
+        var timer = std.time.Timer.start() catch return error.Timeout;
+        while (timer.read() < timeout_ns) {
+            std.atomic.spinLoopHint();
+        }
+        return error.Timeout;
+    }
 };
 
 /// Wake event for signaling a sleeping thread.

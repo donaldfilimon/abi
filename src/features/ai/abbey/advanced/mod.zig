@@ -38,8 +38,8 @@ pub const KnowledgeState = theory_of_mind.KnowledgeState;
 pub const IntentionTracker = theory_of_mind.IntentionTracker;
 pub const EmotionalModel = theory_of_mind.EmotionalModel;
 pub const TheoryOfMind = theory_of_mind.TheoryOfMind;
-pub const IntentionInference = theory_of_mind.IntentionInference;
-pub const PerspectiveAnalysis = theory_of_mind.PerspectiveAnalysis;
+pub const IntentionInference = theory_of_mind.TheoryOfMind.IntentionInference;
+pub const PerspectiveAnalysis = theory_of_mind.TheoryOfMind.PerspectiveAnalysis;
 
 // ============================================================================
 // Type Re-exports (Compositional Reasoning)
@@ -104,7 +104,7 @@ pub const AdvancedCognition = struct {
                 .max_sub_problems = config.max_sub_problems,
                 .max_depth = config.max_reasoning_depth,
             }),
-            .counterfactual_reasoner = CounterfactualReasoner.init(allocator, .{}),
+            .counterfactual_reasoner = CounterfactualReasoner.init(allocator),
             .self_reflection_engine = SelfReflectionEngine.init(allocator, .{}),
             .cognitive_load = 0.0,
             .active_mental_models = 0,
@@ -134,7 +134,7 @@ pub const AdvancedCognition = struct {
         var decomposition: ?ProblemDecomposition = null;
         if (task_profile.complexity > 0.6) {
             decomposition = try self.problem_decomposer.decompose(query);
-            self.reasoning_depth = if (decomposition) |d| d.sub_problems.len else 0;
+            self.reasoning_depth = if (decomposition) |d| d.sub_problems.items.len else 0;
         }
 
         // 4. Infer user intention
@@ -195,10 +195,17 @@ pub const AdvancedCognition = struct {
         if (query.len > 200) complexity += 0.2;
         if (query.len > 500) complexity += 0.2;
 
-        // Question indicators
-        const has_how = std.mem.indexOf(u8, query, "how") != null;
-        const has_why = std.mem.indexOf(u8, query, "why") != null;
-        const has_what_if = std.mem.indexOf(u8, query, "what if") != null;
+        // Case-insensitive question indicators
+        var lower_buf: [2048]u8 = undefined;
+        const qlen = @min(query.len, lower_buf.len);
+        for (0..qlen) |i| {
+            lower_buf[i] = std.ascii.toLower(query[i]);
+        }
+        const lower = lower_buf[0..qlen];
+
+        const has_how = std.mem.indexOf(u8, lower, "how") != null;
+        const has_why = std.mem.indexOf(u8, lower, "why") != null;
+        const has_what_if = std.mem.indexOf(u8, lower, "what if") != null;
 
         if (has_how) complexity += 0.1;
         if (has_why) complexity += 0.15;
@@ -208,9 +215,9 @@ pub const AdvancedCognition = struct {
         }
 
         // Ambiguity indicators
-        const has_maybe = std.mem.indexOf(u8, query, "maybe") != null;
-        const has_might = std.mem.indexOf(u8, query, "might") != null;
-        const has_or = std.mem.indexOf(u8, query, " or ") != null;
+        const has_maybe = std.mem.indexOf(u8, lower, "maybe") != null;
+        const has_might = std.mem.indexOf(u8, lower, "might") != null;
+        const has_or = std.mem.indexOf(u8, lower, " or ") != null;
 
         if (has_maybe or has_might) ambiguity += 0.2;
         if (has_or) ambiguity += 0.15;
@@ -220,8 +227,8 @@ pub const AdvancedCognition = struct {
             .novelty = @min(1.0, novelty),
             .ambiguity = @min(1.0, ambiguity),
             .time_sensitivity = 0.5,
-            .domain = .general,
-            .context_dependency = 0.5,
+            .domain = .unknown,
+            .required_reasoning = .deductive,
         };
     }
 
@@ -235,7 +242,7 @@ pub const AdvancedCognition = struct {
         var load: f32 = profile.complexity * 0.4 + profile.ambiguity * 0.3;
 
         if (decomposition) |d| {
-            load += @as(f32, @floatFromInt(d.sub_problems.len)) * 0.05;
+            load += @as(f32, @floatFromInt(d.sub_problems.items.len)) * 0.05;
         }
 
         return @min(1.0, load);

@@ -35,8 +35,8 @@ pub fn main() !void {
         .cloud,
     };
 
-    for (features) |feature| {
-        const enabled = feature.isCompileTimeEnabled();
+    inline for (features) |feature| {
+        const enabled = comptime feature.isCompileTimeEnabled();
         const status = if (enabled) "enabled" else "disabled";
         std.debug.print("  {s}: {s} - {s}\n", .{
             feature.name(),

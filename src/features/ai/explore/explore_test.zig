@@ -4,7 +4,7 @@ const explore = @import("mod.zig");
 test "explore agent creation" {
     const allocator = std.testing.allocator;
 
-    var agent = explore.createDefaultAgent(allocator);
+    var agent = try explore.createDefaultAgent(allocator);
     agent.deinit();
 
     try std.testing.expect(true);
@@ -84,23 +84,23 @@ test "query understanding intent classification" {
 
     var parsed1 = try understander.parse("find all functions");
     try std.testing.expect(parsed1.intent == .find_functions);
-    understander.freeParsedQuery(&parsed1);
+    understander.freeParsedQuery(parsed1);
 
     var parsed2 = try understander.parse("find types and structs");
     try std.testing.expect(parsed2.intent == .find_types);
-    understander.freeParsedQuery(&parsed2);
+    understander.freeParsedQuery(parsed2);
 
     var parsed3 = try understander.parse("show me tests");
     try std.testing.expect(parsed3.intent == .find_tests);
-    understander.freeParsedQuery(&parsed3);
+    understander.freeParsedQuery(parsed3);
 
     var parsed4 = try understander.parse("list imports");
     try std.testing.expect(parsed4.intent == .find_imports);
-    understander.freeParsedQuery(&parsed4);
+    understander.freeParsedQuery(parsed4);
 
     var parsed5 = try understander.parse("find FIXME comments");
     try std.testing.expect(parsed5.intent == .find_comments);
-    understander.freeParsedQuery(&parsed5);
+    understander.freeParsedQuery(parsed5);
 }
 
 test "query understanding pattern extraction" {
@@ -111,7 +111,7 @@ test "query understanding pattern extraction" {
 
     var parsed = try understander.parse("find pub fn handler");
     try std.testing.expect(parsed.patterns.len > 0);
-    understander.freeParsedQuery(&parsed);
+    understander.freeParsedQuery(parsed);
 }
 
 test "query understanding file extension extraction" {
@@ -128,7 +128,7 @@ test "query understanding file extension extraction" {
     } else false;
     try std.testing.expect(has_zig);
 
-    understander.freeParsedQuery(&parsed);
+    understander.freeParsedQuery(parsed);
 }
 
 test "query understanding target path extraction" {
@@ -145,7 +145,7 @@ test "query understanding target path extraction" {
     } else false;
     try std.testing.expect(has_src);
 
-    understander.freeParsedQuery(&parsed);
+    understander.freeParsedQuery(parsed);
 }
 
 test "parallel explorer creation" {
@@ -191,7 +191,7 @@ test "query intent confidence scoring" {
     var parsed = try understander.parse("find all functions in src/");
     try std.testing.expect(parsed.confidence > 0.5);
 
-    understander.freeParsedQuery(&parsed);
+    understander.freeParsedQuery(parsed);
 }
 
 test "ast node type to match type conversion" {
@@ -235,7 +235,7 @@ test "query understanding edge case mixed case" {
 test "explore agent cancellation" {
     const allocator = std.testing.allocator;
 
-    var agent = explore.createDefaultAgent(allocator);
+    var agent = try explore.createDefaultAgent(allocator);
     defer agent.deinit();
 
     agent.cancel();
@@ -367,13 +367,13 @@ test "dependency graph creation" {
     const mod1: explore.Module = .{
         .name = "module1",
         .file_path = "module1.zig",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     const mod2: explore.Module = .{
         .name = "module2",
         .file_path = "module2.zig",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     try graph.addModule(mod1);
@@ -393,13 +393,13 @@ test "dependency graph get dependencies and dependents" {
     const mod1: explore.Module = .{
         .name = "module1",
         .file_path = "module1.zig",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     const mod2: explore.Module = .{
         .name = "module2",
         .file_path = "module2.zig",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     try graph.addModule(mod1);
@@ -426,19 +426,19 @@ test "dependency graph import type classification" {
     const mod1: explore.Module = .{
         .name = "module1",
         .file_path = "module1.zig",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     const std_mod: explore.Module = .{
         .name = "std",
         .file_path = "std",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     const ext_mod: explore.Module = .{
         .name = "external",
         .file_path = "external",
-        .language = .typescript,
+        .file_type = "typescript",
     };
 
     try graph.addModule(mod1);
@@ -462,19 +462,19 @@ test "dependency graph topological sort" {
     const mod1: explore.Module = .{
         .name = "a",
         .file_path = "a.zig",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     const mod2: explore.Module = .{
         .name = "b",
         .file_path = "b.zig",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     const mod3: explore.Module = .{
         .name = "c",
         .file_path = "c.zig",
-        .language = .zig,
+        .file_type = "zig",
     };
 
     try graph.addModule(mod1);
@@ -483,13 +483,8 @@ test "dependency graph topological sort" {
     try graph.addDependency(mod1, mod2, .local);
     try graph.addDependency(mod2, mod3, .local);
 
-    const sorted = try graph.topologicalSort();
-    defer {
-        for (sorted.items) |item| {
-            allocator.free(item);
-        }
-        sorted.deinit();
-    }
+    var sorted = try graph.topologicalSort();
+    defer sorted.deinit(allocator);
 
     try std.testing.expect(sorted.items.len == 3);
 }

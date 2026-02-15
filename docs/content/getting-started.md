@@ -13,7 +13,7 @@ This guide walks you from a fresh clone to a running ABI build with passing test
 
 | Requirement | Details |
 |-------------|---------|
-| **Zig** | `0.16.0-dev.2596+469bf6af0` or newer (pinned in `.zigversion`) |
+| **Zig** | `0.16.0-dev.2611+f996d2866` or newer (pinned in `.zigversion`) |
 | **Git** | Any recent version |
 | **Shell** | Bash, Zsh, or Fish on Linux / macOS |
 | **Optional** | GPU drivers (CUDA, Vulkan, or Metal) for hardware-accelerated compute |
@@ -24,14 +24,21 @@ This guide walks you from a fresh clone to a running ABI build with passing test
 The recommended approach is [zvm](https://github.com/marler182/zvm) (Zig Version Manager):
 
 ```bash
-# Install zvm, then:
+# Install zvm, then keep it current:
+zvm upgrade
 zvm install master
 zvm use master
 
 # Verify the version matches .zigversion
+which zig
 zig version
-# Expected: 0.16.0-dev.2596+469bf6af0 (or newer)
+cat .zigversion
+bash scripts/toolchain_doctor.sh
+# Expected zig version: 0.16.0-dev.2611+f996d2866
+# Expected active binary: ~/.zvm/bin/zig
 ```
+
+If `which zig` points to another path (for example `~/.local/bin/zig`), prepend `~/.zvm/bin` in your shell profile before other Zig locations.
 
 Alternatively, download a matching nightly build from [ziglang.org/download](https://ziglang.org/download/).
 
@@ -68,7 +75,7 @@ ABI maintains two test suites with enforced baselines.
 zig build test --summary all
 ```
 
-Expected: **1251 pass, 5 skip** (1256 total).
+Expected: **1252 pass, 5 skip** (1257 total).
 
 The main tests live in `src/services/tests/mod.zig` and exercise cross-module integration,
 stress tests, chaos tests, and parity checks.
@@ -79,7 +86,7 @@ stress tests, chaos tests, and parity checks.
 zig build feature-tests --summary all
 ```
 
-Expected: **1198 pass** (1198 total).
+Expected: **1512 pass** (1512 total).
 
 Feature tests are inline `test {}` blocks inside each module's source files, compiled
 through `src/feature_test_root.zig`.
@@ -159,8 +166,11 @@ Before committing changes, run the complete local gate:
 # Format + tests + feature tests + flag validation + CLI smoke tests
 zig build full-check
 
-# Or the extended version (adds examples, benchmarks, WASM check)
+# Or the extended version (adds examples, benchmarks, WASM check, and Ralph gate)
 zig build verify-all
+
+# Run Ralph gate explicitly after generating live OpenAI results
+zig build ralph-gate
 ```
 
 ## Next Steps

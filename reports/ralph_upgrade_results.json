@@ -1,0 +1,112 @@
+[
+  {
+    "run_id": "8a5fae11-1684-4c03-8ca4-fb408dab7624",
+    "timestamp": "2026-02-15T19:14:06Z",
+    "model": "gpt-5",
+    "params": {
+      "temperature": 0.7,
+      "max_tokens": 512,
+      "top_p": 0.9,
+      "seed": 42
+    },
+    "prompt_id": "p-000",
+    "prompt": "Summarize ABI's staged vNext compatibility policy in 3 bullet points.",
+    "output": "[PLACEHOLDER OUTPUT] Summarize ABI's staged vNext compatibility policy in 3 bullet points.",
+    "latency_ms": 0,
+    "token_usage": {
+      "prompt": null,
+      "completion": null,
+      "total": null
+    },
+    "scores": {},
+    "notes": "placeholder"
+  },
+  {
+    "run_id": "8a5fae11-1684-4c03-8ca4-fb408dab7624",
+    "timestamp": "2026-02-15T19:14:06Z",
+    "model": "gpt-5",
+    "params": {
+      "temperature": 0.7,
+      "max_tokens": 512,
+      "top_p": 0.9,
+      "seed": 42
+    },
+    "prompt_id": "p-001",
+    "prompt": "Given a Zig project pinned to .zigversion, explain deterministic local toolchain setup using zvm.",
+    "output": "[PLACEHOLDER OUTPUT] Given a Zig project pinned to .zigversion, explain deterministic local toolchain setup using zvm.",
+    "latency_ms": 0,
+    "token_usage": {
+      "prompt": null,
+      "completion": null,
+      "total": null
+    },
+    "scores": {},
+    "notes": "placeholder"
+  },
+  {
+    "run_id": "8a5fae11-1684-4c03-8ca4-fb408dab7624",
+    "timestamp": "2026-02-15T19:14:06Z",
+    "model": "gpt-5",
+    "params": {
+      "temperature": 0.7,
+      "max_tokens": 512,
+      "top_p": 0.9,
+      "seed": 42
+    },
+    "prompt_id": "p-002",
+    "prompt": "List three risks of feature-gated mod/stub drift and one compile-time mitigation per risk.",
+    "output": "[PLACEHOLDER OUTPUT] List three risks of feature-gated mod/stub drift and one compile-time mitigation per risk.",
+    "latency_ms": 0,
+    "token_usage": {
+      "prompt": null,
+      "completion": null,
+      "total": null
+    },
+    "scores": {},
+    "notes": "placeholder"
+  },
+  {
+    "run_id": "8a5fae11-1684-4c03-8ca4-fb408dab7624",
+    "timestamp": "2026-02-15T19:14:06Z",
+    "model": "gpt-5",
+    "params": {
+      "temperature": 0.7,
+      "max_tokens": 512,
+      "top_p": 0.9,
+      "seed": 42
+    },
+    "prompt_id": "p-003",
+    "prompt": "Describe how to validate behavior parity after splitting a monolithic framework module.",
+    "output": "[PLACEHOLDER OUTPUT] Describe how to validate behavior parity after splitting a monolithic framework module.",
+    "latency_ms": 0,
+    "token_usage": {
+      "prompt": null,
+      "completion": null,
+      "total": null
+    },
+    "scores": {},
+    "notes": "placeholder"
+  },
+  {
+    "run_id": "8a5fae11-1684-4c03-8ca4-fb408dab7624",
+    "timestamp": "2026-02-15T19:14:06Z",
+    "model": "gpt-5",
+    "params": {
+      "temperature": 0.7,
+      "max_tokens": 512,
+      "top_p": 0.9,
+      "seed": 42
+    },
+    "prompt_id": "p-004",
+    "prompt": "Provide a short migration mapping from legacy abi.Framework to abi.vnext.App concepts.",
+    "output": "[PLACEHOLDER OUTPUT] Provide a short migration mapping from legacy abi.Framework to abi.vnext.App concepts.",
+    "latency_ms": 0,
+    "token_usage": {
+      "prompt": null,
+      "completion": null,
+      "total": null
+    },
+    "scores": {},
+    "notes": "placeholder"
+  }
+]

@@ -45,6 +45,12 @@ pub const CallGraph = struct {
     }
 
     pub fn deinit(self: *CallGraph) void {
+        // Free duped keys (shared between calls and called_by maps)
+        var key_iter = self.calls.keyIterator();
+        while (key_iter.next()) |key_ptr| {
+            self.allocator.free(key_ptr.*);
+        }
+
         var calls_iter = self.calls.valueIterator();
         while (calls_iter.next()) |list| {
             list.deinit(self.allocator);
@@ -76,11 +82,11 @@ pub const CallGraph = struct {
     pub fn addCall(self: *CallGraph, caller: Function, callee: Function) !void {
         try self.edges.append(self.allocator, .{ .caller = caller, .callee = callee });
 
-        if (self.calls.get(caller.name)) |callers_list| {
+        if (self.calls.getPtr(caller.name)) |callers_list| {
             try callers_list.append(self.allocator, callee);
         }
 
-        if (self.called_by.get(callee.name)) |called_by_list| {
+        if (self.called_by.getPtr(callee.name)) |called_by_list| {
             try called_by_list.append(self.allocator, caller);
         }
     }

@@ -157,7 +157,8 @@ pub const MemoryManager = struct {
     /// Build a context string from stored skills (category .skill) for Ralph and similar agents.
     /// Caller owns the returned slice. Returns null if no skills are stored.
     pub fn getSkillsContext(self: *Self, allocator: std.mem.Allocator, max_chars: usize) !?[]u8 {
-        const skills = self.semantic_memory.getByCategory(.skill);
+        const skills = try self.semantic_memory.getByCategory(.skill);
+        defer if (skills.len > 0) self.semantic_memory.allocator.free(skills);
         if (skills.len == 0) return null;
 
         var buf = std.ArrayListUnmanaged(u8).empty;
@@ -368,8 +369,8 @@ test "memory manager getSkillsContext" {
     var manager = try MemoryManager.init(allocator, .{});
     defer manager.deinit();
 
-    try manager.storeKnowledge("Always run tests after refactoring", .skill, .learned);
-    try manager.storeKnowledge("Prefer small steps in Ralph loops", .skill, .learned);
+    _ = try manager.storeKnowledge("Always run tests after refactoring", .skill, .learned);
+    _ = try manager.storeKnowledge("Prefer small steps in Ralph loops", .skill, .learned);
 
     const ctx = try manager.getSkillsContext(allocator, 2048);
     try std.testing.expect(ctx != null);

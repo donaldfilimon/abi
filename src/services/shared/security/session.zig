@@ -12,6 +12,7 @@
 const std = @import("std");
 const time = @import("../time.zig");
 const sync = @import("../sync.zig");
+const csprng = @import("csprng.zig");
 const crypto = std.crypto;
 
 /// Session configuration
@@ -138,7 +139,7 @@ pub const Session = struct {
         errdefer allocator.free(value_copy);
 
         // Remove old value if exists
-        if (self.data.fetchRemove(key)) |kv| {
+        if (self.data.fetchOrderedRemove(key)) |kv| {
             allocator.free(kv.key);
             allocator.free(kv.value);
         }
@@ -148,7 +149,7 @@ pub const Session = struct {
 
     /// Remove a session data value
     pub fn remove(self: *Session, allocator: std.mem.Allocator, key: []const u8) bool {
-        if (self.data.fetchRemove(key)) |kv| {
+        if (self.data.fetchOrderedRemove(key)) |kv| {
             allocator.free(kv.key);
             allocator.free(kv.value);
             return true;
@@ -219,7 +220,7 @@ pub const SessionManager = struct {
                     // Remove oldest session
                     if (user_sids.items.len > 0) {
                         const oldest_sid = user_sids.items[0];
-                        self.destroySessionInternal(oldest_sid);
+                        _ = self.destroySessionInternal(oldest_sid);
                     }
                 }
             }
@@ -253,10 +254,10 @@ pub const SessionManager = struct {
 
         // Track user sessions
         if (options.user_id) |uid| {
-            var user_sids = self.user_sessions.get(uid) orelse blk: {
+            const user_sids = self.user_sessions.getPtr(uid) orelse blk: {
                 const uid_copy = try self.allocator.dupe(u8, uid);
                 try self.user_sessions.put(self.allocator, uid_copy, std.ArrayListUnmanaged([]const u8).empty);
-                break :blk self.user_sessions.get(uid).?;
+                break :blk self.user_sessions.getPtr(uid).?;
             };
             try user_sids.append(self.allocator, try self.allocator.dupe(u8, session_id));
         }
@@ -369,8 +370,10 @@ pub const SessionManager = struct {
         session.id = new_session_id;
         session.previous_id = old_id;
 
-        // Update storage
-        _ = self.sessions.fetchRemove(old_session_id);
+        // Update storage — free the old map key
+        if (self.sessions.fetchOrderedRemove(old_session_id)) |kv| {
+            self.allocator.free(kv.key);
+        }
         const new_id_copy = try self.allocator.dupe(u8, new_session_id);
         try self.sessions.put(self.allocator, new_id_copy, session);
 
@@ -478,7 +481,7 @@ pub const SessionManager = struct {
 
     fn generateSessionId(self: *SessionManager) ![]const u8 {
         var random_bytes: [64]u8 = undefined;
-        crypto.random.bytes(random_bytes[0..self.config.id_length]);
+        csprng.fillRandom(random_bytes[0..self.config.id_length]);
 
         // Sign if key is configured
         if (self.config.signing_key) |key| {
@@ -506,15 +509,17 @@ pub const SessionManager = struct {
     }
 
     fn destroySessionInternal(self: *SessionManager, session_id: []const u8) bool {
-        if (self.sessions.fetchRemove(session_id)) |kv| {
-            const session = kv.value;
+        if (self.sessions.get(session_id)) |session| {
+            // Use session's own id for subsequent lookups — the session_id arg
+            // may alias user_sids.items[i] which gets freed during cleanup.
+            const sid = session.id;
 
             // Remove from user tracking
             if (session.user_id) |uid| {
                 if (self.user_sessions.getPtr(uid)) |user_sids| {
                     var i: usize = 0;
                     while (i < user_sids.items.len) {
-                        if (std.mem.eql(u8, user_sids.items[i], session_id)) {
+                        if (std.mem.eql(u8, user_sids.items[i], sid)) {
                             self.allocator.free(user_sids.items[i]);
                             _ = user_sids.orderedRemove(i);
                         } else {
@@ -524,7 +529,10 @@ pub const SessionManager = struct {
                 }
             }
 
-            self.allocator.free(kv.key);
+            // Free map key before removing (it's a separate allocation from session.id)
+            if (self.sessions.fetchOrderedRemove(sid)) |kv| {
+                self.allocator.free(kv.key);
+            }
             session.deinit(self.allocator);
             self.allocator.destroy(session);
 

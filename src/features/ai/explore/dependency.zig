@@ -64,6 +64,12 @@ pub const DependencyGraph = struct {
     }
 
     pub fn deinit(self: *DependencyGraph) void {
+        // Free duped keys (shared between dependencies and dependents maps)
+        var key_iter = self.dependencies.keyIterator();
+        while (key_iter.next()) |key_ptr| {
+            self.allocator.free(key_ptr.*);
+        }
+
         var deps_iter = self.dependencies.valueIterator();
         while (deps_iter.next()) |list| {
             list.deinit(self.allocator);
@@ -102,12 +108,12 @@ pub const DependencyGraph = struct {
 
         const dep = ModuleDependency{ .module = to, .import_type = import_type };
 
-        if (self.dependencies.get(from.name)) |deps_list| {
+        if (self.dependencies.getPtr(from.name)) |deps_list| {
             try deps_list.append(self.allocator, dep);
         }
 
         const dependent = ModuleDependency{ .module = from, .import_type = import_type };
-        if (self.dependents.get(to.name)) |dependents_list| {
+        if (self.dependents.getPtr(to.name)) |dependents_list| {
             try dependents_list.append(self.allocator, dependent);
         }
     }

@@ -26,8 +26,7 @@
 //! ```
 
 const std = @import("std");
-const time = @import("../../../services/shared/time.zig");
-const sync = @import("../../../services/shared/sync.zig");
+const sync = @import("../../shared/sync.zig");
 const numa = @import("numa.zig");
 
 /// Configuration for steal policy.

@@ -47,6 +47,8 @@
 
 const std = @import("std");
 
+threadlocal var tls_thread_index: ?usize = null;
+
 /// Maximum number of threads supported
 const MAX_THREADS = 256;
 
@@ -91,12 +93,27 @@ pub const EpochReclamation = struct {
     allocator: std.mem.Allocator,
     /// Active thread count
     active_threads: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
+    /// Serializes retire-list mutation and reclamation.
+    reclaim_lock: std.atomic.Mutex = .unlocked,
 
     pub fn init(allocator: std.mem.Allocator) EpochReclamation {
         return .{ .allocator = allocator };
     }
 
+    fn lockReclaim(self: *EpochReclamation) void {
+        while (!self.reclaim_lock.tryLock()) {
+            std.atomic.spinLoopHint();
+        }
+    }
+
+    fn unlockReclaim(self: *EpochReclamation) void {
+        self.reclaim_lock.unlock();
+    }
+
     pub fn deinit(self: *EpochReclamation) void {
+        self.lockReclaim();
+        defer self.unlockReclaim();
+
         // Free all retired items
         for (&self.thread_states) |*state| {
             for (&state.retired_lists) |*list| {
@@ -111,21 +128,34 @@ pub const EpochReclamation = struct {
                 list.count = 0;
             }
         }
-        self.* = undefined;
     }
 
     /// Get the thread-local state index for the current thread.
-    fn getThreadIndex() usize {
+    /// Uses stable thread-local slot assignment to avoid collisions between
+    /// concurrently running threads.
+    fn getThreadIndex(self: *EpochReclamation) usize {
+        if (tls_thread_index) |idx| {
+            return idx;
+        }
+
+        const allocated = self.active_threads.fetchAdd(1, .acq_rel);
+        if (allocated < MAX_THREADS) {
+            tls_thread_index = allocated;
+            return allocated;
+        }
+
+        // Fallback once we exceed configured slots.
         const thread_id = std.Thread.getCurrentId();
-        // Simple hash to map thread ID to slot - use bitcast for type conversion
         const id_bits: usize = @intCast(thread_id);
-        return id_bits % MAX_THREADS;
+        const fallback = id_bits % MAX_THREADS;
+        tls_thread_index = fallback;
+        return fallback;
     }
 
     /// Pin the current thread to the global epoch.
     /// Must be called before accessing shared data.
     pub fn pin(self: *EpochReclamation) void {
-        const idx = getThreadIndex();
+        const idx = self.getThreadIndex();
         var state = &self.thread_states[idx];
 
         // Already pinned? Just return
@@ -139,7 +169,7 @@ pub const EpochReclamation = struct {
 
     /// Unpin the current thread, allowing epoch advancement.
     pub fn unpin(self: *EpochReclamation) void {
-        const idx = getThreadIndex();
+        const idx = self.getThreadIndex();
         var state = &self.thread_states[idx];
 
         state.is_pinned.store(false, .release);
@@ -165,27 +195,35 @@ pub const EpochReclamation = struct {
         ptr: anytype,
         deinit_fn: *const fn (*anyopaque, std.mem.Allocator) void,
     ) void {
-        const idx = getThreadIndex();
+        const idx = self.getThreadIndex();
         var state = &self.thread_states[idx];
 
-        // Get the current epoch's retirement list
-        const epoch = self.global_epoch.load(.acquire);
-        const list_idx = epoch % EPOCH_COUNT;
-        var list = &state.retired_lists[list_idx];
+        self.lockReclaim();
+        const should_try_advance = blk: {
+            // Get the current epoch's retirement list
+            const epoch = self.global_epoch.load(.acquire);
+            const list_idx = epoch % EPOCH_COUNT;
+            var list = &state.retired_lists[list_idx];
 
-        // Create retirement record
-        const item = self.allocator.create(RetiredItem) catch return;
-        item.* = .{
-            .ptr = @ptrCast(ptr),
-            .deinit_fn = deinit_fn,
-            .next = list.head,
+            // Create retirement record
+            const item = self.allocator.create(RetiredItem) catch {
+                self.unlockReclaim();
+                return;
+            };
+            item.* = .{
+                .ptr = @ptrCast(ptr),
+                .deinit_fn = deinit_fn,
+                .next = list.head,
+            };
+            list.head = item;
+            list.count += 1;
+            state.retired_count += 1;
+            break :blk state.retired_count >= RECLAIM_THRESHOLD;
         };
-        list.head = item;
-        list.count += 1;
-        state.retired_count += 1;
+        self.unlockReclaim();
 
         // Try to reclaim if we've accumulated enough
-        if (state.retired_count >= RECLAIM_THRESHOLD) {
+        if (should_try_advance) {
             self.tryAdvance();
         }
     }
@@ -219,6 +257,9 @@ pub const EpochReclamation = struct {
 
     /// Reclaim all items in the given epoch slot.
     fn reclaimEpoch(self: *EpochReclamation, epoch_slot: usize) void {
+        self.lockReclaim();
+        defer self.unlockReclaim();
+
         for (&self.thread_states) |*state| {
             var list = &state.retired_lists[epoch_slot];
             var current = list.head;

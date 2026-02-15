@@ -1,0 +1,77 @@
+<p>
+ABI now includes a staged-compatibility <code>abi.vnext</code> namespace. Legacy
+entrypoints remain available for one release cycle while consumers migrate.
+</p>
+
+<h2>Compatibility window</h2>
+<ul>
+  <li><strong>Current release:</strong> Both legacy and vNext APIs are supported.</li>
+  <li><strong>Next release:</strong> Legacy APIs become soft-deprecated (warnings in docs/examples).</li>
+  <li><strong>Follow-up release:</strong> Legacy shims are removed after migration completion.</li>
+</ul>
+
+<h2>API mapping</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Legacy</th>
+      <th>vNext</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>abi.init(allocator, cfg)</code></td>
+      <td><code>abi.vnext.App.init(allocator, app_cfg)</code></td>
+      <td>Use <code>app_cfg.framework</code> for compatibility with existing <code>abi.Config</code>.</td>
+    </tr>
+    <tr>
+      <td><code>abi.initDefault(allocator)</code></td>
+      <td><code>abi.vnext.App.initDefault(allocator)</code></td>
+      <td>Equivalent startup behavior for staged migration.</td>
+    </tr>
+    <tr>
+      <td><code>abi.initApp(allocator, app_cfg)</code></td>
+      <td><code>abi.vnext.App.init(allocator, app_cfg)</code></td>
+      <td>Wrapper kept for one compatibility cycle; behavior must remain identical.</td>
+    </tr>
+    <tr>
+      <td><code>abi.initAppDefault(allocator)</code></td>
+      <td><code>abi.vnext.App.initDefault(allocator)</code></td>
+      <td>Thin wrapper for import compatibility during migration.</td>
+    </tr>
+    <tr>
+      <td><code>abi.Framework</code></td>
+      <td><code>abi.vnext.App</code> + <code>App.getFramework()</code></td>
+      <td><code>Framework</code> remains available during transition.</td>
+    </tr>
+    <tr>
+      <td><code>abi.Feature</code></td>
+      <td><code>abi.vnext.Capability</code></td>
+      <td>Capability checks can be enforced through <code>strict_capability_check</code>.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Example</h2>
+<pre><code>const abi = @import("abi");
+
+var app = try abi.vnext.App.init(allocator, .{
+    .framework = abi.Config.defaults(),
+    .required_capabilities = &.{abi.vnext.Capability.gpu},
+    .strict_capability_check = false,
+});
+defer app.deinit();
+
+const fw = app.getFrameworkConst();
+_ = fw;
+</code></pre>
+
+<h2>Validation checklist</h2>
+<ul>
+  <li>Run <code>zig build test --summary all</code> and <code>zig build feature-tests --summary all</code>.</li>
+  <li>Run <code>zig build vnext-compat</code> to exercise compatibility wrappers in CI and local validation.</li>
+  <li>Verify wrapper parity explicitly: <code>abi.initApp*</code> and direct <code>abi.vnext.App*</code> paths should reach the same framework state.</li>
+  <li>Compile both API styles in examples/tests during migration PRs.</li>
+  <li>Keep <code>mod.zig</code>/<code>stub.zig</code> parity checks green for touched features.</li>
+</ul>

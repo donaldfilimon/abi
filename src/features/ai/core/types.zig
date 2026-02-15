@@ -82,12 +82,16 @@ pub fn getTimestampSec() i64 {
 pub const InstanceId = struct {
     bytes: [16]u8,
 
+    var counter: u64 = 0;
+
     pub fn generate() InstanceId {
         var bytes: [16]u8 = undefined;
-        // Use timer-based entropy for uniqueness
+        // Use timer + monotonic counter for uniqueness
         const ns = getTimestampNs();
-        const ns_bytes: [16]u8 = @bitCast(ns);
-        @memcpy(&bytes, &ns_bytes);
+        const count = @atomicRmw(u64, &counter, .Add, 1, .monotonic);
+        const ns_unsigned: u128 = @bitCast(ns);
+        const combined: u128 = ns_unsigned ^ (@as(u128, count) << 64);
+        bytes = @bitCast(combined);
         return .{ .bytes = bytes };
     }
 

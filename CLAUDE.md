@@ -6,16 +6,32 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Key | Value |
 |-----|-------|
-| **Zig** | `0.16.0-dev.2596+469bf6af0` or newer (pinned in `.zigversion`) |
+| **Zig** | `0.16.0-dev.2611+f996d2866` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1254 pass, 5 skip (1259 total) — must be maintained |
-| **Feature tests** | 1213 pass (1213 total) — `zig build feature-tests` |
+| **Test baseline** | 1252 pass, 5 skip (1257 total) — must be maintained |
+| **Feature tests** | 1512 pass (1512 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 8 aliases |
 
 ## Build & Test Commands
 
-Ensure your system `zig` matches `.zigversion` (e.g. via `zvm use master`).
+Ensure your system `zig` matches `.zigversion`.
+
+```bash
+# One-time/periodic toolchain sync
+zvm upgrade
+zvm install master
+zvm use master
+
+# Validate active binary and pinned version
+which zig
+zig version
+cat .zigversion
+bash scripts/toolchain_doctor.sh
+
+# If needed, fix shell precedence:
+export PATH="$HOME/.zvm/bin:$PATH"
+```
 
 ```bash
 zig build                                    # Build with default flags
@@ -32,8 +48,10 @@ zig build benchmarks                         # Performance benchmarks
 zig build bench-all                          # Run all benchmark suites
 zig build examples                           # Build all examples
 zig build check-wasm                         # Check WASM compilation
-zig build verify-all                         # full-check + version script + examples + bench-all + check-wasm
+zig build verify-all                         # full-check + consistency + examples + bench-all + check-wasm + ralph-gate
+zig build ralph-gate                         # Require live Ralph report and threshold pass
 scripts/check_zig_version_consistency.sh     # Verify .zigversion matches build.zig/docs
+bash scripts/toolchain_doctor.sh             # Diagnose PATH precedence and active zig mismatch
 zig std                                     # View/get current std library (stdlib source path / docs)
 ```
 
@@ -91,6 +109,7 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 3. `defer allocator.free(x)` then `return x` → use `errdefer` (use-after-free)
 4. `@tagName(x)` / `@errorName(e)` in format → use `{t}` specifier
 5. `std.io.fixedBufferStream()` → removed; use `std.Io.Writer.fixed(&buf)`
+6. `@field(build_options, field_name)` requires comptime context — use `inline for` not runtime `for`
 
 **Full reference:** See [`.claude/rules/zig.md`](.claude/rules/zig.md) (auto-loaded for all `.zig` files) for the complete gotchas table with 30+ entries covering I/O, `@typeInfo`, allocators, test discovery, and more.
 
@@ -317,8 +336,8 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Main tests**: 1254 pass, 5 skip (1259 total) — `zig build test --summary all`
-**Feature tests**: 1213 pass (1213 total) — `zig build feature-tests --summary all`
+**Main tests**: 1252 pass, 5 skip (1257 total) — `zig build test --summary all`
+**Feature tests**: 1512 pass (1512 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -335,6 +354,7 @@ can reach both `features/` and `services/` subdirectories.
 - Parity tests verify `mod.zig` and `stub.zig` export the same interface
 - **Test discovery**: Use `test { _ = @import(...); }` to include submodule tests — `comptime {}` does NOT discover tests
 - **Standalone test files**: For modules whose `mod.zig` re-exports sub-modules with compile issues (gpu, auth, database), create `*_test.zig` alongside mod.zig that imports only the parent — avoids triggering lazy compilation of broken sub-modules
+- **GPU/database test gap**: These modules cannot be registered in `feature_test_root.zig` — backend source files have 37+ Zig 0.16 errors (`*const DynLib`, stale struct fields, extern enum tag width). They compile fine through `zig build test` via the named `abi` module. Needs dedicated migration pass.
 
 ## After Making Changes
 
@@ -342,7 +362,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 1095+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 1512+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |

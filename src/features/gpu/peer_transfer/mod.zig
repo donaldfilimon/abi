@@ -100,7 +100,7 @@ pub const DevicePair = struct {
 };
 
 /// Transfer status.
-pub const TransferStatus = enum {
+pub const TransferStatus = enum(u8) {
     pending,
     in_progress,
     completed,

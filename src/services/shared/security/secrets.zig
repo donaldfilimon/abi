@@ -12,6 +12,7 @@ const std = @import("std");
 const time = @import("../time.zig");
 const sync = @import("../sync.zig");
 const crypto = std.crypto;
+const csprng = @import("csprng.zig");
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
     return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
@@ -192,9 +193,9 @@ pub const SecretsManager = struct {
                     @memcpy(&master_key, env_key[0..32]);
                 } else {
                     // Derive key using HKDF
-                    var prk: [32]u8 = undefined;
-                    std.crypto.kdf.hkdf.HkdfSha256.extract(&prk, "abi-secrets", env_key);
-                    std.crypto.kdf.hkdf.HkdfSha256.expand(&master_key, &prk, "master-key");
+                    const Hkdf = std.crypto.kdf.hkdf.Hkdf(std.crypto.auth.hmac.sha2.HmacSha256);
+                    const prk = Hkdf.extract("abi-secrets", env_key);
+                    Hkdf.expand(&master_key, "master-key", prk);
                 }
             } else {
                 // Fail if production mode requires master key
@@ -204,7 +205,7 @@ pub const SecretsManager = struct {
                 }
                 // Generate random key (not recommended for production)
                 std.log.warn("Using randomly generated master key - encrypted secrets will be lost on restart!", .{});
-                crypto.random.bytes(&master_key);
+                csprng.fillRandom(&master_key);
             }
         }
 
@@ -451,7 +452,10 @@ pub const SecretsManager = struct {
         const io = self.io_backend.io();
         var file = std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true }) catch return error.FileWriteFailed;
         defer file.close(io);
-        file.writer(io).writeAll(content) catch return error.FileWriteFailed;
+        var write_buf: [4096]u8 = undefined;
+        var writer = file.writer(io, &write_buf);
+        writer.interface.writeAll(content) catch return error.FileWriteFailed;
+        writer.flush() catch return error.FileWriteFailed;
     }
 
     // Private methods
@@ -464,9 +468,9 @@ pub const SecretsManager = struct {
         });
         defer self.allocator.free(env_name);
 
-        const env_name_z = try std.cstr.addNullTerminator(self.allocator, env_name);
+        const env_name_z = try std.fmt.allocPrintSentinel(self.allocator, "{s}", .{env_name}, 0);
         defer self.allocator.free(env_name_z);
-        const name_z = try std.cstr.addNullTerminator(self.allocator, name);
+        const name_z = try std.fmt.allocPrintSentinel(self.allocator, "{s}", .{name}, 0);
         defer self.allocator.free(name_z);
 
         const value_ptr = std.c.getenv(env_name_z.ptr) orelse
@@ -752,7 +756,7 @@ pub const SecretsManager = struct {
 
     fn encryptSecret(self: *SecretsManager, value: []const u8) SecretsError!SecretValue {
         var nonce: [12]u8 = undefined;
-        crypto.random.bytes(&nonce);
+        csprng.fillRandom(&nonce);
 
         const ciphertext = try self.allocator.alloc(u8, value.len);
         errdefer self.allocator.free(ciphertext);
@@ -879,7 +883,7 @@ test "secrets manager initialization" {
     const allocator = std.testing.allocator;
 
     var key: [32]u8 = undefined;
-    crypto.random.bytes(&key);
+    csprng.fillRandom(&key);
 
     var manager = try SecretsManager.init(allocator, .{
         .provider = .memory,
@@ -920,7 +924,7 @@ test "secret encryption round trip" {
     const allocator = std.testing.allocator;
 
     var key: [32]u8 = undefined;
-    crypto.random.bytes(&key);
+    csprng.fillRandom(&key);
 
     var manager = try SecretsManager.init(allocator, .{
         .provider = .memory,

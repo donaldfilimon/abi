@@ -12,19 +12,23 @@
 //! - RwLock for concurrent route lookups
 
 const std = @import("std");
-const core_config = @import("../../core/config/gateway.zig");
 const sync = @import("../../services/shared/sync.zig");
 const time_mod = @import("../../services/shared/time.zig");
-const radix = @import("../../services/shared/utils/radix_tree.zig");
+const gateway_types = @import("types.zig");
+const routing = @import("routing.zig");
+const rate_limit_mod = @import("rate_limit.zig");
+const circuit_breaker_mod = @import("circuit_breaker.zig");
+const gateway_stats = @import("stats.zig");
+const middleware = @import("middleware.zig");
 
 /// Shared radix tree instantiated for route indices.
-const RouteTree = radix.RadixTree(u32);
+const RouteTree = routing.RouteTree;
 
-pub const GatewayConfig = core_config.GatewayConfig;
-pub const RateLimitConfig = core_config.RateLimitConfig;
-pub const RateLimitAlgorithm = core_config.RateLimitAlgorithm;
-pub const CircuitBreakerConfig = core_config.CircuitBreakerConfig;
-pub const CircuitBreakerState = core_config.CircuitBreakerState;
+pub const GatewayConfig = gateway_types.GatewayConfig;
+pub const RateLimitConfig = gateway_types.RateLimitConfig;
+pub const RateLimitAlgorithm = gateway_types.RateLimitAlgorithm;
+pub const CircuitBreakerConfig = gateway_types.CircuitBreakerConfig;
+pub const CircuitBreakerState = gateway_types.CircuitBreakerState;
 
 pub const GatewayError = error{
     FeatureDisabled,
@@ -38,57 +42,12 @@ pub const GatewayError = error{
     OutOfMemory,
 };
 
-pub const HttpMethod = enum { GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS };
-
-pub const Route = struct {
-    path: []const u8 = "/",
-    method: HttpMethod = .GET,
-    upstream: []const u8 = "",
-    timeout_ms: u64 = 30_000,
-    rate_limit: ?RateLimitConfig = null,
-    middlewares: []const MiddlewareType = &.{},
-};
-
-pub const MiddlewareType = enum {
-    auth,
-    rate_limit,
-    circuit_breaker,
-    access_log,
-    cors,
-    response_transform,
-    request_id,
-};
-
-pub const GatewayStats = struct {
-    total_requests: u64 = 0,
-    active_routes: u32 = 0,
-    rate_limited_count: u64 = 0,
-    circuit_breaker_trips: u64 = 0,
-    upstream_errors: u64 = 0,
-    avg_latency_ms: u64 = 0,
-};
-
-pub const MatchResult = struct {
-    route: Route,
-    params: [RouteTree.max_params]Param = [_]Param{.{}} ** RouteTree.max_params,
-    param_count: u8 = 0,
-    matched_route_idx: ?u32 = null, // internal: radix tree match result
-
-    pub const Param = RouteTree.Param;
-
-    pub fn getParam(self: *const MatchResult, name: []const u8) ?[]const u8 {
-        for (self.params[0..self.param_count]) |p| {
-            if (std.mem.eql(u8, p.name, name)) return p.value;
-        }
-        return null;
-    }
-};
-
-pub const RateLimitResult = struct {
-    allowed: bool = true,
-    remaining: u32 = 0,
-    reset_after_ms: u64 = 0,
-};
+pub const HttpMethod = gateway_types.HttpMethod;
+pub const Route = gateway_types.Route;
+pub const MiddlewareType = middleware.MiddlewareType;
+pub const GatewayStats = gateway_types.GatewayStats;
+pub const MatchResult = gateway_types.MatchResult;
+pub const RateLimitResult = gateway_types.RateLimitResult;
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
@@ -115,282 +74,9 @@ const RouteEntry = struct {
 
 /// Radix tree node — shared implementation from `services/shared/utils/radix_tree.zig`.
 const RadixNode = RouteTree.Node;
-
-/// Token bucket rate limiter state.
-const TokenBucket = struct {
-    tokens: f64,
-    capacity: f64,
-    refill_rate: f64, // tokens per nanosecond
-    last_refill_ns: u128,
-
-    fn init(config: RateLimitConfig, now_ns: u128) TokenBucket {
-        const cap = @as(f64, @floatFromInt(config.burst_size));
-        const rate = @as(f64, @floatFromInt(config.requests_per_second)) /
-            @as(f64, @floatFromInt(std.time.ns_per_s));
-        return .{
-            .tokens = cap,
-            .capacity = cap,
-            .refill_rate = rate,
-            .last_refill_ns = now_ns,
-        };
-    }
-
-    fn tryConsume(self: *TokenBucket, now_ns: u128) RateLimitResult {
-        // Refill
-        const elapsed_ns = now_ns - self.last_refill_ns;
-        const added = @as(f64, @floatFromInt(elapsed_ns)) * self.refill_rate;
-        self.tokens = @min(self.tokens + added, self.capacity);
-        self.last_refill_ns = now_ns;
-
-        if (self.tokens >= 1.0) {
-            self.tokens -= 1.0;
-            return .{
-                .allowed = true,
-                .remaining = @intFromFloat(@max(self.tokens, 0)),
-                .reset_after_ms = 0,
-            };
-        }
-
-        // Calculate time until 1 token available
-        const deficit = 1.0 - self.tokens;
-        const wait_ns = deficit / self.refill_rate;
-        return .{
-            .allowed = false,
-            .remaining = 0,
-            .reset_after_ms = @intFromFloat(wait_ns / @as(f64, std.time.ns_per_ms)),
-        };
-    }
-};
-
-/// Fixed window rate limiter state.
-const FixedWindow = struct {
-    count: u32,
-    window_start_ns: u128,
-    window_duration_ns: u128,
-    max_requests: u32,
-
-    fn init(config: RateLimitConfig, now_ns: u128) FixedWindow {
-        return .{
-            .count = 0,
-            .window_start_ns = now_ns,
-            .window_duration_ns = std.time.ns_per_s, // 1 second windows
-            .max_requests = config.requests_per_second,
-        };
-    }
-
-    fn tryConsume(self: *FixedWindow, now_ns: u128) RateLimitResult {
-        // Check if window has rolled over
-        if (now_ns >= self.window_start_ns + self.window_duration_ns) {
-            self.count = 0;
-            self.window_start_ns = now_ns;
-        }
-
-        if (self.count < self.max_requests) {
-            self.count += 1;
-            return .{
-                .allowed = true,
-                .remaining = self.max_requests - self.count,
-                .reset_after_ms = 0,
-            };
-        }
-
-        const remaining_ns = (self.window_start_ns + self.window_duration_ns) - now_ns;
-        return .{
-            .allowed = false,
-            .remaining = 0,
-            .reset_after_ms = @intCast(remaining_ns / std.time.ns_per_ms),
-        };
-    }
-};
-
-/// Sliding window rate limiter using histogram buckets.
-/// Uses 7 sub-buckets within a window for smooth rate estimation.
-const SlidingWindow = struct {
-    buckets: [7]u32 = [_]u32{0} ** 7,
-    bucket_start_ns: u128,
-    bucket_width_ns: u128,
-    max_requests: u32,
-    window_ns: u128,
-
-    fn init(config: RateLimitConfig, now_ns: u128) SlidingWindow {
-        const window_ns: u128 = std.time.ns_per_s; // 1 second
-        return .{
-            .bucket_start_ns = now_ns,
-            .bucket_width_ns = window_ns / 7,
-            .max_requests = config.requests_per_second,
-            .window_ns = window_ns,
-        };
-    }
-
-    fn tryConsume(self: *SlidingWindow, now_ns: u128) RateLimitResult {
-        // Advance buckets if needed
-        self.advanceBuckets(now_ns);
-
-        // Sum all bucket counts
-        var total: u32 = 0;
-        for (self.buckets) |b| total += b;
-
-        if (total < self.max_requests) {
-            // Add to current bucket
-            const current_bucket = self.currentBucketIdx(now_ns);
-            self.buckets[current_bucket] += 1;
-            return .{
-                .allowed = true,
-                .remaining = self.max_requests - total - 1,
-                .reset_after_ms = 0,
-            };
-        }
-
-        return .{
-            .allowed = false,
-            .remaining = 0,
-            .reset_after_ms = @intCast(self.bucket_width_ns / std.time.ns_per_ms),
-        };
-    }
-
-    fn currentBucketIdx(self: *const SlidingWindow, now_ns: u128) usize {
-        if (self.bucket_width_ns == 0) return 0;
-        const elapsed = now_ns -| self.bucket_start_ns;
-        return @intCast((elapsed / self.bucket_width_ns) % 7);
-    }
-
-    fn advanceBuckets(self: *SlidingWindow, now_ns: u128) void {
-        if (self.bucket_width_ns == 0) return;
-        const elapsed = now_ns -| self.bucket_start_ns;
-        const buckets_to_advance = elapsed / self.bucket_width_ns;
-
-        if (buckets_to_advance >= 7) {
-            // Full window has passed — clear everything
-            self.buckets = [_]u32{0} ** 7;
-            self.bucket_start_ns = now_ns;
-        } else if (buckets_to_advance > 0) {
-            // Clear old buckets
-            var i: usize = 0;
-            while (i < buckets_to_advance) : (i += 1) {
-                const old_idx = (self.currentBucketIdx(self.bucket_start_ns) + i) % 7;
-                self.buckets[old_idx] = 0;
-            }
-            self.bucket_start_ns += buckets_to_advance * self.bucket_width_ns;
-        }
-    }
-};
-
-/// Rate limiter wrapping the 3 algorithm variants.
-const RateLimiter = union(RateLimitAlgorithm) {
-    token_bucket: TokenBucket,
-    sliding_window: SlidingWindow,
-    fixed_window: FixedWindow,
-
-    fn init(config: RateLimitConfig, now_ns: u128) RateLimiter {
-        return switch (config.algorithm) {
-            .token_bucket => .{ .token_bucket = TokenBucket.init(config, now_ns) },
-            .sliding_window => .{ .sliding_window = SlidingWindow.init(config, now_ns) },
-            .fixed_window => .{ .fixed_window = FixedWindow.init(config, now_ns) },
-        };
-    }
-
-    fn tryConsume(self: *RateLimiter, now_ns: u128) RateLimitResult {
-        return switch (self.*) {
-            .token_bucket => |*tb| tb.tryConsume(now_ns),
-            .sliding_window => |*sw| sw.tryConsume(now_ns),
-            .fixed_window => |*fw| fw.tryConsume(now_ns),
-        };
-    }
-};
-
-/// Circuit breaker state machine.
-const CircuitBreaker = struct {
-    cb_state: CircuitBreakerState = .closed,
-    failure_count: u32 = 0,
-    success_count: u32 = 0,
-    open_until_ns: u128 = 0,
-    config: CircuitBreakerConfig,
-
-    fn init(config: CircuitBreakerConfig) CircuitBreaker {
-        return .{ .config = config };
-    }
-
-    fn recordSuccess(self: *CircuitBreaker) void {
-        switch (self.cb_state) {
-            .closed => {
-                self.failure_count = 0;
-            },
-            .half_open => {
-                self.success_count += 1;
-                if (self.success_count >= self.config.half_open_max_requests) {
-                    self.cb_state = .closed;
-                    self.failure_count = 0;
-                    self.success_count = 0;
-                }
-            },
-            .open => {},
-        }
-    }
-
-    fn recordFailure(self: *CircuitBreaker, now_ns: u128) void {
-        self.failure_count += 1;
-        switch (self.cb_state) {
-            .closed => {
-                if (self.failure_count >= self.config.failure_threshold) {
-                    self.cb_state = .open;
-                    self.open_until_ns = now_ns +
-                        @as(u128, self.config.reset_timeout_ms) * std.time.ns_per_ms;
-                }
-            },
-            .half_open => {
-                // Any failure in half-open sends back to open
-                self.cb_state = .open;
-                self.open_until_ns = now_ns +
-                    @as(u128, self.config.reset_timeout_ms) * std.time.ns_per_ms;
-                self.success_count = 0;
-            },
-            .open => {},
-        }
-    }
-
-    fn isAllowed(self: *CircuitBreaker, now_ns: u128) bool {
-        switch (self.cb_state) {
-            .closed => return true,
-            .open => {
-                if (now_ns >= self.open_until_ns) {
-                    self.cb_state = .half_open;
-                    self.success_count = 0;
-                    return true;
-                }
-                return false;
-            },
-            .half_open => return true,
-        }
-    }
-
-    fn reset(self: *CircuitBreaker) void {
-        self.cb_state = .closed;
-        self.failure_count = 0;
-        self.success_count = 0;
-        self.open_until_ns = 0;
-    }
-};
-
-/// Latency histogram with 7 log-scale buckets.
-const LatencyHistogram = struct {
-    // Buckets: <1ms, <5ms, <10ms, <50ms, <100ms, <500ms, >=500ms
-    buckets: [7]u64 = [_]u64{0} ** 7,
-    total_ns: u128 = 0,
-    count: u64 = 0,
-
-    fn record(self: *LatencyHistogram, latency_ns: u64) void {
-        const ms = latency_ns / std.time.ns_per_ms;
-        const bucket_idx: usize = if (ms < 1) 0 else if (ms < 5) 1 else if (ms < 10) 2 else if (ms < 50) 3 else if (ms < 100) 4 else if (ms < 500) 5 else 6;
-        self.buckets[bucket_idx] += 1;
-        self.total_ns += latency_ns;
-        self.count += 1;
-    }
-
-    fn avgMs(self: *const LatencyHistogram) u64 {
-        if (self.count == 0) return 0;
-        return @intCast(self.total_ns / self.count / std.time.ns_per_ms);
-    }
-};
+const RateLimiter = rate_limit_mod.RateLimiter;
+const CircuitBreaker = circuit_breaker_mod.CircuitBreaker;
+const LatencyHistogram = gateway_stats.LatencyHistogram;
 
 // ── Module State ───────────────────────────────────────────────────────
 
@@ -476,7 +162,7 @@ const GatewayState = struct {
 
 /// Split a URL path into segments (delegates to shared radix tree).
 fn splitPath(path: []const u8) std.mem.SplitIterator(u8, .scalar) {
-    return RouteTree.splitPath(path);
+    return routing.splitPath(path);
 }
 
 fn nowNs() u128 {
@@ -731,21 +417,7 @@ pub fn resetCircuit(upstream: []const u8) void {
 }
 
 fn pathMatchesRoute(request_path: []const u8, route_path: []const u8) bool {
-    var req_seg = splitPath(request_path);
-    var route_seg = splitPath(route_path);
-
-    while (true) {
-        const rs = route_seg.next();
-        const rq = req_seg.next();
-
-        if (rs == null and rq == null) return true;
-        if (rs == null or rq == null) return false;
-
-        const rseg = rs.?;
-        if (rseg.len > 0 and rseg[0] == '*') return true;
-        if (rseg.len > 2 and rseg[0] == '{') continue; // param matches anything
-        if (!std.mem.eql(u8, rseg, rq.?)) return false;
-    }
+    return routing.pathMatchesRoute(request_path, route_path);
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────

@@ -18,11 +18,22 @@ This directory is the source for the ABI documentation site and project docs.
 
 ## Requirements
 
-- Zig `0.16.0-dev.2596+469bf6af0` or newer (match `.zigversion`).
+- Zig `0.16.0-dev.2611+f996d2866` or newer (match `.zigversion`).
 
 ## Build
 
-Use the Zig toolchain pinned in `.zigversion`. Generate the docs site:
+Use the Zig toolchain pinned in `.zigversion`.
+
+```bash
+zvm upgrade
+zvm install master
+zvm use master
+zig version
+cat .zigversion
+# If needed: export PATH="$HOME/.zvm/bin:$PATH"
+```
+
+Generate the docs site:
 
 ```bash
 zig build docs-site

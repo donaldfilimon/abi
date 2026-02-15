@@ -12,6 +12,7 @@
 //! - Custom header injection
 
 const std = @import("std");
+const csprng = @import("csprng.zig");
 
 /// Security header configuration
 pub const SecurityHeadersConfig = struct {
@@ -326,7 +327,7 @@ pub const SecurityHeaders = struct {
 
         // Generate 16 random bytes
         var random_bytes: [16]u8 = undefined;
-        std.crypto.random.bytes(&random_bytes);
+        csprng.fillRandom(&random_bytes);
 
         // Encode as base64
         const encoder = std.base64.standard.Encoder;
@@ -389,11 +390,19 @@ pub const SecurityHeaders = struct {
         }
 
         if (csp.report_uri) |uri| {
-            try std.fmt.format(buffer.writer(self.allocator), "report-uri {s}; ", .{uri});
+            {
+                const tmp = try std.fmt.allocPrint(self.allocator, "report-uri {s}; ", .{uri});
+                defer self.allocator.free(tmp);
+                try buffer.appendSlice(self.allocator, tmp);
+            }
         }
 
         if (csp.report_to) |endpoint| {
-            try std.fmt.format(buffer.writer(self.allocator), "report-to {s}; ", .{endpoint});
+            {
+                const tmp = try std.fmt.allocPrint(self.allocator, "report-to {s}; ", .{endpoint});
+                defer self.allocator.free(tmp);
+                try buffer.appendSlice(self.allocator, tmp);
+            }
         }
 
         // Remove trailing "; "
@@ -422,7 +431,11 @@ pub const SecurityHeaders = struct {
         var buffer = std.ArrayListUnmanaged(u8).empty;
         errdefer buffer.deinit(self.allocator);
 
-        try std.fmt.format(buffer.writer(self.allocator), "max-age={d}", .{self.config.hsts.max_age});
+        {
+            const tmp = try std.fmt.allocPrint(self.allocator, "max-age={d}", .{self.config.hsts.max_age});
+            defer self.allocator.free(tmp);
+            try buffer.appendSlice(self.allocator, tmp);
+        }
 
         if (self.config.hsts.include_subdomains) {
             try buffer.appendSlice(self.allocator, "; includeSubDomains");
@@ -441,29 +454,33 @@ pub const SecurityHeaders = struct {
 
         const pp = self.config.permissions_policy;
 
-        try std.fmt.format(buffer.writer(self.allocator),
-            \\accelerometer={s}, ambient-light-sensor={s}, autoplay={s}, battery={s}, camera={s}, display-capture={s}, document-domain={s}, encrypted-media={s}, fullscreen={s}, geolocation={s}, gyroscope={s}, magnetometer={s}, microphone={s}, midi={s}, payment={s}, picture-in-picture={s}, usb={s}, web-share={s}, xr-spatial-tracking={s}
-        , .{
-            pp.accelerometer,
-            pp.ambient_light_sensor,
-            pp.autoplay,
-            pp.battery,
-            pp.camera,
-            pp.display_capture,
-            pp.document_domain,
-            pp.encrypted_media,
-            pp.fullscreen,
-            pp.geolocation,
-            pp.gyroscope,
-            pp.magnetometer,
-            pp.microphone,
-            pp.midi,
-            pp.payment,
-            pp.picture_in_picture,
-            pp.usb,
-            pp.web_share,
-            pp.xr_spatial_tracking,
-        });
+        {
+            const tmp = try std.fmt.allocPrint(self.allocator,
+                \\accelerometer={s}, ambient-light-sensor={s}, autoplay={s}, battery={s}, camera={s}, display-capture={s}, document-domain={s}, encrypted-media={s}, fullscreen={s}, geolocation={s}, gyroscope={s}, magnetometer={s}, microphone={s}, midi={s}, payment={s}, picture-in-picture={s}, usb={s}, web-share={s}, xr-spatial-tracking={s}
+            , .{
+                pp.accelerometer,
+                pp.ambient_light_sensor,
+                pp.autoplay,
+                pp.battery,
+                pp.camera,
+                pp.display_capture,
+                pp.document_domain,
+                pp.encrypted_media,
+                pp.fullscreen,
+                pp.geolocation,
+                pp.gyroscope,
+                pp.magnetometer,
+                pp.microphone,
+                pp.midi,
+                pp.payment,
+                pp.picture_in_picture,
+                pp.usb,
+                pp.web_share,
+                pp.xr_spatial_tracking,
+            });
+            defer self.allocator.free(tmp);
+            try buffer.appendSlice(self.allocator, tmp);
+        }
 
         return buffer.toOwnedSlice(self.allocator);
     }
@@ -542,7 +559,18 @@ test "build security headers" {
     defer headers.deinit();
 
     const result = try headers.getHeaders();
-    defer allocator.free(result);
+    defer {
+        // Free allocated header values (CSP, HSTS, Permissions-Policy)
+        for (result) |header| {
+            if (std.mem.eql(u8, header.name, "Content-Security-Policy") or
+                std.mem.eql(u8, header.name, "Strict-Transport-Security") or
+                std.mem.eql(u8, header.name, "Permissions-Policy"))
+            {
+                allocator.free(header.value);
+            }
+        }
+        allocator.free(result);
+    }
 
     // Should have multiple headers
     try std.testing.expect(result.len > 0);
@@ -571,10 +599,14 @@ test "nonce generation" {
     defer headers.deinit();
 
     const nonce1 = try headers.generateNonce();
+    // Save nonce1 before generating nonce2 (generateNonce frees the old nonce)
+    const nonce1_copy = try allocator.dupe(u8, nonce1);
+    defer allocator.free(nonce1_copy);
+
     const nonce2 = try headers.generateNonce();
 
     // Nonces should be different
-    try std.testing.expect(!std.mem.eql(u8, nonce1, nonce2));
+    try std.testing.expect(!std.mem.eql(u8, nonce1_copy, nonce2));
 
     // Current nonce should be nonce2
     try std.testing.expectEqualStrings(nonce2, headers.current_nonce.?);
@@ -586,7 +618,17 @@ test "strict preset" {
     defer headers.deinit();
 
     const result = try headers.getHeaders();
-    defer allocator.free(result);
+    defer {
+        for (result) |header| {
+            if (std.mem.eql(u8, header.name, "Content-Security-Policy") or
+                std.mem.eql(u8, header.name, "Strict-Transport-Security") or
+                std.mem.eql(u8, header.name, "Permissions-Policy"))
+            {
+                allocator.free(header.value);
+            }
+        }
+        allocator.free(result);
+    }
 
     // Verify strict settings
     for (result) |header| {

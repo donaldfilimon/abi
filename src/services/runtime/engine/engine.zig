@@ -572,22 +572,26 @@ fn createTaskNode(
     task: anytype,
 ) !*TaskNode {
     const TaskType = @TypeOf(task);
+    // Zig 0.16: bare fn types cannot be struct fields — store as *const fn pointer
+    const IsFn = @typeInfo(TaskType) == .@"fn";
+    const StoredType = if (IsFn) *const TaskType else TaskType;
     const Payload = struct {
-        task: TaskType,
+        task: StoredType,
     };
 
     const payload = try state.allocator.create(Payload);
     errdefer state.allocator.destroy(payload);
-    payload.* = .{ .task = task };
+    payload.* = .{ .task = if (IsFn) &task else task };
 
     const NodeOps = struct {
         fn run(allocator: std.mem.Allocator, context: *anyopaque) TaskExecuteError!ResultBlob {
             const payload_ptr: *Payload = @ptrCast(@alignCast(context));
-            const result = callTask(ResultType, payload_ptr.task, allocator) catch |err| {
-                return switch (err) {
-                    error.OutOfMemory => error.OutOfMemory,
-                    else => error.ExecutionFailed,
-                };
+            const actual_task = if (IsFn) payload_ptr.task.* else payload_ptr.task;
+            const result = callTask(ResultType, actual_task, allocator) catch |err| {
+                // Use if-chain instead of switch to avoid unreachable else prong
+                // when the task's error set is a subset of TaskExecuteError
+                if (err == error.OutOfMemory) return error.OutOfMemory;
+                return error.ExecutionFailed;
             };
             return encodeResult(allocator, ResultType, result) catch error.OutOfMemory;
         }

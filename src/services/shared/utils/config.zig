@@ -570,7 +570,7 @@ test "config loader from JSON" {
         \\}
     ;
 
-    const config = try loader.loadFromJson(json, "test.json");
+    var config = try loader.loadFromJson(json, "test.json");
     defer config.deinit();
 
     try std.testing.expect(config.framework.enable_ai);
@@ -603,7 +603,7 @@ test "config loader ignores invalid log level from JSON" {
         \\}
     ;
 
-    const config = try loader.loadFromJson(json, "invalid-log-level.json");
+    var config = try loader.loadFromJson(json, "invalid-log-level.json");
     defer config.deinit();
 
     // Default remains unchanged when log level cannot be parsed.

@@ -54,7 +54,7 @@ The benchmark data is stored in `data/benchmarks.json`. Here's the structure:
     "cpu": "AMD Ryzen 9 5950X",
     "cpuCores": "16",
     "memory": "64 GB DDR4-3600",
-    "zigVersion": "0.16.0-dev.2596+469bf6af0",
+    "zigVersion": "0.16.0-dev.2611+f996d2866",
     "gpu": "NVIDIA RTX 4090",
     "buildMode": "ReleaseFast"
   },

@@ -77,6 +77,9 @@ const build_options = @import("build_options");
 const config_module = @import("config/mod.zig");
 const registry_mod = @import("registry/mod.zig");
 const framework_state = @import("framework/state.zig");
+const framework_builder = @import("framework/builder.zig");
+const lifecycle = @import("framework/lifecycle.zig");
+const feature_catalog = @import("feature_catalog.zig");
 
 pub const Config = config_module.Config;
 pub const Feature = config_module.Feature;
@@ -247,212 +250,13 @@ pub const Framework = struct {
     /// defer fw.deinit();
     /// ```
     pub fn init(allocator: std.mem.Allocator, cfg: Config) Error!Framework {
-        // Validate configuration against compile-time constraints
-        try config_module.validate(cfg);
-
-        var fw = Framework{
-            .allocator = allocator,
-            .config = cfg,
-            .state = .initializing,
-            .registry = Registry.init(allocator),
-            .runtime = undefined,
-        };
-        errdefer fw.registry.deinit();
-
-        // Initialize runtime (always available)
-        fw.runtime = try runtime_mod.Context.init(allocator);
-        errdefer fw.runtime.deinit();
-
-        // Initialize enabled features and register them
-        errdefer fw.deinitFeatures();
-
-        if (cfg.gpu) |gpu_cfg| {
-            fw.gpu = try gpu_mod.Context.init(allocator, gpu_cfg);
-            if (comptime build_options.enable_gpu) {
-                try fw.registry.registerComptime(.gpu);
-            }
-        }
-
-        if (cfg.ai) |ai_cfg| {
-            fw.ai = try ai_mod.Context.init(allocator, ai_cfg);
-            if (comptime build_options.enable_ai) {
-                try fw.registry.registerComptime(.ai);
-            }
-        }
-
-        if (cfg.database) |db_cfg| {
-            fw.database = try database_mod.Context.init(allocator, db_cfg);
-            if (comptime build_options.enable_database) {
-                try fw.registry.registerComptime(.database);
-            }
-        }
-
-        if (cfg.network) |net_cfg| {
-            fw.network = try network_mod.Context.init(allocator, net_cfg);
-            if (comptime build_options.enable_network) {
-                try fw.registry.registerComptime(.network);
-            }
-        }
-
-        if (cfg.observability) |obs_cfg| {
-            fw.observability = try observability_mod.Context.init(allocator, obs_cfg);
-            if (comptime build_options.enable_profiling) {
-                try fw.registry.registerComptime(.observability);
-            }
-        }
-
-        if (cfg.web) |web_cfg| {
-            fw.web = try web_mod.Context.init(allocator, web_cfg);
-            if (comptime build_options.enable_web) {
-                try fw.registry.registerComptime(.web);
-            }
-        }
-
-        if (cfg.cloud) |core_cloud| {
-            // Map core/config CloudConfig fields to features/cloud runtime CloudConfig.
-            const runtime_cloud = cloud_mod.CloudConfig{
-                .memory_mb = core_cloud.memory_mb,
-                .timeout_seconds = core_cloud.timeout_seconds,
-                .tracing_enabled = core_cloud.tracing_enabled,
-                .logging_enabled = core_cloud.logging_enabled,
-                .log_level = @enumFromInt(@intFromEnum(core_cloud.log_level)),
-            };
-            fw.cloud = try cloud_mod.Context.init(allocator, runtime_cloud);
-            if (comptime build_options.enable_cloud) {
-                try fw.registry.registerComptime(.cloud);
-            }
-        }
-
-        if (cfg.analytics) |analytics_cfg| {
-            fw.analytics = try analytics_mod.Context.init(allocator, .{
-                .buffer_capacity = analytics_cfg.buffer_capacity,
-                .enable_timestamps = analytics_cfg.enable_timestamps,
-                .app_id = analytics_cfg.app_id,
-                .flush_interval_ms = analytics_cfg.flush_interval_ms,
-            });
-            if (comptime build_options.enable_analytics) {
-                try fw.registry.registerComptime(.analytics);
-            }
-        }
-
-        if (cfg.auth) |auth_cfg| {
-            fw.auth = try auth_mod.Context.init(allocator, auth_cfg);
-            if (comptime build_options.enable_auth) {
-                try fw.registry.registerComptime(.auth);
-            }
-        }
-
-        if (cfg.messaging) |msg_cfg| {
-            fw.messaging = try messaging_mod.Context.init(allocator, msg_cfg);
-            if (comptime build_options.enable_messaging) {
-                try fw.registry.registerComptime(.messaging);
-            }
-        }
-
-        if (cfg.cache) |cache_cfg| {
-            fw.cache = try cache_mod.Context.init(allocator, cache_cfg);
-            if (comptime build_options.enable_cache) {
-                try fw.registry.registerComptime(.cache);
-            }
-        }
-
-        if (cfg.storage) |storage_cfg| {
-            fw.storage = try storage_mod.Context.init(allocator, storage_cfg);
-            if (comptime build_options.enable_storage) {
-                try fw.registry.registerComptime(.storage);
-            }
-        }
-
-        if (cfg.search) |search_cfg| {
-            fw.search = try search_mod.Context.init(allocator, search_cfg);
-            if (comptime build_options.enable_search) {
-                try fw.registry.registerComptime(.search);
-            }
-        }
-
-        if (cfg.gateway) |gateway_cfg| {
-            fw.gateway = try gateway_mod.Context.init(allocator, gateway_cfg);
-            if (comptime build_options.enable_gateway) {
-                try fw.registry.registerComptime(.gateway);
-            }
-        }
-
-        if (cfg.pages) |pages_cfg| {
-            fw.pages = try pages_mod.Context.init(allocator, pages_cfg);
-            if (comptime build_options.enable_pages) {
-                try fw.registry.registerComptime(.pages);
-            }
-        }
-
-        if (cfg.benchmarks) |benchmarks_cfg| {
-            fw.benchmarks = try benchmarks_mod.Context.init(allocator, benchmarks_cfg);
-            if (comptime build_options.enable_benchmarks) {
-                try fw.registry.registerComptime(.benchmarks);
-            }
-        }
-
-        if (cfg.mobile) |mobile_cfg| {
-            fw.mobile = try mobile_mod.Context.init(allocator, mobile_cfg);
-            if (comptime build_options.enable_mobile) {
-                try fw.registry.registerComptime(.mobile);
-            }
-        }
-
-        // Initialize split AI modules (use shared AI config).
-        // Non-fatal: log a warning if init fails so users know why the
-        // feature is unavailable, but allow the framework to continue.
-        if (cfg.ai) |ai_cfg| {
-            if (comptime build_options.enable_ai) {
-                fw.ai_core = ai_core_mod.Context.init(
-                    allocator,
-                    ai_cfg,
-                ) catch |err| blk: {
-                    std.log.warn("ai_core init failed: {t}", .{err});
-                    break :blk null;
-                };
-            }
-            if (comptime build_options.enable_llm) {
-                fw.ai_inference = ai_inference_mod.Context.init(
-                    allocator,
-                    ai_cfg,
-                ) catch |err| blk: {
-                    std.log.warn("ai_inference init failed: {t}", .{err});
-                    break :blk null;
-                };
-            }
-            if (comptime build_options.enable_training) {
-                fw.ai_training = ai_training_mod.Context.init(
-                    allocator,
-                    ai_cfg,
-                ) catch |err| blk: {
-                    std.log.warn("ai_training init failed: {t}", .{err});
-                    break :blk null;
-                };
-            }
-            if (comptime build_options.enable_reasoning) {
-                fw.ai_reasoning = ai_reasoning_mod.Context.init(
-                    allocator,
-                    ai_cfg,
-                ) catch |err| blk: {
-                    std.log.warn("ai_reasoning init failed: {t}", .{err});
-                    break :blk null;
-                };
-            }
-        }
-
-        // Initialize high availability if enabled (defaulting to primary)
-        fw.ha = ha_mod.HaManager.init(allocator, .{});
-
-        fw.state = .running;
-        return fw;
+        return lifecycle.init(Framework, allocator, cfg);
     }
 
     /// Initialize the framework with the given configuration **and** an I/O backend.
     /// This method is used by the builder when `withIo` is supplied.
     pub fn initWithIo(allocator: std.mem.Allocator, cfg: Config, io: std.Io) Error!Framework {
-        var fw = try Framework.init(allocator, cfg);
-        fw.io = io;
-        return fw;
+        return lifecycle.initWithIo(Framework, allocator, cfg, io);
     }
 
     /// Create a framework with default configuration.
@@ -475,7 +279,7 @@ pub const Framework = struct {
     /// defer fw.deinit();
     /// ```
     pub fn initDefault(allocator: std.mem.Allocator) Error!Framework {
-        return init(allocator, Config.defaults());
+        return lifecycle.initDefault(Framework, allocator);
     }
 
     /// Create a framework with minimal configuration (no features enabled).
@@ -503,7 +307,7 @@ pub const Framework = struct {
     /// try std.testing.expect(fw.ai == null);
     /// ```
     pub fn initMinimal(allocator: std.mem.Allocator) Error!Framework {
-        return init(allocator, Config.minimal());
+        return lifecycle.initMinimal(Framework, allocator);
     }
 
     /// Start building a framework configuration.
@@ -529,7 +333,7 @@ pub const Framework = struct {
     /// defer fw.deinit();
     /// ```
     pub fn builder(allocator: std.mem.Allocator) FrameworkBuilder {
-        return FrameworkBuilder.init(allocator);
+        return framework_builder.init(FrameworkBuilder, allocator);
     }
 
     /// Shutdown and cleanup the framework.
@@ -551,59 +355,17 @@ pub const Framework = struct {
     /// fw.deinit();  // Clean up all resources
     /// ```
     pub fn deinit(self: *Framework) void {
-        if (self.state == .stopped) return;
-
-        self.state = .stopping;
-        self.deinitFeatures();
-        self.registry.deinit();
-        self.runtime.deinit();
-        self.state = .stopped;
+        lifecycle.deinit(self);
     }
 
     /// Shutdown with timeout. Currently synchronous (timeout reserved for
     /// future async cleanup). Returns true if clean shutdown completed.
-    pub fn shutdownWithTimeout(self: *Framework, _: u64) bool {
-        self.deinit();
-        return self.state == .stopped;
-    }
-
-    fn deinitOptionalContext(comptime Context: type, slot: *?*Context) void {
-        if (slot.*) |ctx| {
-            ctx.deinit();
-            slot.* = null;
-        }
+    pub fn shutdownWithTimeout(self: *Framework, timeout_ms: u64) bool {
+        return lifecycle.shutdownWithTimeout(self, timeout_ms);
     }
 
     fn deinitFeatures(self: *Framework) void {
-        // Deinitialize in reverse order of initialization.
-        // HA manager first (initialized last, after AI modules)
-        if (self.ha) |*ha| {
-            ha.deinit();
-            self.ha = null;
-        }
-        // Split AI modules (initialized second-to-last)
-        deinitOptionalContext(ai_reasoning_mod.Context, &self.ai_reasoning);
-        deinitOptionalContext(ai_training_mod.Context, &self.ai_training);
-        deinitOptionalContext(ai_inference_mod.Context, &self.ai_inference);
-        deinitOptionalContext(ai_core_mod.Context, &self.ai_core);
-        // Then standard feature modules
-        deinitOptionalContext(mobile_mod.Context, &self.mobile);
-        deinitOptionalContext(gateway_mod.Context, &self.gateway);
-        deinitOptionalContext(pages_mod.Context, &self.pages);
-        deinitOptionalContext(benchmarks_mod.Context, &self.benchmarks);
-        deinitOptionalContext(search_mod.Context, &self.search);
-        deinitOptionalContext(storage_mod.Context, &self.storage);
-        deinitOptionalContext(cache_mod.Context, &self.cache);
-        deinitOptionalContext(messaging_mod.Context, &self.messaging);
-        deinitOptionalContext(auth_mod.Context, &self.auth);
-        deinitOptionalContext(analytics_mod.Context, &self.analytics);
-        deinitOptionalContext(cloud_mod.Context, &self.cloud);
-        deinitOptionalContext(web_mod.Context, &self.web);
-        deinitOptionalContext(observability_mod.Context, &self.observability);
-        deinitOptionalContext(network_mod.Context, &self.network);
-        deinitOptionalContext(database_mod.Context, &self.database);
-        deinitOptionalContext(ai_mod.Context, &self.ai);
-        deinitOptionalContext(gpu_mod.Context, &self.gpu);
+        lifecycle.deinitFeatures(self);
     }
 
     /// Check if the framework is running.
@@ -760,252 +522,205 @@ pub const FrameworkBuilder = struct {
     io: ?std.Io = null,
 
     pub fn init(allocator: std.mem.Allocator) FrameworkBuilder {
-        return .{
-            .allocator = allocator,
-            .config_builder = config_module.Builder.init(allocator),
-            .io = null,
-        };
+        return framework_builder.init(FrameworkBuilder, allocator);
     }
 
     /// Start with default configuration.
     pub fn withDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withDefaults();
-        return self;
+        return framework_builder.withDefaults(FrameworkBuilder, self);
     }
 
     /// Enable GPU with configuration.
     pub fn withGpu(self: *FrameworkBuilder, gpu_config: config_module.GpuConfig) *FrameworkBuilder {
-        _ = self.config_builder.withGpu(gpu_config);
-        return self;
+        return framework_builder.withGpu(FrameworkBuilder, self, gpu_config);
     }
 
     /// Enable GPU with defaults.
     pub fn withGpuDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withGpuDefaults();
-        return self;
+        return framework_builder.withGpuDefaults(FrameworkBuilder, self);
     }
 
     /// Provide a shared I/O backend for the framework.
     /// Pass the `std.Io` obtained from `IoBackend.init`.
     pub fn withIo(self: *FrameworkBuilder, io: std.Io) *FrameworkBuilder {
-        self.io = io;
-        return self;
+        return framework_builder.withIo(FrameworkBuilder, self, io);
     }
 
     /// Enable AI with configuration.
     pub fn withAi(self: *FrameworkBuilder, ai_config: config_module.AiConfig) *FrameworkBuilder {
-        _ = self.config_builder.withAi(ai_config);
-        return self;
+        return framework_builder.withAi(FrameworkBuilder, self, ai_config);
     }
 
     /// Enable AI with defaults.
     pub fn withAiDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withAiDefaults();
-        return self;
+        return framework_builder.withAiDefaults(FrameworkBuilder, self);
     }
 
     /// Enable LLM only.
     pub fn withLlm(self: *FrameworkBuilder, llm_config: config_module.LlmConfig) *FrameworkBuilder {
-        _ = self.config_builder.withLlm(llm_config);
-        return self;
+        return framework_builder.withLlm(FrameworkBuilder, self, llm_config);
     }
 
     /// Enable database with configuration.
     pub fn withDatabase(self: *FrameworkBuilder, db_config: config_module.DatabaseConfig) *FrameworkBuilder {
-        _ = self.config_builder.withDatabase(db_config);
-        return self;
+        return framework_builder.withDatabase(FrameworkBuilder, self, db_config);
     }
 
     /// Enable database with defaults.
     pub fn withDatabaseDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withDatabaseDefaults();
-        return self;
+        return framework_builder.withDatabaseDefaults(FrameworkBuilder, self);
     }
 
     /// Enable network with configuration.
     pub fn withNetwork(self: *FrameworkBuilder, net_config: config_module.NetworkConfig) *FrameworkBuilder {
-        _ = self.config_builder.withNetwork(net_config);
-        return self;
+        return framework_builder.withNetwork(FrameworkBuilder, self, net_config);
     }
 
     /// Enable network with defaults.
     pub fn withNetworkDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withNetworkDefaults();
-        return self;
+        return framework_builder.withNetworkDefaults(FrameworkBuilder, self);
     }
 
     /// Enable observability with configuration.
     pub fn withObservability(self: *FrameworkBuilder, obs_config: config_module.ObservabilityConfig) *FrameworkBuilder {
-        _ = self.config_builder.withObservability(obs_config);
-        return self;
+        return framework_builder.withObservability(FrameworkBuilder, self, obs_config);
     }
 
     /// Enable observability with defaults.
     pub fn withObservabilityDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withObservabilityDefaults();
-        return self;
+        return framework_builder.withObservabilityDefaults(FrameworkBuilder, self);
     }
 
     /// Enable web with configuration.
     pub fn withWeb(self: *FrameworkBuilder, web_config: config_module.WebConfig) *FrameworkBuilder {
-        _ = self.config_builder.withWeb(web_config);
-        return self;
+        return framework_builder.withWeb(FrameworkBuilder, self, web_config);
     }
 
     /// Enable web with defaults.
     pub fn withWebDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withWebDefaults();
-        return self;
+        return framework_builder.withWebDefaults(FrameworkBuilder, self);
     }
 
     /// Enable analytics with configuration.
     pub fn withAnalytics(self: *FrameworkBuilder, analytics_cfg: config_module.AnalyticsConfig) *FrameworkBuilder {
-        _ = self.config_builder.withAnalytics(analytics_cfg);
-        return self;
+        return framework_builder.withAnalytics(FrameworkBuilder, self, analytics_cfg);
     }
 
     /// Enable analytics with defaults.
     pub fn withAnalyticsDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withAnalyticsDefaults();
-        return self;
+        return framework_builder.withAnalyticsDefaults(FrameworkBuilder, self);
     }
 
     /// Enable cloud with configuration.
     pub fn withCloud(self: *FrameworkBuilder, cloud_config: config_module.CloudConfig) *FrameworkBuilder {
-        _ = self.config_builder.withCloud(cloud_config);
-        return self;
+        return framework_builder.withCloud(FrameworkBuilder, self, cloud_config);
     }
 
     /// Enable cloud with defaults.
     pub fn withCloudDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withCloudDefaults();
-        return self;
+        return framework_builder.withCloudDefaults(FrameworkBuilder, self);
     }
 
     /// Enable auth with configuration.
     pub fn withAuth(self: *FrameworkBuilder, auth_config: config_module.AuthConfig) *FrameworkBuilder {
-        _ = self.config_builder.withAuth(auth_config);
-        return self;
+        return framework_builder.withAuth(FrameworkBuilder, self, auth_config);
     }
 
     /// Enable auth with defaults.
     pub fn withAuthDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withAuthDefaults();
-        return self;
+        return framework_builder.withAuthDefaults(FrameworkBuilder, self);
     }
 
     /// Enable messaging with configuration.
     pub fn withMessaging(self: *FrameworkBuilder, msg_config: config_module.MessagingConfig) *FrameworkBuilder {
-        _ = self.config_builder.withMessaging(msg_config);
-        return self;
+        return framework_builder.withMessaging(FrameworkBuilder, self, msg_config);
     }
 
     /// Enable messaging with defaults.
     pub fn withMessagingDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withMessagingDefaults();
-        return self;
+        return framework_builder.withMessagingDefaults(FrameworkBuilder, self);
     }
 
     /// Enable cache with configuration.
     pub fn withCache(self: *FrameworkBuilder, cache_config: config_module.CacheConfig) *FrameworkBuilder {
-        _ = self.config_builder.withCache(cache_config);
-        return self;
+        return framework_builder.withCache(FrameworkBuilder, self, cache_config);
     }
 
     /// Enable cache with defaults.
     pub fn withCacheDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withCacheDefaults();
-        return self;
+        return framework_builder.withCacheDefaults(FrameworkBuilder, self);
     }
 
     /// Enable storage with configuration.
     pub fn withStorage(self: *FrameworkBuilder, storage_config: config_module.StorageConfig) *FrameworkBuilder {
-        _ = self.config_builder.withStorage(storage_config);
-        return self;
+        return framework_builder.withStorage(FrameworkBuilder, self, storage_config);
     }
 
     /// Enable storage with defaults.
     pub fn withStorageDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withStorageDefaults();
-        return self;
+        return framework_builder.withStorageDefaults(FrameworkBuilder, self);
     }
 
     /// Enable search with configuration.
     pub fn withSearch(self: *FrameworkBuilder, search_config: config_module.SearchConfig) *FrameworkBuilder {
-        _ = self.config_builder.withSearch(search_config);
-        return self;
+        return framework_builder.withSearch(FrameworkBuilder, self, search_config);
     }
 
     /// Enable search with defaults.
     pub fn withSearchDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withSearchDefaults();
-        return self;
+        return framework_builder.withSearchDefaults(FrameworkBuilder, self);
     }
 
     /// Enable gateway with configuration.
     pub fn withGateway(self: *FrameworkBuilder, gateway_cfg: config_module.GatewayConfig) *FrameworkBuilder {
-        _ = self.config_builder.withGateway(gateway_cfg);
-        return self;
+        return framework_builder.withGateway(FrameworkBuilder, self, gateway_cfg);
     }
 
     /// Enable gateway with defaults.
     pub fn withGatewayDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withGatewayDefaults();
-        return self;
+        return framework_builder.withGatewayDefaults(FrameworkBuilder, self);
     }
 
     /// Enable pages with configuration.
     pub fn withPages(self: *FrameworkBuilder, pages_cfg: config_module.PagesConfig) *FrameworkBuilder {
-        _ = self.config_builder.withPages(pages_cfg);
-        return self;
+        return framework_builder.withPages(FrameworkBuilder, self, pages_cfg);
     }
 
     /// Enable pages with defaults.
     pub fn withPagesDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withPagesDefaults();
-        return self;
+        return framework_builder.withPagesDefaults(FrameworkBuilder, self);
     }
 
     /// Enable benchmarks with configuration.
     pub fn withBenchmarks(self: *FrameworkBuilder, benchmarks_cfg: config_module.BenchmarksConfig) *FrameworkBuilder {
-        _ = self.config_builder.withBenchmarks(benchmarks_cfg);
-        return self;
+        return framework_builder.withBenchmarks(FrameworkBuilder, self, benchmarks_cfg);
     }
 
     /// Enable benchmarks with defaults.
     pub fn withBenchmarksDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withBenchmarksDefaults();
-        return self;
+        return framework_builder.withBenchmarksDefaults(FrameworkBuilder, self);
     }
 
     /// Enable mobile with configuration.
     pub fn withMobile(self: *FrameworkBuilder, mobile_cfg: config_module.MobileConfig) *FrameworkBuilder {
-        _ = self.config_builder.withMobile(mobile_cfg);
-        return self;
+        return framework_builder.withMobile(FrameworkBuilder, self, mobile_cfg);
     }
 
     /// Enable mobile with defaults.
     pub fn withMobileDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        _ = self.config_builder.withMobileDefaults();
-        return self;
+        return framework_builder.withMobileDefaults(FrameworkBuilder, self);
     }
 
     /// Configure plugins.
     pub fn withPlugins(self: *FrameworkBuilder, plugin_config: config_module.PluginConfig) *FrameworkBuilder {
-        _ = self.config_builder.withPlugins(plugin_config);
-        return self;
+        return framework_builder.withPlugins(FrameworkBuilder, self, plugin_config);
     }
 
     /// Build and initialize the framework.
     /// If an I/O backend was supplied via `withIo`, it will be stored in the
     /// resulting `Framework` instance.
     pub fn build(self: *FrameworkBuilder) Framework.Error!Framework {
-        const config = self.config_builder.build();
-        if (self.io) |io| {
-            return Framework.initWithIo(self.allocator, config, io);
-        } else {
-            return Framework.init(self.allocator, config);
-        }
+        return framework_builder.build(Framework, FrameworkBuilder, self);
     }
 };
 
@@ -1020,6 +735,10 @@ test "Framework.builder creates valid framework" {
     // Just test that builder compiles and creates config
     const config = builder_inst.config_builder.build();
     try config_module.validate(config);
+}
+
+test "Framework feature enum is catalog-backed" {
+    try std.testing.expectEqual(feature_catalog.feature_count, @typeInfo(Feature).@"enum".fields.len);
 }
 
 test "Framework initializes registry with enabled features" {

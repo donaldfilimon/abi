@@ -723,7 +723,7 @@ pub const ClientWrapper = union(enum) {
         };
     }
 
-    pub fn getBackendName(self: *ClientWrapper) []const u8 {
+    pub fn getBackendName(self: *const ClientWrapper) []const u8 {
         return switch (self.*) {
             .echo => |e| e.getBackendName(),
             .openai => |o| o.getBackendName(),

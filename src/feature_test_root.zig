@@ -20,11 +20,16 @@ test {
         _ = @import("features/ai/memory/mod.zig");
         _ = @import("features/ai/tools/mod.zig");
         _ = @import("features/ai/streaming/mod.zig");
-        // _ = @import("features/ai/abbey/mod.zig");       // 13 errors (deep refactor needed)
+        _ = @import("features/ai/abbey/mod.zig");
 
-        // Multi-agent coordination (aggregation, messaging, coordinator)
-        _ = @import("features/ai/multi_agent/aggregation.zig");
-        _ = @import("features/ai/multi_agent/messaging.zig");
+        // Multi-agent coordination (coordinator + aggregation + messaging)
+        _ = @import("features/ai/multi_agent/mod.zig");
+
+        // Explore module standalone tests
+        _ = @import("features/ai/explore/explore_test.zig");
+
+        // LLM GPU memory pool tests
+        _ = @import("features/ai/llm/ops/gpu_memory_pool_test.zig");
 
         // AI database submodule (wdbx token dataset tests)
         _ = @import("features/ai/database/wdbx.zig");
@@ -102,6 +107,19 @@ test {
 
     // Connector inline tests (not discovered through named abi module)
     _ = @import("services/connectors/mod.zig");
+    _ = @import("services/connectors/shared.zig");
+    _ = @import("services/connectors/openai.zig");
+    _ = @import("services/connectors/anthropic.zig");
+    _ = @import("services/connectors/ollama.zig");
+    _ = @import("services/connectors/huggingface.zig");
+    _ = @import("services/connectors/mistral.zig");
+    _ = @import("services/connectors/cohere.zig");
+    _ = @import("services/connectors/lm_studio.zig");
+    _ = @import("services/connectors/vllm.zig");
+    _ = @import("services/connectors/mlx.zig");
+    _ = @import("services/connectors/local_scheduler.zig");
+    _ = @import("services/connectors/stub.zig");
+    _ = @import("services/connectors/discord/mod.zig");
     _ = @import("services/connectors/discord/utils.zig");
     _ = @import("services/connectors/discord/rest_encoders.zig");
 
@@ -110,6 +128,7 @@ test {
     _ = @import("services/ha/replication.zig");
     _ = @import("services/ha/backup.zig");
     _ = @import("services/ha/pitr.zig");
+    _ = @import("services/ha/stub.zig");
 
     // Platform detection
     _ = @import("services/platform/mod.zig");
@@ -121,6 +140,8 @@ test {
     _ = @import("services/shared/utils/retry.zig");
     _ = @import("services/shared/logging.zig");
     _ = @import("services/shared/plugins.zig");
+    _ = @import("services/shared/utils.zig");
+    _ = @import("services/shared/platform.zig");
 
     // Shared memory utilities
     _ = @import("services/shared/utils/memory/aligned.zig");
@@ -131,6 +152,7 @@ test {
     _ = @import("services/shared/utils/memory/zerocopy.zig");
 
     // Runtime concurrency
+    _ = @import("services/runtime/concurrency/mod.zig");
     _ = @import("services/runtime/concurrency/chase_lev.zig");
     _ = @import("services/runtime/concurrency/lockfree.zig");
     _ = @import("services/runtime/concurrency/mpmc_queue.zig");
@@ -138,6 +160,9 @@ test {
     _ = @import("services/runtime/concurrency/epoch.zig");
 
     // Runtime scheduling
+    _ = @import("services/runtime/scheduling/mod.zig");
+    // async.zig spawns OS threads + Io.Threaded backend — hangs in test runner
+    // _ = @import("services/runtime/scheduling/async.zig");
     _ = @import("services/runtime/scheduling/cancellation.zig");
     _ = @import("services/runtime/scheduling/future.zig");
     _ = @import("services/runtime/scheduling/task_group.zig");
@@ -154,19 +179,35 @@ test {
 
     // Core module tests (errors.zig transitively pulls in config/mod.zig)
     _ = @import("core/errors.zig");
+    _ = @import("core/feature_catalog.zig");
+    _ = @import("core/registry/mod.zig");
+    _ = @import("core/registry/stub.zig");
 
-    // Security sub-modules: need crypto.random + other Zig 0.16 migrations
-    // TODO: ~75 tests blocked on std.crypto.random, StaticArrayList, fetchRemove API changes
+    // vNext module inline tests
+    _ = @import("vnext/capability.zig");
+    _ = @import("vnext/config.zig");
 
-    // Runtime engine: result_cache/steal_policy pull in numa.zig (needs u3/const fix)
-    // _ = @import("services/runtime/engine/result_cache.zig");
-    // _ = @import("services/runtime/engine/steal_policy.zig");
+    // Security sub-modules (16 modules, ~68 tests)
+    _ = @import("services/shared/security/mod.zig");
+    _ = @import("services/shared/security/csprng.zig");
+
+    // Runtime engine: result_cache, steal_policy, numa + mod.zig for engine/types/benchmark tests
+    _ = @import("services/runtime/engine/result_cache.zig");
+    _ = @import("services/runtime/engine/steal_policy.zig");
+    _ = @import("services/runtime/engine/numa.zig");
+    _ = @import("services/runtime/engine/mod.zig");
     _ = @import("services/runtime/memory/mod.zig");
 
     // Additional shared utilities
     _ = @import("services/shared/errors.zig");
     _ = @import("services/shared/utils/binary.zig");
     _ = @import("services/shared/utils/encoding/mod.zig");
+    _ = @import("services/shared/utils/config.zig");
+    _ = @import("services/shared/utils/crypto/mod.zig");
+    _ = @import("services/shared/utils/http/mod.zig");
+    _ = @import("services/shared/utils/http/async_http.zig");
+    _ = @import("services/shared/utils/fs/mod.zig");
+    _ = @import("services/shared/utils/net/mod.zig");
     _ = @import("services/shared/utils/memory/thread_cache.zig");
     _ = @import("services/shared/os.zig");
     _ = @import("services/shared/simd/simd_test.zig");

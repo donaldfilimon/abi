@@ -168,7 +168,9 @@ fn increment(counter: *std.atomic.Value(u32)) void {
 }
 
 test "async runtime spawns concurrent task" {
-    var runtime = AsyncRuntime.init(std.testing.allocator, .{});
+    var runtime = AsyncRuntime.init(std.testing.allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer runtime.deinit();
 
     var handle = try runtime.spawn(addOne, .{@as(u32, 4)});
@@ -176,7 +178,9 @@ test "async runtime spawns concurrent task" {
 }
 
 test "async runtime cancels tasks" {
-    var runtime = AsyncRuntime.init(std.testing.allocator, .{});
+    var runtime = AsyncRuntime.init(std.testing.allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer runtime.deinit();
 
     var handle = try runtime.spawn(cancellableSleep, .{runtime.ioHandle()});
@@ -184,7 +188,9 @@ test "async runtime cancels tasks" {
 }
 
 test "task group awaits tasks" {
-    var runtime = AsyncRuntime.init(std.testing.allocator, .{});
+    var runtime = AsyncRuntime.init(std.testing.allocator, .{
+        .environ = std.process.Environ.empty,
+    });
     defer runtime.deinit();
 
     var counter = std.atomic.Value(u32).init(0);

@@ -7,7 +7,7 @@ tags: []
 
 <p align="center">
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
-  <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2596%2B469bf6af0-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2596+469bf6af0"/>
+  <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2611%2Bf996d2866-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2611+f996d2866"/>
   <img src="https://img.shields.io/badge/Code_Style-Zig_fmt-blue?style=for-the-badge" alt="Code Style"/>
 </p>
 
@@ -66,7 +66,7 @@ flowchart LR
 | Error handling | `!` return types, specific error enums | ![Required](https://img.shields.io/badge/-Required-red) |
 | Cleanup | Prefer `defer`/`errdefer` | ![Recommended](https://img.shields.io/badge/-Recommended-yellow) |
 
-## Zig 0.16.0-dev.2596+469bf6af0 Conventions
+## Zig 0.16.0-dev.2611+f996d2866 Conventions
 
 ### Memory Management
 

@@ -557,9 +557,9 @@ pub const TheoryOfMind = struct {
         return EmotionalImpact{
             .expected_valence = valence,
             .expected_emotion = if (valence > 0.2)
-                .pleased
+                .grateful
             else if (valence < -0.2)
-                .concerned
+                .disappointed
             else
                 .neutral,
             .confidence = 0.5,

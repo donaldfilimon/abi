@@ -44,7 +44,7 @@ pub fn toHexLower(allocator: std.mem.Allocator, bytes: []const u8) ![]u8 {
     return out;
 }
 
-pub fn fromHex(allocator: std.mem.Allocator, text: []const u8) HexError![]u8 {
+pub fn fromHex(allocator: std.mem.Allocator, text: []const u8) (HexError || error{OutOfMemory})![]u8 {
     if (text.len % 2 != 0) return HexError.InvalidHex;
     const out = try allocator.alloc(u8, text.len / 2);
     errdefer allocator.free(out);

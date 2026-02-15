@@ -7,6 +7,17 @@
 //! - Secure memory wiping for sensitive data
 const std = @import("std");
 const time = @import("../time.zig");
+const csprng = @import("csprng.zig");
+
+/// Constant-time comparison for variable-length slices (timing-attack resistant).
+fn constantTimeEqlSlice(a: []const u8, b: []const u8) bool {
+    if (a.len != b.len) return false;
+    var diff: u8 = 0;
+    for (a, b) |x, y| {
+        diff |= x ^ y;
+    }
+    return diff == 0;
+}
 
 /// Salt length in bytes for key hashing
 pub const SALT_LENGTH: usize = 16;
@@ -99,11 +110,10 @@ pub const ApiKeyManager = struct {
     }
 
     pub fn deinit(self: *ApiKeyManager) void {
-        var it = self.keys.iterator();
-        while (it.next()) |entry| {
-            self.allocator.free(entry.key_ptr.*);
-            entry.value_ptr.*.deinit(self.allocator);
-            self.allocator.destroy(entry.value_ptr);
+        for (self.keys.values()) |api_key| {
+            // ApiKey.deinit frees .id which is also the map key
+            api_key.deinit(self.allocator);
+            self.allocator.destroy(api_key);
         }
         self.keys.deinit(self.allocator);
         self.* = undefined;
@@ -119,7 +129,7 @@ pub const ApiKeyManager = struct {
 
         // Generate random salt for this key
         var salt: [SALT_LENGTH]u8 = undefined;
-        std.crypto.random.bytes(&salt);
+        csprng.fillRandom(&salt);
 
         const key_hash = try self.hashKeyWithSalt(key_plain, &salt);
         const key_prefix = key_plain[0..@min(8, key_plain.len)];
@@ -128,7 +138,7 @@ pub const ApiKeyManager = struct {
         errdefer self.allocator.destroy(api_key);
 
         api_key.* = ApiKey{
-            .id = try self.allocator.dupe(u8, key_id),
+            .id = key_id,
             .key_hash = key_hash,
             .salt = salt,
             .key_prefix = try self.allocator.dupe(u8, key_prefix),
@@ -161,7 +171,7 @@ pub const ApiKeyManager = struct {
 
             // Timing-safe comparison to prevent timing attacks
             if (computed_hash.len == key.key_hash.len and
-                std.crypto.utils.timingSafeEql(u8, computed_hash, key.key_hash))
+                constantTimeEqlSlice(computed_hash, key.key_hash))
             {
                 if (!key.is_active) return null;
                 if (key.expires_at) |exp| {
@@ -176,9 +186,9 @@ pub const ApiKeyManager = struct {
     }
 
     pub fn revokeKey(self: *ApiKeyManager, key_id: []const u8) bool {
-        if (self.keys.remove(key_id)) |entry| {
-            entry.value_ptr.*.deinit(self.allocator);
-            self.allocator.destroy(entry.value_ptr);
+        if (self.keys.fetchOrderedRemove(key_id)) |entry| {
+            entry.value.deinit(self.allocator);
+            self.allocator.destroy(entry.value);
             return true;
         }
         return false;
@@ -222,7 +232,8 @@ pub const ApiKeyManager = struct {
 
     fn generateKeyPlain(self: *ApiKeyManager) ![]const u8 {
         const key_bytes = try self.allocator.alloc(u8, self.config.key_length);
-        std.crypto.random.bytes(key_bytes);
+        defer self.allocator.free(key_bytes);
+        csprng.fillRandom(key_bytes);
         return self.encodeKey(key_bytes);
     }
 
@@ -289,7 +300,7 @@ pub const ApiKeyManager = struct {
         const encoder = std.base64.standard.Encoder;
         const encoded_len = encoder.calcSize(key_bytes.len);
         const encoded = try self.allocator.alloc(u8, encoded_len);
-        encoder.encode(encoded, key_bytes);
+        _ = encoder.encode(encoded, key_bytes);
         return encoded;
     }
 
@@ -318,12 +329,12 @@ pub const ApiKeyError = error{
 
 test "api key generation" {
     const allocator = std.testing.allocator;
-    // Use low iteration count for fast tests
     var manager = ApiKeyManager.init(allocator, .{ .hash_iterations = 10 });
     defer manager.deinit();
 
     const scopes = &.{ "read", "write" };
     const generated = try manager.generateKey("user1", scopes);
+    defer allocator.free(generated.key_plain);
 
     try std.testing.expect(std.mem.startsWith(u8, generated.key_id, "abi_"));
     try std.testing.expect(generated.key_plain.len > 0);
@@ -332,11 +343,11 @@ test "api key generation" {
 
 test "api key validation" {
     const allocator = std.testing.allocator;
-    // Use low iteration count for fast tests
     var manager = ApiKeyManager.init(allocator, .{ .hash_iterations = 10 });
     defer manager.deinit();
 
     const generated = try manager.generateKey("user1", &.{"read"});
+    defer allocator.free(generated.key_plain);
     const validated = try manager.validateKey(generated.key_plain);
 
     try std.testing.expect(validated != null);
@@ -345,11 +356,11 @@ test "api key validation" {
 
 test "api key revocation" {
     const allocator = std.testing.allocator;
-    // Use low iteration count for fast tests
     var manager = ApiKeyManager.init(allocator, .{ .hash_iterations = 10 });
     defer manager.deinit();
 
     const generated = try manager.generateKey("user1", &.{"read"});
+    defer allocator.free(generated.key_plain);
     const revoked = manager.revokeKey(generated.key_id);
     try std.testing.expect(revoked);
 

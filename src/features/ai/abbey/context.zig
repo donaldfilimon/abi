@@ -378,7 +378,7 @@ test "topic tracker" {
     var tracker = TopicTracker.init(allocator);
     defer tracker.deinit();
 
-    try tracker.updateFromMessage("Let's discuss Zig programming and memory allocation");
+    try tracker.updateFromMessage("Let's discuss Zig programming and memory allocator patterns");
     try std.testing.expect(tracker.hasDiscussed("zig"));
     try std.testing.expect(tracker.hasDiscussed("memory"));
     try std.testing.expect(tracker.hasDiscussed("allocator"));

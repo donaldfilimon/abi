@@ -523,7 +523,8 @@ test "config validation" {
 }
 
 test "config builder" {
-    const config = try ConfigBuilder.init()
+    var b = ConfigBuilder.init();
+    const config = try b
         .name("TestAbbey")
         .temperature(0.8)
         .maxTokens(4096)

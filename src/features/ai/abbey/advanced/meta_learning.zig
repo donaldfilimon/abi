@@ -168,7 +168,7 @@ pub const MetaLearner = struct {
         return strategy;
     }
 
-    fn getBaseStrategy(self: *Self, idx: usize) LearningStrategy {
+    fn getBaseStrategy(self: *const Self, idx: usize) LearningStrategy {
         _ = self;
         return switch (idx % 4) {
             0 => .{
@@ -397,8 +397,8 @@ pub const FewShotLearner = struct {
                 v.* /= count_f;
             }
 
-            // Store prototype
-            if (self.prototypes.get(label)) |*old| {
+            // Store prototype — free old one if it exists
+            if (self.prototypes.getPtr(label)) |old| {
                 old.deinit();
             }
             const proto = try sum.clone();

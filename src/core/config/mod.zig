@@ -34,6 +34,8 @@ pub const loader = @import("loader.zig");
 // Re-export loader types
 pub const ConfigLoader = loader.ConfigLoader;
 pub const LoadError = loader.LoadError;
+pub const Feature = feature_catalog.Feature;
+pub const feature_count = feature_catalog.feature_count;
 
 // Re-export config types by domain (convenience; use *_config for defaults/helpers)
 // Compute
@@ -65,59 +67,6 @@ pub const PagesConfig = pages_config.PagesConfig;
 pub const BenchmarksConfig = benchmarks_config.BenchmarksConfig;
 pub const MobileConfig = mobile_config.MobileConfig;
 pub const PluginConfig = plugin_config.PluginConfig;
-
-// ============================================================================
-// Feature Enum
-// ============================================================================
-
-/// Available features in the framework.
-pub const Feature = enum {
-    gpu,
-    ai,
-    llm,
-    embeddings,
-    agents,
-    training,
-    database,
-    network,
-    observability,
-    web,
-    personas,
-    cloud,
-    analytics,
-    auth,
-    messaging,
-    cache,
-    storage,
-    search,
-    mobile,
-    gateway,
-    pages,
-    benchmarks,
-    reasoning,
-
-    /// Number of features in the enum
-    pub const feature_count = @typeInfo(Feature).@"enum".fields.len;
-
-    pub fn name(self: Feature) []const u8 {
-        return @tagName(self);
-    }
-
-    /// Get feature description from the canonical feature catalog.
-    pub fn description(self: Feature) []const u8 {
-        return feature_catalog.descriptionFromEnum(self);
-    }
-
-    /// Check if feature is compile-time enabled via catalog flag mapping.
-    pub fn isCompileTimeEnabled(self: Feature) bool {
-        inline for (feature_catalog.all) |entry| {
-            if (self == comptime feature_catalog.toEnum(Feature, entry.feature)) {
-                return @field(build_options, entry.compile_flag_field);
-            }
-        }
-        return false;
-    }
-};
 
 // ============================================================================
 // Unified Config

@@ -80,16 +80,16 @@ pub const RbacManager = struct {
     }
 
     pub fn deinit(self: *RbacManager) void {
-        var role_it = self.roles.iterator();
-        while (role_it.next()) |entry| {
-            self.allocator.free(entry.key_ptr.*);
-            entry.value_ptr.*.deinit(self.allocator);
-            self.allocator.destroy(entry.value_ptr);
+        // Role.deinit frees .name which is also the map key — don't free both
+        for (self.roles.values()) |role| {
+            role.deinit(self.allocator);
+            self.allocator.destroy(role);
         }
         self.roles.deinit(self.allocator);
 
         var assign_it = self.role_assignments.iterator();
         while (assign_it.next()) |entry| {
+            // Map key is duped from user_id, separate allocation
             self.allocator.free(entry.key_ptr.*);
             for (entry.value_ptr.items) |assignment| {
                 self.allocator.free(assignment.user_id);
@@ -147,8 +147,7 @@ pub const RbacManager = struct {
         role_name: []const u8,
         granted_by: []const u8,
     ) !void {
-        const role = self.roles.get(role_name) orelse return error.RoleNotFound;
-        if (role == null) return error.RoleNotFound;
+        _ = self.roles.get(role_name) orelse return error.RoleNotFound;
 
         const granted_by_copy = try self.allocator.dupe(u8, granted_by);
         errdefer self.allocator.free(granted_by_copy);
@@ -165,12 +164,12 @@ pub const RbacManager = struct {
             .expires_at = null,
         };
 
-        var assignments = self.role_assignments.get(user_id) orelse blk: {
+        const assignments = self.role_assignments.getPtr(user_id) orelse blk: {
             const list = std.ArrayListUnmanaged(RoleAssignment).empty;
             const key_copy = try self.allocator.dupe(u8, user_id);
             errdefer self.allocator.free(key_copy);
             try self.role_assignments.put(self.allocator, key_copy, list);
-            break :blk self.role_assignments.get(user_id).?;
+            break :blk self.role_assignments.getPtr(user_id).?;
         };
         try assignments.append(self.allocator, assignment);
 
@@ -178,7 +177,7 @@ pub const RbacManager = struct {
     }
 
     pub fn revokeRole(self: *RbacManager, user_id: []const u8, role_name: []const u8) bool {
-        const assignments = self.role_assignments.get(user_id) orelse return false;
+        const assignments = self.role_assignments.getPtr(user_id) orelse return false;
         var found = false;
         var i: usize = 0;
         while (i < assignments.items.len) {
@@ -257,10 +256,12 @@ pub const RbacManager = struct {
     }
 
     fn checkPermissionDirect(self: *RbacManager, user_id: []const u8, permission: Permission) bool {
-        const roles = self.getUserRoles(user_id);
-        for (roles) |role| {
-            for (role.permissions) |role_perm| {
-                if (role_perm == permission) return true;
+        const assignments = self.role_assignments.get(user_id) orelse return false;
+        for (assignments.items) |assignment| {
+            if (self.roles.get(assignment.role_name)) |role| {
+                for (role.permissions) |role_perm| {
+                    if (role_perm == permission) return true;
+                }
             }
         }
         return false;
