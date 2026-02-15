@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
 | **Test baseline** | 1222 pass, 5 skip (1227 total) — must be maintained |
-| **Feature tests** | 846 pass (846 total) — `zig build feature-tests` |
+| **Feature tests** | 884 pass (884 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 8 aliases |
 
 ## Build & Test Commands
@@ -80,6 +80,7 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 | `gateway` | `-Denable-gateway` | API gateway: routing, rate limiting, circuit breaker |
 | `pages` | `-Denable-pages` | Dashboard/UI pages with URL path routing |
 | `web` | `-Denable-web` | |
+| `benchmarks` | `-Denable-benchmarks` | Built-in benchmark suite |
 
 ## Critical Gotchas
 
@@ -91,37 +92,7 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 4. `@tagName(x)` / `@errorName(e)` in format → use `{t}` specifier
 5. `std.io.fixedBufferStream()` → removed; use `std.Io.Writer.fixed(&buf)`
 
-**Full reference:**
-
-| Mistake | Fix |
-|---------|-----|
-| `std.fs.cwd()` | `std.Io.Dir.cwd()` — Zig 0.16.0-dev.2596+469bf6af0 moved filesystem to I/O backend |
-| `std.time.Instant.now()` for elapsed time | `std.time.Timer.start()` — use Timer for benchmarks/elapsed |
-| `list.init()` | `std.ArrayListUnmanaged(T).empty` |
-| `@tagName(x)` / `@errorName(e)` in format | `{t}` format specifier for errors and enums |
-| Editing `mod.zig` only | Update `stub.zig` to match exported signatures |
-| `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
-| `file.read()` / `file.write()` | `file.reader(io, &buf).read()` / `file.writer(io, &buf).write()` — I/O ops need `io` handle + read buffer |
-| `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
-| `std.time.nanoTimestamp()` | Doesn't exist in `0.16.0-dev.2596+469bf6af0` — use `Instant.now()` + `.since(anchor)` for absolute time |
-| `std.process.getEnvVar()` | Doesn't exist in `0.16.0-dev.2596+469bf6af0` — use `std.c.getenv()` for POSIX |
-| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in `0.16.0-dev.2596+469bf6af0`: `.type`, `.@"fn"`, `.@"struct"`, `.@"enum"`, `.@"union"` |
-| `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
-| `defer allocator.free(x)` then return `x` | Use `errdefer` — `defer` frees on success too (use-after-free). Applies anywhere caller takes ownership: `loadFromEnv()`, builder patterns, etc. |
-| `@panic` in library code | Return an error instead — library code should never panic |
-| `std.time.Timer.read()` → `u64` | Returns `usize` in `0.16.0-dev.2596+469bf6af0`, not `u64` — cast or use `@as(u64, timer.read())` |
-| `std.log.err` in tests | Test runner treats error-level log output as a test failure, even if caught. Skip the test before entering error paths |
-| `opaque` as identifier | `opaque` is a keyword in 0.16 — use `is_opaque` or `@"opaque"` |
-| `FallbackAllocator` double-free | Can't call `rawFree` on both backing allocators — use `rawResize(..0..)` to probe ownership |
-| `Timer.start() catch` with bogus fallback | `catch std.time.Timer{ .started = .{...} }` produces wrong `.read()` values — only acceptable because `Timer.start()` virtually never fails |
-| SwissMap `@typeInfo(.int)` branch | Matches all integer types — explicit checks after it are unreachable |
-| `std.io.fixedBufferStream()` | Removed — use `std.Io.Writer.fixed(&buf)`, read via `buf[0..writer.end]` |
-| `ArrayListUnmanaged.writer()` | Doesn't exist in 0.16 — build output manually with `appendSlice` |
-| `comptime { _ = @import(...); }` for tests | Doesn't discover tests — use `test { _ = @import(...); }` blocks |
-| Importing `mod.zig` in `feature_test_root.zig` | If mod.zig re-exports sub-modules with compile errors, all errors surface. Create standalone `*_test.zig` alongside mod.zig instead |
-| `catch {}` in library code | Never silently swallow errors — use `catch \|err\| { std.log.warn(...); }` or propagate |
-| `&.{ "a", "b" }` in non-inline for | Produces a tuple, not a slice — use `[_][]const u8{ "a", "b" }` for runtime iteration |
-| `.Pointer` / `.Slice` in `@typeInfo` | Zig 0.16 uses lowercase: `.pointer`, `.slice`, `.array`, `.int` |
+**Full reference:** See [`.claude/rules/zig.md`](.claude/rules/zig.md) (auto-loaded for all `.zig` files) for the complete gotchas table with 30+ entries covering I/O, `@typeInfo`, allocators, test discovery, and more.
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -185,7 +156,7 @@ build.zig                → Top-level build script (delegates to build/)
 build/                   → Split build system (options, modules, flags, targets, gpu, mobile, wasm)
 src/abi.zig              → Public API, comptime feature selection, type aliases
 src/core/                → Framework lifecycle, config builder, registry
-src/features/<name>/     → mod.zig + stub.zig per feature (16 core + 4 AI split = 20 modules)
+src/features/<name>/     → mod.zig + stub.zig per feature (17 core + 4 AI split = 21 modules)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
 src/services/mcp/        → MCP server (JSON-RPC 2.0 over stdio, WDBX tools)
 src/services/acp/        → ACP server (agent communication protocol)
@@ -347,7 +318,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 ## Testing Patterns
 
 **Main tests**: 1222 pass, 5 skip (1227 total) — `zig build test --summary all`
-**Feature tests**: 846 pass (846 total) — `zig build feature-tests --summary all`
+**Feature tests**: 884 pass (884 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -371,7 +342,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 846+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 884+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |
@@ -388,5 +359,5 @@ can reach both `features/` and `services/` subdirectories.
 
 - `AGENTS.md` — Project structure overview and v2 module notes
 - `CONTRIBUTING.md` — Development workflow and PR checklist
-- `.claude/rules/zig.md` — Zig 0.16 rules enforced by Claude Code (overlaps with gotchas above)
+- `.claude/rules/zig.md` — Zig 0.16 complete gotchas table (auto-loaded for `.zig` files)
 - `docs/api/` — Auto-generated API docs (`zig build gendocs`)

@@ -8,6 +8,7 @@ const std = @import("std");
 
 pub const ModelRegistryError = error{
     DuplicateModel,
+    OutOfMemory,
 };
 
 pub const ModelInfo = struct {

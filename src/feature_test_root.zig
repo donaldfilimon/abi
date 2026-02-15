@@ -55,8 +55,9 @@ test {
     // Cloud module
     if (build_options.enable_cloud) _ = @import("features/cloud/mod.zig");
 
-    // AI facade modules (inference, training, reasoning compile cleanly;
-    // ai_core needs standalone test to avoid agent.zig const-cast issue)
+    // AI facade modules (inference, training, reasoning, ai_core)
+    if (build_options.enable_ai)
+        _ = @import("features/ai_core/mod.zig");
     if (@hasDecl(build_options, "enable_llm") and build_options.enable_llm)
         _ = @import("features/ai_inference/mod.zig");
     if (@hasDecl(build_options, "enable_training") and build_options.enable_training)
@@ -65,7 +66,7 @@ test {
         _ = @import("features/ai_reasoning/mod.zig");
 
     // Standalone test files — avoid pulling in sub-modules with Zig 0.16 issues
-    // (ai_core, database, gpu need deep Zig 0.16 fixes before registration)
+    // (database, gpu need deep Zig 0.16 fixes before registration)
     if (build_options.enable_auth) _ = @import("features/auth/auth_test.zig");
 
     // MCP/ACP service tests (types + server only — mod.zig has database dep)
@@ -77,4 +78,7 @@ test {
     _ = @import("services/runtime/concurrency/channel.zig");
     _ = @import("services/runtime/scheduling/thread_pool.zig");
     _ = @import("services/runtime/scheduling/dag_pipeline.zig");
+
+    // Connector inline tests (not discovered through named abi module)
+    _ = @import("services/connectors/mod.zig");
 }
