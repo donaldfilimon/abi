@@ -186,7 +186,7 @@ pub const Client = struct {
     }
 
     fn encodeMessagesRequest(self: *Client, request: MessagesRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");
@@ -269,7 +269,7 @@ pub const Client = struct {
 
     /// Get text content from response (combines all text blocks)
     pub fn getResponseText(self: *Client, response: MessagesResponse) ![]u8 {
-        var result = std.ArrayListUnmanaged(u8){};
+        var result = std.ArrayListUnmanaged(u8).empty;
         errdefer result.deinit(self.allocator);
 
         for (response.content) |block| {

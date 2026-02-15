@@ -100,7 +100,7 @@ pub const Generators = struct {
             fn shrink(value: T, allocator: std.mem.Allocator) []T {
                 if (value == min_val) return &.{};
 
-                var candidates = std.ArrayListUnmanaged(T){};
+                var candidates = std.ArrayListUnmanaged(T).empty;
                 candidates.append(allocator, min_val) catch return &.{};
 
                 const mid = @divFloor(value - min_val, 2) + min_val;
@@ -656,7 +656,7 @@ pub const Fuzzer = struct {
         return .{
             .allocator = allocator,
             .prng = std.Random.DefaultPrng.init(seed),
-            .corpus = std.ArrayListUnmanaged([]const u8){},
+            .corpus = std.ArrayListUnmanaged([]const u8).empty,
             .max_corpus_size = 1000,
         };
     }

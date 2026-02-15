@@ -63,6 +63,31 @@ inline fn isEmpty(ctrl: u8) bool {
     return ctrl == CTRL_EMPTY;
 }
 
+/// SIMD group matching — compares 16 control bytes at once.
+/// Returns a bitmask where bit i is set if ctrl[i] == target.
+inline fn groupMatch(ctrl_ptr: [*]const u8, target: u8) u16 {
+    const Group = @Vector(16, u8);
+    const group: Group = ctrl_ptr[0..16].*;
+    const needle: Group = @splat(target);
+    const mask: u16 = @bitCast(group == needle);
+    return mask;
+}
+
+/// Returns a bitmask of empty slots in a group of 16 control bytes.
+inline fn groupMatchEmpty(ctrl_ptr: [*]const u8) u16 {
+    return groupMatch(ctrl_ptr, CTRL_EMPTY);
+}
+
+/// Returns a bitmask of empty or deleted slots in a group of 16 control bytes.
+inline fn groupMatchEmptyOrDeleted(ctrl_ptr: [*]const u8) u16 {
+    const Group = @Vector(16, u8);
+    const group: Group = ctrl_ptr[0..16].*;
+    const threshold: Group = @splat(0x80);
+    // Empty (0x80) and Deleted (0xFE) both have the high bit set
+    const mask: u16 = @bitCast(@as(@Vector(16, bool), (group & threshold) == threshold));
+    return mask;
+}
+
 // ─── SwissMap ────────────────────────────────────────────────────────────────
 
 pub fn SwissMap(comptime K: type, comptime V: type) type {
@@ -137,28 +162,32 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
 
             const hash = self.hashKey(key);
             const target_h2 = h2(hash);
-            var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            var group_idx = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            // Align to group boundary
+            group_idx = group_idx & ~@as(usize, group_width - 1);
             var probe: usize = 0;
 
-            while (true) {
-                const ctrl_byte = self.ctrl[pos];
-
-                if (ctrl_byte == target_h2) {
-                    // H2 match — verify full key
+            while (probe <= self.capacity) {
+                // SIMD: compare 16 control bytes at once
+                var match_mask = groupMatch(self.ctrl.ptr + group_idx, target_h2);
+                while (match_mask != 0) {
+                    const bit = @ctz(match_mask);
+                    const pos = group_idx + bit;
                     if (keysEqual(self.keys[pos], key)) {
                         return self.values[pos];
                     }
+                    match_mask &= match_mask - 1; // clear lowest set bit
                 }
 
-                if (isEmpty(ctrl_byte)) return null;
+                // If any slot in this group is empty, key is absent
+                if (groupMatchEmpty(self.ctrl.ptr + group_idx) != 0) return null;
 
-                // Triangular probing
-                probe += 1;
-                pos = (pos + probe) & (self.capacity - 1);
-
-                // Safety: we've probed the entire table
-                if (probe >= self.capacity) return null;
+                // Next group (quadratic probing by group)
+                probe += group_width;
+                group_idx = (group_idx + probe) & (self.capacity - 1);
+                group_idx = group_idx & ~@as(usize, group_width - 1);
             }
+            return null;
         }
 
         pub fn getPtr(self: *Self, key: K) ?*V {
@@ -166,17 +195,24 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
 
             const hash = self.hashKey(key);
             const target_h2 = h2(hash);
-            var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            var group_idx = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            group_idx = group_idx & ~@as(usize, group_width - 1);
             var probe: usize = 0;
 
-            while (probe < self.capacity) {
-                const ctrl_byte = self.ctrl[pos];
-                if (ctrl_byte == target_h2 and keysEqual(self.keys[pos], key)) {
-                    return &self.values[pos];
+            while (probe <= self.capacity) {
+                var match_mask = groupMatch(self.ctrl.ptr + group_idx, target_h2);
+                while (match_mask != 0) {
+                    const bit = @ctz(match_mask);
+                    const pos = group_idx + bit;
+                    if (keysEqual(self.keys[pos], key)) {
+                        return &self.values[pos];
+                    }
+                    match_mask &= match_mask - 1;
                 }
-                if (isEmpty(ctrl_byte)) return null;
-                probe += 1;
-                pos = (pos + probe) & (self.capacity - 1);
+                if (groupMatchEmpty(self.ctrl.ptr + group_idx) != 0) return null;
+                probe += group_width;
+                group_idx = (group_idx + probe) & (self.capacity - 1);
+                group_idx = group_idx & ~@as(usize, group_width - 1);
             }
             return null;
         }
@@ -186,32 +222,53 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
 
             const hash = self.hashKey(key);
             const target_h2 = h2(hash);
-            var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            var group_idx = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            group_idx = group_idx & ~@as(usize, group_width - 1);
             var probe: usize = 0;
 
-            while (probe < self.capacity) {
-                const ctrl_byte = self.ctrl[pos];
+            // Track first available insert position (empty or deleted slot)
+            var insert_pos: ?usize = null;
 
-                // Update existing key
-                if (ctrl_byte == target_h2 and keysEqual(self.keys[pos], key)) {
-                    self.values[pos] = value;
-                    return;
-                }
-
-                // Found empty or deleted slot — insert here
-                if (isEmptyOrDeleted(ctrl_byte)) {
-                    self.ctrl[pos] = target_h2;
-                    self.keys[pos] = key;
-                    self.values[pos] = value;
-                    self.size += 1;
-                    if (isEmpty(ctrl_byte)) {
-                        if (self.growth_left > 0) self.growth_left -= 1;
+            while (probe <= self.capacity) {
+                // SIMD: check for existing key (H2 match)
+                var match_mask = groupMatch(self.ctrl.ptr + group_idx, target_h2);
+                while (match_mask != 0) {
+                    const bit = @ctz(match_mask);
+                    const pos = group_idx + bit;
+                    if (keysEqual(self.keys[pos], key)) {
+                        self.values[pos] = value;
+                        return;
                     }
-                    return;
+                    match_mask &= match_mask - 1;
                 }
 
-                probe += 1;
-                pos = (pos + probe) & (self.capacity - 1);
+                // Remember first available slot for insertion
+                if (insert_pos == null) {
+                    const avail_mask = groupMatchEmptyOrDeleted(self.ctrl.ptr + group_idx);
+                    if (avail_mask != 0) {
+                        insert_pos = group_idx + @as(usize, @ctz(avail_mask));
+                    }
+                }
+
+                // An empty slot terminates the probe chain — key not present
+                if (groupMatchEmpty(self.ctrl.ptr + group_idx) != 0) break;
+
+                probe += group_width;
+                group_idx = (group_idx + probe) & (self.capacity - 1);
+                group_idx = group_idx & ~@as(usize, group_width - 1);
+            }
+
+            // Insert at the first available position
+            if (insert_pos) |pos| {
+                const was_empty = isEmpty(self.ctrl[pos]);
+                self.ctrl[pos] = target_h2;
+                self.keys[pos] = key;
+                self.values[pos] = value;
+                self.size += 1;
+                if (was_empty) {
+                    if (self.growth_left > 0) self.growth_left -= 1;
+                }
+                return;
             }
 
             // Probing exhausted all slots — capacity invariant violated
@@ -223,21 +280,26 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
 
             const hash = self.hashKey(key);
             const target_h2 = h2(hash);
-            var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            var group_idx = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            group_idx = group_idx & ~@as(usize, group_width - 1);
             var probe: usize = 0;
 
-            while (probe < self.capacity) {
-                const ctrl_byte = self.ctrl[pos];
-
-                if (ctrl_byte == target_h2 and keysEqual(self.keys[pos], key)) {
-                    self.ctrl[pos] = CTRL_DELETED;
-                    self.size -= 1;
-                    return true;
+            while (probe <= self.capacity) {
+                var match_mask = groupMatch(self.ctrl.ptr + group_idx, target_h2);
+                while (match_mask != 0) {
+                    const bit = @ctz(match_mask);
+                    const pos = group_idx + bit;
+                    if (keysEqual(self.keys[pos], key)) {
+                        self.ctrl[pos] = CTRL_DELETED;
+                        self.size -= 1;
+                        return true;
+                    }
+                    match_mask &= match_mask - 1;
                 }
-
-                if (isEmpty(ctrl_byte)) return false;
-                probe += 1;
-                pos = (pos + probe) & (self.capacity - 1);
+                if (groupMatchEmpty(self.ctrl.ptr + group_idx) != 0) return false;
+                probe += group_width;
+                group_idx = (group_idx + probe) & (self.capacity - 1);
+                group_idx = group_idx & ~@as(usize, group_width - 1);
             }
             return false;
         }
@@ -289,25 +351,29 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
         fn insertUnchecked(self: *Self, key: K, value: V) void {
             const hash = self.hashKey(key);
             const target_h2 = h2(hash);
-            var pos = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            var group_idx = @as(usize, @truncate(hash)) & (self.capacity - 1);
+            group_idx = group_idx & ~@as(usize, group_width - 1);
             var probe: usize = 0;
 
-            while (probe < self.capacity) {
-                const ctrl_byte = self.ctrl[pos];
-
-                if (isEmptyOrDeleted(ctrl_byte)) {
+            while (probe <= self.capacity) {
+                const empty_mask = groupMatchEmptyOrDeleted(self.ctrl.ptr + group_idx);
+                if (empty_mask != 0) {
+                    const bit = @ctz(empty_mask);
+                    const pos = group_idx + bit;
+                    const was_empty = isEmpty(self.ctrl[pos]);
                     self.ctrl[pos] = target_h2;
                     self.keys[pos] = key;
                     self.values[pos] = value;
                     self.size += 1;
-                    if (isEmpty(ctrl_byte)) {
+                    if (was_empty) {
                         if (self.growth_left > 0) self.growth_left -= 1;
                     }
                     return;
                 }
 
-                probe += 1;
-                pos = (pos + probe) & (self.capacity - 1);
+                probe += group_width;
+                group_idx = (group_idx + probe) & (self.capacity - 1);
+                group_idx = group_idx & ~@as(usize, group_width - 1);
             }
 
             // Safety: insertUnchecked is only called from rehash() with a
@@ -398,13 +464,40 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
             return x ^ (x >> 31);
         }
 
+        /// 128-bit widening multiply mixer (core wyhash primitive)
+        inline fn wymix(a: u64, b: u64) u64 {
+            const full = @as(u128, a) *% @as(u128, b);
+            return @as(u64, @truncate(full)) ^ @as(u64, @truncate(full >> 64));
+        }
+
         fn wyhash(data: []const u8, seed: u64) u64 {
-            // Simplified wyhash-inspired mixer with per-instance seed
-            var hash: u64 = 0x527f_cf73_a70b_b714 ^ seed;
-            for (data) |byte| {
-                hash = (hash ^ @as(u64, byte)) *% 0x2127_599b_f432_8c09;
+            const secret = [4]u64{
+                0xa076_1d64_78bd_642f,
+                0xe703_7ed1_a0b4_28db,
+                0x8ebc_6af0_9c88_c6e3,
+                0x5899_65cc_7537_4cc3,
+            };
+            var hash: u64 = seed ^ secret[0];
+            var i: usize = 0;
+
+            // Process 8 bytes at a time with wymix
+            while (i + 8 <= data.len) : (i += 8) {
+                const word = std.mem.readInt(u64, data[i..][0..8], .little);
+                hash = wymix(hash ^ word, secret[1]);
             }
-            return hash ^ (hash >> 32);
+
+            // Process remaining 1-7 bytes
+            if (i < data.len) {
+                var tail: u64 = 0;
+                var shift: u6 = 0;
+                for (data[i..]) |byte| {
+                    tail |= @as(u64, byte) << shift;
+                    shift +%= 8;
+                }
+                hash = wymix(hash ^ tail, secret[2]);
+            }
+
+            return wymix(hash, hash ^ secret[3]);
         }
 
         // ── Stats ────────────────────────────────────────────────
@@ -442,3 +535,118 @@ pub fn SwissMap(comptime K: type, comptime V: type) type {
 
 pub const StringMap = SwissMap([]const u8, []const u8);
 pub const IntMap = SwissMap(u64, u64);
+
+// ─── Tests ──────────────────────────────────────────────────────────────────
+
+test "SIMD groupMatch basic" {
+    var ctrl: [32]u8 = undefined;
+    @memset(&ctrl, CTRL_EMPTY);
+    ctrl[0] = 0x42;
+    ctrl[5] = 0x42;
+    ctrl[15] = 0x42;
+    const mask = groupMatch(&ctrl, 0x42);
+    try std.testing.expectEqual(@as(u16, (1 << 0) | (1 << 5) | (1 << 15)), mask);
+}
+
+test "SIMD groupMatchEmpty" {
+    var ctrl: [32]u8 = undefined;
+    @memset(&ctrl, 0x33); // all full
+    ctrl[3] = CTRL_EMPTY;
+    ctrl[10] = CTRL_EMPTY;
+    const mask = groupMatchEmpty(&ctrl);
+    try std.testing.expectEqual(@as(u16, (1 << 3) | (1 << 10)), mask);
+}
+
+test "SIMD groupMatchEmptyOrDeleted" {
+    var ctrl: [32]u8 = undefined;
+    @memset(&ctrl, 0x22); // all full
+    ctrl[1] = CTRL_EMPTY;
+    ctrl[7] = CTRL_DELETED;
+    const mask = groupMatchEmptyOrDeleted(&ctrl);
+    try std.testing.expectEqual(@as(u16, (1 << 1) | (1 << 7)), mask);
+}
+
+test "SwissMap delete then reinsert at tombstone" {
+    const Map = SwissMap(u32, u32);
+    var map = Map.init(std.testing.allocator);
+    defer map.deinit();
+
+    try map.put(1, 100);
+    try map.put(2, 200);
+    try std.testing.expect(map.remove(1));
+    try std.testing.expectEqual(@as(?u32, null), map.get(1));
+    try std.testing.expectEqual(@as(usize, 1), map.count());
+
+    // Reinsert at tombstone
+    try map.put(1, 999);
+    try std.testing.expectEqual(@as(?u32, 999), map.get(1));
+    try std.testing.expectEqual(@as(usize, 2), map.count());
+}
+
+test "SwissMap high load factor" {
+    const Map = SwissMap(u32, u32);
+    var map = try Map.initCapacity(std.testing.allocator, 16);
+    defer map.deinit();
+
+    // Fill near capacity (75% load factor threshold)
+    for (0..200) |i| {
+        try map.put(@intCast(i), @intCast(i * 10));
+    }
+    try std.testing.expectEqual(@as(usize, 200), map.count());
+
+    // Verify all values retrievable
+    for (0..200) |i| {
+        const val = map.get(@intCast(i));
+        try std.testing.expect(val != null);
+        try std.testing.expectEqual(@as(u32, @intCast(i * 10)), val.?);
+    }
+}
+
+test "SwissMap update existing key preserves count" {
+    const Map = SwissMap(u32, u32);
+    var map = Map.init(std.testing.allocator);
+    defer map.deinit();
+
+    try map.put(42, 1);
+    try map.put(42, 2);
+    try map.put(42, 3);
+    try std.testing.expectEqual(@as(usize, 1), map.count());
+    try std.testing.expectEqual(@as(?u32, 3), map.get(42));
+}
+
+test "SwissMap stats after mixed operations" {
+    const Map = SwissMap(u32, u32);
+    var map = Map.init(std.testing.allocator);
+    defer map.deinit();
+
+    for (0..10) |i| try map.put(@intCast(i), @intCast(i));
+    for (0..5) |i| _ = map.remove(@intCast(i));
+
+    const s = map.stats();
+    try std.testing.expectEqual(@as(usize, 5), s.size);
+    try std.testing.expectEqual(@as(usize, 5), s.deleted_slots);
+    try std.testing.expect(s.load_factor < 0.5);
+}
+
+test "SwissMap getPtr mutation" {
+    const Map = SwissMap(u32, u32);
+    var map = Map.init(std.testing.allocator);
+    defer map.deinit();
+
+    try map.put(1, 100);
+    if (map.getPtr(1)) |ptr| {
+        ptr.* = 999;
+    }
+    try std.testing.expectEqual(@as(?u32, 999), map.get(1));
+}
+
+test "SwissMap seeded hash" {
+    const Map = SwissMap(u32, u32);
+    var map = Map.initWithSeed(std.testing.allocator, 0xDEADBEEF);
+    defer map.deinit();
+
+    try map.put(1, 10);
+    try map.put(2, 20);
+    try std.testing.expectEqual(@as(?u32, 10), map.get(1));
+    try std.testing.expectEqual(@as(?u32, 20), map.get(2));
+}

@@ -180,7 +180,7 @@ pub const Client = struct {
     }
 
     fn encodeChatRequest(self: *Client, request: ChatCompletionRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");

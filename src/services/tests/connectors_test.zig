@@ -248,3 +248,206 @@ test "discord tool definitions are valid" {
     const guilds_tool = abi.ai.DiscordTools.list_guilds_tool;
     try std.testing.expectEqualStrings("discord_list_guilds", guilds_tool.name);
 }
+
+// ============================================================================
+// Connector Config Lifecycle Tests
+// ============================================================================
+
+test "openai config manual lifecycle" {
+    const allocator = std.testing.allocator;
+    var config = abi.connectors.openai.Config{
+        .api_key = try allocator.dupe(u8, "sk-test-key-1234567890"),
+        .base_url = try allocator.dupe(u8, "https://api.openai.com/v1"),
+    };
+    defer config.deinit(allocator);
+
+    try std.testing.expectEqualStrings("gpt-4", config.model);
+    try std.testing.expectEqual(@as(u32, 60_000), config.timeout_ms);
+    try std.testing.expect(!config.model_owned);
+}
+
+test "anthropic config manual lifecycle" {
+    const allocator = std.testing.allocator;
+    var config = abi.connectors.anthropic.Config{
+        .api_key = try allocator.dupe(u8, "sk-ant-test-key"),
+        .base_url = try allocator.dupe(u8, "https://api.anthropic.com/v1"),
+    };
+    defer config.deinit(allocator);
+
+    try std.testing.expectEqualStrings("claude-3-5-sonnet-20241022", config.model);
+    try std.testing.expectEqual(@as(u32, 4096), config.max_tokens);
+}
+
+test "openai config with owned model" {
+    const allocator = std.testing.allocator;
+    var config = abi.connectors.openai.Config{
+        .api_key = try allocator.dupe(u8, "sk-test"),
+        .base_url = try allocator.dupe(u8, "https://api.openai.com/v1"),
+        .model = try allocator.dupe(u8, "gpt-4-turbo"),
+        .model_owned = true,
+    };
+    defer config.deinit(allocator);
+
+    try std.testing.expectEqualStrings("gpt-4-turbo", config.model);
+    try std.testing.expect(config.model_owned);
+}
+
+// ============================================================================
+// Auth Security Sub-module Tests
+// ============================================================================
+
+test "jwt algorithm string round-trip" {
+    const jwt = abi.auth.jwt;
+
+    try std.testing.expectEqualStrings("HS256", jwt.Algorithm.hs256.toString());
+    try std.testing.expectEqualStrings("HS384", jwt.Algorithm.hs384.toString());
+    try std.testing.expectEqualStrings("HS512", jwt.Algorithm.hs512.toString());
+    try std.testing.expectEqualStrings("RS256", jwt.Algorithm.rs256.toString());
+    try std.testing.expectEqualStrings("none", jwt.Algorithm.none.toString());
+
+    try std.testing.expectEqual(jwt.Algorithm.hs256, jwt.Algorithm.fromString("HS256").?);
+    try std.testing.expectEqual(jwt.Algorithm.hs512, jwt.Algorithm.fromString("HS512").?);
+    try std.testing.expect(jwt.Algorithm.fromString("INVALID") == null);
+}
+
+test "jwt claims lifecycle" {
+    const allocator = std.testing.allocator;
+    var claims = abi.auth.jwt.Claims{
+        .iss = try allocator.dupe(u8, "abi-framework"),
+        .sub = try allocator.dupe(u8, "user-123"),
+        .aud = try allocator.dupe(u8, "api.example.com"),
+        .exp = 1700000000,
+        .iat = 1699996400,
+    };
+    defer claims.deinit(allocator);
+
+    try std.testing.expectEqualStrings("abi-framework", claims.iss.?);
+    try std.testing.expectEqualStrings("user-123", claims.sub.?);
+    try std.testing.expectEqual(@as(i64, 1700000000), claims.exp.?);
+}
+
+test "cors handler origin matching" {
+    const allocator = std.testing.allocator;
+    var handler = abi.auth.cors.CorsHandler.init(allocator, .{
+        .allowed_origins = &.{ "https://example.com", "https://app.example.com" },
+    });
+
+    try std.testing.expect(handler.isOriginAllowed("https://example.com"));
+    try std.testing.expect(handler.isOriginAllowed("https://app.example.com"));
+    try std.testing.expect(!handler.isOriginAllowed("https://evil.com"));
+}
+
+test "cors handler wildcard allows all" {
+    const allocator = std.testing.allocator;
+    var handler = abi.auth.cors.CorsHandler.init(allocator, .{
+        .allowed_origins = &.{"*"},
+    });
+
+    try std.testing.expect(handler.isOriginAllowed("https://anything.com"));
+    try std.testing.expect(handler.isOriginAllowed("http://localhost:3000"));
+}
+
+test "cors handler method checking" {
+    const allocator = std.testing.allocator;
+    const CorsMethod = abi.auth.cors.CorsConfig.Method;
+    var handler = abi.auth.cors.CorsHandler.init(allocator, .{
+        .allowed_methods = &.{ CorsMethod.GET, CorsMethod.POST },
+    });
+
+    try std.testing.expect(handler.isMethodAllowed("GET"));
+    try std.testing.expect(handler.isMethodAllowed("POST"));
+    try std.testing.expect(!handler.isMethodAllowed("DELETE"));
+    try std.testing.expect(!handler.isMethodAllowed("PATCH"));
+}
+
+test "cors preflight result" {
+    const allocator = std.testing.allocator;
+    var handler = abi.auth.cors.CorsHandler.init(allocator, .{
+        .allowed_origins = &.{"https://example.com"},
+    });
+
+    const allowed = handler.handlePreflight("https://example.com", "GET", null);
+    try std.testing.expect(allowed.allowed);
+
+    const denied = handler.handlePreflight("https://evil.com", "GET", null);
+    try std.testing.expect(!denied.allowed);
+}
+
+test "api key config defaults" {
+    const config = abi.auth.api_keys.ApiKeyConfig{};
+    try std.testing.expectEqual(@as(usize, 32), config.key_length);
+    try std.testing.expectEqualStrings("abi_", config.prefix);
+    try std.testing.expect(config.enable_rotation);
+    try std.testing.expectEqual(@as(u64, 90), config.rotation_period_days);
+    try std.testing.expectEqual(@as(usize, 10), config.max_keys_per_user);
+}
+
+test "rate limit config defaults" {
+    const config = abi.auth.rate_limit.RateLimitConfig{};
+    try std.testing.expect(!config.enabled);
+    try std.testing.expectEqual(@as(u32, 100), config.requests);
+    try std.testing.expectEqual(@as(u32, 60), config.window_seconds);
+    try std.testing.expectEqual(@as(u32, 20), config.burst);
+}
+
+test "cors method fromString round-trip" {
+    const CorsMethod = abi.auth.cors.CorsConfig.Method;
+    inline for (.{ "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" }) |name| {
+        const parsed = CorsMethod.fromString(name);
+        try std.testing.expect(parsed != null);
+        try std.testing.expectEqualStrings(name, parsed.?.toString());
+    }
+    try std.testing.expect(CorsMethod.fromString("INVALID") == null);
+}
+
+// ============================================================================
+// Mobile Stub Functional Tests
+// ============================================================================
+
+test "mobile stub isEnabled returns false" {
+    try std.testing.expect(!abi.mobile.isEnabled());
+}
+
+test "mobile stub isInitialized returns false" {
+    try std.testing.expect(!abi.mobile.isInitialized());
+}
+
+test "mobile stub getLifecycleState returns terminated" {
+    try std.testing.expectEqual(abi.mobile.LifecycleState.terminated, abi.mobile.getLifecycleState());
+}
+
+test "mobile stub init returns FeatureDisabled" {
+    const err = abi.mobile.init(std.testing.allocator, .{});
+    try std.testing.expectError(error.FeatureDisabled, err);
+}
+
+test "mobile stub readSensor returns FeatureDisabled" {
+    const err = abi.mobile.readSensor("accelerometer");
+    try std.testing.expectError(error.FeatureDisabled, err);
+}
+
+test "mobile stub sendNotification returns FeatureDisabled" {
+    const err = abi.mobile.sendNotification("title", "body");
+    try std.testing.expectError(error.FeatureDisabled, err);
+}
+
+// ============================================================================
+// Pages Module Stub/Live Tests
+// ============================================================================
+
+test "pages types are accessible" {
+    const page = abi.pages.Page{
+        .path = "/test",
+        .title = "Test Page",
+        .content = .{ .static = "<h1>Hello</h1>" },
+    };
+    try std.testing.expectEqualStrings("/test", page.path);
+    try std.testing.expectEqualStrings("Test Page", page.title);
+    try std.testing.expectEqual(abi.pages.HttpMethod.GET, page.method);
+}
+
+test "pages stats default values" {
+    const s = abi.pages.PagesStats{};
+    try std.testing.expectEqual(@as(u32, 0), s.total_pages);
+    try std.testing.expectEqual(@as(u64, 0), s.total_renders);
+}

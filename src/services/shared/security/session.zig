@@ -255,7 +255,7 @@ pub const SessionManager = struct {
         if (options.user_id) |uid| {
             var user_sids = self.user_sessions.get(uid) orelse blk: {
                 const uid_copy = try self.allocator.dupe(u8, uid);
-                try self.user_sessions.put(self.allocator, uid_copy, std.ArrayListUnmanaged([]const u8){});
+                try self.user_sessions.put(self.allocator, uid_copy, std.ArrayListUnmanaged([]const u8).empty);
                 break :blk self.user_sessions.get(uid).?;
             };
             try user_sids.append(self.allocator, try self.allocator.dupe(u8, session_id));

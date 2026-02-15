@@ -200,7 +200,7 @@ pub const Client = struct {
     }
 
     pub fn encodeGenerateRequest(self: *Client, request: GenerateRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");
@@ -214,7 +214,7 @@ pub const Client = struct {
     }
 
     pub fn encodeChatRequest(self: *Client, request: ChatRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");

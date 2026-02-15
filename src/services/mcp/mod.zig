@@ -111,7 +111,7 @@ fn handleDbQuery(
     const vec_val = p.get("vector") orelse return error.InvalidParams;
     if (vec_val != .array) return error.InvalidParams;
 
-    var query_vec = std.ArrayListUnmanaged(f32){};
+    var query_vec = std.ArrayListUnmanaged(f32).empty;
     defer query_vec.deinit(allocator);
 
     for (vec_val.array.items) |item| {
@@ -171,7 +171,7 @@ fn handleDbInsert(
     const vec_val = p.get("vector") orelse return error.InvalidParams;
     if (vec_val != .array) return error.InvalidParams;
 
-    var vec = std.ArrayListUnmanaged(f32){};
+    var vec = std.ArrayListUnmanaged(f32).empty;
     defer vec.deinit(allocator);
 
     for (vec_val.array.items) |item| {

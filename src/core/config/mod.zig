@@ -256,7 +256,7 @@ pub const Config = struct {
 
     /// Get list of enabled features.
     pub fn enabledFeatures(self: Config, allocator: std.mem.Allocator) ![]Feature {
-        var list = std.ArrayListUnmanaged(Feature){};
+        var list = std.ArrayListUnmanaged(Feature).empty;
         errdefer list.deinit(allocator);
 
         inline for (std.meta.fields(Feature)) |field| {

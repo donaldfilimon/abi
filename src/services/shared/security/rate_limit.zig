@@ -398,7 +398,7 @@ pub const RateLimiter = struct {
         const bucket = Bucket{
             .tokens = @floatFromInt(self.config.requests + self.config.burst),
             .last_update = now,
-            .requests = std.ArrayListUnmanaged(i64){},
+            .requests = std.ArrayListUnmanaged(i64).empty,
             .violations = 0,
             .ban_until = null,
             .total_requests = 0,
@@ -588,7 +588,7 @@ pub const MultiTierRateLimiter = struct {
     pub fn init(allocator: std.mem.Allocator) MultiTierRateLimiter {
         return .{
             .allocator = allocator,
-            .tiers = std.ArrayListUnmanaged(Tier){},
+            .tiers = std.ArrayListUnmanaged(Tier).empty,
         };
     }
 

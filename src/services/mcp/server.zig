@@ -193,7 +193,7 @@ pub const Server = struct {
 
     fn handleInitialize(self: *Self, writer: anytype, id: ?types.RequestId) !void {
         const rid = id orelse return;
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         defer buf.deinit(self.allocator);
 
         try buf.appendSlice(self.allocator, "{\"protocolVersion\":\"");
@@ -215,7 +215,7 @@ pub const Server = struct {
 
     fn handleToolsList(self: *Self, writer: anytype, id: ?types.RequestId) !void {
         const rid = id orelse return;
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         defer buf.deinit(self.allocator);
 
         try buf.appendSlice(self.allocator, "{\"tools\":[");
@@ -263,14 +263,14 @@ pub const Server = struct {
         // Find and execute tool
         for (self.tools.items) |tool| {
             if (std.mem.eql(u8, tool.def.name, tool_name)) {
-                var result_buf = std.ArrayListUnmanaged(u8){};
+                var result_buf = std.ArrayListUnmanaged(u8).empty;
                 defer result_buf.deinit(self.allocator);
 
                 // Call tool handler
                 tool.handler(self.allocator, args, &result_buf) catch |err| {
                     // Tool error — return as MCP tool error content
                     // Use individual catch blocks to avoid cascading OOM disconnecting the client
-                    var err_buf = std.ArrayListUnmanaged(u8){};
+                    var err_buf = std.ArrayListUnmanaged(u8).empty;
                     defer err_buf.deinit(self.allocator);
 
                     err_buf.appendSlice(self.allocator, "{\"content\":[{\"type\":\"text\",\"text\":\"Error: ") catch |alloc_err| {
@@ -295,7 +295,7 @@ pub const Server = struct {
                 };
 
                 // Wrap result in MCP content format
-                var out = std.ArrayListUnmanaged(u8){};
+                var out = std.ArrayListUnmanaged(u8).empty;
                 defer out.deinit(self.allocator);
 
                 try out.appendSlice(self.allocator, "{\"content\":[{\"type\":\"text\",\"text\":\"");
@@ -366,7 +366,7 @@ test "Server tool registration" {
 
 test "appendJsonEscaped" {
     const allocator = std.testing.allocator;
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
     try appendJsonEscaped(allocator, &buf, "hello \"world\"");

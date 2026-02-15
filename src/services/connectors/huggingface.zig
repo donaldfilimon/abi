@@ -139,7 +139,7 @@ pub const Client = struct {
     }
 
     pub fn encodeInferenceRequest(self: *Client, request: InferenceRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         if (request.inputs) |inputs| {

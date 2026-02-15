@@ -217,8 +217,8 @@ pub const CertificateManager = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .ca_certs = std.ArrayListUnmanaged(CertificateInfo){},
-            .chain = std.ArrayListUnmanaged(CertificateInfo){},
+            .ca_certs = std.ArrayListUnmanaged(CertificateInfo).empty,
+            .chain = std.ArrayListUnmanaged(CertificateInfo).empty,
             .stats = .{},
             .mutex = .{},
         };

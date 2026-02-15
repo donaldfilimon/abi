@@ -97,7 +97,9 @@ pub fn vectorL2Norm(v: []const f32) f32 {
     return @sqrt(norm_sum);
 }
 
-/// Cosine similarity using SIMD operations
+/// Cosine similarity using fused single-pass SIMD
+/// Computes dot product and both norms simultaneously, eliminating 2 extra
+/// passes over the data compared to separate dot + norm_a + norm_b calls.
 /// @param a First input vector (must not be empty)
 /// @param b Second input vector (must not be empty and same length as a)
 /// @return Cosine similarity in range [-1, 1], or 0.0 for zero-length vectors
@@ -105,15 +107,40 @@ pub fn cosineSimilarity(a: []const f32, b: []const f32) f32 {
     if (a.len == 0 or b.len == 0) return 0.0;
     if (a.len != b.len) return 0.0;
 
-    const dot_product = vectorDot(a, b);
-    const norm_a = vectorL2Norm(a);
-    const norm_b = vectorL2Norm(b);
+    const len = a.len;
+    var i: usize = 0;
+    var dot_sum: f32 = 0.0;
+    var norm_a_sq: f32 = 0.0;
+    var norm_b_sq: f32 = 0.0;
 
-    if (norm_a == 0.0 or norm_b == 0.0) {
-        return 0.0;
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+        var v_dot: Vec = @splat(0.0);
+        var v_na: Vec = @splat(0.0);
+        var v_nb: Vec = @splat(0.0);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            v_dot += va * vb;
+            v_na += va * va;
+            v_nb += vb * vb;
+        }
+
+        dot_sum = @reduce(.Add, v_dot);
+        norm_a_sq = @reduce(.Add, v_na);
+        norm_b_sq = @reduce(.Add, v_nb);
     }
 
-    return dot_product / (norm_a * norm_b);
+    // Scalar tail for remaining elements
+    while (i < len) : (i += 1) {
+        dot_sum += a[i] * b[i];
+        norm_a_sq += a[i] * a[i];
+        norm_b_sq += b[i] * b[i];
+    }
+
+    const denom = @sqrt(norm_a_sq) * @sqrt(norm_b_sq);
+    return if (denom == 0.0) 0.0 else dot_sum / denom;
 }
 
 /// Batch cosine similarity computation with pre-computed query norm

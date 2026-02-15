@@ -307,7 +307,7 @@ pub const Client = struct {
     }
 
     fn encodeChatRequest(self: *Client, request: ChatRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");
@@ -349,7 +349,7 @@ pub const Client = struct {
     }
 
     fn encodeEmbedRequest(self: *Client, request: EmbedRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");
@@ -368,7 +368,7 @@ pub const Client = struct {
     }
 
     fn encodeRerankRequest(self: *Client, request: RerankRequest) ![]u8 {
-        var json_str = std.ArrayListUnmanaged(u8){};
+        var json_str = std.ArrayListUnmanaged(u8).empty;
         errdefer json_str.deinit(self.allocator);
 
         try json_str.appendSlice(self.allocator, "{\"model\":\"");

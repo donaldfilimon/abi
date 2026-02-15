@@ -269,10 +269,10 @@ pub const AuditLogger = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .events = std.ArrayListUnmanaged(AuditEvent){},
+            .events = std.ArrayListUnmanaged(AuditEvent).empty,
             .event_counter = std.atomic.Value(u64).init(0),
             .last_hash = initial_hash,
-            .alert_callbacks = std.ArrayListUnmanaged(AlertCallback){},
+            .alert_callbacks = std.ArrayListUnmanaged(AlertCallback).empty,
             .mutex = .{},
             .stats = .{},
         };
@@ -484,7 +484,7 @@ pub const AuditLogger = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        var result = std.ArrayListUnmanaged(AuditEvent){};
+        var result = std.ArrayListUnmanaged(AuditEvent).empty;
 
         for (self.events.items) |event| {
             // Time filter

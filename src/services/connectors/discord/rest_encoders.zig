@@ -14,7 +14,7 @@ pub fn encodeMessageWithEmbed(
     content: ?[]const u8,
     embed: Embed,
 ) ![]u8 {
-    var json = std.ArrayListUnmanaged(u8){};
+    var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
     try json.appendSlice(allocator, "{");
@@ -127,7 +127,7 @@ pub fn encodeApplicationCommand(
     description: []const u8,
     options: []const ApplicationCommandOption,
 ) ![]u8 {
-    var json = std.ArrayListUnmanaged(u8){};
+    var json = std.ArrayListUnmanaged(u8).empty;
     errdefer json.deinit(allocator);
 
     try json.print(

@@ -17,7 +17,7 @@ pub fn list(
     allocator: std.mem.Allocator,
     filter: Filter,
 ) ManagerError![]Task {
-    var result = std.ArrayListUnmanaged(Task){};
+    var result = std.ArrayListUnmanaged(Task).empty;
     errdefer result.deinit(allocator);
 
     var iter = tasks.iterator();

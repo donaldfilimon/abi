@@ -28,7 +28,7 @@ pub const AgentCard = struct {
 
     /// Serialize to JSON (escapes all string fields for safety)
     pub fn toJson(self: AgentCard, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         try buf.appendSlice(allocator, "{\"name\":\"");
@@ -92,7 +92,7 @@ pub const Task = struct {
 
     /// Serialize task to JSON
     pub fn toJson(self: *const Task, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         try buf.appendSlice(allocator, "{\"id\":\"");
@@ -493,7 +493,7 @@ test "AgentCard toJson escapes special characters" {
 
 test "appendEscaped handles all special chars" {
     const allocator = std.testing.allocator;
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
     try appendEscaped(allocator, &buf, "a\"b\\c\nd\re");
@@ -567,7 +567,7 @@ test "Task message content preserved" {
 
 test "appendEscaped handles control characters" {
     const allocator = std.testing.allocator;
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
     // Test tab and control char below 0x20

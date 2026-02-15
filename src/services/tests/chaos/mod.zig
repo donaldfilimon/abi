@@ -621,7 +621,7 @@ pub const MessageDelaySimulator = struct {
         defer self.mutex.unlock();
 
         const now = time.nowMs();
-        var ready = std.ArrayListUnmanaged(DelayedMessage){};
+        var ready = std.ArrayListUnmanaged(DelayedMessage).empty;
 
         var i: usize = 0;
         while (i < self.delayed.items.len) {

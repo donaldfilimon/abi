@@ -1034,6 +1034,135 @@ test "ai_reasoning module declaration kinds and signatures" {
 }
 
 // ============================================================================
+// Mobile Module Parity
+// ============================================================================
+
+/// Mobile module required declarations.
+const mobile_required = [_][]const u8{
+    "MobileConfig",
+    "MobilePlatform",
+    "MobileError",
+    "LifecycleState",
+    "SensorData",
+    "Context",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "getLifecycleState",
+    "readSensor",
+    "sendNotification",
+};
+
+/// Mobile module specs.
+const mobile_specs = [_]DeclSpec{
+    .{ .name = "MobileConfig", .kind = .type_decl },
+    .{ .name = "MobileError", .kind = .type_decl },
+    .{ .name = "LifecycleState", .kind = .type_decl },
+    .{ .name = "SensorData", .kind = .type_decl },
+    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
+    .{ .name = "init", .kind = .function, .min_params = 2 },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "getLifecycleState", .kind = .function },
+    .{ .name = "readSensor", .kind = .function, .min_params = 1 },
+    .{ .name = "sendNotification", .kind = .function, .min_params = 2 },
+};
+
+test "mobile module has required declarations" {
+    comptime verifyDeclarations(abi.mobile, &mobile_required);
+}
+
+test "mobile module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.mobile, &mobile_specs);
+    try std.testing.expectEqual(
+        @as(usize, 0),
+        comptime countSpecViolations(abi.mobile, &mobile_specs),
+    );
+}
+
+test "mobile module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.mobile, &mobile_required);
+    if (orphans.len > 0) {
+        std.log.info("Mobile module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+// ============================================================================
+// Pages Module Parity
+// ============================================================================
+
+/// Pages module required declarations.
+const pages_required = [_][]const u8{
+    "PagesConfig",
+    "PagesError",
+    "HttpMethod",
+    "MetadataEntry",
+    "TemplateVar",
+    "TemplateRef",
+    "PageContent",
+    "Page",
+    "PageMatch",
+    "RenderResult",
+    "PagesStats",
+    "Context",
+    "init",
+    "deinit",
+    "isEnabled",
+    "isInitialized",
+    "addPage",
+    "removePage",
+    "getPage",
+    "matchPage",
+    "renderPage",
+    "listPages",
+    "stats",
+};
+
+/// Pages module specs.
+const pages_specs = [_]DeclSpec{
+    .{ .name = "PagesConfig", .kind = .type_decl },
+    .{ .name = "PagesError", .kind = .type_decl },
+    .{ .name = "Page", .kind = .type_decl },
+    .{ .name = "PageMatch", .kind = .type_decl, .sub_decls = &.{"getParam"} },
+    .{ .name = "RenderResult", .kind = .type_decl, .sub_decls = &.{"deinit"} },
+    .{ .name = "PagesStats", .kind = .type_decl },
+    .{ .name = "init", .kind = .function, .min_params = 2 },
+    .{ .name = "deinit", .kind = .function },
+    .{ .name = "isEnabled", .kind = .function },
+    .{ .name = "isInitialized", .kind = .function },
+    .{ .name = "addPage", .kind = .function, .min_params = 1 },
+    .{ .name = "removePage", .kind = .function, .min_params = 1 },
+    .{ .name = "getPage", .kind = .function, .min_params = 1 },
+    .{ .name = "matchPage", .kind = .function, .min_params = 1 },
+    .{ .name = "renderPage", .kind = .function, .min_params = 3 },
+    .{ .name = "listPages", .kind = .function },
+    .{ .name = "stats", .kind = .function },
+};
+
+test "pages module has required declarations" {
+    comptime verifyDeclarations(abi.pages, &pages_required);
+}
+
+test "pages module declaration kinds and signatures" {
+    comptime verifyDeclSpecs(abi.pages, &pages_specs);
+    try std.testing.expectEqual(
+        @as(usize, 0),
+        comptime countSpecViolations(abi.pages, &pages_specs),
+    );
+}
+
+test "pages module bidirectional parity audit" {
+    const orphans = comptime getOrphanDeclarations(abi.pages, &pages_required);
+    if (orphans.len > 0) {
+        std.log.info("Pages module has {d} declarations not in expected list", .{orphans.len});
+    }
+    try std.testing.expect(true);
+}
+
+// ============================================================================
 // GPU Module Parity Tests
 // ============================================================================
 

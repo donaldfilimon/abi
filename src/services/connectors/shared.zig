@@ -323,7 +323,7 @@ test "isRetryableStatus" {
 
 test "encodeMessageArray encodes messages" {
     const allocator = std.testing.allocator;
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
     const messages = [_]ChatMessage{
@@ -342,7 +342,7 @@ test "encodeMessageArray encodes messages" {
 
 test "encodeMessageArray empty" {
     const allocator = std.testing.allocator;
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
     try encodeMessageArray(allocator, &buf, &.{});
@@ -351,7 +351,7 @@ test "encodeMessageArray empty" {
 
 test "encodeStringArray encodes strings" {
     const allocator = std.testing.allocator;
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
     const strings = [_][]const u8{ "Hello", "World" };
@@ -364,7 +364,7 @@ test "encodeStringArray encodes strings" {
 
 test "encodeStringArray empty" {
     const allocator = std.testing.allocator;
-    var buf = std.ArrayListUnmanaged(u8){};
+    var buf = std.ArrayListUnmanaged(u8).empty;
     defer buf.deinit(allocator);
 
     const empty = [_][]const u8{};
