@@ -138,7 +138,7 @@ pub const Client = struct {
         try http_req.setBearerToken(self.config.api_key);
         try http_req.setJsonBody(json);
 
-        const http_res = try self.http.fetchJson(&http_req);
+        const http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {

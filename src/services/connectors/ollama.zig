@@ -144,7 +144,7 @@ pub const Client = struct {
 
         try http_req.setJsonBody(json);
 
-        var http_res = try self.http.fetchJson(&http_req);
+        var http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
@@ -176,7 +176,7 @@ pub const Client = struct {
 
         try http_req.setJsonBody(json);
 
-        var http_res = try self.http.fetchJson(&http_req);
+        var http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {

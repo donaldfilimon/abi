@@ -15,6 +15,10 @@ const std = @import("std");
 const core_config = @import("../../core/config/gateway.zig");
 const sync = @import("../../services/shared/sync.zig");
 const time_mod = @import("../../services/shared/time.zig");
+const radix = @import("../../services/shared/utils/radix_tree.zig");
+
+/// Shared radix tree instantiated for route indices.
+const RouteTree = radix.RadixTree(u32);
 
 pub const GatewayConfig = core_config.GatewayConfig;
 pub const RateLimitConfig = core_config.RateLimitConfig;
@@ -66,14 +70,11 @@ pub const GatewayStats = struct {
 
 pub const MatchResult = struct {
     route: Route,
-    params: [8]Param = [_]Param{.{}} ** 8,
+    params: [RouteTree.max_params]Param = [_]Param{.{}} ** RouteTree.max_params,
     param_count: u8 = 0,
     matched_route_idx: ?u32 = null, // internal: radix tree match result
 
-    pub const Param = struct {
-        name: []const u8 = "",
-        value: []const u8 = "",
-    };
+    pub const Param = RouteTree.Param;
 
     pub fn getParam(self: *const MatchResult, name: []const u8) ?[]const u8 {
         for (self.params[0..self.param_count]) |p| {
@@ -112,48 +113,8 @@ const RouteEntry = struct {
     upstream_owned: []u8,
 };
 
-/// Radix tree node for route matching.
-const RadixNode = struct {
-    segment: []const u8 = "",
-    is_param: bool = false,
-    param_name: []const u8 = "",
-    is_wildcard: bool = false,
-    route_idx: ?u32 = null, // index into routes array if terminal
-    children: std.ArrayListUnmanaged(*RadixNode) = .empty,
-
-    fn deinitRecursive(self: *RadixNode, allocator: std.mem.Allocator) void {
-        for (self.children.items) |child| {
-            child.deinitRecursive(allocator);
-            allocator.destroy(child);
-        }
-        self.children.deinit(allocator);
-    }
-
-    fn findChild(self: *const RadixNode, segment: []const u8) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (!child.is_param and !child.is_wildcard and
-                std.mem.eql(u8, child.segment, segment))
-            {
-                return child;
-            }
-        }
-        return null;
-    }
-
-    fn findParamChild(self: *const RadixNode) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (child.is_param) return child;
-        }
-        return null;
-    }
-
-    fn findWildcardChild(self: *const RadixNode) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (child.is_wildcard) return child;
-        }
-        return null;
-    }
-};
+/// Radix tree node — shared implementation from `services/shared/utils/radix_tree.zig`.
+const RadixNode = RouteTree.Node;
 
 /// Token bucket rate limiter state.
 const TokenBucket = struct {
@@ -509,105 +470,13 @@ const GatewayState = struct {
         path: []const u8,
         route_idx: u32,
     ) !void {
-        var current = self.radix_root;
-        var segments = splitPath(path);
-
-        while (segments.next()) |segment| {
-            if (segment.len > 0 and segment[0] == '*') {
-                // Wildcard — terminal
-                const child = try self.allocator.create(RadixNode);
-                child.* = .{
-                    .is_wildcard = true,
-                    .route_idx = route_idx,
-                };
-                try current.children.append(self.allocator, child);
-                return;
-            }
-
-            if (segment.len > 2 and segment[0] == '{' and segment[segment.len - 1] == '}') {
-                // Path parameter: {name}
-                const param_name = segment[1 .. segment.len - 1];
-                if (current.findParamChild()) |child| {
-                    current = child;
-                } else {
-                    const child = try self.allocator.create(RadixNode);
-                    child.* = .{
-                        .is_param = true,
-                        .param_name = param_name,
-                    };
-                    try current.children.append(self.allocator, child);
-                    current = child;
-                }
-            } else {
-                // Static segment
-                if (current.findChild(segment)) |child| {
-                    current = child;
-                } else {
-                    const child = try self.allocator.create(RadixNode);
-                    child.* = .{ .segment = segment };
-                    try current.children.append(self.allocator, child);
-                    current = child;
-                }
-            }
-        }
-
-        current.route_idx = route_idx;
+        try RouteTree.insert(self.radix_root, self.allocator, path, route_idx);
     }
 };
 
+/// Split a URL path into segments (delegates to shared radix tree).
 fn splitPath(path: []const u8) std.mem.SplitIterator(u8, .scalar) {
-    const trimmed = if (path.len > 0 and path[0] == '/') path[1..] else path;
-    return std.mem.splitScalar(u8, trimmed, '/');
-}
-
-fn matchPath(
-    node: *const RadixNode,
-    segments: *std.mem.SplitIterator(u8, .scalar),
-    result: *MatchResult,
-) bool {
-    const segment = segments.next() orelse {
-        // No more segments — check if current node is terminal
-        if (node.route_idx) |idx| {
-            result.matched_route_idx = idx;
-            return true;
-        }
-        return false;
-    };
-
-    // Try exact match first
-    if (node.findChild(segment)) |child| {
-        var child_segments = segments.*;
-        if (matchPath(child, &child_segments, result)) {
-            segments.* = child_segments;
-            return true;
-        }
-    }
-
-    // Try param match
-    if (node.findParamChild()) |child| {
-        var child_segments = segments.*;
-        if (matchPath(child, &child_segments, result)) {
-            if (result.param_count < 8) {
-                result.params[result.param_count] = .{
-                    .name = child.param_name,
-                    .value = segment,
-                };
-                result.param_count += 1;
-            }
-            segments.* = child_segments;
-            return true;
-        }
-    }
-
-    // Try wildcard match
-    if (node.findWildcardChild()) |child| {
-        if (child.route_idx) |idx| {
-            result.matched_route_idx = idx;
-            return true;
-        }
-    }
-
-    return false;
+    return RouteTree.splitPath(path);
 }
 
 fn nowNs() u128 {
@@ -736,16 +605,18 @@ pub fn matchRoute(path: []const u8, method: HttpMethod) GatewayError!?MatchResul
     s.rw_lock.lockShared();
     defer s.rw_lock.unlockShared();
 
-    var result = MatchResult{ .route = .{} };
-    var segments = splitPath(path);
-
-    if (matchPath(s.radix_root, &segments, &result)) {
-        // Use the route index propagated from the matched terminal node
-        if (result.matched_route_idx) |idx| {
+    // Use the shared radix tree match
+    var tree_result = RouteTree.MatchResult{};
+    if (RouteTree.match(s.radix_root, path, &tree_result)) {
+        if (tree_result.terminal_idx) |idx| {
             if (idx < s.routes.items.len) {
                 const entry = s.routes.items[idx];
                 if (entry.route.method == method) {
-                    result.route = entry.route;
+                    // Transfer params from shared result to gateway result
+                    var result = MatchResult{ .route = entry.route };
+                    result.matched_route_idx = idx;
+                    result.param_count = tree_result.param_count;
+                    result.params = tree_result.params;
                     return result;
                 }
             }

@@ -12,6 +12,10 @@
 const std = @import("std");
 const core_config = @import("../../core/config/pages.zig");
 const sync = @import("../../services/shared/sync.zig");
+const radix = @import("../../services/shared/utils/radix_tree.zig");
+
+/// Shared radix tree instantiated for page indices.
+const PageTree = radix.RadixTree(u32);
 
 pub const PagesConfig = core_config.PagesConfig;
 
@@ -62,13 +66,10 @@ pub const Page = struct {
 
 pub const PageMatch = struct {
     page: Page,
-    params: [8]Param = [_]Param{.{}} ** 8,
+    params: [PageTree.max_params]Param = [_]Param{.{}} ** PageTree.max_params,
     param_count: u8 = 0,
 
-    pub const Param = struct {
-        name: []const u8 = "",
-        value: []const u8 = "",
-    };
+    pub const Param = PageTree.Param;
 
     pub fn getParam(self: *const PageMatch, name: []const u8) ?[]const u8 {
         for (self.params[0..self.param_count]) |p| {
@@ -122,48 +123,8 @@ const PageEntry = struct {
     title_owned: []u8,
 };
 
-/// Radix tree node for page matching.
-const RadixNode = struct {
-    segment: []const u8 = "",
-    is_param: bool = false,
-    param_name: []const u8 = "",
-    is_wildcard: bool = false,
-    page_idx: ?u32 = null,
-    children: std.ArrayListUnmanaged(*RadixNode) = .empty,
-
-    fn deinitRecursive(self: *RadixNode, allocator: std.mem.Allocator) void {
-        for (self.children.items) |child| {
-            child.deinitRecursive(allocator);
-            allocator.destroy(child);
-        }
-        self.children.deinit(allocator);
-    }
-
-    fn findChild(self: *const RadixNode, segment: []const u8) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (!child.is_param and !child.is_wildcard and
-                std.mem.eql(u8, child.segment, segment))
-            {
-                return child;
-            }
-        }
-        return null;
-    }
-
-    fn findParamChild(self: *const RadixNode) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (child.is_param) return child;
-        }
-        return null;
-    }
-
-    fn findWildcardChild(self: *const RadixNode) ?*RadixNode {
-        for (self.children.items) |child| {
-            if (child.is_wildcard) return child;
-        }
-        return null;
-    }
-};
+/// Radix tree node — shared implementation from `services/shared/utils/radix_tree.zig`.
+const RadixNode = PageTree.Node;
 
 // ── Module State ───────────────────────────────────────────────────────
 
@@ -215,95 +176,13 @@ const PagesState = struct {
         path: []const u8,
         page_idx: u32,
     ) !void {
-        var current = self.radix_root;
-        var segments = splitPath(path);
-
-        while (segments.next()) |segment| {
-            if (segment.len > 0 and segment[0] == '*') {
-                const child = try self.allocator.create(RadixNode);
-                child.* = .{
-                    .is_wildcard = true,
-                    .page_idx = page_idx,
-                };
-                try current.children.append(self.allocator, child);
-                return;
-            }
-
-            if (segment.len > 2 and segment[0] == '{' and segment[segment.len - 1] == '}') {
-                const param_name = segment[1 .. segment.len - 1];
-                if (current.findParamChild()) |child| {
-                    current = child;
-                } else {
-                    const child = try self.allocator.create(RadixNode);
-                    child.* = .{
-                        .is_param = true,
-                        .param_name = param_name,
-                    };
-                    try current.children.append(self.allocator, child);
-                    current = child;
-                }
-            } else {
-                if (current.findChild(segment)) |child| {
-                    current = child;
-                } else {
-                    const child = try self.allocator.create(RadixNode);
-                    child.* = .{ .segment = segment };
-                    try current.children.append(self.allocator, child);
-                    current = child;
-                }
-            }
-        }
-
-        current.page_idx = page_idx;
+        try PageTree.insert(self.radix_root, self.allocator, path, page_idx);
     }
 };
 
+/// Split a URL path into segments (delegates to shared radix tree).
 fn splitPath(path: []const u8) std.mem.SplitIterator(u8, .scalar) {
-    const trimmed = if (path.len > 0 and path[0] == '/') path[1..] else path;
-    return std.mem.splitScalar(u8, trimmed, '/');
-}
-
-fn matchPathNode(
-    node: *const RadixNode,
-    segments: *std.mem.SplitIterator(u8, .scalar),
-    result: *PageMatch,
-) bool {
-    const segment = segments.next() orelse {
-        if (node.page_idx != null) return true;
-        return false;
-    };
-
-    // Try exact match first
-    if (node.findChild(segment)) |child| {
-        var child_segments = segments.*;
-        if (matchPathNode(child, &child_segments, result)) {
-            segments.* = child_segments;
-            return true;
-        }
-    }
-
-    // Try param match
-    if (node.findParamChild()) |child| {
-        var child_segments = segments.*;
-        if (matchPathNode(child, &child_segments, result)) {
-            if (result.param_count < 8) {
-                result.params[result.param_count] = .{
-                    .name = child.param_name,
-                    .value = segment,
-                };
-                result.param_count += 1;
-            }
-            segments.* = child_segments;
-            return true;
-        }
-    }
-
-    // Try wildcard match
-    if (node.findWildcardChild()) |child| {
-        if (child.page_idx != null) return true;
-    }
-
-    return false;
+    return PageTree.splitPath(path);
 }
 
 /// Render a template string by substituting {{key}} placeholders.
@@ -478,34 +357,14 @@ pub fn matchPage(path: []const u8) PagesError!?PageMatch {
     s.rw_lock.lockShared();
     defer s.rw_lock.unlockShared();
 
-    var result = PageMatch{ .page = .{} };
-    var segments = splitPath(path);
-
-    if (matchPathNode(s.radix_root, &segments, &result)) {
-        // Find the matched page via radix tree traversal
-        // Re-match to get the page_idx from terminal node
-        var segments2 = splitPath(path);
-        var current = s.radix_root;
-        var found_idx: ?u32 = null;
-
-        while (segments2.next()) |seg| {
-            if (current.findChild(seg)) |child| {
-                current = child;
-            } else if (current.findParamChild()) |child| {
-                current = child;
-            } else if (current.findWildcardChild()) |child| {
-                found_idx = child.page_idx;
-                break;
-            } else {
-                return null;
-            }
-        }
-
-        if (found_idx == null) found_idx = current.page_idx;
-
-        if (found_idx) |idx| {
+    // Use the shared radix tree match — returns terminal index directly
+    var tree_result = PageTree.MatchResult{};
+    if (PageTree.match(s.radix_root, path, &tree_result)) {
+        if (tree_result.terminal_idx) |idx| {
             if (idx < s.pages.items.len) {
-                result.page = s.pages.items[idx].page;
+                var result = PageMatch{ .page = s.pages.items[idx].page };
+                result.param_count = tree_result.param_count;
+                result.params = tree_result.params;
                 return result;
             }
         }
