@@ -22,7 +22,7 @@ ABI is a Zig 0.16 framework (v0.4.0) with `src/abi.zig` as the public API entryp
 - `zig build run -- mcp serve`: start MCP server (stdio JSON-RPC).
 - `zig build run -- acp card`: print ACP agent card.
 - `zig build test --summary all`: run the full test suite (baseline: 1248 pass, 5 skip).
-- `zig build feature-tests --summary all`: run feature module inline tests (baseline: 1052 pass).
+- `zig build feature-tests --summary all`: run feature module inline tests (baseline: 1086 pass).
 - `zig test src/path/to/file.zig --test-filter "pattern"`: run focused tests.
 - `zig build validate-flags`: validate 34 feature-flag combinations.
 - `zig build cli-tests`: run CLI smoke tests (top-level and nested commands).
@@ -43,7 +43,7 @@ ABI is a Zig 0.16 framework (v0.4.0) with `src/abi.zig` as the public API entryp
 
 ## Testing Guidelines
 
-- **Test baselines**: 1248/1253 main (5 skip), 1052/1052 feature — must be maintained.
+- **Test baselines**: 1248/1253 main (5 skip), 1086/1086 feature — must be maintained.
 - Unit tests should live next to implementation in `*_test.zig`.
 - Integration/stress/parity tests go in `src/services/tests/`.
 - Feature inline tests discovered via `src/feature_test_root.zig`.
