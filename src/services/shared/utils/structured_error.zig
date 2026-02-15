@@ -93,9 +93,9 @@ pub const Context = struct {
             // I/O backend. Use relative timing via std.time.Instant if needed.
             .timestamp_ns = 0,
         };
-        var stream = std.io.fixedBufferStream(&ctx.message);
-        stream.writer().print(fmt, args) catch {};
-        ctx.message_len = @intCast(stream.pos);
+        var writer = std.Io.Writer.fixed(&ctx.message);
+        writer.print(fmt, args) catch {};
+        ctx.message_len = @intCast(writer.end);
         return ctx;
     }
 

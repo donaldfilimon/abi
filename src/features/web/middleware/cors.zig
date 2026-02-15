@@ -155,23 +155,21 @@ pub fn addCorsHeaders(ctx: *MiddlewareContext, config: CorsConfig) !void {
 }
 
 fn joinMethodList(buf: []u8, methods: []const server.Method) []const u8 {
-    var stream = std.io.fixedBufferStream(buf);
-    const writer = stream.writer();
+    var writer = std.Io.Writer.fixed(buf);
     for (methods, 0..) |method, i| {
         if (i > 0) writer.writeAll(", ") catch break;
         writer.print("{t}", .{method}) catch break;
     }
-    return stream.getWritten();
+    return buf[0..writer.end];
 }
 
 fn joinStringList(buf: []u8, items: []const []const u8) []const u8 {
-    var stream = std.io.fixedBufferStream(buf);
-    const writer = stream.writer();
+    var writer = std.Io.Writer.fixed(buf);
     for (items, 0..) |item, i| {
         if (i > 0) writer.writeAll(", ") catch break;
         writer.writeAll(item) catch break;
     }
-    return stream.getWritten();
+    return buf[0..writer.end];
 }
 
 fn setStringListHeader(

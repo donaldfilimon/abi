@@ -73,9 +73,7 @@ pub const String = struct {
 
     /// Zero-copy string formatting into a caller-owned buffer
     pub fn formatBuf(buf: []u8, comptime fmt: []const u8, args: anytype) []const u8 {
-        var stream = std.io.fixedBufferStream(buf);
-        stream.writer().print(fmt, args) catch return buf[0..0];
-        return stream.getWritten();
+        return std.fmt.bufPrint(buf, fmt, args) catch return buf[0..0];
     }
 
     pub const Builder = struct {

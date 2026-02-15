@@ -267,16 +267,21 @@ pub const DistributedBlockChain = struct {
 
     /// Deserialize block config from Raft log
     fn deserializeBlockConfig(self: *Self, data: []const u8) !block_chain.BlockConfig {
-        var stream = std.io.fixedBufferStream(data);
-        const reader = stream.reader();
+        var pos: usize = 0;
 
         // Read dimension
-        const dim = try reader.readIntLittle(u32);
+        if (pos + 4 > data.len) return error.UnexpectedEndOfData;
+        const dim = std.mem.readInt(u32, data[pos..][0..4], .little);
+        pos += 4;
 
         // Read embedding
-        const embedding_len = try reader.readIntLittle(u32);
-        _ = data[stream.pos..][0..embedding_len]; // embedding_bytes unused
-        stream.pos += embedding_len;
+        if (pos + 4 > data.len) return error.UnexpectedEndOfData;
+        const embedding_len = std.mem.readInt(u32, data[pos..][0..4], .little);
+        pos += 4;
+
+        // Skip embedding bytes
+        if (pos + embedding_len > data.len) return error.UnexpectedEndOfData;
+        pos += embedding_len;
 
         // Convert bytes back to floats (simplified)
         const embedding = try self.allocator.alloc(f32, dim);
@@ -286,8 +291,11 @@ pub const DistributedBlockChain = struct {
         @memset(embedding, 0.1);
 
         // Read persona tag
-        const persona_raw = try reader.readIntLittle(u8);
-        const blend_raw = try reader.readIntLittle(u32);
+        if (pos + 6 > data.len) return error.UnexpectedEndOfData;
+        const persona_raw = data[pos];
+        pos += 1;
+        const blend_raw = std.mem.readInt(u32, data[pos..][0..4], .little);
+        pos += 4;
 
         const persona_tag = block_chain.PersonaTag{
             .primary_persona = @enumFromInt(persona_raw),
@@ -295,7 +303,8 @@ pub const DistributedBlockChain = struct {
         };
 
         // Read intent
-        const intent_raw = try reader.readIntLittle(u8);
+        if (pos >= data.len) return error.UnexpectedEndOfData;
+        const intent_raw = data[pos];
 
         return block_chain.BlockConfig{
             .query_embedding = embedding,

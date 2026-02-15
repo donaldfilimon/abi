@@ -112,9 +112,9 @@ pub const Connection = struct {
 
     /// Formats the connection address as a string.
     pub fn formatAddress(self: Connection, buf: []u8) []const u8 {
-        var stream = std.io.fixedBufferStream(buf);
-        self.address.format(&.{}, stream.writer()) catch return "<unknown>";
-        return stream.getWritten();
+        var writer = std.Io.Writer.fixed(buf);
+        self.address.format(&.{}, &writer) catch return "<unknown>";
+        return buf[0..writer.end];
     }
 };
 
