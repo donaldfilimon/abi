@@ -9,8 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2596+469bf6af0` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1222 pass, 5 skip (1227 total) — must be maintained |
-| **Feature tests** | 884 pass (884 total) — `zig build feature-tests` |
+| **Test baseline** | 1248 pass, 5 skip (1253 total) — must be maintained |
+| **Feature tests** | 977 pass (977 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 8 aliases |
 
 ## Build & Test Commands
@@ -40,7 +40,7 @@ zig std                                     # View/get current std library (stdl
 ### Running the CLI
 
 ```bash
-zig build run -- --help                      # CLI help (28 commands + 7 aliases)
+zig build run -- --help                      # CLI help (28 commands + 8 aliases)
 zig build run -- system-info                 # System and feature status
 zig build run -- plugins list                # List plugins
 zig build run -- mcp serve                   # Start MCP server (stdio JSON-RPC)
@@ -260,7 +260,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Security infrastructure | `src/services/shared/security/` (16 modules) |
 | C API bindings | `bindings/c/src/abi_c.zig` (36 exports) |
 | Generate API docs | `zig build gendocs` → `docs/api/` |
-| Examples | `examples/` (32 examples) |
+| Examples | `examples/` (36 examples) |
 | MCP service | `src/services/mcp/` (JSON-RPC 2.0 server for WDBX) |
 | ACP service | `src/services/acp/` (agent communication protocol) |
 
@@ -317,8 +317,8 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Main tests**: 1222 pass, 5 skip (1227 total) — `zig build test --summary all`
-**Feature tests**: 884 pass (884 total) — `zig build feature-tests --summary all`
+**Main tests**: 1248 pass, 5 skip (1253 total) — `zig build test --summary all`
+**Feature tests**: 977 pass (977 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -342,7 +342,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 884+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 977+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |
