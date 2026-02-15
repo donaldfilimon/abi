@@ -224,3 +224,74 @@ pub const Permission = struct {
     pub const SEND_POLLS: u64 = 1 << 49;
     pub const USE_EXTERNAL_APPS: u64 = 1 << 50;
 };
+
+// ════════════════════════════════════════════════════════════════════════
+// Tests
+// ════════════════════════════════════════════════════════════════════════
+
+test "parseTimestamp Discord format" {
+    const ts = try parseTimestamp("<t:1618953600:R>");
+    try std.testing.expectEqual(@as(i64, 1618953600), ts);
+}
+
+test "parseTimestamp plain unix" {
+    const ts = try parseTimestamp("1618953600");
+    try std.testing.expectEqual(@as(i64, 1618953600), ts);
+}
+
+test "parseTimestamp ISO 8601 UTC" {
+    const ts = try parseTimestamp("2021-04-20T16:00:00Z");
+    // April 20, 2021 16:00:00 UTC = 1618934400
+    try std.testing.expectEqual(@as(i64, 1618934400), ts);
+}
+
+test "parseTimestamp empty returns error" {
+    const result = parseTimestamp("");
+    try std.testing.expectError(error.InvalidTimestamp, result);
+}
+
+test "parseTimestamp invalid Discord format" {
+    const result = parseTimestamp("<t:abc:R>");
+    try std.testing.expectError(error.InvalidTimestamp, result);
+}
+
+test "formatTimestamp short time" {
+    const result = try formatTimestamp(std.testing.allocator, 1618953600, .SHORT_TIME);
+    defer std.testing.allocator.free(result);
+    try std.testing.expectEqualStrings("<t:1618953600:t>", result);
+}
+
+test "formatTimestamp relative" {
+    const result = try formatTimestamp(std.testing.allocator, 1618953600, .RELATIVE);
+    defer std.testing.allocator.free(result);
+    try std.testing.expectEqualStrings("<t:1618953600:R>", result);
+}
+
+test "calculatePermissions combines flags" {
+    const perms = calculatePermissions(&.{
+        Permission.SEND_MESSAGES,
+        Permission.VIEW_CHANNEL,
+    });
+    try std.testing.expect(hasPermission(perms, Permission.SEND_MESSAGES));
+    try std.testing.expect(hasPermission(perms, Permission.VIEW_CHANNEL));
+    try std.testing.expect(!hasPermission(perms, Permission.ADMINISTRATOR));
+}
+
+test "hasPermission admin includes all" {
+    const admin = Permission.ADMINISTRATOR;
+    try std.testing.expect(hasPermission(admin, Permission.ADMINISTRATOR));
+    // Admin bit doesn't automatically include other bits
+    try std.testing.expect(!hasPermission(admin, Permission.SEND_MESSAGES));
+}
+
+test "isLeapYear" {
+    try std.testing.expect(isLeapYear(2000));
+    try std.testing.expect(isLeapYear(2024));
+    try std.testing.expect(!isLeapYear(1900));
+    try std.testing.expect(!isLeapYear(2023));
+}
+
+test "daysInMonth February" {
+    try std.testing.expectEqual(@as(i64, 29), daysInMonth(2024, 2));
+    try std.testing.expectEqual(@as(i64, 28), daysInMonth(2023, 2));
+}

@@ -101,4 +101,6 @@ test {
 
     // Connector inline tests (not discovered through named abi module)
     _ = @import("services/connectors/mod.zig");
+    _ = @import("services/connectors/discord/utils.zig");
+    _ = @import("services/connectors/discord/rest_encoders.zig");
 }
