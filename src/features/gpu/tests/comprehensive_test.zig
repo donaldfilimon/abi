@@ -77,7 +77,7 @@ pub const TestSuite = struct {
 
     /// Run correctness verification tests
     pub fn runCorrectnessTests(self: *TestSuite) !void {
-        std.debug.print("Running GPU correctness tests...\n", .{});
+        std.log.info("Running GPU correctness tests...", .{});
 
         // Test basic vector operations
         try self.testVectorOperations();
@@ -87,33 +87,33 @@ pub const TestSuite = struct {
         // Test kernel DSL compilation
         try self.testKernelCompilation();
 
-        std.debug.print("Correctness tests passed!\n", .{});
+        std.log.info("Correctness tests passed!", .{});
     }
 
     /// Run performance benchmarks
     pub fn runPerformanceBenchmarks(self: *TestSuite) !void {
-        std.debug.print("Running GPU performance benchmarks...\n", .{});
+        std.log.info("Running GPU performance benchmarks...", .{});
 
         try self.benchmarkVectorAdd();
         try self.benchmarkMatrixMultiply();
         try self.benchmarkMemoryBandwidth();
 
-        std.debug.print("Performance benchmarks completed!\n", .{});
+        std.log.info("Performance benchmarks completed!", .{});
     }
 
     /// Run stress tests
     pub fn runStressTests(self: *TestSuite) !void {
-        std.debug.print("Running GPU stress tests...\n", .{});
+        std.log.info("Running GPU stress tests...", .{});
 
         try self.stressMemoryPressure();
         try self.stressConcurrentOperations();
 
-        std.debug.print("Stress tests completed!\n", .{});
+        std.log.info("Stress tests completed!", .{});
     }
 
     /// Run multi-device tests
     pub fn runMultiDeviceTests(self: *TestSuite) !void {
-        std.debug.print("Running multi-device tests...\n", .{});
+        std.log.info("Running multi-device tests...", .{});
 
         const devices = try device_mod.discoverDevices(self.allocator);
         defer self.allocator.free(devices);
@@ -122,7 +122,7 @@ pub const TestSuite = struct {
             try self.testDevicePeerTransfer(devices);
             try self.testLoadBalancing(devices);
         } else {
-            std.debug.print("Skipping multi-device tests (only {} devices available)\n", .{devices.len});
+            std.log.info("Skipping multi-device tests (only {} devices available)", .{devices.len});
         }
     }
 
@@ -372,7 +372,7 @@ pub const TestSuite = struct {
         const max_allocation = @as(usize, @intFromFloat(@as(f64, @floatFromInt(health.memory_total)) * self.config.memory_pressure));
 
         var buffers = std.ArrayListUnmanaged(*gpu.UnifiedBuffer).initCapacity(self.allocator, 100) catch |err| {
-            std.debug.print("Failed to allocate buffer list: {t}\n", .{err});
+            std.log.warn("Failed to allocate buffer list: {t}", .{err});
             return err;
         };
         defer {
@@ -407,7 +407,7 @@ pub const TestSuite = struct {
             allocation_count += 1;
         }
 
-        std.debug.print("Allocated {} MB across {} buffers\n", .{ allocated / (1024 * 1024), allocation_count });
+        std.log.info("Allocated {} MB across {} buffers", .{ allocated / (1024 * 1024), allocation_count });
 
         // Perform operations under memory pressure
         if (buffers.items.len >= 2) {
@@ -451,7 +451,7 @@ pub const TestSuite = struct {
             thread.join();
         }
 
-        std.debug.print("Completed {} concurrent operations across {} threads\n", .{ operations_per_thread * num_threads, num_threads });
+        std.log.info("Completed {} concurrent operations across {} threads", .{ operations_per_thread * num_threads, num_threads });
     }
 
     const ThreadContext = struct {
@@ -485,7 +485,7 @@ pub const TestSuite = struct {
         const dev1 = &devices[1];
 
         const capabilities = try gpu.peer_transfer.getPeerTransferCapabilities(dev0, dev1);
-        std.debug.print("Peer transfer between {} and {}: {}\n", .{
+        std.log.info("Peer transfer between {} and {}: {}", .{
             dev0.name, dev1.name, capabilities,
         });
     }
@@ -502,9 +502,9 @@ pub const TestSuite = struct {
         const distribution = try device_group.computeWorkloadDistribution(workload_size);
         defer self.allocator.free(distribution);
 
-        std.debug.print("Workload distribution across {} devices:\n", .{devices.len});
+        std.log.info("Workload distribution across {} devices:", .{devices.len});
         for (distribution, 0..) |size, i| {
-            std.debug.print("  Device {}: {} elements\n", .{ i, size });
+            std.log.info("  Device {}: {} elements", .{ i, size });
         }
     }
 
@@ -512,13 +512,13 @@ pub const TestSuite = struct {
         try self.results.append(self.allocator, result);
 
         // Use {t} format for enums (Zig 0.16)
-        std.debug.print("Benchmark: {s} on {t}\n", .{ result.operation, result.backend });
-        std.debug.print("  Data size: {} elements\n", .{result.data_size});
-        std.debug.print("  Iterations: {}\n", .{result.iterations});
-        std.debug.print("  Avg time: {} ns\n", .{result.avg_time_ns});
-        std.debug.print("  Throughput: {:.2} elements/sec\n", .{result.throughput_elements_per_sec});
-        std.debug.print("  Memory bandwidth: {:.2} GB/s\n", .{result.memory_bandwidth_gb_per_sec});
-        std.debug.print("  Peak memory: {} MB\n", .{result.peak_memory_usage / (1024 * 1024)});
+        std.log.info("Benchmark: {s} on {t}", .{ result.operation, result.backend });
+        std.log.info("  Data size: {} elements", .{result.data_size});
+        std.log.info("  Iterations: {}", .{result.iterations});
+        std.log.info("  Avg time: {} ns", .{result.avg_time_ns});
+        std.log.info("  Throughput: {:.2} elements/sec", .{result.throughput_elements_per_sec});
+        std.log.info("  Memory bandwidth: {:.2} GB/s", .{result.memory_bandwidth_gb_per_sec});
+        std.log.info("  Peak memory: {} MB", .{result.peak_memory_usage / (1024 * 1024)});
     }
 
     /// Get benchmark results
@@ -528,24 +528,24 @@ pub const TestSuite = struct {
 
     /// Generate performance report
     pub fn generateReport(self: *const TestSuite) void {
-        std.debug.print("GPU Performance Test Report\n", .{});
-        std.debug.print("==========================\n\n", .{});
+        std.log.info("GPU Performance Test Report", .{});
+        std.log.info("==========================", .{});
 
-        std.debug.print("Test Configuration:\n", .{});
-        std.debug.print("  Iterations: {}\n", .{self.config.iterations});
-        std.debug.print("  Data size: {} elements\n", .{self.config.data_size});
-        std.debug.print("  Benchmark: {}\n", .{self.config.benchmark});
-        std.debug.print("  Stress test: {}\n", .{self.config.stress_test});
-        std.debug.print("  Multi-device: {}\n\n", .{self.config.multi_device});
+        std.log.info("Test Configuration:", .{});
+        std.log.info("  Iterations: {}", .{self.config.iterations});
+        std.log.info("  Data size: {} elements", .{self.config.data_size});
+        std.log.info("  Benchmark: {}", .{self.config.benchmark});
+        std.log.info("  Stress test: {}", .{self.config.stress_test});
+        std.log.info("  Multi-device: {}", .{self.config.multi_device});
 
         if (self.results.items.len > 0) {
-            std.debug.print("Benchmark Results:\n", .{});
+            std.log.info("Benchmark Results:", .{});
             for (self.results.items) |result| {
                 // Use {t} format for enums (Zig 0.16)
-                std.debug.print("  {s} ({t}):\n", .{ result.operation, result.backend });
-                std.debug.print("    Throughput: {:.2} elements/sec\n", .{result.throughput_elements_per_sec});
-                std.debug.print("    Memory BW: {:.2} GB/s\n", .{result.memory_bandwidth_gb_per_sec});
-                std.debug.print("    Avg latency: {} ns\n", .{result.avg_time_ns});
+                std.log.info("  {s} ({t}):", .{ result.operation, result.backend });
+                std.log.info("    Throughput: {:.2} elements/sec", .{result.throughput_elements_per_sec});
+                std.log.info("    Memory BW: {:.2} GB/s", .{result.memory_bandwidth_gb_per_sec});
+                std.log.info("    Avg latency: {} ns", .{result.avg_time_ns});
             }
         }
     }
