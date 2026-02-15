@@ -7,7 +7,7 @@ tags: [planning, execution, zig-0.16, multi-agent]
 # ABI Multi-Agent Execution Plan
 
 ## Current Objective
-Deliver a stable ABI baseline on Zig 0.16.0-dev.2535+b5bd49460 with verified feature-gated parity, reproducible
+Deliver a stable ABI baseline on Zig 0.16.0-dev.2596+469bf6af0 with verified feature-gated parity, reproducible
 build/test outcomes, and a clear release-readiness decision in February 2026.
 
 ## Execution Update (2026-02-14) — Phase 10 Complete + Cleanup & CLI
@@ -103,7 +103,7 @@ Phase 9 implemented 5 skeleton feature modules and 3 placeholder fixups:
     `src/services/shared/utils/v2_primitives.zig` branch-quota overflow in `nextPowerOfTwo`
 
 ## Assumptions
-- Zig toolchain is `0.16.0-dev.2535+b5bd49460` or a compatible newer Zig build.
+- Zig toolchain is `0.16.0-dev.2596+469bf6af0` or a compatible newer Zig build.
 - Public API usage stays on `@import("abi")`; deep internal imports are not relied on.
 - Parallel execution is done by explicit file/module ownership per agent.
 
@@ -205,7 +205,7 @@ Exit criteria:
   - If root cause is unclear, roll back to last known green state and reapply incrementally.
 
 ## Definition of Done
-- Zig 0.16.0-dev.2535+b5bd49460 path is stable for normal and feature-gated builds.
+- Zig 0.16.0-dev.2596+469bf6af0 path is stable for normal and feature-gated builds.
 - Feature-gated parity is confirmed on touched modules.
 - Full validation matrix passes with no unresolved regressions.
 - Plan references remain accurate and current.

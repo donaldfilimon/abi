@@ -43,6 +43,11 @@ test {
     if (build_options.enable_storage) _ = @import("features/storage/mod.zig");
     if (build_options.enable_pages) _ = @import("features/pages/mod.zig");
 
+    // Analytics, observability, and mobile inline tests
+    if (build_options.enable_analytics) _ = @import("features/analytics/mod.zig");
+    if (build_options.enable_profiling) _ = @import("features/observability/mod.zig");
+    if (build_options.enable_mobile) _ = @import("features/mobile/mod.zig");
+
     // Phase 10 — expanded test coverage (standalone test files to avoid
     // pulling in sub-modules with pre-existing Zig 0.16 compile issues)
     if (build_options.enable_auth) _ = @import("features/auth/auth_test.zig");

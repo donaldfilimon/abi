@@ -32,7 +32,7 @@ ABI is a Zig 0.16 framework (v0.4.0) with `src/abi.zig` as the public API entryp
 
 ## Coding Style & Naming Conventions
 
-- Use Zig `0.16.0-dev.2535+b5bd49460` or newer.
+- Use Zig `0.16.0-dev.2596+469bf6af0` or newer.
 - Indentation: 4 spaces, no tabs.
 - Naming: `PascalCase` types, `camelCase` functions/variables.
 - Prefer explicit imports (`@import(...)`) and avoid `usingnamespace`.

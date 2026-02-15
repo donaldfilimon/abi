@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Key | Value |
 |-----|-------|
-| **Zig** | `0.16.0-dev.2535+b5bd49460` or newer (pinned in `.zigversion`) |
+| **Zig** | `0.16.0-dev.2596+469bf6af0` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
 | **Test baseline** | 1222 pass, 5 skip (1227 total) — must be maintained |
-| **Feature tests** | 770 pass (770 total) — `zig build feature-tests` |
-| **CLI commands** | 28 commands + 7 aliases |
+| **Feature tests** | 776 pass (776 total) — `zig build feature-tests` |
+| **CLI commands** | 28 commands + 8 aliases |
 
 ## Build & Test Commands
 
@@ -25,7 +25,7 @@ zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
 zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke tests
-zig build validate-flags                     # Compile-check 32 feature flag combos
+zig build validate-flags                     # Compile-check 34 feature flag combos
 zig build cli-tests                          # CLI smoke tests (top-level + nested, e.g. help llm, bench micro hash)
 zig build lint                               # CI formatting check
 zig build benchmarks                         # Performance benchmarks
@@ -95,7 +95,7 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 
 | Mistake | Fix |
 |---------|-----|
-| `std.fs.cwd()` | `std.Io.Dir.cwd()` — Zig 0.16.0-dev.2535+b5bd49460 moved filesystem to I/O backend |
+| `std.fs.cwd()` | `std.Io.Dir.cwd()` — Zig 0.16.0-dev.2596+469bf6af0 moved filesystem to I/O backend |
 | `std.time.Instant.now()` for elapsed time | `std.time.Timer.start()` — use Timer for benchmarks/elapsed |
 | `list.init()` | `std.ArrayListUnmanaged(T).empty` |
 | `@tagName(x)` / `@errorName(e)` in format | `{t}` format specifier for errors and enums |
@@ -103,13 +103,13 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 | `std.fs.cwd().openFile(...)` | Must init `std.Io.Threaded` first and pass `io` handle |
 | `file.read()` / `file.write()` | `file.reader(io, &buf).read()` / `file.writer(io, &buf).write()` — I/O ops need `io` handle + read buffer |
 | `std.time.sleep()` | `abi.shared.time.sleepMs()` / `sleepNs()` for cross-platform |
-| `std.time.nanoTimestamp()` | Doesn't exist in `0.16.0-dev.2535+b5bd49460` — use `Instant.now()` + `.since(anchor)` for absolute time |
-| `std.process.getEnvVar()` | Doesn't exist in `0.16.0-dev.2535+b5bd49460` — use `std.c.getenv()` for POSIX |
-| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in `0.16.0-dev.2535+b5bd49460`: `.type`, `.@"fn"`, `.@"struct"`, `.@"enum"`, `.@"union"` |
+| `std.time.nanoTimestamp()` | Doesn't exist in `0.16.0-dev.2596+469bf6af0` — use `Instant.now()` + `.since(anchor)` for absolute time |
+| `std.process.getEnvVar()` | Doesn't exist in `0.16.0-dev.2596+469bf6af0` — use `std.c.getenv()` for POSIX |
+| `@typeInfo` tags `.Type`, `.Fn` | Lowercase in `0.16.0-dev.2596+469bf6af0`: `.type`, `.@"fn"`, `.@"struct"`, `.@"enum"`, `.@"union"` |
 | `b.createModule()` for named modules | `b.addModule("name", ...)` — `createModule` is anonymous |
 | `defer allocator.free(x)` then return `x` | Use `errdefer` — `defer` frees on success too (use-after-free). Applies anywhere caller takes ownership: `loadFromEnv()`, builder patterns, etc. |
 | `@panic` in library code | Return an error instead — library code should never panic |
-| `std.time.Timer.read()` → `u64` | Returns `usize` in `0.16.0-dev.2535+b5bd49460`, not `u64` — cast or use `@as(u64, timer.read())` |
+| `std.time.Timer.read()` → `u64` | Returns `usize` in `0.16.0-dev.2596+469bf6af0`, not `u64` — cast or use `@as(u64, timer.read())` |
 | `std.log.err` in tests | Test runner treats error-level log output as a test failure, even if caught. Skip the test before entering error paths |
 | `opaque` as identifier | `opaque` is a keyword in 0.16 — use `is_opaque` or `@"opaque"` |
 | `FallbackAllocator` double-free | Can't call `rawFree` on both backing allocators — use `rawResize(..0..)` to probe ownership |
@@ -347,7 +347,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 ## Testing Patterns
 
 **Main tests**: 1222 pass, 5 skip (1227 total) — `zig build test --summary all`
-**Feature tests**: 770 pass (770 total) — `zig build feature-tests --summary all`
+**Feature tests**: 776 pass (776 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -371,7 +371,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 770+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 776+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |

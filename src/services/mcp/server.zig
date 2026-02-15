@@ -112,7 +112,9 @@ pub const Server = struct {
         }
 
         // Final flush before exit
-        writer.flush() catch {};
+        writer.flush() catch |err| {
+            std.log.warn("MCP: final flush failed: {t}", .{err});
+        };
     }
 
     /// Run without I/O — logs readiness (for environments without I/O backend).

@@ -2,7 +2,7 @@
 
 # ABI Framework
 
-<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2535+b5bd49460"/>
+<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2596%2B469bf6af0-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2596+469bf6af0"/>
 <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Status"/>
 <img src="https://img.shields.io/github/license/donaldfilimon/abi?style=for-the-badge" alt="License"/>
 
@@ -14,7 +14,7 @@
 
 <br/><br/>
 
-**A modern Zig 0.16.0-dev.2535+b5bd49460 framework for AI services, vector search, and high-performance systems**
+**A modern Zig 0.16.0-dev.2596+469bf6af0 framework for AI services, vector search, and high-performance systems**
 
 [Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
 
@@ -90,7 +90,7 @@ Ensure your `zig` matches the version in `.zigversion` (e.g. via `zvm use master
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | `0.16.0-dev.2535+b5bd49460` or newer | Yes |
+| Zig | `0.16.0-dev.2596+469bf6af0` or newer | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
@@ -461,7 +461,7 @@ zig build -Dgpu-backend=auto
 |:---------|:------------|
 | [API Reference](docs/api/index.md) | Auto-generated API docs (`zig build gendocs`) |
 | [Agent Guidelines](AGENTS.md) | Baseline rules for AI agents |
-| [Developer Guide](CLAUDE.md) | Zig 0.16.0-dev.2535+b5bd49460 patterns and project conventions |
+| [Developer Guide](CLAUDE.md) | Zig 0.16.0-dev.2596+469bf6af0 patterns and project conventions |
 
 ```bash
 # Run all tests
@@ -504,7 +504,7 @@ zig build lint
 
 | Milestone | Status |
 |:----------|:------:|
-| Zig 0.16.0-dev.2535+b5bd49460 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Zig 0.16.0-dev.2596+469bf6af0 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |

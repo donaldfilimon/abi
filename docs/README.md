@@ -17,7 +17,7 @@ This directory is the source for the ABI documentation site and project docs.
 
 ## Requirements
 
-- Zig `0.16.0-dev.2535+b5bd49460` or newer (match `.zigversion`).
+- Zig `0.16.0-dev.2596+469bf6af0` or newer (match `.zigversion`).
 
 ## Build
 

@@ -28,7 +28,7 @@ curl http://localhost:8080/health
 
 - Docker 20.10+ and Docker Compose v2
 - (Optional) kubectl for Kubernetes deployment
-- (Optional) Zig `0.16.0-dev.2535+b5bd49460` or newer for local development
+- (Optional) Zig `0.16.0-dev.2596+469bf6af0` or newer for local development
 
 ## Configuration
 

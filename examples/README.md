@@ -371,9 +371,9 @@ zig build benchmarks
 
 ## Common Patterns
 
-All examples follow these Zig 0.16.0-dev.2535+b5bd49460 best practices:
+All examples follow these Zig 0.16.0-dev.2596+469bf6af0 best practices:
 
-1. **Allocator Setup (Zig 0.16.0-dev.2535+b5bd49460):**
+1. **Allocator Setup (Zig 0.16.0-dev.2596+469bf6af0):**
 
    ```zig
    pub fn main() !void {
@@ -408,7 +408,7 @@ All examples follow these Zig 0.16.0-dev.2535+b5bd49460 best practices:
    defer allocator.free(data);
    ```
 
-5. **Format Specifiers (Zig 0.16.0-dev.2535+b5bd49460):**
+5. **Format Specifiers (Zig 0.16.0-dev.2596+469bf6af0):**
 
    ```zig
    std.debug.print("Status: {t}\n", .{status});  // {t} for enums
