@@ -74,7 +74,7 @@ pub const JsonEscape = struct {
                 '\n' => try writer.writeAll("\\n"),
                 '\r' => try writer.writeAll("\\r"),
                 '\t' => try writer.writeAll("\\t"),
-                0x00...0x1F => try writer.print("\\u{x:0>4}", .{c}),
+                0x00...0x1F => try std.fmt.format(writer, "\\u{x:0>4}", .{c}),
                 else => try writer.writeByte(c),
             }
         }
