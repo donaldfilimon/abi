@@ -116,4 +116,34 @@ test {
     // Additional shared utilities
     _ = @import("services/shared/utils/benchmark.zig");
     _ = @import("services/shared/time.zig");
+    _ = @import("services/shared/utils/json/mod.zig");
+    _ = @import("services/shared/utils/retry.zig");
+    _ = @import("services/shared/logging.zig");
+    _ = @import("services/shared/plugins.zig");
+
+    // Shared memory utilities (aligned.zig + stack.zig need mem.Alignment migration)
+    _ = @import("services/shared/utils/memory/tracking.zig");
+    _ = @import("services/shared/utils/memory/ring.zig");
+    _ = @import("services/shared/utils/memory/pool.zig");
+    _ = @import("services/shared/utils/memory/zerocopy.zig");
+
+    // Runtime concurrency
+    _ = @import("services/runtime/concurrency/chase_lev.zig");
+    _ = @import("services/runtime/concurrency/lockfree.zig");
+    _ = @import("services/runtime/concurrency/mpmc_queue.zig");
+    _ = @import("services/runtime/concurrency/priority_queue.zig");
+    _ = @import("services/runtime/concurrency/epoch.zig");
+
+    // Runtime scheduling (future.zig + task_group.zig need error set migration)
+    _ = @import("services/runtime/scheduling/cancellation.zig");
+
+    // Runtime engine + workload
+    _ = @import("services/runtime/workload.zig");
+
+    // Tasks subsystem
+    _ = @import("services/tasks/types.zig");
+    _ = @import("services/tasks/mod.zig");
+
+    // Platform detection
+    _ = @import("services/platform/detection.zig");
 }

@@ -477,8 +477,9 @@ test "work-stealing scheduler basic" {
     try scheduler.push(1, 300);
 
     // Worker 0 can steal from worker 1
-    // Note: steal is probabilistic, so we just verify it doesn't crash
-    _ = scheduler.steal(0);
+    // Note: steal is probabilistic — item may or may not be consumed
+    const stolen = scheduler.steal(0);
+    const expected_pending: usize = if (stolen != null) 1 else 2;
 
-    try std.testing.expectEqual(@as(usize, 2), scheduler.totalPending());
+    try std.testing.expectEqual(expected_pending, scheduler.totalPending());
 }

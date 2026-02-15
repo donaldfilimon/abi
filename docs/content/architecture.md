@@ -239,7 +239,7 @@ ABI has two separate test roots because of Zig's module path restrictions:
 | Test Root | Path | Purpose |
 |-----------|------|---------|
 | Main tests | `src/services/tests/mod.zig` | Integration, stress, chaos, parity tests (1251 pass) |
-| Feature tests | `src/feature_test_root.zig` | Inline tests inside feature/service modules (1095 pass) |
+| Feature tests | `src/feature_test_root.zig` | Inline tests inside feature/service modules (1153 pass) |
 
 The feature test root sits at `src/` level so it can reach both `features/` and
 `services/` subdirectories. Test discovery uses `test { _ = @import(...); }` blocks --
