@@ -12,7 +12,7 @@ AI inference, GPU compute, vector database, runtime infrastructure, and operatio
 tooling into a single build with compile-time feature gating.
 
 Version **0.4.0** provides 21 feature modules, 10 GPU backends, 9 LLM provider
-connectors, and 28 CLI commands -- all tested with 1248 passing tests (5 skipped)
+connectors, and 28 CLI commands -- all tested with 1251 passing tests (5 skipped)
 and 1095 passing feature tests.
 
 ## What You Can Build

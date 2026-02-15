@@ -68,7 +68,7 @@ ABI maintains two test suites with enforced baselines.
 zig build test --summary all
 ```
 
-Expected: **1248 pass, 5 skip** (1253 total).
+Expected: **1251 pass, 5 skip** (1256 total).
 
 The main tests live in `src/services/tests/mod.zig` and exercise cross-module integration,
 stress tests, chaos tests, and parity checks.
