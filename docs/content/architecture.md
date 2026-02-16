@@ -2,7 +2,7 @@
 title: Architecture
 description: Module hierarchy, comptime feature gating, and framework lifecycle
 section: Core
-order: 3
+order: 1
 ---
 
 # Architecture
@@ -30,7 +30,7 @@ src/core/
   registry/                   Feature registry (runtime enable/disable)
   errors.zig                  Composable error hierarchy
 
-src/features/<name>/        One directory per feature module
+src/features/<name>/        One directory per feature module (21 modules)
   mod.zig                     Real implementation
   stub.zig                    Disabled stub (matching signatures)
 
@@ -45,7 +45,7 @@ src/services/               Always-available infrastructure
   connectors/                 9 LLM providers + Discord + scheduler
 
 tools/cli/                  CLI entry point
-  commands/                   28 command modules
+  commands/                   28 command modules + 8 aliases
 ```
 
 ### Layer Rules
@@ -110,29 +110,29 @@ public declaration in `mod.zig`, you must update `stub.zig` to match.
 
 ### All 21 Gated Modules
 
-| Module | Build Flag | Namespace |
-|--------|-----------|-----------|
-| AI (monolith) | `enable_ai` | `abi.ai` |
-| AI Core | `enable_ai` | `abi.ai_core` |
-| Inference | `enable_llm` | `abi.inference` |
-| Training | `enable_training` | `abi.training` |
-| Reasoning | `enable_reasoning` | `abi.reasoning` |
-| GPU | `enable_gpu` | `abi.gpu` |
-| Database | `enable_database` | `abi.database` |
-| Network | `enable_network` | `abi.network` |
-| Web | `enable_web` | `abi.web` |
-| Analytics | `enable_analytics` | `abi.analytics` |
-| Cloud | `enable_cloud` | `abi.cloud` |
-| Auth | `enable_auth` | `abi.auth` |
-| Messaging | `enable_messaging` | `abi.messaging` |
-| Cache | `enable_cache` | `abi.cache` |
-| Storage | `enable_storage` | `abi.storage` |
-| Search | `enable_search` | `abi.search` |
-| Gateway | `enable_gateway` | `abi.gateway` |
-| Pages | `enable_pages` | `abi.pages` |
-| Observability | `enable_profiling` | `abi.observability` |
-| Mobile | `enable_mobile` | `abi.mobile` |
-| Benchmarks | `enable_benchmarks` | `abi.benchmarks` |
+| Module | Build Flag | Namespace | Description |
+|--------|-----------|-----------|-------------|
+| AI (monolith) | `enable_ai` | `abi.ai` | Full AI module (17 submodules with stubs + 6 without) |
+| AI Core | `enable_ai` | `abi.ai_core` | Agents, tools, prompts, personas, memory |
+| Inference | `enable_llm` | `abi.inference` | LLM, embeddings, vision, streaming, transformer |
+| Training | `enable_training` | `abi.training` | Training pipelines, federated learning |
+| Reasoning | `enable_reasoning` | `abi.reasoning` | Abbey, RAG, eval, templates, orchestration |
+| GPU | `enable_gpu` | `abi.gpu` | 10 backends, kernel DSL, multi-GPU |
+| Database | `enable_database` | `abi.database` | WDBX vector database |
+| Network | `enable_network` | `abi.network` | Distributed compute, peer discovery |
+| Web | `enable_web` | `abi.web` | Web/HTTP utilities |
+| Analytics | `enable_analytics` | `abi.analytics` | Event tracking and analytics |
+| Cloud | `enable_cloud` | `abi.cloud` | Cloud provider integration |
+| Auth | `enable_auth` | `abi.auth` | Authentication and security (16 sub-modules) |
+| Messaging | `enable_messaging` | `abi.messaging` | Event bus, pub/sub, dead letter queues |
+| Cache | `enable_cache` | `abi.cache` | In-memory LRU/LFU/FIFO caching |
+| Storage | `enable_storage` | `abi.storage` | Unified file/object storage |
+| Search | `enable_search` | `abi.search` | Full-text BM25 search |
+| Gateway | `enable_gateway` | `abi.gateway` | API gateway (routing, rate limiting, circuit breaker) |
+| Pages | `enable_pages` | `abi.pages` | Dashboard/UI with URL path routing |
+| Observability | `enable_profiling` | `abi.observability` | Metrics, tracing, alerting |
+| Mobile | `enable_mobile` | `abi.mobile` | Mobile platform (lifecycle, sensors, notifications) |
+| Benchmarks | `enable_benchmarks` | `abi.benchmarks` | Performance benchmarking and timing |
 
 ## Framework Lifecycle
 
@@ -187,6 +187,9 @@ var fw = try abi.Framework.builder(allocator)
 defer fw.deinit();
 ```
 
+For a deep dive into initialization, state transitions, and lifecycle hooks, see
+[Framework Lifecycle](framework.html).
+
 ### Feature Access at Runtime
 
 ```zig
@@ -218,6 +221,7 @@ modules build on.
 | Work-stealing thread pool | `runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
 | DAG pipeline scheduler | `runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
 | Radix tree | `shared/utils/radix_tree.zig` | Used by gateway + pages for URL routing |
+| Circuit breaker | `shared/resilience/circuit_breaker.zig` | `abi.shared.resilience.{Simple,Atomic,Mutex}CircuitBreaker` |
 | SIMD operations | `shared/simd.zig` (5 submodules) | `abi.simd` |
 
 ## Import Convention
@@ -238,9 +242,15 @@ ABI has two separate test roots because of Zig's module path restrictions:
 
 | Test Root | Path | Purpose |
 |-----------|------|---------|
-| Main tests | `src/services/tests/mod.zig` | Integration, stress, chaos, parity tests (1252 pass) |
-| Feature tests | `src/feature_test_root.zig` | Inline tests inside feature/service modules (1512 pass) |
+| Main tests | `src/services/tests/mod.zig` | Integration, stress, chaos, parity tests (1270 pass, 5 skip) |
+| Feature tests | `src/feature_test_root.zig` | Inline tests inside feature/service modules (1534 pass) |
 
 The feature test root sits at `src/` level so it can reach both `features/` and
 `services/` subdirectories. Test discovery uses `test { _ = @import(...); }` blocks --
 `comptime {}` blocks do not trigger test discovery.
+
+## Further Reading
+
+- [Configuration](configuration.html) -- all build flags and environment variables
+- [Framework Lifecycle](framework.html) -- deep dive into state machine, init patterns, and lifecycle hooks
+- [CLI](cli.html) -- 28 commands + 8 aliases for system management

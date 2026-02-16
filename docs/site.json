@@ -8,101 +8,253 @@
     {
       "title": "Home",
       "slug": "index",
-      "source": "content/index.html",
+      "source": "content/index.md",
+      "section": "Start"
+    },
+    {
+      "title": "Installation",
+      "slug": "installation",
+      "source": "content/installation.md",
       "section": "Start"
     },
     {
       "title": "Getting Started",
       "slug": "getting-started",
-      "source": "content/getting-started.html",
+      "source": "content/getting-started.md",
       "section": "Start"
+    },
+
+    {
+      "title": "Architecture",
+      "slug": "architecture",
+      "source": "content/architecture.md",
+      "section": "Core"
     },
     {
       "title": "Configuration",
       "slug": "configuration",
-      "source": "content/configuration.html",
+      "source": "content/configuration.md",
       "section": "Core"
     },
     {
-      "title": "CLI",
+      "title": "Framework",
+      "slug": "framework",
+      "source": "content/framework.md",
+      "section": "Core"
+    },
+    {
+      "title": "CLI Reference",
       "slug": "cli",
-      "source": "content/cli.html",
-      "section": "Core"
-    },
-    {
-      "title": "Architecture",
-      "slug": "architecture",
-      "source": "content/architecture.html",
+      "source": "content/cli.md",
       "section": "Core"
     },
     {
       "title": "Migration (vNext)",
       "slug": "migration-vnext",
-      "source": "content/migration-vnext.html",
+      "source": "content/migration-vnext.md",
       "section": "Core"
     },
+
     {
-      "title": "AI",
-      "slug": "ai",
-      "source": "content/ai.html",
-      "section": "Modules"
+      "title": "AI Overview",
+      "slug": "ai-overview",
+      "source": "content/ai-overview.md",
+      "section": "AI"
     },
     {
-      "title": "GPU",
+      "title": "AI Core",
+      "slug": "ai-core",
+      "source": "content/ai-core.md",
+      "section": "AI"
+    },
+    {
+      "title": "Inference",
+      "slug": "ai-inference",
+      "source": "content/ai-inference.md",
+      "section": "AI"
+    },
+    {
+      "title": "Training",
+      "slug": "ai-training",
+      "source": "content/ai-training.md",
+      "section": "AI"
+    },
+    {
+      "title": "Reasoning",
+      "slug": "ai-reasoning",
+      "source": "content/ai-reasoning.md",
+      "section": "AI"
+    },
+
+    {
+      "title": "GPU Compute",
       "slug": "gpu",
-      "source": "content/gpu.html",
-      "section": "Modules"
+      "source": "content/gpu.md",
+      "section": "GPU"
     },
     {
-      "title": "Database",
-      "slug": "database",
-      "source": "content/database.html",
-      "section": "Modules"
+      "title": "GPU Backends",
+      "slug": "gpu-backends",
+      "source": "content/gpu-backends.md",
+      "section": "GPU"
     },
+
+    {
+      "title": "Database (WDBX)",
+      "slug": "database",
+      "source": "content/database.md",
+      "section": "Data"
+    },
+    {
+      "title": "Cache",
+      "slug": "cache",
+      "source": "content/cache.md",
+      "section": "Data"
+    },
+    {
+      "title": "Storage",
+      "slug": "storage",
+      "source": "content/storage.md",
+      "section": "Data"
+    },
+    {
+      "title": "Search",
+      "slug": "search",
+      "source": "content/search.md",
+      "section": "Data"
+    },
+
     {
       "title": "Network",
       "slug": "network",
-      "source": "content/network.html",
-      "section": "Modules"
+      "source": "content/network.md",
+      "section": "Infrastructure"
     },
     {
-      "title": "Deployment",
-      "slug": "deployment",
-      "source": "content/deployment.html",
+      "title": "Gateway",
+      "slug": "gateway",
+      "source": "content/gateway.md",
+      "section": "Infrastructure"
+    },
+    {
+      "title": "Messaging",
+      "slug": "messaging",
+      "source": "content/messaging.md",
+      "section": "Infrastructure"
+    },
+    {
+      "title": "Pages",
+      "slug": "pages",
+      "source": "content/pages.md",
+      "section": "Infrastructure"
+    },
+    {
+      "title": "Web",
+      "slug": "web",
+      "source": "content/web.md",
+      "section": "Infrastructure"
+    },
+    {
+      "title": "Cloud",
+      "slug": "cloud",
+      "source": "content/cloud.md",
+      "section": "Infrastructure"
+    },
+    {
+      "title": "Mobile",
+      "slug": "mobile",
+      "source": "content/mobile.md",
+      "section": "Infrastructure"
+    },
+
+    {
+      "title": "Auth & Security",
+      "slug": "auth",
+      "source": "content/auth.md",
+      "section": "Operations"
+    },
+    {
+      "title": "Analytics",
+      "slug": "analytics",
+      "source": "content/analytics.md",
       "section": "Operations"
     },
     {
       "title": "Observability",
       "slug": "observability",
-      "source": "content/observability.html",
+      "source": "content/observability.md",
       "section": "Operations"
     },
     {
-      "title": "Security",
-      "slug": "security",
-      "source": "content/security.html",
+      "title": "Deployment",
+      "slug": "deployment",
+      "source": "content/deployment.md",
       "section": "Operations"
     },
+    {
+      "title": "Benchmarks",
+      "slug": "benchmarks",
+      "source": "content/benchmarks.md",
+      "section": "Operations"
+    },
+
+    {
+      "title": "Connectors",
+      "slug": "connectors",
+      "source": "content/connectors.md",
+      "section": "Services"
+    },
+    {
+      "title": "MCP Server",
+      "slug": "mcp",
+      "source": "content/mcp.md",
+      "section": "Services"
+    },
+    {
+      "title": "ACP Protocol",
+      "slug": "acp",
+      "source": "content/acp.md",
+      "section": "Services"
+    },
+
     {
       "title": "API Overview",
       "slug": "api",
-      "source": "content/api.html",
+      "source": "content/api.md",
       "section": "Reference"
     },
     {
       "title": "Examples",
       "slug": "examples",
-      "source": "content/examples.html",
+      "source": "content/examples.md",
+      "section": "Reference"
+    },
+    {
+      "title": "C API Bindings",
+      "slug": "c-bindings",
+      "source": "content/c-bindings.md",
+      "section": "Reference"
+    },
+    {
+      "title": "Troubleshooting",
+      "slug": "troubleshooting",
+      "source": "content/troubleshooting.md",
       "section": "Reference"
     },
     {
       "title": "Contributing",
       "slug": "contributing",
-      "source": "content/contributing.html",
+      "source": "content/contributing.md",
+      "section": "Reference"
+    },
+    {
+      "title": "Roadmap",
+      "slug": "roadmap",
+      "source": "content/roadmap.md",
       "section": "Reference"
     }
   ],
   "footer": {
-    "text": "Built with Zig 0.16. Docs generated by a custom Zig pipeline."
+    "text": "Built with Zig 0.16 | ABI v0.4.0 | 1270 pass, 5 skip | 1534 feature tests"
   }
 }

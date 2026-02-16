@@ -1,14 +1,14 @@
 ---
 title: GPU
-description: 10 backends with unified vtable abstraction and kernel DSL
-section: Modules
-order: 7
+description: 11 backends with unified vtable abstraction, kernel DSL, and multi-device orchestration
+section: GPU
+order: 1
 ---
 
 # GPU
 
 The GPU module (`src/features/gpu/mod.zig`) provides a unified interface for
-hardware-accelerated compute across 10 backends. A vtable-based abstraction
+hardware-accelerated compute across 11 backends. A vtable-based abstraction
 layer ensures portable code that runs on any supported hardware, with automatic
 fallback from GPU to SIMD to scalar execution.
 
@@ -21,24 +21,29 @@ fallback from GPU to SIMD to scalar execution.
 - **Multi-device support**: Manage multiple GPUs with peer-to-peer transfers (`mega/`)
 - **Profiling**: Built-in timing and occupancy analysis
 - **Recovery and failover**: Automatic device recovery and backend failover
+- **Standard error taxonomy**: Unified `BackendError`, `MemoryError`, `KernelError`, `InterfaceError` types across all backends
 
 ## Backends
 
 | Backend | Platform | Flag Value | Notes |
 |---------|----------|------------|-------|
-| CUDA | NVIDIA GPUs | `cuda` | Architecture detection (sm_XX) |
+| CUDA | NVIDIA GPUs | `cuda` | Architecture detection (sm_30 through sm_90+) |
 | Vulkan | Cross-platform | `vulkan` | SPIR-V codegen |
 | Metal | Apple (macOS/iOS) | `metal` | MPS, CoreML, mesh shaders, ray tracing |
 | std.gpu | Zig native | `stdgpu` | Zig 0.16+ native GPU support |
 | WebGPU | Web/Native | `webgpu` | Browser and native via Dawn/wgpu |
+| TPU | Cloud/linked | `tpu` | Tensor Processing Unit (stub until runtime linked) |
 | WebGL2 | Web | `webgl2` | Legacy web fallback |
-| OpenGL | Desktop | `opengl` | Legacy desktop support |
-| OpenGL ES | Mobile/Embedded | `opengles` | Mobile GPU support |
+| OpenGL | Desktop | `opengl` | Legacy desktop support (4.3+) |
+| OpenGL ES | Mobile/Embedded | `opengles` | Mobile GPU support (3.1+) |
 | FPGA | Reconfigurable | `fpga` | Hardware synthesis pipelines |
 | Simulated | All platforms | `simulated` | Always-on software fallback |
 
 The **simulated** backend is always enabled regardless of build flags, providing
 a software fallback for testing and development without GPU hardware.
+
+For detailed per-backend information, platform requirements, and multi-backend
+configuration, see [GPU Backends](gpu-backends.html).
 
 ## Build Configuration
 
@@ -67,28 +72,36 @@ disable the GPU module.
 src/features/gpu/
   mod.zig              Main module (public API)
   stub.zig             Disabled stub (returns error.FeatureDisabled)
-  backend.zig          Backend selection logic
+  backend.zig          Backend enum and detection metadata
   backend_factory.zig  Factory for creating backend instances
-  unified.zig          Unified GPU context
+  unified.zig          Unified GPU context with metrics
   unified_buffer.zig   Cross-backend buffer type
   device.zig           Device discovery and selection
-  interface.zig        Backend vtable interface
+  interface.zig        Backend vtable interface + standard error types
   platform.zig         Platform capability detection
   profiling.zig        Timing and occupancy analysis
   recovery.zig         Device recovery manager
   failover.zig         Backend failover manager
+  diagnostics.zig      GPU diagnostics and error context
+  error_handling.zig   Error codes and types
   backends/            Per-backend implementations
-    cuda/              CUDA backend (loader, device_query, kernels)
+    cuda/              CUDA backend (loader, device_query, kernels, cuBLAS, NVRTC)
     vulkan/            Vulkan backend (instance, device, pipeline)
     metal/             Metal backend + Apple enhancements
-    fpga/              FPGA synthesis backend
+    fpga/              FPGA synthesis backend (kernels, loader, memory, types)
     simulated.zig      Software fallback (always available)
     webgpu/            WebGPU backend
-    ...
+    stdgpu.zig         Zig 0.16 native GPU integration
+    opengl.zig         OpenGL 4.3+ backend
+    opengles.zig       OpenGL ES 3.1+ backend
+    webgl2.zig         WebGL2 backend
+    shared.zig         Shared backend utilities
   dsl/                 Kernel DSL with multi-target codegen
   mega/                Multi-GPU orchestration
   memory/              Memory management (base, pool, lockfree)
   dispatch/            Kernel dispatch (types, coordinator, batch)
+  peer_transfer/       Peer-to-peer device transfers
+  stubs/               Stub implementations for disabled sub-modules
 ```
 
 ### Vtable Interface
@@ -199,6 +212,10 @@ The CUDA backend provides architecture-aware optimization:
   capabilities (Tensor Cores, RT cores, FP8, etc.)
 - **Targeted compilation**: Generates `-arch=sm_XY` flags matching the
   detected hardware
+- **cuBLAS**: Optimized linear algebra operations
+- **NVRTC**: Runtime kernel compilation
+- **Quantized kernels**: INT8/FP8 inference support
+- **Stream management**: Async kernel execution and memory transfers
 
 ## Device Capabilities
 
@@ -229,10 +246,12 @@ transparent failover if a tier encounters errors.
 
 The `mega/` directory provides multi-GPU orchestration with:
 
-- Device enumeration and selection
-- Peer-to-peer memory transfers
-- Workload partitioning across devices
-- Synchronized kernel launches
+- Device enumeration and selection (`DeviceGroup`, `GPUCluster`)
+- Peer-to-peer memory transfers (`PeerTransferManager`)
+- Workload partitioning across devices (`WorkDistribution`, `ModelPartition`)
+- Synchronized kernel launches (`DeviceBarrier`)
+- Gradient bucketing for distributed training (`GradientBucketManager`)
+- All-reduce algorithms for multi-device aggregation
 
 ## Performance Modules
 
@@ -271,7 +290,19 @@ if (caps.vulkan_supported) { ... }
 Convenience functions: `isCudaSupported()`, `isMetalSupported()`,
 `isVulkanSupported()`, `isWebGpuSupported()`, `platformDescription()`.
 
+## Disabling at Build Time
+
+```bash
+zig build -Denable-gpu=false
+```
+
+When disabled, `abi.gpu` resolves to `src/features/gpu/stub.zig`, which
+returns `error.FeatureDisabled` for all operations. Disabled features have
+zero binary overhead due to comptime feature gating.
+
 ## Related
 
-- [AI & LLM](ai.md) -- GPU acceleration for inference and training
-- [Database](database.md) -- GPU-accelerated distance calculations
+- [GPU Backends](gpu-backends.html) -- Detailed per-backend documentation
+- [AI & LLM](ai.html) -- GPU acceleration for inference and training
+- [Database](database.html) -- GPU-accelerated distance calculations
+- [Architecture](architecture.html) -- Comptime feature gating pattern

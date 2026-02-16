@@ -1,62 +1,42 @@
 ---
 title: Getting Started
-description: Install, build, and run ABI in under 5 minutes
+description: First build, first test, first example with ABI
 section: Start
-order: 2
+order: 3
 ---
 
 # Getting Started
 
-This guide walks you from a fresh clone to a running ABI build with passing tests.
+This guide takes you from a working toolchain to your first ABI build, test run, and
+example in under five minutes. If you have not installed Zig yet, start with the
+[Installation](installation.html) page.
 
 ## Prerequisites
 
-| Requirement | Details |
-|-------------|---------|
-| **Zig** | `0.16.0-dev.2611+f996d2866` or newer (pinned in `.zigversion`) |
-| **Git** | Any recent version |
-| **Shell** | Bash, Zsh, or Fish on Linux / macOS |
-| **Optional** | GPU drivers (CUDA, Vulkan, or Metal) for hardware-accelerated compute |
-| **Optional** | Docker for containerized deployment |
-
-### Installing Zig
-
-The recommended approach is [zvm](https://github.com/marler182/zvm) (Zig Version Manager):
+Make sure your Zig version matches the pinned version:
 
 ```bash
-# Install zvm, then keep it current:
-zvm upgrade
-zvm install master
-zvm use master
-
-# Verify the version matches .zigversion
-which zig
 zig version
+# Expected: 0.16.0-dev.2611+f996d2866 or newer
+
 cat .zigversion
-zig build toolchain-doctor
-bash scripts/toolchain_doctor.sh
-# Expected zig version: 0.16.0-dev.2611+f996d2866
-# Expected active binary: ~/.zvm/bin/zig
+# Should match
 ```
 
-If `which zig` points to another path (for example `~/.local/bin/zig`), prepend `~/.zvm/bin` in your shell profile before other Zig locations.
+If these do not match, see [Installation](installation.html) for setup instructions.
 
-Alternatively, download a matching nightly build from [ziglang.org/download](https://ziglang.org/download/).
+## First Build
 
-## Install
+From the repository root:
 
 ```bash
-git clone https://github.com/your-org/abi.git
-cd abi
-
-# Build with default flags (all features enabled except mobile)
 zig build
 ```
 
-The first build compiles the framework, CLI, and all enabled feature modules. Subsequent
-builds are incremental.
+This compiles the framework with all default features enabled (everything except
+`mobile`). The first build takes a minute or two; subsequent builds are incremental.
 
-### Verify the build
+Verify the build succeeded:
 
 ```bash
 # Print version
@@ -66,31 +46,25 @@ zig build run -- version
 zig build run -- system-info
 ```
 
-## Run Tests
+## First Test Run
 
 ABI maintains two test suites with enforced baselines.
 
-### Main test suite
+### Main tests
 
 ```bash
 zig build test --summary all
 ```
 
-Expected: **1252 pass, 5 skip** (1257 total).
+Expected: **1270 pass, 5 skip** (1275 total).
 
-The main tests live in `src/services/tests/mod.zig` and exercise cross-module integration,
-stress tests, chaos tests, and parity checks.
-
-### Feature inline tests
+### Feature tests
 
 ```bash
 zig build feature-tests --summary all
 ```
 
-Expected: **1512 pass** (1512 total).
-
-Feature tests are inline `test {}` blocks inside each module's source files, compiled
-through `src/feature_test_root.zig`.
+Expected: **1534 pass** (1534 total).
 
 ### Test a single file
 
@@ -104,6 +78,38 @@ zig test src/path/to/file.zig
 zig test src/services/tests/mod.zig --test-filter "pattern"
 ```
 
+## First Example
+
+ABI ships with 36 examples covering all major features. Build and run one:
+
+```bash
+# Build all examples
+zig build examples
+
+# Run the hello-world example
+zig build run-hello
+```
+
+Or write your own minimal program:
+
+```zig
+const std = @import("std");
+const abi = @import("abi");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Initialize framework with default config
+    var fw = try abi.initDefault(allocator);
+    defer fw.deinit();
+
+    std.debug.print("ABI v{s} running\n", .{abi.version()});
+    std.debug.print("State: {t}\n", .{fw.getState()});
+}
+```
+
 ## Feature Flags
 
 All features default to **enabled** except `mobile`. Toggle them at build time:
@@ -115,7 +121,7 @@ zig build -Denable-gpu=false -Denable-mobile=true
 # AI-only build
 zig build -Denable-ai=true -Denable-database=false -Denable-network=false
 
-# Validate that all flag combinations compile
+# Validate that all 34 flag combinations compile
 zig build validate-flags
 ```
 
@@ -144,20 +150,36 @@ zig build -Dgpu-backend=vulkan         # Cross-platform
 zig build -Dgpu-backend=simulated      # Software fallback (always available)
 ```
 
-See [Configuration](configuration.md) for the full flag and environment variable reference.
+See [Configuration](configuration.html) for the full 21-flag reference and all
+environment variables.
 
-## Run Examples
+## CLI Overview
 
-ABI ships with 32 examples covering all major features.
+ABI provides 28 CLI commands plus 8 aliases:
 
 ```bash
-# Build all examples
-zig build examples
+# List all commands
+zig build run -- --help
 
-# Run a specific example
-zig build run-hello
-zig build run-gpu
+# AI commands
+zig build run -- llm chat
+zig build run -- agent
+zig build run -- embed
+
+# GPU commands
+zig build run -- gpu backends
+zig build run -- gpu-dashboard
+
+# Database commands
+zig build run -- db stats
+zig build run -- db query --text "hello" --top-k 5
+
+# System commands
+zig build run -- system-info
+zig build run -- status
 ```
+
+See [CLI](cli.html) for the complete command reference.
 
 ## Full Validation
 
@@ -169,13 +191,11 @@ zig build full-check
 
 # Or the extended version (adds examples, benchmarks, WASM check, and Ralph gate)
 zig build verify-all
-
-# Run Ralph gate explicitly after generating live OpenAI results
-zig build ralph-gate
 ```
 
 ## Next Steps
 
-- [Architecture](architecture.md) -- understand the module hierarchy and comptime gating
-- [Configuration](configuration.md) -- all build flags and environment variables
-- [CLI](cli.md) -- 28 commands for AI, GPU, database, and system management
+- [Architecture](architecture.html) -- understand the module hierarchy and comptime gating
+- [Configuration](configuration.html) -- all build flags and environment variables
+- [Framework Lifecycle](framework.html) -- deep dive into initialization and state management
+- [CLI](cli.html) -- 28 commands for AI, GPU, database, and system management

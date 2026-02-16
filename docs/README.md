@@ -1,20 +1,18 @@
 # Documentation
 
-> **Last reviewed:** 2026-02-14
+> **Last reviewed:** 2026-02-16
 
-This directory is the source for the ABI documentation site and project docs.
+This directory is the source for the ABI documentation site.
 
 ## Contents
 
-| Document | Description |
-|----------|-------------|
-| [README.md](README.md) | This file — doc build and layout |
-| [api-reference.md](api-reference.md) | API overview and entry points |
-| [content/migration-vnext.html](content/migration-vnext.html) | Legacy-to-vNext API migration guide |
-| [deployment.md](deployment.md) | Deployment and production notes |
-| [roadmap.md](roadmap.md) | Product and technical roadmap |
-| [plan.md](plan.md) | Planning and design notes |
-| [plans/](plans/) | Dated improvement and feature plans |
+| Item | Description |
+|------|-------------|
+| `site.json` | Navigation manifest (40 pages, 10 sections) |
+| `hub.html` | Landing page |
+| `content/` | Markdown sources for all documentation pages |
+| `assets/` | CSS and JavaScript |
+| `api/` | Auto-generated API reference (`zig build gendocs`) |
 
 ## Requirements
 
@@ -22,20 +20,11 @@ This directory is the source for the ABI documentation site and project docs.
 
 ## Build
 
-Use the Zig toolchain pinned in `.zigversion`.
-
 ```bash
-zvm upgrade
-zvm install master
-zvm use master
-zig version
-cat .zigversion
-# If needed: export PATH="$HOME/.zvm/bin:$PATH"
-```
+# Sync toolchain
+zvm upgrade && zvm install master && zvm use master
 
-Generate the docs site:
-
-```bash
+# Generate the docs site
 zig build docs-site
 ```
 
@@ -47,11 +36,43 @@ Generate API reference only:
 zig build gendocs
 ```
 
-API docs are written to `docs/api/`. MkDocs is no longer used for the site.
+API docs are written to `docs/api/`.
 
 ## Layout
 
-- **site.json** — Navigation and page metadata for the doc site
-- **content/** — HTML fragments for each page
-- **assets/** — CSS and JavaScript
-- **api/** — Auto-generated API reference (`zig build gendocs`)
+The site generator (`tools/docs_site/main.zig`) reads `site.json` and processes
+each page's `.md` source into HTML with automatic TOC and search indexing.
+
+### Sections (40 pages)
+
+| Section | Pages | Topics |
+|---------|-------|--------|
+| Start | 3 | Home, Installation, Getting Started |
+| Core | 5 | Architecture, Configuration, Framework, CLI, Migration |
+| AI | 5 | Overview, Core, Inference, Training, Reasoning |
+| GPU | 2 | Compute, Backends |
+| Data | 4 | Database, Cache, Storage, Search |
+| Infrastructure | 7 | Network, Gateway, Messaging, Pages, Web, Cloud, Mobile |
+| Operations | 5 | Auth, Analytics, Observability, Deployment, Benchmarks |
+| Services | 3 | Connectors, MCP, ACP |
+| Reference | 6 | API, Examples, C Bindings, Troubleshooting, Contributing, Roadmap |
+
+### Writing content
+
+All pages use Markdown with YAML front matter:
+
+```yaml
+---
+title: Page Title
+description: One-line description
+section: Section Name
+order: 1
+---
+```
+
+Cross-links between pages use `.html` extensions (the site generator does not
+rewrite `.md` links). Example: `[Architecture](architecture.html)`.
+
+The markdown parser supports: headers, code blocks, tables, bold, italic,
+inline code, links, images, lists, blockquotes, and horizontal rules. It does
+not support nested lists or admonitions.

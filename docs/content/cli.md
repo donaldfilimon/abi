@@ -1,8 +1,8 @@
 ---
 title: CLI
-description: 28 commands for AI, GPU, database, and system management
+description: 28 commands and 8 aliases for AI, GPU, database, and system management
 section: Core
-order: 5
+order: 4
 ---
 
 # CLI
@@ -26,7 +26,7 @@ zig build run -- llm --help
 
 ## Command Reference
 
-### AI and Model Management
+### AI and Model Management (7 commands)
 
 | Command | Description | Example Subcommands |
 |---------|-------------|---------------------|
@@ -38,7 +38,7 @@ zig build run -- llm --help
 | `multi-agent` | Multi-agent workflows | -- |
 | `explore` | Search and explore codebase | -- |
 
-### GPU and Compute
+### GPU and Compute (4 commands)
 
 | Command | Description | Example Subcommands |
 |---------|-------------|---------------------|
@@ -47,14 +47,14 @@ zig build run -- llm --help
 | `simd` | Run SIMD performance demo | -- |
 | `bench` | Performance benchmarks | `all`, `simd`, `memory`, `ai`, `quick` |
 
-### Data and Storage
+### Data and Storage (2 commands)
 
 | Command | Description | Example Subcommands |
 |---------|-------------|---------------------|
 | `db` | Database operations | `add`, `query`, `stats`, `optimize`, `backup` |
 | `convert` | Dataset conversion tools | `tokenbin`, `text`, `jsonl`, `wdbx` |
 
-### Network and Services
+### Network and Services (4 commands)
 
 | Command | Description | Example Subcommands |
 |---------|-------------|---------------------|
@@ -63,7 +63,7 @@ zig build run -- llm --help
 | `mcp` | MCP server (Model Context Protocol) | `serve`, `tools` |
 | `acp` | Agent Communication Protocol | `card` |
 
-### System and Configuration
+### System and Configuration (11 commands)
 
 | Command | Description | Example Subcommands |
 |---------|-------------|---------------------|
@@ -80,11 +80,15 @@ zig build run -- llm --help
 | `help` | Show help for any command | -- |
 | `os-agent` | OS-level agent operations | -- |
 
-### Aliases
+**Total: 28 commands** (7 AI + 4 GPU + 2 Data + 4 Network + 11 System).
+
+### Aliases (8)
 
 | Alias | Expands To |
 |-------|-----------|
 | `serve` | `llm serve` |
+
+(Additional aliases are registered in `tools/cli/main.zig` for common workflows.)
 
 ## MCP Server
 
@@ -238,17 +242,17 @@ zig build run -- completions powershell > abi.ps1
 
 ## Build Targets for Examples
 
-Many examples are registered as build targets for direct execution:
+Many of the 36 examples are registered as build targets for direct execution:
 
 ```bash
 zig build run-hello           # Hello world example
 zig build run-gpu             # GPU compute example
-zig build examples            # Build all 32 examples
+zig build examples            # Build all 36 examples
 ```
 
 ## CLI Smoke Tests
 
-The build system includes smoke tests that verify all commands accept `--help`:
+The build system includes smoke tests that verify all 28 commands accept `--help`:
 
 ```bash
 zig build cli-tests
@@ -256,3 +260,9 @@ zig build cli-tests
 
 This runs both top-level commands (e.g., `help`) and nested subcommands
 (e.g., `help llm`, `bench micro hash`) to catch registration and parsing errors.
+
+## Further Reading
+
+- [Configuration](configuration.html) -- build flags and environment variables used by CLI commands
+- [Framework Lifecycle](framework.html) -- how `config init` and `config validate` interact with the framework
+- [Getting Started](getting-started.html) -- first CLI commands to try

@@ -2,7 +2,7 @@
 title: Configuration
 description: Feature flags, config builder, and environment variables
 section: Core
-order: 4
+order: 2
 ---
 
 # Configuration
@@ -51,6 +51,9 @@ var fw = try abi.initDefault(allocator);
 defer fw.deinit();
 ```
 
+See [Framework Lifecycle](framework.html) for a deep dive into all three initialization
+patterns and the builder method reference.
+
 ## Feature Flags
 
 All features are controlled by `-D` flags passed to `zig build`. Every flag defaults
@@ -60,21 +63,21 @@ to `true` except `-Denable-mobile`.
 zig build -Denable-ai=true -Denable-gpu=false -Denable-mobile=true
 ```
 
-### Complete Flag Reference
+### Complete Flag Reference (21 Modules)
 
 | Feature Module | Build Flag | Default | Description |
 |----------------|-----------|---------|-------------|
-| `ai` | `-Denable-ai` | `true` | AI core functionality (monolith) |
+| `ai` | `-Denable-ai` | `true` | AI core functionality (monolith, 17 submodules with stubs + 6 without) |
 | `ai_core` | `-Denable-ai` | `true` | Agents, tools, prompts, personas, memory |
 | `inference` | `-Denable-llm` | `true` | LLM, embeddings, vision, streaming, transformer |
 | `training` | `-Denable-training` | `true` | Training pipelines, federated learning |
 | `reasoning` | `-Denable-reasoning` | `true` | Abbey reasoning, RAG, eval, templates, orchestration |
-| `gpu` | `-Denable-gpu` | `true` | GPU acceleration and compute |
+| `gpu` | `-Denable-gpu` | `true` | GPU acceleration and compute (10 backends) |
 | `database` | `-Denable-database` | `true` | Vector database (WDBX) |
 | `network` | `-Denable-network` | `true` | Distributed compute network |
 | `web` | `-Denable-web` | `true` | Web/HTTP utilities |
 | `analytics` | `-Denable-analytics` | `true` | Analytics event tracking |
-| `cloud` | `-Denable-cloud` | `true` | Cloud provider integration |
+| `cloud` | `-Denable-cloud` | `true` | Cloud provider integration (decoupled from web) |
 | `auth` | `-Denable-auth` | `true` | Authentication and security (16 sub-modules) |
 | `messaging` | `-Denable-messaging` | `true` | Event bus, pub/sub, dead letter queues |
 | `cache` | `-Denable-cache` | `true` | In-memory LRU/LFU/FIFO caching |
@@ -86,7 +89,8 @@ zig build -Denable-ai=true -Denable-gpu=false -Denable-mobile=true
 | `mobile` | `-Denable-mobile` | **`false`** | Mobile platform (lifecycle, sensors, notifications) |
 | `benchmarks` | `-Denable-benchmarks` | `true` | Performance benchmarking and timing |
 
-Note that observability uses `-Denable-profiling`, not `-Denable-observability`.
+Note that `observability` uses `-Denable-profiling`, not `-Denable-observability`.
+The `cloud` module has its own flag decoupled from `web`.
 
 ### Validate Flag Combinations
 
@@ -214,3 +218,9 @@ Each feature module has a corresponding config struct in `src/core/config/`:
 
 All config fields in the unified `Config` struct are optional (`?ConfigType`). A `null`
 value means that feature uses its defaults or is not explicitly configured.
+
+## Further Reading
+
+- [Architecture](architecture.html) -- module hierarchy and comptime gating
+- [Framework Lifecycle](framework.html) -- init patterns, state machine, builder details
+- [CLI](cli.html) -- runtime configuration commands (`config init`, `config show`, `config validate`)

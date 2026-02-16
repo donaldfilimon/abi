@@ -1,13 +1,13 @@
 ---
 title: Examples
-description: 32 runnable examples covering all major modules
+description: 36 runnable examples covering all major modules
 section: Reference
-order: 19
+order: 2
 ---
 
 # Examples
 
-ABI ships with 32 runnable examples in the `examples/` directory. Each example
+ABI ships with 36 runnable examples in the `examples/` directory. Each example
 is wired into `build.zig` as a named build target.
 
 ## Build and Run
@@ -34,52 +34,72 @@ hardware is unavailable.
 
 | Example | Target | Description |
 |---------|--------|-------------|
-| `hello` | `run-hello` | Minimal framework init, version print |
-| `compute` | `run-compute` | Basic SIMD vector operations |
-| `concurrency` | `run-concurrency` | Thread pool, channels, DAG scheduling |
+| `hello.zig` | `run-hello` | Minimal framework init, version print |
+| `compute.zig` | `run-compute` | SIMD vector operations: dot product, cosine similarity, L2 distance |
+| `concurrency.zig` | `run-concurrency` | Lock-free MPMC queue, Chase-Lev work-stealing deque |
+| `concurrent_pipeline.zig` | `run-concurrent-pipeline` | Pipeline with Channel, ThreadPool, and DagPipeline |
+| `config.zig` | `run-config` | Configuration system with GPU, AI, and database settings via Builder |
+| `registry.zig` | `run-registry` | Feature registry with comptime and runtime toggle modes |
+| `tensor_ops.zig` | `run-tensor-ops` | Matrix multiply, tensor transforms, SIMD vector ops, v2 primitives |
+| `embeddings.zig` | `run-embeddings` | SIMD-accelerated vector operations for embeddings |
 
 ### AI and LLM
 
 | Example | Target | Description |
 |---------|--------|-------------|
-| `llm` | `run-llm` | Local LLM inference with streaming |
-| `training` | `run-training` | Training pipeline configuration |
-| `orchestration` | `run-orchestration` | Multi-model orchestration |
-| `agent` | `run-agent` | Agent with tool use and memory |
+| `llm.zig` | `run-llm` | Local GGUF model loading, tokenization, text generation, streaming |
+| `llm_real.zig` | `run-llm-real` | Live inference via Ollama, LM Studio, or vLLM backends |
+| `agent.zig` | `run-agent` | Agent initialization, tool registration, query processing |
+| `ai_core.zig` | `run-ai-core` | Agents, tool registries, prompt builders, model discovery |
+| `ai_inference.zig` | `run-ai-inference` | LLM engine configuration, embeddings, streaming generation |
+| `ai_training.zig` | `run-ai-training` | Training pipeline configuration, optimizer selection, checkpoints |
+| `ai_reasoning.zig` | `run-ai-reasoning` | Abbey reasoning, RAG pipelines, evaluation templates |
+| `training.zig` | `run-training` | Model training with optimizers, checkpoints, gradient checkpointing |
+| `train_ava.zig` | `run-train-ava` | Fine-tune the Ava assistant model from gpt-oss base |
+| `orchestration.zig` | `run-orchestration` | Multi-model routing, load balancing, fallback, ensemble mode |
+| `streaming.zig` | `run-streaming` | SSE encoding, stream events, circuit breaker patterns |
 
 ### GPU
 
 | Example | Target | Description |
 |---------|--------|-------------|
-| `gpu` | `run-gpu` | Kernel dispatch, backend detection |
-| `multi-gpu` | `run-multi-gpu` | Multi-GPU orchestration |
+| `gpu.zig` | `run-gpu` | Device discovery, buffer management, high-level ops, profiling |
 
-### Database
+### Data
 
 | Example | Target | Description |
 |---------|--------|-------------|
-| `database` | `run-database` | WDBX vector database operations |
-| `vectors` | `run-vectors` | Vector similarity search |
+| `database.zig` | `run-database` | WDBX vector database with HNSW indexing and similarity search |
+| `cache.zig` | `run-cache` | LRU/LFU cache with TTL, eviction, and statistics |
+| `search.zig` | `run-search` | Inverted index with BM25 ranking, document indexing |
+| `storage.zig` | `run-storage` | Unified object storage abstraction with metadata and memory backend |
 
 ### Infrastructure
 
 | Example | Target | Description |
 |---------|--------|-------------|
-| `network` | `run-network` | Peer discovery, messaging |
-| `ha` | `run-ha` | High availability, failover |
-| `observability` | `run-observability` | Metrics, tracing, alerting |
-| `discord` | `run-discord` | Discord bot integration |
+| `network.zig` | `run-network` | Distributed compute, node registration, Raft consensus |
+| `gateway.zig` | `run-gateway` | API gateway: radix-tree routing, rate limiting, circuit breaker |
+| `messaging.zig` | `run-messaging` | Pub/sub with MQTT-style topic patterns and wildcard matching |
+| `pages.zig` | `run-pages` | Dashboard/UI pages, URL routing, template rendering |
+| `web.zig` | `run-web` | HTTP client, persona routing, chat handling, JSON utilities |
 
-### New Modules
+### Operations
 
 | Example | Target | Description |
 |---------|--------|-------------|
-| `cache` | `run-cache` | LRU/LFU cache with TTL |
-| `search` | `run-search` | Full-text BM25 search |
-| `messaging` | `run-messaging` | Pub/sub with MQTT patterns |
-| `storage` | `run-storage` | Object storage with metadata |
-| `gateway` | `run-gateway` | API routing, rate limiting |
-| `pages` | `run-pages` | URL routing, template rendering |
+| `observability.zig` | `run-observability` | Counters, gauges, histograms, distributed tracing spans |
+| `analytics.zig` | `run-analytics` | Event tracking, sessions, funnels, statistics gathering |
+| `auth.zig` | `run-auth` | JWT, API key management, RBAC, rate limiting |
+| `ha.zig` | `run-ha` | Multi-region replication, backup orchestration, PITR, failover |
+
+### Services
+
+| Example | Target | Description |
+|---------|--------|-------------|
+| `discord.zig` | `run-discord` | Discord bot: API connection, guild listing, messaging |
+| `cloud.zig` | `run-cloud` | Serverless wrappers for AWS Lambda, GCP Functions, Azure |
+| `mobile.zig` | `run-mobile` | Platform lifecycle, sensors, notifications (requires `-Denable-mobile=true`) |
 
 ---
 
@@ -100,6 +120,7 @@ pub fn main() !void {
     defer fw.deinit();
 
     // Your code here
+    std.debug.print("ABI v{s}\n", .{abi.version()});
 }
 ```
 
@@ -124,3 +145,11 @@ To run without GPU:
 zig build run-gpu -Denable-gpu=false
 # The example will handle FeatureDisabled gracefully
 ```
+
+---
+
+## Related Pages
+
+- [API Overview](api.html) -- Public API surface and import patterns
+- [Configuration](configuration.html) -- Feature flags and build options
+- [GPU Module](gpu.html) -- GPU backends and kernel DSL

@@ -1,467 +1,547 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>ABI — High performance AI and systems framework</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@500;600;700;800&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg: #08080a;
+                --bg-elevated: #0e0e12;
+                --surface: #121218;
+                --border: #1e1e26;
+                --border-focus: #2a2a34;
+                --text: #e4e0da;
+                --text-muted: #8a8680;
+                --accent: #e8a317;
+                --accent-dim: rgba(232, 163, 23, 0.25);
+                --accent-glow: rgba(232, 163, 23, 0.12);
+                --success: #3d9d6b;
+                --font-display: "Syne", system-ui, sans-serif;
+                --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+                --space-xs: 0.25rem;
+                --space-sm: 0.5rem;
+                --space-md: 1rem;
+                --space-lg: 1.5rem;
+                --space-xl: 2rem;
+                --space-2xl: 3rem;
+                --space-3xl: 4rem;
+                --radius-sm: 4px;
+                --radius-md: 8px;
+                --radius-lg: 12px;
+                --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+                --stagger: 60ms;
+            }
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ABI — High performance AI and systems framework</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@500;600;700;800&display=swap"
-    rel="stylesheet" />
-  <style>
-    :root {
-      --bg: #08080a;
-      --bg-elevated: #0e0e12;
-      --surface: #121218;
-      --border: #1e1e26;
-      --border-focus: #2a2a34;
-      --text: #e4e0da;
-      --text-muted: #8a8680;
-      --accent: #e8a317;
-      --accent-dim: rgba(232, 163, 23, 0.25);
-      --accent-glow: rgba(232, 163, 23, 0.12);
-      --success: #3d9d6b;
-      --font-display: "Syne", system-ui, sans-serif;
-      --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-      --space-xs: 0.25rem;
-      --space-sm: 0.5rem;
-      --space-md: 1rem;
-      --space-lg: 1.5rem;
-      --space-xl: 2rem;
-      --space-2xl: 3rem;
-      --space-3xl: 4rem;
-      --radius-sm: 4px;
-      --radius-md: 8px;
-      --radius-lg: 12px;
-      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-      --stagger: 60ms;
-    }
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+            }
 
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
+            html {
+                scroll-behavior: smooth;
+            }
 
-    html {
-      scroll-behavior: smooth;
-    }
+            body {
+                margin: 0;
+                min-height: 100vh;
+                font-family: var(--font-mono);
+                font-size: 14px;
+                line-height: 1.6;
+                color: var(--text);
+                background: var(--bg);
+                -webkit-font-smoothing: antialiased;
+                overflow-x: hidden;
+            }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: var(--font-mono);
-      font-size: 14px;
-      line-height: 1.6;
-      color: var(--text);
-      background: var(--bg);
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
+            .grid-bg {
+                position: fixed;
+                inset: 0;
+                z-index: 0;
+                background-image:
+                    linear-gradient(
+                        rgba(255, 255, 255, 0.02) 1px,
+                        transparent 1px
+                    ),
+                    linear-gradient(
+                        90deg,
+                        rgba(255, 255, 255, 0.02) 1px,
+                        transparent 1px
+                    );
+                background-size: 48px 48px;
+                mask-image: radial-gradient(
+                    ellipse 80% 60% at 50% 0%,
+                    black 20%,
+                    transparent 70%
+                );
+                -webkit-mask-image: radial-gradient(
+                    ellipse 80% 60% at 50% 0%,
+                    black 20%,
+                    transparent 70%
+                );
+                pointer-events: none;
+            }
 
-    /* Grid background */
-    .grid-bg {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      background-image:
-        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-      background-size: 48px 48px;
-      mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 70%);
-      -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 70%);
-      pointer-events: none;
-    }
+            .noise {
+                position: fixed;
+                inset: 0;
+                z-index: 0;
+                opacity: 0.035;
+                pointer-events: none;
+                background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            }
 
-    .noise {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      opacity: 0.035;
-      pointer-events: none;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    }
+            .wrap {
+                position: relative;
+                z-index: 1;
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: var(--space-xl);
+            }
 
-    .wrap {
-      position: relative;
-      z-index: 1;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: var(--space-xl);
-    }
+            .hero {
+                padding: var(--space-3xl) 0;
+                text-align: left;
+            }
 
-    /* Hero */
-    .hero {
-      padding: var(--space-3xl) 0;
-      text-align: left;
-    }
+            .hero .label {
+                display: inline-block;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+                color: var(--accent);
+                margin-bottom: var(--space-md);
+                opacity: 0;
+                animation: fadeUp 0.6s var(--ease-out) forwards;
+            }
 
-    .hero .label {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: var(--space-md);
-      opacity: 0;
-      animation: fadeUp 0.6s var(--ease-out) forwards;
-    }
+            .hero h1 {
+                font-family: var(--font-display);
+                font-size: clamp(2.5rem, 6vw, 4rem);
+                font-weight: 800;
+                line-height: 1.05;
+                letter-spacing: -0.03em;
+                margin: 0 0 var(--space-lg);
+                color: var(--text);
+                opacity: 0;
+                animation: fadeUp 0.6s var(--ease-out) 0.08s forwards;
+            }
 
-    .hero h1 {
-      font-family: var(--font-display);
-      font-size: clamp(2.5rem, 6vw, 4rem);
-      font-weight: 800;
-      line-height: 1.05;
-      letter-spacing: -0.03em;
-      margin: 0 0 var(--space-lg);
-      color: var(--text);
-      opacity: 0;
-      animation: fadeUp 0.6s var(--ease-out) 0.08s forwards;
-    }
+            .hero .tagline {
+                font-size: 1.1rem;
+                color: var(--text-muted);
+                max-width: 42ch;
+                margin: 0 0 var(--space-2xl);
+                opacity: 0;
+                animation: fadeUp 0.6s var(--ease-out) 0.16s forwards;
+            }
 
-    .hero .tagline {
-      font-size: 1.1rem;
-      color: var(--text-muted);
-      max-width: 42ch;
-      margin: 0 0 var(--space-2xl);
-      opacity: 0;
-      animation: fadeUp 0.6s var(--ease-out) 0.16s forwards;
-    }
+            .hero-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--space-md);
+                opacity: 0;
+                animation: fadeUp 0.6s var(--ease-out) 0.24s forwards;
+            }
 
-    .hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-md);
-      opacity: 0;
-      animation: fadeUp 0.6s var(--ease-out) 0.24s forwards;
-    }
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                gap: var(--space-sm);
+                padding: var(--space-sm) var(--space-lg);
+                font-family: var(--font-mono);
+                font-size: 13px;
+                font-weight: 500;
+                text-decoration: none;
+                border-radius: var(--radius-sm);
+                border: 1px solid var(--border);
+                background: var(--surface);
+                color: var(--text);
+                transition:
+                    border-color 0.2s,
+                    background 0.2s,
+                    color 0.2s,
+                    box-shadow 0.2s;
+            }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-sm) var(--space-lg);
-      font-family: var(--font-mono);
-      font-size: 13px;
-      font-weight: 500;
-      text-decoration: none;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      transition: border-color 0.2s, background 0.2s, color 0.2s, box-shadow 0.2s;
-    }
+            .btn:hover {
+                border-color: var(--accent);
+                background: var(--accent-dim);
+                color: var(--accent);
+                box-shadow: 0 0 24px var(--accent-glow);
+            }
 
-    .btn:hover {
-      border-color: var(--accent);
-      background: var(--accent-dim);
-      color: var(--accent);
-      box-shadow: 0 0 24px var(--accent-glow);
-    }
+            .btn-primary {
+                border-color: var(--accent);
+                background: var(--accent);
+                color: var(--bg);
+            }
 
-    .btn-primary {
-      border-color: var(--accent);
-      background: var(--accent);
-      color: var(--bg);
-    }
+            .btn-primary:hover {
+                background: #f0b429;
+                border-color: #f0b429;
+                color: var(--bg);
+                box-shadow: 0 0 32px var(--accent-glow);
+            }
 
-    .btn-primary:hover {
-      background: #f0b429;
-      border-color: #f0b429;
-      color: var(--bg);
-      box-shadow: 0 0 32px var(--accent-glow);
-    }
+            section {
+                margin-bottom: var(--space-3xl);
+            }
 
-    /* Sections */
-    section {
-      margin-bottom: var(--space-3xl);
-    }
+            .section-title {
+                font-family: var(--font-display);
+                font-size: 0.75rem;
+                font-weight: 700;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                color: var(--text-muted);
+                margin-bottom: var(--space-lg);
+            }
 
-    .section-title {
-      font-family: var(--font-display);
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-bottom: var(--space-lg);
-    }
+            .cards {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                gap: var(--space-lg);
+            }
 
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: var(--space-lg);
-    }
+            .card {
+                --delay: 0ms;
+                padding: var(--space-lg);
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-md);
+                transition:
+                    border-color 0.25s,
+                    transform 0.25s,
+                    box-shadow 0.25s;
+                opacity: 0;
+                animation: fadeUp 0.5s var(--ease-out) var(--delay) forwards;
+            }
 
-    .card {
-      --delay: 0ms;
-      padding: var(--space-lg);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
-      opacity: 0;
-      animation: fadeUp 0.5s var(--ease-out) var(--delay) forwards;
-    }
+            .card:hover {
+                border-color: var(--border-focus);
+                transform: translateY(-2px);
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+            }
 
-    .card:hover {
-      border-color: var(--border-focus);
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-    }
+            .card h3 {
+                font-family: var(--font-display);
+                font-size: 1rem;
+                font-weight: 700;
+                margin: 0 0 var(--space-sm);
+                color: var(--text);
+            }
 
-    .card h3 {
-      font-family: var(--font-display);
-      font-size: 1rem;
-      font-weight: 700;
-      margin: 0 0 var(--space-sm);
-      color: var(--text);
-    }
+            .card p {
+                font-size: 13px;
+                color: var(--text-muted);
+                margin: 0 0 var(--space-md);
+                line-height: 1.5;
+            }
 
-    .card p {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin: 0 0 var(--space-md);
-      line-height: 1.5;
-    }
+            .card code,
+            .block-cmd code {
+                font-size: 12px;
+                padding: 2px 6px;
+                background: var(--bg-elevated);
+                border-radius: var(--radius-sm);
+                color: var(--accent);
+            }
 
-    .card code,
-    .block-cmd code {
-      font-size: 12px;
-      padding: 2px 6px;
-      background: var(--bg-elevated);
-      border-radius: var(--radius-sm);
-      color: var(--accent);
-    }
+            .block-cmd {
+                margin: var(--space-md) 0 0;
+                padding: var(--space-md);
+                background: var(--bg);
+                border-radius: var(--radius-sm);
+                border: 1px solid var(--border);
+            }
 
-    .block-cmd {
-      margin: var(--space-md) 0 0;
-      padding: var(--space-md);
-      background: var(--bg);
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-    }
+            .block-cmd code {
+                display: block;
+                padding: 0;
+                background: none;
+                color: var(--text);
+            }
 
-    .block-cmd code {
-      display: block;
-      padding: 0;
-      background: none;
-      color: var(--text);
-    }
+            .card a {
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--accent);
+                text-decoration: none;
+                margin-top: var(--space-sm);
+                display: inline-flex;
+                align-items: center;
+                gap: var(--space-xs);
+            }
 
-    .card a {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--accent);
-      text-decoration: none;
-      margin-top: var(--space-sm);
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-xs);
-    }
+            .card a:hover {
+                text-decoration: underline;
+            }
 
-    .card a:hover {
-      text-decoration: underline;
-    }
+            .quick-strip {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: var(--space-md);
+                margin-bottom: var(--space-2xl);
+            }
 
-    /* Quick commands strip */
-    .quick-strip {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: var(--space-md);
-      margin-bottom: var(--space-2xl);
-    }
+            .quick-strip .block-cmd {
+                margin: 0;
+                --delay: 0ms;
+                opacity: 0;
+                animation: fadeUp 0.5s var(--ease-out) 0.32s forwards;
+            }
 
-    .quick-strip .block-cmd {
-      margin: 0;
-      --delay: 0ms;
-      opacity: 0;
-      animation: fadeUp 0.5s var(--ease-out) 0.32s forwards;
-    }
+            .quick-strip .block-cmd:nth-child(1) {
+                animation-delay: 0.32s;
+            }
+            .quick-strip .block-cmd:nth-child(2) {
+                animation-delay: 0.38s;
+            }
+            .quick-strip .block-cmd:nth-child(3) {
+                animation-delay: 0.44s;
+            }
+            .quick-strip .block-cmd:nth-child(4) {
+                animation-delay: 0.5s;
+            }
+            .quick-strip .block-cmd code {
+                font-size: 13px;
+            }
 
-    .quick-strip .block-cmd:nth-child(1) {
-      animation-delay: 0.32s;
-    }
+            .doc-nav {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+                gap: var(--space-md);
+            }
 
-    .quick-strip .block-cmd:nth-child(2) {
-      animation-delay: 0.38s;
-    }
+            .doc-nav a {
+                display: block;
+                padding: var(--space-sm) var(--space-md);
+                font-size: 13px;
+                color: var(--text-muted);
+                text-decoration: none;
+                border-radius: var(--radius-sm);
+                border: 1px solid transparent;
+                transition:
+                    color 0.2s,
+                    border-color 0.2s,
+                    background 0.2s;
+            }
 
-    .quick-strip .block-cmd:nth-child(3) {
-      animation-delay: 0.44s;
-    }
+            .doc-nav a:hover {
+                color: var(--text);
+                border-color: var(--border);
+                background: var(--surface);
+            }
 
-    .quick-strip .block-cmd:nth-child(4) {
-      animation-delay: 0.5s;
-    }
+            .doc-nav .section-label {
+                grid-column: 1 / -1;
+                font-family: var(--font-display);
+                font-size: 0.7rem;
+                font-weight: 700;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: var(--text-muted);
+                margin-top: var(--space-lg);
+                margin-bottom: var(--space-xs);
+            }
 
-    .quick-strip .block-cmd code {
-      font-size: 13px;
-    }
+            .doc-nav .section-label:first-child {
+                margin-top: 0;
+            }
 
-    /* Docs nav */
-    .doc-nav {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: var(--space-md);
-    }
+            @keyframes fadeUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(12px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
 
-    .doc-nav a {
-      display: block;
-      padding: var(--space-sm) var(--space-md);
-      font-size: 13px;
-      color: var(--text-muted);
-      text-decoration: none;
-      border-radius: var(--radius-sm);
-      border: 1px solid transparent;
-      transition: color 0.2s, border-color 0.2s, background 0.2s;
-    }
+            footer {
+                padding: var(--space-2xl) 0;
+                border-top: 1px solid var(--border);
+                font-size: 12px;
+                color: var(--text-muted);
+            }
 
-    .doc-nav a:hover {
-      color: var(--text);
-      border-color: var(--border);
-      background: var(--surface);
-    }
+            footer a {
+                color: var(--accent);
+                text-decoration: none;
+            }
 
-    .doc-nav .section-label {
-      grid-column: 1 / -1;
-      font-family: var(--font-display);
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      margin-top: var(--space-lg);
-      margin-bottom: var(--space-xs);
-    }
+            footer a:hover {
+                text-decoration: underline;
+            }
+        </style>
+    </head>
 
-    .doc-nav .section-label:first-child {
-      margin-top: 0;
-    }
+    <body>
+        <div class="grid-bg" aria-hidden="true"></div>
+        <div class="noise" aria-hidden="true"></div>
 
-    @keyframes fadeUp {
-      from {
-        opacity: 0;
-        transform: translateY(12px);
-      }
+        <div class="wrap">
+            <header class="hero">
+                <p class="label">Zig · AI · Systems</p>
+                <h1>ABI</h1>
+                <p class="tagline">
+                    High performance AI and systems framework. 21 modules, 28
+                    CLI commands, 10 GPU backends, and a vector database.
+                </p>
+                <div class="hero-actions">
+                    <a
+                        href="content/getting-started.html"
+                        class="btn btn-primary"
+                        >Get started</a
+                    >
+                    <a href="#commands" class="btn">Quick commands</a>
+                    <a href="#docs" class="btn">Documentation</a>
+                </div>
+            </header>
 
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+            <section id="commands">
+                <h2 class="section-title">Quick commands</h2>
+                <div class="quick-strip">
+                    <div class="block-cmd"><code>zig build</code></div>
+                    <div class="block-cmd">
+                        <code>zig build run -- --help</code>
+                    </div>
+                    <div class="block-cmd">
+                        <code>zig build run-hello</code>
+                    </div>
+                    <div class="block-cmd">
+                        <code>zig build benchmarks</code>
+                    </div>
+                </div>
+            </section>
 
-    /* Footer */
-    footer {
-      padding: var(--space-2xl) 0;
-      border-top: 1px solid var(--border);
-      font-size: 12px;
-      color: var(--text-muted);
-    }
+            <section>
+                <h2 class="section-title">
+                    CLI · Benchmarks · Examples · Build
+                </h2>
+                <div class="cards">
+                    <div class="card" style="--delay: 0.05s">
+                        <h3>CLI</h3>
+                        <p>
+                            28 commands + 8 aliases. Run
+                            <code>abi --help</code> for the full list.
+                        </p>
+                        <div class="block-cmd">
+                            <code>zig build run -- --help</code>
+                        </div>
+                    </div>
+                    <div class="card" style="--delay: 0.1s">
+                        <h3>Benchmarks</h3>
+                        <p>
+                            Comprehensive and competitive benchmarks.
+                            ReleaseFast build.
+                        </p>
+                        <div class="block-cmd">
+                            <code>zig build benchmarks</code>
+                        </div>
+                    </div>
+                    <div class="card" style="--delay: 0.15s">
+                        <h3>Examples</h3>
+                        <p>
+                            36 runnable examples: hello, database, agent, LLM,
+                            GPU, streaming, gateway, and more.
+                        </p>
+                        <div class="block-cmd">
+                            <code>zig build run-hello</code>
+                        </div>
+                        <a href="content/examples.html">Examples docs →</a>
+                    </div>
+                    <div class="card" style="--delay: 0.2s">
+                        <h3>Build</h3>
+                        <p>
+                            21 feature flags control modules. Optional GPU
+                            (Metal/CUDA), AI, database, network.
+                        </p>
+                        <div class="block-cmd">
+                            <code>zig build -Denable-ai=true</code>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-    footer a {
-      color: var(--accent);
-      text-decoration: none;
-    }
+            <section id="docs">
+                <h2 class="section-title">Documentation</h2>
+                <nav class="doc-nav">
+                    <span class="section-label">Start</span>
+                    <a href="content/index.html">Home</a>
+                    <a href="content/installation.html">Installation</a>
+                    <a href="content/getting-started.html">Getting Started</a>
 
-    footer a:hover {
-      text-decoration: underline;
-    }
-  </style>
-</head>
+                    <span class="section-label">Core</span>
+                    <a href="content/architecture.html">Architecture</a>
+                    <a href="content/configuration.html">Configuration</a>
+                    <a href="content/framework.html">Framework</a>
+                    <a href="content/cli.html">CLI Reference</a>
+                    <a href="content/migration-vnext.html">Migration (vNext)</a>
 
-<body>
-  <div class="grid-bg" aria-hidden="true"></div>
-  <div class="noise" aria-hidden="true"></div>
+                    <span class="section-label">AI</span>
+                    <a href="content/ai-overview.html">AI Overview</a>
+                    <a href="content/ai-core.html">AI Core</a>
+                    <a href="content/ai-inference.html">Inference</a>
+                    <a href="content/ai-training.html">Training</a>
+                    <a href="content/ai-reasoning.html">Reasoning</a>
 
-  <div class="wrap">
-    <header class="hero">
-      <p class="label">Zig · AI · Systems</p>
-      <h1>ABI</h1>
-      <p class="tagline">High performance AI and systems framework. One runtime, feature flags, GPU acceleration, and a
-        vector database.</p>
-      <div class="hero-actions">
-        <a href="content/getting-started.html" class="btn btn-primary">Get started</a>
-        <a href="#commands" class="btn">Quick commands</a>
-        <a href="#docs" class="btn">Documentation</a>
-      </div>
-    </header>
+                    <span class="section-label">GPU</span>
+                    <a href="content/gpu.html">GPU Compute</a>
+                    <a href="content/gpu-backends.html">GPU Backends</a>
 
-    <section id="commands">
-      <h2 class="section-title">Quick commands</h2>
-      <div class="quick-strip">
-        <div class="block-cmd"><code>zig build</code></div>
-        <div class="block-cmd"><code>zig build run -- --help</code></div>
-        <div class="block-cmd"><code>zig build run-hello</code></div>
-        <div class="block-cmd"><code>zig build benchmarks</code></div>
-      </div>
-    </section>
+                    <span class="section-label">Data</span>
+                    <a href="content/database.html">Database (WDBX)</a>
+                    <a href="content/cache.html">Cache</a>
+                    <a href="content/storage.html">Storage</a>
+                    <a href="content/search.html">Search</a>
 
-    <section>
-      <h2 class="section-title">CLI · Benchmarks · Examples · Build</h2>
-      <div class="cards">
-        <div class="card" style="--delay: 0.05s">
-          <h3>CLI</h3>
-          <p>Single executable. Run <code>abi --help</code> for commands: run, bench, llm, and more.</p>
-          <div class="block-cmd"><code>zig build run -- --help</code></div>
+                    <span class="section-label">Infrastructure</span>
+                    <a href="content/network.html">Network</a>
+                    <a href="content/gateway.html">Gateway</a>
+                    <a href="content/messaging.html">Messaging</a>
+                    <a href="content/pages.html">Pages</a>
+                    <a href="content/web.html">Web</a>
+                    <a href="content/cloud.html">Cloud</a>
+                    <a href="content/mobile.html">Mobile</a>
+
+                    <span class="section-label">Operations</span>
+                    <a href="content/auth.html">Auth & Security</a>
+                    <a href="content/analytics.html">Analytics</a>
+                    <a href="content/observability.html">Observability</a>
+                    <a href="content/deployment.html">Deployment</a>
+                    <a href="content/benchmarks.html">Benchmarks</a>
+
+                    <span class="section-label">Services</span>
+                    <a href="content/connectors.html">Connectors</a>
+                    <a href="content/mcp.html">MCP Server</a>
+                    <a href="content/acp.html">ACP Protocol</a>
+
+                    <span class="section-label">Reference</span>
+                    <a href="content/api.html">API Overview</a>
+                    <a href="content/examples.html">Examples</a>
+                    <a href="content/c-bindings.html">C API Bindings</a>
+                    <a href="content/troubleshooting.html">Troubleshooting</a>
+                    <a href="content/contributing.html">Contributing</a>
+                    <a href="content/roadmap.html">Roadmap</a>
+                </nav>
+            </section>
+
+            <footer>
+                Built with Zig 0.16. ABI v0.4.0 — 1270 tests pass, 1534 feature
+                tests, 21 modules, 36 examples.
+            </footer>
         </div>
-        <div class="card" style="--delay: 0.1s">
-          <h3>Benchmarks</h3>
-          <p>Comprehensive and competitive benchmarks. ReleaseFast build.</p>
-          <div class="block-cmd"><code>zig build benchmarks</code></div>
-        </div>
-        <div class="card" style="--delay: 0.15s">
-          <h3>Examples</h3>
-          <p>Hello, database, agent, LLM, GPU, streaming, gateway, and 30+ runnable examples.</p>
-          <div class="block-cmd"><code>zig build run-hello</code></div>
-          <a href="content/examples.html">Examples docs →</a>
-        </div>
-        <div class="card" style="--delay: 0.2s">
-          <h3>Build</h3>
-          <p>Feature flags control modules. Optional GPU (Metal/CUDA), AI, database, network.</p>
-          <div class="block-cmd"><code>zig build -Denable-ai=true</code></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="docs">
-      <h2 class="section-title">Documentation</h2>
-      <nav class="doc-nav">
-        <span class="section-label">Start</span>
-        <a href="content/index.html">Home</a>
-        <a href="content/getting-started.html">Getting started</a>
-
-        <span class="section-label">Core</span>
-        <a href="content/configuration.html">Configuration</a>
-        <a href="content/cli.html">CLI</a>
-        <a href="content/architecture.html">Architecture</a>
-        <a href="content/migration-vnext.html">Migration (vNext)</a>
-
-        <span class="section-label">Modules</span>
-        <a href="content/ai.html">AI</a>
-        <a href="content/gpu.html">GPU</a>
-        <a href="content/database.html">Database</a>
-        <a href="content/network.html">Network</a>
-
-        <span class="section-label">Operations</span>
-        <a href="content/deployment.html">Deployment</a>
-        <a href="content/observability.html">Observability</a>
-        <a href="content/security.html">Security</a>
-
-        <span class="section-label">Reference</span>
-        <a href="content/api.html">API overview</a>
-        <a href="content/examples.html">Examples</a>
-        <a href="content/contributing.html">Contributing</a>
-      </nav>
-    </section>
-
-    <footer>
-      Built with Zig 0.16. ABI — high performance AI and systems framework.
-    </footer>
-  </div>
-</body>
-
+    </body>
 </html>

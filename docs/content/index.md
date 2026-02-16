@@ -12,8 +12,8 @@ AI inference, GPU compute, vector database, runtime infrastructure, and operatio
 tooling into a single build with compile-time feature gating.
 
 Version **0.4.0** provides 21 feature modules, 10 GPU backends, 9 LLM provider
-connectors, and 28 CLI commands -- all tested with 1252 passing tests (5 skipped)
-and 1512 passing feature tests.
+connectors, and 28 CLI commands (plus 8 aliases) -- all tested with 1270 passing
+tests (5 skipped) and 1534 passing feature tests across 36 examples.
 
 ## What You Can Build
 
@@ -85,11 +85,11 @@ pub fn main() !void {
 
 | Section | Pages | Purpose |
 |---------|-------|---------|
-| **Start** | Home, Getting Started | Installation, first build, orientation |
-| **Core** | Architecture, Configuration, CLI | Module hierarchy, feature gating, build flags, commands |
+| **Start** | [Home](index.html), [Installation](installation.html), [Getting Started](getting-started.html) | Installation, first build, orientation |
+| **Core** | [Architecture](architecture.html), [Configuration](configuration.html), [Framework Lifecycle](framework.html), [CLI](cli.html), [Migration (vNext)](migration-vnext.html) | Module hierarchy, feature gating, build flags, commands |
 | **Modules** | GPU, AI, Database, Network, ... | Per-module API reference and usage |
 | **Operations** | Deployment, Observability, Security | Production concerns |
 | **Reference** | API Reference, Contributing, Examples | Generated API docs, dev workflow |
 
-Continue to [Getting Started](getting-started.md) to install and build ABI in under
-five minutes.
+Continue to [Installation](installation.html) to set up your toolchain, or jump straight
+to [Getting Started](getting-started.html) if you already have Zig 0.16 installed.
