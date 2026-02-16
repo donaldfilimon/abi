@@ -9,8 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2611+f996d2866` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1252 pass, 5 skip (1257 total) — must be maintained |
-| **Feature tests** | 1512 pass (1512 total) — `zig build feature-tests` |
+| **Test baseline** | 1270 pass, 5 skip (1275 total) — must be maintained |
+| **Feature tests** | 1534 pass (1534 total) — `zig build feature-tests` |
 | **CLI commands** | 28 commands + 8 aliases |
 
 ## Build & Test Commands
@@ -205,6 +205,7 @@ imports.
 | Work-stealing thread pool | `src/services/runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
 | DAG pipeline scheduler | `src/services/runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
 | Shared radix tree | `src/services/shared/utils/radix_tree.zig` | Used by gateway + pages for URL routing |
+| Circuit breaker | `src/services/shared/resilience/circuit_breaker.zig` | `abi.shared.resilience.{Simple,Atomic,Mutex}CircuitBreaker` |
 
 When updating any entry above, verify import-chain stability:
 `src/abi.zig` -> `src/services/{shared,runtime}/mod.zig` -> sub-module.
@@ -295,6 +296,14 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 7. `src/core/framework.zig` — import, context field, init/deinit, getter, builder
 8. `src/services/tests/stub_parity.zig` — basic parity test
 
+**Stub conventions**: Use anonymous parameter discard (`_: Type`) instead of multi-line
+`_ = param;` blocks. Keep function bodies on one line where possible: `pub fn foo(_: *@This(), _: []const u8) !void { return error.FeatureDisabled; }`.
+Use `StubContext(ConfigT)` from `src/core/stub_context.zig` when the stub defines a Context struct.
+
+**Shared infrastructure**: Use `services/shared/resilience/circuit_breaker.zig` for circuit breakers
+(parameterized by `.atomic`, `.mutex`, or `.none` sync strategy). Use `services/shared/security/rate_limit.zig`
+for HTTP/API-level rate limiting with per-key tracking, bans, and whitelist.
+
 **Verify:** `zig build validate-flags`
 
 ## Environment Variables
@@ -337,8 +346,8 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Main tests**: 1252 pass, 5 skip (1257 total) — `zig build test --summary all`
-**Feature tests**: 1512 pass (1512 total) — `zig build feature-tests --summary all`
+**Main tests**: 1270 pass, 5 skip (1275 total) — `zig build test --summary all`
+**Feature tests**: 1534 pass (1534 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
