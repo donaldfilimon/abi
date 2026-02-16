@@ -1,6 +1,4 @@
-//! LLM Stub Module
-//!
-//! Stub implementation when LLM is disabled at compile time.
+//! LLM Stub Module — disabled at compile time.
 
 const std = @import("std");
 const config_module = @import("../../../core/config/mod.zig");
@@ -24,7 +22,8 @@ pub const LlmError = error{
 
 pub const Error = LlmError;
 
-// Stub types
+// --- Core Types ---
+
 pub const DType = enum { f32, f16, q4_0, q8_0 };
 pub const TensorInfo = struct {
     name: []const u8 = "",
@@ -34,9 +33,7 @@ pub const TensorInfo = struct {
 };
 pub const GgufHeader = struct {};
 pub const GgufMetadata = struct {};
-pub const TensorEntry = struct {
-    value_ptr: *const TensorInfo,
-};
+pub const TensorEntry = struct { value_ptr: *const TensorInfo };
 pub const TensorIterator = struct {
     pub fn next(_: *TensorIterator) ?TensorEntry {
         return null;
@@ -49,7 +46,6 @@ pub const TensorMap = struct {
 };
 pub const GgufFile = struct {
     tensors: TensorMap = .{},
-
     pub fn open(_: std.mem.Allocator, _: []const u8) LlmError!GgufFile {
         return error.LlmDisabled;
     }
@@ -61,6 +57,7 @@ pub const MappedFile = struct {};
 pub const Tensor = struct {};
 pub const Q4_0Block = struct {};
 pub const Q8_0Block = struct {};
+
 pub const BpeTokenizer = struct {
     pub fn init(_: std.mem.Allocator) BpeTokenizer {
         return .{};
@@ -75,6 +72,7 @@ pub const BpeTokenizer = struct {
 };
 pub const Tokenizer = BpeTokenizer;
 pub const Vocab = struct {};
+
 pub const ModelInfo = struct {
     model_name: []const u8 = "",
     architecture: []const u8 = "",
@@ -92,6 +90,7 @@ pub const ModelInfo = struct {
     kv_cache_memory: u64 = 0,
     weights_memory: u64 = 0,
 };
+
 pub const Model = struct {
     pub fn load(_: std.mem.Allocator, _: []const u8) LlmError!Model {
         return error.LlmDisabled;
@@ -113,6 +112,7 @@ pub const Model = struct {
         return error.LlmDisabled;
     }
 };
+
 pub const ModelConfig = struct {
     dim: u32 = 0,
     n_layers: u32 = 0,
@@ -137,35 +137,29 @@ pub const ModelConfig = struct {
     pub fn estimateParameters(_: ModelConfig) u64 {
         return 0;
     }
-    pub fn queryHeadDim(self: ModelConfig) u32 {
-        _ = self;
+    pub fn queryHeadDim(_: ModelConfig) u32 {
         return 0;
     }
-    pub fn keyHeadDim(self: ModelConfig) u32 {
-        _ = self;
+    pub fn keyHeadDim(_: ModelConfig) u32 {
         return 0;
     }
-    pub fn valueHeadDim(self: ModelConfig) u32 {
-        _ = self;
+    pub fn valueHeadDim(_: ModelConfig) u32 {
         return 0;
     }
-    pub fn queryDim(self: ModelConfig) u32 {
-        _ = self;
+    pub fn queryDim(_: ModelConfig) u32 {
         return 0;
     }
-    pub fn kvDim(self: ModelConfig) u32 {
-        _ = self;
+    pub fn kvDim(_: ModelConfig) u32 {
         return 0;
     }
-    pub fn valueDim(self: ModelConfig) u32 {
-        _ = self;
+    pub fn valueDim(_: ModelConfig) u32 {
         return 0;
     }
-    pub fn supportsLlamaAttentionLayout(self: ModelConfig) bool {
-        _ = self;
+    pub fn supportsLlamaAttentionLayout(_: ModelConfig) bool {
         return false;
     }
 };
+
 pub const Generator = struct {};
 pub const GeneratorConfig = struct {
     max_tokens: u32 = 256,
@@ -186,7 +180,8 @@ pub const PipelineParallelConfig = struct {};
 pub const ParallelConfig = struct {};
 pub const ParallelCoordinator = struct {};
 
-// Streaming stub types
+// --- Streaming Types ---
+
 pub const StreamingError = error{
     OutOfMemory,
     WeightsNotLoaded,
@@ -201,14 +196,7 @@ pub const StreamingError = error{
     LlmDisabled,
 };
 
-pub const StreamingState = enum {
-    idle,
-    prefilling,
-    generating,
-    completed,
-    cancelled,
-    errored,
-};
+pub const StreamingState = enum { idle, prefilling, generating, completed, cancelled, errored };
 
 pub const TokenEvent = struct {
     token_id: u32 = 0,
@@ -224,11 +212,9 @@ pub const StreamingStats = struct {
     generation_time_ns: u64 = 0,
     time_to_first_token_ns: u64 = 0,
     prompt_tokens: u32 = 0,
-
     pub fn tokensPerSecond(_: StreamingStats) f64 {
         return 0;
     }
-
     pub fn timeToFirstTokenMs(_: StreamingStats) f64 {
         return 0;
     }
@@ -324,6 +310,8 @@ pub fn collectStreamingResponse(_: std.mem.Allocator, _: *StreamingResponse) Llm
     return error.LlmDisabled;
 }
 
+// --- Inference Engine ---
+
 pub const InferenceConfig = struct {
     max_context_length: u32 = 2048,
     max_new_tokens: u32 = 256,
@@ -344,7 +332,6 @@ pub const EngineBackend = enum {
     none,
     local_gguf,
     ollama,
-
     pub fn label(self: EngineBackend) []const u8 {
         return switch (self) {
             .none => "none",
@@ -362,11 +349,9 @@ pub const InferenceStats = struct {
     generated_tokens: u32 = 0,
     peak_memory_bytes: u64 = 0,
     used_gpu: bool = false,
-
     pub fn prefillTokensPerSecond(_: InferenceStats) f64 {
         return 0;
     }
-
     pub fn decodeTokensPerSecond(_: InferenceStats) f64 {
         return 0;
     }
@@ -376,55 +361,46 @@ pub const Engine = struct {
     pub fn init(_: std.mem.Allocator, _: InferenceConfig) Engine {
         return .{};
     }
-
     pub fn deinit(_: *Engine) void {}
-
     pub fn loadModel(_: *Engine, _: []const u8) LlmError!void {
         return error.LlmDisabled;
     }
-
     pub fn generate(_: *Engine, _: std.mem.Allocator, _: []const u8) LlmError![]u8 {
         return error.LlmDisabled;
     }
-
     pub fn generateStreaming(_: *Engine, _: []const u8, _: *const fn ([]const u8) void) LlmError!void {
         return error.LlmDisabled;
     }
-
     pub fn createStreamingResponse(_: *Engine, _: []const u8, _: StreamingConfig) LlmError!StreamingResponse {
         return error.LlmDisabled;
     }
-
     pub fn generateStreamingWithConfig(_: *Engine, _: []const u8, _: StreamingConfig) LlmError!StreamingStats {
         return error.LlmDisabled;
     }
-
     pub fn tokenize(_: *Engine, _: std.mem.Allocator, _: []const u8) LlmError![]u32 {
         return error.LlmDisabled;
     }
-
     pub fn detokenize(_: *Engine, _: std.mem.Allocator, _: []const u32) LlmError![]u8 {
         return error.LlmDisabled;
     }
-
     pub fn getStats(_: *Engine) InferenceStats {
         return .{};
     }
-
     pub fn getBackend(_: *const Engine) EngineBackend {
         return .none;
     }
-
     pub fn supportsStreaming(_: *const Engine) bool {
         return false;
     }
-
     pub fn getBackendModelName(_: *const Engine) ?[]const u8 {
         return null;
     }
 };
 
-// Submodule namespace stubs
+// --- Submodule Namespace Stubs ---
+
+const stub_root = @This();
+
 pub const io = struct {
     pub const MappedFile = stub_root.MappedFile;
     pub const GgufFile = stub_root.GgufFile;
@@ -438,7 +414,6 @@ pub const io = struct {
         pub const TokenizerConfig = @import("io/gguf_writer.zig").TokenizerConfig;
     };
 };
-const stub_root = @This();
 
 pub const tensor = struct {
     pub const Tensor = stub_root.Tensor;
@@ -451,7 +426,6 @@ pub const tokenizer = struct {
     pub const BpeTokenizer = stub_root.BpeTokenizer;
     pub const Tokenizer = stub_root.Tokenizer;
     pub const Vocab = stub_root.Vocab;
-
     pub fn loadFromGguf(_: std.mem.Allocator, _: *const stub_root.GgufFile) LlmError!stub_root.Tokenizer {
         return error.LlmDisabled;
     }
@@ -498,26 +472,22 @@ pub const parallel = struct {
     pub const PipelineParallelConfig = stub_root.PipelineParallelConfig;
 };
 
-/// Public API Context wrapper
+// --- Context ---
+
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.LlmConfig) error{LlmDisabled}!*Context {
         return error.LlmDisabled;
     }
-
     pub fn deinit(_: *Context) void {}
-
     pub fn getEngine(_: *Context) LlmError!*Engine {
         return error.LlmDisabled;
     }
-
     pub fn generate(_: *Context, _: []const u8) LlmError![]u8 {
         return error.LlmDisabled;
     }
-
     pub fn tokenize(_: *Context, _: []const u8) LlmError![]u32 {
         return error.LlmDisabled;
     }
-
     pub fn detokenize(_: *Context, _: []const u32) LlmError![]u8 {
         return error.LlmDisabled;
     }

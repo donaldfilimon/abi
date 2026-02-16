@@ -1,8 +1,9 @@
-//! Stub implementation for evaluation framework when AI features are disabled.
+//! Evaluation framework stub — disabled at compile time.
 
 const std = @import("std");
 
-/// Stub token metrics.
+// --- Types ---
+
 pub const TokenMetrics = struct {
     true_positives: usize = 0,
     false_positives: usize = 0,
@@ -12,7 +13,6 @@ pub const TokenMetrics = struct {
     f1: f64 = 0,
 };
 
-/// Stub text statistics.
 pub const TextStatistics = struct {
     char_count: usize = 0,
     word_count: usize = 0,
@@ -22,20 +22,13 @@ pub const TextStatistics = struct {
     type_token_ratio: f64 = 0,
 };
 
-/// Stub BLEU score.
 pub const BleuScore = struct {
     score: f64 = 0,
     precisions: [4]f64 = .{ 0, 0, 0, 0 },
     brevity_penalty: f64 = 0,
     hypothesis_length: usize = 0,
     reference_length: usize = 0,
-
-    pub fn format(
-        self: BleuScore,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
+    pub fn format(self: BleuScore, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = self;
         _ = fmt;
         _ = options;
@@ -43,27 +36,14 @@ pub const BleuScore = struct {
     }
 };
 
-/// Stub ROUGE type.
-pub const RougeType = enum {
-    rouge_1,
-    rouge_2,
-    rouge_3,
-    rouge_l,
-};
+pub const RougeType = enum { rouge_1, rouge_2, rouge_3, rouge_l };
 
-/// Stub ROUGE score.
 pub const RougeScore = struct {
     rouge_type: RougeType = .rouge_1,
     precision: f64 = 0,
     recall: f64 = 0,
     f1: f64 = 0,
-
-    pub fn format(
-        self: RougeScore,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
+    pub fn format(self: RougeScore, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = self;
         _ = fmt;
         _ = options;
@@ -71,19 +51,12 @@ pub const RougeScore = struct {
     }
 };
 
-/// Stub perplexity result.
 pub const PerplexityResult = struct {
     perplexity: f64 = 0,
     avg_log_prob: f64 = 0,
     cross_entropy: f64 = 0,
     num_tokens: usize = 0,
-
-    pub fn format(
-        self: PerplexityResult,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
+    pub fn format(self: PerplexityResult, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
         _ = self;
         _ = fmt;
         _ = options;
@@ -91,15 +64,8 @@ pub const PerplexityResult = struct {
     }
 };
 
-/// Stub smoothing method.
-const SmoothingMethod = enum {
-    none,
-    method1,
-    method2,
-    method3,
-};
+const SmoothingMethod = enum { none, method1, method2, method3 };
 
-/// Stub evaluation config.
 pub const EvalConfig = struct {
     max_ngram: u32 = 4,
     bleu_smoothing: SmoothingMethod = .method1,
@@ -108,7 +74,6 @@ pub const EvalConfig = struct {
     compute_token_metrics: bool = true,
 };
 
-/// Stub evaluation result.
 pub const EvaluationResult = struct {
     bleu: ?BleuScore = null,
     rouge: ?[]RougeScore = null,
@@ -118,14 +83,11 @@ pub const EvaluationResult = struct {
     token_metrics: ?TokenMetrics = null,
     hypothesis_stats: TextStatistics = .{},
     reference_stats: TextStatistics = .{},
-
-    pub fn deinit(self: *EvaluationResult, allocator: std.mem.Allocator) void {
-        _ = allocator;
+    pub fn deinit(self: *EvaluationResult, _: std.mem.Allocator) void {
         self.* = undefined;
     }
 };
 
-/// Stub evaluation report.
 pub const EvaluationReport = struct {
     num_samples: usize = 0,
     avg_bleu: f64 = 0,
@@ -140,242 +102,81 @@ pub const EvaluationReport = struct {
     max_bleu: f64 = 0,
 };
 
-/// Stub evaluator.
+// --- Evaluator ---
+
 pub const Evaluator = struct {
     allocator: std.mem.Allocator,
     config: EvalConfig,
-
     pub fn init(allocator: std.mem.Allocator, config: EvalConfig) Evaluator {
-        return .{
-            .allocator = allocator,
-            .config = config,
-        };
+        return .{ .allocator = allocator, .config = config };
     }
-
-    pub fn evaluate(
-        self: *Evaluator,
-        hypothesis: []const u8,
-        reference: []const u8,
-    ) !EvaluationResult {
-        _ = self;
-        _ = hypothesis;
-        _ = reference;
+    pub fn evaluate(_: *Evaluator, _: []const u8, _: []const u8) !EvaluationResult {
         return error.EvalDisabled;
     }
-
-    pub fn evaluateBatch(
-        self: *Evaluator,
-        hypotheses: []const []const u8,
-        references: []const []const u8,
-    ) !EvaluationReport {
-        _ = self;
-        _ = hypotheses;
-        _ = references;
+    pub fn evaluateBatch(_: *Evaluator, _: []const []const u8, _: []const []const u8) !EvaluationReport {
         return error.EvalDisabled;
     }
 };
 
-/// Stub BLEU computation.
-pub fn computeBleu(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-    max_ngram: u32,
-    smoothing: SmoothingMethod,
-) !BleuScore {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
-    _ = max_ngram;
-    _ = smoothing;
+// --- Metric Functions ---
+
+pub fn computeBleu(_: std.mem.Allocator, _: []const u8, _: []const u8, _: u32, _: SmoothingMethod) !BleuScore {
     return error.EvalDisabled;
 }
-
-/// Stub BLEU multi-reference computation.
-pub fn computeBleuMultiRef(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    references: []const []const u8,
-    max_ngram: u32,
-    smoothing: SmoothingMethod,
-) !BleuScore {
-    _ = allocator;
-    _ = hypothesis;
-    _ = references;
-    _ = max_ngram;
-    _ = smoothing;
+pub fn computeBleuMultiRef(_: std.mem.Allocator, _: []const u8, _: []const []const u8, _: u32, _: SmoothingMethod) !BleuScore {
     return error.EvalDisabled;
 }
-
-/// Stub ROUGE computation.
-pub fn computeRouge(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-    rouge_type: RougeType,
-) !RougeScore {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
-    _ = rouge_type;
+pub fn computeRouge(_: std.mem.Allocator, _: []const u8, _: []const u8, _: RougeType) !RougeScore {
     return error.EvalDisabled;
 }
-
-/// Stub ROUGE-N computation.
-pub fn computeRougeN(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-    n: usize,
-) !RougeScore {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
-    _ = n;
+pub fn computeRougeN(_: std.mem.Allocator, _: []const u8, _: []const u8, _: usize) !RougeScore {
     return error.EvalDisabled;
 }
-
-/// Stub ROUGE-L computation.
-pub fn computeRougeL(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-) !RougeScore {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
+pub fn computeRougeL(_: std.mem.Allocator, _: []const u8, _: []const u8) !RougeScore {
     return error.EvalDisabled;
 }
-
-/// Stub perplexity computation.
-pub fn computePerplexity(log_probs: []const f64) PerplexityResult {
-    _ = log_probs;
+pub fn computePerplexity(_: []const f64) PerplexityResult {
     return .{};
 }
-
-/// Stub F1 computation.
-pub fn computeF1(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-) !f64 {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
+pub fn computeF1(_: std.mem.Allocator, _: []const u8, _: []const u8) !f64 {
     return error.EvalDisabled;
 }
-
-/// Stub exact match computation.
-pub fn computeExactMatch(hypothesis: []const u8, reference: []const u8) f64 {
-    _ = hypothesis;
-    _ = reference;
+pub fn computeExactMatch(_: []const u8, _: []const u8) f64 {
     return 0;
 }
-
-/// Stub CER computation.
-pub fn computeCER(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-) !f64 {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
+pub fn computeCER(_: std.mem.Allocator, _: []const u8, _: []const u8) !f64 {
     return error.EvalDisabled;
 }
-
-/// Stub WER computation.
-pub fn computeWER(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-) !f64 {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
+pub fn computeWER(_: std.mem.Allocator, _: []const u8, _: []const u8) !f64 {
     return error.EvalDisabled;
 }
-
-/// Stub normalized exact match computation.
-pub fn computeNormalizedExactMatch(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-) !f64 {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
+pub fn computeNormalizedExactMatch(_: std.mem.Allocator, _: []const u8, _: []const u8) !f64 {
     return error.EvalDisabled;
 }
-
-/// Stub Levenshtein distance computation.
-pub fn levenshteinDistance(
-    allocator: std.mem.Allocator,
-    a: []const u8,
-    b: []const u8,
-) !usize {
-    _ = allocator;
-    _ = a;
-    _ = b;
+pub fn levenshteinDistance(_: std.mem.Allocator, _: []const u8, _: []const u8) !usize {
     return error.EvalDisabled;
 }
-
-/// Stub token metrics computation.
-pub fn computeTokenMetrics(
-    allocator: std.mem.Allocator,
-    hypothesis: []const u8,
-    reference: []const u8,
-) !TokenMetrics {
-    _ = allocator;
-    _ = hypothesis;
-    _ = reference;
+pub fn computeTokenMetrics(_: std.mem.Allocator, _: []const u8, _: []const u8) !TokenMetrics {
     return error.EvalDisabled;
 }
-
-/// Stub text statistics computation.
-pub fn computeTextStatistics(text: []const u8) TextStatistics {
-    _ = text;
+pub fn computeTextStatistics(_: []const u8) TextStatistics {
     return .{};
 }
-
-/// Stub windowed perplexity computation.
-pub fn computeWindowedPerplexity(
-    allocator: std.mem.Allocator,
-    log_probs: []const f64,
-    window_size: usize,
-) ![]PerplexityResult {
-    _ = allocator;
-    _ = log_probs;
-    _ = window_size;
+pub fn computeWindowedPerplexity(_: std.mem.Allocator, _: []const f64, _: usize) ![]PerplexityResult {
     return error.EvalDisabled;
 }
-
-/// Stub perplexity from cross-entropy.
-pub fn perplexityFromCrossEntropy(cross_entropy: f64) f64 {
-    _ = cross_entropy;
+pub fn perplexityFromCrossEntropy(_: f64) f64 {
     return 0;
 }
-
-/// Stub perplexity from BPC.
-pub fn perplexityFromBpc(bpc: f64) f64 {
-    _ = bpc;
+pub fn perplexityFromBpc(_: f64) f64 {
     return 0;
 }
-
-/// Stub perplexity to BPC.
-pub fn perplexityToBpc(perplexity_val: f64) f64 {
-    _ = perplexity_val;
+pub fn perplexityToBpc(_: f64) f64 {
     return 0;
 }
-
-/// Stub aggregate perplexity.
-pub fn aggregatePerplexity(results: []const PerplexityResult) PerplexityResult {
-    _ = results;
+pub fn aggregatePerplexity(_: []const PerplexityResult) PerplexityResult {
     return .{};
 }
-
-/// Stub perplexity from probs.
-pub fn computePerplexityFromProbs(probs: []const f64) PerplexityResult {
-    _ = probs;
+pub fn computePerplexityFromProbs(_: []const f64) PerplexityResult {
     return .{};
 }

@@ -1,27 +1,9 @@
-//! Database Stub Module
-//!
-//! This module provides API-compatible no-op implementations for all public
-//! database functions when the database feature is disabled at compile time.
-//! All functions return `error.DatabaseDisabled` or empty/default values as
-//! appropriate. Types are kept minimal - only essential ones needed for
-//! compile-time checking.
-//!
-//! The database module encompasses:
-//! - WDBX vector database with HNSW/IVF-PQ indexing
-//! - Parallel search and batch operations
-//! - Full-text search and hybrid queries
-//! - Clustering and quantization
-//! - Backup, restore, and persistence
-//! - HTTP server for remote access
-//!
-//! To enable the real implementation, build with `-Denable-database=true`.
+//! Database stub — disabled at compile time.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-// ============================================================================
-// Error Types
-// ============================================================================
+// --- Error Types ---
 
 pub const DatabaseFeatureError = error{DatabaseDisabled};
 pub const DatabaseError = error{
@@ -34,18 +16,14 @@ pub const DatabaseError = error{
     DatabaseDisabled,
 };
 
-// ============================================================================
-// Local Stubs Imports
-// ============================================================================
+// --- Local Stubs Imports ---
 
 const types = @import("stubs/types.zig");
 const wdbx_mod = @import("stubs/wdbx.zig");
 const parallel = @import("stubs/parallel.zig");
 const misc = @import("stubs/misc.zig");
 
-// ============================================================================
-// Core Types Re-exports
-// ============================================================================
+// --- Core Types Re-exports ---
 
 pub const DatabaseHandle = types.DatabaseHandle;
 pub const SearchResult = types.SearchResult;
@@ -54,15 +32,12 @@ pub const Stats = types.Stats;
 pub const BatchItem = types.BatchItem;
 pub const DiagnosticsInfo = types.DiagnosticsInfo;
 
-// ============================================================================
-// Context (Framework integration)
-// ============================================================================
+// --- Context ---
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
     config: config_module.DatabaseConfig,
     handle: ?DatabaseHandle = null,
-
     pub fn init(_: std.mem.Allocator, _: config_module.DatabaseConfig) !*Context {
         return error.DatabaseDisabled;
     }
@@ -87,14 +62,11 @@ pub const Context = struct {
     }
 };
 
-// ============================================================================
-// Sub-module Namespace Stubs Re-exports
-// ============================================================================
+// --- Sub-module Namespace Re-exports ---
 
 pub const wdbx = wdbx_mod.wdbx;
 pub const cli = misc.cli;
 
-// Parallel search stubs
 pub const ParallelSearchConfig = parallel.ParallelSearchConfig;
 pub const ParallelSearchExecutor = parallel.ParallelSearchExecutor;
 pub const ParallelBeamState = parallel.ParallelBeamState;
@@ -103,7 +75,6 @@ pub const BatchSearchResult = parallel.BatchSearchResult;
 pub const ParallelSearchStats = parallel.ParallelSearchStats;
 pub const batchCosineDistances = parallel.batchCosineDistances;
 
-// Empty namespace stubs for sub-modules
 pub const parallel_search = misc.parallel_search;
 pub const database = misc.database;
 pub const db_helpers = misc.db_helpers;
@@ -129,35 +100,22 @@ pub const distance_cache = misc.distance_cache;
 pub const storage_v2 = misc.storage_v2;
 pub const time = misc.time;
 
-// ============================================================================
-// Database type re-export
-// ============================================================================
-
 pub const Database = misc.database.Database;
 
-// ============================================================================
-// Full-text search type re-exports
-// ============================================================================
-
+// --- Full-text search ---
 pub const InvertedIndex = misc.fulltext.InvertedIndex;
 pub const Bm25Config = misc.fulltext.Bm25Config;
 pub const TokenizerConfig = misc.fulltext.TokenizerConfig;
 pub const TextSearchResult = misc.fulltext.TextSearchResult;
 pub const QueryParser = misc.fulltext.QueryParser;
 
-// ============================================================================
-// Hybrid search type re-exports
-// ============================================================================
-
+// --- Hybrid search ---
 pub const HybridSearchEngine = misc.hybrid.HybridSearchEngine;
 pub const HybridConfig = misc.hybrid.HybridConfig;
 pub const HybridResult = misc.hybrid.HybridResult;
 pub const FusionMethod = misc.hybrid.FusionMethod;
 
-// ============================================================================
-// Filter type re-exports
-// ============================================================================
-
+// --- Filter ---
 pub const FilterBuilder = misc.filter.FilterBuilder;
 pub const FilterExpression = misc.filter.FilterExpression;
 pub const FilterCondition = misc.filter.FilterCondition;
@@ -167,10 +125,7 @@ pub const MetadataStore = misc.filter.MetadataStore;
 pub const FilteredSearch = misc.filter.FilteredSearch;
 pub const FilteredResult = misc.filter.FilteredResult;
 
-// ============================================================================
-// Batch type re-exports
-// ============================================================================
-
+// --- Batch ---
 pub const BatchProcessor = misc.batch.BatchProcessor;
 pub const BatchConfig = misc.batch.BatchConfig;
 pub const BatchRecord = misc.batch.BatchRecord;
@@ -180,10 +135,7 @@ pub const BatchOperationBuilder = misc.batch.BatchOperationBuilder;
 pub const BatchImporter = misc.batch.BatchImporter;
 pub const ImportFormat = misc.batch.ImportFormat;
 
-// ============================================================================
-// Clustering type re-exports
-// ============================================================================
-
+// --- Clustering ---
 pub const KMeans = misc.clustering.KMeans;
 pub const ClusterStats = misc.clustering.ClusterStats;
 pub const FitOptions = misc.clustering.FitOptions;
@@ -193,26 +145,17 @@ pub const cosineSimilarity = misc.clustering.cosineSimilarity;
 pub const silhouetteScore = misc.clustering.silhouetteScore;
 pub const elbowMethod = misc.clustering.elbowMethod;
 
-// ============================================================================
-// Quantization type re-exports
-// ============================================================================
-
+// --- Quantization ---
 pub const ScalarQuantizer = misc.quantization.ScalarQuantizer;
 pub const ProductQuantizer = misc.quantization.ProductQuantizer;
 pub const QuantizationError = misc.quantization.QuantizationError;
 
-// ============================================================================
-// GPU acceleration type re-exports
-// ============================================================================
-
+// --- GPU acceleration ---
 pub const GpuAccelerator = misc.gpu_accel.GpuAccelerator;
 pub const GpuAccelConfig = misc.gpu_accel.GpuAccelConfig;
 pub const GpuAccelStats = misc.gpu_accel.GpuAccelStats;
 
-// ============================================================================
-// Formats type re-exports
-// ============================================================================
-
+// --- Formats ---
 pub const UnifiedFormat = misc.formats.UnifiedFormat;
 pub const UnifiedFormatBuilder = misc.formats.unified.UnifiedFormatBuilder;
 pub const FormatHeader = misc.formats.FormatHeader;
@@ -234,7 +177,6 @@ pub const fromGguf = misc.formats.fromGguf;
 pub const toGguf = misc.formats.toGguf;
 pub const GgufTensorType = misc.formats.GgufTensorType;
 
-// ZON format re-exports
 pub const ZonFormat = misc.formats.ZonFormat;
 pub const ZonDatabase = misc.formats.ZonDatabase;
 pub const ZonRecord = misc.formats.ZonRecord;
@@ -243,10 +185,7 @@ pub const ZonDistanceMetric = misc.formats.ZonDistanceMetric;
 pub const exportToZon = misc.formats.exportToZon;
 pub const importFromZon = misc.formats.importFromZon;
 
-// ============================================================================
-// Storage v2 type re-exports
-// ============================================================================
-
+// --- Storage v2 ---
 pub const FileHeader = misc.storage_v2.FileHeader;
 pub const FileFooter = misc.storage_v2.FileFooter;
 pub const BloomFilter = misc.storage_v2.BloomFilter;
@@ -255,10 +194,7 @@ pub const StorageV2Config = misc.storage_v2.StorageV2Config;
 pub const saveDatabaseV2 = misc.storage_v2.saveDatabaseV2;
 pub const loadDatabaseV2 = misc.storage_v2.loadDatabaseV2;
 
-// ============================================================================
-// BlockChain type re-exports
-// ============================================================================
-
+// --- BlockChain ---
 pub const BlockChain = misc.block_chain.BlockChain;
 pub const ConversationBlock = misc.block_chain.ConversationBlock;
 pub const BlockChainConfig = misc.block_chain.BlockChainConfig;
@@ -268,10 +204,7 @@ pub const RoutingWeights = misc.block_chain.RoutingWeights;
 pub const IntentCategory = misc.block_chain.IntentCategory;
 pub const PolicyFlags = misc.block_chain.PolicyFlags;
 
-// ============================================================================
-// Distributed type re-exports
-// ============================================================================
-
+// --- Distributed ---
 pub const ShardManager = misc.distributed.ShardManager;
 pub const ShardConfig = misc.distributed.ShardConfig;
 pub const ShardKey = misc.distributed.ShardKey;
@@ -292,36 +225,25 @@ pub const DistributedBlockChainError = misc.distributed.DistributedBlockChainErr
 pub const DistributedConfig = misc.distributed.DistributedConfig;
 pub const DistributedContext = misc.distributed.Context;
 
-// ============================================================================
-// DiskANN type re-exports
-// ============================================================================
-
+// --- DiskANN ---
 pub const DiskANNIndex = misc.diskann.DiskANNIndex;
 pub const DiskANNConfig = misc.diskann.DiskANNConfig;
 pub const PQCodebook = misc.diskann.PQCodebook;
 pub const DiskANNStats = misc.diskann.IndexStats;
 
-// ============================================================================
-// ScaNN type re-exports
-// ============================================================================
-
+// --- ScaNN ---
 pub const ScaNNIndex = misc.scann.ScaNNIndex;
 pub const ScaNNConfig = misc.scann.ScaNNConfig;
 pub const QuantizationType = misc.scann.QuantizationType;
 pub const AVQCodebook = misc.scann.AVQCodebook;
 pub const ScaNNStats = misc.scann.IndexStats;
 
-// ============================================================================
-// Parallel HNSW type re-exports
-// ============================================================================
-
+// --- Parallel HNSW ---
 pub const ParallelHnswBuilder = misc.parallel_hnsw.ParallelHnswBuilder;
 pub const ParallelBuildConfig = misc.parallel_hnsw.ParallelBuildConfig;
 pub const ParallelBuildStats = misc.parallel_hnsw.ParallelBuildStats;
 
-// ============================================================================
-// Module Lifecycle
-// ============================================================================
+// --- Module Lifecycle ---
 
 var initialized: bool = false;
 
@@ -338,9 +260,7 @@ pub fn isInitialized() bool {
     return initialized;
 }
 
-// ============================================================================
-// Core Database Operations
-// ============================================================================
+// --- Core Database Operations ---
 
 pub fn open(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
     return error.DatabaseDisabled;
