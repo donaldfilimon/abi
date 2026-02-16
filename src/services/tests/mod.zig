@@ -165,6 +165,11 @@ test {
         _ = @import("ai_tools_test.zig");
     }
 
+    // Multi-agent integration tests (coordinator, circuit breaker, mailbox)
+    if (build_options.enable_ai) {
+        _ = @import("multi_agent_test.zig");
+    }
+
     // Non-AI gap coverage tests (Phase 5E)
     if (build_options.enable_database) {
         _ = @import("database_batch_test.zig");
@@ -257,6 +262,9 @@ pub const ai_rag_test = if (build_options.enable_ai) @import("ai_rag_test.zig") 
 pub const ai_orchestration_test = if (build_options.enable_ai) @import("ai_orchestration_test.zig") else struct {};
 pub const ai_templates_test = if (build_options.enable_ai) @import("ai_templates_test.zig") else struct {};
 pub const ai_tools_test = if (build_options.enable_ai) @import("ai_tools_test.zig") else struct {};
+
+// Multi-agent integration tests (coordinator, circuit breaker, mailbox)
+pub const multi_agent_test = if (build_options.enable_ai) @import("multi_agent_test.zig") else struct {};
 
 // Non-AI gap coverage tests (Phase 5E)
 pub const database_batch_test = if (build_options.enable_database) @import("database_batch_test.zig") else struct {};

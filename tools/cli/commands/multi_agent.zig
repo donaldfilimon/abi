@@ -186,35 +186,60 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 
-    // Run the task
-    utils.output.printInfo("Executing workflow...", .{});
+    // Determine agent names from template or defaults
+    const agent_names: []const []const u8 = blk: {
+        if (workflow_name) |wf| {
+            for (workflow_templates) |tmpl| {
+                if (std.mem.eql(u8, tmpl.name, wf)) {
+                    break :blk tmpl.agents;
+                }
+            }
+        }
+        break :blk &[_][]const u8{ "agent-1", "agent-2", "agent-3" };
+    };
 
-    if (coord.agents.items.len == 0) {
-        utils.output.printWarning("No agents registered in coordinator", .{});
-        utils.output.printInfo("The coordinator has no agents. Register agents to execute workflows.", .{});
-        utils.output.printInfo("This is a demonstration - real workflows require agent registration.", .{});
+    // Create echo agents (safe default — no API keys required)
+    const AgentType = abi.ai.Agent;
+    var agent_storage = allocator.alloc(AgentType, agent_names.len) catch {
+        utils.output.printError("Failed to allocate agents", .{});
+        return;
+    };
+    defer {
+        for (agent_storage) |*ag| ag.deinit();
+        allocator.free(agent_storage);
+    }
 
-        // Simulate workflow execution for demonstration
-        std.debug.print("\n[Simulated Workflow Execution]\n", .{});
-        std.debug.print("Step 1: Analyzing task...\n", .{});
-        std.debug.print("Step 2: Planning execution...\n", .{});
-        std.debug.print("Step 3: Executing agents...\n", .{});
-        std.debug.print("Step 4: Aggregating results...\n", .{});
-        std.debug.print("\n", .{});
-
-        utils.output.printSuccess("Workflow simulation complete", .{});
-    } else {
-        const result = coord.runTask(task_description.?) catch |err| {
-            utils.output.printError("Workflow execution failed: {t}", .{err});
+    for (agent_names, 0..) |name, idx| {
+        agent_storage[idx] = AgentType.init(allocator, .{
+            .name = name,
+            .backend = .echo,
+        }) catch {
+            utils.output.printError("Failed to create agent: {s}", .{name});
             return;
         };
-        defer allocator.free(result);
-
-        std.debug.print("\n[Workflow Output]\n", .{});
-        std.debug.print("{s}\n", .{result});
-
-        utils.output.printSuccess("Workflow complete", .{});
+        coord.register(&agent_storage[idx]) catch {
+            utils.output.printError("Failed to register agent: {s}", .{name});
+            return;
+        };
     }
+
+    utils.output.printKeyValueFmt("Agents", "{d} registered", .{coord.agentCount()});
+    utils.output.printInfo("Executing workflow...", .{});
+
+    const result = coord.runTask(task_description.?) catch |err| {
+        utils.output.printError("Workflow execution failed: {t}", .{err});
+        return;
+    };
+    defer allocator.free(result);
+
+    std.debug.print("\n[Workflow Output]\n", .{});
+    std.debug.print("{s}\n", .{result});
+
+    // Show stats
+    const stats = coord.getStats();
+    utils.output.printKeyValueFmt("Results", "{d} total, {d} successful", .{ stats.result_count, stats.success_count });
+
+    utils.output.printSuccess("Workflow complete", .{});
 }
 
 fn listWorkflows(allocator: std.mem.Allocator) !void {

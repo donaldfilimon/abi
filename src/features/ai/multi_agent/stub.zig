@@ -4,6 +4,7 @@
 //! is disabled. All operations return `error.AgentDisabled`.
 
 const std = @import("std");
+const retry = @import("../../../services/shared/utils/retry.zig");
 
 // Sub-modules are always available (no feature gating needed)
 pub const aggregation = @import("aggregation.zig");
@@ -24,6 +25,46 @@ pub const AgentResult = struct {
     response: []u8,
     success: bool,
     duration_ns: u64,
+    timed_out: bool = false,
+};
+
+/// Per-agent health tracking for circuit-breaker behavior.
+pub const AgentHealth = struct {
+    consecutive_failures: u32 = 0,
+    failure_threshold: u32 = 5,
+    total_successes: u64 = 0,
+    total_failures: u64 = 0,
+    is_open: bool = false,
+
+    pub fn recordSuccess(self: *AgentHealth) void {
+        self.consecutive_failures = 0;
+        self.total_successes += 1;
+        self.is_open = false;
+    }
+
+    pub fn recordFailure(self: *AgentHealth) void {
+        self.consecutive_failures += 1;
+        self.total_failures += 1;
+        if (self.consecutive_failures >= self.failure_threshold) {
+            self.is_open = true;
+        }
+    }
+
+    pub fn canAttempt(self: *const AgentHealth) bool {
+        return !self.is_open;
+    }
+
+    pub fn successRate(self: *const AgentHealth) f64 {
+        const total = self.total_successes + self.total_failures;
+        if (total == 0) return 1.0;
+        return @as(f64, @floatFromInt(self.total_successes)) /
+            @as(f64, @floatFromInt(total));
+    }
+
+    pub fn reset(self: *AgentHealth) void {
+        self.consecutive_failures = 0;
+        self.is_open = false;
+    }
 };
 
 pub const ExecutionStrategy = enum {
@@ -55,6 +96,8 @@ pub const CoordinatorConfig = struct {
     enable_parallel: bool = true,
     enable_events: bool = false,
     max_threads: u32 = 0,
+    retry_config: retry.RetryConfig = .{},
+    circuit_breaker_threshold: u32 = 5,
 
     pub fn defaults() CoordinatorConfig {
         return .{};
@@ -77,6 +120,15 @@ pub const Coordinator = struct {
     }
     pub fn register(_: *Coordinator, _: *anyopaque) Error!void {
         return error.AgentDisabled;
+    }
+    pub fn getAgentHealth(_: *const Coordinator, _: usize) ?AgentHealth {
+        return null;
+    }
+    pub fn sendMessage(_: *Coordinator, _: messaging.AgentMessage) Error!void {
+        return error.AgentDisabled;
+    }
+    pub fn pendingMessages(_: *const Coordinator, _: usize) ?usize {
+        return null;
     }
     pub fn agentCount(_: *const Coordinator) usize {
         return 0;

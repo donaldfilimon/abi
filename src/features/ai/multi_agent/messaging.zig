@@ -175,6 +175,80 @@ pub fn taskId(task: []const u8) u64 {
 }
 
 // ============================================================================
+// Agent Mailbox (inter-agent messaging)
+// ============================================================================
+
+/// A message sent between agents during coordinated execution.
+pub const AgentMessage = struct {
+    from_agent: usize,
+    to_agent: usize,
+    content: []const u8,
+    tag: MessageTag = .data,
+
+    pub const MessageTag = enum {
+        /// Normal data payload (pipeline output, etc.)
+        data,
+        /// Control signal (e.g., stop, pause)
+        control,
+        /// Status update from an agent
+        status,
+    };
+};
+
+/// Per-agent inbox for receiving messages from other agents.
+/// Thread-safe via mutex — suitable for parallel execution.
+pub const AgentMailbox = struct {
+    allocator: std.mem.Allocator,
+    inbox: std.ArrayListUnmanaged(AgentMessage) = .{},
+    owned_contents: std.ArrayListUnmanaged([]u8) = .{},
+
+    pub fn init(allocator: std.mem.Allocator) AgentMailbox {
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(self: *AgentMailbox) void {
+        for (self.owned_contents.items) |buf| {
+            self.allocator.free(buf);
+        }
+        self.owned_contents.deinit(self.allocator);
+        self.inbox.deinit(self.allocator);
+    }
+
+    /// Send a message to this mailbox (copies content).
+    pub fn send(self: *AgentMailbox, msg: AgentMessage) !void {
+        const content_copy = try self.allocator.dupe(u8, msg.content);
+        errdefer self.allocator.free(content_copy);
+        try self.owned_contents.append(self.allocator, content_copy);
+        try self.inbox.append(self.allocator, .{
+            .from_agent = msg.from_agent,
+            .to_agent = msg.to_agent,
+            .content = content_copy,
+            .tag = msg.tag,
+        });
+    }
+
+    /// Receive the oldest message (FIFO). Returns null if empty.
+    pub fn receive(self: *AgentMailbox) ?AgentMessage {
+        if (self.inbox.items.len == 0) return null;
+        return self.inbox.orderedRemove(0);
+    }
+
+    /// Number of pending messages.
+    pub fn pendingCount(self: *const AgentMailbox) usize {
+        return self.inbox.items.len;
+    }
+
+    /// Clear all messages.
+    pub fn clear(self: *AgentMailbox) void {
+        self.inbox.clearRetainingCapacity();
+        for (self.owned_contents.items) |buf| {
+            self.allocator.free(buf);
+        }
+        self.owned_contents.clearRetainingCapacity();
+    }
+};
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -253,4 +327,49 @@ test "taskId generates consistent hashes" {
 test "event type toString" {
     try std.testing.expectEqualStrings("task_started", EventType.task_started.toString());
     try std.testing.expectEqualStrings("agent_finished", EventType.agent_finished.toString());
+}
+
+test "agent mailbox send and receive" {
+    const allocator = std.testing.allocator;
+    var mailbox = AgentMailbox.init(allocator);
+    defer mailbox.deinit();
+
+    try mailbox.send(.{ .from_agent = 0, .to_agent = 1, .content = "hello" });
+    try mailbox.send(.{ .from_agent = 2, .to_agent = 1, .content = "world" });
+
+    try std.testing.expectEqual(@as(usize, 2), mailbox.pendingCount());
+
+    const msg1 = mailbox.receive().?;
+    try std.testing.expectEqual(@as(usize, 0), msg1.from_agent);
+    try std.testing.expectEqualStrings("hello", msg1.content);
+
+    const msg2 = mailbox.receive().?;
+    try std.testing.expectEqual(@as(usize, 2), msg2.from_agent);
+    try std.testing.expectEqualStrings("world", msg2.content);
+
+    // Empty after consuming both
+    try std.testing.expect(mailbox.receive() == null);
+    try std.testing.expectEqual(@as(usize, 0), mailbox.pendingCount());
+}
+
+test "agent mailbox clear" {
+    const allocator = std.testing.allocator;
+    var mailbox = AgentMailbox.init(allocator);
+    defer mailbox.deinit();
+
+    try mailbox.send(.{ .from_agent = 0, .to_agent = 1, .content = "data" });
+    try std.testing.expectEqual(@as(usize, 1), mailbox.pendingCount());
+
+    mailbox.clear();
+    try std.testing.expectEqual(@as(usize, 0), mailbox.pendingCount());
+}
+
+test "agent message tags" {
+    const msg = AgentMessage{
+        .from_agent = 0,
+        .to_agent = 1,
+        .content = "stop",
+        .tag = .control,
+    };
+    try std.testing.expectEqual(AgentMessage.MessageTag.control, msg.tag);
 }

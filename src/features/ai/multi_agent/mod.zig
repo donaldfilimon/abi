@@ -163,6 +163,7 @@ pub const Coordinator = struct {
     config: CoordinatorConfig,
     agents: std.ArrayListUnmanaged(*agents.Agent) = .{},
     health: std.ArrayListUnmanaged(AgentHealth) = .{},
+    mailboxes: std.ArrayListUnmanaged(messaging.AgentMailbox) = .{},
     results: std.ArrayListUnmanaged(AgentResult) = .{},
     mutex: sync.Mutex = .{},
     event_bus: ?messaging.EventBus = null,
@@ -179,6 +180,7 @@ pub const Coordinator = struct {
             .config = config,
             .agents = .{},
             .health = .{},
+            .mailboxes = .{},
             .results = .{},
             .mutex = .{},
             .event_bus = if (config.enable_events) messaging.EventBus.init(allocator) else null,
@@ -192,6 +194,8 @@ pub const Coordinator = struct {
             self.allocator.free(result.response);
         }
         self.results.deinit(self.allocator);
+        for (self.mailboxes.items) |*mb| mb.deinit();
+        self.mailboxes.deinit(self.allocator);
         self.health.deinit(self.allocator);
         self.agents.deinit(self.allocator);
         if (self.event_bus) |*bus| bus.deinit();
@@ -207,12 +211,26 @@ pub const Coordinator = struct {
         self.health.append(self.allocator, .{
             .failure_threshold = self.config.circuit_breaker_threshold,
         }) catch return Error.ExecutionFailed;
+        self.mailboxes.append(self.allocator, messaging.AgentMailbox.init(self.allocator)) catch
+            return Error.ExecutionFailed;
     }
 
     /// Get health status for an agent by index.
     pub fn getAgentHealth(self: *const Coordinator, index: usize) ?AgentHealth {
         if (index >= self.health.items.len) return null;
         return self.health.items[index];
+    }
+
+    /// Send a message to a specific agent's mailbox.
+    pub fn sendMessage(self: *Coordinator, msg: messaging.AgentMessage) Error!void {
+        if (msg.to_agent >= self.mailboxes.items.len) return Error.AgentNotFound;
+        self.mailboxes.items[msg.to_agent].send(msg) catch return Error.ExecutionFailed;
+    }
+
+    /// Get pending message count for an agent.
+    pub fn pendingMessages(self: *const Coordinator, agent_index: usize) ?usize {
+        if (agent_index >= self.mailboxes.items.len) return null;
+        return self.mailboxes.items[agent_index].pendingCount();
     }
 
     /// Get the number of registered agents.
@@ -361,6 +379,19 @@ pub const Coordinator = struct {
         defer self.allocator.free(threads);
 
         for (self.agents.items, 0..) |ag, i| {
+            // Skip agents with open circuit breaker
+            if (self.config.circuit_breaker_threshold > 0 and
+                i < self.health.items.len and
+                !self.health.items[i].canAttempt())
+            {
+                thread_results[i] = .{
+                    .response = self.allocator.dupe(u8, "[Skipped: circuit open]") catch null,
+                    .success = false,
+                    .duration_ns = 0,
+                };
+                continue;
+            }
+
             threads[i] = std.Thread.spawn(.{}, runAgentThread, .{
                 ag,
                 task,
@@ -582,7 +613,7 @@ fn processWithRetry(
             if (attempt >= cfg.max_retries) return err;
             attempt += 1;
             const delay_ms = retry.calculateDelay(cfg, attempt);
-            std.Thread.sleep(delay_ms * std.time.ns_per_ms);
+            time.sleepMs(delay_ms);
             continue;
         };
         return result;
