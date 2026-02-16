@@ -11,7 +11,7 @@ const build_options = @import("build_options");
 const framework = @import("../../system/framework.zig");
 
 // GPU benchmark suites
-pub const kernels = @import("kernels.zig");
+pub const kernels = @import("kernels/mod.zig");
 pub const backends = @import("backends.zig");
 pub const gpu_vs_cpu = @import("gpu_vs_cpu.zig");
 

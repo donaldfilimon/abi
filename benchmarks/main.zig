@@ -24,7 +24,7 @@ const domains = @import("mod.zig").domains;
 const simd = @import("infrastructure/simd.zig");
 const memory = @import("infrastructure/memory.zig");
 const concurrency = @import("infrastructure/concurrency.zig");
-const network = @import("infrastructure/network.zig");
+const network = @import("infrastructure/network/mod.zig");
 const crypto = @import("infrastructure/crypto.zig");
 const v2_modules = @import("infrastructure/v2_modules.zig");
 

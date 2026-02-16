@@ -15,7 +15,7 @@ pub const suites = struct {
     pub const crypto = @import("crypto.zig");
     pub const memory = @import("memory.zig");
     pub const simd = @import("simd.zig");
-    pub const network = @import("network.zig");
+    pub const network = @import("network/mod.zig");
     pub const v2_modules = @import("v2_modules.zig");
 };
 
