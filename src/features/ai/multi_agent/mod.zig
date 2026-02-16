@@ -32,6 +32,7 @@
 const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
+const retry = @import("../../../services/shared/utils/retry.zig");
 const agents = @import("../agents/mod.zig");
 const build_options = @import("build_options");
 
@@ -88,6 +89,46 @@ pub const AgentResult = struct {
     response: []u8,
     success: bool,
     duration_ns: u64,
+    timed_out: bool = false,
+};
+
+/// Per-agent health tracking for circuit-breaker behavior.
+pub const AgentHealth = struct {
+    consecutive_failures: u32 = 0,
+    failure_threshold: u32 = 5,
+    total_successes: u64 = 0,
+    total_failures: u64 = 0,
+    is_open: bool = false,
+
+    pub fn recordSuccess(self: *AgentHealth) void {
+        self.consecutive_failures = 0;
+        self.total_successes += 1;
+        self.is_open = false;
+    }
+
+    pub fn recordFailure(self: *AgentHealth) void {
+        self.consecutive_failures += 1;
+        self.total_failures += 1;
+        if (self.consecutive_failures >= self.failure_threshold) {
+            self.is_open = true;
+        }
+    }
+
+    pub fn canAttempt(self: *const AgentHealth) bool {
+        return !self.is_open;
+    }
+
+    pub fn successRate(self: *const AgentHealth) f64 {
+        const total = self.total_successes + self.total_failures;
+        if (total == 0) return 1.0;
+        return @as(f64, @floatFromInt(self.total_successes)) /
+            @as(f64, @floatFromInt(total));
+    }
+
+    pub fn reset(self: *AgentHealth) void {
+        self.consecutive_failures = 0;
+        self.is_open = false;
+    }
 };
 
 /// Configuration for the coordinator.
@@ -106,6 +147,10 @@ pub const CoordinatorConfig = struct {
     enable_events: bool = false,
     /// Maximum threads for parallel execution (0 = auto-detect).
     max_threads: u32 = 0,
+    /// Retry configuration for failed agent executions.
+    retry_config: retry.RetryConfig = .{},
+    /// Consecutive failures before skipping an agent (0 = disabled).
+    circuit_breaker_threshold: u32 = 5,
 
     pub fn defaults() CoordinatorConfig {
         return .{};
@@ -117,6 +162,7 @@ pub const Coordinator = struct {
     allocator: std.mem.Allocator,
     config: CoordinatorConfig,
     agents: std.ArrayListUnmanaged(*agents.Agent) = .{},
+    health: std.ArrayListUnmanaged(AgentHealth) = .{},
     results: std.ArrayListUnmanaged(AgentResult) = .{},
     mutex: sync.Mutex = .{},
     event_bus: ?messaging.EventBus = null,
@@ -132,6 +178,7 @@ pub const Coordinator = struct {
             .allocator = allocator,
             .config = config,
             .agents = .{},
+            .health = .{},
             .results = .{},
             .mutex = .{},
             .event_bus = if (config.enable_events) messaging.EventBus.init(allocator) else null,
@@ -145,6 +192,7 @@ pub const Coordinator = struct {
             self.allocator.free(result.response);
         }
         self.results.deinit(self.allocator);
+        self.health.deinit(self.allocator);
         self.agents.deinit(self.allocator);
         if (self.event_bus) |*bus| bus.deinit();
         self.* = undefined;
@@ -156,6 +204,15 @@ pub const Coordinator = struct {
             return Error.MaxAgentsReached;
         }
         self.agents.append(self.allocator, agent_ptr) catch return Error.ExecutionFailed;
+        self.health.append(self.allocator, .{
+            .failure_threshold = self.config.circuit_breaker_threshold,
+        }) catch return Error.ExecutionFailed;
+    }
+
+    /// Get health status for an agent by index.
+    pub fn getAgentHealth(self: *const Coordinator, index: usize) ?AgentHealth {
+        if (index >= self.health.items.len) return null;
+        return self.health.items[index];
     }
 
     /// Get the number of registered agents.
@@ -209,14 +266,30 @@ pub const Coordinator = struct {
     /// Execute agents sequentially.
     fn executeSequential(self: *Coordinator, task: []const u8) Error!void {
         const task_id = messaging.taskId(task);
+        const timeout_ns: u64 = self.config.agent_timeout_ms * std.time.ns_per_ms;
 
         for (self.agents.items, 0..) |ag, i| {
+            // Skip agents with open circuit breaker
+            if (self.config.circuit_breaker_threshold > 0 and
+                i < self.health.items.len and
+                !self.health.items[i].canAttempt())
+            {
+                self.results.append(self.allocator, .{
+                    .agent_index = i,
+                    .response = self.allocator.dupe(u8, "[Skipped: circuit open]") catch return Error.ExecutionFailed,
+                    .success = false,
+                    .duration_ns = 0,
+                }) catch return Error.ExecutionFailed;
+                continue;
+            }
+
             if (self.event_bus) |*bus| bus.agentStarted(task_id, i);
             var timer = time.Timer.start() catch null;
 
-            const response = ag.process(task, self.allocator) catch {
+            const response = processWithRetry(ag, task, self.allocator, self.config.retry_config) catch {
                 const dur = if (timer) |*t| t.read() else 0;
                 if (self.event_bus) |*bus| bus.agentFinished(task_id, i, false, dur);
+                if (i < self.health.items.len) self.health.items[i].recordFailure();
                 self.results.append(self.allocator, .{
                     .agent_index = i,
                     .response = self.allocator.dupe(u8, "[Error: execution failed]") catch return Error.ExecutionFailed,
@@ -227,6 +300,23 @@ pub const Coordinator = struct {
             };
 
             const dur = if (timer) |*t| t.read() else 0;
+
+            // Check cooperative timeout
+            if (timeout_ns > 0 and dur > timeout_ns) {
+                self.allocator.free(response);
+                if (i < self.health.items.len) self.health.items[i].recordFailure();
+                if (self.event_bus) |*bus| bus.agentFinished(task_id, i, false, dur);
+                self.results.append(self.allocator, .{
+                    .agent_index = i,
+                    .response = self.allocator.dupe(u8, "[Error: agent timed out]") catch return Error.ExecutionFailed,
+                    .success = false,
+                    .duration_ns = dur,
+                    .timed_out = true,
+                }) catch return Error.ExecutionFailed;
+                continue;
+            }
+
+            if (i < self.health.items.len) self.health.items[i].recordSuccess();
             if (self.event_bus) |*bus| bus.agentFinished(task_id, i, true, dur);
             self.results.append(self.allocator, .{
                 .agent_index = i,
@@ -247,11 +337,18 @@ pub const Coordinator = struct {
         }
 
         const agent_count = self.agents.items.len;
+        const timeout_ns: u64 = self.config.agent_timeout_ms * std.time.ns_per_ms;
 
         // Allocate per-thread result slots
         const thread_results = self.allocator.alloc(ThreadResult, agent_count) catch
             return Error.ExecutionFailed;
         defer self.allocator.free(thread_results);
+
+        // Track which threads were actually spawned
+        const thread_spawned = self.allocator.alloc(bool, agent_count) catch
+            return Error.ExecutionFailed;
+        defer self.allocator.free(thread_spawned);
+        @memset(thread_spawned, false);
 
         // Initialize all results
         for (thread_results) |*tr| {
@@ -263,13 +360,14 @@ pub const Coordinator = struct {
             return Error.ExecutionFailed;
         defer self.allocator.free(threads);
 
-        var spawned: usize = 0;
         for (self.agents.items, 0..) |ag, i| {
             threads[i] = std.Thread.spawn(.{}, runAgentThread, .{
                 ag,
                 task,
                 self.allocator,
                 &thread_results[i],
+                timeout_ns,
+                self.config.retry_config,
             }) catch {
                 // If spawn fails, mark as failed
                 thread_results[i] = .{
@@ -279,26 +377,31 @@ pub const Coordinator = struct {
                 };
                 continue;
             };
-            spawned += 1;
+            thread_spawned[i] = true;
         }
 
         // Join all spawned threads
         for (0..agent_count) |i| {
-            if (thread_results[i].response != null or thread_results[i].success) {
-                // Thread was spawned, join it
-                if (i < spawned) {
-                    threads[i].join();
-                }
+            if (thread_spawned[i]) {
+                threads[i].join();
             }
         }
 
-        // Collect results
+        // Collect results and update health
         for (thread_results, 0..) |tr, i| {
+            if (i < self.health.items.len) {
+                if (tr.success) {
+                    self.health.items[i].recordSuccess();
+                } else {
+                    self.health.items[i].recordFailure();
+                }
+            }
             self.results.append(self.allocator, .{
                 .agent_index = i,
                 .response = tr.response orelse (self.allocator.dupe(u8, "[Error: no response]") catch return Error.ExecutionFailed),
                 .success = tr.success,
                 .duration_ns = tr.duration_ns,
+                .timed_out = tr.timed_out,
             }) catch return Error.ExecutionFailed;
         }
     }
@@ -466,11 +569,32 @@ pub const Coordinator = struct {
     }
 };
 
+/// Execute an agent's process() with retry on failure.
+fn processWithRetry(
+    ag: *agents.Agent,
+    task: []const u8,
+    allocator: std.mem.Allocator,
+    cfg: retry.RetryConfig,
+) ![]u8 {
+    var attempt: u32 = 0;
+    while (true) {
+        const result = ag.process(task, allocator) catch |err| {
+            if (attempt >= cfg.max_retries) return err;
+            attempt += 1;
+            const delay_ms = retry.calculateDelay(cfg, attempt);
+            std.Thread.sleep(delay_ms * std.time.ns_per_ms);
+            continue;
+        };
+        return result;
+    }
+}
+
 /// Thread result slot for parallel execution.
 const ThreadResult = struct {
     response: ?[]u8 = null,
     success: bool = false,
     duration_ns: u64 = 0,
+    timed_out: bool = false,
 };
 
 /// Thread function for parallel agent execution.
@@ -479,10 +603,12 @@ fn runAgentThread(
     task: []const u8,
     allocator: std.mem.Allocator,
     result: *ThreadResult,
+    timeout_ns: u64,
+    retry_cfg: retry.RetryConfig,
 ) void {
     var timer = time.Timer.start() catch null;
 
-    const response = ag.process(task, allocator) catch {
+    const response = processWithRetry(ag, task, allocator, retry_cfg) catch {
         result.* = .{
             .response = allocator.dupe(u8, "[Error: execution failed]") catch null,
             .success = false,
@@ -491,10 +617,24 @@ fn runAgentThread(
         return;
     };
 
+    const dur = if (timer) |*t| t.read() else 0;
+
+    // Check cooperative timeout — if agent took too long, discard result
+    if (timeout_ns > 0 and dur > timeout_ns) {
+        allocator.free(response);
+        result.* = .{
+            .response = allocator.dupe(u8, "[Error: agent timed out]") catch null,
+            .success = false,
+            .duration_ns = dur,
+            .timed_out = true,
+        };
+        return;
+    }
+
     result.* = .{
         .response = response,
         .success = true,
-        .duration_ns = if (timer) |*t| t.read() else 0,
+        .duration_ns = dur,
     };
 }
 
@@ -594,6 +734,64 @@ test "coordinator config defaults" {
     try std.testing.expectEqual(AggregationStrategy.concatenate, config.aggregation_strategy);
     try std.testing.expectEqual(@as(u32, 100), config.max_agents);
     try std.testing.expect(!config.enable_events);
+}
+
+test "agent health circuit breaker" {
+    var h = AgentHealth{};
+
+    // Starts healthy
+    try std.testing.expect(h.canAttempt());
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), h.successRate(), 0.001);
+
+    // Record successes
+    h.recordSuccess();
+    h.recordSuccess();
+    try std.testing.expectEqual(@as(u64, 2), h.total_successes);
+    try std.testing.expect(h.canAttempt());
+
+    // Record failures below threshold
+    h.recordFailure();
+    h.recordFailure();
+    try std.testing.expect(h.canAttempt()); // 2 < 5
+    try std.testing.expectEqual(@as(u32, 2), h.consecutive_failures);
+
+    // Success resets consecutive counter
+    h.recordSuccess();
+    try std.testing.expectEqual(@as(u32, 0), h.consecutive_failures);
+    try std.testing.expect(h.canAttempt());
+}
+
+test "agent health trips open after threshold" {
+    var h = AgentHealth{ .failure_threshold = 3 };
+
+    h.recordFailure();
+    h.recordFailure();
+    try std.testing.expect(h.canAttempt()); // 2 < 3
+    h.recordFailure();
+    try std.testing.expect(!h.canAttempt()); // 3 >= 3, circuit open
+
+    // Reset clears the circuit
+    h.reset();
+    try std.testing.expect(h.canAttempt());
+    try std.testing.expectEqual(@as(u32, 0), h.consecutive_failures);
+}
+
+test "agent health success rate" {
+    var h = AgentHealth{};
+    h.recordSuccess();
+    h.recordSuccess();
+    h.recordFailure();
+    // 2 successes, 1 failure = 66.7%
+    try std.testing.expectApproxEqAbs(@as(f64, 0.667), h.successRate(), 0.01);
+}
+
+test "coordinator config with retry" {
+    const config = CoordinatorConfig{
+        .retry_config = .{ .max_retries = 5, .initial_delay_ms = 50 },
+        .circuit_breaker_threshold = 3,
+    };
+    try std.testing.expectEqual(@as(u32, 5), config.retry_config.max_retries);
+    try std.testing.expectEqual(@as(u32, 3), config.circuit_breaker_threshold);
 }
 
 // Bring in submodule tests
