@@ -1,3 +1,6 @@
+# Git worktrees
+.worktrees/
+
 # Zig build artifacts
 zig-cache/
 zig-out/
