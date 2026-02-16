@@ -1,3 +1,9 @@
+//! Gateway-specific rate limiting (nanosecond-precision, histogram-based sliding window).
+//!
+//! For HTTP/API-level rate limiting with per-key tracking, bans, whitelist,
+//! and auth integration, see `services/shared/security/rate_limit.zig`.
+//! For per-connection rate limiting, see `features/network/rate_limiter.zig`.
+
 const std = @import("std");
 const types = @import("types.zig");
 
