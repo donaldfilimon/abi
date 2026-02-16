@@ -419,11 +419,8 @@ test "circuit breaker half open success recovery" {
     breaker.recordFailure();
     try std.testing.expectEqual(network.CircuitState.open, breaker.getState());
 
-    // Manually transition to half-open for testing
-    breaker.mutex.lock();
-    breaker.state = .half_open;
-    breaker.success_count = 0;
-    breaker.mutex.unlock();
+    // Force transition to half-open for testing
+    breaker.forceHalfOpen();
 
     // Record enough successes to close
     breaker.recordSuccess();
@@ -442,10 +439,8 @@ test "circuit breaker half open failure returns to open" {
     });
     defer breaker.deinit();
 
-    // Manually set to half-open
-    breaker.mutex.lock();
-    breaker.state = .half_open;
-    breaker.mutex.unlock();
+    // Force to half-open
+    breaker.forceHalfOpen();
 
     // Any failure should return to open
     breaker.recordFailure();

@@ -211,5 +211,6 @@ test {
     _ = @import("services/shared/utils/memory/thread_cache.zig");
     _ = @import("services/shared/os.zig");
     _ = @import("services/shared/simd/simd_test.zig");
+    _ = @import("services/shared/resilience/circuit_breaker.zig");
     _ = @import("services/tasks/roadmap.zig");
 }

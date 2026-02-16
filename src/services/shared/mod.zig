@@ -124,6 +124,10 @@ pub const tensor = @import("tensor.zig");
 /// See `security/mod.zig` for full API documentation.
 pub const security = @import("security/mod.zig");
 
+/// Resilience patterns (circuit breaker, etc.) for fault-tolerant systems.
+/// Shared implementations used by network, streaming, and gateway modules.
+pub const resilience = @import("resilience/mod.zig");
+
 /// POSIX signal handling for graceful shutdown.
 /// Sets a shared atomic flag on SIGINT/SIGTERM.
 pub const signal = @import("signal.zig");

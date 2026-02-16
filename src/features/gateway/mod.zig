@@ -378,7 +378,7 @@ pub fn recordUpstreamResult(upstream: []const u8, success: bool) void {
     } else {
         cb.recordFailure(nowNs());
         _ = s.stat_upstream_errors.fetchAdd(1, .monotonic);
-        if (cb.cb_state == .open) {
+        if (cb.inner.getState() == .open) {
             _ = s.stat_cb_trips.fetchAdd(1, .monotonic);
         }
     }
@@ -403,7 +403,11 @@ pub fn getCircuitState(upstream: []const u8) CircuitBreakerState {
     s.rw_lock.lockShared();
     defer s.rw_lock.unlockShared();
     const cb = s.circuit_breakers.get(upstream) orelse return .closed;
-    return cb.cb_state;
+    return switch (cb.inner.getState()) {
+        .closed => .closed,
+        .open => .open,
+        .half_open => .half_open,
+    };
 }
 
 /// Force-close the circuit breaker for an upstream, clearing failure counters.
@@ -644,13 +648,11 @@ test "gateway circuit breaker half-open to closed" {
     recordUpstreamResult("svc", false);
     try std.testing.expectEqual(CircuitBreakerState.open, getCircuitState("svc"));
 
-    // Wait for reset timeout (need write lock to check isAllowed which transitions)
+    // Force transition to half_open for testing
     const s = gw_state.?;
-    // Force transition to half_open by advancing past timeout
     s.rw_lock.lock();
     if (s.circuit_breakers.get("svc")) |cb| {
-        cb.open_until_ns = 0; // Force expiry
-        _ = cb.isAllowed(1); // Triggers transition to half_open
+        cb.forceHalfOpen();
     }
     s.rw_lock.unlock();
 
@@ -681,8 +683,7 @@ test "gateway circuit breaker half-open to open on failure" {
     const s = gw_state.?;
     s.rw_lock.lock();
     if (s.circuit_breakers.get("svc2")) |cb| {
-        cb.open_until_ns = 0;
-        _ = cb.isAllowed(1);
+        cb.forceHalfOpen();
     }
     s.rw_lock.unlock();
     try std.testing.expectEqual(CircuitBreakerState.half_open, getCircuitState("svc2"));

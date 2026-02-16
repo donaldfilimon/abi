@@ -1,77 +1,43 @@
-const std = @import("std");
+//! Circuit breaker for gateway — thin wrapper around shared resilience module.
+
 const types = @import("types.zig");
+const resilience = @import("../../services/shared/resilience/circuit_breaker.zig");
 
 pub const CircuitBreakerState = types.CircuitBreakerState;
 pub const CircuitBreakerConfig = types.CircuitBreakerConfig;
 
-/// Circuit breaker state machine.
+/// Gateway circuit breaker — single-threaded, no allocator needed.
 pub const CircuitBreaker = struct {
-    cb_state: CircuitBreakerState = .closed,
-    failure_count: u32 = 0,
-    success_count: u32 = 0,
-    open_until_ns: u128 = 0,
-    config: CircuitBreakerConfig,
+    inner: resilience.SimpleCircuitBreaker,
 
     pub fn init(config: CircuitBreakerConfig) CircuitBreaker {
-        return .{ .config = config };
+        return .{ .inner = resilience.SimpleCircuitBreaker.init(.{
+            .failure_threshold = config.failure_threshold,
+            .success_threshold = config.half_open_max_requests,
+            .half_open_max_requests = config.half_open_max_requests,
+            .timeout_ms = config.reset_timeout_ms,
+            .name = "gateway",
+        }) };
     }
 
     pub fn recordSuccess(self: *CircuitBreaker) void {
-        switch (self.cb_state) {
-            .closed => {
-                self.failure_count = 0;
-            },
-            .half_open => {
-                self.success_count += 1;
-                if (self.success_count >= self.config.half_open_max_requests) {
-                    self.cb_state = .closed;
-                    self.failure_count = 0;
-                    self.success_count = 0;
-                }
-            },
-            .open => {},
-        }
+        self.inner.recordSuccess();
     }
 
-    pub fn recordFailure(self: *CircuitBreaker, now_ns: u128) void {
-        self.failure_count += 1;
-        switch (self.cb_state) {
-            .closed => {
-                if (self.failure_count >= self.config.failure_threshold) {
-                    self.cb_state = .open;
-                    self.open_until_ns = now_ns +
-                        @as(u128, self.config.reset_timeout_ms) * std.time.ns_per_ms;
-                }
-            },
-            .half_open => {
-                self.cb_state = .open;
-                self.open_until_ns = now_ns +
-                    @as(u128, self.config.reset_timeout_ms) * std.time.ns_per_ms;
-                self.success_count = 0;
-            },
-            .open => {},
-        }
+    pub fn recordFailure(self: *CircuitBreaker, _: u128) void {
+        self.inner.recordFailure();
     }
 
-    pub fn isAllowed(self: *CircuitBreaker, now_ns: u128) bool {
-        switch (self.cb_state) {
-            .closed => return true,
-            .open => {
-                if (now_ns >= self.open_until_ns) {
-                    self.cb_state = .half_open;
-                    self.success_count = 0;
-                    return true;
-                }
-                return false;
-            },
-            .half_open => return true,
-        }
+    pub fn isAllowed(self: *CircuitBreaker, _: u128) bool {
+        return self.inner.canAttempt();
     }
 
     pub fn reset(self: *CircuitBreaker) void {
-        self.cb_state = .closed;
-        self.failure_count = 0;
-        self.success_count = 0;
-        self.open_until_ns = 0;
+        self.inner.reset();
+    }
+
+    /// Force to half-open state (for testing).
+    pub fn forceHalfOpen(self: *CircuitBreaker) void {
+        self.inner.forceState(.half_open);
     }
 };
