@@ -1,66 +1,39 @@
-//! Multi‑Agent Stub Module
-//!
-//! Mirrors the public API of `multi_agent/mod.zig` when the AI feature
-//! is disabled. All operations return `error.AgentDisabled`.
+//! Multi-Agent stub — disabled at compile time.
 
 const std = @import("std");
 const retry = @import("../../../services/shared/utils/retry.zig");
 
-// Sub-modules are always available (no feature gating needed)
 pub const aggregation = @import("aggregation.zig");
 pub const messaging = @import("messaging.zig");
 
-pub const Error = error{
-    AgentDisabled,
-    NoAgents,
-    MaxAgentsReached,
-    AgentNotFound,
-    ExecutionFailed,
-    AggregationFailed,
-    Timeout,
-};
+pub const Error = error{ AgentDisabled, NoAgents, MaxAgentsReached, AgentNotFound, ExecutionFailed, AggregationFailed, Timeout };
 
-pub const AgentResult = struct {
-    agent_index: usize,
-    response: []u8,
-    success: bool,
-    duration_ns: u64,
-    timed_out: bool = false,
-};
+pub const AgentResult = struct { agent_index: usize, response: []u8, success: bool, duration_ns: u64, timed_out: bool = false };
 
-/// Per-agent health tracking for circuit-breaker behavior.
 pub const AgentHealth = struct {
     consecutive_failures: u32 = 0,
     failure_threshold: u32 = 5,
     total_successes: u64 = 0,
     total_failures: u64 = 0,
     is_open: bool = false,
-
     pub fn recordSuccess(self: *AgentHealth) void {
         self.consecutive_failures = 0;
         self.total_successes += 1;
         self.is_open = false;
     }
-
     pub fn recordFailure(self: *AgentHealth) void {
         self.consecutive_failures += 1;
         self.total_failures += 1;
-        if (self.consecutive_failures >= self.failure_threshold) {
-            self.is_open = true;
-        }
+        if (self.consecutive_failures >= self.failure_threshold) self.is_open = true;
     }
-
     pub fn canAttempt(self: *const AgentHealth) bool {
         return !self.is_open;
     }
-
     pub fn successRate(self: *const AgentHealth) f64 {
         const total = self.total_successes + self.total_failures;
         if (total == 0) return 1.0;
-        return @as(f64, @floatFromInt(self.total_successes)) /
-            @as(f64, @floatFromInt(total));
+        return @as(f64, @floatFromInt(self.total_successes)) / @as(f64, @floatFromInt(total));
     }
-
     pub fn reset(self: *AgentHealth) void {
         self.consecutive_failures = 0;
         self.is_open = false;
@@ -98,7 +71,6 @@ pub const CoordinatorConfig = struct {
     max_threads: u32 = 0,
     retry_config: retry.RetryConfig = .{},
     circuit_breaker_threshold: u32 = 5,
-
     pub fn defaults() CoordinatorConfig {
         return .{};
     }
@@ -108,7 +80,6 @@ pub const Coordinator = struct {
     allocator: std.mem.Allocator = undefined,
     config: CoordinatorConfig = .{},
     agents: std.ArrayListUnmanaged(*anyopaque) = .{},
-
     pub fn init(allocator: std.mem.Allocator) Coordinator {
         return .{ .allocator = allocator };
     }
@@ -139,8 +110,7 @@ pub const Coordinator = struct {
     pub fn runTask(_: *Coordinator, _: []const u8) Error![]u8 {
         return error.AgentDisabled;
     }
-    pub fn getStats(self: *const Coordinator) CoordinatorStats {
-        _ = self;
+    pub fn getStats(_: *const Coordinator) CoordinatorStats {
         return .{};
     }
 };
@@ -150,11 +120,9 @@ pub const CoordinatorStats = struct {
     result_count: usize = 0,
     success_count: usize = 0,
     avg_duration_ns: u64 = 0,
-
     pub fn successRate(self: CoordinatorStats) f64 {
         if (self.result_count == 0) return 0.0;
-        return @as(f64, @floatFromInt(self.success_count)) /
-            @as(f64, @floatFromInt(self.result_count));
+        return @as(f64, @floatFromInt(self.success_count)) / @as(f64, @floatFromInt(self.result_count));
     }
 };
 

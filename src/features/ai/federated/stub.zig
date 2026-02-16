@@ -14,40 +14,26 @@ pub const Registry = struct {
     pub fn init(allocator: std.mem.Allocator) Registry {
         return .{ .allocator = allocator };
     }
-
     pub fn deinit(_: *Registry) void {}
-
     pub fn touch(_: *Registry, _: []const u8) !void {
         return error.FeatureDisabled;
     }
-
     pub fn remove(_: *Registry, _: []const u8) bool {
         return false;
     }
-
     pub fn list(_: *const Registry) []const NodeInfo {
         return &.{};
     }
-
     pub fn count(_: *const Registry) usize {
         return 0;
     }
-
     pub fn prune(_: *Registry, _: i64) usize {
         return 0;
     }
 };
 
-pub const CoordinatorError = error{
-    InsufficientUpdates,
-    InvalidUpdate,
-    FeatureDisabled,
-};
-
-pub const AggregationStrategy = enum {
-    mean,
-    weighted_mean,
-};
+pub const CoordinatorError = error{ InsufficientUpdates, InvalidUpdate, FeatureDisabled };
+pub const AggregationStrategy = enum { mean, weighted_mean };
 
 pub const ModelUpdateView = struct {
     node_id: []const u8 = "",
@@ -82,33 +68,22 @@ pub const Coordinator = struct {
     config: CoordinatorConfig = .{},
     current_step: u64 = 0,
 
-    pub fn init(
-        allocator: std.mem.Allocator,
-        _: CoordinatorConfig,
-        _: usize,
-    ) CoordinatorError!Coordinator {
-        _ = allocator;
+    pub fn init(_: std.mem.Allocator, _: CoordinatorConfig, _: usize) CoordinatorError!Coordinator {
         return CoordinatorError.FeatureDisabled;
     }
-
     pub fn deinit(_: *Coordinator) void {}
-
     pub fn registerNode(_: *Coordinator, _: []const u8) !void {
         return error.FeatureDisabled;
     }
-
     pub fn submitUpdate(_: *Coordinator, _: ModelUpdateView) !void {
         return error.FeatureDisabled;
     }
-
     pub fn aggregate(_: *Coordinator) CoordinatorError![]const f32 {
         return CoordinatorError.FeatureDisabled;
     }
-
     pub fn globalWeights(_: *const Coordinator) []const f32 {
         return &.{};
     }
-
     pub fn step(_: *const Coordinator) u64 {
         return 0;
     }

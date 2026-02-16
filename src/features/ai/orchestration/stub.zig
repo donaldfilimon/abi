@@ -1,13 +1,8 @@
-//! Orchestration Stub Module
-//!
-//! Stub implementation when AI/orchestration is disabled at compile time.
-//! All operations return `error.OrchestrationDisabled`.
+//! Orchestration stub — disabled at compile time.
 
 const std = @import("std");
 
-// ============================================================================
-// Error Types
-// ============================================================================
+// --- Errors ---
 
 pub const OrchestrationError = error{
     NoModelsAvailable,
@@ -23,9 +18,7 @@ pub const OrchestrationError = error{
     OrchestrationDisabled,
 };
 
-// ============================================================================
-// Configuration Types
-// ============================================================================
+// --- Config Types ---
 
 pub const OrchestrationConfig = struct {
     strategy: RoutingStrategy = .round_robin,
@@ -38,15 +31,12 @@ pub const OrchestrationConfig = struct {
     min_ensemble_models: u32 = 2,
     max_retries: u32 = 3,
     load_factor_weight: f32 = 0.5,
-
     pub fn defaults() OrchestrationConfig {
         return .{};
     }
-
     pub fn highAvailability() OrchestrationConfig {
         return .{};
     }
-
     pub fn highQuality() OrchestrationConfig {
         return .{};
     }
@@ -58,7 +48,6 @@ pub const ModelBackend = enum {
     huggingface,
     anthropic,
     local,
-
     pub fn toString(self: ModelBackend) []const u8 {
         return @tagName(self);
     }
@@ -74,7 +63,6 @@ pub const Capability = enum {
     math,
     vision,
     embedding,
-
     pub fn toString(self: Capability) []const u8 {
         return @tagName(self);
     }
@@ -94,9 +82,7 @@ pub const ModelConfig = struct {
     enabled: bool = true,
 };
 
-// ============================================================================
-// Router Types
-// ============================================================================
+// --- Router ---
 
 pub const router = struct {
     pub const RoutingStrategy = @import("mod.zig").RoutingStrategy;
@@ -114,7 +100,6 @@ pub const RoutingStrategy = enum {
     priority,
     cost_optimized,
     latency_optimized,
-
     pub fn toString(self: RoutingStrategy) []const u8 {
         return @tagName(self);
     }
@@ -129,11 +114,9 @@ pub const TaskType = enum {
     translation,
     math,
     general,
-
     pub fn toString(self: TaskType) []const u8 {
         return @tagName(self);
     }
-
     pub fn detect(_: []const u8) TaskType {
         return .general;
     }
@@ -153,13 +136,10 @@ pub const Router = struct {
     pub fn init(_: std.mem.Allocator, _: RoutingStrategy) Router {
         return .{};
     }
-
     pub fn deinit(_: *Router) void {}
 };
 
-// ============================================================================
-// Ensemble Types
-// ============================================================================
+// --- Ensemble ---
 
 pub const ensemble = struct {
     pub const EnsembleMethod = @import("mod.zig").EnsembleMethod;
@@ -175,29 +155,21 @@ pub const EnsembleMethod = enum {
     concatenate,
     first_success,
     custom,
-
     pub fn toString(self: EnsembleMethod) []const u8 {
         return @tagName(self);
     }
 };
 
-pub const EnsembleResult = struct {
-    response: []u8,
-    model_count: usize,
-    confidence: f64,
-};
+pub const EnsembleResult = struct { response: []u8, model_count: usize, confidence: f64 };
 
 pub const Ensemble = struct {
     pub fn init(_: std.mem.Allocator, _: EnsembleMethod) Ensemble {
         return .{};
     }
-
     pub fn deinit(_: *Ensemble) void {}
 };
 
-// ============================================================================
-// Fallback Types
-// ============================================================================
+// --- Fallback ---
 
 pub const fallback = struct {
     pub const FallbackManager = @import("mod.zig").FallbackManager;
@@ -210,7 +182,6 @@ pub const FallbackPolicy = enum {
     retry_then_fallback,
     immediate_fallback,
     circuit_breaker,
-
     pub fn toString(self: FallbackPolicy) []const u8 {
         return @tagName(self);
     }
@@ -222,11 +193,9 @@ pub const HealthStatus = enum {
     unhealthy,
     circuit_open,
     recovering,
-
     pub fn toString(self: HealthStatus) []const u8 {
         return @tagName(self);
     }
-
     pub fn isAvailable(self: HealthStatus) bool {
         return self == .healthy or self == .degraded;
     }
@@ -236,13 +205,10 @@ pub const FallbackManager = struct {
     pub fn init(_: std.mem.Allocator, _: anytype) FallbackManager {
         return .{};
     }
-
     pub fn deinit(_: *FallbackManager) void {}
 };
 
-// ============================================================================
-// Model Entry
-// ============================================================================
+// --- Model Entry ---
 
 pub const ModelEntry = struct {
     config: ModelConfig,
@@ -251,79 +217,60 @@ pub const ModelEntry = struct {
     total_requests: u64 = 0,
     total_failures: u64 = 0,
     total_latency_ms: u64 = 0,
-
     pub fn avgLatencyMs(_: ModelEntry) f64 {
         return 0.0;
     }
-
     pub fn successRate(_: ModelEntry) f64 {
         return 1.0;
     }
-
     pub fn loadFactor(_: ModelEntry, _: u32) f64 {
         return 0.0;
     }
-
     pub fn isAvailable(_: ModelEntry) bool {
         return false;
     }
 };
 
-// ============================================================================
-// Orchestrator
-// ============================================================================
+// --- Orchestrator ---
 
 pub const Orchestrator = struct {
     pub fn init(_: std.mem.Allocator, _: OrchestrationConfig) OrchestrationError!Orchestrator {
         return error.OrchestrationDisabled;
     }
-
     pub fn deinit(_: *Orchestrator) void {}
-
     pub fn registerModel(_: *Orchestrator, _: ModelConfig) OrchestrationError!void {
         return error.OrchestrationDisabled;
     }
-
     pub fn unregisterModel(_: *Orchestrator, _: []const u8) OrchestrationError!void {
         return error.OrchestrationDisabled;
     }
-
     pub fn getModel(_: *Orchestrator, _: []const u8) ?*ModelEntry {
         return null;
     }
-
     pub fn setModelEnabled(_: *Orchestrator, _: []const u8, _: bool) OrchestrationError!void {
         return error.OrchestrationDisabled;
     }
-
     pub fn setModelHealth(_: *Orchestrator, _: []const u8, _: HealthStatus) OrchestrationError!void {
         return error.OrchestrationDisabled;
     }
-
     pub fn route(_: *Orchestrator, _: []const u8, _: ?TaskType) OrchestrationError!RouteResult {
         return error.OrchestrationDisabled;
     }
-
     pub fn execute(_: *Orchestrator, _: []const u8, _: ?TaskType, _: std.mem.Allocator) OrchestrationError![]u8 {
         return error.OrchestrationDisabled;
     }
-
     pub fn executeEnsemble(_: *Orchestrator, _: []const u8, _: ?TaskType, _: std.mem.Allocator) OrchestrationError!EnsembleResult {
         return error.OrchestrationDisabled;
     }
-
     pub fn getStats(_: *Orchestrator) OrchestratorStats {
         return .{};
     }
-
     pub fn listModels(_: *Orchestrator, _: std.mem.Allocator) OrchestrationError![][]const u8 {
         return error.OrchestrationDisabled;
     }
 };
 
-// ============================================================================
-// Statistics
-// ============================================================================
+// --- Stats ---
 
 pub const OrchestratorStats = struct {
     total_models: u32 = 0,
@@ -331,15 +278,10 @@ pub const OrchestratorStats = struct {
     total_requests: u64 = 0,
     total_failures: u64 = 0,
     active_requests: u32 = 0,
-
     pub fn successRate(_: OrchestratorStats) f64 {
         return 0.0;
     }
 };
-
-// ============================================================================
-// Module Functions
-// ============================================================================
 
 pub fn isEnabled() bool {
     return false;

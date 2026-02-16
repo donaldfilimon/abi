@@ -2,13 +2,7 @@
 
 const std = @import("std");
 
-pub const TransformerError = error{
-    InvalidConfiguration,
-    EmptyInput,
-    ContextTooLarge,
-    OutOfMemory,
-    FeatureDisabled,
-};
+pub const TransformerError = error{ InvalidConfiguration, EmptyInput, ContextTooLarge, OutOfMemory, FeatureDisabled };
 
 pub const TransformerConfig = struct {
     layers: u16 = 4,
@@ -43,25 +37,19 @@ pub const TransformerModel = struct {
     pub fn init(_: std.mem.Allocator, _: TransformerConfig) TransformerError!TransformerModel {
         return TransformerError.FeatureDisabled;
     }
-
     pub fn deinit(_: *TransformerModel) void {}
-
     pub fn embed(_: *TransformerModel, _: std.mem.Allocator, _: []const u8) ![]f32 {
         return error.FeatureDisabled;
     }
-
     pub fn infer(_: *TransformerModel, _: std.mem.Allocator, _: []const u8) ![]u8 {
         return error.FeatureDisabled;
     }
-
     pub fn encode(_: *const TransformerModel, _: std.mem.Allocator, _: []const u8) ![]u32 {
         return error.FeatureDisabled;
     }
-
     pub fn decode(_: *const TransformerModel, _: std.mem.Allocator, _: []const u32) ![]u8 {
         return error.FeatureDisabled;
     }
-
     pub fn generate(_: *TransformerModel, _: std.mem.Allocator, _: []const u32, _: u32) ![]u32 {
         return error.FeatureDisabled;
     }

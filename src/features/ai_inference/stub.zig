@@ -1,16 +1,9 @@
-//! AI Inference Stub Module
-//!
-//! Provides API-compatible no-op implementations when AI inference is disabled.
+//! AI Inference Stub Module — disabled when AI inference is off.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-pub const Error = error{
-    LlmDisabled,
-    EmbeddingsDisabled,
-    InferenceFailed,
-    InvalidConfig,
-};
+pub const Error = error{ LlmDisabled, EmbeddingsDisabled, InferenceFailed, InvalidConfig };
 
 // Sub-module stubs
 pub const llm = @import("../ai/llm/stub.zig");
@@ -44,29 +37,15 @@ pub const Context = struct {
     embeddings_ctx: ?*embeddings.Context = null,
     personas_ctx: ?*personas.Context = null,
 
-    pub fn init(
-        allocator: std.mem.Allocator,
-        _: config_module.AiConfig,
-    ) !*Context {
-        _ = allocator;
+    pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) !*Context {
         return error.LlmDisabled;
     }
-
-    pub fn deinit(self: *Context) void {
-        _ = self;
-    }
-
-    fn deinitSubFeatures(self: *Context) void {
-        _ = self;
-    }
-
-    pub fn getLlm(self: *Context) Error!*llm.Context {
-        _ = self;
+    pub fn deinit(_: *Context) void {}
+    fn deinitSubFeatures(_: *Context) void {}
+    pub fn getLlm(_: *Context) Error!*llm.Context {
         return error.LlmDisabled;
     }
-
-    pub fn getEmbeddings(self: *Context) Error!*embeddings.Context {
-        _ = self;
+    pub fn getEmbeddings(_: *Context) Error!*embeddings.Context {
         return error.LlmDisabled;
     }
 };

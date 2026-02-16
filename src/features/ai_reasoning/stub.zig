@@ -1,14 +1,9 @@
-//! AI Reasoning Stub Module
-//!
-//! Provides API-compatible no-op implementations when AI reasoning is disabled.
+//! AI Reasoning Stub Module — disabled when AI reasoning is off.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-pub const Error = error{
-    ReasoningDisabled,
-    InvalidConfig,
-};
+pub const Error = error{ ReasoningDisabled, InvalidConfig };
 
 // Sub-module stubs
 pub const abbey = @import("../ai/abbey/stub.zig");
@@ -65,17 +60,10 @@ pub const SegmentationConfig = documents.SegmentationConfig;
 pub const Context = struct {
     allocator: std.mem.Allocator,
 
-    pub fn init(
-        allocator: std.mem.Allocator,
-        _: config_module.AiConfig,
-    ) !*Context {
-        _ = allocator;
+    pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) !*Context {
         return error.ReasoningDisabled;
     }
-
-    pub fn deinit(self: *Context) void {
-        _ = self;
-    }
+    pub fn deinit(_: *Context) void {}
 };
 
 pub fn isEnabled() bool {

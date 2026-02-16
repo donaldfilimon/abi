@@ -1,19 +1,7 @@
 //! Observability Stub Module
 //!
-//! This module provides API-compatible no-op implementations for all public
-//! observability functions when the profiling feature is disabled at compile
-//! time. All functions return `error.ObservabilityDisabled` or empty/default
-//! values as appropriate.
-//!
-//! The observability module encompasses:
-//! - Metrics collection (counters, gauges, histograms)
-//! - Distributed tracing with OpenTelemetry support
-//! - Span creation and context propagation
-//! - Alerting and alert rule management
-//! - Prometheus and StatsD exporters
-//! - System information gathering
-//!
-//! To enable the real implementation, build with `-Denable-profiling=true`.
+//! API-compatible no-op implementations when profiling is disabled.
+//! Build with `-Denable-profiling=true` for the real implementation.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
@@ -118,14 +106,10 @@ pub const statsd = exporters.statsd;
 
 // Monitoring re-exports for parity with mod.zig
 pub const monitoring = alerting;
-pub const MonitoringError = error{
-    MonitoringDisabled,
-};
+pub const MonitoringError = error{MonitoringDisabled};
 pub const StatsDClient = struct {};
 pub const StatsDConfig = struct {};
-pub const StatsDError = error{
-    StatsDDisabled,
-};
+pub const StatsDError = error{StatsDDisabled};
 
 // Unified observability bundle (stub)
 pub const ObservabilityBundle = struct {
@@ -147,17 +131,13 @@ pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.ObservabilityConfig) Error!*Context {
         return error.ObservabilityDisabled;
     }
-
     pub fn deinit(_: *Context) void {}
-
     pub fn recordMetric(_: *Context, _: []const u8, _: f64) Error!void {
         return error.ObservabilityDisabled;
     }
-
     pub fn startSpan(_: *Context, _: []const u8) Error!Span {
         return error.ObservabilityDisabled;
     }
-
     pub fn getSummary(_: *Context) ?MetricsSummary {
         return null;
     }
@@ -166,26 +146,17 @@ pub const Context = struct {
 pub fn isEnabled() bool {
     return false;
 }
-
 pub fn isInitialized() bool {
     return false;
 }
-
 pub fn init(_: std.mem.Allocator) Error!void {
     return error.ObservabilityDisabled;
 }
-
 pub fn deinit() void {}
 
-// ---------------------------------------------------------------------------
 // System Information Helper (Stub)
-// ---------------------------------------------------------------------------
 pub const system_info = @import("stubs/system_info.zig");
 pub const SystemInfo = system_info.SystemInfo;
 
-// ---------------------------------------------------------------------------
 // Core Metrics Module (Stub)
-// ---------------------------------------------------------------------------
-// Provides stub implementations of shared metric primitives when observability
-// is disabled. These stubs maintain API parity with the real implementation.
 pub const core_metrics = @import("stubs/core_metrics.zig");

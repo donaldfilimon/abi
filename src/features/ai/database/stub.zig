@@ -30,19 +30,15 @@ pub const WdbxTokenDataset = struct {
 pub fn tokenBinToWdbx(_: std.mem.Allocator, _: []const u8, _: []const u8, _: usize) !void {
     return error.AiDisabled;
 }
-
 pub fn wdbxToTokenBin(_: std.mem.Allocator, _: []const u8, _: []const u8) !void {
     return error.AiDisabled;
 }
-
 pub fn readTokenBinFile(_: std.mem.Allocator, _: []const u8) ![]u32 {
     return error.AiDisabled;
 }
-
 pub fn writeTokenBinFile(_: std.mem.Allocator, _: []const u8, _: []const u32) !void {
     return error.AiDisabled;
 }
-
 pub fn exportGguf(_: std.mem.Allocator, _: anytype, _: []const u8) !void {
     return error.AiDisabled;
 }

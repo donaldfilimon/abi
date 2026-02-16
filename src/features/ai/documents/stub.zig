@@ -1,6 +1,4 @@
-//! Document Understanding Module Stub
-//!
-//! Stub implementation when AI features are disabled.
+//! Document Understanding stub — disabled at compile time.
 
 const std = @import("std");
 
@@ -13,9 +11,7 @@ pub const DocumentFormat = enum {
     csv,
     code,
     unknown,
-
-    pub fn fromExtension(ext: []const u8) DocumentFormat {
-        _ = ext;
+    pub fn fromExtension(_: []const u8) DocumentFormat {
         return .unknown;
     }
 };
@@ -54,12 +50,7 @@ pub const DocumentElement = struct {
     level: u8 = 0,
     children: []DocumentElement = &.{},
     metadata: ElementMetadata = .{},
-
-    pub const ElementMetadata = struct {
-        language: ?[]const u8 = null,
-        link_url: ?[]const u8 = null,
-        alt_text: ?[]const u8 = null,
-    };
+    pub const ElementMetadata = struct { language: ?[]const u8 = null, link_url: ?[]const u8 = null, alt_text: ?[]const u8 = null };
 };
 
 pub const Document = struct {
@@ -70,7 +61,6 @@ pub const Document = struct {
     metadata: DocumentMetadata,
     segments: []TextSegment,
     entities: []NamedEntity,
-
     pub const DocumentMetadata = struct {
         title: ?[]const u8 = null,
         author: ?[]const u8 = null,
@@ -80,10 +70,7 @@ pub const Document = struct {
         line_count: usize = 0,
         language: ?[]const u8 = null,
     };
-
-    pub fn deinit(self: *Document) void {
-        _ = self;
-    }
+    pub fn deinit(_: *Document) void {}
 };
 
 pub const TextSegment = struct {
@@ -92,39 +79,12 @@ pub const TextSegment = struct {
     end_offset: usize,
     segment_type: SegmentType,
     importance_score: f32 = 0.5,
-
-    pub const SegmentType = enum {
-        sentence,
-        paragraph,
-        section,
-        chunk,
-    };
+    pub const SegmentType = enum { sentence, paragraph, section, chunk };
 };
 
-pub const EntityType = enum {
-    person,
-    organization,
-    location,
-    date,
-    time,
-    money,
-    percentage,
-    email,
-    url,
-    phone,
-    code_identifier,
-    file_path,
-    version,
-    custom,
-};
+pub const EntityType = enum { person, organization, location, date, time, money, percentage, email, url, phone, code_identifier, file_path, version, custom };
 
-pub const NamedEntity = struct {
-    text: []const u8,
-    entity_type: EntityType,
-    start_offset: usize,
-    end_offset: usize,
-    confidence: f32 = 1.0,
-};
+pub const NamedEntity = struct { text: []const u8, entity_type: EntityType, start_offset: usize, end_offset: usize, confidence: f32 = 1.0 };
 
 pub const SegmentationConfig = struct {
     chunk_size: usize = 512,
@@ -137,60 +97,39 @@ pub const SegmentationConfig = struct {
 pub const TextSegmenter = struct {
     allocator: std.mem.Allocator,
     config: SegmentationConfig,
-
     pub fn init(allocator: std.mem.Allocator, config: SegmentationConfig) TextSegmenter {
         return .{ .allocator = allocator, .config = config };
     }
-
-    pub fn segmentSentences(self: *TextSegmenter, text: []const u8) ![]TextSegment {
-        _ = self;
-        _ = text;
+    pub fn segmentSentences(_: *TextSegmenter, _: []const u8) ![]TextSegment {
         return error.DocumentsDisabled;
     }
-
-    pub fn segmentChunks(self: *TextSegmenter, text: []const u8) ![]TextSegment {
-        _ = self;
-        _ = text;
+    pub fn segmentChunks(_: *TextSegmenter, _: []const u8) ![]TextSegment {
         return error.DocumentsDisabled;
     }
-
-    pub fn segmentParagraphs(self: *TextSegmenter, text: []const u8) ![]TextSegment {
-        _ = self;
-        _ = text;
+    pub fn segmentParagraphs(_: *TextSegmenter, _: []const u8) ![]TextSegment {
         return error.DocumentsDisabled;
     }
 };
 
 pub const EntityExtractor = struct {
     allocator: std.mem.Allocator,
-
     pub fn init(allocator: std.mem.Allocator) EntityExtractor {
         return .{ .allocator = allocator };
     }
-
-    pub fn extractAll(self: *EntityExtractor, text: []const u8) ![]NamedEntity {
-        _ = self;
-        _ = text;
+    pub fn extractAll(_: *EntityExtractor, _: []const u8) ![]NamedEntity {
         return error.DocumentsDisabled;
     }
 };
 
 pub const LayoutAnalyzer = struct {
     allocator: std.mem.Allocator,
-
     pub fn init(allocator: std.mem.Allocator) LayoutAnalyzer {
         return .{ .allocator = allocator };
     }
-
-    pub fn analyzeMarkdown(self: *LayoutAnalyzer, text: []const u8) ![]DocumentElement {
-        _ = self;
-        _ = text;
+    pub fn analyzeMarkdown(_: *LayoutAnalyzer, _: []const u8) ![]DocumentElement {
         return error.DocumentsDisabled;
     }
-
-    pub fn computeStats(self: *LayoutAnalyzer, text: []const u8) Document.DocumentMetadata {
-        _ = self;
-        _ = text;
+    pub fn computeStats(_: *LayoutAnalyzer, _: []const u8) Document.DocumentMetadata {
         return .{};
     }
 };
@@ -208,61 +147,26 @@ pub const DocumentPipeline = struct {
     segmenter: TextSegmenter,
     entity_extractor: EntityExtractor,
     layout_analyzer: LayoutAnalyzer,
-
     pub fn init(allocator: std.mem.Allocator, config: PipelineConfig) DocumentPipeline {
-        return .{
-            .allocator = allocator,
-            .config = config,
-            .segmenter = TextSegmenter.init(allocator, config.segmentation),
-            .entity_extractor = EntityExtractor.init(allocator),
-            .layout_analyzer = LayoutAnalyzer.init(allocator),
-        };
+        return .{ .allocator = allocator, .config = config, .segmenter = TextSegmenter.init(allocator, config.segmentation), .entity_extractor = EntityExtractor.init(allocator), .layout_analyzer = LayoutAnalyzer.init(allocator) };
     }
-
-    pub fn deinit(self: *DocumentPipeline) void {
-        _ = self;
-    }
-
-    pub fn parse(self: *DocumentPipeline, filename: ?[]const u8, content: []const u8) !Document {
-        _ = self;
-        _ = filename;
-        _ = content;
+    pub fn deinit(_: *DocumentPipeline) void {}
+    pub fn parse(_: *DocumentPipeline, _: ?[]const u8, _: []const u8) !Document {
         return error.DocumentsDisabled;
     }
-
-    pub fn getSummarySegments(self: *DocumentPipeline, doc: *const Document, max_segments: usize) []const TextSegment {
-        _ = self;
-        _ = doc;
-        _ = max_segments;
+    pub fn getSummarySegments(_: *DocumentPipeline, _: *const Document, _: usize) []const TextSegment {
         return &.{};
     }
-
-    pub fn searchSegments(self: *DocumentPipeline, doc: *const Document, query: []const u8) ![]const TextSegment {
-        _ = self;
-        _ = doc;
-        _ = query;
+    pub fn searchSegments(_: *DocumentPipeline, _: *const Document, _: []const u8) ![]const TextSegment {
         return error.DocumentsDisabled;
     }
-
-    pub fn getHeadings(self: *DocumentPipeline, doc: *const Document) ![]const DocumentElement {
-        _ = self;
-        _ = doc;
+    pub fn getHeadings(_: *DocumentPipeline, _: *const Document) ![]const DocumentElement {
         return error.DocumentsDisabled;
     }
-
-    pub fn getTableOfContents(self: *DocumentPipeline, doc: *const Document) ![]DocumentElement {
-        _ = self;
-        _ = doc;
+    pub fn getTableOfContents(_: *DocumentPipeline, _: *const Document) ![]DocumentElement {
         return error.DocumentsDisabled;
     }
-
-    pub const Error = error{
-        DocumentTooLarge,
-        InvalidFormat,
-        ParseError,
-        OutOfMemory,
-        DocumentsDisabled,
-    };
+    pub const Error = error{ DocumentTooLarge, InvalidFormat, ParseError, OutOfMemory, DocumentsDisabled };
 };
 
 pub const Error = DocumentPipeline.Error;

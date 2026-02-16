@@ -1,36 +1,11 @@
-//! AI Stub Module
-//!
-//! This module provides API-compatible no-op implementations for all public AI
-//! functions when the AI feature is disabled at compile time. All functions
-//! return `error.AiDisabled` or empty/default values as appropriate.
-//!
-//! The AI module encompasses:
-//! - LLM inference and text generation
-//! - Embeddings and vector operations
-//! - Agent systems and multi-agent coordination
-//! - Training pipelines (LLM, Vision, CLIP)
-//! - Document processing and RAG
-//! - Streaming response handling
-//! - Model discovery and management
-//!
-//! To enable the real implementation, build with `-Denable-ai=true`.
+//! AI Stub Module — disabled at compile time.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-pub const Error = error{
-    AiDisabled,
-    LlmDisabled,
-    EmbeddingsDisabled,
-    AgentsDisabled,
-    TrainingDisabled,
-    ModelNotFound,
-    InferenceFailed,
-    InvalidConfig,
-};
+pub const Error = error{ AiDisabled, LlmDisabled, EmbeddingsDisabled, AgentsDisabled, TrainingDisabled, ModelNotFound, InferenceFailed, InvalidConfig };
 
-// Sub-module stubs
-// Sub-module stubs (each submodule has its own stub.zig)
+// Sub-module stubs (each has its own stub.zig)
 pub const core = @import("core/stub.zig");
 pub const llm = @import("llm/stub.zig");
 pub const embeddings = @import("embeddings/stub.zig");
@@ -55,7 +30,7 @@ pub const transformer = @import("transformer/stub.zig");
 pub const prompts = @import("prompts/stub.zig");
 pub const abbey = @import("abbey/stub.zig");
 
-// Local stubs for single-file modules (stubs/ directory)
+// Local stubs for single-file modules
 pub const agent = @import("stubs/agent.zig");
 pub const model_registry = @import("stubs/model_registry.zig");
 pub const tool_agent = @import("stubs/tool_agent.zig");
@@ -234,121 +209,89 @@ pub const SegmentationConfig = documents.SegmentationConfig;
 // Context
 pub const Context = struct {
     pub const SubFeature = enum { llm, embeddings, agents, training, personas };
-
     pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) Error!*Context {
         return error.AiDisabled;
     }
-
     pub fn deinit(_: *Context) void {}
-
     pub fn getLlm(_: *Context) Error!*llm.Context {
         return error.AiDisabled;
     }
-
     pub fn getEmbeddings(_: *Context) Error!*embeddings.Context {
         return error.AiDisabled;
     }
-
     pub fn getAgents(_: *Context) Error!*agents.Context {
         return error.AiDisabled;
     }
-
     pub fn getTraining(_: *Context) Error!*training.Context {
         return error.AiDisabled;
     }
-
     pub fn getPersonas(_: *Context) Error!*personas.Context {
         return error.AiDisabled;
     }
-
     pub fn isSubFeatureEnabled(_: *Context, _: SubFeature) bool {
         return false;
     }
-
     pub fn getDiscoveredModels(_: *Context) []discovery.DiscoveredModel {
         return &.{};
     }
-
     pub fn discoveredModelCount(_: *Context) usize {
         return 0;
     }
-
     pub fn findBestModel(_: *Context, _: discovery.ModelRequirements) ?*discovery.DiscoveredModel {
         return null;
     }
-
     pub fn generateAdaptiveConfig(_: *Context, _: *const discovery.DiscoveredModel) discovery.AdaptiveConfig {
         return .{};
     }
-
     pub fn getCapabilities(_: *const Context) discovery.SystemCapabilities {
         return .{};
     }
-
     pub fn addModelPath(_: *Context, _: []const u8) !void {
         return error.AiDisabled;
     }
-
     pub fn addModelWithSize(_: *Context, _: []const u8, _: u64) !void {
         return error.AiDisabled;
     }
-
     pub fn clearDiscoveredModels(_: *Context) void {}
 };
 
 pub fn isEnabled() bool {
     return false;
 }
-
 pub fn isLlmEnabled() bool {
     return false;
 }
-
 pub fn isInitialized() bool {
     return false;
 }
-
 pub fn init(_: std.mem.Allocator) Error!void {
     return error.AiDisabled;
 }
-
 pub fn deinit() void {}
-
-pub fn createRegistry(allocator: std.mem.Allocator) ModelRegistry {
-    _ = allocator;
+pub fn createRegistry(_: std.mem.Allocator) ModelRegistry {
     return .{};
 }
-
 pub fn train(_: std.mem.Allocator, _: TrainingConfig) Error!TrainingReport {
     return error.AiDisabled;
 }
-
 pub fn trainWithResult(_: std.mem.Allocator, _: TrainingConfig) Error!TrainingResult {
     return error.AiDisabled;
 }
-
 pub fn createAgent(_: std.mem.Allocator, _: []const u8) Error!Agent {
     return error.AiDisabled;
 }
-
 pub fn createTransformer(_: TransformerConfig) TransformerModel {
     return .{};
 }
-
 pub fn inferText(_: std.mem.Allocator, _: []const u8) Error![]u8 {
     return error.AiDisabled;
 }
-
 pub fn embedText(_: std.mem.Allocator, _: []const u8) Error![]f32 {
     return error.AiDisabled;
 }
-
 pub fn encodeTokens(_: std.mem.Allocator, _: []const u8) Error![]u32 {
     return error.AiDisabled;
 }
-
 pub fn decodeTokens(_: std.mem.Allocator, _: []const u32) Error![]u8 {
     return error.AiDisabled;
 }
-
-// Note: loadCheckpoint is re-exported from training module at line 70

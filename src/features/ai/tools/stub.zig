@@ -13,13 +13,7 @@ pub const tool = struct {
     pub const ToolExecutionError = OuterToolExecutionError;
     pub const createContext = outerCreateContext;
 
-    const OuterParameterType = enum {
-        string,
-        integer,
-        float,
-        boolean,
-        array,
-    };
+    const OuterParameterType = enum { string, integer, float, boolean, array };
 
     const OuterParameter = struct {
         name: []const u8 = "",
@@ -40,12 +34,7 @@ pub const tool = struct {
         parameters: []const OuterParameter = &.{},
     };
 
-    const OuterToolExecutionError = error{
-        FeatureDisabled,
-        ToolNotFound,
-        InvalidParameters,
-        ExecutionFailed,
-    };
+    const OuterToolExecutionError = error{ FeatureDisabled, ToolNotFound, InvalidParameters, ExecutionFailed };
 
     const OuterToolRegistry = struct {
         allocator: std.mem.Allocator,
@@ -53,12 +42,10 @@ pub const tool = struct {
         pub fn init(allocator: std.mem.Allocator) OuterToolRegistry {
             return .{ .allocator = allocator };
         }
-
         pub fn deinit(_: *OuterToolRegistry) void {}
     };
 
     const OuterContext = struct {};
-
     fn outerCreateContext() OuterContext {
         return .{};
     }
@@ -71,24 +58,9 @@ pub const task = struct {
     pub const Task = OuterTask;
     pub const TaskStatus = OuterTaskStatus;
 
-    const OuterTaskStatus = enum {
-        pending,
-        running,
-        completed,
-        failed,
-    };
-
-    const OuterTask = struct {
-        id: []const u8 = "",
-        status: OuterTaskStatus = .pending,
-        description: []const u8 = "",
-    };
-
-    const OuterSubagentConfig = struct {
-        name: []const u8 = "",
-        max_steps: usize = 10,
-    };
-
+    const OuterTaskStatus = enum { pending, running, completed, failed };
+    const OuterTask = struct { id: []const u8 = "", status: OuterTaskStatus = .pending, description: []const u8 = "" };
+    const OuterSubagentConfig = struct { name: []const u8 = "", max_steps: usize = 10 };
     const OuterSubagent = struct {};
     const OuterTaskTool = struct {};
 };
@@ -98,43 +70,36 @@ pub const discord_tools = struct {
         return error.FeatureDisabled;
     }
 };
-
 pub const os_tools = struct {
     pub fn registerAll(_: *tool.OuterToolRegistry) !void {
         return error.FeatureDisabled;
     }
 };
-
 pub const file_tools = struct {
     pub fn registerAll(_: *tool.OuterToolRegistry) !void {
         return error.FeatureDisabled;
     }
 };
-
 pub const search_tools = struct {
     pub fn registerAll(_: *tool.OuterToolRegistry) !void {
         return error.FeatureDisabled;
     }
 };
-
 pub const edit_tools = struct {
     pub fn registerAll(_: *tool.OuterToolRegistry) !void {
         return error.FeatureDisabled;
     }
 };
-
 pub const process_tools = struct {
     pub fn registerAll(_: *tool.OuterToolRegistry) !void {
         return error.FeatureDisabled;
     }
 };
-
 pub const network_tools = struct {
     pub fn registerAll(_: *tool.OuterToolRegistry) !void {
         return error.FeatureDisabled;
     }
 };
-
 pub const system_tools = struct {
     pub fn registerAll(_: *tool.OuterToolRegistry) !void {
         return error.FeatureDisabled;
@@ -150,8 +115,7 @@ pub const Parameter = tool.OuterParameter;
 pub const ParameterType = tool.OuterParameterType;
 pub const createContext = tool.outerCreateContext;
 pub const ToolExecutionError = tool.OuterToolExecutionError;
-pub fn hasPathTraversal(path: []const u8) bool {
-    _ = path;
+pub fn hasPathTraversal(_: []const u8) bool {
     return false;
 }
 
@@ -161,44 +125,26 @@ pub const SubagentConfig = task.OuterSubagentConfig;
 pub const Task = task.OuterTask;
 pub const TaskStatus = task.OuterTaskStatus;
 
-// Discord tool exports
 pub const DiscordTools = discord_tools;
 pub const registerDiscordTools = discord_tools.registerAll;
-
-// OS tool exports
 pub const OsTools = os_tools;
 pub const registerOsTools = os_tools.registerAll;
-
-// File tool exports
 pub const FileTools = file_tools;
 pub const registerFileTools = file_tools.registerAll;
-
-// Search tool exports
 pub const SearchTools = search_tools;
 pub const registerSearchTools = search_tools.registerAll;
-
-// Edit tool exports
 pub const EditTools = edit_tools;
 pub const registerEditTools = edit_tools.registerAll;
-
-// Process tool exports
 pub const ProcessTools = process_tools;
 pub const registerProcessTools = process_tools.registerAll;
-
-// Network tool exports
 pub const NetworkTools = network_tools;
 pub const registerNetworkTools = network_tools.registerAll;
-
-// System tool exports
 pub const SystemTools = system_tools;
 pub const registerSystemTools = system_tools.registerAll;
 
-/// Stub: register all code agent tools.
 pub fn registerCodeAgentTools(_: *ToolRegistry) !void {
     return error.FeatureDisabled;
 }
-
-/// Stub: register all agent tools including extended OS capabilities.
 pub fn registerAllAgentTools(_: *ToolRegistry) !void {
     return error.FeatureDisabled;
 }

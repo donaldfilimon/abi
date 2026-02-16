@@ -1,14 +1,9 @@
-//! AI Training Stub Module
-//!
-//! Provides API-compatible no-op implementations when AI training is disabled.
+//! AI Training Stub Module — disabled when AI training is off.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-pub const Error = error{
-    TrainingDisabled,
-    InvalidConfig,
-};
+pub const Error = error{ TrainingDisabled, InvalidConfig };
 
 // Sub-module stubs
 pub const training = @import("../ai/training/stub.zig");
@@ -56,20 +51,11 @@ pub const Context = struct {
     config: config_module.AiConfig,
     training_ctx: ?*training.Context = null,
 
-    pub fn init(
-        allocator: std.mem.Allocator,
-        _: config_module.AiConfig,
-    ) !*Context {
-        _ = allocator;
+    pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) !*Context {
         return error.TrainingDisabled;
     }
-
-    pub fn deinit(self: *Context) void {
-        _ = self;
-    }
-
-    pub fn getTraining(self: *Context) Error!*training.Context {
-        _ = self;
+    pub fn deinit(_: *Context) void {}
+    pub fn getTraining(_: *Context) Error!*training.Context {
         return error.TrainingDisabled;
     }
 };
@@ -77,17 +63,9 @@ pub const Context = struct {
 pub fn isEnabled() bool {
     return false;
 }
-
-pub fn train(
-    _: std.mem.Allocator,
-    _: TrainingConfig,
-) TrainError!TrainingReport {
+pub fn train(_: std.mem.Allocator, _: TrainingConfig) TrainError!TrainingReport {
     return error.TrainingDisabled;
 }
-
-pub fn trainWithResult(
-    _: std.mem.Allocator,
-    _: TrainingConfig,
-) TrainError!TrainingResult {
+pub fn trainWithResult(_: std.mem.Allocator, _: TrainingConfig) TrainError!TrainingResult {
     return error.TrainingDisabled;
 }

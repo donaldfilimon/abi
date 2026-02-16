@@ -1,16 +1,9 @@
-//! AI Core Stub Module
-//!
-//! Provides API-compatible no-op implementations when AI core is disabled.
+//! AI Core Stub Module — disabled when AI core is off.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-pub const Error = error{
-    AiDisabled,
-    AgentsDisabled,
-    ModelNotFound,
-    InvalidConfig,
-};
+pub const Error = error{ AiDisabled, AgentsDisabled, ModelNotFound, InvalidConfig };
 
 // Sub-module stubs
 pub const core = @import("../ai/core/stub.zig");
@@ -70,20 +63,11 @@ pub const Context = struct {
     model_discovery: ?*discovery.ModelDiscovery = null,
     capabilities: discovery.SystemCapabilities = .{},
 
-    pub fn init(
-        allocator: std.mem.Allocator,
-        _: config_module.AiConfig,
-    ) !*Context {
-        _ = allocator;
+    pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) !*Context {
         return error.AiDisabled;
     }
-
-    pub fn deinit(self: *Context) void {
-        _ = self;
-    }
-
-    pub fn getAgents(self: *Context) Error!*agents.Context {
-        _ = self;
+    pub fn deinit(_: *Context) void {}
+    pub fn getAgents(_: *Context) Error!*agents.Context {
         return error.AiDisabled;
     }
 };
@@ -91,11 +75,9 @@ pub const Context = struct {
 pub fn isEnabled() bool {
     return false;
 }
-
 pub fn createRegistry(allocator: std.mem.Allocator) ModelRegistry {
     return ModelRegistry.init(allocator);
 }
-
 pub fn createAgent(_: std.mem.Allocator, _: []const u8) !Agent {
     return error.AiDisabled;
 }

@@ -1,23 +1,7 @@
 //! Network Stub Module
 //!
-//! This module provides API-compatible no-op implementations for all public
-//! network functions when the network feature is disabled at compile time.
-//! All functions return `error.NetworkDisabled` or empty/default values as
-//! appropriate.
-//!
-//! The network module encompasses:
-//! - Distributed compute coordination
-//! - Raft consensus protocol
-//! - Node discovery and peer management
-//! - Task distribution across cluster nodes
-//! - Network state management
-//! - Connection pooling and retry logic
-//! - Circuit breakers for fault tolerance
-//! - Rate limiting
-//! - Unified memory management
-//! - Inter-node linking
-//!
-//! To enable the real implementation, build with `-Denable-network=true`.
+//! API-compatible no-op implementations when network is disabled.
+//! Build with `-Denable-network=true` for the real implementation.
 
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
@@ -48,10 +32,7 @@ const linking_mod = @import("stubs/linking.zig");
 // ============================================================================
 
 pub const Error = types.Error;
-pub const NetworkError = error{
-    NetworkDisabled,
-    NotInitialized,
-};
+pub const NetworkError = error{ NetworkDisabled, NotInitialized };
 pub const NetworkConfig = types.NetworkConfig;
 pub const NetworkState = types.NetworkState;
 pub const Node = types.Node;
@@ -177,20 +158,14 @@ pub const AppendEntriesRequest = raft_mod.AppendEntriesRequest;
 pub const AppendEntriesResponse = raft_mod.AppendEntriesResponse;
 pub const PeerState = raft_mod.PeerState;
 pub const createRaftCluster = raft_mod.createCluster;
-
-// Raft persistence
 pub const RaftPersistence = raft_mod.RaftPersistence;
 pub const PersistentState = raft_mod.PersistentState;
-
-// Raft snapshot
 pub const RaftSnapshotManager = raft_mod.RaftSnapshotManager;
 pub const SnapshotConfig = raft_mod.SnapshotConfig;
 pub const SnapshotMetadata = raft_mod.SnapshotMetadata;
 pub const SnapshotInfo = raft_mod.SnapshotInfo;
 pub const InstallSnapshotRequest = raft_mod.InstallSnapshotRequest;
 pub const InstallSnapshotResponse = raft_mod.InstallSnapshotResponse;
-
-// Raft membership changes
 pub const ConfigChangeType = raft_mod.ConfigChangeType;
 pub const ConfigChangeRequest = raft_mod.ConfigChangeRequest;
 pub const applyConfigChange = raft_mod.applyConfigChange;
@@ -299,33 +274,22 @@ pub const failover = failover_mod;
 // ============================================================================
 
 pub const Context = struct {
-    pub const State = enum {
-        disconnected,
-        connecting,
-        connected,
-        error_state,
-    };
+    pub const State = enum { disconnected, connecting, connected, error_state };
 
     pub fn init(_: std.mem.Allocator, _: config_module.NetworkConfig) Error!*Context {
         return error.NetworkDisabled;
     }
-
     pub fn deinit(_: *Context) void {}
-
     pub fn connect(_: *Context) Error!void {
         return error.NetworkDisabled;
     }
-
     pub fn disconnect(_: *Context) void {}
-
     pub fn getState(_: *Context) State {
         return .disconnected;
     }
-
     pub fn discoverPeers(_: *Context) Error![]NodeInfo {
         return error.NetworkDisabled;
     }
-
     pub fn sendTask(_: *Context, _: []const u8, _: anytype) Error!void {
         return error.NetworkDisabled;
     }
@@ -338,25 +302,19 @@ pub const Context = struct {
 pub fn isEnabled() bool {
     return false;
 }
-
 pub fn defaultRegistry() Error!*NodeRegistry {
     return error.NetworkDisabled;
 }
-
 pub fn defaultConfig() ?NetworkConfig {
     return null;
 }
-
 pub fn isInitialized() bool {
     return false;
 }
-
 pub fn init(_: std.mem.Allocator) Error!void {
     return error.NetworkDisabled;
 }
-
 pub fn initWithConfig(_: std.mem.Allocator, _: NetworkConfig) Error!void {
     return error.NetworkDisabled;
 }
-
 pub fn deinit() void {}
