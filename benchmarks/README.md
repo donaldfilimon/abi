@@ -3,15 +3,8 @@ title: "Benchmark Suite"
 tags: [benchmarks, performance, testing]
 ---
 # ABI Benchmark Suite
-> **Codebase Status:** Synced with repository as of 2026-02-04.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Benchmarks-Comprehensive-blue?style=for-the-badge" alt="Benchmarks"/>
-  <img src="https://img.shields.io/badge/Baselines-Tracked-success?style=for-the-badge" alt="Baselines"/>
-  <img src="https://img.shields.io/badge/Suites-Multi%20Domain-green?style=for-the-badge" alt="Suites"/>
-</p>
-
-Comprehensive performance benchmarks for the ABI framework, measuring throughput, latency, and resource utilization across all major subsystems.
+Comprehensive performance benchmarks for ABI across core runtime paths, infrastructure services, domain workloads, and competitive comparisons.
 
 ## Quick Start
 
@@ -19,17 +12,23 @@ Comprehensive performance benchmarks for the ABI framework, measuring throughput
 # Run all benchmark suites
 zig build benchmarks
 
-# Run all benchmark suites (including competitive)
+# Run all benchmark suites plus competitive benchmarks
 zig build bench-all
 
-# Run specific suite
+# Run a specific suite
 zig build benchmarks -- --suite=simd
 
-# Quick mode (reduced iterations)
+# Run a reduced CI-safe subset
 zig build benchmarks -- --quick
 
-# Verbose output
-zig build benchmarks -- --verbose
+# Emit JSON report and verbose output
+zig build benchmarks -- --verbose --json --output=benchmark_results.json
+
+# Run competitive benchmarks
+zig build bench-competitive
+
+# Emit competitive benchmark JSON
+zig build bench-competitive -- --json
 ```
 
 ---
@@ -40,13 +39,11 @@ zig build benchmarks -- --verbose
 | --- | --- |
 | `benchmarks/` | Suite entry points (`main.zig`, `run.zig`, `mod.zig`) |
 | `benchmarks/core/` | Shared benchmark config + vector utilities |
-| `benchmarks/domain/` | Domain suites (ai, database, gpu) |
-| `benchmarks/infrastructure/` | Infrastructure suites (simd, memory, concurrency, crypto, network) |
-| `benchmarks/system/` | System/integration suites (framework, CI, baselines, standards) |
-| `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
-| `benchmarks/domain/` | Feature-specific suites (ai, database, gpu) |
-| `benchmarks/infrastructure/` | SIMD, memory, concurrency, crypto, network |
-| `benchmarks/system/` | Framework, CI, baseline store/comparator |
+| `benchmarks/domain/` | Domain suites (AI, database, GPU, services) |
+| `benchmarks/domain/services/` | Service-level benchmarks (cache, search, messaging, gateway, storage) |
+| `benchmarks/infrastructure/` | Infrastructure suites (SIMD, memory, concurrency, crypto, network, v2 modules) |
+| `benchmarks/system/` | Framework/system tooling, baselines, and comparator |
+| `benchmarks/competitive/` | Industry comparisons (FAISS, vector DBs, LLMs) |
 | `benchmarks/baselines/` | Baseline JSON storage (main/branches/releases) |
 
 ---
@@ -55,16 +52,18 @@ zig build benchmarks -- --verbose
 
 | Suite | Purpose | Key Metrics |
 |-------|---------|-------------|
-<<<<<<< HEAD
-| **simd** | Vector operations | ops/sec, throughput (GB/s) |
+| **all** | Run all suites | aggregate ops/sec, p50/p90/p99 |
+| **simd** | Vectorized compute | ops/sec, throughput (GB/s) |
 | **memory** | Allocator patterns | allocs/sec, fragmentation % |
-| **concurrency** | Lock-free structures | ops/sec, contention ratio |
-| **database** | WDBX operations | insert/search latency (μs) |
-| **network** | HTTP/JSON parsing | req/sec, parse time (ns) |
-| **crypto** | Hash/encrypt ops | MB/sec, cycles/byte |
-| **ai** | GEMM/attention | GFLOPS, memory bandwidth |
+| **concurrency** | Lock-free and parallel primitives | throughput, contention ratio |
+| **database** | WDBX/HNSW workloads | insert/search latency (μs), recall |
+| **network** | HTTP/JSON/network primitives | req/sec, parse latency (ns) |
+| **crypto** | Hashing/encryption/KDF | MB/sec, cycles/byte |
+| **ai** | AI/ML operations | GFLOPS, memory bandwidth |
 | **gpu** | GPU kernels | kernel time (ns), throughput |
-| **quick** | Fast verification | CI-friendly subset |
+| **v2** | SIMD/Math v2 primitives | primitive throughput |
+| **services** | Cache/search/gateway/messaging/storage | request throughput, hit rate |
+| **quick** | CI-friendly subset | minimized runtime metrics |
 
 ---
 
@@ -72,12 +71,11 @@ zig build benchmarks -- --verbose
 
 ### SIMD Suite (`infrastructure/simd.zig`)
 
-Tests vectorized operations using SIMD intrinsics:
-- Dot product (single/batch)
-- Matrix multiplication
-- L2 norm computation
-- Cosine similarity
-- Distance calculations (Euclidean, Manhattan)
+Vectorized primitive performance for small/large payloads:
+- Dot product (scalar vs SIMD comparisons)
+- Matrix multiplication and accumulation
+- L2 norm and cosine similarity
+- Distance kernels (Euclidean/Manhattan)
 
 ```bash
 zig build benchmarks -- --suite=simd
@@ -85,12 +83,11 @@ zig build benchmarks -- --suite=simd
 
 ### Memory Suite (`infrastructure/memory.zig`)
 
-Measures allocator performance:
+Allocation and allocator behavior under different pressure patterns:
 - General purpose allocator throughput
-- Arena allocator patterns
-- Pool allocator efficiency
-- Fragmentation under stress
-- Memory pressure handling
+- Arena allocator hot/cold cycles
+- Pool allocator usage behavior
+- Fragmentation growth and release overhead
 
 ```bash
 zig build benchmarks -- --suite=memory
@@ -98,12 +95,11 @@ zig build benchmarks -- --suite=memory
 
 ### Concurrency Suite (`infrastructure/concurrency.zig`)
 
-Tests lock-free data structures:
-- Lock-free queue throughput
-- Work-stealing deque performance
-- Atomic counter operations
-- MPMC queue contention
-- Thread pool scaling
+Parallel runtime and synchronization throughput:
+- Atomic counter throughput under contention
+- Lock-free queue and MPSC/MPMC queue patterns
+- Work-stealing deque behavior
+- Thread-pool scaling
 
 ```bash
 zig build benchmarks -- --suite=concurrency
@@ -111,25 +107,23 @@ zig build benchmarks -- --suite=concurrency
 
 ### Database Suite (`domain/database/`)
 
-WDBX vector database benchmarks:
-- Vector insertion (single/batch)
-- Linear search performance
-- HNSW approximate search
-- Concurrent search operations
-- Cache-aligned memory access
-- Memory prefetching effectiveness
+Vector database and ANN workload performance:
+- Batch and incremental inserts
+- Linear search and HNSW retrieval
+- Query throughput and p99 latency
+- Cache-aligned layout and prefetching impact
 
 ```bash
 zig build benchmarks -- --suite=database
 ```
 
-### Network Suite (`infrastructure/network.zig`)
+### Network Suite (`infrastructure/network/mod.zig`)
 
-Network protocol benchmarks:
-- HTTP header parsing
+HTTP and serialization path benchmarking:
+- Header and query parsing
 - JSON encoding/decoding
-- WebSocket frame processing
-- Request routing overhead
+- URL handling and framing paths
+- Request dispatching overhead
 
 ```bash
 zig build benchmarks -- --suite=network
@@ -137,11 +131,11 @@ zig build benchmarks -- --suite=network
 
 ### Crypto Suite (`infrastructure/crypto.zig`)
 
-Cryptographic operation benchmarks:
-- SHA-256/SHA-512 hashing
-- AES-256 encryption
-- HMAC computation
-- Key derivation (PBKDF2, Argon2)
+Cryptographic primitives and RNG paths:
+- SHA-256 / SHA-512 hashing
+- AES operations
+- HMAC
+- PBKDF2 / key derivation workloads
 - Random number generation
 
 ```bash
@@ -150,12 +144,11 @@ zig build benchmarks -- --suite=crypto
 
 ### AI Suite (`domain/ai/`)
 
-Machine learning operation benchmarks:
-- GEMM (General Matrix Multiply)
-- Attention mechanism
-- Activation functions (ReLU, GELU, SiLU)
-- Softmax computation
-- Layer normalization
+AI/ML microbenchmarks used in model and inference paths:
+- GEMM and attention kernels
+- Activation families (`ReLU`, `GELU`, `SiLU`)
+- Softmax and layer norm
+- Streaming/throughput-oriented paths
 
 ```bash
 zig build benchmarks -- --suite=ai
@@ -163,27 +156,58 @@ zig build benchmarks -- --suite=ai
 
 ### GPU Suite (`domain/gpu/`)
 
-GPU kernel benchmarks:
-- Matmul, vector ops, reductions
-- Backend comparisons
-- GPU vs CPU comparisons
+Compute on GPU vs CPU paths:
+- Vector and matrix kernels
+- Reduction kernels
+- Backend and memory-transfer comparisons
 
 ```bash
 zig build benchmarks -- --suite=gpu
+```
+
+### v2 Modules (`infrastructure/v2_modules.zig`)
+
+Modernized infrastructure primitives:
+- SIMD activations and primitive matrix operations
+- SwissMap and container-like behaviors
+- Core primitive throughput and memory impact
+
+```bash
+zig build benchmarks -- --suite=v2
+```
+
+### Services Suite (`domain/services/`)
+
+Service-level benchmark coverage:
+- Cache lookup and storage behavior
+- Search index request path
+- Gateway dispatch and serialization overhead
+- Messaging/storage workflow latency
+
+```bash
+zig build benchmarks -- --suite=services
+```
+
+### Quick Suite (`--quick`)
+
+Reduces workload to a deterministic, low-duration subset suitable for CI. Use this for fast regressions, then run full suites locally before merging.
+
+```bash
+zig build benchmarks -- --quick
 ```
 
 ---
 
 ## Competitive Benchmarks
 
-Compare ABI performance against industry-standard implementations:
+Competitive runs compare ABI against external reference implementations.
 
 ```bash
-# Run competitive benchmarks
+# Run all competitive comparisons
 zig build bench-competitive
 
-# With custom dataset size
-zig build bench-competitive -- --vectors=100000 --dims=768
+# Emit JSON for downstream processing
+zig build bench-competitive -- --json
 ```
 
 ### Available Comparisons
@@ -191,10 +215,10 @@ zig build bench-competitive -- --vectors=100000 --dims=768
 | Comparison | Target | Metrics |
 |------------|--------|---------|
 | **FAISS** | Vector similarity search | QPS, recall@k |
-| **Vector DBs** | Milvus, Pinecone | Insert/search latency |
+| **Vector DBs** | Milvus / Pinecone-style workloads | Insert/search latency |
 | **LLM Inference** | llama.cpp | Tokens/sec, memory usage |
 
-Results are output as JSON for easy integration with CI/CD pipelines.
+Results are emitted in Markdown by default and in JSON when `--json` is provided.
 
 ---
 
@@ -202,17 +226,19 @@ Results are output as JSON for easy integration with CI/CD pipelines.
 
 ### Command Line Options
 
-```
+```bash
 zig build benchmarks -- [OPTIONS]
 
 OPTIONS:
-  --suite=<name>    Run specific suite (simd, memory, concurrency, database, network, crypto, ai, gpu)
-  --quick           Run with reduced iterations
->>>>>>> origin/cursor/ai-module-source-organization-0282
-  --verbose         Show detailed output
+  --suite=<name>    Run specific suite (all, simd, memory, concurrency, database, network, crypto, ai, gpu, v2, services, quick)
+  --quick, -q       Use reduced CI workload
+  --verbose, -v     Show detailed output
   --json            Output results as JSON to stdout
   --output=<file>   Write JSON report to a file
+  --help, -h        Print runner usage
 ```
+
+`bench-all` runs both `benchmarks` and `bench-competitive` in a single command for a full performance sweep.
 
 ### Examples
 
@@ -220,48 +246,40 @@ OPTIONS:
 # All suites with verbose output
 zig build benchmarks -- --verbose
 
-# Database benchmarks only
-zig build benchmarks -- --suite=database
+# Run only database suite and emit JSON
+zig build benchmarks -- --suite=database --json
 
-# Quick verification run
+# CI-friendly quick suite
 zig build benchmarks -- --quick
 
-# JSON output for CI integration
+# Write JSON output for CI
 zig build benchmarks -- --output=benchmark_results.json
+
+# Run competitive and dump machine-readable output
+zig build bench-competitive -- --json > competitive_results.json
 ```
 
 ---
 
-## Understanding Results
+## Output and Metrics
 
-### Throughput Metrics
-
-- **ops/sec**: Operations per second (higher is better)
-- **MB/sec** or **GB/sec**: Data throughput (higher is better)
-- **GFLOPS**: Billion floating-point operations per second
-
-### Latency Metrics
-
-- **μs** (microseconds): 1/1,000,000 second
-- **ns** (nanoseconds): 1/1,000,000,000 second
-- **p50/p99**: Percentile latencies
-
-### Memory Metrics
-
-- **RSS**: Resident Set Size (actual memory usage)
-- **fragmentation %**: Wasted memory due to allocation patterns
-- **allocs/sec**: Allocation rate
+- **ops/sec**: Operations per second
+- **p50/p90/p95/p99**: Latency percentiles
+- **MB/sec / GB/sec**: Data throughput
+- **GFLOPS**: Floating-point throughput
+- **recall@k**: Search quality metric
+- **allocs/sec**: Allocation throughput
+- **fragmentation %**: Allocator memory fragmentation
 
 ---
 
 ## Performance Baselines
 
 Baseline reports are stored under `benchmarks/baselines/` (see `benchmarks/baselines/README.md`).
-After significant changes, generate a fresh JSON report and store it under the
-appropriate branch or release directory:
+After significant changes, generate a fresh JSON report and commit it to the relevant baseline directory:
 
 ```bash
-# Generate a new baseline report
+# Generate a new baseline file
 zig build benchmarks -- --output=benchmarks/baselines/branches/my_branch.json
 ```
 
@@ -269,24 +287,36 @@ zig build benchmarks -- --output=benchmarks/baselines/branches/my_branch.json
 
 ## Adding New Benchmarks
 
-New benchmarks should follow this pattern:
+Add benchmarks to the appropriate suite file and use `BenchmarkSuite` for scheduling and reporting.
 
 ```zig
+const std = @import("std");
 const BenchmarkSuite = @import("mod.zig").BenchmarkSuite;
 
+fn matmulBench(allocator: std.mem.Allocator) !void {
+    const a = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    const b = [_]f32{ 5.0, 6.0, 7.0, 8.0 };
+
+    var out = [_]f32{ 0.0, 0.0, 0.0, 0.0 };
+    _ = allocator;
+
+    for (0..1_000) |_| {
+        out[0] = a[0] * b[0] + a[1] * b[1];
+        std.mem.doNotOptimizeAway(&out);
+    }
+}
+
 pub fn run(allocator: std.mem.Allocator) !void {
-    var suite = BenchmarkSuite.init(allocator, "My Suite");
+    var suite = BenchmarkSuite.init(allocator);
     defer suite.deinit();
 
-    suite.benchmark("operation_name", struct {
-        fn bench() void {
-            // Operation to benchmark
-        }
-    }.bench, .{});
+    try suite.runBenchmark("Matrix Multiply Warmup", matmulBench, .{allocator});
 
-    suite.report();
+    suite.printSummary();
 }
 ```
+
+For richer suites, register multiple `runBenchmark` calls in one file and import that file from the relevant domain/infrastructure module.
 
 ---
 
@@ -294,21 +324,21 @@ pub fn run(allocator: std.mem.Allocator) !void {
 
 ### Inconsistent Results
 
-- Disable CPU frequency scaling: `sudo cpupower frequency-set -g performance`
-- Close background applications
-- Run multiple iterations and average
-- Use `--quick` for initial verification
+- Disable CPU frequency scaling where possible (e.g., `performance` governor)
+- Close background applications and browser/IDE workers
+- Run at least two passes and compare variance
+- Start with `--quick` during setup
 
 ### High Variance
 
-- Increase iteration count with `--iterations=N`
-- Check for thermal throttling
-- Ensure consistent memory pressure
+- Increase fixture sizes or sample count inside suite configuration
+- Check for thermal throttling and memory pressure
+- Ensure fixed thread affinity/power settings where available
 
 ### Build Failures
 
 ```bash
-# Ensure all dependencies are available
+# Enable optional systems explicitly for benchmark paths that require them
 zig build benchmarks -Denable-database=true -Denable-gpu=true
 ```
 
@@ -317,5 +347,6 @@ zig build benchmarks -Denable-database=true -Denable-gpu=true
 ## See Also
 
 - [benchmarks/baselines/README.md](baselines/README.md) - Baseline format and CI flow
+- [tools/benchmark-dashboard/README.md](../tools/benchmark-dashboard/README.md) - Dashboarding benchmark output
 - [docs/content/gpu.html](../docs/content/gpu.html) - GPU benchmarking guide
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines
