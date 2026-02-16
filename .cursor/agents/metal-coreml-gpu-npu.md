@@ -37,5 +37,6 @@ When invoked:
    - Run `zig build` and `zig build test` to ensure linking and tests pass on macOS.
 
 Deliver:
+
 - Concrete edits to build (e.g. `build/gpu.zig`, `build.zig`) and any backend or init code.
 - Short note on what was changed so GPU and CoreML/ANE are used on the M5 MacBook through Metal and CoreML linking in Zig.
