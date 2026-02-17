@@ -46,6 +46,7 @@ pub const command_infos = [_]CommandInfo{
     .{ .name = "mcp", .description = "MCP server for WDBX database (serve, tools)" },
     .{ .name = "acp", .description = "Agent Communication Protocol (card, serve)" },
     .{ .name = "ralph", .description = "Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)" },
+    .{ .name = "gendocs", .description = "Generate API docs (runs zig build gendocs)" },
     .{ .name = "version", .description = "Show framework version" },
     .{ .name = "help", .description = "Show help (use: abi help <command>)" },
 };
@@ -117,6 +118,7 @@ pub const command_names: []const []const u8 = blk: {
         "mcp",
         "acp",
         "ralph",
+        "gendocs",
         "version",
         "help",
     };
@@ -152,6 +154,7 @@ pub const command_names_with_aliases: []const []const u8 = blk: {
         "mcp",
         "acp",
         "ralph",
+        "gendocs",
         "version",
         "help",
         "info",

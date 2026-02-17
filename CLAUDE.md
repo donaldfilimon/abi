@@ -401,7 +401,7 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Add a GPU backend | `src/features/gpu/backends/` |
 | Security infrastructure | `src/services/shared/security/` (17 modules) |
 | C API bindings | `zig build c-header` → `zig-out/include/abi.h`; `zig build lib` → static library |
-| Generate API docs | `zig build gendocs` → `docs/api/` |
+| Generate API docs | `abi gendocs` or `zig build gendocs` → `docs/api/` |
 | Examples | `examples/` (36 examples) |
 | MCP service | `src/services/mcp/` (JSON-RPC 2.0 server for WDBX) |
 | ACP service | `src/services/acp/` (agent communication protocol) |
@@ -624,4 +624,4 @@ Verify with `bash scripts/check_test_baseline_consistency.sh`.
 - `scripts/project_baseline.env` — Canonical test baseline (source of truth for CI checks)
 - `docs/plan.md`, `docs/roadmap.md` — Quality gates and roadmap
 - `.cursor/agents/` — Cursor-specific expert agents (e.g. Metal/CoreML)
-- `docs/api/` — Auto-generated API docs (`zig build gendocs`)
+- `docs/api/` — Auto-generated API docs (`abi gendocs` or `zig build gendocs`)

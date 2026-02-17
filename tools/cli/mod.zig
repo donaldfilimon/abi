@@ -192,6 +192,7 @@ const command_map = std.StaticStringMap(CommandFn).initComptime(.{
     .{ "mcp", wrap(commands.mcp) },
     .{ "acp", wrap(commands.acp) },
     .{ "ralph", wrap(commands.ralph) },
+    .{ "gendocs", wrap(commands.gendocs) },
 });
 
 const io_command_map = std.StaticStringMap(IoCommandFn).initComptime(.{
