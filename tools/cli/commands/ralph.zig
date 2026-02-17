@@ -35,6 +35,12 @@ fn ralphImprove(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !vo
 fn ralphSkills(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
     try runSkills(allocator, parser.remaining());
 }
+fn ralphSuper(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runSuper(allocator, parser.remaining());
+}
+fn ralphMulti(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runMulti(allocator, parser.remaining());
+}
 fn ralphUnknown(cmd: []const u8) void {
     std.debug.print("Unknown ralph subcommand: {s}\n", .{cmd});
 }
@@ -49,6 +55,8 @@ const ralph_commands = [_]utils.subcommand.Command{
     .{ .names = &.{"gate"}, .run = ralphGate },
     .{ .names = &.{"improve"}, .run = ralphImprove },
     .{ .names = &.{ "skills", "skill" }, .run = ralphSkills },
+    .{ .names = &.{ "super", "super-ralph" }, .run = ralphSuper },
+    .{ .names = &.{ "multi", "swarm" }, .run = ralphMulti },
 };
 
 /// Entry point called by CLI dispatcher.
@@ -200,6 +208,209 @@ fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
         if (match) return true;
     }
     return false;
+}
+
+// ============================================================================
+// ralph super — one-shot: init if needed, run, optional gate
+// ============================================================================
+
+fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var task_override: ?[]const u8 = null;
+    var iter_override: ?usize = null;
+    var auto_skill = false;
+    var do_gate = false;
+    var config_path: []const u8 = CONFIG_FILE;
+    var gate_in: []const u8 = "reports/ralph_upgrade_results_openai.json";
+    var gate_out: []const u8 = "reports/ralph_upgrade_summary.md";
+
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        if (utils.args.matchesAny(arg, &[_][]const u8{ "--task", "-t" })) {
+            i += 1;
+            if (i < args.len) task_override = std.mem.sliceTo(args[i], 0);
+        } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--iterations", "-i" })) {
+            i += 1;
+            if (i < args.len) iter_override = std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10) catch null;
+        } else if (std.mem.eql(u8, arg, "--auto-skill")) {
+            auto_skill = true;
+        } else if (std.mem.eql(u8, arg, "--gate")) {
+            do_gate = true;
+        } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--config", "-c" })) {
+            i += 1;
+            if (i < args.len) config_path = std.mem.sliceTo(args[i], 0);
+        } else if (std.mem.eql(u8, arg, "--gate-in")) {
+            i += 1;
+            if (i < args.len) gate_in = std.mem.sliceTo(args[i], 0);
+        } else if (std.mem.eql(u8, arg, "--gate-out")) {
+            i += 1;
+            if (i < args.len) gate_out = std.mem.sliceTo(args[i], 0);
+        } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
+            std.debug.print(
+                \\Usage: abi ralph super [options]
+                \\
+                \\Super Ralph: init workspace if missing, run the loop, optionally run quality gate.
+                \\Power-user one-shot for autonomous multi-step tasks with optional verification.
+                \\
+                \\Options:
+                \\  -t, --task <text>      Task (default: PROMPT.md)
+                \\  -i, --iterations <n>   Max loop iterations
+                \\  -c, --config <path>    Config file (default: ralph.yml)
+                \\      --auto-skill       Extract and store a skill after the run
+                \\      --gate             Run quality gate after the run (--in/--out apply)
+                \\      --gate-in <path>   Gate input JSON (default: reports/ralph_upgrade_results_openai.json)
+                \\      --gate-out <path>  Gate output Markdown
+                \\  -h, --help             Show this help
+                \\
+            , .{});
+            return;
+        }
+    }
+
+    var io_backend = cli_io.initIoBackend(allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const has_workspace = fileExists(io, STATE_FILE) or fileExists(io, config_path);
+    if (!has_workspace) {
+        std.debug.print("No Ralph workspace found. Running init...\n", .{});
+        try runInit(allocator, &[_][:0]const u8{});
+    }
+
+    // Build run args and invoke run
+    var run_args = std.ArrayListUnmanaged([:0]const u8).empty;
+    defer run_args.deinit(allocator);
+    if (task_override) |t| {
+        const tz = try allocator.dupeZ(u8, t);
+        defer allocator.free(tz);
+        try run_args.appendSlice(allocator, &[_][:0]const u8{ "--task", tz });
+    }
+    if (iter_override) |n| {
+        const s = try std.fmt.allocPrintSentinel(allocator, "{d}", .{n}, 0);
+        defer allocator.free(s);
+        try run_args.append(allocator, "--iterations");
+        try run_args.append(allocator, s);
+    }
+    if (auto_skill) try run_args.append(allocator, "--auto-skill");
+    if (!std.mem.eql(u8, config_path, CONFIG_FILE)) {
+        const config_z = try allocator.dupeZ(u8, config_path);
+        defer allocator.free(config_z);
+        try run_args.appendSlice(allocator, &[_][:0]const u8{ "--config", config_z });
+    }
+    try runRun(allocator, run_args.items);
+
+    if (do_gate) {
+        std.debug.print("\nRunning quality gate...\n", .{});
+        const gate_in_z = try allocator.dupeZ(u8, gate_in);
+        const gate_out_z = try allocator.dupeZ(u8, gate_out);
+        defer allocator.free(gate_in_z);
+        defer allocator.free(gate_out_z);
+        const gate_args = [_][:0]const u8{ "--in", gate_in_z, "--out", gate_out_z };
+        try runGate(allocator, &gate_args);
+    }
+}
+
+// ============================================================================
+// ralph multi — Zig-native multithreaded multi-agent (ThreadPool + RalphBus)
+// ============================================================================
+
+fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var tasks_list = std.ArrayListUnmanaged([]const u8).empty;
+    defer tasks_list.deinit(allocator);
+    var max_iterations: usize = 20;
+    var workers: u32 = 0;
+
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        if (utils.args.matchesAny(arg, &[_][]const u8{ "--task", "-t" })) {
+            i += 1;
+            if (i < args.len) try tasks_list.append(allocator, std.mem.sliceTo(args[i], 0));
+        } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--iterations", "-i" })) {
+            i += 1;
+            if (i < args.len) max_iterations = std.fmt.parseInt(usize, std.mem.sliceTo(args[i], 0), 10) catch max_iterations;
+        } else if (std.mem.eql(u8, arg, "--workers")) {
+            i += 1;
+            if (i < args.len) workers = std.fmt.parseInt(u32, std.mem.sliceTo(args[i], 0), 10) catch 0;
+        } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
+            std.debug.print(
+                \\Usage: abi ralph multi [options]
+                \\
+                \\Zig-native multithreaded multi-agent: N Ralph loops in parallel via ThreadPool + RalphBus.
+                \\
+                \\Options:
+                \\  -t, --task <text>     Add a task (repeat for multiple agents)
+                \\  -i, --iterations <n>  Max iterations per agent (default: 20)
+                \\      --workers <n>     Thread pool size (default: CPU count)
+                \\  -h, --help            Show this help
+                \\
+            , .{});
+            return;
+        }
+    }
+
+    if (tasks_list.items.len == 0) {
+        std.debug.print("No tasks. Use -t/--task at least once (e.g. abi ralph multi -t \"goal1\" -t \"goal2\").\n", .{});
+        return;
+    }
+
+    const goals = tasks_list.items;
+    var bus = try abi.ai.abbey.ralph_multi.RalphBus.init(allocator, 64);
+    defer bus.deinit();
+
+    var pool = try abi.runtime.ThreadPool.init(allocator, .{
+        .thread_count = if (workers > 0) workers else 0,
+    });
+    defer pool.deinit();
+
+    const results = try allocator.alloc(?[]const u8, goals.len);
+    defer {
+        for (results) |r| if (r) |s| allocator.free(s);
+        allocator.free(results);
+    }
+    for (results) |*r| r.* = null;
+
+    var ctx: abi.ai.abbey.ralph_swarm.ParallelRalphContext = .{
+        .allocator = allocator,
+        .bus = &bus,
+        .goals = goals,
+        .results = results,
+        .max_iterations = max_iterations,
+        .post_result_to_bus = true,
+    };
+
+    std.debug.print("Ralph multi: {d} agents, {d} threads, {d} iterations each.\n", .{
+        goals.len,
+        pool.thread_count,
+        max_iterations,
+    });
+
+    for (goals, 0..) |_, idx| {
+        const uidx: u32 = @intCast(idx);
+        if (!pool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &ctx, uidx })) {
+            std.debug.print("Schedule failed for agent {d}\n", .{idx});
+            return;
+        }
+    }
+    pool.waitIdle();
+
+    std.debug.print("\n=== Results ===\n", .{});
+    for (results, 0..) |r, idx| {
+        std.debug.print("--- Agent {d} ---\n", .{idx});
+        if (r) |s| std.debug.print("{s}\n", .{s}) else std.debug.print("(failed)\n", .{});
+    }
+
+    var msg_count: usize = 0;
+    while (bus.tryRecv()) |msg| {
+        msg_count += 1;
+        std.debug.print("[bus] from={d} to={d} kind={s}: {s}\n", .{
+            msg.from_id,
+            msg.to_id,
+            @tagName(msg.kind),
+            msg.getContent(),
+        });
+    }
+    if (msg_count > 0) std.debug.print("Bus messages: {d}\n", .{msg_count});
 }
 
 // ============================================================================
@@ -915,6 +1126,8 @@ fn printHelp() void {
         \\Subcommands:
         \\  init       Create workspace: ralph.yml, .ralph/, PROMPT.md
         \\  run        Execute the Ralph iterative loop
+        \\  super      Init if needed, run, optional gate (power one-shot)
+        \\  multi      Zig-native multithreaded multi-agent (ThreadPool + RalphBus)
         \\  status     Show loop state, skills stored, last run stats
         \\  gate       Native quality gate (replaces check_ralph_gate.sh)
         \\  improve    Self-improvement: analyze source, extract lessons
@@ -923,13 +1136,15 @@ fn printHelp() void {
         \\Quick start:
         \\  abi ralph init              # Create workspace
         \\  abi ralph run               # Run task from PROMPT.md
+        \\  abi ralph super --task "..." # One-shot: init + run (+ optional --gate, --auto-skill)
+        \\  abi ralph multi -t "g1" -t "g2"  # Parallel agents (fast, Zig threads + lock-free bus)
         \\  abi ralph run --task "..."  # Inline task
         \\  abi ralph run --auto-skill  # Run + extract lesson
         \\  abi ralph gate              # Check quality gate
         \\  abi ralph improve           # Self-improvement pass
         \\  abi ralph skills            # Show stored skills
         \\
-        \\Multi-Ralph: Inter-Ralph communication (message bus) is available via abi.ai.abbey.ralph_multi (RalphBus, RalphMessage).
+        \\Multi-Ralph: Lock-free RalphBus (ralph_multi) + parallel swarm (ralph_swarm) — Zig-native, fast multithreading.
         \\
         \\Run 'abi ralph <subcommand> help' for subcommand-specific help.
         \\

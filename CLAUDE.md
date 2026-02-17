@@ -65,6 +65,17 @@ Learning and improvement happen in different ways depending on mode.
 
 **Summary:** Outside the loop, you improve by editing code and docs and running checks; inside the loop, Ralph improves by storing and reusing skills in Abbey memory. Use the right channel for the current mode.
 
+### Super Ralph (power use)
+
+When the user wants **autonomous multi-step execution** with skill memory and optional quality gates, use or suggest the Ralph CLI.
+
+- **One-shot power command:** `abi ralph super --task "goal"` — inits workspace if missing, runs the loop, optional `--auto-skill` and `--gate`.
+- **When to suggest:** User says "Ralph", "super ralph", "run the loop", "do everything", "full migration", or describes a long multi-step task that should run iteratively with verification.
+- **When not to:** Single-file edits, bounded refactors in one session — do those yourself; suggest Ralph only if they explicitly want the loop.
+- **Quality gate:** After Ralph produces report JSON, `abi ralph gate` (or `zig build ralph-gate`) enforces the score threshold; `zig build verify-all` includes ralph-gate.
+- **Multi-Ralph (Zig, fast):** Lock-free RalphBus (`ralph_multi`) + parallel swarm (`ralph_swarm`) — `abi ralph multi -t "g1" -t "g2"` runs N agents on the runtime ThreadPool; or from Zig: `ThreadPool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &ctx, index })`.
+- **Skill:** `.claude/skills/super-ralph/SKILL.md`; Codex install: `./scripts/install_super_ralph_codex.sh`.
+
 ## Quick Reference
 
 | Key | Value |
@@ -519,6 +530,9 @@ Use this section to find rules, skills, execution plans, and agent definitions. 
 |-------|------------|---------|
 | **baseline-sync** | `/baseline-sync` | Sync test baseline numbers from `scripts/project_baseline.env` to all 10 doc files. Run after test count changes. See `.claude/skills/baseline-sync/SKILL.md`. |
 | **zig-migrate** | `/zig-migrate [file-or-dir]` | Apply Zig 0.16 migration patterns (DynLib, I/O backend, format specifiers, etc.). See `.claude/skills/zig-migrate/SKILL.md`. |
+| **super-ralph** | `/super-ralph` or suggest | Run or suggest Ralph: `abi ralph super --task "..."` (init-if-needed, run, optional `--gate`/`--auto-skill`); multi-Ralph via `abi.ai.abbey.ralph_multi`. See `.claude/skills/super-ralph/SKILL.md` and [Super Ralph (power use)](#super-ralph-power-use). |
+
+**Codex:** Install Super Ralph with `./scripts/install_super_ralph_codex.sh` (copies `codex/super-ralph/` to `~/.codex/skills/super-ralph/`).
 
 Skill index: `.claude/skills/README.md` (if present) or list `ls .claude/skills/*/SKILL.md`.
 
