@@ -32,6 +32,7 @@
 //!   completions      Shell completions (bash, zsh, fish, powershell)
 //!   status           Show framework health and component status
 //!   toolchain        Zig/ZLS toolchain (install, update, status)
+//!   ralph            Ralph orchestrator (init, run, status, gate, improve, skills)
 
 const std = @import("std");
 const cli = @import("cli");

@@ -61,7 +61,7 @@ of the project, and planned future work.
 - TPU backend support (runtime-linked)
 - 28 CLI commands + 8 aliases
 - 36 examples
-- Full test suite: 1270 pass, 5 skip (main), 1534 pass (feature)
+- Full test suite: 1270 pass, 5 skip (main), 1535 pass (feature)
 
 ---
 
@@ -79,7 +79,7 @@ of the project, and planned future work.
 | C API exports | 36 |
 | Examples | 36 |
 | Main tests | 1270 pass, 5 skip |
-| Feature tests | 1534 pass |
+| Feature tests | 1535 pass |
 | Flag combos validated | 34 |
 
 ### Zig 0.16 Migration Status

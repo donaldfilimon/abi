@@ -9,7 +9,7 @@
 //! abi <command> [options]
 //! ```
 //!
-//! ## Commands (28 total)
+//! ## Commands (29 total)
 //! - `db` - Database operations (add, query, stats, optimize, backup)
 //! - `agent` - Run AI agent (interactive or one-shot)
 //! - `bench` - Run performance benchmarks (all, simd, memory, ai, quick)
@@ -36,6 +36,7 @@
 //! - `toolchain` - Zig/ZLS toolchain (install, update, status)
 //! - `mcp` - MCP server for WDBX database (serve, tools)
 //! - `acp` - Agent Communication Protocol (card, serve)
+//! - `ralph` - Ralph orchestrator (init, run, status, gate, improve, skills)
 //! - `version` - Show framework version
 //! - `help` - Show help (use: abi help <command>)
 
@@ -190,6 +191,7 @@ const command_map = std.StaticStringMap(CommandFn).initComptime(.{
     .{ "toolchain", wrap(commands.toolchain) },
     .{ "mcp", wrap(commands.mcp) },
     .{ "acp", wrap(commands.acp) },
+    .{ "ralph", wrap(commands.ralph) },
 });
 
 const io_command_map = std.StaticStringMap(IoCommandFn).initComptime(.{

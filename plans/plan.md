@@ -4,7 +4,18 @@ status: "active"
 updated: "2026-02-14"
 tags: [planning, execution, zig-0.16, multi-agent]
 ---
+
 # ABI Multi-Agent Execution Plan
+
+**For Claude / Codex:** This is the **master execution plan**. When executing any plan in `plans/`:
+1. Read this file for phases, constraints, and multi-agent roles (A0–A4).
+2. If a child plan has a "For Claude: REQUIRED SUB-SKILL" or "Use superpowers:executing-plans" line, follow it task-by-task.
+3. Respect ownership (A1 features, A2 core/services, A3 API/CLI, A4 validation); run exit criteria and gates before marking done.
+4. Skills and rules: see [CLAUDE.md — Skills, Plans, and Agents](../CLAUDE.md#skills-plans-and-agents-full-index). Baseline source of truth: `scripts/project_baseline.env`.
+
+**Plans index:** Child plans in this directory: `2026-02-16-multi-agent-improvements.md`, `2026-02-08-ralph-loop-zig016-multi-agent-eval.md`, `2026-02-08-split-large-files.md`, `2026-02-08-codebase-improvements.md`, `2026-02-08-abi-system-v2-integration.md`, `2026-02-05-stabilization-tooling.md`, `2026-02-05-examples-docs-alignment.md`, `2026-02-05-codebase-rewrite-plan.md`, `2026-02-05-claude-md-improvements.md`, `2026-02-04-feature-modules-completion.md`, `2026-02-04-codebase-improvements.md`. Quality plan: `docs/plan.md`. Roadmap: `docs/roadmap.md`.
+
+---
 
 ## Current Objective
 Deliver a stable ABI baseline on Zig 0.16.0-dev.2611+f996d2866 with verified feature-gated parity, reproducible

@@ -60,6 +60,9 @@ declare -a stale_markers=(
     "1262 total"
     "1213 pass"
     "671 pass"
+    "1252 pass"
+    "1512 pass"
+    "1534 pass"
 )
 
 for file in README.md AGENTS.md CLAUDE.md .claude/rules/zig.md docs/roadmap.md docs/content/index.md docs/content/getting-started.md docs/content/architecture.md; do

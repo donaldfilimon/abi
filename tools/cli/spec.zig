@@ -45,6 +45,7 @@ pub const command_infos = [_]CommandInfo{
     .{ .name = "toolchain", .description = "Build and install Zig/ZLS from master (install, update, status)" },
     .{ .name = "mcp", .description = "MCP server for WDBX database (serve, tools)" },
     .{ .name = "acp", .description = "Agent Communication Protocol (card, serve)" },
+    .{ .name = "ralph", .description = "Ralph orchestrator (init, run, status, gate, improve, skills)" },
     .{ .name = "version", .description = "Show framework version" },
     .{ .name = "help", .description = "Show help (use: abi help <command>)" },
 };
@@ -83,6 +84,7 @@ pub const command_subcommands = [_]CommandSubcommands{
     .{ .command = "mcp", .subcommands = &.{ "serve", "tools", "help" } },
     .{ .command = "acp", .subcommands = &.{ "card", "serve", "help" } },
     .{ .command = "completions", .subcommands = &.{ "bash", "zsh", "fish", "powershell", "help" } },
+    .{ .command = "ralph", .subcommands = &.{ "init", "run", "status", "gate", "improve", "skills", "help" } },
 };
 
 /// All canonical top-level command names in stable order.
@@ -114,6 +116,7 @@ pub const command_names: []const []const u8 = blk: {
         "toolchain",
         "mcp",
         "acp",
+        "ralph",
         "version",
         "help",
     };
@@ -148,6 +151,7 @@ pub const command_names_with_aliases: []const []const u8 = blk: {
         "toolchain",
         "mcp",
         "acp",
+        "ralph",
         "version",
         "help",
         "info",

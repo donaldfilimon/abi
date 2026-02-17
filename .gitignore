@@ -103,8 +103,14 @@ wasm_build_log.txt
 wasm_install_log.txt
 training_data.txt
 
-# Claude Code local settings
+# Claude Code local settings (track rules, skills, README, hooks for reuse)
 .claude/
+!.claude/README.md
+!.claude/rules/
+!.claude/rules/**
+!.claude/skills/
+!.claude/skills/**
+!.claude/settings.json
 .claude-plugin/
 
 # ABI local user state
@@ -128,6 +134,9 @@ desktop.ini
 
 # Cell language build artifacts
 *.cell.out
+
+# Training binaries
+train.bin
 
 # AI model files
 *.onnx

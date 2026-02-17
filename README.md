@@ -9,7 +9,7 @@
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-1252_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-1270_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
@@ -44,7 +44,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 1257 tests (1252 passing, 5 skip), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 1275 tests (1270 passing, 5 skip), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -87,10 +87,11 @@ zig build run -- --help
 Ensure your `zig` matches the version in `.zigversion`.
 
 ```bash
-# Keep zvm current and install the latest master toolchain
+# Keep zvm current and install/use the pinned toolchain
+PINNED_ZIG="$(cat .zigversion)"
 zvm upgrade
-zvm install master
-zvm use master
+zvm install "$PINNED_ZIG"
+zvm use "$PINNED_ZIG"
 
 # Verify active zig matches the repository pin
 zig version
@@ -491,8 +492,13 @@ zig build -Dgpu-backend=auto
 | Resource | Description |
 |:---------|:------------|
 | [API Reference](docs/api/index.md) | Auto-generated API docs (`zig build gendocs`) |
-| [Agent Guidelines](AGENTS.md) | Baseline rules for AI agents |
-| [Developer Guide](CLAUDE.md) | Zig 0.16.0-dev.2611+f996d2866 patterns and project conventions |
+| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns, gotchas, features, CLI; **main entry for AI assistants** |
+| [Agent Guidelines](AGENTS.md) | Structure, style, testing, **plans index and multi-agent roles (A0–A4)** |
+| [.claude/](.claude/README.md) | Rules (Zig gotchas), skills (`/baseline-sync`, `/zig-migrate`), hooks |
+| [.cursor/](.cursor/README.md) | Cursor agents (e.g. Metal/CoreML), plans |
+| [plans/plan.md](plans/plan.md) | Master execution plan; [CLAUDE.md#skills-plans-and-agents](CLAUDE.md#skills-plans-and-agents-full-index) for full index |
+
+**For AI assistants (Claude, Codex, Cursor):** Setup is **ready for use**. Start at [CLAUDE.md](CLAUDE.md); use [Skills, Plans, and Agents](CLAUDE.md#skills-plans-and-agents-full-index) for rules, skills, plans, and agents. Root config: `.claude/`, `.cursor/`. Reuse in other projects: copy those dirs and add a CLAUDE.md (or equivalent) pointing to your baselines and plans.
 
 ```bash
 # Run all tests
@@ -509,6 +515,9 @@ zig build benchmarks
 
 # Lint check
 zig build lint
+
+# Format sources in place
+zig build fix
 ```
 
 ---

@@ -51,6 +51,8 @@ pub const client = @import("client.zig");
 pub const engine = @import("engine.zig");
 pub const server = @import("server.zig");
 pub const discord_bot = @import("discord.zig");
+/// Multi-Ralph coordination: lock-free message bus for communication between Ralph loops.
+pub const ralph_multi = @import("ralph_multi.zig");
 
 // ============================================================================
 // Customizable AI Framework

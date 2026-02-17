@@ -19,6 +19,17 @@ tags: []
 
 > **Before You Start**: Please review the [Documentation README](docs/README.md) to understand the system design.
 
+## AI-assisted development
+
+When using Claude, Codex, or Cursor in this repo:
+
+- **Single entry:** [CLAUDE.md](CLAUDE.md) — build, test, gotchas, features, CLI.
+- **Skills, plans, agents:** [CLAUDE.md — Skills, Plans, and Agents](CLAUDE.md#skills-plans-and-agents-full-index) — rules (`.claude/rules/zig.md`), skills (`/baseline-sync`, `/zig-migrate`), execution plans (`plans/plan.md`), multi-agent roles (A0–A4), Cursor agents (`.cursor/agents/`).
+- **Structure and style:** [AGENTS.md](AGENTS.md).
+- You work **outside the Ralph loop** unless you explicitly run `abi ralph run`; see [Working outside the Ralph loop](CLAUDE.md#working-outside-the-ralph-loop-cursor--claude).
+
+Reusing this setup in **other projects:** copy `.claude/` and optionally `.cursor/`, add a CLAUDE.md (or equivalent) that points to your baselines and plans. See [.claude/README.md](.claude/README.md) and [.cursor/README.md](.cursor/README.md).
+
 ## Quick Reference
 
 | Task | Command |

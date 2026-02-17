@@ -1,6 +1,6 @@
 # Codebase Improvements Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Master plan (phases, roles): [plan.md](plan.md). Skills and agents index: [CLAUDE.md — Skills, Plans, and Agents](../CLAUDE.md#skills-plans-and-agents-full-index).
 
 **Goal:** Complete the split-large-files refactor (wire SIMD module), integrate all new files into the build, and fix code quality issues across the codebase.
 

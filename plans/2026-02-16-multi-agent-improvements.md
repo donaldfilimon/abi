@@ -1,5 +1,7 @@
 # Multi-Agent Module Improvements
 
+**For Claude / Codex:** Master plan (phases, A0–A4 roles): [plan.md](plan.md). Skills and agents index: [CLAUDE.md — Skills, Plans, and Agents](../CLAUDE.md#skills-plans-and-agents-full-index).
+
 ## Context
 
 The `src/features/ai/multi_agent/` module (1,305 LOC, 4 files) provides a `Coordinator`

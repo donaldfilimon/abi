@@ -20,6 +20,7 @@ const gpu = @import("gpu.zig");
 const llm = @import("llm.zig");
 const model = @import("model.zig");
 const network = @import("network.zig");
+const ralph = @import("ralph.zig");
 const simd = @import("simd.zig");
 const system_info = @import("system_info.zig");
 const train = @import("train.zig");
@@ -86,6 +87,7 @@ const Command = enum {
     llm,
     model,
     network,
+    ralph,
     simd,
     system_info,
     train,
@@ -567,8 +569,11 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
         try terminal.clear();
         try renderFrame(&state);
 
-        // Read input
-        const event = try terminal.readEvent();
+        // Poll for input with 500ms timeout (enables notification auto-expiry)
+        const event = terminal.pollEvent(500) catch |err| {
+            std.log.warn("Terminal input error: {t}", .{err});
+            break;
+        } orelse continue; // Timeout — re-render to expire notifications
 
         switch (event) {
             .key => |key| {
@@ -1210,6 +1215,7 @@ fn commandName(cmd: Command) []const u8 {
         .llm => "llm",
         .model => "model",
         .network => "network",
+        .ralph => "ralph",
         .simd => "simd",
         .system_info => "system-info",
         .train => "train",
@@ -1680,6 +1686,7 @@ fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
         .llm => try llm.run(allocator, empty_args),
         .model => try model.run(allocator, empty_args),
         .network => try network.run(allocator, empty_args),
+        .ralph => try ralph.run(allocator, empty_args),
         .simd => try simd.run(allocator, empty_args),
         .system_info => try system_info.run(allocator, empty_args),
         .train => try train.run(allocator, empty_args),
@@ -1751,6 +1758,15 @@ fn menuItemsExtended() []const MenuItem {
             .usage = "abi model <subcommand> [options]",
             .examples = &[_][]const u8{ "abi model list", "abi model download llama-7b", "abi model info mistral" },
             .related = &[_][]const u8{ "llm", "agent", "embed" },
+        },
+        .{
+            .label = "Ralph",
+            .description = "Iterative agent loop (init, run, status, gate, improve, skills)",
+            .action = .{ .command = .ralph },
+            .category = .ai,
+            .usage = "abi ralph <subcommand> [options]",
+            .examples = &[_][]const u8{ "abi ralph init", "abi ralph run", "abi ralph run --task \"...\"", "abi ralph status" },
+            .related = &[_][]const u8{ "agent", "llm" },
         },
 
         // Data (shortcuts 4-5)
