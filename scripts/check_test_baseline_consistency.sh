@@ -48,6 +48,8 @@ check_line "docs/content/getting-started.md" "${ABI_TEST_FEATURE_PASS} pass" "do
 check_line "docs/content/architecture.md" "${ABI_TEST_MAIN_PASS} pass" "docs architecture main baseline"
 check_line "docs/content/architecture.md" "${ABI_TEST_FEATURE_PASS} pass" "docs architecture feature baseline"
 check_line "docs/plan.md" "Canonical baseline.*${ABI_TEST_MAIN_PASS}/${ABI_TEST_MAIN_TOTAL}.*${ABI_TEST_MAIN_SKIP} skip.*${ABI_TEST_FEATURE_PASS}/${ABI_TEST_FEATURE_TOTAL}" "docs plan canonical baseline"
+check_line "docs/content/roadmap.md" "${ABI_TEST_MAIN_PASS} pass, ${ABI_TEST_MAIN_SKIP} skip" "docs content roadmap main baseline"
+check_line "docs/content/roadmap.md" "${ABI_TEST_FEATURE_PASS} pass" "docs content roadmap feature baseline"
 
 # Guard against known stale baselines.
 declare -a stale_markers=(
@@ -65,7 +67,7 @@ declare -a stale_markers=(
     "1534 pass"
 )
 
-for file in README.md AGENTS.md CLAUDE.md .claude/rules/zig.md docs/roadmap.md docs/content/index.md docs/content/getting-started.md docs/content/architecture.md; do
+for file in README.md AGENTS.md CLAUDE.md .claude/rules/zig.md docs/roadmap.md docs/content/index.md docs/content/getting-started.md docs/content/architecture.md docs/content/roadmap.md; do
     for marker in "${stale_markers[@]}"; do
         if grep -q "$marker" "$file"; then
             echo "ERROR: $file contains stale baseline marker '$marker'"

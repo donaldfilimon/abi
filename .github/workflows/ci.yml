@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     strategy:
@@ -94,6 +98,11 @@ jobs:
       - name: Build docs site
         run: zig build docs-site
 
+      - name: Build Jekyll site (GitHub Pages)
+        if: runner.os == 'Linux'
+        run: |
+          cd docs && bundle install --jobs 4 --retry 3 && bundle exec jekyll build
+
       - name: Verify tracked files unchanged
         run: |
           git update-index -q --refresh
@@ -149,6 +158,9 @@ jobs:
 
       - name: Check feature catalog consistency
         run: bash scripts/check_feature_catalog_consistency.sh
+
+      - name: Check import rules
+        run: bash scripts/check_import_rules.sh
 
       - name: Check Ralph report gate (when live report is present)
         if: ${{ hashFiles('reports/ralph_upgrade_results_openai.json') != '' }}
