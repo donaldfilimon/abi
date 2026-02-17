@@ -198,7 +198,8 @@ pub fn deinit() void {
     webgpu_device = null;
     webgpu_queue = null;
 
-    if (webgpu_lib) |lib| {
+    if (webgpu_lib != null) {
+        var lib = webgpu_lib.?;
         lib.close();
     }
     webgpu_lib = null;
@@ -235,10 +236,11 @@ pub fn compileKernel(
     const get_layout_fn = wgpuPipelineGetBindGroupLayout orelse return types.KernelError.CompilationFailed;
     const bind_group_layout = get_layout_fn(pipeline, 0);
 
-    const kernel = try allocator.create(WebGpuKernel);
+    const kernel = allocator.create(WebGpuKernel) catch return types.KernelError.CompilationFailed;
     kernel.* = .{
         .pipeline = pipeline,
         .bind_group_layout = bind_group_layout,
+        .shader_module = shader_module,
     };
 
     return kernel;
@@ -304,7 +306,7 @@ pub fn launchKernel(
 
     // Submit to queue
     const submit_fn = wgpuQueueSubmit orelse return types.KernelError.LaunchFailed;
-    submit_fn(queue, 1, &command_buffer);
+    submit_fn(queue, 1, @as([*]const ?*anyopaque, @ptrCast(&command_buffer)));
 }
 
 pub fn destroyKernel(allocator: std.mem.Allocator, kernel_handle: *anyopaque) void {
@@ -327,7 +329,7 @@ pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usi
     const create_buffer_fn = wgpuDeviceCreateBuffer orelse return WebGpuError.BufferCreationFailed;
 
     // Create buffer descriptor with Storage + CopySrc + CopyDst usage for compute
-    const buffer_desc = WGPUBufferDescriptor{
+    var buffer_desc = WGPUBufferDescriptor{
         .usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopySrc | WGPUBufferUsage_CopyDst,
         .size = @intCast(size),
         .mappedAtCreation = false,
@@ -397,7 +399,7 @@ pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) !void
     }
 
     const submit_fn = wgpuQueueSubmit orelse return WebGpuError.SubmissionFailed;
-    submit_fn(queue, 1, &command_buffer);
+    submit_fn(queue, 1, @as([*]const ?*anyopaque, @ptrCast(&command_buffer)));
 }
 
 /// Set the allocator to use for buffer metadata allocations.
@@ -516,8 +518,7 @@ fn tryLoadWebGpu() bool {
 
 fn loadWebGpuFunctions() bool {
     if (webgpu_lib == null) return false;
-
-    const lib = webgpu_lib.?;
+    var lib = webgpu_lib.?;
 
     // Load core instance functions
     wgpuCreateInstance = lib.lookup(WgpuCreateInstanceFn, "wgpuCreateInstance") orelse return false;
@@ -589,18 +590,20 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
         .backend = .webgpu,
         .name = name,
         .device_type = .integrated, // Conservative default
+        .vendor = .unknown,
         .total_memory = null, // WebGPU doesn't expose memory info
         .available_memory = null,
         .is_emulated = false,
         .capability = .{
             .supports_fp16 = false, // Conservative defaults
-            .supports_fp64 = false,
             .supports_int8 = true,
             .supports_async_transfers = true,
             .unified_memory = false,
         },
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     });
 
     return devices.toOwnedSlice(allocator);
@@ -640,7 +643,7 @@ test "enumerateDevices returns empty when not initialized" {
     const devices = try enumerateDevices(std.testing.allocator);
     defer {
         for (devices) |d| {
-            if (d.name) |name| std.testing.allocator.free(name);
+            std.testing.allocator.free(d.name);
         }
         std.testing.allocator.free(devices);
     }

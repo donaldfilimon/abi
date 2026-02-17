@@ -221,6 +221,6 @@ if (fw) {
 ## Related Pages
 
 - [Configuration](configuration.html) -- Feature flags, build options, and runtime config
-- [CLI Reference](cli.html) -- 28 commands and 8 aliases
+- [CLI Reference](cli.html) — 30 commands and 8 aliases
 - [C API Bindings](c-bindings.html) -- FFI reference for the 36 C exports
 - [Examples](examples.html) -- 36 runnable examples

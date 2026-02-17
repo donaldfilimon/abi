@@ -1,78 +1,54 @@
-# Documentation
+# ABI Documentation
 
-> **Last reviewed:** 2026-02-16
+This directory is the source for the ABI documentation site and is designed to work with **GitHub Pages** (Jekyll) and optionally with the Zig-based site generator. Built with Zig 0.16.0-dev.2611+f996d2866 (see repo root `.zigversion`).
 
-This directory is the source for the ABI documentation site.
+## GitHub Pages (recommended)
 
-## Contents
+The `docs/` folder is set up for [GitHub Pages](https://docs.github.com/en/pages) with Jekyll and the [Just the Docs](https://just-the-docs.github.io/just-the-docs/) theme.
+
+1. In your repo: **Settings → Pages → Source**: Deploy from a **branch**, branch **main**, folder **/docs**.
+2. Push to `main`; GitHub will build and serve the site (e.g. `https://username.github.io/abi/`).
+
+### Local preview
+
+```bash
+cd docs
+bundle install
+bundle exec jekyll serve
+```
+
+Open http://localhost:4000 (or the URL Jekyll prints). Use `--baseurl /abi` if your site will be at `https://username.github.io/abi/`.
+
+## Structure
 
 | Item | Description |
 |------|-------------|
-| `site.json` | Navigation manifest (40 pages, 10 sections) |
-| `hub.html` | Landing page |
-| `content/` | Markdown sources for all documentation pages |
-| `assets/` | CSS and JavaScript |
-| `api/` | Auto-generated API reference (`zig build gendocs`) |
+| `_config.yml` | Jekyll config, theme (Just the Docs), nav, collections |
+| `_docs/` | Content pages (Markdown); copied from `content/` for Jekyll |
+| `content/` | Canonical Markdown sources (used by Zig `docs-site` if you use it) |
+| `index.md` | Home page |
+| `api/` | Generated API reference (`abi gendocs` or `zig build gendocs`) |
+| `site.json` | Nav manifest for the Zig docs-site generator (optional) |
+| `Gemfile` | Ruby deps for Jekyll (optional for local preview) |
 
-## Requirements
+## API reference
 
-- Zig `0.16.0-dev.2611+f996d2866` or newer (match `.zigversion`).
-
-## Build
-
-```bash
-# Sync toolchain
-zvm upgrade && zvm install master && zvm use master
-
-# Generate the docs site
-zig build docs-site
-```
-
-Output is written to `zig-out/docs/`.
-
-Generate API reference only:
+Generate the API reference (writes into `docs/api/`) from the repo root:
 
 ```bash
+abi gendocs
+# or
 zig build gendocs
 ```
 
-API docs are written to `docs/api/`.
+Commit `docs/api/` if you want the generated API docs to appear on GitHub Pages.
 
-## Layout
+## Zig docs-site (optional)
 
-The site generator (`tools/docs_site/main.zig`) reads `site.json` and processes
-each page's `.md` source into HTML with automatic TOC and search indexing.
+If you use the Zig-based site generator:
 
-### Sections (40 pages)
-
-| Section | Pages | Topics |
-|---------|-------|--------|
-| Start | 3 | Home, Installation, Getting Started |
-| Core | 5 | Architecture, Configuration, Framework, CLI, Migration |
-| AI | 5 | Overview, Core, Inference, Training, Reasoning |
-| GPU | 2 | Compute, Backends |
-| Data | 4 | Database, Cache, Storage, Search |
-| Infrastructure | 7 | Network, Gateway, Messaging, Pages, Web, Cloud, Mobile |
-| Operations | 5 | Auth, Analytics, Observability, Deployment, Benchmarks |
-| Services | 3 | Connectors, MCP, ACP |
-| Reference | 6 | API, Examples, C Bindings, Troubleshooting, Contributing, Roadmap |
-
-### Writing content
-
-All pages use Markdown with YAML front matter:
-
-```yaml
----
-title: Page Title
-description: One-line description
-section: Section Name
-order: 1
----
+```bash
+zig build docs-site
 ```
 
-Cross-links between pages use `.html` extensions (the site generator does not
-rewrite `.md` links). Example: `[Architecture](architecture.html)`.
-
-The markdown parser supports: headers, code blocks, tables, bold, italic,
-inline code, links, images, lists, blockquotes, and horizontal rules. It does
-not support nested lists or admonitions.
+Output is written to `zig-out/docs/`. The generator reads `site.json` and `content/*.md`. You can keep using it for local builds; GitHub Pages will use the Jekyll setup above.

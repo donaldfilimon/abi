@@ -174,7 +174,8 @@ pub const DiagnosticsInfo = struct {
         var aw: std.Io.Writer.Allocating = .fromArrayList(allocator, &buf);
         try self.format(&aw.writer);
 
-        return aw.toArrayList().toOwnedSlice(allocator);
+        var al = aw.toArrayList();
+        return al.toOwnedSlice(allocator);
     }
 
     /// Check if database is healthy (all health metrics >= 1.0)

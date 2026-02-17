@@ -8,6 +8,7 @@ const abi = @import("abi");
 const shared_time = abi.shared.time;
 const Terminal = @import("terminal.zig").Terminal;
 const events = @import("events.zig");
+const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 
 /// Event types for the async loop
 pub const AsyncEvent = union(enum) {
@@ -59,7 +60,7 @@ pub const AsyncLoop = struct {
     last_tick_time: i64,
 
     // Event queue for external updates
-    event_queue: EventQueue,
+    event_queue: std.ArrayListUnmanaged(AsyncEvent),
 
     // Callbacks
     render_fn: ?RenderFn,
@@ -74,8 +75,6 @@ pub const AsyncLoop = struct {
     frame_times: [60]i64,
     frame_time_idx: usize,
 
-    const EventQueue = std.fifo.LinearFifo(AsyncEvent, .Dynamic);
-
     pub fn init(allocator: std.mem.Allocator, terminal: *Terminal, config: AsyncLoopConfig) AsyncLoop {
         return .{
             .allocator = allocator,
@@ -85,7 +84,7 @@ pub const AsyncLoop = struct {
             .frame_count = 0,
             .last_refresh_time = 0,
             .last_tick_time = 0,
-            .event_queue = EventQueue.init(allocator),
+            .event_queue = .empty,
             .render_fn = null,
             .update_fn = null,
             .tick_fn = null,
@@ -97,7 +96,7 @@ pub const AsyncLoop = struct {
     }
 
     pub fn deinit(self: *AsyncLoop) void {
-        self.event_queue.deinit();
+        self.event_queue.deinit(self.allocator);
     }
 
     /// Set the render callback
@@ -130,17 +129,20 @@ pub const AsyncLoop = struct {
 
     /// Push an external update event
     pub fn pushUpdate(self: *AsyncLoop, widget_id: u32, data: ?*anyopaque) void {
-        self.event_queue.writeItem(.{
+        self.event_queue.append(self.allocator, .{
             .update = .{
                 .widget_id = widget_id,
                 .data = data,
             },
-        }) catch {};
+        }) catch |err| {
+            std.log.warn("Failed to queue update for widget {d}: {t}", .{ widget_id, err });
+        };
     }
 
-    /// Request a quit
+    /// Request a quit. Sets running=false directly to guarantee
+    /// the quit succeeds even under memory pressure.
     pub fn requestQuit(self: *AsyncLoop) void {
-        self.event_queue.writeItem(.quit) catch {};
+        self.running = false;
     }
 
     /// Get current FPS
@@ -202,36 +204,49 @@ pub const AsyncLoop = struct {
         // Non-blocking poll for input
         var events_processed: u32 = 0;
         while (events_processed < self.config.max_events_per_frame) {
-            // Try to read event with timeout
-            if (self.terminal.pollEvent(self.config.input_poll_ms)) |event| {
-                const async_event = AsyncEvent{ .input = event };
+            // Try to read event with timeout — propagate real errors
+            const maybe_event = self.terminal.pollEvent(
+                self.config.input_poll_ms,
+            ) catch |err| {
+                // Terminal disconnected or fatal I/O error — stop the loop
+                std.log.warn("Terminal poll error: {t}", .{err});
+                self.running = false;
+                return;
+            };
+            const event = maybe_event orelse break; // Timeout — no more events
 
-                // Handle quit events
-                if (event == .key) {
-                    if (event.key.code == .ctrl_c) {
-                        self.running = false;
-                        return;
-                    }
+            const async_event = AsyncEvent{ .input = event };
+
+            // Handle quit events
+            if (event == .key) {
+                if (event.key.code == .ctrl_c) {
+                    self.running = false;
+                    return;
                 }
-
-                // Call update callback
-                if (self.update_fn) |update| {
-                    const should_quit = try update(self, async_event);
-                    if (should_quit) {
-                        self.running = false;
-                        return;
-                    }
-                }
-
-                events_processed += 1;
-            } else {
-                break; // No more events
             }
+
+            // Call update callback
+            if (self.update_fn) |update| {
+                const should_quit = try update(self, async_event);
+                if (should_quit) {
+                    self.running = false;
+                    return;
+                }
+            }
+
+            events_processed += 1;
         }
     }
 
     fn processQueuedEvents(self: *AsyncLoop) !void {
-        while (self.event_queue.readItem()) |event| {
+        if (self.event_queue.items.len == 0) return;
+
+        // Swap to local copy and drain — O(n) instead of O(n^2)
+        var pending = self.event_queue;
+        self.event_queue = .empty;
+        defer pending.deinit(self.allocator);
+
+        for (pending.items) |event| {
             switch (event) {
                 .quit => {
                     self.running = false;
@@ -302,23 +317,23 @@ pub const MetricsTracker = struct {
         self.memory_samples.push(getMemoryUsage());
 
         // GPU metrics if available
-        if (getGpuUsage()) |gpu| {
-            self.gpu_samples.push(gpu);
+        if (getGpuUsage()) |gpu_val| {
+            self.gpu_samples.push(gpu_val);
         }
 
         self.last_update = now;
     }
 
-    pub fn getCpuHistory(self: *MetricsTracker) []const f32 {
-        return self.cpu_samples.items();
+    pub fn getCpuHistory(self: *const MetricsTracker, buf: []f32) []f32 {
+        return self.cpu_samples.toSlice(buf);
     }
 
-    pub fn getMemoryHistory(self: *MetricsTracker) []const f32 {
-        return self.memory_samples.items();
+    pub fn getMemoryHistory(self: *const MetricsTracker, buf: []f32) []f32 {
+        return self.memory_samples.toSlice(buf);
     }
 
-    pub fn getGpuHistory(self: *MetricsTracker) []const f32 {
-        return self.gpu_samples.items();
+    pub fn getGpuHistory(self: *const MetricsTracker, buf: []f32) []f32 {
+        return self.gpu_samples.toSlice(buf);
     }
 
     fn getCpuUsage() f32 {
@@ -337,44 +352,6 @@ pub const MetricsTracker = struct {
     }
 };
 
-/// Generic ring buffer for metrics history
-pub fn RingBuffer(comptime T: type, comptime capacity: usize) type {
-    return struct {
-        const Self = @This();
-
-        data: [capacity]T,
-        head: usize,
-        len: usize,
-
-        pub fn init() Self {
-            return .{
-                .data = undefined,
-                .head = 0,
-                .len = 0,
-            };
-        }
-
-        pub fn push(self: *Self, value: T) void {
-            self.data[self.head] = value;
-            self.head = (self.head + 1) % capacity;
-            if (self.len < capacity) self.len += 1;
-        }
-
-        pub fn items(self: *Self) []const T {
-            if (self.len == 0) return &[_]T{};
-            if (self.len < capacity) return self.data[0..self.len];
-            // Full buffer - return from head to end, then start to head
-            return self.data[0..capacity];
-        }
-
-        pub fn latest(self: *Self) ?T {
-            if (self.len == 0) return null;
-            const idx = if (self.head == 0) capacity - 1 else self.head - 1;
-            return self.data[idx];
-        }
-    };
-}
-
 // Tests
 test "AsyncLoop basic initialization" {
     const allocator = std.testing.allocator;
@@ -388,26 +365,28 @@ test "AsyncLoop basic initialization" {
     try std.testing.expect(loop.frame_count == 0);
 }
 
-test "RingBuffer push and items" {
+test "RingBuffer push and latest" {
     var buf = RingBuffer(f32, 4).init();
 
     buf.push(1.0);
     buf.push(2.0);
     buf.push(3.0);
 
-    try std.testing.expect(buf.len == 3);
+    try std.testing.expect(buf.len() == 3);
     try std.testing.expect(buf.latest().? == 3.0);
 
     // Fill and overflow
     buf.push(4.0);
     buf.push(5.0);
 
-    try std.testing.expect(buf.len == 4);
+    try std.testing.expect(buf.len() == 4);
     try std.testing.expect(buf.latest().? == 5.0);
 }
 
 test "MetricsTracker initialization" {
     var tracker = MetricsTracker.init();
-    _ = tracker.getCpuHistory();
-    _ = tracker.getMemoryHistory();
+    var cpu_buf: [120]f32 = undefined;
+    var mem_buf: [120]f32 = undefined;
+    _ = tracker.getCpuHistory(&cpu_buf);
+    _ = tracker.getMemoryHistory(&mem_buf);
 }

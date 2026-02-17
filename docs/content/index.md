@@ -12,8 +12,8 @@ AI inference, GPU compute, vector database, runtime infrastructure, and operatio
 tooling into a single build with compile-time feature gating.
 
 Version **0.4.0** provides 21 feature modules, 10 GPU backends, 9 LLM provider
-connectors, and 28 CLI commands (plus 8 aliases) -- all tested with 1270 passing
-tests (5 skipped) and 1534 passing feature tests across 36 examples.
+connectors, and 30 CLI commands (plus 8 aliases) — all tested with
+1270 passing tests (5 skipped) and 1535 passing feature tests across 36 examples.
 
 ## What You Can Build
 
@@ -56,7 +56,7 @@ tests (5 skipped) and 1534 passing feature tests across 36 examples.
 # Build the framework
 zig build
 
-# See available CLI commands (28 commands + 8 aliases)
+# See available CLI commands (30 commands + 8 aliases)
 zig build run -- --help
 
 # Check system status and enabled features

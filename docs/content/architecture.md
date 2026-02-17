@@ -45,7 +45,7 @@ src/services/               Always-available infrastructure
   connectors/                 9 LLM providers + Discord + scheduler
 
 tools/cli/                  CLI entry point
-  commands/                   28 command modules + 8 aliases
+  commands/                   30 command modules + 8 aliases
 ```
 
 ### Layer Rules
@@ -243,7 +243,7 @@ ABI has two separate test roots because of Zig's module path restrictions:
 | Test Root | Path | Purpose |
 |-----------|------|---------|
 | Main tests | `src/services/tests/mod.zig` | Integration, stress, chaos, parity tests (1270 pass, 5 skip) |
-| Feature tests | `src/feature_test_root.zig` | Inline tests inside feature/service modules (1534 pass) |
+| Feature tests | `src/feature_test_root.zig` | Inline tests inside feature/service modules (1535 pass) |
 
 The feature test root sits at `src/` level so it can reach both `features/` and
 `services/` subdirectories. Test discovery uses `test { _ = @import(...); }` blocks --
@@ -253,4 +253,4 @@ The feature test root sits at `src/` level so it can reach both `features/` and
 
 - [Configuration](configuration.html) -- all build flags and environment variables
 - [Framework Lifecycle](framework.html) -- deep dive into state machine, init patterns, and lifecycle hooks
-- [CLI](cli.html) -- 28 commands + 8 aliases for system management
+- [CLI](cli.html) — 30 commands + 8 aliases for system management

@@ -61,7 +61,7 @@ pub const DeadLetter = struct {
 
 pub const SubscriberCallback = *const fn (msg: Message, ctx: ?*anyopaque) DeliveryResult;
 
-pub const Context = stub_context.StubContext(MessagingConfig);
+pub const Context = stub_context.StubContextWithConfig(MessagingConfig);
 
 pub fn init(_: std.mem.Allocator, _: MessagingConfig) MessagingError!void {
     return error.FeatureDisabled;

@@ -84,7 +84,20 @@ fn printHelp() void {
     std.debug.print("{s}", .{text});
 }
 
+fn wantsHelp(args: []const [:0]const u8) bool {
+    for (args) |a| {
+        const s = std.mem.sliceTo(a, 0);
+        if (std.mem.eql(u8, s, "help") or std.mem.eql(u8, s, "--help") or std.mem.eql(u8, s, "-h"))
+            return true;
+    }
+    return args.len == 0;
+}
+
 fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsHelp(args)) {
+        printHelp();
+        return;
+    }
     var id: ?u64 = null;
     var vector_text: ?[]const u8 = null;
     var meta: ?[]const u8 = null;
@@ -172,6 +185,10 @@ fn handleAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn handleQuery(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsHelp(args)) {
+        printHelp();
+        return;
+    }
     var vector_text: ?[]const u8 = null;
     var embed_text: ?[]const u8 = null;
     var top_k: usize = 3;
@@ -276,6 +293,10 @@ fn handleStats(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn handleServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsHelp(args)) {
+        printHelp();
+        return;
+    }
     var address: []const u8 = "127.0.0.1:9191";
     var i: usize = 0;
     while (i < args.len) {
@@ -290,6 +311,10 @@ fn handleServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 }
 
 fn handleOptimize(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsHelp(args)) {
+        printHelp();
+        return;
+    }
     var path: ?[]const u8 = null;
     if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
         path = std.mem.sliceTo(args[1], 0);
@@ -303,6 +328,10 @@ fn handleOptimize(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
 }
 
 fn handleBackup(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsHelp(args)) {
+        printHelp();
+        return;
+    }
     var path: ?[]const u8 = null;
     if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
         path = std.mem.sliceTo(args[1], 0);
@@ -318,6 +347,10 @@ fn handleBackup(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 }
 
 fn handleRestore(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (wantsHelp(args)) {
+        printHelp();
+        return;
+    }
     var path: ?[]const u8 = null;
     if (args.len >= 2 and std.mem.eql(u8, std.mem.sliceTo(args[0], 0), "--path")) {
         path = std.mem.sliceTo(args[1], 0);

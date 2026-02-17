@@ -712,9 +712,12 @@ pub const HnswIndex = struct {
     /// Get cache statistics if distance caching is enabled.
     ///
     /// @return Struct with hits, misses, and computed hit_rate (0.0-1.0), or null if caching disabled
-    pub fn getCacheStats(self: *const HnswIndex) ?struct { hits: u64, misses: u64, hit_rate: f32 } {
+    pub const CacheStats = struct { hits: u64, misses: u64, hit_rate: f32 };
+
+    pub fn getCacheStats(self: *const HnswIndex) ?CacheStats {
         if (self.distance_cache) |cache| {
-            return cache.getStats();
+            const stats = cache.getStats();
+            return .{ .hits = stats.hits, .misses = stats.misses, .hit_rate = stats.hit_rate };
         }
         return null;
     }
@@ -1010,7 +1013,7 @@ pub const HnswIndex = struct {
     }
 
     /// Sequential distance computation using SIMD.
-    fn computeBatchDistancesSequential(
+    pub fn computeBatchDistancesSequential(
         self: *const HnswIndex,
         query: []const f32,
         query_norm: f32,

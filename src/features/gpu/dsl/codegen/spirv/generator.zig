@@ -107,7 +107,7 @@ pub const SpirvGenerator = struct {
     pub fn generate(
         self: *Self,
         ir: *const kernel.KernelIR,
-    ) backend.CodegenError!backend.GeneratedSource {
+    ) anyerror!backend.GeneratedSource {
         // Reset state
         self.next_id = 1;
         self.words.clearRetainingCapacity();
@@ -344,7 +344,7 @@ pub const SpirvGenerator = struct {
     // =========================================================================
 
     /// Generate code for a statement.
-    pub fn generateStmt(self: *Self, s: *const dsl_stmt.Stmt) !void {
+    pub fn generateStmt(self: *Self, s: *const dsl_stmt.Stmt) anyerror!void {
         switch (s.*) {
             .var_decl => |v| {
                 const ty = try self.typeFromIR(v.ty);
@@ -481,7 +481,7 @@ pub const SpirvGenerator = struct {
     }
 
     /// Generate an expression and return its result ID.
-    pub fn generateExpr(self: *Self, e: *const dsl_expr.Expr) !u32 {
+    pub fn generateExpr(self: *Self, e: *const dsl_expr.Expr) anyerror!u32 {
         return switch (e.*) {
             .literal => |lit| try self.generateLiteral(lit),
             .ref => |ref| {
@@ -582,7 +582,7 @@ pub const SpirvGenerator = struct {
     }
 
     /// Generate expression as pointer (for assignments).
-    pub fn generateExprPtr(self: *Self, e: *const dsl_expr.Expr) !u32 {
+    pub fn generateExprPtr(self: *Self, e: *const dsl_expr.Expr) anyerror!u32 {
         return switch (e.*) {
             .ref => |ref| {
                 if (ref.name) |name| {

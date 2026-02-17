@@ -662,12 +662,15 @@ test "Buffer basic operations" {
         .backend = .vulkan,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var buffer = try Buffer.init(std.testing.allocator, 1024, &device, .{});
@@ -684,12 +687,15 @@ test "Buffer write and read" {
         .backend = .cuda,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var buffer = try Buffer.init(std.testing.allocator, 16 * @sizeOf(f32), &device, .{
@@ -715,12 +721,15 @@ test "Buffer dirty state tracking" {
         .backend = .metal,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var buffer = try Buffer.init(std.testing.allocator, 256, &device, .{
@@ -755,12 +764,15 @@ test "Buffer createFromSlice" {
         .backend = .webgpu,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     const data = [_]i32{ 10, 20, 30, 40, 50 };
@@ -783,12 +795,15 @@ test "Buffer map and unmap" {
         .backend = .vulkan,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var buffer = try Buffer.init(std.testing.allocator, 64, &device, .{
@@ -810,12 +825,15 @@ test "Buffer slice" {
         .backend = .cuda,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var buffer = try Buffer.init(std.testing.allocator, 1024, &device, .{});

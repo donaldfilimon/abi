@@ -41,7 +41,7 @@ When you assist in **Cursor** (or any direct editor/chat session), you are **out
 
 - **Config:** `ralph.yml` (backend, prompt_file, max_iterations, etc.).
 - **Runtime state:** `.ralph/` (e.g. state, lock, logs, agent data).
-- **CLI:** `abi ralph init | run | status | gate | improve | skills`; see `abi ralph help` and `tools/cli/commands/ralph.zig`.
+- **CLI:** `abi ralph init | run | super | multi | status | gate | improve | skills`; see `abi ralph help` and `tools/cli/commands/ralph.zig`.
 
 ### Self-improvement and learning
 
@@ -85,7 +85,7 @@ When the user wants **autonomous multi-step execution** with skill memory and op
 | **Version** | 0.4.0 |
 | **Test baseline** | 1270 pass, 5 skip (1275 total) — must be maintained |
 | **Feature tests** | 1535 pass (1535 total) — `zig build feature-tests` |
-| **CLI commands** | 28 commands + 8 aliases |
+| **CLI commands** | 30 commands + 8 aliases |
 | **Feature modules** | 21 (comptime-gated; see Feature Flags) |
 
 ## Build & Test Commands
@@ -136,7 +136,7 @@ zig std                                     # Print stdlib source path (useful f
 ### Running the CLI
 
 ```bash
-zig build run -- --help                      # CLI help (28 commands + 8 aliases)
+zig build run -- --help                      # CLI help (30 commands + 8 aliases)
 zig build run -- system-info                 # System and feature status (incl. Feature Matrix)
 zig build run -- --list-features             # List features (COMPILED/DISABLED) and exit
 zig build run -- status                      # Framework health and feature count
@@ -288,7 +288,7 @@ src/services/            → Always-available infrastructure (runtime, platform,
 src/services/mcp/        → MCP server (JSON-RPC 2.0 over stdio, WDBX tools)
 src/services/acp/        → ACP server (agent communication protocol)
 src/services/connectors/ → LLM provider connectors (9 providers + discord + scheduler)
-tools/cli/               → Primary CLI entry point and command registration (28 commands)
+tools/cli/               → Primary CLI entry point and command registration (30 commands)
 src/api/                 → Additional executable entry points (e.g., `main.zig`)
 ```
 

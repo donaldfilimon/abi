@@ -47,7 +47,8 @@ pub const SaveError =
 pub const LoadError =
     std.Io.Dir.ReadFileAllocError ||
     std.mem.Allocator.Error ||
-    IndexError;
+    IndexError ||
+    binary.SerializationCursor.Error;
 
 pub const IndexManager = struct {
     config: IndexConfig,
@@ -807,7 +808,7 @@ fn encodeVectors(
     bits: u8,
     codes: []u8,
 ) void {
-    const levels = (@as(u16, 1) << bits) - 1;
+    const levels = (@as(u16, 1) << @as(u4, @intCast(bits))) - 1;
     const dim = min_values.len;
     for (records, 0..) |record, i| {
         const offset = i * dim;
@@ -829,7 +830,7 @@ fn quantizeValue(value: f32, min_val: f32, max_val: f32, levels: u16) u8 {
 }
 
 fn decodeVector(index: *const IvfPqIndex, record_index: u32, out: []f32) void {
-    const levels = (@as(u16, 1) << index.bits) - 1;
+    const levels = (@as(u16, 1) << @as(u4, @intCast(index.bits))) - 1;
     const offset = @as(usize, record_index) * index.dim;
     for (out, 0..) |*value, i| {
         const code = index.codes[offset + i];

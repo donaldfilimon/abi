@@ -1,8 +1,6 @@
 //! Analytics stub — disabled at compile time.
 
 const std = @import("std");
-const time = @import("../../services/shared/time.zig");
-const sync = @import("../../services/shared/sync.zig");
 
 // --- Event Types ---
 
@@ -30,9 +28,6 @@ pub const Engine = struct {
     allocator: std.mem.Allocator,
     config: AnalyticsConfig,
     events: std.ArrayListUnmanaged(StoredEvent) = .empty,
-    session_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-    event_count: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
-    mutex: sync.Mutex = .{},
 
     const StoredEvent = struct { name: []const u8, timestamp_ms: u64, session_id: ?[]const u8 };
 

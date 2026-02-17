@@ -15,6 +15,7 @@ pub const ring_buffer = @import("ring_buffer.zig");
 pub const percentile_tracker = @import("percentile_tracker.zig");
 pub const model_panel = @import("model_panel.zig");
 pub const streaming_dashboard = @import("streaming_dashboard.zig");
+pub const async_loop = @import("async_loop.zig");
 
 pub const Key = events.Key;
 pub const KeyCode = events.KeyCode;
@@ -72,3 +73,9 @@ pub const ModelManagementPanel = model_panel.ModelManagementPanel;
 
 // Streaming Dashboard
 pub const StreamingDashboard = streaming_dashboard.StreamingDashboard;
+
+// Async Loop
+pub const AsyncLoop = async_loop.AsyncLoop;
+pub const AsyncEvent = async_loop.AsyncEvent;
+pub const AsyncLoopConfig = async_loop.AsyncLoopConfig;
+pub const MetricsTracker = async_loop.MetricsTracker;

@@ -4,7 +4,7 @@ tags: []
 ---
 //! # Connectors
 //!
-//! > **Codebase Status:** Synced with repository as of 2026-02-04.
+//! > **Codebase Status:** Synced with repository as of 2026-02-17.
 //!
 //! Integration points to external AI services, platforms, and communication APIs.
 //!
@@ -13,8 +13,14 @@ tags: []
 //! | Connector | Description | Environment Variable |
 //! |-----------|-------------|---------------------|
 //! | OpenAI | GPT-4, GPT-3.5, embeddings | `ABI_OPENAI_API_KEY` |
+//! | Anthropic | Claude models | `ABI_ANTHROPIC_API_KEY` |
 //! | Ollama | Local LLM inference | `ABI_OLLAMA_HOST` |
 //! | HuggingFace | Inference API | `ABI_HF_API_TOKEN` |
+//! | Mistral | Mistral AI models | `ABI_MISTRAL_API_KEY` |
+//! | Cohere | Cohere models | `ABI_COHERE_API_KEY` |
+//! | LM Studio | Local server (OpenAI-compat) | `ABI_LM_STUDIO_HOST` |
+//! | vLLM | Local server (OpenAI-compat) | `ABI_VLLM_HOST` |
+//! | MLX | Apple MLX inference | `ABI_MLX_HOST` |
 //! | Discord | Discord Bot API | `DISCORD_BOT_TOKEN` |
 //! | Local Scheduler | Local task scheduling | `ABI_LOCAL_SCHEDULER_URL` |
 //!
@@ -43,9 +49,15 @@ tags: []
 //! ## Sub-modules
 //!
 //! - `openai.zig` - OpenAI API client
+//! - `anthropic.zig` - Anthropic/Claude API client
 //! - `ollama.zig` - Ollama local inference
 //! - `huggingface.zig` - HuggingFace Inference API
-//! - `discord.zig` - Discord Bot API (REST, webhooks, interactions)
+//! - `mistral.zig` - Mistral AI client
+//! - `cohere.zig` - Cohere API client
+//! - `lm_studio.zig` - LM Studio local server (OpenAI-compatible)
+//! - `vllm.zig` - vLLM local server (OpenAI-compatible)
+//! - `mlx.zig` - Apple MLX inference
+//! - `discord/` - Discord Bot API (REST, webhooks, interactions)
 //! - `local_scheduler.zig` - Local task scheduler
 //! - `shared.zig` - Shared types and discovery
 //!

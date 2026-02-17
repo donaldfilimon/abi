@@ -255,6 +255,6 @@
     }
   ],
   "footer": {
-    "text": "Built with Zig 0.16 | ABI v0.4.0 | 1270 pass, 5 skip | 1534 feature tests"
+    "text": "Built with Zig 0.16 | ABI v0.4.0 | 1270 pass, 5 skip | 1535 feature tests"
   }
 }

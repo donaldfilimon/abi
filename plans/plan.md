@@ -277,7 +277,7 @@ Import chains verified: `abi.zig` -> `services/{shared,runtime}/mod.zig` -> sub-
 ### v2 Modules Intentionally Skipped
 - `config.zig` — framework already has layered config system
 - `gpu.zig` — existing GPU module is far more complete (10 backends)
-- `cli.zig` — existing CLI has 28 commands (+ 4 aliases)
+- `cli.zig` — existing CLI has 30 commands (+ 8 aliases)
 - `main.zig` — entry point, not applicable
 
 ---

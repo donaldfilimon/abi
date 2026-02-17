@@ -108,7 +108,7 @@ Goals for the next minor release:
 - **Training pipeline v2** -- Distributed training with runtime.ThreadPool,
   gradient sync via Channel
 - **Plugin system** -- Dynamic feature loading beyond comptime gating
-- **Documentation** -- Auto-generated API docs (`zig build gendocs`) coverage
+- **Documentation** — Auto-generated API docs (`abi gendocs` or `zig build gendocs`) coverage
   for all 21 modules
 
 ## Planned: v0.6.0

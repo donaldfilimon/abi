@@ -11,3 +11,5 @@ pub const AppConfig = config.AppConfig;
 
 pub const app = @import("app.zig");
 pub const App = app.App;
+pub const AppBuilder = app.AppBuilder;
+pub const StopOptions = app.StopOptions;

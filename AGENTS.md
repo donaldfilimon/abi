@@ -11,7 +11,7 @@ ABI is a Zig 0.16 framework (v0.4.0) with `src/abi.zig` as the public API entryp
 - `src/api/`, `src/core/`, `src/services/`, and `src/features/` for primary code.
 - **21 feature modules** (each with `mod.zig` + `stub.zig`): `ai`, `ai_core`, `ai_inference`, `ai_training`, `ai_reasoning`, `analytics`, `auth`, `benchmarks`, `cache`, `cloud`, `database`, `gateway`, `gpu`, `messaging`, `mobile`, `network`, `observability`, `pages`, `search`, `storage`, `web`.
 - **Services**: `connectors/` (9 LLM providers + discord + scheduler), `mcp/` (JSON-RPC 2.0 server), `acp/` (agent protocol), `runtime/`, `shared/`, `ha/`, `platform/`, `tasks/`.
-- **28 CLI commands** + 8 aliases (`info`, `sysinfo`, `ls`, `run`, `dashboard`, `chat`, `reasoning`, `serve`).
+- **30 CLI commands** + 8 aliases (`info`, `sysinfo`, `ls`, `run`, `dashboard`, `chat`, `reasoning`, `serve`).
 - Shared runtime and integration tests: `src/services/tests/`.
 - Feature inline tests: `src/feature_test_root.zig`.
 - Examples/docs: `examples/`, `benchmarks/`, `docs/api/`.
@@ -19,7 +19,7 @@ ABI is a Zig 0.16 framework (v0.4.0) with `src/abi.zig` as the public API entryp
 ## Build, Test, and Development Commands
 
 - `zig build`: build with default feature flags.
-- `zig build run -- --help`: show CLI help (28 commands).
+- `zig build run -- --help`: show CLI help (30 commands).
 - `zig build run -- system-info`: system and feature status (includes Feature Matrix).
 - `zig build run -- --list-features`: list features (COMPILED/DISABLED) and exit.
 - `zig build run -- status`: framework health and feature count.

@@ -182,12 +182,16 @@ Before completing your migration, verify:
 | Milestone | Version | Date | Status |
 |-----------|---------|------|--------|
 | Deprecation warnings added | 0.4.0 | Current | Available |
-| vNext API available (dual support) | 0.5.0 | Planned | -- |
+| vNext API available (dual support) | 0.4.x | Current | Available |
 | Old API removed | 0.6.0 | Planned | -- |
 
-During the 0.5.0 release, both the old (`Framework`) and new (`App`) APIs will be
-available simultaneously. The old API will emit deprecation warnings by default.
-In 0.6.0, the old API will be removed entirely.
+Both the old (`Framework`) and new (`App`) APIs are available simultaneously in the
+current release. The old API will emit deprecation warnings when
+`-Dabi-vnext-warnings=true` is set. In 0.6.0, the old API will be removed entirely.
+
+**Note:** Zig does not support function overloading, so `app.stop()` is split into
+two methods: `stop()` (no arguments, for `defer app.stop()`) and
+`stopWithOptions(.{ .timeout_ms = ms })` for controlled shutdown with timeout.
 
 ## Compatibility Notes
 

@@ -48,10 +48,11 @@ test {
     if (build_options.enable_storage) _ = @import("features/storage/mod.zig");
     if (build_options.enable_pages) _ = @import("features/pages/mod.zig");
 
-    // Analytics, observability, and mobile inline tests
+    // Analytics, observability, mobile, and benchmarks inline tests
     if (build_options.enable_analytics) _ = @import("features/analytics/mod.zig");
     if (build_options.enable_profiling) _ = @import("features/observability/mod.zig");
     if (build_options.enable_mobile) _ = @import("features/mobile/mod.zig");
+    if (build_options.enable_benchmarks) _ = @import("features/benchmarks/mod.zig");
 
     // Network and web inline tests
     if (build_options.enable_network) _ = @import("features/network/mod.zig");
@@ -70,9 +71,10 @@ test {
     if (@hasDecl(build_options, "enable_reasoning") and build_options.enable_reasoning)
         _ = @import("features/ai_reasoning/mod.zig");
 
-    // Standalone test files — avoid pulling in sub-modules with Zig 0.16 issues
-    // (GPU backends have 37 Zig 0.16 migration errors: DynLib const, stale struct
-    //  fields, extern enum tag width, null→*anyopaque. Needs dedicated fix pass.)
+    // GPU and database modules (Zig 0.16 migration completed)
+    if (build_options.enable_gpu) _ = @import("features/gpu/mod.zig");
+    if (build_options.enable_database) _ = @import("features/database/mod.zig");
+
     if (build_options.enable_auth) _ = @import("features/auth/auth_test.zig");
 
     // MCP/ACP service tests (types + server only — mod.zig has database dep)

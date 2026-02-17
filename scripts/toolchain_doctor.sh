@@ -52,12 +52,19 @@ fi
 
 echo
 echo "Suggested fix:"
-echo "  1) zvm upgrade"
-echo "  2) zvm install master"
-echo "  3) zvm use master"
-echo "  4) export PATH=\"\$HOME/.zvm/bin:\$PATH\""
-echo "  5) hash -r"
-echo "  6) bash scripts/check_zig_version_consistency.sh"
+if command -v zvm >/dev/null 2>&1; then
+    echo "  1) zvm upgrade"
+    echo "  2) zvm install \"$expected_version\""
+    echo "  3) zvm use \"$expected_version\""
+    echo "  4) export PATH=\"\$HOME/.zvm/bin:\$PATH\""
+    echo "  5) hash -r"
+    echo "  6) bash scripts/check_zig_version_consistency.sh"
+else
+    echo "  1) Install Zig $expected_version from https://ziglang.org/download/"
+    echo "  2) Put the Zig binary on PATH ahead of other installations"
+    echo "  3) hash -r"
+    echo "  4) bash scripts/check_zig_version_consistency.sh"
+fi
 echo
 echo "FAILED: toolchain doctor found $issues issue(s)."
 exit 1

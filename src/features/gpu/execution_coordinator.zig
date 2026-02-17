@@ -332,12 +332,15 @@ pub const ExecutionCoordinator = struct {
                     .backend = backend.backend_type,
                     .name = "GPU Device",
                     .device_type = .discrete,
+                    .vendor = .unknown,
                     .total_memory = backend.total_memory,
                     .available_memory = null,
                     .is_emulated = backend.is_emulated,
                     .capability = .{},
                     .compute_units = null,
                     .clock_mhz = null,
+                    .pci_bus_id = null,
+                    .driver_version = null,
                 };
 
                 // Initialize the kernel dispatcher

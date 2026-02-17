@@ -116,6 +116,9 @@ training_data.txt
 # ABI local user state
 .abi/
 
+# Ralph runtime output and lock
+.ralph/
+
 # Development checkpoints and evaluation data
 checkpoints/
 

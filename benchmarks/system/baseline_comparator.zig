@@ -19,7 +19,7 @@
 //! defer report.deinit(allocator);
 //!
 //! if (report.hasRegressions()) {
-//!     try report.format(std.io.getStdErr().writer());
+//!     try report.format(std.Io.File.stderr().writer(io, &buf));
 //!     return error.RegressionDetected;
 //! }
 //! ```

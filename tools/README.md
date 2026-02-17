@@ -19,7 +19,7 @@ Index of developer tools and internal utilities.
 | --- | --- |
 | `tools/cli/` | ABI CLI implementation (commands, TUI, utils, tests) |
 | `tools/docgen/` | Documentation generator templates + driver (outputs to `zig-out/docs-site/`) |
-| `tools/gendocs/` | Doc generation entry point (zig build gendocs) |
+| `tools/gendocs/` | Doc generation entry point (`abi gendocs` or `abi gendocs`) |
 | `tools/benchmark-dashboard/` | Benchmark visualization UI + data |
 | `tools/perf/` | Perf checks and microbench helpers |
 
@@ -27,7 +27,7 @@ Index of developer tools and internal utilities.
 
 ```bash
 zig build run -- --help
-zig build gendocs
+abi gendocs
 zig build benchmarks
 ```
 

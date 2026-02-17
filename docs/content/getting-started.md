@@ -44,6 +44,9 @@ zig build run -- version
 
 # Show system info and which features are compiled in
 zig build run -- system-info
+
+# Format source files in place (helper step around zig fmt)
+zig build fix
 ```
 
 ## First Test Run
@@ -64,7 +67,7 @@ Expected: **1270 pass, 5 skip** (1275 total).
 zig build feature-tests --summary all
 ```
 
-Expected: **1534 pass** (1534 total).
+Expected: **1535 pass** (1535 total).
 
 ### Test a single file
 
@@ -198,4 +201,4 @@ zig build verify-all
 - [Architecture](architecture.html) -- understand the module hierarchy and comptime gating
 - [Configuration](configuration.html) -- all build flags and environment variables
 - [Framework Lifecycle](framework.html) -- deep dive into initialization and state management
-- [CLI](cli.html) -- 28 commands for AI, GPU, database, and system management
+- [CLI](cli.html) — 30 commands for AI, GPU, database, and system management

@@ -245,9 +245,10 @@ pub const MetalBackend = struct {
         kernel_name: []const u8,
     ) interface.KernelError!*anyopaque {
         const kernel_source = types.KernelSource{
-            .code = source,
+            .source = source,
+            .name = kernel_name,
             .entry_point = kernel_name,
-            .format = .metal,
+            .backend = .metal,
         };
 
         const handle = metal.compileKernel(allocator, kernel_source) catch {
@@ -290,9 +291,9 @@ pub const MetalBackend = struct {
         }
 
         const kernel_config = types.KernelConfig{
-            .grid_size = .{ config.grid_x, config.grid_y, config.grid_z },
-            .block_size = .{ config.block_x, config.block_y, config.block_z },
-            .shared_memory = config.shared_memory,
+            .grid_dim = .{ config.grid_x, config.grid_y, config.grid_z },
+            .block_dim = .{ config.block_x, config.block_y, config.block_z },
+            .shared_memory_bytes = config.shared_memory,
         };
 
         // Convert args to optional pointers

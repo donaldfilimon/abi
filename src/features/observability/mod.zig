@@ -63,7 +63,8 @@ pub const SamplerType = tracing.TraceSampler.SamplerType;
 pub const monitoring = @import("monitoring.zig");
 pub const otel = @import("otel.zig");
 
-// Re-exports for backward compatibility and namespace access
+// Consolidated re-exports: all monitoring backends share one implementation.
+// Use `monitoring` for new code; alerting/prometheus/statsd kept for backward compat.
 pub const alerting = monitoring;
 pub const prometheus = monitoring;
 pub const statsd = monitoring;

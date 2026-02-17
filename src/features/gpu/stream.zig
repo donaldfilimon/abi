@@ -448,12 +448,15 @@ test "Stream basic operations" {
         .backend = .vulkan,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var stream = try Stream.init(std.testing.allocator, &device, .{});
@@ -477,12 +480,15 @@ test "Event basic operations" {
         .backend = .cuda,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var event = try Event.init(std.testing.allocator, &device, .{});
@@ -498,12 +504,15 @@ test "StreamManager create and destroy" {
         .backend = .vulkan,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var manager = StreamManager.init(std.testing.allocator);
@@ -526,12 +535,15 @@ test "Stream record and wait event" {
         .backend = .cuda,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var stream = try Stream.init(std.testing.allocator, &device, .{});

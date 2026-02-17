@@ -411,13 +411,13 @@ pub const LockFreeResourcePool = struct {
         const active = self.stats.active_allocations.fetchAdd(1, .release) + 1;
 
         // Update peak (relaxed is fine for stats)
-        var current_peak = self.stats.peak_allocations.load(.relaxed);
+        var current_peak = self.stats.peak_allocations.load(.monotonic);
         while (active > current_peak) {
             const result = self.stats.peak_allocations.cmpxchgWeak(
                 current_peak,
                 active,
                 .release,
-                .relaxed,
+                .monotonic,
             );
             if (result == null) break;
             current_peak = result.?;
@@ -567,8 +567,7 @@ const ThreadLocalCache = struct {
     count: std.atomic.Value(usize),
     /// Maximum cache size
     max_size: usize,
-    /// Padding for cache line isolation
-    _padding: [CACHE_LINE_SIZE - 16 * @sizeOf(u32) - @sizeOf(std.atomic.Value(usize)) - @sizeOf(usize)]u8 = undefined,
+    // No padding needed — struct already fills cache line
 
     fn init(max_size: usize) ThreadLocalCache {
         return .{

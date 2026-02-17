@@ -47,12 +47,15 @@ test "KernelDispatcher init and deinit" {
         .backend = .stdgpu,
         .name = "Test Device",
         .device_type = .discrete,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{},
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     var dispatcher = try KernelDispatcher.init(std.testing.allocator, .stdgpu, &device);

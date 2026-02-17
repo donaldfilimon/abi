@@ -248,7 +248,8 @@ fn tryLoadVulkanLibrary() bool {
 }
 
 fn loadGlobalFunctions() bool {
-    const lib = vulkan_lib orelse return false;
+    if (vulkan_lib == null) return false;
+    var lib = vulkan_lib.?;
 
     vkCreateInstance = lib.lookup(VkCreateInstanceFn, "vkCreateInstance") orelse return false;
     vkEnumerateInstanceLayerProperties = lib.lookup(VkEnumerateInstanceLayerPropertiesFn, "vkEnumerateInstanceLayerProperties");
@@ -265,7 +266,8 @@ fn loadGlobalFunctions() bool {
 
 fn loadInstanceFunctions(instance: VkInstance) bool {
     _ = instance;
-    const lib = vulkan_lib orelse return false;
+    if (vulkan_lib == null) return false;
+    var lib = vulkan_lib.?;
     // For simplicity using dlsym, but proper way is vkGetInstanceProcAddr
     // We assume dynamic linking resolution works for these symbols
 
@@ -355,7 +357,7 @@ pub fn initVulkanGlobal(allocator: std.mem.Allocator) VulkanError!void {
     _ = vkEnumeratePhysicalDevices.?(instance, &device_count, null);
     if (device_count == 0) return VulkanError.PhysicalDeviceNotFound;
 
-    const p_devices = try allocator.alloc(VkPhysicalDevice, device_count);
+    const p_devices = allocator.alloc(VkPhysicalDevice, device_count) catch return error.MemoryAllocationFailed;
     defer allocator.free(p_devices);
     _ = vkEnumeratePhysicalDevices.?(instance, &device_count, p_devices.ptr);
 
@@ -366,7 +368,7 @@ pub fn initVulkanGlobal(allocator: std.mem.Allocator) VulkanError!void {
     vkGetPhysicalDeviceQueueFamilyProperties.?(physical_device, &queue_family_count, null);
     if (queue_family_count == 0) return VulkanError.QueueFamilyNotFound;
 
-    const queue_props_buf = try allocator.alloc(VkQueueFamilyProperties, queue_family_count);
+    const queue_props_buf = allocator.alloc(VkQueueFamilyProperties, queue_family_count) catch return error.MemoryAllocationFailed;
     defer allocator.free(queue_props_buf);
     vkGetPhysicalDeviceQueueFamilyProperties.?(physical_device, &queue_family_count, queue_props_buf.ptr);
 
@@ -386,12 +388,12 @@ pub fn initVulkanGlobal(allocator: std.mem.Allocator) VulkanError!void {
     const queue_create_info = VkDeviceQueueCreateInfo{
         .queueFamilyIndex = queue_family_index,
         .queueCount = 1,
-        .pQueuePriorities = &queue_priority,
+        .pQueuePriorities = @as([*]const f32, @ptrCast(&queue_priority)),
     };
 
     const device_create_info = VkDeviceCreateInfo{
         .queueCreateInfoCount = 1,
-        .pQueueCreateInfos = &queue_create_info,
+        .pQueueCreateInfos = @as(?[*]const VkDeviceQueueCreateInfo, @ptrCast(&queue_create_info)),
     };
 
     var device: VkDevice = undefined;
@@ -441,7 +443,10 @@ pub fn deinit() void {
 
     vulkan_context = null;
     vulkan_initialized = false;
-    if (vulkan_lib) |lib| lib.close();
+    if (vulkan_lib != null) {
+        var lib = vulkan_lib.?;
+        lib.close();
+    }
     vulkan_lib = null;
 }
 
@@ -941,6 +946,50 @@ pub const ShaderCache = struct {};
 /// Command pool stub for future pooling implementation.
 /// Currently a placeholder to satisfy imports.
 pub const CommandPool = struct {};
+
+// ============================================================================
+// Device Enumeration
+// ============================================================================
+
+const Device = @import("../device.zig").Device;
+
+pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
+    if (!tryLoadVulkanLibrary()) {
+        return &[_]Device{};
+    }
+
+    var devices = std.ArrayListUnmanaged(Device).empty;
+    errdefer devices.deinit(allocator);
+
+    // Enumerate physical devices if Vulkan is initialized
+    if (vulkan_context) |_| {
+        const name = try allocator.dupe(u8, "Vulkan Device");
+        errdefer allocator.free(name);
+
+        try devices.append(allocator, .{
+            .id = 0,
+            .backend = .vulkan,
+            .name = name,
+            .device_type = .discrete,
+            .vendor = .unknown,
+            .total_memory = null,
+            .available_memory = null,
+            .is_emulated = false,
+            .capability = .{
+                .supports_fp16 = true,
+                .supports_int8 = true,
+                .supports_async_transfers = true,
+                .unified_memory = false,
+            },
+            .compute_units = null,
+            .clock_mhz = null,
+            .pci_bus_id = null,
+            .driver_version = null,
+        });
+    }
+
+    return devices.toOwnedSlice(allocator);
+}
 
 // ============================================================================
 // Top-Level VTable Factory Export

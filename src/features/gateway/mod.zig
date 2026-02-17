@@ -160,11 +160,6 @@ const GatewayState = struct {
     }
 };
 
-/// Split a URL path into segments (delegates to shared radix tree).
-fn splitPath(path: []const u8) std.mem.SplitIterator(u8, .scalar) {
-    return routing.splitPath(path);
-}
-
 fn nowNs() u128 {
     return (time_mod.Instant.now() catch return 0).nanos;
 }

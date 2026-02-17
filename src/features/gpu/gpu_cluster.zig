@@ -146,9 +146,7 @@ pub const GPUCluster = struct {
 
         // Create GPU context for this device
         const gpu = try self.allocator.create(unified.Gpu);
-        gpu.* = try unified.Gpu.init(self.allocator, .{
-            .device_index = device_id,
-        });
+        gpu.* = try unified.Gpu.init(self.allocator, .{});
 
         try self.gpu_contexts.put(self.allocator, device_id, gpu);
     }

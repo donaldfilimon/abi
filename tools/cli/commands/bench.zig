@@ -1345,7 +1345,7 @@ fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: bool
 
         const report = abi.training.train(allocator, train_config) catch |err| {
             if (!json_mode) {
-                std.debug.print("  {s} ({s}): error - {t}\n", .{ cfg.method, @tagName(cfg.optimizer), err });
+                std.debug.print("  {s} ({t}): error - {t}\n", .{ cfg.method, cfg.optimizer, err });
             }
             continue;
         };

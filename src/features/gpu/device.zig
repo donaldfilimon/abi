@@ -626,7 +626,7 @@ pub fn enumerateAllDevices(allocator: std.mem.Allocator) ![]Device {
     var device_id: u32 = 0;
 
     // Try each backend
-    inline for (std.meta.tags(Backend)) |backend_tag| {
+    for (std.meta.tags(Backend)) |backend_tag| {
         const backend_devices = enumerateDevicesForBackend(allocator, backend_tag) catch continue;
         defer allocator.free(backend_devices);
 
@@ -767,18 +767,20 @@ fn enumerateStdgpuDevices(allocator: std.mem.Allocator) ![]Device {
         .backend = .stdgpu,
         .name = "CPU Fallback",
         .device_type = .cpu,
+        .vendor = .unknown,
         .total_memory = null,
         .available_memory = null,
         .is_emulated = true,
         .capability = .{
             .supports_fp16 = false,
-            .supports_fp64 = true,
             .supports_int8 = true,
             .supports_async_transfers = false,
             .unified_memory = true,
         },
         .compute_units = null,
         .clock_mhz = null,
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 
     return devices_slice;

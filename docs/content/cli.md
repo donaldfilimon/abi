@@ -1,13 +1,13 @@
 ---
 title: CLI
-description: 28 commands and 8 aliases for AI, GPU, database, and system management
+description: 30 commands and 8 aliases for AI, GPU, database, and system management
 section: Core
 order: 4
 ---
 
 # CLI
 
-ABI includes a comprehensive CLI with 28 commands and 8 aliases for managing AI models,
+ABI includes a comprehensive CLI with 30 commands and 8 aliases for managing AI models,
 GPU devices, databases, agents, and system operations.
 
 ## Running Commands
@@ -76,11 +76,13 @@ zig build run -- llm --help
 | `toolchain` | Zig/ZLS toolchain management | `install`, `update`, `status` |
 | `task` | Task management | `add`, `list`, `done`, `stats` |
 | `tui` | Launch interactive TUI menu | -- |
+| `ralph` | Ralph orchestrator (iterative agent loop) | `init`, `run`, `super`, `multi`, `status`, `gate`, `improve`, `skills` |
+| `gendocs` | Generate API documentation | runs `zig build gendocs` |
 | `completions` | Generate shell completions | `bash`, `zsh`, `fish`, `powershell` |
 | `help` | Show help for any command | -- |
 | `os-agent` | OS-level agent operations | -- |
 
-**Total: 28 commands** (7 AI + 4 GPU + 2 Data + 4 Network + 11 System).
+**Total: 30 commands** (7 AI + 4 GPU + 2 Data + 4 Network + 13 System).
 
 ### Aliases (8)
 
@@ -252,7 +254,7 @@ zig build examples            # Build all 36 examples
 
 ## CLI Smoke Tests
 
-The build system includes smoke tests that verify all 28 commands accept `--help`:
+The build system includes smoke tests that verify all 30 commands accept `--help`:
 
 ```bash
 zig build cli-tests

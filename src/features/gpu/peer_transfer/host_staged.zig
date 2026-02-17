@@ -238,7 +238,7 @@ pub const DeviceBufferRef = struct {
 };
 
 /// Staging buffer pool for efficient memory reuse.
-const StagingPool = struct {
+pub const StagingPool = struct {
     allocator: std.mem.Allocator,
     buffers: std.ArrayListUnmanaged(StagingBuffer),
     mutex: sync.Mutex,
@@ -287,8 +287,8 @@ const StagingPool = struct {
         // Allocate a new buffer if under limit
         if (self.buffers.items.len < MAX_CACHED_BUFFERS) {
             const aligned_size = std.mem.alignForward(usize, size, 64);
-            const data = try self.allocator.alignedAlloc(u8, 64, aligned_size);
-            try self.buffers.append(.{
+            const data = try self.allocator.alignedAlloc(u8, .@"64", aligned_size);
+            try self.buffers.append(self.allocator, .{
                 .data = data,
                 .size = aligned_size,
                 .in_use = true,
@@ -298,7 +298,7 @@ const StagingPool = struct {
 
         // All buffers in use, allocate temporary
         const aligned_size = std.mem.alignForward(usize, size, 64);
-        return self.allocator.alignedAlloc(u8, 64, aligned_size);
+        return self.allocator.alignedAlloc(u8, .@"64", aligned_size);
     }
 
     /// Release a staging buffer back to the pool.
@@ -364,7 +364,7 @@ const ThreadPool = struct {
         }
 
         self.allocator.free(self.threads);
-        self.queue.deinit();
+        self.queue.deinit(self.allocator);
         self.* = undefined;
     }
 
@@ -372,7 +372,7 @@ const ThreadPool = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        try self.queue.append(task);
+        try self.queue.append(self.allocator, task);
         self.condition.signal();
     }
 

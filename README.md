@@ -395,7 +395,7 @@ abi/
 │
 ├── tools/cli/            # CLI implementation
 ├── examples/             # Usage examples
-└── docs/api/             # Auto-generated API docs (zig build gendocs)
+└── docs/api/             # Auto-generated API docs (abi gendocs or zig build gendocs)
 ```
 
 <details>
@@ -491,7 +491,7 @@ zig build -Dgpu-backend=auto
 
 | Resource | Description |
 |:---------|:------------|
-| [API Reference](docs/api/index.md) | Auto-generated API docs (`zig build gendocs`) |
+| [API Reference](docs/api/index.md) | Auto-generated API docs (`abi gendocs` or `zig build gendocs`) |
 | [Developer Guide](CLAUDE.md) | Zig 0.16 patterns, gotchas, features, CLI; **main entry for AI assistants** |
 | [Agent Guidelines](AGENTS.md) | Structure, style, testing, **plans index and multi-agent roles (A0–A4)** |
 | [.claude/](.claude/README.md) | Rules (Zig gotchas), skills (`/baseline-sync`, `/zig-migrate`), hooks |

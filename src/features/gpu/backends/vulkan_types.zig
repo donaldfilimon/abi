@@ -125,7 +125,7 @@ pub const VkDeviceQueueCreateInfo = extern struct {
     flags: u32 = 0,
     queueFamilyIndex: u32 = 0,
     queueCount: u32 = 0,
-    pQueuePriorities: [*]const f32 = null,
+    pQueuePriorities: ?[*]const f32 = null,
 };
 
 pub const VkDeviceCreateInfo = extern struct {
@@ -209,7 +209,7 @@ pub const VkComputePipelineCreateInfo = extern struct {
     flags: u32 = 0,
     stage: VkPipelineShaderStageCreateInfo,
     layout: VkPipelineLayout,
-    basePipelineHandle: VkPipeline = null,
+    basePipelineHandle: ?VkPipeline = null,
     basePipelineIndex: i32 = -1,
 };
 
@@ -505,7 +505,7 @@ pub const VkCreateInstanceFn = *const fn (*const VkInstanceCreateInfo, ?*anyopaq
 pub const VkDestroyInstanceFn = *const fn (VkInstance, ?*anyopaque) callconv(.c) void;
 pub const VkEnumeratePhysicalDevicesFn = *const fn (VkInstance, *u32, ?[*]VkPhysicalDevice) callconv(.c) VkResult;
 pub const VkGetPhysicalDevicePropertiesFn = *const fn (VkPhysicalDevice, *anyopaque) callconv(.c) void;
-pub const VkGetPhysicalDeviceQueueFamilyPropertiesFn = *const fn (VkPhysicalDevice, *u32, ?[*]anyopaque) callconv(.c) void;
+pub const VkGetPhysicalDeviceQueueFamilyPropertiesFn = *const fn (VkPhysicalDevice, *u32, ?*anyopaque) callconv(.c) void;
 pub const VkGetPhysicalDeviceMemoryPropertiesFn = *const fn (VkPhysicalDevice, *anyopaque) callconv(.c) void;
 pub const VkCreateDeviceFn = *const fn (VkPhysicalDevice, *const VkDeviceCreateInfo, ?*anyopaque, *VkDevice) callconv(.c) VkResult;
 pub const VkDestroyDeviceFn = *const fn (VkDevice, ?*anyopaque) callconv(.c) void;
@@ -524,7 +524,7 @@ pub const VkCreateDescriptorSetLayoutFn = *const fn (VkDevice, *const VkDescript
 pub const VkDestroyDescriptorSetLayoutFn = *const fn (VkDevice, VkDescriptorSetLayout, ?*anyopaque) callconv(.c) void;
 pub const VkCreatePipelineLayoutFn = *const fn (VkDevice, *const VkPipelineLayoutCreateInfo, ?*anyopaque, *VkPipelineLayout) callconv(.c) VkResult;
 pub const VkDestroyPipelineLayoutFn = *const fn (VkDevice, VkPipelineLayout, ?*anyopaque) callconv(.c) void;
-pub const VkCreateComputePipelinesFn = *const fn (VkDevice, VkPipelineCache, u32, [*]const VkComputePipelineCreateInfo, ?*anyopaque, [*]VkPipeline) callconv(.c) VkResult;
+pub const VkCreateComputePipelinesFn = *const fn (VkDevice, ?VkPipelineCache, u32, [*]const VkComputePipelineCreateInfo, ?*anyopaque, [*]VkPipeline) callconv(.c) VkResult;
 pub const VkDestroyPipelineFn = *const fn (VkDevice, VkPipeline, ?*anyopaque) callconv(.c) void;
 pub const VkCreateCommandPoolFn = *const fn (VkDevice, *const anyopaque, ?*anyopaque, *VkCommandPool) callconv(.c) VkResult;
 pub const VkDestroyCommandPoolFn = *const fn (VkDevice, VkCommandPool, ?*anyopaque) callconv(.c) void;
@@ -545,7 +545,7 @@ pub const VkCreateFenceFn = *const fn (VkDevice, *const VkFenceCreateInfo, ?*any
 pub const VkDestroyFenceFn = *const fn (VkDevice, VkFence, ?*anyopaque) callconv(.c) void;
 pub const VkResetFencesFn = *const fn (VkDevice, u32, [*]const VkFence) callconv(.c) VkResult;
 pub const VkWaitForFencesFn = *const fn (VkDevice, u32, [*]const VkFence, u32, u64) callconv(.c) VkResult;
-pub const VkQueueSubmitFn = *const fn (VkQueue, u32, [*]const VkSubmitInfo, VkFence) callconv(.c) VkResult;
+pub const VkQueueSubmitFn = *const fn (VkQueue, u32, [*]const VkSubmitInfo, ?VkFence) callconv(.c) VkResult;
 pub const VkQueueWaitIdleFn = *const fn (VkQueue) callconv(.c) VkResult;
 pub const VkCreatePipelineCacheFn = *const fn (VkDevice, *const VkPipelineCacheCreateInfo, ?*anyopaque, *VkPipelineCache) callconv(.c) VkResult;
 pub const VkDestroyPipelineCacheFn = *const fn (VkDevice, VkPipelineCache, ?*anyopaque) callconv(.c) void;

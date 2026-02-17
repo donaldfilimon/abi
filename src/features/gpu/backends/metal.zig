@@ -337,10 +337,12 @@ pub fn deinit() void {
     metal_device = null;
     metal_command_queue = null;
 
-    if (metal_lib) |lib| {
+    if (metal_lib != null) {
+        var lib = metal_lib.?;
         lib.close();
     }
-    if (objc_lib) |lib| {
+    if (objc_lib != null) {
+        var lib = objc_lib.?;
         lib.close();
     }
     metal_lib = null;
@@ -357,7 +359,6 @@ fn createNSString(str: []const u8) MetalError!ID {
     const get_class = objc_getClass orelse return MetalError.NSStringCreationFailed;
     const ns_class = nsstring_class orelse blk: {
         const cls = get_class("NSString");
-        if (cls == null) return MetalError.NSStringCreationFailed;
         nsstring_class = cls;
         break :blk cls;
     };
@@ -392,7 +393,6 @@ fn createNSStringFromCStr(c_str: [*:0]const u8) MetalError!ID {
     const get_class = objc_getClass orelse return MetalError.NSStringCreationFailed;
     const ns_class = nsstring_class orelse blk: {
         const cls = get_class("NSString");
-        if (cls == null) return MetalError.NSStringCreationFailed;
         nsstring_class = cls;
         break :blk cls;
     };
@@ -417,7 +417,7 @@ pub fn compileKernel(
     const device = metal_device.?;
 
     // Create NSString from source code
-    const source_nsstring = createNSString(source.code) catch {
+    const source_nsstring = createNSString(source.source) catch {
         std.log.err("Failed to create NSString from kernel source", .{});
         return types.KernelError.CompilationFailed;
     };
@@ -512,7 +512,7 @@ pub fn compileKernel(
     }
 
     // Allocate SafeMetalKernel with magic validation header for safe pointer casting
-    const safe_kernel = try allocator.create(SafeMetalKernel);
+    const safe_kernel = allocator.create(SafeMetalKernel) catch return types.KernelError.CompilationFailed;
     safe_kernel.* = .{
         .magic = kernel_magic, // Set magic for pointer validation
         .inner = .{
@@ -550,11 +550,11 @@ pub fn launchKernel(
     };
 
     // Validate grid and block sizes
-    if (config.grid_size[0] == 0 or config.grid_size[1] == 0 or config.grid_size[2] == 0) {
+    if (config.grid_dim[0] == 0 or config.grid_dim[1] == 0 or config.grid_dim[2] == 0) {
         std.log.err("launchKernel: Invalid grid size (zero dimension)", .{});
         return types.KernelError.LaunchFailed;
     }
-    if (config.block_size[0] == 0 or config.block_size[1] == 0 or config.block_size[2] == 0) {
+    if (config.block_dim[0] == 0 or config.block_dim[1] == 0 or config.block_dim[2] == 0) {
         std.log.err("launchKernel: Invalid block size (zero dimension)", .{});
         return types.KernelError.LaunchFailed;
     }
@@ -597,15 +597,15 @@ pub fn launchKernel(
 
     // Calculate total threads (grid_size * block_size for each dimension)
     const grid_size = MTLSize.init(
-        config.grid_size[0] * config.block_size[0],
-        config.grid_size[1] * config.block_size[1],
-        config.grid_size[2] * config.block_size[2],
+        config.grid_dim[0] * config.block_dim[0],
+        config.grid_dim[1] * config.block_dim[1],
+        config.grid_dim[2] * config.block_dim[2],
     );
 
     const threads_per_group = MTLSize.init(
-        config.block_size[0],
-        config.block_size[1],
-        config.block_size[2],
+        config.block_dim[0],
+        config.block_dim[1],
+        config.block_dim[2],
     );
 
     // Dispatch using objc_msgSend with MTLSize parameters
@@ -624,8 +624,8 @@ pub fn launchKernel(
     msg_send_void(command_buffer, sel_waitUntilCompleted);
 
     std.log.debug("Metal kernel launched: grid=({},{},{}), block=({},{},{})", .{
-        config.grid_size[0],  config.grid_size[1],  config.grid_size[2],
-        config.block_size[0], config.block_size[1], config.block_size[2],
+        config.grid_dim[0],  config.grid_dim[1],  config.grid_dim[2],
+        config.block_dim[0], config.block_dim[1], config.block_dim[2],
     });
 }
 
@@ -684,14 +684,14 @@ pub fn launchKernelAsync(
 
     // Dispatch threads
     const grid_size = MTLSize.init(
-        config.grid_size[0] * config.block_size[0],
-        config.grid_size[1] * config.block_size[1],
-        config.grid_size[2] * config.block_size[2],
+        config.grid_dim[0] * config.block_dim[0],
+        config.grid_dim[1] * config.block_dim[1],
+        config.grid_dim[2] * config.block_dim[2],
     );
     const threads_per_group = MTLSize.init(
-        config.block_size[0],
-        config.block_size[1],
-        config.block_size[2],
+        config.block_dim[0],
+        config.block_dim[1],
+        config.block_dim[2],
     );
 
     const dispatch_fn: *const fn (ID, SEL, MTLSize, MTLSize) callconv(.c) void = @ptrCast(objc_msgSend);
@@ -896,24 +896,25 @@ fn tryLoadObjcRuntime() bool {
     };
 
     for (objc_paths) |path| {
-        if (std.DynLib.open(path)) |lib| {
-            objc_lib = lib;
+        if (std.DynLib.open(path)) |lib_val| {
+            objc_lib = lib_val;
+            var lib = lib_val;
 
             // Load Objective-C runtime functions - all variants use the same objc_msgSend
             // but with different type casts for different calling conventions
             objc_msgSend = lib.lookup(ObjcMsgSendFn, "objc_msgSend");
-            objc_msgSend_int = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_ptr = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_ptr2 = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_ptr3 = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_void = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_void_ptr = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_void_ptr_int_int = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_u64 = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_u32 = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_bool = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_mtlsize2 = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
-            objc_msgSend_nsstring = @ptrCast(lib.lookup(*anyopaque, "objc_msgSend"));
+            objc_msgSend_int = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_ptr = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_ptr2 = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_ptr3 = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_void = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_void_ptr = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_void_ptr_int_int = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_u64 = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_u32 = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_bool = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_mtlsize2 = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
+            objc_msgSend_nsstring = @ptrCast(@alignCast(lib.lookup(*anyopaque, "objc_msgSend")));
             sel_registerName = lib.lookup(SelRegisterNameFn, "sel_registerName");
             objc_getClass = lib.lookup(ObjcGetClassFn, "objc_getClass");
 
@@ -957,16 +958,17 @@ fn tryLoadMetal() bool {
 
 fn loadMetalFunctions() bool {
     if (metal_lib == null) return false;
+    var lib = metal_lib.?;
 
     // MTLCreateSystemDefaultDevice is the primary C-callable Metal function
-    mtlCreateSystemDefaultDevice = metal_lib.?.lookup(
+    mtlCreateSystemDefaultDevice = lib.lookup(
         MtlCreateSystemDefaultDeviceFn,
         "MTLCreateSystemDefaultDevice",
     ) orelse return false;
 
     // MTLCopyAllDevices returns an NSArray of all available Metal devices
     // This is useful for multi-GPU systems (Intel Macs with discrete GPU)
-    mtlCopyAllDevices = metal_lib.?.lookup(
+    mtlCopyAllDevices = lib.lookup(
         MtlCopyAllDevicesFn,
         "MTLCopyAllDevices",
     );
@@ -1094,7 +1096,8 @@ pub fn isAvailable() bool {
         return false;
     }
     // Quick check if Metal framework exists
-    if (std.DynLib.open("/System/Library/Frameworks/Metal.framework/Metal")) |lib| {
+    if (std.DynLib.open("/System/Library/Frameworks/Metal.framework/Metal")) |lib_val| {
+        var lib = lib_val;
         lib.close();
         return true;
     } else |_| {
@@ -1149,12 +1152,12 @@ fn queryDeviceInfo(mtl_device: ID, allocator: std.mem.Allocator, device_id: u32)
         .backend = .metal,
         .name = name,
         .device_type = device_type,
+        .vendor = .unknown,
         .total_memory = if (total_memory > 0) total_memory else null,
         .available_memory = null, // Metal doesn't provide real-time available memory
         .is_emulated = false,
         .capability = .{
             .supports_fp16 = true, // All modern Metal devices support FP16
-            .supports_fp64 = false, // Metal doesn't support FP64 compute
             .supports_int8 = true, // Apple Silicon and newer GPUs support Int8
             .supports_async_transfers = true,
             .unified_memory = has_unified_memory,
@@ -1163,6 +1166,8 @@ fn queryDeviceInfo(mtl_device: ID, allocator: std.mem.Allocator, device_id: u32)
         },
         .compute_units = null, // Metal doesn't directly expose compute unit count
         .clock_mhz = null, // Metal doesn't expose clock speed
+        .pci_bus_id = null,
+        .driver_version = null,
     };
 }
 
@@ -1231,24 +1236,27 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
             else
                 "Metal GPU");
 
-            return try devices.toOwnedSlice() ++ &[_]Device{.{
+            try devices.append(allocator, .{
                 .id = 0,
                 .backend = .metal,
                 .name = name,
                 .device_type = if (builtin.target.cpu.arch == .aarch64) .integrated else .discrete,
+                .vendor = .unknown,
                 .total_memory = if (device_total_memory > 0) device_total_memory else null,
                 .available_memory = null,
                 .is_emulated = false,
                 .capability = .{
                     .supports_fp16 = true,
-                    .supports_fp64 = false,
                     .supports_int8 = true,
                     .supports_async_transfers = true,
                     .unified_memory = builtin.target.cpu.arch == .aarch64,
                 },
                 .compute_units = null,
                 .clock_mhz = null,
-            }};
+                .pci_bus_id = null,
+                .driver_version = null,
+            });
+            return devices.toOwnedSlice(allocator);
         };
         try devices.append(allocator, dev_info);
     }

@@ -339,7 +339,7 @@ pub const PeerTransferManager = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        try self.active_transfers.append(.{
+        try self.active_transfers.append(self.allocator, .{
             .id = transfer_id,
             .src_device = src_device,
             .dst_device = dst_device,
@@ -354,7 +354,10 @@ pub const PeerTransferManager = struct {
         // Start transfer based on capability
         self.startTransfer(handle, data, opts) catch |err| {
             handle.status.store(.failed, .release);
-            handle.error_info = err;
+            handle.error_info = switch (err) {
+                error.BackendError => error.BackendError,
+                else => error.BackendError,
+            };
 
             // Try fallback if enabled
             if (self.recovery_strategy == .retry_with_fallback and capability != .host_staged) {

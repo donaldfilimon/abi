@@ -149,6 +149,76 @@ pub fn build(b: *std.Build) void {
         &.{ "mcp", "tools" },
         &.{ "acp", "card" },
         &.{ "acp", "serve", "--help" },
+        // Nested help and subcommands (all must work)
+        &.{ "help", "ralph" },
+        &.{ "help", "gendocs" },
+        &.{ "help", "db", "query" },
+        &.{ "help", "db", "serve" },
+        &.{ "help", "db", "backup" },
+        &.{ "help", "db", "restore" },
+        &.{ "help", "db", "optimize" },
+        &.{ "help", "task", "add" },
+        &.{ "help", "task", "edit" },
+        &.{ "help", "ralph", "run" },
+        &.{ "help", "ralph", "super" },
+        &.{ "help", "ralph", "multi" },
+        &.{ "help", "ralph", "skills" },
+        &.{"version"},
+        &.{"status"},
+        &.{ "ralph", "help" },
+        &.{ "ralph", "status" },
+        &.{ "ralph", "skills" },
+        &.{ "ralph", "gate", "--help" },
+        &.{"gendocs"},
+        &.{ "profile", "show" },
+        &.{ "profile", "list" },
+        &.{ "db", "add", "--help" },
+        &.{ "db", "query", "--help" },
+        &.{ "db", "optimize" },
+        &.{ "db", "backup", "--help" },
+        &.{ "db", "restore", "--help" },
+        &.{ "db", "serve", "--help" },
+        &.{ "help", "convert", "dataset" },
+        &.{ "help", "convert", "model" },
+        &.{ "help", "convert", "embeddings" },
+        &.{ "help", "task", "edit" },
+        &.{ "config", "init", "--help" },
+        &.{ "help", "discord", "info" },
+        &.{ "help", "discord", "guilds" },
+        &.{ "llm", "list-local" },
+        &.{ "llm", "serve", "--help" },
+        &.{ "llm", "bench", "--help" },
+        &.{ "llm", "download", "--help" },
+        &.{ "train", "run", "--help" },
+        &.{ "train", "new", "--help" },
+        &.{ "train", "llm", "--help" },
+        &.{ "train", "vision", "--help" },
+        &.{ "train", "clip", "--help" },
+        &.{ "train", "resume", "--help" },
+        &.{ "train", "monitor", "--help" },
+        &.{ "train", "generate-data", "--help" },
+        &.{ "bench", "quick" },
+        &.{ "bench", "simd" },
+        &.{ "bench", "micro", "noop" },
+        &.{ "bench", "micro", "parse" },
+        &.{ "gpu", "list" },
+        &.{ "agent", "--help" },
+        &.{ "tui", "--help" },
+        &.{ "embed", "--help" },
+        &.{ "explore", "--help" },
+        &.{ "model", "path" },
+        &.{ "model", "info", "--help" },
+        &.{ "plugins", "search" },
+        &.{ "help", "plugins", "enable" },
+        &.{ "help", "plugins", "disable" },
+        &.{ "toolchain", "path" },
+        &.{ "completions", "fish" },
+        &.{ "completions", "powershell" },
+        &.{ "multi-agent", "run", "--help" },
+        &.{ "multi-agent", "create", "--help" },
+        // Aliases
+        &.{"info"},
+        &.{ "ls", "stats" },
     };
     for (cli_commands) |args| {
         const run_cmd = b.addRunArtifact(exe);
@@ -157,18 +227,25 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Lint ─────────────────────────────────────────────────────────────
+    const fmt_paths = &.{
+        "build.zig",
+        "build",
+        "src",
+        "tools",
+        "examples",
+        "benchmarks",
+    };
     const lint_fmt = b.addFmt(.{
-        .paths = &.{
-            "build.zig",
-            "build",
-            "src",
-            "tools",
-            "examples",
-            "benchmarks",
-        },
+        .paths = fmt_paths,
         .check = true,
     });
     b.step("lint", "Check code formatting").dependOn(&lint_fmt.step);
+
+    const fix_fmt = b.addFmt(.{
+        .paths = fmt_paths,
+        .check = false,
+    });
+    b.step("fix", "Format source files in place").dependOn(&fix_fmt.step);
 
     // ── Tests ────────────────────────────────────────────────────────────
     var test_step: ?*std.Build.Step = null;
@@ -281,6 +358,8 @@ pub fn build(b: *std.Build) void {
     // ── Benchmarks ───────────────────────────────────────────────────────
     const bench_all_step = b.step("bench-all", "Run all benchmark suites");
     targets.buildTargets(b, &targets.benchmark_targets, abi_module, build_opts, target, optimize, bench_all_step, true);
+    const bench_step = b.step("bench", "Alias for bench-all benchmark suites");
+    bench_step.dependOn(bench_all_step);
 
     // ── Documentation ────────────────────────────────────────────────────
     if (targets.pathExists(b, "tools/gendocs/main.zig")) {

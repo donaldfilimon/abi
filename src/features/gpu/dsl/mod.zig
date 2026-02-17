@@ -196,7 +196,7 @@ pub const codegen = struct {
             const allocator = std.testing.allocator;
             var g = Generator.init(allocator);
             defer g.deinit();
-            try std.testing.expect(g.backend_config.language == .cuda);
+            try std.testing.expect(@TypeOf(g).backend_config.language == .cuda);
         }
     };
     pub const glsl = struct {
@@ -208,7 +208,7 @@ pub const codegen = struct {
             const allocator = std.testing.allocator;
             var g = Generator.init(allocator);
             defer g.deinit();
-            try std.testing.expect(g.backend_config.language == .glsl);
+            try std.testing.expect(@TypeOf(g).backend_config.language == .glsl);
         }
     };
     pub const wgsl = struct {
@@ -220,7 +220,7 @@ pub const codegen = struct {
             const allocator = std.testing.allocator;
             var g = Generator.init(allocator);
             defer g.deinit();
-            try std.testing.expect(g.backend_config.language == .wgsl);
+            try std.testing.expect(@TypeOf(g).backend_config.language == .wgsl);
         }
     };
     pub const msl = struct {
@@ -232,7 +232,7 @@ pub const codegen = struct {
             const allocator = std.testing.allocator;
             var g = Generator.init(allocator);
             defer g.deinit();
-            try std.testing.expect(g.backend_config.language == .msl);
+            try std.testing.expect(@TypeOf(g).backend_config.language == .msl);
         }
     };
 

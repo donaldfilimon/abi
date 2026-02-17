@@ -192,6 +192,18 @@ pub const CloudConfig = struct {
     timeout_seconds: u32 = 30,
     tracing_enabled: bool = false,
     logging_enabled: bool = true,
+    log_level: LogLevel = .info,
+
+    pub const LogLevel = enum {
+        debug,
+        info,
+        warn,
+        @"error",
+
+        pub fn toString(self: LogLevel) []const u8 {
+            return @tagName(self);
+        }
+    };
 
     pub fn defaults() CloudConfig {
         return .{};

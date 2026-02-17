@@ -217,4 +217,4 @@ pub fn isEnabled() bool {
 
 - [CLAUDE.md](../CLAUDE.md) — Build commands, gotchas, architecture guide
 - [AGENTS.md](../AGENTS.md) — Agent instructions, v2 notes, style guide
-- [API Reference](../docs/api/index.md) — Auto-generated (`zig build gendocs`)
+- [API Reference](../docs/api/index.md) — Auto-generated (`abi gendocs` or `zig build gendocs`)

@@ -117,6 +117,11 @@ const ENABLE_VIRTUAL_TERMINAL_INPUT: windows.DWORD = 0x0200;
 const STD_INPUT_HANDLE: windows.DWORD = @bitCast(@as(i32, -10));
 const STD_OUTPUT_HANDLE: windows.DWORD = @bitCast(@as(i32, -11));
 
+// POSIX poll() constants for non-blocking input detection
+const POLLIN: i16 = 0x0001;
+const POLLHUP: i16 = 0x0010;
+const POLLERR: i16 = 0x0008;
+
 const ConsoleCoord = extern struct {
     X: windows.SHORT,
     Y: windows.SHORT,
@@ -144,6 +149,7 @@ const k32 = if (is_windows)
         extern "kernel32" fn SetConsoleMode(hConsoleHandle: windows.HANDLE, dwMode: windows.DWORD) callconv(.winapi) windows.BOOL;
         extern "kernel32" fn GetConsoleScreenBufferInfo(hConsoleOutput: windows.HANDLE, lpConsoleScreenBufferInfo: *ConsoleScreenBufferInfo) callconv(.winapi) windows.BOOL;
         extern "kernel32" fn ReadFile(hFile: windows.HANDLE, lpBuffer: *anyopaque, nNumberOfBytesToRead: windows.DWORD, lpNumberOfBytesRead: *windows.DWORD, lpOverlapped: ?*anyopaque) callconv(.winapi) windows.BOOL;
+        extern "kernel32" fn WaitForSingleObject(hHandle: windows.HANDLE, dwMilliseconds: windows.DWORD) callconv(.winapi) windows.DWORD;
     }
 else
     struct {};
@@ -289,6 +295,51 @@ pub const Terminal = struct {
                 .mouse => continue,
             }
         }
+    }
+
+    /// Non-blocking event poll with timeout.
+    /// Returns an event if input is available within timeout_ms,
+    /// null on timeout, or an error for real I/O failures.
+    pub fn pollEvent(self: *Terminal, timeout_ms: u32) !?events.Event {
+        if (comptime is_wasm) return null;
+
+        // If we already have buffered input, parse it directly
+        if (self.input_pos < self.input_len) {
+            return try self.readEvent();
+        }
+
+        if (comptime is_posix) {
+            var fds = [1]std.c.pollfd{.{
+                .fd = self.stdin_file.handle,
+                .events = POLLIN,
+                .revents = 0,
+            }};
+            const ready = std.c.poll(
+                &fds,
+                1,
+                @intCast(timeout_ms),
+            );
+            if (ready < 0) return error.PollFailed;
+            if (ready == 0) return null; // Genuine timeout
+            if (fds[0].revents & POLLHUP != 0) return error.EndOfStream;
+            if (fds[0].revents & POLLERR != 0) return error.PollFailed;
+            if (fds[0].revents & POLLIN == 0) return null;
+            return try self.readEvent();
+        }
+
+        if (comptime is_windows) {
+            const WAIT_OBJECT_0: windows.DWORD = 0;
+            const WAIT_TIMEOUT: windows.DWORD = 0x00000102;
+            const result = k32.WaitForSingleObject(
+                self.stdin_file.handle,
+                timeout_ms,
+            );
+            if (result == WAIT_OBJECT_0) return try self.readEvent();
+            if (result == WAIT_TIMEOUT) return null;
+            return error.PollFailed; // WAIT_FAILED or WAIT_ABANDONED
+        }
+
+        return null;
     }
 
     pub fn resetInput(self: *Terminal) void {

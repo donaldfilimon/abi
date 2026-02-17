@@ -283,8 +283,10 @@ pub const Coordinator = struct {
             .webgpu => 2048,
             .opengl, .opengles => 2048,
             .fpga => 4096,
-            .stdgpu => 4096, // Simulated
+            .stdgpu => 4096,
             .webgl2 => 1024,
+            .tpu => 16384,
+            .simulated => 2048,
         };
     }
 

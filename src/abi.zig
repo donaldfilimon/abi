@@ -282,6 +282,11 @@ pub fn initAppDefault(allocator: std.mem.Allocator) !vnext.App {
     return vnext.App.initDefault(allocator);
 }
 
+/// Start a vNext app (alias for `vnext.App.start`).
+pub fn startApp(allocator: std.mem.Allocator, cfg: vnext.AppConfig) !vnext.App {
+    return vnext.App.start(allocator, cfg);
+}
+
 /// Get the ABI framework version string.
 pub fn version() []const u8 {
     return build_options.package_version;

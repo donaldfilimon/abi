@@ -82,6 +82,9 @@ pub const ResponseBuilder = struct {
     pub fn build(self: *ResponseBuilder) CloudResponse {
         return self.response;
     }
+    pub fn deinit(self: *ResponseBuilder) void {
+        self.response.deinit();
+    }
 };
 
 // --- Module Functions ---
