@@ -81,10 +81,18 @@ fn appendEnumEntries(
         if (trimmed.len == 0) continue;
         if (std.mem.startsWith(u8, trimmed, "//")) continue;
         if (!isIdentStart(trimmed[0])) continue;
-        if (std.mem.indexOfScalar(u8, trimmed, ',') == null) continue;
 
         const ident = readIdentifier(trimmed);
-        if (ident.len > 0) try out.append(allocator, ident);
+        if (ident.len == 0) continue;
+
+        var cursor = ident.len;
+        while (cursor < trimmed.len and (trimmed[cursor] == ' ' or trimmed[cursor] == '\t')) : (cursor += 1) {}
+        if (cursor >= trimmed.len) continue;
+
+        const marker = trimmed[cursor];
+        if (marker != ',' and marker != '=') continue;
+
+        try out.append(allocator, ident);
     }
 }
 

@@ -41,31 +41,31 @@ pub fn main() !void {
     try scanForbidden(
         allocator,
         "^[[:space:]]*[^/].*std\\.fs\\.cwd\\(",
-        "std.fs.cwd() -> use std.Io.Dir.cwd()",
+        "legacy cwd API usage; use std.Io.Dir.cwd()",
         &errors,
     );
     try scanForbidden(
         allocator,
         "^[[:space:]]*[^/].*std\\.io\\.fixedBufferStream\\(",
-        "std.io.fixedBufferStream() removed in Zig 0.16",
+        "fixedBufferStream legacy API removed in Zig 0.16",
         &errors,
     );
     try scanForbidden(
         allocator,
         "^[[:space:]]*[^/].*std\\.time\\.nanoTimestamp\\(",
-        "std.time.nanoTimestamp() removed in Zig 0.16",
+        "nanoTimestamp legacy API removed in Zig 0.16",
         &errors,
     );
     try scanForbidden(
         allocator,
         "^[[:space:]]*[^/].*std\\.time\\.sleep\\(",
-        "std.time.sleep() forbidden; use services/shared/time wrapper",
+        "legacy sleep API forbidden; use services/shared/time wrapper",
         &errors,
     );
     try scanForbidden(
         allocator,
         "^[[:space:]]*[^/].*std\\.process\\.getEnvVar\\(",
-        "std.process.getEnvVar() removed in Zig 0.16",
+        "legacy process env API removed in Zig 0.16",
         &errors,
     );
     try scanForbidden(
@@ -77,7 +77,7 @@ pub fn main() !void {
     try scanForbidden(
         allocator,
         "^[[:space:]]*[^/].*std\\.ArrayList\\([^)]*\\)\\.init\\(",
-        "std.ArrayList(T).init() legacy usage; prefer ArrayListUnmanaged patterns",
+        "legacy ArrayList init usage; prefer ArrayListUnmanaged patterns",
         &errors,
     );
 

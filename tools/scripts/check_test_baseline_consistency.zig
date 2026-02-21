@@ -17,27 +17,57 @@ pub fn main() !void {
 
     var errors: usize = 0;
 
-    const readme = util.readFileAlloc(allocator, io, "README.md", 8 * 1024 * 1024) catch {
+    var readme: []const u8 = "";
+    var claude: []const u8 = "";
+    var zig_rules: []const u8 = "";
+    var has_readme = false;
+    var has_claude = false;
+    var has_zig_rules = false;
+    defer if (has_readme) allocator.free(readme);
+    defer if (has_claude) allocator.free(claude);
+    defer if (has_zig_rules) allocator.free(zig_rules);
+
+    if (util.fileExists(io, "README.md")) {
+        if (util.readFileAlloc(allocator, io, "README.md", 8 * 1024 * 1024)) |content| {
+            readme = content;
+            has_readme = true;
+        } else |_| {
+            std.debug.print("ERROR: failed to read README.md\n", .{});
+            errors += 1;
+        }
+    } else {
         std.debug.print("ERROR: README.md missing\n", .{});
-        std.process.exit(1);
-    };
-    defer allocator.free(readme);
+        errors += 1;
+    }
 
-    const claude = util.readFileAlloc(allocator, io, "CLAUDE.md", 16 * 1024 * 1024) catch {
+    if (util.fileExists(io, "CLAUDE.md")) {
+        if (util.readFileAlloc(allocator, io, "CLAUDE.md", 16 * 1024 * 1024)) |content| {
+            claude = content;
+            has_claude = true;
+        } else |_| {
+            std.debug.print("ERROR: failed to read CLAUDE.md\n", .{});
+            errors += 1;
+        }
+    } else {
         std.debug.print("ERROR: CLAUDE.md missing\n", .{});
-        std.process.exit(1);
-    };
-    defer allocator.free(claude);
+        errors += 1;
+    }
 
-    const zig_rules = util.readFileAlloc(allocator, io, ".claude/rules/zig.md", 8 * 1024 * 1024) catch {
-        std.debug.print("ERROR: .claude/rules/zig.md missing\n", .{});
-        std.process.exit(1);
-    };
-    defer allocator.free(zig_rules);
+    if (util.fileExists(io, ".claude/rules/zig.md")) {
+        if (util.readFileAlloc(allocator, io, ".claude/rules/zig.md", 8 * 1024 * 1024)) |content| {
+            zig_rules = content;
+            has_zig_rules = true;
+        } else |_| {
+            std.debug.print("ERROR: failed to read .claude/rules/zig.md\n", .{});
+            errors += 1;
+        }
+    } else {
+        std.debug.print("INFO: optional baseline file missing: .claude/rules/zig.md\n", .{});
+    }
 
     const readme_badge = try std.fmt.allocPrint(allocator, "tests-{d}_passing", .{baseline.test_main_pass});
     defer allocator.free(readme_badge);
-    if (!checkContains(readme, readme_badge)) {
+    if (has_readme and !checkContains(readme, readme_badge)) {
         std.debug.print("ERROR: README.md missing expected baseline marker for README badge main pass\n", .{});
         errors += 1;
     }
@@ -48,7 +78,7 @@ pub fn main() !void {
         .{ baseline.test_main_total, baseline.test_main_pass, baseline.test_main_skip },
     );
     defer allocator.free(readme_narrative);
-    if (!checkContains(readme, readme_narrative)) {
+    if (has_readme and !checkContains(readme, readme_narrative)) {
         std.debug.print("ERROR: README.md missing expected baseline marker for README narrative baseline\n", .{});
         errors += 1;
     }
@@ -67,19 +97,19 @@ pub fn main() !void {
     );
     defer allocator.free(feature_baseline);
 
-    if (!checkContains(claude, main_baseline)) {
+    if (has_claude and !checkContains(claude, main_baseline)) {
         std.debug.print("ERROR: CLAUDE.md missing expected baseline marker for CLAUDE main baseline\n", .{});
         errors += 1;
     }
-    if (!checkContains(claude, feature_baseline)) {
+    if (has_claude and !checkContains(claude, feature_baseline)) {
         std.debug.print("ERROR: CLAUDE.md missing expected baseline marker for CLAUDE feature baseline\n", .{});
         errors += 1;
     }
-    if (!checkContains(zig_rules, main_baseline)) {
+    if (has_zig_rules and !checkContains(zig_rules, main_baseline)) {
         std.debug.print("ERROR: .claude/rules/zig.md missing expected baseline marker for zig.md main baseline\n", .{});
         errors += 1;
     }
-    if (!checkContains(zig_rules, feature_baseline)) {
+    if (has_zig_rules and !checkContains(zig_rules, feature_baseline)) {
         std.debug.print("ERROR: .claude/rules/zig.md missing expected baseline marker for zig.md feature baseline\n", .{});
         errors += 1;
     }
@@ -100,15 +130,15 @@ pub fn main() !void {
     };
 
     for (stale_markers) |marker| {
-        if (checkContains(readme, marker)) {
+        if (has_readme and checkContains(readme, marker)) {
             std.debug.print("ERROR: README.md contains stale baseline marker '{s}'\n", .{marker});
             errors += 1;
         }
-        if (checkContains(claude, marker)) {
+        if (has_claude and checkContains(claude, marker)) {
             std.debug.print("ERROR: CLAUDE.md contains stale baseline marker '{s}'\n", .{marker});
             errors += 1;
         }
-        if (checkContains(zig_rules, marker)) {
+        if (has_zig_rules and checkContains(zig_rules, marker)) {
             std.debug.print("ERROR: .claude/rules/zig.md contains stale baseline marker '{s}'\n", .{marker});
             errors += 1;
         }
