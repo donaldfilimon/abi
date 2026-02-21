@@ -43,6 +43,10 @@ const std = @import("std");
 const interface = @import("interface.zig");
 const backend_mod = @import("backend.zig");
 const build_options = @import("build_options");
+const policy = @import("policy/mod.zig");
+const backend_registry = @import("backends/registry.zig");
+const backend_shared = @import("backends/shared.zig");
+const android_probe = @import("device/android_probe.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const BackendInterface = interface.Backend;
@@ -124,21 +128,56 @@ pub const BackendFeature = enum {
     mps,
 };
 
-/// Backend priority order for auto-selection (neural networks, inference, training).
-/// TPU and WebGPU are first-class for NN when available; simulated is last.
-const backend_priority = [_]Backend{
-    .cuda, // Best GPGPU and NN support
-    .tpu, // Tensor Processing Unit (neural network accelerator when runtime linked)
-    .metal, // Excellent on Apple hardware
-    .vulkan, // Cross-platform compute
-    .webgpu, // WebGPU: neural networks in browser and native (Dawn/wgpu)
-    .opengl, // Wide support but limited compute
-    .opengles, // Mobile
-    .webgl2, // WebGL 2.0 (browser)
-    .fpga, // Specialized hardware
-    .stdgpu, // Zig std.gpu (CPU/SPIR-V)
-    .simulated, // Software fallback - always available for testing
+const PriorityList = struct {
+    items: [16]Backend = undefined,
+    len: usize = 0,
+
+    fn append(self: *PriorityList, backend: Backend) void {
+        for (self.items[0..self.len]) |existing| {
+            if (existing == backend) return;
+        }
+        if (self.len >= self.items.len) return;
+        self.items[self.len] = backend;
+        self.len += 1;
+    }
+
+    fn slice(self: *const PriorityList) []const Backend {
+        return self.items[0..self.len];
+    }
 };
+
+fn priorityList() PriorityList {
+    var list = PriorityList{};
+    const platform = policy.classifyBuiltin();
+    const android_primary_name: ?[]const u8 = if (platform == .android)
+        if (android_probe.chooseAndroidPrimary()) |backend| backend.name() else null
+    else
+        null;
+
+    const names = policy.resolveAutoBackendNames(.{
+        .platform = platform,
+        .enable_gpu = build_options.enable_gpu,
+        .enable_web = build_options.enable_web,
+        .can_link_metal = true,
+        .warn_if_metal_skipped = false,
+        .allow_simulated = true,
+        .android_primary = android_primary_name,
+    });
+
+    for (names.slice()) |name| {
+        if (backend_mod.backendFromString(name)) |backend| {
+            list.append(backend);
+        }
+    }
+
+    if (@hasDecl(build_options, "gpu_tpu") and build_options.gpu_tpu) list.append(.tpu);
+    if (@hasDecl(build_options, "gpu_fpga") and build_options.gpu_fpga) list.append(.fpga);
+
+    // Keep deterministic software fallback ordering.
+    list.append(.stdgpu);
+    list.append(.simulated);
+    return list;
+}
 
 /// Create a backend instance for the specified type.
 /// Uses the VTable backend system internally.
@@ -162,7 +201,8 @@ pub fn createBackend(allocator: std.mem.Allocator, backend_type: Backend) Factor
 
 /// Create the best available backend based on hardware detection.
 pub fn createBestBackend(allocator: std.mem.Allocator) FactoryError!*BackendInstance {
-    for (backend_priority) |backend_type| {
+    const priorities = priorityList();
+    for (priorities.slice()) |backend_type| {
         if (isBackendAvailable(backend_type)) {
             return createBackend(allocator, backend_type) catch continue;
         }
@@ -186,7 +226,8 @@ pub fn listAvailableBackends(allocator: std.mem.Allocator) ![]Backend {
     var backends = std.ArrayListUnmanaged(Backend).empty;
     errdefer backends.deinit(allocator);
 
-    for (backend_priority) |backend_type| {
+    const priorities = priorityList();
+    for (priorities.slice()) |backend_type| {
         if (isBackendAvailable(backend_type)) {
             backends.append(allocator, backend_type) catch continue;
         }
@@ -255,7 +296,8 @@ pub fn selectBackendWithFeatures(
     defer allocator.free(available);
 
     // Try backends in priority order
-    for (backend_priority) |backend_type| {
+    const priorities = priorityList();
+    for (priorities.slice()) |backend_type| {
         // Check if available
         var is_available = false;
         for (available) |avail| {
@@ -294,8 +336,14 @@ fn backendSupportsFeature(backend_type: Backend, feature: BackendFeature) bool {
     return switch (feature) {
         .fp16 => backend_type == .cuda or backend_type == .metal,
         .fp64 => backend_type == .cuda,
-        .atomics => backend_type != .stdgpu,
-        .shared_memory => backend_type != .stdgpu,
+        .atomics => switch (backend_type) {
+            .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .fpga, .tpu => true,
+            .stdgpu, .webgl2, .simulated => false,
+        },
+        .shared_memory => switch (backend_type) {
+            .cuda, .vulkan, .metal, .webgpu, .opengl, .opengles, .fpga, .tpu => true,
+            .stdgpu, .webgl2, .simulated => false,
+        },
         .subgroups => backend_type == .cuda or backend_type == .vulkan,
         .cooperative_groups => backend_type == .cuda,
         .tensor_cores => backend_type == .cuda,
@@ -488,22 +536,15 @@ pub const SimulatedBackend = struct {
 /// Create a VTable-compatible backend interface for use with the dispatcher.
 /// This is the primary way to get a backend that supports actual kernel execution.
 pub fn createVTableBackend(allocator: std.mem.Allocator, backend_type: Backend) FactoryError!interface.Backend {
-    return switch (backend_type) {
-        .cuda => createCudaVTableBackend(allocator),
-        .vulkan => createVulkanVTableBackend(allocator),
-        .metal => createMetalVTableBackend(allocator),
-        .webgpu => createWebGPUVTableBackend(allocator),
-        .opengl, .opengles => createOpenGLVTableBackend(allocator),
-        .fpga => createFpgaVTableBackend(allocator),
-        .tpu => return FactoryError.BackendNotAvailable, // TPU runtime (libtpu/cloud API) not yet linked
-        .stdgpu, .simulated => createSimulatedVTableBackend(allocator),
-        .webgl2 => createWebGL2VTableBackend(allocator),
+    return backend_registry.createVTable(allocator, backend_type) catch |err| {
+        return mapBackendCreateError(err);
     };
 }
 
 /// Create the best available VTable backend based on hardware detection.
 pub fn createBestVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    for (backend_priority) |backend_type| {
+    const priorities = priorityList();
+    for (priorities.slice()) |backend_type| {
         if (isBackendAvailable(backend_type)) {
             return createVTableBackend(allocator, backend_type) catch continue;
         }
@@ -538,15 +579,13 @@ fn createFpgaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.
 
 fn createCudaVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
     // Check if CUDA is available at comptime
-    if (comptime !build_options.gpu_cuda) {
-        return FactoryError.BackendNotAvailable;
+    if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
+        const cuda_vtable = @import("backends/cuda/vtable.zig");
+        return cuda_vtable.createCudaVTable(allocator) catch |err| {
+            return mapBackendCreateError(err);
+        };
     }
-
-    // Try to create real CUDA backend
-    const cuda_vtable = @import("backends/cuda/vtable.zig");
-    return cuda_vtable.createCudaVTable(allocator) catch |err| {
-        return mapBackendCreateError(err);
-    };
+    return FactoryError.BackendNotAvailable;
 }
 
 fn createVulkanVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
@@ -589,14 +628,17 @@ fn createWebGPUVTableBackend(allocator: std.mem.Allocator) FactoryError!interfac
 }
 
 fn createOpenGLVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
-    // Check if OpenGL is available at comptime
-    if (comptime !build_options.gpu_opengl) {
-        return FactoryError.BackendNotAvailable;
-    }
+    const gl_backend = @import("backends/gl/backend.zig");
+    const gl_profile = @import("backends/gl/profile.zig");
+    return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.desktop) catch |err| {
+        return mapBackendCreateError(err);
+    };
+}
 
-    // Try to create real OpenGL backend
-    const opengl_vtable = @import("backends/opengl_vtable.zig");
-    return opengl_vtable.createOpenGLVTable(allocator) catch |err| {
+fn createOpenGLESVTableBackend(allocator: std.mem.Allocator) FactoryError!interface.Backend {
+    const gl_backend = @import("backends/gl/backend.zig");
+    const gl_profile = @import("backends/gl/profile.zig");
+    return gl_backend.createVTableForProfile(allocator, gl_profile.Profile.es) catch |err| {
         return mapBackendCreateError(err);
     };
 }
@@ -644,4 +686,11 @@ test "backend feature support" {
     // stdgpu has limited feature support
     try std.testing.expect(!instance.supportsFeature(.atomics));
     try std.testing.expect(!instance.supportsFeature(.shared_memory));
+}
+
+test "simulated and webgl2 do not advertise atomics/shared memory" {
+    try std.testing.expect(!backendSupportsFeature(.simulated, .atomics));
+    try std.testing.expect(!backendSupportsFeature(.simulated, .shared_memory));
+    try std.testing.expect(!backendSupportsFeature(.webgl2, .atomics));
+    try std.testing.expect(!backendSupportsFeature(.webgl2, .shared_memory));
 }

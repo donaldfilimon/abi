@@ -6,6 +6,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const build_options = @import("build_options");
+const gpu_detect = abi.gpu.backends.detect;
 
 /// Test matrix configuration
 pub const TestMatrix = struct {
@@ -174,7 +175,7 @@ test "matrix: gpu backend detection" {
 
     try abi.gpu.ensureInitialized(gpa.allocator());
 
-    const backends = try abi.gpu.availableBackends(gpa.allocator());
+    const backends = try gpu_detect.availableBackends(gpa.allocator());
     defer gpa.allocator().free(backends);
 
     // Should have at least one backend (even if simulated)

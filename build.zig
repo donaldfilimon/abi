@@ -20,7 +20,7 @@ pub const BuildOptions = options_mod.BuildOptions;
 comptime {
     if (builtin.zig_version.major == 0 and builtin.zig_version.minor < 16) {
         @compileError(std.fmt.comptimePrint(
-            "ABI requires Zig 0.16.0 or newer (detected {d}.{d}.{d}).\nUse `zvm use master` or install from ziglang.org/builds.",
+            "ABI requires Zig 0.16.0 or newer (detected {d}.{d}.{d}).\nUse `zvm use master` for latest dev, then align to the pinned `.zigversion` toolchain for reproducible checks.",
             .{
                 builtin.zig_version.major,
                 builtin.zig_version.minor,
@@ -33,7 +33,35 @@ comptime {
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const options = options_mod.readBuildOptions(b);
+    const can_link_metal = link.canLinkMetalFrameworks(b.graph.io, target.result.os.tag);
+    const backend_arg = b.option(
+        []const u8,
+        "gpu-backend",
+        gpu.backend_option_help,
+    );
+    const cli_full_env_file = b.option(
+        []const u8,
+        "cli-full-env-file",
+        "Path to KEY=VALUE env file for exhaustive CLI integration tests",
+    );
+    const cli_full_timeout_scale = b.option(
+        f64,
+        "cli-full-timeout-scale",
+        "Timeout multiplier for cli-tests-full on slower hosts",
+    ) orelse 1.0;
+    link.validateMetalBackendRequest(
+        b,
+        backend_arg,
+        target.result.os.tag,
+        can_link_metal,
+    );
+    const options = options_mod.readBuildOptions(
+        b,
+        target.result.os.tag,
+        target.result.abi,
+        can_link_metal,
+        backend_arg,
+    );
     options_mod.validateOptions(options);
 
     const build_opts = modules.createBuildOptionsModule(b, options);
@@ -75,6 +103,10 @@ pub fn build(b: *std.Build) void {
 
     // ── CLI smoke tests ──────────────────────────────────────────────────
     const cli_tests_step = cli_tests.addCliTests(b, exe);
+    _ = cli_tests.addCliTestsFull(b, .{
+        .env_file = cli_full_env_file,
+        .timeout_scale = cli_full_timeout_scale,
+    });
 
     // ── Lint ─────────────────────────────────────────────────────────────
     const fmt_paths = &.{
@@ -225,6 +257,34 @@ pub fn build(b: *std.Build) void {
     const check_features = b.addRunArtifact(check_features_exe);
     consistency_step.dependOn(&check_features.step);
 
+    if (targets.pathExists(b, "tools/scripts/check_gpu_policy_consistency.zig")) {
+        const gpu_policy_check_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/check_gpu_policy_consistency.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
+        gpu_policy_check_module.addImport("build_gpu_policy", b.createModule(.{
+            .root_source_file = b.path("build/gpu_policy.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }));
+        gpu_policy_check_module.addImport("runtime_gpu_policy", b.createModule(.{
+            .root_source_file = b.path("src/features/gpu/policy/mod.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }));
+
+        const check_gpu_policy_exe = b.addExecutable(.{
+            .name = "abi-check-gpu-policy-consistency",
+            .root_module = gpu_policy_check_module,
+        });
+        const check_gpu_policy = b.addRunArtifact(check_gpu_policy_exe);
+        consistency_step.dependOn(&check_gpu_policy.step);
+    }
+
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
     const check_ralph_exe = b.addExecutable(.{
         .name = "abi-check-ralph-gate",
@@ -283,7 +343,24 @@ pub fn build(b: *std.Build) void {
         });
         const run_gendocs = b.addRunArtifact(gendocs);
         if (b.args) |args| run_gendocs.addArgs(args);
-        b.step("gendocs", "Generate API documentation").dependOn(&run_gendocs.step);
+        const gendocs_step = b.step("gendocs", "Generate API documentation");
+
+        if (targets.pathExists(b, "tools/scripts/postprocess_gendocs.zig")) {
+            const postprocess_gendocs = b.addExecutable(.{
+                .name = "postprocess-gendocs",
+                .root_module = b.createModule(.{
+                    .root_source_file = b.path("tools/scripts/postprocess_gendocs.zig"),
+                    .target = target,
+                    .optimize = optimize,
+                    .link_libc = true,
+                }),
+            });
+            const run_postprocess_gendocs = b.addRunArtifact(postprocess_gendocs);
+            run_postprocess_gendocs.step.dependOn(&run_gendocs.step);
+            gendocs_step.dependOn(&run_postprocess_gendocs.step);
+        } else {
+            gendocs_step.dependOn(&run_gendocs.step);
+        }
     }
 
     // ── Profile build ────────────────────────────────────────────────────

@@ -7,6 +7,7 @@
 //! - train vision [options]        - Train Vision Transformer (ViT)
 //! - train clip [options]          - Train CLIP multimodal model
 //! - train auto [options]          - Auto-train with seed data
+//! - train self [options]          - Self-improvement pipeline (auto + Ralph + viz)
 //! - train resume <checkpoint>     - Resume training from checkpoint
 //! - train monitor [run-id]        - Monitor training progress (TUI dashboard)
 //! - train generate-data [options] - Generate synthetic tokenized data
@@ -21,6 +22,7 @@ const new_model = @import("new_model.zig");
 const llm_train = @import("llm_train.zig");
 const vision = @import("vision.zig");
 const auto = @import("auto.zig");
+const self_train = @import("self.zig");
 const monitor = @import("monitor.zig");
 const info = @import("info.zig");
 const data = @import("data.zig");
@@ -44,6 +46,9 @@ fn tClip(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
 }
 fn tAuto(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
     try auto.runAutoTrain(allocator, parser.remaining());
+}
+fn tSelf(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try self_train.runSelfTrain(allocator, parser.remaining());
 }
 fn tResume(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
     try monitor.runResume(allocator, parser.remaining());
@@ -71,6 +76,7 @@ const train_commands = [_]utils.subcommand.Command{
     .{ .names = &.{"vision"}, .run = tVision },
     .{ .names = &.{"clip"}, .run = tClip },
     .{ .names = &.{"auto"}, .run = tAuto },
+    .{ .names = &.{"self"}, .run = tSelf },
     .{ .names = &.{"resume"}, .run = tResume },
     .{ .names = &.{"monitor"}, .run = tMonitor },
     .{ .names = &.{"info"}, .run = tInfo },
@@ -102,6 +108,7 @@ pub fn printHelp() void {
         \\  llm <model> [options]   Train LLM from GGUF model file
         \\  vision [options]        Train Vision Transformer (ViT) for image classification
         \\  clip [options]          Train CLIP multimodal model (vision + text)
+        \\  self [options]          Run self-improvement pipeline (auto + Ralph + optional viz)
         \\  resume <checkpoint>     Resume training from a checkpoint file
         \\  monitor [run-id]        Monitor training progress (TUI dashboard)
         \\  generate-data [options]  Generate synthetic tokenized training data
@@ -182,6 +189,8 @@ pub fn printHelp() void {
         \\  abi train vision --image-size 224 --num-layers 12 --num-heads 6
         \\  abi train clip --epochs 10 --batch-size 256 --projection-dim 512
         \\  abi train clip --vision-hidden 768 --text-hidden 512 --temperature 0.07
+        \\  abi train self --multimodal --iterations 7
+        \\  abi train self --visualize --visualize-frames 0
         \\  abi train generate-data --num-samples 1024 --seq-length 128 --vocab-size 32000
         \\  abi train generate-data --output /tmp/test.bin --num-samples 100 --seq-length 32
         \\  abi train resume ./checkpoints/model.ckpt

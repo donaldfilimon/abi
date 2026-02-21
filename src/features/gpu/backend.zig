@@ -3,6 +3,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const shared = @import("backends/shared.zig");
+const metal_caps = @import("backends/metal/capabilities.zig");
+const vulkan_caps = @import("backends/vulkan/capabilities.zig");
 
 pub const Backend = enum {
     cuda,
@@ -577,6 +579,13 @@ fn detectVulkan() BackendAvailability {
     if (!shared.tryLoadAny(vulkanLibNames())) {
         return unavailableAvailability("vulkan loader not found");
     }
+    if (queryVulkanApiVersion()) |raw_version| {
+        if (!vulkan_caps.meetsTargetMinimum(builtin.target.os.tag, raw_version)) {
+            return unavailableAvailability("vulkan runtime version below required minimum");
+        }
+    } else {
+        return unavailableAvailability("vulkan api version probe failed");
+    }
     return availableAvailability(.loader, 1, "vulkan loader available");
 }
 
@@ -589,6 +598,10 @@ fn detectMetal() BackendAvailability {
     }
     if (!shared.tryLoadAny(metalLibNames())) {
         return unavailableAvailability("metal framework not found");
+    }
+    const level = metal_caps.probeSystemMetalLevel();
+    if (!level.atLeast(metal_caps.required_runtime_level)) {
+        return unavailableAvailability("metal runtime below required metal4 level");
     }
     return availableAvailability(.loader, 1, "metal framework available");
 }
@@ -694,6 +707,22 @@ fn backendMemoryBytes(backend: Backend) ?u64 {
 
 fn backendCapabilities(backend: Backend) DeviceCapability {
     return meta(backend).capability;
+}
+
+fn queryVulkanApiVersion() ?u32 {
+    if (comptime !shared.dynlibSupported) return null;
+    if (!shared.canUseDynLib()) return null;
+
+    if (shared.openFirst(vulkanLibNames())) |lib_value| {
+        var lib = lib_value;
+        defer lib.close();
+        if (vulkan_caps.queryLoaderApiVersion(&lib)) |version| {
+            return version;
+        }
+        // Vulkan 1.0 loaders do not export vkEnumerateInstanceVersion.
+        return vulkan_caps.encodeApiVersion(.{ .major = 1, .minor = 0, .patch = 0 });
+    }
+    return null;
 }
 
 fn cudaLibNames() []const []const u8 {

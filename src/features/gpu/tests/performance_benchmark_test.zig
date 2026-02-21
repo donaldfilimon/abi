@@ -13,7 +13,7 @@ const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const abi = @import("../../src/abi");
 const gpu = abi.gpu;
-const dispatcher = gpu.dispatcher;
+const dispatcher = gpu.dispatch;
 const builtin_kernels = gpu.builtin_kernels;
 
 const BenchmarkResult = struct {

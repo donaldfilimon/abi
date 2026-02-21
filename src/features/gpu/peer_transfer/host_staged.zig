@@ -39,7 +39,7 @@ pub const HostStagedBackend = struct {
     staging_pool: StagingPool,
 
     // Thread pool for async transfers
-    thread_pool: ?ThreadPool,
+    thread_pool: ?*ThreadPool,
 
     // Statistics
     transfers_completed: std.atomic.Value(u64),
@@ -49,10 +49,19 @@ pub const HostStagedBackend = struct {
 
     /// Initialize the host-staged backend.
     pub fn init(allocator: std.mem.Allocator) !Self {
+        const pool_ptr: ?*ThreadPool = blk: {
+            const pool = allocator.create(ThreadPool) catch break :blk null;
+            pool.init(allocator, 4) catch {
+                allocator.destroy(pool);
+                break :blk null;
+            };
+            break :blk pool;
+        };
+
         return .{
             .allocator = allocator,
             .staging_pool = try StagingPool.init(allocator),
-            .thread_pool = ThreadPool.init(allocator, 4) catch null,
+            .thread_pool = pool_ptr,
             .transfers_completed = std.atomic.Value(u64).init(0),
             .bytes_transferred = std.atomic.Value(u64).init(0),
         };
@@ -60,8 +69,9 @@ pub const HostStagedBackend = struct {
 
     /// Deinitialize the backend.
     pub fn deinit(self: *Self) void {
-        if (self.thread_pool) |*pool| {
+        if (self.thread_pool) |pool| {
             pool.deinit();
+            self.allocator.destroy(pool);
         }
         self.staging_pool.deinit();
         self.* = undefined;
@@ -81,10 +91,11 @@ pub const HostStagedBackend = struct {
         defer self.staging_pool.release(staging);
 
         // Step 1: Copy from source GPU to host staging
-        try self.deviceToHost(src_device, data, staging);
+        const staging_slice = staging[0..data.len];
+        try self.deviceToHost(src_device, data, staging_slice);
 
         // Step 2: Copy from host staging to destination GPU
-        try self.hostToDevice(dst_device, staging, data);
+        try self.hostToDevice(dst_device, staging_slice, data);
 
         // Update statistics
         _ = self.transfers_completed.fetchAdd(1, .monotonic);
@@ -99,7 +110,7 @@ pub const HostStagedBackend = struct {
         data: []u8,
         callback: ?*const fn (@"error": ?anyerror) void,
     ) !void {
-        if (self.thread_pool) |*pool| {
+        if (self.thread_pool) |pool| {
             const task = TransferTask{
                 .backend = self,
                 .src_device = src_device,
@@ -162,30 +173,33 @@ pub const HostStagedBackend = struct {
         if (buffers.len <= 1) return;
 
         const data_len = buffers[0].data.len;
+        const byte_len = data_len * @sizeOf(f32);
 
         // Allocate reduction buffer on host
         const reduce_buffer = try self.allocator.alloc(f32, data_len);
         defer self.allocator.free(reduce_buffer);
 
         // Initialize with first buffer
-        const first_staging = try self.staging_pool.acquire(data_len * @sizeOf(f32));
+        const first_staging = try self.staging_pool.acquire(byte_len);
         defer self.staging_pool.release(first_staging);
+        const first_staging_slice = first_staging[0..byte_len];
 
         const first_data = std.mem.sliceAsBytes(buffers[0].data);
-        try self.deviceToHost(buffers[0].device_id, @constCast(first_data), first_staging);
+        try self.deviceToHost(buffers[0].device_id, @constCast(first_data), first_staging_slice);
 
-        const first_floats = std.mem.bytesAsSlice(f32, first_staging);
-        @memcpy(reduce_buffer, first_floats);
+        const first_floats = std.mem.bytesAsSlice(f32, first_staging_slice);
+        @memcpy(reduce_buffer[0..data_len], first_floats[0..data_len]);
 
         // Reduce from all other devices
-        const staging = try self.staging_pool.acquire(data_len * @sizeOf(f32));
+        const staging = try self.staging_pool.acquire(byte_len);
         defer self.staging_pool.release(staging);
+        const staging_slice = staging[0..byte_len];
 
         for (buffers[1..]) |buf| {
             const buf_data = std.mem.sliceAsBytes(buf.data);
-            try self.deviceToHost(buf.device_id, @constCast(buf_data), staging);
+            try self.deviceToHost(buf.device_id, @constCast(buf_data), staging_slice);
 
-            const floats = std.mem.bytesAsSlice(f32, staging);
+            const floats = std.mem.bytesAsSlice(f32, staging_slice);
             for (reduce_buffer, 0..) |*val, i| {
                 val.* = applyOp(val.*, floats[i], op);
             }
@@ -201,11 +215,11 @@ pub const HostStagedBackend = struct {
 
         // Broadcast result back to all devices
         const result_bytes = std.mem.sliceAsBytes(reduce_buffer);
-        @memcpy(staging, result_bytes);
+        @memcpy(staging_slice, result_bytes);
 
         for (buffers) |buf| {
             const dst_bytes = std.mem.sliceAsBytes(buf.data);
-            try self.hostToDevice(buf.device_id, staging, @constCast(dst_bytes));
+            try self.hostToDevice(buf.device_id, staging_slice, @constCast(dst_bytes));
         }
 
         _ = self.transfers_completed.fetchAdd(buffers.len * 2, .monotonic);
@@ -337,8 +351,8 @@ const ThreadPool = struct {
     condition: sync.Condition,
     shutdown: std.atomic.Value(bool),
 
-    pub fn init(allocator: std.mem.Allocator, num_threads: usize) !ThreadPool {
-        var pool = ThreadPool{
+    pub fn init(self: *ThreadPool, allocator: std.mem.Allocator, num_threads: usize) !void {
+        self.* = ThreadPool{
             .allocator = allocator,
             .threads = try allocator.alloc(std.Thread, num_threads),
             .queue = std.ArrayListUnmanaged(TransferTask).empty,
@@ -347,12 +361,10 @@ const ThreadPool = struct {
             .shutdown = std.atomic.Value(bool).init(false),
         };
 
-        for (pool.threads, 0..) |*thread, i| {
+        for (self.threads, 0..) |*thread, i| {
             _ = i;
-            thread.* = try std.Thread.spawn(.{}, workerThread, .{&pool});
+            thread.* = try std.Thread.spawn(.{}, workerThread, .{self});
         }
-
-        return pool;
     }
 
     pub fn deinit(self: *ThreadPool) void {

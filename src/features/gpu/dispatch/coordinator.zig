@@ -45,6 +45,7 @@ const unified_buffer = @import("../unified_buffer.zig");
 const kernel_types = @import("../kernel_types.zig");
 const builtin_kernels = @import("../builtin_kernels.zig");
 const kernel_ring_mod = @import("../kernel_ring.zig");
+const policy = @import("../policy/mod.zig");
 
 const Mutex = sync.Mutex;
 
@@ -131,6 +132,7 @@ pub const KernelDispatcher = struct {
         backend: Backend,
         device: *const Device,
     ) !Self {
+        const hints = policy.optimizationHintsForPlatform(policy.classifyBuiltin());
         var self = Self{
             .allocator = allocator,
             .ir_arena = std.heap.ArenaAllocator.init(allocator),
@@ -149,12 +151,12 @@ pub const KernelDispatcher = struct {
             .kernel_ring = KernelRing.init(),
             .launch_queue = .empty,
             .queue_mutex = .{},
-            .max_queue_size = 32,
+            .max_queue_size = @as(usize, hints.default_queue_depth) * 8,
         };
 
         // Try to initialize cuBLAS for CUDA backend (only when field is ?CublasContext, not void)
         if (comptime @TypeOf(@as(Self, undefined).cublas_ctx) != void) {
-            if (backend == .cuda and cublas.isAvailable() and @TypeOf(cublas.CublasContext) != void) {
+            if (backend == .cuda and cublas.isAvailable() and cublas.CublasContext != void) {
                 self.cublas_ctx = initCublasOptional(cublas.CublasContext);
                 if (self.cublas_ctx != null) {
                     std.log.info("cuBLAS initialized for optimized BLAS operations", .{});
@@ -227,16 +229,10 @@ pub const KernelDispatcher = struct {
             std.log.err("Failed to build kernel IR for {s}: {}", .{ name, err });
             return DispatchError.KernelCompilationFailed;
         };
-        errdefer {
-            ir.deinit(self.allocator);
-            self.allocator.destroy(@constCast(ir));
-        }
 
         // Compile the IR to the target backend
-        const handle = try self.compileKernel(ir);
-        ir.deinit(self.allocator);
-        self.allocator.destroy(@constCast(ir));
-        return handle;
+        // IR uses `ir_arena`; reclaim happens when dispatcher deinitializes the arena.
+        return try self.compileKernel(ir);
     }
 
     /// Compile a custom kernel from IR.
@@ -262,7 +258,7 @@ pub const KernelDispatcher = struct {
             )) |compiled| {
                 handle = compiled;
             } else |err| {
-                std.log.warn("Backend compilation failed for {s}: {}. Using CPU fallback.", .{
+                std.log.debug("Backend compilation failed for {s}: {}. Using CPU fallback.", .{
                     ir.name,
                     err,
                 });
@@ -306,7 +302,7 @@ pub const KernelDispatcher = struct {
 
         // Track launch configuration in ring buffer for fast-path detection
         const grid = config.gridDimensions();
-        const local = config.local_size orelse .{ 256, 1, 1 };
+        const local = config.effectiveLocalSize();
         const ring_desc = KernelRing.Descriptor{
             .kernel_handle = if (kernel.handle) |h| @intFromPtr(h) else std.hash.Wyhash.hash(0, kernel.name),
             .grid_dim = grid,
@@ -324,7 +320,7 @@ pub const KernelDispatcher = struct {
 
         // Validate arguments
         if (args.buffers.len != kernel.buffer_count) {
-            std.log.err("Kernel {s} expects {} buffers, got {}", .{
+            std.log.debug("Kernel {s} expects {} buffers, got {}", .{
                 kernel.name,
                 kernel.buffer_count,
                 args.buffers.len,
@@ -337,12 +333,12 @@ pub const KernelDispatcher = struct {
             if (buf.isHostDirty()) {
                 if (config.stream) |s| {
                     buf.toDeviceAsync(s) catch |err| {
-                        std.log.warn("Failed to sync buffer to device async: {}", .{err});
+                        std.log.debug("Failed to sync buffer to device async: {}", .{err});
                         return DispatchError.BufferNotReady;
                     };
                 } else {
                     buf.toDevice() catch |err| {
-                        std.log.warn("Failed to sync buffer to device: {}", .{err});
+                        std.log.debug("Failed to sync buffer to device: {}", .{err});
                         return DispatchError.BufferNotReady;
                     };
                 }
@@ -362,7 +358,7 @@ pub const KernelDispatcher = struct {
         var used_cublas = false;
 
         // Check for cuBLAS optimization for batch_matmul and matrix_multiply (only when field is ?CublasContext)
-        if (@TypeOf(@as(Self, undefined).cublas_ctx) != void and @TypeOf(cublas.CublasContext) != void) {
+        if (@TypeOf(@as(Self, undefined).cublas_ctx) != void and cublas.CublasContext != void) {
             if (self.cublas_ctx != null and
                 (std.mem.eql(u8, kernel.name, "batch_matmul") or
                     std.mem.eql(u8, kernel.name, "matrix_multiply")))
@@ -518,10 +514,10 @@ pub const KernelDispatcher = struct {
         config: LaunchConfig,
         args: KernelArgs,
     ) DispatchError!void {
-        if (comptime @TypeOf(cublas.CublasContext) == void) return DispatchError.UnsupportedOperation;
+        if (comptime cublas.CublasContext == void) return DispatchError.UnsupportedOperation;
         if (!build_options.enable_gpu) return DispatchError.UnsupportedOperation;
 
-        if (comptime @TypeOf(cublas.CublasContext) != void) {
+        if (comptime cublas.CublasContext != void) {
             var ctx = self.cublas_ctx orelse return DispatchError.UnsupportedOperation;
             const bufs = args.buffers;
 
@@ -763,7 +759,7 @@ pub const KernelDispatcher = struct {
                 try executeCpuRmsNorm(bufs[0], bufs[1], bufs[2], rms, epsilon);
             }
         } else {
-            std.log.warn("No CPU fallback for kernel: {s}", .{name});
+            std.log.debug("No CPU fallback for kernel: {s}", .{name});
             return DispatchError.UnsupportedOperation;
         }
     }

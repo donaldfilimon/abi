@@ -144,7 +144,10 @@ pub fn init() OpenGlError!void {
     if (!tryLoadOpenGl()) {
         return OpenGlError.LibraryNotFound;
     }
-    errdefer if (opengl_lib) |lib| lib.close();
+    errdefer if (opengl_lib) |lib| {
+        var mut_lib = lib;
+        mut_lib.close();
+    };
 
     if (!loadOpenGlFunctions()) {
         return OpenGlError.FunctionLoadFailed;
@@ -160,7 +163,7 @@ pub fn init() OpenGlError!void {
     // Parse OpenGL version using glGetIntegerv for accurate major/minor version
     const get_integer_fn = glGetIntegerv orelse {
         // Fallback: parse version string
-        if (parseVersionString(std.mem.span(version))) |parsed| {
+        if (parseVersionString(std.mem.span(version.?))) |parsed| {
             gl_major_version = parsed.major;
             gl_minor_version = parsed.minor;
         } else {
@@ -194,7 +197,8 @@ pub fn deinit() void {
     if (!opengl_initialized) return;
 
     if (opengl_lib) |lib| {
-        lib.close();
+        var mut_lib = lib;
+        mut_lib.close();
     }
     opengl_lib = null;
     opengl_initialized = false;
@@ -219,7 +223,11 @@ pub fn compileKernel(
     errdefer if (glDeleteShader) |delete_fn| delete_fn(shader);
 
     // Set shader source
-    const source_ptr = &[_][*:0]const u8{source.source.ptr};
+    const source_z = allocator.dupeZ(u8, source.source) catch {
+        return OpenGlError.ShaderCompilationFailed;
+    };
+    defer allocator.free(source_z);
+    const source_ptr = &[_][*:0]const u8{source_z.ptr};
     const set_source_fn = glShaderSource orelse return OpenGlError.ShaderCompilationFailed;
     set_source_fn(shader, 1, source_ptr.ptr, null);
 
@@ -237,10 +245,13 @@ pub fn compileKernel(
         var log_length: i32 = 0;
         get_shader_iv_fn(shader, 0x8B84, &log_length); // GL_INFO_LOG_LENGTH
         if (log_length > 0) {
-            const log = try allocator.alloc(u8, @intCast(log_length));
+            const log = allocator.alloc(u8, @intCast(log_length)) catch {
+                return OpenGlError.ShaderCompilationFailed;
+            };
             defer allocator.free(log);
             const get_log_fn = glGetShaderInfoLog orelse return OpenGlError.ShaderCompilationFailed;
-            get_log_fn(shader, log_length, null, log.ptr);
+            var written: i32 = 0;
+            get_log_fn(shader, log_length, &written, log.ptr);
             std.log.err("OpenGL shader compilation failed: {s}", .{log});
         }
         return OpenGlError.ShaderCompilationFailed;
@@ -272,16 +283,21 @@ pub fn compileKernel(
         var log_length: i32 = 0;
         get_program_iv_fn(program, 0x8B84, &log_length); // GL_INFO_LOG_LENGTH
         if (log_length > 0) {
-            const log = try allocator.alloc(u8, @intCast(log_length));
+            const log = allocator.alloc(u8, @intCast(log_length)) catch {
+                return OpenGlError.ProgramLinkingFailed;
+            };
             defer allocator.free(log);
             const get_log_fn = glGetProgramInfoLog orelse return OpenGlError.ProgramLinkingFailed;
-            get_log_fn(program, log_length, null, log.ptr);
+            var written: i32 = 0;
+            get_log_fn(program, log_length, &written, log.ptr);
             std.log.err("OpenGL program linking failed: {s}", .{log});
         }
         return OpenGlError.ProgramLinkingFailed;
     }
 
-    const kernel = try allocator.create(OpenGlKernel);
+    const kernel = allocator.create(OpenGlKernel) catch {
+        return OpenGlError.ProgramLinkingFailed;
+    };
     kernel.* = .{
         .program = program,
         .shader = shader,
@@ -312,7 +328,7 @@ pub fn launchKernel(
     const bind_buffer_base_fn = glBindBufferBase orelse return OpenGlError.DispatchFailed;
     for (args, 0..) |arg, i| {
         if (arg != null) {
-            const buffer: *OpenGlBuffer = @ptrCast(@alignCast(arg.?));
+            const buffer: *OpenGlBuffer = @ptrCast(@alignCast(@constCast(arg.?)));
             bind_buffer_base_fn(GL_SHADER_STORAGE_BUFFER, @intCast(i), buffer.buffer_id);
         }
     }
@@ -366,9 +382,9 @@ pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usi
 
     const gen_buffers_fn = glGenBuffers orelse return OpenGlError.BufferCreationFailed;
     var buffer_id: u32 = 0;
-    gen_buffers_fn(1, &buffer_id);
+    gen_buffers_fn(1, @ptrCast(&buffer_id));
     if (buffer_id == 0) {
-        checkAndLogGlError("glGenBuffers");
+        _ = checkAndLogGlError("glGenBuffers");
         return OpenGlError.BufferCreationFailed;
     }
 
@@ -381,13 +397,13 @@ pub fn allocateDeviceMemoryWithAllocator(allocator: std.mem.Allocator, size: usi
     // Check for GL errors after buffer creation
     if (checkAndLogGlError("glBufferData")) {
         const delete_buffers_fn = glDeleteBuffers orelse return OpenGlError.BufferCreationFailed;
-        delete_buffers_fn(1, &buffer_id);
+        delete_buffers_fn(1, @ptrCast(&buffer_id));
         return OpenGlError.BufferCreationFailed;
     }
 
     const opengl_buffer = allocator.create(OpenGlBuffer) catch {
         const delete_buffers_fn = glDeleteBuffers orelse return OpenGlError.BufferCreationFailed;
-        delete_buffers_fn(1, &buffer_id);
+        delete_buffers_fn(1, @ptrCast(&buffer_id));
         return OpenGlError.BufferCreationFailed;
     };
     errdefer allocator.destroy(opengl_buffer);
@@ -411,7 +427,7 @@ pub fn freeDeviceMemory(ptr: *anyopaque) void {
     const allocator = buffer.allocator;
 
     const delete_buffers_fn = glDeleteBuffers orelse return;
-    delete_buffers_fn(1, &buffer.buffer_id);
+    delete_buffers_fn(1, @ptrCast(&buffer.buffer_id));
     _ = checkAndLogGlError("glDeleteBuffers");
 
     allocator.destroy(buffer);
@@ -679,18 +695,20 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
             .backend = .opengl,
             .name = name,
             .device_type = .discrete, // Assume discrete
+            .vendor = .unknown,
             .total_memory = null,
             .available_memory = null,
             .is_emulated = false,
             .capability = .{
                 .supports_fp16 = false, // OpenGL compute doesn't require FP16
-                .supports_fp64 = true, // OpenGL 4.3+ supports FP64
                 .supports_int8 = true,
                 .supports_async_transfers = false,
                 .unified_memory = false,
             },
             .compute_units = null,
             .clock_mhz = null,
+            .pci_bus_id = null,
+            .driver_version = null,
         });
     }
 
@@ -711,9 +729,9 @@ test "OpenGL error enum covers all cases" {
     const errors = [_]OpenGlError{
         error.InitializationFailed,
         error.ShaderCompilationFailed,
-        error.ProgramLinkFailed,
+        error.ProgramLinkingFailed,
         error.BufferCreationFailed,
-        error.ComputeNotSupported,
+        error.VersionNotSupported,
     };
     try std.testing.expectEqual(@as(usize, 5), errors.len);
 }
@@ -732,7 +750,7 @@ test "enumerateDevices returns empty when not initialized" {
     const devices = try enumerateDevices(std.testing.allocator);
     defer {
         for (devices) |d| {
-            if (d.name) |name| std.testing.allocator.free(name);
+            std.testing.allocator.free(d.name);
         }
         std.testing.allocator.free(devices);
     }

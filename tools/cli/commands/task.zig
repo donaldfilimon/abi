@@ -49,6 +49,10 @@ fn tImport(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
     _ = p;
     try runImportRoadmap(a);
 }
+fn tSeedSelfImprove(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
+    _ = p;
+    try runSeedSelfImprove(a);
+}
 fn tEdit(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
     try runEdit(a, p.remaining());
 }
@@ -78,6 +82,7 @@ const task_commands = [_]utils.subcommand.Command{
     .{ .names = &.{ "delete", "rm" }, .run = tDelete },
     .{ .names = &.{"stats"}, .run = tStats },
     .{ .names = &.{"import-roadmap"}, .run = tImport },
+    .{ .names = &.{"seed-self-improve"}, .run = tSeedSelfImprove },
     .{ .names = &.{"edit"}, .run = tEdit },
     .{ .names = &.{"block"}, .run = tBlock },
     .{ .names = &.{"unblock"}, .run = tUnblock },
@@ -505,6 +510,102 @@ fn runImportRoadmap(allocator: std.mem.Allocator) !void {
     }
 }
 
+const SeedTask = struct {
+    title: []const u8,
+    description: []const u8,
+    priority: tasks.Priority,
+    category: tasks.Category,
+    due_in_seconds: i64,
+};
+
+const self_improvement_seed_tasks = [_]SeedTask{
+    .{
+        .title = "Run ABI self-train baseline",
+        .description = "Execute `abi train self --skip-improve --multimodal` and capture baseline stats.",
+        .priority = .high,
+        .category = .compute,
+        .due_in_seconds = 24 * 60 * 60,
+    },
+    .{
+        .title = "Run Ralph self-improvement analysis",
+        .description = "Execute `abi train self --skip-auto --iterations 7` and review generated lessons.",
+        .priority = .high,
+        .category = .feature,
+        .due_in_seconds = 36 * 60 * 60,
+    },
+    .{
+        .title = "Review and prune Abbey skill memory",
+        .description = "List and prune weak lessons with `abi ralph skills list` and targeted clears/additions.",
+        .priority = .normal,
+        .category = .feature,
+        .due_in_seconds = 2 * 24 * 60 * 60,
+    },
+    .{
+        .title = "Visualize network dynamics",
+        .description = "Run `abi ui neural --layers 12,24,24,12,4 --frames 0` and record key observations.",
+        .priority = .normal,
+        .category = .compute,
+        .due_in_seconds = 2 * 24 * 60 * 60,
+    },
+    .{
+        .title = "Validate post-improvement quality gates",
+        .description = "Run `zig build feature-tests` and `zig build verify-all` after self-improvement changes.",
+        .priority = .critical,
+        .category = .compute,
+        .due_in_seconds = 3 * 24 * 60 * 60,
+    },
+};
+
+fn runSeedSelfImprove(allocator: std.mem.Allocator) !void {
+    var manager = tasks.Manager.init(allocator, .{}) catch |err| {
+        utils.output.printError("Failed to initialize task manager: {t}", .{err});
+        return;
+    };
+    defer manager.deinit();
+
+    const existing = manager.list(allocator, .{}) catch |err| {
+        utils.output.printError("Failed to read existing tasks: {t}", .{err});
+        return;
+    };
+    defer allocator.free(existing);
+
+    const now = time_utils.unixSeconds();
+    var added: usize = 0;
+    var skipped: usize = 0;
+
+    for (self_improvement_seed_tasks) |seed| {
+        if (taskTitleExists(existing, seed.title)) {
+            skipped += 1;
+            continue;
+        }
+
+        _ = manager.add(seed.title, .{
+            .description = seed.description,
+            .priority = seed.priority,
+            .category = seed.category,
+            .due_date = now + seed.due_in_seconds,
+        }) catch |err| {
+            utils.output.printError("Failed to create seed task '{s}': {t}", .{ seed.title, err });
+            return;
+        };
+        added += 1;
+    }
+
+    if (added == 0) {
+        utils.output.printInfo("Self-improvement task plan already present ({d} existing, {d} skipped)", .{ existing.len, skipped });
+        return;
+    }
+
+    utils.output.printSuccess("Added {d} self-improvement task(s) ({d} skipped)", .{ added, skipped });
+}
+
+fn taskTitleExists(existing: []const tasks.Task, title: []const u8) bool {
+    for (existing) |task_entry| {
+        if (std.ascii.eqlIgnoreCase(task_entry.title, title)) return true;
+    }
+    return false;
+}
+
 fn runEdit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
@@ -774,6 +875,7 @@ fn printHelp() void {
         \\  unblock <id>         Remove blocked status
         \\  stats                Show task statistics
         \\  import-roadmap       Import roadmap items as tasks
+        \\  seed-self-improve    Seed a self-improvement execution plan
         \\  help                 Show this help message
         \\
         \\Add Options:
@@ -822,6 +924,7 @@ fn printHelp() void {
         \\  abi task rm 1
         \\  abi task stats
         \\  abi task import-roadmap
+        \\  abi task seed-self-improve
         \\
     ;
     std.debug.print("{s}", .{help_text});

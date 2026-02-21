@@ -2,7 +2,7 @@ const std = @import("std");
 // Use the public GPU module to access the dispatcher and builtin kernels.
 const abi = @import("abi");
 const gpu = abi.gpu;
-const dispatcher = gpu.dispatcher;
+const dispatcher = gpu.dispatch;
 const builtin_kernels = gpu.builtin_kernels;
 
 test "KernelRing fast-path reuse increments ring_hits" {

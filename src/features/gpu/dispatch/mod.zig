@@ -17,9 +17,15 @@ pub const LaunchConfig = types.LaunchConfig;
 pub const KernelArgs = types.KernelArgs;
 pub const ExecutionResult = types.ExecutionResult;
 pub const QueuedLaunch = types.QueuedLaunch;
+pub const KernelHandle = types.CompiledKernelHandle;
 
 // Re-export dispatcher
 pub const KernelDispatcher = coordinator.KernelDispatcher;
+pub const Backend = coordinator.Backend;
+pub const Device = coordinator.Device;
+pub const Buffer = coordinator.Buffer;
+pub const KernelIR = coordinator.KernelIR;
+pub const KernelRing = coordinator.KernelRing;
 
 // Re-export batch types
 pub const BatchedOp = batch.BatchedOp;

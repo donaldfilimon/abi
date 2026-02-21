@@ -8,6 +8,7 @@ const std = @import("std");
 const build_options = @import("build_options");
 const interface = @import("../interface.zig");
 const opengl = @import("opengl.zig");
+const gl_runtime = @import("gl/runtime.zig");
 
 /// OpenGL VTable Backend
 ///
@@ -84,13 +85,13 @@ pub const OpenGLBackend = struct {
     pub fn deinit(self: *Self) void {
         // Free all tracked allocations
         for (self.allocations.items) |alloc| {
-            opengl.freeDeviceMemory(alloc.ptr);
+            gl_runtime.freeDeviceMemory(.opengl, alloc.ptr);
         }
         self.allocations.deinit(self.allocator);
 
         // Destroy all kernels
         for (self.kernels.items) |kernel| {
-            opengl.destroyKernel(self.allocator, kernel.handle);
+            gl_runtime.destroyKernel(.opengl, self.allocator, kernel.handle);
             self.allocator.free(kernel.name);
         }
         self.kernels.deinit(self.allocator);
@@ -154,7 +155,7 @@ pub const OpenGLBackend = struct {
     pub fn allocate(self: *Self, size: usize, flags: interface.MemoryFlags) interface.MemoryError!*anyopaque {
         _ = flags; // OpenGL handles memory type internally
 
-        const ptr = opengl.allocateDeviceMemoryWithAllocator(self.allocator, size) catch {
+        const ptr = gl_runtime.allocateDeviceMemory(.opengl, size) catch {
             return interface.MemoryError.OutOfMemory;
         };
 
@@ -163,7 +164,7 @@ pub const OpenGLBackend = struct {
             .ptr = ptr,
             .size = size,
         }) catch {
-            opengl.freeDeviceMemory(ptr);
+            gl_runtime.freeDeviceMemory(.opengl, ptr);
             return interface.MemoryError.OutOfMemory;
         };
 
@@ -175,7 +176,7 @@ pub const OpenGLBackend = struct {
         // Find and remove from tracking
         for (self.allocations.items, 0..) |alloc, i| {
             if (alloc.ptr == ptr) {
-                opengl.freeDeviceMemory(ptr);
+                gl_runtime.freeDeviceMemory(.opengl, ptr);
                 _ = self.allocations.swapRemove(i);
                 return;
             }
@@ -185,7 +186,7 @@ pub const OpenGLBackend = struct {
     /// Copy data from host to device.
     pub fn copyToDevice(self: *Self, dst: *anyopaque, src: []const u8) interface.MemoryError!void {
         _ = self;
-        opengl.memcpyHostToDevice(dst, @constCast(src.ptr), src.len) catch {
+        gl_runtime.memcpyHostToDevice(.opengl, dst, src.ptr, src.len) catch {
             return interface.MemoryError.TransferFailed;
         };
     }
@@ -193,7 +194,7 @@ pub const OpenGLBackend = struct {
     /// Copy data from device to host.
     pub fn copyFromDevice(self: *Self, dst: []u8, src: *anyopaque) interface.MemoryError!void {
         _ = self;
-        opengl.memcpyDeviceToHost(dst.ptr, src, dst.len) catch {
+        gl_runtime.memcpyDeviceToHost(.opengl, dst.ptr, src, dst.len) catch {
             return interface.MemoryError.TransferFailed;
         };
     }
@@ -230,13 +231,13 @@ pub const OpenGLBackend = struct {
             .backend = backend_mod.Backend.opengl,
         };
 
-        const handle = opengl.compileKernel(allocator, kernel_source) catch {
+        const handle = gl_runtime.compileKernel(.opengl, allocator, kernel_source) catch {
             return interface.KernelError.CompileFailed;
         };
 
         // Track kernel
         const name_copy = self.allocator.dupe(u8, kernel_name) catch {
-            opengl.destroyKernel(allocator, handle);
+            gl_runtime.destroyKernel(.opengl, allocator, handle);
             return interface.KernelError.CompileFailed;
         };
 
@@ -245,7 +246,7 @@ pub const OpenGLBackend = struct {
             .name = name_copy,
         }) catch {
             self.allocator.free(name_copy);
-            opengl.destroyKernel(allocator, handle);
+            gl_runtime.destroyKernel(.opengl, allocator, handle);
             return interface.KernelError.CompileFailed;
         };
 
@@ -284,7 +285,8 @@ pub const OpenGLBackend = struct {
             opt_args[i] = args[i];
         }
 
-        opengl.launchKernel(
+        gl_runtime.launchKernel(
+            .opengl,
             std.heap.page_allocator,
             kernel,
             kernel_config,
@@ -298,7 +300,7 @@ pub const OpenGLBackend = struct {
     pub fn destroyKernel(self: *Self, kernel: *anyopaque) void {
         for (self.kernels.items, 0..) |k, i| {
             if (k.handle == kernel) {
-                opengl.destroyKernel(self.allocator, kernel);
+                gl_runtime.destroyKernel(.opengl, self.allocator, kernel);
                 self.allocator.free(k.name);
                 _ = self.kernels.swapRemove(i);
                 return;
@@ -316,7 +318,7 @@ pub const OpenGLBackend = struct {
         if (!opengl.isAvailable()) {
             return interface.BackendError.NotAvailable;
         }
-        opengl.synchronize();
+        gl_runtime.synchronize(.opengl);
     }
 };
 

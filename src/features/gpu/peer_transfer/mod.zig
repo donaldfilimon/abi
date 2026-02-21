@@ -32,6 +32,7 @@ const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const build_options = @import("build_options");
 const shared_utils = @import("../../../services/shared/utils.zig");
+const backend_shared = @import("../backends/shared.zig");
 
 const multi_device = @import("../multi_device.zig");
 const stream_mod = @import("../stream.zig");
@@ -40,7 +41,7 @@ const device_mod = @import("../device.zig");
 
 // Backend implementations
 pub const host_staged = @import("host_staged.zig");
-pub const cuda_backend = if (build_options.gpu_cuda) @import("cuda.zig") else struct {};
+pub const cuda_backend = if (build_options.gpu_cuda and backend_shared.dynlibSupported) @import("cuda.zig") else struct {};
 pub const vulkan_backend = if (build_options.gpu_vulkan) @import("vulkan.zig") else struct {};
 pub const metal_backend = if (build_options.gpu_metal) @import("metal.zig") else struct {};
 
@@ -293,7 +294,7 @@ pub const PeerTransferManager = struct {
         }
 
         // Try backends in priority order
-        if (comptime build_options.gpu_cuda) {
+        if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
             if (cuda_backend.canAccessPeer(src_id, dst_id)) {
                 if (cuda_backend.hasNCCL()) {
                     return .nccl;
@@ -379,7 +380,7 @@ pub const PeerTransferManager = struct {
 
         switch (handle.capability) {
             .direct_p2p => {
-                if (comptime build_options.gpu_cuda) {
+                if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
                     try cuda_backend.memcpyPeerAsync(
                         handle.src_device,
                         handle.dst_device,
@@ -391,7 +392,7 @@ pub const PeerTransferManager = struct {
                 }
             },
             .nccl => {
-                if (comptime build_options.gpu_cuda) {
+                if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
                     try cuda_backend.ncclTransfer(
                         handle.src_device,
                         handle.dst_device,
@@ -455,7 +456,7 @@ pub const PeerTransferManager = struct {
         const data_len = if (buffers.len > 0) buffers[0].data.len else 0;
 
         // Check for NCCL availability first (most efficient for AllReduce)
-        if (comptime build_options.gpu_cuda) {
+        if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
             if (cuda_backend.hasNCCL()) {
                 try cuda_backend.ncclAllReduce(buffers, op);
                 return;
@@ -549,8 +550,8 @@ pub const PeerTransferManager = struct {
                     opts,
                 );
 
-                // Copy to receiver's buffer
-                @memcpy(buffers[recv_rank].data[chunk_start..chunk_end], chunk_data);
+                // Copy to receiver's buffer (allow overlap when ranks alias in tests/simulated paths)
+                std.mem.copyForwards(f32, buffers[recv_rank].data[chunk_start..chunk_end], chunk_data);
             }
 
             try self.waitAll();

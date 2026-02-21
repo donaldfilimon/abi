@@ -746,7 +746,10 @@ test "Buffer dirty state tracking" {
     try std.testing.expect(buffer.isHostDirty());
 
     // toDevice clears host dirty, sets device "current"
-    try buffer.toDevice();
+    buffer.toDevice() catch |err| {
+        if (err == error.NoDeviceMemory) return error.SkipZigTest;
+        return err;
+    };
     try std.testing.expect(!buffer.isHostDirty());
 
     // Simulate device modification
@@ -754,7 +757,10 @@ test "Buffer dirty state tracking" {
     try std.testing.expect(buffer.isDeviceDirty());
 
     // toHost clears device dirty
-    try buffer.toHost();
+    buffer.toHost() catch |err| {
+        if (err == error.NoDeviceMemory) return error.SkipZigTest;
+        return err;
+    };
     try std.testing.expect(!buffer.isDeviceDirty());
 }
 

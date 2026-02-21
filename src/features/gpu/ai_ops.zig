@@ -12,6 +12,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const backend_shared = @import("backends/shared.zig");
 
 // =============================================================================
 // Error Types
@@ -733,54 +734,53 @@ pub const gpu_enabled = build_options.enable_gpu;
 
 /// Device memory management re-exports.
 /// Provides DeviceMemory struct with init/deinit and memcpy functions.
-pub const memory = if (build_options.enable_gpu)
-    if (build_options.gpu_fpga)
-        // FPGA memory interface would go here
-        struct {
-            pub fn init() !void {
-                std.log.info("FPGA memory simulation initialized", .{});
-            }
-
-            pub fn deinit() void {}
-
-            pub const DeviceMemory = struct {
-                ptr: ?*anyopaque,
-                size: usize,
-                allocator: std.mem.Allocator,
-                tier: enum { bram, hbm, ddr } = .ddr,
-
-                pub fn init(allocator: std.mem.Allocator, size: usize) !@This() {
-                    const ptr = try allocator.alloc(u8, size);
-                    return @This(){
-                        .ptr = ptr.ptr,
-                        .size = size,
-                        .allocator = allocator,
-                    };
-                }
-
-                pub fn deinit(self: *@This()) void {
-                    const slice = @as([*]u8, @ptrCast(@alignCast(self.ptr)))[0..self.size];
-                    self.allocator.free(slice);
-                }
-            };
-
-            pub fn memcpyHostToDevice(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
-                const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
-                const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
-                @memcpy(dst_ptr[0..size], src_ptr[0..size]);
-            }
-
-            pub fn memcpyDeviceToHost(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
-                const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
-                const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
-                @memcpy(dst_ptr[0..size], src_ptr[0..size]);
-            }
+pub const memory = if (build_options.enable_gpu and build_options.gpu_fpga)
+    // FPGA memory interface would go here
+    struct {
+        pub fn init(_: std.mem.Allocator) !void {
+            std.log.info("FPGA memory simulation initialized", .{});
         }
-    else
-        @import("backends/cuda/memory.zig")
+
+        pub fn deinit() void {}
+
+        pub const DeviceMemory = struct {
+            ptr: ?*anyopaque,
+            size: usize,
+            allocator: std.mem.Allocator,
+            tier: enum { bram, hbm, ddr } = .ddr,
+
+            pub fn init(allocator: std.mem.Allocator, size: usize) !@This() {
+                const ptr = try allocator.alloc(u8, size);
+                return @This(){
+                    .ptr = ptr.ptr,
+                    .size = size,
+                    .allocator = allocator,
+                };
+            }
+
+            pub fn deinit(self: *@This()) void {
+                const slice = @as([*]u8, @ptrCast(@alignCast(self.ptr)))[0..self.size];
+                self.allocator.free(slice);
+            }
+        };
+
+        pub fn memcpyHostToDevice(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
+            const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
+            const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
+            @memcpy(dst_ptr[0..size], src_ptr[0..size]);
+        }
+
+        pub fn memcpyDeviceToHost(dst: *anyopaque, src: *const anyopaque, size: usize) !void {
+            const dst_ptr = @as([*]u8, @ptrCast(@alignCast(dst)));
+            const src_ptr = @as([*]const u8, @ptrCast(@alignCast(src)));
+            @memcpy(dst_ptr[0..size], src_ptr[0..size]);
+        }
+    }
+else if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
+    @import("backends/cuda/memory.zig")
 else
     struct {
-        pub fn init() !void {
+        pub fn init(_: std.mem.Allocator) !void {
             return error.NotAvailable;
         }
 
@@ -809,7 +809,7 @@ else
 
 /// LLM kernel operations re-exports.
 /// Provides LlmKernelModule with softmax, rmsnorm, silu, gelu, scale, etc.
-pub const llm_kernels = if (build_options.enable_gpu)
+pub const llm_kernels = if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
     @import("backends/cuda/llm_kernels.zig")
 else
     struct {
@@ -856,7 +856,7 @@ else
 
 /// cuBLAS operations re-exports.
 /// Provides CublasContext with sgemm, sgemmStridedBatched, and matmulRowMajor.
-pub const cublas = if (build_options.enable_gpu and build_options.gpu_cuda)
+pub const cublas = if (build_options.enable_gpu and build_options.gpu_cuda and backend_shared.dynlibSupported)
     @import("backends/cuda/cublas.zig")
 else
     struct {

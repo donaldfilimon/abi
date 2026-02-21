@@ -19,6 +19,19 @@ test "device group creation" {
     try std.testing.expect(group.activeDeviceCount() >= 1);
 }
 
+test "device group exposes backend metadata" {
+    const allocator = std.testing.allocator;
+    var group = try DeviceGroup.init(allocator, .{});
+    defer group.deinit();
+
+    const devices = group.getAllDevices();
+    try std.testing.expect(devices.len >= 1);
+    for (devices) |device| {
+        try std.testing.expect(device.name_len > 0);
+        _ = device.backend;
+    }
+}
+
 test "device selection" {
     const allocator = std.testing.allocator;
     var group = try DeviceGroup.init(allocator, .{ .strategy = .round_robin });
@@ -74,6 +87,30 @@ test "gpu cluster creation" {
 
     const stats = cluster.getStats();
     try std.testing.expect(stats.device_count >= 1);
+}
+
+test "gpu cluster wires backend interfaces for initialized contexts" {
+    const allocator = std.testing.allocator;
+    var cluster = GPUCluster.init(allocator, .{}) catch |err| {
+        if (err == error.GpuDisabled or err == error.OutOfMemory) {
+            return error.SkipZigTest;
+        }
+        return err;
+    };
+    defer cluster.deinit();
+
+    var wired_dispatcher = false;
+    var iter = cluster.gpu_contexts.iterator();
+    while (iter.next()) |entry| {
+        if (entry.value_ptr.*.dispatcher) |dispatcher| {
+            if (dispatcher.backend_interface != null) {
+                wired_dispatcher = true;
+                break;
+            }
+        }
+    }
+
+    try std.testing.expect(wired_dispatcher or cluster.gpu_contexts.count() == 0);
 }
 
 test "model partitioning" {

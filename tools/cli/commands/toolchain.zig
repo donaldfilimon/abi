@@ -97,6 +97,11 @@ fn onUnknownCommand(command: []const u8) void {
 const InstallTarget = enum { both, zig_only, zls_only };
 
 fn runInstall(allocator: std.mem.Allocator, parser: *ArgParser, target: InstallTarget) !void {
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
+        return;
+    }
+
     const install_dir = parser.consumeOption(&[_][]const u8{ "--prefix", "-p" });
     const jobs = parser.consumeInt(u32, &[_][]const u8{ "--jobs", "-j" }, 0);
     const clean = parser.consumeFlag(&[_][]const u8{ "--clean", "-c" });
@@ -329,6 +334,11 @@ fn runStatus(allocator: std.mem.Allocator, parser: *ArgParser) !void {
 }
 
 fn runUpdate(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp(allocator);
+        return;
+    }
+
     const install_dir = parser.consumeOption(&[_][]const u8{ "--prefix", "-p" });
     const jobs = parser.consumeInt(u32, &[_][]const u8{ "--jobs", "-j" }, 0);
     const zig_only = parser.consumeFlag(&[_][]const u8{"--zig"});

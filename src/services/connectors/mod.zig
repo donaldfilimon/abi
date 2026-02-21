@@ -46,6 +46,7 @@ pub const cohere = @import("cohere.zig");
 pub const lm_studio = @import("lm_studio.zig");
 pub const vllm = @import("vllm.zig");
 pub const mlx = @import("mlx.zig");
+pub const llama_cpp = @import("llama_cpp.zig");
 pub const shared = @import("shared.zig");
 
 var initialized: bool = false;
@@ -218,6 +219,14 @@ pub fn loadMLX(allocator: std.mem.Allocator) !mlx.Config {
 
 pub fn tryLoadMLX(allocator: std.mem.Allocator) !?mlx.Config {
     return mlx.loadFromEnv(allocator) catch null;
+}
+
+pub fn loadLlamaCpp(allocator: std.mem.Allocator) !llama_cpp.Config {
+    return llama_cpp.loadFromEnv(allocator);
+}
+
+pub fn tryLoadLlamaCpp(allocator: std.mem.Allocator) !?llama_cpp.Config {
+    return llama_cpp.loadFromEnv(allocator) catch null;
 }
 
 test "connectors init toggles state" {

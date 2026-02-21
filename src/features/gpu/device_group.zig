@@ -5,6 +5,8 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
+const backend_mod = @import("backend.zig");
+const device_mod = @import("device.zig");
 
 const sync = @import("../../services/shared/sync.zig");
 const Mutex = sync.Mutex;
@@ -47,6 +49,8 @@ pub const DeviceCapabilities = struct {
 /// Device information.
 pub const DeviceInfo = struct {
     id: DeviceId,
+    backend: backend_mod.Backend = .stdgpu,
+    backend_device_id: ?u32 = null,
     name: [128]u8 = [_]u8{0} ** 128,
     name_len: usize = 0,
     device_type: DeviceType = .unknown,
@@ -125,52 +129,29 @@ pub const DeviceGroup = struct {
         self.devices.clearRetainingCapacity();
         self.active_devices.clearRetainingCapacity();
 
-        // Always add CPU fallback
-        const cpu_device = DeviceInfo{
-            .id = 0,
-            .name = blk: {
-                var name: [128]u8 = [_]u8{0} ** 128;
-                const src = "CPU Fallback";
-                @memcpy(name[0..src.len], src);
-                break :blk name;
-            },
-            .name_len = 12,
-            .device_type = .cpu_fallback,
-            .capabilities = .{
-                .compute_units = 1,
-                .max_memory_mb = 4096,
-                .supports_fp64 = true,
-            },
-            .available_memory_mb = 4096,
-        };
-        try self.devices.append(self.allocator, cpu_device);
-        try self.active_devices.append(self.allocator, 0);
-
-        // In a real implementation, discover GPUs from backends
-        // For now, add simulated devices for testing
         if (build_options.enable_gpu) {
-            // Simulated GPU device
-            const gpu_device = DeviceInfo{
-                .id = 1,
-                .name = blk: {
-                    var name: [128]u8 = [_]u8{0} ** 128;
-                    const src = "Simulated GPU";
-                    @memcpy(name[0..src.len], src);
-                    break :blk name;
-                },
-                .name_len = 13,
-                .device_type = .discrete_gpu,
-                .capabilities = .{
-                    .compute_units = 32,
-                    .max_memory_mb = 8192,
-                    .supports_fp16 = true,
-                    .supports_fp64 = true,
-                },
-                .available_memory_mb = 8192,
+            const discovered = device_mod.discoverDevices(self.allocator) catch |err| {
+                std.log.warn("DeviceGroup discovery failed, using CPU fallback only: {t}", .{err});
+                try self.appendCpuFallback(0);
+                try self.active_devices.append(self.allocator, 0);
+                return;
             };
-            try self.devices.append(self.allocator, gpu_device);
-            try self.active_devices.append(self.allocator, 1);
+            defer self.allocator.free(discovered);
+
+            var next_fallback_id: DeviceId = 0;
+            for (discovered) |dev| {
+                next_fallback_id = @max(next_fallback_id, dev.id + 1);
+                try self.appendDiscoveredDevice(dev);
+            }
+
+            if (self.devices.items.len == 0) {
+                try self.appendCpuFallback(next_fallback_id);
+            }
+        } else {
+            try self.appendCpuFallback(0);
         }
+
+        try self.activateConfiguredDevices();
     }
 
     /// Get total number of devices.
@@ -363,7 +344,138 @@ pub const DeviceGroup = struct {
         }
         return best_id;
     }
+
+    fn appendDiscoveredDevice(self: *DeviceGroup, dev: device_mod.Device) !void {
+        const memory_mb = resolveMemoryMb(dev.total_memory, dev.available_memory, dev.backend);
+        const max_shared_kb: u32 = if (dev.capability.max_shared_memory_bytes) |bytes|
+            @intCast(@max(bytes / 1024, 1))
+        else
+            48;
+        const compute_units = dev.compute_units orelse defaultComputeUnits(dev.device_type);
+
+        var info = DeviceInfo{
+            .id = dev.id,
+            .backend = dev.backend,
+            .backend_device_id = dev.id,
+            .device_type = mapDeviceType(dev.device_type),
+            .capabilities = .{
+                .compute_units = compute_units,
+                .max_memory_mb = memory_mb,
+                .max_work_group_size = dev.capability.max_threads_per_block orelse 256,
+                .supports_fp16 = dev.capability.supports_fp16,
+                .supports_fp64 = dev.device_type == .cpu,
+                .supports_int8 = dev.capability.supports_int8,
+                .supports_atomics = true,
+                .max_shared_memory_kb = max_shared_kb,
+                .warp_size = 32,
+            },
+            .available_memory_mb = memory_mb,
+        };
+
+        const copied = copyDeviceName(&info.name, dev.name);
+        info.name_len = copied;
+
+        try self.devices.append(self.allocator, info);
+    }
+
+    fn appendCpuFallback(self: *DeviceGroup, id: DeviceId) !void {
+        var name: [128]u8 = [_]u8{0} ** 128;
+        const src = "CPU Fallback";
+        @memcpy(name[0..src.len], src);
+
+        try self.devices.append(self.allocator, .{
+            .id = id,
+            .backend = .stdgpu,
+            .backend_device_id = null,
+            .name = name,
+            .name_len = src.len,
+            .device_type = .cpu_fallback,
+            .capabilities = .{
+                .compute_units = 1,
+                .max_memory_mb = 4096,
+                .supports_fp64 = true,
+                .supports_int8 = true,
+                .supports_atomics = true,
+            },
+            .available_memory_mb = 4096,
+        });
+    }
+
+    fn activateConfiguredDevices(self: *DeviceGroup) !void {
+        if (self.config.preferred_devices.len > 0) {
+            for (self.config.preferred_devices) |device_id| {
+                if (self.getDevice(device_id) != null and !isDeviceActive(self, device_id)) {
+                    try self.active_devices.append(self.allocator, device_id);
+                }
+            }
+        }
+
+        if (self.active_devices.items.len == 0 and
+            (self.config.auto_select or self.config.preferred_devices.len == 0))
+        {
+            for (self.devices.items) |device| {
+                try self.active_devices.append(self.allocator, device.id);
+            }
+        }
+
+        if (self.active_devices.items.len == 0 and self.devices.items.len > 0) {
+            try self.active_devices.append(self.allocator, self.devices.items[0].id);
+        }
+    }
+
+    fn isDeviceActive(self: *const DeviceGroup, id: DeviceId) bool {
+        for (self.active_devices.items) |active_id| {
+            if (active_id == id) return true;
+        }
+        return false;
+    }
 };
+
+fn mapDeviceType(kind: device_mod.DeviceType) DeviceType {
+    return switch (kind) {
+        .discrete => .discrete_gpu,
+        .integrated => .integrated_gpu,
+        .virtual => .virtual_gpu,
+        .cpu => .cpu_fallback,
+        .other => .unknown,
+    };
+}
+
+fn defaultComputeUnits(kind: device_mod.DeviceType) u32 {
+    return switch (kind) {
+        .discrete => 32,
+        .integrated => 16,
+        .virtual => 8,
+        .cpu => 1,
+        .other => 4,
+    };
+}
+
+fn resolveMemoryMb(total_memory: ?u64, available_memory: ?u64, backend: backend_mod.Backend) u64 {
+    const bytes = available_memory orelse total_memory orelse defaultMemoryBytes(backend);
+    const mb = bytes / (1024 * 1024);
+    return @max(mb, 1);
+}
+
+fn defaultMemoryBytes(backend: backend_mod.Backend) u64 {
+    return switch (backend) {
+        .cuda => 8 * 1024 * 1024 * 1024,
+        .vulkan => 6 * 1024 * 1024 * 1024,
+        .metal => 4 * 1024 * 1024 * 1024,
+        .webgpu => 2 * 1024 * 1024 * 1024,
+        .opengl, .opengles => 2 * 1024 * 1024 * 1024,
+        .webgl2 => 1024 * 1024 * 1024,
+        .fpga => 16 * 1024 * 1024 * 1024,
+        .tpu => 16 * 1024 * 1024 * 1024,
+        .stdgpu, .simulated => 4 * 1024 * 1024 * 1024,
+    };
+}
+
+fn copyDeviceName(buffer: *[128]u8, name: []const u8) usize {
+    const len = @min(name.len, buffer.len);
+    @memcpy(buffer[0..len], name[0..len]);
+    return len;
+}
 
 /// Work distribution for a device.
 pub const WorkDistribution = struct {

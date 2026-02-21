@@ -176,4 +176,5 @@ pub const DeviceInfo = struct {
     supports_ray_tracing: bool = false,
     supports_mps: bool = false,
     supports_neural_engine: bool = false,
+    metal_level: u8 = 0,
 };

@@ -472,6 +472,69 @@ pub const parallel = struct {
     pub const PipelineParallelConfig = stub_root.PipelineParallelConfig;
 };
 
+pub const providers = struct {
+    pub const ProviderError = error{
+        LlmDisabled,
+        InvalidProvider,
+        InvalidBackend,
+        ModelRequired,
+        PromptRequired,
+        NotAvailable,
+        NoProviderAvailable,
+        PluginNotFound,
+        PluginDisabled,
+        InvalidPlugin,
+        AbiVersionMismatch,
+        SymbolMissing,
+        GenerationFailed,
+    };
+
+    pub const ProviderId = enum {
+        local_gguf,
+        llama_cpp,
+        mlx,
+        ollama,
+        lm_studio,
+        vllm,
+        plugin_http,
+        plugin_native,
+
+        pub fn label(self: ProviderId) []const u8 {
+            return @tagName(self);
+        }
+    };
+
+    pub const GenerateConfig = struct {
+        model: []const u8,
+        prompt: []const u8,
+        backend: ?ProviderId = null,
+        fallback: []const ProviderId = &.{},
+        strict_backend: bool = false,
+        plugin_id: ?[]const u8 = null,
+        max_tokens: u32 = 256,
+        temperature: f32 = 0.7,
+        top_p: f32 = 0.9,
+        top_k: u32 = 40,
+        repetition_penalty: f32 = 1.1,
+    };
+
+    pub const GenerateResult = struct {
+        provider: ProviderId,
+        model_used: []u8,
+        content: []u8,
+
+        pub fn deinit(self: *GenerateResult, allocator: std.mem.Allocator) void {
+            allocator.free(self.model_used);
+            allocator.free(self.content);
+            self.* = undefined;
+        }
+    };
+
+    pub fn generate(_: std.mem.Allocator, _: GenerateConfig) ProviderError!GenerateResult {
+        return error.LlmDisabled;
+    }
+};
+
 // --- Context ---
 
 pub const Context = struct {

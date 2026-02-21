@@ -95,6 +95,11 @@ Ensure your system `zig` matches `.zigversion`.
 ```bash
 # One-time/periodic toolchain sync
 zvm upgrade
+
+# Developer convenience (latest dev build)
+zvm use master
+
+# Reproducible/local CI parity (pinned in repo)
 PINNED_ZIG="$(cat .zigversion)"
 zvm install "$PINNED_ZIG"
 zvm use "$PINNED_ZIG"
@@ -585,4 +590,4 @@ Verify with `zig run tools/scripts/check_test_baseline_consistency.zig`.
 - `tools/scripts/baseline.zig` — Canonical test baseline (source of truth for CI checks)
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.

@@ -1,6 +1,7 @@
-//! CLI command and completion metadata used across ABI CLI modules.
+//! CLI command and completion metadata derived from command descriptors.
 
 const std = @import("std");
+const commands = @import("commands/mod.zig");
 
 pub const CommandInfo = struct {
     name: []const u8,
@@ -17,158 +18,120 @@ pub const CommandSubcommands = struct {
     subcommands: []const []const u8,
 };
 
-/// Canonical top-level CLI commands and help text used by `abi help`.
-pub const command_infos = [_]CommandInfo{
-    .{ .name = "db", .description = "Database operations (add, query, stats, optimize, backup, restore)" },
-    .{ .name = "agent", .description = "Run AI agent (interactive or one-shot)" },
-    .{ .name = "bench", .description = "Run performance benchmarks (all, simd, memory, ai, quick)" },
-    .{ .name = "gpu", .description = "GPU commands (backends, devices, summary, default)" },
-    .{ .name = "gpu-dashboard", .description = "Interactive GPU + Agent monitoring dashboard" },
-    .{ .name = "network", .description = "Manage network registry (list, register, status)" },
-    .{ .name = "system-info", .description = "Show system and framework status" },
-    .{ .name = "multi-agent", .description = "Run multi-agent workflows" },
-    .{ .name = "explore", .description = "Search and explore codebase" },
-    .{ .name = "simd", .description = "Run SIMD performance demo" },
-    .{ .name = "config", .description = "Configuration management (init, show, validate)" },
-    .{ .name = "discord", .description = "Discord bot operations (status, guilds, send, commands)" },
-    .{ .name = "llm", .description = "LLM inference (info, generate, chat, bench, download, serve)" },
-    .{ .name = "model", .description = "Model management (list, download, remove, search)" },
-    .{ .name = "embed", .description = "Generate embeddings from text (openai, mistral, cohere, ollama)" },
-    .{ .name = "train", .description = "Training pipeline (run, llm, vision, auto, resume, info)" },
-    .{ .name = "convert", .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)" },
-    .{ .name = "task", .description = "Task management (add, list, done, stats)" },
-    .{ .name = "tui", .description = "Launch interactive TUI command menu" },
-    .{ .name = "plugins", .description = "Plugin management (list, enable, disable, info)" },
-    .{ .name = "profile", .description = "User profile and settings management" },
-    .{ .name = "completions", .description = "Generate shell completions (bash, zsh, fish, powershell)" },
-    .{ .name = "status", .description = "Show framework health and component status" },
-    .{ .name = "toolchain", .description = "Build and install Zig/ZLS from master (install, update, status)" },
-    .{ .name = "mcp", .description = "MCP server for WDBX database (serve, tools)" },
-    .{ .name = "acp", .description = "Agent Communication Protocol (card, serve)" },
-    .{ .name = "ralph", .description = "Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)" },
-    .{ .name = "gendocs", .description = "Generate API docs (runs zig build gendocs)" },
-    .{ .name = "version", .description = "Show framework version" },
-    .{ .name = "help", .description = "Show help (use: abi help <command>)" },
+const descriptors = commands.descriptors;
+
+const command_infos_array: [descriptors.len + 2]CommandInfo = blk: {
+    var infos: [descriptors.len + 2]CommandInfo = undefined;
+    var index: usize = 0;
+
+    for (descriptors) |descriptor| {
+        infos[index] = .{
+            .name = descriptor.name,
+            .description = descriptor.description,
+        };
+        index += 1;
+    }
+
+    infos[index] = .{ .name = "version", .description = "Show framework version" };
+    index += 1;
+    infos[index] = .{ .name = "help", .description = "Show help (use: abi help <command>)" };
+
+    break :blk infos;
 };
 
-/// Top-level command aliases kept for discovery and completion parity.
-pub const aliases = [_]AliasInfo{
-    .{ .alias = "info", .target = "system-info" },
-    .{ .alias = "sysinfo", .target = "system-info" },
-    .{ .alias = "ls", .target = "db" },
-    .{ .alias = "run", .target = "bench" },
-    .{ .alias = "dashboard", .target = "gpu-dashboard" },
-    .{ .alias = "chat", .target = "llm" },
-    .{ .alias = "reasoning", .target = "llm" },
-    .{ .alias = "serve", .target = "llm" },
+pub const command_infos = command_infos_array;
+
+const alias_count: usize = blk: {
+    var count: usize = 0;
+    for (descriptors) |descriptor| {
+        count += descriptor.aliases.len;
+    }
+    break :blk count;
 };
 
-/// Command-specific completions for command families that expose subcommands.
-pub const command_subcommands = [_]CommandSubcommands{
-    .{ .command = "bench", .subcommands = &.{ "all", "simd", "memory", "ai", "quick", "compare-training", "list", "micro" } },
-    .{ .command = "config", .subcommands = &.{ "init", "show", "validate", "env", "help" } },
-    .{ .command = "convert", .subcommands = &.{ "dataset", "model", "embeddings" } },
-    .{ .command = "db", .subcommands = &.{ "add", "query", "stats", "optimize", "backup", "restore", "serve", "help" } },
-    .{ .command = "discord", .subcommands = &.{ "status", "info", "guilds", "send", "commands", "webhook", "channel", "help" } },
-    .{ .command = "embed", .subcommands = &.{ "--provider", "openai", "mistral", "cohere", "ollama", "--text", "--file", "--format", "json", "csv", "raw" } },
-    .{ .command = "gpu", .subcommands = &.{ "backends", "devices", "list", "summary", "default", "status" } },
-    .{ .command = "llm", .subcommands = &.{ "info", "generate", "chat", "bench", "list", "list-local", "demo", "download", "serve", "help" } },
-    .{ .command = "model", .subcommands = &.{ "list", "info", "download", "remove", "search", "path" } },
-    .{ .command = "multi-agent", .subcommands = &.{ "info", "run", "list", "create", "status" } },
-    .{ .command = "network", .subcommands = &.{ "status", "list", "nodes", "register", "unregister", "touch", "set-status" } },
-    .{ .command = "plugins", .subcommands = &.{ "list", "info", "enable", "disable", "search" } },
-    .{ .command = "profile", .subcommands = &.{ "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help" } },
-    .{ .command = "status", .subcommands = &.{"help"} },
-    .{ .command = "task", .subcommands = &.{ "add", "list", "ls", "show", "done", "start", "cancel", "delete", "rm", "stats", "import-roadmap", "edit", "block", "unblock", "due", "help" } },
-    .{ .command = "toolchain", .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "help" } },
-    .{ .command = "train", .subcommands = &.{ "run", "new", "llm", "vision", "clip", "auto", "resume", "monitor", "info", "generate-data", "help" } },
-    .{ .command = "mcp", .subcommands = &.{ "serve", "tools", "help" } },
-    .{ .command = "acp", .subcommands = &.{ "card", "serve", "help" } },
-    .{ .command = "completions", .subcommands = &.{ "bash", "zsh", "fish", "powershell", "help" } },
-    .{ .command = "ralph", .subcommands = &.{ "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help" } },
+const aliases_array: [alias_count]AliasInfo = blk: {
+    var out: [alias_count]AliasInfo = undefined;
+    var index: usize = 0;
+
+    for (descriptors) |descriptor| {
+        for (descriptor.aliases) |alias| {
+            out[index] = .{
+                .alias = alias,
+                .target = descriptor.name,
+            };
+            index += 1;
+        }
+    }
+
+    break :blk out;
 };
 
-/// All canonical top-level command names in stable order.
-pub const command_names: []const []const u8 = blk: {
-    break :blk &.{
-        "db",
-        "agent",
-        "bench",
-        "gpu",
-        "gpu-dashboard",
-        "network",
-        "system-info",
-        "multi-agent",
-        "explore",
-        "simd",
-        "config",
-        "discord",
-        "llm",
-        "model",
-        "embed",
-        "train",
-        "convert",
-        "task",
-        "tui",
-        "plugins",
-        "profile",
-        "completions",
-        "status",
-        "toolchain",
-        "mcp",
-        "acp",
-        "ralph",
-        "gendocs",
-        "version",
-        "help",
-    };
+pub const aliases = aliases_array;
+
+const subcommand_count: usize = blk: {
+    var count: usize = 0;
+    for (descriptors) |descriptor| {
+        if (descriptor.subcommands.len > 0) count += 1;
+    }
+    break :blk count;
 };
 
-/// Canonical names + aliases in stable order for completion generation.
-pub const command_names_with_aliases: []const []const u8 = blk: {
-    break :blk &.{
-        "db",
-        "agent",
-        "bench",
-        "gpu",
-        "gpu-dashboard",
-        "network",
-        "system-info",
-        "multi-agent",
-        "explore",
-        "simd",
-        "config",
-        "discord",
-        "llm",
-        "model",
-        "embed",
-        "train",
-        "convert",
-        "task",
-        "tui",
-        "plugins",
-        "profile",
-        "completions",
-        "status",
-        "toolchain",
-        "mcp",
-        "acp",
-        "ralph",
-        "gendocs",
-        "version",
-        "help",
-        "info",
-        "sysinfo",
-        "ls",
-        "run",
-        "dashboard",
-        "chat",
-        "reasoning",
-        "serve",
-    };
+const command_subcommands_array: [subcommand_count]CommandSubcommands = blk: {
+    var out: [subcommand_count]CommandSubcommands = undefined;
+    var index: usize = 0;
+
+    for (descriptors) |descriptor| {
+        if (descriptor.subcommands.len > 0) {
+            out[index] = .{
+                .command = descriptor.name,
+                .subcommands = descriptor.subcommands,
+            };
+            index += 1;
+        }
+    }
+
+    break :blk out;
 };
 
-/// Resolve an alias to its canonical target.
+pub const command_subcommands = command_subcommands_array;
+
+const command_names_array: [descriptors.len + 2][]const u8 = blk: {
+    var out: [descriptors.len + 2][]const u8 = undefined;
+    var index: usize = 0;
+
+    for (descriptors) |descriptor| {
+        out[index] = descriptor.name;
+        index += 1;
+    }
+
+    out[index] = "version";
+    index += 1;
+    out[index] = "help";
+
+    break :blk out;
+};
+
+pub const command_names = command_names_array[0..];
+
+const command_names_with_aliases_array: [command_names_array.len + aliases_array.len][]const u8 = blk: {
+    var out: [command_names_array.len + aliases_array.len][]const u8 = undefined;
+    var index: usize = 0;
+
+    for (command_names_array) |name| {
+        out[index] = name;
+        index += 1;
+    }
+
+    for (aliases_array) |alias| {
+        out[index] = alias.alias;
+        index += 1;
+    }
+
+    break :blk out;
+};
+
+pub const command_names_with_aliases = command_names_with_aliases_array[0..];
+
 pub fn resolveAlias(raw: []const u8) []const u8 {
     for (aliases) |alias| {
         if (std.mem.eql(u8, raw, alias.alias)) {
@@ -178,7 +141,6 @@ pub fn resolveAlias(raw: []const u8) []const u8 {
     return raw;
 }
 
-/// Return completion metadata for a top-level command if present.
 pub fn findSubcommands(command: []const u8) ?[]const []const u8 {
     for (command_subcommands) |entry| {
         if (std.mem.eql(u8, command, entry.command)) {
@@ -187,10 +149,6 @@ pub fn findSubcommands(command: []const u8) ?[]const []const u8 {
     }
     return null;
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 test "alias targets resolve to known command" {
     for (aliases) |alias| {

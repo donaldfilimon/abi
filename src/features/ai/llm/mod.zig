@@ -36,6 +36,7 @@ pub const cache = @import("cache/mod.zig");
 pub const model = @import("model/mod.zig");
 pub const generation = @import("generation/mod.zig");
 pub const parallel = @import("parallel.zig");
+pub const providers = @import("providers/mod.zig");
 
 // Re-exports for convenience
 pub const MappedFile = io.MappedFile;

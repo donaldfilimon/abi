@@ -74,4 +74,4 @@ Validate configuration against compile-time constraints.
 *Generated automatically by `zig build gendocs`*
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.

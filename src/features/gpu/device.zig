@@ -20,8 +20,11 @@
 //! ```
 
 const std = @import("std");
+const builtin = @import("builtin");
 const backend_mod = @import("backend.zig");
 const build_options = @import("build_options");
+const policy = @import("policy/mod.zig");
+const android_probe = @import("device/android_probe.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const DeviceCapability = backend_mod.DeviceCapability;
@@ -576,6 +579,14 @@ fn classifyDevice(info: backend_mod.DeviceInfo) DeviceType {
 
 /// Get the best available backend for kernels.
 pub fn getBestKernelBackend(allocator: std.mem.Allocator) !Backend {
+    if (android_probe.chooseAndroidPrimary()) |primary| {
+        if (backend_mod.backendAvailability(primary).available and
+            backend_mod.backendSupportsKernels(primary))
+        {
+            return primary;
+        }
+    }
+
     const devices = try discoverDevices(allocator);
     defer allocator.free(devices);
 
@@ -624,9 +635,10 @@ pub fn enumerateAllDevices(allocator: std.mem.Allocator) ![]Device {
     errdefer devices.deinit(allocator);
 
     var device_id: u32 = 0;
+    const order = preferredBackendOrder();
 
-    // Try each backend
-    for (std.meta.tags(Backend)) |backend_tag| {
+    // Try each backend in canonical platform order.
+    for (order.slice()) |backend_tag| {
         const backend_devices = enumerateDevicesForBackend(allocator, backend_tag) catch continue;
         defer allocator.free(backend_devices);
 
@@ -639,6 +651,55 @@ pub fn enumerateAllDevices(allocator: std.mem.Allocator) ![]Device {
     }
 
     return devices.toOwnedSlice(allocator);
+}
+
+const BackendOrder = struct {
+    items: [16]Backend = undefined,
+    len: usize = 0,
+
+    fn append(self: *BackendOrder, backend: Backend) void {
+        for (self.items[0..self.len]) |existing| {
+            if (existing == backend) return;
+        }
+        if (self.len >= self.items.len) return;
+        self.items[self.len] = backend;
+        self.len += 1;
+    }
+
+    fn slice(self: *const BackendOrder) []const Backend {
+        return self.items[0..self.len];
+    }
+};
+
+fn preferredBackendOrder() BackendOrder {
+    var order = BackendOrder{};
+    const platform = policy.classify(builtin.target.os.tag, builtin.abi);
+    const android_primary_name: ?[]const u8 = if (android_probe.chooseAndroidPrimary()) |backend|
+        backend.name()
+    else
+        null;
+
+    const backend_names = policy.resolveAutoBackendNames(.{
+        .platform = platform,
+        .enable_gpu = build_options.enable_gpu,
+        .enable_web = build_options.enable_web,
+        .can_link_metal = true,
+        .warn_if_metal_skipped = false,
+        .allow_simulated = true,
+        .android_primary = android_primary_name,
+    });
+
+    for (backend_names.slice()) |name| {
+        if (backend_mod.backendFromString(name)) |backend| {
+            order.append(backend);
+        }
+    }
+
+    if (@hasDecl(build_options, "gpu_tpu") and build_options.gpu_tpu) order.append(.tpu);
+    if (@hasDecl(build_options, "gpu_fpga") and build_options.gpu_fpga) order.append(.fpga);
+    order.append(.stdgpu);
+    order.append(.simulated);
+    return order;
 }
 
 /// Enumerate devices for a specific backend.
@@ -661,7 +722,7 @@ pub fn enumerateDevicesForBackend(
         .metal => if (comptime build_options.gpu_metal) try enumerateMetalDevices(allocator) else &[_]Device{},
         .webgpu => if (comptime build_options.gpu_webgpu) try enumerateWebGPUDevices(allocator) else &[_]Device{},
         .opengl => if (comptime build_options.gpu_opengl) try enumerateOpenGLDevices(allocator) else &[_]Device{},
-        .opengles => if (comptime build_options.gpu_opengles) try enumerateOpenGLDevices(allocator) else &[_]Device{},
+        .opengles => if (comptime build_options.gpu_opengles) try enumerateOpenGlesDevices(allocator) else &[_]Device{},
         .webgl2 => &[_]Device{}, // Not yet implemented
         .fpga => &[_]Device{}, // Not yet implemented
         .tpu => &[_]Device{}, // TPU runtime not yet linked
@@ -756,6 +817,14 @@ fn enumerateOpenGLDevices(allocator: std.mem.Allocator) ![]Device {
     const opengl = @import("backends/opengl.zig");
     return opengl.enumerateDevices(allocator) catch |err| {
         std.log.warn("Failed to enumerate OpenGL devices: {t}", .{err});
+        return &[_]Device{};
+    };
+}
+
+fn enumerateOpenGlesDevices(allocator: std.mem.Allocator) ![]Device {
+    const opengles = @import("backends/opengles.zig");
+    return opengles.enumerateDevices(allocator) catch |err| {
+        std.log.warn("Failed to enumerate OpenGL ES devices: {t}", .{err});
         return &[_]Device{};
     };
 }

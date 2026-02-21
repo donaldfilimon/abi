@@ -7,6 +7,8 @@ const std = @import("std");
 const unified = @import("unified.zig");
 const peer_transfer = @import("peer_transfer/mod.zig");
 const device_group_mod = @import("device_group.zig");
+const backend_pool_mod = @import("backends/pool.zig");
+const backend_mod = @import("backend.zig");
 
 const sync = @import("../../services/shared/sync.zig");
 const Mutex = sync.Mutex;
@@ -96,6 +98,7 @@ pub const GPUCluster = struct {
     config: GPUClusterConfig,
     device_group: DeviceGroup,
     gpu_contexts: std.AutoHashMapUnmanaged(DeviceId, *unified.Gpu),
+    backend_pool: backend_pool_mod.BackendPool,
     comm_buffers: std.AutoHashMapUnmanaged(DeviceId, CommBuffer),
     barrier: ?DeviceBarrier,
     mutex: Mutex,
@@ -116,6 +119,7 @@ pub const GPUCluster = struct {
             .config = config,
             .device_group = try DeviceGroup.init(allocator, config.device_config),
             .gpu_contexts = .{},
+            .backend_pool = backend_pool_mod.BackendPool.init(allocator),
             .comm_buffers = .{},
             .barrier = null,
             .mutex = .{},
@@ -124,7 +128,9 @@ pub const GPUCluster = struct {
 
         // Initialize GPU contexts for each device
         for (cluster.device_group.active_devices.items) |device_id| {
-            try cluster.initDeviceContext(device_id);
+            cluster.initDeviceContext(device_id) catch |err| {
+                std.log.debug("Skipping device {} context initialization: {t}", .{ device_id, err });
+            };
         }
 
         // Create barrier for synchronization
@@ -143,10 +149,33 @@ pub const GPUCluster = struct {
     /// Initialize context for a specific device.
     fn initDeviceContext(self: *GPUCluster, device_id: DeviceId) !void {
         if (self.gpu_contexts.get(device_id) != null) return;
+        const device_info = self.device_group.getDevice(device_id) orelse return error.DeviceNotFound;
 
         // Create GPU context for this device
         const gpu = try self.allocator.create(unified.Gpu);
-        gpu.* = try unified.Gpu.init(self.allocator, .{});
+        errdefer self.allocator.destroy(gpu);
+
+        gpu.* = unified.Gpu.init(self.allocator, .{
+            .preferred_backend = device_info.backend,
+            .allow_fallback = true,
+        }) catch |err| blk: {
+            std.log.debug("Preferred backend {t} failed for device {}: {t}; using fallback selection", .{
+                device_info.backend,
+                device_id,
+                err,
+            });
+            break :blk try unified.Gpu.init(self.allocator, .{});
+        };
+
+        // Bind dispatcher to concrete backend VTable for real multi-backend execution.
+        if (gpu.dispatcher) |*dispatcher| {
+            const active_backend = if (gpu.getActiveDevice()) |active| active.backend else device_info.backend;
+            if (self.backend_pool.getOrCreate(active_backend)) |instance| {
+                dispatcher.setBackendInterface(instance.backend);
+            } else |err| {
+                std.log.debug("Failed to create backend instance for {t}: {t}", .{ active_backend, err });
+            }
+        }
 
         try self.gpu_contexts.put(self.allocator, device_id, gpu);
     }
@@ -165,6 +194,9 @@ pub const GPUCluster = struct {
             self.allocator.destroy(entry.value_ptr.*);
         }
         self.gpu_contexts.deinit(self.allocator);
+
+        // Clean up pooled backend instances after all dispatchers are torn down.
+        self.backend_pool.deinit();
 
         // Clean up communication buffers
         var buf_iter = self.comm_buffers.iterator();

@@ -4,6 +4,9 @@ const std = @import("std");
 const testing = std.testing;
 const build_options = @import("build_options");
 const abi = @import("abi");
+const gpu_detect = abi.gpu.backends.detect;
+const gpu_listing = abi.gpu.backends.listing;
+const gpu_meta = abi.gpu.backends.meta;
 
 // ============================================================================
 // GPU Availability Tests (Conditional on feature being enabled)
@@ -12,7 +15,7 @@ const abi = @import("abi");
 test "c_api: gpu availability check" {
     // GPU availability check using the module enabled state
     // The C API (abi_gpu_is_available) would wrap similar functionality
-    const gpu_enabled = abi.gpu.moduleEnabled();
+    const gpu_enabled = gpu_detect.moduleEnabled();
 
     // If GPU feature is disabled at compile time, module should not be enabled
     if (!build_options.enable_gpu) {
@@ -22,7 +25,7 @@ test "c_api: gpu availability check" {
     // If enabled, we should be able to query backends
     if (gpu_enabled) {
         const allocator = testing.allocator;
-        const backends = abi.gpu.availableBackends(allocator) catch {
+        const backends = gpu_detect.availableBackends(allocator) catch {
             // Backend query may fail - this is acceptable
             return;
         };
@@ -33,14 +36,14 @@ test "c_api: gpu availability check" {
 }
 
 test "c_api: gpu module enabled check" {
-    const module_enabled = abi.gpu.moduleEnabled();
+    const module_enabled = gpu_detect.moduleEnabled();
 
     // Module enabled should match build option
     try testing.expect(module_enabled == build_options.enable_gpu);
 }
 
 test "c_api: gpu backend summary" {
-    const gpu_summary = abi.gpu.summary();
+    const gpu_summary = gpu_listing.summary();
 
     // Summary should reflect compile-time settings
     try testing.expect(gpu_summary.module_enabled == build_options.enable_gpu);
@@ -60,15 +63,15 @@ test "c_api: gpu backend detection" {
 
     // Test that we can query backend names
     // Backend name functions should not crash
-    const name = abi.gpu.backendName(.vulkan);
+    const name = gpu_meta.backendName(.vulkan);
     try testing.expect(name.len > 0);
 
     // Display name should also work
-    const display_name = abi.gpu.backendDisplayName(.vulkan);
+    const display_name = gpu_meta.backendDisplayName(.vulkan);
     try testing.expect(display_name.len > 0);
 
     // Description should work
-    const description = abi.gpu.backendDescription(.vulkan);
+    const description = gpu_meta.backendDescription(.vulkan);
     try testing.expect(description.len > 0);
 }
 
@@ -128,11 +131,11 @@ test "c_api: gpu backend name for disabled module" {
     // When GPU is disabled, backend name should return "disabled" or "none"
     if (build_options.enable_gpu) {
         // Test that we can query backend names without crashing
-        const name = abi.gpu.backendName(.vulkan);
+        const name = gpu_meta.backendName(.vulkan);
         try testing.expect(name.len > 0);
     } else {
         // Module disabled - should return appropriate stub values
-        try testing.expect(!abi.gpu.moduleEnabled());
+        try testing.expect(!gpu_detect.moduleEnabled());
     }
 }
 

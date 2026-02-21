@@ -40,6 +40,7 @@ const multi_device = @import("multi_device.zig");
 const metrics_mod = @import("metrics.zig");
 const dispatcher_mod = @import("dispatch/coordinator.zig");
 const adaptive_tiling_mod = @import("adaptive_tiling.zig");
+const policy_mod = @import("policy/mod.zig");
 
 const Mutex = sync.Mutex;
 
@@ -209,6 +210,14 @@ pub const Gpu = struct {
 
     /// Initialize the unified GPU API.
     pub fn init(allocator: std.mem.Allocator, config: GpuConfig) !Gpu {
+        var effective_config = config;
+        if (effective_config.memory_mode == .automatic) {
+            const hints = policy_mod.optimizationHintsForPlatform(policy_mod.classifyBuiltin());
+            if (hints.prefer_unified_memory) {
+                effective_config.memory_mode = .unified;
+            }
+        }
+
         var device_manager = try device_mod.DeviceManager.init(allocator);
         errdefer device_manager.deinit();
 
@@ -217,9 +226,9 @@ pub const Gpu = struct {
 
         // Initialize multi-GPU if enabled
         var device_group: ?DeviceGroup = null;
-        if (config.multi_gpu) {
+        if (effective_config.multi_gpu) {
             const multi_config = multi_device.MultiDeviceConfig{
-                .strategy = switch (config.load_balance_strategy) {
+                .strategy = switch (effective_config.load_balance_strategy) {
                     .round_robin => .round_robin,
                     .memory_aware => .memory_aware,
                     .compute_aware => .capability_weighted,
@@ -232,7 +241,7 @@ pub const Gpu = struct {
 
         // Initialize metrics if profiling enabled
         var metrics: ?MetricsCollector = null;
-        if (config.enable_profiling) {
+        if (effective_config.enable_profiling) {
             metrics = MetricsCollector.init(allocator);
         }
         errdefer if (metrics) |*m| m.deinit();
@@ -242,11 +251,11 @@ pub const Gpu = struct {
         var default_stream: ?*Stream = null;
 
         if (device_manager.hasDevices()) {
-            if (config.preferred_backend) |backend| {
+            if (effective_config.preferred_backend) |backend| {
                 active_device = device_manager.selectDevice(.{ .by_backend = backend }) catch null;
             }
 
-            if (active_device == null and config.allow_fallback) {
+            if (active_device == null and effective_config.allow_fallback) {
                 active_device = device_manager.selectBestDevice() catch null;
             }
 
@@ -265,7 +274,7 @@ pub const Gpu = struct {
 
         return .{
             .allocator = allocator,
-            .config = config,
+            .config = effective_config,
             .device_manager = device_manager,
             .stream_manager = stream_manager,
             .dispatcher = disp,

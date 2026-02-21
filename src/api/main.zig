@@ -7,6 +7,7 @@ const std = @import("std");
 // Using the file name ensures the import works even when the project build does not
 // provide a named module.
 const abi = @import("../abi.zig");
+const gpu_detect = abi.gpu.backends.detect;
 // Shared I/O backend helper (Zig 0.16)
 // Note: This intentionally references ABI's shared module so `zig run src/api/main.zig`
 // works without requiring the build system to define an "io" package/module.
@@ -103,7 +104,7 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
         std.debug.print("Database: Not available (enable with -Denable-database=true)\n", .{});
     }
 
-    if (abi.gpu.moduleEnabled()) {
+    if (gpu_detect.moduleEnabled()) {
         std.debug.print("GPU: Available\n", .{});
     } else {
         std.debug.print("GPU: Not available (enable with -Denable-gpu=true)\n", .{});

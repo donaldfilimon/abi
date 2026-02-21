@@ -243,7 +243,7 @@ Tests that require specific hardware (GPU, network interfaces) use
 
 ```zig
 test "gpu kernel dispatch" {
-    if (!abi.gpu.isGpuAvailable()) return error.SkipZigTest;
+    if (!abi.gpu.backends.detect.moduleEnabled()) return error.SkipZigTest;
     // ... test body ...
 }
 ```

@@ -1,0 +1,14 @@
+pub const ProviderError = error{
+    InvalidProvider,
+    InvalidBackend,
+    ModelRequired,
+    PromptRequired,
+    NotAvailable,
+    NoProviderAvailable,
+    PluginNotFound,
+    PluginDisabled,
+    InvalidPlugin,
+    AbiVersionMismatch,
+    SymbolMissing,
+    GenerationFailed,
+};

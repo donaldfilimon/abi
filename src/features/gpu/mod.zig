@@ -111,6 +111,7 @@ const backend = @import("backend.zig");
 const kernels = @import("runtime_kernels.zig");
 const memory = @import("memory/base.zig");
 const kernel_cache = @import("kernel_cache.zig");
+const backend_shared = @import("backends/shared.zig");
 pub const profiling = @import("profiling.zig");
 
 // Performance optimization modules
@@ -151,10 +152,37 @@ pub const unified_buffer = @import("unified_buffer.zig");
 pub const device = @import("device.zig");
 pub const stream = @import("stream.zig");
 pub const dsl = @import("dsl/mod.zig");
+pub const runtime = @import("runtime/mod.zig");
+pub const devices = @import("device/mod.zig");
+pub const policy = @import("policy/mod.zig");
+pub const multi = @import("multi/mod.zig");
+pub const factory = @import("factory/mod.zig");
 
 // Backend interface and loaders
 pub const interface = @import("interface.zig");
-pub const cuda_loader = @import("backends/cuda/loader.zig");
+pub const cuda_loader = if (backend_shared.dynlibSupported)
+    @import("backends/cuda/loader.zig")
+else
+    struct {
+        pub const CuResult = enum(i32) { success = 0, _ };
+        pub const CoreFunctions = struct {
+            cuInit: ?*const fn (u32) callconv(.c) CuResult = null,
+            cuDeviceGetCount: ?*const fn (*i32) callconv(.c) CuResult = null,
+        };
+        pub const CudaFunctions = struct {
+            core: CoreFunctions = .{},
+        };
+        pub fn load(_: std.mem.Allocator) error{PlatformNotSupported}!*const CudaFunctions {
+            return error.PlatformNotSupported;
+        }
+        pub fn unload() void {}
+        pub fn getFunctions() ?*const CudaFunctions {
+            return null;
+        }
+        pub fn isAvailableWithAlloc(_: std.mem.Allocator) bool {
+            return false;
+        }
+    };
 
 // Platform detection
 pub const platform = @import("platform.zig");
@@ -168,23 +196,9 @@ pub const isWebGpuSupported = platform.isWebGpuSupported;
 pub const platformDescription = platform.platformDescription;
 
 // Modular backend abstraction layer
-pub const backend_factory = @import("backend_factory.zig");
-pub const dispatcher = @import("dispatch/coordinator.zig");
+pub const backends = @import("backends/mod.zig");
+pub const dispatch = @import("dispatch/mod.zig");
 pub const builtin_kernels = @import("builtin_kernels.zig");
-
-// Factory convenience exports
-pub const BackendFactory = backend_factory.BackendFactory;
-pub const BackendInstance = backend_factory.BackendInstance;
-pub const BackendFeature = backend_factory.BackendFeature;
-pub const createBackend = backend_factory.createBackend;
-pub const createBestBackend = backend_factory.createBestBackend;
-pub const destroyBackend = backend_factory.destroyBackend;
-
-// Dispatcher convenience exports
-pub const KernelDispatcher = dispatcher.KernelDispatcher;
-pub const DispatchError = dispatcher.DispatchError;
-pub const CompiledKernelHandle = dispatcher.CompiledKernelHandle;
-pub const KernelArgs = dispatcher.KernelArgs;
 
 // Recovery and failover
 pub const recovery = @import("recovery.zig");
@@ -256,19 +270,6 @@ pub const AcceleratorError = GpuError;
 pub const ReduceResult = struct { value: f32, stats: ExecutionResult };
 pub const DotProductResult = struct { value: f32, stats: ExecutionResult };
 pub const ExecutionStats = ExecutionResult;
-
-// Convenience query functions
-pub fn isGpuAvailable() bool {
-    return true; // Real module is compiled, GPU is available
-}
-
-pub fn getAvailableBackends() []const Backend {
-    return &.{.simulated};
-}
-
-pub fn getBestBackend() Backend {
-    return .simulated;
-}
 
 // Mega GPU orchestration (cross-backend coordinator)
 pub const mega = @import("mega/mod.zig");
@@ -373,20 +374,6 @@ pub const BackendInfo = backend.BackendInfo;
 pub const DeviceCapability = backend.DeviceCapability;
 pub const DeviceInfo = backend.DeviceInfo;
 pub const Summary = backend.Summary;
-pub const backendName = backend.backendName;
-pub const backendDisplayName = backend.backendDisplayName;
-pub const backendDescription = backend.backendDescription;
-pub const backendFlag = backend.backendFlag;
-pub const backendFromString = backend.backendFromString;
-pub const backendSupportsKernels = backend.backendSupportsKernels;
-pub const backendAvailability = backend.backendAvailability;
-pub const availableBackends = backend.availableBackends;
-pub const listBackendInfo = backend.listBackendInfo;
-pub const listDevices = backend.listDevices;
-pub const defaultDevice = backend.defaultDevice;
-pub const defaultDeviceLabel = backend.defaultDeviceLabel;
-pub const summary = backend.summary;
-pub const moduleEnabled = backend.moduleEnabled;
 pub const isEnabled = backend.isEnabled;
 
 // Profiling exports
@@ -477,7 +464,7 @@ pub const CodegenError = dsl.CodegenError;
 pub const GeneratedSource = dsl.GeneratedSource;
 
 pub fn init(allocator: std.mem.Allocator) GpuError!void {
-    if (!moduleEnabled()) return error.GpuDisabled;
+    if (!backend.moduleEnabled()) return error.GpuDisabled;
 
     cached_gpu_allocator = allocator;
     gpu_lifecycle.init(initCudaComponents) catch {
@@ -486,7 +473,7 @@ pub fn init(allocator: std.mem.Allocator) GpuError!void {
 }
 
 fn initCudaComponents() !void {
-    if (comptime build_options.gpu_cuda) {
+    if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
         cuda_backend_init_lock.lock();
         defer cuda_backend_init_lock.unlock();
 
@@ -517,7 +504,7 @@ fn initCudaComponents() !void {
 
 fn deinitCudaComponents() void {
     if (cuda_backend_initialized) {
-        if (comptime build_options.gpu_cuda) {
+        if (comptime build_options.gpu_cuda and backend_shared.dynlibSupported) {
             const cuda_module = @import("backends/cuda/mod.zig");
             cuda_module.deinit();
 
@@ -601,7 +588,7 @@ pub const Context = struct {
     /// - `error.NoDeviceAvailable`: No compatible GPU device found
     /// - `error.OutOfMemory`: Memory allocation failed
     pub fn init(allocator: std.mem.Allocator, cfg: config_module.GpuConfig) !*Context {
-        if (!moduleEnabled()) return error.GpuDisabled;
+        if (!backend.moduleEnabled()) return error.GpuDisabled;
 
         // Convert config_module.GpuConfig to unified.GpuConfig
         const preferred_backend: ?Backend = switch (cfg.backend) {
@@ -682,7 +669,7 @@ pub const Context = struct {
 // ============================================================================
 
 test "gpu module enabled status" {
-    try std.testing.expect(moduleEnabled());
+    try std.testing.expect(backend.moduleEnabled());
     try std.testing.expect(isEnabled(.simulated));
 }
 

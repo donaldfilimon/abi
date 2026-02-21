@@ -13,8 +13,9 @@ test "all backends device enumeration" {
         defer allocator.free(devices);
 
         // All returned devices should match the backend
+        const expected_backend: Backend = if (backend_tag == .simulated) .stdgpu else backend_tag;
         for (devices) |dev| {
-            try std.testing.expectEqual(backend_tag, dev.backend);
+            try std.testing.expectEqual(expected_backend, dev.backend);
             try std.testing.expect(dev.name.len > 0);
         }
     }

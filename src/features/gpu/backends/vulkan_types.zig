@@ -30,6 +30,7 @@ pub const VulkanError = error{
     SynchronizationFailed,
     DeviceLost,
     ValidationLayerNotAvailable,
+    VersionNotSupported,
     NotFound,
 };
 

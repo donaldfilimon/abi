@@ -118,6 +118,12 @@ pub const vllm = @import("stubs/vllm.zig");
 pub const mlx = @import("stubs/mlx.zig");
 
 // ============================================================================
+// llama.cpp Connector Stub
+// ============================================================================
+
+pub const llama_cpp = @import("stubs/llama_cpp.zig");
+
+// ============================================================================
 // Local Scheduler Connector Stub
 // ============================================================================
 
@@ -314,6 +320,14 @@ pub fn loadMLX(_: std.mem.Allocator) !mlx.Config {
 }
 
 pub fn tryLoadMLX(_: std.mem.Allocator) !?mlx.Config {
+    return null;
+}
+
+pub fn loadLlamaCpp(_: std.mem.Allocator) !llama_cpp.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadLlamaCpp(_: std.mem.Allocator) !?llama_cpp.Config {
     return null;
 }
 

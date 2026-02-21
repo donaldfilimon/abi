@@ -94,6 +94,15 @@ pub const BuildOptions = struct {
     pub fn gpu_tpu(self: BuildOptions) bool {
         return self.hasGpuBackend(.tpu);
     }
+    pub fn gpu_gl_any(self: BuildOptions) bool {
+        return self.gpu_opengl() or self.gpu_opengles();
+    }
+    pub fn gpu_gl_desktop(self: BuildOptions) bool {
+        return self.gpu_opengl();
+    }
+    pub fn gpu_gl_es(self: BuildOptions) bool {
+        return self.gpu_opengles();
+    }
 };
 
 comptime {
@@ -115,7 +124,13 @@ comptime {
     }
 }
 
-pub fn readBuildOptions(b: *std.Build) BuildOptions {
+pub fn readBuildOptions(
+    b: *std.Build,
+    target_os: std.Target.Os.Tag,
+    target_abi: std.Target.Abi,
+    can_link_metal: bool,
+    backend_arg: ?[]const u8,
+) BuildOptions {
     const enable_gpu = b.option(bool, "enable-gpu", "Enable GPU support") orelse true;
     const enable_ai = b.option(bool, "enable-ai", "Enable AI features") orelse true;
     const enable_web = b.option(bool, "enable-web", "Enable web features") orelse true;
@@ -146,7 +161,15 @@ pub fn readBuildOptions(b: *std.Build) BuildOptions {
         .enable_pages = b.option(bool, "enable-pages", "Enable dashboard/UI pages with routing") orelse true,
         .enable_benchmarks = b.option(bool, "enable-benchmarks", "Enable performance benchmarking module") orelse true,
 
-        .gpu_backends = gpu.parseGpuBackends(b, enable_gpu, enable_web),
+        .gpu_backends = gpu.parseGpuBackends(
+            b,
+            backend_arg,
+            enable_gpu,
+            enable_web,
+            target_os,
+            target_abi,
+            can_link_metal,
+        ),
     };
 }
 
@@ -162,6 +185,4 @@ pub fn validateOptions(options: BuildOptions) void {
         std.log.warn("Both CUDA and Vulkan backends enabled; may cause conflicts", .{});
     if (options.hasGpuBackend(.opengl) and options.hasGpuBackend(.webgl2))
         std.log.warn("Both OpenGL and WebGL2 enabled; prefer one", .{});
-    if (options.hasGpuBackend(.opengl) and options.hasGpuBackend(.opengles))
-        std.log.warn("Both OpenGL and OpenGL ES enabled; typically mutually exclusive", .{});
 }

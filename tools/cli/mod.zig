@@ -1,48 +1,11 @@
 //! ABI Framework Command-Line Interface
 //!
-//! Provides a comprehensive CLI for interacting with all ABI framework features.
-//! The CLI supports commands for database operations, GPU management, AI agent
-//! interaction, network configuration, and system information.
-//!
-//! ## Usage
-//! ```bash
-//! abi <command> [options]
-//! ```
-//!
-//! ## Commands (29 total)
-//! - `db` - Database operations (add, query, stats, optimize, backup)
-//! - `agent` - Run AI agent (interactive or one-shot)
-//! - `bench` - Run performance benchmarks (all, simd, memory, ai, quick)
-//! - `gpu` - GPU commands (backends, devices, summary, default)
-//! - `gpu-dashboard` - Interactive GPU + Agent monitoring dashboard
-//! - `network` - Manage network registry (list, register, status)
-//! - `system-info` - Show system and framework status
-//! - `multi-agent` - Run multi-agent workflows
-//! - `explore` - Search and explore codebase
-//! - `simd` - Run SIMD performance demo
-//! - `config` - Configuration management (init, show, validate)
-//! - `discord` - Discord bot operations (status, guilds, send, commands)
-//! - `llm` - LLM inference (info, generate, chat, bench, download, serve)
-//! - `model` - Model management (list, download, remove, search)
-//! - `embed` - Generate embeddings (openai, mistral, cohere, ollama)
-//! - `train` - Training pipeline (run, resume, info, generate-data)
-//! - `convert` - Dataset conversion tools (tokenbin, text, jsonl, wdbx)
-//! - `task` - Task management (add, list, done, stats)
-//! - `tui` - Launch interactive TUI command menu
-//! - `plugins` - Plugin management (list, enable, disable, info)
-//! - `profile` - User profile and settings management
-//! - `completions` - Shell completions (bash, zsh, fish, powershell)
-//! - `status` - Show framework health and component status
-//! - `toolchain` - Zig/ZLS toolchain (install, update, status)
-//! - `mcp` - MCP server for WDBX database (serve, tools)
-//! - `acp` - Agent Communication Protocol (card, serve)
-//! - `ralph` - Ralph orchestrator (init, run, status, gate, improve, skills)
-//! - `version` - Show framework version
-//! - `help` - Show help (use: abi help <command>)
+//! Descriptor-driven CLI dispatcher shared by command help/completion/routing.
 
 const std = @import("std");
 const abi = @import("abi");
 const commands = @import("commands/mod.zig");
+const framework = @import("framework/mod.zig");
 const utils = @import("utils/mod.zig");
 const cli_io = utils.io_backend;
 const spec = @import("spec.zig");
@@ -53,39 +16,33 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // Zig 0.16: Convert Args to slice using arena
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const raw_args = try proc_args.toSlice(arena.allocator());
 
-    // Parse global flags (--enable-*, --disable-*, --list-features)
     var global_flags = try utils.global_flags.parseGlobalFlags(allocator, raw_args);
     defer global_flags.deinit();
     defer allocator.free(global_flags.remaining_args);
 
-    // Handle --list-features
     if (global_flags.show_features) {
         utils.global_flags.printFeaturesToStderr(utils.global_flags.ComptimeStatus);
         return;
     }
 
-    // Validate feature overrides before proceeding
     if (global_flags.validate(utils.global_flags.ComptimeStatus)) |validation_error| {
         validation_error.print();
         std.process.exit(1);
     }
 
-    // Initialize shared I/O backend for Zig 0.16
     var io_backend = cli_io.initIoBackendWithEnv(allocator, environ);
     defer io_backend.deinit();
     const io = io_backend.io();
 
     const fw_config = abi.Config.defaults();
-    var framework = try abi.Framework.initWithIo(allocator, fw_config, io);
-    defer framework.deinit();
+    var framework_runtime = try abi.Framework.initWithIo(allocator, fw_config, io);
+    defer framework_runtime.deinit();
 
-    // Apply runtime feature overrides to registry
-    const registry = framework.getRegistry();
+    const registry = framework_runtime.getRegistry();
     global_flags.applyToRegistry(registry) catch |err| {
         std.debug.print("Warning: Could not apply feature override: {t}\n", .{err});
     };
@@ -93,17 +50,23 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
     const args = global_flags.remaining_args;
 
     if (args.len <= 1) {
-        printHelp();
+        framework.help.printTopLevel(&commands.descriptors);
         return;
     }
 
     const command = std.mem.sliceTo(args[1], 0);
-    if (utils.args.matchesAny(command, &[_][]const u8{ "help", "--help", "-h" })) {
+    if (framework.types.isHelpToken(command)) {
         if (args.len >= 3) {
-            try runHelpTarget(allocator, arena.allocator(), io, std.mem.sliceTo(args[2], 0), args[3..]);
+            const help_target = std.mem.sliceTo(args[2], 0);
+            if (framework.types.isHelpToken(help_target)) {
+                framework.help.printTopLevel(&commands.descriptors);
+                return;
+            }
+            try runHelpTarget(allocator, arena.allocator(), io, help_target, args[3..]);
             return;
         }
-        printHelp();
+
+        framework.help.printTopLevel(&commands.descriptors);
         return;
     }
 
@@ -112,118 +75,17 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
         return;
     }
 
-    if (try runCommand(allocator, io, command, args[2..])) {
+    const ctx = framework.context.CommandContext{
+        .allocator = allocator,
+        .io = io,
+    };
+
+    if (try framework.router.runCommand(ctx, &commands.descriptors, command, args[2..])) {
         return;
     }
 
     printUnknownCommand(command);
     std.process.exit(1);
-}
-
-fn printHelp() void {
-    std.debug.print(
-        \\Usage: abi [global-flags] <command> [options]
-        \\
-        \\Global Flags:
-        \\  --list-features       List available features and their status
-        \\  --enable-<feature>    Enable a feature at runtime
-        \\  --disable-<feature>   Disable a feature at runtime
-        \\  --no-color            Disable colored output (also respects NO_COLOR env var)
-        \\
-        \\Features: gpu, ai, llm, embeddings, agents, training, database, network, observability, web
-        \\
-        \\Commands:
-        \\
-    , .{});
-
-    for (spec.command_infos) |info| {
-        const padding = if (info.name.len < 14) 14 - info.name.len else 2;
-        std.debug.print("  {s}", .{info.name});
-        for (0..padding) |_| std.debug.print(" ", .{});
-        std.debug.print("{s}\n", .{info.description});
-    }
-
-    std.debug.print(
-        \\
-        \\Examples:
-        \\  abi --list-features              # Show available features
-        \\  abi --disable-gpu db stats       # Run db stats with GPU disabled
-        \\  abi --enable-ai llm chat         # Run LLM chat with AI enabled
-        \\  abi help llm generate            # Show help for nested subcommand
-        \\
-        \\Aliases:
-        \\
-        \\Run 'abi <command> help' or 'abi help <command>' for command-specific help.
-        \\
-    , .{});
-
-    for (spec.aliases) |alias| {
-        std.debug.print("  {s} -> {s}\n", .{ alias.alias, alias.target });
-    }
-}
-
-const CommandFn = *const fn (std.mem.Allocator, []const [:0]const u8) anyerror!void;
-const IoCommandFn = *const fn (std.mem.Allocator, std.Io, []const [:0]const u8) anyerror!void;
-
-const command_map = std.StaticStringMap(CommandFn).initComptime(.{
-    .{ "db", wrap(commands.db) },
-    .{ "agent", wrap(commands.agent) },
-    .{ "bench", wrap(commands.bench) },
-    .{ "gpu", wrap(commands.gpu) },
-    .{ "network", wrap(commands.network) },
-    .{ "system-info", wrap(commands.system_info) },
-    .{ "multi-agent", wrap(commands.multi_agent) },
-    .{ "explore", wrap(commands.explore) },
-    .{ "simd", wrap(commands.simd) },
-    .{ "config", wrap(commands.config) },
-    .{ "discord", wrap(commands.discord) },
-    .{ "llm", wrap(commands.llm) },
-    .{ "model", wrap(commands.model) },
-    .{ "embed", wrap(commands.embed) },
-    .{ "train", wrap(commands.train) },
-    .{ "convert", wrap(commands.convert) },
-    .{ "task", wrap(commands.task) },
-    .{ "completions", wrap(commands.completions) },
-    .{ "plugins", wrap(commands.plugins) },
-    .{ "profile", wrap(commands.profile) },
-    .{ "os-agent", wrap(commands.os_agent) },
-    .{ "status", wrap(commands.status) },
-    .{ "toolchain", wrap(commands.toolchain) },
-    .{ "mcp", wrap(commands.mcp) },
-    .{ "acp", wrap(commands.acp) },
-    .{ "ralph", wrap(commands.ralph) },
-    .{ "gendocs", wrap(commands.gendocs) },
-});
-
-const io_command_map = std.StaticStringMap(IoCommandFn).initComptime(.{
-    .{ "gpu-dashboard", wrapIo(commands.gpu_dashboard) },
-    .{ "tui", wrapIo(commands.tui) },
-});
-
-fn wrap(comptime cmd: type) CommandFn {
-    return cmd.run;
-}
-
-fn wrapIo(comptime cmd: type) IoCommandFn {
-    return cmd.run;
-}
-
-fn runCommand(
-    allocator: std.mem.Allocator,
-    io: std.Io,
-    command: []const u8,
-    args: []const [:0]const u8,
-) !bool {
-    const resolved = spec.resolveAlias(command);
-    if (io_command_map.get(resolved)) |run_fn| {
-        try run_fn(allocator, io, args);
-        return true;
-    }
-    if (command_map.get(resolved)) |run_fn| {
-        try run_fn(allocator, args);
-        return true;
-    }
-    return false;
 }
 
 fn runHelpTarget(
@@ -233,18 +95,24 @@ fn runHelpTarget(
     raw_command: []const u8,
     extra_args: []const [:0]const u8,
 ) !void {
-    const command = spec.resolveAlias(raw_command);
+    const command = framework.completion.resolveAlias(&commands.descriptors, raw_command);
     var forwarded = std.ArrayListUnmanaged([:0]const u8).empty;
+
     for (extra_args) |arg| {
         try forwarded.append(arena_allocator, arg);
     }
 
     const help_arg: [:0]const u8 = "help";
-    if (forwarded.items.len == 0 or !utils.args.matchesAny(forwarded.items[forwarded.items.len - 1], &[_][]const u8{ "help", "--help", "-h" })) {
+    if (forwarded.items.len == 0 or !framework.types.isHelpToken(forwarded.items[forwarded.items.len - 1])) {
         try forwarded.append(arena_allocator, help_arg);
     }
 
-    if (try runCommand(allocator, io, command, forwarded.items)) {
+    const ctx = framework.context.CommandContext{
+        .allocator = allocator,
+        .io = io,
+    };
+
+    if (try framework.router.runCommand(ctx, &commands.descriptors, command, forwarded.items)) {
         return;
     }
 

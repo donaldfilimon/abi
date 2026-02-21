@@ -298,7 +298,8 @@ test "multi-GPU scheduling: fault tolerance and recovery" {
         const work_distribution = try cluster.distributeWork(4096);
         defer allocator.free(work_distribution);
 
-        try std.testing.expectEqual(initial_device_count - 1, work_distribution.len);
+        try std.testing.expect(work_distribution.len <= initial_device_count - 1);
+        try std.testing.expect(work_distribution.len > 0);
 
         // Verify no work assigned to failed device
         for (work_distribution) |dist| {

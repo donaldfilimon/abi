@@ -40,7 +40,7 @@ const WindowsKernel32 = struct {
         mask: usize,
     ) callconv(.winapi) usize;
     extern "kernel32" fn GetCurrentProcessorNumber() callconv(.winapi) u32;
-    extern "kernel32" fn GetLastError() callconv(.winapi) windows.DWORD;
+    extern "kernel32" fn GetLastError() callconv(.winapi) windows.Win32Error;
 };
 
 pub const CpuTopology = struct {

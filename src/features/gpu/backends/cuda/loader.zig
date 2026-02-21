@@ -163,11 +163,11 @@ var cuda_functions: CudaFunctions = .{};
 var load_attempted: bool = false;
 
 // Helper to lookup a symbol from the optional library.
-fn bind(comptime T: type, name: []const u8) ?T {
+fn bind(comptime T: type, name: [:0]const u8) ?T {
     if (!shared.canUseDynLib()) {
         return null;
     }
-    if (cuda_lib) |lib| {
+    if (cuda_lib) |*lib| {
         return lib.lookup(T, name);
     }
     return null;
@@ -193,17 +193,15 @@ fn appendOwnedPath(
     owned_paths: *std.ArrayListUnmanaged([]u8),
     full: []u8,
 ) void {
-    if (owned_paths.append(allocator, full)) |_| {
-        if (lib_paths.append(allocator, full)) |_| {
-            return;
-        }
-        if (owned_paths.items.len > 0) {
-            owned_paths.items.len -= 1;
-        }
+    owned_paths.append(allocator, full) catch {
         allocator.free(full);
         return;
-    }
-    allocator.free(full);
+    };
+    lib_paths.append(allocator, full) catch {
+        _ = owned_paths.pop();
+        allocator.free(full);
+        return;
+    };
 }
 
 fn appendEnvCandidates(
@@ -214,14 +212,14 @@ fn appendEnvCandidates(
 ) void {
     if (base_path.len == 0) return;
 
-    const file_names = switch (builtin.os.tag) {
+    const file_names: []const []const u8 = switch (builtin.os.tag) {
         .windows => &.{"nvcuda.dll"},
         .linux => &.{ "libcuda.so.1", "libcuda.so" },
         else => &.{},
     };
     if (file_names.len == 0) return;
 
-    const subdirs = switch (builtin.os.tag) {
+    const subdirs: []const []const u8 = switch (builtin.os.tag) {
         .windows => &.{ "", "bin" },
         .linux => &.{ "", "lib64", "lib" },
         else => &.{""},
@@ -279,7 +277,7 @@ pub fn load(allocator: std.mem.Allocator) LoadError!*const CudaFunctions {
     }
 
     // Default library names per platform.
-    const default_names = switch (builtin.os.tag) {
+    const default_names: []const []const u8 = switch (builtin.os.tag) {
         .windows => &.{"nvcuda.dll"},
         .linux => &.{ "libcuda.so.1", "libcuda.so" },
         else => return error.PlatformNotSupported,

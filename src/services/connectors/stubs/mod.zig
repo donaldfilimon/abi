@@ -13,6 +13,7 @@ pub const cohere = @import("cohere.zig");
 pub const lm_studio = @import("lm_studio.zig");
 pub const vllm = @import("vllm.zig");
 pub const mlx = @import("mlx.zig");
+pub const llama_cpp = @import("llama_cpp.zig");
 pub const discord = @import("discord.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
 pub const contract = @import("contract.zig");

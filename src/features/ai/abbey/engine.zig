@@ -325,12 +325,9 @@ pub const AbbeyEngine = struct {
         });
 
         var iteration: usize = 0;
-        var last_response: []u8 = try self.allocator.dupe(u8, ""); // Placeholder
+        var last_assistant: ?[]const u8 = null;
 
         while (iteration < max_iterations) : (iteration += 1) {
-            // Clean up previous response if it wasn't added to history (for the placeholder case)
-            if (iteration == 0) self.allocator.free(last_response);
-
             // Make request
             const request = client.CompletionRequest{
                 .messages = history.items,
@@ -341,13 +338,14 @@ pub const AbbeyEngine = struct {
 
             var response = try self.llm_client.complete(request);
             defer response.deinit(self.allocator);
-            last_response = try self.allocator.dupe(u8, response.content);
 
-            // Store agent response
+            // Store agent response and track final assistant output from history-owned memory.
+            const assistant_content = try self.allocator.dupe(u8, response.content);
             try history.append(self.allocator, .{
                 .role = "assistant",
-                .content = try self.allocator.dupe(u8, last_response),
+                .content = assistant_content,
             });
+            last_assistant = assistant_content;
 
             // Update usage stats
             self.total_tokens_used += response.usage.total_tokens;
@@ -370,7 +368,11 @@ pub const AbbeyEngine = struct {
             }
         }
 
-        return last_response;
+        const final_response = if (last_assistant) |resp|
+            try self.allocator.dupe(u8, resp)
+        else
+            try self.allocator.dupe(u8, "");
+        return final_response;
     }
 
     /// Assess initial confidence for a query

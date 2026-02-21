@@ -18,18 +18,141 @@ const build_options = @import("build_options");
 const types = @import("../../kernel_types.zig");
 const shared = @import("../shared.zig");
 const fallback = @import("../fallback.zig");
-const cuda_native = @import("native.zig");
-const cuda_loader = @import("loader.zig");
 const gpu = std.gpu;
 
+const cuda_native = if (shared.dynlibSupported)
+    @import("native.zig")
+else
+    struct {
+        pub const CudaError = error{
+            InitializationFailed,
+            DriverNotFound,
+            DeviceNotFound,
+            OutOfMemory,
+            KernelLaunchFailed,
+            MemoryCopyFailed,
+            InvalidKernel,
+        };
+
+        pub fn init() @This().CudaError!void {
+            return error.DriverNotFound;
+        }
+        pub fn deinit() void {}
+
+        pub fn compileKernel(_: std.mem.Allocator, _: types.KernelSource) types.KernelError!*anyopaque {
+            return error.UnsupportedBackend;
+        }
+        pub fn launchKernel(
+            _: std.mem.Allocator,
+            _: *anyopaque,
+            _: types.KernelConfig,
+            _: []const ?*const anyopaque,
+        ) types.KernelError!void {
+            return error.UnsupportedBackend;
+        }
+        pub fn destroyKernel(_: std.mem.Allocator, _: *anyopaque) void {}
+        pub fn createStream() error{InitializationFailed}!*anyopaque {
+            return error.InitializationFailed;
+        }
+        pub fn destroyStream(_: *anyopaque) void {}
+        pub fn synchronizeStream(_: *anyopaque) error{InitializationFailed}!void {
+            return error.InitializationFailed;
+        }
+        pub fn allocateDeviceMemory(_: usize) error{OutOfMemory}!*anyopaque {
+            return error.OutOfMemory;
+        }
+        pub fn freeDeviceMemory(_: *anyopaque) void {}
+        pub fn memcpyHostToDevice(_: *anyopaque, _: *const anyopaque, _: usize) error{MemoryCopyFailed}!void {
+            return error.MemoryCopyFailed;
+        }
+        pub fn memcpyDeviceToHost(_: *anyopaque, _: *const anyopaque, _: usize) error{MemoryCopyFailed}!void {
+            return error.MemoryCopyFailed;
+        }
+    };
+
+const cuda_loader = if (shared.dynlibSupported)
+    @import("loader.zig")
+else
+    struct {
+        pub const CuResult = enum(i32) { success = 0, _ };
+        pub const CoreFunctions = struct {
+            cuInit: ?*const fn (u32) callconv(.c) @This().CuResult = null,
+            cuDeviceGetCount: ?*const fn (*i32) callconv(.c) @This().CuResult = null,
+        };
+        pub const CudaFunctions = struct {
+            core: CoreFunctions = .{},
+        };
+
+        var funcs: CudaFunctions = .{};
+
+        pub fn load(_: std.mem.Allocator) error{PlatformNotSupported}!*const CudaFunctions {
+            return error.PlatformNotSupported;
+        }
+        pub fn unload() void {
+            funcs = .{};
+        }
+        pub fn getFunctions() ?*const CudaFunctions {
+            return null;
+        }
+        pub fn isAvailableWithAlloc(_: std.mem.Allocator) bool {
+            return false;
+        }
+    };
+
+const device_query_mod = if (shared.dynlibSupported)
+    @import("device_query.zig")
+else
+    struct {
+        pub const CudaArchitecture = enum {
+            unknown,
+
+            pub fn fromComputeCapability(_: i32, _: i32) @This() {
+                return .unknown;
+            }
+            pub fn name(_: @This()) []const u8 {
+                return "Unknown";
+            }
+        };
+        pub const CudaFeatureSupport = struct {
+            pub fn fromComputeCapability(_: i32, _: i32) @This() {
+                return .{};
+            }
+        };
+    };
+
+const nvrtc_mod = if (shared.dynlibSupported)
+    @import("nvrtc.zig")
+else
+    struct {
+        pub fn isAvailable() bool {
+            return false;
+        }
+    };
+
 // Re-export submodules
-pub const loader = @import("loader.zig");
-pub const native = @import("native.zig");
-pub const memory = @import("memory.zig");
-pub const stream = @import("stream.zig");
-pub const device_query = @import("device_query.zig");
-pub const nvrtc = @import("nvrtc.zig");
-pub const cublas = if (build_options.enable_gpu and build_options.gpu_cuda)
+pub const loader = cuda_loader;
+pub const native = cuda_native;
+pub const memory = if (shared.dynlibSupported)
+    @import("memory.zig")
+else
+    struct {
+        pub fn init(_: std.mem.Allocator) error{InitializationFailed}!void {
+            return error.InitializationFailed;
+        }
+        pub fn deinit() void {}
+    };
+pub const stream = if (shared.dynlibSupported)
+    @import("stream.zig")
+else
+    struct {
+        pub fn init() error{InitializationFailed}!void {
+            return error.InitializationFailed;
+        }
+        pub fn deinit() void {}
+    };
+pub const device_query = device_query_mod;
+pub const nvrtc = nvrtc_mod;
+pub const cublas = if (build_options.enable_gpu and build_options.gpu_cuda and shared.dynlibSupported)
     @import("cublas.zig")
 else
     struct {
@@ -38,8 +161,29 @@ else
             return false;
         }
     };
-pub const llm_kernels = @import("llm_kernels.zig");
-pub const quantized_kernels = @import("quantized_kernels.zig");
+pub const llm_kernels = if (shared.dynlibSupported)
+    @import("llm_kernels.zig")
+else
+    struct {
+        pub fn isAvailable() bool {
+            return false;
+        }
+    };
+pub const quantized_kernels = if (shared.dynlibSupported)
+    @import("quantized_kernels.zig")
+else
+    struct {
+        pub const QuantConfig = struct {};
+        pub const QuantizedKernelModule = struct {
+            pub fn init(_: std.mem.Allocator) !@This() {
+                return error.NotAvailable;
+            }
+            pub fn deinit(_: *@This()) void {}
+            pub fn isAvailable(_: *@This()) bool {
+                return false;
+            }
+        };
+    };
 pub const vtable = @import("vtable.zig");
 
 // VTable backend exports

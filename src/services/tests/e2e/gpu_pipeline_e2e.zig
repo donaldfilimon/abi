@@ -11,6 +11,7 @@ const abi = @import("abi");
 const time = abi.shared.time;
 const sync = abi.shared.sync;
 const e2e = @import("mod.zig");
+const gpu_detect = abi.gpu.backends.detect;
 
 // ============================================================================
 // Helper Functions
@@ -123,7 +124,7 @@ test "e2e: gpu module detection" {
     defer ctx.deinit();
 
     // Check backend availability
-    const available = abi.gpu.availableBackends(allocator) catch &[_]abi.gpu.Backend{};
+    const available = gpu_detect.availableBackends(allocator) catch &[_]abi.gpu.Backend{};
     defer if (available.len > 0) allocator.free(available);
     // May be empty on systems without GPU - that's OK
     try std.testing.expect(true);

@@ -87,9 +87,14 @@ zig build run -- --help
 Ensure your `zig` matches the version in `.zigversion`.
 
 ```bash
-# Keep zvm current and install/use the pinned toolchain
-PINNED_ZIG="$(cat .zigversion)"
+# Keep zvm current
 zvm upgrade
+
+# Developer convenience (latest dev toolchain)
+zvm use master
+
+# Reproducible/local CI parity (pinned in repo)
+PINNED_ZIG="$(cat .zigversion)"
 zvm install "$PINNED_ZIG"
 zvm use "$PINNED_ZIG"
 
@@ -593,4 +598,4 @@ MIT License - See [LICENSE](LICENSE) for details.
 </div>
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build/layout guidance, and validation workflows.

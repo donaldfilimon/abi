@@ -152,4 +152,4 @@ All 21 features default to `true` except `enable_mobile`. Validate combinations:
 - [API Reference](../docs/api/index.md) — Auto-generated (`abi gendocs` or `zig build gendocs`)
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax improvements, modular build layout guidance, and targeted validation workflows.

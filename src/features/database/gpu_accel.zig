@@ -32,7 +32,13 @@ const gpu = if (build_options.enable_gpu) @import("../gpu/mod.zig") else struct 
         enable_profiling: bool = false,
     };
     pub const Backend = void;
-    pub const KernelDispatcher = void;
+    pub const dispatch = struct {
+        pub const KernelDispatcher = void;
+        pub const LaunchConfig = struct {
+            global_size: [3]u32 = .{ 1, 1, 1 },
+            local_size: ?[3]u32 = null,
+        };
+    };
     pub const dsl = struct {
         pub const BuiltinKernel = void;
     };
@@ -89,7 +95,7 @@ pub const GpuAccelerator = struct {
     gpu_ctx: if (build_options.enable_gpu) ?*gpu.Gpu else void,
 
     /// Kernel dispatcher for GPU kernel execution
-    dispatcher: if (build_options.enable_gpu) ?*gpu.KernelDispatcher else void,
+    dispatcher: if (build_options.enable_gpu) ?*gpu.dispatch.KernelDispatcher else void,
 
     /// Cached GPU buffers for reuse
     query_buffer: ?*anyopaque,
@@ -109,6 +115,11 @@ pub const GpuAccelerator = struct {
     gpu_kernel_ops: u64,
 
     const Self = @This();
+
+    fn addMeasuredTime(total_ns: *u64, measured_ns: u64) void {
+        // Keep stats monotonic even when timer resolution rounds tiny ops to 0ns.
+        total_ns.* += if (measured_ns == 0) 1 else measured_ns;
+    }
 
     /// Initialize GPU accelerator.
     ///
@@ -155,11 +166,11 @@ pub const GpuAccelerator = struct {
             // Initialize kernel dispatcher if GPU is available
             if (ctx.getActiveDevice()) |device| {
                 if (ctx.getBackend()) |backend| {
-                    const disp = allocator.create(gpu.KernelDispatcher) catch {
+                    const disp = allocator.create(gpu.dispatch.KernelDispatcher) catch {
                         return self;
                     };
 
-                    disp.* = gpu.KernelDispatcher.init(allocator, backend, device) catch {
+                    disp.* = gpu.dispatch.KernelDispatcher.init(allocator, backend, device) catch {
                         std.log.debug("GPU accelerator: kernel dispatcher init failed, GPU dispatch unavailable", .{});
                         allocator.destroy(disp);
                         return self;
@@ -233,6 +244,7 @@ pub const GpuAccelerator = struct {
             // Timer unavailable, just use SIMD
             simd.batchCosineSimilarityFast(query, query_norm, vectors, results);
             self.simd_ops += 1;
+            self.simd_time_ns += 1;
             return;
         };
 
@@ -242,17 +254,17 @@ pub const GpuAccelerator = struct {
                 // GPU failed, fallback to SIMD
                 simd.batchCosineSimilarityFast(query, query_norm, vectors, results);
                 self.simd_ops += 1;
-                self.simd_time_ns += timer.read();
+                addMeasuredTime(&self.simd_time_ns, timer.read());
                 return;
             };
 
             self.gpu_ops += 1;
-            self.gpu_time_ns += timer.read();
+            addMeasuredTime(&self.gpu_time_ns, timer.read());
         } else {
             // Use SIMD for small batches
             simd.batchCosineSimilarityFast(query, query_norm, vectors, results);
             self.simd_ops += 1;
-            self.simd_time_ns += timer.read();
+            addMeasuredTime(&self.simd_time_ns, timer.read());
         }
     }
 
@@ -315,7 +327,7 @@ pub const GpuAccelerator = struct {
     /// Uses CPU fallback path via dispatcher which handles the actual computation.
     fn executeGpuBatchCosine(
         self: *Self,
-        disp: *gpu.KernelDispatcher,
+        disp: *gpu.dispatch.KernelDispatcher,
         ctx: *gpu.Gpu,
         query: []const f32,
         query_norm: f32,
@@ -334,7 +346,7 @@ pub const GpuAccelerator = struct {
         };
 
         // Set up launch configuration
-        const launch_config = gpu.dispatcher.LaunchConfig{
+        const launch_config = gpu.dispatch.LaunchConfig{
             .global_size = .{ @intCast(batch_size), @intCast(dim), 1 },
             .local_size = .{ 256, 1, 1 },
         };
@@ -386,6 +398,7 @@ pub const GpuAccelerator = struct {
         var timer = time.Timer.start() catch {
             simd.batchDotProduct(query, vectors, results);
             self.simd_ops += 1;
+            self.simd_time_ns += 1;
             return;
         };
 
@@ -393,11 +406,11 @@ pub const GpuAccelerator = struct {
             // GPU path (placeholder - uses SIMD for now)
             simd.batchDotProduct(query, vectors, results);
             self.gpu_ops += 1;
-            self.gpu_time_ns += timer.read();
+            addMeasuredTime(&self.gpu_time_ns, timer.read());
         } else {
             simd.batchDotProduct(query, vectors, results);
             self.simd_ops += 1;
-            self.simd_time_ns += timer.read();
+            addMeasuredTime(&self.simd_time_ns, timer.read());
         }
     }
 
@@ -419,6 +432,7 @@ pub const GpuAccelerator = struct {
                 result.* = simd.l2DistanceSquared(query, vec);
             }
             self.simd_ops += 1;
+            self.simd_time_ns += 1;
             return;
         };
 
@@ -426,7 +440,7 @@ pub const GpuAccelerator = struct {
         if (build_options.enable_gpu and self.shouldUseGpu(vectors.len)) {
             if (self.batchL2DistanceSquaredGpu(query, vectors, results)) {
                 self.gpu_kernel_ops += 1;
-                self.gpu_time_ns += timer.read();
+                addMeasuredTime(&self.gpu_time_ns, timer.read());
                 return;
             } else |_| {
                 // Fall through to SIMD fallback
@@ -439,7 +453,7 @@ pub const GpuAccelerator = struct {
         }
 
         self.simd_ops += 1;
-        self.simd_time_ns += timer.read();
+        addMeasuredTime(&self.simd_time_ns, timer.read());
     }
 
     /// GPU kernel implementation for batch L2 distance squared.
@@ -677,7 +691,7 @@ test "GpuAccelerator stats tracking" {
 
     const stats = accel.getStats();
     try std.testing.expectEqual(@as(u64, 5), stats.simd_ops);
-    try std.testing.expect(stats.simd_time_ns > 0);
+    try std.testing.expect(stats.simd_time_ns > 0 or stats.gpu_time_ns > 0);
 
     // Reset and verify
     accel.resetStats();

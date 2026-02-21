@@ -144,6 +144,11 @@ fn runValidate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
+    if (utils.args.matchesAny(std.mem.sliceTo(args[0], 0), &[_][]const u8{ "--help", "-h", "help" })) {
+        std.debug.print("Usage: abi config validate <config-file>\n", .{});
+        return;
+    }
+
     const path = std.mem.sliceTo(args[0], 0);
 
     // Try to load the configuration file using shared config loader (legacy format)

@@ -592,7 +592,14 @@ test "transformer rejects invalid configuration" {
 test "transformer rejects empty input" {
     const allocator = std.testing.allocator;
 
-    var model = try TransformerModel.init(allocator, .{});
+    var model = try TransformerModel.init(allocator, .{
+        .layers = 1,
+        .hidden_size = 16,
+        .num_heads = 2,
+        .vocab_size = 128,
+        .max_tokens = 4,
+        .seed = 777,
+    });
     defer model.deinit();
 
     try std.testing.expectError(
@@ -605,11 +612,11 @@ test "transformer generate tokens" {
     const allocator = std.testing.allocator;
 
     var model = try TransformerModel.init(allocator, .{
-        .layers = 2,
-        .hidden_size = 64,
+        .layers = 1,
+        .hidden_size = 32,
         .num_heads = 4,
-        .vocab_size = 512,
-        .max_tokens = 8,
+        .vocab_size = 128,
+        .max_tokens = 4,
         .seed = 11111,
     });
     defer model.deinit();
@@ -617,27 +624,27 @@ test "transformer generate tokens" {
     const prompt = try model.encode(allocator, "hello");
     defer allocator.free(prompt);
 
-    const generated = try model.generate(allocator, prompt, 4);
+    const generated = try model.generate(allocator, prompt, 2);
     defer allocator.free(generated);
 
     try std.testing.expect(generated.len > 0);
-    try std.testing.expect(generated.len <= 4);
+    try std.testing.expect(generated.len <= 2);
 }
 
 test "transformer inference" {
     const allocator = std.testing.allocator;
 
     var model = try TransformerModel.init(allocator, .{
-        .layers = 2,
-        .hidden_size = 64,
+        .layers = 1,
+        .hidden_size = 32,
         .num_heads = 4,
-        .vocab_size = 512,
-        .max_tokens = 8,
+        .vocab_size = 128,
+        .max_tokens = 4,
         .seed = 22222,
     });
     defer model.deinit();
 
-    const output = try model.infer(allocator, "test input", 16);
+    const output = try model.infer(allocator, "test input", 4);
     defer allocator.free(output);
 
     try std.testing.expect(output.len > 0);

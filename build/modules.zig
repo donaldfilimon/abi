@@ -40,8 +40,12 @@ pub fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build
     opts.addOption(bool, "gpu_webgpu", options.gpu_webgpu());
     opts.addOption(bool, "gpu_opengl", options.gpu_opengl());
     opts.addOption(bool, "gpu_opengles", options.gpu_opengles());
+    opts.addOption(bool, "gpu_gl_any", options.gpu_gl_any());
+    opts.addOption(bool, "gpu_gl_desktop", options.gpu_gl_desktop());
+    opts.addOption(bool, "gpu_gl_es", options.gpu_gl_es());
     opts.addOption(bool, "gpu_webgl2", options.gpu_webgl2());
     opts.addOption(bool, "gpu_fpga", options.gpu_fpga());
+    opts.addOption(bool, "gpu_tpu", options.gpu_tpu());
 
     return opts.createModule();
 }

@@ -50,4 +50,4 @@
 - Report vulnerabilities via `SECURITY.md` (avoid public exploit details in issues/PRs).
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular `build.zig`/`build/` workflows, and reproducible validation guidance.

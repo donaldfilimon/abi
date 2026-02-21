@@ -67,6 +67,17 @@ pub const MetalGpuFamily = enum(u32) {
         };
     }
 
+    /// Whether this family supports Metal 4 features.
+    ///
+    /// Current conservative gate:
+    /// - Apple9+ family is treated as Metal 4 capable.
+    pub fn isMetal4(self: MetalGpuFamily) bool {
+        return switch (self) {
+            .apple9 => true,
+            else => false,
+        };
+    }
+
     /// Numeric generation (apple families only, 0 for non-apple).
     pub fn generation(self: MetalGpuFamily) u32 {
         const val = @intFromEnum(self);
@@ -173,6 +184,8 @@ test "CudaArchitecture-style: GPU family from generation" {
     try std.testing.expectEqual(MetalGpuFamily.apple7, @as(MetalGpuFamily, .apple7));
     try std.testing.expect(MetalGpuFamily.apple7.isMetal3());
     try std.testing.expect(!MetalGpuFamily.apple6.isMetal3());
+    try std.testing.expect(MetalGpuFamily.apple9.isMetal4());
+    try std.testing.expect(!MetalGpuFamily.apple8.isMetal4());
     try std.testing.expectEqual(@as(u32, 7), MetalGpuFamily.apple7.generation());
 }
 

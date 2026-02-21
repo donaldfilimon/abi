@@ -21,6 +21,7 @@ const testing = std.testing;
 const builtin = @import("builtin");
 const build_options = @import("build_options");
 const abi = @import("abi");
+const gpu_detect = abi.gpu.backends.detect;
 
 // ============================================================================
 // C API Status Codes (matching src/bindings/c/exports.zig)
@@ -131,7 +132,7 @@ test "c_api: feature flags are queryable" {
 
     // GPU feature
     const gpu_enabled = build_options.enable_gpu;
-    const gpu_module_enabled = abi.gpu.moduleEnabled();
+    const gpu_module_enabled = gpu_detect.moduleEnabled();
     try testing.expect(gpu_enabled == gpu_module_enabled);
 
     // Database feature
@@ -154,8 +155,7 @@ test "c_api: disabled features return appropriate errors" {
 
     if (!build_options.enable_gpu) {
         // GPU stub should indicate unavailability
-        try testing.expect(!abi.gpu.isGpuAvailable());
-        try testing.expect(!abi.gpu.moduleEnabled());
+        try testing.expect(!gpu_detect.moduleEnabled());
     }
 }
 
@@ -230,7 +230,7 @@ test "c_api: c and zig apis are consistent" {
     try testing.expect(zig_simd == zig_caps.has_simd);
 
     // GPU consistency
-    const gpu_enabled = abi.gpu.moduleEnabled();
+    const gpu_enabled = gpu_detect.moduleEnabled();
 
     // GPU module enabled should match build options
     try testing.expect(gpu_enabled == build_options.enable_gpu);

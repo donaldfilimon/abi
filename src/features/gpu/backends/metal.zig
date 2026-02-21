@@ -38,8 +38,10 @@ pub const MTLRegion = metal_types.MTLRegion;
 
 // Metal GPU Family / Feature detection
 pub const gpu_family = @import("metal/gpu_family.zig");
+pub const capabilities = @import("metal/capabilities.zig");
 pub const MetalGpuFamily = gpu_family.MetalGpuFamily;
 pub const MetalFeatureSet = gpu_family.MetalFeatureSet;
+pub const MetalLevel = capabilities.MetalLevel;
 
 var metal_lib: ?std.DynLib = null;
 var objc_lib: ?std.DynLib = null;
@@ -57,6 +59,7 @@ var device_max_buffer_length: u64 = 0;
 
 // Cached GPU feature set (populated during queryDeviceProperties)
 var cached_feature_set: ?MetalFeatureSet = null;
+var cached_metal_level: MetalLevel = .none;
 
 // Active command buffers for synchronization
 var pending_command_buffers: std.ArrayListUnmanaged(ID) = .empty;
@@ -259,6 +262,13 @@ pub fn init() !void {
 
     // Query device properties
     queryDeviceProperties(device);
+    if (!cached_metal_level.atLeast(capabilities.required_runtime_level)) {
+        std.log.err(
+            "Metal backend requires {s} capability, detected level {s}",
+            .{ capabilities.required_runtime_level.name(), cached_metal_level.name() },
+        );
+        return MetalError.UnsupportedFeature;
+    }
 
     // Create command queue using Objective-C message dispatch
     const msg_send = objc_msgSend orelse return MetalError.ObjcRuntimeUnavailable;
@@ -319,9 +329,10 @@ fn queryDeviceProperties(device: ID) void {
         const family = gpu_family.detectGpuFamily(
             @ptrCast(device),
             @ptrCast(family_sel),
-            @ptrCast(&family_fn),
+            family_fn,
         );
         cached_feature_set = gpu_family.buildFeatureSet(family);
+        cached_metal_level = capabilities.levelFromFamily(family);
     }
 }
 
@@ -349,6 +360,8 @@ pub fn deinit() void {
     objc_lib = null;
     metal_initialized = false;
     selectors_initialized = false;
+    cached_feature_set = null;
+    cached_metal_level = .none;
 
     std.log.debug("Metal backend deinitialized", .{});
 }
@@ -1282,6 +1295,7 @@ pub fn getDeviceInfo() ?DeviceInfo {
         info.supports_ray_tracing = fs.supports_ray_tracing;
         info.supports_mps = fs.supports_mps;
         info.supports_neural_engine = fs.has_neural_engine;
+        info.metal_level = @intFromEnum(cached_metal_level);
     }
 
     return info;
@@ -1296,6 +1310,14 @@ pub fn getFeatureSet() ?MetalFeatureSet {
     return cached_feature_set;
 }
 
+pub fn getMetalLevel() MetalLevel {
+    return cached_metal_level;
+}
+
+pub fn supportsMetal4() bool {
+    return cached_metal_level.atLeast(.metal4);
+}
+
 // ============================================================================
 // Test discovery for extracted submodules
 // ============================================================================
@@ -1304,6 +1326,7 @@ test {
     _ = @import("metal_types.zig");
     _ = @import("metal_test.zig");
     _ = @import("metal/gpu_family.zig");
+    _ = @import("metal/capabilities.zig");
     _ = @import("metal/mps.zig");
     _ = @import("metal/coreml.zig");
     _ = @import("metal/mesh_shaders.zig");

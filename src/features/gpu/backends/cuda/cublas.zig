@@ -151,47 +151,47 @@ pub fn load() !*const CublasFunctions {
         return error.PlatformNotSupported;
     }
 
-    comptime if (shared.dynlibSupported) {
-        // Try platform-specific library names
-        const lib_names: []const []const u8 = switch (builtin.os.tag) {
-            .windows => &.{
-                "cublas64_12.dll",
-                "cublas64_11.dll",
-                "cublas64_10.dll",
-            },
-            .linux => &.{
-                "libcublas.so.12",
-                "libcublas.so.11",
-                "libcublas.so.10",
-                "libcublas.so",
-            },
-            else => return error.PlatformNotSupported,
-        };
-
-        for (lib_names) |name| {
-            const lib = std.DynLib.open(name) catch continue;
-            cublas_lib = lib;
-            break;
-        }
-
-        if (cublas_lib == null) return error.LibraryNotFound;
-
-        if (cublas_lib) |*lib| {
-            cublas_functions.cublasCreate = lib.lookup(CublasCreateFn, "cublasCreate_v2");
-            cublas_functions.cublasDestroy = lib.lookup(CublasDestroyFn, "cublasDestroy_v2");
-            cublas_functions.cublasSetStream = lib.lookup(CublasSetStreamFn, "cublasSetStream_v2");
-            cublas_functions.cublasGetVersion = lib.lookup(CublasGetVersionFn, "cublasGetVersion_v2");
-            cublas_functions.cublasSgemm = lib.lookup(CublasSgemmFn, "cublasSgemm_v2");
-            cublas_functions.cublasSgemmBatched = lib.lookup(CublasSgemmBatchedFn, "cublasSgemmBatched");
-            cublas_functions.cublasSgemmStridedBatched = lib.lookup(CublasSgemmStridedBatchedFn, "cublasSgemmStridedBatched");
-        } else {
-            return error.LibraryNotFound;
-        }
-
-        return &cublas_functions;
-    } else {
+    if (!shared.dynlibSupported) {
         return error.PlatformNotSupported;
+    }
+
+    // Try platform-specific library names
+    const lib_names: []const []const u8 = switch (builtin.os.tag) {
+        .windows => &.{
+            "cublas64_12.dll",
+            "cublas64_11.dll",
+            "cublas64_10.dll",
+        },
+        .linux => &.{
+            "libcublas.so.12",
+            "libcublas.so.11",
+            "libcublas.so.10",
+            "libcublas.so",
+        },
+        else => return error.PlatformNotSupported,
     };
+
+    for (lib_names) |name| {
+        const lib = std.DynLib.open(name) catch continue;
+        cublas_lib = lib;
+        break;
+    }
+
+    if (cublas_lib == null) return error.LibraryNotFound;
+
+    if (cublas_lib) |*lib| {
+        cublas_functions.cublasCreate = lib.lookup(CublasCreateFn, "cublasCreate_v2");
+        cublas_functions.cublasDestroy = lib.lookup(CublasDestroyFn, "cublasDestroy_v2");
+        cublas_functions.cublasSetStream = lib.lookup(CublasSetStreamFn, "cublasSetStream_v2");
+        cublas_functions.cublasGetVersion = lib.lookup(CublasGetVersionFn, "cublasGetVersion_v2");
+        cublas_functions.cublasSgemm = lib.lookup(CublasSgemmFn, "cublasSgemm_v2");
+        cublas_functions.cublasSgemmBatched = lib.lookup(CublasSgemmBatchedFn, "cublasSgemmBatched");
+        cublas_functions.cublasSgemmStridedBatched = lib.lookup(CublasSgemmStridedBatchedFn, "cublasSgemmStridedBatched");
+    } else {
+        return error.LibraryNotFound;
+    }
+
+    return &cublas_functions;
 }
 
 /// Unload cuBLAS library

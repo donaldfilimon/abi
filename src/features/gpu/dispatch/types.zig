@@ -6,6 +6,7 @@ const std = @import("std");
 const backend_mod = @import("../backend.zig");
 const device_mod = @import("../device.zig");
 const unified_buffer = @import("../unified_buffer.zig");
+const policy = @import("../policy/mod.zig");
 
 pub const Backend = backend_mod.Backend;
 pub const Device = device_mod.Device;
@@ -62,12 +63,17 @@ pub const LaunchConfig = struct {
 
     /// Calculate grid dimensions from global size and local size.
     pub fn gridDimensions(self: *const LaunchConfig) [3]u32 {
-        const local = self.local_size orelse .{ 256, 1, 1 };
+        const local = self.effectiveLocalSize();
         return .{
             (self.global_size[0] + local[0] - 1) / local[0],
             (self.global_size[1] + local[1] - 1) / local[1],
             (self.global_size[2] + local[2] - 1) / local[2],
         };
+    }
+
+    /// Get the effective local size, using platform policy when not explicit.
+    pub fn effectiveLocalSize(self: *const LaunchConfig) [3]u32 {
+        return self.local_size orelse defaultLocalSize();
     }
 
     /// Create config for 1D kernel execution.
@@ -86,6 +92,11 @@ pub const LaunchConfig = struct {
         };
     }
 };
+
+fn defaultLocalSize() [3]u32 {
+    const hints = policy.optimizationHintsForPlatform(policy.classifyBuiltin());
+    return .{ hints.default_local_size, 1, 1 };
+}
 
 /// Arguments for kernel execution.
 pub const KernelArgs = struct {
@@ -134,3 +145,19 @@ pub const QueuedLaunch = struct {
     config: LaunchConfig,
     args: KernelArgs,
 };
+
+test "launch config local size defaults to policy hint" {
+    const cfg = LaunchConfig{};
+    const hints = policy.optimizationHintsForPlatform(policy.classifyBuiltin());
+    try std.testing.expectEqual(
+        [3]u32{ hints.default_local_size, 1, 1 },
+        cfg.effectiveLocalSize(),
+    );
+}
+
+test "launch config explicit local size overrides policy hint" {
+    const cfg = LaunchConfig{
+        .local_size = .{ 32, 2, 1 },
+    };
+    try std.testing.expectEqual([3]u32{ 32, 2, 1 }, cfg.effectiveLocalSize());
+}

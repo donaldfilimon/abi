@@ -28,6 +28,11 @@ const WindowsKernel32 = if (builtin.os.tag == .windows)
 else
     struct {};
 
+// Windows standard handle values are signed constants in WinBase.h.
+// Use two's-complement DWORD encodings for Zig's unsigned handle argument.
+const STD_INPUT_HANDLE: windows.DWORD = 0xFFFF_FFF6;
+const STD_OUTPUT_HANDLE: windows.DWORD = 0xFFFF_FFF5;
+
 // libc imports for cross-platform compatibility (Zig 0.16)
 // Not available on freestanding/WASM targets
 const libc = if (builtin.os.tag != .freestanding and
@@ -996,7 +1001,7 @@ pub fn isatty() bool {
     if (comptime is_wasm) return false;
 
     if (comptime builtin.os.tag == .windows) {
-        const handle = WindowsKernel32.GetStdHandle(windows.STD_INPUT_HANDLE) orelse return false;
+        const handle = WindowsKernel32.GetStdHandle(STD_INPUT_HANDLE) orelse return false;
         var mode: windows.DWORD = 0;
         return WindowsKernel32.GetConsoleMode(handle, &mode) != 0;
     }
@@ -1013,7 +1018,7 @@ pub fn isattyStdout() bool {
     if (comptime is_wasm) return false;
 
     if (comptime builtin.os.tag == .windows) {
-        const handle = WindowsKernel32.GetStdHandle(windows.STD_OUTPUT_HANDLE) orelse return false;
+        const handle = WindowsKernel32.GetStdHandle(STD_OUTPUT_HANDLE) orelse return false;
         var mode: windows.DWORD = 0;
         return WindowsKernel32.GetConsoleMode(handle, &mode) != 0;
     }

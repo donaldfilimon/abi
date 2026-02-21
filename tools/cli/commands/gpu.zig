@@ -3,6 +3,9 @@
 const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
+const gpu_detect = abi.gpu.backends.detect;
+const gpu_listing = abi.gpu.backends.listing;
+const gpu_meta = abi.gpu.backends.meta;
 
 fn runBackends(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
     _ = parser;
@@ -56,14 +59,14 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
 /// Print a short GPU summary for system-info.
 pub fn printSummary(allocator: std.mem.Allocator) !void {
-    const summary = abi.gpu.summary();
+    const summary = gpu_listing.summary();
     if (!summary.module_enabled) {
         std.debug.print("  GPU Backends: disabled\n", .{});
         std.debug.print("  GPU Devices: 0\n", .{});
         return;
     }
 
-    const backends = try abi.gpu.availableBackends(allocator);
+    const backends = try gpu_detect.availableBackends(allocator);
     defer allocator.free(backends);
 
     std.debug.print("  GPU Backends: ", .{});
@@ -72,7 +75,7 @@ pub fn printSummary(allocator: std.mem.Allocator) !void {
     } else {
         for (backends, 0..) |backend, i| {
             if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}", .{abi.gpu.backendName(backend)});
+            std.debug.print("{s}", .{gpu_meta.backendName(backend)});
         }
         std.debug.print("\n", .{});
     }
@@ -107,10 +110,10 @@ fn printHelp(allocator: std.mem.Allocator) void {
 }
 
 fn printBackends(allocator: std.mem.Allocator) !void {
-    const infos = try abi.gpu.listBackendInfo(allocator);
+    const infos = try gpu_listing.listBackendInfo(allocator);
     defer allocator.free(infos);
 
-    if (!abi.gpu.moduleEnabled()) {
+    if (!gpu_detect.moduleEnabled()) {
         utils.output.printWarning("GPU support disabled at build time.", .{});
     }
 
@@ -152,20 +155,20 @@ fn printBackends(allocator: std.mem.Allocator) !void {
             );
         }
     }
-    if (abi.gpu.moduleEnabled()) {
+    if (gpu_detect.moduleEnabled()) {
         std.debug.print("\n  Simulated is always available as a fallback when no hardware backend is detected.\n", .{});
     }
 }
 
 fn printSummaryCommand(allocator: std.mem.Allocator) !void {
-    const summary = abi.gpu.summary();
+    const summary = gpu_listing.summary();
     utils.output.printHeader("GPU Summary");
     if (!summary.module_enabled) {
         utils.output.printWarning("Status: disabled", .{});
         return;
     }
 
-    const backends = try abi.gpu.availableBackends(allocator);
+    const backends = try gpu_detect.availableBackends(allocator);
     defer allocator.free(backends);
 
     std.debug.print("  Backends: ", .{});
@@ -174,7 +177,7 @@ fn printSummaryCommand(allocator: std.mem.Allocator) !void {
     } else {
         for (backends, 0..) |backend, i| {
             if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}", .{abi.gpu.backendName(backend)});
+            std.debug.print("{s}", .{gpu_meta.backendName(backend)});
         }
         std.debug.print("\n", .{});
     }
@@ -186,12 +189,12 @@ fn printSummaryCommand(allocator: std.mem.Allocator) !void {
 }
 
 fn printDevices(allocator: std.mem.Allocator) !void {
-    if (!abi.gpu.moduleEnabled()) {
+    if (!gpu_detect.moduleEnabled()) {
         utils.output.printWarning("GPU Devices: disabled (build without -Denable-gpu)", .{});
         return;
     }
 
-    const devices = try abi.gpu.listDevices(allocator);
+    const devices = try gpu_listing.listDevices(allocator);
     defer allocator.free(devices);
 
     if (devices.len == 0) {
@@ -208,7 +211,7 @@ fn printDevices(allocator: std.mem.Allocator) !void {
                 .{
                     device.id,
                     device.name,
-                    abi.gpu.backendName(device.backend),
+                    gpu_meta.backendName(device.backend),
                     memory,
                     emulated_suffix,
                 },
@@ -216,7 +219,7 @@ fn printDevices(allocator: std.mem.Allocator) !void {
         } else {
             std.debug.print(
                 "  #{d} {s} ({s}){s}\n",
-                .{ device.id, device.name, abi.gpu.backendName(device.backend), emulated_suffix },
+                .{ device.id, device.name, gpu_meta.backendName(device.backend), emulated_suffix },
             );
         }
         const caps = device.capability;
@@ -240,12 +243,12 @@ fn printDevices(allocator: std.mem.Allocator) !void {
 }
 
 fn printDefaultDevice(allocator: std.mem.Allocator) !void {
-    if (!abi.gpu.moduleEnabled()) {
+    if (!gpu_detect.moduleEnabled()) {
         std.debug.print("GPU default device: disabled (build without -Denable-gpu)\n", .{});
         return;
     }
 
-    const device = try abi.gpu.defaultDevice(allocator);
+    const device = try gpu_listing.defaultDevice(allocator);
     if (device == null) {
         std.debug.print("GPU default device: none\n", .{});
         return;
@@ -259,7 +262,7 @@ fn printDefaultDevice(allocator: std.mem.Allocator) !void {
             .{
                 selected.id,
                 selected.name,
-                abi.gpu.backendName(selected.backend),
+                gpu_meta.backendName(selected.backend),
                 memory,
                 emulated_suffix,
             },
@@ -267,20 +270,20 @@ fn printDefaultDevice(allocator: std.mem.Allocator) !void {
     } else {
         std.debug.print(
             "GPU default device: #{d} {s} ({s}){s}\n",
-            .{ selected.id, selected.name, abi.gpu.backendName(selected.backend), emulated_suffix },
+            .{ selected.id, selected.name, gpu_meta.backendName(selected.backend), emulated_suffix },
         );
     }
 }
 
 fn printStatus(allocator: std.mem.Allocator) !void {
-    if (!abi.gpu.moduleEnabled()) {
+    if (!gpu_detect.moduleEnabled()) {
         utils.output.printWarning("GPU status: disabled (build without -Denable-gpu)", .{});
         return;
     }
 
     try abi.gpu.ensureInitialized(allocator);
 
-    const backends = try abi.gpu.availableBackends(allocator);
+    const backends = try gpu_detect.availableBackends(allocator);
     defer allocator.free(backends);
 
     utils.output.printHeader("GPU Status");
@@ -291,7 +294,7 @@ fn printStatus(allocator: std.mem.Allocator) !void {
     }
 
     for (backends) |backend| {
-        const backend_name = abi.gpu.backendName(backend);
+        const backend_name = gpu_meta.backendName(backend);
         const backend_enabled = abi.gpu.isEnabled(backend);
 
         if (!backend_enabled) {
@@ -299,7 +302,7 @@ fn printStatus(allocator: std.mem.Allocator) !void {
             continue;
         }
 
-        const devices = try abi.gpu.listDevices(allocator);
+        const devices = try gpu_listing.listDevices(allocator);
         defer allocator.free(devices);
 
         const backend_devices_count = blk: {

@@ -82,12 +82,12 @@ fn generateSource(
             defer gen.deinit();
             break :blk try gen.generate(ir);
         },
-        .stdgpu => blk: {
+        .stdgpu, .simulated => blk: {
             // stdgpu uses GLSL-like format
             var gen = generic.GlslGenerator.init(allocator);
             defer gen.deinit();
             var result = try gen.generate(ir);
-            result.backend = .stdgpu;
+            result.backend = target;
             break :blk result;
         },
         .webgl2 => return CompileError.UnsupportedBackend,
@@ -100,7 +100,6 @@ fn generateSource(
             break :blk result;
         },
         .tpu => return CompileError.UnsupportedBackend,
-        .simulated => return CompileError.UnsupportedBackend,
     };
 }
 

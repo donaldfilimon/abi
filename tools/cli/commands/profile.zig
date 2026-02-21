@@ -742,28 +742,71 @@ fn handleApiKey(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !vo
         return;
     };
 
+    if (utils.args.matchesAny(action, &[_][]const u8{ "help", "--help", "-h" })) {
+        printApiKeyHelp();
+        return;
+    }
+
     if (std.mem.eql(u8, action, "set")) {
+        if (parser.wantsHelp()) {
+            printApiKeyHelp();
+            return;
+        }
         const provider = parser.next() orelse {
             utils.output.printError("Usage: abi profile api-key set <provider> <key>", .{});
             return;
         };
+        if (utils.args.matchesAny(provider, &[_][]const u8{ "help", "--help", "-h" })) {
+            printApiKeyHelp();
+            return;
+        }
         const key = parser.next() orelse {
             utils.output.printError("Usage: abi profile api-key set <provider> <key>", .{});
             return;
         };
         try setApiKey(allocator, provider, key);
     } else if (std.mem.eql(u8, action, "remove")) {
+        if (parser.wantsHelp()) {
+            printApiKeyHelp();
+            return;
+        }
         const provider = parser.next() orelse {
             utils.output.printError("Usage: abi profile api-key remove <provider>", .{});
             return;
         };
+        if (utils.args.matchesAny(provider, &[_][]const u8{ "help", "--help", "-h" })) {
+            printApiKeyHelp();
+            return;
+        }
         try removeApiKey(allocator, provider);
     } else if (std.mem.eql(u8, action, "list")) {
+        if (parser.wantsHelp()) {
+            printApiKeyHelp();
+            return;
+        }
         try showApiKeyStatus(allocator);
     } else {
         utils.output.printError("Unknown api-key action: {s}", .{action});
-        utils.output.printInfo("Actions: set, remove, list", .{});
+        printApiKeyHelp();
     }
+}
+
+fn printApiKeyHelp() void {
+    std.debug.print(
+        \\Usage: abi profile api-key [action] [options]
+        \\
+        \\Actions:
+        \\  set <provider> <key>      Print instructions to set provider key
+        \\  remove <provider>         Print instructions to remove provider key
+        \\  list                      List configured key status
+        \\
+        \\Examples:
+        \\  abi profile api-key
+        \\  abi profile api-key list
+        \\  abi profile api-key set openai sk-...
+        \\  abi profile api-key remove openai
+        \\
+    , .{});
 }
 
 fn showApiKeyStatus(allocator: std.mem.Allocator) !void {

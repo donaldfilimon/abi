@@ -8,6 +8,8 @@
 //! VTable backend implementation.
 
 const std = @import("std");
+const builtin = @import("builtin");
+const vulkan_caps = @import("vulkan/capabilities.zig");
 
 // Re-export extracted type definitions for build discovery
 pub const vulkan_types = @import("vulkan_types.zig");
@@ -177,6 +179,11 @@ pub const KernelConfig = vulkan_types.KernelConfig;
 pub var vulkan_lib: ?std.DynLib = null;
 pub var vulkan_initialized: bool = false;
 pub var vulkan_context: ?VulkanContext = null;
+pub var detected_api_version_raw: u32 = vulkan_caps.encodeApiVersion(.{
+    .major = 1,
+    .minor = 0,
+    .patch = 0,
+});
 
 // Global function pointers
 pub var vkCreateInstance: ?VkCreateInstanceFn = null;
@@ -250,6 +257,17 @@ fn tryLoadVulkanLibrary() bool {
 fn loadGlobalFunctions() bool {
     if (vulkan_lib == null) return false;
     var lib = vulkan_lib.?;
+
+    if (vulkan_caps.queryLoaderApiVersion(&lib)) |api_version| {
+        detected_api_version_raw = api_version;
+    } else {
+        // Vulkan 1.0 loader does not export vkEnumerateInstanceVersion.
+        detected_api_version_raw = vulkan_caps.encodeApiVersion(.{
+            .major = 1,
+            .minor = 0,
+            .patch = 0,
+        });
+    }
 
     vkCreateInstance = lib.lookup(VkCreateInstanceFn, "vkCreateInstance") orelse return false;
     vkEnumerateInstanceLayerProperties = lib.lookup(VkEnumerateInstanceLayerPropertiesFn, "vkEnumerateInstanceLayerProperties");
@@ -332,10 +350,20 @@ pub fn initVulkanGlobal(allocator: std.mem.Allocator) VulkanError!void {
         return VulkanError.InitializationFailed;
     }
 
+    if (!vulkan_caps.meetsTargetMinimum(builtin.target.os.tag, detected_api_version_raw)) {
+        const detected = vulkan_caps.decodeApiVersion(detected_api_version_raw);
+        const required = vulkan_caps.minimumVersionForTarget(builtin.target.os.tag);
+        std.log.warn(
+            "Vulkan backend requires >= {}.{} for this target (detected {}.{})",
+            .{ required.major, required.minor, detected.major, detected.minor },
+        );
+        return VulkanError.VersionNotSupported;
+    }
+
     // Create Instance
     const app_info = VkApplicationInfo{
         .pApplicationName = "ABI Compute",
-        .apiVersion = 0x00400000, // Vulkan 1.0
+        .apiVersion = detected_api_version_raw,
     };
 
     const create_info = VkInstanceCreateInfo{
@@ -443,6 +471,11 @@ pub fn deinit() void {
 
     vulkan_context = null;
     vulkan_initialized = false;
+    detected_api_version_raw = vulkan_caps.encodeApiVersion(.{
+        .major = 1,
+        .minor = 0,
+        .patch = 0,
+    });
     if (vulkan_lib != null) {
         var lib = vulkan_lib.?;
         lib.close();
@@ -928,7 +961,19 @@ pub fn isVulkanAvailable() bool {
     if (vulkan_lib == null) {
         _ = tryLoadVulkanLibrary();
     }
-    return vulkan_lib != null;
+    if (vulkan_lib == null) return false;
+
+    var lib = vulkan_lib.?;
+    if (vulkan_caps.queryLoaderApiVersion(&lib)) |api_version| {
+        return vulkan_caps.meetsTargetMinimum(builtin.target.os.tag, api_version);
+    }
+    // If version function is absent we assume Vulkan 1.0.
+    const fallback = vulkan_caps.encodeApiVersion(.{ .major = 1, .minor = 0, .patch = 0 });
+    return vulkan_caps.meetsTargetMinimum(builtin.target.os.tag, fallback);
+}
+
+pub fn getDetectedApiVersion() vulkan_caps.VulkanVersion {
+    return vulkan_caps.decodeApiVersion(detected_api_version_raw);
 }
 
 // ============================================================================
@@ -1010,5 +1055,6 @@ pub const createVulkanVTable = vulkan_vtable.createVulkanVTable;
 
 test {
     _ = @import("vulkan_types.zig");
+    _ = @import("vulkan/capabilities.zig");
     _ = @import("vulkan_test.zig");
 }

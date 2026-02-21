@@ -172,18 +172,6 @@ pub const isVulkanSupported = platform_mod.isVulkanSupported;
 pub const isWebGpuSupported = platform_mod.isWebGpuSupported;
 pub const platformDescription = platform_mod.platformDescription;
 
-pub const BackendFactory = backend_factory_mod.BackendFactory;
-pub const BackendInstance = backend_factory_mod.BackendInstance;
-pub const BackendFeature = backend_factory_mod.BackendFeature;
-pub const createBackend = backend_factory_mod.createBackend;
-pub const createBestBackend = backend_factory_mod.createBestBackend;
-pub const destroyBackend = backend_factory_mod.destroyBackend;
-
-pub const KernelDispatcher = dispatcher_mod.KernelDispatcher;
-pub const DispatchError = dispatcher_mod.DispatchError;
-pub const CompiledKernelHandle = dispatcher_mod.CompiledKernelHandle;
-pub const KernelArgs = dispatcher_mod.KernelArgs;
-
 pub const DiagnosticsInfo = diagnostics_mod.DiagnosticsInfo;
 pub const ErrorContext = diagnostics_mod.ErrorContext;
 pub const GpuErrorCode = diagnostics_mod.GpuErrorCode;
@@ -261,8 +249,101 @@ pub const multi_device = misc.multi_device;
 pub const peer_transfer = misc.peer_transfer;
 pub const mega = misc.mega;
 pub const platform = platform_mod;
-pub const backend_factory = backend_factory_mod;
-pub const dispatcher = dispatcher_mod;
+pub const dispatch = dispatcher_mod;
+
+// Namespaced GPU API surface (hard API cutover)
+pub const backends = struct {
+    pub const types = struct {
+        pub const Backend = @import("backend.zig").Backend;
+        pub const DetectionLevel = @import("backend.zig").DetectionLevel;
+        pub const BackendAvailability = @import("backend.zig").BackendAvailability;
+        pub const BackendInfo = @import("backend.zig").BackendInfo;
+        pub const DeviceCapability = @import("backend.zig").DeviceCapability;
+        pub const DeviceInfo = @import("backend.zig").DeviceInfo;
+        pub const Summary = @import("backend.zig").Summary;
+    };
+
+    pub const detect = struct {
+        pub fn moduleEnabled() bool {
+            return false;
+        }
+
+        pub fn isEnabled(_: types.Backend) bool {
+            return false;
+        }
+
+        pub fn backendAvailability(_: types.Backend) types.BackendAvailability {
+            return .{ .enabled = false, .available = false, .reason = "gpu module disabled", .device_count = 0, .level = .none };
+        }
+
+        pub fn availableBackends(_: std.mem.Allocator) Error![]types.Backend {
+            return error.GpuDisabled;
+        }
+    };
+
+    pub const meta = struct {
+        pub fn backendName(_: types.Backend) []const u8 {
+            return "disabled";
+        }
+
+        pub fn backendDisplayName(_: types.Backend) []const u8 {
+            return "GPU Disabled";
+        }
+
+        pub fn backendDescription(_: types.Backend) []const u8 {
+            return "GPU feature is disabled at compile time";
+        }
+
+        pub fn backendFromString(_: []const u8) ?types.Backend {
+            return null;
+        }
+
+        pub fn backendSupportsKernels(_: types.Backend) bool {
+            return false;
+        }
+
+        pub fn backendFlag(_: types.Backend) []const u8 {
+            return "disabled";
+        }
+    };
+
+    pub const listing = struct {
+        pub fn listBackendInfo(_: std.mem.Allocator) Error![]types.BackendInfo {
+            return error.GpuDisabled;
+        }
+
+        pub fn listDevices(_: std.mem.Allocator) Error![]types.DeviceInfo {
+            return error.GpuDisabled;
+        }
+
+        pub fn defaultDevice(_: std.mem.Allocator) !?types.DeviceInfo {
+            return null;
+        }
+
+        pub fn defaultDeviceLabel() []const u8 {
+            return "disabled";
+        }
+
+        pub fn summary() types.Summary {
+            return .{
+                .module_enabled = false,
+                .enabled_backend_count = 0,
+                .available_backend_count = 0,
+                .device_count = 0,
+                .emulated_devices = 0,
+            };
+        }
+    };
+
+    pub const libs = struct {};
+    pub const registry = struct {};
+    pub const pool = struct {};
+};
+pub const devices = device;
+pub const runtime = struct {};
+pub const policy = struct {};
+pub const multi = multi_gpu;
+pub const factory = backend_factory_mod;
 
 // ── Lock-free memory pool ──────────────────────────────────────────────────
 
@@ -491,68 +572,15 @@ pub fn deinit() void {}
 pub fn ensureInitialized(_: std.mem.Allocator) Error!void {
     return error.GpuDisabled;
 }
-pub fn isGpuAvailable() bool {
-    return false;
-}
-pub fn getAvailableBackends() []const Backend {
-    return &.{};
-}
-pub fn availableBackends(_: std.mem.Allocator) Error![]Backend {
-    return error.GpuDisabled;
-}
-pub fn getBestBackend() Backend {
-    return .stdgpu;
-}
-pub fn listBackendInfo(_: std.mem.Allocator) Error![]BackendInfo {
-    return error.GpuDisabled;
-}
-pub fn listDevices(_: std.mem.Allocator) Error![]DeviceInfo {
-    return error.GpuDisabled;
-}
-pub fn defaultDevice(_: std.mem.Allocator) !?DeviceInfo {
-    return null;
-}
 pub fn discoverDevices(_: std.mem.Allocator) Error![]Device {
     return error.GpuDisabled;
 }
-pub fn backendName(_: Backend) []const u8 {
-    return "disabled";
-}
-pub fn backendDisplayName(_: Backend) []const u8 {
-    return "GPU Disabled";
-}
-pub fn backendDescription(_: Backend) []const u8 {
-    return "GPU feature is disabled at compile time";
-}
-pub fn backendFromString(_: []const u8) ?Backend {
-    return null;
-}
-pub fn backendSupportsKernels(_: Backend) bool {
-    return false;
-}
-pub fn backendFlag(_: Backend) []const u8 {
-    return "disabled";
-}
-pub fn defaultDeviceLabel() []const u8 {
-    return "disabled";
-}
 pub fn getBestKernelBackend() Backend {
     return .stdgpu;
-}
-pub fn moduleEnabled() bool {
-    return false;
 }
 pub fn createDefaultKernels(_: std.mem.Allocator) Error!void {
     return error.GpuDisabled;
 }
 pub fn compileKernel(_: KernelSource, _: KernelConfig) Error!CompiledKernel {
     return error.GpuDisabled;
-}
-
-pub fn backendAvailability(_: Backend) BackendAvailability {
-    return .{ .enabled = false, .available = false, .reason = "gpu module disabled", .device_count = 0, .level = .none };
-}
-
-pub fn summary() Summary {
-    return .{ .module_enabled = false, .enabled_backend_count = 0, .available_backend_count = 0, .device_count = 0, .emulated_devices = 0 };
 }
