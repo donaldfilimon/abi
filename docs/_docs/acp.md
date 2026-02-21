@@ -240,3 +240,6 @@ zig build run -- acp serve --port 8080 # Start on specific port
 - [AI Core](ai-core.html) -- Agent framework with multi-agent coordination
 - [Connectors](connectors.html) -- LLM providers for agent task execution
 - [Deployment](deployment.html) -- Running ACP in production with health checks
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

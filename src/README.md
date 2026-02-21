@@ -150,3 +150,6 @@ All 21 features default to `true` except `enable_mobile`. Validate combinations:
 - [CLAUDE.md](../CLAUDE.md) — Build commands, gotchas, architecture guide
 - [AGENTS.md](../AGENTS.md) — Agent instructions, v2 notes, style guide
 - [API Reference](../docs/api/index.md) — Auto-generated (`abi gendocs` or `zig build gendocs`)
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

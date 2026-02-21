@@ -103,7 +103,7 @@ zvm use "$PINNED_ZIG"
 which zig
 zig version
 cat .zigversion
-bash scripts/toolchain_doctor.sh
+zig run tools/scripts/toolchain_doctor.zig
 
 # If needed, fix shell precedence:
 export PATH="$HOME/.zvm/bin:$PATH"
@@ -126,8 +126,8 @@ zig build examples                           # Build all examples
 zig build check-wasm                         # Check WASM compilation
 zig build verify-all                         # full-check + consistency + examples + check-wasm
 zig build ralph-gate                         # Require live Ralph report and threshold pass
-scripts/check_zig_version_consistency.sh     # Verify .zigversion matches build.zig/docs
-bash scripts/toolchain_doctor.sh             # Diagnose PATH precedence and active zig mismatch
+tools/scripts/check_zig_version_consistency.zig     # Verify .zigversion matches build.zig/docs
+zig run tools/scripts/toolchain_doctor.zig             # Diagnose PATH precedence and active zig mismatch
 zig std                                     # Print stdlib source path (useful for reading std lib internals)
 ```
 
@@ -511,7 +511,7 @@ Use this section to find rules, skills, execution plans, and agent definitions. 
 |--------|-----|
 | **This session (Cursor/Claude)** | CLAUDE.md, `.claude/rules/zig.md`. Edit, build, test; suggest `/baseline-sync` or `/zig-migrate` when relevant. |
 | **Ralph iterative loop** | User runs `abi ralph run` or `abi ralph improve`; skills live in Abbey memory (`.ralph/`). You do not drive that loop unless asked. |
-| **Codex / external runner** | Same baselines; `scripts/project_baseline.env` is source of truth. |
+| **Codex / external runner** | Same baselines; `tools/scripts/baseline.zig` is source of truth. |
 
 ### Rules (auto-loaded)
 
@@ -523,7 +523,7 @@ Use this section to find rules, skills, execution plans, and agent definitions. 
 
 | Skill | Invocation | Purpose |
 |-------|------------|---------|
-| **baseline-sync** | `/baseline-sync` | Sync test baseline numbers from `scripts/project_baseline.env` to doc files. Run after test count changes. See `.claude/skills/baseline-sync/SKILL.md`. |
+| **baseline-sync** | `/baseline-sync` | Sync test baseline numbers from `tools/scripts/baseline.zig` to doc files. Run after test count changes. See `.claude/skills/baseline-sync/SKILL.md`. |
 | **zig-migrate** | `/zig-migrate [file-or-dir]` | Apply Zig 0.16 migration patterns (DynLib, I/O backend, format specifiers, etc.). See `.claude/skills/zig-migrate/SKILL.md`. |
 | **super-ralph** | `/super-ralph` or suggest | Run or suggest Ralph: `abi ralph super --task "..."` (init-if-needed, run, optional `--gate`/`--auto-skill`); multi-Ralph via `abi.ai.abbey.ralph_multi`. See `.claude/skills/super-ralph/SKILL.md` and [Super Ralph (power use)](#super-ralph-power-use). |
 
@@ -531,14 +531,14 @@ Skill index: `.claude/skills/README.md` (if present) or list `ls .claude/skills/
 
 ### CI quality gate scripts (reference)
 
-See table in [CI Quality Gate Scripts](#ci-quality-gate-scripts) below. Key: `scripts/check_test_baseline_consistency.sh`, `scripts/project_baseline.env`, `zig build full-check`, `zig build validate-flags`.
+See table in [CI Quality Gate Scripts](#ci-quality-gate-scripts) below. Key: `tools/scripts/check_test_baseline_consistency.zig`, `tools/scripts/baseline.zig`, `zig build full-check`, `zig build validate-flags`.
 
 ### Ready for use — checklist
 
 | Check | Action |
 |-------|--------|
 | **Entry** | Use this file (CLAUDE.md) as single entry; open [Skills, Plans, and Agents](#skills-plans-and-agents-full-index) for rules, skills, plans, agents. |
-| **Baseline** | Source of truth: `scripts/project_baseline.env`. After test count changes run `/baseline-sync`. |
+| **Baseline** | Source of truth: `tools/scripts/baseline.zig`. After test count changes run `/baseline-sync`. |
 | **Gate** | Before claiming done: `zig build full-check`. |
 | **Ralph** | You are outside the loop unless the user runs `abi ralph run`; do not drive the loop from this session. |
 
@@ -564,22 +564,25 @@ Beyond `zig build full-check`, these scripts enforce additional invariants:
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/check_test_baseline_consistency.sh` | Verify baseline numbers match across all 10+ doc files |
-| `scripts/check_zig_version_consistency.sh` | Verify `.zigversion` matches `build.zig` and docs |
-| `scripts/check_zig_016_patterns.sh` | Scan for deprecated Zig pre-0.16 patterns |
-| `scripts/check_feature_catalog_consistency.sh` | Verify feature catalog matches build options |
-| `scripts/check_import_rules.sh` | Enforce import conventions (no circular `@import("abi")` in features) |
-| `scripts/toolchain_doctor.sh` | Diagnose PATH precedence and active zig mismatch |
+| `tools/scripts/check_test_baseline_consistency.zig` | Verify baseline numbers match across all 10+ doc files |
+| `tools/scripts/check_zig_version_consistency.zig` | Verify `.zigversion` matches `build.zig` and docs |
+| `tools/scripts/check_zig_016_patterns.zig` | Scan for deprecated Zig pre-0.16 patterns |
+| `tools/scripts/check_feature_catalog.zig` | Verify feature catalog matches build options |
+| `tools/scripts/check_import_rules.zig` | Enforce import conventions (no circular `@import("abi")` in features) |
+| `tools/scripts/toolchain_doctor.zig` | Diagnose PATH precedence and active zig mismatch |
 
 ### Updating Test Baselines
 
-When test counts change, update `scripts/project_baseline.env` (source of truth), then run
+When test counts change, update `tools/scripts/baseline.zig` (source of truth), then run
 `/baseline-sync` or manually update files listed in `.claude/skills/baseline-sync/SKILL.md`.
-Verify with `bash scripts/check_test_baseline_consistency.sh`.
+Verify with `zig run tools/scripts/check_test_baseline_consistency.zig`.
 
 ## References
 
 - `CONTRIBUTING.md` — Development workflow and PR checklist
 - `.claude/rules/zig.md` — Zig 0.16 complete gotchas table (auto-loaded for `.zig` files)
 - `.claude/skills/` — Custom skills (baseline-sync, zig-migrate); see [Skills, Plans, and Agents](#skills-plans-and-agents-full-index)
-- `scripts/project_baseline.env` — Canonical test baseline (source of truth for CI checks)
+- `tools/scripts/baseline.zig` — Canonical test baseline (source of truth for CI checks)
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

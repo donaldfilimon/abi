@@ -314,3 +314,6 @@ defer fw.deinit();
 - [Architecture](architecture.html) -- module hierarchy and comptime gating
 - [Configuration](configuration.html) -- all build flags, environment variables, and config types
 - [CLI](cli.html) -- `config init`, `config show`, `config validate` commands
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

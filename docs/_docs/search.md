@@ -242,3 +242,6 @@ for a complete working example.
 - [Cache](cache.html) -- Cache search results for repeated queries
 - [Storage](storage.html) -- Persistent object storage for documents
 - [Architecture](architecture.html) -- Comptime feature gating pattern
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

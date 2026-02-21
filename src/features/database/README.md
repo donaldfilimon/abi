@@ -67,3 +67,6 @@
 //!
 //! - [Database Documentation](../../docs/_docs/database.md)
 //! - [API Reference](../../docs/api/)
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

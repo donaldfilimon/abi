@@ -268,3 +268,6 @@ This runs both top-level commands (e.g., `help`) and nested subcommands
 - [Configuration](configuration.html) -- build flags and environment variables used by CLI commands
 - [Framework Lifecycle](framework.html) -- how `config init` and `config validate` interact with the framework
 - [Getting Started](getting-started.html) -- first CLI commands to try
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

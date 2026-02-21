@@ -177,3 +177,6 @@ signatures so downstream code compiles without conditional guards.
 - [Network](network.html) -- Distributed compute and node management
 - [Gateway](gateway.html) -- API gateway with routing and rate limiting
 - [Web](web.html) -- HTTP client utilities
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

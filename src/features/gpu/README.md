@@ -60,3 +60,6 @@ _ = try gpu.vectorAdd(a, b, result);
 - [API Reference](../../docs/api/)
 - [CLAUDE.md](../../../CLAUDE.md) — GPU backends and feature flags
 
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

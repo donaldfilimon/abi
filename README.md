@@ -99,7 +99,7 @@ cat .zigversion
 
 # Diagnose PATH/version drift (recommended before running quality gates)
 zig build toolchain-doctor
-bash scripts/toolchain_doctor.sh
+zig run tools/scripts/toolchain_doctor.zig
 
 # If `which zig` is not ~/.zvm/bin/zig, fix PATH precedence first:
 export PATH="$HOME/.zvm/bin:$PATH"
@@ -591,3 +591,6 @@ MIT License - See [LICENSE](LICENSE) for details.
 **Built with Zig**
 
 </div>
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

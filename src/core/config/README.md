@@ -228,3 +228,6 @@ pub fn main() !void {
 
 - [CLAUDE.md](../../../CLAUDE.md) — Feature flags and GPU backends
 - [loader.zig](loader.zig) — Full list of environment variables
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

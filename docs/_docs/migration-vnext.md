@@ -212,3 +212,6 @@ two methods: `stop()` (no arguments, for `defer app.stop()`) and
 - [Framework Lifecycle](framework.html) -- current initialization patterns (0.4.0)
 - [Architecture](architecture.html) -- module hierarchy (unchanged in vNext)
 - [Configuration](configuration.html) -- build flags and environment variables (unchanged)
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

@@ -287,3 +287,6 @@ signatures so downstream code compiles without conditional guards.
 - [Gateway](gateway.html) -- API gateway with routing and rate limiting
 - [Messaging](messaging.html) -- Pub/sub event bus
 - [Cloud](cloud.html) -- Serverless cloud function adapters
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

@@ -224,3 +224,6 @@ value means that feature uses its defaults or is not explicitly configured.
 - [Architecture](architecture.html) -- module hierarchy and comptime gating
 - [Framework Lifecycle](framework.html) -- init patterns, state machine, builder details
 - [CLI](cli.html) -- runtime configuration commands (`config init`, `config show`, `config validate`)
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

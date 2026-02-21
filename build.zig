@@ -143,42 +143,118 @@ pub fn build(b: *std.Build) void {
     const validate_flags_step = flags.addFlagValidation(b, target, optimize);
 
     // ── Import rule check ────────────────────────────────────────────────
-    const import_check = b.addSystemCommand(&.{ "bash", "scripts/check_import_rules.sh" });
     const import_check_step = b.step("check-imports", "Verify no @import(\"abi\") in feature modules");
+    const import_check_exe = b.addExecutable(.{
+        .name = "abi-check-import-rules",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/check_import_rules.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    const import_check = b.addRunArtifact(import_check_exe);
     import_check_step.dependOn(&import_check.step);
 
     // ── Consistency checks ───────────────────────────────────────────────
-    const toolchain_doctor = b.addSystemCommand(&.{ "bash", "scripts/toolchain_doctor.sh" });
     const toolchain_doctor_step = b.step(
         "toolchain-doctor",
         "Diagnose local Zig PATH/version drift against repository pin",
     );
+    const toolchain_doctor_exe = b.addExecutable(.{
+        .name = "abi-toolchain-doctor",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/toolchain_doctor.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    const toolchain_doctor = b.addRunArtifact(toolchain_doctor_exe);
     toolchain_doctor_step.dependOn(&toolchain_doctor.step);
 
-    const check_versions = b.addSystemCommand(&.{ "bash", "scripts/check_zig_version_consistency.sh" });
-    const check_baselines = b.addSystemCommand(&.{ "bash", "scripts/check_test_baseline_consistency.sh" });
-    const check_patterns = b.addSystemCommand(&.{ "bash", "scripts/check_zig_016_patterns.sh" });
-    const check_features = b.addSystemCommand(&.{ "bash", "scripts/check_feature_catalog.sh" });
-    const check_ralph = b.addSystemCommand(&.{ "bash", "scripts/check_ralph_gate.sh" });
     const consistency_step = b.step(
         "check-consistency",
         "Verify Zig version/baseline consistency and Zig 0.16 conformance patterns",
     );
+    const check_versions_exe = b.addExecutable(.{
+        .name = "abi-check-zig-version-consistency",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/check_zig_version_consistency.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    const check_versions = b.addRunArtifact(check_versions_exe);
     consistency_step.dependOn(&check_versions.step);
+
+    const check_baselines_exe = b.addExecutable(.{
+        .name = "abi-check-test-baseline-consistency",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/check_test_baseline_consistency.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    const check_baselines = b.addRunArtifact(check_baselines_exe);
     consistency_step.dependOn(&check_baselines.step);
+
+    const check_patterns_exe = b.addExecutable(.{
+        .name = "abi-check-zig-016-patterns",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/check_zig_016_patterns.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    const check_patterns = b.addRunArtifact(check_patterns_exe);
     consistency_step.dependOn(&check_patterns.step);
+
+    const check_features_exe = b.addExecutable(.{
+        .name = "abi-check-feature-catalog",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/check_feature_catalog.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    const check_features = b.addRunArtifact(check_features_exe);
     consistency_step.dependOn(&check_features.step);
 
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
+    const check_ralph_exe = b.addExecutable(.{
+        .name = "abi-check-ralph-gate",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/check_ralph_gate.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    const check_ralph = b.addRunArtifact(check_ralph_exe);
     ralph_gate_step.dependOn(&check_ralph.step);
 
     // ── Baseline validation ─────────────────────────────────────────────
-    const validate_baseline = b.addSystemCommand(&.{ "bash", "scripts/validate_test_counts.sh", "--main-only" });
-    if (test_step) |ts| validate_baseline.step.dependOn(ts);
     const validate_baseline_step = b.step(
         "validate-baseline",
-        "Run tests and verify counts match scripts/project_baseline.env",
+        "Run tests and verify counts match tools/scripts/baseline.zig",
     );
+    const validate_baseline_exe = b.addExecutable(.{
+        .name = "abi-validate-test-counts",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/scripts/validate_test_counts.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        }),
+    });
+    const validate_baseline = b.addRunArtifact(validate_baseline_exe);
+    validate_baseline.addArg("--main-only");
+    if (test_step) |ts| validate_baseline.step.dependOn(ts);
     validate_baseline_step.dependOn(&validate_baseline.step);
 
     // ── Full check ───────────────────────────────────────────────────────
@@ -187,10 +263,12 @@ pub fn build(b: *std.Build) void {
     if (test_step) |ts| full_check_step.dependOn(ts);
     full_check_step.dependOn(cli_tests_step);
     full_check_step.dependOn(validate_flags_step);
-    full_check_step.dependOn(&import_check.step);
+    full_check_step.dependOn(import_check_step);
     full_check_step.dependOn(consistency_step);
     if (vnext_compat_step) |step| full_check_step.dependOn(step);
-    if (feature_tests_step) |fts| full_check_step.dependOn(fts);
+    // Feature tests are intentionally excluded from full-check to keep the
+    // required local/CI gate responsive and deterministic. They remain part of
+    // the extended verify-all gate.
 
     // ── Documentation ────────────────────────────────────────────────────
     if (targets.pathExists(b, "tools/gendocs/main.zig")) {
@@ -289,9 +367,10 @@ pub fn build(b: *std.Build) void {
     const check_wasm_step = wasm.addWasmBuild(b, options, abi_module, optimize);
 
     // ── Verify-all ───────────────────────────────────────────────────────
-    const verify_all_step = b.step("verify-all", "full-check + consistency checks + examples + check-wasm");
+    const verify_all_step = b.step("verify-all", "full-check + consistency checks + feature-tests + examples + check-wasm");
     verify_all_step.dependOn(full_check_step);
     verify_all_step.dependOn(consistency_step);
+    if (feature_tests_step) |fts| verify_all_step.dependOn(fts);
     verify_all_step.dependOn(examples_step);
     if (check_wasm_step) |s| verify_all_step.dependOn(s);
 }

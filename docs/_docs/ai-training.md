@@ -308,3 +308,6 @@ signatures are preserved by the stub module.
 - [AI Core](ai-core.html) -- Agents, tools, prompts, personas
 - [Inference](ai-inference.html) -- LLM execution, embeddings, streaming
 - [Reasoning](ai-reasoning.html) -- Abbey engine, RAG, orchestration
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

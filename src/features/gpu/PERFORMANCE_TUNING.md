@@ -300,3 +300,5 @@ const optimal_config = try tuner.tune(kernel, problem_sizes, metrics);
 ```
 
 This guide provides a foundation for GPU performance optimization. Always profile your specific use case and iterate on optimizations based on measured performance improvements.
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

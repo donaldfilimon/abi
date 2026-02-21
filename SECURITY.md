@@ -91,3 +91,6 @@ The CLI is minimal by design; most deployments should embed ABI as a library.
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Maintainer contact information and development workflow
 - [AGENTS.md](AGENTS.md) - Baseline coding and testing conventions
 - [CLAUDE.md](CLAUDE.md) - Architectural context for coding agents
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

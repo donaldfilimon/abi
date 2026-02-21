@@ -175,7 +175,7 @@ zvm use master
 export PATH="$HOME/.zvm/bin:$PATH"
 
 # Or run the diagnostic script:
-bash scripts/toolchain_doctor.sh
+zig run tools/scripts/toolchain_doctor.zig
 ```
 
 ### "module not found" for `@import("abi")`
@@ -365,3 +365,6 @@ freed with `defer` or `errdefer`.
 - [Installation](installation.html) -- Setting up the Zig toolchain
 - [Configuration](configuration.html) -- Feature flags and build options
 - [Contributing](contributing.html) -- Development workflow and PR checklist
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

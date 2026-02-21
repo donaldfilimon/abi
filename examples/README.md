@@ -98,3 +98,6 @@ zig build run-hello             # Run a specific example
 - [Training Guide](training/README.md) — Detailed training pipeline documentation
 - [API Reference](../docs/api/) — Auto-generated API docs
 - [CLAUDE.md](../CLAUDE.md) — Build commands and architecture guide
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

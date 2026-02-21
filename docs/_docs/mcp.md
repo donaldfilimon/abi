@@ -244,3 +244,6 @@ zig build run -- mcp tools     # List registered MCP tools
 - [ACP Protocol](acp.html) -- HTTP-based agent communication (complementary to MCP)
 - [Connectors](connectors.html) -- LLM providers that agents can use via MCP
 - [Deployment](deployment.html) -- Running MCP server in production
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

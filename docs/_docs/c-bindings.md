@@ -289,3 +289,6 @@ zig build test --summary all
 - [API Overview](api.html) -- Full Zig API surface
 - [GPU Module](gpu.html) -- GPU backends and kernel DSL
 - [Troubleshooting](troubleshooting.html) -- Common errors and debugging
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

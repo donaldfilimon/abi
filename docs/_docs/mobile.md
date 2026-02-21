@@ -190,3 +190,6 @@ that the module is not available. The stub `Context.init()` also returns
 - [Cloud](cloud.html) -- Serverless cloud function adapters
 - [Web](web.html) -- HTTP client utilities
 - [Network](network.html) -- Distributed compute and node management
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

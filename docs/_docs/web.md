@@ -216,3 +216,6 @@ conditional guards.
 - [Pages](pages.html) -- Dashboard UI pages
 - [Cloud](cloud.html) -- Serverless cloud function adapters
 - [Network](network.html) -- Distributed compute and node management
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

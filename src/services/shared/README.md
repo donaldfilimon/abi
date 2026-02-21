@@ -55,3 +55,6 @@
 //! - [Logging](logging.zig)
 //! - [Platform](platform.zig)
 //! - [Utils](utils/README.md)
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

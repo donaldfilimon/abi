@@ -221,3 +221,6 @@ signatures so downstream code compiles without conditional guards.
 - [Pages](pages.html) -- Dashboard UI pages sharing the same radix tree router
 - [Network](network.html) -- Distributed compute and node management
 - [Web](web.html) -- HTTP client utilities and middleware
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

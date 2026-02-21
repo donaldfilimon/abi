@@ -176,3 +176,6 @@ return `"control"`.
 
 - [Observability](observability.html) -- System-level metrics and tracing (complementary to analytics)
 - [Benchmarks](benchmarks.html) -- Performance measurement tooling
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

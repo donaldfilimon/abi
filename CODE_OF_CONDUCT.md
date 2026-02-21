@@ -15,3 +15,6 @@ https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [SECURITY.md](SECURITY.md) - Security reporting
 - [Contributing](docs/_docs/contributing.md) - Maintainer contact information
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

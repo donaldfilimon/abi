@@ -197,3 +197,6 @@ cleanly regardless of the flag -- zero binary overhead when disabled.
 - [Analytics](analytics.html) -- User-facing event tracking (complementary)
 - [Benchmarks](benchmarks.html) -- Performance measurement with profiler integration
 - [Deployment](deployment.html) -- Production monitoring with Grafana/Prometheus/Jaeger
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

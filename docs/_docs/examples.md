@@ -153,3 +153,6 @@ zig build run-gpu -Denable-gpu=false
 - [API Overview](api.html) -- Public API surface and import patterns
 - [Configuration](configuration.html) -- Feature flags and build options
 - [GPU Module](gpu.html) -- GPU backends and kernel DSL
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

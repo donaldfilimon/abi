@@ -83,7 +83,7 @@ Make sure the version string matches what is in `.zigversion`.
 ABI includes a toolchain doctor script that checks for common setup issues:
 
 ```bash
-bash scripts/toolchain_doctor.sh
+zig run tools/scripts/toolchain_doctor.zig
 ```
 
 This script verifies:
@@ -105,7 +105,7 @@ To verify that `.zigversion`, `build.zig`, and documentation all reference the s
 Zig version:
 
 ```bash
-bash scripts/check_zig_version_consistency.sh
+zig run tools/scripts/check_zig_version_consistency.zig
 ```
 
 ## Cloning the Repository
@@ -208,3 +208,6 @@ xattr -d com.apple.quarantine $(which zig)
 - [Getting Started](getting-started.html) -- first build, first test, first example
 - [Architecture](architecture.html) -- understand the module hierarchy
 - [Configuration](configuration.html) -- all build flags and environment variables
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

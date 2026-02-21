@@ -36,7 +36,7 @@ Reusing this setup in **other projects:** copy `.claude/` and optionally `.curso
 | Format | `zig fmt .` |
 | CLI smoke test | `zig build cli-tests` |
 | Validate flags | `zig build validate-flags` |
-| Zig version check | `scripts/check_zig_version_consistency.sh` |
+| Zig version check | `zig run tools/scripts/check_zig_version_consistency.zig` |
 | Full check (gate) | `zig build full-check` |
 | Single-file test | `zig test src/path/to/file.zig` |
 
@@ -180,3 +180,6 @@ Do not open PRs for security vulnerabilities. See [SECURITY.md](SECURITY.md) for
   <a href="CLAUDE.md">Development Guide</a> •
   <a href="SECURITY.md">Security</a>
 </p>
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

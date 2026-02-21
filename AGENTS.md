@@ -5,7 +5,7 @@
 - `src/features/<name>/`: paired `mod.zig` + `stub.zig`; keep signatures aligned.
 - `src/core/`: lifecycle, config, registry; `src/services/`: shared runtime infrastructure.
 - `tools/cli/`: CLI framework (`main.zig`, `commands/`, `spec.zig`, `utils/`) and TUI framework (`tui/`).
-- `build/`: modular build graph; `docs/`, `examples/`, `scripts/`: docs, runnable samples, quality gates.
+- `build/`: modular build graph; `docs/`, `examples/`, `tools/scripts/`: docs, runnable samples, quality gates.
 - `src/services/tests/`: integration/system tests; unit tests should stay near the module.
 
 ## Build, Test, and Development Commands
@@ -36,7 +36,7 @@
 ## Testing, Commits, and PRs
 - Add tests for every behavior change.
 - If `mod.zig` changes, update sibling `stub.zig` and test `-Denable-<feature>=true/false`.
-- If test totals change, update `scripts/project_baseline.env` and run `zig build validate-baseline`.
+- If test totals change, update `tools/scripts/baseline.zig` and run `zig build validate-baseline`.
 - Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`.
 - Keep PRs focused and include motivation, linked issue(s), commands run (usually `zig build full-check`), and docs updates for API/CLI changes.
 
@@ -48,3 +48,6 @@
 ## Security & Configuration Tips
 - Do not commit secrets or local credentials.
 - Report vulnerabilities via `SECURITY.md` (avoid public exploit details in issues/PRs).
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

@@ -190,3 +190,6 @@ remain registered but report that the feature is disabled.
 
 - [Observability](observability.html) -- Profiler and metrics used by benchmarks
 - [Analytics](analytics.html) -- Event tracking for benchmark result reporting
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

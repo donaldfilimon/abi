@@ -430,3 +430,6 @@ disabled independently via their own flags.
 - [AI Core](ai-core.html) -- Agents, tools, prompts, personas
 - [Inference](ai-inference.html) -- LLM execution, embeddings, streaming
 - [Training](ai-training.html) -- Training pipelines, federated learning
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

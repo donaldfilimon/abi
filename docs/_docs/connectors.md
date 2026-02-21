@@ -274,3 +274,6 @@ shared.isServerError(503);       // true
 - [MCP Server](mcp.html) -- MCP tools that can leverage connectors
 - [Auth & Security](auth.html) -- API key management and rate limiting
 - [Deployment](deployment.html) -- Environment variable configuration for production
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

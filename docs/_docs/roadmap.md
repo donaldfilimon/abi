@@ -136,3 +136,6 @@ improvements -- are welcome.
 - [Architecture](architecture.html) -- Module hierarchy and design
 - [Configuration](configuration.html) -- Feature flags and build options
 - [Contributing](contributing.html) -- Development workflow
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

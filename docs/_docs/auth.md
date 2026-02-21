@@ -175,3 +175,6 @@ since they are always compiled as part of `services/shared/security/`.
 - [Connectors](connectors.html) -- LLM provider connectors use API key auth
 - [Deployment](deployment.html) -- Production secrets and `ABI_MASTER_KEY`
 - [Observability](observability.html) -- Security event metrics
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

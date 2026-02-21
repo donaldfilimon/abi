@@ -182,3 +182,6 @@ const queue = try runtime.MpmcQueue(Message).init(allocator, 1000);
 - **Result Caching**: Fast-path for previously computed results
 
 For GPU workload execution, use the `workload` types with custom vtables for backend-specific implementations.
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

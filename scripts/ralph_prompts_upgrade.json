@@ -1,7 +1,0 @@
-[
-  "Summarize ABI's staged vNext compatibility policy in 3 bullet points.",
-  "Given a Zig project pinned to .zigversion, explain deterministic local toolchain setup using zvm.",
-  "List three risks of feature-gated mod/stub drift and one compile-time mitigation per risk.",
-  "Describe how to validate behavior parity after splitting a monolithic framework module.",
-  "Provide a short migration mapping from legacy abi.Framework to abi.vnext.App concepts."
-]

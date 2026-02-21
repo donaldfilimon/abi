@@ -262,3 +262,6 @@ for a complete working example.
 - [Cache](cache.html) -- In-memory caching for query results
 - [GPU](gpu.html) -- GPU-accelerated distance calculations
 - [Storage](storage.html) -- Unified file/object storage
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

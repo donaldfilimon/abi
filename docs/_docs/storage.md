@@ -230,3 +230,6 @@ for a complete working example.
 - [Cache](cache.html) -- In-memory caching (faster, no persistence)
 - [Search](search.html) -- Full-text search index
 - [Architecture](architecture.html) -- Comptime feature gating pattern
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

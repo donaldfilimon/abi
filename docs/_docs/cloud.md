@@ -204,3 +204,6 @@ the `ResponseBuilder` -- so downstream code compiles without conditional guards.
 - [Web](web.html) -- HTTP client utilities
 - [Gateway](gateway.html) -- API gateway for inbound routing
 - [Network](network.html) -- Distributed compute and node management
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

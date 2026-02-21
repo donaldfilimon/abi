@@ -66,3 +66,6 @@
 //! - [AI Module](../ai/README.md)
 //! - [Agent Documentation](../../docs/_docs/ai-overview.md)
 
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

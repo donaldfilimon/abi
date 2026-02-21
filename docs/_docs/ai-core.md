@@ -243,3 +243,6 @@ downstream code compiles without `#ifdef`-style guards.
 - [Inference](ai-inference.html) -- LLM execution, embeddings, streaming
 - [Training](ai-training.html) -- Model training pipelines
 - [Reasoning](ai-reasoning.html) -- Abbey engine, RAG, orchestration
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

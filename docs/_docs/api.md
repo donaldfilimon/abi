@@ -225,3 +225,6 @@ if (fw) {
 - [CLI Reference](cli.html) — 30 commands and 8 aliases
 - [C API Bindings](c-bindings.html) -- FFI reference for the 36 C exports
 - [Examples](examples.html) -- 36 runnable examples
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

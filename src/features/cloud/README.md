@@ -293,3 +293,6 @@ zig build test --summary all
 - AWS Lambda runtime: `src/features/cloud/aws_lambda.zig`
 - GCP Functions runtime: `src/features/cloud/gcp_functions.zig`
 - Azure Functions runtime: `src/features/cloud/azure_functions.zig`
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

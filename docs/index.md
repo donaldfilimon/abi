@@ -92,3 +92,6 @@ pub fn main() !void {
 
 Continue to [Installation](/installation/) to set up your toolchain, or jump straight
 to [Getting Started](/getting-started/) if you already have Zig 0.16 installed.
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

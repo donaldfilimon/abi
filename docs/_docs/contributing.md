@@ -24,7 +24,7 @@ coding style, and PR expectations.
 | CLI smoke test | `zig build cli-tests` |
 | Full check | `zig build full-check` |
 | Single file test | `zig test src/path/to/file.zig` |
-| Zig version check | `scripts/check_zig_version_consistency.sh` |
+| Zig version check | `zig run tools/scripts/check_zig_version_consistency.zig` |
 
 ---
 
@@ -45,7 +45,7 @@ Ensure your Zig toolchain matches the version pinned in `.zigversion`:
 ```bash
 cat .zigversion
 zig version
-bash scripts/toolchain_doctor.sh
+zig run tools/scripts/toolchain_doctor.zig
 ```
 
 ---
@@ -208,3 +208,6 @@ the process described in `SECURITY.md`.
 - [Architecture](architecture.html) -- Module hierarchy and design patterns
 - [Troubleshooting](troubleshooting.html) -- Common errors and debugging
 - [Examples](examples.html) -- 36 runnable examples for reference
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

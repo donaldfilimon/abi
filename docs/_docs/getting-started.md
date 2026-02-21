@@ -202,3 +202,6 @@ zig build verify-all
 - [Configuration](configuration.html) -- all build flags and environment variables
 - [Framework Lifecycle](framework.html) -- deep dive into initialization and state management
 - [CLI](cli.html) — 30 commands for AI, GPU, database, and system management
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

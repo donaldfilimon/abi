@@ -73,3 +73,6 @@ defer allocator.free(response);
 - [CLAUDE.md](../../../CLAUDE.md) — Connectors and env vars
 
 
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

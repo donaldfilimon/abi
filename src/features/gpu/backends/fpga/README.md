@@ -354,3 +354,6 @@ v++ -l -t hw --platform xilinx_u250_gen3x16_xdma_4_1_202210_1 \
 - [Hybrid GPU-FPGA Architecture](../../../../docs/research/hybrid-gpu-fpga-architecture.md)
 - [AMD Vitis Documentation](https://docs.xilinx.com/r/en-US/ug1393-vitis-application-acceleration)
 - [Intel oneAPI FPGA](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fpga.html)
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

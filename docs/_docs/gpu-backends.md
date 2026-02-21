@@ -303,3 +303,6 @@ Convenience functions:
 - [GPU Overview](gpu.html) -- Main GPU module documentation
 - [AI & LLM](ai.html) -- GPU acceleration for inference and training
 - [Architecture](architecture.html) -- Comptime feature gating pattern
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

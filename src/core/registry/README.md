@@ -138,3 +138,6 @@ Some features have parent dependencies:
 - `.training` also requires `.ai`
 
 Query parent with `getParentFeature(feature)`.
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

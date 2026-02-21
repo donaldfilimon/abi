@@ -164,3 +164,6 @@ if (abi.reasoning.isEnabled()) {
 - [Inference](ai-inference.html) -- LLM, embeddings, vision, streaming
 - [Training](ai-training.html) -- Training pipelines, federated learning
 - [Reasoning](ai-reasoning.html) -- Abbey, RAG, eval, orchestration
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

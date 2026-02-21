@@ -254,3 +254,6 @@ The feature test root sits at `src/` level so it can reach both `features/` and
 - [Configuration](configuration.html) -- all build flags and environment variables
 - [Framework Lifecycle](framework.html) -- deep dive into state machine, init patterns, and lifecycle hooks
 - [CLI](cli.html) — 30 commands + 8 aliases for system management
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

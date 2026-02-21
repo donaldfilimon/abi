@@ -248,3 +248,6 @@ All public methods on `HaManager` are thread-safe and use internal mutex for syn
 
 - [Deployment Guide](/docs/deployment.md) - Production deployment guide
 - [Development Plan](/docs/plan.md) - Development roadmap and sprint status
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

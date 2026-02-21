@@ -161,3 +161,5 @@ This changelog combines information from both CHANGELOG.md and RELEASE_NOTES.md 
 Updates will now be tracked exclusively in this file.
 
 © 2026 ABI Framework contributors.
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

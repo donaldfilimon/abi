@@ -316,3 +316,6 @@ Before deploying to production:
 - [Connectors](connectors.html) -- LLM provider environment variables
 - [MCP Server](mcp.html) -- MCP stdio server for AI client integration
 - [ACP Protocol](acp.html) -- HTTP-based agent communication
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

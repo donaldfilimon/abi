@@ -105,3 +105,6 @@ On WebAssembly and freestanding targets:
 - Threading APIs (`std.Thread`) are unavailable
 
 This module ensures safe cross-compilation without runtime crashes on constrained environments.
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

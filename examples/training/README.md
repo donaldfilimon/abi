@@ -324,3 +324,6 @@ defer lora_model.deinit();
 - [AI Module Guide](../../docs/_docs/ai-overview.md) - AI subsystem details
 - [Developer Guide](../../CLAUDE.md) - Debugging and common issues
 
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

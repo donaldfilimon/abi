@@ -169,6 +169,9 @@ pub fn addCliTests(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step 
     const step = b.step("cli-tests", "Run smoke test of CLI commands");
     for (&cli_commands) |args| {
         const run_cmd = b.addRunArtifact(exe);
+        // Ensure smoke tests execute from repository root so commands like
+        // `abi gendocs` can resolve build.zig consistently.
+        run_cmd.setCwd(b.path("."));
         run_cmd.addArgs(args);
         step.dependOn(&run_cmd.step);
     }

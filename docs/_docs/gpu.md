@@ -306,3 +306,6 @@ zero binary overhead due to comptime feature gating.
 - [AI & LLM](ai.html) -- GPU acceleration for inference and training
 - [Database](database.html) -- GPU-accelerated distance calculations
 - [Architecture](architecture.html) -- Comptime feature gating pattern
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

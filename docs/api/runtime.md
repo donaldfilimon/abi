@@ -111,3 +111,6 @@ Create an engine with custom configuration.
 ---
 
 *Generated automatically by `zig build gendocs`*
+
+## Zig Skill
+Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
