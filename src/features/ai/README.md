@@ -1,10 +1,4 @@
----
-title: "README"
-tags: []
----
 # AI Module
-
-> **Codebase Status:** Synced with repository as of 2026-02-14.
 
 AI module providing LLM inference, agents, embeddings, and training capabilities.
 
@@ -74,8 +68,8 @@ defer allocator.free(response);
 
 ## See also
 
-- [AI Documentation](../../../docs/content/ai.html)
-- [API Reference](../../../docs/api-reference.md)
+- [AI Documentation](../../../docs/_docs/ai-overview.md)
+- [API Reference](../../../docs/api/)
 - [CLAUDE.md](../../../CLAUDE.md) — Connectors and env vars
 
 

@@ -22,6 +22,7 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
+const super_ = @import("ralph/super.zig");
 
 /// Session state for the interactive agent.
 const SessionState = struct {
@@ -145,48 +146,24 @@ const SessionState = struct {
 };
 
 fn runRalph(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var task: ?[]const u8 = null;
-    var max_iterations: usize = 10;
-    var store_skill: ?[]const u8 = null;
-    var auto_skill: bool = false;
-
+    var task_value_present = false;
     var i: usize = 0;
-    while (i < args.len) {
-        const arg = std.mem.sliceTo(args[i], 0);
-        i += 1;
-
-        if (std.mem.eql(u8, arg, "--task") or std.mem.eql(u8, arg, "-t")) {
-            if (i < args.len) {
-                task = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
+    while (i < args.len) : (i += 1) {
+        const arg_text = std.mem.sliceTo(args[i], 0);
+        if (!(std.mem.eql(u8, arg_text, "--task") or std.mem.eql(u8, arg_text, "-t"))) {
             continue;
         }
 
-        if (std.mem.eql(u8, arg, "--iterations") or std.mem.eql(u8, arg, "-i")) {
-            if (i < args.len) {
-                const iter_str = std.mem.sliceTo(args[i], 0);
-                max_iterations = std.fmt.parseInt(usize, iter_str, 10) catch 10;
-                i += 1;
+        if (i + 1 < args.len) {
+            const next = std.mem.sliceTo(args[i + 1], 0);
+            if (next.len > 0 and next[0] != '-') {
+                task_value_present = true;
+                break;
             }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--store-skill")) {
-            if (i < args.len) {
-                store_skill = std.mem.sliceTo(args[i], 0);
-                i += 1;
-            }
-            continue;
-        }
-
-        if (std.mem.eql(u8, arg, "--auto-skill")) {
-            auto_skill = true;
-            continue;
         }
     }
 
-    if (task == null) {
+    if (!task_value_present) {
         std.debug.print("Error: --task argument is required for Ralph mode.\n", .{});
         std.debug.print("Usage: abi agent ralph --task \"Your task description\"\n", .{});
         std.debug.print("       abi agent ralph --task \"...\" --store-skill \"Lesson learned\"\n", .{});
@@ -194,39 +171,7 @@ fn runRalph(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
 
-    std.debug.print("Starting Ralph Iterative Loop...\n", .{});
-    std.debug.print("Task: {s}\n", .{task.?});
-    std.debug.print("Max Iterations: {d}\n\n", .{max_iterations});
-
-    var engine = try abi.ai.abbey.createEngine(allocator);
-    defer engine.deinit();
-
-    const result = try engine.runRalphLoop(task.?, max_iterations);
-    defer allocator.free(result);
-
-    const iterations_used = max_iterations;
-    engine.recordRalphRun(task.?, iterations_used, result.len, 1.0) catch {};
-
-    std.debug.print("\n=== Ralph Task Complete ===\n", .{});
-    std.debug.print("{s}\n", .{result});
-
-    if (store_skill) |s| {
-        _ = engine.storeSkill(s) catch |err| {
-            std.debug.print("Warning: could not store skill: {t}\n", .{err});
-            return;
-        };
-        std.debug.print("Stored skill for future Ralph runs.\n", .{});
-    }
-
-    if (auto_skill) {
-        const stored = engine.extractAndStoreSkill(task.?, result) catch |err| {
-            std.debug.print("Warning: auto-skill extraction failed: {t}\n", .{err});
-            return;
-        };
-        if (stored) {
-            std.debug.print("Auto-stored a skill from this run (model self-improvement).\n", .{});
-        }
-    }
+    return super_.runSuper(allocator, args);
 }
 
 /// Run the agent command with the provided arguments.
@@ -812,8 +757,8 @@ fn printHelp() void {
         \\  abi agent --all-tools --learn      # Interactive with tools + learning
         \\
         \\Ralph Mode (Iterative Loop, auto-training):
-        \\  abi agent ralph --task "..."       # Run a task in a self-correcting loop
-        \\  --iterations <n>                   # Max iterations (default: 10)
+        \\  abi agent ralph --task "..."      # Run a task through Super Ralph flow
+        \\  --iterations <n>                   # Max iterations (overrides ralph.yml)
         \\  --store-skill "..."                # Store a skill for future runs
         \\  --auto-skill                       # LLM extracts a lesson from this run and stores it (model self-improves)
         \\

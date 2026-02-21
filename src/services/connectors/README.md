@@ -1,10 +1,4 @@
----
-title: "README"
-tags: []
----
 //! # Connectors
-//!
-//! > **Codebase Status:** Synced with repository as of 2026-02-17.
 //!
 //! Integration points to external AI services, platforms, and communication APIs.
 //!
@@ -70,5 +64,5 @@ tags: []
 //! ## See Also
 //!
 //! - [AI Module](../ai/README.md)
-//! - [Agent Documentation](../../docs/content/ai.html)
+//! - [Agent Documentation](../../docs/_docs/ai-overview.md)
 

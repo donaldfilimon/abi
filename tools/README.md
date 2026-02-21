@@ -1,36 +1,32 @@
----
-title: "Tools Directory"
-tags: [tools, cli, utilities]
----
 # Tools Directory
-> **Codebase Status:** Synced with repository as of 2026-02-04.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Tools-Developer-blue?style=for-the-badge" alt="Developer Tools"/>
-  <img src="https://img.shields.io/badge/CLI-Interactive-purple?style=for-the-badge" alt="CLI"/>
-  <img src="https://img.shields.io/badge/DocGen-Automated-green?style=for-the-badge" alt="DocGen"/>
-</p>
-
-Index of developer tools and internal utilities.
+Developer tools and internal utilities for the ABI framework.
 
 ## Layout
 
-| Path | Purpose |
-| --- | --- |
-| `tools/cli/` | ABI CLI implementation (commands, TUI, utils, tests) |
-| `tools/docgen/` | Documentation generator templates + driver (outputs to `zig-out/docs-site/`) |
-| `tools/gendocs/` | Doc generation entry point (`abi gendocs` or `abi gendocs`) |
-| `tools/benchmark-dashboard/` | Benchmark visualization UI + data |
-| `tools/perf/` | Perf checks and microbench helpers |
+| Path | Purpose | Build Step |
+| --- | --- | --- |
+| `cli/` | ABI CLI (30 commands + 8 aliases, TUI, utils) | `zig build run -- --help` |
+| `gendocs/` | API documentation generator | `zig build gendocs` / `abi gendocs` |
+| `perf/` | Performance KPI verification tool | `zig build check-perf` |
+
+## CLI Command Subdirectories
+
+Large commands are organized into subdirectories with one file per subcommand:
+
+| Directory | Files | Subcommands |
+| --- | --- | --- |
+| `cli/commands/train/` | 10 | run, new, llm, vision, clip, auto, resume, monitor, info, generate-data |
+| `cli/commands/llm/` | 9 | info, generate, chat, bench, list, list-local, demo, download, serve |
+| `cli/commands/bench/` | 5 | suites, micro, output, training-comparison |
+| `cli/commands/ralph/` | 10 | init, run, super, multi, status, gate, improve, skills, config |
+
+Single-file commands remain directly in `cli/commands/`.
 
 ## Quick Commands
 
 ```bash
-zig build run -- --help
-abi gendocs
-zig build benchmarks
+zig build run -- --help          # CLI help
+zig build gendocs                # Generate API docs to docs/api/
+zig build check-perf             # Build perf verification tool
 ```
-
----
-
-See also: `benchmarks/README.md`, `docs/README.md`.

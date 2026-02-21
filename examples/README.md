@@ -1,425 +1,100 @@
----
-title: "Examples"
-tags: [examples, tutorials, getting-started]
----
 # ABI Framework Examples
-> **Codebase Status:** Synced with repository as of 2026-02-14.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Examples-22-blue?style=for-the-badge" alt="22 Examples"/>
-  <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2535%2Bb5bd49460-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
-  <img src="https://img.shields.io/badge/Learning-Path-success?style=for-the-badge" alt="Learning Path"/>
-</p>
+37 runnable examples demonstrating all major features of the ABI framework.
 
-This directory contains example programs demonstrating various features of the ABI framework.
-
-## Examples
-
-### hello.zig
-
-Basic framework initialization and version check.
-
-**Run:**
+## Quick Start
 
 ```bash
-zig build run-hello
+zig build examples              # Build all examples
+zig build run-hello             # Run a specific example
 ```
 
-### database.zig
-
-Vector database operations including insert, search, and statistics.
-
-**Run:**
-
-```bash
-zig build run-database
-```
-
-### agent.zig
-
-AI agent usage with conversational chat interface. Demonstrates the `Agent.chat()` method
-for processing user input with history tracking.
-
-**Features:**
-- Agent initialization with configuration
-- Using `chat()` method for conversational interface
-- Proper memory management with defer
-
-**Run:**
-
-```bash
-zig build run-agent
-```
-
-### compute.zig
-
-SIMD compute operations including dot product, cosine similarity, and vector addition
-with v2 platform detection.
-
-**Run:**
-
-```bash
-zig build run-compute
-```
-
-### concurrency.zig
-
-Lock-free concurrency primitives (MPMC queue, Chase-Lev deque).
-
-**Run:**
-
-```bash
-zig build run-concurrency
-```
-
-### concurrent_pipeline.zig
-
-Multi-stage concurrent pipeline using v2 runtime primitives: Channel for stage
-handoff with backpressure, ThreadPool for parallel stage work, and DagPipeline
-for dependency orchestration.
-
-**Run:**
-
-```bash
-zig build run-concurrent-pipeline
-```
-
-### tensor_ops.zig
-
-Tensor and matrix operations using the v2 shared math modules. Demonstrates
-element-wise operations, matrix multiplication, and SIMD-accelerated kernels.
-
-**Run:**
-
-```bash
-zig build run-tensor-ops
-```
-
-### gpu.zig
-
-GPU acceleration and SIMD operations.
-
-**Run:**
-
-```bash
-zig build run-gpu
-```
-
-### network.zig
-
-Network cluster setup and node management.
-
-**Run:**
-
-```bash
-zig build run-network
-```
-
-### observability.zig
-
-Metrics and tracing primitives (counters, gauges, histograms).
-
-**Run:**
-
-```bash
-zig build run-observability
-```
-
-### discord.zig
-
-Discord bot integration with bot info, guild listing, and gateway information.
-
-**Prerequisites:**
-- Set `DISCORD_BOT_TOKEN` environment variable with your bot token
-
-**Run:**
-
-```bash
-zig build run-discord
-```
-
-### orchestration.zig
-
-Multi-model routing with ensemble and fallback policies.
-
-**Run:**
-
-```bash
-zig build -Denable-ai=true run-orchestration
-```
-
-### training.zig
-
-Model training with optimizers, checkpointing, and metrics.
-
-**Features:**
-- Training configuration (epochs, batch size, learning rate)
-- AdamW optimizer with weight decay
-- Checkpoint saving and resuming
-- Loss history tracking
-
-**Run:**
-
-```bash
-zig build run-training
-```
-
-### training/train_demo.zig
-
-Focused LLM training demo with smaller defaults.
-
-**Run:**
-
-```bash
-zig build run-train-demo
-```
-
-### llm.zig
-
-Local LLM inference with GGUF models.
-
-**Features:**
-- GGUF model loading
-- BPE/SentencePiece tokenization
-- Text generation with sampling (temperature, top-k, top-p)
-- Streaming output
-
-**Run:**
-
-```bash
-zig build -Denable-llm=true run-llm -- path/to/model.gguf
-```
-
-### llm_real.zig
-
-Real LLM inference via ABI connectors (Ollama, LM Studio, vLLM).
-Tries backends in order and uses the first available for a chat completion.
-No GGUF file required.
-
-**Prerequisites:**
-- At least one local LLM backend running (Ollama, LM Studio, or vLLM)
-
-**Run:**
-
-```bash
-zig build run-llm-real
-zig build run-llm-real -- "Your prompt here"
-```
-
-### train_ava.zig
-
-Train the Ava assistant model based on gpt-oss.
-
-**Features:**
-- Fine-tuning from gpt-oss compatible GGUF models
-- LoRA support for efficient training
-- JSONL and text dataset formats
-- Checkpointing and GGUF export
-- GPU acceleration with CPU fallback
-
-**Run:**
-
-```bash
-# Basic training
-zig build -Denable-ai=true run-train-ava -- path/to/gpt-oss.gguf --dataset-path train.jsonl
-
-# With custom configuration
-zig build -Denable-ai=true run-train-ava -- gpt2.gguf -d data.jsonl --epochs 5 --lr 2e-5
-
-# Show help
-zig build -Denable-ai=true run-train-ava -- --help
-```
-
-### ha.zig
-
-High Availability features for production deployments.
-
-**Features:**
-- Multi-region replication setup
-- Backup orchestration
-- Point-in-time recovery (PITR)
-- Automatic failover
-
-**Run:**
-
-```bash
-zig build run-ha
-```
-
-### config.zig
-
-Configuration system demonstration using the Builder pattern.
-
-**Features:**
-- GPU, AI, and database configuration
-- Builder pattern for flexible setup
-- Environment variable integration
-
-**Run:**
-
-```bash
-zig build run-config
-```
-
-### embeddings.zig
-
-Vector embeddings and similarity operations.
-
-**Features:**
-- SIMD-accelerated vector operations
-- Cosine similarity, dot product, L2 distance
-- Vector normalization
-
-**Run:**
-
-```bash
-zig build run-embeddings
-```
-
-### registry.zig
-
-Feature registry for runtime feature management.
-
-**Features:**
-- Feature registration (comptime and runtime)
-- Feature toggle and query
-- Dependency tracking
-
-**Run:**
-
-```bash
-zig build run-registry
-```
-
-### streaming.zig
-
-Streaming response handling for AI models.
-
-**Features:**
-- Token-by-token streaming
-- Server-Sent Events (SSE)
-- Backpressure handling
-
-**Run:**
-
-```bash
-zig build run-streaming
-```
-
-## Building Examples
-
-All examples are integrated into the main build system:
-
-```bash
-# Build all examples
-zig build examples
-
-# Run a specific example
-zig build run-hello
-zig build run-database
-zig build run-agent
-zig build run-compute
-zig build run-concurrency
-zig build run-concurrent-pipeline
-zig build run-config
-zig build run-discord
-zig build run-embeddings
-zig build run-gpu
-zig build run-ha
-zig build run-llm
-zig build run-llm-real
-zig build run-network
-zig build run-observability
-zig build run-orchestration
-zig build run-registry
-zig build run-streaming
-zig build run-tensor-ops
-zig build run-training
-zig build run-train-ava
-zig build run-train-demo
-```
-
-## Running Benchmarks
-
-The comprehensive benchmark suite tests all framework features:
-
-```bash
-# Run all benchmarks
-zig build benchmarks
-```
+## All Examples
+
+### Getting Started
+
+| Example | Run Command | Description |
+|---------|-------------|-------------|
+| `hello.zig` | `run-hello` | Basic framework initialization and version check |
+| `config.zig` | `run-config` | Configuration system with Builder pattern |
+| `registry.zig` | `run-registry` | Feature registry for runtime feature management |
+
+### AI & ML
+
+| Example | Run Command | Description |
+|---------|-------------|-------------|
+| `agent.zig` | `run-agent` | AI agent with conversational chat interface |
+| `ai_core.zig` | `run-ai-core` | AI core: agents, tools, prompts, personas, memory |
+| `ai_inference.zig` | `run-ai-inference` | LLM inference, embeddings, vision, streaming |
+| `ai_training.zig` | `run-ai-training` | Training pipelines and federated learning |
+| `ai_reasoning.zig` | `run-ai-reasoning` | Abbey reasoning, RAG, eval, templates |
+| `embeddings.zig` | `run-embeddings` | Vector embeddings and similarity operations |
+| `llm.zig` | `run-llm` | Local LLM inference with GGUF models |
+| `llm_real.zig` | `run-llm-real` | Real inference via Ollama/LM Studio/vLLM |
+| `orchestration.zig` | `run-orchestration` | Multi-model routing with ensemble and fallback |
+| `streaming.zig` | `run-streaming` | Streaming response handling for AI models |
+| `training.zig` | `run-training` | Model training with optimizers and checkpointing |
+| `training/train_demo.zig` | `run-train-demo` | Focused LLM training demo |
+| `train_ava.zig` | `run-train-ava` | Train Ava assistant from gpt-oss models |
+
+### Compute & GPU
+
+| Example | Run Command | Description |
+|---------|-------------|-------------|
+| `compute.zig` | `run-compute` | SIMD compute: dot product, cosine similarity, vector add |
+| `gpu.zig` | `run-gpu` | GPU acceleration and SIMD operations |
+| `tensor_ops.zig` | `run-tensor-ops` | Tensor/matrix ops with SIMD-accelerated kernels |
+| `concurrency.zig` | `run-concurrency` | Lock-free concurrency primitives (MPMC, Chase-Lev) |
+| `concurrent_pipeline.zig` | `run-concurrent-pipeline` | Multi-stage pipeline with Channel, ThreadPool, DagPipeline |
+
+### Data & Storage
+
+| Example | Run Command | Description |
+|---------|-------------|-------------|
+| `database.zig` | `run-database` | Vector database: insert, search, statistics |
+| `cache.zig` | `run-cache` | In-memory LRU/LFU cache with TTL |
+| `search.zig` | `run-search` | Full-text search with BM25 scoring |
+| `storage.zig` | `run-storage` | Unified file/object storage |
+
+### Infrastructure
+
+| Example | Run Command | Description |
+|---------|-------------|-------------|
+| `network.zig` | `run-network` | Network cluster setup and node management |
+| `gateway.zig` | `run-gateway` | API gateway: routing, rate limiting, circuit breaker |
+| `messaging.zig` | `run-messaging` | Event bus, pub/sub, message queues |
+| `web.zig` | `run-web` | Web/HTTP framework and middleware |
+| `cloud.zig` | `run-cloud` | Cloud adapters (AWS, GCP, Azure) |
+| `mobile.zig` | `run-mobile` | Mobile platform support |
+| `pages.zig` | `run-pages` | Dashboard/UI pages with URL routing |
+
+### Operations
+
+| Example | Run Command | Description |
+|---------|-------------|-------------|
+| `auth.zig` | `run-auth` | Authentication and security |
+| `analytics.zig` | `run-analytics` | Event tracking and experiments |
+| `observability.zig` | `run-observability` | Metrics and tracing (counters, gauges, histograms) |
+| `ha.zig` | `run-ha` | High availability: replication, failover, PITR |
+| `discord.zig` | `run-discord` | Discord bot integration (requires `DISCORD_BOT_TOKEN`) |
+
+### C Interop
+
+| File | Description |
+|------|-------------|
+| `c_test.c` | C API bindings test |
 
 ## Learning Path
 
-1. **Start with `hello.zig`** - Learn basic framework initialization
-2. **Try `database.zig`** - Understand vector storage and search
-3. **Explore `compute.zig`** - Learn about task execution and SIMD
-4. **Review `concurrency.zig`** - Lock-free primitives and queues
-5. **Check `agent.zig`** - See AI integration
-6. **Review `gpu.zig`** - Understand GPU acceleration
-7. **Study `network.zig`** - Learn distributed computing
-8. **Check `observability.zig`** - Metrics and tracing fundamentals
-9. **Check `discord.zig`** - Discord bot integration
-10. **Explore `training.zig`** - Model training and checkpointing
-11. **Try `training/train_demo.zig`** - Focused LLM training demo
-12. **Try `llm.zig`** - Local LLM inference with GGUF
-13. **Try `llm_real.zig`** - Real inference via Ollama/LM Studio/vLLM
-14. **Study `orchestration.zig`** - Multi-model routing and fallback
-15. **Study `ha.zig`** - High availability features
-16. **Train `train_ava.zig`** - Train the Ava assistant from gpt-oss
-17. **Build `concurrent_pipeline.zig`** - Multi-stage pipeline with channels and thread pools
-18. **Explore `tensor_ops.zig`** - Tensor and matrix math with SIMD
-
-## Common Patterns
-
-All examples follow these Zig 0.16.0-dev.2611+f996d2866 best practices:
-
-1. **Allocator Setup (Zig 0.16.0-dev.2611+f996d2866):**
-
-   ```zig
-   pub fn main() !void {
-       var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-       defer _ = gpa.deinit();
-       const allocator = gpa.allocator();
-       // ... your code
-   }
-   ```
-
-2. **Framework Initialization:**
-
-   ```zig
-   var framework = try abi.Framework.builder(allocator)
-       .withDefaults()
-       .build();
-   defer framework.deinit();
-   ```
-
-3. **Error Handling:**
-
-   ```zig
-   pub fn main() !void {
-       try someOperation();
-   }
-   ```
-
-4. **Cleanup with defer:**
-
-   ```zig
-   const data = try allocateData();
-   defer allocator.free(data);
-   ```
-
-5. **Format Specifiers (Zig 0.16.0-dev.2611+f996d2866):**
-
-   ```zig
-   std.debug.print("Status: {t}\n", .{status});  // {t} for enums
-   std.debug.print("Count: {d}\n", .{count});    // {d} for integers
-   ```
-
-## Need Help?
-
-See the [Documentation README](../docs/README.md) for guides, or check [API Reference](../docs/api-reference.md) for detailed API information.
+1. **Start**: `hello.zig` → `config.zig` → `registry.zig`
+2. **Data**: `database.zig` → `cache.zig` → `search.zig`
+3. **Compute**: `compute.zig` → `concurrency.zig` → `gpu.zig` → `tensor_ops.zig`
+4. **AI**: `agent.zig` → `embeddings.zig` → `llm.zig` → `training.zig`
+5. **Infrastructure**: `network.zig` → `gateway.zig` → `observability.zig` → `ha.zig`
+6. **Advanced**: `orchestration.zig` → `concurrent_pipeline.zig` → `train_ava.zig`
 
 ## See Also
 
-- [API Reference](../docs/api-reference.md) - Detailed API information
-- [Documentation README](../docs/README.md) - Documentation site source
+- [Training Guide](training/README.md) — Detailed training pipeline documentation
+- [API Reference](../docs/api/) — Auto-generated API docs
+- [CLAUDE.md](../CLAUDE.md) — Build commands and architecture guide

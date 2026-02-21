@@ -9,6 +9,9 @@ const targets = @import("build/targets.zig");
 const mobile = @import("build/mobile.zig");
 const wasm = @import("build/wasm.zig");
 const gpu = @import("build/gpu.zig");
+const link = @import("build/link.zig");
+const cli_tests = @import("build/cli_tests.zig");
+const test_discovery = @import("build/test_discovery.zig");
 
 // Re-export for external use
 pub const GpuBackend = gpu.GpuBackend;
@@ -59,172 +62,19 @@ pub fn build(b: *std.Build) void {
     if (targets.pathExists(b, "tools/cli/main.zig"))
         exe.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
     targets.applyPerformanceTweaks(exe, optimize);
-    if (target.result.os.tag == .macos and options.gpu_metal()) {
-        exe.root_module.linkFramework("Metal", .{});
-        exe.root_module.linkFramework("CoreML", .{});
-        exe.root_module.linkFramework("MetalPerformanceShaders", .{});
-        exe.root_module.linkFramework("Foundation", .{});
-    }
+    link.applyFrameworkLinks(exe.root_module, target.result.os.tag, options.gpu_metal());
     b.installArtifact(exe);
 
     const run_cli = b.addRunArtifact(exe);
     if (b.args) |args| run_cli.addArgs(args);
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
-    // ── Examples & benchmarks (table-driven) ─────────────────────────────
+    // ── Examples (table-driven) ────────────────────────────────────────
     const examples_step = b.step("examples", "Build all examples");
     targets.buildTargets(b, &targets.example_targets, abi_module, build_opts, target, optimize, examples_step, false);
 
     // ── CLI smoke tests ──────────────────────────────────────────────────
-    const cli_tests_step = b.step("cli-tests", "Run smoke test of CLI commands");
-    const cli_commands = [_][]const []const u8{
-        &.{"--help"},
-        &.{"--version"},
-        &.{"system-info"},
-        &.{ "db", "stats" },
-        &.{ "gpu", "status" },
-        &.{ "gpu", "backends" },
-        &.{ "gpu", "devices" },
-        &.{ "gpu", "summary" },
-        &.{ "gpu", "default" },
-        &.{ "task", "list" },
-        &.{ "task", "stats" },
-        &.{ "config", "show" },
-        &.{ "config", "validate" },
-        &.{ "help", "llm" },
-        &.{ "help", "gpu" },
-        &.{ "help", "db" },
-        &.{ "help", "train" },
-        &.{ "help", "model" },
-        &.{ "help", "config" },
-        &.{ "help", "task" },
-        &.{ "help", "network" },
-        &.{ "help", "discord" },
-        &.{ "help", "bench" },
-        &.{ "help", "plugins" },
-        &.{ "help", "completions" },
-        &.{ "help", "multi-agent" },
-        &.{ "help", "profile" },
-        &.{ "help", "convert" },
-        &.{ "help", "embed" },
-        &.{ "help", "toolchain" },
-        &.{ "help", "explore" },
-        &.{ "help", "simd" },
-        &.{ "help", "agent" },
-        &.{ "help", "status" },
-        &.{ "help", "mcp" },
-        &.{ "help", "acp" },
-        &.{ "help", "gpu-dashboard" },
-        &.{ "help", "llm", "generate" },
-        &.{ "help", "llm", "chat" },
-        &.{ "help", "train", "run" },
-        &.{ "help", "train", "llm" },
-        &.{ "help", "db", "add" },
-        &.{ "help", "bench", "simd" },
-        &.{ "help", "discord", "commands" },
-        &.{ "llm", "info" },
-        &.{ "llm", "list" },
-        &.{ "llm", "demo" },
-        &.{ "llm", "demo", "--prompt", "Hello" },
-        &.{ "train", "info" },
-        &.{ "train", "auto" },
-        &.{ "train", "auto", "--help" },
-        &.{ "model", "list" },
-        &.{ "network", "list" },
-        &.{ "network", "status" },
-        &.{ "discord", "status" },
-        &.{ "discord", "commands", "list" },
-        &.{ "plugins", "list" },
-        &.{ "plugins", "info", "openai-connector" },
-        &.{"bench"},
-        &.{ "bench", "list" },
-        &.{ "bench", "micro", "hash" },
-        &.{ "bench", "micro", "alloc" },
-        &.{ "completions", "bash" },
-        &.{ "completions", "zsh" },
-        &.{ "multi-agent", "info" },
-        &.{ "multi-agent", "list" },
-        &.{ "multi-agent", "status" },
-        &.{ "toolchain", "status" },
-        &.{ "mcp", "tools" },
-        &.{ "acp", "card" },
-        &.{ "acp", "serve", "--help" },
-        // Nested help and subcommands (all must work)
-        &.{ "help", "ralph" },
-        &.{ "help", "gendocs" },
-        &.{ "help", "db", "query" },
-        &.{ "help", "db", "serve" },
-        &.{ "help", "db", "backup" },
-        &.{ "help", "db", "restore" },
-        &.{ "help", "db", "optimize" },
-        &.{ "help", "task", "add" },
-        &.{ "help", "task", "edit" },
-        &.{ "help", "ralph", "run" },
-        &.{ "help", "ralph", "super" },
-        &.{ "help", "ralph", "multi" },
-        &.{ "help", "ralph", "skills" },
-        &.{"version"},
-        &.{"status"},
-        &.{ "ralph", "help" },
-        &.{ "ralph", "status" },
-        &.{ "ralph", "skills" },
-        &.{ "ralph", "gate", "--help" },
-        &.{"gendocs"},
-        &.{ "profile", "show" },
-        &.{ "profile", "list" },
-        &.{ "db", "add", "--help" },
-        &.{ "db", "query", "--help" },
-        &.{ "db", "optimize" },
-        &.{ "db", "backup", "--help" },
-        &.{ "db", "restore", "--help" },
-        &.{ "db", "serve", "--help" },
-        &.{ "help", "convert", "dataset" },
-        &.{ "help", "convert", "model" },
-        &.{ "help", "convert", "embeddings" },
-        &.{ "help", "task", "edit" },
-        &.{ "config", "init", "--help" },
-        &.{ "help", "discord", "info" },
-        &.{ "help", "discord", "guilds" },
-        &.{ "llm", "list-local" },
-        &.{ "llm", "serve", "--help" },
-        &.{ "llm", "bench", "--help" },
-        &.{ "llm", "download", "--help" },
-        &.{ "train", "run", "--help" },
-        &.{ "train", "new", "--help" },
-        &.{ "train", "llm", "--help" },
-        &.{ "train", "vision", "--help" },
-        &.{ "train", "clip", "--help" },
-        &.{ "train", "resume", "--help" },
-        &.{ "train", "monitor", "--help" },
-        &.{ "train", "generate-data", "--help" },
-        &.{ "bench", "quick" },
-        &.{ "bench", "simd" },
-        &.{ "bench", "micro", "noop" },
-        &.{ "bench", "micro", "parse" },
-        &.{ "gpu", "list" },
-        &.{ "agent", "--help" },
-        &.{ "tui", "--help" },
-        &.{ "embed", "--help" },
-        &.{ "explore", "--help" },
-        &.{ "model", "path" },
-        &.{ "model", "info", "--help" },
-        &.{ "plugins", "search" },
-        &.{ "help", "plugins", "enable" },
-        &.{ "help", "plugins", "disable" },
-        &.{ "toolchain", "path" },
-        &.{ "completions", "fish" },
-        &.{ "completions", "powershell" },
-        &.{ "multi-agent", "run", "--help" },
-        &.{ "multi-agent", "create", "--help" },
-        // Aliases
-        &.{"info"},
-        &.{ "ls", "stats" },
-    };
-    for (cli_commands) |args| {
-        const run_cmd = b.addRunArtifact(exe);
-        run_cmd.addArgs(args);
-        cli_tests_step.dependOn(&run_cmd.step);
-    }
+    const cli_tests_step = cli_tests.addCliTests(b, exe);
 
     // ── Lint ─────────────────────────────────────────────────────────────
     const fmt_paths = &.{
@@ -233,7 +83,6 @@ pub fn build(b: *std.Build) void {
         "src",
         "tools",
         "examples",
-        "benchmarks",
     };
     const lint_fmt = b.addFmt(.{
         .paths = fmt_paths,
@@ -260,12 +109,7 @@ pub fn build(b: *std.Build) void {
         });
         tests.root_module.addImport("abi", abi_module);
         tests.root_module.addImport("build_options", build_opts);
-        if (target.result.os.tag == .macos and options.gpu_metal()) {
-            tests.root_module.linkFramework("Metal", .{});
-            tests.root_module.linkFramework("CoreML", .{});
-            tests.root_module.linkFramework("MetalPerformanceShaders", .{});
-            tests.root_module.linkFramework("Foundation", .{});
-        }
+        link.applyFrameworkLinks(tests.root_module, target.result.os.tag, options.gpu_metal());
         b.step("typecheck", "Compile tests without running").dependOn(&tests.step);
         const run_tests = b.addRunArtifact(tests);
         run_tests.skip_foreign_checks = true;
@@ -292,24 +136,8 @@ pub fn build(b: *std.Build) void {
         vnext_compat_step.?.dependOn(&run_vnext_compat.step);
     }
 
-    // ── Feature tests ────────────────────────────────────────────────────
-    var feature_tests_step: ?*std.Build.Step = null;
-    if (targets.pathExists(b, "src/feature_test_root.zig")) {
-        const feature_tests = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("src/feature_test_root.zig"),
-                .target = target,
-                .optimize = optimize,
-                .link_libc = true,
-            }),
-        });
-        feature_tests.root_module.addImport("build_options", build_opts);
-        const run_feature_tests = b.addRunArtifact(feature_tests);
-        run_feature_tests.skip_foreign_checks = true;
-        const ft_step = b.step("feature-tests", "Run feature module inline tests");
-        ft_step.dependOn(&run_feature_tests.step);
-        feature_tests_step = &run_feature_tests.step;
-    }
+    // ── Feature tests (manifest-driven; see build/test_discovery.zig) ───
+    const feature_tests_step = test_discovery.addFeatureTests(b, options, build_opts, target, optimize);
 
     // ── Flag validation matrix ───────────────────────────────────────────
     const validate_flags_step = flags.addFlagValidation(b, target, optimize);
@@ -330,7 +158,7 @@ pub fn build(b: *std.Build) void {
     const check_versions = b.addSystemCommand(&.{ "bash", "scripts/check_zig_version_consistency.sh" });
     const check_baselines = b.addSystemCommand(&.{ "bash", "scripts/check_test_baseline_consistency.sh" });
     const check_patterns = b.addSystemCommand(&.{ "bash", "scripts/check_zig_016_patterns.sh" });
-    const check_features = b.addSystemCommand(&.{ "bash", "scripts/check_feature_catalog_consistency.sh" });
+    const check_features = b.addSystemCommand(&.{ "bash", "scripts/check_feature_catalog.sh" });
     const check_ralph = b.addSystemCommand(&.{ "bash", "scripts/check_ralph_gate.sh" });
     const consistency_step = b.step(
         "check-consistency",
@@ -344,6 +172,15 @@ pub fn build(b: *std.Build) void {
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
     ralph_gate_step.dependOn(&check_ralph.step);
 
+    // ── Baseline validation ─────────────────────────────────────────────
+    const validate_baseline = b.addSystemCommand(&.{ "bash", "scripts/validate_test_counts.sh", "--main-only" });
+    if (test_step) |ts| validate_baseline.step.dependOn(ts);
+    const validate_baseline_step = b.step(
+        "validate-baseline",
+        "Run tests and verify counts match scripts/project_baseline.env",
+    );
+    validate_baseline_step.dependOn(&validate_baseline.step);
+
     // ── Full check ───────────────────────────────────────────────────────
     const full_check_step = b.step("full-check", "Run formatting, unit tests, CLI smoke tests, and flag validation");
     full_check_step.dependOn(&lint_fmt.step);
@@ -354,43 +191,6 @@ pub fn build(b: *std.Build) void {
     full_check_step.dependOn(consistency_step);
     if (vnext_compat_step) |step| full_check_step.dependOn(step);
     if (feature_tests_step) |fts| full_check_step.dependOn(fts);
-
-    // ── Benchmarks ───────────────────────────────────────────────────────
-    const bench_all_step = b.step("bench-all", "Run all benchmark suites");
-    targets.buildTargets(b, &targets.benchmark_targets, abi_module, build_opts, target, optimize, bench_all_step, true);
-    const bench_step = b.step("bench", "Alias for bench-all benchmark suites");
-    bench_step.dependOn(bench_all_step);
-
-    // ── Documentation ────────────────────────────────────────────────────
-    if (targets.pathExists(b, "tools/gendocs/main.zig")) {
-        const gendocs = b.addExecutable(.{
-            .name = "gendocs",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("tools/gendocs/main.zig"),
-                .target = target,
-                .optimize = optimize,
-                .link_libc = true,
-            }),
-        });
-        const run_gendocs = b.addRunArtifact(gendocs);
-        if (b.args) |args| run_gendocs.addArgs(args);
-        b.step("gendocs", "Generate API documentation").dependOn(&run_gendocs.step);
-    }
-
-    if (targets.pathExists(b, "tools/docs_site/main.zig")) {
-        const docs_site = b.addExecutable(.{
-            .name = "docs-site",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("tools/docs_site/main.zig"),
-                .target = target,
-                .optimize = optimize,
-                .link_libc = true,
-            }),
-        });
-        const run_docs_site = b.addRunArtifact(docs_site);
-        if (b.args) |args| run_docs_site.addArgs(args);
-        b.step("docs-site", "Generate documentation website").dependOn(&run_docs_site.step);
-    }
 
     // ── Profile build ────────────────────────────────────────────────────
     if (targets.pathExists(b, "tools/cli/main.zig")) {
@@ -411,12 +211,7 @@ pub fn build(b: *std.Build) void {
         profile_mod.addImport("cli", modules.createCliModule(b, abi_profile, target, optimize));
         profile_mod.strip = false;
         profile_mod.omit_frame_pointer = false;
-        if (target.result.os.tag == .macos and options.gpu_metal()) {
-            profile_mod.linkFramework("Metal", .{});
-            profile_mod.linkFramework("CoreML", .{});
-            profile_mod.linkFramework("MetalPerformanceShaders", .{});
-            profile_mod.linkFramework("Foundation", .{});
-        }
+        link.applyFrameworkLinks(profile_mod, target.result.os.tag, options.gpu_metal());
         b.installArtifact(profile_exe);
         b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
     }
@@ -425,11 +220,13 @@ pub fn build(b: *std.Build) void {
     _ = mobile.addMobileBuild(b, options, optimize);
 
     // ── C Library ────────────────────────────────────────────────────────
-    if (targets.pathExists(b, "bindings/c/src/abi_c.zig")) {
+    const c_bindings_src = "bindings/c/src/abi_c.zig";
+    const c_bindings_header = "bindings/c/include/abi.h";
+    if (targets.pathExists(b, c_bindings_src) and targets.pathExists(b, c_bindings_header)) {
         const lib = b.addLibrary(.{
             .name = "abi",
             .root_module = b.createModule(.{
-                .root_source_file = b.path("bindings/c/src/abi_c.zig"),
+                .root_source_file = b.path(c_bindings_src),
                 .target = target,
                 .optimize = optimize,
                 .link_libc = true,
@@ -440,7 +237,21 @@ pub fn build(b: *std.Build) void {
         lib.root_module.addImport("build_options", build_opts);
         b.step("lib", "Build C shared library").dependOn(&b.addInstallArtifact(lib, .{}).step);
 
-        const header_install = b.addInstallFile(b.path("bindings/c/include/abi.h"), "include/abi.h");
+        const header_install = b.addInstallFile(b.path(c_bindings_header), "include/abi.h");
+        b.step("c-header", "Install C header file").dependOn(&header_install.step);
+    } else {
+        // Keep CI/build graph targets available even when optional C bindings are absent.
+        _ = b.step("lib", "Build C shared library (C bindings unavailable in this checkout)");
+
+        const generated = b.addWriteFiles();
+        const placeholder_header = generated.add("abi.h",
+            \\/* ABI C header placeholder.
+            \\ * Full C bindings are not present in this checkout.
+            \\ */
+            \\#pragma once
+            \\
+        );
+        const header_install = b.addInstallFile(placeholder_header, "include/abi.h");
         b.step("c-header", "Install C header file").dependOn(&header_install.step);
     }
 
@@ -462,11 +273,9 @@ pub fn build(b: *std.Build) void {
     const check_wasm_step = wasm.addWasmBuild(b, options, abi_module, optimize);
 
     // ── Verify-all ───────────────────────────────────────────────────────
-    const verify_all_step = b.step("verify-all", "full-check + consistency checks + examples + bench-all + check-wasm + ralph-gate");
+    const verify_all_step = b.step("verify-all", "full-check + consistency checks + examples + check-wasm");
     verify_all_step.dependOn(full_check_step);
     verify_all_step.dependOn(consistency_step);
     verify_all_step.dependOn(examples_step);
-    verify_all_step.dependOn(bench_all_step);
-    verify_all_step.dependOn(ralph_gate_step);
     if (check_wasm_step) |s| verify_all_step.dependOn(s);
 }

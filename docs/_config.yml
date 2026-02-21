@@ -1,0 +1,157 @@
+# ABI Documentation — GitHub Pages (Jekyll + Just the Docs)
+# https://docs.github.com/en/pages/setting-up-a-github-pages-site-with-jekyll
+
+title: ABI Framework
+description: High-performance AI and systems framework in Zig 0.16
+tagline: "21 feature modules · 10 GPU backends · 30 CLI commands"
+url: "https://donaldfilimon.github.io"
+baseurl: "/abi"  # Project pages: site at username.github.io/abi/
+repository: donaldfilimon/abi
+
+# Theme
+remote_theme: just-the-docs/just-the-docs
+plugins:
+  - jekyll-optional-front-matter
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Optional: link to repo in nav
+aux_links:
+  "GitHub": "https://github.com/donaldfilimon/abi"
+aux_links_new_tab: true
+
+# Search
+search_enabled: true
+search_tokenizer_separator: /[\s\-/]+/
+
+# Footer
+footer_content: "Built with Zig 0.16 · ABI v0.4.0 · 1270 pass, 5 skip · 1535 feature tests"
+
+# Collections: _docs for all content pages (outputs to /pagename.html)
+collections:
+  docs:
+    output: true
+    permalink: "/:name/"
+
+# Navigation (order matches site.json)
+nav:
+  - title: Start
+    children:
+      - title: Home
+        url: /
+      - title: Installation
+        url: /installation/
+      - title: Getting Started
+        url: /getting-started/
+  - title: Core
+    children:
+      - title: Architecture
+        url: /architecture/
+      - title: Configuration
+        url: /configuration/
+      - title: Framework
+        url: /framework/
+      - title: CLI Reference
+        url: /cli/
+      - title: Migration (vNext)
+        url: /migration-vnext/
+  - title: AI
+    children:
+      - title: AI Overview
+        url: /ai-overview/
+      - title: AI Core
+        url: /ai-core/
+      - title: Inference
+        url: /ai-inference/
+      - title: Training
+        url: /ai-training/
+      - title: Reasoning
+        url: /ai-reasoning/
+  - title: GPU
+    children:
+      - title: GPU Compute
+        url: /gpu/
+      - title: GPU Backends
+        url: /gpu-backends/
+  - title: Data
+    children:
+      - title: Database (WDBX)
+        url: /database/
+      - title: Cache
+        url: /cache/
+      - title: Storage
+        url: /storage/
+      - title: Search
+        url: /search/
+  - title: Infrastructure
+    children:
+      - title: Network
+        url: /network/
+      - title: Gateway
+        url: /gateway/
+      - title: Messaging
+        url: /messaging/
+      - title: Pages
+        url: /pages/
+      - title: Web
+        url: /web/
+      - title: Cloud
+        url: /cloud/
+      - title: Mobile
+        url: /mobile/
+  - title: Operations
+    children:
+      - title: Auth & Security
+        url: /auth/
+      - title: Analytics
+        url: /analytics/
+      - title: Observability
+        url: /observability/
+      - title: Deployment
+        url: /deployment/
+      - title: Benchmarks
+        url: /benchmarks/
+  - title: Services
+    children:
+      - title: Connectors
+        url: /connectors/
+      - title: MCP Server
+        url: /mcp/
+      - title: ACP Protocol
+        url: /acp/
+  - title: Reference
+    children:
+      - title: API Overview
+        url: /api-overview/
+      - title: API Reference (generated)
+        url: /api/
+      - title: Examples
+        url: /examples/
+      - title: C API Bindings
+        url: /c-bindings/
+      - title: Troubleshooting
+        url: /troubleshooting/
+      - title: Contributing
+        url: /contributing/
+      - title: Roadmap
+        url: /roadmap/
+
+# Default layout for collection pages
+defaults:
+  - scope:
+      path: ""
+      type: docs
+    values:
+      layout: default
+
+# Exclude Zig-built artifacts and legacy generator inputs from Jekyll
+exclude:
+  - site.json
+  - hub.html
+  - README.md
+  - "*.zig"
+  - Gemfile.lock
+  - content/
+  - assets/
+  - plan.md
+  - roadmap.md

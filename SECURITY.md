@@ -1,9 +1,4 @@
----
-title: "SECURITY"
-tags: [security, policy]
----
 # Security Policy
-> **Codebase Status:** Synced with repository as of the latest release tag.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Security-Priority-critical?style=for-the-badge" alt="Security Priority"/>

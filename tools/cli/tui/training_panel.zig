@@ -13,6 +13,7 @@
 //!   ←/→ - Switch runs (history mode)
 
 const std = @import("std");
+const abi = @import("abi");
 const terminal = @import("terminal.zig");
 const events = @import("events.zig");
 const themes = @import("themes.zig");
@@ -44,6 +45,10 @@ pub const PanelConfig = struct {
     refresh_ms: u64 = 500,
 };
 
+const min_safe_width: usize = 44;
+const full_layout_min_width: usize = 72;
+const max_panel_width: usize = 120;
+
 // ===============================================================================
 // Training Panel
 // ===============================================================================
@@ -69,6 +74,11 @@ pub const TrainingPanel = struct {
     // Run switching state (for history mode)
     available_runs: std.ArrayListUnmanaged([]const u8),
     current_run_index: usize,
+
+    fn shouldUseCompactMode(width: usize) bool {
+        if (width <= min_safe_width) return true;
+        return width < full_layout_min_width;
+    }
 
     pub fn init(allocator: std.mem.Allocator, theme: *const themes.Theme, config: PanelConfig) TrainingPanel {
         const path = std.fmt.allocPrint(allocator, "{s}/metrics.jsonl", .{config.log_dir}) catch config.log_dir;
@@ -105,7 +115,16 @@ pub const TrainingPanel = struct {
     /// Render the full panel to a writer
     pub fn render(self: *TrainingPanel, writer: anytype) !void {
         if (self.show_help) {
-            try self.renderHelpOverlay(writer);
+            if (shouldUseCompactMode(self.width)) {
+                try self.renderCompactHelp(writer);
+            } else {
+                try self.renderHelpOverlay(writer);
+            }
+            return;
+        }
+
+        if (shouldUseCompactMode(self.width)) {
+            try self.renderCompact(writer);
             return;
         }
 
@@ -222,6 +241,88 @@ pub const TrainingPanel = struct {
         try writer.print("{s}╰", .{self.theme.primary});
         try self.writeRepeat(writer, "─", help_width - 2);
         try writer.print("╯{s}\n", .{self.theme.reset});
+    }
+
+    fn renderCompactHelp(self: *TrainingPanel, writer: anytype) !void {
+        try self.renderCompactBorder(writer, "╭", "─", "╮");
+        try self.renderCompactRow(writer, "Training Monitor Help");
+        try self.renderCompactBorder(writer, "├", "─", "┤");
+        try self.renderCompactRow(writer, "r refresh");
+        try self.renderCompactRow(writer, "h history/live");
+        try self.renderCompactRow(writer, "left/right switch runs");
+        try self.renderCompactRow(writer, "q or Esc quit");
+        try self.renderCompactRow(writer, "? toggle help");
+        try self.renderCompactBorder(writer, "╰", "─", "╯");
+    }
+
+    fn renderCompact(self: *TrainingPanel, writer: anytype) !void {
+        const run_id = self.config.run_id orelse "current";
+        const tm = &self.training_metrics;
+        const elapsed = tm.elapsedSeconds();
+        const hours = elapsed / 3600;
+        const mins = (elapsed % 3600) / 60;
+        const secs = elapsed % 60;
+
+        var title_buf: [160]u8 = undefined;
+        const title = std.fmt.bufPrint(&title_buf, "Training: {s} {s}", .{
+            run_id,
+            self.mode.label(),
+        }) catch "Training Monitor";
+
+        var progress_buf: [160]u8 = undefined;
+        const progress = std.fmt.bufPrint(&progress_buf, "epoch {d}/{d}  step {d}/{d}", .{
+            tm.current_epoch,
+            tm.total_epochs,
+            tm.current_step,
+            tm.total_steps,
+        }) catch "epoch 0/0  step 0/0";
+
+        var loss_buf: [160]u8 = undefined;
+        const loss_line = std.fmt.bufPrint(&loss_buf, "loss {d:.4}  val {d:.4}  lr {d:.6}", .{
+            tm.train_loss.latest(),
+            tm.val_loss.latest(),
+            tm.learning_rate.latest(),
+        }) catch "loss 0.0000  val 0.0000  lr 0.000000";
+
+        var checkpoint_buf: [160]u8 = undefined;
+        const checkpoint_line = std.fmt.bufPrint(&checkpoint_buf, "checkpoints {d}  elapsed {d:0>2}:{d:0>2}:{d:0>2}", .{
+            tm.checkpoint_count,
+            hours,
+            mins,
+            secs,
+        }) catch "checkpoints 0";
+
+        try self.renderCompactBorder(writer, "╭", "─", "╮");
+        try self.renderCompactRow(writer, title);
+        try self.renderCompactBorder(writer, "├", "─", "┤");
+        try self.renderCompactRow(writer, progress);
+        try self.renderCompactRow(writer, loss_line);
+        try self.renderCompactRow(writer, checkpoint_line);
+        try self.renderCompactBorder(writer, "├", "─", "┤");
+        try self.renderCompactRow(writer, "[r] refresh  [h] mode  [q] quit  [?] help");
+        try self.renderCompactBorder(writer, "╰", "─", "╯");
+    }
+
+    fn renderCompactBorder(self: *TrainingPanel, writer: anytype, left: []const u8, mid: []const u8, right: []const u8) !void {
+        const inner = self.width -| 2;
+        try writer.print("{s}{s}", .{ self.theme.primary, left });
+        try self.writeRepeat(writer, mid, inner);
+        try writer.print("{s}{s}\n", .{ right, self.theme.reset });
+    }
+
+    fn renderCompactRow(self: *TrainingPanel, writer: anytype, text: []const u8) !void {
+        const inner = self.width -| 2;
+        const usable = inner -| 1; // Account for leading content space.
+        const shown_len = @min(text.len, usable);
+
+        try writer.print("{s}│{s} ", .{ self.theme.primary, self.theme.reset });
+        if (shown_len > 0) {
+            try writer.print("{s}", .{text[0..shown_len]});
+        }
+        if (shown_len < usable) {
+            try self.writeRepeat(writer, " ", usable - shown_len);
+        }
+        try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
     }
 
     // =========================================================================
@@ -495,38 +596,64 @@ pub const TrainingPanel = struct {
         defer term.exit() catch {};
 
         self.running = true;
+        self.last_refresh = 0;
+        self.width = panelWidthFromTerminalCols(term.size().cols);
 
         // Initial load
         self.loadMetricsFile(self.buildMetricsPath()) catch {};
 
+        // Create a wrapper writer for the terminal
+        const TermWriter = struct {
+            terminal: *terminal.Terminal,
+
+            pub const Error = error{};
+            pub fn print(writer: @This(), comptime fmt: []const u8, print_args: anytype) Error!void {
+                var buf: [1024]u8 = undefined;
+                const output = std.fmt.bufPrint(&buf, fmt, print_args) catch return;
+                writer.terminal.write(output) catch {};
+            }
+        };
+        const writer = TermWriter{ .terminal = term };
+
+        var needs_render = true;
         while (self.running) {
-            // Pull latest metrics incrementally
-            _ = self.pollMetrics() catch {};
+            const now_ms = abi.shared.utils.unixMs();
+            if (shouldRefreshAt(now_ms, self.last_refresh, self.config.refresh_ms)) {
+                // Pull latest metrics incrementally.
+                _ = self.pollMetrics() catch {};
+                self.last_refresh = now_ms;
+                needs_render = true;
+            }
 
-            // Clear and render
-            try term.clear();
+            // Track size changes each frame.
+            const term_size = term.size();
+            const new_width = panelWidthFromTerminalCols(term_size.cols);
+            if (new_width != self.width) {
+                self.width = new_width;
+                needs_render = true;
+            }
 
-            // Create a wrapper writer for the terminal
-            const TermWriter = struct {
-                terminal: *terminal.Terminal,
+            if (needs_render) {
+                try term.clear();
+                try self.render(writer);
+                needs_render = false;
+            }
 
-                pub const Error = error{};
-                pub fn print(writer: @This(), comptime fmt: []const u8, print_args: anytype) Error!void {
-                    var buf: [1024]u8 = undefined;
-                    const output = std.fmt.bufPrint(&buf, fmt, print_args) catch return;
-                    writer.terminal.write(output) catch {};
-                }
-            };
-            try self.render(TermWriter{ .terminal = term });
-
-            // Wait for input (blocking)
-            const event = term.readEvent() catch break;
+            // Poll input until next refresh deadline so rendering is truly live.
+            const timeout_ms = pollTimeoutMs(
+                abi.shared.utils.unixMs(),
+                self.last_refresh,
+                self.config.refresh_ms,
+            );
+            const maybe_event = term.pollEvent(timeout_ms) catch break;
+            const event = maybe_event orelse continue;
 
             switch (event) {
                 .key => |key| {
                     if (self.handleKeyEvent(key)) {
                         break;
                     }
+                    needs_render = true;
                 },
                 .mouse => {},
             }
@@ -754,6 +881,41 @@ pub const TrainingPanel = struct {
     }
 };
 
+fn panelWidthFromTerminalCols(cols: u16) usize {
+    const cols_usize: usize = @intCast(cols);
+    const with_margin = cols_usize -| 2;
+
+    // Keep full fidelity when tiny so compact mode can render safely without
+    // overflowing the current viewport width.
+    if (with_margin < min_safe_width) {
+        return @max(@as(usize, 2), with_margin);
+    }
+
+    return @min(with_margin, max_panel_width);
+}
+
+fn shouldUseCompactMode(width: usize) bool {
+    return width < full_layout_min_width;
+}
+
+fn shouldRefreshAt(now_ms: i64, last_refresh_ms: i64, refresh_ms: u64) bool {
+    if (last_refresh_ms <= 0) return true;
+    const interval = @as(i64, @intCast(@max(refresh_ms, @as(u64, 1))));
+    return now_ms - last_refresh_ms >= interval;
+}
+
+fn pollTimeoutMs(now_ms: i64, last_refresh_ms: i64, refresh_ms: u64) u32 {
+    if (last_refresh_ms <= 0) return 0;
+    const interval = @as(i64, @intCast(@max(refresh_ms, @as(u64, 1))));
+    const elapsed = now_ms - last_refresh_ms;
+    if (elapsed >= interval) return 0;
+
+    const remaining = interval - elapsed;
+    const max_u32_i64 = @as(i64, std.math.maxInt(u32));
+    const bounded = @min(remaining, max_u32_i64);
+    return @intCast(@max(@as(i64, 0), bounded));
+}
+
 // ===============================================================================
 // Tests
 // ===============================================================================
@@ -794,4 +956,23 @@ test "TrainingPanel help overlay toggle" {
     // Verify initial state for run switching
     try std.testing.expectEqual(@as(usize, 0), panel.available_runs.items.len);
     try std.testing.expectEqual(@as(usize, 0), panel.current_run_index);
+}
+
+test "panel width helper supports compact fallback and clamp" {
+    try std.testing.expectEqual(@as(usize, 78), panelWidthFromTerminalCols(80));
+    try std.testing.expectEqual(@as(usize, 120), panelWidthFromTerminalCols(200));
+    try std.testing.expectEqual(@as(usize, 20), panelWidthFromTerminalCols(22));
+
+    try std.testing.expect(shouldUseCompactMode(panelWidthFromTerminalCols(60)));
+    try std.testing.expect(!shouldUseCompactMode(panelWidthFromTerminalCols(100)));
+}
+
+test "refresh loop helpers compute cadence and timeout" {
+    try std.testing.expect(shouldRefreshAt(1_000, 0, 500));
+    try std.testing.expect(!shouldRefreshAt(1_200, 1_000, 500));
+    try std.testing.expect(shouldRefreshAt(1_500, 1_000, 500));
+
+    try std.testing.expectEqual(@as(u32, 500), pollTimeoutMs(1_000, 1_000, 500));
+    try std.testing.expectEqual(@as(u32, 200), pollTimeoutMs(1_300, 1_000, 500));
+    try std.testing.expectEqual(@as(u32, 0), pollTimeoutMs(1_600, 1_000, 500));
 }

@@ -2,7 +2,7 @@
 
 # ABI Framework
 
-<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2611%2Bf996d2866-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2611+f996d2866"/>
+<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2623%2B27eec9bd6-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2623+27eec9bd6"/>
 <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Status"/>
 <img src="https://img.shields.io/github/license/donaldfilimon/abi?style=for-the-badge" alt="License"/>
 
@@ -14,7 +14,7 @@
 
 <br/><br/>
 
-**A modern Zig 0.16.0-dev.2611+f996d2866 framework for AI services, vector search, and high-performance systems**
+**A modern Zig 0.16.0-dev.2623+27eec9bd6 framework for AI services, vector search, and high-performance systems**
 
 [Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
 
@@ -109,7 +109,7 @@ export PATH="$HOME/.zvm/bin:$PATH"
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | `0.16.0-dev.2611+f996d2866` or newer | Yes |
+| Zig | `0.16.0-dev.2623+27eec9bd6` or newer | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
@@ -147,7 +147,7 @@ ABI now includes a staged-compatibility `abi.vnext` namespace:
 - `abi.vnext.Capability`
 
 Legacy `abi.Framework` and `abi.Config` remain available for one release cycle.
-Migration details and API mapping are documented in `docs/content/migration-vnext.html`.
+Migration details and API mapping are documented in `docs/_docs/migration-vnext.md`.
 
 ---
 
@@ -361,7 +361,7 @@ abi/
 │   │   ├── framework.zig # Lifecycle orchestration
 │   │   └── registry/     # Feature registry
 │   │
-│   ├── features/         # Feature modules (19 total, each with mod.zig + stub.zig)
+│   ├── features/         # Feature modules (21 total, each with mod.zig + stub.zig)
 │   │   ├── ai/           # AI Module (llm, agents, training, embeddings)
 │   │   ├── ai_core/      # Agents, tools, prompts, personas, memory
 │   │   ├── ai_inference/  # LLM, embeddings, vision, streaming
@@ -544,7 +544,7 @@ zig build fix
 
 | Milestone | Status |
 |:----------|:------:|
-| Zig 0.16.0-dev.2611+f996d2866 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Zig 0.16.0-dev.2623+27eec9bd6 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |

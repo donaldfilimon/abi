@@ -4,6 +4,10 @@
 //! module source files. Zig 0.16 restricts each source file to one module,
 //! so these cannot be imported by the main test binary (which already uses
 //! them via the 'abi' named module).
+//!
+//! MAINTAINED BY: build/test_discovery.zig (canonical manifest).
+//! When adding a test source, update both the manifest table in
+//! build/test_discovery.zig AND this file.
 
 const build_options = @import("build_options");
 

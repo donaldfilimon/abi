@@ -10,20 +10,20 @@ const tui = @import("../tui/mod.zig");
 const utils = @import("../utils/mod.zig");
 
 const agent = @import("agent.zig");
-const bench = @import("bench.zig");
+const bench = @import("bench/mod.zig");
 const config = @import("config.zig");
 const db = @import("db.zig");
 const discord = @import("discord.zig");
 const embed = @import("embed.zig");
 const explore = @import("explore.zig");
 const gpu = @import("gpu.zig");
-const llm = @import("llm.zig");
+const llm = @import("llm/mod.zig");
 const model = @import("model.zig");
 const network = @import("network.zig");
-const ralph = @import("ralph.zig");
+const ralph = @import("ralph/mod.zig");
 const simd = @import("simd.zig");
 const system_info = @import("system_info.zig");
-const train = @import("train.zig");
+const train = @import("train/mod.zig");
 const task = @import("task.zig");
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -437,23 +437,31 @@ const TuiState = struct {
         self.completion.clear();
     }
 
-    fn handleMouseClick(self: *TuiState, row: u16) bool {
-        // Account for header (4 rows: title, border, blank, category header)
-        const header_rows: u16 = 4;
-        if (row < header_rows) return false;
+    fn handleMouseClick(self: *TuiState, row: u16, menu_start_row: u16) bool {
+        const row0 = if (row == 0) @as(u16, 0) else row - 1;
+        const clicked_idx = clickedIndexFromRow(
+            row0,
+            menu_start_row,
+            self.scroll_offset > 0,
+            self.scroll_offset,
+            self.visible_rows,
+            self.filtered_indices.items.len,
+        ) orelse return false;
 
-        const menu_row = row - header_rows;
-        const clicked_idx = self.scroll_offset + @as(usize, menu_row);
-
-        if (clicked_idx < self.filtered_indices.items.len) {
-            self.selected = clicked_idx;
-            return true; // Indicate selection changed, could trigger action
-        }
-        return false;
+        self.selected = clicked_idx;
+        return true;
     }
 };
 
 const empty_args = &[_][:0]const u8{};
+const args_stats = [_][:0]const u8{"stats"};
+const args_quick = [_][:0]const u8{"quick"};
+const args_show = [_][:0]const u8{"show"};
+const args_status = [_][:0]const u8{"status"};
+const args_summary = [_][:0]const u8{"summary"};
+const args_list = [_][:0]const u8{"list"};
+const args_info = [_][:0]const u8{"info"};
+const args_monitor = [_][:0]const u8{"monitor"};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Box Drawing Characters
@@ -558,12 +566,12 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
 
     // Calculate visible rows based on terminal size
     state.term_size = terminal.size();
-    state.visible_rows = @max(5, state.term_size.rows -| 10);
+    state.visible_rows = computeVisibleRows(state.term_size.rows);
 
     while (true) {
         // Refresh terminal size
         state.term_size = terminal.size();
-        state.visible_rows = @max(5, state.term_size.rows -| 10);
+        state.visible_rows = computeVisibleRows(state.term_size.rows);
 
         // Clear and render
         try terminal.clear();
@@ -581,22 +589,10 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
             },
             .mouse => |mouse| {
                 if (mouse.pressed and mouse.button == .left) {
-                    if (state.handleMouseClick(mouse.row)) {
+                    if (state.handleMouseClick(mouse.row, menuStartRow(&state))) {
                         // Execute the selected action
                         if (state.selectedItem()) |item| {
-                            if (item.action == .quit) break;
-
-                            if (item.action == .command) {
-                                try state.addToHistory(item.action.command);
-                            }
-
-                            try state.terminal.exit();
-                            try runAction(state.allocator, state.framework, item.action);
-
-                            std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
-                            _ = state.terminal.readKey() catch {};
-
-                            try state.terminal.enter();
+                            if (try executeActionFromState(&state, item.action)) break;
                         }
                     }
                 } else if (mouse.button == .wheel_up) {
@@ -669,14 +665,7 @@ fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
                         const num = ch - '0';
                         if (findByShortcut(state.items, num)) |idx| {
                             const item = state.items[idx];
-                            if (item.action == .command) {
-                                try state.addToHistory(item.action.command);
-                            }
-                            try state.terminal.exit();
-                            try runAction(state.allocator, state.framework, item.action);
-                            std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
-                            _ = state.terminal.readKey() catch {};
-                            try state.terminal.enter();
+                            if (try executeActionFromState(state, item.action)) return true;
                         }
                     },
                     else => {},
@@ -691,20 +680,7 @@ fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
         .end => state.goEnd(),
         .enter => {
             if (state.selectedItem()) |item| {
-                if (item.action == .quit) return true;
-
-                // Add to history
-                if (item.action == .command) {
-                    try state.addToHistory(item.action.command);
-                }
-
-                try state.terminal.exit();
-                try runAction(state.allocator, state.framework, item.action);
-
-                std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
-                _ = state.terminal.readKey() catch {};
-
-                try state.terminal.enter();
+                if (try executeActionFromState(state, item.action)) return true;
             }
         },
         else => {},
@@ -722,19 +698,7 @@ fn handlePreviewKey(state: *TuiState, key: tui.Key) !bool {
             // Run the previewed command
             state.preview_mode = false;
             if (state.selectedItem()) |item| {
-                if (item.action == .quit) return true;
-
-                if (item.action == .command) {
-                    try state.addToHistory(item.action.command);
-                }
-
-                try state.terminal.exit();
-                try runAction(state.allocator, state.framework, item.action);
-
-                std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
-                _ = state.terminal.readKey() catch {};
-
-                try state.terminal.enter();
+                if (try executeActionFromState(state, item.action)) return true;
             }
         },
         else => {},
@@ -767,15 +731,7 @@ fn handleSearchKey(state: *TuiState, key: tui.Key) !bool {
             state.search_mode = false;
             // Execute selected if any
             if (state.selectedItem()) |item| {
-                if (item.action == .quit) return true;
-
-                try state.terminal.exit();
-                try runAction(state.allocator, state.framework, item.action);
-
-                std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
-                _ = state.terminal.readKey() catch {};
-
-                try state.terminal.enter();
+                if (try executeActionFromState(state, item.action)) return true;
             }
         },
         .backspace => {
@@ -822,7 +778,7 @@ fn handleSearchKey(state: *TuiState, key: tui.Key) !bool {
 
 fn renderFrame(state: *TuiState) !void {
     const term = state.terminal;
-    const width: usize = @min(80, state.term_size.cols);
+    const width = clampedFrameWidth(state.term_size.cols);
 
     // Handle preview mode
     if (state.preview_mode) {
@@ -1674,24 +1630,25 @@ fn runAction(allocator: std.mem.Allocator, framework: *abi.Framework, action: Ac
 }
 
 fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
+    const cmd_args = commandDefaultArgs(cmd);
     switch (cmd) {
-        .db => try db.run(allocator, empty_args),
-        .agent => try agent.run(allocator, empty_args),
-        .bench => try bench.run(allocator, empty_args),
-        .config => try config.run(allocator, empty_args),
-        .discord => try discord.run(allocator, empty_args),
-        .embed => try embed.run(allocator, empty_args),
-        .explore => try explore.run(allocator, empty_args),
-        .gpu => try gpu.run(allocator, empty_args),
-        .llm => try llm.run(allocator, empty_args),
-        .model => try model.run(allocator, empty_args),
-        .network => try network.run(allocator, empty_args),
-        .ralph => try ralph.run(allocator, empty_args),
-        .simd => try simd.run(allocator, empty_args),
-        .system_info => try system_info.run(allocator, empty_args),
-        .train => try train.run(allocator, empty_args),
-        .train_monitor => try train.run(allocator, &[_][:0]const u8{"monitor"}),
-        .task => try task.run(allocator, empty_args),
+        .db => try db.run(allocator, cmd_args),
+        .agent => try agent.run(allocator, cmd_args),
+        .bench => try bench.run(allocator, cmd_args),
+        .config => try config.run(allocator, cmd_args),
+        .discord => try discord.run(allocator, cmd_args),
+        .embed => try embed.run(allocator, cmd_args),
+        .explore => try explore.run(allocator, cmd_args),
+        .gpu => try gpu.run(allocator, cmd_args),
+        .llm => try llm.run(allocator, cmd_args),
+        .model => try model.run(allocator, cmd_args),
+        .network => try network.run(allocator, cmd_args),
+        .ralph => try ralph.run(allocator, cmd_args),
+        .simd => try simd.run(allocator, cmd_args),
+        .system_info => try system_info.run(allocator, cmd_args),
+        .train => try train.run(allocator, cmd_args),
+        .train_monitor => try train.run(allocator, cmd_args),
+        .task => try task.run(allocator, cmd_args),
     }
 }
 
@@ -1887,9 +1844,88 @@ fn findByShortcut(items: []const MenuItem, num: u8) ?usize {
     return null;
 }
 
+fn commandDefaultArgs(cmd: Command) []const [:0]const u8 {
+    return switch (cmd) {
+        .db => &args_stats,
+        .bench => &args_quick,
+        .config => &args_show,
+        .discord => &args_status,
+        .gpu => &args_summary,
+        .llm => &args_list,
+        .model => &args_list,
+        .network => &args_status,
+        .ralph => &args_status,
+        .task => &args_list,
+        .train => &args_info,
+        .train_monitor => &args_monitor,
+        else => empty_args,
+    };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Utilities
 // ═══════════════════════════════════════════════════════════════════════════
+
+fn computeVisibleRows(rows: u16) usize {
+    const content_rows = rows -| 10;
+    return @max(@as(usize, 5), @as(usize, @intCast(content_rows)));
+}
+
+fn clampedFrameWidth(cols: u16) usize {
+    const value = @as(usize, @intCast(cols));
+    return std.math.clamp(value, @as(usize, 40), @as(usize, 140));
+}
+
+fn completionDropdownRowCount(state: *const TuiState) u16 {
+    if (!state.search_mode or !state.completion.active) return 0;
+    const suggestions_len = state.completion.suggestions.items.len;
+    const shown = @min(suggestions_len, state.completion.max_visible);
+    return @as(u16, @intCast(shown + 2)); // top + rows + bottom
+}
+
+fn menuStartRow(state: *const TuiState) u16 {
+    // Title bar: 3 rows
+    var row: u16 = 3;
+    if (state.notification != null) row += 1;
+
+    if (state.search_mode or state.search_len > 0) {
+        // Search bar + separator
+        row += 2;
+        row += completionDropdownRowCount(state);
+    }
+
+    if (state.show_history and state.history.items.len > 0) {
+        const shown = @min(state.history.items.len, 5);
+        row += @as(u16, @intCast(shown + 2)); // header + entries + separator
+    }
+
+    return row;
+}
+
+fn clickedIndexFromRow(
+    row0: u16,
+    menu_start_row: u16,
+    show_top_indicator: bool,
+    scroll_offset: usize,
+    visible_rows: usize,
+    filtered_len: usize,
+) ?usize {
+    if (filtered_len == 0 or row0 < menu_start_row) return null;
+
+    var first_item_row = menu_start_row;
+    if (show_top_indicator) {
+        if (row0 == menu_start_row) return null; // "more above" row
+        first_item_row += 1;
+    }
+    if (row0 < first_item_row) return null;
+
+    const menu_row: usize = @intCast(row0 - first_item_row);
+    if (menu_row >= visible_rows) return null;
+
+    const clicked_idx = scroll_offset + menu_row;
+    if (clicked_idx >= filtered_len) return null;
+    return clicked_idx;
+}
 
 fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
     if (needle.len == 0) return true;
@@ -1998,9 +2034,9 @@ fn calculateCompletionScore(item: *const MenuItem, query: []const u8, history_it
 fn isRecentlyUsed(item: *const MenuItem, history_items: []const HistoryEntry) bool {
     switch (item.action) {
         .command => |cmd| {
-            // Check recent history (last 5 items)
+            // History is newest-first (inserted at index 0), so inspect prefix.
             const check_count = @min(history_items.len, 5);
-            for (history_items[history_items.len - check_count ..]) |entry| {
+            for (history_items[0..check_count]) |entry| {
                 if (entry.command == cmd) return true;
             }
         },
@@ -2012,6 +2048,24 @@ fn isRecentlyUsed(item: *const MenuItem, history_items: []const HistoryEntry) bo
 /// Comparison function for sorting suggestions (higher score first)
 fn suggestionCompare(_: void, a: CompletionSuggestion, b: CompletionSuggestion) bool {
     return a.score > b.score;
+}
+
+fn executeActionFromState(state: *TuiState, action: Action) !bool {
+    if (action == .quit) return true;
+
+    switch (action) {
+        .command => |cmd| try state.addToHistory(cmd),
+        else => {},
+    }
+
+    try state.terminal.exit();
+    errdefer state.terminal.enter() catch {};
+
+    try runAction(state.allocator, state.framework, action);
+    std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
+    _ = state.terminal.readKey() catch {};
+    try state.terminal.enter();
+    return false;
 }
 
 fn printHelp() void {
@@ -2055,4 +2109,50 @@ fn printHelp() void {
         colors.bold,
         colors.reset,
     });
+}
+
+test "command default args mapping" {
+    try std.testing.expectEqualStrings("status", commandDefaultArgs(.ralph)[0]);
+    try std.testing.expectEqualStrings("summary", commandDefaultArgs(.gpu)[0]);
+    try std.testing.expectEqualStrings("monitor", commandDefaultArgs(.train_monitor)[0]);
+    try std.testing.expectEqual(@as(usize, 0), commandDefaultArgs(.agent).len);
+}
+
+test "recent history prefers newest prefix entries" {
+    const item = MenuItem{
+        .label = "Ralph",
+        .description = "desc",
+        .action = .{ .command = .ralph },
+        .category = .ai,
+    };
+
+    const history = [_]HistoryEntry{
+        .{ .command = .ralph, .timestamp = 30 },
+        .{ .command = .db, .timestamp = 20 },
+        .{ .command = .bench, .timestamp = 10 },
+    };
+    try std.testing.expect(isRecentlyUsed(&item, &history));
+
+    const old_only = [_]HistoryEntry{
+        .{ .command = .db, .timestamp = 30 },
+        .{ .command = .bench, .timestamp = 20 },
+        .{ .command = .config, .timestamp = 10 },
+        .{ .command = .gpu, .timestamp = 9 },
+        .{ .command = .llm, .timestamp = 8 },
+        .{ .command = .ralph, .timestamp = 1 },
+    };
+    try std.testing.expect(!isRecentlyUsed(&item, &old_only));
+}
+
+test "clicked row mapping handles dynamic header and scroll indicator" {
+    // No top indicator: first menu item starts at menu_start_row.
+    try std.testing.expectEqual(@as(?usize, 0), clickedIndexFromRow(10, 10, false, 0, 5, 20));
+    try std.testing.expectEqual(@as(?usize, 4), clickedIndexFromRow(14, 10, false, 0, 5, 20));
+
+    // With top indicator: row at menu_start_row is indicator, first item is +1.
+    try std.testing.expectEqual(@as(?usize, null), clickedIndexFromRow(10, 10, true, 8, 5, 20));
+    try std.testing.expectEqual(@as(?usize, 8), clickedIndexFromRow(11, 10, true, 8, 5, 20));
+
+    // Out of bounds.
+    try std.testing.expectEqual(@as(?usize, null), clickedIndexFromRow(20, 10, false, 0, 5, 3));
 }

@@ -1,10 +1,4 @@
----
-title: "README"
-tags: []
----
 # GPU Module Overview
-
-> **Codebase Status:** Synced with repository as of 2026-02-14.
 
 This directory contains the GPU acceleration layer of the ABI framework. Neural network workloads can use **GPU** (CUDA, Metal, Vulkan), **WebGPU**, **TPU** (when a runtime is linked), or **multi-threaded CPU** via `abi.runtime.ThreadPool` and `InferenceConfig.num_threads`.
 
@@ -62,7 +56,7 @@ _ = try gpu.vectorAdd(a, b, result);
 
 ## See Also
 
-- [GPU Documentation](../../docs/content/gpu.html)
-- [API Reference](../../docs/api-reference.md)
+- [GPU Documentation](../../docs/_docs/gpu.md)
+- [API Reference](../../docs/api/)
 - [CLAUDE.md](../../../CLAUDE.md) — GPU backends and feature flags
 

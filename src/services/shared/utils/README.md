@@ -1,10 +1,4 @@
----
-title: "README"
-tags: []
----
 //! # Utility Modules
-//!
-//! > **Codebase Status:** Synced with repository as of 2026-02-04.
 //!
 //! Reusable components designed to be independent and avoid circular dependencies.
 //!

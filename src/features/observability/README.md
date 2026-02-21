@@ -223,7 +223,7 @@ See `src/core/config/observability.zig` for configuration options including:
 
 ## Related Documentation
 
-- **Monitoring**: See `docs/content/observability.html` for setup and guidance
+- **Monitoring**: See `docs/_docs/observability.md` for setup and guidance
 - **Benchmarking**: See `benchmarks/README.md` for performance profiling
 - **GPU Metrics**: GPU backends expose accelerator-specific metrics via this module
 - **Network Metrics**: Distributed compute exposes request/RPC metrics

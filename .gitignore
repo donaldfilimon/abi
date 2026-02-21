@@ -1,33 +1,33 @@
-# Git worktrees
+# ── Git worktrees ──────────────────────────────────────────────────────
 .worktrees/
 
-# Zig build artifacts
+# ── Zig build artifacts ───────────────────────────────────────────────
 zig-cache/
+.zig-cache/
+.zig/
 zig-out/
 exe/
 docs_html/
-# Zig build output (not build/ source directory with *.zig files)
+# build/ contains source .zig files — only ignore non-Zig artifacts
 build/*
 !build/*.zig
-.zig-cache/
-.zig/
 
-# Documentation build artifacts
+# ── Documentation build artifacts ─────────────────────────────────────
 docs-src/build/
 
-# Editor and IDE
+# ── Editor and IDE ────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
-.discord
-# Dependencies and package management
+
+# ── Dependencies and package management ───────────────────────────────
 node_modules/
 .bun/
 
-# Python artifacts
+# ── Python artifacts ──────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
@@ -40,7 +40,7 @@ __pycache__/
 .venv/
 venv/
 
-# Test and benchmark results
+# ── Test and benchmark results ────────────────────────────────────────
 *.test
 *.bench
 coverage/
@@ -55,43 +55,39 @@ coverage/
 /quick.json
 /simd.json
 
-# Logs
+# ── Logs ──────────────────────────────────────────────────────────────
 *.log
 logs/
 
-# Environment files
+# ── Environment files ─────────────────────────────────────────────────
 .env
 .env.local
 .env.*.local
 
-# Database files
+# ── Database files ────────────────────────────────────────────────────
 *.wdbx
 *.wdbx.wal
 *.wal
 *.db
 *.sqlite
 
-# Temporary files
+# ── Temporary and generated files ─────────────────────────────────────
 tmp/
 temp/
 *.tmp
+abi.json
 probe_error.txt
 probe_*.txt
 probe_*.zig
 test_build.zig
 build_options.zig
 src/build_options.zig
-abi.json
-
-# One-time migration/fix scripts
+/abi_*_tmp*.zig
+/tmp_*.zig
 fix_*.py
 migrate*.sh
-test-models/
 
-# Static libraries (build artifacts)
-*.a
-
-# Debug/test output files
+# ── Debug/test output files ───────────────────────────────────────────
 test_log.txt
 test_output.txt
 test_full.txt
@@ -103,7 +99,36 @@ wasm_build_log.txt
 wasm_install_log.txt
 training_data.txt
 
-# Claude Code local settings (track rules, skills, README, hooks for reuse)
+# ── AI model files and training artifacts ─────────────────────────────
+*.onnx
+*.pt
+*.pth
+*.h5
+*.pb
+*.ckpt
+*.gguf
+models/
+test-models/
+train.bin
+
+# ── Binary executables and object files ───────────────────────────────
+*.a
+*.o
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+*.pdb.*
+*.core
+
+# ── Profiling data ────────────────────────────────────────────────────
+*.prof
+*.profraw
+*.tracy
+perf.data*
+
+# ── Claude Code (track rules, skills, README, hooks — ignore the rest)
 .claude/
 !.claude/README.md
 !.claude/rules/
@@ -113,78 +138,46 @@ training_data.txt
 !.claude/settings.json
 .claude-plugin/
 
-# ABI local user state
+# ── ABI runtime state ────────────────────────────────────────────────
 .abi/
 
-# Ralph runtime output and lock
+# ── Ralph runtime output and lock ─────────────────────────────────────
 .ralph/
 
-# Development checkpoints and evaluation data
+# ── Development checkpoints ───────────────────────────────────────────
 checkpoints/
 
-# Auto Claude workspace data (repo-root only)
-/abi/
+# ── Generated reports (Ralph gate, skill memory) ─────────────────────
+reports/
 
-# Rust build artifacts in bindings
-bindings/**/target/
-
-# Backup files created by CLI
+# ── Backup files ──────────────────────────────────────────────────────
 backups/
-
-# OS specific
-Thumbs.db
-desktop.ini
-
-# Cell language build artifacts
-*.cell.out
-
-# Training binaries
-train.bin
-
-# AI model files
-*.onnx
-*.pt
-*.pth
-*.h5
-*.pb
-*.ckpt
-*.gguf
-testingllm.ckpt/
-
-# Profiling data
-*.prof
-*.profraw
-*.tracy
-perf.data*
-
-*.core
-
-# Binary executables and object files
-*.exe
-*.dll
-*.so
-*.dylib
-*.o
-*.pdb
-*.pdb.*
-# Backup files
 *.bak
 *.backup
 
-# Distribution
+# ── Distribution ──────────────────────────────────────────────────────
 dist/
 release/
 *.tar.gz
 *.zip
 
+# ── Rust build artifacts in bindings ──────────────────────────────────
+bindings/**/target/
+bindings/c/.zig-cache/
+
+# ── OS specific ───────────────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+nul
+
+# ── Misc generated / workspace ────────────────────────────────────────
 .nx/installation
 .nx/cache
 .nx/workspace-data
 tmpclaude-*-cwd
 tmpclaude-*
-
-nul
+/abi/
 /hello
 examples/c_test
-docs/api/
-bindings/c/.zig-cache/
+.discord
+*.cell.out

@@ -187,6 +187,13 @@ fn dashboardUpdate(loop: *tui.AsyncLoop, event: tui.AsyncEvent) anyerror!bool {
             .key => |key| try handleKeyEvent(state, key),
             .mouse => false,
         },
+        .resize => |size| blk: {
+            state.term_size = .{
+                .rows = size.rows,
+                .cols = size.cols,
+            };
+            break :blk false;
+        },
         .quit => true,
         else => false,
     };

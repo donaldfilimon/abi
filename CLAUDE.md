@@ -17,13 +17,13 @@ When you assist in **Cursor** (or any direct editor/chat session), you are **out
 | **Flow** | Single conversational turn or short back-and-forth; you run `zig build` / tests as needed | Multi-step loop until `LOOP_COMPLETE` or max iterations; engine calls LLM, runs tools, updates state |
 | **State** | No reliance on `.ralph/` or `ralph.yml` for *this* session | Uses `.ralph/` (state, lock, logs), `ralph.yml` (backend, prompt_file, max_iterations) |
 | **Quality** | Validate with `zig build full-check` (or `zig build test`, `zig fmt`, etc.) | Optional: `abi ralph gate` / `zig build ralph-gate` on Ralph run outputs; `zig build verify-all` includes ralph-gate |
-| **Self-improvement / learning** | Update CLAUDE.md, AGENTS.md, `.claude/rules/zig.md`, or baselines; no `.ralph/` skill store this session | Skills in Abbey memory (`.skill`); `ralph improve`, `ralph run --auto-skill`, `ralph skills add/list/clear`; lessons injected into next run’s system prompt |
+| **Self-improvement / learning** | Update CLAUDE.md, `.claude/rules/zig.md`, or baselines; no `.ralph/` skill store this session | Skills in Abbey memory (`.skill`); `ralph improve`, `ralph run --auto-skill`, `ralph skills add/list/clear`; lessons injected into next run’s system prompt |
 
 ### Do (outside the loop)
 
 - **Edit and run locally:** Make changes, then run `zig build`, `zig build test`, `zig build full-check`, `zig fmt`, etc. directly. Do not invoke or depend on `abi ralph run` or `PROMPT.md` for this session.
 - **Single conversational flow:** Treat this as one chat/agent session. There is no iterative Ralph loop here—no Abbey engine steps, no `LOOP_COMPLETE` promise, no `.ralph/` state machine.
-- **Follow CLAUDE.md and AGENTS.md:** Use the build/test/format commands, gotchas, and conventions in this file. Stub parity, feature flags, and test baselines apply to your edits.
+- **Follow CLAUDE.md:** Use the build/test/format commands, gotchas, and conventions in this file. Stub parity, feature flags, and test baselines apply to your edits.
 - **Suggest Ralph when it fits:** If the user describes a long, multi-step task that would benefit from an iterative agent run, you can suggest they try `abi ralph run --task "..."` or `abi ralph improve` as a *separate* workflow—without you driving that loop yourself.
 
 ### Don’t (outside the loop)
@@ -35,13 +35,13 @@ When you assist in **Cursor** (or any direct editor/chat session), you are **out
 ### Quality gates for your changes
 
 - **Standard:** `zig build full-check` (format + tests + feature tests + flag validation + CLI smoke).
-- **Release-grade:** `zig build verify-all` (adds consistency checks, examples, bench-all, check-wasm, and `ralph-gate`). You do *not* need to run the Ralph loop to satisfy this session; `ralph-gate` is for Ralph-run outputs when the user does a full release check.
+- **Release-grade:** `zig build verify-all` (adds consistency checks, examples, and check-wasm).
 
 ### Where Ralph lives (for reference)
 
 - **Config:** `ralph.yml` (backend, prompt_file, max_iterations, etc.).
 - **Runtime state:** `.ralph/` (e.g. state, lock, logs, agent data).
-- **CLI:** `abi ralph init | run | super | multi | status | gate | improve | skills`; see `abi ralph help` and `tools/cli/commands/ralph.zig`.
+- **CLI:** `abi ralph init | run | super | multi | status | gate | improve | skills`; see `abi ralph help` and `tools/cli/commands/ralph/`.
 
 ### Self-improvement and learning
 
@@ -49,7 +49,7 @@ Learning and improvement happen in different ways depending on mode.
 
 **Outside the loop (you, in Cursor):**
 
-- **Improve by following and updating project knowledge:** Use CLAUDE.md, AGENTS.md, and `.claude/rules/zig.md` as the source of truth. When you discover a new gotcha, a better pattern, or a doc fix, propose edits to those files so future sessions (and humans) benefit.
+- **Improve by following and updating project knowledge:** Use CLAUDE.md and `.claude/rules/zig.md` as the source of truth. When you discover a new gotcha, a better pattern, or a doc fix, propose edits to those files so future sessions (and humans) benefit.
 - **Validate and correct:** Run `zig build full-check`, fix failing tests, run `/baseline-sync` when test counts change. Learning here is “get the repo to a good state and capture it in docs and baselines.”
 - **No persistent skill store for this session:** You do not write to `.ralph/` or Abbey memory. Session context is your only memory unless the user explicitly asks you to add a skill via Ralph (e.g. `abi ralph skills add "..."`).
 - **When you learn something worth reusing:** Prefer updating CLAUDE.md or `.claude/rules/zig.md` (or a skill file under `.claude/skills/`) so it applies to all future Cursor sessions. Suggest “add this to CLAUDE.md” or “run baseline-sync” rather than only mentioning it in chat.
@@ -74,13 +74,13 @@ When the user wants **autonomous multi-step execution** with skill memory and op
 - **When not to:** Single-file edits, bounded refactors in one session — do those yourself; suggest Ralph only if they explicitly want the loop.
 - **Quality gate:** After Ralph produces report JSON, `abi ralph gate` (or `zig build ralph-gate`) enforces the score threshold; `zig build verify-all` includes ralph-gate.
 - **Multi-Ralph (Zig, fast):** Lock-free RalphBus (`ralph_multi`) + parallel swarm (`ralph_swarm`) — `abi ralph multi -t "g1" -t "g2"` runs N agents on the runtime ThreadPool; or from Zig: `ThreadPool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &ctx, index })`.
-- **Skill:** `.claude/skills/super-ralph/SKILL.md`; Codex install: `./scripts/install_super_ralph_codex.sh`.
+- **Skill:** `.claude/skills/super-ralph/SKILL.md`.
 
 ## Quick Reference
 
 | Key | Value |
 |-----|-------|
-| **Zig** | `0.16.0-dev.2611+f996d2866` or newer (pinned in `.zigversion`) |
+| **Zig** | `0.16.0-dev.2623+27eec9bd6` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
 | **Test baseline** | 1270 pass, 5 skip (1275 total) — must be maintained |
@@ -122,11 +122,9 @@ zig build validate-flags                     # Compile-check 34 feature flag com
 zig build cli-tests                          # CLI smoke tests (top-level + nested, e.g. help llm, bench micro hash)
 zig build lint                               # CI formatting check
 zig build fix                                # Format source files in place
-zig build benchmarks                         # Performance benchmarks
-zig build bench-all                          # Run all benchmark suites
 zig build examples                           # Build all examples
 zig build check-wasm                         # Check WASM compilation
-zig build verify-all                         # full-check + consistency + examples + bench-all + check-wasm + ralph-gate
+zig build verify-all                         # full-check + consistency + examples + check-wasm
 zig build ralph-gate                         # Require live Ralph report and threshold pass
 scripts/check_zig_version_consistency.sh     # Verify .zigversion matches build.zig/docs
 bash scripts/toolchain_doctor.sh             # Diagnose PATH precedence and active zig mismatch
@@ -338,10 +336,9 @@ var fw = try abi.init(allocator, .{ .gpu = .{ .backend = .vulkan } });
 - `abi.vnext.AppConfig` — config with `strict_capability_check` + `required_capabilities`
 - `abi.vnext.Capability` — mirrors `Feature` enum with conversion functions
 
-**Current state (v0.4.0):** Only capability checking is implemented. Methods like
-`.feature()`, `.has()`, `.state()` from `docs/content/migration-vnext.md` are
-**not yet implemented**. Use `app.getFramework()` to access features during transition.
-Compatibility tests: `zig build vnext-compat`.
+**Current state (v0.4.0):** Capability checking and basic `App` methods (`.feature()`,
+`.has()`, `.state()`) are implemented in `src/vnext/app.zig`. Use `app.getFramework()`
+to access the full Framework during transition. Compatibility tests: `zig build vnext-compat`.
 
 ### Convenience Aliases
 
@@ -401,8 +398,8 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 | Add a GPU backend | `src/features/gpu/backends/` |
 | Security infrastructure | `src/services/shared/security/` (17 modules) |
 | C API bindings | `zig build c-header` → `zig-out/include/abi.h`; `zig build lib` → static library |
-| Generate API docs | `abi gendocs` or `zig build gendocs` → `docs/api/` |
-| Examples | `examples/` (36 examples) |
+| Generate API docs | `abi gendocs` (CLI command) |
+| Examples | `examples/` (37 examples, including `training/train_demo.zig`) |
 | MCP service | `src/services/mcp/` (JSON-RPC 2.0 server for WDBX) |
 | ACP service | `src/services/acp/` (agent communication protocol) |
 
@@ -489,7 +486,7 @@ can reach both `features/` and `services/` subdirectories.
 - Parity tests verify `mod.zig` and `stub.zig` export the same interface
 - **Test discovery**: Use `test { _ = @import(...); }` to include submodule tests — `comptime {}` does NOT discover tests
 - **Standalone test files**: For modules whose `mod.zig` re-exports sub-modules with compile issues (gpu, auth, database), create `*_test.zig` alongside mod.zig that imports only the parent — avoids triggering lazy compilation of broken sub-modules
-- **GPU/database test gap**: These modules cannot be registered in `feature_test_root.zig` — backend source files have 37+ Zig 0.16 errors (`*const DynLib`, stale struct fields, extern enum tag width). They compile fine through `zig build test` via the named `abi` module. Needs dedicated migration pass.
+- **GPU/database test gap**: These modules cannot be registered in `feature_test_root.zig` — backend source files have Zig 0.16 compatibility issues (`*const DynLib`, stale struct fields, extern enum tag width). They compile fine through `zig build test` via the named `abi` module. Needs dedicated migration pass.
 
 ## After Making Changes
 
@@ -501,7 +498,7 @@ can reach both `features/` and `services/` subdirectories.
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |
-| Everything (release gate) | `zig build verify-all` (full-check + consistency + examples + bench-all + check-wasm + ralph-gate) |
+| Everything (release gate) | `zig build verify-all` (full-check + consistency + examples + check-wasm) |
 | Build artifacts in `exe/` | Add `exe/` to `.gitignore` (see .gitignore) — standard output is `zig-out/` |
 
 ## Skills, Plans, and Agents (full index)
@@ -512,11 +509,9 @@ Use this section to find rules, skills, execution plans, and agent definitions. 
 
 | Context | Use |
 |--------|-----|
-| **This session (Cursor/Claude)** | CLAUDE.md, AGENTS.md, `.claude/rules/zig.md`. Edit, build, test; suggest `/baseline-sync` or `/zig-migrate` when relevant. |
-| **Multi-step execution plan** | `plans/plan.md` (master) and child plans in `plans/`. Follow phased gates and agent roles (A0–A4) when executing a plan. |
+| **This session (Cursor/Claude)** | CLAUDE.md, `.claude/rules/zig.md`. Edit, build, test; suggest `/baseline-sync` or `/zig-migrate` when relevant. |
 | **Ralph iterative loop** | User runs `abi ralph run` or `abi ralph improve`; skills live in Abbey memory (`.ralph/`). You do not drive that loop unless asked. |
-| **Codex / external runner** | Same plans and baselines; `scripts/project_baseline.env` is source of truth. Use `plans/plan.md` for phase sequencing and constraints. |
-| **Cursor-specific agent** | `.cursor/agents/` (e.g. Metal/CoreML GPU/NPU expert); invoke when the task matches the agent’s description. |
+| **Codex / external runner** | Same baselines; `scripts/project_baseline.env` is source of truth. |
 
 ### Rules (auto-loaded)
 
@@ -528,42 +523,11 @@ Use this section to find rules, skills, execution plans, and agent definitions. 
 
 | Skill | Invocation | Purpose |
 |-------|------------|---------|
-| **baseline-sync** | `/baseline-sync` | Sync test baseline numbers from `scripts/project_baseline.env` to all 10 doc files. Run after test count changes. See `.claude/skills/baseline-sync/SKILL.md`. |
+| **baseline-sync** | `/baseline-sync` | Sync test baseline numbers from `scripts/project_baseline.env` to doc files. Run after test count changes. See `.claude/skills/baseline-sync/SKILL.md`. |
 | **zig-migrate** | `/zig-migrate [file-or-dir]` | Apply Zig 0.16 migration patterns (DynLib, I/O backend, format specifiers, etc.). See `.claude/skills/zig-migrate/SKILL.md`. |
 | **super-ralph** | `/super-ralph` or suggest | Run or suggest Ralph: `abi ralph super --task "..."` (init-if-needed, run, optional `--gate`/`--auto-skill`); multi-Ralph via `abi.ai.abbey.ralph_multi`. See `.claude/skills/super-ralph/SKILL.md` and [Super Ralph (power use)](#super-ralph-power-use). |
 
-**Codex:** Install Super Ralph with `./scripts/install_super_ralph_codex.sh` (copies `codex/super-ralph/` to `~/.codex/skills/super-ralph/`).
-
 Skill index: `.claude/skills/README.md` (if present) or list `ls .claude/skills/*/SKILL.md`.
-
-### Execution plans (plans/)
-
-| Plan | Purpose |
-|------|---------|
-| `plans/plan.md` | **Master execution plan**: baseline, phases (0–3), multi-agent roles (A0 Coordinator, A1 Feature Parity, A2 Core Runtime, A3 API/CLI, A4 Validation), constraints, definition of done. Source of truth for phased execution. |
-| `plans/2026-02-16-multi-agent-improvements.md` | Multi-agent module improvements. |
-| `plans/2026-02-08-*.md` | Ralph loop eval, split large files, codebase improvements, v2 integration. Many include “For Claude: REQUIRED SUB-SKILL: Use superpowers:executing-plans”. |
-| `plans/2026-02-05-*.md` | Stabilization, examples/docs alignment, codebase rewrite, CLAUDE.md improvements. |
-| `plans/2026-02-04-*.md` | Feature modules completion, codebase improvements. |
-
-When executing a plan: (1) Read the plan’s “For Claude” or “REQUIRED SUB-SKILL” if present. (2) Respect ownership and phases in `plans/plan.md`. (3) Run the plan’s exit criteria and gates before marking done.
-
-### Docs plan and roadmap
-
-| Doc | Purpose |
-|-----|---------|
-| `docs/plan.md` | Quality plan: test baselines table, quality gates (format, tests, flags, consistency scripts). |
-| `docs/roadmap.md` | High-level roadmap (v0.4.0 current, next steps). |
-
-Baseline numbers in these must match `scripts/project_baseline.env`; use `/baseline-sync` when counts change.
-
-### Cursor agents (.cursor/agents/)
-
-| Agent | File | When to use |
-|-------|------|-------------|
-| Metal/CoreML GPU/NPU | `.cursor/agents/metal-coreml-gpu-npu.md` | Apple Silicon GPU/ANE, Metal backend, CoreML linking, MPS, macOS M-series. |
-
-Cursor may expose these as selectable agents; use when the task matches the agent’s expertise.
 
 ### CI quality gate scripts (reference)
 
@@ -574,9 +538,8 @@ See table in [CI Quality Gate Scripts](#ci-quality-gate-scripts) below. Key: `sc
 | Check | Action |
 |-------|--------|
 | **Entry** | Use this file (CLAUDE.md) as single entry; open [Skills, Plans, and Agents](#skills-plans-and-agents-full-index) for rules, skills, plans, agents. |
-| **Baseline** | Source of truth: `scripts/project_baseline.env`. After test count changes run `/baseline-sync` or update all 10 doc files. |
-| **Gate** | Before claiming done: `zig build full-check` (or plan-specific exit criteria from `plans/plan.md`). |
-| **Plans** | Execute from `plans/plan.md` and child plans; respect A0–A4 roles and phased gates. |
+| **Baseline** | Source of truth: `scripts/project_baseline.env`. After test count changes run `/baseline-sync`. |
+| **Gate** | Before claiming done: `zig build full-check`. |
 | **Ralph** | You are outside the loop unless the user runs `abi ralph run`; do not drive the loop from this session. |
 
 ---
@@ -611,17 +574,12 @@ Beyond `zig build full-check`, these scripts enforce additional invariants:
 ### Updating Test Baselines
 
 When test counts change, update `scripts/project_baseline.env` (source of truth), then run
-`/baseline-sync` or manually update all 10 files listed in `.claude/skills/baseline-sync/SKILL.md`.
+`/baseline-sync` or manually update files listed in `.claude/skills/baseline-sync/SKILL.md`.
 Verify with `bash scripts/check_test_baseline_consistency.sh`.
 
 ## References
 
-- `AGENTS.md` — Project structure, agent roles, plans index, and when to use which doc
 - `CONTRIBUTING.md` — Development workflow and PR checklist
 - `.claude/rules/zig.md` — Zig 0.16 complete gotchas table (auto-loaded for `.zig` files)
 - `.claude/skills/` — Custom skills (baseline-sync, zig-migrate); see [Skills, Plans, and Agents](#skills-plans-and-agents-full-index)
-- `plans/plan.md` — Master execution plan, phases, multi-agent roles (A0–A4)
 - `scripts/project_baseline.env` — Canonical test baseline (source of truth for CI checks)
-- `docs/plan.md`, `docs/roadmap.md` — Quality gates and roadmap
-- `.cursor/agents/` — Cursor-specific expert agents (e.g. Metal/CoreML)
-- `docs/api/` — Auto-generated API docs (`abi gendocs` or `zig build gendocs`)

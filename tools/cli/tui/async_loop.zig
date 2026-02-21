@@ -58,6 +58,9 @@ pub const AsyncLoop = struct {
     frame_count: u64,
     last_refresh_time: i64,
     last_tick_time: i64,
+    last_rows: u16,
+    last_cols: u16,
+    has_last_size: bool,
 
     // Event queue for external updates
     event_queue: std.ArrayListUnmanaged(AsyncEvent),
@@ -84,6 +87,9 @@ pub const AsyncLoop = struct {
             .frame_count = 0,
             .last_refresh_time = 0,
             .last_tick_time = 0,
+            .last_rows = 0,
+            .last_cols = 0,
+            .has_last_size = false,
             .event_queue = .empty,
             .render_fn = null,
             .update_fn = null,
@@ -160,9 +166,21 @@ pub const AsyncLoop = struct {
         self.running = true;
         self.last_refresh_time = currentTimeMs();
         self.last_tick_time = self.last_refresh_time;
+        if (self.config.auto_resize) {
+            const size = self.terminal.size();
+            self.last_rows = size.rows;
+            self.last_cols = size.cols;
+            self.has_last_size = true;
+        } else {
+            self.has_last_size = false;
+        }
 
         while (self.running) {
             const frame_start = currentTimeMs();
+
+            // Check terminal resize changes first so layout-dependent handlers
+            // can react before processing other events.
+            try self.processResizeEvents();
 
             // Process input events (non-blocking)
             try self.processInputEvents();
@@ -261,6 +279,30 @@ pub const AsyncLoop = struct {
                         }
                     }
                 },
+            }
+        }
+    }
+
+    fn processResizeEvents(self: *AsyncLoop) !void {
+        if (!self.config.auto_resize or !self.has_last_size) return;
+
+        const size = self.terminal.size();
+        if (size.rows == self.last_rows and size.cols == self.last_cols) {
+            return;
+        }
+
+        self.last_rows = size.rows;
+        self.last_cols = size.cols;
+
+        if (self.update_fn) |update| {
+            const should_quit = try update(self, .{
+                .resize = .{
+                    .rows = size.rows,
+                    .cols = size.cols,
+                },
+            });
+            if (should_quit) {
+                self.running = false;
             }
         }
     }

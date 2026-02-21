@@ -1,9 +1,4 @@
----
-title: "CODE_OF_CONDUCT"
-tags: []
----
 # Code of Conduct
-> **Codebase Status:** Synced with repository as of 2026-02-04.
 
 This project follows the Contributor Covenant (v2.1). We expect respectful,
 professional collaboration and a harassment-free experience for everyone.
@@ -19,4 +14,4 @@ https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [SECURITY.md](SECURITY.md) - Security reporting
-- [Contributing](docs/content/contributing.html) - Maintainer contact information
+- [Contributing](docs/_docs/contributing.md) - Maintainer contact information

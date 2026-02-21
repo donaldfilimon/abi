@@ -49,11 +49,6 @@ pub const example_targets = [_]BuildTarget{
     .{ .name = "example-mobile", .step_name = "run-mobile", .description = "Run mobile example", .source_path = "examples/mobile.zig" },
 };
 
-pub const benchmark_targets = [_]BuildTarget{
-    .{ .name = "benchmarks", .step_name = "benchmarks", .description = "Run comprehensive benchmarks", .source_path = "benchmarks/main.zig", .optimize = .ReleaseFast },
-    .{ .name = "bench-competitive", .step_name = "bench-competitive", .description = "Run competitive benchmarks", .source_path = "benchmarks/run_competitive.zig", .optimize = .ReleaseFast },
-};
-
 pub fn pathExists(b: *std.Build, path: []const u8) bool {
     if (builtin.zig_version.minor >= 16) {
         b.build_root.handle.access(b.graph.io, path, .{}) catch return false;

@@ -46,10 +46,6 @@ declare -a files=(
     "README.md"
     "CONTRIBUTING.md"
     "CLAUDE.md"
-    "AGENTS.md"
-    "docs/README.md"
-    "docs/roadmap.md"
-    "docs/content/getting-started.md"
 )
 
 version_regex='0\.16\.0-dev\.[0-9]+\+[A-Za-z0-9]+'

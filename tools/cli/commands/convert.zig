@@ -11,31 +11,40 @@ const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0 or utils.args.matchesAny(args[0], &[_][]const u8{ "help", "--help", "-h" })) {
-        printHelp();
-        return;
-    }
+// Subcommand dispatch
 
-    const command = std.mem.sliceTo(args[0], 0);
-
-    if (std.mem.eql(u8, command, "dataset")) {
-        try runDataset(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "model")) {
-        try runModel(allocator, args[1..]);
-        return;
-    }
-
-    if (std.mem.eql(u8, command, "embeddings")) {
-        try runEmbeddings(allocator, args[1..]);
-        return;
-    }
-
-    std.debug.print("Unknown convert command: {s}\n", .{command});
+fn cDataset(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runDataset(allocator, parser.remaining());
+}
+fn cModel(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runModel(allocator, parser.remaining());
+}
+fn cEmbeddings(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    try runEmbeddings(allocator, parser.remaining());
+}
+fn convertUnknown(cmd: []const u8) void {
+    std.debug.print("Unknown convert command: {s}\n", .{cmd});
+}
+fn printHelpAlloc(_: std.mem.Allocator) void {
     printHelp();
+}
+
+const convert_commands = [_]utils.subcommand.Command{
+    .{ .names = &.{"dataset"}, .run = cDataset },
+    .{ .names = &.{"model"}, .run = cModel },
+    .{ .names = &.{"embeddings"}, .run = cEmbeddings },
+};
+
+pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try utils.subcommand.runSubcommand(
+        allocator,
+        &parser,
+        &convert_commands,
+        null,
+        printHelpAlloc,
+        convertUnknown,
+    );
 }
 
 fn runDataset(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

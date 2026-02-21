@@ -1,10 +1,4 @@
----
-title: "README"
-tags: []
----
 //! # Web
-//!
-//! > **Codebase Status:** Synced with repository as of 2026-02-04.
 //!
 //! HTTP client utilities and web integrations.
 //!
