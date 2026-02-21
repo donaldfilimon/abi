@@ -125,6 +125,10 @@ nav:
         url: /api-overview/
       - title: API Reference (generated)
         url: /api/
+      - title: API App
+        url: /api-app/
+      - title: Plans
+        url: /plans/
       - title: Examples
         url: /examples/
       - title: C API Bindings

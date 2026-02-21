@@ -1,67 +1,41 @@
 const std = @import("std");
+const cli_catalog = @import("catalog.zig");
 
 const CommandSubcommands = struct {
     command: []const u8,
     subcommands: []const []const u8,
 };
 
-const command_names = [_][]const u8{
-    "db",
-    "agent",
-    "bench",
-    "gpu",
-    "gpu-dashboard",
-    "network",
-    "system-info",
-    "multi-agent",
-    "explore",
-    "simd",
-    "config",
-    "discord",
-    "llm",
-    "model",
-    "embed",
-    "train",
-    "convert",
-    "task",
-    "tui",
-    "ui",
-    "plugins",
-    "profile",
-    "completions",
-    "status",
-    "toolchain",
-    "mcp",
-    "acp",
-    "ralph",
-    "gendocs",
-    "version",
-    "help",
+const command_names = blk: {
+    var names: [cli_catalog.commands.len + 2][]const u8 = undefined;
+    var idx: usize = 0;
+    for (cli_catalog.commands) |command| {
+        names[idx] = command.name;
+        idx += 1;
+    }
+    names[idx] = "version";
+    idx += 1;
+    names[idx] = "help";
+    break :blk names;
 };
 
-const command_subcommands = [_]CommandSubcommands{
-    .{ .command = "bench", .subcommands = &.{ "all", "simd", "memory", "ai", "quick", "compare-training", "list", "micro" } },
-    .{ .command = "config", .subcommands = &.{ "init", "show", "validate", "env", "help" } },
-    .{ .command = "convert", .subcommands = &.{ "dataset", "model", "embeddings" } },
-    .{ .command = "db", .subcommands = &.{ "add", "query", "stats", "optimize", "backup", "restore", "serve", "help" } },
-    .{ .command = "discord", .subcommands = &.{ "status", "info", "guilds", "send", "commands", "webhook", "channel", "help" } },
-    .{ .command = "embed", .subcommands = &.{ "--provider", "openai", "mistral", "cohere", "ollama", "--text", "--file", "--format", "json", "csv", "raw" } },
-    .{ .command = "gpu", .subcommands = &.{ "backends", "devices", "list", "summary", "default", "status" } },
-    .{ .command = "llm", .subcommands = &.{ "run", "session", "serve", "providers", "plugins", "list", "info", "bench", "download", "help" } },
-    .{ .command = "model", .subcommands = &.{ "list", "info", "download", "remove", "search", "path" } },
-    .{ .command = "multi-agent", .subcommands = &.{ "info", "run", "list", "create", "status" } },
-    .{ .command = "network", .subcommands = &.{ "status", "list", "nodes", "register", "unregister", "touch", "set-status" } },
-    .{ .command = "plugins", .subcommands = &.{ "list", "info", "enable", "disable", "search" } },
-    .{ .command = "profile", .subcommands = &.{ "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help" } },
-    .{ .command = "status", .subcommands = &.{"help"} },
-    .{ .command = "task", .subcommands = &.{ "add", "list", "ls", "show", "done", "start", "cancel", "delete", "rm", "stats", "import-roadmap", "seed-self-improve", "edit", "block", "unblock", "due", "help" } },
-    .{ .command = "toolchain", .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "help" } },
-    .{ .command = "train", .subcommands = &.{ "run", "new", "llm", "vision", "clip", "auto", "self", "resume", "monitor", "info", "generate-data", "help" } },
-    .{ .command = "ui", .subcommands = &.{ "launch", "gpu", "train", "neural", "help" } },
-    .{ .command = "mcp", .subcommands = &.{ "serve", "tools", "help" } },
-    .{ .command = "acp", .subcommands = &.{ "card", "serve", "help" } },
-    .{ .command = "completions", .subcommands = &.{ "bash", "zsh", "fish", "powershell", "help" } },
-    .{ .command = "ralph", .subcommands = &.{ "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help" } },
+const command_subcommands = blk: {
+    var count: usize = 0;
+    for (cli_catalog.commands) |command| {
+        if (command.subcommands.len > 0) count += 1;
+    }
+
+    var items: [count]CommandSubcommands = undefined;
+    var idx: usize = 0;
+    for (cli_catalog.commands) |command| {
+        if (command.subcommands.len == 0) continue;
+        items[idx] = .{
+            .command = command.name,
+            .subcommands = command.subcommands,
+        };
+        idx += 1;
+    }
+    break :blk items;
 };
 
 pub const EntryKind = enum {
@@ -203,9 +177,6 @@ fn addReq(build: *EntryBuild, allocator: std.mem.Allocator, req: []const u8) !vo
 }
 
 fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const u8) !void {
-    // Embed completion values are suggestions, not structural subcommands.
-    if (std.mem.eql(u8, command, "embed")) return;
-
     var args = std.ArrayListUnmanaged([]const u8).empty;
     defer args.deinit(matrix.allocator);
 
@@ -282,18 +253,11 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
             try addArg(&args, matrix.allocator, "abi-cli-full webhook test");
         }
     } else if (std.mem.eql(u8, command, "llm")) {
-        if (std.mem.eql(u8, subcommand, "list") or
-            std.mem.eql(u8, subcommand, "providers") or
-            std.mem.eql(u8, subcommand, "plugins"))
-        {
+        if (std.mem.eql(u8, subcommand, "providers") or std.mem.eql(u8, subcommand, "plugins")) {
             use_help_fallback = false;
             if (std.mem.eql(u8, subcommand, "plugins")) {
                 try addArg(&args, matrix.allocator, "list");
             }
-        } else if (std.mem.eql(u8, subcommand, "info")) {
-            use_help_fallback = false;
-            try addReq(&build, matrix.allocator, "env:ABI_TEST_GGUF_MODEL_PATH");
-            try addArg(&args, matrix.allocator, "${ABI_TEST_GGUF_MODEL_PATH}");
         } else if (std.mem.eql(u8, subcommand, "run")) {
             use_help_fallback = false;
             try addReq(&build, matrix.allocator, "env:OLLAMA_HOST");
@@ -321,11 +285,6 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
             try addArg(&args, matrix.allocator, "--backend");
             try addArg(&args, matrix.allocator, "ollama");
             try addArg(&args, matrix.allocator, "--strict-backend");
-        } else if (std.mem.eql(u8, subcommand, "download")) {
-            use_help_fallback = false;
-            try addReq(&build, matrix.allocator, "env:ABI_TEST_MODEL_SPEC");
-            try addReq(&build, matrix.allocator, "net:model-host");
-            try addArg(&args, matrix.allocator, "${ABI_TEST_MODEL_SPEC}");
         } else if (std.mem.eql(u8, subcommand, "serve")) {
             use_help_fallback = false;
             build.kind = .serve_probe;
@@ -651,7 +610,7 @@ fn addAliasEntries(matrix: *Matrix) !void {
     try matrix.add("alias.run", &.{ "run", "quick" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
     try matrix.add("alias.dashboard", &.{"dashboard"}, .pty_session, 45_000, &.{}, .temp_workspace, .isolated, .allow_signal_after_probe);
     try matrix.add("alias.chat", &.{ "chat", "run", "--help" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
-    try matrix.add("alias.reasoning", &.{ "reasoning", "list" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
+    try matrix.add("alias.reasoning", &.{ "reasoning", "providers" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
     try matrix.add(
         "alias.serve",
         &.{ "serve", "serve", "-m", "${ABI_TEST_GGUF_MODEL_PATH}", "-a", "127.0.0.1:18180" },

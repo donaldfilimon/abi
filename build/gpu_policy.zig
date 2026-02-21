@@ -1,5 +1,6 @@
 const std = @import("std");
 
+/// High-level platform classification for GPU backend selection.
 pub const PlatformClass = enum {
     macos,
     linux,
@@ -12,6 +13,8 @@ pub const PlatformClass = enum {
 };
 
 pub const BackendName = []const u8;
+
+/// Per-platform tuning hints consumed by the runtime GPU layer.
 pub const OptimizationHints = struct {
     default_local_size: u32,
     default_queue_depth: u32,
@@ -19,6 +22,8 @@ pub const OptimizationHints = struct {
     prefer_pinned_staging: bool,
     transfer_chunk_bytes: usize,
 };
+
+// ── Platform backend orderings ──────────────────────────────────────────
 
 pub const macos_order = [_]BackendName{ "metal", "vulkan", "opengl", "stdgpu" };
 pub const linux_order = [_]BackendName{ "cuda", "vulkan", "opengl", "stdgpu" };
@@ -28,16 +33,16 @@ pub const android_order = [_]BackendName{ "vulkan", "opengles", "stdgpu" };
 pub const web_order = [_]BackendName{ "webgpu", "webgl2", "simulated" };
 pub const fallback_order = [_]BackendName{ "stdgpu", "simulated" };
 
+/// Fixed-capacity list that deduplicates backend names on insert.
 pub const BackendNameList = struct {
     items: [12][]const u8 = undefined,
     len: usize = 0,
 
-    pub fn append(self: *BackendNameList, backend_name: []const u8) void {
+    pub fn append(self: *BackendNameList, name: []const u8) void {
         if (self.len >= self.items.len) return;
-        for (self.items[0..self.len]) |existing| {
-            if (std.mem.eql(u8, existing, backend_name)) return;
-        }
-        self.items[self.len] = backend_name;
+        for (self.items[0..self.len]) |existing|
+            if (std.mem.eql(u8, existing, name)) return;
+        self.items[self.len] = name;
         self.len += 1;
     }
 
@@ -46,6 +51,7 @@ pub const BackendNameList = struct {
     }
 };
 
+/// Inputs for auto backend selection.
 pub const SelectionContext = struct {
     platform: PlatformClass,
     enable_gpu: bool,
@@ -56,6 +62,7 @@ pub const SelectionContext = struct {
     android_primary: ?[]const u8 = null,
 };
 
+/// Classify an OS tag + ABI pair into a `PlatformClass`.
 pub fn classify(os_tag: std.Target.Os.Tag, abi: std.Target.Abi) PlatformClass {
     return switch (os_tag) {
         .macos => .macos,
@@ -68,6 +75,7 @@ pub fn classify(os_tag: std.Target.Os.Tag, abi: std.Target.Abi) PlatformClass {
     };
 }
 
+/// Return the default backend preference order for a platform.
 pub fn defaultOrder(platform: PlatformClass) []const BackendName {
     return switch (platform) {
         .macos => macos_order[0..],
@@ -80,36 +88,32 @@ pub fn defaultOrder(platform: PlatformClass) []const BackendName {
     };
 }
 
+/// Override Android ordering when OpenGL ES is the preferred primary.
 pub fn withAndroidPrimary(primary: BackendName) []const BackendName {
-    if (!std.mem.eql(u8, primary, "opengles")) {
+    if (!std.mem.eql(u8, primary, "opengles"))
         return android_order[0..];
-    }
     return &.{ "opengles", "vulkan", "stdgpu" };
 }
 
+/// Resolve the list of backend names to enable, respecting platform rules,
+/// Metal availability, and web/simulated gates.
 pub fn resolveAutoBackendNames(ctx: SelectionContext) BackendNameList {
     var result = BackendNameList{};
 
     const base_order = blk: {
         if (ctx.platform == .android) {
-            if (ctx.android_primary) |primary| {
+            if (ctx.android_primary) |primary|
                 break :blk withAndroidPrimary(primary);
-            }
         }
         break :blk defaultOrder(ctx.platform);
     };
 
     for (base_order) |name| {
         if (std.mem.eql(u8, name, "metal") and !ctx.can_link_metal) {
-            if (ctx.warn_if_metal_skipped) {
-                std.log.warn(
-                    "Skipping Metal backend for macOS target: required Apple frameworks were not found.",
-                    .{},
-                );
-            }
+            if (ctx.warn_if_metal_skipped)
+                std.log.warn("Skipping Metal backend: required Apple frameworks not found.", .{});
             continue;
         }
-
         if (!shouldInclude(ctx, name)) continue;
         result.append(name);
     }
@@ -117,18 +121,15 @@ pub fn resolveAutoBackendNames(ctx: SelectionContext) BackendNameList {
     return result;
 }
 
-fn shouldInclude(ctx: SelectionContext, backend_name: []const u8) bool {
-    if (std.mem.eql(u8, backend_name, "webgpu") or std.mem.eql(u8, backend_name, "webgl2")) {
+fn shouldInclude(ctx: SelectionContext, name: []const u8) bool {
+    if (std.mem.eql(u8, name, "webgpu") or std.mem.eql(u8, name, "webgl2"))
         return ctx.enable_web and ctx.platform == .web;
-    }
-
-    if (std.mem.eql(u8, backend_name, "simulated")) {
+    if (std.mem.eql(u8, name, "simulated"))
         return ctx.allow_simulated and (ctx.enable_gpu or ctx.enable_web);
-    }
-
     return ctx.enable_gpu;
 }
 
+/// Return runtime optimization hints appropriate for the given platform.
 pub fn optimizationHintsForPlatform(platform: PlatformClass) OptimizationHints {
     return switch (platform) {
         .macos => .{

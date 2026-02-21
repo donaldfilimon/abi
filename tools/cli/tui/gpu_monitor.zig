@@ -7,6 +7,9 @@ const std = @import("std");
 const terminal = @import("terminal.zig");
 const themes = @import("themes.zig");
 const widgets = @import("widgets.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 // ===============================================================================
 // Types
@@ -311,7 +314,7 @@ pub const GpuMonitor = struct {
         // Draw top border
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.tl);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
         try self.term.write(widgets.box.tr);
         try self.term.write(self.theme.reset);
 
@@ -323,7 +326,8 @@ pub const GpuMonitor = struct {
         try self.term.write(" ");
         try self.term.write(self.theme.bold);
         try self.term.write(self.theme.info);
-        try self.term.write("GPU Monitor");
+        const title = "GPU Monitor";
+        try self.term.write(title);
         try self.term.write(self.theme.reset);
 
         // Device count
@@ -334,9 +338,9 @@ pub const GpuMonitor = struct {
         try self.term.write(self.theme.reset);
 
         // Pad and close
-        const content_len = 11 + count_str.len + 2;
+        const content_len = unicode.displayWidth(title) + unicode.displayWidth(count_str) + 2;
         if (content_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - content_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - content_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -350,7 +354,7 @@ pub const GpuMonitor = struct {
         try self.setCursorPosition(current_row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.lsep);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
         try self.term.write(widgets.box.rsep);
         try self.term.write(self.theme.reset);
         current_row += 1;
@@ -372,24 +376,27 @@ pub const GpuMonitor = struct {
         }
         try self.term.write(self.theme.reset);
 
-        // Device name
+        // Device name (truncated to fit available width)
         try self.term.write(self.theme.bold);
-        const name_len = @min(device.name.len, width - 20);
-        try self.term.write(device.name[0..name_len]);
+        const max_name_cols = if (width > 20) width - 20 else 0;
+        const truncated_name = unicode.truncateToWidth(device.name, max_name_cols);
+        const name_display_width = unicode.displayWidth(truncated_name);
+        try self.term.write(truncated_name);
         try self.term.write(self.theme.reset);
 
         // Backend badge
+        const backend_label = device.backend_type.name();
         try self.term.write(" ");
         try self.term.write(self.theme.text_muted);
         try self.term.write("[");
-        try self.term.write(device.backend_type.name());
+        try self.term.write(backend_label);
         try self.term.write("]");
         try self.term.write(self.theme.reset);
 
         // Close line
-        const line1_len = 4 + name_len + 3 + device.backend_type.name().len;
+        const line1_len = 4 + name_display_width + 3 + unicode.displayWidth(backend_label);
         if (line1_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - line1_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - line1_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -419,9 +426,9 @@ pub const GpuMonitor = struct {
         try self.term.write(mem_str);
         try self.term.write(self.theme.reset);
 
-        const line2_len = 11 + 20 + mem_str.len;
+        const line2_len = 11 + 20 + unicode.displayWidth(mem_str);
         if (line2_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - line2_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - line2_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -463,9 +470,9 @@ pub const GpuMonitor = struct {
             try self.term.write(self.theme.reset);
         }
 
-        const line3_len = 9 + 10 + util_str.len + 8 + 4;
+        const line3_len = 9 + 10 + unicode.displayWidth(util_str) + 8 + 4;
         if (line3_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - line3_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - line3_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -484,7 +491,7 @@ pub const GpuMonitor = struct {
 
             const line4_len = 12 + MemoryHistory.HISTORY_SIZE;
             if (line4_len < width - 2) {
-                try self.writeRepeat(" ", width - 2 - line4_len);
+                try render_utils.writeRepeat(self.term, " ", width - 2 - line4_len);
             }
             try self.term.write(self.theme.border);
             try self.term.write(widgets.box.v);
@@ -500,7 +507,7 @@ pub const GpuMonitor = struct {
         try self.setCursorPosition(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.lsep);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
         try self.term.write(widgets.box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -511,7 +518,8 @@ pub const GpuMonitor = struct {
         try self.term.write(self.theme.reset);
         try self.term.write(" ");
         try self.term.write(self.theme.bold);
-        try self.term.write("Scheduler:");
+        const sched_label = "Scheduler:";
+        try self.term.write(sched_label);
         try self.term.write(self.theme.reset);
 
         var buf: [64]u8 = undefined;
@@ -524,9 +532,9 @@ pub const GpuMonitor = struct {
         try self.term.write(stats_str);
         try self.term.write(self.theme.reset);
 
-        const line1_len = 11 + stats_str.len;
+        const line1_len = 1 + unicode.displayWidth(sched_label) + unicode.displayWidth(stats_str);
         if (line1_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - line1_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - line1_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -547,9 +555,9 @@ pub const GpuMonitor = struct {
         try self.term.write(stats_str2);
         try self.term.write(self.theme.reset);
 
-        const line2_len = stats_str2.len;
+        const line2_len = unicode.displayWidth(stats_str2);
         if (line2_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - line2_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - line2_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -559,7 +567,7 @@ pub const GpuMonitor = struct {
         try self.setCursorPosition(row + 3, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.bl);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
         try self.term.write(widgets.box.br);
         try self.term.write(self.theme.reset);
     }
@@ -603,12 +611,6 @@ pub const GpuMonitor = struct {
         var buf: [16]u8 = undefined;
         const seq = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{ row, col }) catch return;
         try self.term.write(seq);
-    }
-
-    fn writeRepeat(self: *GpuMonitor, char: []const u8, count: usize) !void {
-        for (0..count) |_| {
-            try self.term.write(char);
-        }
     }
 };
 

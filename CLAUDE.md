@@ -353,12 +353,13 @@ functions use namespaced paths: `abi.simd.vectorAdd`, `abi.simd.hasSimdSupport`,
 
 ## AI Modules
 
-The AI feature is split into 5 independent modules:
-- `ai` (`src/features/ai/`) — Full monolith (17 submodules with stubs + 6 without)
-- `ai_core` (`src/features/ai_core/`) — Agents, tools, prompts, personas, memory
-- `inference` (`src/features/ai_inference/`) — LLM, embeddings, vision, streaming
-- `training` (`src/features/ai_training/`) — Training pipelines, federated learning
-- `reasoning` (`src/features/ai_reasoning/`) — Abbey, RAG, eval, templates, orchestration
+All AI code lives under `src/features/ai/`. Sub-feature facades in `ai/facades/`
+provide independently-gated views exposed as `abi.ai_core`, `abi.inference`,
+`abi.training`, and `abi.reasoning`:
+- `ai/facades/core.zig` — Agents, tools, prompts, personas, memory (`-Denable-ai`)
+- `ai/facades/inference.zig` — LLM, embeddings, vision, streaming (`-Denable-llm`)
+- `ai/facades/training.zig` — Training pipelines, federated learning (`-Denable-training`)
+- `ai/facades/reasoning.zig` — Abbey, RAG, eval, templates, orchestration (`-Denable-reasoning`)
 
 The `abbey/` submodule is the advanced reasoning system with meta-learning,
 self-reflection, theory of mind, and neural attention mechanisms.

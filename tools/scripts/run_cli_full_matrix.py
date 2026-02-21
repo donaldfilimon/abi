@@ -283,6 +283,8 @@ def write_reports(records: List[dict], blocked: List[dict], failed: List[dict], 
         "failed": len(failed),
         "blocked": len(blocked),
         "records": records,
+        "failed_records": failed,
+        "blocked_records": blocked,
     }
 
     REPORT_JSON.write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -353,10 +355,24 @@ def main() -> int:
         capture_output=True,
     )
     if preflight.returncode != 0:
+        blocked_by: List[str] = ["preflight"]
+        preflight_details: Dict[str, object] = {}
+        if PRECHECK_JSON.exists():
+            try:
+                preflight_details = json.loads(PRECHECK_JSON.read_text(encoding="utf-8"))
+                blocked_by.extend(f"env:{name}" for name in preflight_details.get("missing_env", []))
+                blocked_by.extend(f"tool:{name}" for name in preflight_details.get("missing_tools", []))
+                blocked_by.extend(f"net:{name}" for name in preflight_details.get("failed_connectivity", []))
+            except Exception:
+                preflight_details = {}
+
         blocked_record = {
             "id": "preflight",
             "status": "blocked",
-            "blocked_by": ["preflight"],
+            "blocked_by": sorted(set(blocked_by)),
+            "missing_env": preflight_details.get("missing_env", []),
+            "missing_tools": preflight_details.get("missing_tools", []),
+            "failed_connectivity": preflight_details.get("failed_connectivity", []),
             "output_tail": (preflight.stdout + preflight.stderr)[-4000:],
         }
         write_reports([], [blocked_record], [], run_id="preflight-blocked")

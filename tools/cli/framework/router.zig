@@ -26,6 +26,16 @@ fn runDescriptor(
 ) !void {
     if (depth > max_forward_depth) return errors.Error.ForwardLoop;
 
+    if (descriptor.children.len > 0 and args.len > 0) {
+        const child_token = std.mem.sliceTo(args[0], 0);
+        if (!types.isHelpToken(child_token)) {
+            if (completion.findChildDescriptor(descriptor, child_token)) |child| {
+                try runDescriptor(ctx, descriptors, child, args[1..], depth + 1);
+                return;
+            }
+        }
+    }
+
     if (descriptor.forward) |forward| {
         if (forward.warning) |warning| {
             std.debug.print("Warning: {s}\n", .{warning});

@@ -17,6 +17,9 @@ const widgets = @import("widgets.zig");
 const box = widgets.box;
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const cli_io = @import("../utils/io_backend.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 /// Model Management Panel for viewing and managing AI models
 pub const ModelManagementPanel = struct {
@@ -325,13 +328,10 @@ pub const ModelManagementPanel = struct {
         try self.term.write(self.theme.reset);
 
         // Fill remaining width with border
-        const used = title.len + count_str.len + 4; // tl + dh + space + trailing
+        const used = unicode.displayWidth(title) + unicode.displayWidth(count_str) + 4; // tl + dh + space + trailing
         if (used < width) {
-            var i: usize = used;
-            while (i < width - 1) : (i += 1) {
-                try self.term.write(self.theme.border);
-                try self.term.write(box.dh);
-            }
+            try self.term.write(self.theme.border);
+            try render_utils.writeRepeat(self.term, box.dh, width - 1 - used);
         }
         try self.term.write(self.theme.border);
         try self.term.write(box.tr);
@@ -403,13 +403,13 @@ pub const ModelManagementPanel = struct {
 
             // Model name (truncate if needed)
             const max_name_width = if (width > 35) width - 35 else 10;
-            const name_len = @min(model.name.len, max_name_width);
-            try self.term.write(model.name[0..name_len]);
+            const truncated_name = unicode.truncateToWidth(model.name, max_name_width);
+            try self.term.write(truncated_name);
 
             // Pad name column
-            var pad: usize = name_len;
-            while (pad < max_name_width) : (pad += 1) {
-                try self.term.write(" ");
+            const name_display_width = unicode.displayWidth(truncated_name);
+            if (name_display_width < max_name_width) {
+                try render_utils.writeRepeat(self.term, " ", max_name_width - name_display_width);
             }
 
             // Format
@@ -479,10 +479,9 @@ pub const ModelManagementPanel = struct {
         try self.term.write(" ");
         {
             // Fill rest of line
-            const used: usize = 4 + 13; // lsep + h + space + text + space
-            var i: usize = used;
-            while (i < width - 1) : (i += 1) {
-                try self.term.write(box.h);
+            const used: usize = 4 + unicode.displayWidth("Local Servers"); // lsep + h + space + text + space
+            if (used < width - 1) {
+                try render_utils.writeRepeat(self.term, box.h, width - 1 - used);
             }
         }
         try self.term.write(box.rsep);
@@ -532,13 +531,10 @@ pub const ModelManagementPanel = struct {
             try self.term.write(srv.name);
 
             // Pad to status column
-            const name_len = srv.name.len;
+            const name_display_len = unicode.displayWidth(srv.name);
             const pad_to: usize = 14;
-            if (name_len < pad_to) {
-                var p: usize = name_len;
-                while (p < pad_to) : (p += 1) {
-                    try self.term.write(" ");
-                }
+            if (name_display_len < pad_to) {
+                try render_utils.writeRepeat(self.term, " ", pad_to - name_display_len);
             }
 
             if (srv.available) {
@@ -565,9 +561,8 @@ pub const ModelManagementPanel = struct {
         try self.term.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
-        var i: usize = 1;
-        while (i < width - 1) : (i += 1) {
-            try self.term.write(box.h);
+        if (width > 2) {
+            try render_utils.writeRepeat(self.term, box.h, width - 2);
         }
         try self.term.write(box.rsep);
         try self.term.write(self.theme.reset);
@@ -592,8 +587,7 @@ pub const ModelManagementPanel = struct {
 
             // Model name (truncate if needed)
             const max_name = if (width > 50) 20 else 10;
-            const name_len = @min(dl.model_name.len, max_name);
-            try self.term.write(dl.model_name[0..name_len]);
+            try self.term.write(unicode.truncateToWidth(dl.model_name, max_name));
             try self.term.write("  ");
 
             // Progress bar
@@ -679,10 +673,10 @@ pub const ModelManagementPanel = struct {
         try self.term.write(self.theme.reset);
 
         // Fill remaining with border
-        var i: usize = help_text.len + 1;
-        while (i < width - 1) : (i += 1) {
+        const help_used = unicode.displayWidth(help_text) + 1;
+        if (help_used < width - 1) {
             try self.term.write(self.theme.border);
-            try self.term.write(box.dh);
+            try render_utils.writeRepeat(self.term, box.dh, width - 1 - help_used);
         }
         try self.term.write(box.br);
         try self.term.write(self.theme.reset);

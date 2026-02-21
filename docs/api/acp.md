@@ -8,79 +8,65 @@
 
 ---
 
-ACP (Agent Communication Protocol) Service
-
-Provides an HTTP server implementing the Agent Communication Protocol
-for agent-to-agent communication. Exposes an agent card at
-`/.well-known/agent.json` and task management endpoints.
-
-## Usage
-```bash
-abi acp serve --port 8080
-curl http://localhost:8080/.well-known/agent.json
-```
-
----
-
 ## API
 
-### `pub const AgentCard`
+### <a id="pub-const-agentcard"></a>`pub const AgentCard`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/acp/mod.zig#L17)
 
 ACP Agent Card — describes this agent's capabilities
 
-### `pub fn toJson(self: AgentCard, allocator: std.mem.Allocator) ![]u8`
+### <a id="pub-fn-tojson-self-agentcard-allocator-std-mem-allocator-u8"></a>`pub fn toJson(self: AgentCard, allocator: std.mem.Allocator) ![]u8`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/acp/mod.zig#L30)
 
 Serialize to JSON (escapes all string fields for safety)
 
-### `pub const TaskStatus`
+### <a id="pub-const-taskstatus"></a>`pub const TaskStatus`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/acp/mod.zig#L53)
 
 Task status in the ACP lifecycle
 
-### `pub const Task`
+### <a id="pub-const-task"></a>`pub const Task`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/acp/mod.zig#L74)
 
 ACP Task
 
-### `pub fn toJson(self: *const Task, allocator: std.mem.Allocator) ![]u8`
+### <a id="pub-fn-tojson-self-const-task-allocator-std-mem-allocator-u8"></a>`pub fn toJson(self: *const Task, allocator: std.mem.Allocator) ![]u8`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/acp/mod.zig#L94)
 
 Serialize task to JSON
 
-### `pub const Server`
+### <a id="pub-const-server"></a>`pub const Server`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/acp/mod.zig#L119)
 
 ACP Server that manages tasks
 
-### `pub fn createTask(self: *Server, message: []const u8) ![]const u8`
+### <a id="pub-fn-createtask-self-server-message-const-u8-const-u8"></a>`pub fn createTask(self: *Server, message: []const u8) ![]const u8`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/acp/mod.zig#L144)
 
 Create a new task from a message
 
-### `pub fn getTask(self: *Server, id: []const u8) ?*Task`
+### <a id="pub-fn-gettask-self-server-id-const-u8-task"></a>`pub fn getTask(self: *Server, id: []const u8) ?*Task`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/acp/mod.zig#L175)
 
 Get a task by ID
 
-### `pub fn taskCount(self: *const Server) u32`
+### <a id="pub-fn-taskcount-self-const-server-u32"></a>`pub fn taskCount(self: *const Server) u32`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/acp/mod.zig#L180)
 
 Get the number of tasks
 
-### `pub fn serveHttp(`
+### <a id="pub-fn-servehttp-allocator-std-mem-allocator-io-std-io-address-const-u8-card-agentcard-httperror-void"></a>`pub fn serveHttp( allocator: std.mem.Allocator, io: std.Io, address: []const u8, card: AgentCard, ) HttpError!void`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/acp/mod.zig#L221)
 
 Run the ACP HTTP server loop. Blocks until the process exits.
 Caller must provide an I/O backend (e.g. from std.Io.Threaded).
@@ -90,4 +76,4 @@ Caller must provide an I/O backend (e.g. from std.Io.Threaded).
 *Generated automatically by `zig build gendocs`*
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.

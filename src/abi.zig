@@ -134,27 +134,27 @@ else
 
 /// AI Core — agents, tools, prompts, memory, discovery.
 pub const ai_core = if (build_options.enable_ai)
-    @import("features/ai_core/mod.zig")
+    @import("features/ai/facades/core.zig")
 else
-    @import("features/ai_core/stub.zig");
+    @import("features/ai/facades/core_stub.zig");
 
 /// AI Inference — LLM, embeddings, vision, streaming, transformer.
 pub const inference = if (build_options.enable_llm)
-    @import("features/ai_inference/mod.zig")
+    @import("features/ai/facades/inference.zig")
 else
-    @import("features/ai_inference/stub.zig");
+    @import("features/ai/facades/inference_stub.zig");
 
 /// AI Training — training pipelines, federated learning, data loading.
 pub const training = if (build_options.enable_training)
-    @import("features/ai_training/mod.zig")
+    @import("features/ai/facades/training.zig")
 else
-    @import("features/ai_training/stub.zig");
+    @import("features/ai/facades/training_stub.zig");
 
 /// AI Reasoning — Abbey, RAG, eval, templates, explore, orchestration.
 pub const reasoning = if (build_options.enable_reasoning)
-    @import("features/ai_reasoning/mod.zig")
+    @import("features/ai/facades/reasoning.zig")
 else
-    @import("features/ai_reasoning/stub.zig");
+    @import("features/ai/facades/reasoning_stub.zig");
 
 /// Vector database.
 pub const database = if (build_options.enable_database)

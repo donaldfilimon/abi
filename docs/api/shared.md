@@ -8,149 +8,94 @@
 
 ---
 
-Shared Utilities Module
-
-Common utilities, helpers, and cross-cutting concerns used throughout the ABI framework.
-This module consolidates logging, SIMD operations, platform utilities, and security.
-
-# Overview
-
-The shared module provides foundational building blocks that are used across all ABI
-framework components. It is organized into several categories:
-
-- **Core Utilities**: Error handling, logging, time, I/O operations
-- **Security**: Authentication, authorization, encryption, secrets management
-- **Performance**: SIMD operations, memory management, binary serialization
-- **Networking**: HTTP client, network utilities, encoding/decoding
-
-# Usage
-
-Import the shared module and access components directly:
-
-```zig
-const shared = @import("shared");
-
-// Logging
-shared.log.info("Application started", .{});
-
-// SIMD operations
-const dot = shared.vectorDot(a, b);
-
-// Security
-var jwt_manager = shared.security.JwtManager.init(allocator, secret, .{});
-```
-
-# Security Components
-
-The security sub-module provides comprehensive security features:
-
-| Component | Description |
-|-----------|-------------|
-| `api_keys` | API key generation, validation, rotation |
-| `jwt` | JSON Web Token creation and verification |
-| `rbac` | Role-based access control |
-| `tls` | TLS/SSL connection management |
-| `secrets` | Encrypted secrets storage |
-| `rate_limit` | Request rate limiting |
-| `encryption` | Data encryption at rest |
-| `audit` | Security audit logging |
-
-# Thread Safety
-
-Most components in this module are thread-safe when used with proper synchronization.
-Security components like `JwtManager`, `RateLimiter`, and `SecretsManager` include
-internal mutex protection for concurrent access.
-
----
-
 ## API
 
-### `pub const errors`
+### <a id="pub-const-errors"></a>`pub const errors`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L62)
 
 Error definitions and handling utilities for the ABI framework.
 Provides standardized error types and conversion functions.
 
-### `pub const logging`
+### <a id="pub-const-logging"></a>`pub const logging`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L66)
 
 Logging infrastructure with configurable log levels and output destinations.
 Supports structured logging with context and scoped loggers.
 
-### `pub const plugins`
+### <a id="pub-const-plugins"></a>`pub const plugins`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L70)
 
 Plugin registry and lifecycle management.
 Enables dynamic loading and management of framework extensions.
 
-### `pub const simd`
+### <a id="pub-const-simd"></a>`pub const simd`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L75)
 
 SIMD (Single Instruction, Multiple Data) vector operations.
 Provides optimized vector math with automatic fallback to scalar operations
 when SIMD is not available. Includes dot product, L2 norm, and cosine similarity.
 
-### `pub const utils`
+### <a id="pub-const-utils"></a>`pub const utils`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L79)
 
 General-purpose utility functions: time, math, string, lifecycle management.
 See sub-modules for specialized utilities (crypto, encoding, fs, http, json, net).
 
-### `pub const os`
+### <a id="pub-const-os"></a>`pub const os`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L83)
 
 Operating system abstraction layer.
 Provides platform-independent access to OS features.
 
-### `pub const time`
+### <a id="pub-const-time"></a>`pub const time`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L87)
 
 Time utilities compatible with Zig 0.16.
 Platform-aware implementations for unix timestamps, monotonic clocks, and sleep.
 
-### `pub const sync`
+### <a id="pub-const-sync"></a>`pub const sync`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L91)
 
 Synchronization primitives compatible with Zig 0.16.
 Provides Mutex, RwLock, and other concurrency utilities.
 
-### `pub const io`
+### <a id="pub-const-io"></a>`pub const io`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L95)
 
 I/O utilities and helpers for file and stream operations.
 Designed for Zig 0.16's explicit I/O backend model.
 
-### `pub const stub_common`
+### <a id="pub-const-stub-common"></a>`pub const stub_common`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L99)
 
 Common stub utilities for feature-disabled builds.
 Provides consistent error types and placeholder implementations.
 
-### `pub const matrix`
+### <a id="pub-const-matrix"></a>`pub const matrix`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L102)
 
 Dense matrix operations with SIMD-accelerated multiply (v2).
 
-### `pub const tensor`
+### <a id="pub-const-tensor"></a>`pub const tensor`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L105)
 
 Multi-dimensional tensor operations with broadcasting (v2).
 
-### `pub const security`
+### <a id="pub-const-security"></a>`pub const security`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L125)
 
 Comprehensive security module providing authentication, authorization,
 and encryption features. Includes:
@@ -167,73 +112,73 @@ and encryption features. Includes:
 
 See `security/mod.zig` for full API documentation.
 
-### `pub const resilience`
+### <a id="pub-const-resilience"></a>`pub const resilience`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L129)
 
 Resilience patterns (circuit breaker, etc.) for fault-tolerant systems.
 Shared implementations used by network, streaming, and gateway modules.
 
-### `pub const signal`
+### <a id="pub-const-signal"></a>`pub const signal`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L133)
 
 POSIX signal handling for graceful shutdown.
 Sets a shared atomic flag on SIGINT/SIGTERM.
 
-### `pub const log`
+### <a id="pub-const-log"></a>`pub const log`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L145)
 
 Log a message at the default scope. Shorthand for `logging.log`.
 Usage: `log.info("message {}", .{value});`
 
-### `pub const Logger`
+### <a id="pub-const-logger"></a>`pub const Logger`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L149)
 
 Scoped logger type for structured logging with context.
 Create with `Logger.init(allocator, .{ .scope = "my_component" })`.
 
-### `pub const vectorAdd`
+### <a id="pub-const-vectoradd"></a>`pub const vectorAdd`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L157)
 
 Add two vectors element-wise using SIMD when available.
 Falls back to scalar operations on platforms without SIMD support.
 
-### `pub const vectorDot`
+### <a id="pub-const-vectordot"></a>`pub const vectorDot`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L161)
 
 Compute the dot product of two vectors using SIMD acceleration.
 Returns the sum of element-wise products: sum(a[i] * b[i]).
 
-### `pub const vectorL2Norm`
+### <a id="pub-const-vectorl2norm"></a>`pub const vectorL2Norm`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L165)
 
 Compute the L2 (Euclidean) norm of a vector: sqrt(sum(v[i]^2)).
 Uses SIMD for efficient computation on large vectors.
 
-### `pub const cosineSimilarity`
+### <a id="pub-const-cosinesimilarity"></a>`pub const cosineSimilarity`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L170)
 
 Compute cosine similarity between two vectors.
 Returns a value in [-1, 1] where 1 indicates identical direction.
 Formula: dot(a, b) / (norm(a) * norm(b))
 
-### `pub const hasSimdSupport`
+### <a id="pub-const-hassimdsupport"></a>`pub const hasSimdSupport`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L174)
 
 Check if the current platform supports SIMD operations.
 Returns true if hardware SIMD is available and enabled.
 
-### `pub const SimpleModuleLifecycle`
+### <a id="pub-const-simplemodulelifecycle"></a>`pub const SimpleModuleLifecycle`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L189)
 
 Simple module lifecycle management with init/deinit callbacks.
 Tracks initialization state and prevents double-init/deinit.
@@ -245,9 +190,9 @@ try lifecycle.init(myInitFn);
 defer lifecycle.deinit(myDeinitFn);
 ```
 
-### `pub const LifecycleError`
+### <a id="pub-const-lifecycleerror"></a>`pub const LifecycleError`
 
-<sup>**const**</sup>
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L195)
 
 Errors that can occur during module lifecycle operations.
 - `AlreadyInitialized`: Module was already initialized
@@ -259,4 +204,4 @@ Errors that can occur during module lifecycle operations.
 *Generated automatically by `zig build gendocs`*
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.

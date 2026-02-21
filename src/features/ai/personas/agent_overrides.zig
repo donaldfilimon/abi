@@ -1,7 +1,7 @@
 //! Helper utilities for applying per-request overrides to agents.
 
 const std = @import("std");
-const agent_mod = @import("../agent.zig");
+const agent_mod = @import("../agents/agent.zig");
 const types = @import("types.zig");
 
 pub const Overrides = struct {

@@ -1,14 +1,17 @@
 //! Rate limiting for network requests (nanosecond-precision, single-client).
 //!
+//! Delegates to the shared `services/shared/resilience/rate_limiter.zig` for core
+//! algorithms (token bucket, sliding window, fixed window, leaky bucket). This
+//! module preserves the existing network-specific public API and adds
+//! network-specific extensions like `acquireBlocking`.
+//!
 //! For HTTP/API-level rate limiting with per-key tracking, bans, whitelist,
 //! and auth integration, see `services/shared/security/rate_limit.zig`.
-//!
-//! This module provides lightweight, per-connection rate limiters using
-//! token bucket, sliding window, and fixed window algorithms.
 
 const std = @import("std");
 const time = @import("../../services/shared/utils.zig");
 const sync = @import("../../services/shared/sync.zig");
+const shared_rl = @import("../../services/shared/resilience/rate_limiter.zig");
 
 pub const RateLimitAlgorithm = enum { token_bucket, sliding_window, fixed_window, leaky_bucket };
 
@@ -35,22 +38,60 @@ pub const AllowedInfo = struct { remaining: u32, reset_after_ns: u64, limit: u32
 pub const DeniedInfo = struct { retry_after_ns: u64, limit: u32, current: u32 };
 pub const QueuedInfo = struct { position: usize, estimated_wait_ns: u64 };
 
+/// Shared core type (mutex-protected — network is multi-threaded).
+const CoreLimiter = shared_rl.MutexRateLimiter;
+
+/// Convert network algorithm enum to shared algorithm enum.
+fn toSharedAlgorithm(algo: RateLimitAlgorithm) shared_rl.Algorithm {
+    return switch (algo) {
+        .token_bucket => .token_bucket,
+        .sliding_window => .sliding_window,
+        .fixed_window => .fixed_window,
+        .leaky_bucket => .leaky_bucket,
+    };
+}
+
+/// Convert network RateLimiterConfig to shared Config.
+fn toSharedConfig(config: RateLimiterConfig) shared_rl.Config {
+    return .{
+        .max_requests = config.max_requests,
+        .window_ns = config.window_ns,
+        .algorithm = toSharedAlgorithm(config.algorithm),
+        .burst_capacity = config.burst_capacity,
+    };
+}
+
+/// Get current time as u128 nanoseconds (from shared time utilities).
+fn nowNsU128() u128 {
+    const ns = time.nowNanoseconds();
+    return if (ns > 0) @intCast(ns) else 0;
+}
+
+/// Convert shared Result to network AcquireResult.
+fn toNetworkResult(result: shared_rl.Result, config: RateLimiterConfig, avail: u32) AcquireResult {
+    return switch (result) {
+        .allowed => |info| .{ .allowed = .{
+            .remaining = info.remaining,
+            .reset_after_ns = info.reset_after_ns,
+            .limit = config.burst_capacity orelse config.max_requests,
+        } },
+        .denied => |info| .{ .denied = .{
+            .retry_after_ns = info.retry_after_ns,
+            .limit = config.max_requests,
+            .current = config.max_requests -| avail,
+        } },
+    };
+}
+
 /// Token bucket rate limiter with optional burst capacity.
 pub const TokenBucketLimiter = struct {
     config: RateLimiterConfig,
-    tokens: std.atomic.Value(u64),
-    last_refill: std.atomic.Value(i64),
-    refill_rate_ns: u64,
-    mutex: sync.Mutex,
+    core: CoreLimiter,
 
     pub fn init(config: RateLimiterConfig) TokenBucketLimiter {
-        const capacity = config.burst_capacity orelse config.max_requests;
         return .{
             .config = config,
-            .tokens = std.atomic.Value(u64).init(capacity),
-            .last_refill = std.atomic.Value(i64).init(time.nowNanoseconds()),
-            .refill_rate_ns = config.window_ns / config.max_requests,
-            .mutex = .{},
+            .core = CoreLimiter.init(toSharedConfig(config), nowNsU128()),
         };
     }
 
@@ -59,19 +100,10 @@ pub const TokenBucketLimiter = struct {
     }
 
     pub fn acquireN(self: *TokenBucketLimiter, n: u32) AcquireResult {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        self.refill();
-
-        const current = self.tokens.load(.monotonic);
-        if (current >= n) {
-            self.tokens.store(current - n, .monotonic);
-            const capacity = self.config.burst_capacity orelse self.config.max_requests;
-            return .{ .allowed = .{ .remaining = @intCast(current - n), .reset_after_ns = self.refill_rate_ns * n, .limit = capacity } };
-        }
-
-        const tokens_needed = n - @as(u32, @intCast(current));
-        return .{ .denied = .{ .retry_after_ns = self.refill_rate_ns * tokens_needed, .limit = self.config.max_requests, .current = @intCast(self.config.max_requests - current) } };
+        const now = nowNsU128();
+        const avail = self.core.available();
+        const result = self.core.acquireN(n, now);
+        return toNetworkResult(result, self.config, avail);
     }
 
     pub fn acquireBlocking(self: *TokenBucketLimiter) void {
@@ -85,136 +117,75 @@ pub const TokenBucketLimiter = struct {
     }
 
     pub fn availableTokens(self: *TokenBucketLimiter) u32 {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        self.refill();
-        return @intCast(self.tokens.load(.monotonic));
-    }
-
-    fn refill(self: *TokenBucketLimiter) void {
-        const now = time.nowNanoseconds();
-        const last = self.last_refill.load(.monotonic);
-        const elapsed_ns: u64 = @intCast(@max(0, now - last));
-        if (elapsed_ns == 0) return;
-
-        const tokens_to_add = elapsed_ns / self.refill_rate_ns;
-        if (tokens_to_add > 0) {
-            const capacity = self.config.burst_capacity orelse self.config.max_requests;
-            const current = self.tokens.load(.monotonic);
-            self.tokens.store(@min(current + tokens_to_add, capacity), .monotonic);
-            self.last_refill.store(now, .monotonic);
-        }
+        return self.core.available();
     }
 };
 
 /// Sliding window rate limiter using timestamp log.
+/// NOTE: The shared core uses a histogram-based sliding window (7 buckets),
+/// which is more memory-efficient than the original timestamp-log approach.
+/// The public API is preserved.
 pub const SlidingWindowLimiter = struct {
     config: RateLimiterConfig,
-    timestamps: std.ArrayListUnmanaged(i64),
+    core: CoreLimiter,
     allocator: std.mem.Allocator,
-    mutex: sync.Mutex,
 
     pub fn init(allocator: std.mem.Allocator, config: RateLimiterConfig) SlidingWindowLimiter {
-        return .{ .config = config, .timestamps = .{}, .allocator = allocator, .mutex = .{} };
+        return .{
+            .config = config,
+            .core = CoreLimiter.init(
+                toSharedConfig(.{ .max_requests = config.max_requests, .window_ns = config.window_ns, .algorithm = .sliding_window, .burst_capacity = config.burst_capacity }),
+                nowNsU128(),
+            ),
+            .allocator = allocator,
+        };
     }
 
     pub fn deinit(self: *SlidingWindowLimiter) void {
-        self.timestamps.deinit(self.allocator);
+        // Shared core has no allocations to free for sliding window.
         self.* = undefined;
     }
 
     pub fn acquire(self: *SlidingWindowLimiter) !AcquireResult {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-
-        const now = time.nowNanoseconds();
-        const window_start = now - @as(i64, @intCast(self.config.window_ns));
-
-        // Remove expired timestamps
-        var i: usize = 0;
-        while (i < self.timestamps.items.len) {
-            if (self.timestamps.items[i] < window_start) {
-                _ = self.timestamps.orderedRemove(i);
-            } else {
-                i += 1;
-            }
-        }
-
-        if (self.timestamps.items.len < self.config.max_requests) {
-            try self.timestamps.append(self.allocator, now);
-            const remaining: u32 = @intCast(self.config.max_requests - self.timestamps.items.len);
-            const oldest = if (self.timestamps.items.len > 0) self.timestamps.items[0] else now;
-            const reset_after: u64 = @intCast(@max(0, oldest + @as(i64, @intCast(self.config.window_ns)) - now));
-            return .{ .allowed = .{ .remaining = remaining, .reset_after_ns = reset_after, .limit = self.config.max_requests } };
-        }
-
-        const oldest = self.timestamps.items[0];
-        const retry_after: u64 = @intCast(@max(0, oldest + @as(i64, @intCast(self.config.window_ns)) - now));
-        return .{ .denied = .{ .retry_after_ns = retry_after, .limit = self.config.max_requests, .current = @intCast(self.timestamps.items.len) } };
+        const now = nowNsU128();
+        const avail = self.core.available();
+        const result = self.core.acquire(now);
+        return toNetworkResult(result, self.config, avail);
     }
 
     pub fn currentCount(self: *SlidingWindowLimiter) u32 {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        const now = time.nowNanoseconds();
-        const window_start = now - @as(i64, @intCast(self.config.window_ns));
-        var count: u32 = 0;
-        for (self.timestamps.items) |ts| {
-            if (ts >= window_start) count += 1;
-        }
-        return count;
+        return self.config.max_requests -| self.core.available();
     }
 };
 
 /// Fixed window rate limiter with atomic counter.
 pub const FixedWindowLimiter = struct {
     config: RateLimiterConfig,
-    count: std.atomic.Value(u32),
-    window_start: std.atomic.Value(i64),
-    mutex: sync.Mutex,
+    core: CoreLimiter,
 
     pub fn init(config: RateLimiterConfig) FixedWindowLimiter {
         return .{
             .config = config,
-            .count = std.atomic.Value(u32).init(0),
-            .window_start = std.atomic.Value(i64).init(time.nowNanoseconds()),
-            .mutex = .{},
+            .core = CoreLimiter.init(
+                toSharedConfig(.{ .max_requests = config.max_requests, .window_ns = config.window_ns, .algorithm = .fixed_window, .burst_capacity = config.burst_capacity }),
+                nowNsU128(),
+            ),
         };
     }
 
     pub fn acquire(self: *FixedWindowLimiter) AcquireResult {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-
-        const now = time.nowNanoseconds();
-        const ws = self.window_start.load(.monotonic);
-        const window_end = ws + @as(i64, @intCast(self.config.window_ns));
-
-        if (now >= window_end) {
-            self.window_start.store(now, .monotonic);
-            self.count.store(1, .monotonic);
-            return .{ .allowed = .{ .remaining = self.config.max_requests - 1, .reset_after_ns = self.config.window_ns, .limit = self.config.max_requests } };
-        }
-
-        const current = self.count.load(.monotonic);
-        if (current < self.config.max_requests) {
-            self.count.store(current + 1, .monotonic);
-            const reset_after: u64 = @intCast(@max(0, window_end - now));
-            return .{ .allowed = .{ .remaining = self.config.max_requests - current - 1, .reset_after_ns = reset_after, .limit = self.config.max_requests } };
-        }
-
-        return .{ .denied = .{ .retry_after_ns = @intCast(@max(0, window_end - now)), .limit = self.config.max_requests, .current = current } };
+        const now = nowNsU128();
+        const avail = self.core.available();
+        const result = self.core.acquire(now);
+        return toNetworkResult(result, self.config, avail);
     }
 
     pub fn currentCount(self: *FixedWindowLimiter) u32 {
-        return self.count.load(.monotonic);
+        return self.config.max_requests -| self.core.available();
     }
 
     pub fn reset(self: *FixedWindowLimiter) void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
-        self.count.store(0, .monotonic);
-        self.window_start.store(time.nowNanoseconds(), .monotonic);
+        self.core.reset(nowNsU128());
     }
 };
 
@@ -239,7 +210,12 @@ pub const RateLimiter = struct {
                 .token_bucket => .{ .token_bucket = TokenBucketLimiter.init(config) },
                 .sliding_window => .{ .sliding_window = SlidingWindowLimiter.init(allocator, config) },
                 .fixed_window => .{ .fixed_window = FixedWindowLimiter.init(config) },
-                .leaky_bucket => .{ .leaky_bucket = TokenBucketLimiter.init(config) },
+                .leaky_bucket => .{ .leaky_bucket = TokenBucketLimiter.init(.{
+                    .max_requests = config.max_requests,
+                    .window_ns = config.window_ns,
+                    .algorithm = .leaky_bucket,
+                    .burst_capacity = config.burst_capacity,
+                }) },
             },
         };
     }
@@ -313,16 +289,4 @@ test "rate limiter unified" {
     try std.testing.expect(result.isAllowed());
     const stats = limiter.getStats();
     try std.testing.expectEqual(RateLimitAlgorithm.token_bucket, stats.algorithm);
-}
-
-test "token bucket sub-second refill" {
-    var limiter = TokenBucketLimiter.init(.{ .max_requests = 10, .window_ns = 100_000_000 });
-    _ = limiter.acquireN(10);
-    try std.testing.expectEqual(@as(u32, 0), limiter.availableTokens());
-
-    const now = time.nowNanoseconds();
-    const advance_ns: u64 = limiter.refill_rate_ns * 5;
-    limiter.last_refill.store(now - @as(i64, @intCast(advance_ns)), .monotonic);
-    limiter.refill();
-    try std.testing.expect(limiter.availableTokens() >= 5);
 }

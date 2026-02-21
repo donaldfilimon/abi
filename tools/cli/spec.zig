@@ -1,7 +1,7 @@
-//! CLI command and completion metadata derived from command descriptors.
+//! CLI command and completion metadata derived from canonical command catalog.
 
 const std = @import("std");
-const commands = @import("commands/mod.zig");
+const catalog = @import("tests/catalog.zig");
 
 pub const CommandInfo = struct {
     name: []const u8,
@@ -18,16 +18,14 @@ pub const CommandSubcommands = struct {
     subcommands: []const []const u8,
 };
 
-const descriptors = commands.descriptors;
-
-const command_infos_array: [descriptors.len + 2]CommandInfo = blk: {
-    var infos: [descriptors.len + 2]CommandInfo = undefined;
+const command_infos_array: [catalog.commands.len + 2]CommandInfo = blk: {
+    var infos: [catalog.commands.len + 2]CommandInfo = undefined;
     var index: usize = 0;
 
-    for (descriptors) |descriptor| {
+    for (catalog.commands) |spec| {
         infos[index] = .{
-            .name = descriptor.name,
-            .description = descriptor.description,
+            .name = spec.name,
+            .description = spec.description,
         };
         index += 1;
     }
@@ -43,8 +41,8 @@ pub const command_infos = command_infos_array;
 
 const alias_count: usize = blk: {
     var count: usize = 0;
-    for (descriptors) |descriptor| {
-        count += descriptor.aliases.len;
+    for (catalog.commands) |spec| {
+        count += spec.aliases.len;
     }
     break :blk count;
 };
@@ -53,11 +51,11 @@ const aliases_array: [alias_count]AliasInfo = blk: {
     var out: [alias_count]AliasInfo = undefined;
     var index: usize = 0;
 
-    for (descriptors) |descriptor| {
-        for (descriptor.aliases) |alias| {
+    for (catalog.commands) |spec| {
+        for (spec.aliases) |alias| {
             out[index] = .{
                 .alias = alias,
-                .target = descriptor.name,
+                .target = spec.name,
             };
             index += 1;
         }
@@ -70,8 +68,8 @@ pub const aliases = aliases_array;
 
 const subcommand_count: usize = blk: {
     var count: usize = 0;
-    for (descriptors) |descriptor| {
-        if (descriptor.subcommands.len > 0) count += 1;
+    for (catalog.commands) |spec| {
+        if (effectiveCompletions(spec).len > 0) count += 1;
     }
     break :blk count;
 };
@@ -80,11 +78,12 @@ const command_subcommands_array: [subcommand_count]CommandSubcommands = blk: {
     var out: [subcommand_count]CommandSubcommands = undefined;
     var index: usize = 0;
 
-    for (descriptors) |descriptor| {
-        if (descriptor.subcommands.len > 0) {
+    for (catalog.commands) |spec| {
+        const tokens = effectiveCompletions(spec);
+        if (tokens.len > 0) {
             out[index] = .{
-                .command = descriptor.name,
-                .subcommands = descriptor.subcommands,
+                .command = spec.name,
+                .subcommands = tokens,
             };
             index += 1;
         }
@@ -95,12 +94,12 @@ const command_subcommands_array: [subcommand_count]CommandSubcommands = blk: {
 
 pub const command_subcommands = command_subcommands_array;
 
-const command_names_array: [descriptors.len + 2][]const u8 = blk: {
-    var out: [descriptors.len + 2][]const u8 = undefined;
+const command_names_array: [catalog.commands.len + 2][]const u8 = blk: {
+    var out: [catalog.commands.len + 2][]const u8 = undefined;
     var index: usize = 0;
 
-    for (descriptors) |descriptor| {
-        out[index] = descriptor.name;
+    for (catalog.commands) |spec| {
+        out[index] = spec.name;
         index += 1;
     }
 
@@ -148,6 +147,11 @@ pub fn findSubcommands(command: []const u8) ?[]const []const u8 {
         }
     }
     return null;
+}
+
+fn effectiveCompletions(spec: catalog.CommandSpec) []const []const u8 {
+    if (spec.completion_tokens.len > 0) return spec.completion_tokens;
+    return spec.subcommands;
 }
 
 test "alias targets resolve to known command" {

@@ -19,13 +19,15 @@ pub fn main() !void {
         return;
     }
 
-    var builder = abi.Framework.builder(allocator);
-    var framework = try builder
-        .withNetworkDefaults()
-        .build();
-    defer framework.deinit();
+    // Initialize module-level network state used by defaultRegistry().
+    try abi.network.initWithConfig(allocator, .{
+        .cluster_id = "example-cluster",
+        .heartbeat_timeout_ms = 30_000,
+        .max_nodes = 32,
+    });
+    defer abi.network.deinit();
 
-    // The network registry is available after Framework initialization.
+    // The network registry is available after network module initialization.
     const registry = abi.network.defaultRegistry() catch |err| {
         std.debug.print("Failed to get default registry: {t}\n", .{err});
         return err;

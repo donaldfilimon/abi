@@ -1126,7 +1126,7 @@ const Device = @import("../device.zig").Device;
 const DeviceType = @import("../device.zig").DeviceType;
 
 /// Query properties from a Metal device object.
-fn queryDeviceInfo(mtl_device: ID, allocator: std.mem.Allocator, device_id: u32) !Device {
+fn queryDeviceInfo(mtl_device: ID, device_id: u32) !Device {
     const msg_send = objc_msgSend orelse return MetalError.DeviceQueryFailed;
     const msg_send_u64 = objc_msgSend_u64 orelse return MetalError.DeviceQueryFailed;
     const msg_send_bool = objc_msgSend_bool orelse return MetalError.DeviceQueryFailed;
@@ -1141,9 +1141,6 @@ fn queryDeviceInfo(mtl_device: ID, allocator: std.mem.Allocator, device_id: u32)
             name_slice = std.mem.span(ptr);
         }
     }
-
-    const name = try allocator.dupe(u8, name_slice);
-    errdefer allocator.free(name);
 
     // Query memory
     const total_memory = msg_send_u64(mtl_device, sel_recommendedMaxWorkingSetSize);
@@ -1163,7 +1160,7 @@ fn queryDeviceInfo(mtl_device: ID, allocator: std.mem.Allocator, device_id: u32)
     return Device{
         .id = device_id,
         .backend = .metal,
-        .name = name,
+        .name = name_slice,
         .device_type = device_type,
         .vendor = .unknown,
         .total_memory = if (total_memory > 0) total_memory else null,
@@ -1193,12 +1190,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
     }
 
     var devices = std.ArrayListUnmanaged(Device).empty;
-    errdefer {
-        for (devices.items) |dev| {
-            allocator.free(dev.name);
-        }
-        devices.deinit(allocator);
-    }
+    errdefer devices.deinit(allocator);
 
     // Initialize Metal if not already done
     if (!metal_initialized) {
@@ -1224,7 +1216,7 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
                 const get_obj_fn: *const fn (ID, SEL, usize) callconv(.c) ID = @ptrCast(objc_msgSend);
                 const mtl_device = get_obj_fn(device_array, sel_objectAtIndex, i);
                 if (mtl_device != null) {
-                    const dev_info = queryDeviceInfo(mtl_device, allocator, i) catch continue;
+                    const dev_info = queryDeviceInfo(mtl_device, i) catch continue;
                     try devices.append(allocator, dev_info);
                 }
             }
@@ -1242,17 +1234,15 @@ pub fn enumerateDevices(allocator: std.mem.Allocator) ![]Device {
 
     // Fallback: use the default device if MTLCopyAllDevices is not available
     if (metal_device != null) {
-        const dev_info = queryDeviceInfo(metal_device, allocator, 0) catch {
+        const dev_info = queryDeviceInfo(metal_device, 0) catch {
             // Fallback to basic device info
-            const name = try allocator.dupe(u8, if (device_name_len > 0)
-                device_name_buf[0..device_name_len]
-            else
-                "Metal GPU");
-
             try devices.append(allocator, .{
                 .id = 0,
                 .backend = .metal,
-                .name = name,
+                .name = if (device_name_len > 0)
+                    device_name_buf[0..device_name_len]
+                else
+                    "Metal GPU",
                 .device_type = if (builtin.target.cpu.arch == .aarch64) .integrated else .discrete,
                 .vendor = .unknown,
                 .total_memory = if (device_total_memory > 0) device_total_memory else null,

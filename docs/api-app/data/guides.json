@@ -1,0 +1,275 @@
+[
+  {
+    "slug": "installation",
+    "title": "Installation",
+    "section": "Start",
+    "permalink": "/installation/",
+    "description": "System requirements, toolchain setup, and building ABI from source"
+  },
+  {
+    "slug": "getting-started",
+    "title": "Getting Started",
+    "section": "Start",
+    "permalink": "/getting-started/",
+    "description": "First build, first test, first example with ABI"
+  },
+  {
+    "slug": "architecture",
+    "title": "Architecture",
+    "section": "Core",
+    "permalink": "/architecture/",
+    "description": "Module hierarchy, comptime feature gating, and framework lifecycle"
+  },
+  {
+    "slug": "configuration",
+    "title": "Configuration",
+    "section": "Core",
+    "permalink": "/configuration/",
+    "description": "Feature flags, config builder, and environment variables"
+  },
+  {
+    "slug": "framework",
+    "title": "Framework Lifecycle",
+    "section": "Core",
+    "permalink": "/framework/",
+    "description": "Deep dive into Framework initialization, state machine, builder pattern, and feature registry"
+  },
+  {
+    "slug": "cli",
+    "title": "CLI",
+    "section": "Core",
+    "permalink": "/cli/",
+    "description": "30 commands and aliases for AI, GPU, database, and system management"
+  },
+  {
+    "slug": "migration-vnext",
+    "title": "Migration (vNext)",
+    "section": "Core",
+    "permalink": "/migration-vnext/",
+    "description": "Migration guide for upcoming breaking changes"
+  },
+  {
+    "slug": "ai-overview",
+    "title": "AI Overview",
+    "section": "AI",
+    "permalink": "/ai-overview/",
+    "description": "Architecture overview of ABI AI modules"
+  },
+  {
+    "slug": "ai-core",
+    "title": "AI Core",
+    "section": "AI",
+    "permalink": "/ai-core/",
+    "description": "Agents, tools, prompts, personas, memory, and model discovery"
+  },
+  {
+    "slug": "ai-inference",
+    "title": "Inference",
+    "section": "AI",
+    "permalink": "/ai-inference/",
+    "description": "LLM inference, embeddings, vision, streaming, and transformer architecture"
+  },
+  {
+    "slug": "ai-training",
+    "title": "Training",
+    "section": "AI",
+    "permalink": "/ai-training/",
+    "description": "Training pipelines, federated learning, and multimodal training"
+  },
+  {
+    "slug": "ai-reasoning",
+    "title": "Reasoning",
+    "section": "AI",
+    "permalink": "/ai-reasoning/",
+    "description": "Abbey reasoning engine, RAG, evaluation, templates, and orchestration"
+  },
+  {
+    "slug": "gpu",
+    "title": "GPU",
+    "section": "GPU",
+    "permalink": "/gpu/",
+    "description": "Multi-backend GPU architecture and execution model"
+  },
+  {
+    "slug": "gpu-backends",
+    "title": "GPU Backends",
+    "section": "GPU",
+    "permalink": "/gpu-backends/",
+    "description": "Per-backend details and platform requirements"
+  },
+  {
+    "slug": "database",
+    "title": "Database (WDBX)",
+    "section": "Data",
+    "permalink": "/database/",
+    "description": "Vector database, indexing, and retrieval"
+  },
+  {
+    "slug": "cache",
+    "title": "Cache",
+    "section": "Data",
+    "permalink": "/cache/",
+    "description": "In-memory caching and eviction policy behavior"
+  },
+  {
+    "slug": "storage",
+    "title": "Storage",
+    "section": "Data",
+    "permalink": "/storage/",
+    "description": "Unified file/object storage backends"
+  },
+  {
+    "slug": "search",
+    "title": "Search",
+    "section": "Data",
+    "permalink": "/search/",
+    "description": "Full-text and hybrid retrieval capabilities"
+  },
+  {
+    "slug": "network",
+    "title": "Network",
+    "section": "Infrastructure",
+    "permalink": "/network/",
+    "description": "Distributed compute and node orchestration"
+  },
+  {
+    "slug": "gateway",
+    "title": "Gateway",
+    "section": "Infrastructure",
+    "permalink": "/gateway/",
+    "description": "API gateway routing, rate limiting, and resilience"
+  },
+  {
+    "slug": "messaging",
+    "title": "Messaging",
+    "section": "Infrastructure",
+    "permalink": "/messaging/",
+    "description": "Event bus, pub/sub, and queueing"
+  },
+  {
+    "slug": "pages",
+    "title": "Pages",
+    "section": "Infrastructure",
+    "permalink": "/pages/",
+    "description": "Dashboard UI pages and routing"
+  },
+  {
+    "slug": "web",
+    "title": "Web",
+    "section": "Infrastructure",
+    "permalink": "/web/",
+    "description": "HTTP utilities and web middleware"
+  },
+  {
+    "slug": "cloud",
+    "title": "Cloud",
+    "section": "Infrastructure",
+    "permalink": "/cloud/",
+    "description": "Cloud function adapters"
+  },
+  {
+    "slug": "mobile",
+    "title": "Mobile",
+    "section": "Infrastructure",
+    "permalink": "/mobile/",
+    "description": "Mobile lifecycle, sensors, and notifications"
+  },
+  {
+    "slug": "auth",
+    "title": "Auth & Security",
+    "section": "Operations",
+    "permalink": "/auth/",
+    "description": "Authentication, authorization, and security infrastructure"
+  },
+  {
+    "slug": "analytics",
+    "title": "Analytics",
+    "section": "Operations",
+    "permalink": "/analytics/",
+    "description": "Event tracking and experiment framework"
+  },
+  {
+    "slug": "observability",
+    "title": "Observability",
+    "section": "Operations",
+    "permalink": "/observability/",
+    "description": "Metrics, tracing, profiling"
+  },
+  {
+    "slug": "deployment",
+    "title": "Deployment",
+    "section": "Operations",
+    "permalink": "/deployment/",
+    "description": "Docker, Kubernetes, and production deployment"
+  },
+  {
+    "slug": "benchmarks",
+    "title": "Benchmarks",
+    "section": "Operations",
+    "permalink": "/benchmarks/",
+    "description": "Built-in performance benchmark suite"
+  },
+  {
+    "slug": "api",
+    "title": "API Overview",
+    "section": "Reference",
+    "permalink": "/api-overview/",
+    "description": "Public API surface, import patterns, and HTTP endpoints"
+  },
+  {
+    "slug": "examples",
+    "title": "Examples",
+    "section": "Reference",
+    "permalink": "/examples/",
+    "description": "Runnable examples across major modules"
+  },
+  {
+    "slug": "c-bindings",
+    "title": "C API Bindings",
+    "section": "Reference",
+    "permalink": "/c-bindings/",
+    "description": "C-compatible ABI API exports and integration notes"
+  },
+  {
+    "slug": "troubleshooting",
+    "title": "Troubleshooting",
+    "section": "Reference",
+    "permalink": "/troubleshooting/",
+    "description": "Common errors and recovery guidance"
+  },
+  {
+    "slug": "contributing",
+    "title": "Contributing",
+    "section": "Reference",
+    "permalink": "/contributing/",
+    "description": "Development workflow and contribution guidelines"
+  },
+  {
+    "slug": "roadmap",
+    "title": "Roadmap",
+    "section": "Reference",
+    "permalink": "/roadmap/",
+    "description": "Canonical now/next/later execution roadmap"
+  },
+  {
+    "slug": "connectors",
+    "title": "LLM Connectors",
+    "section": "Services",
+    "permalink": "/connectors/",
+    "description": "Provider and connector capability matrix"
+  },
+  {
+    "slug": "mcp",
+    "title": "MCP Server",
+    "section": "Services",
+    "permalink": "/mcp/",
+    "description": "Model Context Protocol surface"
+  },
+  {
+    "slug": "acp",
+    "title": "ACP Protocol",
+    "section": "Services",
+    "permalink": "/acp/",
+    "description": "Agent Communication Protocol integration"
+  }
+]

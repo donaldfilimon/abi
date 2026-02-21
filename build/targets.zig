@@ -1,6 +1,6 @@
 const std = @import("std");
-const builtin = @import("builtin");
 
+/// Descriptor for a build target (example, tool, etc.).
 pub const BuildTarget = struct {
     name: []const u8,
     step_name: []const u8,
@@ -9,6 +9,7 @@ pub const BuildTarget = struct {
     optimize: ?std.builtin.OptimizeMode = null,
 };
 
+/// All example programs shipped with the project.
 pub const example_targets = [_]BuildTarget{
     .{ .name = "example-hello", .step_name = "run-hello", .description = "Run hello example", .source_path = "examples/hello.zig" },
     .{ .name = "example-database", .step_name = "run-database", .description = "Run database example", .source_path = "examples/database.zig" },
@@ -49,18 +50,17 @@ pub const example_targets = [_]BuildTarget{
     .{ .name = "example-mobile", .step_name = "run-mobile", .description = "Run mobile example", .source_path = "examples/mobile.zig" },
 };
 
+/// Check whether a path exists within the build root.
 pub fn pathExists(b: *std.Build, path: []const u8) bool {
-    if (builtin.zig_version.minor >= 16) {
-        b.build_root.handle.access(b.graph.io, path, .{}) catch return false;
-    } else {
-        b.build_root.handle.access(path, .{}) catch return false;
-    }
+    b.build_root.handle.access(b.graph.io, path, .{}) catch return false;
     return true;
 }
 
+/// Register build steps for a table of `BuildTarget` entries.  Skips
+/// targets whose source files are missing.
 pub fn buildTargets(
     b: *std.Build,
-    targets: []const BuildTarget,
+    table: []const BuildTarget,
     abi_module: *std.Build.Module,
     build_opts: *std.Build.Module,
     target: std.Build.ResolvedTarget,
@@ -68,7 +68,7 @@ pub fn buildTargets(
     aggregate: ?*std.Build.Step,
     aggregate_runs: bool,
 ) void {
-    for (targets) |t| {
+    for (table) |t| {
         if (!pathExists(b, t.source_path)) continue;
         const exe_optimize = t.optimize orelse optimize;
         const exe = b.addExecutable(.{
@@ -82,9 +82,7 @@ pub fn buildTargets(
         });
         exe.root_module.addImport("abi", abi_module);
         exe.root_module.addImport("build_options", build_opts);
-
         applyPerformanceTweaks(exe, exe_optimize);
-
         b.installArtifact(exe);
 
         const run = b.addRunArtifact(exe);
@@ -101,10 +99,10 @@ pub fn buildTargets(
     }
 }
 
+/// Strip release builds by default.
 pub fn applyPerformanceTweaks(exe: *std.Build.Step.Compile, optimize: std.builtin.OptimizeMode) void {
     if (optimize == .ReleaseFast or optimize == .ReleaseSmall) {
-        if (exe.root_module.strip == null) {
+        if (exe.root_module.strip == null)
             exe.root_module.strip = true;
-        }
     }
 }

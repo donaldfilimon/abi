@@ -4,7 +4,7 @@ const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const types = @import("types.zig");
-const agent_mod = @import("../agent.zig");
+const agent_mod = @import("../agents/agent.zig");
 const prompt_personas = @import("../prompts/personas.zig");
 const overrides = @import("agent_overrides.zig");
 

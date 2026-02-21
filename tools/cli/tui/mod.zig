@@ -3,10 +3,14 @@
 //! Terminal User Interface components for the ABI CLI.
 //! Includes widgets, panels, themes, and dashboard views.
 
+pub const layout = @import("layout.zig");
+pub const unicode = @import("unicode.zig");
 pub const events = @import("events.zig");
 pub const terminal = @import("terminal.zig");
 pub const widgets = @import("widgets.zig");
 pub const themes = @import("themes.zig");
+pub const render_utils = @import("render_utils.zig");
+pub const component = @import("component.zig");
 pub const gpu_monitor = @import("gpu_monitor.zig");
 pub const agent_panel = @import("agent_panel.zig");
 pub const training_panel = @import("training_panel.zig");
@@ -27,6 +31,10 @@ pub const MouseButton = events.MouseButton;
 pub const Terminal = terminal.Terminal;
 pub const TerminalSize = terminal.TerminalSize;
 pub const PlatformCapabilities = terminal.PlatformCapabilities;
+
+// Layout
+pub const Rect = layout.Rect;
+pub const Constraint = layout.Constraint;
 
 // Widgets
 pub const ProgressIndicator = widgets.ProgressIndicator;
@@ -73,6 +81,14 @@ pub const ModelManagementPanel = model_panel.ModelManagementPanel;
 
 // Streaming Dashboard
 pub const StreamingDashboard = streaming_dashboard.StreamingDashboard;
+
+// Render Utilities
+pub const BoxStyle = render_utils.BoxStyle;
+pub const BoxChars = render_utils.BoxChars;
+
+// Component System
+pub const SubPanel = component.SubPanel;
+pub const RenderFn = component.RenderFn;
 
 // Async Loop
 pub const AsyncLoop = async_loop.AsyncLoop;

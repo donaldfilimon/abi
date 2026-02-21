@@ -10,15 +10,11 @@
 const std = @import("std");
 const utils = @import("../../utils/mod.zig");
 
-const info = @import("info.zig");
-const bench_cmd = @import("bench.zig");
-const list = @import("list.zig");
-const download = @import("download.zig");
-const serve = @import("serve.zig");
 const run_cmd = @import("run.zig");
 const session_cmd = @import("session.zig");
 const providers_cmd = @import("providers.zig");
 const plugins_cmd = @import("plugins.zig");
+const serve_cmd = @import("serve.zig");
 
 const llm_subcommands = [_][]const u8{
     "run",
@@ -26,10 +22,6 @@ const llm_subcommands = [_][]const u8{
     "serve",
     "providers",
     "plugins",
-    "info",
-    "bench",
-    "list",
-    "download",
 };
 
 fn lRun(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
@@ -41,7 +33,7 @@ fn lSession(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
 }
 
 fn lServe(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try serve.runServe(a, p.remaining());
+    try serve_cmd.runServe(a, p.remaining());
 }
 
 fn lProviders(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
@@ -52,31 +44,12 @@ fn lPlugins(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
     try plugins_cmd.runPlugins(a, p.remaining());
 }
 
-fn lInfo(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try info.runInfo(a, p.remaining());
-}
-
-fn lBench(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try bench_cmd.runBench(a, p.remaining());
-}
-
-fn lList(_: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    if (p.containsHelp()) {
-        printHelp();
-        return;
-    }
-    list.runList();
-}
-
-fn lDownload(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try download.runDownload(a, p.remaining());
-}
-
 fn lUnknown(cmd: []const u8) void {
     std.debug.print("Unknown llm command: {s}\n", .{cmd});
     if (utils.args.suggestCommand(cmd, &llm_subcommands)) |suggestion| {
         std.debug.print("Did you mean: {s}\n", .{suggestion});
     }
+    std.process.exit(1);
 }
 
 fn lHelp(_: std.mem.Allocator) void {
@@ -89,10 +62,6 @@ const llm_commands = [_]utils.subcommand.Command{
     .{ .names = &.{"serve"}, .run = lServe },
     .{ .names = &.{"providers"}, .run = lProviders },
     .{ .names = &.{"plugins"}, .run = lPlugins },
-    .{ .names = &.{"info"}, .run = lInfo },
-    .{ .names = &.{"bench"}, .run = lBench },
-    .{ .names = &.{"list"}, .run = lList },
-    .{ .names = &.{"download"}, .run = lDownload },
 };
 
 /// Run the LLM command with the provided arguments.
@@ -110,11 +79,6 @@ pub fn printHelp() void {
             "  serve       Start streaming HTTP server\\n" ++
             "  providers   Show provider availability and routing order\\n" ++
             "  plugins     Manage HTTP/native provider plugins\\n\\n" ++
-            "Additional commands:\\n" ++
-            "  info        Inspect local GGUF model metadata\\n" ++
-            "  bench       Benchmark local and connector backends\\n" ++
-            "  list        List supported local model formats\\n" ++
-            "  download    Download model artifacts\\n\\n" ++
             "Examples:\\n" ++
             "  abi llm run --model ./model.gguf --prompt \"hello\"\\n" ++
             "  abi llm run --model llama3 --prompt \"status\" --fallback mlx,ollama\\n" ++

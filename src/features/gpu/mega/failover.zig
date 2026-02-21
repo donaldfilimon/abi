@@ -7,41 +7,14 @@ const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const backend_mod = @import("../backend.zig");
+const failover_types = @import("../failover_types.zig");
 
-/// Circuit breaker state.
-pub const CircuitState = enum {
-    /// Normal operation, requests pass through.
-    closed,
-    /// Backend failing, requests immediately fail over.
-    open,
-    /// After timeout, allow test requests.
-    half_open,
-};
-
-/// Health status for a backend.
-pub const BackendHealth = struct {
-    backend: backend_mod.Backend,
-    state: CircuitState = .closed,
-    failure_count: u32 = 0,
-    success_count: u32 = 0,
-    last_failure_time: i64 = 0,
-    last_success_time: i64 = 0,
-    consecutive_failures: u32 = 0,
-    consecutive_successes: u32 = 0,
-    total_requests: u64 = 0,
-    total_failures: u64 = 0,
-
-    /// Calculate failure rate (0.0 to 1.0).
-    pub fn failureRate(self: BackendHealth) f32 {
-        if (self.total_requests == 0) return 0;
-        return @as(f32, @floatFromInt(self.total_failures)) / @as(f32, @floatFromInt(self.total_requests));
-    }
-
-    /// Check if backend is healthy (closed circuit, low consecutive failures).
-    pub fn isHealthy(self: BackendHealth) bool {
-        return self.state == .closed and self.consecutive_failures < 3;
-    }
-};
+// Re-export shared types so existing consumers (mega/mod.zig) continue to work.
+pub const CircuitState = failover_types.CircuitState;
+pub const BackendHealth = failover_types.BackendHealth;
+pub const FailoverReason = failover_types.FailoverReason;
+pub const FailoverEvent = failover_types.FailoverEvent;
+pub const FailoverStats = failover_types.FailoverStats;
 
 /// Failover policy configuration.
 pub const FailoverPolicy = struct {
@@ -59,34 +32,6 @@ pub const FailoverPolicy = struct {
         const backoff = self.backoff_base_ms * (@as(i64, 1) << exp);
         return @min(backoff, self.backoff_max_ms);
     }
-};
-
-/// A failover event for logging/metrics.
-pub const FailoverEvent = struct {
-    timestamp: i64,
-    from_backend: backend_mod.Backend,
-    to_backend: backend_mod.Backend,
-    reason: FailoverReason,
-    success: bool,
-};
-
-/// Reason for a failover.
-pub const FailoverReason = enum {
-    circuit_open,
-    timeout,
-    error_threshold,
-    manual,
-    health_check,
-};
-
-/// Aggregate failover statistics.
-pub const FailoverStats = struct {
-    total_failovers: u64 = 0,
-    successful_failovers: u64 = 0,
-    failed_failovers: u64 = 0,
-    current_primary: ?backend_mod.Backend = null,
-    backends_available: u32 = 0,
-    backends_unavailable: u32 = 0,
 };
 
 /// Manages backend health and failover decisions.

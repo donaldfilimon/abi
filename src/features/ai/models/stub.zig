@@ -176,6 +176,35 @@ pub const huggingface = struct {
     pub const SearchResult = @This().SearchResult;
 };
 
+// --- Registry (merged from stubs/model_registry.zig) ---
+
+pub const ModelInfo = struct {
+    name: []const u8 = "",
+    parameters: u64 = 0,
+    description: []const u8 = "",
+};
+
+pub const ModelRegistry = struct {
+    allocator: std.mem.Allocator,
+    models: std.ArrayListUnmanaged(ModelInfo) = .{},
+
+    pub fn init(allocator: std.mem.Allocator) ModelRegistry {
+        return .{ .allocator = allocator };
+    }
+    pub fn deinit(self: *ModelRegistry) void {
+        self.models.deinit(self.allocator);
+    }
+    pub fn register(_: *ModelRegistry, _: ModelInfo) !void {
+        return error.ModelsDisabled;
+    }
+    pub fn find(_: *ModelRegistry, _: []const u8) ?ModelInfo {
+        return null;
+    }
+    pub fn count(self: *ModelRegistry) usize {
+        return self.models.items.len;
+    }
+};
+
 // --- Tests ---
 
 test "stub returns disabled error" {

@@ -1,6 +1,7 @@
 const std = @import("std");
 const gpu_policy = @import("gpu_policy.zig");
 
+/// All supported GPU compute backends.
 pub const GpuBackend = enum {
     none,
     auto,
@@ -28,6 +29,11 @@ pub const GpuBackend = enum {
 pub const backend_option_help =
     "GPU backend(s): auto, none, cuda, vulkan, metal, webgpu, tpu, opengl, opengles, webgl2, stdgpu, fpga (comma-separated)";
 
+const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
+
+/// Parse the `-Dgpu-backend=` CLI argument into a list of `GpuBackend`
+/// values.  When omitted, auto-detection selects backends based on the
+/// target platform.
 pub fn parseGpuBackends(
     b: *std.Build,
     backend_str: ?[]const u8,
@@ -37,7 +43,6 @@ pub fn parseGpuBackends(
     target_abi: std.Target.Abi,
     can_link_metal: bool,
 ) []const GpuBackend {
-    const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
     var buffer: [backend_count]GpuBackend = undefined;
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
@@ -77,7 +82,7 @@ pub fn parseGpuBackends(
             );
         }
     } else {
-        appendDefaultBackends(
+        appendAutoBackends(
             &buffer,
             &count,
             &seen,
@@ -93,36 +98,11 @@ pub fn parseGpuBackends(
     return b.allocator.dupe(GpuBackend, buffer[0..count]) catch &.{};
 }
 
-fn appendDefaultBackends(
-    buffer: *[@typeInfo(GpuBackend).@"enum".fields.len]GpuBackend,
-    count: *usize,
-    seen: *[@typeInfo(GpuBackend).@"enum".fields.len]bool,
-    enable_gpu: bool,
-    enable_web: bool,
-    target_os: std.Target.Os.Tag,
-    target_abi: std.Target.Abi,
-    can_link_metal: bool,
-    warn_if_metal_skipped: bool,
-    windows_safe_auto: bool,
-) void {
-    appendAutoBackends(
-        buffer,
-        count,
-        seen,
-        enable_gpu,
-        enable_web,
-        target_os,
-        target_abi,
-        can_link_metal,
-        warn_if_metal_skipped,
-        windows_safe_auto,
-    );
-}
-
+/// Append platform-appropriate backends using the gpu_policy rules.
 fn appendAutoBackends(
-    buffer: *[@typeInfo(GpuBackend).@"enum".fields.len]GpuBackend,
+    buffer: *[backend_count]GpuBackend,
     count: *usize,
-    seen: *[@typeInfo(GpuBackend).@"enum".fields.len]bool,
+    seen: *[backend_count]bool,
     enable_gpu: bool,
     enable_web: bool,
     target_os: std.Target.Os.Tag,
@@ -131,6 +111,16 @@ fn appendAutoBackends(
     warn_if_metal_skipped: bool,
     windows_safe_auto: bool,
 ) void {
+    if (target_os == .windows and windows_safe_auto) {
+        std.log.warn(
+            "Windows auto backend compatibility mode enabled; using stdgpu only. " ++
+                "Pass -Dgpu-auto-windows-safe=false for canonical policy order.",
+            .{},
+        );
+        addBackend(.stdgpu, buffer, count, seen);
+        return;
+    }
+
     const names = gpu_policy.resolveAutoBackendNames(.{
         .platform = gpu_policy.classify(target_os, target_abi),
         .enable_gpu = enable_gpu,
@@ -139,15 +129,6 @@ fn appendAutoBackends(
         .warn_if_metal_skipped = warn_if_metal_skipped,
         .allow_simulated = false,
     });
-
-    if (target_os == .windows and windows_safe_auto) {
-        std.log.warn(
-            "Windows auto backend compatibility mode enabled; using stdgpu only. Pass -Dgpu-auto-windows-safe=false for canonical policy order.",
-            .{},
-        );
-        addBackend(.stdgpu, buffer, count, seen);
-        return;
-    }
 
     for (names.slice()) |name| {
         if (GpuBackend.fromString(name)) |backend| {
@@ -159,25 +140,26 @@ fn appendAutoBackends(
 
 fn addBackend(
     backend: GpuBackend,
-    buffer_ptr: *[@typeInfo(GpuBackend).@"enum".fields.len]GpuBackend,
-    count_ptr: *usize,
-    seen_ptr: *[@typeInfo(GpuBackend).@"enum".fields.len]bool,
+    buffer: *[backend_count]GpuBackend,
+    count: *usize,
+    seen: *[backend_count]bool,
 ) void {
     const idx = @intFromEnum(backend);
-    if (seen_ptr[idx]) return;
-    if (count_ptr.* >= buffer_ptr.len) return;
-    buffer_ptr[count_ptr.*] = backend;
-    count_ptr.* += 1;
-    seen_ptr[idx] = true;
+    if (seen[idx]) return;
+    if (count.* >= buffer.len) return;
+    buffer[count.*] = backend;
+    count.* += 1;
+    seen[idx] = true;
 }
 
+// ── Tests ────────────────────────────────────────────────────────────────
+
 test "default backends: macOS keeps metal when frameworks are available" {
-    const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
     var buffer: [backend_count]GpuBackend = undefined;
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
 
-    appendDefaultBackends(&buffer, &count, &seen, true, false, .macos, .none, true, false, false);
+    appendAutoBackends(&buffer, &count, &seen, true, false, .macos, .none, true, false, false);
     try std.testing.expectEqual(@as(usize, 4), count);
     try std.testing.expectEqual(GpuBackend.metal, buffer[0]);
     try std.testing.expectEqual(GpuBackend.vulkan, buffer[1]);
@@ -186,12 +168,11 @@ test "default backends: macOS keeps metal when frameworks are available" {
 }
 
 test "default backends: macOS falls back when frameworks are unavailable" {
-    const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
     var buffer: [backend_count]GpuBackend = undefined;
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
 
-    appendDefaultBackends(&buffer, &count, &seen, true, false, .macos, .none, false, false, false);
+    appendAutoBackends(&buffer, &count, &seen, true, false, .macos, .none, false, false, false);
     try std.testing.expectEqual(@as(usize, 3), count);
     try std.testing.expectEqual(GpuBackend.vulkan, buffer[0]);
     try std.testing.expectEqual(GpuBackend.opengl, buffer[1]);
@@ -199,12 +180,11 @@ test "default backends: macOS falls back when frameworks are unavailable" {
 }
 
 test "default backends: windows follows canonical policy order when compatibility mode is off" {
-    const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
     var buffer: [backend_count]GpuBackend = undefined;
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
 
-    appendDefaultBackends(&buffer, &count, &seen, true, false, .windows, .none, false, false, false);
+    appendAutoBackends(&buffer, &count, &seen, true, false, .windows, .none, false, false, false);
     try std.testing.expectEqual(@as(usize, 4), count);
     try std.testing.expectEqual(GpuBackend.cuda, buffer[0]);
     try std.testing.expectEqual(GpuBackend.vulkan, buffer[1]);
@@ -213,23 +193,21 @@ test "default backends: windows follows canonical policy order when compatibilit
 }
 
 test "default backends: windows compatibility mode keeps stdgpu only" {
-    const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
     var buffer: [backend_count]GpuBackend = undefined;
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
 
-    appendDefaultBackends(&buffer, &count, &seen, true, false, .windows, .none, false, false, true);
+    appendAutoBackends(&buffer, &count, &seen, true, false, .windows, .none, false, false, true);
     try std.testing.expectEqual(@as(usize, 1), count);
     try std.testing.expectEqual(GpuBackend.stdgpu, buffer[0]);
 }
 
 test "default backends: android target uses vulkan then opengles" {
-    const backend_count = @typeInfo(GpuBackend).@"enum".fields.len;
     var buffer: [backend_count]GpuBackend = undefined;
     var seen = [_]bool{false} ** backend_count;
     var count: usize = 0;
 
-    appendDefaultBackends(&buffer, &count, &seen, true, false, .linux, .android, false, false, false);
+    appendAutoBackends(&buffer, &count, &seen, true, false, .linux, .android, false, false, false);
     try std.testing.expectEqual(@as(usize, 3), count);
     try std.testing.expectEqual(GpuBackend.vulkan, buffer[0]);
     try std.testing.expectEqual(GpuBackend.opengles, buffer[1]);

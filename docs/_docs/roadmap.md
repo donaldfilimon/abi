@@ -1,141 +1,90 @@
 ---
 title: Roadmap
-description: Version history and future plans
+description: Canonical now/next/later execution roadmap
 section: Reference
-order: 6
+order: 75
+permalink: /roadmap/
 ---
 
 # Roadmap
+## Summary
+Canonical now/next/later execution roadmap
 
-This page covers the version history of the ABI framework, the current state
-of the project, and planned future work.
+## Generated Reference
+## Overview
 
----
+This guide is generated from repository metadata for **Reference** coverage and stays deterministic across runs.
 
-## Version History
+## Build Snapshot
 
-### v0.1.0 -- Foundation
+- Zig pin: `0.16.0-dev.2623+27eec9bd6`
+- Main tests: `1270` pass / `5` skip / `1275` total
+- Feature tests: `1535` pass / `1535` total
 
-- Initial Zig framework with comptime feature gating
-- GPU module with CUDA and Vulkan backends
-- SIMD-accelerated vector operations
-- WDBX vector database with HNSW indexing
-- Basic AI module with LLM inference
-- Framework lifecycle state machine
+## Now / Next / Later
 
-### v0.2.0 -- Expansion
+Canonical execution roadmap generated from `src/services/tasks/roadmap_catalog.zig`.
+### Now
 
-- Added 6 new feature modules: cache, storage, search, messaging, gateway, pages
-- Distributed network module with Raft consensus
-- High availability: replication, backup, PITR
-- Observability: metrics, tracing, profiling
-- Analytics event tracking
-- Cloud serverless adapters (AWS, GCP, Azure)
-- Authentication and security infrastructure (17 modules)
-- Mobile platform support (opt-in)
+| Track | Item | Owner | Status | Validation Gate | Plan |
+| --- | --- | --- | --- | --- | --- |
+| Docs | `RM-001` Complete canonical roadmap/plans sync | Abbey | In Progress | zig build gendocs ; zig build check-docs | [Docs + Roadmap Canonical Sync](../plans/docs-roadmap-sync-v2.md) |
+| GPU | `RM-002` Close GPU strictness and pool lifecycle gaps | Abbey | In Progress | zig build typecheck ; zig build verify-all | [GPU Redesign v3](../plans/gpu-redesign-v3.md) |
+| CLI/TUI | `RM-003` Finalize CLI descriptor framework cutover | Abbey | In Progress | zig build cli-tests ; zig build verify-all | [CLI Framework + Local-Agent Fallback](../plans/cli-framework-local-agents.md) |
+| CLI/TUI | `RM-004` Finish TUI modular extraction | Abbey | In Progress | zig build cli-tests ; zig build run -- ui launch --help | [TUI Modular Extraction v2](../plans/tui-modular-v2.md) |
+| Docs | `RM-005` Docs v3 pipeline baseline established | Abbey | Done | zig build check-docs | [Docs + Roadmap Canonical Sync](../plans/docs-roadmap-sync-v2.md) |
 
-### v0.3.0 -- AI Split and Connectors
+### Next
 
-- Split monolithic AI module into 5 independent modules:
-  - `ai` (monolith), `ai_core`, `inference`, `training`, `reasoning`
-- Added 9 LLM provider connectors: OpenAI, Anthropic, Ollama, HuggingFace,
-  Mistral, Cohere, LM Studio, vLLM, MLX
-- Discord REST client integration
-- Job scheduler connector
-- Abbey advanced reasoning engine (meta-learning, self-reflection, theory of mind)
-- MCP server (JSON-RPC 2.0 over stdio for WDBX)
-- ACP server (agent communication protocol)
-- Builder pattern for framework configuration
-- 36 C API bindings
+| Track | Item | Owner | Status | Validation Gate | Plan |
+| --- | --- | --- | --- | --- | --- |
+| AI | `RM-008` Harden local-agent provider plugins | Abbey | Planned | zig build feature-tests ; zig build cli-tests | [CLI Framework + Local-Agent Fallback](../plans/cli-framework-local-agents.md) |
+| Platform | `RM-006` Automate cross-target GPU policy verification | Abbey | Planned | zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck ; zig build -Dtarget=x86_64-windows-gnu -Dgpu-backend=auto typecheck ; zig build -Dtarget=aarch64-macos -Dgpu-backend=auto typecheck | [GPU Redesign v3](../plans/gpu-redesign-v3.md) |
+| Platform | `RM-009` Complete feature module hierarchy cleanup | Abbey | Planned | zig build validate-flags ; zig build full-check | [Feature Modules Restructure v1](../plans/feature-modules-restructure-v1.md) |
+| Infrastructure | `RM-007` Complete exhaustive CLI integration gate | Abbey | Blocked | zig build cli-tests-full | [Integration Gates v1](../plans/integration-gates-v1.md) |
 
-### v0.4.0 -- Current Release
+### Later
 
-- Full Zig 0.16 migration (compiles and passes all tests)
-- vNext staged-compatibility API surface
-- v2 runtime primitives: Channel, ThreadPool, DagPipeline
-- v2 shared utilities: SwissMap, ArenaPool, structured errors
-- Shared resilience module (parameterized circuit breakers)
-- Consolidated rate limiters
-- Radix tree routing shared between gateway and pages
-- 10 GPU backends (added WebGL2, OpenGL, OpenGLES, FPGA, simulated)
-- TPU backend support (runtime-linked)
-- 30 CLI commands + 8 aliases
-- 36 examples
-- Ralph iterative agent with skill memory and multi-Ralph bus
-- Baseline validation scripts and CI quality gates
-- Full test suite: 1270 pass, 5 skip (main), 1535 pass (feature)
+| Track | Item | Owner | Status | Validation Gate | Plan |
+| --- | --- | --- | --- | --- | --- |
+| Docs | `RM-011` Launch developer education track | Abbey | Planned | zig build check-docs | [Docs + Roadmap Canonical Sync](../plans/docs-roadmap-sync-v2.md) |
+| Platform | `RM-012` Expand cloud function adapters | Abbey | Planned | zig build full-check ; zig build verify-all | [Feature Modules Restructure v1](../plans/feature-modules-restructure-v1.md) |
+| Infrastructure | `RM-010` Hardware acceleration research track | Abbey | Planned | zig build verify-all | [GPU Redesign v3](../plans/gpu-redesign-v3.md) |
 
----
+## Active Plans
 
-## Current State
+| Plan | Status | Owner | Scope |
+| --- | --- | --- | --- |
+| [CLI Framework + Local-Agent Fallback](../plans/cli-framework-local-agents.md) | In Progress | Abbey | Descriptor-driven CLI framework and local-first LLM provider routing with plugin support. |
+| [Docs + Roadmap Canonical Sync](../plans/docs-roadmap-sync-v2.md) | In Progress | Abbey | Canonical roadmap catalog, generated roadmap docs, generated plan docs, and task import synchronization. |
+| [GPU Redesign v3](../plans/gpu-redesign-v3.md) | In Progress | Abbey | Metal/Vulkan policy hardening, GL family consolidation, strict backend creation, and mixed-backend stability. |
+| [TUI Modular Extraction v2](../plans/tui-modular-v2.md) | In Progress | Abbey | Split launcher/dashboard rendering into reusable modules with responsive layout and shared async loop behavior. |
+| [Feature Modules Restructure v1](../plans/feature-modules-restructure-v1.md) | Planned | Abbey | Consolidate feature layout, remove obsolete facades, and align mod/stub parity under new module boundaries. |
+| [Integration Gates v1](../plans/integration-gates-v1.md) | Blocked | Abbey | Expand exhaustive integration and long-running command probes while keeping default gates fast. |
 
-| Metric | Value |
-|--------|-------|
-| Version | 0.4.0 |
-| Zig version | 0.16.0-dev.2611+f996d2866 |
-| Feature modules | 21 (17 core + 4 AI split) |
-| Services | 9 always-available (runtime, platform, shared, connectors, ha, tasks, mcp, acp, simd) |
-| GPU backends | 10 (CUDA, Vulkan, Metal, WebGPU, TPU, stdgpu, WebGL2, OpenGL, OpenGLES, FPGA) + simulated |
-| LLM connectors | 9 (OpenAI, Anthropic, Ollama, HuggingFace, Mistral, Cohere, LM Studio, vLLM, MLX) |
-| CLI commands | 30 + 8 aliases |
-| C API exports | 36 |
-| Examples | 36 |
-| Main tests | 1270 pass, 5 skip |
-| Feature tests | 1535 pass |
-| Flag combos validated | 34 |
+## Validation Commands
 
-### Zig 0.16 Migration Status
+- `zig build typecheck`
+- `zig build check-docs`
+- `zig build run -- gendocs --check`
 
-The framework compiles cleanly and passes all tests on Zig 0.16. GPU and
-database backend source files compile through the named `abi` module but
-cannot yet be registered in `feature_test_root.zig` for direct inline
-testing -- tracked for a dedicated migration pass in v0.5.0.
+## Navigation
+
+- API Reference: [../api/](../api/)
+- API App: [../api-app/](../api-app/)
+- Plans Index: [../plans/index.md](../plans/index.md)
+- Source Root: [GitHub src tree](https://github.com/donaldfilimon/abi/tree/master/src)
+
+## Maintenance Notes
+- This page is generated by `zig build gendocs`.
+- Edit template source in `tools/gendocs/templates/docs/` for structural changes.
+- Edit generator logic in `tools/gendocs/` for data model or rendering changes.
+
 
 ---
 
-## Planned: v0.5.0
+*Generated automatically by `zig build gendocs`*
 
-Goals for the next minor release:
-
-- **vNext API promotion** -- Graduate `abi.vnext.App` to primary API; deprecation
-  warnings on legacy `abi.init()`
-- **GPU backend test coverage** -- Register GPU backends in feature test root
-  after migration pass
-- **Streaming improvements** -- Enhanced SSE/WebSocket resilience, backpressure
-- **Training pipeline v2** -- Distributed training with runtime.ThreadPool,
-  gradient sync via Channel
-- **Plugin system** -- Dynamic feature loading beyond comptime gating
-- **Documentation** -- Auto-generated API docs (`abi gendocs` or `zig build gendocs`) coverage
-  for all 21 modules
-
-## Planned: v0.6.0
-
-Longer-term goals:
-
-- **Stable 1.0 preparation** -- API freeze, backwards compatibility guarantees
-- **WASM full support** -- Database, network, and GPU stubs for browser targets
-- **Multi-node orchestration** -- Production-grade distributed compute with
-  network module
-- **Federated learning** -- Cross-node training with privacy guarantees
-- **Package manager integration** -- Publish as a Zig package for `build.zig.zon`
-- **Language bindings** -- Python, Rust, and Go wrappers beyond the C API
-- **Benchmark suite** -- Publish reproducible performance baselines
-
----
-
-## How to Contribute
-
-See [Contributing](contributing.html) for the development workflow, style guide,
-and PR checklist. All contributions -- bug fixes, new features, documentation
-improvements -- are welcome.
-
----
-
-## Related Pages
-
-- [Architecture](architecture.html) -- Module hierarchy and design
-- [Configuration](configuration.html) -- Feature flags and build options
-- [Contributing](contributing.html) -- Development workflow
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
+Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.

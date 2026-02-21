@@ -203,8 +203,13 @@ pub const builtin_kernels = @import("builtin_kernels.zig");
 // Recovery and failover
 pub const recovery = @import("recovery.zig");
 pub const failover = @import("failover.zig");
+pub const failover_types = @import("failover_types.zig");
 pub const RecoveryManager = recovery.RecoveryManager;
 pub const FailoverManager = failover.FailoverManager;
+
+// Shared failover types (canonical definitions used by both failover.zig and mega/failover.zig)
+pub const CircuitState = failover_types.CircuitState;
+pub const BackendHealth = failover_types.BackendHealth;
 
 // Diagnostics and error handling
 pub const diagnostics = @import("diagnostics.zig");
@@ -300,6 +305,8 @@ comptime {
         // std.gpu integration tests
         _ = @import("std_gpu.zig");
         _ = @import("std_gpu_kernels.zig");
+        // Shared failover types tests
+        _ = @import("failover_types.zig");
         // Mega GPU orchestration tests
         _ = @import("mega/mod.zig");
         // Platform detection tests

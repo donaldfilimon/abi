@@ -2,37 +2,22 @@ const std = @import("std");
 const options_mod = @import("options.zig");
 const BuildOptions = options_mod.BuildOptions;
 
+/// Build the `build_options` module that source code imports as
+/// `@import("build_options")`.  Feature flags are forwarded from the
+/// `BuildOptions` struct, and GPU backend booleans are derived from the
+/// selected backend list.
 pub fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build.Module {
     var opts = b.addOptions();
     opts.addOption([]const u8, "package_version", "0.4.0");
 
-    // Existing flags
-    opts.addOption(bool, "enable_gpu", options.enable_gpu);
-    opts.addOption(bool, "enable_ai", options.enable_ai);
-    opts.addOption(bool, "enable_explore", options.enable_explore);
-    opts.addOption(bool, "enable_llm", options.enable_llm);
-    opts.addOption(bool, "enable_vision", options.enable_vision);
-    opts.addOption(bool, "enable_web", options.enable_web);
-    opts.addOption(bool, "enable_database", options.enable_database);
-    opts.addOption(bool, "enable_network", options.enable_network);
-    opts.addOption(bool, "enable_profiling", options.enable_profiling);
-    opts.addOption(bool, "enable_analytics", options.enable_analytics);
+    // Forward every enable_* bool field from BuildOptions automatically.
+    inline for (std.meta.fields(BuildOptions)) |field| {
+        if (field.type == bool) {
+            opts.addOption(bool, field.name, @field(options, field.name));
+        }
+    }
 
-    // New v2 flags
-    opts.addOption(bool, "enable_cloud", options.enable_cloud);
-    opts.addOption(bool, "enable_training", options.enable_training);
-    opts.addOption(bool, "enable_reasoning", options.enable_reasoning);
-    opts.addOption(bool, "enable_auth", options.enable_auth);
-    opts.addOption(bool, "enable_messaging", options.enable_messaging);
-    opts.addOption(bool, "enable_cache", options.enable_cache);
-    opts.addOption(bool, "enable_storage", options.enable_storage);
-    opts.addOption(bool, "enable_search", options.enable_search);
-    opts.addOption(bool, "enable_mobile", options.enable_mobile);
-    opts.addOption(bool, "enable_gateway", options.enable_gateway);
-    opts.addOption(bool, "enable_pages", options.enable_pages);
-    opts.addOption(bool, "enable_benchmarks", options.enable_benchmarks);
-
-    // GPU backend flags
+    // GPU backend convenience flags (derived from the backend list).
     opts.addOption(bool, "gpu_cuda", options.gpu_cuda());
     opts.addOption(bool, "gpu_vulkan", options.gpu_vulkan());
     opts.addOption(bool, "gpu_stdgpu", options.gpu_stdgpu());
@@ -50,6 +35,7 @@ pub fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build
     return opts.createModule();
 }
 
+/// Create the `cli` module that the CLI executable imports.
 pub fn createCliModule(
     b: *std.Build,
     abi_module: *std.Build.Module,
@@ -65,6 +51,9 @@ pub fn createCliModule(
     return cli;
 }
 
+/// Create a standalone `abi` module with its own build-options (used by
+/// profile builds and other targets that need different options from the
+/// default).
 pub fn createAbiModule(
     b: *std.Build,
     options: BuildOptions,

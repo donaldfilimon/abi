@@ -3,29 +3,37 @@ const gpu = @import("gpu.zig");
 const feature_catalog = @import("../src/core/feature_catalog.zig");
 const GpuBackend = gpu.GpuBackend;
 
-const internal_allowed_flags = [_][]const u8{ "enable_explore", "enable_vision" };
+/// Internal-only flags that live in BuildOptions but are not in the feature
+/// catalog (they are derived from parent flags like enable_ai).
+pub const internal_allowed_flags = [_][]const u8{ "enable_explore", "enable_vision" };
 
-fn isCatalogFlag(comptime field_name: []const u8) bool {
+/// Returns true when `field_name` matches any `compile_flag_field` in the
+/// canonical feature catalog.
+pub fn isCatalogFlag(comptime field_name: []const u8) bool {
     @setEvalBranchQuota(4096);
     inline for (feature_catalog.all) |entry| {
-        if (std.mem.eql(u8, field_name, entry.compile_flag_field)) {
+        if (std.mem.eql(u8, field_name, entry.compile_flag_field))
             return true;
-        }
     }
     return false;
 }
 
-fn isAllowedInternalFlag(comptime field_name: []const u8) bool {
+/// Returns true when `field_name` is an internal (non-catalog) flag that is
+/// still allowed in BuildOptions / FlagCombo.
+pub fn isAllowedInternalFlag(comptime field_name: []const u8) bool {
     inline for (internal_allowed_flags) |flag| {
-        if (std.mem.eql(u8, field_name, flag)) {
+        if (std.mem.eql(u8, field_name, flag))
             return true;
-        }
     }
     return false;
 }
 
+/// All compile-time build options for the ABI project.
+///
+/// Boolean fields prefixed with `enable_` are feature gates that select
+/// between real (`mod.zig`) and stub implementations at compile time.
+/// `gpu_backends` lists the GPU backends to compile support for.
 pub const BuildOptions = struct {
-    // Existing feature flags
     enable_gpu: bool,
     enable_ai: bool,
     enable_explore: bool,
@@ -36,8 +44,6 @@ pub const BuildOptions = struct {
     enable_network: bool,
     enable_profiling: bool,
     enable_analytics: bool,
-
-    // New feature flags (v2)
     enable_cloud: bool,
     enable_training: bool,
     enable_reasoning: bool,
@@ -63,7 +69,6 @@ pub const BuildOptions = struct {
         return false;
     }
 
-    // GPU backend accessors
     pub fn gpu_cuda(self: BuildOptions) bool {
         return self.hasGpuBackend(.cuda);
     }
@@ -105,25 +110,24 @@ pub const BuildOptions = struct {
     }
 };
 
+// ── Comptime validation ─────────────────────────────────────────────────
+// Every catalog flag must exist in BuildOptions, and every enable_* field
+// in BuildOptions must be in the catalog or the internal-allowed list.
 comptime {
     for (feature_catalog.all) |entry| {
-        if (!@hasField(BuildOptions, entry.compile_flag_field)) {
-            @compileError("BuildOptions missing compile flag field from feature catalog: " ++ entry.compile_flag_field);
-        }
+        if (!@hasField(BuildOptions, entry.compile_flag_field))
+            @compileError("BuildOptions missing catalog flag: " ++ entry.compile_flag_field);
     }
-
     for (std.meta.fields(BuildOptions)) |field| {
         if (std.mem.eql(u8, field.name, "gpu_backends")) continue;
         if (std.mem.startsWith(u8, field.name, "enable_")) {
-            if (!isCatalogFlag(field.name) and !isAllowedInternalFlag(field.name)) {
-                @compileError("BuildOptions defines unknown feature flag: " ++ field.name);
-            }
-        } else if (!std.mem.eql(u8, field.name, "gpu_backends")) {
-            @compileError("BuildOptions contains unexpected non-flag field: " ++ field.name);
+            if (!isCatalogFlag(field.name) and !isAllowedInternalFlag(field.name))
+                @compileError("BuildOptions unknown flag: " ++ field.name);
         }
     }
 }
 
+/// Read all feature-flag build options from the Zig build CLI.
 pub fn readBuildOptions(
     b: *std.Build,
     target_os: std.Target.Os.Tag,
@@ -146,8 +150,6 @@ pub fn readBuildOptions(
         .enable_network = b.option(bool, "enable-network", "Enable network distributed compute") orelse true,
         .enable_profiling = b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse true,
         .enable_analytics = b.option(bool, "enable-analytics", "Enable analytics event tracking") orelse true,
-
-        // New flags: cloud now decoupled from web
         .enable_cloud = b.option(bool, "enable-cloud", "Enable cloud provider integration") orelse true,
         .enable_training = b.option(bool, "enable-training", "Enable AI training pipelines") orelse enable_ai,
         .enable_reasoning = b.option(bool, "enable-reasoning", "Enable AI reasoning (Abbey, eval, RAG)") orelse enable_ai,
@@ -160,7 +162,6 @@ pub fn readBuildOptions(
         .enable_gateway = b.option(bool, "enable-gateway", "Enable API gateway (routing, rate limiting, circuit breaker)") orelse true,
         .enable_pages = b.option(bool, "enable-pages", "Enable dashboard/UI pages with routing") orelse true,
         .enable_benchmarks = b.option(bool, "enable-benchmarks", "Enable performance benchmarking module") orelse true,
-
         .gpu_backends = gpu.parseGpuBackends(
             b,
             backend_arg,
@@ -173,6 +174,7 @@ pub fn readBuildOptions(
     };
 }
 
+/// Warn about conflicting or nonsensical flag combinations.
 pub fn validateOptions(options: BuildOptions) void {
     const has_native = options.hasAnyGpuBackend(&.{ .cuda, .vulkan, .stdgpu, .metal, .opengl, .opengles });
     const has_web = options.hasAnyGpuBackend(&.{ .webgpu, .webgl2 });

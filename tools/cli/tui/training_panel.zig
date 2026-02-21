@@ -20,6 +20,9 @@ const themes = @import("themes.zig");
 const widgets = @import("widgets.zig");
 const metrics = @import("training_metrics.zig");
 const cli_io = @import("../utils/io_backend.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 // ===============================================================================
 // Types
@@ -184,7 +187,7 @@ pub const TrainingPanel = struct {
                 self.theme.reset,
                 entry.desc,
             });
-            const content_len = 14 + entry.desc.len;
+            const content_len = 14 + unicode.displayWidth(entry.desc);
             if (content_len < help_width - 2) {
                 try self.writeRepeat(writer, " ", help_width - 2 - content_len);
             }
@@ -204,7 +207,7 @@ pub const TrainingPanel = struct {
             self.theme.reset,
             self.mode.label(),
         });
-        const mode_len = 16 + self.mode.label().len;
+        const mode_len = 16 + unicode.displayWidth(self.mode.label());
         if (mode_len < help_width - 2) {
             try self.writeRepeat(writer, " ", help_width - 2 - mode_len);
         }
@@ -312,14 +315,15 @@ pub const TrainingPanel = struct {
     fn renderCompactRow(self: *TrainingPanel, writer: anytype, text: []const u8) !void {
         const inner = self.width -| 2;
         const usable = inner -| 1; // Account for leading content space.
-        const shown_len = @min(text.len, usable);
+        const truncated = unicode.truncateToWidth(text, usable);
+        const shown_width = unicode.displayWidth(truncated);
 
         try writer.print("{s}│{s} ", .{ self.theme.primary, self.theme.reset });
-        if (shown_len > 0) {
-            try writer.print("{s}", .{text[0..shown_len]});
+        if (shown_width > 0) {
+            try writer.print("{s}", .{truncated});
         }
-        if (shown_len < usable) {
-            try self.writeRepeat(writer, " ", usable - shown_len);
+        if (shown_width < usable) {
+            try self.writeRepeat(writer, " ", usable - shown_width);
         }
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
     }
@@ -352,7 +356,7 @@ pub const TrainingPanel = struct {
         });
 
         // Pad to width
-        const content_len = 30 + run_id.len + 8 + 8; // approximate
+        const content_len = 30 + unicode.displayWidth(run_id) + 8 + 8; // approximate
         if (content_len < self.width - 2) {
             try self.writeRepeat(writer, " ", self.width - 2 - content_len);
         }
@@ -393,10 +397,13 @@ pub const TrainingPanel = struct {
         const lr_normalized = tm.learning_rate.getNormalized();
         const lr_sparkline = widgets.SparklineChart.render(&lr_normalized, &lr_buf);
 
+        const loss_display_width = unicode.displayWidth(loss_sparkline);
+        const lr_display_width = unicode.displayWidth(lr_sparkline);
+
         try writer.print("{s}│{s} {s}", .{ self.theme.primary, self.theme.reset, loss_sparkline });
-        try self.writeRepeat(writer, " ", 35 - @min(35, loss_sparkline.len / 3)); // UTF-8 chars
+        try self.writeRepeat(writer, " ", 35 - @min(35, loss_display_width));
         try writer.print("{s}│{s} {s}", .{ self.theme.primary, self.theme.reset, lr_sparkline });
-        try self.writeRepeat(writer, " ", 32 - @min(32, lr_sparkline.len / 3));
+        try self.writeRepeat(writer, " ", 32 - @min(32, lr_display_width));
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
 
         // Values row
@@ -552,11 +559,10 @@ pub const TrainingPanel = struct {
         try writer.print("{s}{s}\n", .{ chars[2], self.theme.reset });
     }
 
-    fn writeRepeat(self: *TrainingPanel, writer: anytype, char: []const u8, count: usize) !void {
-        _ = self;
-        for (0..count) |_| {
-            try writer.print("{s}", .{char});
-        }
+    /// Write a character repeated `count` times.
+    /// Mirrors `render_utils.writeRepeat` for generic (non-Terminal) writers.
+    fn writeRepeat(_: *TrainingPanel, writer: anytype, char: []const u8, count: usize) !void {
+        genericWriteRepeat(writer, char, count);
     }
 
     // =========================================================================
@@ -879,6 +885,15 @@ pub const TrainingPanel = struct {
         self.training_metrics.update(event);
     }
 };
+
+/// Write a character repeated `count` times to a generic writer.
+/// This is the generic-writer equivalent of `render_utils.writeRepeat`
+/// (which requires a `*Terminal`).
+fn genericWriteRepeat(writer: anytype, char: []const u8, count: usize) void {
+    for (0..count) |_| {
+        writer.print("{s}", .{char}) catch return;
+    }
+}
 
 fn panelWidthFromTerminalCols(cols: u16) usize {
     const cols_usize: usize = @intCast(cols);

@@ -27,8 +27,12 @@ const recovery = @import("recovery.zig");
 const platform_time = @import("../../services/shared/utils.zig");
 const time = platform_time;
 const sync = @import("../../services/shared/sync.zig");
+const failover_types = @import("failover_types.zig");
 
 pub const Backend = backend_mod.Backend;
+
+// Import shared failover reason from failover_types.zig.
+pub const FailoverReason = failover_types.FailoverReason;
 
 /// Degradation mode for graceful fallback.
 pub const DegradationMode = enum {
@@ -89,14 +93,7 @@ pub const FailoverEvent = union(enum) {
     all_backends_exhausted: void,
 };
 
-/// Reasons for failover.
-pub const FailoverReason = enum {
-    device_lost,
-    repeated_failures,
-    performance_degradation,
-    memory_exhausted,
-    manual_trigger,
-};
+// FailoverReason is imported from failover_types.zig above.
 
 /// Failover errors.
 pub const FailoverError = error{

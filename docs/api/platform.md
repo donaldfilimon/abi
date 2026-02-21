@@ -8,85 +8,61 @@
 
 ---
 
-Platform Detection and Abstraction
-
-Provides OS, architecture, and capability detection for cross-platform code.
-This module consolidates all platform-specific detection and abstraction logic.
-
-## Usage
-
-```zig
-const platform = @import("abi").platform;
-
-const info = platform.getPlatformInfo();
-std.debug.print("OS: {t}, Arch: {t}, Cores: {d}\n", .{
-info.os,
-info.arch,
-info.max_threads,
-});
-
-if (platform.supportsThreading()) {
-// Use multi-threaded code path
-}
-```
-
----
-
 ## API
 
-### `pub fn getPlatformInfo() PlatformInfo`
+### <a id="pub-fn-getplatforminfo-platforminfo"></a>`pub fn getPlatformInfo() PlatformInfo`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L38)
 
 Get current platform information at runtime
 
-### `pub fn supportsThreading() bool`
+### <a id="pub-fn-supportsthreading-bool"></a>`pub fn supportsThreading() bool`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L44)
 
 Check if current platform supports threading
 Returns false for freestanding and WASM targets
 
-### `pub fn getCpuCount() usize`
+### <a id="pub-fn-getcpucount-usize"></a>`pub fn getCpuCount() usize`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L50)
 
 Get CPU count in a platform-safe manner
 Returns 1 on freestanding/WASM targets where std.Thread is unavailable
 
-### `pub fn getDescription() []const u8`
+### <a id="pub-fn-getdescription-const-u8"></a>`pub fn getDescription() []const u8`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L55)
 
 Get a human-readable platform description string
 
-### `pub fn hasSimd() bool`
+### <a id="pub-fn-hassimd-bool"></a>`pub fn hasSimd() bool`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L89)
 
 Check if SIMD is available on the current platform
 
-### `pub fn isAppleSilicon() bool`
+### <a id="pub-fn-isapplesilicon-bool"></a>`pub fn isAppleSilicon() bool`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L94)
 
 Check if the current platform is Apple Silicon (macOS/iOS ARM64)
 
-### `pub fn isDesktop() bool`
+### <a id="pub-fn-isdesktop-bool"></a>`pub fn isDesktop() bool`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L101)
 
 Check if the current platform is a desktop OS
 
-### `pub fn isMobile() bool`
+### <a id="pub-fn-ismobile-bool"></a>`pub fn isMobile() bool`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L109)
 
 Check if the current platform is mobile
 
-### `pub fn isWasm() bool`
+### <a id="pub-fn-iswasm-bool"></a>`pub fn isWasm() bool`
 
-<sup>**fn**</sup>
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L115)
 
 Check if the current platform is WebAssembly
 
@@ -95,4 +71,4 @@ Check if the current platform is WebAssembly
 *Generated automatically by `zig build gendocs`*
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.

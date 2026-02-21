@@ -1,36 +1,12 @@
 const std = @import("std");
 const options_mod = @import("options.zig");
-const gpu_mod = @import("gpu.zig");
 const modules = @import("modules.zig");
 const feature_catalog = @import("../src/core/feature_catalog.zig");
 const BuildOptions = options_mod.BuildOptions;
 
-const internal_allowed_flags = [_][]const u8{
-    "enable_explore",
-    "enable_vision",
-};
-
-fn isCatalogFlag(comptime field_name: []const u8) bool {
-    @setEvalBranchQuota(4096);
-    inline for (feature_catalog.all) |entry| {
-        if (std.mem.eql(u8, field_name, entry.compile_flag_field)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-fn isAllowedInternalFlag(comptime field_name: []const u8) bool {
-    inline for (internal_allowed_flags) |flag| {
-        if (std.mem.eql(u8, field_name, flag)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/// Compact flag combination for validation. Sub-feature flags (explore, llm,
-/// vision, training, reasoning) inherit from enable_ai.
+/// Compact flag combination for validation.  Sub-feature flags (explore, llm,
+/// vision, training, reasoning) inherit from enable_ai when converted via
+/// `comboToBuildOptions`.
 pub const FlagCombo = struct {
     name: []const u8,
     enable_ai: bool = false,
@@ -55,32 +31,28 @@ pub const FlagCombo = struct {
     enable_benchmarks: bool = false,
 };
 
+// Validate FlagCombo against the feature catalog using shared helpers.
 comptime {
     for (feature_catalog.all) |entry| {
-        if (!@hasField(FlagCombo, entry.compile_flag_field)) {
-            @compileError("FlagCombo missing compile flag field from feature catalog: " ++ entry.compile_flag_field);
-        }
+        if (!@hasField(FlagCombo, entry.compile_flag_field))
+            @compileError("FlagCombo missing catalog flag: " ++ entry.compile_flag_field);
     }
-
     for (std.meta.fields(FlagCombo)) |field| {
         if (std.mem.eql(u8, field.name, "name")) continue;
-        if (!std.mem.startsWith(u8, field.name, "enable_")) {
-            @compileError("FlagCombo contains non-flag field: " ++ field.name);
-        }
-
-        if (!isCatalogFlag(field.name) and !isAllowedInternalFlag(field.name)) {
-            @compileError("FlagCombo defines unknown feature flag: " ++ field.name);
-        }
+        if (!std.mem.startsWith(u8, field.name, "enable_"))
+            @compileError("FlagCombo non-flag field: " ++ field.name);
+        if (!options_mod.isCatalogFlag(field.name) and !options_mod.isAllowedInternalFlag(field.name))
+            @compileError("FlagCombo unknown flag: " ++ field.name);
     }
 }
 
-/// Critical flag combinations that must compile. Covers: all on, all off,
+/// Critical flag combinations that must compile.  Covers: all on, all off,
 /// each feature solo, and each feature disabled with the rest enabled.
 pub const validation_matrix = [_]FlagCombo{
     // All enabled / all disabled
     .{ .name = "all-enabled", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true, .enable_cloud = true, .enable_auth = true, .enable_messaging = true, .enable_cache = true, .enable_storage = true, .enable_search = true, .enable_gateway = true, .enable_pages = true, .enable_benchmarks = true },
     .{ .name = "all-disabled" },
-    // Solo tests
+    // Solo tests — one feature at a time
     .{ .name = "ai-only", .enable_ai = true },
     .{ .name = "gpu-only", .enable_gpu = true },
     .{ .name = "web-only", .enable_web = true },
@@ -97,7 +69,7 @@ pub const validation_matrix = [_]FlagCombo{
     .{ .name = "gateway-only", .enable_gateway = true },
     .{ .name = "benchmarks-only", .enable_benchmarks = true },
     .{ .name = "pages-only", .enable_pages = true },
-    // No-X tests (everything except one)
+    // No-X tests — everything except one
     .{ .name = "no-ai", .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true, .enable_cloud = true, .enable_auth = true, .enable_messaging = true, .enable_cache = true, .enable_storage = true, .enable_search = true, .enable_gateway = true, .enable_pages = true, .enable_benchmarks = true },
     .{ .name = "no-gpu", .enable_ai = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true, .enable_cloud = true, .enable_auth = true, .enable_messaging = true, .enable_cache = true, .enable_storage = true, .enable_search = true, .enable_gateway = true, .enable_pages = true, .enable_benchmarks = true },
     .{ .name = "no-web", .enable_ai = true, .enable_gpu = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true, .enable_cloud = true, .enable_auth = true, .enable_messaging = true, .enable_cache = true, .enable_storage = true, .enable_search = true, .enable_gateway = true, .enable_pages = true, .enable_benchmarks = true },
@@ -116,6 +88,8 @@ pub const validation_matrix = [_]FlagCombo{
     .{ .name = "no-benchmarks", .enable_ai = true, .enable_gpu = true, .enable_web = true, .enable_database = true, .enable_network = true, .enable_profiling = true, .enable_analytics = true, .enable_cloud = true, .enable_auth = true, .enable_messaging = true, .enable_cache = true, .enable_storage = true, .enable_search = true, .enable_gateway = true, .enable_pages = true },
 };
 
+/// Convert a compact `FlagCombo` into a full `BuildOptions`.  Sub-feature
+/// flags inherit from `enable_ai` when not explicitly set.
 pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
     return .{
         .enable_ai = combo.enable_ai,
@@ -144,6 +118,10 @@ pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
     };
 }
 
+/// Register the "validate-flags" build step.  For each entry in the
+/// validation matrix, two static libraries are compiled: one for the `abi`
+/// module itself and one for the `stub_surface_check` that dereferences
+/// every public symbol.
 pub fn addFlagValidation(
     b: *std.Build,
     target: std.Build.ResolvedTarget,
@@ -157,6 +135,7 @@ pub fn addFlagValidation(
     inline for (validation_matrix) |combo| {
         const opts = comboToBuildOptions(combo);
         const build_opts_mod = modules.createBuildOptionsModule(b, opts);
+
         const abi_mod = b.createModule(.{
             .root_source_file = b.path("src/abi.zig"),
             .target = target,
@@ -171,8 +150,7 @@ pub fn addFlagValidation(
         });
         validate_step.dependOn(&check.step);
 
-        // Compile deep symbol access under each flag combo to catch mod/stub
-        // surface drift that plain `@import("abi")` compile checks would miss.
+        // Deep symbol access under each combo catches mod/stub surface drift.
         const surface_mod = b.createModule(.{
             .root_source_file = b.path("build/validate/stub_surface_check.zig"),
             .target = target,

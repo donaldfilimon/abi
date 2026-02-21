@@ -8,6 +8,9 @@ const abi = @import("abi");
 const terminal = @import("terminal.zig");
 const themes = @import("themes.zig");
 const widgets = @import("widgets.zig");
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 
 // ===============================================================================
 // Types
@@ -238,7 +241,7 @@ pub const AgentPanel = struct {
         // Draw top border
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.tl);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
         try self.term.write(widgets.box.tr);
         try self.term.write(self.theme.reset);
 
@@ -261,9 +264,9 @@ pub const AgentPanel = struct {
         try self.term.write("]");
 
         // Pad and close
-        const content_len = 12 + 3 + self.phase.name().len + 2;
+        const content_len = 12 + 3 + unicode.displayWidth(self.phase.name()) + 2;
         if (content_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - content_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - content_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -275,7 +278,7 @@ pub const AgentPanel = struct {
         try self.setCursorPosition(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.lsep);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
         try self.term.write(widgets.box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -315,7 +318,7 @@ pub const AgentPanel = struct {
         // Pad and close
         const content_len = 4 + ep_str.len + 7 + avg_str.len + 5 + eps_str.len + 2;
         if (content_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - content_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - content_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -328,7 +331,7 @@ pub const AgentPanel = struct {
         try self.setCursorPosition(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.lsep);
-        try self.writeRepeat(widgets.box.h, inner_width);
+        try render_utils.writeRepeat(self.term, widgets.box.h, inner_width);
         try self.term.write(widgets.box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -363,7 +366,7 @@ pub const AgentPanel = struct {
         // Pad and close (use u32 for content_len to avoid overflow; max_chars is at most HISTORY_SIZE)
         const content_len: u32 = 9 + @as(u32, max_chars);
         if (content_len < inner_width) {
-            try self.writeRepeat(" ", inner_width - @as(u16, @intCast(content_len)));
+            try render_utils.writeRepeat(self.term, " ", inner_width - @as(u16, @intCast(content_len)));
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -375,7 +378,7 @@ pub const AgentPanel = struct {
         try self.setCursorPosition(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.lsep);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
         try self.term.write(widgets.box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -391,7 +394,7 @@ pub const AgentPanel = struct {
 
         const content_len = 18;
         if (content_len < width - 2) {
-            try self.writeRepeat(" ", width - 2 - content_len);
+            try render_utils.writeRepeat(self.term, " ", width - 2 - content_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -417,7 +420,7 @@ pub const AgentPanel = struct {
             // Workload type
             try self.term.write(self.theme.text_dim);
             var buf: [64]u8 = undefined;
-            const wl = decision.workload_type[0..@min(8, decision.workload_type.len)];
+            const wl = unicode.truncateToWidth(decision.workload_type, 8);
             const wl_padded = std.fmt.bufPrint(&buf, "{s:<8}", .{wl}) catch wl;
             try self.term.write(wl_padded);
             try self.term.write(self.theme.reset);
@@ -426,7 +429,7 @@ pub const AgentPanel = struct {
 
             // Selected backend
             try self.term.write(self.theme.primary);
-            const be = decision.selected_backend[0..@min(6, decision.selected_backend.len)];
+            const be = unicode.truncateToWidth(decision.selected_backend, 6);
             const be_padded = std.fmt.bufPrint(&buf, "{s:<6}", .{be}) catch be;
             try self.term.write(be_padded);
             try self.term.write(self.theme.reset);
@@ -451,7 +454,7 @@ pub const AgentPanel = struct {
             // Pad and close
             const row_content_len = 2 + 8 + 4 + 6 + time_str.len + reward_str.len;
             if (row_content_len < width - 2) {
-                try self.writeRepeat(" ", width - 2 - row_content_len);
+                try render_utils.writeRepeat(self.term, " ", width - 2 - row_content_len);
             }
             try self.term.write(self.theme.border);
             try self.term.write(widgets.box.v);
@@ -464,7 +467,7 @@ pub const AgentPanel = struct {
         try self.setCursorPosition(current_row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.bl);
-        try self.writeRepeat(widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
         try self.term.write(widgets.box.br);
         try self.term.write(self.theme.reset);
     }
@@ -473,12 +476,6 @@ pub const AgentPanel = struct {
         var buf: [16]u8 = undefined;
         const seq = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{ row, col }) catch return;
         try self.term.write(seq);
-    }
-
-    fn writeRepeat(self: *AgentPanel, char: []const u8, count: usize) !void {
-        for (0..count) |_| {
-            try self.term.write(char);
-        }
     }
 };
 

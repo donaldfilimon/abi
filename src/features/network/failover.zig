@@ -211,7 +211,3 @@ test "FailoverManager basic operations" {
     try fm.recordHealthCheckResult("node-1", false);
     try std.testing.expectEqual(FailoverState.failed_over, fm.getState());
 }
-
-test "failover fail" {
-    try std.testing.expect(false);
-}

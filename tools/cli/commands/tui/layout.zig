@@ -4,7 +4,6 @@ const std = @import("std");
 
 pub const CompactLayout = struct {
     min_width: usize = 40,
-    max_width: usize = 140,
 };
 
 pub fn computeVisibleRows(rows: u16) usize {
@@ -13,14 +12,13 @@ pub fn computeVisibleRows(rows: u16) usize {
 }
 
 pub fn clampedFrameWidth(cols: u16) usize {
-    const value = @as(usize, @intCast(cols));
-    return std.math.clamp(value, @as(usize, 40), @as(usize, 140));
+    return @max(@as(usize, 40), @as(usize, @intCast(cols)));
 }
 
 pub fn completionDropdownRowCount(state: anytype) u16 {
-    if (!state.search_mode or !state.completion.active) return 0;
-    const suggestions_len = state.completion.suggestions.items.len;
-    const shown = @min(suggestions_len, state.completion.max_visible);
+    if (!state.search_mode or !state.completion_state.active) return 0;
+    const suggestions_len = state.completion_state.suggestions.items.len;
+    const shown = @min(suggestions_len, state.completion_state.max_visible);
     return @as(u16, @intCast(shown + 2));
 }
 
@@ -64,4 +62,17 @@ pub fn clickedIndexFromRow(
     const clicked_idx = scroll_offset + menu_row;
     if (clicked_idx >= filtered_len) return null;
     return clicked_idx;
+}
+
+test "clicked row mapping handles dynamic header and scroll indicator" {
+    // No top indicator: first menu item starts at menu_start_row.
+    try std.testing.expectEqual(@as(?usize, 0), clickedIndexFromRow(10, 10, false, 0, 5, 20));
+    try std.testing.expectEqual(@as(?usize, 4), clickedIndexFromRow(14, 10, false, 0, 5, 20));
+
+    // With top indicator: row at menu_start_row is indicator, first item is +1.
+    try std.testing.expectEqual(@as(?usize, null), clickedIndexFromRow(10, 10, true, 8, 5, 20));
+    try std.testing.expectEqual(@as(?usize, 8), clickedIndexFromRow(11, 10, true, 8, 5, 20));
+
+    // Out of bounds.
+    try std.testing.expectEqual(@as(?usize, null), clickedIndexFromRow(20, 10, false, 0, 5, 3));
 }

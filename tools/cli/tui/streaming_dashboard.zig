@@ -16,6 +16,9 @@ const themes = @import("themes.zig");
 const events = @import("events.zig");
 const widgets = @import("widgets.zig");
 const box = widgets.box;
+const unicode = @import("unicode.zig");
+const render_utils = @import("render_utils.zig");
+const layout = @import("layout.zig");
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 const PercentileTracker = @import("percentile_tracker.zig").PercentileTracker;
 
@@ -366,12 +369,11 @@ pub const StreamingDashboard = struct {
         try self.term.write(" ");
 
         // Fill with border
-        const title_len = 32; // " Streaming Inference Dashboard "
-        var i: usize = title_len + 2;
-        while (i < width - 1) : (i += 1) {
-            try self.term.write(self.theme.border);
-            try self.term.write(box.h);
-        }
+        const title = "Streaming Inference Dashboard";
+        const title_width = unicode.displayWidth(title) + 2; // +2 for surrounding spaces
+        try self.term.write(self.theme.border);
+        const fill_count = if (width > title_width + 3) width - title_width - 3 else 0;
+        try render_utils.writeRepeat(self.term, box.h, fill_count);
         try self.term.write(box.tr);
         try self.term.write(self.theme.reset);
 
@@ -384,8 +386,8 @@ pub const StreamingDashboard = struct {
         // Server endpoint
         try self.term.write(" Server: ");
         try self.term.write(self.theme.accent);
-        const endpoint_len = @min(self.server_endpoint.len, 30);
-        try self.term.write(self.server_endpoint[0..endpoint_len]);
+        const endpoint_display = unicode.truncateToWidth(self.server_endpoint, 30);
+        try self.term.write(endpoint_display);
         try self.term.write(self.theme.reset);
         try self.term.write("  ");
 
@@ -427,10 +429,7 @@ pub const StreamingDashboard = struct {
         try self.term.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
-        var i: usize = 1;
-        while (i < width - 1) : (i += 1) {
-            try self.term.write(box.h);
-        }
+        try render_utils.writeRepeat(self.term, box.h, if (width > 2) width - 2 else 0);
         try self.term.write(box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -514,10 +513,7 @@ pub const StreamingDashboard = struct {
         try self.term.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
-        var i: usize = 1;
-        while (i < width - 1) : (i += 1) {
-            try self.term.write(box.h);
-        }
+        try render_utils.writeRepeat(self.term, box.h, if (width > 2) width - 2 else 0);
         try self.term.write(box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -634,11 +630,11 @@ pub const StreamingDashboard = struct {
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
         try self.term.write(box.h);
-        try self.term.write(" Recent Requests ");
-        var i: usize = 19;
-        while (i < width - 1) : (i += 1) {
-            try self.term.write(box.h);
-        }
+        const req_title = " Recent Requests ";
+        try self.term.write(req_title);
+        const req_title_width = unicode.displayWidth(req_title) + 1; // +1 for leading box.h
+        const req_fill = if (width > req_title_width + 1) width - req_title_width - 1 else 0;
+        try render_utils.writeRepeat(self.term, box.h, req_fill);
         try self.term.write(box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -682,9 +678,9 @@ pub const StreamingDashboard = struct {
                 // Path (truncated)
                 try self.term.write(" ");
                 const path = req.getPath();
-                const max_path = if (width > 60) 25 else 15;
-                const path_len = @min(path.len, max_path);
-                try self.term.write(path[0..path_len]);
+                const max_path: usize = if (width > 60) 25 else 15;
+                const truncated_path = unicode.truncateToWidth(path, max_path);
+                try self.term.write(truncated_path);
 
                 // Status code with color
                 try self.term.write("  ");
@@ -755,11 +751,10 @@ pub const StreamingDashboard = struct {
         try self.term.write(self.theme.reset);
 
         // Fill remaining
-        var i: usize = help.len + poll_str.len + 1;
-        while (i < width - 1) : (i += 1) {
-            try self.term.write(self.theme.border);
-            try self.term.write(box.h);
-        }
+        const used = unicode.displayWidth(help) + poll_str.len + 1;
+        try self.term.write(self.theme.border);
+        const footer_fill = if (width > used + 1) width - used - 1 else 0;
+        try render_utils.writeRepeat(self.term, box.h, footer_fill);
         try self.term.write(box.br);
         try self.term.write(self.theme.reset);
     }

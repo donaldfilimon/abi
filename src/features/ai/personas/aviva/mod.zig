@@ -16,7 +16,7 @@ const sync = @import("../../../../services/shared/sync.zig");
 const types = @import("../types.zig");
 const config = @import("../config.zig");
 const core_types = @import("../../core/types.zig");
-const agent_mod = @import("../../agent.zig");
+const agent_mod = @import("../../agents/agent.zig");
 const overrides = @import("../agent_overrides.zig");
 
 // Import enhanced modules

@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const framework = @import("../framework/mod.zig");
+const catalog = @import("../tests/catalog.zig");
 
 pub const db = @import("db.zig");
 pub const agent = @import("agent.zig");
@@ -36,6 +37,17 @@ pub const acp = @import("acp.zig");
 pub const ralph = @import("ralph/mod.zig");
 pub const gendocs = @import("gendocs.zig");
 
+const llm_run = @import("llm/run.zig");
+const llm_session = @import("llm/session.zig");
+const llm_providers = @import("llm/providers.zig");
+const llm_plugins = @import("llm/plugins.zig");
+const llm_serve = @import("llm/serve.zig");
+
+const ui_launch = @import("ui/launch.zig");
+const ui_gpu = @import("ui/gpu.zig");
+const ui_train = @import("ui/train.zig");
+const ui_neural = @import("ui/neural.zig");
+
 const CommandDescriptor = framework.types.CommandDescriptor;
 const CommandHandler = framework.types.CommandHandler;
 const CommandForward = framework.types.CommandForward;
@@ -43,28 +55,44 @@ const CommandForward = framework.types.CommandForward;
 const io_forward_launch = [_][:0]const u8{"launch"};
 const io_forward_gpu = [_][:0]const u8{"gpu"};
 
-const bench_subcommands = [_][]const u8{ "all", "simd", "memory", "ai", "quick", "compare-training", "list", "micro" };
-const config_subcommands = [_][]const u8{ "init", "show", "validate", "env", "help" };
-const convert_subcommands = [_][]const u8{ "dataset", "model", "embeddings" };
-const db_subcommands = [_][]const u8{ "add", "query", "stats", "optimize", "backup", "restore", "serve", "help" };
-const discord_subcommands = [_][]const u8{ "status", "info", "guilds", "send", "commands", "webhook", "channel", "help" };
-const embed_subcommands = [_][]const u8{ "--provider", "openai", "mistral", "cohere", "ollama", "--text", "--file", "--format", "json", "csv", "raw" };
-const gpu_subcommands = [_][]const u8{ "backends", "devices", "list", "summary", "default", "status" };
-const llm_subcommands = [_][]const u8{ "run", "session", "serve", "providers", "plugins", "list", "info", "bench", "download", "help" };
-const model_subcommands = [_][]const u8{ "list", "info", "download", "remove", "search", "path" };
-const multi_agent_subcommands = [_][]const u8{ "info", "run", "list", "create", "status" };
-const network_subcommands = [_][]const u8{ "status", "list", "nodes", "register", "unregister", "touch", "set-status" };
-const plugins_subcommands = [_][]const u8{ "list", "info", "enable", "disable", "search" };
-const profile_subcommands = [_][]const u8{ "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help" };
-const status_subcommands = [_][]const u8{"help"};
-const task_subcommands = [_][]const u8{ "add", "list", "ls", "show", "done", "start", "cancel", "delete", "rm", "stats", "import-roadmap", "seed-self-improve", "edit", "block", "unblock", "due", "help" };
-const toolchain_subcommands = [_][]const u8{ "install", "zig", "zls", "status", "update", "path", "help" };
-const train_subcommands = [_][]const u8{ "run", "new", "llm", "vision", "clip", "auto", "self", "resume", "monitor", "info", "generate-data", "help" };
-const ui_subcommands = [_][]const u8{ "launch", "gpu", "train", "neural", "help" };
-const mcp_subcommands = [_][]const u8{ "serve", "tools", "help" };
-const acp_subcommands = [_][]const u8{ "card", "serve", "help" };
-const completions_subcommands = [_][]const u8{ "bash", "zsh", "fish", "powershell", "help" };
-const ralph_subcommands = [_][]const u8{ "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help" };
+fn command(comptime name: []const u8) catalog.CommandSpec {
+    inline for (catalog.commands) |spec| {
+        if (comptime std.mem.eql(u8, name, spec.name)) {
+            return spec;
+        }
+    }
+    @compileError("Unknown command catalog entry: " ++ name);
+}
+
+const db_meta = command("db");
+const agent_meta = command("agent");
+const bench_meta = command("bench");
+const gpu_meta = command("gpu");
+const gpu_dashboard_meta = command("gpu-dashboard");
+const network_meta = command("network");
+const system_info_meta = command("system-info");
+const multi_agent_meta = command("multi-agent");
+const explore_meta = command("explore");
+const simd_meta = command("simd");
+const config_meta = command("config");
+const discord_meta = command("discord");
+const llm_meta = command("llm");
+const model_meta = command("model");
+const embed_meta = command("embed");
+const train_meta = command("train");
+const convert_meta = command("convert");
+const task_meta = command("task");
+const tui_meta = command("tui");
+const ui_meta = command("ui");
+const plugins_meta = command("plugins");
+const profile_meta = command("profile");
+const completions_meta = command("completions");
+const status_meta = command("status");
+const toolchain_meta = command("toolchain");
+const mcp_meta = command("mcp");
+const acp_meta = command("acp");
+const ralph_meta = command("ralph");
+const gendocs_meta = command("gendocs");
 
 fn basicHandler(comptime module: type) CommandHandler {
     return .{ .basic = module.run };
@@ -74,15 +102,67 @@ fn ioHandler(comptime module: type) CommandHandler {
     return .{ .io = module.run };
 }
 
+fn llmRunHandler(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try llm_run.runRun(allocator, args);
+}
+
+fn llmSessionHandler(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try llm_session.runSession(allocator, args);
+}
+
+fn llmServeHandler(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try llm_serve.runServe(allocator, args);
+}
+
+fn llmProvidersHandler(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try llm_providers.runProviders(allocator, args);
+}
+
+fn llmPluginsHandler(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try llm_plugins.runPlugins(allocator, args);
+}
+
+fn uiLaunchHandler(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
+    try ui_launch.run(allocator, io, args);
+}
+
+fn uiGpuHandler(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
+    try ui_gpu.run(allocator, io, args);
+}
+
+fn uiTrainHandler(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
+    try ui_train.run(allocator, io, args);
+}
+
+fn uiNeuralHandler(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
+    try ui_neural.run(allocator, io, args);
+}
+
+const llm_children = [_]CommandDescriptor{
+    .{ .name = "run", .description = "One-shot generation through provider router", .handler = .{ .basic = llmRunHandler } },
+    .{ .name = "session", .description = "Interactive session through provider router", .handler = .{ .basic = llmSessionHandler } },
+    .{ .name = "serve", .description = "Start streaming HTTP server", .handler = .{ .basic = llmServeHandler } },
+    .{ .name = "providers", .description = "Show provider availability and routing order", .handler = .{ .basic = llmProvidersHandler } },
+    .{ .name = "plugins", .description = "Manage HTTP/native provider plugins", .handler = .{ .basic = llmPluginsHandler } },
+};
+
+const ui_children = [_]CommandDescriptor{
+    .{ .name = "launch", .description = "Open command launcher TUI", .handler = .{ .io = uiLaunchHandler } },
+    .{ .name = "gpu", .description = "Open GPU dashboard TUI", .handler = .{ .io = uiGpuHandler } },
+    .{ .name = "train", .description = "Open training monitor TUI", .handler = .{ .io = uiTrainHandler } },
+    .{ .name = "neural", .description = "Render dynamic 3D neural network view", .handler = .{ .io = uiNeuralHandler } },
+};
+
 pub const descriptors = [_]CommandDescriptor{
-    .{ .name = "db", .description = "Database operations (add, query, stats, optimize, backup, restore)", .aliases = &.{"ls"}, .subcommands = &db_subcommands, .handler = basicHandler(db) },
-    .{ .name = "agent", .description = "Run AI agent (interactive or one-shot)", .handler = basicHandler(agent) },
-    .{ .name = "bench", .description = "Run performance benchmarks (all, simd, memory, ai, quick)", .aliases = &.{"run"}, .subcommands = &bench_subcommands, .handler = basicHandler(bench) },
-    .{ .name = "gpu", .description = "GPU commands (backends, devices, summary, default)", .subcommands = &gpu_subcommands, .handler = basicHandler(gpu) },
+    .{ .name = db_meta.name, .description = db_meta.description, .aliases = db_meta.aliases, .subcommands = db_meta.subcommands, .handler = basicHandler(db) },
+    .{ .name = agent_meta.name, .description = agent_meta.description, .aliases = agent_meta.aliases, .subcommands = agent_meta.subcommands, .handler = basicHandler(agent) },
+    .{ .name = bench_meta.name, .description = bench_meta.description, .aliases = bench_meta.aliases, .subcommands = bench_meta.subcommands, .handler = basicHandler(bench) },
+    .{ .name = gpu_meta.name, .description = gpu_meta.description, .aliases = gpu_meta.aliases, .subcommands = gpu_meta.subcommands, .handler = basicHandler(gpu) },
     .{
-        .name = "gpu-dashboard",
-        .description = "Interactive GPU + Agent monitoring dashboard",
-        .aliases = &.{"dashboard"},
+        .name = gpu_dashboard_meta.name,
+        .description = gpu_dashboard_meta.description,
+        .aliases = gpu_dashboard_meta.aliases,
+        .subcommands = gpu_dashboard_meta.subcommands,
         .handler = ioHandler(gpu_dashboard),
         .forward = CommandForward{
             .target = "ui",
@@ -90,22 +170,32 @@ pub const descriptors = [_]CommandDescriptor{
             .warning = "'abi gpu-dashboard' is deprecated; use 'abi ui gpu'.",
         },
     },
-    .{ .name = "network", .description = "Manage network registry (list, register, status)", .subcommands = &network_subcommands, .handler = basicHandler(network) },
-    .{ .name = "system-info", .description = "Show system and framework status", .aliases = &.{ "info", "sysinfo" }, .handler = basicHandler(system_info) },
-    .{ .name = "multi-agent", .description = "Run multi-agent workflows", .subcommands = &multi_agent_subcommands, .handler = basicHandler(multi_agent) },
-    .{ .name = "explore", .description = "Search and explore codebase", .handler = basicHandler(explore) },
-    .{ .name = "simd", .description = "Run SIMD performance demo", .handler = basicHandler(simd) },
-    .{ .name = "config", .description = "Configuration management (init, show, validate)", .subcommands = &config_subcommands, .handler = basicHandler(config) },
-    .{ .name = "discord", .description = "Discord bot operations (status, guilds, send, commands)", .subcommands = &discord_subcommands, .handler = basicHandler(discord) },
-    .{ .name = "llm", .description = "LLM inference (run, session, serve, providers, plugins)", .aliases = &.{ "chat", "reasoning", "serve" }, .subcommands = &llm_subcommands, .handler = basicHandler(llm) },
-    .{ .name = "model", .description = "Model management (list, download, remove, search)", .subcommands = &model_subcommands, .handler = basicHandler(model) },
-    .{ .name = "embed", .description = "Generate embeddings from text (openai, mistral, cohere, ollama)", .subcommands = &embed_subcommands, .handler = basicHandler(embed) },
-    .{ .name = "train", .description = "Training pipeline (run, llm, vision, auto, self, resume, info)", .subcommands = &train_subcommands, .handler = basicHandler(train) },
-    .{ .name = "convert", .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)", .subcommands = &convert_subcommands, .handler = basicHandler(convert) },
-    .{ .name = "task", .description = "Task management (add, list, done, stats, seed-self-improve)", .subcommands = &task_subcommands, .handler = basicHandler(task) },
+    .{ .name = network_meta.name, .description = network_meta.description, .aliases = network_meta.aliases, .subcommands = network_meta.subcommands, .handler = basicHandler(network) },
+    .{ .name = system_info_meta.name, .description = system_info_meta.description, .aliases = system_info_meta.aliases, .subcommands = system_info_meta.subcommands, .handler = basicHandler(system_info) },
+    .{ .name = multi_agent_meta.name, .description = multi_agent_meta.description, .aliases = multi_agent_meta.aliases, .subcommands = multi_agent_meta.subcommands, .handler = basicHandler(multi_agent) },
+    .{ .name = explore_meta.name, .description = explore_meta.description, .aliases = explore_meta.aliases, .subcommands = explore_meta.subcommands, .handler = basicHandler(explore) },
+    .{ .name = simd_meta.name, .description = simd_meta.description, .aliases = simd_meta.aliases, .subcommands = simd_meta.subcommands, .handler = basicHandler(simd) },
+    .{ .name = config_meta.name, .description = config_meta.description, .aliases = config_meta.aliases, .subcommands = config_meta.subcommands, .handler = basicHandler(config) },
+    .{ .name = discord_meta.name, .description = discord_meta.description, .aliases = discord_meta.aliases, .subcommands = discord_meta.subcommands, .handler = basicHandler(discord) },
     .{
-        .name = "tui",
-        .description = "Launch interactive TUI command menu",
+        .name = llm_meta.name,
+        .description = llm_meta.description,
+        .aliases = llm_meta.aliases,
+        .subcommands = llm_meta.subcommands,
+        .children = &llm_children,
+        .kind = .group,
+        .handler = basicHandler(llm),
+    },
+    .{ .name = model_meta.name, .description = model_meta.description, .aliases = model_meta.aliases, .subcommands = model_meta.subcommands, .handler = basicHandler(model) },
+    .{ .name = embed_meta.name, .description = embed_meta.description, .aliases = embed_meta.aliases, .subcommands = embed_meta.subcommands, .handler = basicHandler(embed) },
+    .{ .name = train_meta.name, .description = train_meta.description, .aliases = train_meta.aliases, .subcommands = train_meta.subcommands, .handler = basicHandler(train) },
+    .{ .name = convert_meta.name, .description = convert_meta.description, .aliases = convert_meta.aliases, .subcommands = convert_meta.subcommands, .handler = basicHandler(convert) },
+    .{ .name = task_meta.name, .description = task_meta.description, .aliases = task_meta.aliases, .subcommands = task_meta.subcommands, .handler = basicHandler(task) },
+    .{
+        .name = tui_meta.name,
+        .description = tui_meta.description,
+        .aliases = tui_meta.aliases,
+        .subcommands = tui_meta.subcommands,
         .handler = ioHandler(tui),
         .forward = CommandForward{
             .target = "ui",
@@ -113,16 +203,24 @@ pub const descriptors = [_]CommandDescriptor{
             .warning = "'abi tui' is deprecated; use 'abi ui launch'.",
         },
     },
-    .{ .name = "ui", .description = "UI command family (launch, gpu, train, neural)", .subcommands = &ui_subcommands, .handler = ioHandler(ui) },
-    .{ .name = "plugins", .description = "Plugin management (list, enable, disable, info)", .subcommands = &plugins_subcommands, .handler = basicHandler(plugins) },
-    .{ .name = "profile", .description = "User profile and settings management", .subcommands = &profile_subcommands, .handler = basicHandler(profile) },
-    .{ .name = "completions", .description = "Generate shell completions (bash, zsh, fish, powershell)", .subcommands = &completions_subcommands, .handler = basicHandler(completions) },
-    .{ .name = "status", .description = "Show framework health and component status", .subcommands = &status_subcommands, .handler = basicHandler(status) },
-    .{ .name = "toolchain", .description = "Build and install Zig/ZLS from master (install, update, status)", .subcommands = &toolchain_subcommands, .handler = basicHandler(toolchain) },
-    .{ .name = "mcp", .description = "MCP server for WDBX database (serve, tools)", .subcommands = &mcp_subcommands, .handler = basicHandler(mcp) },
-    .{ .name = "acp", .description = "Agent Communication Protocol (card, serve)", .subcommands = &acp_subcommands, .handler = basicHandler(acp) },
-    .{ .name = "ralph", .description = "Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)", .subcommands = &ralph_subcommands, .handler = basicHandler(ralph) },
-    .{ .name = "gendocs", .description = "Generate API docs (runs zig build gendocs)", .handler = basicHandler(gendocs) },
+    .{
+        .name = ui_meta.name,
+        .description = ui_meta.description,
+        .aliases = ui_meta.aliases,
+        .subcommands = ui_meta.subcommands,
+        .children = &ui_children,
+        .kind = .group,
+        .handler = ioHandler(ui),
+    },
+    .{ .name = plugins_meta.name, .description = plugins_meta.description, .aliases = plugins_meta.aliases, .subcommands = plugins_meta.subcommands, .handler = basicHandler(plugins) },
+    .{ .name = profile_meta.name, .description = profile_meta.description, .aliases = profile_meta.aliases, .subcommands = profile_meta.subcommands, .handler = basicHandler(profile) },
+    .{ .name = completions_meta.name, .description = completions_meta.description, .aliases = completions_meta.aliases, .subcommands = completions_meta.subcommands, .handler = basicHandler(completions) },
+    .{ .name = status_meta.name, .description = status_meta.description, .aliases = status_meta.aliases, .subcommands = status_meta.subcommands, .handler = basicHandler(status) },
+    .{ .name = toolchain_meta.name, .description = toolchain_meta.description, .aliases = toolchain_meta.aliases, .subcommands = toolchain_meta.subcommands, .handler = basicHandler(toolchain) },
+    .{ .name = mcp_meta.name, .description = mcp_meta.description, .aliases = mcp_meta.aliases, .subcommands = mcp_meta.subcommands, .handler = basicHandler(mcp) },
+    .{ .name = acp_meta.name, .description = acp_meta.description, .aliases = acp_meta.aliases, .subcommands = acp_meta.subcommands, .handler = basicHandler(acp) },
+    .{ .name = ralph_meta.name, .description = ralph_meta.description, .aliases = ralph_meta.aliases, .subcommands = ralph_meta.subcommands, .handler = basicHandler(ralph) },
+    .{ .name = gendocs_meta.name, .description = gendocs_meta.description, .aliases = gendocs_meta.aliases, .subcommands = gendocs_meta.subcommands, .handler = ioHandler(gendocs) },
 };
 
 pub fn findDescriptor(raw_name: []const u8) ?*const CommandDescriptor {

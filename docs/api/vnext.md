@@ -8,18 +8,13 @@
 
 ---
 
-ABI vNext public API surface.
-
-This namespace provides forward API types while legacy `abi.Framework` and
-`abi.Config` remain available during the staged compatibility window.
-
----
-
 ## API
+
+No documented public symbols were discovered.
 
 ---
 
 *Generated automatically by `zig build gendocs`*
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.

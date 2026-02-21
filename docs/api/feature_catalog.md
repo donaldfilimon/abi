@@ -6,18 +6,11 @@
 
 ---
 
-Canonical feature catalog for ABI.
-
-Centralizes feature descriptions, compile-time flag mappings, parent-child
-relationships, and real/stub module paths used by parity checks.
-
----
-
 ## API
 
-### `pub const ParitySpec`
+### <a id="pub-const-parityspec"></a>`pub const ParitySpec`
 
-<sup>**type**</sup>
+<sup>**const**</sup> | [source](../../src/core/feature_catalog.zig#L56)
 
 Canonical parity-spec key consumed by API parity tests.
 
@@ -26,4 +19,4 @@ Canonical parity-spec key consumed by API parity tests.
 *Generated automatically by `zig build gendocs`*
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.

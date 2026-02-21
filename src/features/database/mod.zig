@@ -95,7 +95,6 @@ pub const time = @import("../../services/shared/time.zig");
 
 pub const database = @import("database.zig");
 pub const db_helpers = @import("db_helpers.zig");
-pub const storage = @import("storage.zig");
 pub const storage_v2 = @import("storage_v2.zig");
 pub const wdbx = @import("wdbx.zig");
 pub const cli = @import("cli.zig");
@@ -507,12 +506,12 @@ pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
 }
 
 pub fn openFromFile(allocator: std.mem.Allocator, path: []const u8) !DatabaseHandle {
-    const db = try storage.loadDatabase(allocator, path);
+    const db = try storage_v2.loadDatabase(allocator, path);
     return .{ .db = db };
 }
 
 pub fn openOrCreate(allocator: std.mem.Allocator, path: []const u8) !DatabaseHandle {
-    const loaded = storage.loadDatabase(allocator, path);
+    const loaded = storage_v2.loadDatabase(allocator, path);
     if (loaded) |db| {
         return .{ .db = db };
     } else |err| switch (err) {

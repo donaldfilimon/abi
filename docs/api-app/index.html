@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ABI API App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="bg-orb bg-orb-a"></div>
+  <div class="bg-orb bg-orb-b"></div>
+  <header class="topbar">
+    <div class="brand">ABI Docs App</div>
+    <nav>
+      <a href="../api/">Markdown API</a>
+      <a href="../">Docs Home</a>
+      <a href="../api-overview/">API Overview</a>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <aside class="sidebar card">
+      <h2>Explore</h2>
+      <label>Search</label>
+      <input id="searchInput" type="text" placeholder="module, symbol, command, plan" />
+      <label>Category</label>
+      <select id="categoryFilter">
+        <option value="">All categories</option>
+      </select>
+      <label>Type</label>
+      <select id="typeFilter">
+        <option value="all">Everything</option>
+        <option value="modules">Modules</option>
+        <option value="symbols">Symbols</option>
+        <option value="commands">Commands</option>
+        <option value="guides">Guides</option>
+        <option value="plans">Plans</option>
+        <option value="roadmap">Roadmap</option>
+      </select>
+      <p class="hint">WASM-assisted ranking loads automatically when available.</p>
+    </aside>
+
+    <section class="content">
+      <div class="card">
+        <h1>Generated API Explorer</h1>
+        <p>Fast navigation for ABI modules, symbols, CLI commands, plans, and roadmap tracks.</p>
+        <div id="stats" class="stats"></div>
+      </div>
+      <div class="card split">
+        <div>
+          <h3>Results</h3>
+          <ul id="results" class="results"></ul>
+        </div>
+        <div>
+          <h3>Details</h3>
+          <div id="details" class="details">Select an item to inspect metadata.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

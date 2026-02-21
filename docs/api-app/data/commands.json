@@ -1,0 +1,56 @@
+[
+  {
+    "name": "gpu",
+    "description": "Open GPU dashboard TUI",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
+    "name": "launch",
+    "description": "Open command launcher TUI",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
+    "name": "neural",
+    "description": "Render dynamic 3D neural network view",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
+    "name": "plugins",
+    "description": "Manage HTTP/native provider plugins",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
+    "name": "providers",
+    "description": "Show provider availability and routing order",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
+    "name": "run",
+    "description": "One-shot generation through provider router",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
+    "name": "serve",
+    "description": "Start streaming HTTP server",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
+    "name": "session",
+    "description": "Interactive session through provider router",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
+    "name": "train",
+    "description": "Open training monitor TUI",
+    "aliases": [],
+    "subcommands": []
+  }
+]

@@ -1,0 +1,10 @@
+package abi:docs
+
+interface ranker {
+    score-query: func(query: string, target: string) -> s32
+    find-match-start: func(query: string, target: string) -> s32
+}
+
+world docs-engine {
+    export ranker
+}

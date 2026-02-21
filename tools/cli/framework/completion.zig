@@ -15,6 +15,20 @@ pub fn findDescriptor(
     descriptors: []const types.CommandDescriptor,
     raw: []const u8,
 ) ?*const types.CommandDescriptor {
+    return findDescriptorInSlice(descriptors, raw);
+}
+
+pub fn findChildDescriptor(
+    descriptor: *const types.CommandDescriptor,
+    raw: []const u8,
+) ?*const types.CommandDescriptor {
+    return findDescriptorInSlice(descriptor.children, raw);
+}
+
+fn findDescriptorInSlice(
+    descriptors: []const types.CommandDescriptor,
+    raw: []const u8,
+) ?*const types.CommandDescriptor {
     for (descriptors) |*descriptor| {
         if (std.mem.eql(u8, raw, descriptor.name)) return descriptor;
         for (descriptor.aliases) |alias| {

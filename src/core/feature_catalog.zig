@@ -110,8 +110,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "enable_llm",
         .parity_spec = .ai_inference,
         .parent = .ai,
-        .real_module_path = "features/ai_inference/mod.zig",
-        .stub_module_path = "features/ai_inference/stub.zig",
+        .real_module_path = "features/ai/facades/inference.zig",
+        .stub_module_path = "features/ai/facades/inference_stub.zig",
     },
     .{
         .feature = .embeddings,
@@ -128,8 +128,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "enable_ai",
         .parity_spec = .ai_core,
         .parent = .ai,
-        .real_module_path = "features/ai_core/mod.zig",
-        .stub_module_path = "features/ai_core/stub.zig",
+        .real_module_path = "features/ai/facades/core.zig",
+        .stub_module_path = "features/ai/facades/core_stub.zig",
     },
     .{
         .feature = .training,
@@ -137,8 +137,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "enable_training",
         .parity_spec = .ai_training,
         .parent = .ai,
-        .real_module_path = "features/ai_training/mod.zig",
-        .stub_module_path = "features/ai_training/stub.zig",
+        .real_module_path = "features/ai/facades/training.zig",
+        .stub_module_path = "features/ai/facades/training_stub.zig",
     },
     .{
         .feature = .database,
@@ -275,8 +275,8 @@ pub const all = [_]Metadata{
         .compile_flag_field = "enable_reasoning",
         .parity_spec = .ai_reasoning,
         .parent = .ai,
-        .real_module_path = "features/ai_reasoning/mod.zig",
-        .stub_module_path = "features/ai_reasoning/stub.zig",
+        .real_module_path = "features/ai/facades/reasoning.zig",
+        .stub_module_path = "features/ai/facades/reasoning_stub.zig",
     },
 };
 

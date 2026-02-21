@@ -1,10 +1,7 @@
 const std = @import("std");
 
-/// Apply macOS GPU framework links (Metal, CoreML, MPS, Foundation) to a
-/// build module when targeting macOS with the Metal backend enabled.
-///
-/// Centralises the repeated linking block that previously appeared in
-/// build.zig for the CLI exe, main tests, feature tests, and profile build.
+/// Link macOS GPU frameworks (Metal, CoreML, MPS, Foundation) into a module
+/// when targeting macOS with the Metal backend enabled.
 pub fn applyFrameworkLinks(
     mod: *std.Build.Module,
     os_tag: std.Target.Os.Tag,
@@ -25,23 +22,22 @@ const required_metal_framework_paths = [_][]const u8{
     "/System/Library/Frameworks/Foundation.framework",
 };
 
+/// Probe whether Metal frameworks can be linked on this host.  Tries
+/// `xcrun --sdk macosx --show-sdk-path` first; falls back to checking
+/// framework paths directly.
 pub fn canLinkMetalFrameworks(io: std.Io, os_tag: std.Target.Os.Tag) bool {
     if (os_tag != .macos) return false;
 
-    // Prefer SDK probe first. This avoids false negatives from low-level
-    // path checks in some Zig 0.16 host I/O setups.
-    if (commandSucceeds(io, &.{ "/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path" })) {
+    if (commandSucceeds(io, &.{ "/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path" }))
         return true;
-    }
 
-    for (required_metal_framework_paths) |path| {
-        if (!commandSucceeds(io, &.{ "/usr/bin/test", "-e", path })) {
-            return false;
-        }
-    }
+    for (required_metal_framework_paths) |path|
+        if (!commandSucceeds(io, &.{ "/usr/bin/test", "-e", path })) return false;
     return true;
 }
 
+/// Abort the build when the user explicitly requested `-Dgpu-backend=metal`
+/// but the required frameworks are not available.
 pub fn validateMetalBackendRequest(
     b: *std.Build,
     backend_arg: ?[]const u8,
@@ -54,7 +50,8 @@ pub fn validateMetalBackendRequest(
     if (can_link_metal) return;
 
     std.debug.panic(
-        "explicit gpu-backend=metal requested for macOS target, but required Apple frameworks are unavailable. " ++ "Install an Apple SDK/Xcode Command Line Tools or use -Dgpu-backend=auto/vulkan.",
+        "explicit gpu-backend=metal requested but Apple frameworks are unavailable. " ++
+            "Install Xcode Command Line Tools or use -Dgpu-backend=auto/vulkan.",
         .{},
     );
 }

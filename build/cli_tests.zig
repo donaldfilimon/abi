@@ -5,11 +5,11 @@ const std = @import("std");
 /// Each entry is a slice of argument strings passed to the CLI executable.
 /// The build step runs every entry and expects a zero exit code.
 pub const cli_commands = [_][]const []const u8{
-    // Top-level flags
+    // ── Top-level flags ─────────────────────────────────────────────────
     &.{"--help"},
     &.{"--version"},
 
-    // Direct subcommands
+    // ── Direct subcommands ──────────────────────────────────────────────
     &.{"system-info"},
     &.{ "db", "stats" },
     &.{ "gpu", "status" },
@@ -22,7 +22,7 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "config", "show" },
     &.{ "config", "validate" },
 
-    // Help for every top-level command
+    // ── Help for every top-level command ─────────────────────────────────
     &.{ "help", "llm" },
     &.{ "help", "gpu" },
     &.{ "help", "db" },
@@ -48,7 +48,7 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "help", "acp" },
     &.{ "help", "gpu-dashboard" },
 
-    // Nested help (subcommand-level)
+    // ── Nested help (subcommand-level) ──────────────────────────────────
     &.{ "help", "llm", "run" },
     &.{ "help", "llm", "session" },
     &.{ "help", "llm", "providers" },
@@ -79,16 +79,15 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "help", "plugins", "enable" },
     &.{ "help", "plugins", "disable" },
 
-    // Functional subcommands
-    &.{ "llm", "info", "--help" },
-    &.{ "llm", "list" },
+    // ── Functional subcommands ──────────────────────────────────────────
     &.{ "llm", "run", "--help" },
     &.{ "llm", "session", "--help" },
     &.{ "llm", "providers" },
     &.{ "llm", "plugins", "list" },
     &.{ "llm", "serve", "--help" },
-    &.{ "llm", "bench", "--help" },
-    &.{ "llm", "download", "--help" },
+    &.{ "ui", "launch", "--help" },
+    &.{ "ui", "gpu", "--help" },
+    &.{ "ui", "train", "--help" },
     &.{ "train", "info" },
     &.{ "train", "auto" },
     &.{ "train", "auto", "--help" },
@@ -147,7 +146,7 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "embed", "--help" },
     &.{ "explore", "--help" },
 
-    // DB subcommands with --help
+    // ── DB subcommands with --help ──────────────────────────────────────
     &.{ "db", "add", "--help" },
     &.{ "db", "query", "--help" },
     &.{ "db", "optimize" },
@@ -155,14 +154,15 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "db", "restore", "--help" },
     &.{ "db", "serve", "--help" },
 
-    // Config init
+    // ── Config init ─────────────────────────────────────────────────────
     &.{ "config", "init", "--help" },
 
-    // Aliases
+    // ── Aliases ─────────────────────────────────────────────────────────
     &.{"info"},
     &.{ "ls", "stats" },
 };
 
+/// Options for the exhaustive CLI integration test runner.
 pub const CliTestsFullOptions = struct {
     env_file: ?[]const u8 = null,
     timeout_scale: f64 = 1.0,
@@ -177,8 +177,6 @@ pub fn addCliTests(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step 
     const step = b.step("cli-tests", "Run smoke test of CLI commands");
     for (&cli_commands) |args| {
         const run_cmd = b.addRunArtifact(exe);
-        // Ensure smoke tests execute from repository root so commands like
-        // `abi gendocs` can resolve build.zig consistently.
         run_cmd.setCwd(b.path("."));
         run_cmd.addArgs(args);
         step.dependOn(&run_cmd.step);
@@ -186,13 +184,12 @@ pub fn addCliTests(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step 
     return step;
 }
 
-/// Register exhaustive CLI behavioral verification as a separate build step.
+/// Register the exhaustive CLI behavioral verification step.
 ///
-/// This invokes tools/scripts/run_cli_full_matrix.py which handles preflight,
+/// Invokes `tools/scripts/run_cli_full_matrix.py` which handles preflight,
 /// isolation, PTY probing, and full command-tree coverage.
 pub fn addCliTestsFull(b: *std.Build, options: CliTestsFullOptions) *std.Build.Step {
     const step = b.step("cli-tests-full", "Run exhaustive behavioral CLI command-tree tests");
-
     const run_full = b.addSystemCommand(&.{
         "python3",
         "tools/scripts/run_cli_full_matrix.py",
@@ -202,11 +199,8 @@ pub fn addCliTestsFull(b: *std.Build, options: CliTestsFullOptions) *std.Build.S
         b.fmt("{d}", .{options.timeout_scale}),
     });
     run_full.setCwd(b.path("."));
-
-    if (options.env_file) |env_file| {
+    if (options.env_file) |env_file|
         run_full.addArgs(&.{ "--env-file", env_file });
-    }
-
     step.dependOn(&run_full.step);
     return step;
 }

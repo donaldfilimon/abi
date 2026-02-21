@@ -6,7 +6,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
-const discovery = @import("../discovery.zig");
+const discovery = @import("../explore/discovery.zig");
 
 // libc import for environment access - required for Zig 0.16
 const c = if (builtin.target.os.tag != .freestanding and

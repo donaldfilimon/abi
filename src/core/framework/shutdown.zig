@@ -20,10 +20,10 @@ const gateway_mod = if (build_options.enable_gateway) @import("../../features/ga
 const pages_mod = if (build_options.enable_pages) @import("../../features/pages/mod.zig") else @import("../../features/pages/stub.zig");
 const benchmarks_mod = if (build_options.enable_benchmarks) @import("../../features/benchmarks/mod.zig") else @import("../../features/benchmarks/stub.zig");
 const mobile_mod = if (build_options.enable_mobile) @import("../../features/mobile/mod.zig") else @import("../../features/mobile/stub.zig");
-const ai_core_mod = if (build_options.enable_ai) @import("../../features/ai_core/mod.zig") else @import("../../features/ai_core/stub.zig");
-const ai_inference_mod = if (build_options.enable_llm) @import("../../features/ai_inference/mod.zig") else @import("../../features/ai_inference/stub.zig");
-const ai_training_mod = if (build_options.enable_training) @import("../../features/ai_training/mod.zig") else @import("../../features/ai_training/stub.zig");
-const ai_reasoning_mod = if (build_options.enable_reasoning) @import("../../features/ai_reasoning/mod.zig") else @import("../../features/ai_reasoning/stub.zig");
+const ai_core_mod = if (build_options.enable_ai) @import("../../features/ai/facades/core.zig") else @import("../../features/ai/facades/core_stub.zig");
+const ai_inference_mod = if (build_options.enable_llm) @import("../../features/ai/facades/inference.zig") else @import("../../features/ai/facades/inference_stub.zig");
+const ai_training_mod = if (build_options.enable_training) @import("../../features/ai/facades/training.zig") else @import("../../features/ai/facades/training_stub.zig");
+const ai_reasoning_mod = if (build_options.enable_reasoning) @import("../../features/ai/facades/reasoning.zig") else @import("../../features/ai/facades/reasoning_stub.zig");
 
 /// Composable error type for registry operations from framework shutdown helpers.
 const registry_types = @import("../registry/types.zig");

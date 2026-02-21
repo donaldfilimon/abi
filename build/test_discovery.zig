@@ -18,11 +18,9 @@ pub const FeatureTestEntry = struct {
 ///
 /// This table is the **single source of truth** for feature test coverage.
 /// The actual test root (`src/feature_test_root.zig`) must mirror these
-/// entries. When adding a new test source:
+/// entries.  When adding a new test source:
 ///   1. Add an entry to this manifest
 ///   2. Add the corresponding `@import` to `src/feature_test_root.zig`
-///
-/// A future `zig build sync-feature-tests` step will automate step 2.
 pub const feature_test_manifest = [_]FeatureTestEntry{
     // ── AI modules (gated on enable_ai) ─────────────────────────────────
     .{ .flag = "enable_ai", .path = "features/ai/eval/mod.zig" },
@@ -58,10 +56,10 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "enable_cloud", .path = "features/cloud/mod.zig" },
 
     // ── AI facade modules ───────────────────────────────────────────────
-    .{ .flag = "enable_ai", .path = "features/ai_core/mod.zig" },
-    .{ .flag = "enable_llm", .path = "features/ai_inference/mod.zig" },
-    .{ .flag = "enable_training", .path = "features/ai_training/mod.zig" },
-    .{ .flag = "enable_reasoning", .path = "features/ai_reasoning/mod.zig" },
+    .{ .flag = "enable_ai", .path = "features/ai/facades/core.zig" },
+    .{ .flag = "enable_llm", .path = "features/ai/facades/inference.zig" },
+    .{ .flag = "enable_training", .path = "features/ai/facades/training.zig" },
+    .{ .flag = "enable_reasoning", .path = "features/ai/facades/reasoning.zig" },
 
     // ── GPU and database ────────────────────────────────────────────────
     .{ .flag = "enable_gpu", .path = "features/gpu/mod.zig" },
@@ -176,7 +174,7 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
 /// Wire up the feature-test binary and return its run step.
 ///
 /// Uses `src/feature_test_root.zig` as the test root (required for correct
-/// `@import` path resolution within `src/`). Applies Metal framework links
+/// `@import` path resolution within `src/`).  Applies Metal framework links
 /// when targeting macOS with the Metal backend.
 ///
 /// Returns `null` if `src/feature_test_root.zig` does not exist.

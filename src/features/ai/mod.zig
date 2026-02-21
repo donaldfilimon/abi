@@ -77,8 +77,8 @@ const config_module = @import("../../core/config/mod.zig");
 // ============================================================================
 
 // Direct imports for AI submodules
-pub const agent = @import("agent.zig");
-pub const model_registry = @import("model_registry.zig");
+pub const agent = @import("agents/agent.zig");
+pub const model_registry = @import("models/registry.zig");
 pub const transformer = @import("transformer/mod.zig");
 pub const streaming = @import("streaming/mod.zig");
 pub const tools = @import("tools/mod.zig");
@@ -94,19 +94,19 @@ pub const explore = if (build_options.enable_explore) @import("explore/mod.zig")
 pub const orchestration = if (build_options.enable_ai) @import("orchestration/mod.zig") else @import("orchestration/stub.zig");
 
 // Tool-augmented agent with tool execution loop
-pub const tool_agent = @import("tool_agent.zig");
+pub const tool_agent = @import("tools/tool_agent.zig");
 
 // Codebase self-awareness via indexing and RAG
-pub const codebase_index = @import("codebase_index.zig");
+pub const codebase_index = @import("explore/codebase_index.zig");
 
 // Self-improvement and performance tracking
 pub const self_improve = @import("self_improve.zig");
 
 // GPU-aware agent (always available, uses stubs when GPU disabled)
-pub const gpu_agent = @import("gpu_agent.zig");
+pub const gpu_agent = @import("agents/gpu_agent.zig");
 
 // Model auto-discovery and adaptive configuration
-pub const discovery = @import("discovery.zig");
+pub const discovery = @import("explore/discovery.zig");
 
 // ============================================================================
 // Sub-modules (conditionally compiled)

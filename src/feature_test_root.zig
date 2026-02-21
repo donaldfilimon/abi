@@ -67,13 +67,13 @@ test {
 
     // AI facade modules (inference, training, reasoning, ai_core)
     if (build_options.enable_ai)
-        _ = @import("features/ai_core/mod.zig");
+        _ = @import("features/ai/facades/core.zig");
     if (@hasDecl(build_options, "enable_llm") and build_options.enable_llm)
-        _ = @import("features/ai_inference/mod.zig");
+        _ = @import("features/ai/facades/inference.zig");
     if (@hasDecl(build_options, "enable_training") and build_options.enable_training)
-        _ = @import("features/ai_training/mod.zig");
+        _ = @import("features/ai/facades/training.zig");
     if (@hasDecl(build_options, "enable_reasoning") and build_options.enable_reasoning)
-        _ = @import("features/ai_reasoning/mod.zig");
+        _ = @import("features/ai/facades/reasoning.zig");
 
     // GPU and database modules (Zig 0.16 migration completed)
     if (build_options.enable_gpu) _ = @import("features/gpu/mod.zig");

@@ -5,6 +5,7 @@
 const std = @import("std");
 const types = @import("types.zig");
 const persistence = @import("persistence.zig");
+const catalog = @import("roadmap_catalog.zig");
 const time_utils = @import("../shared/utils.zig");
 
 pub const RoadmapItem = struct {
@@ -12,75 +13,6 @@ pub const RoadmapItem = struct {
     category: []const u8,
     timeline: []const u8,
     description: ?[]const u8 = null,
-};
-
-pub const incomplete_items = [_]RoadmapItem{
-    .{
-        .title = "Record video tutorials",
-        .category = "Documentation",
-        .timeline = "Short-term",
-        .description = "Record and produce video tutorials from existing scripts in docs/tutorials/videos/",
-    },
-    .{
-        .title = "FPGA/ASIC hardware acceleration research",
-        .category = "Research & Innovation",
-        .timeline = "Long-term (2027+)",
-        .description = "Experimental hardware acceleration using FPGA and ASIC for vector operations",
-    },
-    .{
-        .title = "Novel index structures research",
-        .category = "Research & Innovation",
-        .timeline = "Long-term (2027+)",
-        .description = "Research and implement novel index structures for improved search performance",
-    },
-    .{
-        .title = "AI-optimized workloads",
-        .category = "Research & Innovation",
-        .timeline = "Long-term (2027+)",
-        .description = "Optimize workloads specifically for AI/ML inference patterns",
-    },
-    .{
-        .title = "Academic collaborations",
-        .category = "Research & Innovation",
-        .timeline = "Long-term (2027+)",
-        .description = "Research partnerships, paper publications, conference presentations",
-    },
-    .{
-        .title = "Community governance RFC process",
-        .category = "Community & Growth",
-        .timeline = "Long-term (2027+)",
-        .description = "Establish RFC process, voting mechanism, contribution recognition",
-    },
-    .{
-        .title = "Education and certification program",
-        .category = "Community & Growth",
-        .timeline = "Long-term (2027+)",
-        .description = "Training courses, certification program, university partnerships",
-    },
-    .{
-        .title = "Commercial support services",
-        .category = "Enterprise Features",
-        .timeline = "Long-term (2028+)",
-        .description = "SLA offerings, priority support, custom development services",
-    },
-    .{
-        .title = "AWS Lambda integration",
-        .category = "Cloud Integration",
-        .timeline = "Long-term (2028+)",
-        .description = "Deploy ABI functions to AWS Lambda",
-    },
-    .{
-        .title = "Google Cloud Functions integration",
-        .category = "Cloud Integration",
-        .timeline = "Long-term (2028+)",
-        .description = "Deploy ABI functions to Google Cloud Functions",
-    },
-    .{
-        .title = "Azure Functions integration",
-        .category = "Cloud Integration",
-        .timeline = "Long-term (2028+)",
-        .description = "Deploy ABI functions to Azure Functions",
-    },
 };
 
 /// Import all roadmap items that don't already exist as tasks.
@@ -93,11 +25,13 @@ pub fn importAll(
 ) !usize {
     const now = time_utils.unixSeconds();
     var count: usize = 0;
-    for (incomplete_items) |item| {
+    for (catalog.roadmap_entries) |roadmap_entry| {
+        if (roadmap_entry.status == .done) continue;
+
         var exists = false;
         var it = tasks.iterator();
-        while (it.next()) |entry| {
-            if (std.mem.eql(u8, entry.value_ptr.title, item.title)) {
+        while (it.next()) |task_entry| {
+            if (std.mem.eql(u8, task_entry.value_ptr.title, roadmap_entry.title)) {
                 exists = true;
                 break;
             }
@@ -105,14 +39,42 @@ pub fn importAll(
         if (!exists) {
             const id = next_id.*;
             next_id.* += 1;
-            const owned_title = try persistence.dupeString(allocator, strings, item.title);
-            const owned_desc = if (item.description) |d| try persistence.dupeString(allocator, strings, d) else null;
+
+            const gate_text = try catalog.formatValidationGate(allocator, roadmap_entry.validation_gate);
+            defer allocator.free(gate_text);
+
+            const description = try std.fmt.allocPrint(allocator,
+                \\{s}
+                \\
+                \\Owner: {s}
+                \\Track: {s}
+                \\Horizon: {s}
+                \\Status: {s}
+                \\Validation Gate: {s}
+                \\Plan: {s}
+            , .{
+                roadmap_entry.summary,
+                roadmap_entry.owner,
+                roadmap_entry.track.label(),
+                roadmap_entry.horizon.label(),
+                roadmap_entry.status.label(),
+                gate_text,
+                roadmap_entry.plan_slug,
+            });
+            defer allocator.free(description);
+
+            const owned_title = try persistence.dupeString(allocator, strings, roadmap_entry.title);
+            const owned_desc = try persistence.dupeString(allocator, strings, description);
 
             const task = types.Task{
                 .id = id,
                 .title = owned_title,
                 .description = owned_desc,
-                .priority = if (std.mem.eql(u8, item.timeline, "Short-term")) .high else .low,
+                .priority = switch (roadmap_entry.horizon) {
+                    .now => .high,
+                    .next => .normal,
+                    .later => .low,
+                },
                 .category = .roadmap,
                 .created_at = now,
                 .updated_at = now,
@@ -129,6 +91,68 @@ pub fn importAll(
 // Tests
 // ============================================================================
 
-test "Roadmap incomplete_items count" {
-    try std.testing.expectEqual(@as(usize, 11), incomplete_items.len);
+test "importAll imports canonical non-done entries" {
+    var tasks_map = std.AutoHashMapUnmanaged(u64, types.Task){};
+    defer tasks_map.deinit(std.testing.allocator);
+
+    var strings = std.ArrayListUnmanaged([]u8).empty;
+    defer {
+        for (strings.items) |s| std.testing.allocator.free(s);
+        strings.deinit(std.testing.allocator);
+    }
+
+    var next_id: u64 = 1;
+    const count = try importAll(
+        std.testing.allocator,
+        &tasks_map,
+        &next_id,
+        &strings,
+    );
+
+    try std.testing.expectEqual(catalog.nonDoneEntryCount(), count);
+    try std.testing.expectEqual(catalog.nonDoneEntryCount(), tasks_map.count());
+}
+
+test "importAll keeps dedupe-by-title behavior" {
+    var tasks_map = std.AutoHashMapUnmanaged(u64, types.Task){};
+    defer tasks_map.deinit(std.testing.allocator);
+
+    var strings = std.ArrayListUnmanaged([]u8).empty;
+    defer {
+        for (strings.items) |s| std.testing.allocator.free(s);
+        strings.deinit(std.testing.allocator);
+    }
+
+    var maybe_first_non_done: ?catalog.RoadmapEntry = null;
+    for (catalog.roadmap_entries) |entry| {
+        if (entry.status != .done) {
+            maybe_first_non_done = entry;
+            break;
+        }
+    }
+    const first_non_done = maybe_first_non_done orelse return error.TestFailed;
+
+    const now = time_utils.unixSeconds();
+    const pre_title = try persistence.dupeString(std.testing.allocator, &strings, first_non_done.title);
+    const pre_desc = try persistence.dupeString(std.testing.allocator, &strings, "pre-existing");
+    try tasks_map.put(std.testing.allocator, 99, .{
+        .id = 99,
+        .title = pre_title,
+        .description = pre_desc,
+        .priority = .normal,
+        .category = .roadmap,
+        .created_at = now,
+        .updated_at = now,
+    });
+
+    var next_id: u64 = 100;
+    const imported = try importAll(
+        std.testing.allocator,
+        &tasks_map,
+        &next_id,
+        &strings,
+    );
+
+    try std.testing.expectEqual(catalog.nonDoneEntryCount() - 1, imported);
+    try std.testing.expectEqual(catalog.nonDoneEntryCount(), tasks_map.count());
 }

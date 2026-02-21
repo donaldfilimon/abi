@@ -30,14 +30,14 @@ pub const transformer = @import("transformer/stub.zig");
 pub const prompts = @import("prompts/stub.zig");
 pub const abbey = @import("abbey/stub.zig");
 
-// Local stubs for single-file modules
-pub const agent = @import("stubs/agent.zig");
-pub const model_registry = @import("stubs/model_registry.zig");
-pub const tool_agent = @import("stubs/tool_agent.zig");
-pub const codebase_index = @import("stubs/codebase_index.zig");
+// Local stubs for single-file modules (merged into subdirectory stubs)
+pub const agent = @import("agents/stub.zig");
+pub const model_registry = @import("models/stub.zig");
+pub const tool_agent = @import("tools/stub.zig");
+pub const codebase_index = @import("explore/stub.zig");
 pub const self_improve = @import("self_improve.zig");
-pub const gpu_agent = @import("stubs/gpu_agent.zig");
-pub const discovery = @import("stubs/discovery.zig");
+pub const gpu_agent = @import("agents/stub.zig");
+pub const discovery = @import("explore/stub.zig");
 
 // Multi-agent re-exports
 pub const MultiAgentCoordinator = multi_agent.Coordinator;
