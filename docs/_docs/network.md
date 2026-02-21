@@ -29,7 +29,9 @@ This guide is generated from repository metadata for **Infrastructure** coverage
 
 ## Command Entry Points
 
-- No section-specific command mapping available.
+- `abi acp` — Agent Communication Protocol (card, serve)
+- `abi mcp` — MCP server for WDBX database (serve, tools)
+- `abi network` — Manage network registry (list, register, status)
 
 ## Validation Commands
 

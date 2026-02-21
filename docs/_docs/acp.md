@@ -35,14 +35,14 @@ This guide is generated from repository metadata for **Services** coverage and s
 
 ## Command Entry Points
 
-- `abi gpu` — Open GPU dashboard TUI
-- `abi launch` — Open command launcher TUI
-- `abi neural` — Render dynamic 3D neural network view
-- `abi plugins` — Manage HTTP/native provider plugins
-- `abi providers` — Show provider availability and routing order
-- `abi run` — One-shot generation through provider router
-- `abi serve` — Start streaming HTTP server
-- `abi session` — Interactive session through provider router
+- `abi acp` — Agent Communication Protocol (card, serve)
+- `abi agent` — Run AI agent (interactive or one-shot)
+- `abi bench` — Run performance benchmarks (all, simd, memory, ai, quick)
+- `abi completions` — Generate shell completions (bash, zsh, fish, powershell)
+- `abi config` — Configuration management (init, show, validate)
+- `abi convert` — Dataset conversion tools (tokenbin, text, jsonl, wdbx)
+- `abi db` — Database operations (add, query, stats, optimize, backup, restore)
+- `abi discord` — Discord bot operations (status, guilds, send, commands)
 
 ## Validation Commands
 

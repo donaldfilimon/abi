@@ -21,6 +21,21 @@ This guide is generated from repository metadata for **Start** coverage and stay
 - Main tests: `1270` pass / `5` skip / `1275` total
 - Feature tests: `1535` pass / `1535` total
 
+## Quickstart Commands
+
+```bash
+zig build
+zig build run -- --help
+zig build cli-tests
+zig build check-docs
+```
+
+## First Interactive Flows
+
+- `abi ui launch` — command launcher TUI
+- `abi ui gpu` — GPU dashboard
+- `abi llm providers` — inspect local routing state
+
 ## Module Coverage
 
 - `src/core/config/mod.zig` ([api](../api/config.html))
@@ -36,14 +51,14 @@ This guide is generated from repository metadata for **Start** coverage and stay
 
 ## Command Entry Points
 
-- `abi gpu` — Open GPU dashboard TUI
-- `abi launch` — Open command launcher TUI
-- `abi neural` — Render dynamic 3D neural network view
-- `abi plugins` — Manage HTTP/native provider plugins
-- `abi providers` — Show provider availability and routing order
-- `abi run` — One-shot generation through provider router
-- `abi serve` — Start streaming HTTP server
-- `abi session` — Interactive session through provider router
+- `abi status` — Show framework health and component status
+- `abi system-info` — Show system and framework status
+- `abi db` — Database operations (add, query, stats, optimize, backup, restore)
+- `abi llm` — LLM inference (run, session, serve, providers, plugins)
+- `abi ui` — UI command family (launch, gpu, train, neural)
+- `abi gpu` — GPU commands (backends, devices, summary, default)
+- `abi task` — Task management (add, list, done, stats, seed-self-improve)
+- `abi train` — Training pipeline (run, llm, vision, auto, self, resume, info)
 
 ## Validation Commands
 

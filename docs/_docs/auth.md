@@ -36,7 +36,11 @@ This guide is generated from repository metadata for **Operations** coverage and
 
 ## Command Entry Points
 
-- `abi plugins` — Manage HTTP/native provider plugins
+- `abi config` — Configuration management (init, show, validate)
+- `abi plugins` — Plugin management (list, enable, disable, info)
+- `abi profile` — User profile and settings management
+- `abi status` — Show framework health and component status
+- `abi toolchain` — Build and install Zig/ZLS from master (install, update, status)
 
 ## Validation Commands
 

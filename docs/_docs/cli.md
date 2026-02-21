@@ -23,17 +23,39 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 ## Command Tree
 
-| Command | Description | Subcommands |
-| --- | --- | --- |
-| `gpu` | Open GPU dashboard TUI | — |
-| `launch` | Open command launcher TUI | — |
-| `neural` | Render dynamic 3D neural network view | — |
-| `plugins` | Manage HTTP/native provider plugins | — |
-| `providers` | Show provider availability and routing order | — |
-| `run` | One-shot generation through provider router | — |
-| `serve` | Start streaming HTTP server | — |
-| `session` | Interactive session through provider router | — |
-| `train` | Open training monitor TUI | — |
+Top-level commands: **29** | aliases: **8** | structural subcommands: **140**
+
+| Command | Aliases | Description | Subcommands |
+| --- | --- | --- | --- |
+| `acp` | — | Agent Communication Protocol (card, serve) | card, serve, help |
+| `agent` | — | Run AI agent (interactive or one-shot) | — |
+| `bench` | run | Run performance benchmarks (all, simd, memory, ai, quick) | all, simd, memory, ai, quick, compare-training, list, micro |
+| `completions` | — | Generate shell completions (bash, zsh, fish, powershell) | bash, zsh, fish, powershell, help |
+| `config` | — | Configuration management (init, show, validate) | init, show, validate, env, help |
+| `convert` | — | Dataset conversion tools (tokenbin, text, jsonl, wdbx) | dataset, model, embeddings |
+| `db` | ls | Database operations (add, query, stats, optimize, backup, restore) | add, query, stats, optimize, backup, restore, serve, help |
+| `discord` | — | Discord bot operations (status, guilds, send, commands) | status, info, guilds, send, commands, webhook, channel, help |
+| `embed` | — | Generate embeddings from text (openai, mistral, cohere, ollama) | — |
+| `explore` | — | Search and explore codebase | — |
+| `gendocs` | — | Generate API docs (runs zig build gendocs) | — |
+| `gpu` | — | GPU commands (backends, devices, summary, default) | backends, devices, list, summary, default, status |
+| `gpu-dashboard` | dashboard | Interactive GPU + Agent monitoring dashboard | — |
+| `llm` | chat, reasoning, serve | LLM inference (run, session, serve, providers, plugins) | run, session, serve, providers, plugins, help |
+| `mcp` | — | MCP server for WDBX database (serve, tools) | serve, tools, help |
+| `model` | — | Model management (list, download, remove, search) | list, info, download, remove, search, path |
+| `multi-agent` | — | Run multi-agent workflows | info, run, list, create, status |
+| `network` | — | Manage network registry (list, register, status) | status, list, nodes, register, unregister, touch, set-status |
+| `plugins` | — | Plugin management (list, enable, disable, info) | list, info, enable, disable, search |
+| `profile` | — | User profile and settings management | show, list, create, switch, delete, set, get, api-key, export, import, help |
+| `ralph` | — | Ralph orchestrator (init, run, super, multi, status, gate, improve, skills) | init, run, super, multi, status, gate, improve, skills, help |
+| `simd` | — | Run SIMD performance demo | — |
+| `status` | — | Show framework health and component status | help |
+| `system-info` | info, sysinfo | Show system and framework status | — |
+| `task` | — | Task management (add, list, done, stats, seed-self-improve) | add, list, ls, show, done, start, cancel, delete, rm, stats, import-roadmap, seed-self-improve, edit, block, unblock, due, help |
+| `toolchain` | — | Build and install Zig/ZLS from master (install, update, status) | install, zig, zls, status, update, path, help |
+| `train` | — | Training pipeline (run, llm, vision, auto, self, resume, info) | run, new, llm, vision, clip, auto, self, resume, monitor, info, generate-data, help |
+| `tui` | — | Launch interactive TUI command menu | — |
+| `ui` | — | UI command family (launch, gpu, train, neural) | launch, gpu, train, neural, help |
 
 ## Validation Commands
 

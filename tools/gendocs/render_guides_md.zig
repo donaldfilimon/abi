@@ -172,6 +172,10 @@ fn buildAutoContent(
         try appendApiSummary(allocator, &out, modules);
     } else if (std.mem.eql(u8, slug, "cli")) {
         try appendCliSummary(allocator, &out, commands);
+    } else if (std.mem.eql(u8, slug, "getting-started")) {
+        try appendGettingStartedFlow(allocator, &out);
+        try appendModuleCoverage(allocator, &out, section, modules);
+        try appendGettingStartedEntryPoints(allocator, &out, commands);
     } else if (std.mem.eql(u8, slug, "gpu") or std.mem.eql(u8, slug, "gpu-backends")) {
         try appendGpuSummary(allocator, &out, modules);
     } else if (std.mem.eql(u8, slug, "connectors")) {
@@ -239,14 +243,31 @@ fn appendCliSummary(
     out: *std.ArrayListUnmanaged(u8),
     commands: []const model.CliCommand,
 ) !void {
-    try out.appendSlice(allocator, "## Command Tree\n\n");
-    try model.appendTableHeader(allocator, out, &.{ "Command", "Description", "Subcommands" });
+    var alias_total: usize = 0;
+    var nested_total: usize = 0;
     for (commands) |command| {
+        alias_total += command.aliases.len;
+        nested_total += command.subcommands.len;
+    }
+
+    try appendFmt(
+        allocator,
+        out,
+        "## Command Tree\n\nTop-level commands: **{d}** | aliases: **{d}** | structural subcommands: **{d}**\n\n",
+        .{ commands.len, alias_total, nested_total },
+    );
+
+    try model.appendTableHeader(allocator, out, &.{ "Command", "Aliases", "Description", "Subcommands" });
+    for (commands) |command| {
+        const alias_list = try joinListOrDash(allocator, command.aliases);
+        defer allocator.free(alias_list);
+
         const structural = try formatStructuralSubcommands(allocator, command.subcommands);
         defer allocator.free(structural);
 
         const row = [_][]const u8{
             try std.fmt.allocPrint(allocator, "`{s}`", .{command.name}),
+            alias_list,
             command.description,
             if (structural.len > 0) structural else "—",
         };
@@ -272,6 +293,75 @@ fn appendGpuSummary(
     for (modules) |mod| {
         if (std.mem.indexOf(u8, mod.path, "features/gpu") == null) continue;
         try appendFmt(allocator, out, "- `{s}` ([api](../api/{s}.html))\n", .{ mod.path, mod.name });
+    }
+    try out.append(allocator, '\n');
+}
+
+fn appendGettingStartedFlow(
+    allocator: std.mem.Allocator,
+    out: *std.ArrayListUnmanaged(u8),
+) !void {
+    try out.appendSlice(allocator,
+        \\## Quickstart Commands
+        \\
+        \\```bash
+        \\zig build
+        \\zig build run -- --help
+        \\zig build cli-tests
+        \\zig build check-docs
+        \\```
+        \\
+        \\## First Interactive Flows
+        \\
+        \\- `abi ui launch` — command launcher TUI
+        \\- `abi ui gpu` — GPU dashboard
+        \\- `abi llm providers` — inspect local routing state
+        \\
+        \\
+    );
+}
+
+fn joinListOrDash(
+    allocator: std.mem.Allocator,
+    items: []const []const u8,
+) ![]u8 {
+    if (items.len == 0) return allocator.dupe(u8, "—");
+
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
+
+    for (items, 0..) |item, idx| {
+        if (idx > 0) try out.appendSlice(allocator, ", ");
+        try out.appendSlice(allocator, item);
+    }
+    return out.toOwnedSlice(allocator);
+}
+
+fn appendGettingStartedEntryPoints(
+    allocator: std.mem.Allocator,
+    out: *std.ArrayListUnmanaged(u8),
+    commands: []const model.CliCommand,
+) !void {
+    try out.appendSlice(allocator, "## Command Entry Points\n\n");
+    const starters = [_][]const u8{
+        "status",
+        "system-info",
+        "db",
+        "llm",
+        "ui",
+        "gpu",
+        "task",
+        "train",
+    };
+
+    var count: usize = 0;
+    for (starters) |name| {
+        const cmd = findCommand(commands, name) orelse continue;
+        try appendFmt(allocator, out, "- `abi {s}` — {s}\n", .{ cmd.name, cmd.description });
+        count += 1;
+    }
+    if (count == 0) {
+        try out.appendSlice(allocator, "- No starter commands found.\n");
     }
     try out.append(allocator, '\n');
 }
@@ -401,6 +491,13 @@ fn appendCommandEntryPoints(
         try out.appendSlice(allocator, "- No section-specific command mapping available.\n");
     }
     try out.append(allocator, '\n');
+}
+
+fn findCommand(commands: []const model.CliCommand, name: []const u8) ?model.CliCommand {
+    for (commands) |command| {
+        if (std.mem.eql(u8, command.name, name)) return command;
+    }
+    return null;
 }
 
 fn moduleMatchesSection(section: []const u8, mod: model.ModuleDoc) bool {

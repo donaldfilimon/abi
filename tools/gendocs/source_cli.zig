@@ -13,7 +13,7 @@ const SubcommandDef = struct {
 };
 
 pub fn discoverCommands(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) ![]model.CliCommand {
-    const source = try cwd.readFileAlloc(io, "tools/cli/commands/mod.zig", allocator, .limited(4 * 1024 * 1024));
+    const source = try cwd.readFileAlloc(io, "tools/cli/tests/catalog.zig", allocator, .limited(2 * 1024 * 1024));
     defer allocator.free(source);
 
     var subcommands = try parseSubcommandArrays(allocator, source);
@@ -21,6 +21,19 @@ pub fn discoverCommands(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Di
         for (subcommands.items) |entry| entry.deinit(allocator);
         subcommands.deinit(allocator);
     }
+
+    const commands_block_start = std.mem.indexOf(u8, source, "pub const commands = [_]CommandSpec{") orelse {
+        return allocator.dupe(model.CliCommand, &.{});
+    };
+
+    const array_open = std.mem.indexOfPos(u8, source, commands_block_start, "{") orelse {
+        return allocator.dupe(model.CliCommand, &.{});
+    };
+    const array_close = findMatchingBrace(source, array_open) orelse {
+        return allocator.dupe(model.CliCommand, &.{});
+    };
+
+    const block = source[array_open + 1 .. array_close];
 
     var commands = std.ArrayListUnmanaged(model.CliCommand).empty;
     errdefer {
@@ -30,42 +43,43 @@ pub fn discoverCommands(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Di
 
     var cursor: usize = 0;
     while (true) {
-        const name_pos_rel = std.mem.indexOfPos(u8, source, cursor, ".name = \"") orelse break;
-        const name_pos = name_pos_rel;
+        const entry_rel = std.mem.indexOfPos(u8, block, cursor, ".{") orelse break;
+        const entry_start = entry_rel;
+        const entry_end = findMatchingBrace(block, entry_start + 1) orelse break;
+        const entry = block[entry_start .. entry_end + 1];
 
-        const block_start = std.mem.lastIndexOfScalar(u8, source[0..name_pos], '{') orelse {
-            cursor = name_pos + 1;
-            continue;
-        };
-
-        const block_end = findMatchingBrace(source, block_start) orelse {
-            cursor = name_pos + 1;
-            continue;
-        };
-
-        const block = source[block_start .. block_end + 1];
-
-        const name = extractQuotedAfter(allocator, block, ".name = \"") orelse {
-            cursor = block_end + 1;
+        const name = extractQuotedAfter(allocator, entry, ".name = \"") orelse {
+            cursor = entry_end + 1;
             continue;
         };
         errdefer allocator.free(name);
 
-        const description = extractQuotedAfter(allocator, block, ".description = \"") orelse try allocator.dupe(u8, "");
+        const description = extractQuotedAfter(allocator, entry, ".description = \"") orelse try allocator.dupe(u8, "");
         errdefer allocator.free(description);
 
-        const aliases = try extractQuotedArrayAfter(allocator, block, ".aliases = &.{");
+        const aliases = try extractQuotedArrayAfter(allocator, entry, ".aliases = &.{");
         errdefer {
             for (aliases) |alias| allocator.free(alias);
             allocator.free(aliases);
         }
 
-        const subcommands_ref = extractIdentifierAfter(block, ".subcommands = &");
+        const subcommands_ref = extractIdentifierAfter(entry, ".subcommands = &");
         var command_subcommands = std.ArrayListUnmanaged([]const u8).empty;
         defer command_subcommands.deinit(allocator);
 
         if (subcommands_ref) |ref| {
             if (lookupSubcommands(subcommands.items, ref)) |items| {
+                for (items) |sub| {
+                    try command_subcommands.append(allocator, try allocator.dupe(u8, sub));
+                }
+            }
+        }
+
+        if (command_subcommands.items.len == 0) {
+            if (lookupSubcommandsByCommandName(subcommands.items, name)) |items| {
+                if (std.mem.eql(u8, name, "bench")) {
+                    std.debug.print("DBG bench fallback hit {d}\n", .{items.len});
+                }
                 for (items) |sub| {
                     try command_subcommands.append(allocator, try allocator.dupe(u8, sub));
                 }
@@ -79,10 +93,10 @@ pub fn discoverCommands(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Di
             .subcommands = try command_subcommands.toOwnedSlice(allocator),
         });
 
-        cursor = block_end + 1;
+        cursor = entry_end + 1;
     }
 
-    insertionSortCommands(commands.items);
+    std.mem.sort(model.CliCommand, commands.items, {}, model.compareCommands);
     return commands.toOwnedSlice(allocator);
 }
 
@@ -95,20 +109,23 @@ fn parseSubcommandArrays(allocator: std.mem.Allocator, source: []const u8) !std.
 
     var cursor: usize = 0;
     while (true) {
-        const const_pos = std.mem.indexOfPos(u8, source, cursor, "const ") orelse break;
-        const after_const = source[const_pos + "const ".len ..];
-        const eq_pos = std.mem.indexOf(u8, after_const, " = [_][]const u8{") orelse {
-            cursor = const_pos + "const ".len;
+        const const_pos = std.mem.indexOfPos(u8, source, cursor, "pub const ") orelse break;
+        const after_const = source[const_pos + "pub const ".len ..];
+
+        const line_end_rel = std.mem.indexOfScalar(u8, after_const, '\n') orelse after_const.len;
+        const header_line = after_const[0..line_end_rel];
+        const eq_pos = std.mem.indexOf(u8, header_line, " = [_][]const u8{") orelse {
+            cursor = const_pos + "pub const ".len;
             continue;
         };
 
-        const key = std.mem.trim(u8, after_const[0..eq_pos], " \t\r\n");
+        const key = std.mem.trim(u8, header_line[0..eq_pos], " \t\r\n");
         if (!std.mem.endsWith(u8, key, "_subcommands")) {
-            cursor = const_pos + "const ".len;
+            cursor = const_pos + "pub const ".len;
             continue;
         }
 
-        const list_start = const_pos + "const ".len + eq_pos + " = [_][]const u8{".len;
+        const list_start = const_pos + "pub const ".len + eq_pos + " = [_][]const u8{".len;
         const list_end = std.mem.indexOfPos(u8, source, list_start, "};") orelse {
             cursor = list_start;
             continue;
@@ -178,6 +195,21 @@ fn lookupSubcommands(defs: []const SubcommandDef, key: []const u8) ?[]const []co
     return null;
 }
 
+fn lookupSubcommandsByCommandName(defs: []const SubcommandDef, command_name: []const u8) ?[]const []const u8 {
+    var key_buf: [128]u8 = undefined;
+    if (command_name.len + "_subcommands".len > key_buf.len) return null;
+
+    var index: usize = 0;
+    for (command_name) |ch| {
+        key_buf[index] = if (ch == '-') '_' else ch;
+        index += 1;
+    }
+    @memcpy(key_buf[index .. index + "_subcommands".len], "_subcommands");
+    index += "_subcommands".len;
+
+    return lookupSubcommands(defs, key_buf[0..index]);
+}
+
 fn findMatchingBrace(source: []const u8, open_idx: usize) ?usize {
     var depth: usize = 0;
     var in_string = false;
@@ -202,18 +234,6 @@ fn findMatchingBrace(source: []const u8, open_idx: usize) ?usize {
     return null;
 }
 
-fn insertionSortCommands(items: []model.CliCommand) void {
-    var i: usize = 1;
-    while (i < items.len) : (i += 1) {
-        const value = items[i];
-        var j = i;
-        while (j > 0 and model.compareCommands({}, value, items[j - 1])) : (j -= 1) {
-            items[j] = items[j - 1];
-        }
-        items[j] = value;
-    }
-}
-
 test "parseQuotedList parses quoted tokens" {
     const parsed = try parseQuotedList(std.testing.allocator, "\"a\", \"b\", \"c\"");
     defer {
@@ -222,4 +242,22 @@ test "parseQuotedList parses quoted tokens" {
     }
     try std.testing.expectEqual(@as(usize, 3), parsed.len);
     try std.testing.expectEqualStrings("b", parsed[1]);
+}
+
+test "discover parser finds command names in catalog source" {
+    const source =
+        \\pub const llm_subcommands = [_][]const u8{ "run", "session" };
+        \\pub const commands = [_]CommandSpec{
+        \\    .{ .name = "llm", .description = "desc", .aliases = &.{"chat"}, .subcommands = &llm_subcommands },
+        \\};
+    ;
+
+    var defs = try parseSubcommandArrays(std.testing.allocator, source);
+    defer {
+        for (defs.items) |entry| entry.deinit(std.testing.allocator);
+        defs.deinit(std.testing.allocator);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), defs.items.len);
+    try std.testing.expectEqualStrings("llm_subcommands", defs.items[0].key);
 }

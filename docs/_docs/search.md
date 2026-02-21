@@ -27,7 +27,9 @@ This guide is generated from repository metadata for **Data** coverage and stays
 
 ## Command Entry Points
 
-- No section-specific command mapping available.
+- `abi convert` — Dataset conversion tools (tokenbin, text, jsonl, wdbx)
+- `abi db` — Database operations (add, query, stats, optimize, backup, restore)
+- `abi task` — Task management (add, list, done, stats, seed-self-improve)
 
 ## Validation Commands
 

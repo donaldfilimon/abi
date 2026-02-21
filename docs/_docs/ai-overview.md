@@ -27,7 +27,13 @@ This guide is generated from repository metadata for **AI** coverage and stays d
 
 ## Command Entry Points
 
-- `abi train` — Open training monitor TUI
+- `abi agent` — Run AI agent (interactive or one-shot)
+- `abi embed` — Generate embeddings from text (openai, mistral, cohere, ollama)
+- `abi llm` — LLM inference (run, session, serve, providers, plugins)
+- `abi model` — Model management (list, download, remove, search)
+- `abi multi-agent` — Run multi-agent workflows
+- `abi ralph` — Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)
+- `abi train` — Training pipeline (run, llm, vision, auto, self, resume, info)
 
 ## Validation Commands
 
