@@ -192,6 +192,22 @@ pub fn build(b: *std.Build) void {
     if (vnext_compat_step) |step| full_check_step.dependOn(step);
     if (feature_tests_step) |fts| full_check_step.dependOn(fts);
 
+    // ── Documentation ────────────────────────────────────────────────────
+    if (targets.pathExists(b, "tools/gendocs/main.zig")) {
+        const gendocs = b.addExecutable(.{
+            .name = "gendocs",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("tools/gendocs/main.zig"),
+                .target = target,
+                .optimize = optimize,
+                .link_libc = true,
+            }),
+        });
+        const run_gendocs = b.addRunArtifact(gendocs);
+        if (b.args) |args| run_gendocs.addArgs(args);
+        b.step("gendocs", "Generate API documentation").dependOn(&run_gendocs.step);
+    }
+
     // ── Profile build ────────────────────────────────────────────────────
     if (targets.pathExists(b, "tools/cli/main.zig")) {
         var profile_opts = options;

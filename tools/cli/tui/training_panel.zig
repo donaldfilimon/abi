@@ -76,7 +76,6 @@ pub const TrainingPanel = struct {
     current_run_index: usize,
 
     fn shouldUseCompactMode(width: usize) bool {
-        if (width <= min_safe_width) return true;
         return width < full_layout_min_width;
     }
 
@@ -894,10 +893,6 @@ fn panelWidthFromTerminalCols(cols: u16) usize {
     return @min(with_margin, max_panel_width);
 }
 
-fn shouldUseCompactMode(width: usize) bool {
-    return width < full_layout_min_width;
-}
-
 fn shouldRefreshAt(now_ms: i64, last_refresh_ms: i64, refresh_ms: u64) bool {
     if (last_refresh_ms <= 0) return true;
     const interval = @as(i64, @intCast(@max(refresh_ms, @as(u64, 1))));
@@ -963,8 +958,8 @@ test "panel width helper supports compact fallback and clamp" {
     try std.testing.expectEqual(@as(usize, 120), panelWidthFromTerminalCols(200));
     try std.testing.expectEqual(@as(usize, 20), panelWidthFromTerminalCols(22));
 
-    try std.testing.expect(shouldUseCompactMode(panelWidthFromTerminalCols(60)));
-    try std.testing.expect(!shouldUseCompactMode(panelWidthFromTerminalCols(100)));
+    try std.testing.expect(TrainingPanel.shouldUseCompactMode(panelWidthFromTerminalCols(60)));
+    try std.testing.expect(!TrainingPanel.shouldUseCompactMode(panelWidthFromTerminalCols(100)));
 }
 
 test "refresh loop helpers compute cadence and timeout" {
