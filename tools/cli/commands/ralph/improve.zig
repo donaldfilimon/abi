@@ -176,7 +176,7 @@ fn printHelp() void {
         \\  -t, --task <text>          Improvement task
         \\  -i, --iterations <n>       Max iterations (default from ralph.yml)
         \\      --max-fix-attempts <n> Max auto-fix attempts after a gate failure
-        \\      --backend <id>         Provider backend id (llama_cpp, mlx, ollama, lm_studio, vllm, plugin_http, plugin_native)
+        \\      --backend <id>         Provider backend id (llama_cpp, mlx, ollama, lm_studio, vllm, anthropic, openai, plugin_http, plugin_native)
         \\      --fallback <csv>       Fallback provider chain
         \\      --strict-backend       Disable fallback and fail fast on selected backend
         \\      --model <id|path>      Model id or local path

@@ -107,6 +107,10 @@ const config_module = @import("../../core/config/mod.zig");
 const client = @import("client.zig");
 const weather = @import("weather.zig");
 
+// Server and middleware
+pub const server = @import("server/mod.zig");
+pub const middleware = @import("middleware/mod.zig");
+
 // Handlers and routes for persona API
 pub const handlers = struct {
     pub const chat = @import("handlers/chat.zig");

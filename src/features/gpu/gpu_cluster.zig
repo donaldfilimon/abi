@@ -104,6 +104,8 @@ pub const GPUCluster = struct {
     mutex: Mutex,
     /// Peer transfer manager for real GPU-to-GPU transfers.
     peer_manager: ?peer_transfer.PeerTransferManager,
+    /// Optional network-based peer transfer for cross-node AllReduce.
+    network_transfer: ?*peer_transfer.network.NetworkPeerTransfer = null,
 
     /// Communication buffer for a device.
     const CommBuffer = struct {
@@ -182,6 +184,13 @@ pub const GPUCluster = struct {
 
     /// Deinitialize the cluster.
     pub fn deinit(self: *GPUCluster) void {
+        // Clean up network transfer bridge
+        if (self.network_transfer) |nt| {
+            nt.deinit();
+            self.allocator.destroy(nt);
+            self.network_transfer = null;
+        }
+
         // Clean up peer transfer manager
         if (self.peer_manager) |*pm| {
             pm.deinit();
@@ -283,10 +292,35 @@ pub const GPUCluster = struct {
 
     /// AllReduce operation across all devices.
     /// Synchronizes and reduces data from all devices.
-    /// Uses real peer-to-peer transfers when available.
+    /// Uses network transfer for cross-node, local peer-to-peer, or simulated fallback.
     pub fn allReduce(self: *GPUCluster, data: []f32, op: ReduceOp) !void {
         const device_count = self.device_group.activeDeviceCount();
-        if (device_count <= 1) return; // No reduction needed
+        if (device_count <= 1 and (self.network_transfer == null)) return; // No reduction needed
+
+        // Use network transfer bridge for cross-node AllReduce when available
+        if (self.network_transfer) |nt| {
+            if (nt.peers.items.len > 0) {
+                // Map cluster ReduceOp → network ReduceOp
+                const net_op: peer_transfer.network.ReduceOp = switch (op) {
+                    .sum, .avg => .sum,
+                    .product => .product,
+                    .min => .min,
+                    .max => .max,
+                };
+                try nt.ringAllReduce(data, net_op);
+
+                // Handle average: divide after the sum AllReduce
+                if (op == .avg) {
+                    const scale = 1.0 / @as(f32, @floatFromInt(nt.worldSize()));
+                    for (data) |*d| {
+                        d.* *= scale;
+                    }
+                }
+                return;
+            }
+        }
+
+        if (device_count <= 1) return; // No local reduction needed
 
         // Use peer transfer manager for real GPU-to-GPU transfers if available
         if (self.peer_manager) |*pm| {
@@ -357,6 +391,24 @@ pub const GPUCluster = struct {
             return pm;
         }
         return null;
+    }
+
+    /// Get the network transfer bridge for cross-node operations.
+    pub fn getNetworkTransfer(self: *GPUCluster) ?*peer_transfer.network.NetworkPeerTransfer {
+        return self.network_transfer;
+    }
+
+    /// Attach a network transfer bridge for multi-node AllReduce.
+    ///
+    /// The bridge is heap-allocated and owned by the cluster; it will be
+    /// cleaned up in `deinit`.
+    pub fn setNetworkTransfer(self: *GPUCluster, nt: *peer_transfer.network.NetworkPeerTransfer) void {
+        // Clean up previous bridge if any.
+        if (self.network_transfer) |prev| {
+            prev.deinit();
+            self.allocator.destroy(prev);
+        }
+        self.network_transfer = nt;
     }
 
     /// Get transfer statistics.

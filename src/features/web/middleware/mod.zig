@@ -30,6 +30,7 @@ pub const logging = @import("logging.zig");
 pub const cors = @import("cors.zig");
 pub const auth = @import("auth.zig");
 pub const error_handler = @import("error_handler.zig");
+pub const observability = @import("observability.zig");
 
 // Re-export main types
 pub const MiddlewareContext = types.MiddlewareContext;
@@ -47,6 +48,9 @@ pub const AuthResult = auth.AuthResult;
 pub const ErrorConfig = error_handler.ErrorConfig;
 pub const ErrorFormat = error_handler.ErrorFormat;
 pub const ErrorResponse = error_handler.ErrorResponse;
+pub const MetricsMiddleware = observability.MetricsMiddleware;
+pub const RequestMetrics = observability.RequestMetrics;
+pub const MetricsSnapshot = observability.MetricsSnapshot;
 
 /// Creates a default middleware chain with common middleware.
 pub fn defaultChain(allocator: std.mem.Allocator) !MiddlewareChain {

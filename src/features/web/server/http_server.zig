@@ -4,6 +4,7 @@
 //! requests to handlers. Uses Zig 0.16 std.Io.Threaded for async I/O.
 
 const std = @import("std");
+const Io = std.Io;
 const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const types = @import("types.zig");
@@ -225,11 +226,16 @@ pub const Server = struct {
         const enable: i32 = 1;
         _ = std.posix.setsockopt(sock, std.posix.SOL.SOCKET, std.posix.SO.REUSEADDR, std.mem.asBytes(&enable));
 
-        // Bind
-        const addr = std.net.Address.parseIp4(self.config.host, self.config.port) catch
+        // Bind - parse address using Zig 0.16 Io.net API
+        const ip4 = Io.net.Ip4Address.parse(self.config.host, self.config.port) catch
             return ServerError.BindFailed;
 
-        std.posix.bind(sock, &addr.any, addr.getOsSockLen()) catch
+        const sin: std.c.sockaddr.in = .{
+            .port = std.mem.nativeToBig(u16, ip4.port),
+            .addr = @bitCast(ip4.bytes),
+        };
+        const sock_addr: *const std.posix.sockaddr = @ptrCast(&sin);
+        std.posix.bind(sock, sock_addr, @sizeOf(std.c.sockaddr.in)) catch
             return ServerError.BindFailed;
 
         // Listen
@@ -286,7 +292,12 @@ pub const Server = struct {
         self.stats.active_connections += 1;
         self.mutex.unlock();
 
-        const address = std.net.Address{ .any = client_addr };
+        // Convert the raw sockaddr to an IpAddress
+        const sin: *const std.c.sockaddr.in = @ptrCast(@alignCast(&client_addr));
+        const address: Io.net.IpAddress = .{ .ip4 = .{
+            .bytes = @bitCast(sin.addr),
+            .port = std.mem.bigToNative(u16, sin.port),
+        } };
         return Connection.init(self.allocator, conn_id, address);
     }
 

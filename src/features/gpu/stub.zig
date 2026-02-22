@@ -13,7 +13,7 @@ pub const KernelError = error{ CompilationFailed, InvalidKernel, InvalidArgument
 
 // ── Local Stubs Imports ────────────────────────────────────────────────────
 
-const backend = @import("stubs/backend.zig");
+const backend = @import("backend.zig");
 const memory = @import("stubs/memory.zig");
 const kernel = @import("stubs/kernel.zig");
 const dsl_mod = @import("stubs/dsl.zig");
@@ -32,7 +32,7 @@ const profiler = @import("stubs/profiler.zig");
 
 // ── Essential Shared Types ─────────────────────────────────────────────────
 
-pub const Backend = backend.Backend;
+pub const Backend = @import("backend.zig").Backend;
 
 pub const Device = @import("stubs/device.zig").Device;
 pub const DeviceType = @import("stubs/device.zig").DeviceType;
@@ -182,6 +182,30 @@ pub const policy = struct {};
 pub const multi = multi_gpu;
 pub const factory = backend_factory_mod;
 
+// ── Additional Types ──────────────────────────────────────────────────────
+
+pub const MemoryInfo = struct {
+    total_bytes: u64 = 0,
+    used_bytes: u64 = 0,
+    free_bytes: u64 = 0,
+    peak_used_bytes: u64 = 0,
+};
+
+pub const GpuStats = struct {
+    kernels_launched: u64 = 0,
+    buffers_created: u64 = 0,
+    bytes_allocated: u64 = 0,
+    host_to_device_transfers: u64 = 0,
+    device_to_host_transfers: u64 = 0,
+    total_execution_time_ns: u64 = 0,
+};
+
+pub const MetricsSummary = struct {
+    total_kernel_invocations: u64 = 0,
+    avg_kernel_time_ns: f64 = 0,
+    kernels_per_second: f64 = 0,
+};
+
 // ── Gpu struct ─────────────────────────────────────────────────────────────
 
 pub const Gpu = struct {
@@ -197,10 +221,10 @@ pub const Gpu = struct {
     pub fn getActiveDevice(_: *const Gpu) ?*const Device {
         return null;
     }
-    pub fn createBuffer(_: *Gpu, comptime _: type, _: usize, _: BufferOptions) Error!UnifiedBuffer {
+    pub fn createBuffer(_: *Gpu, _: usize, _: BufferOptions) Error!*UnifiedBuffer {
         return error.GpuDisabled;
     }
-    pub fn createBufferFromSlice(_: *Gpu, comptime _: type, _: anytype, _: BufferOptions) Error!UnifiedBuffer {
+    pub fn createBufferFromSlice(_: *Gpu, comptime _: type, _: anytype, _: BufferOptions) Error!*UnifiedBuffer {
         return error.GpuDisabled;
     }
     pub fn destroyBuffer(_: *Gpu, _: *UnifiedBuffer) void {}
@@ -225,6 +249,21 @@ pub const Gpu = struct {
     pub fn checkHealth(_: *const Gpu) HealthStatus {
         return .unhealthy;
     }
+    pub fn reduceSum(_: *Gpu, _: *UnifiedBuffer) Error!struct { value: f32, stats: ExecutionResult } {
+        return error.GpuDisabled;
+    }
+    pub fn dotProduct(_: *Gpu, _: *UnifiedBuffer, _: *UnifiedBuffer) Error!struct { value: f32, stats: ExecutionResult } {
+        return error.GpuDisabled;
+    }
+    pub fn getStats(_: *const Gpu) GpuStats {
+        return .{};
+    }
+    pub fn getMemoryInfo(_: *Gpu) MemoryInfo {
+        return .{};
+    }
+    pub fn getMetricsSummary(_: *Gpu) ?MetricsSummary {
+        return null;
+    }
 };
 
 // ── GpuDevice (ergonomic wrapper stub) ─────────────────────────────────────
@@ -234,12 +273,6 @@ pub const GpuDevice = struct {
         name: [256]u8 = undefined,
         name_len: usize = 0,
         total_memory: usize = 0,
-    };
-    pub const MemoryInfo = struct {
-        total_bytes: u64 = 0,
-        used_bytes: u64 = 0,
-        free_bytes: u64 = 0,
-        peak_used_bytes: u64 = 0,
     };
 
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!GpuDevice {
@@ -271,7 +304,7 @@ pub const GpuDevice = struct {
     pub fn memoryInfo(_: *GpuDevice) MemoryInfo {
         return .{};
     }
-    pub fn stats(_: *const GpuDevice) execution.GpuStats {
+    pub fn stats(_: *const GpuDevice) GpuStats {
         return .{};
     }
     pub fn sync(_: *GpuDevice) Error!void {

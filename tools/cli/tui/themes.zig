@@ -62,12 +62,12 @@ pub const themes = struct {
         .primary = "\x1b[36m", // Cyan
         .secondary = "\x1b[34m", // Blue
         .accent = "\x1b[33m", // Yellow
-        .border = "\x1b[36m", // Cyan
+        .border = "\x1b[38;5;45m", // Bright cyan
         .selection_bg = "\x1b[44m", // Blue bg
         .selection_fg = "\x1b[97m", // Bright white
-        .text = "\x1b[37m", // White
-        .text_dim = "\x1b[2m", // Dim
-        .text_muted = "\x1b[90m", // Bright black
+        .text = "\x1b[38;5;255m", // Bright white
+        .text_dim = "\x1b[38;5;152m", // Soft cyan-gray
+        .text_muted = "\x1b[38;5;109m", // Muted blue-gray
         .success = "\x1b[32m", // Green
         .warning = "\x1b[33m", // Yellow
         .@"error" = "\x1b[31m", // Red
@@ -85,12 +85,12 @@ pub const themes = struct {
         .primary = "\x1b[38;5;81m", // Cyan
         .secondary = "\x1b[38;5;141m", // Purple
         .accent = "\x1b[38;5;221m", // Yellow
-        .border = "\x1b[38;5;59m", // Gray
+        .border = "\x1b[38;5;102m", // Mid gray-blue
         .selection_bg = "\x1b[48;5;237m", // Dark gray bg
         .selection_fg = "\x1b[38;5;231m", // White
         .text = "\x1b[38;5;231m", // White
-        .text_dim = "\x1b[38;5;242m", // Gray
-        .text_muted = "\x1b[38;5;59m", // Dark gray
+        .text_dim = "\x1b[38;5;246m", // Light gray
+        .text_muted = "\x1b[38;5;242m", // Mid gray
         .success = "\x1b[38;5;148m", // Green
         .warning = "\x1b[38;5;221m", // Yellow
         .@"error" = "\x1b[38;5;197m", // Pink/Red
@@ -108,12 +108,12 @@ pub const themes = struct {
         .primary = "\x1b[38;5;37m", // Cyan
         .secondary = "\x1b[38;5;33m", // Blue
         .accent = "\x1b[38;5;136m", // Yellow
-        .border = "\x1b[38;5;240m", // Base01
+        .border = "\x1b[38;5;244m", // Base0
         .selection_bg = "\x1b[48;5;236m", // Base02
         .selection_fg = "\x1b[38;5;230m", // Base3
-        .text = "\x1b[38;5;187m", // Base1
-        .text_dim = "\x1b[38;5;240m", // Base01
-        .text_muted = "\x1b[38;5;239m", // Base00
+        .text = "\x1b[38;5;252m", // Bright base
+        .text_dim = "\x1b[38;5;245m", // Mid base
+        .text_muted = "\x1b[38;5;244m", // Soft base
         .success = "\x1b[38;5;64m", // Green
         .warning = "\x1b[38;5;136m", // Yellow
         .@"error" = "\x1b[38;5;160m", // Red
@@ -131,12 +131,12 @@ pub const themes = struct {
         .primary = "\x1b[38;5;110m", // Nord8 (cyan)
         .secondary = "\x1b[38;5;111m", // Nord9 (blue)
         .accent = "\x1b[38;5;222m", // Nord13 (yellow)
-        .border = "\x1b[38;5;60m", // Nord3
+        .border = "\x1b[38;5;67m", // Nord3 brighter
         .selection_bg = "\x1b[48;5;60m", // Nord3
         .selection_fg = "\x1b[38;5;255m", // Snow
         .text = "\x1b[38;5;255m", // Snow Storm
-        .text_dim = "\x1b[38;5;60m", // Nord3
-        .text_muted = "\x1b[38;5;59m", // Nord2
+        .text_dim = "\x1b[38;5;110m", // Nord8 soft
+        .text_muted = "\x1b[38;5;102m", // Muted slate
         .success = "\x1b[38;5;108m", // Nord14 (green)
         .warning = "\x1b[38;5;222m", // Nord13 (yellow)
         .@"error" = "\x1b[38;5;174m", // Nord11 (red)
@@ -154,12 +154,12 @@ pub const themes = struct {
         .primary = "\x1b[38;5;108m", // Aqua
         .secondary = "\x1b[38;5;109m", // Blue
         .accent = "\x1b[38;5;214m", // Yellow
-        .border = "\x1b[38;5;239m", // Gray
+        .border = "\x1b[38;5;245m", // Gray brighter
         .selection_bg = "\x1b[48;5;237m", // Bg1
         .selection_fg = "\x1b[38;5;223m", // Fg0
-        .text = "\x1b[38;5;223m", // Fg1
-        .text_dim = "\x1b[38;5;245m", // Gray
-        .text_muted = "\x1b[38;5;239m", // Bg3
+        .text = "\x1b[38;5;229m", // Fg bright
+        .text_dim = "\x1b[38;5;250m", // Light gray
+        .text_muted = "\x1b[38;5;244m", // Mid gray
         .success = "\x1b[38;5;142m", // Green
         .warning = "\x1b[38;5;214m", // Yellow
         .@"error" = "\x1b[38;5;167m", // Red
@@ -182,7 +182,7 @@ pub const themes = struct {
         .selection_fg = "\x1b[30m", // Black
         .text = "\x1b[97m", // Bright white
         .text_dim = "\x1b[37m", // White
-        .text_muted = "\x1b[90m", // Bright black
+        .text_muted = "\x1b[38;5;250m", // Light gray
         .success = "\x1b[92m", // Bright green
         .warning = "\x1b[93m", // Bright yellow
         .@"error" = "\x1b[91m", // Bright red
@@ -200,12 +200,12 @@ pub const themes = struct {
         .primary = "\x1b[37m", // White
         .secondary = "\x1b[37m", // White
         .accent = "\x1b[1m", // Bold only
-        .border = "\x1b[90m", // Gray
+        .border = "\x1b[38;5;245m", // Mid gray
         .selection_bg = "\x1b[7m", // Inverse
         .selection_fg = "", // Default
-        .text = "\x1b[37m", // White
-        .text_dim = "\x1b[90m", // Gray
-        .text_muted = "\x1b[90m", // Gray
+        .text = "\x1b[38;5;250m", // Light gray
+        .text_dim = "\x1b[38;5;247m", // Mid-light gray
+        .text_muted = "\x1b[38;5;244m", // Mid gray
         .success = "\x1b[32m", // Green
         .warning = "\x1b[33m", // Yellow
         .@"error" = "\x1b[31m", // Red
@@ -218,6 +218,42 @@ pub const themes = struct {
     };
 };
 
+const all_themes = [_]*const Theme{
+    &themes.default,
+    &themes.monokai,
+    &themes.solarized,
+    &themes.nord,
+    &themes.gruvbox,
+    &themes.high_contrast,
+    &themes.minimal,
+};
+
+const all_theme_names = [_][]const u8{
+    themes.default.name,
+    themes.monokai.name,
+    themes.solarized.name,
+    themes.nord.name,
+    themes.gruvbox.name,
+    themes.high_contrast.name,
+    themes.minimal.name,
+};
+
+/// Look up a theme by exact lowercase name.
+pub fn lookupTheme(name: []const u8) ?*const Theme {
+    const normalized = std.mem.trim(u8, name, " \t\r\n");
+    for (all_themes) |theme| {
+        if (std.mem.eql(u8, normalized, theme.name)) {
+            return theme;
+        }
+    }
+    return null;
+}
+
+/// Return the static list of supported theme names.
+pub fn themeNames() []const []const u8 {
+    return &all_theme_names;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Theme Manager
 // ═══════════════════════════════════════════════════════════════════════════
@@ -225,16 +261,6 @@ pub const themes = struct {
 pub const ThemeManager = struct {
     current: *const Theme,
     available: []const *const Theme,
-
-    const all_themes = [_]*const Theme{
-        &themes.default,
-        &themes.monokai,
-        &themes.solarized,
-        &themes.nord,
-        &themes.gruvbox,
-        &themes.high_contrast,
-        &themes.minimal,
-    };
 
     pub fn init() ThemeManager {
         return .{
@@ -274,7 +300,7 @@ pub const ThemeManager = struct {
     }
 
     pub fn getThemeNames(self: *const ThemeManager) [7][]const u8 {
-        var names: [7][]const u8 = undefined;
+        var names: [all_theme_names.len][]const u8 = undefined;
         for (self.available, 0..) |theme, i| {
             names[i] = theme.name;
         }
@@ -289,6 +315,24 @@ pub const ThemeManager = struct {
 test "theme manager initialization" {
     const manager = ThemeManager.init();
     try std.testing.expectEqualStrings("default", manager.current.name);
+}
+
+test "lookupTheme returns valid theme by exact lowercase name" {
+    const found = lookupTheme("nord");
+    try std.testing.expect(found != null);
+    try std.testing.expectEqualStrings("nord", found.?.name);
+}
+
+test "lookupTheme rejects invalid theme names" {
+    try std.testing.expect(lookupTheme("NORD") == null);
+    try std.testing.expect(lookupTheme("does-not-exist") == null);
+}
+
+test "themeNames list is complete and ordered" {
+    const names = themeNames();
+    try std.testing.expectEqual(@as(usize, 7), names.len);
+    try std.testing.expectEqualStrings("default", names[0]);
+    try std.testing.expectEqualStrings("minimal", names[names.len - 1]);
 }
 
 test "theme switching" {

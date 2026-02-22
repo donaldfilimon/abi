@@ -13,6 +13,7 @@ pub const ProviderError = errors.ProviderError;
 pub const ProviderId = types.ProviderId;
 pub const GenerateConfig = types.GenerateConfig;
 pub const GenerateResult = types.GenerateResult;
+pub const ChatMessage = types.ChatMessage;
 
 pub fn generate(allocator: std.mem.Allocator, cfg: GenerateConfig) !GenerateResult {
     return router.generate(allocator, cfg);

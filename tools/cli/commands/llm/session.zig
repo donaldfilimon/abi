@@ -4,6 +4,9 @@ const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const run_cmd = @import("run.zig");
 
+const ChatMessage = abi.ai.llm.providers.ChatMessage;
+const ProviderId = abi.ai.llm.providers.ProviderId;
+
 pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (utils.args.containsHelpArgs(args)) {
         printSessionHelp();
@@ -31,7 +34,7 @@ pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     }
 
     std.debug.print("LLM session started (model: {s}).\n", .{options.model.?});
-    std.debug.print("Commands: /quit, /exit, /clear, /help\n\n", .{});
+    std.debug.print("Commands: /quit, /exit, /clear, /help, /providers, /backend <id>, /model <id>\n\n", .{});
 
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
@@ -41,8 +44,16 @@ pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     var read_buffer: [8192]u8 = undefined;
     var reader = stdin_file.reader(io, &read_buffer);
 
-    var history = std.ArrayListUnmanaged(u8).empty;
+    // Structured message history for multi-turn conversations.
+    var history: std.ArrayListUnmanaged(ChatMessage) = .empty;
     defer history.deinit(allocator);
+
+    // Owned copies of message text so we can free them independently.
+    var history_text: std.ArrayListUnmanaged([]u8) = .empty;
+    defer {
+        for (history_text.items) |text| allocator.free(text);
+        history_text.deinit(allocator);
+    }
 
     while (true) {
         std.debug.print("You> ", .{});
@@ -54,25 +65,66 @@ pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
         const trimmed = std.mem.trim(u8, line, " \t\r\n");
         if (trimmed.len == 0) continue;
 
+        // ── Slash commands ─────────────────────────────────────────
         if (std.mem.eql(u8, trimmed, "/quit") or std.mem.eql(u8, trimmed, "/exit")) {
             break;
         }
         if (std.mem.eql(u8, trimmed, "/help")) {
-            std.debug.print("/quit, /exit, /clear, /help\n\n", .{});
+            printSlashHelp();
             continue;
         }
         if (std.mem.eql(u8, trimmed, "/clear")) {
+            for (history_text.items) |text| allocator.free(text);
+            history_text.clearRetainingCapacity();
             history.clearRetainingCapacity();
             std.debug.print("Session context cleared.\n\n", .{});
             continue;
         }
+        if (std.mem.eql(u8, trimmed, "/providers")) {
+            printProviderStatus(allocator);
+            continue;
+        }
+        if (std.mem.startsWith(u8, trimmed, "/backend")) {
+            const rest = std.mem.trim(u8, trimmed["/backend".len..], " \t");
+            if (rest.len == 0) {
+                if (options.backend) |b| {
+                    std.debug.print("Current backend: {s}\n\n", .{b.label()});
+                } else {
+                    std.debug.print("No backend pinned (using auto-routing).\n\n", .{});
+                }
+                continue;
+            }
+            if (parseProviderId(rest)) |new_backend| {
+                options.backend = new_backend;
+                std.debug.print("Backend switched to: {s}\n\n", .{new_backend.label()});
+            } else {
+                std.debug.print("Unknown backend: {s}\n", .{rest});
+                std.debug.print("Available: local_gguf, llama_cpp, mlx, ollama, lm_studio, vllm, anthropic, openai, plugin_http, plugin_native\n\n", .{});
+            }
+            continue;
+        }
+        if (std.mem.startsWith(u8, trimmed, "/model")) {
+            const rest = std.mem.trim(u8, trimmed["/model".len..], " \t");
+            if (rest.len == 0) {
+                std.debug.print("Current model: {s}\n\n", .{options.model.?});
+                continue;
+            }
+            options.model = rest;
+            std.debug.print("Model switched to: {s}\n\n", .{rest});
+            continue;
+        }
 
-        const prompt = try buildPrompt(allocator, &history, system_prompt, trimmed);
-        defer allocator.free(prompt);
+        // ── Append user message to structured history ──────────────
+        const user_text = try allocator.dupe(u8, trimmed);
+        try history_text.append(allocator, user_text);
+        try history.append(allocator, .{ .role = "user", .content = user_text });
 
+        // ── Generate with structured messages ──────────────────────
         var result = abi.ai.llm.providers.generate(allocator, .{
             .model = options.model.?,
-            .prompt = prompt,
+            .prompt = trimmed,
+            .messages = history.items,
+            .system_prompt = system_prompt,
             .backend = options.backend,
             .fallback = options.fallback,
             .strict_backend = options.strict_backend,
@@ -88,7 +140,10 @@ pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
         };
         defer result.deinit(allocator);
 
-        try appendTurn(allocator, &history, trimmed, result.content);
+        // ── Append assistant response to structured history ────────
+        const assistant_text = try allocator.dupe(u8, result.content);
+        try history_text.append(allocator, assistant_text);
+        try history.append(allocator, .{ .role = "assistant", .content = assistant_text });
 
         std.debug.print("[{s}] Assistant> {s}\n\n", .{ result.provider.label(), result.content });
     }
@@ -96,60 +151,61 @@ pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     std.debug.print("Session ended.\n", .{});
 }
 
-fn buildPrompt(
-    allocator: std.mem.Allocator,
-    history: *const std.ArrayListUnmanaged(u8),
-    system_prompt: []const u8,
-    user_input: []const u8,
-) ![]u8 {
-    var out = std.ArrayListUnmanaged(u8).empty;
-    errdefer out.deinit(allocator);
-
-    try out.appendSlice(allocator, system_prompt);
-    try out.appendSlice(allocator, "\n\n");
-    if (history.items.len > 0) {
-        try out.appendSlice(allocator, history.items);
-        try out.appendSlice(allocator, "\n");
+fn printProviderStatus(allocator: std.mem.Allocator) void {
+    std.debug.print("\nProvider status:\n", .{});
+    inline for (abi.ai.llm.providers.registry.all_providers) |provider| {
+        const available = abi.ai.llm.providers.health.isAvailable(allocator, provider, null);
+        std.debug.print("  {s:16} {s}\n", .{ provider.label(), if (available) "[OK]" else "[ ]" });
     }
-    try out.appendSlice(allocator, "User: ");
-    try out.appendSlice(allocator, user_input);
-    try out.appendSlice(allocator, "\nAssistant: ");
-
-    return out.toOwnedSlice(allocator);
+    std.debug.print("\n", .{});
 }
 
-fn appendTurn(
-    allocator: std.mem.Allocator,
-    history: *std.ArrayListUnmanaged(u8),
-    user_input: []const u8,
-    answer: []const u8,
-) !void {
-    if (history.items.len > 0) {
-        try history.appendSlice(allocator, "\n");
-    }
-    try history.appendSlice(allocator, "User: ");
-    try history.appendSlice(allocator, user_input);
-    try history.appendSlice(allocator, "\nAssistant: ");
-    try history.appendSlice(allocator, answer);
+fn parseProviderId(value: []const u8) ?ProviderId {
+    if (ProviderId.fromString(value)) |provider| return provider;
+
+    if (std.mem.eql(u8, value, "llama-cpp")) return .llama_cpp;
+    if (std.mem.eql(u8, value, "lm-studio")) return .lm_studio;
+    if (std.mem.eql(u8, value, "plugin-http")) return .plugin_http;
+    if (std.mem.eql(u8, value, "plugin-native")) return .plugin_native;
+    if (std.mem.eql(u8, value, "local-gguf")) return .local_gguf;
+
+    return null;
+}
+
+fn printSlashHelp() void {
+    std.debug.print(
+        "\nSession commands:\n" ++
+            "  /quit, /exit           Exit session\n" ++
+            "  /clear                 Clear conversation history\n" ++
+            "  /help                  Show this help\n" ++
+            "  /providers             Show available providers\n" ++
+            "  /backend <id>          Switch backend (e.g. /backend anthropic)\n" ++
+            "  /model <id>            Switch model (e.g. /model llama3)\n\n",
+        .{},
+    );
 }
 
 pub fn printSessionHelp() void {
     std.debug.print(
-        "Usage: abi llm session --model <id|path> [options]\\n\\n" ++
-            "Interactive LLM session using the same provider router as 'llm run'.\\n\\n" ++
-            "Options:\\n" ++
-            "  -m, --model <id|path>   Model id or local file path\\n" ++
-            "  --backend <id>          Pin backend\\n" ++
-            "  --fallback <csv>        Comma-separated fallback chain\\n" ++
-            "  --strict-backend        Disable fallback\\n" ++
-            "  --plugin <id>           Pin plugin id\\n" ++
-            "  --system <text>         System prompt\\n" ++
-            "  -n, --max-tokens <n>    Max tokens (default: 256)\\n" ++
-            "  -t, --temperature <f>   Temperature (default: 0.7)\\n\\n" ++
-            "Session commands:\\n" ++
-            "  /quit /exit             Exit session\\n" ++
-            "  /clear                  Clear in-memory conversation context\\n" ++
-            "  /help                   Show command help\\n",
+        "Usage: abi llm session --model <id|path> [options]\n\n" ++
+            "Interactive LLM session using the same provider router as 'llm run'.\n" ++
+            "Maintains structured multi-turn conversation history.\n\n" ++
+            "Options:\n" ++
+            "  -m, --model <id|path>   Model id or local file path\n" ++
+            "  --backend <id>          Pin backend\n" ++
+            "  --fallback <csv>        Comma-separated fallback chain\n" ++
+            "  --strict-backend        Disable fallback\n" ++
+            "  --plugin <id>           Pin plugin id\n" ++
+            "  --system <text>         System prompt\n" ++
+            "  -n, --max-tokens <n>    Max tokens (default: 256)\n" ++
+            "  -t, --temperature <f>   Temperature (default: 0.7)\n\n" ++
+            "Session commands:\n" ++
+            "  /quit /exit             Exit session\n" ++
+            "  /clear                  Clear conversation history\n" ++
+            "  /help                   Show command help\n" ++
+            "  /providers              Show available providers\n" ++
+            "  /backend <id>           Switch backend mid-session\n" ++
+            "  /model <id>             Switch model mid-session\n",
         .{},
     );
 }

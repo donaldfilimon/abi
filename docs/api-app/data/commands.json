@@ -139,7 +139,7 @@
   },
   {
     "name": "llm",
-    "description": "LLM inference (run, session, serve, providers, plugins)",
+    "description": "LLM inference (run, session, serve, providers, plugins, discover)",
     "aliases": [
       "chat",
       "reasoning",
@@ -151,6 +151,7 @@
       "serve",
       "providers",
       "plugins",
+      "discover",
       "help"
     ]
   },
@@ -191,7 +192,7 @@
   },
   {
     "name": "network",
-    "description": "Manage network registry (list, register, status)",
+    "description": "Network and distributed systems management",
     "aliases": [],
     "subcommands": [
       "status",
@@ -200,7 +201,11 @@
       "register",
       "unregister",
       "touch",
-      "set-status"
+      "set-status",
+      "raft",
+      "discovery",
+      "balancer",
+      "health"
     ]
   },
   {

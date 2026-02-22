@@ -108,3 +108,7 @@ pub fn createSession(
 pub fn checkPermission(_: []const u8, _: Permission) AuthError!bool {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

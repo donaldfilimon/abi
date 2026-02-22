@@ -42,6 +42,11 @@ pub const CancellationSource = struct {
     parent: ?*CancellationSource,
     mutex: sync.Mutex,
     callbacks: std.ArrayListUnmanaged(CancelCallback),
+    /// Monotonic deadline (seconds + nanoseconds) set by `cancelAfter`.
+    /// When set, `checkExpired()` compares the current monotonic clock
+    /// against this value and triggers cancellation if the deadline has passed.
+    deadline_sec: ?i64 = null,
+    deadline_nsec: ?i64 = null,
 
     const CancelCallback = struct {
         callback: *const fn (*CancellationSource, ?*anyopaque) void,
@@ -142,12 +147,48 @@ pub const CancellationSource = struct {
         self.state.store(@intFromEnum(CancellationState.cancelled), .release);
     }
 
-    /// Cancel after a timeout.
+    /// Schedule cancellation after a timeout (nanoseconds).
+    ///
+    /// Records a monotonic-clock deadline computed from the current time
+    /// plus `timeout_ns`. The cancellation does NOT fire automatically;
+    /// callers must periodically invoke `checkExpired()` (or integrate it
+    /// into their event loop) to detect that the deadline has passed and
+    /// trigger the actual cancellation.
     pub fn cancelAfter(self: *CancellationSource, timeout_ns: u64) void {
-        // In a real implementation, this would schedule a timer
-        // For now, just record the intent
-        _ = timeout_ns;
-        self.cancelWithReason(.timeout, "Timeout expired");
+        var ts: std.c.timespec = undefined;
+        _ = std.c.clock_gettime(.MONOTONIC, &ts);
+
+        const extra_sec: i64 = @intCast(timeout_ns / std.time.ns_per_s);
+        const extra_nsec: i64 = @intCast(timeout_ns % std.time.ns_per_s);
+
+        var deadline_nsec = ts.nsec + extra_nsec;
+        var deadline_sec = ts.sec + extra_sec;
+        if (deadline_nsec >= std.time.ns_per_s) {
+            deadline_nsec -= std.time.ns_per_s;
+            deadline_sec += 1;
+        }
+
+        self.deadline_sec = deadline_sec;
+        self.deadline_nsec = deadline_nsec;
+    }
+
+    /// Check whether a deadline set by `cancelAfter` has expired.
+    ///
+    /// Returns `true` and triggers cancellation (with reason `.timeout`)
+    /// when the monotonic clock has passed the recorded deadline. Returns
+    /// `false` if no deadline is set or it has not yet elapsed.
+    pub fn checkExpired(self: *CancellationSource) bool {
+        const d_sec = self.deadline_sec orelse return false;
+        const d_nsec = self.deadline_nsec orelse return false;
+
+        var ts: std.c.timespec = undefined;
+        _ = std.c.clock_gettime(.MONOTONIC, &ts);
+
+        if (ts.sec > d_sec or (ts.sec == d_sec and ts.nsec >= d_nsec)) {
+            self.cancelWithReason(.timeout, "Timeout expired");
+            return true;
+        }
+        return false;
     }
 
     /// Get the current state.

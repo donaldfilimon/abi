@@ -10,6 +10,8 @@ const abi = @import("abi");
 const command_mod = @import("../command.zig");
 const tui = @import("../tui/mod.zig");
 const utils = @import("../utils/mod.zig");
+const theme_options = @import("ui/theme_options.zig");
+const style_adapter = @import("tui/style_adapter.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "gpu-dashboard",
@@ -41,8 +43,13 @@ const DashboardState = struct {
     notification: ?[]const u8,
     notification_time: i64,
 
-    pub fn init(allocator: std.mem.Allocator, terminal: *tui.Terminal) DashboardState {
-        const theme_manager = tui.ThemeManager.init();
+    pub fn init(
+        allocator: std.mem.Allocator,
+        terminal: *tui.Terminal,
+        initial_theme: *const tui.Theme,
+    ) DashboardState {
+        var theme_manager = tui.ThemeManager.init();
+        theme_manager.current = initial_theme;
         return .{
             .allocator = allocator,
             .terminal = terminal,
@@ -111,19 +118,32 @@ const box = struct {
 
 /// Entry point for the GPU dashboard command.
 pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
+    var parsed = try theme_options.parseThemeArgs(allocator, args);
+    defer parsed.deinit();
 
-    if (parser.wantsHelp()) {
+    if (parsed.list_themes) {
+        theme_options.printAvailableThemes();
+        return;
+    }
+
+    if (parsed.wants_help) {
         printHelp();
         return;
     }
 
+    if (parsed.remaining_args.len > 0) {
+        utils.output.printError("Unknown argument for ui gpu: {s}", .{parsed.remaining_args[0]});
+        theme_options.printThemeHint();
+        return error.InvalidArgument;
+    }
+
     _ = io; // Not needed for TUI operations
 
-    try runDashboard(allocator);
+    const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
+    try runDashboard(allocator, initial_theme);
 }
 
-fn runDashboard(allocator: std.mem.Allocator) !void {
+fn runDashboard(allocator: std.mem.Allocator, initial_theme: *const tui.Theme) !void {
     // Check platform support
     if (!tui.Terminal.isSupported()) {
         const caps = tui.Terminal.capabilities();
@@ -144,7 +164,7 @@ fn runDashboard(allocator: std.mem.Allocator) !void {
     defer terminal.exit() catch {};
     terminal.setTitle("ABI GPU Dashboard") catch {};
 
-    var state = DashboardState.init(allocator, &terminal);
+    var state = DashboardState.init(allocator, &terminal, initial_theme);
     defer state.deinit();
 
     // Use AsyncLoop for timer-driven refresh instead of blocking readEvent.
@@ -245,12 +265,12 @@ fn handleKeyEvent(state: *DashboardState, key: tui.Key) !bool {
                     't' => {
                         state.theme_manager.nextTheme();
                         state.updateTheme();
-                        state.showNotification("Theme changed");
+                        state.showNotification(themeNotificationMessage(state.theme_manager.current.name));
                     },
                     'T' => {
                         state.theme_manager.prevTheme();
                         state.updateTheme();
-                        state.showNotification("Theme changed");
+                        state.showNotification(themeNotificationMessage(state.theme_manager.current.name));
                     },
                     'h', '?' => {
                         state.show_help = true;
@@ -273,6 +293,25 @@ fn handleKeyEvent(state: *DashboardState, key: tui.Key) !bool {
         else => {},
     }
     return false;
+}
+
+fn themeNotificationMessage(theme_name: []const u8) []const u8 {
+    return if (std.mem.eql(u8, theme_name, "default"))
+        "Theme: default"
+    else if (std.mem.eql(u8, theme_name, "monokai"))
+        "Theme: monokai"
+    else if (std.mem.eql(u8, theme_name, "solarized"))
+        "Theme: solarized"
+    else if (std.mem.eql(u8, theme_name, "nord"))
+        "Theme: nord"
+    else if (std.mem.eql(u8, theme_name, "gruvbox"))
+        "Theme: gruvbox"
+    else if (std.mem.eql(u8, theme_name, "high_contrast"))
+        "Theme: high_contrast"
+    else if (std.mem.eql(u8, theme_name, "minimal"))
+        "Theme: minimal"
+    else
+        "Theme changed";
 }
 
 // ===============================================================================
@@ -327,276 +366,226 @@ fn renderDashboard(state: *DashboardState) !void {
 }
 
 fn renderResizeMessage(term: *tui.Terminal, theme_val: *const tui.Theme, width: u16, height: u16) !void {
-    const msg = "Resize terminal to at least 40×10";
+    const chrome = style_adapter.gpu(theme_val);
+    const msg = "Resize terminal to at least 40x10";
     const row: u16 = if (height >= 2) (height - 1) / 2 else 0;
     const msg_len_u16: u16 = @intCast(msg.len);
     const col: u16 = if (width >= msg_len_u16 + 2) (width - msg_len_u16) / 2 else 0;
     try setCursorPosition(term, row, col);
-    try term.write(theme_val.warning);
+    try term.write(chrome.warning);
     try term.write(msg);
     try term.write(theme_val.reset);
     try setCursorPosition(term, row + 1, 0);
     try term.write(theme_val.text_dim);
     try term.write("Current: ");
     var buf: [32]u8 = undefined;
-    const size_str = std.fmt.bufPrint(&buf, "{d}×{d}", .{ width, height }) catch "?×?";
+    const size_str = std.fmt.bufPrint(&buf, "{d}x{d}", .{ width, height }) catch "?x?";
     try term.write(size_str);
     try term.write("  [q] Quit");
     try term.write(theme_val.reset);
 }
 
 fn renderTitleBar(term: *tui.Terminal, theme_val: *const tui.Theme, state: *const DashboardState, width: u16) !void {
+    const chrome = style_adapter.gpu(theme_val);
+    const inner: usize = if (width >= 2) @as(usize, width) - 2 else 0;
+    const title = " ABI GPU CONTROL PLANE ";
+    const mode_label = if (state.paused) "PAUSED" else "LIVE";
+    const theme_name = state.theme_manager.current.name;
+    const theme_display = if (theme_name.len > 14) theme_name[0..14] else theme_name;
+
+    const right_width = mode_label.len + theme_display.len + 8; // [mode] [theme]
+    const left_max = inner -| right_width -| 1;
+    const left_display = if (title.len > left_max) title[0..left_max] else title;
+    const gap = inner -| left_display.len -| right_width;
+
     // Top border
-    try term.write(theme_val.border);
+    try term.write(chrome.frame);
     try term.write(box.tl);
-    try writeRepeat(term, box.h, @as(usize, width) - 2);
+    try writeRepeat(term, box.h, inner);
     try term.write(box.tr);
     try term.write(theme_val.reset);
     try term.write("\n");
 
-    // Title line
-    try term.write(theme_val.border);
+    // Title line with mode + theme chips
+    try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(theme_val.reset);
 
-    const title = " ABI GPU Dashboard ";
-    const status = if (state.paused) "[PAUSED]" else "[LIVE]";
-    const theme_name = state.theme_manager.current.name;
-    const inner = if (width >= 2) width - 2 else 0;
-
-    // Build center content; truncate theme name if needed so we don't overflow
-    const max_theme_len = if (inner > title.len + status.len + 8)
-        @min(theme_name.len, inner - title.len - status.len - 8)
-    else
-        0;
-    const theme_display = if (max_theme_len > 0) theme_name[0..max_theme_len] else "";
-    const title_area = title.len + status.len + (if (max_theme_len > 0) theme_display.len + 4 else 0);
-    const left_pad = if (inner >= title_area) (inner - title_area) / 2 else 0;
-    const right_pad = if (inner >= title_area) inner - title_area - left_pad else 0;
-
-    try writeRepeat(term, " ", left_pad);
     try term.write(theme_val.bold);
-    try term.write(theme_val.primary);
-    try term.write(title);
+    try term.write(chrome.title);
+    try term.write(left_display);
     try term.write(theme_val.reset);
 
+    try writeRepeat(term, " ", gap);
+
+    try term.write(chrome.chip_bg);
+    try term.write(if (state.paused) chrome.paused else chrome.live);
+    try term.write("[");
+    try term.write(mode_label);
+    try term.write("]");
+    try term.write(theme_val.reset);
     try term.write(" ");
-    if (state.paused) {
-        try term.write(theme_val.warning);
-    } else {
-        try term.write(theme_val.success);
-    }
-    try term.write(status);
+
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.chip_fg);
+    try term.write("[");
+    try term.write(theme_display);
+    try term.write("]");
     try term.write(theme_val.reset);
 
-    if (max_theme_len > 0) {
-        try term.write(" [");
-        try term.write(theme_val.text_muted);
-        try term.write(theme_display);
-        try term.write(theme_val.reset);
-        try term.write("]");
-    }
-
-    try writeRepeat(term, " ", right_pad);
-    try term.write(theme_val.border);
+    try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(theme_val.reset);
     try term.write("\n");
 
-    // Separator with center cross
-    try term.write(theme_val.border);
+    // Separator
+    try term.write(chrome.frame);
     try term.write(box.lsep);
-    const sep_half = (@as(usize, width) - 2) / 2;
-    try writeRepeat(term, box.h, sep_half - 1);
-    try term.write(box.tsep);
-    try writeRepeat(term, box.h, @as(usize, width) - 2 - sep_half);
+    try writeRepeat(term, box.h, inner);
     try term.write(box.rsep);
     try term.write(theme_val.reset);
     try term.write("\n");
 }
 
 fn renderNotification(term: *tui.Terminal, theme_val: *const tui.Theme, msg: []const u8, row: u16, width: u16) !void {
+    const chrome = style_adapter.gpu(theme_val);
     try setCursorPosition(term, row, 0);
 
-    try term.write(theme_val.border);
+    try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(theme_val.reset);
+
     try term.write(" ");
-    try term.write(theme_val.info);
-    try term.write("ℹ ");
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.info);
+    try term.write(" INFO ");
+    try term.write(theme_val.reset);
+    try term.write(" ");
+    try term.write(theme_val.text);
     try term.write(msg);
     try term.write(theme_val.reset);
 
-    const used = 4 + msg.len;
+    const used = 10 + msg.len;
     if (used < @as(usize, width) - 1) {
         try writeRepeat(term, " ", @as(usize, width) - 1 - used);
     }
 
-    try term.write(theme_val.border);
+    try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(theme_val.reset);
 }
 
 fn renderStatusBar(term: *tui.Terminal, theme_val: *const tui.Theme, state: *const DashboardState, row: u16, width: u16) !void {
+    const chrome = style_adapter.gpu(theme_val);
     try setCursorPosition(term, row, 0);
 
     // Bottom separator
-    try term.write(theme_val.border);
+    try term.write(chrome.frame);
     try term.write(box.lsep);
     try writeRepeat(term, box.h, @as(usize, width) - 2);
     try term.write(box.rsep);
     try term.write(theme_val.reset);
     try term.write("\n");
 
-    // Status line
-    try term.write(theme_val.border);
+    // Status line with compact cyber chips
+    try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(theme_val.reset);
-    try term.write(" ");
 
-    // Frame counter
-    try term.write(theme_val.text_dim);
-    try term.write("Frame: ");
-    try term.write(theme_val.reset);
-    var buf: [32]u8 = undefined;
+    var buf: [64]u8 = undefined;
     const frame_str = std.fmt.bufPrint(&buf, "{d}", .{state.frame_count}) catch "?";
+    const gpu_count = std.fmt.bufPrint(&buf, "{d}", .{state.gpu_monitor.devices.items.len}) catch "?";
+    const ep_str = std.fmt.bufPrint(&buf, "{d}", .{state.agent_panel.episode_count}) catch "?";
+    const eps_str = std.fmt.bufPrint(&buf, "{d:.2}", .{state.agent_panel.exploration_rate}) catch "?";
+
+    try term.write(" ");
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.chip_fg);
+    try term.write(" frame ");
+    try term.write(theme_val.reset);
+    try term.write(" ");
     try term.write(frame_str);
 
-    // GPU count
-    try term.write(theme_val.text_dim);
-    try term.write(" │ GPUs: ");
+    try term.write("  ");
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.chip_fg);
+    try term.write(" gpus ");
     try term.write(theme_val.reset);
-    const gpu_count = std.fmt.bufPrint(&buf, "{d}", .{state.gpu_monitor.devices.items.len}) catch "?";
+    try term.write(" ");
     try term.write(gpu_count);
 
-    // Agent episode
-    try term.write(theme_val.text_dim);
-    try term.write(" │ Episodes: ");
+    try term.write("  ");
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.chip_fg);
+    try term.write(" episodes ");
     try term.write(theme_val.reset);
-    const ep_str = std.fmt.bufPrint(&buf, "{d}", .{state.agent_panel.episode_count}) catch "?";
+    try term.write(" ");
     try term.write(ep_str);
 
-    // Exploration rate
-    try term.write(theme_val.text_dim);
-    try term.write(" │ ε: ");
+    try term.write("  ");
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.chip_fg);
+    try term.write(" epsilon ");
     try term.write(theme_val.reset);
-    const eps_str = std.fmt.bufPrint(&buf, "{d:.2}", .{state.agent_panel.exploration_rate}) catch "?";
+    try term.write(" ");
     try term.write(eps_str);
 
-    // Pad to width (safe for narrow terminals)
     const status_inner: usize = if (width >= 2) @as(usize, width) - 2 else 0;
-    const status_len = 8 + frame_str.len + 9 + gpu_count.len + 13 + ep_str.len + 6 + eps_str.len;
-    if (status_len < status_inner) {
-        try writeRepeat(term, " ", status_inner - status_len);
-    }
+    const status_len = 48 + frame_str.len + gpu_count.len + ep_str.len + eps_str.len;
+    if (status_len < status_inner) try writeRepeat(term, " ", status_inner - status_len);
 
-    try term.write(theme_val.border);
+    try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(theme_val.reset);
 }
 
 fn renderHelpBar(term: *tui.Terminal, theme_val: *const tui.Theme, row: u16, width: u16) !void {
+    const chrome = style_adapter.gpu(theme_val);
     try setCursorPosition(term, row, 0);
 
     const inner: usize = if (width >= 2) @as(usize, width) - 2 else 0;
-    try term.write(theme_val.border);
+    try term.write(chrome.frame);
     try term.write(box.bl);
     try writeRepeat(term, box.h, inner);
     try term.write(box.br);
     try term.write(theme_val.reset);
     try term.write("\n");
 
-    const full_help_len = 45;
-    if (inner >= full_help_len) {
+    try term.write(" ");
+    if (inner >= 56) {
+        try writeKeyHint(term, chrome, theme_val, "q", "quit");
         try term.write(" ");
-        try term.write(theme_val.accent);
-        try term.write("q");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Quit ");
-        try term.write(box.v);
+        try writeKeyHint(term, chrome, theme_val, "p", "pause");
         try term.write(" ");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.accent);
-        try term.write("p");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Pause ");
-        try term.write(box.v);
+        try writeKeyHint(term, chrome, theme_val, "t/T", "theme");
         try term.write(" ");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.accent);
-        try term.write("t");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Theme ");
-        try term.write(box.v);
+        try writeKeyHint(term, chrome, theme_val, "r", "reset");
         try term.write(" ");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.accent);
-        try term.write("r");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Reset ");
-        try term.write(box.v);
+        try writeKeyHint(term, chrome, theme_val, "h", "help");
+    } else if (inner >= 30) {
+        try writeKeyHint(term, chrome, theme_val, "q", "quit");
         try term.write(" ");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.accent);
-        try term.write("h");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Help");
-        try term.write(theme_val.reset);
-    } else if (inner >= 28) {
+        try writeKeyHint(term, chrome, theme_val, "t", "theme");
         try term.write(" ");
-        try term.write(theme_val.accent);
-        try term.write("q");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Quit ");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.accent);
-        try term.write("p");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Pause ");
-        try term.write(theme_val.accent);
-        try term.write("t");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Theme ");
-        try term.write(theme_val.accent);
-        try term.write("h");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Help");
-        try term.write(theme_val.reset);
-    } else if (inner > 8) {
+        try writeKeyHint(term, chrome, theme_val, "h", "help");
+    } else if (inner >= 14) {
+        try writeKeyHint(term, chrome, theme_val, "q", "quit");
         try term.write(" ");
-        try term.write(theme_val.accent);
-        try term.write("q");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Quit ");
-        try term.write(theme_val.accent);
-        try term.write("h");
-        try term.write(theme_val.reset);
-        try term.write(theme_val.text_dim);
-        try term.write(" Help");
-        try term.write(theme_val.reset);
+        try writeKeyHint(term, chrome, theme_val, "h", "help");
     }
 }
 
 fn renderHelpOverlay(term: *tui.Terminal, theme_val: *const tui.Theme, width: u16, height: u16) !void {
+    const chrome = style_adapter.gpu(theme_val);
     // Center the help box
-    const box_width: u16 = @min(50, width - 4);
-    const box_height: u16 = 15;
+    const box_width: u16 = @min(56, width - 4);
+    const box_height: u16 = @min(@as(u16, 17), height - 2);
     const start_col = (width - box_width) / 2;
     const start_row = (height - box_height) / 2;
 
     // Draw help box
     try setCursorPosition(term, start_row, start_col);
-    try term.write(theme_val.primary);
+    try term.write(chrome.frame);
     try term.write("╔");
     try writeRepeat(term, "═", @as(usize, box_width) - 2);
     try term.write("╗");
@@ -604,52 +593,71 @@ fn renderHelpOverlay(term: *tui.Terminal, theme_val: *const tui.Theme, width: u1
 
     const help_lines = [_][]const u8{
         "",
-        "  GPU Dashboard Help",
+        "  ABI GPU Dashboard - Help",
         "",
         "  [q] / [Esc]   Quit dashboard",
         "  [p]           Pause/Resume updates",
-        "  [t] / [T]     Cycle theme forward/back",
-        "  [r]           Reset statistics",
-        "  [h] / [?]     Toggle this help",
+        "  [t] / [T]     Cycle themes",
+        "  [r]           Reset runtime stats",
+        "  [h] / [?]     Toggle help overlay",
+        "  --theme <name> Set initial theme at startup",
+        "  --list-themes Print all supported themes",
         "",
-        "  GPU Monitor shows backend status,",
-        "  memory usage, and scheduler stats.",
-        "",
-        "  Agent Panel shows learning progress",
-        "  and recent scheduling decisions.",
+        "  Left panel: GPU devices, memory, scheduler",
+        "  Right panel: Agent phase, rewards, decisions",
         "",
     };
 
-    for (help_lines, 0..) |line, i| {
+    const max_lines = @min(help_lines.len, @as(usize, box_height - 2));
+    for (help_lines[0..max_lines], 0..) |line, i| {
         try setCursorPosition(term, start_row + 1 + @as(u16, @intCast(i)), start_col);
-        try term.write(theme_val.primary);
+        try term.write(chrome.frame);
         try term.write("║");
         try term.write(theme_val.reset);
         try term.write(line);
         const pad = @as(usize, box_width) - 2 - line.len;
         try writeRepeat(term, " ", pad);
-        try term.write(theme_val.primary);
+        try term.write(chrome.frame);
         try term.write("║");
         try term.write(theme_val.reset);
     }
 
     try setCursorPosition(term, start_row + box_height - 1, start_col);
-    try term.write(theme_val.primary);
+    try term.write(chrome.frame);
     try term.write("╚");
     try writeRepeat(term, "═", @as(usize, box_width) - 2);
     try term.write("╝");
     try term.write(theme_val.reset);
 
     // Footer hint
-    try setCursorPosition(term, start_row + box_height, start_col + 5);
+    try setCursorPosition(term, start_row + box_height, start_col + 4);
     try term.write(theme_val.text_dim);
-    try term.write("Press any key to close");
+    try term.write("Press q, h, Esc, or Enter to close");
     try term.write(theme_val.reset);
 }
 
 // ===============================================================================
 // Utilities
 // ===============================================================================
+
+fn writeKeyHint(
+    term: *tui.Terminal,
+    chrome: style_adapter.ChromeStyle,
+    theme_val: *const tui.Theme,
+    key: []const u8,
+    label: []const u8,
+) !void {
+    try term.write(chrome.keycap_bg);
+    try term.write(chrome.keycap_fg);
+    try term.write(" ");
+    try term.write(key);
+    try term.write(" ");
+    try term.write(theme_val.reset);
+    try term.write(theme_val.text_dim);
+    try term.write(" ");
+    try term.write(label);
+    try term.write(theme_val.reset);
+}
 
 fn writeRepeat(term: *tui.Terminal, char: []const u8, count: usize) !void {
     for (0..count) |_| {
@@ -679,6 +687,8 @@ fn printHelp() void {
         \\visualization of GPU status and agent learning progress.
         \\
         \\Options:
+        \\  --theme <name>  Set initial theme (exact lowercase name)
+        \\  --list-themes   Print available themes and exit
         \\  -h, --help      Show this help message
         \\
         \\Keyboard Controls:

@@ -101,6 +101,8 @@ fn generateWithProvider(
         .ollama => generateOllama(allocator, cfg),
         .lm_studio => generateLmStudio(allocator, cfg),
         .vllm => generateVllm(allocator, cfg),
+        .anthropic => generateAnthropic(allocator, cfg),
+        .openai => generateOpenAI(allocator, cfg),
         .plugin_http => generateHttpPlugin(allocator, cfg),
         .plugin_native => generateNativePlugin(allocator, cfg),
     };
@@ -163,6 +165,25 @@ fn generateOllama(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !type
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
+    // If structured messages are provided, use the chat endpoint
+    if (cfg.messages) |chat_messages| {
+        const connector_msgs = try convertToConnectorMessages(allocator, connectors.ollama.Message, chat_messages);
+        defer allocator.free(connector_msgs);
+
+        var chat_response = try client.chat(.{
+            .model = client.config.model,
+            .messages = connector_msgs,
+            .stream = false,
+        });
+        defer chat_response.deinit(allocator);
+
+        return .{
+            .provider = .ollama,
+            .model_used = try allocator.dupe(u8, chat_response.model),
+            .content = try allocator.dupe(u8, chat_response.message.content),
+        };
+    }
+
     var response = try client.generate(.{
         .model = client.config.model,
         .prompt = cfg.prompt,
@@ -189,13 +210,21 @@ fn generateLmStudio(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !ty
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    const messages = [_]connectors.lm_studio.Message{
+    // Use structured messages if provided, otherwise wrap prompt
+    const owned_msgs = if (cfg.messages) |chat_messages|
+        try convertToConnectorMessages(allocator, connectors.lm_studio.Message, chat_messages)
+    else
+        null;
+    defer if (owned_msgs) |m| allocator.free(m);
+
+    const default_msgs = [_]connectors.lm_studio.Message{
         .{ .role = "user", .content = cfg.prompt },
     };
+    const messages: []const connectors.lm_studio.Message = owned_msgs orelse &default_msgs;
 
     var response = try client.chatCompletion(.{
         .model = client.config.model,
-        .messages = &messages,
+        .messages = messages,
         .temperature = cfg.temperature,
         .max_tokens = cfg.max_tokens,
         .top_p = cfg.top_p,
@@ -218,13 +247,21 @@ fn generateVllm(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.
 
     try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
 
-    const messages = [_]connectors.vllm.Message{
+    // Use structured messages if provided, otherwise wrap prompt
+    const owned_msgs = if (cfg.messages) |chat_messages|
+        try convertToConnectorMessages(allocator, connectors.vllm.Message, chat_messages)
+    else
+        null;
+    defer if (owned_msgs) |m| allocator.free(m);
+
+    const default_msgs = [_]connectors.vllm.Message{
         .{ .role = "user", .content = cfg.prompt },
     };
+    const messages: []const connectors.vllm.Message = owned_msgs orelse &default_msgs;
 
     var response = try client.chatCompletion(.{
         .model = client.config.model,
-        .messages = &messages,
+        .messages = messages,
         .temperature = cfg.temperature,
         .max_tokens = cfg.max_tokens,
         .top_p = cfg.top_p,
@@ -297,4 +334,139 @@ fn deinitVllmResponse(allocator: std.mem.Allocator, response: *connectors.vllm.C
     }
     allocator.free(response.choices);
     response.* = undefined;
+}
+
+fn deinitAnthropicResponse(allocator: std.mem.Allocator, response: *connectors.anthropic.MessagesResponse) void {
+    allocator.free(response.id);
+    allocator.free(response.type);
+    allocator.free(response.role);
+    allocator.free(response.model);
+    if (response.stop_reason) |sr| allocator.free(sr);
+    for (response.content) |*block| {
+        allocator.free(block.type);
+        allocator.free(block.text);
+    }
+    allocator.free(response.content);
+    response.* = undefined;
+}
+
+fn deinitOpenAIResponse(allocator: std.mem.Allocator, response: *connectors.openai.ChatCompletionResponse) void {
+    allocator.free(response.id);
+    allocator.free(response.object);
+    allocator.free(response.model);
+    for (response.choices) |*choice| {
+        allocator.free(choice.message.role);
+        allocator.free(choice.message.content);
+        allocator.free(choice.finish_reason);
+    }
+    allocator.free(response.choices);
+    response.* = undefined;
+}
+
+fn generateAnthropic(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.GenerateResult {
+    var client = try connectors.anthropic.createClient(allocator);
+    defer client.deinit();
+
+    try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
+
+    var response: connectors.anthropic.MessagesResponse = undefined;
+
+    if (cfg.messages) |chat_messages| {
+        const connector_msgs = try convertToConnectorMessages(allocator, connectors.anthropic.Message, chat_messages);
+        defer allocator.free(connector_msgs);
+
+        if (cfg.system_prompt) |system| {
+            response = try client.chatWithSystem(system, connector_msgs);
+        } else {
+            response = try client.chat(connector_msgs);
+        }
+    } else {
+        if (cfg.system_prompt) |system| {
+            const msgs = [_]connectors.anthropic.Message{
+                .{ .role = "user", .content = cfg.prompt },
+            };
+            response = try client.chatWithSystem(system, &msgs);
+        } else {
+            response = try client.chatSimple(cfg.prompt);
+        }
+    }
+    defer deinitAnthropicResponse(allocator, &response);
+
+    const text = try client.getResponseText(response);
+
+    return .{
+        .provider = .anthropic,
+        .model_used = try allocator.dupe(u8, response.model),
+        .content = text,
+    };
+}
+
+fn generateOpenAI(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !types.GenerateResult {
+    var client = try connectors.openai.createClient(allocator);
+    defer client.deinit();
+
+    try setConnectorModel(allocator, &client.config.model, &client.config.model_owned, cfg.model);
+
+    var response: connectors.openai.ChatCompletionResponse = undefined;
+
+    if (cfg.messages) |chat_messages| {
+        // Build message list; prepend system prompt if provided
+        var msg_list = std.ArrayListUnmanaged(connectors.openai.Message).empty;
+        defer msg_list.deinit(allocator);
+
+        if (cfg.system_prompt) |system| {
+            try msg_list.append(allocator, .{ .role = "system", .content = system });
+        }
+        for (chat_messages) |msg| {
+            try msg_list.append(allocator, .{ .role = msg.role, .content = msg.content });
+        }
+
+        response = try client.chatCompletion(.{
+            .model = client.config.model,
+            .messages = msg_list.items,
+            .temperature = cfg.temperature,
+            .max_tokens = cfg.max_tokens,
+            .stream = false,
+        });
+    } else {
+        if (cfg.system_prompt) |system| {
+            var msgs = [_]connectors.openai.Message{
+                .{ .role = "system", .content = system },
+                .{ .role = "user", .content = cfg.prompt },
+            };
+            response = try client.chatCompletion(.{
+                .model = client.config.model,
+                .messages = &msgs,
+                .temperature = cfg.temperature,
+                .max_tokens = cfg.max_tokens,
+                .stream = false,
+            });
+        } else {
+            response = try client.chatSimple(cfg.prompt);
+        }
+    }
+    defer deinitOpenAIResponse(allocator, &response);
+
+    if (response.choices.len == 0) return errors.ProviderError.GenerationFailed;
+
+    return .{
+        .provider = .openai,
+        .model_used = try allocator.dupe(u8, response.model),
+        .content = try allocator.dupe(u8, response.choices[0].message.content),
+    };
+}
+
+/// Convert provider-agnostic ChatMessage slice to a connector-native Message slice.
+/// Both types have the same { role, content } layout, so this is a field-by-field copy.
+/// Caller owns the returned slice and must free it with allocator.free().
+fn convertToConnectorMessages(
+    allocator: std.mem.Allocator,
+    comptime ConnectorMessage: type,
+    chat_messages: []const types.ChatMessage,
+) ![]const ConnectorMessage {
+    const msgs = try allocator.alloc(ConnectorMessage, chat_messages.len);
+    for (chat_messages, 0..) |msg, i| {
+        msgs[i] = .{ .role = msg.role, .content = msg.content };
+    }
+    return msgs;
 }

@@ -200,6 +200,7 @@ comptime {
         _ = @import("tests/integration_test.zig");
         _ = @import("tests/all_backends_test.zig");
         _ = @import("peer_transfer/tests.zig");
+        _ = @import("peer_transfer/network.zig");
         // Performance optimization module tests
         _ = @import("sync_event.zig");
         _ = @import("kernel_ring.zig");

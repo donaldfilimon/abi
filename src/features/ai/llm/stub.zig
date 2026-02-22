@@ -496,12 +496,28 @@ pub const providers = struct {
         ollama,
         lm_studio,
         vllm,
+        anthropic,
+        openai,
         plugin_http,
         plugin_native,
 
         pub fn label(self: ProviderId) []const u8 {
             return @tagName(self);
         }
+
+        pub fn fromString(value: []const u8) ?ProviderId {
+            inline for (std.meta.fields(ProviderId)) |field| {
+                if (std.mem.eql(u8, value, field.name)) {
+                    return @enumFromInt(field.value);
+                }
+            }
+            return null;
+        }
+    };
+
+    pub const ChatMessage = struct {
+        role: []const u8,
+        content: []const u8,
     };
 
     pub const GenerateConfig = struct {
@@ -516,6 +532,8 @@ pub const providers = struct {
         top_p: f32 = 0.9,
         top_k: u32 = 40,
         repetition_penalty: f32 = 1.1,
+        messages: ?[]const ChatMessage = null,
+        system_prompt: ?[]const u8 = null,
     };
 
     pub const GenerateResult = struct {
@@ -533,6 +551,140 @@ pub const providers = struct {
     pub fn generate(_: std.mem.Allocator, _: GenerateConfig) ProviderError!GenerateResult {
         return error.LlmDisabled;
     }
+
+    pub const health = struct {
+        pub fn isAvailable(_: std.mem.Allocator, _: ProviderId, _: ?[]const u8) bool {
+            return false;
+        }
+    };
+
+    pub const registry = struct {
+        pub const all_providers = [_]ProviderId{
+            .local_gguf,
+            .llama_cpp,
+            .mlx,
+            .ollama,
+            .lm_studio,
+            .vllm,
+            .anthropic,
+            .openai,
+            .plugin_http,
+            .plugin_native,
+        };
+
+        pub const file_model_chain = [_]ProviderId{
+            .local_gguf,
+            .llama_cpp,
+            .mlx,
+            .ollama,
+            .lm_studio,
+            .vllm,
+            .plugin_http,
+            .plugin_native,
+        };
+
+        pub const model_name_chain = [_]ProviderId{
+            .llama_cpp,
+            .mlx,
+            .ollama,
+            .lm_studio,
+            .vllm,
+            .plugin_http,
+            .plugin_native,
+            .anthropic,
+            .openai,
+        };
+
+        pub fn looksLikeModelPath(_: []const u8) bool {
+            return false;
+        }
+    };
+
+    pub const plugins = struct {
+        pub const manifest = struct {
+            pub const PluginKind = enum {
+                http,
+                native,
+
+                pub fn fromString(value: []const u8) ?PluginKind {
+                    if (std.mem.eql(u8, value, "http")) return .http;
+                    if (std.mem.eql(u8, value, "native")) return .native;
+                    return null;
+                }
+
+                pub fn label(self: PluginKind) []const u8 {
+                    return switch (self) {
+                        .http => "http",
+                        .native => "native",
+                    };
+                }
+            };
+
+            pub const PluginEntry = struct {
+                id: []u8,
+                kind: PluginKind,
+                enabled: bool = true,
+                base_url: ?[]u8 = null,
+                model: ?[]u8 = null,
+                api_key_env: ?[]u8 = null,
+                library_path: ?[]u8 = null,
+                symbol: ?[]u8 = null,
+
+                pub fn deinit(_: *PluginEntry, _: std.mem.Allocator) void {}
+            };
+
+            pub const Manifest = struct {
+                allocator: std.mem.Allocator,
+                entries: std.ArrayListUnmanaged(PluginEntry) = .empty,
+
+                pub fn init(allocator: std.mem.Allocator) Manifest {
+                    return .{ .allocator = allocator };
+                }
+                pub fn deinit(_: *Manifest) void {}
+                pub fn find(_: *const Manifest, _: []const u8) ?*const PluginEntry {
+                    return null;
+                }
+                pub fn findPtr(_: *Manifest, _: []const u8) ?*PluginEntry {
+                    return null;
+                }
+                pub fn findIndex(_: *const Manifest, _: []const u8) ?usize {
+                    return null;
+                }
+                pub fn addOrUpdateHttp(_: *Manifest, _: []const u8, _: []const u8, _: ?[]const u8, _: ?[]const u8) !void {
+                    return error.LlmDisabled;
+                }
+                pub fn addOrUpdateNative(_: *Manifest, _: []const u8, _: []const u8, _: ?[]const u8) !void {
+                    return error.LlmDisabled;
+                }
+                pub fn setEnabled(_: *Manifest, _: []const u8, _: bool) bool {
+                    return false;
+                }
+                pub fn remove(_: *Manifest, _: []const u8) bool {
+                    return false;
+                }
+            };
+
+            pub fn loadDefault(allocator: std.mem.Allocator) !Manifest {
+                return Manifest.init(allocator);
+            }
+            pub fn saveDefault(_: *const Manifest) !void {
+                return error.LlmDisabled;
+            }
+        };
+        pub const loader = struct {
+            pub fn hasAnyEnabled(_: anytype) bool {
+                return false;
+            }
+            pub fn findEnabledByKind(_: std.mem.Allocator, _: anytype, _: ?[]const u8) !?struct {
+                pub fn deinit(_: *@This(), _: std.mem.Allocator) void {}
+            } {
+                return null;
+            }
+        };
+        pub const http_plugin = struct {};
+        pub const native_abi_v1 = struct {};
+        pub const native_plugin = struct {};
+    };
 };
 
 // --- Context ---

@@ -4,6 +4,7 @@ const tui = @import("../../tui/mod.zig");
 const types = @import("types.zig");
 const state_mod = @import("state.zig");
 const menu_mod = @import("menu.zig");
+const style_adapter = @import("style_adapter.zig");
 
 const TuiState = state_mod.TuiState;
 const box = types.box;
@@ -12,63 +13,67 @@ const writeRepeat = tui.render_utils.writeRepeat;
 
 pub fn render(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     const th = state.theme();
+    const chrome = style_adapter.launcher(th);
+    const inner = width -| 2;
 
     // Header
-    try term.write(th.border);
+    try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(th.reset);
     try term.write(" ");
-    try term.write(th.bold);
-    try term.write(th.accent);
-    try term.write("Recent Commands:");
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.chip_fg);
+    try term.write(" HISTORY ");
+    try term.write(th.reset);
+    try term.write(" ");
+    try term.write(th.text_dim);
+    try term.write("recent command launches");
     try term.write(th.reset);
 
-    const header_used: usize = 2 + 1 + unicode.displayWidth("Recent Commands:");
-    if (header_used < width - 1) {
-        try writeRepeat(term, " ", width - 1 - header_used);
-    }
-    try term.write(th.border);
+    const used_header: usize = 31;
+    if (used_header < inner) try writeRepeat(term, " ", inner - used_header);
+    try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(th.reset);
     try term.write("\n");
 
-    // Show up to 5 recent commands
     const max_show = @min(state.history.items.len, 5);
     for (0..max_show) |i| {
         const entry = state.history.items[i];
         const cmd_name = menu_mod.commandName(entry.command);
 
-        try term.write(th.border);
+        try term.write(chrome.frame);
         try term.write(box.v);
         try term.write(th.reset);
-        try term.write("   ");
-        try term.write(th.text_dim);
-        var num_buf: [2]u8 = undefined;
+        try term.write(" ");
+
+        try term.write(chrome.keycap_bg);
+        try term.write(chrome.keycap_fg);
+        try term.write(" ");
+        var num_buf: [1]u8 = undefined;
         num_buf[0] = '1' + @as(u8, @intCast(i));
-        num_buf[1] = '.';
         try term.write(&num_buf);
         try term.write(" ");
         try term.write(th.reset);
-        try term.write(th.secondary);
+        try term.write(" ");
+
+        try term.write(chrome.title);
         try term.write(cmd_name);
         try term.write(th.reset);
 
         const cmd_w = unicode.displayWidth(cmd_name);
-        const used = 7 + cmd_w;
-        if (used < width - 1) {
-            try writeRepeat(term, " ", width - 1 - used);
-        }
+        const used = 8 + cmd_w;
+        if (used < inner) try writeRepeat(term, " ", inner - used);
 
-        try term.write(th.border);
+        try term.write(chrome.frame);
         try term.write(box.v);
         try term.write(th.reset);
         try term.write("\n");
     }
 
-    // Separator
-    try term.write(th.border);
+    try term.write(chrome.frame);
     try term.write(box.lsep);
-    try writeRepeat(term, box.h, width - 2);
+    try writeRepeat(term, box.h, inner);
     try term.write(box.rsep);
     try term.write(th.reset);
     try term.write("\n");

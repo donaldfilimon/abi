@@ -19,6 +19,7 @@ const state_mod = @import("state.zig");
 const render = @import("render.zig");
 const input = @import("input.zig");
 const tui_layout = @import("layout.zig");
+const theme_options = @import("../ui/theme_options.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "tui",
@@ -39,21 +40,38 @@ const TuiState = state_mod.TuiState;
 
 /// Entry point for the TUI command.
 pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
+    var parsed = try theme_options.parseThemeArgs(allocator, args);
+    defer parsed.deinit();
 
-    if (parser.wantsHelp()) {
+    if (parsed.list_themes) {
+        theme_options.printAvailableThemes();
+        return;
+    }
+
+    if (parsed.wants_help) {
         printHelp();
         return;
+    }
+
+    if (parsed.remaining_args.len > 0) {
+        utils.output.printError("Unknown argument for ui launch: {s}", .{parsed.remaining_args[0]});
+        theme_options.printThemeHint();
+        return error.InvalidArgument;
     }
 
     const fw_config = abi.Config.defaults();
     var framework = try abi.Framework.initWithIo(allocator, fw_config, io);
     defer framework.deinit();
 
-    try runInteractive(allocator, &framework);
+    const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
+    try runInteractive(allocator, &framework, initial_theme);
 }
 
-fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void {
+fn runInteractive(
+    allocator: std.mem.Allocator,
+    framework: *abi.Framework,
+    initial_theme: *const tui.Theme,
+) !void {
     // Check platform support before initializing
     if (!tui.Terminal.isSupported()) {
         const caps = tui.Terminal.capabilities();
@@ -83,7 +101,7 @@ fn runInteractive(allocator: std.mem.Allocator, framework: *abi.Framework) !void
     };
     defer terminal.exit() catch {};
 
-    var state = try TuiState.init(allocator, &terminal, framework);
+    var state = try TuiState.init(allocator, &terminal, framework, initial_theme);
     defer state.deinit();
 
     // Shared async loop aligns launcher behavior with dashboards/monitors.
@@ -145,6 +163,13 @@ fn launcherUpdate(loop: *tui.AsyncLoop, event: tui.AsyncEvent) !bool {
 
 pub fn printHelp() void {
     input.printHelp();
+    std.debug.print(
+        \\
+        \\Launcher options:
+        \\  --theme <name>     Set initial theme (exact lowercase name)
+        \\  --list-themes      Print available themes and exit
+        \\
+    , .{});
 }
 
 // ═══════════════════════════════════════════════════════════════════

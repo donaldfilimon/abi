@@ -513,6 +513,10 @@ pub const Context = struct {
 
 // ── Free functions ─────────────────────────────────────────────────────────
 
+pub fn selfLearningConfigFromCore(_: config_module.TrainingConfig) SelfLearningConfig {
+    return .{};
+}
+
 pub fn isEnabled() bool {
     return false;
 }
@@ -546,6 +550,53 @@ pub fn saveCheckpoint(_: std.mem.Allocator, _: []const u8, _: CheckpointView) Sa
 pub fn parseInstructionDataset(_: std.mem.Allocator, _: []const u8) Error!std.ArrayListUnmanaged(InstructionSample) {
     return error.TrainingDisabled;
 }
+
+// ── Distributed training stub ──────────────────────────────────────────────
+
+pub const distributed = struct {
+    pub const ReduceOp = enum { sum, average };
+
+    pub const DistributedConfig = struct {
+        world_size: u32 = 1,
+        rank: u32 = 0,
+        is_coordinator: bool = true,
+        bucket_size_bytes: usize = 25 * 1024 * 1024,
+        enable_compression: bool = false,
+        reduce_op: ReduceOp = .average,
+        pub fn validate(_: @This()) error{InvalidConfig}!void {
+            return error.InvalidConfig;
+        }
+    };
+
+    const Self = @This();
+
+    pub const DistributedTrainer = struct {
+        pub const Stats = struct {
+            total_allreduce_calls: u64 = 0,
+            total_bytes_synced: u64 = 0,
+            total_sync_time_ns: u64 = 0,
+            epochs_completed: u32 = 0,
+        };
+        pub fn init(_: std.mem.Allocator, _: Self.DistributedConfig) @This() {
+            return .{};
+        }
+        pub fn deinit(_: *@This()) void {}
+        pub fn synchronizeGradients(_: *@This(), _: []f32) void {}
+        pub fn shardData(_: *const @This(), comptime T: type, data: []const T) []const T {
+            return data;
+        }
+        pub fn shouldLog(_: *const @This()) bool {
+            return false;
+        }
+        pub fn recordEpoch(_: *@This()) void {}
+        pub fn getStats(_: *const @This()) Stats {
+            return .{};
+        }
+    };
+};
+
+pub const DistributedConfig = distributed.DistributedConfig;
+pub const DistributedTrainer = distributed.DistributedTrainer;
 
 // ── Submodule re-exports ───────────────────────────────────────────────────
 

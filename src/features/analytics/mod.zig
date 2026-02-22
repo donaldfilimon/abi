@@ -387,3 +387,163 @@ test "Experiment assigns deterministically" {
 
     try std.testing.expectEqual(@as(u64, 2), exp.totalAssignments());
 }
+
+test "AnalyticsConfig default values" {
+    const config = AnalyticsConfig{};
+    try std.testing.expectEqual(@as(u32, 1024), config.buffer_capacity);
+    try std.testing.expect(config.enable_timestamps);
+    try std.testing.expectEqualStrings("abi-app", config.app_id);
+    try std.testing.expectEqual(@as(u64, 0), config.flush_interval_ms);
+}
+
+test "Engine getStats reflects state" {
+    const allocator = std.testing.allocator;
+    var engine = Engine.init(allocator, .{ .buffer_capacity = 50 });
+    defer engine.deinit();
+
+    try engine.track("ev1");
+    try engine.track("ev2");
+    _ = engine.startSession();
+
+    const s = engine.getStats();
+    try std.testing.expectEqual(@as(usize, 2), s.buffered_events);
+    try std.testing.expectEqual(@as(u64, 2), s.total_events);
+    try std.testing.expectEqual(@as(u64, 1), s.total_sessions);
+}
+
+test "Engine flush then track more" {
+    const allocator = std.testing.allocator;
+    var engine = Engine.init(allocator, .{ .buffer_capacity = 10 });
+    defer engine.deinit();
+
+    try engine.track("a");
+    try engine.track("b");
+    _ = engine.flush();
+
+    try engine.track("c");
+    try std.testing.expectEqual(@as(usize, 1), engine.bufferedCount());
+    try std.testing.expectEqual(@as(u64, 3), engine.totalEvents());
+}
+
+test "Engine timestamps disabled" {
+    const allocator = std.testing.allocator;
+    var engine = Engine.init(allocator, .{
+        .buffer_capacity = 10,
+        .enable_timestamps = false,
+    });
+    defer engine.deinit();
+
+    try engine.track("no-ts");
+    // When timestamps are disabled, the stored event should have timestamp 0
+    try std.testing.expectEqual(@as(usize, 1), engine.bufferedCount());
+}
+
+test "Funnel empty step counts" {
+    const allocator = std.testing.allocator;
+    var funnel = Funnel.init(allocator, "empty_funnel");
+    defer funnel.deinit();
+
+    var buf: [4]u64 = undefined;
+    const counts = funnel.getStepCounts(&buf);
+    try std.testing.expectEqual(@as(usize, 0), counts.len);
+}
+
+test "Funnel recordStep out of bounds is safe" {
+    const allocator = std.testing.allocator;
+    var funnel = Funnel.init(allocator, "safe_funnel");
+    defer funnel.deinit();
+
+    try funnel.addStep("only_step");
+    // Out-of-bounds index should be silently ignored
+    funnel.recordStep(99);
+
+    var buf: [1]u64 = undefined;
+    const counts = funnel.getStepCounts(&buf);
+    try std.testing.expectEqual(@as(u64, 0), counts[0]);
+}
+
+test "Funnel getStepCounts with smaller buffer" {
+    const allocator = std.testing.allocator;
+    var funnel = Funnel.init(allocator, "sized_funnel");
+    defer funnel.deinit();
+
+    try funnel.addStep("step1");
+    try funnel.addStep("step2");
+    try funnel.addStep("step3");
+
+    funnel.recordStep(0);
+    funnel.recordStep(1);
+    funnel.recordStep(2);
+
+    // Buffer smaller than step count — should only return buf.len entries
+    var buf: [2]u64 = undefined;
+    const counts = funnel.getStepCounts(&buf);
+    try std.testing.expectEqual(@as(usize, 2), counts.len);
+    try std.testing.expectEqual(@as(u64, 1), counts[0]);
+    try std.testing.expectEqual(@as(u64, 1), counts[1]);
+}
+
+test "Experiment empty variants returns control" {
+    var exp = Experiment{
+        .name = "empty_exp",
+        .variants = &.{},
+    };
+    const variant = exp.assign("any-user");
+    try std.testing.expectEqualStrings("control", variant);
+    // assignments counter should NOT increment for empty variants
+    try std.testing.expectEqual(@as(u64, 0), exp.totalAssignments());
+}
+
+test "Experiment different users may get different variants" {
+    var exp = Experiment{
+        .name = "multi_variant",
+        .variants = &.{ "a", "b", "c", "d" },
+    };
+    // Assign many users and verify all results are valid variants
+    const users = [_][]const u8{ "u1", "u2", "u3", "u4", "u5", "u6", "u7", "u8" };
+    for (users) |uid| {
+        const v = exp.assign(uid);
+        var found = false;
+        for (exp.variants) |candidate| {
+            if (std.mem.eql(u8, v, candidate)) {
+                found = true;
+                break;
+            }
+        }
+        try std.testing.expect(found);
+    }
+    try std.testing.expectEqual(@as(u64, 8), exp.totalAssignments());
+}
+
+test "Context init and getEngine" {
+    const allocator = std.testing.allocator;
+    const ctx = try Context.init(allocator, .{});
+    defer ctx.deinit();
+
+    const engine_ptr = ctx.getEngine();
+    try std.testing.expect(engine_ptr != null);
+}
+
+test "Event.Value union variants" {
+    const str_val = Event.Value{ .string = "hello" };
+    const int_val = Event.Value{ .int = 42 };
+    const float_val = Event.Value{ .float = 3.14 };
+    const bool_val = Event.Value{ .boolean = true };
+
+    switch (str_val) {
+        .string => |s| try std.testing.expectEqualStrings("hello", s),
+        else => return error.TestUnexpectedResult,
+    }
+    switch (int_val) {
+        .int => |i| try std.testing.expectEqual(@as(i64, 42), i),
+        else => return error.TestUnexpectedResult,
+    }
+    switch (float_val) {
+        .float => |f| try std.testing.expectApproxEqAbs(@as(f64, 3.14), f, 0.001),
+        else => return error.TestUnexpectedResult,
+    }
+    switch (bool_val) {
+        .boolean => |b| try std.testing.expect(b),
+        else => return error.TestUnexpectedResult,
+    }
+}

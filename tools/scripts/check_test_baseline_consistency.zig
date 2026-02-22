@@ -128,6 +128,11 @@ pub fn main(_: std.process.Init) !void {
         "1512 pass",
         "1534 pass",
         "1976 pass",
+        "1535 pass",
+        "1975 pass",
+        "1996 pass",
+        "1997 pass",
+        "2001 total",
     };
 
     for (stale_markers) |marker| {

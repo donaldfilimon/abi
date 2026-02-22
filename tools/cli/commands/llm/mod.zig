@@ -16,12 +16,13 @@ const session_cmd = @import("session.zig");
 const providers_cmd = @import("providers.zig");
 const plugins_cmd = @import("plugins.zig");
 const serve_cmd = @import("serve.zig");
+const discover_cmd = @import("discover.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "llm",
-    .description = "LLM inference (run, session, serve, providers, plugins)",
+    .description = "LLM inference (run, session, serve, providers, plugins, discover)",
     .aliases = &.{ "chat", "reasoning", "serve" },
-    .subcommands = &.{ "run", "session", "serve", "providers", "plugins", "help" },
+    .subcommands = &.{ "run", "session", "serve", "providers", "plugins", "discover", "help" },
     .kind = .group,
     .children = &.{
         .{ .name = "run", .description = "One-shot generation through provider router", .handler = .{ .basic = run_cmd.runRun } },
@@ -29,6 +30,7 @@ pub const meta: command_mod.Meta = .{
         .{ .name = "serve", .description = "Start streaming HTTP server", .handler = .{ .basic = serve_cmd.runServe } },
         .{ .name = "providers", .description = "Show provider availability and routing order", .handler = .{ .basic = providers_cmd.runProviders } },
         .{ .name = "plugins", .description = "Manage HTTP/native provider plugins", .handler = .{ .basic = plugins_cmd.runPlugins } },
+        .{ .name = "discover", .description = "Auto-discover available LLM providers", .handler = .{ .basic = discover_cmd.runDiscover } },
     },
 };
 
@@ -49,7 +51,7 @@ pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
         return;
     }
     std.debug.print("Unknown llm command: {s}\n", .{sub});
-    if (utils.args.suggestCommand(sub, &.{ "run", "session", "serve", "providers", "plugins" })) |suggestion| {
+    if (utils.args.suggestCommand(sub, &.{ "run", "session", "serve", "providers", "plugins", "discover" })) |suggestion| {
         std.debug.print("Did you mean: {s}\n", .{suggestion});
     }
     std.process.exit(1);
@@ -63,11 +65,13 @@ pub fn printHelp() void {
             "  session     Interactive session through provider router\\n" ++
             "  serve       Start streaming HTTP server\\n" ++
             "  providers   Show provider availability and routing order\\n" ++
-            "  plugins     Manage HTTP/native provider plugins\\n\\n" ++
+            "  plugins     Manage HTTP/native provider plugins\\n" ++
+            "  discover    Auto-discover available LLM providers\\n\\n" ++
             "Examples:\\n" ++
             "  abi llm run --model ./model.gguf --prompt \"hello\"\\n" ++
             "  abi llm run --model llama3 --prompt \"status\" --fallback mlx,ollama\\n" ++
             "  abi llm session --model llama3 --backend ollama\\n" ++
+            "  abi llm discover\\n" ++
             "  abi llm providers\\n" ++
             "  abi llm plugins list\\n" ++
             "  abi llm serve --help\\n",

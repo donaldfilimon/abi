@@ -45,6 +45,9 @@ pub const cuda_backend = if (build_options.gpu_cuda and backend_shared.dynlibSup
 pub const vulkan_backend = if (build_options.gpu_vulkan) @import("vulkan.zig") else struct {};
 pub const metal_backend = if (build_options.gpu_metal) @import("metal.zig") else struct {};
 
+// Network-based cross-node peer transfer
+pub const network = @import("network.zig");
+
 pub const DeviceId = multi_device.DeviceId;
 pub const DeviceGroup = multi_device.DeviceGroup;
 pub const ReduceOp = multi_device.ReduceOp;

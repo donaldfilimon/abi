@@ -24,7 +24,7 @@ zig build fix                            # Auto-format in place
 
 ```bash
 zig build test --summary all             # Main test suite (1254 pass, 5 skip)
-zig build feature-tests --summary all    # Feature inline tests (1535 pass)
+zig build feature-tests --summary all    # Feature inline tests (2044 pass)
 zig build cli-tests                      # CLI smoke tests
 zig build validate-flags                 # Compile-check 34 feature flag combos
 zig build vnext-compat                   # vNext compatibility tests
@@ -142,7 +142,7 @@ Use submodule paths: `abi.ai.core`, `abi.ai.llm`, `abi.ai.training`, `abi.ai.rea
 
 ### Test Baselines (must be maintained)
 - **Main tests**: 1254 pass, 5 skip (1259 total) -- source of truth: `tools/scripts/baseline.zig`
-- **Feature tests**: 1535 pass, 0 skip (1535 total)
+- **Feature tests**: 2044 pass, 4 skip (2048 total)
 
 ### Test Discovery
 - Use `test { _ = @import(...); }` to include submodule tests. `comptime {}` does NOT work.

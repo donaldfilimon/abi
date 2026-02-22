@@ -17,12 +17,65 @@
 //!   const response = try transport.sendRequest("192.168.1.2:9000", request_data);
 
 const std = @import("std");
+const Io = std.Io;
 const platform_time = @import("../../services/shared/utils.zig");
 const time = platform_time;
 const sync = @import("../../services/shared/sync.zig");
 const connection_pool = @import("connection_pool.zig");
 const circuit_breaker = @import("circuit_breaker.zig");
 const retry = @import("retry.zig");
+
+/// Network address wrapper for low-level posix socket operations.
+/// Replaces the removed `std.net.Address` in Zig 0.16 by wrapping
+/// `std.Io.net.IpAddress` parsing with a sockaddr layout for posix calls.
+pub const NetworkAddress = struct {
+    /// Raw sockaddr storage large enough for IPv4 or IPv6.
+    any: std.posix.sockaddr,
+    addr_len: std.posix.socklen_t,
+
+    /// Parse an IPv4 address string and port into a NetworkAddress.
+    pub fn parseIp4(host: []const u8, port: u16) !NetworkAddress {
+        const ip4 = Io.net.Ip4Address.parse(host, port) catch return error.InvalidAddress;
+        var addr: NetworkAddress = undefined;
+        // Build sockaddr.in from parsed IPv4 bytes
+        const sin: *std.c.sockaddr.in = @ptrCast(@alignCast(&addr.any));
+        sin.* = .{
+            .port = std.mem.nativeToBig(u16, ip4.port),
+            .addr = @bitCast(ip4.bytes),
+        };
+        addr.addr_len = @sizeOf(std.c.sockaddr.in);
+        return addr;
+    }
+
+    /// Parse an IPv6 address string and port into a NetworkAddress.
+    pub fn parseIp6(host: []const u8, port: u16) !NetworkAddress {
+        const ip6 = Io.net.Ip6Address.parse(host, port) catch return error.InvalidAddress;
+        var addr: NetworkAddress = undefined;
+        const sin6: *std.c.sockaddr.in6 = @ptrCast(@alignCast(&addr.any));
+        sin6.* = .{
+            .port = std.mem.nativeToBig(u16, ip6.port),
+            .flowinfo = ip6.flow,
+            .addr = ip6.bytes,
+            .scope_id = switch (ip6.interface) {
+                .none => 0,
+                .index => |idx| idx,
+                .name => 0,
+            },
+        };
+        addr.addr_len = @sizeOf(std.c.sockaddr.in6);
+        return addr;
+    }
+
+    /// Return the address family (AF.INET or AF.INET6).
+    pub fn family(self: *const NetworkAddress) std.posix.AF {
+        return @enumFromInt(self.any.family);
+    }
+
+    /// Return the sockaddr length for posix calls.
+    pub fn getOsSockLen(self: *const NetworkAddress) std.posix.socklen_t {
+        return self.addr_len;
+    }
+};
 
 /// Transport configuration.
 pub const TransportConfig = struct {
@@ -256,9 +309,9 @@ pub const PeerConnection = struct {
         self.state = .connecting;
 
         // Parse address
-        const addr = std.net.Address.parseIp4(self.address, self.port) catch {
+        const addr = NetworkAddress.parseIp4(self.address, self.port) catch {
             // Try IPv6
-            const addr6 = std.net.Address.parseIp6(self.address, self.port) catch {
+            const addr6 = NetworkAddress.parseIp6(self.address, self.port) catch {
                 self.state = .error_state;
                 return TransportError.AddressParseError;
             };
@@ -268,9 +321,9 @@ pub const PeerConnection = struct {
         return self.connectToAddress(addr, config);
     }
 
-    fn connectToAddress(self: *PeerConnection, addr: std.net.Address, config: TransportConfig) !void {
+    fn connectToAddress(self: *PeerConnection, addr: NetworkAddress, config: TransportConfig) !void {
         const socket = std.posix.socket(
-            addr.any.family,
+            @intFromEnum(addr.family()),
             std.posix.SOCK.STREAM,
             std.posix.IPPROTO.TCP,
         ) catch {
@@ -518,7 +571,7 @@ pub const TcpTransport = struct {
         }
 
         // Create listener socket
-        const addr = std.net.Address.parseIp4(
+        const addr = NetworkAddress.parseIp4(
             self.config.listen_address,
             self.config.listen_port,
         ) catch {
@@ -526,7 +579,7 @@ pub const TcpTransport = struct {
         };
 
         const listener = std.posix.socket(
-            addr.any.family,
+            @intFromEnum(addr.family()),
             std.posix.SOCK.STREAM,
             std.posix.IPPROTO.TCP,
         ) catch {
@@ -800,12 +853,12 @@ pub const TcpTransport = struct {
         const listener = self.listener orelse return;
 
         while (self.running.load(.acquire)) {
-            var client_addr: std.net.Address = undefined;
-            var addr_len: std.posix.socklen_t = @sizeOf(std.net.Address);
+            var client_addr: std.posix.sockaddr = undefined;
+            var addr_len: std.posix.socklen_t = @sizeOf(std.posix.sockaddr);
 
             const client_fd = std.posix.accept(
                 listener,
-                &client_addr.any,
+                &client_addr,
                 &addr_len,
                 0,
             ) catch |err| {
@@ -824,7 +877,7 @@ pub const TcpTransport = struct {
     }
 
     // Internal: Handle a single client connection
-    fn handleConnection(self: *TcpTransport, client_fd: std.posix.socket_t, addr: std.net.Address) void {
+    fn handleConnection(self: *TcpTransport, client_fd: std.posix.socket_t, addr: std.posix.sockaddr) void {
         defer std.posix.close(client_fd);
 
         var addr_buf: [64]u8 = undefined;

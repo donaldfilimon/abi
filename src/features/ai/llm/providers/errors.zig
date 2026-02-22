@@ -11,4 +11,5 @@ pub const ProviderError = error{
     AbiVersionMismatch,
     SymbolMissing,
     GenerationFailed,
+    MissingApiKey,
 };

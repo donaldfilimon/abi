@@ -6,6 +6,6 @@ pub const test_main_pass: usize = 1254;
 pub const test_main_skip: usize = 5;
 pub const test_main_total: usize = 1259;
 
-pub const test_feature_pass: usize = 1983;
+pub const test_feature_pass: usize = 2044;
 pub const test_feature_skip: usize = 4;
-pub const test_feature_total: usize = 1987;
+pub const test_feature_total: usize = 2048;

@@ -113,8 +113,8 @@ pub const StreamChunk = struct {
 /// Error set for LLM client operations.
 /// Covers the known backend error surface used by the client interface.
 pub const ClientError = error{
-    /// The requested operation is not implemented
-    NotImplemented,
+    /// The web feature must be enabled for HTTP-based backends
+    WebFeatureRequired,
     /// Connection to the backend failed
     ConnectionRefused,
     /// Connection timed out
@@ -308,7 +308,7 @@ pub const OpenAIBackend = struct {
     pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         // Check if web feature is enabled
         if (!web_enabled) {
-            return error.NotImplemented;
+            return error.WebFeatureRequired;
         }
 
         const api_key = self.api_key orelse return error.AuthenticationFailed;
@@ -507,7 +507,7 @@ pub const OllamaBackend = struct {
     pub fn complete(self: *Self, request: CompletionRequest) ClientError!CompletionResponse {
         // Check if web feature is enabled
         if (!web_enabled) {
-            return error.NotImplemented;
+            return error.WebFeatureRequired;
         }
 
         var timer = time.Timer.start() catch return error.BackendError;

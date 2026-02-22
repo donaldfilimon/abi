@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **GPU** coverage and stays 
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1254` pass / `5` skip / `1259` total
-- Feature tests: `1535` pass / `1535` total
+- Feature tests: `2044` pass / `2048` total
 
 ## GPU Module Surface
 
