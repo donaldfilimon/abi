@@ -11,7 +11,7 @@ pub const ResponseBuilder = struct {
     /// Response status code.
     status: types.Status,
     /// Response headers.
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
     /// Response body.
     body: std.ArrayListUnmanaged(u8),
     /// Memory allocator.
@@ -25,7 +25,7 @@ pub const ResponseBuilder = struct {
     pub fn init(allocator: std.mem.Allocator) ResponseBuilder {
         return .{
             .status = .ok,
-            .headers = std.StringHashMap([]const u8).init(allocator),
+            .headers = .empty,
             .body = .empty,
             .allocator = allocator,
             .finalized = false,
@@ -35,7 +35,7 @@ pub const ResponseBuilder = struct {
 
     /// Cleans up all resources.
     pub fn deinit(self: *ResponseBuilder) void {
-        self.headers.deinit();
+        self.headers.deinit(self.allocator);
         self.body.deinit(self.allocator);
         self.freeOwnedValues();
         self.owned_values.deinit(self.allocator);
@@ -109,7 +109,7 @@ pub const ResponseBuilder = struct {
 
     /// Sets a response header.
     pub fn setHeader(self: *ResponseBuilder, name: []const u8, value: []const u8) !*ResponseBuilder {
-        try self.headers.put(name, value);
+        try self.headers.put(self.allocator, name, value);
         return self;
     }
 
@@ -117,7 +117,7 @@ pub const ResponseBuilder = struct {
     pub fn setHeaderFmt(self: *ResponseBuilder, name: []const u8, comptime fmt: []const u8, args: anytype) !*ResponseBuilder {
         const value = try std.fmt.allocPrint(self.allocator, fmt, args);
         try self.owned_values.append(self.allocator, value);
-        try self.headers.put(name, value);
+        try self.headers.put(self.allocator, name, value);
         return self;
     }
 

@@ -21,10 +21,6 @@ pub fn forParitySpec(comptime spec: feature_catalog.ParitySpec) []const []const 
         .cache => cache[0..],
         .storage => storage[0..],
         .search => search[0..],
-        .ai_core => ai_core[0..],
-        .ai_inference => ai_inference[0..],
-        .ai_training => ai_training[0..],
-        .ai_reasoning => ai_reasoning[0..],
         .mobile => mobile[0..],
         .gateway => gateway[0..],
         .pages => pages[0..],
@@ -35,22 +31,17 @@ pub fn forParitySpec(comptime spec: feature_catalog.ParitySpec) []const []const 
 pub const ai = [_][]const u8{
     "Context",
     "Error",
-    "Agent",
-    "TrainingConfig",
-    "TrainingResult",
-    "Tool",
-    "ToolResult",
-    "ToolRegistry",
-    "LlmEngine",
-    "LlmModel",
-    "LlmConfig",
-    "StreamingGenerator",
-    "StreamToken",
+    "core",
     "llm",
     "embeddings",
     "agents",
     "training",
     "streaming",
+    "explore",
+    "abbey",
+    "tools",
+    "prompts",
+    "memory",
     "init",
     "deinit",
     "isEnabled",
@@ -325,48 +316,6 @@ pub const search = [_][]const u8{
     "deleteDocument",
     "query",
     "stats",
-};
-
-pub const ai_core = [_][]const u8{
-    "Context",
-    "Error",
-    "isEnabled",
-    "Agent",
-    "ToolRegistry",
-    "PromptBuilder",
-    "ModelRegistry",
-    "createAgent",
-    "createRegistry",
-};
-
-pub const ai_inference = [_][]const u8{
-    "Context",
-    "Error",
-    "isEnabled",
-    "llm",
-    "embeddings",
-    "streaming",
-    "transformer",
-};
-
-pub const ai_training = [_][]const u8{
-    "Context",
-    "Error",
-    "isEnabled",
-    "TrainingConfig",
-    "TrainableModel",
-    "train",
-    "trainWithResult",
-};
-
-pub const ai_reasoning = [_][]const u8{
-    "Context",
-    "Error",
-    "isEnabled",
-    "abbey",
-    "explore",
-    "orchestration",
-    "documents",
 };
 
 pub const mobile = [_][]const u8{

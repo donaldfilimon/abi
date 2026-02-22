@@ -83,7 +83,7 @@ When the user wants **autonomous multi-step execution** with skill memory and op
 | **Zig** | `0.16.0-dev.2623+27eec9bd6` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1270 pass, 5 skip (1275 total) — must be maintained |
+| **Test baseline** | 1254 pass, 5 skip (1259 total) — must be maintained |
 | **Feature tests** | 1535 pass (1535 total) — `zig build feature-tests` |
 | **CLI commands** | 30 commands + 8 aliases |
 | **Feature modules** | 21 (comptime-gated; see Feature Flags) |
@@ -169,10 +169,10 @@ The `simulated` backend is always enabled as a software fallback for testing wit
 |---------|------------|-------|
 | *AI* | | |
 | `ai` | `-Denable-ai` | Also: `-Denable-llm`, `-Denable-vision`, `-Denable-explore` |
-| `ai_core` | `-Denable-ai` | Agents, tools, prompts, personas, memory |
-| `inference` | `-Denable-llm` | LLM, embeddings, vision, streaming, transformer |
-| `training` | `-Denable-training` | Training pipelines, federated learning |
-| `reasoning` | `-Denable-reasoning` | Abbey, RAG, eval, templates, orchestration |
+| `ai.core` | `-Denable-ai` | Agents, tools, prompts, personas, memory (access: `abi.ai.core`) |
+| `ai.llm` | `-Denable-llm` | LLM, embeddings, vision, streaming, transformer (access: `abi.ai.llm`) |
+| `ai.training` | `-Denable-training` | Training pipelines, federated learning (access: `abi.ai.training`) |
+| `ai.reasoning` | `-Denable-reasoning` | Abbey, RAG, eval, templates, orchestration (access: `abi.ai.reasoning`) |
 | *Infrastructure* | | |
 | `analytics` | `-Denable-analytics` | |
 | `auth` | `-Denable-auth` | Re-exports `services/shared/security/` (17 modules) |
@@ -213,7 +213,7 @@ The CLI exposes feature status and lets you inspect or override (runtime) which 
 
 ## Critical Gotchas
 
-**Top 6 (cause 80% of failures):**
+**Top 7 (cause 80% of failures):**
 
 1. `std.fs.cwd()` → `std.Io.Dir.cwd()` (requires I/O backend init)
 2. Editing `mod.zig` without updating `stub.zig` → always keep signatures in sync
@@ -221,6 +221,7 @@ The CLI exposes feature status and lets you inspect or override (runtime) which 
 4. `@tagName(x)` / `@errorName(e)` in format → use `{t}` specifier
 5. `std.io.fixedBufferStream()` → removed; use `std.Io.Writer.fixed(&buf)`
 6. `@field(build_options, field_name)` requires comptime context — use `inline for` not runtime `for`
+7. **API break (v0.4.0):** Facade aliases and flat exports removed — see [AI Modules](#ai-modules) and [GPU Module](#gpu-module) for the new namespaced access patterns
 
 **Full reference:** See [`.claude/rules/zig.md`](.claude/rules/zig.md) (auto-loaded for all `.zig` files) for the complete gotchas table with 19 entries covering I/O, `@typeInfo`, allocators, test discovery, and more. These patterns are also duplicated in CLAUDE.md above — when updating, keep both in sync.
 
@@ -284,7 +285,7 @@ This means:
 ```
 build.zig                → Top-level build script (delegates to build/)
 build/                   → Split build system (options, modules, flags, targets, gpu, mobile, wasm)
-src/abi.zig              → Public API, comptime feature selection, type aliases
+src/abi.zig              → Public API, comptime feature selection (no flat type aliases)
 src/core/                → Framework lifecycle, config builder, registry
 src/features/<name>/     → mod.zig + stub.zig per feature (17 core + 4 AI split = 21 modules)
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
@@ -345,21 +346,27 @@ var fw = try abi.init(allocator, .{ .gpu = .{ .backend = .vulkan } });
 `.has()`, `.state()`) are implemented in `src/vnext/app.zig`. Use `app.getFramework()`
 to access the full Framework during transition. Compatibility tests: `zig build vnext-compat`.
 
-### Convenience Aliases
+### Access Patterns
 
-`src/abi.zig` re-exports `Gpu` and `GpuBackend` at the top level. All other
-functions use namespaced paths: `abi.simd.vectorAdd`, `abi.simd.hasSimdSupport`,
-`abi.connectors.discord`.
+All access uses namespaced paths through `abi.<module>`. There are no top-level
+convenience aliases or flat re-exports. Examples: `abi.gpu.unified.MatrixDims`,
+`abi.ai.agent.Agent`, `abi.simd.vectorAdd`, `abi.connectors.discord`.
+
+**Removed (v0.4.0):** `abi.ai_core`, `abi.inference`, `abi.training`, `abi.reasoning`
+(facade aliases); ~156 flat AI type aliases (e.g., `abi.ai.Agent`); ~173 flat GPU type
+aliases (e.g., `abi.gpu.MatrixDims`). Use submodule paths instead.
 
 ## AI Modules
 
-All AI code lives under `src/features/ai/`. Sub-feature facades in `ai/facades/`
-provide independently-gated views exposed as `abi.ai_core`, `abi.inference`,
-`abi.training`, and `abi.reasoning`:
-- `ai/facades/core.zig` — Agents, tools, prompts, personas, memory (`-Denable-ai`)
-- `ai/facades/inference.zig` — LLM, embeddings, vision, streaming (`-Denable-llm`)
-- `ai/facades/training.zig` — Training pipelines, federated learning (`-Denable-training`)
-- `ai/facades/reasoning.zig` — Abbey, RAG, eval, templates, orchestration (`-Denable-reasoning`)
+All AI code lives under `src/features/ai/`. AI sub-features are accessed as
+submodules of `abi.ai`, each independently gated by its build flag:
+- `abi.ai.core` — Agents, tools, prompts, personas, memory (`-Denable-ai`)
+- `abi.ai.llm` — LLM, embeddings, vision, streaming (`-Denable-llm`)
+- `abi.ai.training` — Training pipelines, federated learning (`-Denable-training`)
+- `abi.ai.reasoning` — Abbey, RAG, eval, templates, orchestration (`-Denable-reasoning`)
+
+Types are accessed via their submodule, e.g., `abi.ai.agent.Agent`,
+`abi.ai.training.TrainingConfig`, `abi.ai.tools.Tool`.
 
 The `abbey/` submodule is the advanced reasoning system with meta-learning,
 self-reflection, theory of mind, and neural attention mechanisms.
@@ -374,6 +381,9 @@ all types (text, images, video, audio, documents, any). Core config exposes
 `src/features/gpu/` supports 10 backends through a vtable-based abstraction in
 `backends/`. The `dsl/` directory provides a kernel DSL with codegen targeting
 SPIR-V and other backends. `mega/` handles multi-GPU orchestration.
+
+Types are accessed via their submodule, e.g., `abi.gpu.unified.MatrixDims`,
+`abi.gpu.profiling.Profiler`. There are no flat re-exports at the `abi.gpu` level.
 
 Prefer one primary backend to avoid conflicts. On macOS, `metal` is the natural
 choice. WASM targets auto-disable `database`, `network`, and `gpu`.
@@ -474,7 +484,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Main tests**: 1270 pass, 5 skip (1275 total) — `zig build test --summary all`
+**Main tests**: 1254 pass, 5 skip (1259 total) — `zig build test --summary all`
 **Feature tests**: 1535 pass (1535 total) — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 

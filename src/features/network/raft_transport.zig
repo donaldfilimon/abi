@@ -1,9 +1,15 @@
 //! Transport layer for Raft consensus protocol.
 //!
-//! Provides TCP-based networking for Raft node communication including:
+//! Provides networking for Raft node communication including:
 //! - Listener binding for incoming connections
 //! - Peer connection management
 //! - Message serialization and transmission
+//! - Optional real TCP I/O via TcpTransport integration
+//!
+//! When a `TcpTransport` is connected via `connectTcp()`, messages are
+//! serialized and sent over the wire using the TcpTransport's framing
+//! protocol.  When no TcpTransport is present the transport falls back
+//! to the in-process queue-based simulation (useful for testing).
 //!
 //! Uses Zig 0.16 std.Io patterns for cross-platform networking.
 
@@ -12,6 +18,11 @@ const time = @import("../../services/shared/time.zig");
 const sync = @import("../../services/shared/sync.zig");
 const builtin = @import("builtin");
 const Raft = @import("raft.zig");
+const tcp = @import("transport.zig");
+
+/// TcpTransport type from the transport module (used internally and by callers
+/// that need to create one to pass into `connectTcp`).
+const TcpTransport = tcp.TcpTransport;
 
 pub const TransportError = error{
     BindFailed,
@@ -26,7 +37,76 @@ pub const TransportError = error{
     PeerNotFound,
     SerializationFailed,
     OutOfMemory,
+    TcpSendFailed,
 };
+
+// ---------------------------------------------------------------------------
+// Raft-level message types (wire-compatible with transport.MessageType)
+// ---------------------------------------------------------------------------
+
+/// Raft message types exchanged between nodes.
+pub const MessageType = enum(u8) {
+    request_vote = 1,
+    vote_response = 2,
+    append_entries = 3,
+    append_response = 4,
+    install_snapshot = 5,
+    snapshot_response = 6,
+    heartbeat = 7,
+
+    /// Map to the TcpTransport-level `MessageType` for framing.
+    pub fn toTcpMessageType(self: MessageType) tcp.MessageType {
+        return switch (self) {
+            .request_vote => .raft_vote_request,
+            .vote_response => .raft_vote_response,
+            .append_entries => .raft_append_entries,
+            .append_response => .raft_append_response,
+            .install_snapshot => .raft_install_snapshot,
+            .snapshot_response => .raft_snapshot_response,
+            // Heartbeats are empty append_entries in the Raft spec.
+            .heartbeat => .raft_append_entries,
+        };
+    }
+
+    /// Map from TcpTransport-level `MessageType` back to Raft MessageType.
+    pub fn fromTcpMessageType(t: tcp.MessageType) ?MessageType {
+        return switch (t) {
+            .raft_vote_request => .request_vote,
+            .raft_vote_response => .vote_response,
+            .raft_append_entries => .append_entries,
+            .raft_append_response => .append_response,
+            .raft_install_snapshot => .install_snapshot,
+            .raft_snapshot_response => .snapshot_response,
+            else => null,
+        };
+    }
+};
+
+/// Unified Raft message exchanged over the transport.
+pub const Message = struct {
+    msg_type: MessageType,
+    term: u64 = 0,
+    sender_id: []const u8 = "",
+};
+
+// ---------------------------------------------------------------------------
+// Configuration & address aliases (expected by mod.zig)
+// ---------------------------------------------------------------------------
+
+/// Configuration for the Raft transport layer.
+pub const RaftTransportConfig = struct {
+    /// Whether to use real TCP when a TcpTransport is available.
+    use_tcp: bool = true,
+    /// Timeout for individual send operations (ms).
+    send_timeout_ms: u64 = 5000,
+};
+
+/// Alias for `Address` — exported as `PeerAddress` for convenience.
+pub const PeerAddress = Address;
+
+// ---------------------------------------------------------------------------
+// Address
+// ---------------------------------------------------------------------------
 
 /// Address representation for Raft peers.
 pub const Address = struct {
@@ -65,6 +145,10 @@ pub const Address = struct {
     }
 };
 
+// ---------------------------------------------------------------------------
+// PeerConnection (queue-based simulation layer)
+// ---------------------------------------------------------------------------
+
 /// Connection state for a peer.
 pub const PeerConnection = struct {
     address: Address,
@@ -87,7 +171,17 @@ pub const PeerConnection = struct {
     }
 };
 
+// ---------------------------------------------------------------------------
+// RaftTransport
+// ---------------------------------------------------------------------------
+
 /// Transport layer for Raft consensus.
+///
+/// Supports two modes of operation:
+///   1. **Simulation** (default) — messages are serialized into per-peer
+///      queues for in-process testing.
+///   2. **Real TCP** — when a `TcpTransport` is connected via `connectTcp()`,
+///      messages are framed and sent over TCP sockets.
 pub const RaftTransport = struct {
     allocator: std.mem.Allocator,
     /// Local bind address.
@@ -97,9 +191,14 @@ pub const RaftTransport = struct {
     /// Whether the transport is bound and listening.
     is_bound: bool = false,
     /// Callback for received messages.
-    message_handler: ?*const fn (Raft.Message) void = null,
+    message_handler: ?*const fn (Message) void = null,
     /// Statistics.
     stats: TransportStats = .{},
+    /// Optional real TCP transport for actual network I/O.
+    tcp_transport: ?*TcpTransport = null,
+
+    // Keep the old name for mod.zig compat.
+    pub const RaftTransportStats = TransportStats;
 
     pub const TransportStats = struct {
         messages_sent: u64 = 0,
@@ -118,6 +217,10 @@ pub const RaftTransport = struct {
     }
 
     pub fn deinit(self: *RaftTransport) void {
+        // If we registered TCP handlers, the TcpTransport owns them — nothing
+        // to clean up on our side beyond clearing the pointer.
+        self.tcp_transport = null;
+
         if (self.local_address) |*addr| {
             addr.deinit(self.allocator);
         }
@@ -130,8 +233,65 @@ pub const RaftTransport = struct {
         self.peers.deinit(self.allocator);
     }
 
+    // ------------------------------------------------------------------
+    // TCP integration
+    // ------------------------------------------------------------------
+
+    /// Wire this RaftTransport to a real `TcpTransport` for network I/O.
+    ///
+    /// Registers message handlers on the TcpTransport for all Raft message
+    /// types so that incoming Raft frames are deserialized and delivered to
+    /// the configured `message_handler`.
+    ///
+    /// This is opt-in: when `tcp_transport` is null the existing queue-based
+    /// simulation continues to work unchanged.
+    pub fn connectTcp(self: *RaftTransport, transport: *TcpTransport) void {
+        self.tcp_transport = transport;
+
+        // Register handlers for every Raft message type the TcpTransport
+        // might receive.  The handler is a file-level function (not a
+        // closure) that receives the TcpTransport pointer; we stash `self`
+        // in a module-level variable so the handler can recover it.
+        //
+        // Only one RaftTransport may be wired to TCP at a time per
+        // compilation unit.
+        raft_transport_instance = self;
+
+        // Best-effort registration — we log and continue if a slot is
+        // already occupied.
+        const raft_tcp_types = [_]tcp.MessageType{
+            .raft_vote_request,
+            .raft_vote_response,
+            .raft_append_entries,
+            .raft_append_response,
+            .raft_install_snapshot,
+            .raft_snapshot_response,
+        };
+
+        for (raft_tcp_types) |mt| {
+            transport.registerHandler(mt, &handleTcpIncoming) catch |err| {
+                std.log.warn("RaftTransport: failed to register TCP handler for {t}: {t}", .{ mt, err });
+            };
+        }
+    }
+
+    /// Disconnect from the TcpTransport (reverts to simulation mode).
+    pub fn disconnectTcp(self: *RaftTransport) void {
+        self.tcp_transport = null;
+        if (raft_transport_instance == self) {
+            raft_transport_instance = null;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Bind / unbind
+    // ------------------------------------------------------------------
+
     /// Bind to a local address for incoming connections.
     /// Address format: "host:port" (e.g., "127.0.0.1:5000")
+    ///
+    /// When a TcpTransport is connected, this delegates to `TcpTransport.start()`
+    /// which performs the real `bind()` + `listen()` system calls.
     pub fn bind(self: *RaftTransport, address: []const u8) !void {
         if (self.is_bound) {
             return TransportError.AlreadyBound;
@@ -145,20 +305,33 @@ pub const RaftTransport = struct {
             }
         }
 
-        // In a real implementation, this would create a TCP listener socket.
-        // For now, we mark as bound - actual socket operations require async I/O
-        // which is handled at a higher level by the framework.
+        // When a TcpTransport is available, delegate to it for real I/O.
+        if (self.tcp_transport) |t| {
+            t.start() catch |err| {
+                std.log.warn("RaftTransport: TcpTransport.start() failed: {t}", .{err});
+                return TransportError.BindFailed;
+            };
+        }
+
         self.is_bound = true;
     }
 
     /// Unbind and stop listening.
     pub fn unbind(self: *RaftTransport) void {
+        if (self.tcp_transport) |t| {
+            t.stop();
+        }
+
         if (self.local_address) |*addr| {
             addr.deinit(self.allocator);
             self.local_address = null;
         }
         self.is_bound = false;
     }
+
+    // ------------------------------------------------------------------
+    // Connect / disconnect peers
+    // ------------------------------------------------------------------
 
     /// Connect to a remote Raft peer.
     /// Address format: "host:port"
@@ -190,8 +363,16 @@ pub const RaftTransport = struct {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Send / broadcast
+    // ------------------------------------------------------------------
+
     /// Send a Raft message to a specific peer.
-    pub fn send(self: *RaftTransport, node_id: []const u8, msg: Raft.Message) !void {
+    ///
+    /// When a TcpTransport is connected, the message is serialized and
+    /// sent over TCP using the appropriate `MessageType` framing.
+    /// Otherwise it is queued in the peer's in-process send queue.
+    pub fn send(self: *RaftTransport, node_id: []const u8, msg: Message) !void {
         const conn = self.peers.getPtr(node_id) orelse
             return TransportError.PeerNotFound;
 
@@ -199,12 +380,29 @@ pub const RaftTransport = struct {
             return TransportError.ConnectionClosed;
         }
 
-        // Serialize the message
+        // Serialize the Raft message payload.
         const serialized = try serializeMessage(self.allocator, msg);
         errdefer self.allocator.free(serialized);
 
-        // Queue for sending (actual transmission handled by event loop)
-        try conn.send_queue.append(self.allocator, serialized);
+        // Real TCP path — send via TcpTransport.
+        if (self.tcp_transport) |t| {
+            const tcp_msg_type = msg.msg_type.toTcpMessageType();
+            t.sendMessage(
+                conn.address.host,
+                conn.address.port,
+                tcp_msg_type,
+                serialized,
+            ) catch |err| {
+                std.log.warn("RaftTransport: TCP send failed: {t}", .{err});
+                self.allocator.free(serialized);
+                return TransportError.TcpSendFailed;
+            };
+            // Payload was copied by sendMessage; free our serialized copy.
+            self.allocator.free(serialized);
+        } else {
+            // Simulation path — queue for later consumption.
+            try conn.send_queue.append(self.allocator, serialized);
+        }
 
         self.stats.messages_sent += 1;
         self.stats.bytes_sent += serialized.len;
@@ -212,20 +410,24 @@ pub const RaftTransport = struct {
     }
 
     /// Broadcast a message to all connected peers.
-    pub fn broadcast(self: *RaftTransport, msg: Raft.Message) !void {
+    pub fn broadcast(self: *RaftTransport, msg: Message) !void {
         var iter = self.peers.iterator();
         while (iter.next()) |entry| {
             if (entry.value_ptr.connected) {
                 self.send(entry.key_ptr.*, msg) catch |err| {
-                    // Log but don't fail broadcast for single peer failure
+                    // Log but don't fail broadcast for single peer failure.
                     std.log.warn("Failed to send to peer {s}: {t}", .{ entry.key_ptr.*, err });
                 };
             }
         }
     }
 
-    /// Process received data and extract messages.
-    pub fn receive(self: *RaftTransport, data: []const u8) !?Raft.Message {
+    // ------------------------------------------------------------------
+    // Receive (simulation path + incoming TCP handler bridge)
+    // ------------------------------------------------------------------
+
+    /// Process received data and extract messages (simulation path).
+    pub fn receive(self: *RaftTransport, data: []const u8) !?Message {
         if (data.len == 0) return null;
 
         const msg = try deserializeMessage(self.allocator, data);
@@ -239,8 +441,28 @@ pub const RaftTransport = struct {
         return msg;
     }
 
+    /// Deliver a message that arrived via TCP.  Called from the
+    /// TcpTransport handler trampoline (`handleTcpIncoming`).
+    pub fn handleIncoming(self: *RaftTransport, payload: []const u8) void {
+        const msg = deserializeMessage(self.allocator, payload) catch |err| {
+            std.log.warn("RaftTransport: failed to deserialize incoming TCP message: {t}", .{err});
+            return;
+        };
+
+        self.stats.messages_received += 1;
+        self.stats.bytes_received += payload.len;
+
+        if (self.message_handler) |handler| {
+            handler(msg);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Misc
+    // ------------------------------------------------------------------
+
     /// Set callback for received messages.
-    pub fn setMessageHandler(self: *RaftTransport, handler: *const fn (Raft.Message) void) void {
+    pub fn setMessageHandler(self: *RaftTransport, handler: *const fn (Message) void) void {
         self.message_handler = handler;
     }
 
@@ -271,12 +493,43 @@ pub const RaftTransport = struct {
     }
 };
 
-/// Serialize a Raft message for transmission.
-fn serializeMessage(allocator: std.mem.Allocator, msg: Raft.Message) ![]u8 {
-    // Simple binary serialization format:
-    // [1 byte: message type] [8 bytes: term] [remaining: type-specific data]
+// ---------------------------------------------------------------------------
+// Module-level bridge for TcpTransport -> RaftTransport callback
+// ---------------------------------------------------------------------------
 
-    var buffer = std.ArrayListUnmanaged(u8).empty;
+/// Module-level pointer so the fixed-signature `handleTcpIncoming` callback
+/// can locate the owning `RaftTransport`.  Only one RaftTransport may be
+/// wired to TCP at a time per compilation unit.
+var raft_transport_instance: ?*RaftTransport = null;
+
+/// TcpTransport.MessageHandler-compatible callback.
+///
+/// Deserializes the Raft payload and forwards it to the RaftTransport's
+/// `handleIncoming`.  Returns an empty slice (no response payload) because
+/// Raft responses are sent as separate messages.
+fn handleTcpIncoming(
+    _: *TcpTransport,
+    _: []const u8,
+    _: *const tcp.MessageHeader,
+    payload: []const u8,
+) tcp.TransportError![]u8 {
+    if (raft_transport_instance) |rt| {
+        rt.handleIncoming(payload);
+    }
+    // Return empty response — Raft sends replies as discrete messages.
+    return &[_]u8{};
+}
+
+// ---------------------------------------------------------------------------
+// Serialization
+// ---------------------------------------------------------------------------
+
+/// Serialize a Raft message for transmission.
+fn serializeMessage(allocator: std.mem.Allocator, msg: Message) ![]u8 {
+    // Simple binary serialization format:
+    // [1 byte: message type] [8 bytes: term] [2 bytes: sender_id len] [N bytes: sender_id]
+
+    var buffer: std.ArrayListUnmanaged(u8) = .empty;
     errdefer buffer.deinit(allocator);
 
     const writer = buffer.writer(allocator);
@@ -291,20 +544,17 @@ fn serializeMessage(allocator: std.mem.Allocator, msg: Raft.Message) ![]u8 {
     try writer.writeInt(u16, @intCast(msg.sender_id.len), .big);
     try writer.writeAll(msg.sender_id);
 
-    // Type-specific payload serialization would go here
-    // For now, we serialize basic fields
-
     return try buffer.toOwnedSlice(allocator);
 }
 
 /// Deserialize a Raft message from received data.
-fn deserializeMessage(allocator: std.mem.Allocator, data: []const u8) !Raft.Message {
+fn deserializeMessage(allocator: std.mem.Allocator, data: []const u8) !Message {
     if (data.len < 11) return TransportError.SerializationFailed;
 
     var pos: usize = 0;
 
     // Message type
-    const msg_type: Raft.MessageType = @enumFromInt(data[pos]);
+    const msg_type: MessageType = @enumFromInt(data[pos]);
     pos += 1;
 
     // Term
@@ -319,7 +569,7 @@ fn deserializeMessage(allocator: std.mem.Allocator, data: []const u8) !Raft.Mess
 
     const sender_id = try allocator.dupe(u8, data[pos..][0..sender_len]);
 
-    return Raft.Message{
+    return Message{
         .msg_type = msg_type,
         .term = term,
         .sender_id = sender_id,
@@ -371,6 +621,7 @@ test "RaftTransport: init and deinit" {
 
     try std.testing.expect(!transport.is_bound);
     try std.testing.expectEqual(@as(usize, 0), transport.connectedPeerCount());
+    try std.testing.expect(transport.tcp_transport == null);
 }
 
 test "RaftTransport: bind" {
@@ -416,7 +667,7 @@ test "RaftTransport: send to unknown peer" {
     var transport = RaftTransport.init(allocator);
     defer transport.deinit();
 
-    const msg = Raft.Message{
+    const msg = Message{
         .msg_type = .heartbeat,
         .term = 1,
         .sender_id = "node-1",
@@ -446,7 +697,7 @@ test "RaftTransport: statistics" {
 test "serializeMessage and deserializeMessage roundtrip" {
     const allocator = std.testing.allocator;
 
-    const original = Raft.Message{
+    const original = Message{
         .msg_type = .request_vote,
         .term = 42,
         .sender_id = "test-node",
@@ -461,4 +712,97 @@ test "serializeMessage and deserializeMessage roundtrip" {
     try std.testing.expectEqual(original.msg_type, deserialized.msg_type);
     try std.testing.expectEqual(original.term, deserialized.term);
     try std.testing.expectEqualStrings(original.sender_id, deserialized.sender_id);
+}
+
+test "MessageType: toTcpMessageType mapping" {
+    try std.testing.expectEqual(tcp.MessageType.raft_vote_request, MessageType.request_vote.toTcpMessageType());
+    try std.testing.expectEqual(tcp.MessageType.raft_vote_response, MessageType.vote_response.toTcpMessageType());
+    try std.testing.expectEqual(tcp.MessageType.raft_append_entries, MessageType.append_entries.toTcpMessageType());
+    try std.testing.expectEqual(tcp.MessageType.raft_append_response, MessageType.append_response.toTcpMessageType());
+    try std.testing.expectEqual(tcp.MessageType.raft_install_snapshot, MessageType.install_snapshot.toTcpMessageType());
+    try std.testing.expectEqual(tcp.MessageType.raft_snapshot_response, MessageType.snapshot_response.toTcpMessageType());
+    // Heartbeat maps to append_entries (Raft spec: heartbeat = empty AE).
+    try std.testing.expectEqual(tcp.MessageType.raft_append_entries, MessageType.heartbeat.toTcpMessageType());
+}
+
+test "MessageType: fromTcpMessageType roundtrip" {
+    try std.testing.expectEqual(MessageType.request_vote, MessageType.fromTcpMessageType(.raft_vote_request).?);
+    try std.testing.expectEqual(MessageType.vote_response, MessageType.fromTcpMessageType(.raft_vote_response).?);
+    // Non-Raft message types return null.
+    try std.testing.expect(MessageType.fromTcpMessageType(.db_search_request) == null);
+    try std.testing.expect(MessageType.fromTcpMessageType(.ping) == null);
+}
+
+test "RaftTransport: send queues in simulation mode" {
+    const allocator = std.testing.allocator;
+
+    var transport = RaftTransport.init(allocator);
+    defer transport.deinit();
+
+    try transport.connect("node-2", "127.0.0.1:5001");
+
+    const msg = Message{
+        .msg_type = .append_entries,
+        .term = 5,
+        .sender_id = "leader-1",
+    };
+
+    try transport.send("node-2", msg);
+
+    // In simulation mode the message ends up in the peer's send queue.
+    const conn = transport.peers.getPtr("node-2").?;
+    try std.testing.expectEqual(@as(usize, 1), conn.send_queue.items.len);
+
+    const stats = transport.getStats();
+    try std.testing.expectEqual(@as(u64, 1), stats.messages_sent);
+}
+
+test "RaftTransport: connectTcp and disconnectTcp" {
+    var transport = RaftTransport.init(std.testing.allocator);
+    defer transport.deinit();
+
+    // tcp_transport starts as null.
+    try std.testing.expect(transport.tcp_transport == null);
+
+    // We can't fully test with a real TcpTransport in unit tests (requires
+    // sockets), but we can verify the field is set/cleared.
+    transport.disconnectTcp();
+    try std.testing.expect(transport.tcp_transport == null);
+}
+
+test "RaftTransport: handleIncoming delivers to handler" {
+    const allocator = std.testing.allocator;
+
+    var transport = RaftTransport.init(allocator);
+    defer transport.deinit();
+
+    const Handler = struct {
+        fn handle(_: Message) void {
+            // Verifies no crash — full callback testing requires closures.
+        }
+    };
+    transport.setMessageHandler(&Handler.handle);
+
+    // Build a serialized message to feed into handleIncoming.
+    const msg = Message{ .msg_type = .request_vote, .term = 10, .sender_id = "n1" };
+    const payload = try serializeMessage(allocator, msg);
+    defer allocator.free(payload);
+
+    transport.handleIncoming(payload);
+
+    try std.testing.expectEqual(@as(u64, 1), transport.stats.messages_received);
+}
+
+test {
+    // Reference public declarations to ensure they compile.
+    // We avoid refAllDecls to prevent transitive analysis of TcpTransport
+    // internals which may pull in unrelated modules during testing.
+    _ = Address;
+    _ = PeerConnection;
+    _ = RaftTransport;
+    _ = RaftTransportConfig;
+    _ = PeerAddress;
+    _ = Message;
+    _ = MessageType;
+    _ = TransportError;
 }

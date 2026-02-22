@@ -274,8 +274,8 @@ pub fn parseTimerTrigger(allocator: std.mem.Allocator, raw_event: []const u8) !C
             if (timer.object.get("IsPastDue")) |past_due| {
                 if (past_due.bool) {
                     // Store metadata about past due execution
-                    event.headers = std.StringHashMap([]const u8).init(allocator);
-                    try event.headers.?.put("x-timer-past-due", "true");
+                    event.headers = .empty;
+                    try event.headers.?.put(allocator, "x-timer-past-due", "true");
                 }
             }
 
@@ -318,13 +318,13 @@ pub fn parseBlobTrigger(allocator: std.mem.Allocator, raw_event: []const u8) !Cl
 
     // Blob metadata from trigger metadata
     if (root.object.get("Metadata")) |meta| {
-        event.headers = std.StringHashMap([]const u8).init(allocator);
+        event.headers = .empty;
 
         if (getStringField(meta, "BlobTrigger")) |trigger| {
-            try event.headers.?.put("x-blob-trigger", trigger);
+            try event.headers.?.put(allocator, "x-blob-trigger", trigger);
         }
         if (getStringField(meta, "Uri")) |uri| {
-            try event.headers.?.put("x-blob-uri", uri);
+            try event.headers.?.put(allocator, "x-blob-uri", uri);
         }
     }
 

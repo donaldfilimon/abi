@@ -18,8 +18,12 @@ This guide is generated from repository metadata for **Core** coverage and stays
 ## Build Snapshot
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
-- Main tests: `1270` pass / `5` skip / `1275` total
+- Main tests: `1254` pass / `5` skip / `1259` total
 - Feature tests: `1535` pass / `1535` total
+
+## Feature Coverage
+
+No feature modules directly mapped to this section.
 
 ## Module Coverage
 

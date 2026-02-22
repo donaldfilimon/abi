@@ -31,7 +31,7 @@ pub const RegistryError = registry_types.Error;
 
 /// Release feature contexts and mark the framework stopped.
 pub fn deinit(self: anytype) void {
-    if (self.state == .stopped) return;
+    if (self.state == .stopped or self.state == .uninitialized) return;
 
     state_machine.markStopping(&self.state);
     deinitFeatures(self);
@@ -60,11 +60,11 @@ pub fn deinitFeatures(self: anytype) void {
     deinitOptionalContext(ai_inference_mod.Context, &self.ai_inference);
     deinitOptionalContext(ai_core_mod.Context, &self.ai_core);
 
-    // Standard feature modules.
+    // Standard feature modules (reverse order of initFeatureContexts).
     deinitOptionalContext(mobile_mod.Context, &self.mobile);
-    deinitOptionalContext(gateway_mod.Context, &self.gateway);
-    deinitOptionalContext(pages_mod.Context, &self.pages);
     deinitOptionalContext(benchmarks_mod.Context, &self.benchmarks);
+    deinitOptionalContext(pages_mod.Context, &self.pages);
+    deinitOptionalContext(gateway_mod.Context, &self.gateway);
     deinitOptionalContext(search_mod.Context, &self.search);
     deinitOptionalContext(storage_mod.Context, &self.storage);
     deinitOptionalContext(cache_mod.Context, &self.cache);

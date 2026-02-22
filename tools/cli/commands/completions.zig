@@ -3,9 +3,16 @@
 //! Generates shell completion scripts for bash, zsh, fish, and powershell.
 
 const std = @import("std");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const spec = @import("../spec.zig");
 const Feature = @import("abi").config.Feature;
+
+pub const meta: command_mod.Meta = .{
+    .name = "completions",
+    .description = "Generate shell completions (bash, zsh, fish, powershell)",
+    .subcommands = &.{ "bash", "zsh", "fish", "powershell", "help" },
+};
 
 /// Entry point for the completions command.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

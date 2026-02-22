@@ -62,6 +62,14 @@ pub const SpirvGenerator = struct {
     function_section: std.ArrayListUnmanaged(u32),
     /// GLSL.std.450 extended instruction set ID.
     glsl_ext_id: u32,
+    /// Current loop merge label (for break statements).
+    loop_merge_label: ?u32 = null,
+    /// Current loop continue label (for continue statements).
+    loop_continue_label: ?u32 = null,
+    /// Pointer-to-type map: maps a pointer result ID to the type ID it points to.
+    ptr_type_map: std.AutoHashMapUnmanaged(u32, u32),
+    /// Buffer element type map: maps buffer variable ID to its element type ID.
+    buffer_elem_type_map: std.AutoHashMapUnmanaged(u32, u32),
 
     const Self = @This();
 
@@ -80,6 +88,10 @@ pub const SpirvGenerator = struct {
             .entry_section = .{},
             .function_section = .{},
             .glsl_ext_id = 0,
+            .loop_merge_label = null,
+            .loop_continue_label = null,
+            .ptr_type_map = .{},
+            .buffer_elem_type_map = .{},
         };
     }
 
@@ -94,6 +106,8 @@ pub const SpirvGenerator = struct {
         self.debug_section.deinit(self.allocator);
         self.entry_section.deinit(self.allocator);
         self.function_section.deinit(self.allocator);
+        self.ptr_type_map.deinit(self.allocator);
+        self.buffer_elem_type_map.deinit(self.allocator);
     }
 
     /// Allocate a new ID.
@@ -120,6 +134,10 @@ pub const SpirvGenerator = struct {
         self.debug_section.clearRetainingCapacity();
         self.entry_section.clearRetainingCapacity();
         self.function_section.clearRetainingCapacity();
+        self.ptr_type_map.clearRetainingCapacity();
+        self.buffer_elem_type_map.clearRetainingCapacity();
+        self.loop_merge_label = null;
+        self.loop_continue_label = null;
 
         // Reserve header space (5 words)
         try self.words.appendSlice(self.allocator, &[_]u32{ 0, 0, 0, 0, 0 });
@@ -226,6 +244,9 @@ pub const SpirvGenerator = struct {
             try self.var_ids.put(self.allocator, buf.name, var_id);
             try self.emitName(&self.debug_section, var_id, buf.name);
             try interface_ids.append(self.allocator, var_id);
+
+            // Track buffer variable -> element type for type-aware loads/access chains
+            try self.buffer_elem_type_map.put(self.allocator, var_id, elem_type);
         }
 
         // Process uniforms
@@ -411,6 +432,12 @@ pub const SpirvGenerator = struct {
                 const continue_label = self.allocId();
                 const merge_label = self.allocId();
 
+                // Save outer loop context and set inner
+                const saved_merge = self.loop_merge_label;
+                const saved_continue = self.loop_continue_label;
+                self.loop_merge_label = merge_label;
+                self.loop_continue_label = continue_label;
+
                 try self.emitBranch(&self.function_section, header_label);
                 try self.emitLabel(&self.function_section, header_label);
                 try self.emitLoopMerge(&self.function_section, merge_label, continue_label);
@@ -438,15 +465,26 @@ pub const SpirvGenerator = struct {
 
                 // Merge
                 try self.emitLabel(&self.function_section, merge_label);
+
+                // Restore outer loop context
+                self.loop_merge_label = saved_merge;
+                self.loop_continue_label = saved_continue;
             },
             .while_ => |w| {
                 const header_label = self.allocId();
                 const body_label = self.allocId();
+                const continue_label = self.allocId();
                 const merge_label = self.allocId();
+
+                // Save outer loop context and set inner
+                const saved_merge = self.loop_merge_label;
+                const saved_continue = self.loop_continue_label;
+                self.loop_merge_label = merge_label;
+                self.loop_continue_label = continue_label;
 
                 try self.emitBranch(&self.function_section, header_label);
                 try self.emitLabel(&self.function_section, header_label);
-                try self.emitLoopMerge(&self.function_section, merge_label, header_label);
+                try self.emitLoopMerge(&self.function_section, merge_label, continue_label);
 
                 const cond_id = try self.generateExpr(w.condition);
                 try self.emitBranchConditional(&self.function_section, cond_id, body_label, merge_label);
@@ -455,18 +493,73 @@ pub const SpirvGenerator = struct {
                 for (w.body) |body_stmt| {
                     try self.generateStmt(body_stmt);
                 }
+                try self.emitBranch(&self.function_section, continue_label);
+
+                // Continue target branches back to header
+                try self.emitLabel(&self.function_section, continue_label);
                 try self.emitBranch(&self.function_section, header_label);
 
                 try self.emitLabel(&self.function_section, merge_label);
+
+                // Restore outer loop context
+                self.loop_merge_label = saved_merge;
+                self.loop_continue_label = saved_continue;
+            },
+            .do_while => |dw| {
+                // do { body } while (condition);
+                // Structure: header -> body -> continue (condition) -> header or merge
+                const header_label = self.allocId();
+                const body_label = self.allocId();
+                const continue_label = self.allocId();
+                const merge_label = self.allocId();
+
+                // Save outer loop context and set inner
+                const saved_merge = self.loop_merge_label;
+                const saved_continue = self.loop_continue_label;
+                self.loop_merge_label = merge_label;
+                self.loop_continue_label = continue_label;
+
+                // Branch to header
+                try self.emitBranch(&self.function_section, header_label);
+                try self.emitLabel(&self.function_section, header_label);
+                try self.emitLoopMerge(&self.function_section, merge_label, continue_label);
+                // Unconditionally enter body (do-while always executes body first)
+                try self.emitBranch(&self.function_section, body_label);
+
+                // Body block
+                try self.emitLabel(&self.function_section, body_label);
+                for (dw.body) |body_stmt| {
+                    try self.generateStmt(body_stmt);
+                }
+                try self.emitBranch(&self.function_section, continue_label);
+
+                // Continue block: evaluate condition
+                try self.emitLabel(&self.function_section, continue_label);
+                const cond_id = try self.generateExpr(dw.condition);
+                // If condition true, loop back to header; otherwise merge (exit)
+                try self.emitBranchConditional(&self.function_section, cond_id, header_label, merge_label);
+
+                // Merge block
+                try self.emitLabel(&self.function_section, merge_label);
+
+                // Restore outer loop context
+                self.loop_merge_label = saved_merge;
+                self.loop_continue_label = saved_continue;
             },
             .return_ => {
                 try self.emitReturn(&self.function_section);
             },
             .break_ => {
-                // Would need to track current loop merge label
+                if (self.loop_merge_label) |merge_label| {
+                    try self.emitBranch(&self.function_section, merge_label);
+                }
+                // If no loop context, break is a no-op (shouldn't happen in valid IR)
             },
             .continue_ => {
-                // Would need to track current loop continue label
+                if (self.loop_continue_label) |continue_label| {
+                    try self.emitBranch(&self.function_section, continue_label);
+                }
+                // If no loop context, continue is a no-op (shouldn't happen in valid IR)
             },
             .expr_stmt => |e| {
                 _ = try self.generateExpr(e);
@@ -476,7 +569,66 @@ pub const SpirvGenerator = struct {
                     try self.generateStmt(body_stmt);
                 }
             },
-            else => {},
+            .discard => {
+                // OpKill is for fragment shaders; in compute shaders discard is a no-op.
+                // Emit OpReturn as a reasonable fallback to terminate the invocation.
+                try self.emitReturn(&self.function_section);
+            },
+            .switch_ => |sw| {
+                // Generate selector value
+                const selector_id = try self.generateExpr(sw.selector);
+                const merge_label = self.allocId();
+
+                // Allocate labels for each case and default
+                var case_labels = std.ArrayListUnmanaged(u32).empty;
+                defer case_labels.deinit(self.allocator);
+                for (sw.cases) |_| {
+                    try case_labels.append(self.allocator, self.allocId());
+                }
+                const default_label = if (sw.default != null) self.allocId() else merge_label;
+
+                // Emit selection merge
+                try self.emitSelectionMerge(&self.function_section, merge_label);
+
+                // Build OpSwitch operands: selector, default, then pairs of (literal, label)
+                var switch_operands = std.ArrayListUnmanaged(u32).empty;
+                defer switch_operands.deinit(self.allocator);
+                try switch_operands.append(self.allocator, selector_id);
+                try switch_operands.append(self.allocator, default_label);
+                for (sw.cases, 0..) |case_item, idx| {
+                    // Extract literal value as u32
+                    const case_val: u32 = switch (case_item.value) {
+                        .i32_ => |v| @bitCast(v),
+                        .u32_ => |v| v,
+                        .bool_ => |v| if (v) @as(u32, 1) else 0,
+                        else => 0,
+                    };
+                    try switch_operands.append(self.allocator, case_val);
+                    try switch_operands.append(self.allocator, case_labels.items[idx]);
+                }
+                try self.emitOp(&self.function_section, .OpSwitch, switch_operands.items);
+
+                // Emit case blocks
+                for (sw.cases, 0..) |case_item, idx| {
+                    try self.emitLabel(&self.function_section, case_labels.items[idx]);
+                    for (case_item.body) |body_stmt| {
+                        try self.generateStmt(body_stmt);
+                    }
+                    try self.emitBranch(&self.function_section, merge_label);
+                }
+
+                // Emit default block if present
+                if (sw.default) |default_body| {
+                    try self.emitLabel(&self.function_section, default_label);
+                    for (default_body) |body_stmt| {
+                        try self.generateStmt(body_stmt);
+                    }
+                    try self.emitBranch(&self.function_section, merge_label);
+                }
+
+                // Merge block
+                try self.emitLabel(&self.function_section, merge_label);
+            },
         }
     }
 
@@ -620,6 +772,7 @@ pub const SpirvGenerator = struct {
     }
 
     /// Generate a unary operation.
+    /// Covers all GLSL.std.450 unary math functions and prefix operators.
     pub fn generateUnaryOp(self: *Self, op: dsl_expr.UnaryOp, operand: u32) !u32 {
         const result_id = self.allocId();
         const float_type = try self.getFloatType(32);
@@ -636,6 +789,7 @@ pub const SpirvGenerator = struct {
                 const int_type = try self.getIntType(32, true);
                 try self.emitOp(&self.function_section, .OpNot, &.{ int_type, result_id, operand });
             },
+            // GLSL.std.450 math operations
             .sqrt => {
                 try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 31), operand }); // Sqrt
             },
@@ -648,11 +802,43 @@ pub const SpirvGenerator = struct {
             .tan => {
                 try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 15), operand }); // Tan
             },
+            .asin => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 16), operand }); // Asin
+            },
+            .acos => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 17), operand }); // Acos
+            },
+            .atan => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 18), operand }); // Atan
+            },
+            .sinh => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 19), operand }); // Sinh
+            },
+            .cosh => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 20), operand }); // Cosh
+            },
+            .tanh => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 21), operand }); // Tanh
+            },
             .exp => {
                 try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 27), operand }); // Exp
             },
+            .exp2 => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 29), operand }); // Exp2
+            },
             .log => {
                 try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 28), operand }); // Log
+            },
+            .log2 => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 30), operand }); // Log2
+            },
+            .log10 => {
+                // GLSL.std.450 has no Log10; compute as Log2(x) / Log2(10)
+                // Log2(10) ≈ 3.321928... → precompute as constant
+                const log2_id = self.allocId();
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, log2_id, self.glsl_ext_id, @as(u32, 30), operand }); // Log2
+                const log2_10 = try self.getConstantF32(3.321928094887362);
+                try self.emitOp(&self.function_section, .OpFDiv, &.{ float_type, result_id, log2_id, log2_10 });
             },
             .abs => {
                 try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 4), operand }); // FAbs
@@ -666,44 +852,163 @@ pub const SpirvGenerator = struct {
             .round => {
                 try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 1), operand }); // Round
             },
-            else => {
-                // Fallback
-                try self.emitOp(&self.function_section, .OpCopyObject, &.{ float_type, result_id, operand });
+            .trunc => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 3), operand }); // Trunc
+            },
+            .fract => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 10), operand }); // Fract
+            },
+            .sign => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 6), operand }); // FSign
+            },
+            .normalize => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 69), operand }); // Normalize
+            },
+            .length => {
+                try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, @as(u32, 66), operand }); // Length
             },
         }
         return result_id;
     }
 
+    /// Classify a SPIR-V type ID into a type category for instruction selection.
+    const TypeCategory = enum { float_, signed_int, unsigned_int, bool_, unknown };
+
+    fn classifyType(self: *Self, type_id: u32) TypeCategory {
+        // Check against known type IDs
+        var it = self.type_ids.iterator();
+        while (it.next()) |entry| {
+            if (entry.value_ptr.* == type_id) {
+                const key = entry.key_ptr.*;
+                return switch (key.tag) {
+                    .float => .float_,
+                    .int => if (key.extra == 1) .signed_int else .unsigned_int,
+                    .bool_ => .bool_,
+                    else => .unknown,
+                };
+            }
+        }
+        return .unknown;
+    }
+
     /// Generate a binary operation.
+    /// Dispatches to the appropriate SPIR-V opcode based on operand type:
+    /// - Float operands: OpF* instructions
+    /// - Signed integer operands: OpS*/OpI* instructions
+    /// - Unsigned integer operands: OpU*/OpI* instructions
+    /// - Boolean operands: OpLogical* instructions
     pub fn generateBinaryOp(self: *Self, op: dsl_expr.BinaryOp, left: u32, right: u32) !u32 {
         const result_id = self.allocId();
-        const float_type = try self.getFloatType(32);
         const bool_type = try self.getBoolType();
 
+        // Determine operand type from left operand's type tracking
+        const operand_type_id = self.ptr_type_map.get(left);
+        const category: TypeCategory = if (operand_type_id) |tid|
+            self.classifyType(tid)
+        else
+            .float_; // Default to float for backward compatibility
+
+        // Select opcode based on type category
         const opcode: OpCode = switch (op) {
-            .add => .OpFAdd,
-            .sub => .OpFSub,
-            .mul => .OpFMul,
-            .div => .OpFDiv,
-            .mod => .OpFMod,
-            .eq => .OpFOrdEqual,
-            .ne => .OpFOrdNotEqual,
-            .lt => .OpFOrdLessThan,
-            .le => .OpFOrdLessThanEqual,
-            .gt => .OpFOrdGreaterThan,
-            .ge => .OpFOrdGreaterThanEqual,
+            .add => switch (category) {
+                .signed_int, .unsigned_int => .OpIAdd,
+                else => .OpFAdd,
+            },
+            .sub => switch (category) {
+                .signed_int, .unsigned_int => .OpISub,
+                else => .OpFSub,
+            },
+            .mul => switch (category) {
+                .signed_int, .unsigned_int => .OpIMul,
+                else => .OpFMul,
+            },
+            .div => switch (category) {
+                .signed_int => .OpSDiv,
+                .unsigned_int => .OpUDiv,
+                else => .OpFDiv,
+            },
+            .mod => switch (category) {
+                .signed_int => .OpSRem,
+                .unsigned_int => .OpUMod,
+                else => .OpFMod,
+            },
+            .eq => switch (category) {
+                .signed_int, .unsigned_int => .OpIEqual,
+                .bool_ => .OpLogicalEqual,
+                else => .OpFOrdEqual,
+            },
+            .ne => switch (category) {
+                .signed_int, .unsigned_int => .OpINotEqual,
+                .bool_ => .OpLogicalNotEqual,
+                else => .OpFOrdNotEqual,
+            },
+            .lt => switch (category) {
+                .signed_int => .OpSLessThan,
+                .unsigned_int => .OpULessThan,
+                else => .OpFOrdLessThan,
+            },
+            .le => switch (category) {
+                .signed_int => .OpSLessThanEqual,
+                .unsigned_int => .OpULessThanEqual,
+                else => .OpFOrdLessThanEqual,
+            },
+            .gt => switch (category) {
+                .signed_int => .OpSGreaterThan,
+                .unsigned_int => .OpUGreaterThan,
+                else => .OpFOrdGreaterThan,
+            },
+            .ge => switch (category) {
+                .signed_int => .OpSGreaterThanEqual,
+                .unsigned_int => .OpUGreaterThanEqual,
+                else => .OpFOrdGreaterThanEqual,
+            },
             .and_ => .OpLogicalAnd,
             .or_ => .OpLogicalOr,
             .bit_and => .OpBitwiseAnd,
             .bit_or => .OpBitwiseOr,
             .bit_xor => .OpBitwiseXor,
             .shl => .OpShiftLeftLogical,
-            .shr => .OpShiftRightLogical,
-            else => .OpFAdd,
+            .shr => switch (category) {
+                .signed_int => .OpShiftRightArithmetic,
+                else => .OpShiftRightLogical,
+            },
+            // Function-like binary ops dispatch to GLSL.std.450 ext inst
+            .dot => return self.generateBinaryExtInst(40, left, right), // Dot (not in this switch)
+            .cross => return self.generateBinaryExtInst(68, left, right), // Cross
+            .min => switch (category) {
+                .signed_int => return self.generateBinaryExtInst(39, left, right), // SMin
+                .unsigned_int => return self.generateBinaryExtInst(38, left, right), // UMin
+                else => return self.generateBinaryExtInst(37, left, right), // FMin
+            },
+            .max => switch (category) {
+                .signed_int => return self.generateBinaryExtInst(42, left, right), // SMax
+                .unsigned_int => return self.generateBinaryExtInst(41, left, right), // UMax
+                else => return self.generateBinaryExtInst(40, left, right), // FMax
+            },
+            .pow => return self.generateBinaryExtInst(26, left, right), // Pow
+            .atan2 => return self.generateBinaryExtInst(25, left, right), // Atan2
+            .step => return self.generateBinaryExtInst(48, left, right), // Step
+            .reflect => return self.generateBinaryExtInst(71, left, right), // Reflect
+            .distance => return self.generateBinaryExtInst(67, left, right), // Distance
+            .xor => .OpLogicalNotEqual, // Logical XOR is equivalent to !=
         };
 
-        const result_type = if (op.isComparison()) bool_type else float_type;
+        // Determine result type
+        const result_type = if (op.isComparison()) bool_type else switch (category) {
+            .signed_int => try self.getIntType(32, true),
+            .unsigned_int => try self.getIntType(32, false),
+            .bool_ => bool_type,
+            else => try self.getFloatType(32),
+        };
         try self.emitOp(&self.function_section, opcode, &.{ result_type, result_id, left, right });
+        return result_id;
+    }
+
+    /// Generate a binary GLSL.std.450 extended instruction.
+    fn generateBinaryExtInst(self: *Self, glsl_op: u32, left: u32, right: u32) !u32 {
+        const result_id = self.allocId();
+        const float_type = try self.getFloatType(32);
+        try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, glsl_op, left, right });
         return result_id;
     }
 
@@ -775,24 +1080,49 @@ pub const SpirvGenerator = struct {
                 }
                 return 0;
             },
+            .smoothstep => {
+                if (c.args.len >= 3) {
+                    const edge0 = try self.generateExpr(c.args[0]);
+                    const edge1 = try self.generateExpr(c.args[1]);
+                    const x = try self.generateExpr(c.args[2]);
+                    const float_type = try self.getFloatType(32);
+                    const result_id = self.allocId();
+                    // GLSL.std.450 SmoothStep = 49
+                    try self.emitOp(&self.function_section, .OpExtInst, &.{ float_type, result_id, self.glsl_ext_id, 49, edge0, edge1, x });
+                    return result_id;
+                }
+                return 0;
+            },
             else => return 0,
         }
     }
 
     /// Generate load from pointer.
+    /// Resolves the pointed-to type from the pointer type map when available,
+    /// falling back to f32 for backward compatibility.
     pub fn generateLoad(self: *Self, ptr: u32) !u32 {
         const result_id = self.allocId();
-        const float_type = try self.getFloatType(32);
-        try self.emitOp(&self.function_section, .OpLoad, &.{ float_type, result_id, ptr });
+        const result_type = if (self.ptr_type_map.get(ptr)) |type_id|
+            type_id
+        else
+            try self.getFloatType(32);
+        try self.emitOp(&self.function_section, .OpLoad, &.{ result_type, result_id, ptr });
         return result_id;
     }
 
     /// Generate access chain.
+    /// Resolves the element type from the buffer element type map when the base
+    /// is a known buffer variable, falling back to f32 for backward compatibility.
     pub fn generateAccessChain(self: *Self, base: u32, index: u32) !u32 {
         const result_id = self.allocId();
-        const float_type = try self.getFloatType(32);
-        const ptr_type = try self.getPointerType(float_type, .StorageBuffer);
+        const elem_type = if (self.buffer_elem_type_map.get(base)) |type_id|
+            type_id
+        else
+            try self.getFloatType(32);
+        const ptr_type = try self.getPointerType(elem_type, .StorageBuffer);
         try self.emitOp(&self.function_section, .OpAccessChain, &.{ ptr_type, result_id, base, index });
+        // Track that this access chain pointer points to elem_type
+        try self.ptr_type_map.put(self.allocator, result_id, elem_type);
         return result_id;
     }
 

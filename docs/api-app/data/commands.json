@@ -204,6 +204,12 @@
     ]
   },
   {
+    "name": "os-agent",
+    "description": "OS-aware AI agent with tools, memory, and self-learning",
+    "aliases": [],
+    "subcommands": []
+  },
+  {
     "name": "plugins",
     "description": "Plugin management (list, enable, disable, info)",
     "aliases": [],
@@ -246,7 +252,10 @@
       "gate",
       "improve",
       "skills",
-      "help"
+      "help",
+      "super-ralph",
+      "swarm",
+      "skill"
     ]
   },
   {

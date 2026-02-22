@@ -46,7 +46,7 @@ pub const BackendMetrics = struct {
 /// Metrics exporter with Prometheus format support.
 pub const MetricsExporter = struct {
     allocator: std.mem.Allocator,
-    metrics: std.AutoHashMap(backend_mod.Backend, BackendMetrics),
+    metrics: std.AutoHashMapUnmanaged(backend_mod.Backend, BackendMetrics),
     global_workload_count: Counter = .{},
     global_failover_count: Counter = .{},
     mutex: sync.Mutex,
@@ -55,7 +55,7 @@ pub const MetricsExporter = struct {
         const self = try allocator.create(MetricsExporter);
         self.* = .{
             .allocator = allocator,
-            .metrics = std.AutoHashMap(backend_mod.Backend, BackendMetrics).init(allocator),
+            .metrics = .empty,
             .global_workload_count = .{},
             .global_failover_count = .{},
             .mutex = .{},
@@ -64,7 +64,7 @@ pub const MetricsExporter = struct {
     }
 
     pub fn deinit(self: *MetricsExporter) void {
-        self.metrics.deinit();
+        self.metrics.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -75,7 +75,7 @@ pub const MetricsExporter = struct {
         defer self.mutex.unlock();
 
         // Use getOrPut (not getOrPutAssumeCapacity) to prevent panic on growth
-        const result = self.metrics.getOrPut(backend) catch {
+        const result = self.metrics.getOrPut(self.allocator, backend) catch {
             // Best-effort: if allocation fails, just skip recording
             return;
         };
@@ -92,14 +92,14 @@ pub const MetricsExporter = struct {
         defer self.mutex.unlock();
 
         // Record failover on source backend
-        const from_result = self.metrics.getOrPut(from_backend) catch return;
+        const from_result = self.metrics.getOrPut(self.allocator, from_backend) catch return;
         if (!from_result.found_existing) {
             from_result.value_ptr.* = .{};
         }
         from_result.value_ptr.recordFailover();
 
         // Ensure destination backend is tracked
-        const to_result = self.metrics.getOrPut(to_backend) catch return;
+        const to_result = self.metrics.getOrPut(self.allocator, to_backend) catch return;
         if (!to_result.found_existing) {
             to_result.value_ptr.* = .{};
         }
@@ -122,12 +122,12 @@ pub const MetricsExporter = struct {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            var cloned = std.AutoHashMap(backend_mod.Backend, BackendMetrics).init(allocator);
-            errdefer cloned.deinit();
+            var cloned: std.AutoHashMapUnmanaged(backend_mod.Backend, BackendMetrics) = .empty;
+            errdefer cloned.deinit(allocator);
 
             var iter = self.metrics.iterator();
             while (iter.next()) |entry| {
-                try cloned.put(entry.key_ptr.*, entry.value_ptr.*);
+                try cloned.put(allocator, entry.key_ptr.*, entry.value_ptr.*);
             }
 
             break :blk .{
@@ -138,7 +138,7 @@ pub const MetricsExporter = struct {
         };
         defer {
             var metrics = snapshot.metrics;
-            metrics.deinit();
+            metrics.deinit(allocator);
         }
 
         // Build output without holding lock

@@ -24,7 +24,10 @@ pub const MetalLevel = enum(u8) {
     }
 };
 
-pub const required_runtime_level: MetalLevel = .metal4;
+/// Minimum level for basic compute shader support (M1/M2/M3+).
+pub const required_runtime_level: MetalLevel = .metal3;
+/// Preferred level for advanced features (mesh shaders, ray tracing).
+pub const preferred_runtime_level: MetalLevel = .metal4;
 
 pub fn levelFromFamily(family: gpu_family.MetalGpuFamily) MetalLevel {
     if (family.isMetal4()) return .metal4;
@@ -89,6 +92,7 @@ test "level mapping from family" {
     try std.testing.expectEqual(MetalLevel.metal4, levelFromFamily(.apple9));
 }
 
-test "required runtime level is metal4" {
-    try std.testing.expectEqual(MetalLevel.metal4, required_runtime_level);
+test "required runtime level is metal3" {
+    try std.testing.expectEqual(MetalLevel.metal3, required_runtime_level);
+    try std.testing.expectEqual(MetalLevel.metal4, preferred_runtime_level);
 }

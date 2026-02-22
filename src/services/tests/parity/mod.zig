@@ -302,27 +302,22 @@ const gpu_specs = [_]DeclSpec{
 const ai_specs = [_]DeclSpec{
     .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
     .{ .name = "Error", .kind = .type_decl },
-    .{ .name = "Agent", .kind = .type_decl },
-    .{ .name = "TrainingConfig", .kind = .type_decl },
-    .{ .name = "TrainingResult", .kind = .type_decl },
-    .{ .name = "Tool", .kind = .type_decl },
-    .{ .name = "ToolResult", .kind = .type_decl },
-    .{ .name = "ToolRegistry", .kind = .type_decl },
-    .{ .name = "LlmEngine", .kind = .type_decl },
-    .{ .name = "LlmModel", .kind = .type_decl },
-    .{ .name = "LlmConfig", .kind = .type_decl },
-    .{ .name = "StreamingGenerator", .kind = .type_decl },
-    .{ .name = "StreamToken", .kind = .type_decl },
     .{ .name = "init", .kind = .function },
     .{ .name = "deinit", .kind = .function },
     .{ .name = "isEnabled", .kind = .function },
     .{ .name = "isInitialized", .kind = .function },
     // Submodules are type declarations (they're struct namespaces)
+    .{ .name = "core", .kind = .type_decl },
     .{ .name = "llm", .kind = .type_decl },
     .{ .name = "embeddings", .kind = .type_decl },
     .{ .name = "agents", .kind = .type_decl },
     .{ .name = "training", .kind = .type_decl },
     .{ .name = "streaming", .kind = .type_decl },
+    .{ .name = "explore", .kind = .type_decl },
+    .{ .name = "abbey", .kind = .type_decl },
+    .{ .name = "tools", .kind = .type_decl },
+    .{ .name = "prompts", .kind = .type_decl },
+    .{ .name = "memory", .kind = .type_decl },
 };
 
 /// Database module specs.
@@ -595,114 +590,6 @@ const search_specs = [_]DeclSpec{
 };
 
 // ============================================================================
-// AI Core Module DeclSpec Parity Tests
-// ============================================================================
-
-/// AI Core module required declarations.
-const ai_core_required = parity_specs.required.forFeature(.agents);
-
-/// AI Core module specs.
-const ai_core_specs = [_]DeclSpec{
-    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
-    .{ .name = "Error", .kind = .type_decl },
-    .{ .name = "isEnabled", .kind = .function },
-    .{ .name = "createAgent", .kind = .function, .min_params = 2 },
-    .{ .name = "createRegistry", .kind = .function, .min_params = 1 },
-};
-
-test "ai_core module has required declarations" {
-    comptime verifyDeclarations(abi.ai_core, ai_core_required);
-}
-
-test "ai_core module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.ai_core, &ai_core_specs);
-    try std.testing.expectEqual(
-        @as(usize, 0),
-        comptime countSpecViolations(abi.ai_core, &ai_core_specs),
-    );
-}
-
-// ============================================================================
-// AI Inference Module DeclSpec Parity Tests
-// ============================================================================
-
-/// AI Inference module required declarations.
-const ai_inference_required = parity_specs.required.forFeature(.llm);
-
-/// AI Inference module specs.
-const ai_inference_specs = [_]DeclSpec{
-    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
-    .{ .name = "Error", .kind = .type_decl },
-    .{ .name = "isEnabled", .kind = .function },
-};
-
-test "ai_inference module has required declarations" {
-    comptime verifyDeclarations(abi.inference, ai_inference_required);
-}
-
-test "ai_inference module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.inference, &ai_inference_specs);
-    try std.testing.expectEqual(
-        @as(usize, 0),
-        comptime countSpecViolations(abi.inference, &ai_inference_specs),
-    );
-}
-
-// ============================================================================
-// AI Training Module DeclSpec Parity Tests
-// ============================================================================
-
-/// AI Training module required declarations.
-const ai_training_required = parity_specs.required.forFeature(.training);
-
-/// AI Training module specs.
-const ai_training_specs = [_]DeclSpec{
-    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
-    .{ .name = "Error", .kind = .type_decl },
-    .{ .name = "isEnabled", .kind = .function },
-    .{ .name = "train", .kind = .function, .min_params = 2 },
-    .{ .name = "trainWithResult", .kind = .function, .min_params = 2 },
-};
-
-test "ai_training module has required declarations" {
-    comptime verifyDeclarations(abi.training, ai_training_required);
-}
-
-test "ai_training module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.training, &ai_training_specs);
-    try std.testing.expectEqual(
-        @as(usize, 0),
-        comptime countSpecViolations(abi.training, &ai_training_specs),
-    );
-}
-
-// ============================================================================
-// AI Reasoning Module DeclSpec Parity Tests
-// ============================================================================
-
-/// AI Reasoning module required declarations.
-const ai_reasoning_required = parity_specs.required.forFeature(.reasoning);
-
-/// AI Reasoning module specs.
-const ai_reasoning_specs = [_]DeclSpec{
-    .{ .name = "Context", .kind = .type_decl, .sub_decls = &.{ "init", "deinit" } },
-    .{ .name = "Error", .kind = .type_decl },
-    .{ .name = "isEnabled", .kind = .function },
-};
-
-test "ai_reasoning module has required declarations" {
-    comptime verifyDeclarations(abi.reasoning, ai_reasoning_required);
-}
-
-test "ai_reasoning module declaration kinds and signatures" {
-    comptime verifyDeclSpecs(abi.reasoning, &ai_reasoning_specs);
-    try std.testing.expectEqual(
-        @as(usize, 0),
-        comptime countSpecViolations(abi.reasoning, &ai_reasoning_specs),
-    );
-}
-
-// ============================================================================
 // Mobile Module Parity
 // ============================================================================
 
@@ -875,11 +762,17 @@ test "ai module declaration kinds and signatures" {
 
 test "ai submodules accessible" {
     // Verify key submodules are accessible
+    _ = abi.ai.core;
     _ = abi.ai.llm;
     _ = abi.ai.embeddings;
     _ = abi.ai.agents;
     _ = abi.ai.training;
     _ = abi.ai.streaming;
+    _ = abi.ai.explore;
+    _ = abi.ai.abbey;
+    _ = abi.ai.tools;
+    _ = abi.ai.prompts;
+    _ = abi.ai.memory;
 }
 
 // ============================================================================
@@ -1167,10 +1060,6 @@ test "all feature modules follow Context pattern" {
         abi.storage,
         abi.search,
         abi.gateway,
-        abi.ai_core,
-        abi.inference,
-        abi.training,
-        abi.reasoning,
         abi.mobile,
         abi.pages,
         abi.benchmarks,
@@ -1418,38 +1307,6 @@ test "gateway module bidirectional parity audit" {
     const orphans = comptime getOrphanDeclarations(abi.gateway, gateway_required);
     if (orphans.len > 0) {
         std.log.info("Gateway module has {d} declarations not in expected list", .{orphans.len});
-    }
-    try std.testing.expect(true);
-}
-
-test "ai_core module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.ai_core, ai_core_required);
-    if (orphans.len > 0) {
-        std.log.info("AI Core module has {d} declarations not in expected list", .{orphans.len});
-    }
-    try std.testing.expect(true);
-}
-
-test "ai_inference module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.inference, ai_inference_required);
-    if (orphans.len > 0) {
-        std.log.info("AI Inference module has {d} declarations not in expected list", .{orphans.len});
-    }
-    try std.testing.expect(true);
-}
-
-test "ai_training module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.training, ai_training_required);
-    if (orphans.len > 0) {
-        std.log.info("AI Training module has {d} declarations not in expected list", .{orphans.len});
-    }
-    try std.testing.expect(true);
-}
-
-test "ai_reasoning module bidirectional parity audit" {
-    const orphans = comptime getOrphanDeclarations(abi.reasoning, ai_reasoning_required);
-    if (orphans.len > 0) {
-        std.log.info("AI Reasoning module has {d} declarations not in expected list", .{orphans.len});
     }
     try std.testing.expect(true);
 }

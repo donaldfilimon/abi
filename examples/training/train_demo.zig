@@ -38,7 +38,7 @@ const DemoConfig = struct {
     num_samples: usize = 16,
 };
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -61,7 +61,7 @@ pub fn main() !void {
     std.debug.print("Step 1: Creating Trainable Model\n", .{});
     std.debug.print("--------------------------------\n", .{});
 
-    const model_config = abi.ai.trainable_model.TrainableModelConfig{
+    const model_config = abi.ai.training.TrainableModelConfig{
         .hidden_dim = config.hidden_dim,
         .num_layers = config.num_layers,
         .num_heads = config.num_heads,
@@ -71,7 +71,7 @@ pub fn main() !void {
         .max_seq_len = config.max_seq_len,
     };
 
-    var model = abi.ai.TrainableModel.init(allocator, model_config) catch |err| {
+    var model = abi.ai.training.TrainableModel.init(allocator, model_config) catch |err| {
         std.debug.print("Failed to create model: {t}\n", .{err});
         return;
     };
@@ -106,7 +106,7 @@ pub fn main() !void {
     std.debug.print("  Total tokens:         {d}\n\n", .{train_data.len});
 
     // Create a dataset from the synthetic data
-    var dataset = abi.ai.TokenizedDataset.fromSlice(allocator, train_data);
+    var dataset = abi.ai.training.TokenizedDataset.fromSlice(allocator, train_data);
     defer dataset.deinit();
 
     const num_batches = dataset.numBatches(config.batch_size, config.max_seq_len);
@@ -117,7 +117,7 @@ pub fn main() !void {
     std.debug.print("Step 3: Configuring Training\n", .{});
     std.debug.print("----------------------------\n", .{});
 
-    const train_config = abi.ai.LlmTrainingConfig{
+    const train_config = abi.ai.training.LlmTrainingConfig{
         .epochs = config.epochs,
         .batch_size = config.batch_size,
         .max_seq_len = config.max_seq_len,
@@ -145,7 +145,7 @@ pub fn main() !void {
     std.debug.print("Step 4: Running Training\n", .{});
     std.debug.print("------------------------\n\n", .{});
 
-    var trainer = abi.ai.LlamaTrainer.init(allocator, &model, train_config) catch |err| {
+    var trainer = abi.ai.training.LlamaTrainer.init(allocator, &model, train_config) catch |err| {
         std.debug.print("Failed to create trainer: {t}\n", .{err});
         return;
     };

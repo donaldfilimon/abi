@@ -161,8 +161,26 @@ test "ai stub parity - types exist" {
 
     const AI = abi.ai;
 
+    // Essential types
     try testing.expect(@hasDecl(AI, "Context"));
+    try testing.expect(@hasDecl(AI, "Error"));
     try testing.expect(@hasDecl(AI, "isEnabled"));
+    try testing.expect(@hasDecl(AI, "isInitialized"));
+    try testing.expect(@hasDecl(AI, "init"));
+    try testing.expect(@hasDecl(AI, "deinit"));
+
+    // Submodule namespaces
+    try testing.expect(@hasDecl(AI, "core"));
+    try testing.expect(@hasDecl(AI, "llm"));
+    try testing.expect(@hasDecl(AI, "embeddings"));
+    try testing.expect(@hasDecl(AI, "agents"));
+    try testing.expect(@hasDecl(AI, "training"));
+    try testing.expect(@hasDecl(AI, "streaming"));
+    try testing.expect(@hasDecl(AI, "explore"));
+    try testing.expect(@hasDecl(AI, "abbey"));
+    try testing.expect(@hasDecl(AI, "tools"));
+    try testing.expect(@hasDecl(AI, "prompts"));
+    try testing.expect(@hasDecl(AI, "memory"));
 }
 
 // ============================================================================
@@ -507,72 +525,6 @@ test "mobile stub parity - types exist" {
 }
 
 // ============================================================================
-// AI Core Module Parity
-// ============================================================================
-
-test "ai_core stub parity - types exist" {
-    const AiCore = abi.ai_core;
-
-    try testing.expect(@hasDecl(AiCore, "Context"));
-    try testing.expect(@hasDecl(AiCore, "Error"));
-    try testing.expect(@hasDecl(AiCore, "isEnabled"));
-    try testing.expect(@hasDecl(AiCore, "Agent"));
-    try testing.expect(@hasDecl(AiCore, "ToolRegistry"));
-    try testing.expect(@hasDecl(AiCore, "PromptBuilder"));
-    try testing.expect(@hasDecl(AiCore, "ModelRegistry"));
-    try testing.expect(@hasDecl(AiCore, "createAgent"));
-    try testing.expect(@hasDecl(AiCore, "createRegistry"));
-}
-
-// ============================================================================
-// AI Inference Module Parity
-// ============================================================================
-
-test "ai_inference stub parity - types exist" {
-    const Inference = abi.inference;
-
-    try testing.expect(@hasDecl(Inference, "Context"));
-    try testing.expect(@hasDecl(Inference, "Error"));
-    try testing.expect(@hasDecl(Inference, "isEnabled"));
-    try testing.expect(@hasDecl(Inference, "llm"));
-    try testing.expect(@hasDecl(Inference, "embeddings"));
-    try testing.expect(@hasDecl(Inference, "streaming"));
-    try testing.expect(@hasDecl(Inference, "transformer"));
-}
-
-// ============================================================================
-// AI Training Module Parity
-// ============================================================================
-
-test "ai_training stub parity - types exist" {
-    const Training = abi.training;
-
-    try testing.expect(@hasDecl(Training, "Context"));
-    try testing.expect(@hasDecl(Training, "Error"));
-    try testing.expect(@hasDecl(Training, "isEnabled"));
-    try testing.expect(@hasDecl(Training, "TrainingConfig"));
-    try testing.expect(@hasDecl(Training, "TrainableModel"));
-    try testing.expect(@hasDecl(Training, "train"));
-    try testing.expect(@hasDecl(Training, "trainWithResult"));
-}
-
-// ============================================================================
-// AI Reasoning Module Parity
-// ============================================================================
-
-test "ai_reasoning stub parity - types exist" {
-    const Reasoning = abi.reasoning;
-
-    try testing.expect(@hasDecl(Reasoning, "Context"));
-    try testing.expect(@hasDecl(Reasoning, "Error"));
-    try testing.expect(@hasDecl(Reasoning, "isEnabled"));
-    try testing.expect(@hasDecl(Reasoning, "abbey"));
-    try testing.expect(@hasDecl(Reasoning, "explore"));
-    try testing.expect(@hasDecl(Reasoning, "orchestration"));
-    try testing.expect(@hasDecl(Reasoning, "documents"));
-}
-
-// ============================================================================
 // Comprehensive Module Surface Test
 // ============================================================================
 
@@ -597,10 +549,4 @@ test "all feature modules have consistent API surface" {
     if (build_options.enable_ai) {
         try verifyContextPattern(abi.ai);
     }
-
-    // Split AI modules
-    try verifyContextPattern(abi.ai_core);
-    try verifyContextPattern(abi.inference);
-    try verifyContextPattern(abi.training);
-    try verifyContextPattern(abi.reasoning);
 }

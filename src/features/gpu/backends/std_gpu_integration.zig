@@ -32,6 +32,11 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const std_gpu_kernels = @import("../std_gpu_kernels.zig");
+
+// Import dispatch types for BuiltinKernel enum and Buffer
+const dsl_kernel = @import("../dsl/kernel.zig");
+const unified_buffer = @import("../unified_buffer.zig");
 
 // Inline GPU target detection (same as std_gpu.zig)
 const is_gpu_target = builtin.cpu.arch.isSpirV();
@@ -349,8 +354,233 @@ pub fn calculateWorkgroups2D(rows: u32, cols: u32, tile_size: u32) [2]u32 {
 }
 
 // ============================================================================
+// Native Zig Kernel Registry
+// ============================================================================
+
+/// Registry that maps BuiltinKernel enum values to native Zig kernel
+/// implementations from std_gpu_kernels.zig.
+///
+/// When the active backend is `.stdgpu` or `.simulated`, the dispatch
+/// coordinator tries this registry before falling back to the DSL-generated
+/// kernel pipeline. On CPU targets the SPIR-V kernels degrade to regular
+/// Zig function calls, so we invoke the dedicated CPU fallback routines
+/// which operate on slices for efficiency.
+pub const StdGpuKernelRegistry = struct {
+    pub const BuiltinKernel = dsl_kernel.BuiltinKernel;
+    pub const Buffer = unified_buffer.Buffer;
+
+    /// Execute a built-in kernel using native Zig implementations.
+    /// Returns `true` if the kernel was handled natively, `false` if not
+    /// supported (caller should fall through to the DSL pipeline).
+    pub fn executeBuiltin(
+        kernel: BuiltinKernel,
+        buffers: []const *Buffer,
+        global_size: [3]u32,
+        uniforms: []const *const anyopaque,
+        uniform_sizes: []const usize,
+    ) bool {
+        switch (kernel) {
+            .vector_add => {
+                if (buffers.len < 3) return false;
+                const a = bufSliceF32(buffers[0]) orelse return false;
+                const b = bufSliceF32(buffers[1]) orelse return false;
+                const r = bufSliceMutF32(buffers[2]) orelse return false;
+                std_gpu_kernels.vectorAddCpu(a, b, r);
+                return true;
+            },
+            .vector_sub => {
+                if (buffers.len < 3) return false;
+                const a = bufSliceF32(buffers[0]) orelse return false;
+                const b = bufSliceF32(buffers[1]) orelse return false;
+                const r = bufSliceMutF32(buffers[2]) orelse return false;
+                const len = @min(a.len, @min(b.len, r.len));
+                for (0..len) |i| {
+                    r[i] = a[i] - b[i];
+                }
+                return true;
+            },
+            .vector_mul => {
+                if (buffers.len < 3) return false;
+                const a = bufSliceF32(buffers[0]) orelse return false;
+                const b = bufSliceF32(buffers[1]) orelse return false;
+                const r = bufSliceMutF32(buffers[2]) orelse return false;
+                std_gpu_kernels.vectorMulCpu(a, b, r);
+                return true;
+            },
+            .vector_scale => {
+                if (buffers.len < 2) return false;
+                const a = bufSliceF32(buffers[0]) orelse return false;
+                const r = bufSliceMutF32(buffers[1]) orelse return false;
+                const scalar = readUniform(f32, uniforms, uniform_sizes, 0) orelse 1.0;
+                const len = @min(a.len, r.len);
+                for (0..len) |i| {
+                    r[i] = scalar * a[i];
+                }
+                return true;
+            },
+            .matrix_multiply => {
+                if (buffers.len < 3) return false;
+                const a = bufSliceF32(buffers[0]) orelse return false;
+                const b = bufSliceF32(buffers[1]) orelse return false;
+                const c = bufSliceMutF32(buffers[2]) orelse return false;
+                // Dimensions encoded in global_size: [0]=n, [1]=m, [2]=k
+                const m: usize = global_size[1];
+                const n: usize = global_size[0];
+                const k: usize = global_size[2];
+                std_gpu_kernels.matrixMulCpu(a, b, c, m, n, k);
+                return true;
+            },
+            .reduce_sum => {
+                if (buffers.len < 2) return false;
+                const input = bufSliceF32(buffers[0]) orelse return false;
+                const result = bufSliceMutF32(buffers[1]) orelse return false;
+                var sum: f32 = 0;
+                for (input) |v| sum += v;
+                if (result.len > 0) result[0] = sum;
+                return true;
+            },
+            .reduce_max => {
+                if (buffers.len < 2) return false;
+                const input = bufSliceF32(buffers[0]) orelse return false;
+                const result = bufSliceMutF32(buffers[1]) orelse return false;
+                if (input.len == 0) return false;
+                var max_val: f32 = input[0];
+                for (input[1..]) |v| {
+                    if (v > max_val) max_val = v;
+                }
+                if (result.len > 0) result[0] = max_val;
+                return true;
+            },
+            .relu => {
+                if (buffers.len < 2) return false;
+                const input = bufSliceF32(buffers[0]) orelse return false;
+                const output = bufSliceMutF32(buffers[1]) orelse return false;
+                const len = @min(input.len, output.len);
+                for (0..len) |i| {
+                    output[i] = @max(input[i], 0.0);
+                }
+                return true;
+            },
+            .sigmoid => {
+                if (buffers.len < 2) return false;
+                const input = bufSliceF32(buffers[0]) orelse return false;
+                const output = bufSliceMutF32(buffers[1]) orelse return false;
+                const len = @min(input.len, output.len);
+                for (0..len) |i| {
+                    output[i] = 1.0 / (1.0 + @exp(-input[i]));
+                }
+                return true;
+            },
+            .silu => {
+                if (buffers.len < 2) return false;
+                const input = bufSliceF32(buffers[0]) orelse return false;
+                const output = bufSliceMutF32(buffers[1]) orelse return false;
+                const len = @min(input.len, output.len);
+                for (0..len) |i| {
+                    const x = input[i];
+                    output[i] = x / (1.0 + @exp(-x));
+                }
+                return true;
+            },
+            .softmax => {
+                if (buffers.len < 2) return false;
+                const input = bufSliceF32(buffers[0]) orelse return false;
+                const output = bufSliceMutF32(buffers[1]) orelse return false;
+                if (input.len == 0) return false;
+                const len = @min(input.len, output.len);
+                // Find max for numerical stability
+                var max_val: f32 = input[0];
+                for (input[1..]) |v| {
+                    if (v > max_val) max_val = v;
+                }
+                // exp(x - max) and sum
+                var sum: f32 = 0;
+                for (0..len) |i| {
+                    output[i] = @exp(input[i] - max_val);
+                    sum += output[i];
+                }
+                // Normalize
+                for (0..len) |i| {
+                    output[i] /= sum;
+                }
+                return true;
+            },
+            .rms_norm => {
+                if (buffers.len < 3) return false;
+                const input = bufSliceF32(buffers[0]) orelse return false;
+                const weight = bufSliceF32(buffers[1]) orelse return false;
+                const output = bufSliceMutF32(buffers[2]) orelse return false;
+                const rms = readUniform(f32, uniforms, uniform_sizes, 0) orelse 1.0;
+                const epsilon = readUniform(f32, uniforms, uniform_sizes, 1) orelse 1e-5;
+                const len = @min(input.len, @min(weight.len, output.len));
+                const rms_eps = rms + epsilon;
+                for (0..len) |i| {
+                    output[i] = weight[i] * input[i] / rms_eps;
+                }
+                return true;
+            },
+            else => return false,
+        }
+    }
+
+    // ---- Helper functions ----
+
+    /// Interpret a Buffer's host_data as a const f32 slice.
+    fn bufSliceF32(buf: *const Buffer) ?[]const f32 {
+        const data = buf.host_data orelse return null;
+        if (data.len < @sizeOf(f32)) return null;
+        const aligned: []align(@alignOf(f32)) u8 = @alignCast(data);
+        const slice = std.mem.bytesAsSlice(f32, aligned);
+        return slice;
+    }
+
+    /// Interpret a Buffer's host_data as a mutable f32 slice.
+    fn bufSliceMutF32(buf: *const Buffer) ?[]f32 {
+        const data = buf.host_data orelse return null;
+        if (data.len < @sizeOf(f32)) return null;
+        const aligned: []align(@alignOf(f32)) u8 = @alignCast(data);
+        return std.mem.bytesAsSlice(f32, aligned);
+    }
+
+    /// Safely read a typed uniform parameter.
+    fn readUniform(
+        comptime T: type,
+        uniforms: []const *const anyopaque,
+        uniform_sizes: []const usize,
+        index: usize,
+    ) ?T {
+        if (index >= uniforms.len) return null;
+        if (index < uniform_sizes.len and uniform_sizes[index] != @sizeOf(T)) return null;
+        return @as(*const T, @ptrCast(@alignCast(uniforms[index]))).*;
+    }
+};
+
+// ============================================================================
 // Tests
 // ============================================================================
+
+test "StdGpuKernelRegistry unsupported kernel returns false" {
+    const handled = StdGpuKernelRegistry.executeBuiltin(
+        .conv2d,
+        &.{},
+        .{ 1, 1, 1 },
+        &.{},
+        &.{},
+    );
+    try std.testing.expect(!handled);
+}
+
+test "StdGpuKernelRegistry insufficient buffers returns false" {
+    // vector_add requires 3 buffers; passing 0 should return false
+    const handled = StdGpuKernelRegistry.executeBuiltin(
+        .vector_add,
+        &.{},
+        .{ 4, 1, 1 },
+        &.{},
+        &.{},
+    );
+    try std.testing.expect(!handled);
+}
 
 test "std.gpu device initialization" {
     const allocator = std.testing.allocator;

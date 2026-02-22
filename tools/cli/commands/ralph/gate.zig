@@ -4,6 +4,7 @@ const std = @import("std");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const cfg = @import("config.zig");
+const workspace = @import("workspace.zig");
 
 const ScoringRule = struct {
     name: []const u8,
@@ -98,13 +99,19 @@ pub fn runGate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var out_path: []const u8 = "reports/ralph_upgrade_summary.md";
     var min_average: f64 = 0.75;
     var require_live = false;
+    var explicit_input = false;
+    var in_path_owned: ?[]u8 = null;
+    defer if (in_path_owned) |p| allocator.free(p);
 
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
         const arg = std.mem.sliceTo(args[i], 0);
         if (utils.args.matchesAny(arg, &[_][]const u8{ "--in", "-i" })) {
             i += 1;
-            if (i < args.len) in_path = std.mem.sliceTo(args[i], 0);
+            if (i < args.len) {
+                in_path = std.mem.sliceTo(args[i], 0);
+                explicit_input = true;
+            }
         } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--out", "-o" })) {
             i += 1;
             if (i < args.len) out_path = std.mem.sliceTo(args[i], 0);
@@ -122,7 +129,7 @@ pub fn runGate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
                 \\Exits 0 on pass, 2 on fail.
                 \\
                 \\Options:
-                \\  -i, --in <path>         Input JSON (default: reports/ralph_upgrade_results_openai.json)
+                \\  -i, --in <path>         Input JSON (default: latest .ralph run report, fallback legacy path)
                 \\  -o, --out <path>        Output Markdown (default: reports/ralph_upgrade_summary.md)
                 \\      --min-average <f>   Minimum average score (default: 0.75)
                 \\      --require-live      Require live OpenAI provider outputs
@@ -137,6 +144,13 @@ pub fn runGate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     defer io_backend.deinit();
     const io = io_backend.io();
 
+    if (!explicit_input) {
+        if (workspace.latestReportPath(allocator, io)) |path| {
+            in_path_owned = path;
+            in_path = path;
+        }
+    }
+
     // Read input JSON
     const json_contents = std.Io.Dir.cwd().readFileAlloc(
         io,
@@ -150,7 +164,7 @@ pub fn runGate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     };
     defer allocator.free(json_contents);
 
-    // Parse JSON as array
+    // Parse JSON
     const parsed = std.json.parseFromSlice(
         std.json.Value,
         allocator,
@@ -161,6 +175,48 @@ pub fn runGate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         std.process.exit(1);
     };
     defer parsed.deinit();
+
+    // New run-report format: object with last_gate_passed + last_gate_exit.
+    switch (parsed.value) {
+        .object => |obj| {
+            if (obj.get("last_gate_passed") != null) {
+                const gate_passed = if (obj.get("last_gate_passed")) |v| switch (v) {
+                    .bool => |b| b,
+                    else => false,
+                } else false;
+                const gate_exit = if (obj.get("last_gate_exit")) |v| switch (v) {
+                    .integer => |code| code,
+                    else => 1,
+                } else 1;
+                const run_id = if (obj.get("run_id")) |v| switch (v) {
+                    .string => |s| s,
+                    else => "",
+                } else "";
+                const summary = try std.fmt.allocPrint(allocator,
+                    \\# Ralph Gate (Run Report)
+                    \\
+                    \\- Input: `{s}`
+                    \\- Run ID: `{s}`
+                    \\- Result: **{s}**
+                    \\- Exit code: {d}
+                    \\
+                , .{
+                    in_path,
+                    run_id,
+                    if (gate_passed) "PASS" else "FAIL",
+                    gate_exit,
+                });
+                defer allocator.free(summary);
+                if (std.fs.path.dirname(out_path)) |dir| cfg.ensureDir(io, dir);
+                cfg.writeFile(allocator, io, out_path, summary) catch {};
+                std.debug.print("{s}\n", .{summary});
+                if (!gate_passed) std.process.exit(2);
+                std.debug.print("OK: Ralph gate passed ({s}).\n", .{out_path});
+                return;
+            }
+        },
+        else => {},
+    }
 
     const items = switch (parsed.value) {
         .array => |a| a.items,

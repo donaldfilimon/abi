@@ -1,7 +1,7 @@
 const std = @import("std");
 const util = @import("util.zig");
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
@@ -43,14 +43,14 @@ pub fn main() !void {
         const which_res = try util.captureCommand(allocator, "which -a zig");
         defer allocator.free(which_res.output);
 
-        var seen = std.StringHashMap(void).init(allocator);
-        defer seen.deinit();
+        var seen: std.StringHashMapUnmanaged(void) = .empty;
+        defer seen.deinit(allocator);
 
         var lines = std.mem.splitScalar(u8, which_res.output, '\n');
         while (lines.next()) |line| {
             const trimmed = util.trimSpace(line);
             if (trimmed.len == 0) continue;
-            const gop = try seen.getOrPut(trimmed);
+            const gop = try seen.getOrPut(allocator, trimmed);
             if (gop.found_existing) continue;
             std.debug.print("  - {s}\n", .{trimmed});
         }

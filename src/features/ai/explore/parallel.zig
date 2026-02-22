@@ -27,8 +27,9 @@ pub const ParallelExplorer = struct {
     should_cancel: std.atomic.Value(bool),
     processed: std.atomic.Value(usize),
     lock: sync.Mutex,
+    io: std.Io,
 
-    pub fn init(allocator: std.mem.Allocator, config: ExploreConfig, result: *ExploreResult, patterns: []const SearchPattern) ParallelExplorer {
+    pub fn init(allocator: std.mem.Allocator, config: ExploreConfig, result: *ExploreResult, patterns: []const SearchPattern, io: std.Io) ParallelExplorer {
         return ParallelExplorer{
             .allocator = allocator,
             .config = config,
@@ -37,6 +38,7 @@ pub const ParallelExplorer = struct {
             .should_cancel = std.atomic.Value(bool).init(false),
             .processed = std.atomic.Value(usize).init(0),
             .lock = sync.Mutex{},
+            .io = io,
         };
     }
 
@@ -121,7 +123,8 @@ pub const ParallelExplorer = struct {
 
     fn processFile(self: *ParallelExplorer, file_stat: *const FileStats) !void {
         for (self.patterns) |*pattern| {
-            const content = try fs.readFileContent(self.allocator, file_stat.path, self.config.file_size_limit_bytes);
+            const max_size: ?usize = if (self.config.file_size_limit_bytes) |limit| @intCast(limit) else null;
+            const content = try fs.readFileContent(self.allocator, self.io, file_stat.path, max_size);
             defer self.allocator.free(content);
 
             if (content.len == 0) continue;
@@ -133,7 +136,7 @@ pub const ParallelExplorer = struct {
     }
 
     fn shouldMatch(self: *ParallelExplorer, file_path: []const u8, _: []const u8, _: *const SearchPattern) !bool {
-        var extension = std.fs.path.extension(file_path);
+        var extension = std.Io.Dir.path.extension(file_path);
         if (extension.len == 0) extension = file_path;
 
         var ext_match: bool = false;
@@ -207,7 +210,7 @@ pub const ParallelExplorer = struct {
     }
 
     pub fn markProcessed(self: *ParallelExplorer) void {
-        self.processed.fetchAdd(1, .release);
+        _ = self.processed.fetchAdd(1, .release);
     }
 
     pub fn getProcessedCount(self: *ParallelExplorer) usize {
@@ -240,7 +243,7 @@ pub fn parallelExplore(
     defer visitor.deinit();
 
     visitor.visit(root_path) catch {
-        result.explore_error = ExploreResult.ExploreError.PathNotFound;
+        result.explore_error = @import("results.zig").ExploreError.PathNotFound;
         const msg = try std.fmt.allocPrint(allocator, "Failed to access path: {s}", .{root_path});
         result.error_message = msg;
         return result;
@@ -248,15 +251,23 @@ pub fn parallelExplore(
 
     const files = visitor.getFiles();
 
-    var explorer = ParallelExplorer.init(allocator, config, &result, patterns.items);
-    defer explorer.* = undefined;
+    var io_backend: std.Io.Threaded = .init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var explorer = ParallelExplorer.init(allocator, config, &result, patterns.items, io);
+    defer explorer = undefined;
 
     var timer = time.Timer.start() catch return error.TimerFailed;
 
     try explorer.explore(files);
 
     const elapsed_ns = timer.read();
-    result.duration_ms = @divTrunc(@as(i128, @intCast(elapsed_ns)), std.time.ns_per_ms);
+    result.duration_ms = elapsed_ns / std.time.ns_per_ms;
 
     return result;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

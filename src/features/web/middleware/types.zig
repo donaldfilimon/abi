@@ -17,13 +17,13 @@ pub const MiddlewareContext = struct {
     /// Allocator for middleware use.
     allocator: std.mem.Allocator,
     /// Custom state that middleware can set/get.
-    state: std.StringHashMap([]const u8),
+    state: std.StringHashMapUnmanaged([]const u8),
     /// Whether processing should continue.
     should_continue: bool = true,
     /// Whether response has been sent.
     response_sent: bool = false,
     /// Path parameters extracted from route.
-    path_params: std.StringHashMap([]const u8),
+    path_params: std.StringHashMapUnmanaged([]const u8),
     /// Request start time for timing.
     start_time: i64,
 
@@ -37,21 +37,21 @@ pub const MiddlewareContext = struct {
             .request = request,
             .response = response,
             .allocator = allocator,
-            .state = std.StringHashMap([]const u8).init(allocator),
-            .path_params = std.StringHashMap([]const u8).init(allocator),
+            .state = .empty,
+            .path_params = .empty,
             .start_time = time.nowMs(),
         };
     }
 
     /// Cleans up context resources.
     pub fn deinit(self: *MiddlewareContext) void {
-        self.state.deinit();
-        self.path_params.deinit();
+        self.state.deinit(self.allocator);
+        self.path_params.deinit(self.allocator);
     }
 
     /// Sets a state value.
     pub fn set(self: *MiddlewareContext, key: []const u8, value: []const u8) !void {
-        try self.state.put(key, value);
+        try self.state.put(self.allocator, key, value);
     }
 
     /// Gets a state value.
@@ -156,7 +156,7 @@ fn makeTestRequest(allocator: std.mem.Allocator, path: []const u8) server.Parsed
         .path = path,
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = path,
         .allocator = allocator,

@@ -248,7 +248,7 @@ pub fn sleepMs(ms: u64) void {
 
 /// Get a seed value suitable for PRNG initialization.
 /// On native platforms: uses monotonic timestamp for uniqueness.
-/// On WASM: uses std.crypto.random for true randomness.
+/// On WASM: uses std.c.arc4random_buf for true randomness.
 /// This should be used instead of timestampNs() for seeding PRNGs.
 pub fn getSeed() u64 {
     if (has_instant) {
@@ -258,7 +258,7 @@ pub fn getSeed() u64 {
         if (builtin.os.tag == .wasi) {
             // On WASI, use cryptographic randomness + counter for uniqueness
             var seed_bytes: [8]u8 = undefined;
-            std.crypto.random.bytes(&seed_bytes);
+            std.c.arc4random_buf(&seed_bytes, seed_bytes.len);
             const random_part = std.mem.readInt(u64, &seed_bytes, .little);
             const counter = @as(u64, wasm_counter.fetchAdd(1, .monotonic));
             return random_part ^ counter;

@@ -298,15 +298,15 @@ pub const DependencyAnalyzer = struct {
     fn getModuleName(self: *DependencyAnalyzer, parsed_file: *const ParsedFile) ![]const u8 {
         const file_path = parsed_file.file_path;
 
-        if (std.mem.eql(u8, parsed_file.file_type, ".zig")) {
+        if (std.mem.eql(u8, parsed_file.file_type, "zig")) {
             if (std.mem.lastIndexOf(u8, file_path, ".zig")) |idx| {
                 return self.allocator.dupe(u8, file_path[0..idx]);
             }
-        } else if (std.mem.eql(u8, parsed_file.file_type, ".rs")) {
+        } else if (std.mem.eql(u8, parsed_file.file_type, "rust")) {
             if (std.mem.lastIndexOf(u8, file_path, ".rs")) |idx| {
                 return self.allocator.dupe(u8, file_path[0..idx]);
             }
-        } else if (std.mem.eql(u8, parsed_file.file_type, ".ts") or std.mem.eql(u8, parsed_file.file_type, ".js")) {
+        } else if (std.mem.eql(u8, parsed_file.file_type, "typescript") or std.mem.eql(u8, parsed_file.file_type, "javascript")) {
             if (std.mem.lastIndexOf(u8, file_path, ".ts")) |idx| {
                 return self.allocator.dupe(u8, file_path[0..idx]);
             }
@@ -332,10 +332,10 @@ pub const DependencyAnalyzer = struct {
         }
     }
 
-    fn classifyImport(self: *DependencyAnalyzer, import_path: []const u8, language: ParsedFile.Language) ImportType {
+    fn classifyImport(self: *DependencyAnalyzer, import_path: []const u8, language: []const u8) ImportType {
         _ = self;
 
-        if (language == .zig) {
+        if (std.mem.eql(u8, language, "zig")) {
             if (std.mem.startsWith(u8, import_path, "std.")) {
                 return .std;
             }
@@ -343,7 +343,7 @@ pub const DependencyAnalyzer = struct {
                 return .std;
             }
             return .local;
-        } else if (language == .rust) {
+        } else if (std.mem.eql(u8, language, "rust")) {
             if (std.mem.startsWith(u8, import_path, "std::") or
                 std.mem.startsWith(u8, import_path, "core::") or
                 std.mem.startsWith(u8, import_path, "alloc::"))
@@ -359,7 +359,7 @@ pub const DependencyAnalyzer = struct {
             {
                 return .local;
             }
-        } else if (language == .typescript or language == .javascript) {
+        } else if (std.mem.eql(u8, language, "typescript") or std.mem.eql(u8, language, "javascript")) {
             if (std.mem.startsWith(u8, import_path, "./") or
                 std.mem.startsWith(u8, import_path, "../"))
             {
@@ -386,7 +386,7 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
     defer analyzer.deinit();
 
     // Create I/O backend for synchronous file operations
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }) catch return error.IoInitFailed;
+    var io_backend: std.Io.Threaded = .init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -437,4 +437,8 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
     }
 
     return result;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

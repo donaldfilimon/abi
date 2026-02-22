@@ -221,7 +221,7 @@ pub fn isPublicPath(path: []const u8, public_paths: []const []const u8) bool {
 /// Generates a simple API key (for testing/development).
 pub fn generateApiKey(allocator: std.mem.Allocator) ![]u8 {
     var key: [32]u8 = undefined;
-    std.crypto.random.bytes(&key);
+    std.c.arc4random_buf(&key, key.len);
 
     // SAFETY: 32 bytes × 2 hex chars = 64 chars, buffer is exactly 64 bytes - cannot overflow
     var hex: [64]u8 = undefined;
@@ -233,9 +233,9 @@ pub fn generateApiKey(allocator: std.mem.Allocator) ![]u8 {
 test "extractBearerToken" {
     const allocator = std.testing.allocator;
 
-    var headers = std.StringHashMap([]const u8).init(allocator);
-    defer headers.deinit();
-    try headers.put("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature");
+    var headers: std.StringHashMapUnmanaged([]const u8) = .empty;
+    defer headers.deinit(allocator);
+    try headers.put(allocator, "Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature");
 
     var request = server.ParsedRequest{
         .method = .GET,

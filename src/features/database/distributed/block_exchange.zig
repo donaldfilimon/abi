@@ -46,14 +46,14 @@ pub const SyncState = enum {
 /// Version vector for causal consistency
 pub const VersionVector = struct {
     node_id: []const u8,
-    timestamps: std.AutoHashMap([]const u8, i64), // Node ID -> latest timestamp
+    timestamps: std.AutoHashMapUnmanaged([]const u8, i64), // Node ID -> latest timestamp
 
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator, node_id: []const u8) !Self {
         return Self{
             .node_id = try allocator.dupe(u8, node_id),
-            .timestamps = std.AutoHashMap([]const u8, i64).init(allocator),
+            .timestamps = .empty,
         };
     }
 
@@ -64,7 +64,7 @@ pub const VersionVector = struct {
         while (iter.next()) |entry| {
             allocator.free(entry.key_ptr.*);
         }
-        self.timestamps.deinit();
+        self.timestamps.deinit(allocator);
     }
 
     /// Update version with timestamp from another node
@@ -76,7 +76,7 @@ pub const VersionVector = struct {
                 existing.* = timestamp;
             }
         } else {
-            try self.timestamps.put(node_copy, timestamp);
+            try self.timestamps.put(allocator, node_copy, timestamp);
         }
     }
 
@@ -123,11 +123,11 @@ pub const VersionVector = struct {
         while (iter.next()) |entry| {
             if (self.timestamps.get(entry.key_ptr.*)) |existing| {
                 if (entry.value_ptr.* > existing) {
-                    try self.timestamps.put(try allocator.dupe(u8, entry.key_ptr.*), entry.value_ptr.*);
+                    try self.timestamps.put(allocator, try allocator.dupe(u8, entry.key_ptr.*), entry.value_ptr.*);
                 }
             } else {
                 const node_copy = try allocator.dupe(u8, entry.key_ptr.*);
-                try self.timestamps.put(node_copy, entry.value_ptr.*);
+                try self.timestamps.put(allocator, node_copy, entry.value_ptr.*);
             }
         }
     }
@@ -203,8 +203,8 @@ pub const BlockExchangeManager = struct {
     transport: *network.TcpTransport,
 
     // Sync state per shard
-    sync_states: std.AutoHashMap(u64, SyncState), // Shard hash -> sync state
-    version_vectors: std.AutoHashMap(u64, VersionVector), // Shard hash -> version vector
+    sync_states: std.AutoHashMapUnmanaged(u64, SyncState), // Shard hash -> sync state
+    version_vectors: std.AutoHashMapUnmanaged(u64, VersionVector), // Shard hash -> version vector
 
     // Anti-entropy timers
     last_anti_entropy: i64,
@@ -230,8 +230,8 @@ pub const BlockExchangeManager = struct {
             .node_id = node_id_copy,
             .shard_manager = shard_mgr,
             .transport = transport,
-            .sync_states = std.AutoHashMap(u64, SyncState).init(allocator),
-            .version_vectors = std.AutoHashMap(u64, VersionVector).init(allocator),
+            .sync_states = .empty,
+            .version_vectors = .empty,
             .last_anti_entropy = time.unixSeconds(),
             .anti_entropy_interval = anti_entropy_interval_s,
             .conflicts = .empty,
@@ -246,7 +246,7 @@ pub const BlockExchangeManager = struct {
         while (iter.next()) |vector| {
             vector.deinit(self.allocator);
         }
-        self.version_vectors.deinit();
+        self.version_vectors.deinit(self.allocator);
 
         // Clean up conflicts
         for (self.conflicts.items) |*conflict| {
@@ -254,7 +254,7 @@ pub const BlockExchangeManager = struct {
         }
         self.conflicts.deinit(self.allocator);
 
-        self.sync_states.deinit();
+        self.sync_states.deinit(self.allocator);
     }
 
     /// Handle block creation - initiate replication to other shard members
@@ -276,7 +276,7 @@ pub const BlockExchangeManager = struct {
         }
 
         // Update sync state
-        try self.sync_states.put(shard_id.hash, .synchronized);
+        try self.sync_states.put(self.allocator, shard_id.hash, .synchronized);
     }
 
     /// Schedule asynchronous block replication
@@ -292,7 +292,7 @@ pub const BlockExchangeManager = struct {
         std.log.info("BlockExchange: Scheduling replication to node {s} for block {d}", .{ target_node, block.hash });
 
         // Track replication state
-        try self.sync_states.put(shard_id.hash, .syncing_pending);
+        try self.sync_states.put(self.allocator, shard_id.hash, .syncing_pending);
     }
 
     /// Perform anti-entropy synchronization with another node
@@ -374,7 +374,7 @@ pub const BlockExchangeManager = struct {
         }
 
         // Update sync state
-        try self.sync_states.put(shard_hash, .synchronized);
+        try self.sync_states.put(self.allocator, shard_hash, .synchronized);
     }
 
     /// Apply remote block with conflict resolution
@@ -496,7 +496,7 @@ pub const BlockExchangeManager = struct {
         var vector = try VersionVector.init(self.allocator, self.node_id);
         errdefer vector.deinit(self.allocator);
 
-        try self.version_vectors.put(shard_hash, vector);
+        try self.version_vectors.put(self.allocator, shard_hash, vector);
         return self.version_vectors.getPtr(shard_hash).?;
     }
 

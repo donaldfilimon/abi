@@ -358,15 +358,15 @@ pub const FactChecker = struct {
     /// Generate qualifications for the result.
     fn generateQualifications(self: *Self, result: *FactCheckResult) !void {
         // Add qualifications for claims that need verification
-        var added_types = std.AutoHashMap(ClaimType, void).init(self.allocator);
-        defer added_types.deinit();
+        var added_types: std.AutoHashMapUnmanaged(ClaimType, void) = .empty;
+        defer added_types.deinit(self.allocator);
 
         for (result.claims.items) |claim| {
             if (claim.needs_verification) {
                 if (!added_types.contains(claim.claim_type)) {
                     if (claim.qualification) |qual| {
                         try result.qualifications.append(result.allocator, qual);
-                        try added_types.put(claim.claim_type, {});
+                        try added_types.put(self.allocator, claim.claim_type, {});
                     }
                 }
             }

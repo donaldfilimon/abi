@@ -601,9 +601,9 @@ fn detectMetal() BackendAvailability {
     }
     const level = metal_caps.probeSystemMetalLevel();
     if (!level.atLeast(metal_caps.required_runtime_level)) {
-        return unavailableAvailability("metal runtime below required metal4 level");
+        return unavailableAvailability("metal runtime below required metal3 level");
     }
-    return availableAvailability(.loader, 1, "metal framework available");
+    return availableAvailability(.device_count, 1, "metal device available");
 }
 
 fn detectWebGpu() BackendAvailability {

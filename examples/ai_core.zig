@@ -8,7 +8,7 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -28,11 +28,11 @@ pub fn main() !void {
 
     // --- Tool Registry ---
     std.debug.print("--- Tool Registry ---\n", .{});
-    var registry = abi.ai.ToolRegistry.init(allocator);
+    var registry = abi.ai.tools.ToolRegistry.init(allocator);
     defer registry.deinit();
 
     // Register Discord tools as an example of bulk tool registration
-    try abi.ai.registerDiscordTools(&registry);
+    try abi.ai.tools.registerDiscordTools(&registry);
     std.debug.print("Registered Discord tools in registry\n", .{});
 
     // Look up a tool by name
@@ -55,7 +55,7 @@ pub fn main() !void {
 
     // --- Model Registry ---
     std.debug.print("\n--- Model Registry ---\n", .{});
-    const ModelInfo = abi.ai_core.ModelInfo;
+    const ModelInfo = abi.ai.model_registry.ModelInfo;
     _ = ModelInfo;
     std.debug.print("ModelRegistry type available\n", .{});
 

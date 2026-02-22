@@ -41,6 +41,7 @@ const metrics_mod = @import("metrics.zig");
 const dispatcher_mod = @import("dispatch/coordinator.zig");
 const adaptive_tiling_mod = @import("adaptive_tiling.zig");
 const policy_mod = @import("policy/mod.zig");
+const interface_mod = @import("interface.zig");
 
 const Mutex = sync.Mutex;
 
@@ -77,6 +78,9 @@ pub const PeerTransfer = multi_device.PeerTransfer;
 pub const MetricsCollector = metrics_mod.MetricsCollector;
 pub const MetricsSummary = metrics_mod.Summary;
 pub const KernelMetrics = metrics_mod.KernelMetrics;
+
+// Re-export interface types
+pub const DeviceCaps = interface_mod.DeviceCaps;
 
 // Re-export dispatcher types (canonical definitions)
 pub const KernelDispatcher = dispatcher_mod.KernelDispatcher;
@@ -498,6 +502,7 @@ pub const Gpu = struct {
 
         // Fallback to host computation if dispatcher not available or failed
         if (!gpu_executed) {
+            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"vectorAdd"});
             if (a.host_data != null and b.host_data != null and result.host_data != null) {
                 const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
                 const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
@@ -594,6 +599,7 @@ pub const Gpu = struct {
 
         // Fallback to host computation if dispatcher not available or failed
         if (!gpu_executed) {
+            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"matrixMultiply"});
             if (a.host_data != null and b.host_data != null and result.host_data != null) {
                 const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
                 const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
@@ -673,6 +679,7 @@ pub const Gpu = struct {
 
         // Fallback to host computation
         if (!gpu_executed) {
+            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"reduceSum"});
             if (input.host_data) |host| {
                 const data = std.mem.bytesAsSlice(f32, host);
                 for (data) |v| {
@@ -743,6 +750,7 @@ pub const Gpu = struct {
 
         // Fallback to host computation
         if (!gpu_executed) {
+            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"dotProduct"});
             if (a.host_data != null and b.host_data != null) {
                 const a_data = std.mem.bytesAsSlice(f32, a.host_data.?);
                 const b_data = std.mem.bytesAsSlice(f32, b.host_data.?);
@@ -801,6 +809,7 @@ pub const Gpu = struct {
 
         // Fallback to host computation
         if (!gpu_executed) {
+            std.log.debug("GPU dispatch failed, falling back to CPU for {s}", .{"softmax"});
             if (input.host_data != null and output.host_data != null) {
                 const in_data = std.mem.bytesAsSlice(f32, input.host_data.?);
                 var out_data = std.mem.bytesAsSlice(f32, output.host_data.?);
@@ -855,36 +864,136 @@ pub const Gpu = struct {
     // ========================================================================
 
     /// Compile a kernel from portable source.
+    ///
+    /// Generates backend-specific code from the portable kernel IR, then
+    /// delegates to the dispatcher's backend VTable to obtain a compiled
+    /// handle that can be launched later with `launchKernel()`.
+    ///
+    /// The `source.ir` field must be set (non-null) for compilation to succeed.
     pub fn compileKernel(self: *Gpu, source: PortableKernelSource) !CompiledKernel {
         const device = self.active_device orelse return error.NoActiveDevice;
+        const ir = source.ir orelse return error.InvalidKernelIR;
 
-        // Compile the kernel IR to the target backend
-        const generated = try dsl.compile(self.allocator, &source.ir, device.backend, .{});
+        // If we have a dispatcher, delegate to it — this compiles IR through
+        // the DSL compiler *and* sends the result to the backend VTable.
+        if (self.dispatcher) |*disp| {
+            const handle = disp.compileKernel(ir) catch |err| {
+                std.log.debug("Dispatcher compilation failed for {s}: {t}, falling back to source-only", .{
+                    ir.name,
+                    err,
+                });
+                // Fall through to source-only path below
+                return self.compileKernelSourceOnly(ir, device);
+            };
+
+            // Duplicate the generated code for the CompiledKernel (the
+            // dispatcher keeps its own copy via the cache).
+            var generated = dsl.compile(self.allocator, ir, device.backend, .{}) catch {
+                // Even if re-generation fails, we have the handle
+                return CompiledKernel{
+                    .allocator = self.allocator,
+                    .name = try self.allocator.dupe(u8, ir.name),
+                    .backend = device.backend,
+                    .source = try self.allocator.dupe(u8, ""),
+                    .entry_point = try self.allocator.dupe(u8, handle.name),
+                    .handle = handle.handle,
+                };
+            };
+            defer generated.deinit(self.allocator);
+
+            return CompiledKernel{
+                .allocator = self.allocator,
+                .name = try self.allocator.dupe(u8, ir.name),
+                .backend = device.backend,
+                .source = try self.allocator.dupe(u8, generated.code),
+                .entry_point = try self.allocator.dupe(u8, generated.entry_point),
+                .handle = handle.handle,
+            };
+        }
+
+        // No dispatcher available — compile to source only (no backend handle).
+        return self.compileKernelSourceOnly(ir, device);
+    }
+
+    /// Compile kernel IR directly (convenience overload).
+    ///
+    /// Wraps the IR pointer in a `PortableKernelSource` and delegates to
+    /// `compileKernel`.
+    pub fn compileKernelIR(self: *Gpu, ir: *const KernelIR) !CompiledKernel {
+        return self.compileKernel(.{ .name = ir.name, .ir = ir });
+    }
+
+    /// Compile kernel to source code only (no backend handle).
+    /// Used as fallback when the dispatcher is unavailable.
+    fn compileKernelSourceOnly(self: *Gpu, ir: *const KernelIR, device: *const Device) !CompiledKernel {
+        var generated = try dsl.compile(self.allocator, ir, device.backend, .{});
+        defer generated.deinit(self.allocator);
 
         return CompiledKernel{
             .allocator = self.allocator,
-            .name = try self.allocator.dupe(u8, source.ir.name),
+            .name = try self.allocator.dupe(u8, ir.name),
             .backend = device.backend,
-            .source = generated.code,
-            .entry_point = generated.entry_point,
-            .handle = null, // Backend would create handle here
+            .source = try self.allocator.dupe(u8, generated.code),
+            .entry_point = try self.allocator.dupe(u8, generated.entry_point),
+            .handle = null,
         };
     }
 
     /// Launch a compiled kernel.
+    ///
+    /// Dispatches the compiled kernel to the backend for execution. The `args`
+    /// parameter accepts a `KernelArgs` struct containing buffer and uniform
+    /// arguments. Host-dirty buffers are automatically synced to the device
+    /// before launch.
     pub fn launchKernel(
         self: *Gpu,
         kernel: *const CompiledKernel,
         config: LaunchConfig,
-        args: anytype,
+        args: KernelArgs,
     ) !ExecutionResult {
         const device = self.active_device orelse return error.NoActiveDevice;
-        _ = args;
 
         var timer = time.Timer.start() catch return error.TimerFailed;
+        var gpu_executed = false;
+        var bytes_transferred: usize = 0;
 
-        // In a real implementation, this would dispatch to the backend
-        // For now, just record the launch
+        // Sync host-dirty buffers to device before launch
+        for (args.buffers) |buf| {
+            bytes_transferred += buf.getSize();
+            if (buf.isHostDirty()) {
+                buf.toDevice() catch |err| {
+                    std.log.debug("Failed to sync buffer to device: {}", .{err});
+                };
+                self.stats.host_to_device_transfers += 1;
+            }
+        }
+
+        // Try dispatcher-based execution if we have a compiled handle
+        if (self.dispatcher) |*disp| {
+            if (kernel.handle != null) {
+                // Build a CompiledKernelHandle from the CompiledKernel
+                const dispatch_handle = dispatcher_mod.CompiledKernelHandle{
+                    .handle = kernel.handle,
+                    .name = kernel.name,
+                    .backend = kernel.backend,
+                    .workgroup_size = config.local_size orelse .{ 256, 1, 1 },
+                    .buffer_count = @intCast(args.buffers.len),
+                    .uniform_count = @intCast(args.uniforms.len),
+                };
+
+                const exec_result = disp.execute(dispatch_handle, config, args) catch null;
+                if (exec_result) |res| {
+                    gpu_executed = res.gpu_executed;
+                }
+            }
+        }
+
+        // Mark output buffers as device-dirty after execution
+        if (gpu_executed) {
+            for (args.buffers) |buf| {
+                buf.markDeviceDirty();
+            }
+        }
 
         const elapsed = timer.read();
         self.stats.kernels_launched += 1;
@@ -904,10 +1013,10 @@ pub const Gpu = struct {
         return ExecutionResult{
             .execution_time_ns = elapsed,
             .elements_processed = total_threads,
-            .bytes_transferred = 0,
+            .bytes_transferred = bytes_transferred,
             .backend = device.backend,
             .device_id = device.id,
-            .gpu_executed = true,
+            .gpu_executed = gpu_executed,
         };
     }
 
@@ -1091,6 +1200,137 @@ pub const Gpu = struct {
             return dg.activeDeviceCount();
         }
         return if (self.active_device != null) 1 else 0;
+    }
+};
+
+// ============================================================================
+// GpuDevice — Simplified Ergonomic Wrapper
+// ============================================================================
+
+/// A simplified, ergonomic wrapper around the full `Gpu` API.
+///
+/// `GpuDevice` provides a thin convenience layer that owns its `Gpu` instance
+/// and exposes the most common operations. It is *not* a replacement for `Gpu`;
+/// advanced use-cases (multi-GPU, custom streams, profiling) should use `Gpu`
+/// directly via the `gpu` field.
+///
+/// ## Quick Start
+///
+/// ```zig
+/// var dev = try GpuDevice.init(allocator, .{});
+/// defer dev.deinit();
+///
+/// var a = try dev.createBuffer(f32, 4, .{});
+/// var b = try dev.createBuffer(f32, 4, .{});
+/// var out = try dev.createBuffer(f32, 4, .{});
+/// defer { dev.gpu.destroyBuffer(a); dev.gpu.destroyBuffer(b); dev.gpu.destroyBuffer(out); }
+///
+/// _ = try dev.vectorAdd(a, b, out);
+/// ```
+pub const GpuDevice = struct {
+    gpu: Gpu,
+
+    /// Initialize a new `GpuDevice` with the given configuration.
+    pub fn init(allocator: std.mem.Allocator, config: GpuConfig) !GpuDevice {
+        return .{ .gpu = try Gpu.init(allocator, config) };
+    }
+
+    /// Release all resources.
+    pub fn deinit(self: *GpuDevice) void {
+        self.gpu.deinit();
+    }
+
+    /// Get the active backend name (e.g. "cuda", "metal", "simulated").
+    pub fn backendName(self: *const GpuDevice) []const u8 {
+        if (self.gpu.active_device) |dev| {
+            return @tagName(dev.backend);
+        }
+        return "none";
+    }
+
+    /// Query device capabilities via the backend VTable.
+    ///
+    /// Returns a `DeviceCaps` populated by the backend, or a zeroed default
+    /// if the backend is unavailable.
+    pub fn capabilities(self: *const GpuDevice) DeviceCaps {
+        if (self.gpu.active_device) |dev| {
+            const name_bytes = dev.name;
+            var caps = DeviceCaps{
+                .total_memory = if (dev.total_memory) |m| @intCast(m) else 0,
+                .max_threads_per_block = dev.maxWorkgroupSize(),
+                .max_shared_memory = dev.maxSharedMemory(),
+                .supports_fp16 = dev.capability.supports_fp16,
+                .unified_memory = dev.capability.unified_memory,
+            };
+            const len = @min(name_bytes.len, caps.name.len);
+            @memcpy(caps.name[0..len], name_bytes[0..len]);
+            caps.name_len = len;
+            return caps;
+        }
+        return DeviceCaps{};
+    }
+
+    /// Create a typed buffer (size in elements, not bytes).
+    pub fn createBuffer(self: *GpuDevice, comptime T: type, count: usize, opts: BufferOptions) !*Buffer {
+        return self.gpu.createBuffer(count * @sizeOf(T), opts);
+    }
+
+    /// Create a buffer from a typed slice.
+    pub fn createBufferFromSlice(self: *GpuDevice, comptime T: type, data: []const T, opts: BufferOptions) !*Buffer {
+        return self.gpu.createBufferFromSlice(T, data, opts);
+    }
+
+    /// Destroy a buffer.
+    pub fn destroyBuffer(self: *GpuDevice, buffer: *Buffer) void {
+        self.gpu.destroyBuffer(buffer);
+    }
+
+    /// Vector addition: out = a + b.
+    pub fn vectorAdd(self: *GpuDevice, a: *Buffer, b: *Buffer, out: *Buffer) !ExecutionResult {
+        return self.gpu.vectorAdd(a, b, out);
+    }
+
+    /// Matrix multiplication: out = a * b.
+    pub fn matrixMultiply(self: *GpuDevice, a: *Buffer, b: *Buffer, out: *Buffer, dims: MatrixDims) !ExecutionResult {
+        return self.gpu.matrixMultiply(a, b, out, dims);
+    }
+
+    /// Compile and run a custom kernel from IR.
+    pub fn compileAndRun(
+        self: *GpuDevice,
+        ir: *const KernelIR,
+        config: LaunchConfig,
+        args: KernelArgs,
+    ) !ExecutionResult {
+        var compiled = try self.gpu.compileKernelIR(ir);
+        defer compiled.deinit();
+
+        return self.gpu.launchKernel(&compiled, config, args);
+    }
+
+    /// Query memory information for the active device.
+    pub fn memoryInfo(self: *GpuDevice) MemoryInfo {
+        return self.gpu.getMemoryInfo();
+    }
+
+    /// Query accumulated GPU statistics.
+    pub fn stats(self: *const GpuDevice) GpuStats {
+        return self.gpu.getStats();
+    }
+
+    /// Synchronize all pending GPU operations.
+    pub fn sync(self: *GpuDevice) !void {
+        return self.gpu.synchronize();
+    }
+
+    /// Check whether a usable device is available.
+    pub fn isAvailable(self: *const GpuDevice) bool {
+        return self.gpu.isAvailable();
+    }
+
+    /// Get health status.
+    pub fn checkHealth(self: *const GpuDevice) HealthStatus {
+        return self.gpu.checkHealth();
     }
 };
 

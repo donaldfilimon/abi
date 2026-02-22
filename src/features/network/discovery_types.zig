@@ -161,13 +161,13 @@ test "service ID generation is unique and correctly formatted" {
     const prefix = "svc";
     const expected_len = prefix.len + 1 + 32; // "<prefix>-<16 random bytes as hex>"
 
-    var seen = std.StringHashMap(void).init(allocator);
+    var seen: std.StringHashMapUnmanaged(void) = .empty;
     defer {
         var it = seen.keyIterator();
         while (it.next()) |key| {
             allocator.free(key.*);
         }
-        seen.deinit();
+        seen.deinit(allocator);
     }
 
     const rounds: usize = 256;
@@ -181,7 +181,7 @@ test "service ID generation is unique and correctly formatted" {
             return error.TestUnexpectedResult;
         }
 
-        try seen.put(id, {});
+        try seen.put(allocator, id, {});
     }
 
     try std.testing.expectEqual(rounds, seen.count());

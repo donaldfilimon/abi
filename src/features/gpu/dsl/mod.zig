@@ -323,6 +323,7 @@ test {
     _ = codegen.msl;
     _ = codegen.spirv;
     _ = compiler;
+    _ = zig_spirv;
 }
 
 test "DSL module exports" {

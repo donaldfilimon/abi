@@ -18,8 +18,36 @@ This guide is generated from repository metadata for **Core** coverage and stays
 ## Build Snapshot
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
-- Main tests: `1270` pass / `5` skip / `1275` total
+- Main tests: `1254` pass / `5` skip / `1259` total
 - Feature tests: `1535` pass / `1535` total
+
+## Feature Matrix (23 modules)
+
+| Feature | Build Flag | Parent | Description |
+| --- | --- | --- | --- |
+| agents | `enable_ai` | ai | AI agent runtime |
+| ai | `enable_ai` | — | AI core functionality |
+| analytics | `enable_analytics` | — | Analytics event tracking |
+| auth | `enable_auth` | — | Authentication and security |
+| benchmarks | `enable_benchmarks` | — | Performance benchmarking and timing |
+| cache | `enable_cache` | — | In-memory caching |
+| cloud | `enable_cloud` | — | Cloud provider integration |
+| database | `enable_database` | — | Vector database (WDBX) |
+| embeddings | `enable_ai` | ai | Vector embeddings generation |
+| gateway | `enable_gateway` | — | API gateway (routing, rate limiting, circuit breaker) |
+| gpu | `enable_gpu` | — | GPU acceleration and compute |
+| llm | `enable_llm` | ai | Local LLM inference |
+| messaging | `enable_messaging` | — | Event bus and messaging |
+| mobile | `enable_mobile` | — | Mobile platform support |
+| network | `enable_network` | — | Distributed compute network |
+| observability | `enable_profiling` | — | Metrics, tracing, profiling |
+| pages | `enable_pages` | — | Dashboard/UI pages with URL routing |
+| personas | `enable_ai` | ai | Multi-persona AI assistant |
+| reasoning | `enable_reasoning` | ai | AI reasoning (Abbey, eval, RAG) |
+| search | `enable_search` | — | Full-text search |
+| storage | `enable_storage` | — | Unified file/object storage |
+| training | `enable_training` | ai | Model training pipelines |
+| web | `enable_web` | — | Web/HTTP utilities |
 
 ## Module Coverage
 
@@ -30,17 +58,6 @@ This guide is generated from repository metadata for **Core** coverage and stays
 - `src/core/registry/mod.zig` ([api](../api/registry.html))
 - `src/services/runtime/mod.zig` ([api](../api/runtime.html))
 - `src/services/shared/simd.zig` ([api](../api/simd.html))
-
-## Command Entry Points
-
-- `abi acp` — Agent Communication Protocol (card, serve)
-- `abi agent` — Run AI agent (interactive or one-shot)
-- `abi bench` — Run performance benchmarks (all, simd, memory, ai, quick)
-- `abi completions` — Generate shell completions (bash, zsh, fish, powershell)
-- `abi config` — Configuration management (init, show, validate)
-- `abi convert` — Dataset conversion tools (tokenbin, text, jsonl, wdbx)
-- `abi db` — Database operations (add, query, stats, optimize, backup, restore)
-- `abi discord` — Discord bot operations (status, guilds, send, commands)
 
 ## Validation Commands
 

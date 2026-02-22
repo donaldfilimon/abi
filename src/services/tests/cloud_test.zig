@@ -86,7 +86,7 @@ test "cloud response redirect pattern" {
     defer response.deinit();
 
     response.status_code = 302;
-    try response.headers.put("Location", "https://example.com/new-path");
+    try response.headers.put(allocator, "Location", "https://example.com/new-path");
 
     try std.testing.expectEqual(@as(u16, 302), response.status_code);
     try std.testing.expectEqualStrings("https://example.com/new-path", response.headers.get("Location").?);
@@ -99,8 +99,8 @@ test "cloud response with custom headers" {
     defer response.deinit();
 
     response.status_code = 200;
-    try response.headers.put("X-Custom-Header", "custom-value");
-    try response.headers.put("X-Another-Header", "another-value");
+    try response.headers.put(allocator, "X-Custom-Header", "custom-value");
+    try response.headers.put(allocator, "X-Another-Header", "another-value");
 
     try std.testing.expectEqualStrings("custom-value", response.headers.get("X-Custom-Header").?);
     try std.testing.expectEqualStrings("another-value", response.headers.get("X-Another-Header").?);
@@ -276,7 +276,7 @@ test "aws lambda response format" {
 
     response.status_code = 200;
     response.body = "{\"message\":\"success\"}";
-    try response.headers.put("Content-Type", "application/json");
+    try response.headers.put(allocator, "Content-Type", "application/json");
 
     // Verify response can be serialized for Lambda
     try std.testing.expectEqual(@as(u16, 200), response.status_code);

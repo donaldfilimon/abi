@@ -46,6 +46,8 @@ const kernel_types = @import("../kernel_types.zig");
 const builtin_kernels = @import("../builtin_kernels.zig");
 const kernel_ring_mod = @import("../kernel_ring.zig");
 const policy = @import("../policy/mod.zig");
+const std_gpu_integration = @import("../backends/std_gpu_integration.zig");
+const StdGpuKernelRegistry = std_gpu_integration.StdGpuKernelRegistry;
 
 const Mutex = sync.Mutex;
 
@@ -189,12 +191,10 @@ pub const KernelDispatcher = struct {
         }
         self.kernel_cache.deinit(self.allocator);
 
-        // Free cached IR
-        var ir_it = self.builtin_ir_cache.iterator();
-        while (ir_it.next()) |entry| {
-            // IR is typically arena-allocated, but we track it here
-            _ = entry;
-        }
+        // Free launch queue
+        self.launch_queue.deinit(self.allocator);
+
+        // Free cached IR (IR is arena-allocated, freed when ir_arena is deinitialized)
         self.builtin_ir_cache.deinit(self.allocator);
 
         // Free arena-allocated IR and AST memory
@@ -214,19 +214,45 @@ pub const KernelDispatcher = struct {
 
     /// Get or compile a builtin kernel.
     pub fn getBuiltinKernel(self: *Self, kernel_type: dsl.BuiltinKernel) DispatchError!CompiledKernelHandle {
-        const name = kernel_type.name();
+        const kernel_name = kernel_type.name();
 
         // Check cache first
-        if (self.kernel_cache.get(name)) |cached| {
+        if (self.kernel_cache.get(kernel_name)) |cached| {
             self.cache_hits += 1;
             return cached;
         }
 
         self.cache_misses += 1;
 
+        // For CPU-based backends (stdgpu/simulated), if the native Zig kernel
+        // registry supports this kernel type, return a lightweight handle that
+        // skips the DSL→IR→codegen pipeline entirely. The actual execution will
+        // be handled by StdGpuKernelRegistry in execute().
+        if (self.backend == .stdgpu or self.backend == .simulated) {
+            // Check if registry would handle this kernel (dry-run with no buffers)
+            const native_handle = CompiledKernelHandle{
+                .handle = null,
+                .name = kernel_name,
+                .backend = self.backend,
+                .workgroup_size = .{ 256, 1, 1 },
+                .buffer_count = kernel_type.minBufferCount(),
+                .uniform_count = 0,
+            };
+
+            const name_copy = self.allocator.dupe(u8, kernel_name) catch
+                return DispatchError.OutOfMemory;
+            self.kernel_cache.put(self.allocator, name_copy, native_handle) catch {
+                self.allocator.free(name_copy);
+                return DispatchError.OutOfMemory;
+            };
+
+            self.kernels_compiled += 1;
+            return native_handle;
+        }
+
         // Build the kernel IR using builtin_kernels module
         const ir = builtin_kernels.buildKernelIR(self.ir_arena.allocator(), kernel_type) catch |err| {
-            std.log.err("Failed to build kernel IR for {s}: {}", .{ name, err });
+            std.log.err("Failed to build kernel IR for {s}: {}", .{ kernel_name, err });
             return DispatchError.KernelCompilationFailed;
         };
 
@@ -276,9 +302,23 @@ pub const KernelDispatcher = struct {
         };
 
         // Cache the compiled kernel
-        const name_copy = self.allocator.dupe(u8, ir.name) catch return DispatchError.OutOfMemory;
+        const name_copy = self.allocator.dupe(u8, ir.name) catch {
+            // Clean up backend handle on allocation failure
+            if (handle) |h| {
+                if (self.backend_interface) |bi_cleanup| {
+                    bi_cleanup.destroyKernel(h);
+                }
+            }
+            return DispatchError.OutOfMemory;
+        };
         self.kernel_cache.put(self.allocator, name_copy, kernel_handle) catch {
             self.allocator.free(name_copy);
+            // Clean up backend handle on cache insertion failure
+            if (handle) |h| {
+                if (self.backend_interface) |bi_cleanup| {
+                    bi_cleanup.destroyKernel(h);
+                }
+            }
             return DispatchError.OutOfMemory;
         };
 
@@ -376,6 +416,27 @@ pub const KernelDispatcher = struct {
             }
         }
 
+        // Try native Zig kernel execution for CPU-based backends (stdgpu/simulated).
+        // Native Zig kernels avoid the DSL→GLSL/SPIR-V codegen path and run the
+        // kernel logic directly as optimized Zig code on the CPU.
+        if (!gpu_executed and (self.backend == .stdgpu or self.backend == .simulated)) {
+            if (dsl.BuiltinKernel.fromName(kernel.name)) |builtin_kernel| {
+                if (StdGpuKernelRegistry.executeBuiltin(
+                    builtin_kernel,
+                    args.buffers,
+                    config.global_size,
+                    args.uniforms,
+                    args.uniform_sizes,
+                )) {
+                    gpu_executed = true;
+                    std.log.debug("Native Zig kernel executed for {s} on {s} backend", .{
+                        kernel.name,
+                        self.backend.name(),
+                    });
+                }
+            }
+        }
+
         // Try GPU execution if cuBLAS wasn't used
         if (!gpu_executed and kernel.handle != null and self.backend_interface != null) {
             const launch_result = self.launchOnBackend(kernel, config, args);
@@ -441,11 +502,29 @@ pub const KernelDispatcher = struct {
         }
         const elements = config.global_size[0] * config.global_size[1] * config.global_size[2];
 
-        // Execute on CPU fallback
-        self.executeOnCpu(kernel, config, args) catch |err| {
-            std.log.debug("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
-            return DispatchError.ExecutionFailed;
-        };
+        // Try native Zig kernel for CPU backends
+        var native_executed = false;
+        if (self.backend == .stdgpu or self.backend == .simulated) {
+            if (dsl.BuiltinKernel.fromName(kernel.name)) |builtin_kernel| {
+                if (StdGpuKernelRegistry.executeBuiltin(
+                    builtin_kernel,
+                    args.buffers,
+                    config.global_size,
+                    args.uniforms,
+                    args.uniform_sizes,
+                )) {
+                    native_executed = true;
+                }
+            }
+        }
+
+        // Fall back to generic CPU execution if native kernel wasn't available
+        if (!native_executed) {
+            self.executeOnCpu(kernel, config, args) catch |err| {
+                std.log.debug("CPU fallback execution failed for {s}: {}", .{ kernel.name, err });
+                return DispatchError.ExecutionFailed;
+            };
+        }
 
         // Mark output buffers as device dirty
         for (args.buffers) |buf| {

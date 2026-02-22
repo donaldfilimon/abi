@@ -5,9 +5,16 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const gpu = @import("gpu.zig");
 const network = @import("network.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "system-info",
+    .description = "Show system and framework status",
+    .aliases = &.{ "info", "sysinfo" },
+};
 
 /// Run the system-info command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

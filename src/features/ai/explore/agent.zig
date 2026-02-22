@@ -143,7 +143,7 @@ pub const ExploreAgent = struct {
     }
 
     fn processFile(self: *ExploreAgent, result: *ExploreResult, file_stat: *const FileStats, pattern: *const SearchPattern) void {
-        const basename = std.fs.path.basename(file_stat.path);
+        const basename = std.Io.Dir.path.basename(file_stat.path);
         const content = self.readFile(file_stat.path) catch {
             self.stats.errors += 1;
             return;
@@ -375,7 +375,7 @@ pub const ExploreAgent = struct {
 
     fn determineMatchType(self: *ExploreAgent, path: []const u8) MatchType {
         _ = self;
-        const basename = std.fs.path.basename(path);
+        const basename = std.Io.Dir.path.basename(path);
 
         if (std.mem.startsWith(u8, basename, "test") or std.mem.endsWith(u8, basename, "_test.zig")) {
             return .test_case;
@@ -393,7 +393,7 @@ pub const ExploreAgent = struct {
 
     fn determineFileType(self: *ExploreAgent, path: []const u8) []const u8 {
         _ = self;
-        const ext = std.fs.path.extension(path);
+        const ext = std.Io.Dir.path.extension(path);
 
         const source_exts = std.ComptimeStringMap(void, .{
             .{ ".zig", 0 }, .{ ".c", 0 },  .{ ".cpp", 0 }, .{ ".h", 0 },
@@ -477,7 +477,7 @@ pub const ExploreAgent = struct {
                 break;
             }
 
-            const ext = std.fs.path.extension(file_stat.path);
+            const ext = std.Io.Dir.path.extension(file_stat.path);
 
             if (parsed.file_extensions.len > 0) {
                 var found = false;
@@ -526,4 +526,8 @@ pub fn createQuickAgent(allocator: std.mem.Allocator) !ExploreAgent {
 
 pub fn createThoroughAgent(allocator: std.mem.Allocator) !ExploreAgent {
     return ExploreAgent.init(allocator, ExploreConfig.defaultForLevel(.thorough));
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

@@ -25,7 +25,7 @@ pub fn runResume(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
     std.debug.print("Loading checkpoint: {s}\n", .{checkpoint_path});
 
     // Load checkpoint
-    var ckpt = abi.ai.loadCheckpoint(allocator, checkpoint_path) catch |err| {
+    var ckpt = abi.ai.training.loadCheckpoint(allocator, checkpoint_path) catch |err| {
         std.debug.print("Error loading checkpoint: {t}\n", .{err});
         std.debug.print("\nNote: Resume functionality loads model weights from a saved checkpoint.\n", .{});
         std.debug.print("Use 'abi train run --checkpoint-path <path>' to save checkpoints during training.\n", .{});

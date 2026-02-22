@@ -330,14 +330,14 @@ test "CorsMiddleware applies custom config" {
         .path = "/api/data",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/api/data",
         .allocator = allocator,
         .owned_data = null,
     };
     defer request.deinit();
-    try request.headers.put("Origin", "https://mysite.com");
+    try request.headers.put(allocator, "Origin", "https://mysite.com");
 
     var response = server.ResponseBuilder.init(allocator);
     defer response.deinit();
@@ -365,7 +365,7 @@ test "handlePreflight sets headers and aborts" {
         .path = "/",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/",
         .allocator = allocator,
@@ -406,14 +406,14 @@ test "CorsMiddleware rejects disallowed origin" {
         .path = "/api/data",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/api/data",
         .allocator = allocator,
         .owned_data = null,
     };
     defer request.deinit();
-    try request.headers.put("Origin", "https://evil.com");
+    try request.headers.put(allocator, "Origin", "https://evil.com");
 
     var response = server.ResponseBuilder.init(allocator);
     defer response.deinit();
@@ -441,15 +441,15 @@ test "CorsMiddleware preflight validates request method" {
         .path = "/api/data",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/api/data",
         .allocator = allocator,
         .owned_data = null,
     };
     defer request.deinit();
-    try request.headers.put("Origin", "https://example.com");
-    try request.headers.put("Access-Control-Request-Method", "DELETE");
+    try request.headers.put(allocator, "Origin", "https://example.com");
+    try request.headers.put(allocator, "Access-Control-Request-Method", "DELETE");
 
     var response = server.ResponseBuilder.init(allocator);
     defer response.deinit();
@@ -481,15 +481,16 @@ test "CorsMiddleware preflight validates request headers" {
         .path = "/api/data",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/api/data",
         .allocator = allocator,
         .owned_data = null,
     };
     defer request.deinit();
-    try request.headers.put("Origin", "https://example.com");
+    try request.headers.put(allocator, "Origin", "https://example.com");
     try request.headers.put(
+        allocator,
         "Access-Control-Request-Headers",
         "X-Custom-Secret",
     );
@@ -522,16 +523,16 @@ test "CorsMiddleware preflight succeeds with valid method and headers" {
         .path = "/api/resource",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/api/resource",
         .allocator = allocator,
         .owned_data = null,
     };
     defer request.deinit();
-    try request.headers.put("Origin", "https://app.example.com");
-    try request.headers.put("Access-Control-Request-Method", "PUT");
-    try request.headers.put("Access-Control-Request-Headers", "Authorization");
+    try request.headers.put(allocator, "Origin", "https://app.example.com");
+    try request.headers.put(allocator, "Access-Control-Request-Method", "PUT");
+    try request.headers.put(allocator, "Access-Control-Request-Headers", "Authorization");
 
     var response = server.ResponseBuilder.init(allocator);
     defer response.deinit();
@@ -572,14 +573,14 @@ test "CorsMiddleware strict config rejects all origins" {
         .path = "/",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/",
         .allocator = allocator,
         .owned_data = null,
     };
     defer request.deinit();
-    try request.headers.put("Origin", "https://any-origin.com");
+    try request.headers.put(allocator, "Origin", "https://any-origin.com");
 
     var response = server.ResponseBuilder.init(allocator);
     defer response.deinit();
@@ -607,14 +608,14 @@ test "CorsMiddleware credentials not set when allow_credentials is false" {
         .path = "/",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/",
         .allocator = allocator,
         .owned_data = null,
     };
     defer request.deinit();
-    try request.headers.put("Origin", "https://example.com");
+    try request.headers.put(allocator, "Origin", "https://example.com");
 
     var response = server.ResponseBuilder.init(allocator);
     defer response.deinit();

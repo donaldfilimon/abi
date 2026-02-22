@@ -18,7 +18,7 @@ pub const ParsedRequest = struct {
     /// HTTP version.
     version: HttpVersion,
     /// Request headers.
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
     /// Request body (if present).
     body: ?[]const u8,
     /// Raw request line.
@@ -29,7 +29,7 @@ pub const ParsedRequest = struct {
     owned_data: ?[]u8,
 
     pub fn deinit(self: *ParsedRequest) void {
-        self.headers.deinit();
+        self.headers.deinit(self.allocator);
         if (self.owned_data) |data| {
             self.allocator.free(data);
         }
@@ -147,11 +147,11 @@ pub fn parseRequest(
     const path, const query = splitPathQuery(raw_path);
 
     // Parse headers
-    var headers = std.StringHashMap([]const u8).init(allocator);
-    errdefer headers.deinit();
+    var headers: std.StringHashMapUnmanaged([]const u8) = .empty;
+    errdefer headers.deinit(allocator);
 
     const headers_section = header_section[first_line_end + 2 ..];
-    try parseHeaders(headers_section, &headers);
+    try parseHeaders(allocator, headers_section, &headers);
 
     // Get body if present
     var body: ?[]const u8 = null;
@@ -230,7 +230,7 @@ fn splitPathQuery(raw_path: []const u8) struct { []const u8, ?[]const u8 } {
 }
 
 /// Parses HTTP headers.
-fn parseHeaders(data: []const u8, headers: *std.StringHashMap([]const u8)) ParseError!void {
+fn parseHeaders(allocator: std.mem.Allocator, data: []const u8, headers: *std.StringHashMapUnmanaged([]const u8)) ParseError!void {
     var lines = std.mem.splitSequence(u8, data, "\r\n");
 
     while (lines.next()) |line| {
@@ -243,7 +243,7 @@ fn parseHeaders(data: []const u8, headers: *std.StringHashMap([]const u8)) Parse
         const name = std.mem.trim(u8, line[0..colon_pos], " \t");
         const value = std.mem.trim(u8, line[colon_pos + 1 ..], " \t");
 
-        headers.put(name, value) catch return ParseError.OutOfMemory;
+        headers.put(allocator, name, value) catch return ParseError.OutOfMemory;
     }
 }
 
@@ -278,9 +278,9 @@ pub fn extractPathParams(
     allocator: std.mem.Allocator,
     pattern: []const u8,
     path: []const u8,
-) !std.StringHashMap([]const u8) {
-    var params = std.StringHashMap([]const u8).init(allocator);
-    errdefer params.deinit();
+) !std.StringHashMapUnmanaged([]const u8) {
+    var params: std.StringHashMapUnmanaged([]const u8) = .empty;
+    errdefer params.deinit(allocator);
 
     var pattern_parts = std.mem.splitScalar(u8, pattern, '/');
     var path_parts = std.mem.splitScalar(u8, path, '/');
@@ -291,7 +291,7 @@ pub fn extractPathParams(
         if (pattern_part.len > 0 and pattern_part[0] == ':') {
             // This is a parameter
             const param_name = pattern_part[1..];
-            try params.put(param_name, path_part);
+            try params.put(allocator, param_name, path_part);
         }
     }
 
@@ -372,7 +372,7 @@ test "extract path parameters" {
     const allocator = std.testing.allocator;
 
     var params = try extractPathParams(allocator, "/users/:id/posts/:post_id", "/users/123/posts/456");
-    defer params.deinit();
+    defer params.deinit(allocator);
 
     try std.testing.expectEqualStrings("123", params.get("id").?);
     try std.testing.expectEqualStrings("456", params.get("post_id").?);

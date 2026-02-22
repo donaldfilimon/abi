@@ -110,6 +110,11 @@ pub const error_handling = struct {
     };
 };
 
+pub const failover_types = struct {
+    pub const CircuitState = enum { closed, open, half_open };
+    pub const BackendHealth = struct {};
+};
+
 // Namespace stubs that mirror already-imported stubs files
 // (these provide the `pub const X = struct {}` needed for sub-module namespace re-exports)
 pub const platform_ns = struct {};

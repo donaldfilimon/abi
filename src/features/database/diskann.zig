@@ -304,7 +304,7 @@ pub const DiskANNIndex = struct {
     vectors: std.ArrayListUnmanaged([]f32),
 
     // Node cache for disk-based access
-    node_cache: std.AutoHashMap(u32, DiskNode),
+    node_cache: std.AutoHashMapUnmanaged(u32, DiskNode),
     cache_order: std.ArrayListUnmanaged(u32),
 
     // Statistics
@@ -317,7 +317,7 @@ pub const DiskANNIndex = struct {
             .graph = .empty,
             .pq_codes = .empty,
             .vectors = .empty,
-            .node_cache = std.AutoHashMap(u32, DiskNode).init(allocator),
+            .node_cache = .empty,
             .cache_order = .empty,
         };
     }
@@ -346,7 +346,7 @@ pub const DiskANNIndex = struct {
             cb.deinit();
         }
 
-        self.node_cache.deinit();
+        self.node_cache.deinit(self.allocator);
         self.cache_order.deinit(self.allocator);
     }
 
@@ -479,13 +479,13 @@ pub const DiskANNIndex = struct {
         var candidates = std.PriorityQueue(SearchCandidate, void, SearchCandidate.lessThan).init(self.allocator, {});
         defer candidates.deinit();
 
-        var visited = std.AutoHashMap(u32, void).init(self.allocator);
-        defer visited.deinit();
+        var visited: std.AutoHashMapUnmanaged(u32, void) = .empty;
+        defer visited.deinit(self.allocator);
 
         // Start from entry point
         const entry_dist = computeL2DistanceSquared(query, self.vectors.items[self.entry_point]);
         try candidates.add(.{ .id = self.entry_point, .distance = entry_dist });
-        try visited.put(self.entry_point, {});
+        try visited.put(self.allocator, self.entry_point, {});
 
         var result_list = std.ArrayListUnmanaged(SearchCandidate).empty;
 
@@ -499,7 +499,7 @@ pub const DiskANNIndex = struct {
             // Expand neighbors
             for (self.graph.items[current.id].items) |neighbor_id| {
                 if (visited.contains(neighbor_id)) continue;
-                try visited.put(neighbor_id, {});
+                try visited.put(self.allocator, neighbor_id, {});
 
                 const neighbor_dist = computeL2DistanceSquared(query, self.vectors.items[neighbor_id]);
                 try candidates.add(.{ .id = neighbor_id, .distance = neighbor_dist });

@@ -12,15 +12,54 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
-const subcommand = @import("../utils/subcommand.zig");
-
 // libc import for environment and process access - required for Zig 0.16
 const c = @cImport({
     @cInclude("stdlib.h");
     @cInclude("stdio.h");
 });
+
+// Wrapper functions for comptime children dispatch
+fn wrapInstall(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = ArgParser.init(allocator, args);
+    try runInstallBoth(allocator, &parser);
+}
+fn wrapZig(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = ArgParser.init(allocator, args);
+    try runInstallZig(allocator, &parser);
+}
+fn wrapZls(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = ArgParser.init(allocator, args);
+    try runInstallZls(allocator, &parser);
+}
+fn wrapStatus(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = ArgParser.init(allocator, args);
+    try runStatusSubcommand(allocator, &parser);
+}
+fn wrapUpdate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = ArgParser.init(allocator, args);
+    try runUpdateSubcommand(allocator, &parser);
+}
+fn wrapPath(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = ArgParser.init(allocator, args);
+    try runPathSubcommand(allocator, &parser);
+}
+
+pub const meta: command_mod.Meta = .{
+    .name = "toolchain",
+    .description = "Build and install Zig/ZLS from master (install, update, status)",
+    .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "help" },
+    .children = &.{
+        .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = .{ .basic = wrapInstall } },
+        .{ .name = "zig", .description = "Install only Zig from master", .handler = .{ .basic = wrapZig } },
+        .{ .name = "zls", .description = "Install only ZLS from master", .handler = .{ .basic = wrapZls } },
+        .{ .name = "status", .description = "Show installed versions", .handler = .{ .basic = wrapStatus } },
+        .{ .name = "update", .description = "Update to latest master", .handler = .{ .basic = wrapUpdate } },
+        .{ .name = "path", .description = "Print install directory for shell config", .handler = .{ .basic = wrapPath } },
+    },
+};
 
 const output = utils.output;
 const ArgParser = utils.args.ArgParser;
@@ -39,31 +78,27 @@ const zig_repo = "https://github.com/ziglang/zig.git";
 /// ZLS repository URL
 const zls_repo = "https://github.com/zigtools/zls.git";
 
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(allocator, args);
+const toolchain_subcommands = [_][]const u8{
+    "install", "zig", "zls", "status", "update", "path", "help",
+};
 
-    if (parser.wantsHelp()) {
+/// Run the toolchain command with the provided arguments.
+/// Only reached when no child matches (help / unknown).
+pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
         printHelp(allocator);
         return;
     }
-
-    const commands = [_]subcommand.Command{
-        .{ .names = &.{"install"}, .run = runInstallBoth },
-        .{ .names = &.{"zig"}, .run = runInstallZig },
-        .{ .names = &.{"zls"}, .run = runInstallZls },
-        .{ .names = &.{"status"}, .run = runStatusSubcommand },
-        .{ .names = &.{"update"}, .run = runUpdateSubcommand },
-        .{ .names = &.{"path"}, .run = runPathSubcommand },
-    };
-
-    try subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &commands,
-        null,
-        printHelp,
-        onUnknownCommand,
-    );
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp(allocator);
+        return;
+    }
+    // Unknown subcommand
+    output.printError("Unknown toolchain command: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &toolchain_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn runInstallBoth(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -88,10 +123,6 @@ fn runUpdateSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
 
 fn runPathSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     try runPath(allocator, parser);
-}
-
-fn onUnknownCommand(command: []const u8) void {
-    output.printError("Unknown subcommand: {s}", .{command});
 }
 
 const InstallTarget = enum { both, zig_only, zls_only };

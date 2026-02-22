@@ -206,13 +206,15 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
     }
 
     if (cfg.ai) |ai_cfg| {
-        // AI split module initialization is non-fatal and logs only.
+        // AI sub-modules fail non-fatally: the main `ai` module is available but
+        // specialized sub-features (core, inference, training, reasoning) may be null.
+        // Users can check via abi.ai.isLlmEnabled() or `abi system-info`.
         if (comptime build_options.enable_ai) {
             fw.ai_core = ai_core_mod.Context.init(
                 allocator,
                 ai_cfg,
             ) catch |err| blk: {
-                std.log.warn("ai_core init failed: {t}", .{err});
+                std.log.warn("ai.core sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
                 break :blk null;
             };
         }
@@ -221,7 +223,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
                 allocator,
                 ai_cfg,
             ) catch |err| blk: {
-                std.log.warn("ai_inference init failed: {t}", .{err});
+                std.log.warn("ai.inference sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
                 break :blk null;
             };
         }
@@ -230,7 +232,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
                 allocator,
                 ai_cfg,
             ) catch |err| blk: {
-                std.log.warn("ai_training init failed: {t}", .{err});
+                std.log.warn("ai.training sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
                 break :blk null;
             };
         }
@@ -239,7 +241,7 @@ fn initFeatureContexts(comptime Framework: type, allocator: std.mem.Allocator, c
                 allocator,
                 ai_cfg,
             ) catch |err| blk: {
-                std.log.warn("ai_reasoning init failed: {t}", .{err});
+                std.log.warn("ai.reasoning sub-module init failed (non-fatal): {t} — check `abi system-info`", .{err});
                 break :blk null;
             };
         }

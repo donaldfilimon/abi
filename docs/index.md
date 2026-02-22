@@ -12,20 +12,20 @@ tooling into a single build with compile-time feature gating.
 
 Version **0.4.0** provides 21 feature modules, 10 GPU backends, 9 LLM provider
 connectors, and 30 CLI commands (plus 8 aliases) — all tested with
-1270 passing tests (5 skipped) and 1535 passing feature tests across 36 examples.
+1254 passing tests (5 skipped) and 1535 passing feature tests.
 
 ## What You Can Build
 
 | Capability | Module(s) | Description |
 |------------|-----------|-------------|
-| LLM inference | `ai`, `inference`, `connectors` | Local model serving, chat, embeddings, streaming with 9 provider backends |
+| LLM inference | `abi.ai.llm`, `abi.connectors` | Local model serving, chat, embeddings, streaming with 9 provider backends |
 | GPU compute pipelines | `gpu` | Kernel DSL, multi-GPU orchestration, 10 backends (CUDA, Vulkan, Metal, WebGPU, ...) |
 | Vector search | `database`, `search` | WDBX vector database with full-text BM25 search |
 | Distributed compute | `network`, `runtime` | Peer discovery, work-stealing thread pool, DAG pipeline scheduling |
 | API gateways | `gateway` | Radix-tree routing, rate limiting (token bucket, sliding window, fixed window), circuit breaker |
 | Pub/sub messaging | `messaging` | Topic pub/sub with MQTT-style pattern matching, dead letter queues |
-| Training pipelines | `training` | Federated learning, synthetic data generation, quantization |
-| Agent systems | `ai_core`, `reasoning` | Multi-agent workflows, tool use, memory, Abbey reasoning engine |
+| Training pipelines | `abi.ai.training` | Federated learning, synthetic data generation, quantization |
+| Agent systems | `abi.ai.core`, `abi.ai.reasoning` | Multi-agent workflows, tool use, memory, Abbey reasoning engine |
 | Caching | `cache` | LRU/LFU/FIFO eviction, slab allocation, TTL, atomic stats |
 | Object storage | `storage` | Unified file/object storage with pluggable backends |
 | Dashboard pages | `pages` | URL routing with path parameters and template rendering |
@@ -94,4 +94,4 @@ Continue to [Installation](/installation/) to set up your toolchain, or jump str
 to [Getting Started](/getting-started/) if you already have Zig 0.16 installed.
 
 ## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
+Use the Zig 0.16-dev patterns documented in CLAUDE.md for syntax guidance.

@@ -17,7 +17,7 @@ test "c_api: agent create and destroy lifecycle" {
     const allocator = testing.allocator;
 
     // Create agent (C API: abi_agent_create)
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "test-agent",
         .backend = .echo,
         .model = "test-model",
@@ -41,7 +41,7 @@ test "c_api: agent send message and receive response" {
 
     const allocator = testing.allocator;
 
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "echo-agent",
         .backend = .echo,
         .model = "echo",
@@ -69,7 +69,7 @@ test "c_api: agent get status" {
 
     const allocator = testing.allocator;
 
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "status-test-agent",
         .backend = .echo,
     }) catch {
@@ -89,7 +89,7 @@ test "c_api: agent get stats" {
 
     const allocator = testing.allocator;
 
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "stats-test-agent",
         .backend = .echo,
         .enable_history = true,
@@ -122,7 +122,7 @@ test "c_api: agent clear history" {
 
     const allocator = testing.allocator;
 
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "history-test-agent",
         .backend = .echo,
         .enable_history = true,
@@ -156,7 +156,7 @@ test "c_api: agent set temperature" {
 
     const allocator = testing.allocator;
 
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "temp-test-agent",
         .backend = .echo,
         .temperature = 0.7,
@@ -182,7 +182,7 @@ test "c_api: agent set max tokens" {
 
     const allocator = testing.allocator;
 
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "tokens-test-agent",
         .backend = .echo,
         .max_tokens = 1024,
@@ -209,7 +209,7 @@ test "c_api: agent get name" {
     const allocator = testing.allocator;
 
     const agent_name = "my-test-agent";
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = agent_name,
         .backend = .echo,
     }) catch {
@@ -229,7 +229,7 @@ test "c_api: agent with system prompt" {
 
     const allocator = testing.allocator;
 
-    var agent = abi.ai.Agent.init(allocator, .{
+    var agent = abi.ai.agent.Agent.init(allocator, .{
         .name = "system-prompt-agent",
         .backend = .echo,
         .system_prompt = "You are a helpful assistant.",
@@ -253,7 +253,7 @@ test "c_api: agent null handle returns error status" {
     // abi_agent_get_status(NULL) returns ABI_AGENT_STATUS_ERROR
 
     // In Zig, we simulate this by checking optionals
-    const maybe_agent: ?*abi.ai.Agent = null;
+    const maybe_agent: ?*abi.ai.agent.Agent = null;
     try testing.expect(maybe_agent == null);
 }
 

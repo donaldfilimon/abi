@@ -126,7 +126,7 @@ fn hasAllowedInternalFlag(flag: []const u8) bool {
     return false;
 }
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
@@ -281,20 +281,20 @@ pub fn main() !void {
         errors += 1;
     }
 
-    var seen_features = std.StringHashMap(void).init(allocator);
-    defer seen_features.deinit();
+    var seen_features: std.StringHashMapUnmanaged(void) = .empty;
+    defer seen_features.deinit(allocator);
     for (catalog_features.items) |feature| {
-        const gop = try seen_features.getOrPut(feature);
+        const gop = try seen_features.getOrPut(allocator, feature);
         if (gop.found_existing) {
             std.debug.print("ERROR: duplicate feature in feature_catalog metadata: {s}\n", .{feature});
             errors += 1;
         }
     }
 
-    var catalog_flag_unique = std.StringHashMap(void).init(allocator);
-    defer catalog_flag_unique.deinit();
+    var catalog_flag_unique: std.StringHashMapUnmanaged(void) = .empty;
+    defer catalog_flag_unique.deinit(allocator);
     for (catalog_flags.items) |flag| {
-        const gop = try catalog_flag_unique.getOrPut(flag);
+        const gop = try catalog_flag_unique.getOrPut(allocator, flag);
         if (gop.found_existing) {
             std.debug.print("INFO: duplicate compile flag in feature_catalog (expected for derived toggles): {s}\n", .{flag});
         }
@@ -305,16 +305,16 @@ pub fn main() !void {
         errors += 1;
     }
 
-    var build_flag_map = std.StringHashMap(void).init(allocator);
-    defer build_flag_map.deinit();
+    var build_flag_map: std.StringHashMapUnmanaged(void) = .empty;
+    defer build_flag_map.deinit(allocator);
     for (build_flags.items) |flag| {
-        _ = try build_flag_map.getOrPut(flag);
+        _ = try build_flag_map.getOrPut(allocator, flag);
     }
 
-    var combo_flag_map = std.StringHashMap(void).init(allocator);
-    defer combo_flag_map.deinit();
+    var combo_flag_map: std.StringHashMapUnmanaged(void) = .empty;
+    defer combo_flag_map.deinit(allocator);
     for (combo_flags.items) |flag| {
-        _ = try combo_flag_map.getOrPut(flag);
+        _ = try combo_flag_map.getOrPut(allocator, flag);
     }
 
     var catalog_iter = catalog_flag_unique.iterator();

@@ -308,7 +308,7 @@ pub const NatTraversal = struct {
                 .state = .pending,
                 .response = null,
             };
-            std.crypto.random.bytes(&session.transaction_id);
+            std.c.arc4random_buf(&session.transaction_id, session.transaction_id.len);
             try self.sessions.append(self.allocator, session);
         }
 
@@ -480,7 +480,7 @@ pub const QuicConnection = struct {
             .mutex = .{},
         };
 
-        std.crypto.random.bytes(&conn.connection_id);
+        std.c.arc4random_buf(&conn.connection_id, conn.connection_id.len);
         return conn;
     }
 

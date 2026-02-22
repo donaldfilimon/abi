@@ -172,7 +172,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     // Load base model
     std.debug.print("Loading base model: {s}...\n", .{config.base_model});
-    var model = abi.ai.TrainableModel.fromGguf(allocator, config.base_model) catch |err| {
+    var model = abi.ai.training.TrainableModel.fromGguf(allocator, config.base_model) catch |err| {
         std.debug.print("Error loading model: {t}\n", .{err});
         std.debug.print("\nTo train Ava, you need a gpt-oss compatible GGUF model.\n", .{});
         std.debug.print("Download one from: https://huggingface.co/TheBloke\n", .{});

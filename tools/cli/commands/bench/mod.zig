@@ -12,9 +12,17 @@
 //! - --output <file> - Write results to file
 
 const std = @import("std");
+const command_mod = @import("../../command.zig");
 const utils = @import("../../utils/mod.zig");
 const suites = @import("suites.zig");
 const micro = @import("micro.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "bench",
+    .description = "Run performance benchmarks (all, simd, memory, ai, quick)",
+    .aliases = &.{"run"},
+    .subcommands = &.{ "all", "simd", "memory", "ai", "quick", "compare-training", "list", "micro" },
+};
 
 /// Benchmark suite selection
 pub const BenchmarkSuite = enum {

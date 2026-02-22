@@ -5,6 +5,7 @@ const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const cfg = @import("config.zig");
+const skills_store = @import("skills_store.zig");
 
 pub fn runRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var task_override: ?[]const u8 = null;
@@ -114,8 +115,9 @@ pub fn runRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     // Handle skill storage
     var skills_added: u64 = 0;
     if (store_skill) |s| {
-        _ = engine.storeSkill(s) catch |err| {
-            std.debug.print("Warning: could not store skill: {t}\n", .{err});
+        _ = engine.storeSkill(s) catch {};
+        skills_store.appendSkill(allocator, io, s, null, 1.0) catch |err| {
+            std.debug.print("Warning: could not persist skill: {t}\n", .{err});
         };
         skills_added += 1;
         std.debug.print("Skill stored.\n", .{});
@@ -123,6 +125,9 @@ pub fn runRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (auto_skill) {
         const stored = engine.extractAndStoreSkill(goal, result) catch false;
         if (stored) {
+            if (firstSentence(result)) |lesson| {
+                skills_store.appendSkill(allocator, io, lesson, null, 0.8) catch {};
+            }
             skills_added += 1;
             std.debug.print("Auto-skill extracted and stored.\n", .{});
         }
@@ -132,8 +137,21 @@ pub fn runRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     var state = cfg.readState(allocator, io);
     state.runs += 1;
     state.skills += skills_added;
-    state.last_run_ts = abi.shared.utils.unixMs();
+    state.last_run_ts = blk: {
+        var ts: std.c.timespec = undefined;
+        _ = std.c.clock_gettime(.REALTIME, &ts);
+        break :blk @intCast(ts.sec);
+    };
     cfg.writeState(allocator, io, state);
 
     std.debug.print("\n=== Ralph Run Complete ===\n{s}\n", .{result});
+}
+
+fn firstSentence(text: []const u8) ?[]const u8 {
+    const trimmed = std.mem.trim(u8, text, " \t\r\n");
+    if (trimmed.len == 0) return null;
+    for (trimmed, 0..) |ch, idx| {
+        if (ch == '.' or ch == '\n') return std.mem.trim(u8, trimmed[0 .. idx + 1], " \t\r\n");
+    }
+    return trimmed;
 }

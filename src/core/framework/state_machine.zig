@@ -22,6 +22,9 @@ pub inline fn markStopped(state: *State) void {
     set(state, .stopped);
 }
 
+/// Mark the framework as failed. Currently unused -- errors propagate via
+/// errdefer and the Framework struct is destroyed before the caller sees it.
+/// Retained for potential future use in long-lived framework instances.
 pub inline fn markFailed(state: *State) void {
     set(state, .failed);
 }

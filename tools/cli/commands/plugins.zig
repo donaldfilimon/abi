@@ -4,6 +4,7 @@
 //! Plugin state is persisted to ~/.abi/plugins.json
 
 const std = @import("std");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
@@ -233,61 +234,69 @@ fn getPlugin(allocator: std.mem.Allocator, name: []const u8) !?PluginInfo {
     return null;
 }
 
-/// Entry point for the plugins command.
-fn plList(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try listPlugins(alloc);
+// Wrapper functions for comptime children dispatch
+fn wrapPlList(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try listPlugins(allocator);
 }
-fn plInfo(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    const name = parser.next() orelse {
+fn wrapPlInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
         utils.output.printError("Usage: abi plugins info <name>", .{});
         return;
-    };
-    try showPluginInfo(alloc, name);
+    }
+    try showPluginInfo(allocator, std.mem.sliceTo(args[0], 0));
 }
-fn plEnable(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    const name = parser.next() orelse {
+fn wrapPlEnable(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
         utils.output.printError("Usage: abi plugins enable <name>", .{});
         return;
-    };
-    try enablePlugin(alloc, name);
+    }
+    try enablePlugin(allocator, std.mem.sliceTo(args[0], 0));
 }
-fn plDisable(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    const name = parser.next() orelse {
+fn wrapPlDisable(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
         utils.output.printError("Usage: abi plugins disable <name>", .{});
         return;
-    };
-    try disablePlugin(alloc, name);
+    }
+    try disablePlugin(allocator, std.mem.sliceTo(args[0], 0));
 }
-fn plSearch(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    const query = parser.next() orelse "";
-    try searchPlugins(alloc, query);
-}
-fn plUnknown(cmd: []const u8) void {
-    utils.output.printError("Unknown subcommand: {s}", .{cmd});
-}
-fn printHelpAlloc(_: std.mem.Allocator) void {
-    printHelp();
+fn wrapPlSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    const query = if (args.len > 0) std.mem.sliceTo(args[0], 0) else "";
+    try searchPlugins(allocator, query);
 }
 
-const plugin_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"list"}, .run = plList },
-    .{ .names = &.{"info"}, .run = plInfo },
-    .{ .names = &.{"enable"}, .run = plEnable },
-    .{ .names = &.{"disable"}, .run = plDisable },
-    .{ .names = &.{"search"}, .run = plSearch },
+pub const meta: command_mod.Meta = .{
+    .name = "plugins",
+    .description = "Plugin management (list, enable, disable, info)",
+    .subcommands = &.{ "list", "info", "enable", "disable", "search" },
+    .children = &.{
+        .{ .name = "list", .description = "List installed plugins", .handler = .{ .basic = wrapPlList } },
+        .{ .name = "info", .description = "Show detailed plugin information", .handler = .{ .basic = wrapPlInfo } },
+        .{ .name = "enable", .description = "Enable a plugin", .handler = .{ .basic = wrapPlEnable } },
+        .{ .name = "disable", .description = "Disable a plugin", .handler = .{ .basic = wrapPlDisable } },
+        .{ .name = "search", .description = "Search available plugins", .handler = .{ .basic = wrapPlSearch } },
+    },
+};
+
+const plugin_subcommands = [_][]const u8{
+    "list", "info", "enable", "disable", "search", "help",
 };
 
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &plugin_commands,
-        plList,
-        printHelpAlloc,
-        plUnknown,
-    );
+    if (args.len == 0) {
+        // Default action: list plugins
+        try listPlugins(allocator);
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp();
+        return;
+    }
+    // Unknown subcommand
+    utils.output.printError("Unknown subcommand: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &plugin_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn listPlugins(allocator: std.mem.Allocator) !void {

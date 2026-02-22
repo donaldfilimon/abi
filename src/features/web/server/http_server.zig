@@ -45,23 +45,25 @@ pub const Server = struct {
         method: types.Method,
         path: []const u8,
         query: ?[]const u8,
-        headers: std.StringHashMap([]const u8),
+        headers: std.StringHashMapUnmanaged([]const u8),
         body: ?[]const u8,
         connection: *Connection,
+        allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) Request {
             return .{
                 .method = .GET,
                 .path = "/",
                 .query = null,
-                .headers = std.StringHashMap([]const u8).init(allocator),
+                .headers = .empty,
                 .body = null,
                 .connection = undefined,
+                .allocator = allocator,
             };
         }
 
         pub fn deinit(self: *Request) void {
-            self.headers.deinit();
+            self.headers.deinit(self.allocator);
         }
 
         /// Gets a header value (case-insensitive).
@@ -73,7 +75,7 @@ pub const Server = struct {
     /// Simplified response structure for handler.
     pub const Response = struct {
         status: types.Status,
-        headers: std.StringHashMap([]const u8),
+        headers: std.StringHashMapUnmanaged([]const u8),
         body: std.ArrayListUnmanaged(u8),
         sent: bool,
         allocator: std.mem.Allocator,
@@ -81,7 +83,7 @@ pub const Server = struct {
         pub fn init(allocator: std.mem.Allocator) Response {
             return .{
                 .status = .ok,
-                .headers = std.StringHashMap([]const u8).init(allocator),
+                .headers = .empty,
                 .body = .empty,
                 .sent = false,
                 .allocator = allocator,
@@ -89,7 +91,7 @@ pub const Server = struct {
         }
 
         pub fn deinit(self: *Response) void {
-            self.headers.deinit();
+            self.headers.deinit(self.allocator);
             self.body.deinit(self.allocator);
         }
 
@@ -101,7 +103,7 @@ pub const Server = struct {
 
         /// Sets a response header.
         pub fn setHeader(self: *Response, name: []const u8, value: []const u8) !*Response {
-            try self.headers.put(name, value);
+            try self.headers.put(self.allocator, name, value);
             return self;
         }
 

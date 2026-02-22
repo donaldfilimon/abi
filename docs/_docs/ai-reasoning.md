@@ -18,8 +18,15 @@ This guide is generated from repository metadata for **AI** coverage and stays d
 ## Build Snapshot
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
-- Main tests: `1270` pass / `5` skip / `1275` total
+- Main tests: `1254` pass / `5` skip / `1259` total
 - Feature tests: `1535` pass / `1535` total
+
+## Feature Coverage
+
+- **reasoning** — AI reasoning (Abbey, eval, RAG)
+  - Build flag: `enable_reasoning`
+  - Source: `src/features/ai/facades/reasoning.zig`
+  - Parent: `ai`
 
 ## Module Coverage
 

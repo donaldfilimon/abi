@@ -26,8 +26,14 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
+
+pub const meta: command_mod.Meta = .{
+    .name = "os-agent",
+    .description = "OS-aware AI agent with tools, memory, and self-learning",
+};
 
 /// Run the os-agent command.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -109,7 +115,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         os_agent_system_prompt;
 
     // Create tool-augmented agent with all tools
-    var tool_agent = try abi.ai.ToolAugmentedAgent.init(allocator, .{
+    var tool_agent = try abi.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
         .agent = .{
             .name = "os-agent",
             .backend = backend,
@@ -131,7 +137,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     // Initialize self-improver for metrics
-    var improver = abi.ai.SelfImprover.init(allocator);
+    var improver = abi.ai.self_improve.SelfImprover.init(allocator);
     defer improver.deinit();
 
     if (message) |msg| {
@@ -164,8 +170,8 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
 fn runInteractive(
     allocator: std.mem.Allocator,
-    tool_agent: *abi.ai.ToolAugmentedAgent,
-    improver: *abi.ai.SelfImprover,
+    tool_agent: *abi.ai.tool_agent.ToolAugmentedAgent,
+    improver: *abi.ai.self_improve.SelfImprover,
     session_name: []const u8,
 ) !void {
     std.debug.print("\n{s}", .{
@@ -240,8 +246,8 @@ fn runInteractive(
 
 fn handleSlashCommand(
     input: []const u8,
-    tool_agent: *abi.ai.ToolAugmentedAgent,
-    improver: *abi.ai.SelfImprover,
+    tool_agent: *abi.ai.tool_agent.ToolAugmentedAgent,
+    improver: *abi.ai.self_improve.SelfImprover,
 ) void {
     var iter = std.mem.splitScalar(u8, input[1..], ' ');
     const cmd = iter.first();

@@ -167,7 +167,7 @@ test "minimal logger sets marker" {
         .path = "/test",
         .query = null,
         .version = .http_1_1,
-        .headers = std.StringHashMap([]const u8).init(allocator),
+        .headers = .empty,
         .body = null,
         .raw_path = "/test",
         .allocator = allocator,

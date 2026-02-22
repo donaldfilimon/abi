@@ -183,7 +183,7 @@ pub const PolicyFlags = struct {
 /// Block chain manager for session memory
 pub const BlockChain = struct {
     allocator: std.mem.Allocator,
-    blocks: std.AutoHashMap(u64, ConversationBlock),
+    blocks: std.AutoHashMapUnmanaged(u64, ConversationBlock),
     session_id: []const u8,
     current_head: ?u64 = null,
 
@@ -193,7 +193,7 @@ pub const BlockChain = struct {
     pub fn init(allocator: std.mem.Allocator, session_id: []const u8) Self {
         return .{
             .allocator = allocator,
-            .blocks = std.AutoHashMap(u64, ConversationBlock).init(allocator),
+            .blocks = .empty,
             .session_id = allocator.dupe(u8, session_id) catch session_id,
         };
     }
@@ -204,7 +204,7 @@ pub const BlockChain = struct {
         while (iter.next()) |entry| {
             entry.value_ptr.deinit(self.allocator);
         }
-        self.blocks.deinit();
+        self.blocks.deinit(self.allocator);
         self.allocator.free(self.session_id);
     }
 
@@ -223,7 +223,7 @@ pub const BlockChain = struct {
         }
 
         // Store block
-        try self.blocks.put(block_id, block);
+        try self.blocks.put(self.allocator, block_id, block);
 
         // Update chain head
         self.current_head = block_id;
@@ -263,15 +263,15 @@ pub const BlockChain = struct {
         defer result.deinit(self.allocator);
 
         var current = self.current_head;
-        var visited = std.AutoHashMap(u64, void).init(self.allocator);
-        defer visited.deinit();
+        var visited: std.AutoHashMapUnmanaged(u64, void) = .empty;
+        defer visited.deinit(self.allocator);
 
         while (current != null and result.items.len < max_blocks) {
             if (self.blocks.get(current.?)) |block| {
                 // Add current block
                 if (!visited.contains(current.?)) {
                     try result.append(self.allocator, current.?);
-                    try visited.put(current.?, {});
+                    try visited.put(self.allocator, current.?, {});
                 }
 
                 // Try skip pointer first, then parent
@@ -328,8 +328,8 @@ pub const BlockChain = struct {
         @memset(query_sum, 0.0);
 
         var persona_weights = RoutingWeights{};
-        var intent_counts = std.AutoHashMap(IntentCategory, usize).init(self.allocator);
-        defer intent_counts.deinit();
+        var intent_counts: std.AutoHashMapUnmanaged(IntentCategory, usize) = .empty;
+        defer intent_counts.deinit(self.allocator);
 
         for (block_ids) |block_id| {
             if (self.blocks.get(block_id)) |block| {
@@ -345,7 +345,7 @@ pub const BlockChain = struct {
 
                 // Count intents
                 const count = intent_counts.get(block.intent) orelse 0;
-                try intent_counts.put(block.intent, count + 1);
+                try intent_counts.put(self.allocator, block.intent, count + 1);
             }
         }
 
@@ -432,16 +432,16 @@ fn computeBlockHash(allocator: std.mem.Allocator, config: BlockConfig) ![32]u8 {
 /// MVCC store for concurrent access to block chains
 pub const MvccStore = struct {
     allocator: std.mem.Allocator,
-    chains: std.StringHashMap(BlockChain), // Session ID -> BlockChain
-    read_timestamps: std.AutoHashMap([]const u8, i64), // Session -> read timestamp
+    chains: std.StringHashMapUnmanaged(BlockChain), // Session ID -> BlockChain
+    read_timestamps: std.AutoHashMapUnmanaged([]const u8, i64), // Session -> read timestamp
 
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return .{
             .allocator = allocator,
-            .chains = std.StringHashMap(BlockChain).init(allocator),
-            .read_timestamps = std.AutoHashMap([]const u8, i64).init(allocator),
+            .chains = .empty,
+            .read_timestamps = .empty,
         };
     }
 
@@ -451,13 +451,13 @@ pub const MvccStore = struct {
             entry.value_ptr.deinit();
             self.allocator.free(entry.key_ptr.*);
         }
-        self.chains.deinit();
+        self.chains.deinit(self.allocator);
 
         var ts_iter = self.read_timestamps.iterator();
         while (ts_iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
         }
-        self.read_timestamps.deinit();
+        self.read_timestamps.deinit(self.allocator);
     }
 
     /// Get or create block chain for session
@@ -470,7 +470,7 @@ pub const MvccStore = struct {
         errdefer self.allocator.free(session_copy);
 
         const chain = BlockChain.init(self.allocator, session_copy);
-        try self.chains.put(session_copy, chain);
+        try self.chains.put(self.allocator, session_copy, chain);
 
         return self.chains.getPtr(session_copy).?;
     }
@@ -480,7 +480,7 @@ pub const MvccStore = struct {
         const session_copy = try self.allocator.dupe(u8, session_id);
         errdefer self.allocator.free(session_copy);
 
-        try self.read_timestamps.put(session_copy, timestamp);
+        try self.read_timestamps.put(self.allocator, session_copy, timestamp);
     }
 
     /// Get blocks visible at current read timestamp

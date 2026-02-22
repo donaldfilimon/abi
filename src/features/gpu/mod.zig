@@ -128,24 +128,6 @@ pub const adaptive_tiling = @import("adaptive_tiling.zig");
 pub const std_gpu = @import("std_gpu.zig");
 pub const std_gpu_kernels = @import("std_gpu_kernels.zig");
 
-// Performance types
-pub const SyncEvent = sync_event.SyncEvent;
-pub const KernelRing = kernel_ring.KernelRing;
-pub const AdaptiveTiling = adaptive_tiling.AdaptiveTiling;
-pub const TileConfig = adaptive_tiling.AdaptiveTiling.TileConfig;
-
-// std.gpu types (Zig native GPU address spaces and shader built-ins)
-pub const GlobalPtr = std_gpu.GlobalPtr;
-pub const SharedPtr = std_gpu.SharedPtr;
-pub const StoragePtr = std_gpu.StoragePtr;
-pub const UniformPtr = std_gpu.UniformPtr;
-pub const ConstantPtr = std_gpu.ConstantPtr;
-pub const globalInvocationId = std_gpu.globalInvocationId;
-pub const workgroupId = std_gpu.workgroupId;
-pub const localInvocationId = std_gpu.localInvocationId;
-pub const workgroupBarrier = std_gpu.workgroupBarrier;
-pub const setLocalSize = std_gpu.setLocalSize;
-
 // Unified API modules
 pub const unified = @import("unified.zig");
 pub const unified_buffer = @import("unified_buffer.zig");
@@ -186,14 +168,6 @@ else
 
 // Platform detection
 pub const platform = @import("platform.zig");
-pub const PlatformCapabilities = platform.PlatformCapabilities;
-pub const BackendSupport = platform.BackendSupport;
-pub const GpuVendor = platform.GpuVendor;
-pub const isCudaSupported = platform.isCudaSupported;
-pub const isMetalSupported = platform.isMetalSupported;
-pub const isVulkanSupported = platform.isVulkanSupported;
-pub const isWebGpuSupported = platform.isWebGpuSupported;
-pub const platformDescription = platform.platformDescription;
 
 // Modular backend abstraction layer
 pub const backends = @import("backends/mod.zig");
@@ -204,88 +178,17 @@ pub const builtin_kernels = @import("builtin_kernels.zig");
 pub const recovery = @import("recovery.zig");
 pub const failover = @import("failover.zig");
 pub const failover_types = @import("failover_types.zig");
-pub const RecoveryManager = recovery.RecoveryManager;
-pub const FailoverManager = failover.FailoverManager;
-
-// Shared failover types (canonical definitions used by both failover.zig and mega/failover.zig)
-pub const CircuitState = failover_types.CircuitState;
-pub const BackendHealth = failover_types.BackendHealth;
 
 // Diagnostics and error handling
 pub const diagnostics = @import("diagnostics.zig");
 pub const error_handling = @import("error_handling.zig");
-pub const DiagnosticsInfo = diagnostics.DiagnosticsInfo;
-pub const ErrorContext = error_handling.ErrorContext;
-pub const GpuErrorCode = error_handling.GpuErrorCode;
-pub const GpuErrorType = error_handling.GpuErrorType;
-
-// Standard GPU error taxonomy (from interface.zig)
-// Use these for cross-backend error handling in new code.
-// Backend-specific errors (VulkanError, MetalError, etc.) can be mapped to
-// these standard types via mapToStandardError().
-pub const BackendError = interface.BackendError;
-pub const StandardMemoryError = interface.MemoryError;
-pub const StandardKernelError = interface.KernelError;
-pub const InterfaceError = interface.InterfaceError;
-pub const StandardGpuError = interface.GpuError;
-pub const mapToStandardError = interface.mapToStandardError;
-
-// Execution coordinator convenience exports (GPU→SIMD→scalar fallback)
-pub const ExecutionCoordinator = execution_coordinator.ExecutionCoordinator;
-pub const ExecutionMethod = execution_coordinator.ExecutionMethod;
 
 // Multi-device and peer transfer
 pub const multi_device = @import("multi_device.zig");
 pub const peer_transfer = @import("peer_transfer/mod.zig");
 
-// Multi-device types
-pub const DeviceGroup = multi_device.DeviceGroup;
-pub const GPUCluster = multi_device.GPUCluster;
-pub const GPUClusterConfig = multi_device.GPUClusterConfig;
-pub const ReduceOp = multi_device.ReduceOp;
-pub const AllReduceAlgorithm = multi_device.AllReduceAlgorithm;
-pub const ParallelismStrategy = multi_device.ParallelismStrategy;
-pub const WorkDistribution = multi_device.WorkDistribution;
-pub const ModelPartition = multi_device.ModelPartition;
-pub const DeviceBarrier = multi_device.DeviceBarrier;
-pub const GradientBucket = multi_device.GradientBucket;
-pub const GradientBucketManager = multi_device.GradientBucketManager;
-
-// Peer transfer types
-pub const PeerTransferManager = peer_transfer.PeerTransferManager;
-pub const TransferCapability = peer_transfer.TransferCapability;
-pub const TransferHandle = peer_transfer.TransferHandle;
-pub const TransferStatus = peer_transfer.TransferStatus;
-pub const TransferOptions = peer_transfer.TransferOptions;
-pub const TransferError = peer_transfer.TransferError;
-pub const TransferStats = peer_transfer.TransferStats;
-pub const DeviceBuffer = peer_transfer.DeviceBuffer;
-pub const RecoveryStrategy = peer_transfer.RecoveryStrategy;
-
-// GPU metrics and profiling re-exports
-pub const MetricsCollector = unified.MetricsCollector;
-pub const MetricsSummary = unified.MetricsSummary;
-pub const KernelMetrics = unified.KernelMetrics;
-pub const GroupStats = multi_device.GroupStats;
-
-// Error aliases for API consistency
-pub const AcceleratorError = GpuError;
-
-// Result types for reduction/dot-product operations
-pub const ReduceResult = struct { value: f32, stats: ExecutionResult };
-pub const DotProductResult = struct { value: f32, stats: ExecutionResult };
-pub const ExecutionStats = ExecutionResult;
-
 // Mega GPU orchestration (cross-backend coordinator)
 pub const mega = @import("mega/mod.zig");
-
-// Mega types for cross-backend coordination
-pub const MegaCoordinator = mega.Coordinator;
-pub const MegaBackendInstance = mega.BackendInstance;
-pub const MegaWorkloadProfile = mega.WorkloadProfile;
-pub const MegaWorkloadCategory = mega.WorkloadCategory;
-pub const MegaScheduleDecision = mega.ScheduleDecision;
-pub const MegaPrecision = mega.Precision;
 
 // Include test modules in test builds
 comptime {
@@ -341,134 +244,41 @@ var cuda_backend_init_lock = sync.Mutex{};
 var cuda_backend_initialized = false;
 var cached_gpu_allocator: ?std.mem.Allocator = null;
 
-pub const MemoryError = memory.MemoryError;
 pub const BufferFlags = memory.BufferFlags;
 pub const GpuBuffer = memory.GpuBuffer;
 pub const Buffer = GpuBuffer; // Alias for convenience
-pub const GpuMemoryPool = memory.GpuMemoryPool;
-pub const MemoryPool = GpuMemoryPool; // Alias for convenience
-pub const MemoryStats = memory.MemoryStats;
-pub const AsyncTransfer = memory.AsyncTransfer;
+pub const MemoryError = memory.MemoryError;
+pub const KernelError = interface.KernelError;
 pub const GpuError = memory.MemoryError || error{GpuDisabled};
 pub const Error = GpuError;
 
-// Lock-free memory pool types (high-performance concurrent allocation)
-pub const LockFreeResourcePool = memory_pool_lockfree.LockFreeResourcePool;
-pub const ResourceHandle = memory_pool_lockfree.ResourceHandle;
-pub const LockFreePoolConfig = memory_pool_lockfree.PoolConfig;
-pub const LockFreePoolStats = memory_pool_lockfree.StatsSnapshot;
-pub const ConcurrentCommandPool = memory_pool_lockfree.ConcurrentCommandPool;
-pub const INVALID_HANDLE = memory_pool_lockfree.INVALID_HANDLE;
-pub const CACHE_LINE_SIZE = memory_pool_lockfree.CACHE_LINE_SIZE;
-
-pub const KernelSource = kernels.KernelSource;
-pub const KernelConfig = kernels.KernelConfig;
-pub const CompiledKernel = kernels.CompiledKernel;
 pub const Stream = kernels.Stream;
-pub const KernelError = kernels.KernelError;
-pub const compileKernel = kernels.compileKernel;
-pub const createDefaultKernels = kernels.createDefaultKernels;
-
-// Kernel Cache exports
-pub const KernelCache = kernel_cache.KernelCache;
-pub const KernelCacheConfig = kernel_cache.KernelCacheConfig;
-pub const CacheStats = kernel_cache.CacheStats;
 
 pub const Backend = backend.Backend;
-pub const DetectionLevel = backend.DetectionLevel;
-pub const BackendAvailability = backend.BackendAvailability;
-pub const BackendInfo = backend.BackendInfo;
-pub const DeviceCapability = backend.DeviceCapability;
-pub const DeviceInfo = backend.DeviceInfo;
-pub const Summary = backend.Summary;
 pub const isEnabled = backend.isEnabled;
 
-// Profiling exports
-pub const Profiler = profiling.Profiler;
-pub const TimingResult = profiling.TimingResult;
-pub const OccupancyResult = profiling.OccupancyResult;
-pub const MemoryBandwidth = profiling.MemoryBandwidth;
-
 // ============================================================================
-// Unified API Exports
+// Unified API Exports (essential shared types only)
 // ============================================================================
 
-// Main Gpu struct and config
 pub const Gpu = unified.Gpu;
 pub const GpuConfig = unified.GpuConfig;
+pub const GpuDevice = unified.GpuDevice;
 pub const ExecutionResult = unified.ExecutionResult;
-pub const MatrixDims = unified.MatrixDims;
 pub const LaunchConfig = unified.LaunchConfig;
 pub const HealthStatus = unified.HealthStatus;
-pub const GpuStats = unified.GpuStats;
-pub const MemoryInfo = unified.MemoryInfo;
-pub const MultiGpuConfig = unified.MultiGpuConfig;
-pub const LoadBalanceStrategy = unified.LoadBalanceStrategy;
 
-// Unified buffer types
 pub const UnifiedBuffer = unified_buffer.Buffer;
 pub const BufferOptions = unified_buffer.BufferOptions;
-pub const MemoryMode = unified_buffer.MemoryMode;
-pub const MemoryLocation = unified_buffer.MemoryLocation;
-pub const AccessHint = unified_buffer.AccessHint;
-pub const ElementType = unified_buffer.ElementType;
-pub const BufferView = unified_buffer.BufferView;
-pub const MappedBuffer = unified_buffer.MappedBuffer;
-pub const BufferStats = unified_buffer.BufferStats;
 
-// Device types
 pub const Device = device.Device;
 pub const DeviceType = device.DeviceType;
-pub const DeviceFeature = device.DeviceFeature;
-pub const DeviceSelector = device.DeviceSelector;
-pub const DeviceManager = device.DeviceManager;
-pub const discoverDevices = device.discoverDevices;
-pub const Vendor = device.Vendor;
-pub const getBestKernelBackend = device.getBestKernelBackend;
 
-// Stream and event types
-pub const GpuStream = stream.Stream;
 pub const StreamOptions = stream.StreamOptions;
-pub const StreamPriority = stream.StreamPriority;
-pub const StreamFlags = stream.StreamFlags;
-pub const StreamState = stream.StreamState;
-pub const StreamManager = stream.StreamManager;
 pub const Event = stream.Event;
 pub const EventOptions = stream.EventOptions;
-pub const EventFlags = stream.EventFlags;
-pub const EventState = stream.EventState;
 
-// DSL types for custom kernels
 pub const KernelBuilder = dsl.KernelBuilder;
-pub const KernelIR = dsl.KernelIR;
-pub const PortableKernelSource = dsl.PortableKernelSource;
-pub const compile = dsl.compile;
-pub const compileToKernelSource = dsl.compileToKernelSource;
-pub const compileAll = dsl.compileAll;
-pub const CompileOptions = dsl.CompileOptions;
-pub const CompileError = dsl.CompileError;
-
-// DSL type system
-pub const ScalarType = dsl.ScalarType;
-pub const VectorType = dsl.VectorType;
-pub const MatrixType = dsl.MatrixType;
-pub const AddressSpace = dsl.AddressSpace;
-pub const DslType = dsl.Type;
-pub const AccessMode = dsl.AccessMode;
-
-// DSL expression types
-pub const Expr = dsl.Expr;
-pub const BinaryOp = dsl.BinaryOp;
-pub const UnaryOp = dsl.UnaryOp;
-pub const BuiltinFn = dsl.BuiltinFn;
-pub const BuiltinVar = dsl.BuiltinVar;
-
-// DSL statement types
-pub const Stmt = dsl.Stmt;
-
-// DSL code generation
-pub const CodegenError = dsl.CodegenError;
-pub const GeneratedSource = dsl.GeneratedSource;
 
 pub fn init(allocator: std.mem.Allocator) GpuError!void {
     if (!backend.moduleEnabled()) return error.GpuDisabled;
@@ -661,7 +471,7 @@ pub const Context = struct {
     }
 
     /// Matrix multiplication.
-    pub fn matrixMultiply(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer, dims: MatrixDims) !ExecutionResult {
+    pub fn matrixMultiply(self: *Context, a: *UnifiedBuffer, b: *UnifiedBuffer, result: *UnifiedBuffer, dims: unified.MatrixDims) !ExecutionResult {
         return self.gpu.matrixMultiply(a, b, result, dims);
     }
 
@@ -716,6 +526,6 @@ test "gpu type exports" {
     // Verify key types are accessible (compile-time check)
     _ = GpuConfig{};
     _ = BufferOptions{};
-    _ = MatrixDims{ .m = 1, .n = 1, .k = 1 };
+    _ = unified.MatrixDims{ .m = 1, .n = 1, .k = 1 };
     try std.testing.expect(true);
 }

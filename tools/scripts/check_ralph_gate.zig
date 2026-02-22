@@ -43,7 +43,7 @@ fn collectScores(value: std.json.Value, sum: *f64, count: *usize) void {
     }
 }
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
@@ -52,12 +52,37 @@ pub fn main() !void {
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    const input_json = "reports/ralph_upgrade_results_openai.json";
+    var input_json: []const u8 = "reports/ralph_upgrade_results_openai.json";
+    var latest_path: ?[]u8 = null;
+    defer if (latest_path) |p| allocator.free(p);
+
+    if (util.fileExists(io, ".ralph/runs/latest.json")) {
+        const latest_contents = util.readFileAlloc(allocator, io, ".ralph/runs/latest.json", 64 * 1024) catch null;
+        if (latest_contents) |contents| {
+            defer allocator.free(contents);
+            const parsed_latest = std.json.parseFromSlice(std.json.Value, allocator, contents, .{}) catch null;
+            if (parsed_latest) |parsed| {
+                defer parsed.deinit();
+                switch (parsed.value) {
+                    .object => |obj| {
+                        if (obj.get("report")) |report| {
+                            switch (report) {
+                                .string => |s| latest_path = allocator.dupe(u8, s) catch null,
+                                else => {},
+                            }
+                        }
+                    },
+                    else => {},
+                }
+            }
+        }
+    }
+    if (latest_path) |p| input_json = p;
 
     if (!util.fileExists(io, input_json)) {
-        std.debug.print("ERROR: missing live Ralph results: {s}\n", .{input_json});
+        std.debug.print("ERROR: missing Ralph results: {s}\n", .{input_json});
         std.debug.print("Run:\n", .{});
-        std.debug.print("  abi ralph super --task 'upgrade analysis' --gate\n", .{});
+        std.debug.print("  abi ralph improve --iterations 1\n", .{});
         std.process.exit(1);
     }
 
@@ -72,6 +97,25 @@ pub fn main() !void {
         std.process.exit(1);
     };
     defer parsed.deinit();
+
+    // New report format shortcut
+    switch (parsed.value) {
+        .object => |obj| {
+            if (obj.get("last_gate_passed")) |v| {
+                const passed = switch (v) {
+                    .bool => |b| b,
+                    else => false,
+                };
+                if (passed) {
+                    std.debug.print("OK: Ralph gate passed (run report)\n", .{});
+                    return;
+                }
+                std.debug.print("FAILED: Ralph run report indicates gate failure\n", .{});
+                std.process.exit(1);
+            }
+        },
+        else => {},
+    }
 
     var sum: f64 = 0.0;
     var count: usize = 0;

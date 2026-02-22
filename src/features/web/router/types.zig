@@ -136,9 +136,9 @@ pub fn extractParams(
     allocator: std.mem.Allocator,
     pattern: []const u8,
     path: []const u8,
-) !std.StringHashMap([]const u8) {
-    var params = std.StringHashMap([]const u8).init(allocator);
-    errdefer params.deinit();
+) !std.StringHashMapUnmanaged([]const u8) {
+    var params: std.StringHashMapUnmanaged([]const u8) = .empty;
+    errdefer params.deinit(allocator);
 
     var pattern_parts = splitPathSegments(pattern);
     var path_parts = splitPathSegments(path);
@@ -148,7 +148,7 @@ pub fn extractParams(
 
         if (isParamSegment(pattern_part)) {
             const param_name = pattern_part[1..];
-            try params.put(param_name, path_part);
+            try params.put(allocator, param_name, path_part);
         }
     }
 
@@ -221,7 +221,7 @@ test "extractParams" {
     const allocator = std.testing.allocator;
 
     var params = try extractParams(allocator, "/users/:id/posts/:post_id", "/users/123/posts/456");
-    defer params.deinit();
+    defer params.deinit(allocator);
 
     try std.testing.expectEqualStrings("123", params.get("id").?);
     try std.testing.expectEqualStrings("456", params.get("post_id").?);

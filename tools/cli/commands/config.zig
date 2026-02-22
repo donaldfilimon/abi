@@ -6,46 +6,55 @@ const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
 // Use the shared config module for file-based configuration (legacy format)
+const command_mod = @import("../command.zig");
 const shared_config = @import("abi").shared.utils.config;
 
-fn cfgInit(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runInit(alloc, parser.remaining());
+fn wrapCfgInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runInit(allocator, args);
 }
-fn cfgShow(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runShow(alloc, parser.remaining());
+fn wrapCfgShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runShow(allocator, args);
 }
-fn cfgValidate(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runValidate(alloc, parser.remaining());
+fn wrapCfgValidate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runValidate(allocator, args);
 }
-fn cfgEnv(_: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
+fn wrapCfgEnv(_: std.mem.Allocator, _: []const [:0]const u8) !void {
     runEnv();
 }
-fn cfgUnknown(cmd: []const u8) void {
-    std.debug.print("Unknown config command: {s}\n", .{cmd});
-}
-fn printHelpAlloc(_: std.mem.Allocator) void {
-    printHelp();
-}
 
-const config_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"init"}, .run = cfgInit },
-    .{ .names = &.{"show"}, .run = cfgShow },
-    .{ .names = &.{"validate"}, .run = cfgValidate },
-    .{ .names = &.{"env"}, .run = cfgEnv },
+pub const meta: command_mod.Meta = .{
+    .name = "config",
+    .description = "Configuration management (init, show, validate)",
+    .subcommands = &.{ "init", "show", "validate", "env", "help" },
+    .children = &.{
+        .{ .name = "init", .description = "Generate a default configuration file", .handler = .{ .basic = wrapCfgInit } },
+        .{ .name = "show", .description = "Display current configuration", .handler = .{ .basic = wrapCfgShow } },
+        .{ .name = "validate", .description = "Validate a configuration file", .handler = .{ .basic = wrapCfgValidate } },
+        .{ .name = "env", .description = "List environment variables", .handler = .{ .basic = wrapCfgEnv } },
+    },
+};
+
+const config_subcommands = [_][]const u8{
+    "init", "show", "validate", "env", "help",
 };
 
 /// Run the config command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &config_commands,
-        null,
-        printHelpAlloc,
-        cfgUnknown,
-    );
+    _ = allocator;
+    if (args.len == 0) {
+        printHelp();
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp();
+        return;
+    }
+    // Unknown subcommand
+    std.debug.print("Unknown config command: {s}\n", .{cmd});
+    if (utils.args.suggestCommand(cmd, &config_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

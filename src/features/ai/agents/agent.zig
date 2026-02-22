@@ -12,6 +12,8 @@ const retry = shared_utils.http_retry;
 const connectors = @import("../../../services/connectors/mod.zig");
 const time = shared_utils;
 const platform_time = @import("../../../services/shared/time.zig");
+const provider_router_mod = @import("../llm/providers/router.zig");
+const provider_types = @import("../llm/providers/types.zig");
 
 // ============================================================================
 // Constants
@@ -231,6 +233,8 @@ pub const AgentBackend = enum {
     huggingface,
     /// Use local transformer model
     local,
+    /// Use local-first provider router (llama.cpp -> MLX -> Ollama -> LM Studio -> vLLM -> plugins)
+    provider_router,
 };
 
 pub const AgentConfig = struct {
@@ -241,6 +245,10 @@ pub const AgentConfig = struct {
     max_tokens: u32 = DEFAULT_MAX_TOKENS,
     backend: AgentBackend = .echo,
     model: []const u8 = "gpt-4",
+    provider_backend: ?provider_types.ProviderId = null,
+    provider_fallback: []const provider_types.ProviderId = &.{},
+    provider_strict_backend: bool = false,
+    provider_plugin_id: ?[]const u8 = null,
     system_prompt: ?[]const u8 = null,
     retry_config: retry.RetryConfig = .{},
 
@@ -364,7 +372,24 @@ pub const Agent = struct {
             .ollama => self.generateOllamaResponse(input, allocator),
             .huggingface => self.generateHuggingFaceResponse(input, allocator),
             .local => self.generateLocalResponse(input, allocator),
+            .provider_router => self.generateProviderRouterResponse(input, allocator),
         };
+    }
+
+    fn generateProviderRouterResponse(self: *Agent, input: []const u8, allocator: std.mem.Allocator) ![]u8 {
+        var result = try provider_router_mod.generate(allocator, .{
+            .model = self.config.model,
+            .prompt = input,
+            .backend = self.config.provider_backend,
+            .fallback = self.config.provider_fallback,
+            .strict_backend = self.config.provider_strict_backend,
+            .plugin_id = self.config.provider_plugin_id,
+            .max_tokens = self.config.max_tokens,
+            .temperature = self.config.temperature,
+            .top_p = self.config.top_p,
+        });
+        defer result.deinit(allocator);
+        return try allocator.dupe(u8, result.content);
     }
 
     /// Echo backend - returns formatted echo (for testing)

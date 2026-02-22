@@ -22,6 +22,7 @@ pub fn render(
     build_meta: model.BuildMeta,
     modules: []const model.ModuleDoc,
     commands: []const model.CliCommand,
+    features: []const model.FeatureDoc,
     readmes: []const model.ReadmeSummary,
     roadmap_entries: []const model.RoadmapDocEntry,
     plan_entries: []const model.PlanDocEntry,
@@ -38,6 +39,7 @@ pub fn render(
             build_meta,
             modules,
             commands,
+            features,
             readmes,
             roadmap_entries,
             plan_entries,
@@ -138,6 +140,7 @@ fn buildAutoContent(
     build_meta: model.BuildMeta,
     modules: []const model.ModuleDoc,
     commands: []const model.CliCommand,
+    features: []const model.FeatureDoc,
     readmes: []const model.ReadmeSummary,
     roadmap_entries: []const model.RoadmapDocEntry,
     plan_entries: []const model.PlanDocEntry,
@@ -170,14 +173,19 @@ fn buildAutoContent(
 
     if (std.mem.eql(u8, slug, "api")) {
         try appendApiSummary(allocator, &out, modules);
+        try appendFeatureMatrix(allocator, &out, features);
     } else if (std.mem.eql(u8, slug, "cli")) {
         try appendCliSummary(allocator, &out, commands);
     } else if (std.mem.eql(u8, slug, "getting-started")) {
         try appendGettingStartedFlow(allocator, &out);
-        try appendModuleCoverage(allocator, &out, section, modules);
+        try appendFeatureMatrix(allocator, &out, features);
         try appendGettingStartedEntryPoints(allocator, &out, commands);
+    } else if (std.mem.eql(u8, slug, "architecture")) {
+        try appendFeatureMatrix(allocator, &out, features);
+        try appendModuleCoverage(allocator, &out, section, modules);
     } else if (std.mem.eql(u8, slug, "gpu") or std.mem.eql(u8, slug, "gpu-backends")) {
         try appendGpuSummary(allocator, &out, modules);
+        try appendFeatureCoverage(allocator, &out, "gpu", features);
     } else if (std.mem.eql(u8, slug, "connectors")) {
         try appendConnectorsSummary(allocator, &out, readmes);
     } else if (std.mem.eql(u8, slug, "roadmap")) {
@@ -196,6 +204,7 @@ fn buildAutoContent(
             \\
         );
     } else {
+        try appendFeatureCoverage(allocator, &out, slug, features);
         try appendModuleCoverage(allocator, &out, section, modules);
         try appendCommandEntryPoints(allocator, &out, section, commands);
     }
@@ -236,6 +245,60 @@ fn appendApiSummary(
         try model.appendTableRow(allocator, out, &row);
     }
     try out.appendSlice(allocator, "\nSee generated API app: [../api-app/](../api-app/)\n\n");
+}
+
+fn appendFeatureMatrix(
+    allocator: std.mem.Allocator,
+    out: *std.ArrayListUnmanaged(u8),
+    features: []const model.FeatureDoc,
+) !void {
+    try appendFmt(allocator, out, "## Feature Matrix ({d} modules)\n\n", .{features.len});
+    try model.appendTableHeader(allocator, out, &.{ "Feature", "Build Flag", "Parent", "Description" });
+    for (features) |feat| {
+        const parent_display = if (feat.parent.len > 0) feat.parent else "—";
+        const flag_cell = try std.fmt.allocPrint(allocator, "`{s}`", .{feat.compile_flag});
+        defer allocator.free(flag_cell);
+        try model.appendTableRow(allocator, out, &.{ feat.name, flag_cell, parent_display, feat.description });
+    }
+    try out.append(allocator, '\n');
+}
+
+fn appendFeatureCoverage(
+    allocator: std.mem.Allocator,
+    out: *std.ArrayListUnmanaged(u8),
+    slug: []const u8,
+    features: []const model.FeatureDoc,
+) !void {
+    try out.appendSlice(allocator, "## Feature Coverage\n\n");
+    var count: usize = 0;
+    for (features) |feat| {
+        if (!featureMatchesSlug(slug, feat)) continue;
+        count += 1;
+        try appendFmt(allocator, out, "- **{s}** — {s}\n", .{ feat.name, feat.description });
+        try appendFmt(allocator, out, "  - Build flag: `{s}`\n", .{feat.compile_flag});
+        try appendFmt(allocator, out, "  - Source: `src/{s}`\n", .{feat.real_module_path});
+        if (feat.parent.len > 0) {
+            try appendFmt(allocator, out, "  - Parent: `{s}`\n", .{feat.parent});
+        }
+    }
+    if (count == 0) {
+        try out.appendSlice(allocator, "No feature modules directly mapped to this section.\n");
+    }
+    try out.append(allocator, '\n');
+}
+
+fn featureMatchesSlug(slug: []const u8, feat: model.FeatureDoc) bool {
+    // Direct name match (e.g. slug="gpu" matches feat.name="gpu")
+    if (std.mem.eql(u8, slug, feat.name)) return true;
+    // Section-based matching for multi-feature pages
+    if (std.mem.eql(u8, slug, "ai-overview")) return std.mem.eql(u8, feat.name, "ai") or std.mem.eql(u8, feat.parent, "ai");
+    if (std.mem.eql(u8, slug, "ai-core")) return std.mem.eql(u8, feat.name, "agents") or std.mem.eql(u8, feat.name, "personas");
+    if (std.mem.eql(u8, slug, "ai-inference")) return std.mem.eql(u8, feat.name, "llm") or std.mem.eql(u8, feat.name, "embeddings");
+    if (std.mem.eql(u8, slug, "ai-training")) return std.mem.eql(u8, feat.name, "training");
+    if (std.mem.eql(u8, slug, "ai-reasoning")) return std.mem.eql(u8, feat.name, "reasoning");
+    if (std.mem.eql(u8, slug, "database")) return std.mem.eql(u8, feat.name, "database");
+    if (std.mem.eql(u8, slug, "gpu-backends")) return std.mem.eql(u8, feat.name, "gpu");
+    return false;
 }
 
 fn appendCliSummary(

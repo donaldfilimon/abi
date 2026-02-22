@@ -7,7 +7,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn runInfo() void {
-    const default_config = abi.ai.TrainingConfig{};
+    const default_config = abi.ai.training.TrainingConfig{};
 
     std.debug.print("Default Training Configuration\n", .{});
     std.debug.print("==============================\n\n", .{});

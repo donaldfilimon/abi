@@ -8,14 +8,14 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     std.debug.print("=== ABI AI Inference Example ===\n\n", .{});
 
-    if (!abi.inference.isEnabled()) {
+    if (!abi.ai.llm.isEnabled()) {
         std.debug.print("Inference feature is disabled. Enable with -Denable-llm=true\n", .{});
         return;
     }
@@ -28,7 +28,7 @@ pub fn main() !void {
 
     // --- LLM Configuration ---
     std.debug.print("--- LLM Configuration ---\n", .{});
-    const llm_config = abi.ai.LlmConfig{
+    const llm_config = abi.ai.llm.InferenceConfig{
         .max_context_length = 2048,
         .max_new_tokens = 512,
         .temperature = 0.7,
@@ -38,7 +38,7 @@ pub fn main() !void {
 
     // --- Streaming Types ---
     std.debug.print("\n--- Streaming ---\n", .{});
-    const StreamToken = abi.ai.StreamToken;
+    const StreamToken = abi.ai.streaming.StreamToken;
     _ = StreamToken;
     std.debug.print("StreamToken type available for token-by-token generation\n", .{});
 

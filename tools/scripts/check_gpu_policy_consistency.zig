@@ -19,7 +19,7 @@ const target_cases = [_]TargetCase{
     .{ .name = "other", .os = .openbsd, .abi = .none },
 };
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var mismatches: usize = 0;
 
     for (target_cases) |target_case| {

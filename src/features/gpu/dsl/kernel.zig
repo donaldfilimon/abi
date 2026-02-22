@@ -681,6 +681,19 @@ pub const BuiltinKernel = enum {
             .col2im => "col2im",
         };
     }
+
+    /// Reverse lookup: find the BuiltinKernel enum value from a kernel name string.
+    /// Returns null if the name doesn't match any built-in kernel.
+    pub fn fromName(kernel_name: []const u8) ?BuiltinKernel {
+        const fields = @typeInfo(BuiltinKernel).@"enum".fields;
+        inline for (fields) |field| {
+            const variant: BuiltinKernel = @enumFromInt(field.value);
+            if (std.mem.eql(u8, kernel_name, variant.name())) {
+                return variant;
+            }
+        }
+        return null;
+    }
 };
 
 // ============================================================================

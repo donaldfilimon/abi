@@ -1,5 +1,4 @@
 const std = @import("std");
-const json = std.json;
 
 pub const PatternType = enum {
     literal,
@@ -182,14 +181,10 @@ pub fn matchesGlob(pattern: []const u8, name: []const u8) bool {
 }
 
 pub fn matchRegex(pattern: SearchPattern, text: []const u8) bool {
+    // Zig stdlib has no regex support; fall back to literal substring match
+    // on the regex pattern string itself.
     const regex_pat = pattern.regex_pattern orelse return false;
-
-    const result = std.regex.compile(pattern.allocator, regex_pat) catch {
-        return false;
-    };
-    defer result.deinit();
-
-    return result.match(text) != null;
+    return std.mem.indexOf(u8, text, regex_pat) != null;
 }
 
 pub fn matchFuzzy(pattern: SearchPattern, text: []const u8) f32 {
@@ -246,7 +241,7 @@ pub fn findAllLiteral(pattern: SearchPattern, text: []const u8, allocator: std.m
     const search_text = if (pattern.case_sensitive) text else blk: {
         const lowered = try allocator.dupe(u8, text);
         defer allocator.free(lowered);
-        break :blk std.ascii.lowerString(lowered, lowered.len);
+        break :blk std.ascii.lowerString(lowered, text);
     };
 
     const search_pat = if (pattern.case_sensitive and pattern.literal != null) pattern.literal.? else blk: {
@@ -254,7 +249,7 @@ pub fn findAllLiteral(pattern: SearchPattern, text: []const u8, allocator: std.m
         break :blk if (pattern.case_sensitive) pat else blk2: {
             const lowered = try allocator.dupe(u8, pat);
             defer allocator.free(lowered);
-            break :blk2 std.ascii.lowerString(lowered, lowered.len);
+            break :blk2 std.ascii.lowerString(lowered, pat);
         };
     };
 
@@ -310,4 +305,8 @@ pub fn calculateRelevanceScore(matches: []const MatchPosition, total_length: usi
     score += density * 0.5;
 
     return @min(score, 1.0);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

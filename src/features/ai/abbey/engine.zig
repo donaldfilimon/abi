@@ -88,6 +88,9 @@ pub const AbbeyEngine = struct {
                 .batch_size = abbey_config.learning.batch_size,
             });
         }
+        // NOTE: No errdefer needed for learner because the return below is
+        // infallible (struct literal). If fallible operations are added between
+        // here and return, add: errdefer if (learner) |*l| l.deinit();
 
         return Self{
             .allocator = allocator,
@@ -244,6 +247,7 @@ pub const AbbeyEngine = struct {
             &hybrid_context,
             query_analysis,
         );
+        errdefer self.allocator.free(response_content);
 
         // 9. Store assistant response
         var assistant_msg = core_types.Message.assistant(response_content);
@@ -306,7 +310,7 @@ pub const AbbeyEngine = struct {
         var history = std.ArrayListUnmanaged(client.ChatMessage).empty;
         defer {
             for (history.items) |*msg| {
-                if (msg.role.len > 0) {} // role is usually static string literal
+                // role is a string literal (not heap-allocated), so only free content
                 self.allocator.free(msg.content);
             }
             history.deinit(self.allocator);
@@ -341,6 +345,7 @@ pub const AbbeyEngine = struct {
 
             // Store agent response and track final assistant output from history-owned memory.
             const assistant_content = try self.allocator.dupe(u8, response.content);
+            errdefer self.allocator.free(assistant_content);
             try history.append(self.allocator, .{
                 .role = "assistant",
                 .content = assistant_content,
@@ -361,6 +366,7 @@ pub const AbbeyEngine = struct {
             // Inject Loop Prompt for next iteration
             if (iteration < max_iterations - 1) {
                 const injection = try prompts.ralph.formatLoopInjection(self.allocator, iteration + 1, goal);
+                errdefer self.allocator.free(injection);
                 try history.append(self.allocator, .{
                     .role = "system",
                     .content = injection,

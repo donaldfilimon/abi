@@ -91,7 +91,7 @@ const AllocationInfo = struct {
 pub const UnifiedMemoryManager = struct {
     allocator: std.mem.Allocator,
     config: UnifiedMemoryConfig,
-    allocations: std.AutoHashMap(*anyopaque, AllocationInfo),
+    allocations: std.AutoHashMapUnmanaged(*anyopaque, AllocationInfo),
     total_allocated: usize,
     peak_allocated: usize,
     allocation_count: usize,
@@ -103,7 +103,7 @@ pub const UnifiedMemoryManager = struct {
         var self = Self{
             .allocator = allocator,
             .config = config,
-            .allocations = std.AutoHashMap(*anyopaque, AllocationInfo).init(allocator),
+            .allocations = .empty,
             .total_allocated = 0,
             .peak_allocated = 0,
             .allocation_count = 0,
@@ -111,7 +111,7 @@ pub const UnifiedMemoryManager = struct {
 
         // Pre-allocate tracking capacity if tracking is enabled
         if (config.track_allocations) {
-            try self.allocations.ensureTotalCapacity(256);
+            try self.allocations.ensureTotalCapacity(allocator, 256);
         }
 
         return self;
@@ -126,7 +126,7 @@ pub const UnifiedMemoryManager = struct {
             const slice = info.ptr[0..info.size];
             self.allocator.free(@as([]align(1) u8, @alignCast(slice)));
         }
-        self.allocations.deinit();
+        self.allocations.deinit(self.allocator);
     }
 
     /// Allocate unified memory buffer
@@ -149,7 +149,7 @@ pub const UnifiedMemoryManager = struct {
 
         // Track allocation if enabled
         if (self.config.track_allocations) {
-            try self.allocations.put(@ptrCast(ptr.ptr), .{
+            try self.allocations.put(self.allocator, @ptrCast(ptr.ptr), .{
                 .ptr = @ptrCast(ptr.ptr),
                 .size = size,
                 .alignment = alignment,

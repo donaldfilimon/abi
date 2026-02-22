@@ -57,8 +57,8 @@ test "DevicePair hashing is symmetric-aware" {
 
 test "DevicePair hash distribution" {
     // Verify no collisions for small device IDs
-    var hashes = std.AutoHashMap(u64, DevicePair).init(testing.allocator);
-    defer hashes.deinit();
+    var hashes: std.AutoHashMapUnmanaged(u64, DevicePair) = .empty;
+    defer hashes.deinit(testing.allocator);
 
     var collision_count: usize = 0;
     for (0..8) |src| {
@@ -74,7 +74,7 @@ test "DevicePair hash distribution" {
             if (hashes.get(hash)) |_| {
                 collision_count += 1;
             } else {
-                try hashes.put(hash, pair);
+                try hashes.put(testing.allocator, hash, pair);
             }
         }
     }

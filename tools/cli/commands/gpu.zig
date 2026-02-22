@@ -2,59 +2,65 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const gpu_detect = abi.gpu.backends.detect;
 const gpu_listing = abi.gpu.backends.listing;
 const gpu_meta = abi.gpu.backends.meta;
 
-fn runBackends(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printBackends(alloc);
+// Wrapper functions for comptime children dispatch
+fn wrapBackends(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try printBackends(allocator);
 }
-fn runSummary(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printSummaryCommand(alloc);
+fn wrapSummaryCmd(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try printSummaryCommand(allocator);
 }
-fn runDevices(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printDevices(alloc);
+fn wrapDevices(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try printDevices(allocator);
 }
-fn runDefault(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printDefaultDevice(alloc);
+fn wrapDefault(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try printDefaultDevice(allocator);
 }
-fn runStatus(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printStatus(alloc);
-}
-fn runDefaultAction(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printBackends(alloc);
-    try printDevices(alloc);
-}
-fn onUnknownGpu(cmd: []const u8) void {
-    utils.output.printError("Unknown gpu command: {s}", .{cmd});
+fn wrapStatus(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try printStatus(allocator);
 }
 
-const gpu_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"backends"}, .run = runBackends },
-    .{ .names = &.{"summary"}, .run = runSummary },
-    .{ .names = &.{ "devices", "list" }, .run = runDevices },
-    .{ .names = &.{"default"}, .run = runDefault },
-    .{ .names = &.{"status"}, .run = runStatus },
+pub const meta: command_mod.Meta = .{
+    .name = "gpu",
+    .description = "GPU commands (backends, devices, summary, default)",
+    .subcommands = &.{ "backends", "devices", "list", "summary", "default", "status" },
+    .children = &.{
+        .{ .name = "backends", .description = "List GPU backends and build flags", .handler = .{ .basic = wrapBackends } },
+        .{ .name = "devices", .description = "List detected GPU devices", .handler = .{ .basic = wrapDevices } },
+        .{ .name = "list", .description = "List detected GPU devices", .handler = .{ .basic = wrapDevices } },
+        .{ .name = "summary", .description = "Show GPU module summary", .handler = .{ .basic = wrapSummaryCmd } },
+        .{ .name = "default", .description = "Show default GPU device", .handler = .{ .basic = wrapDefault } },
+        .{ .name = "status", .description = "Show native/fallback status", .handler = .{ .basic = wrapStatus } },
+    },
+};
+
+const gpu_subcommands = [_][]const u8{
+    "backends", "devices", "list", "summary", "default", "status", "help",
 };
 
 /// Run the GPU command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &gpu_commands,
-        runDefaultAction,
-        printHelp,
-        onUnknownGpu,
-    );
+    if (args.len == 0) {
+        // Default action: show backends + devices
+        try printBackends(allocator);
+        try printDevices(allocator);
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp(allocator);
+        return;
+    }
+    // Unknown subcommand
+    utils.output.printError("Unknown gpu command: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &gpu_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 /// Print a short GPU summary for system-info.

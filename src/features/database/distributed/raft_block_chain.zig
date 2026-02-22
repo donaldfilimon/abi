@@ -53,7 +53,7 @@ pub const DistributedBlockChain = struct {
     node_id: []const u8,
 
     // Local storage
-    local_chains: std.StringHashMap(block_chain.BlockChain), // session_id -> chain
+    local_chains: std.StringHashMapUnmanaged(block_chain.BlockChain), // session_id -> chain
     mvcc_store: block_chain.MvccStore,
 
     // Distributed coordination
@@ -75,7 +75,7 @@ pub const DistributedBlockChain = struct {
             .allocator = allocator,
             .config = config,
             .node_id = node_id_copy,
-            .local_chains = std.StringHashMap(block_chain.BlockChain).init(allocator),
+            .local_chains = .empty,
             .mvcc_store = block_chain.MvccStore.init(allocator),
             .raft_node = null,
             .transport = null,
@@ -89,7 +89,7 @@ pub const DistributedBlockChain = struct {
             entry.value_ptr.deinit();
             self.allocator.free(entry.key_ptr.*);
         }
-        self.local_chains.deinit();
+        self.local_chains.deinit(self.allocator);
 
         // Clean up distributed components
         if (self.raft_node) |*raft| {
@@ -224,7 +224,7 @@ pub const DistributedBlockChain = struct {
         errdefer self.allocator.free(session_copy);
 
         const chain = block_chain.BlockChain.init(self.allocator, session_copy);
-        try self.local_chains.put(session_copy, chain);
+        try self.local_chains.put(self.allocator, session_copy, chain);
 
         return self.local_chains.getPtr(session_copy).?;
     }

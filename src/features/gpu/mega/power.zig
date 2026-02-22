@@ -88,7 +88,7 @@ pub const EnergyReport = struct {
 /// Monitors power consumption and provides eco-mode scoring.
 pub const PowerMonitor = struct {
     allocator: std.mem.Allocator,
-    profiles: std.AutoHashMap(backend_mod.Backend, BackendPowerProfile),
+    profiles: std.AutoHashMapUnmanaged(backend_mod.Backend, BackendPowerProfile),
     per_backend_stats: [@typeInfo(backend_mod.Backend).@"enum".fields.len]BackendEnergyStats,
     eco_config: EcoModeConfig,
     mutex: sync.Mutex,
@@ -99,7 +99,7 @@ pub const PowerMonitor = struct {
         const self = try allocator.create(PowerMonitor);
         self.* = .{
             .allocator = allocator,
-            .profiles = std.AutoHashMap(backend_mod.Backend, BackendPowerProfile).init(allocator),
+            .profiles = .empty,
             .per_backend_stats = [_]BackendEnergyStats{.{}} ** backend_count,
             .eco_config = .{},
             .mutex = .{},
@@ -109,7 +109,7 @@ pub const PowerMonitor = struct {
     }
 
     pub fn deinit(self: *PowerMonitor) void {
-        self.profiles.deinit();
+        self.profiles.deinit(self.allocator);
         self.allocator.destroy(self);
     }
 
@@ -119,7 +119,7 @@ pub const PowerMonitor = struct {
             .opengl, .opengles, .webgl2, .simulated,
         };
         for (backends) |backend| {
-            try self.profiles.put(backend, default_profiles.getProfile(backend));
+            try self.profiles.put(self.allocator, backend, default_profiles.getProfile(backend));
         }
     }
 
@@ -222,7 +222,7 @@ pub const PowerMonitor = struct {
     pub fn setProfile(self: *PowerMonitor, backend: backend_mod.Backend, profile: BackendPowerProfile) !void {
         self.mutex.lock();
         defer self.mutex.unlock();
-        try self.profiles.put(backend, profile);
+        try self.profiles.put(self.allocator, backend, profile);
     }
 
     /// Get the power profile for a backend.

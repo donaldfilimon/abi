@@ -104,7 +104,7 @@ pub const GcpRuntime = struct {
         self: *GcpRuntime,
         method: []const u8,
         path: []const u8,
-        headers: std.StringHashMap([]const u8),
+        headers: std.StringHashMapUnmanaged([]const u8),
         body: ?[]const u8,
     ) !CloudResponse {
         self.request_count += 1;
@@ -153,7 +153,7 @@ pub fn parseHttpRequest(
     allocator: std.mem.Allocator,
     method: []const u8,
     path: []const u8,
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
     body: ?[]const u8,
     request_id: []const u8,
 ) !CloudEvent {
@@ -308,9 +308,9 @@ pub fn runHandler(allocator: std.mem.Allocator, handler: CloudHandler, port: u16
 // ============================================================================
 
 /// Parse a query string into key-value pairs.
-fn parseQueryString(allocator: std.mem.Allocator, query_string: []const u8) !std.StringHashMap([]const u8) {
-    var params = std.StringHashMap([]const u8).init(allocator);
-    errdefer params.deinit();
+fn parseQueryString(allocator: std.mem.Allocator, query_string: []const u8) !std.StringHashMapUnmanaged([]const u8) {
+    var params: std.StringHashMapUnmanaged([]const u8) = .empty;
+    errdefer params.deinit(allocator);
 
     var pairs = std.mem.splitScalar(u8, query_string, '&');
     while (pairs.next()) |pair| {
@@ -319,9 +319,9 @@ fn parseQueryString(allocator: std.mem.Allocator, query_string: []const u8) !std
         if (std.mem.indexOf(u8, pair, "=")) |eq_pos| {
             const key = pair[0..eq_pos];
             const value = pair[eq_pos + 1 ..];
-            try params.put(key, value);
+            try params.put(allocator, key, value);
         } else {
-            try params.put(pair, "");
+            try params.put(allocator, pair, "");
         }
     }
 
@@ -346,9 +346,9 @@ fn decodeBase64(allocator: std.mem.Allocator, encoded: []const u8) ![]const u8 {
 test "parseHttpRequest" {
     const allocator = std.testing.allocator;
 
-    var headers = std.StringHashMap([]const u8).init(allocator);
-    defer headers.deinit();
-    try headers.put("content-type", "application/json");
+    var headers: std.StringHashMapUnmanaged([]const u8) = .empty;
+    defer headers.deinit(allocator);
+    try headers.put(allocator, "content-type", "application/json");
 
     var event = try parseHttpRequest(
         allocator,

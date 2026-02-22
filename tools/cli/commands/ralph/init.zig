@@ -12,10 +12,25 @@ const RALPH_YML_TEMPLATE =
     \\cli:
     \\  backend: "{s}"
     \\
+    \\llm:
+    \\  backend: "{s}"
+    \\  fallback: "mlx,ollama,lm_studio,vllm,plugin_http,plugin_native"
+    \\  strict_backend: false
+    \\  model: "llama3.2"
+    \\  plugin: ""
+    \\
     \\event_loop:
     \\  prompt_file: "PROMPT.md"
     \\  completion_promise: "LOOP_COMPLETE"
-    \\  max_iterations: 100
+    \\  max_iterations: 5
+    \\
+    \\execution:
+    \\  max_iterations: 5
+    \\  max_fix_attempts: 2
+    \\  require_clean_tree: true
+    \\
+    \\gates:
+    \\  per_iteration: "zig build verify-all"
     \\
 ;
 
@@ -36,7 +51,7 @@ const PROMPT_MD_TEMPLATE =
 ;
 
 pub fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var backend: []const u8 = "claude";
+    var backend: []const u8 = "llama_cpp";
     var force = false;
 
     var i: usize = 0;
@@ -54,7 +69,7 @@ pub fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
                 \\Create a Ralph workspace in the current directory.
                 \\
                 \\Options:
-                \\  -b, --backend <name>  LLM backend (default: claude)
+                \\  -b, --backend <name>  LLM backend (default: llama_cpp)
                 \\  -f, --force           Overwrite existing workspace
                 \\  -h, --help            Show this help
                 \\
@@ -79,9 +94,10 @@ pub fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     cfg.ensureDir(io, cfg.WORKSPACE_DIR);
     cfg.ensureDir(io, cfg.AGENT_DIR);
     cfg.ensureDir(io, cfg.LOGS_DIR);
+    cfg.ensureDir(io, cfg.RUNS_DIR);
 
     // Write ralph.yml
-    const yml = try std.fmt.allocPrint(allocator, RALPH_YML_TEMPLATE, .{backend});
+    const yml = try std.fmt.allocPrint(allocator, RALPH_YML_TEMPLATE, .{ backend, backend });
     defer allocator.free(yml);
     try cfg.writeFile(allocator, io, cfg.CONFIG_FILE, yml);
 

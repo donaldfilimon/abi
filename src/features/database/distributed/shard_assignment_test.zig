@@ -97,11 +97,11 @@ test "hash ring placement and replication" {
         }
 
         // Verify nodes are distinct (no duplicate physical nodes in replica set)
-        var seen_nodes = std.StringHashMap(void).init(allocator);
-        defer seen_nodes.deinit();
+        var seen_nodes: std.StringHashMapUnmanaged(void) = .empty;
+        defer seen_nodes.deinit(allocator);
 
         for (shard_id.replica_set) |node| {
-            const entry = try seen_nodes.getOrPut(node);
+            const entry = try seen_nodes.getOrPut(allocator, node);
             if (entry.found_existing) {
                 // Should not have duplicate physical nodes
                 std.debug.print("Note: Duplicate node {s} in replica set\n", .{node});

@@ -8,14 +8,14 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     std.debug.print("=== ABI AI Training Example ===\n\n", .{});
 
-    if (!abi.training.isEnabled()) {
+    if (!abi.ai.training.isEnabled()) {
         std.debug.print("Training feature is disabled. Enable with -Denable-training=true\n", .{});
         return;
     }
@@ -28,7 +28,7 @@ pub fn main() !void {
 
     // --- Training Config ---
     std.debug.print("--- Training Pipeline ---\n", .{});
-    const config = abi.ai.TrainingConfig{
+    const config = abi.ai.training.TrainingConfig{
         .epochs = 10,
         .batch_size = 64,
         .sample_count = 1024,
@@ -46,7 +46,7 @@ pub fn main() !void {
 
     // --- Training Result Type ---
     std.debug.print("\n--- Result Types ---\n", .{});
-    const TrainingResult = abi.ai.TrainingResult;
+    const TrainingResult = abi.ai.training.TrainingResult;
     _ = TrainingResult;
     std.debug.print("TrainingResult type available for tracking metrics\n", .{});
 

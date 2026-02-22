@@ -8,6 +8,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../../command.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
 
@@ -18,6 +19,17 @@ const state_mod = @import("state.zig");
 const render = @import("render.zig");
 const input = @import("input.zig");
 const tui_layout = @import("layout.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "tui",
+    .description = "Launch interactive TUI command menu",
+    .io_mode = .io,
+    .forward = .{
+        .target = "ui",
+        .prepend_args = &[_][:0]const u8{"launch"},
+        .warning = "'abi tui' is deprecated; use 'abi ui launch'.",
+    },
+};
 
 const TuiState = state_mod.TuiState;
 

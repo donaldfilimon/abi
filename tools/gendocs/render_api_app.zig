@@ -6,11 +6,12 @@ pub fn render(
     allocator: std.mem.Allocator,
     modules: []const model.ModuleDoc,
     commands: []const model.CliCommand,
+    features: []const model.FeatureDoc,
     roadmap_entries: []const model.RoadmapDocEntry,
     plan_entries: []const model.PlanDocEntry,
     outputs: *std.ArrayListUnmanaged(model.OutputFile),
 ) !void {
-    try renderJsonData(allocator, modules, commands, roadmap_entries, plan_entries, outputs);
+    try renderJsonData(allocator, modules, commands, features, roadmap_entries, plan_entries, outputs);
     try model.pushOutput(allocator, outputs, "docs/api-app/index.html", html_template);
     try model.pushOutput(allocator, outputs, "docs/api-app/styles.css", css_template);
     try model.pushOutput(allocator, outputs, "docs/api-app/app.js", js_template);
@@ -20,6 +21,7 @@ fn renderJsonData(
     allocator: std.mem.Allocator,
     modules: []const model.ModuleDoc,
     commands: []const model.CliCommand,
+    features: []const model.FeatureDoc,
     roadmap_entries: []const model.RoadmapDocEntry,
     plan_entries: []const model.PlanDocEntry,
     outputs: *std.ArrayListUnmanaged(model.OutputFile),
@@ -113,6 +115,32 @@ fn renderJsonData(
     const commands_json_text = try stringifyAlloc(allocator, command_json);
     defer allocator.free(commands_json_text);
     try model.pushOutput(allocator, outputs, "docs/api-app/data/commands.json", commands_json_text);
+
+    const JsonFeature = struct {
+        name: []const u8,
+        description: []const u8,
+        compile_flag: []const u8,
+        parent: []const u8,
+        real_module_path: []const u8,
+        stub_module_path: []const u8,
+    };
+
+    var features_json = try allocator.alloc(JsonFeature, features.len);
+    defer allocator.free(features_json);
+    for (features, 0..) |feat, idx| {
+        features_json[idx] = .{
+            .name = feat.name,
+            .description = feat.description,
+            .compile_flag = feat.compile_flag,
+            .parent = feat.parent,
+            .real_module_path = feat.real_module_path,
+            .stub_module_path = feat.stub_module_path,
+        };
+    }
+
+    const features_json_text = try stringifyAlloc(allocator, features_json);
+    defer allocator.free(features_json_text);
+    try model.pushOutput(allocator, outputs, "docs/api-app/data/features.json", features_json_text);
 
     const guides_json_text = try stringifyAlloc(allocator, guides_json);
     defer allocator.free(guides_json_text);

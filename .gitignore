@@ -14,6 +14,8 @@ build/*
 
 # ── Documentation build artifacts ─────────────────────────────────────
 docs-src/build/
+docs/api-app/data/docs_engine.component.wasm
+docs/api-app/data/features.json
 
 # ── Editor and IDE ────────────────────────────────────────────────────
 .vscode/
@@ -110,6 +112,7 @@ training_data.txt
 models/
 test-models/
 train.bin
+testingllm.ckpt/
 
 # ── Binary executables and object files ───────────────────────────────
 *.a

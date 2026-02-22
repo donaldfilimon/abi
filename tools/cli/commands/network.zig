@@ -2,46 +2,118 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
-const subcommand = @import("../utils/subcommand.zig");
-
 const ArgParser = utils.args.ArgParser;
 
-/// Run the network command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+// Wrapper functions for comptime children dispatch.
+// Each wrapper performs network init/deinit (previously done in run()).
+fn wrapStatus(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    try printStatus();
+}
+fn wrapList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
     var parser = ArgParser.init(allocator, args);
+    try runListSubcommand(allocator, &parser);
+}
+fn wrapRegister(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    var parser = ArgParser.init(allocator, args);
+    try runRegisterSubcommand(allocator, &parser);
+}
+fn wrapUnregister(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    var parser = ArgParser.init(allocator, args);
+    try runUnregisterSubcommand(allocator, &parser);
+}
+fn wrapTouch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    var parser = ArgParser.init(allocator, args);
+    try runTouchSubcommand(allocator, &parser);
+}
+fn wrapSetStatus(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    var parser = ArgParser.init(allocator, args);
+    try runSetStatusSubcommand(allocator, &parser);
+}
+fn wrapRaft(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    printRaftStatus(allocator);
+}
+fn wrapDiscovery(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    printDiscoveryStatus(allocator);
+}
+fn wrapBalancer(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    printBalancerStatus(allocator);
+}
+fn wrapHealth(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try initNetwork(allocator);
+    defer abi.network.deinit();
+    printHealthStatus(allocator);
+}
 
-    if (parser.wantsHelp()) {
-        printHelp(allocator);
-        return;
-    }
-
+fn initNetwork(allocator: std.mem.Allocator) !void {
     abi.network.init(allocator) catch |err| switch (err) {
         error.NetworkDisabled => {
             utils.output.printWarning("Network support disabled at build time.", .{});
-            return;
+            return err;
         },
         else => return err,
     };
-    defer abi.network.deinit();
+}
 
-    const commands = [_]subcommand.Command{
-        .{ .names = &.{"status"}, .run = runStatusSubcommand },
-        .{ .names = &.{ "list", "nodes" }, .run = runListSubcommand },
-        .{ .names = &.{"register"}, .run = runRegisterSubcommand },
-        .{ .names = &.{"unregister"}, .run = runUnregisterSubcommand },
-        .{ .names = &.{"touch"}, .run = runTouchSubcommand },
-        .{ .names = &.{"set-status"}, .run = runSetStatusSubcommand },
-    };
+pub const meta: command_mod.Meta = .{
+    .name = "network",
+    .description = "Network and distributed systems management",
+    .subcommands = &.{ "status", "list", "nodes", "register", "unregister", "touch", "set-status", "raft", "discovery", "balancer", "health" },
+    .children = &.{
+        .{ .name = "status", .description = "Show network config and node count", .handler = .{ .basic = wrapStatus } },
+        .{ .name = "list", .description = "List registered nodes", .handler = .{ .basic = wrapList } },
+        .{ .name = "nodes", .description = "List registered nodes", .handler = .{ .basic = wrapList } },
+        .{ .name = "register", .description = "Register or update a node", .handler = .{ .basic = wrapRegister } },
+        .{ .name = "unregister", .description = "Remove a node", .handler = .{ .basic = wrapUnregister } },
+        .{ .name = "touch", .description = "Update node heartbeat timestamp", .handler = .{ .basic = wrapTouch } },
+        .{ .name = "set-status", .description = "Set status (healthy, degraded, offline)", .handler = .{ .basic = wrapSetStatus } },
+        .{ .name = "raft", .description = "Show Raft consensus state", .handler = .{ .basic = wrapRaft } },
+        .{ .name = "discovery", .description = "Show service discovery status", .handler = .{ .basic = wrapDiscovery } },
+        .{ .name = "balancer", .description = "Show load balancer status", .handler = .{ .basic = wrapBalancer } },
+        .{ .name = "health", .description = "Show cluster health evaluation", .handler = .{ .basic = wrapHealth } },
+    },
+};
 
-    try subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &commands,
-        runStatusSubcommand,
-        printHelp,
-        onUnknownCommand,
-    );
+const network_subcommands = [_][]const u8{
+    "status", "list", "nodes", "register", "unregister", "touch", "set-status", "raft", "discovery", "balancer", "health", "help",
+};
+
+/// Run the network command with the provided arguments.
+/// Only reached when no child matches (help / unknown).
+pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        printHelp(allocator);
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp(allocator);
+        return;
+    }
+    // Unknown subcommand
+    utils.output.printError("Unknown network command: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &network_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 /// Print a short network summary for system-info.
@@ -68,19 +140,26 @@ fn printHelp(allocator: std.mem.Allocator) void {
     _ = builder
         .usage("abi network", "<command>")
         .description("Manage network nodes and cluster status.")
-        .section("Commands")
+        .section("Node Management")
         .subcommand(.{ .name = "status", .description = "Show network config and node count" })
         .subcommand(.{ .name = "list | nodes", .description = "List registered nodes" })
         .subcommand(.{ .name = "register <id> <a>", .description = "Register or update a node" })
         .subcommand(.{ .name = "unregister <id>", .description = "Remove a node" })
         .subcommand(.{ .name = "touch <id>", .description = "Update node heartbeat timestamp" })
         .subcommand(.{ .name = "set-status <id> <s>", .description = "Set status (healthy, degraded, offline)" })
+        .section("Distributed Systems")
+        .subcommand(.{ .name = "raft", .description = "Show Raft consensus state" })
+        .subcommand(.{ .name = "discovery", .description = "Show service discovery status" })
+        .subcommand(.{ .name = "balancer", .description = "Show load balancer status" })
+        .subcommand(.{ .name = "health", .description = "Show cluster health evaluation" })
         .option(utils.help.common_options.help)
         .newline()
         .section("Examples")
         .example("abi network status", "Show cluster info")
         .example("abi network list", "List all nodes")
-        .example("abi network register node-1 127.0.0.1:8080", "Add a node");
+        .example("abi network register node-1 127.0.0.1:8080", "Add a node")
+        .example("abi network raft", "Show Raft consensus state")
+        .example("abi network health", "Show cluster health");
 
     builder.print();
 }
@@ -185,10 +264,6 @@ fn runSetStatusSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !voi
     }
 }
 
-fn onUnknownCommand(command: []const u8) void {
-    utils.output.printError("Unknown network command: {s}", .{command});
-}
-
 fn printNodes(allocator: std.mem.Allocator) !void {
     _ = allocator;
     const registry = try abi.network.defaultRegistry();
@@ -201,4 +276,162 @@ fn printNodes(allocator: std.mem.Allocator) !void {
     for (nodes) |node| {
         std.debug.print("  " ++ utils.output.color.green ++ "•" ++ utils.output.color.reset ++ " {s: <15} {s: <20} ({t}) seen {d}ms ago\n", .{ node.id, node.address, node.status, node.last_seen_ms });
     }
+}
+
+// ============================================================================
+// Raft consensus status
+// ============================================================================
+
+fn printRaftStatus(allocator: std.mem.Allocator) void {
+    if (!abi.network.isEnabled()) {
+        utils.output.printWarning("Network feature disabled", .{});
+        return;
+    }
+    utils.output.printHeader("Raft Consensus");
+
+    // Create a temporary Raft node to show default configuration
+    var node = abi.network.RaftNode.init(allocator, "local", .{}) catch {
+        utils.output.printInfo("No active Raft node (showing defaults)", .{});
+        utils.output.printKeyValue("State", "follower");
+        utils.output.printKeyValueFmt("Term", "{d}", .{@as(u64, 0)});
+        utils.output.printKeyValueFmt("Commit", "{d}", .{@as(u64, 0)});
+        utils.output.printKeyValueFmt("Peers", "{d}", .{@as(usize, 0)});
+        return;
+    };
+    defer node.deinit();
+
+    const stats = node.getStats();
+    utils.output.printKeyValue("State", stats.state.toString());
+    utils.output.printKeyValueFmt("Term", "{d}", .{stats.current_term});
+    utils.output.printKeyValueFmt("Commit", "{d}", .{stats.commit_index});
+    utils.output.printKeyValueFmt("Peers", "{d}", .{stats.peer_count});
+    utils.output.printKeyValueFmt("Log Length", "{d}", .{stats.log_length});
+    utils.output.printKeyValueFmt("Last Applied", "{d}", .{stats.last_applied});
+    if (stats.leader_id) |leader| {
+        utils.output.printKeyValue("Leader", leader);
+    } else {
+        utils.output.printKeyValue("Leader", "none");
+    }
+}
+
+// ============================================================================
+// Service discovery status
+// ============================================================================
+
+fn printDiscoveryStatus(allocator: std.mem.Allocator) void {
+    if (!abi.network.isEnabled()) {
+        utils.output.printWarning("Network feature disabled", .{});
+        return;
+    }
+    utils.output.printHeader("Service Discovery");
+
+    // Create a temporary discovery instance to show configuration
+    var disc = abi.network.ServiceDiscovery.init(allocator, .{}) catch {
+        utils.output.printInfo("Service discovery not available", .{});
+        return;
+    };
+    defer disc.deinit();
+
+    utils.output.printKeyValueFmt("Backend", "{t}", .{disc.config.backend});
+    utils.output.printKeyValue("Service Name", disc.config.service_name);
+    utils.output.printKeyValue("Endpoint", disc.config.endpoint);
+    utils.output.printKeyValueFmt("Port", "{d}", .{disc.config.service_port});
+    utils.output.printKeyValueFmt("Health Interval", "{d}ms", .{disc.config.health_check_interval_ms});
+    utils.output.printKeyValueFmt("TTL", "{d}s", .{disc.config.ttl_seconds});
+    utils.output.printKeyValueFmt("Registered", "{s}", .{utils.output.boolLabel(disc.registered)});
+    utils.output.printKeyValueFmt("Cached Services", "{d}", .{disc.cached_services.items.len});
+}
+
+// ============================================================================
+// Load balancer status
+// ============================================================================
+
+fn printBalancerStatus(allocator: std.mem.Allocator) void {
+    if (!abi.network.isEnabled()) {
+        utils.output.printWarning("Network feature disabled", .{});
+        return;
+    }
+    utils.output.printHeader("Load Balancer");
+
+    var lb = abi.network.LoadBalancer.init(allocator, .{});
+    defer lb.deinit();
+
+    // Sync nodes from the registry if available
+    if (abi.network.defaultRegistry()) |reg| {
+        lb.syncFromRegistry(reg) catch {};
+    } else |_| {}
+
+    utils.output.printKeyValueFmt("Strategy", "{t}", .{lb.config.strategy});
+    utils.output.printKeyValueFmt("Nodes", "{d}", .{lb.nodes.items.len});
+    utils.output.printKeyValueFmt("Health Interval", "{d}ms", .{lb.config.health_check_interval_ms});
+    utils.output.printKeyValueFmt("Sticky Sessions", "{s}", .{utils.output.boolLabel(lb.config.sticky_sessions)});
+    utils.output.printKeyValueFmt("Max Retries", "{d}", .{lb.config.max_retries});
+
+    // Show per-node stats if any nodes present
+    if (lb.nodes.items.len > 0) {
+        std.debug.print("\n", .{});
+        for (lb.nodes.items) |*node| {
+            const health_indicator = if (node.is_healthy)
+                utils.output.color.green ++ "healthy" ++ utils.output.color.reset
+            else
+                utils.output.color.red ++ "unhealthy" ++ utils.output.color.reset;
+            std.debug.print("  {s: <15} w={d: <4} conns={d: <4} ({s})\n", .{
+                node.id,
+                node.weight,
+                node.current_connections.load(.monotonic),
+                health_indicator,
+            });
+        }
+    }
+}
+
+// ============================================================================
+// Cluster health status
+// ============================================================================
+
+fn printHealthStatus(allocator: std.mem.Allocator) void {
+    if (!abi.network.isEnabled()) {
+        utils.output.printWarning("Network feature disabled", .{});
+        return;
+    }
+    utils.output.printHeader("Cluster Health");
+
+    var hc = abi.network.HealthCheck.init(allocator, .{}) catch {
+        utils.output.printInfo("Health check not available", .{});
+        return;
+    };
+    defer hc.deinit();
+
+    // Populate from registry if available
+    var total_nodes: usize = 0;
+    if (abi.network.defaultRegistry()) |reg| {
+        const nodes = reg.list();
+        total_nodes = nodes.len;
+        for (nodes) |node| {
+            hc.addNode(node.id) catch continue;
+            const is_healthy = node.status != .offline;
+            hc.reportHealth(.{
+                .node_id = node.id,
+                .healthy = is_healthy,
+                .response_time_ms = 0,
+                .error_message = null,
+            }) catch continue;
+        }
+    } else |_| {}
+
+    utils.output.printKeyValueFmt("Cluster", "{t}", .{hc.cluster_state});
+    utils.output.printKeyValueFmt("Failover Policy", "{t}", .{hc.config.failover_policy});
+
+    // Count healthy nodes
+    var healthy = hc.getHealthyNodes() catch {
+        utils.output.printKeyValueFmt("Healthy", "0/{d} nodes", .{total_nodes});
+        utils.output.printKeyValue("Primary", if (hc.primary_node) |p| p else "none");
+        return;
+    };
+    defer healthy.deinit(allocator);
+
+    utils.output.printKeyValueFmt("Healthy", "{d}/{d} nodes", .{ healthy.items.len, total_nodes });
+    utils.output.printKeyValue("Primary", if (hc.primary_node) |p| p else "none");
+    utils.output.printKeyValueFmt("Check Interval", "{d}ms", .{hc.config.health_check_interval_ms});
+    utils.output.printKeyValueFmt("Check Timeout", "{d}ms", .{hc.config.health_check_timeout_ms});
 }

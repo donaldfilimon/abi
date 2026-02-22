@@ -4,7 +4,14 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "status",
+    .description = "Show framework health and component status",
+    .subcommands = &.{"help"},
+};
 
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (utils.args.containsHelpArgs(args)) {

@@ -13,7 +13,7 @@ fn onUserEvent(msg: abi.messaging.Message, _: ?*anyopaque) abi.messaging.Deliver
     return .ok;
 }
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

@@ -1,34 +1,39 @@
-//! ralph skills — list/add/clear stored skills
+//! ralph skills — list/add/clear persisted skills.
 
 const std = @import("std");
-const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
+const cli_io = utils.io_backend;
+const skills_store = @import("skills_store.zig");
+const cfg = @import("config.zig");
 
 pub fn runSkills(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    if (args.len == 0) return skillsList(allocator);
+    var io_backend = cli_io.initIoBackend(allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    if (args.len == 0) return skillsList(allocator, io);
 
     const subcmd = std.mem.sliceTo(args[0], 0);
     if (std.mem.eql(u8, subcmd, "list") or std.mem.eql(u8, subcmd, "ls")) {
-        return skillsList(allocator);
+        return skillsList(allocator, io);
     } else if (std.mem.eql(u8, subcmd, "add")) {
         if (args.len < 2) {
             std.debug.print("Usage: abi ralph skills add <skill text>\n", .{});
             return;
         }
-        return skillsAdd(allocator, std.mem.sliceTo(args[1], 0));
+        return skillsAdd(allocator, io, std.mem.sliceTo(args[1], 0));
     } else if (std.mem.eql(u8, subcmd, "clear")) {
-        return skillsClear(allocator);
+        return skillsClear(allocator, io);
     } else if (utils.args.matchesAny(subcmd, &[_][]const u8{ "--help", "-h", "help" })) {
         std.debug.print(
             \\Usage: abi ralph skills <subcommand>
             \\
-            \\Manage skills stored in Abbey memory.
-            \\Skills are injected into the system prompt for future Ralph runs.
+            \\Manage persisted Ralph skills in .ralph/skills.jsonl.
             \\
             \\Subcommands:
-            \\  list           Show skill count and stats (default)
-            \\  add <text>     Store a new skill
-            \\  clear          Reset all memory (removes all skills)
+            \\  list           Show persisted skills (default)
+            \\  add <text>     Add a skill
+            \\  clear          Remove all persisted skills
             \\
         , .{});
     } else {
@@ -36,44 +41,28 @@ pub fn runSkills(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
     }
 }
 
-fn skillsList(allocator: std.mem.Allocator) void {
-    var engine = abi.ai.abbey.createEngine(allocator) catch |err| {
-        std.debug.print("Failed to create Abbey engine: {t}\n", .{err});
-        return;
-    };
-    defer engine.deinit();
+fn skillsList(allocator: std.mem.Allocator, io: std.Io) !void {
+    const count = skills_store.countSkills(allocator, io);
+    const list_text = try skills_store.listSkills(allocator, io);
+    defer allocator.free(list_text);
 
-    const stats = engine.getStats();
-    std.debug.print("\nRalph Skills (Abbey memory)\n", .{});
-    std.debug.print("────────────────────────────\n", .{});
-    std.debug.print("Knowledge items: {d}\n", .{stats.memory_stats.semantic.knowledge_count});
-    std.debug.print("LLM backend:     {s}\n\n", .{stats.llm_backend});
-    std.debug.print("Skills are injected into the system prompt on the next 'ralph run'.\n", .{});
-    std.debug.print("Add skills:      abi ralph skills add \"<lesson>\"\n", .{});
-    std.debug.print("Auto-extract:    abi ralph run --auto-skill\n\n", .{});
+    std.debug.print("Ralph persisted skills\n", .{});
+    std.debug.print("──────────────────────\n", .{});
+    std.debug.print("File: {s}\n", .{cfg.SKILLS_FILE});
+    std.debug.print("Count: {d}\n\n", .{count});
+    if (list_text.len == 0) {
+        std.debug.print("No skills stored.\n", .{});
+    } else {
+        std.debug.print("{s}", .{list_text});
+    }
 }
 
-fn skillsAdd(allocator: std.mem.Allocator, text: []const u8) void {
-    var engine = abi.ai.abbey.createEngine(allocator) catch |err| {
-        std.debug.print("Failed to create Abbey engine: {t}\n", .{err});
-        return;
-    };
-    defer engine.deinit();
-
-    const id = engine.storeSkill(text) catch |err| {
-        std.debug.print("Failed to store skill: {t}\n", .{err});
-        return;
-    };
-    std.debug.print("Skill stored (id={d}): {s}\n", .{ id, text });
+fn skillsAdd(allocator: std.mem.Allocator, io: std.Io, text: []const u8) !void {
+    try skills_store.appendSkill(allocator, io, text, null, 1.0);
+    std.debug.print("Skill stored: {s}\n", .{text});
 }
 
-fn skillsClear(allocator: std.mem.Allocator) void {
-    var engine = abi.ai.abbey.createEngine(allocator) catch |err| {
-        std.debug.print("Failed to create Abbey engine: {t}\n", .{err});
-        return;
-    };
-    defer engine.deinit();
-
-    engine.reset();
-    std.debug.print("All Abbey memory (skills and history) cleared.\n", .{});
+fn skillsClear(allocator: std.mem.Allocator, io: std.Io) !void {
+    try skills_store.clearSkills(allocator, io);
+    std.debug.print("Cleared persisted skills ({s}).\n", .{cfg.SKILLS_FILE});
 }

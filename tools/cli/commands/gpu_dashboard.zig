@@ -7,8 +7,21 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const tui = @import("../tui/mod.zig");
 const utils = @import("../utils/mod.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "gpu-dashboard",
+    .description = "Interactive GPU + Agent monitoring dashboard",
+    .aliases = &.{"dashboard"},
+    .io_mode = .io,
+    .forward = .{
+        .target = "ui",
+        .prepend_args = &[_][:0]const u8{"gpu"},
+        .warning = "'abi gpu-dashboard' is deprecated; use 'abi ui gpu'.",
+    },
+};
 
 // ===============================================================================
 // Types

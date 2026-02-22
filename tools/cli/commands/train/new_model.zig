@@ -321,7 +321,7 @@ pub fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !vo
     }
 
     // Create model config
-    const model_config = abi.ai.TrainableModelConfig{
+    const model_config = abi.ai.training.trainable_model.TrainableModelConfig{
         .hidden_dim = hidden_dim,
         .num_layers = num_layers,
         .num_heads = num_heads,
@@ -368,7 +368,7 @@ pub fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !vo
 
     // Create model from scratch
     std.debug.print("Initializing model with random weights...\n", .{});
-    var model = abi.ai.TrainableModel.init(allocator, model_config) catch |err| {
+    var model = abi.ai.training.TrainableModel.init(allocator, model_config) catch |err| {
         std.debug.print("Error initializing model: {t}\n", .{err});
         return;
     };
@@ -412,7 +412,7 @@ pub fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !vo
                 train_tokens = trimmed;
             }
         } else if (dataset_format == .tokenbin) {
-            train_tokens = abi.ai.readTokenBinFile(allocator, path) catch |err| {
+            train_tokens = abi.ai.database.readTokenBinFile(allocator, path) catch |err| {
                 std.debug.print("Error reading tokenbin: {t}\n", .{err});
                 return;
             };
@@ -450,7 +450,7 @@ pub fn runNewModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !vo
     common.clampTokens(train_tokens, vocab_size);
 
     // Create LLM training config
-    var llm_config = abi.ai.LlmTrainingConfig{
+    var llm_config = abi.ai.training.LlmTrainingConfig{
         .epochs = epochs,
         .batch_size = batch_size,
         .max_seq_len = max_seq_len,
