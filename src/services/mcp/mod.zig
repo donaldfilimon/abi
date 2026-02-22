@@ -15,11 +15,15 @@
 //! - `db_stats` — Database statistics
 //! - `db_list` — List stored vectors
 //! - `db_delete` — Delete a vector by ID
+//! - `zls_*` — ZLS LSP tools (hover, completion, definition, etc.)
 
 const std = @import("std");
 pub const types = @import("types.zig");
 pub const Server = @import("server.zig").Server;
 pub const RegisteredTool = @import("server.zig").RegisteredTool;
+pub const zls_bridge = @import("zls_bridge.zig");
+
+pub const createZlsServer = zls_bridge.createZlsServer;
 
 /// Create an MCP server pre-configured with WDBX database tools
 pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Server {

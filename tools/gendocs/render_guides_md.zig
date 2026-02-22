@@ -592,7 +592,6 @@ fn commandMatchesSection(section: []const u8, name: []const u8) bool {
     if (std.mem.eql(u8, section, "GPU")) {
         return std.mem.eql(u8, name, "gpu") or
             std.mem.eql(u8, name, "ui") or
-            std.mem.eql(u8, name, "gpu-dashboard") or
             std.mem.eql(u8, name, "bench");
     }
     if (std.mem.eql(u8, section, "Data")) {

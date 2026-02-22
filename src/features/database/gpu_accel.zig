@@ -21,7 +21,7 @@ const std = @import("std");
 const time = @import("../../services/shared/time.zig");
 const sync = @import("../../services/shared/sync.zig");
 const build_options = @import("build_options");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 
 // Conditionally import GPU module
 const gpu = if (build_options.enable_gpu) @import("../gpu/mod.zig") else struct {
@@ -83,6 +83,54 @@ pub const GpuAccelStats = struct {
     gpu_speedup: f64,
 };
 
+/// Context for GPU-accelerated vector search operations.
+/// Manages GPU buffers and backend detection for efficient batch distance computation.
+pub const GpuSearchContext = struct {
+    backend: enum { cuda, metal, vulkan, cpu } = .cpu,
+    buffer_capacity: usize = 0,
+    initialized: bool = false,
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) GpuSearchContext {
+        const detected_backend: @TypeOf(@as(GpuSearchContext, undefined).backend) = blk: {
+            if (build_options.enable_gpu) {
+                if (@import("builtin").os.tag == .macos) break :blk .metal;
+                // Could detect CUDA/Vulkan here
+            }
+            break :blk .cpu;
+        };
+        return .{
+            .backend = detected_backend,
+            .allocator = allocator,
+            .initialized = true,
+        };
+    }
+
+    pub fn deinit(self: *GpuSearchContext) void {
+        self.initialized = false;
+        self.buffer_capacity = 0;
+    }
+
+    pub fn isGpuAvailable(self: *const GpuSearchContext) bool {
+        return self.initialized and self.backend != .cpu;
+    }
+};
+
+/// Flatten a slice of vector slices into a contiguous f32 buffer.
+pub fn flattenVectorsToContiguous(vectors: []const []const f32, dimension: usize, allocator: std.mem.Allocator) ![]f32 {
+    const total = vectors.len * dimension;
+    const buffer = try allocator.alloc(f32, total);
+    for (vectors, 0..) |vec, i| {
+        const len = @min(vec.len, dimension);
+        @memcpy(buffer[i * dimension .. i * dimension + len], vec[0..len]);
+        // Zero-pad if vector is shorter
+        if (len < dimension) {
+            @memset(buffer[i * dimension + len .. (i + 1) * dimension], 0);
+        }
+    }
+    return buffer;
+}
+
 /// GPU accelerator for database vector operations.
 ///
 /// Provides transparent GPU acceleration with automatic fallback to SIMD
@@ -90,6 +138,9 @@ pub const GpuAccelStats = struct {
 pub const GpuAccelerator = struct {
     allocator: std.mem.Allocator,
     config: GpuAccelConfig,
+
+    /// Optional GPU search context for backend detection and buffer management
+    search_ctx: ?GpuSearchContext = null,
 
     /// GPU context (null if disabled or unavailable)
     gpu_ctx: if (build_options.enable_gpu) ?*gpu.Gpu else void,
@@ -665,6 +716,51 @@ test "GpuAccelerator threshold behavior" {
     // Large batch should use GPU (if available)
     if (accel.isGpuAvailable()) {
         try std.testing.expect(accel.shouldUseGpu(150));
+    }
+}
+
+test "GpuSearchContext init and deinit" {
+    const allocator = std.testing.allocator;
+
+    var ctx = GpuSearchContext.init(allocator);
+    try std.testing.expect(ctx.initialized);
+    try std.testing.expectEqual(allocator, ctx.allocator);
+
+    ctx.deinit();
+    try std.testing.expect(!ctx.initialized);
+    try std.testing.expectEqual(@as(usize, 0), ctx.buffer_capacity);
+}
+
+test "flattenVectorsToContiguous" {
+    const allocator = std.testing.allocator;
+
+    const vectors = [_][]const f32{
+        &[_]f32{ 1.0, 2.0, 3.0 },
+        &[_]f32{ 4.0, 5.0, 6.0 },
+    };
+
+    const flat = try flattenVectorsToContiguous(&vectors, 3, allocator);
+    defer allocator.free(flat);
+
+    try std.testing.expectEqual(@as(usize, 6), flat.len);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), flat[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), flat[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.0), flat[2], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 4.0), flat[3], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.0), flat[4], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 6.0), flat[5], 0.001);
+}
+
+test "GpuSearchContext backend detection" {
+    const allocator = std.testing.allocator;
+    var ctx = GpuSearchContext.init(allocator);
+    defer ctx.deinit();
+
+    // On macOS with GPU enabled, should detect metal; otherwise cpu
+    if (build_options.enable_gpu and @import("builtin").os.tag == .macos) {
+        try std.testing.expectEqual(@as(@TypeOf(ctx.backend), .metal), ctx.backend);
+    } else if (!build_options.enable_gpu) {
+        try std.testing.expectEqual(@as(@TypeOf(ctx.backend), .cpu), ctx.backend);
     }
 }
 

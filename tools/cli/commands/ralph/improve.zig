@@ -130,6 +130,7 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
         .plugin = plugin,
         .worktree = worktree,
         .require_clean_tree = require_clean_tree,
+        .gate_command = loaded_cfg.gate_per_iteration,
     });
     defer allocator.free(summary.run_id);
 

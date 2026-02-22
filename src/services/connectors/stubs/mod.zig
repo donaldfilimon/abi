@@ -5,8 +5,13 @@
 //! are compiled out or for type-checking without network dependencies.
 
 pub const openai = @import("openai.zig");
+pub const codex = @import("codex.zig");
+pub const opencode = @import("opencode.zig");
+pub const claude = @import("claude.zig");
+pub const gemini = @import("gemini.zig");
 pub const anthropic = @import("anthropic.zig");
 pub const ollama = @import("ollama.zig");
+pub const ollama_passthrough = @import("ollama_passthrough.zig");
 pub const huggingface = @import("huggingface.zig");
 pub const mistral = @import("mistral.zig");
 pub const cohere = @import("cohere.zig");

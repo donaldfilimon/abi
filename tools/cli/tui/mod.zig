@@ -18,7 +18,14 @@ pub const training_metrics = @import("training_metrics.zig");
 pub const ring_buffer = @import("ring_buffer.zig");
 pub const percentile_tracker = @import("percentile_tracker.zig");
 pub const model_panel = @import("model_panel.zig");
+pub const bench_panel = @import("bench_panel.zig");
+pub const db_panel = @import("db_panel.zig");
+pub const network_panel = @import("network_panel.zig");
 pub const streaming_dashboard = @import("streaming_dashboard.zig");
+pub const brain_animation = @import("brain_animation.zig");
+pub const brain_panel = @import("brain_panel.zig");
+pub const metrics_file_reader = @import("metrics_file_reader.zig");
+pub const training_brain_mapper = @import("training_brain_mapper.zig");
 pub const async_loop = @import("async_loop.zig");
 
 pub const Key = events.Key;
@@ -78,9 +85,21 @@ pub const PercentileTracker = percentile_tracker.PercentileTracker;
 
 // Model Management Panel
 pub const ModelManagementPanel = model_panel.ModelManagementPanel;
+pub const BenchmarkPanel = bench_panel.BenchmarkPanel;
+pub const DatabasePanel = db_panel.DatabasePanel;
+pub const NetworkPanel = network_panel.NetworkPanel;
 
 // Streaming Dashboard
 pub const StreamingDashboard = streaming_dashboard.StreamingDashboard;
+
+// Brain Dashboard
+pub const BrainAnimation = brain_animation.BrainAnimation;
+pub const BrainDashboardPanel = brain_panel.BrainDashboardPanel;
+pub const BrainDashboardData = brain_panel.DashboardData;
+
+// Training Brain Mapping
+pub const MetricsFileReader = metrics_file_reader.MetricsFileReader;
+pub const TrainingBrainMapper = training_brain_mapper.TrainingBrainMapper;
 
 // Render Utilities
 pub const BoxStyle = render_utils.BoxStyle;

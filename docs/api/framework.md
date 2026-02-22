@@ -2,11 +2,6 @@
 
 > Framework orchestration with builder pattern.
 
-DEPRECATED: prefer `abi.vnext.App` for new startup flows.
-Migration mapping:
-- `abi.Framework` -> `abi.vnext.App` + `App.getFramework()`
-- `abi.Config` -> `abi.vnext.AppConfig.framework`
-
 **Source:** [`src/core/framework.zig`](../../src/core/framework.zig)
 
 **Availability:** Always enabled

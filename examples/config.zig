@@ -33,8 +33,8 @@ pub fn main(_: std.process.Init) !void {
         .build();
 
     // Initialize framework with configuration
-    var framework = try abi.Framework.init(allocator, config);
-    defer framework.deinit();
+    var app = try abi.Framework.init(allocator, config);
+    defer app.deinit();
 
     std.debug.print("ABI Framework v{s}\n", .{abi.version()});
     std.debug.print("Configuration:\n", .{});

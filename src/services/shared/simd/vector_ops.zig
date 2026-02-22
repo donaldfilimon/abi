@@ -34,6 +34,30 @@ pub fn vectorAdd(a: []const f32, b: []const f32, result: []f32) void {
     }
 }
 
+/// Element-wise vector multiplication using SIMD when available
+pub fn vectorMul(a: []const f32, b: []const f32, result: []f32) void {
+    std.debug.assert(a.len > 0);
+    std.debug.assert(b.len > 0);
+    std.debug.assert(a.len == b.len and a.len == result.len);
+
+    const len = a.len;
+    var i: usize = 0;
+
+    if (comptime VectorSize > 1) {
+        const Vec = @Vector(VectorSize, f32);
+
+        while (i + VectorSize <= len) : (i += VectorSize) {
+            const va: Vec = a[i..][0..VectorSize].*;
+            const vb: Vec = b[i..][0..VectorSize].*;
+            result[i..][0..VectorSize].* = va * vb;
+        }
+    }
+
+    while (i < len) : (i += 1) {
+        result[i] = a[i] * b[i];
+    }
+}
+
 /// Vector dot product using SIMD when available
 /// @param a First input vector
 /// @param b Second input vector (must have same length as a)

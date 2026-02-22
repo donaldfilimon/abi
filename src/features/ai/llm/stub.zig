@@ -395,6 +395,7 @@ pub const Engine = struct {
     pub fn getBackendModelName(_: *const Engine) ?[]const u8 {
         return null;
     }
+    pub fn setFusion(_: *Engine, _: ?*WdbxFusion) void {}
 };
 
 // --- Submodule Namespace Stubs ---
@@ -494,15 +495,20 @@ pub const providers = struct {
         llama_cpp,
         mlx,
         ollama,
+        ollama_passthrough,
         lm_studio,
         vllm,
         anthropic,
         openai,
+        codex,
+        opencode,
+        claude,
+        gemini,
         plugin_http,
         plugin_native,
 
         pub fn label(self: ProviderId) []const u8 {
-            return @tagName(self);
+            return std.mem.sliceTo(@tagName(self), 0);
         }
 
         pub fn fromString(value: []const u8) ?ProviderId {
@@ -512,6 +518,40 @@ pub const providers = struct {
                 }
             }
             return null;
+        }
+    };
+
+    pub const model_profiles = struct {
+        pub const Quantization = enum {
+            none,
+            q4_k_m,
+            q8_0,
+            f16,
+        };
+
+        pub const ModelProfile = struct {
+            name: []const u8 = "",
+            context_length: u32 = 0,
+            params_billions: f32 = 0,
+            default_quant: Quantization = .none,
+            vram_gb: f32 = 0,
+            preferred_providers: []const ProviderId = &.{},
+            local_capable: bool = false,
+            description: []const u8 = "",
+        };
+
+        pub const builtin_profiles = [_]*const ModelProfile{};
+
+        pub fn getProfile(_: []const u8) ?*const ModelProfile {
+            return null;
+        }
+
+        pub fn getProviderChain(_: []const u8) []const ProviderId {
+            return &.{};
+        }
+
+        pub fn hasProfile(_: []const u8) bool {
+            return false;
         }
     };
 
@@ -558,16 +598,34 @@ pub const providers = struct {
         }
     };
 
+    pub const parser = struct {
+        pub fn parseProviderId(value: []const u8) ?ProviderId {
+            if (ProviderId.fromString(value)) |provider| return provider;
+            if (std.mem.eql(u8, value, "llama-cpp")) return .llama_cpp;
+            if (std.mem.eql(u8, value, "lm-studio")) return .lm_studio;
+            if (std.mem.eql(u8, value, "plugin-http")) return .plugin_http;
+            if (std.mem.eql(u8, value, "plugin-native")) return .plugin_native;
+            if (std.mem.eql(u8, value, "local-gguf")) return .local_gguf;
+            if (std.mem.eql(u8, value, "ollama-passthrough")) return .ollama_passthrough;
+            return null;
+        }
+    };
+
     pub const registry = struct {
         pub const all_providers = [_]ProviderId{
             .local_gguf,
             .llama_cpp,
             .mlx,
             .ollama,
+            .ollama_passthrough,
             .lm_studio,
             .vllm,
             .anthropic,
             .openai,
+            .codex,
+            .opencode,
+            .claude,
+            .gemini,
             .plugin_http,
             .plugin_native,
         };
@@ -577,8 +635,13 @@ pub const providers = struct {
             .llama_cpp,
             .mlx,
             .ollama,
+            .ollama_passthrough,
             .lm_studio,
             .vllm,
+            .codex,
+            .opencode,
+            .claude,
+            .gemini,
             .plugin_http,
             .plugin_native,
         };
@@ -587,12 +650,26 @@ pub const providers = struct {
             .llama_cpp,
             .mlx,
             .ollama,
+            .ollama_passthrough,
             .lm_studio,
             .vllm,
+            .codex,
+            .opencode,
+            .claude,
+            .gemini,
             .plugin_http,
             .plugin_native,
             .anthropic,
             .openai,
+        };
+
+        pub const sync_round_robin_chain = [_]ProviderId{
+            .codex,
+            .opencode,
+            .claude,
+            .gemini,
+            .ollama_passthrough,
+            .ollama,
         };
 
         pub fn looksLikeModelPath(_: []const u8) bool {
@@ -685,6 +762,73 @@ pub const providers = struct {
         pub const native_abi_v1 = struct {};
         pub const native_plugin = struct {};
     };
+};
+
+// --- WDBX Fusion Stub ---
+
+pub const FusionConfig = struct {
+    max_context_chunks: u32 = 5,
+    min_similarity: f32 = 0.3,
+    embedding_dim: u32 = 384,
+    max_cache_entries: u32 = 10000,
+    context_prefix: []const u8 = "Relevant context:\n",
+    chunk_separator: []const u8 = "\n---\n",
+    prompt_separator: []const u8 = "\n\nUser query:\n",
+    cache_collection: []const u8 = "abi_embedding_cache",
+    documents_collection: []const u8 = "abi_rag_documents",
+};
+
+pub const ContextChunk = struct {
+    content: []const u8 = "",
+    similarity: f32 = 0,
+    title: []const u8 = "",
+};
+
+pub const CacheEntry = struct {
+    text_hash: u64 = 0,
+    vector: []f32 = &.{},
+};
+
+pub const WdbxFusion = struct {
+    pub fn init(_: std.mem.Allocator, _: FusionConfig) LlmError!WdbxFusion {
+        return error.LlmDisabled;
+    }
+    pub fn deinit(_: *WdbxFusion) void {}
+    pub fn cacheEmbedding(_: *WdbxFusion, _: []const u8, _: []const f32) LlmError!void {
+        return error.LlmDisabled;
+    }
+    pub fn getCachedEmbedding(_: *const WdbxFusion, _: []const u8) ?[]const f32 {
+        return null;
+    }
+    pub fn getOrComputeEmbedding(
+        _: *WdbxFusion,
+        _: []const u8,
+        _: *const fn ([]const u8, std.mem.Allocator) anyerror![]f32,
+    ) LlmError![]const f32 {
+        return error.LlmDisabled;
+    }
+    pub fn addDocument(_: *WdbxFusion, _: []const u8, _: []const u8, _: []const f32) LlmError!u64 {
+        return error.LlmDisabled;
+    }
+    pub fn retrieveContext(_: *const WdbxFusion, _: std.mem.Allocator, _: []const f32) LlmError![]ContextChunk {
+        return error.LlmDisabled;
+    }
+    pub fn augmentPrompt(_: *const WdbxFusion, allocator: std.mem.Allocator, prompt: []const u8, _: []const f32) LlmError![]u8 {
+        return allocator.dupe(u8, prompt) catch return error.OutOfMemory;
+    }
+    pub fn documentCount(_: *const WdbxFusion) usize {
+        return 0;
+    }
+    pub fn cacheSize(_: *const WdbxFusion) u32 {
+        return 0;
+    }
+};
+
+pub const wdbx_fusion = struct {
+    pub const WdbxFusion = stub_root.WdbxFusion;
+    pub const FusionConfig = stub_root.FusionConfig;
+    pub const ContextChunk = stub_root.ContextChunk;
+    pub const CacheEntry = stub_root.CacheEntry;
 };
 
 // --- Context ---

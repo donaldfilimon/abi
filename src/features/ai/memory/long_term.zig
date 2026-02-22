@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const time = @import("../../../services/shared/utils.zig");
-const simd = @import("../../../services/shared/simd.zig");
+const simd = @import("../../../services/shared/simd/mod.zig");
 const mod = @import("mod.zig");
 const Message = mod.Message;
 const MessageRole = mod.MessageRole;

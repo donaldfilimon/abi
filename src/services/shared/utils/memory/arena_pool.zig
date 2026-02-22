@@ -22,8 +22,8 @@ const page_size: usize = 4096;
 const simd_alignment: usize = std.simd.suggestVectorLength(f32) orelse 4;
 const simd_byte_width: usize = simd_alignment * @sizeOf(f32);
 
-// ─── Math Helpers (delegated to v2 primitives) ────────────────────────────
-const Math = @import("../v2_primitives.zig").Math;
+// ─── Math Helpers (shared primitives) ────────────────────────────────────
+const Math = @import("../primitives.zig").Math;
 
 const isPowerOfTwo = Math.isPowerOfTwo;
 

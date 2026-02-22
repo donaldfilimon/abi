@@ -11,6 +11,11 @@ pub const ProviderId = enum {
     openai,
     plugin_http,
     plugin_native,
+    codex,
+    opencode,
+    claude,
+    gemini,
+    ollama_passthrough,
 
     pub fn label(self: ProviderId) []const u8 {
         return switch (self) {
@@ -24,6 +29,11 @@ pub const ProviderId = enum {
             .openai => "openai",
             .plugin_http => "plugin_http",
             .plugin_native => "plugin_native",
+            .codex => "codex",
+            .opencode => "opencode",
+            .claude => "claude",
+            .gemini => "gemini",
+            .ollama_passthrough => "ollama_passthrough",
         };
     }
 
@@ -76,3 +86,13 @@ pub const GenerateResult = struct {
         self.* = undefined;
     }
 };
+
+test "provider id includes new provider labels" {
+    try std.testing.expectEqualStrings("codex", ProviderId.codex.label());
+    try std.testing.expectEqualStrings("opencode", ProviderId.opencode.label());
+    try std.testing.expectEqualStrings("claude", ProviderId.claude.label());
+    try std.testing.expectEqualStrings("gemini", ProviderId.gemini.label());
+    try std.testing.expectEqualStrings("ollama_passthrough", ProviderId.ollama_passthrough.label());
+    try std.testing.expect(ProviderId.fromString("codex") != null);
+    try std.testing.expect(ProviderId.fromString("gemini") != null);
+}

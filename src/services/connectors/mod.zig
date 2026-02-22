@@ -36,8 +36,13 @@
 const std = @import("std");
 
 pub const openai = @import("openai.zig");
+pub const codex = @import("codex.zig");
+pub const opencode = @import("opencode.zig");
+pub const claude = @import("claude.zig");
+pub const gemini = @import("gemini.zig");
 pub const huggingface = @import("huggingface.zig");
 pub const ollama = @import("ollama.zig");
+pub const ollama_passthrough = @import("ollama_passthrough.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
 pub const discord = @import("discord/mod.zig");
 pub const anthropic = @import("anthropic.zig");
@@ -130,6 +135,50 @@ pub fn tryLoadOpenAI(allocator: std.mem.Allocator) !?openai.Config {
     };
 }
 
+pub fn loadCodex(allocator: std.mem.Allocator) !codex.Config {
+    return codex.loadFromEnv(allocator);
+}
+
+pub fn tryLoadCodex(allocator: std.mem.Allocator) !?codex.Config {
+    return codex.loadFromEnv(allocator) catch |err| switch (err) {
+        codex.CodexError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
+pub fn loadOpenCode(allocator: std.mem.Allocator) !opencode.Config {
+    return opencode.loadFromEnv(allocator);
+}
+
+pub fn tryLoadOpenCode(allocator: std.mem.Allocator) !?opencode.Config {
+    return opencode.loadFromEnv(allocator) catch |err| switch (err) {
+        opencode.OpenCodeError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
+pub fn loadClaude(allocator: std.mem.Allocator) !claude.Config {
+    return claude.loadFromEnv(allocator);
+}
+
+pub fn tryLoadClaude(allocator: std.mem.Allocator) !?claude.Config {
+    return claude.loadFromEnv(allocator) catch |err| switch (err) {
+        claude.ClaudeError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
+pub fn loadGemini(allocator: std.mem.Allocator) !gemini.Config {
+    return gemini.loadFromEnv(allocator);
+}
+
+pub fn tryLoadGemini(allocator: std.mem.Allocator) !?gemini.Config {
+    return gemini.loadFromEnv(allocator) catch |err| switch (err) {
+        gemini.GeminiError.MissingApiKey => null,
+        else => return err,
+    };
+}
+
 pub fn loadHuggingFace(allocator: std.mem.Allocator) !huggingface.Config {
     return huggingface.loadFromEnv(allocator);
 }
@@ -147,6 +196,14 @@ pub fn loadOllama(allocator: std.mem.Allocator) !ollama.Config {
 
 pub fn tryLoadOllama(allocator: std.mem.Allocator) !?ollama.Config {
     return ollama.loadFromEnv(allocator) catch null;
+}
+
+pub fn loadOllamaPassthrough(allocator: std.mem.Allocator) !ollama_passthrough.Config {
+    return ollama_passthrough.loadFromEnv(allocator);
+}
+
+pub fn tryLoadOllamaPassthrough(allocator: std.mem.Allocator) !?ollama_passthrough.Config {
+    return ollama_passthrough.loadFromEnv(allocator) catch null;
 }
 
 pub fn loadLocalScheduler(allocator: std.mem.Allocator) !local_scheduler.Config {

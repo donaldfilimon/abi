@@ -1,16 +1,15 @@
 //! Plugin management commands for ABI CLI.
 //!
 //! Manage framework plugins: list, enable, disable, info.
-//! Plugin state is persisted to ~/.abi/plugins.json
+//! Plugin state is persisted to the platform-specific ABI app root.
 
 const std = @import("std");
+const abi = @import("abi");
 const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
-
-// libc import for environment access - required for Zig 0.16
-const c = @cImport(@cInclude("stdlib.h"));
+const app_paths = abi.shared.app_paths;
 
 // Plugin system types
 const PluginInfo = struct {
@@ -78,49 +77,52 @@ const PluginState = struct {
 };
 
 /// Get path to plugins config file
-fn getPluginsConfigPath(allocator: std.mem.Allocator) ![]const u8 {
-    const home = getEnvOwned(allocator, "HOME") orelse
-        getEnvOwned(allocator, "USERPROFILE") orelse
-        return error.NoHomeDirectory;
-    defer allocator.free(home);
-
-    return std.fmt.allocPrint(allocator, "{s}/.abi/plugins.json", .{home});
+fn getPluginsConfigPath(allocator: std.mem.Allocator) ![]u8 {
+    return app_paths.resolvePath(allocator, "plugins.json");
 }
 
-/// Get environment variable (owned memory) - Zig 0.16 compatible.
-fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) ?[]u8 {
-    const name_z = allocator.dupeZ(u8, name) catch return null;
-    defer allocator.free(name_z);
-
-    const value_ptr = c.getenv(name_z.ptr);
-    if (value_ptr) |ptr| {
-        const value = std.mem.span(ptr);
-        return allocator.dupe(u8, value) catch null;
-    }
-    return null;
-}
-
-/// Load plugin state from disk
-fn loadPluginState(allocator: std.mem.Allocator) !PluginState {
-    var state = PluginState.init(allocator);
-    errdefer state.deinit();
-
-    const config_path = getPluginsConfigPath(allocator) catch return state;
+fn printPluginsConfigLocation(allocator: std.mem.Allocator) void {
+    const config_path = getPluginsConfigPath(allocator) catch {
+        std.debug.print("Config: (unavailable)\n", .{});
+        return;
+    };
     defer allocator.free(config_path);
+    std.debug.print("Config: {s}\n", .{config_path});
+}
 
+fn printPluginsSavedPath(allocator: std.mem.Allocator) void {
+    const config_path = getPluginsConfigPath(allocator) catch {
+        utils.output.printInfo("Changes saved to plugin settings", .{});
+        return;
+    };
+    defer allocator.free(config_path);
+    utils.output.printInfo("Changes saved to {s}", .{config_path});
+}
+
+const PluginLoadState = enum {
+    loaded,
+    missing,
+};
+
+fn tryLoadPluginStateFromPath(
+    allocator: std.mem.Allocator,
+    path: []const u8,
+    state: *PluginState,
+) !PluginLoadState {
     // Initialize I/O backend for Zig 0.16
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    const content = std.Io.Dir.cwd().readFileAlloc(io, config_path, allocator, .limited(1024 * 1024)) catch {
-        return state; // File doesn't exist, return empty state
+    const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(1024 * 1024)) catch |err| switch (err) {
+        error.FileNotFound => return .missing,
+        else => return err,
     };
     defer allocator.free(content);
 
-    // Parse JSON
+    // Preserve historical behavior: invalid JSON yields an empty plugin state.
     const parsed = std.json.parseFromSlice(std.json.Value, allocator, content, .{}) catch {
-        return state; // Invalid JSON, return empty state
+        return .loaded;
     };
     defer parsed.deinit();
 
@@ -136,6 +138,18 @@ fn loadPluginState(allocator: std.mem.Allocator) !PluginState {
             }
         }
     }
+
+    return .loaded;
+}
+
+/// Load plugin state from disk
+fn loadPluginState(allocator: std.mem.Allocator) !PluginState {
+    var state = PluginState.init(allocator);
+    errdefer state.deinit();
+
+    const config_path = app_paths.resolvePath(allocator, "plugins.json") catch return state;
+    defer allocator.free(config_path);
+    _ = try tryLoadPluginStateFromPath(allocator, config_path, &state);
 
     return state;
 }
@@ -169,39 +183,8 @@ fn savePluginState(allocator: std.mem.Allocator, state: *const PluginState) !voi
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    // Ensure directory exists by trying to open/create it
-    const home = getEnvOwned(allocator, "HOME") orelse
-        getEnvOwned(allocator, "USERPROFILE") orelse
-        return error.NoHomeDirectory;
-    defer allocator.free(home);
-
-    const dir_path = try std.fmt.allocPrint(allocator, "{s}/.abi", .{home});
-    defer allocator.free(dir_path);
-
-    // Try to create the directory (using openDir to check if it exists first)
-    _ = std.Io.Dir.cwd().openDir(io, dir_path, .{}) catch {
-        // Directory doesn't exist, try to create parent file to trigger error
-        // or use platform-specific mkdir
-        const builtin = @import("builtin");
-        if (comptime builtin.os.tag == .windows) {
-            const kernel32 = struct {
-                extern "kernel32" fn CreateDirectoryA(
-                    lpPathName: [*:0]const u8,
-                    lpSecurityAttributes: ?*anyopaque,
-                ) callconv(.winapi) i32;
-            };
-            const dir_z = allocator.dupeZ(u8, dir_path) catch return error.OutOfMemory;
-            defer allocator.free(dir_z);
-            _ = kernel32.CreateDirectoryA(dir_z.ptr, null);
-        } else {
-            const posix = struct {
-                extern "c" fn mkdir(path: [*:0]const u8, mode: u32) c_int;
-            };
-            const dir_z = allocator.dupeZ(u8, dir_path) catch return error.OutOfMemory;
-            defer allocator.free(dir_z);
-            _ = posix.mkdir(dir_z.ptr, 0o755);
-        }
-    };
+    const dir_path = std.fs.path.dirname(config_path) orelse ".";
+    try std.Io.Dir.cwd().createDirPath(io, dir_path);
 
     // Write file
     var file = try std.Io.Dir.cwd().createFile(io, config_path, .{ .truncate = true });
@@ -334,7 +317,7 @@ fn listPlugins(allocator: std.mem.Allocator) !void {
     }
 
     std.debug.print("\nTotal: {d} plugin(s), {d} enabled\n", .{ plugins.len, enabled_count });
-    std.debug.print("Config: ~/.abi/plugins.json\n", .{});
+    printPluginsConfigLocation(allocator);
 }
 
 fn showPluginInfo(allocator: std.mem.Allocator, name: []const u8) !void {
@@ -419,7 +402,7 @@ fn enablePlugin(allocator: std.mem.Allocator, name: []const u8) !void {
     try savePluginState(allocator, &state);
 
     utils.output.printSuccess("Plugin '{s}' enabled", .{name});
-    utils.output.printInfo("Changes saved to ~/.abi/plugins.json", .{});
+    printPluginsSavedPath(allocator);
 }
 
 fn disablePlugin(allocator: std.mem.Allocator, name: []const u8) !void {
@@ -455,7 +438,7 @@ fn disablePlugin(allocator: std.mem.Allocator, name: []const u8) !void {
     try savePluginState(allocator, &state);
 
     utils.output.printSuccess("Plugin '{s}' disabled", .{name});
-    utils.output.printInfo("Changes saved to ~/.abi/plugins.json", .{});
+    printPluginsSavedPath(allocator);
 }
 
 fn searchPlugins(allocator: std.mem.Allocator, query: []const u8) !void {

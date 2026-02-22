@@ -26,6 +26,7 @@ pub const MetalGpuFamily = enum(u32) {
     apple7 = 1007, // Metal 3 — mesh shaders, ray tracing
     apple8 = 1008, // A16 / M2
     apple9 = 1009, // A17 Pro / M3+
+    apple10 = 1010, // A18 / M4+
 
     // Mac GPU families
     mac1 = 2001,
@@ -50,6 +51,7 @@ pub const MetalGpuFamily = enum(u32) {
             .apple7 => "Apple7 (A15, M2) [Metal 3]",
             .apple8 => "Apple8 (A16, M2+)",
             .apple9 => "Apple9 (A17 Pro, M3+)",
+            .apple10 => "Apple10 (A18, M4+) [Metal 4]",
             .mac1 => "Mac1",
             .mac2 => "Mac2 [Metal 3]",
             .common1 => "Common1",
@@ -62,7 +64,7 @@ pub const MetalGpuFamily = enum(u32) {
     /// Whether this family supports Metal 3 features.
     pub fn isMetal3(self: MetalGpuFamily) bool {
         return switch (self) {
-            .apple7, .apple8, .apple9, .mac2 => true,
+            .apple7, .apple8, .apple9, .apple10, .mac2 => true,
             else => false,
         };
     }
@@ -73,15 +75,36 @@ pub const MetalGpuFamily = enum(u32) {
     /// - Apple9+ family is treated as Metal 4 capable.
     pub fn isMetal4(self: MetalGpuFamily) bool {
         return switch (self) {
-            .apple9 => true,
+            .apple9, .apple10 => true,
             else => false,
         };
+    }
+
+    /// Chip variant within an Apple GPU family (parsed from device name).
+    pub const ChipVariant = enum {
+        base,
+        pro,
+        max,
+        ultra,
+        unknown,
+    };
+
+    /// Infer chip variant from a Metal device name string.
+    /// Device names follow the pattern "Apple M4 Pro" or "Apple A18".
+    pub fn chipVariant(device_name: []const u8) ChipVariant {
+        // Search case-insensitively by looking for variant keywords
+        if (std.mem.indexOf(u8, device_name, "Ultra") != null) return .ultra;
+        if (std.mem.indexOf(u8, device_name, "Max") != null) return .max;
+        if (std.mem.indexOf(u8, device_name, "Pro") != null) return .pro;
+        // If it contains an M-series or A-series chip name but no suffix, it's base
+        if (std.mem.indexOf(u8, device_name, "Apple") != null) return .base;
+        return .unknown;
     }
 
     /// Numeric generation (apple families only, 0 for non-apple).
     pub fn generation(self: MetalGpuFamily) u32 {
         const val = @intFromEnum(self);
-        if (val >= 1001 and val <= 1009) return val - 1000;
+        if (val >= 1001 and val <= 1010) return val - 1000;
         return 0;
     }
 };
@@ -115,8 +138,8 @@ pub fn detectGpuFamily(
 
     // Probe Apple families from highest to lowest
     const apple_families = [_]MetalGpuFamily{
-        .apple9, .apple8, .apple7, .apple6, .apple5,
-        .apple4, .apple3, .apple2, .apple1,
+        .apple10, .apple9, .apple8, .apple7, .apple6, .apple5,
+        .apple4,  .apple3, .apple2, .apple1,
     };
     for (apple_families) |family| {
         if (msg_send(device, sel_supports_family, @intFromEnum(family))) {
@@ -157,7 +180,9 @@ pub fn buildFeatureSet(family: MetalGpuFamily) MetalFeatureSet {
         .supports_bfloat16 = gen >= 7 or family == .mac2,
         .supports_indirect_command_buffers = gen >= 4 or
             family == .mac1 or family == .mac2,
-        .max_threadgroup_memory = if (gen >= 4 or family == .mac2)
+        .max_threadgroup_memory = if (gen >= 10)
+            @as(u32, 65536) // 64KB for Apple10+ (M4)
+        else if (gen >= 4 or family == .mac2)
             @as(u32, 32768) // 32KB for Apple4+
         else
             16384,
@@ -213,4 +238,33 @@ test "buildFeatureSet for Mac2" {
     try std.testing.expect(fs.supports_ray_tracing);
     try std.testing.expect(fs.supports_mps);
     try std.testing.expect(fs.supports_mps_graph);
+}
+
+test "apple10 generation and Metal4" {
+    try std.testing.expectEqual(@as(u32, 10), MetalGpuFamily.apple10.generation());
+    try std.testing.expect(MetalGpuFamily.apple10.isMetal3());
+    try std.testing.expect(MetalGpuFamily.apple10.isMetal4());
+}
+
+test "buildFeatureSet for Apple10 (M4)" {
+    const fs = buildFeatureSet(.apple10);
+    try std.testing.expect(fs.supports_mesh_shaders);
+    try std.testing.expect(fs.supports_ray_tracing);
+    try std.testing.expect(fs.supports_mps);
+    try std.testing.expect(fs.supports_mps_graph);
+    try std.testing.expect(fs.supports_bfloat16);
+    try std.testing.expect(fs.has_neural_engine);
+    try std.testing.expectEqual(@as(u32, 65536), fs.max_threadgroup_memory);
+}
+
+test "chipVariant parsing" {
+    try std.testing.expectEqual(MetalGpuFamily.ChipVariant.ultra, MetalGpuFamily.chipVariant("Apple M4 Ultra"));
+    try std.testing.expectEqual(MetalGpuFamily.ChipVariant.max, MetalGpuFamily.chipVariant("Apple M4 Max"));
+    try std.testing.expectEqual(MetalGpuFamily.ChipVariant.pro, MetalGpuFamily.chipVariant("Apple M4 Pro"));
+    try std.testing.expectEqual(MetalGpuFamily.ChipVariant.base, MetalGpuFamily.chipVariant("Apple M4"));
+    try std.testing.expectEqual(MetalGpuFamily.ChipVariant.unknown, MetalGpuFamily.chipVariant("Unknown GPU"));
+}
+
+test "apple10 name" {
+    try std.testing.expectEqualStrings("Apple10 (A18, M4+) [Metal 4]", MetalGpuFamily.apple10.name());
 }

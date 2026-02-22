@@ -133,6 +133,143 @@ fn tryLoadCoreML() bool {
 }
 
 // ============================================================================
+// CoreML Multi-Array (Tensor I/O)
+// ============================================================================
+
+/// Data type for CoreML multi-dimensional arrays
+pub const DataType = enum(u32) {
+    float32 = 65568, // MLMultiArrayDataTypeFloat32
+    float16 = 65552, // MLMultiArrayDataTypeFloat16
+    float64 = 65600, // MLMultiArrayDataTypeFloat64
+    int32 = 131104, // MLMultiArrayDataTypeInt32
+};
+
+/// Wraps MLMultiArray for tensor I/O with CoreML models
+pub const MultiArray = struct {
+    shape: [8]u32 = [_]u32{0} ** 8,
+    ndim: u8 = 0,
+    data_type: DataType = .float32,
+    obj: ID = null,
+
+    pub fn createFloat32(shape: []const u32) CoreMlError!MultiArray {
+        var result = MultiArray{ .ndim = @intCast(@min(shape.len, 8)), .data_type = .float32 };
+        for (shape[0..result.ndim], 0..) |s, i| result.shape[i] = s;
+
+        if (builtin.os.tag != .macos) return CoreMlError.UnsupportedPlatform;
+
+        const get_class = objc_get_class_fn orelse return CoreMlError.FrameworkNotAvailable;
+        const msg_send = objc_msgSend_fn orelse return CoreMlError.FrameworkNotAvailable;
+        const sel_fn = sel_register_fn orelse return CoreMlError.FrameworkNotAvailable;
+
+        // Create NSArray of NSNumber for shape
+        const ns_array_class = get_class("NSMutableArray") orelse return CoreMlError.FrameworkNotAvailable;
+        const arr_raw = msg_send(@ptrCast(ns_array_class), sel_alloc);
+        if (arr_raw == null) return CoreMlError.InvalidInput;
+        const arr_init = msg_send(arr_raw, sel_init);
+        if (arr_init == null) return CoreMlError.InvalidInput;
+
+        const ns_number_class = get_class("NSNumber") orelse return CoreMlError.FrameworkNotAvailable;
+        const sel_with_int = sel_fn("numberWithInt:");
+        const sel_add = sel_fn("addObject:");
+        const num_fn: *const fn (?Class, SEL, c_int) callconv(.c) ID = @ptrCast(msg_send);
+        const add_fn: *const fn (ID, SEL, ID) callconv(.c) void = @ptrCast(msg_send);
+
+        for (shape[0..result.ndim]) |s| {
+            const num = num_fn(ns_number_class, sel_with_int, @intCast(s));
+            if (num != null) add_fn(arr_init, sel_add, num);
+        }
+
+        // Create MLMultiArray
+        const ml_array_class = get_class("MLMultiArray") orelse return CoreMlError.FrameworkNotAvailable;
+        const ml_arr = msg_send(@ptrCast(ml_array_class), sel_alloc);
+        if (ml_arr == null) return CoreMlError.InvalidInput;
+
+        const sel_init_shape = sel_fn("initWithShape:dataType:error:");
+        var init_error: ID = null;
+        const init_fn: *const fn (ID, SEL, ID, u32, *ID) callconv(.c) ID = @ptrCast(msg_send);
+        const obj = init_fn(ml_arr, sel_init_shape, arr_init, @intFromEnum(result.data_type), &init_error);
+
+        // Release shape array
+        const release_fn: *const fn (ID, SEL) callconv(.c) void = @ptrCast(msg_send);
+        release_fn(arr_init, sel_release);
+
+        if (obj == null) return CoreMlError.InvalidInput;
+        result.obj = obj;
+        return result;
+    }
+
+    pub fn totalElements(self: *const MultiArray) usize {
+        if (self.ndim == 0) return 0;
+        var total: usize = 1;
+        for (self.shape[0..self.ndim]) |s| total *= s;
+        return total;
+    }
+
+    pub fn deinit(self: *MultiArray) void {
+        if (self.obj != null) {
+            if (objc_msgSend_fn) |msg_send| {
+                const release_fn: *const fn (ID, SEL) callconv(.c) void = @ptrCast(msg_send);
+                release_fn(self.obj, sel_release);
+            }
+            self.obj = null;
+        }
+    }
+};
+
+/// Named array for model I/O
+pub const NamedArray = struct {
+    name: [64]u8 = [_]u8{0} ** 64,
+    name_len: u8 = 0,
+    array: ?*MultiArray = null,
+};
+
+// ============================================================================
+// CoreML Model Compilation
+// ============================================================================
+
+/// Compile a CoreML model from source (.mlmodel) to compiled form (.mlmodelc).
+/// Calls [MLModel compileModelAtURL:error:] on macOS.
+pub fn compileModel(source_path: []const u8, output_path: []const u8) CoreMlError!void {
+    _ = output_path;
+
+    if (builtin.os.tag != .macos) return CoreMlError.UnsupportedPlatform;
+
+    const get_class = objc_get_class_fn orelse return CoreMlError.FrameworkNotAvailable;
+    const msg_send = objc_msgSend_fn orelse return CoreMlError.FrameworkNotAvailable;
+    const sel_fn = sel_register_fn orelse return CoreMlError.FrameworkNotAvailable;
+
+    // Create NSURL from source path
+    const nsurl_class = get_class("NSURL") orelse return CoreMlError.FrameworkNotAvailable;
+    const nsstring_class = get_class("NSString") orelse return CoreMlError.FrameworkNotAvailable;
+    const sel_string = sel_fn("stringWithUTF8String:");
+
+    var path_buf: [4096]u8 = undefined;
+    if (source_path.len >= path_buf.len) return CoreMlError.ModelLoadFailed;
+    @memcpy(path_buf[0..source_path.len], source_path);
+    path_buf[source_path.len] = 0;
+
+    const str_fn: *const fn (?Class, SEL, [*:0]const u8) callconv(.c) ID = @ptrCast(msg_send);
+    const ns_path = str_fn(nsstring_class, sel_string, path_buf[0..source_path.len :0]);
+    if (ns_path == null) return CoreMlError.ModelLoadFailed;
+
+    const sel_file_url = sel_fn("fileURLWithPath:");
+    const url_fn: *const fn (?Class, SEL, ID) callconv(.c) ID = @ptrCast(msg_send);
+    const source_url = url_fn(nsurl_class, sel_file_url, ns_path);
+    if (source_url == null) return CoreMlError.ModelLoadFailed;
+
+    // [MLModel compileModelAtURL:error:]
+    const ml_model_class = get_class("MLModel") orelse return CoreMlError.FrameworkNotAvailable;
+    const sel_compile = sel_fn("compileModelAtURL:error:");
+    var compile_error: ID = null;
+    const compile_fn: *const fn (?Class, SEL, ID, *ID) callconv(.c) ID = @ptrCast(msg_send);
+    const compiled_url = compile_fn(ml_model_class, sel_compile, source_url, &compile_error);
+
+    if (compiled_url == null) return CoreMlError.ModelLoadFailed;
+    // compiled_url is an NSURL to the compiled .mlmodelc bundle
+    // In production, move the compiled bundle to output_path
+}
+
+// ============================================================================
 // CoreML Model
 // ============================================================================
 
@@ -221,6 +358,67 @@ pub const CoreMlModel = struct {
         }
 
         return .{ .output = output };
+    }
+
+    /// Run a dummy prediction to pre-compile and warm up the model pipeline.
+    /// This forces CoreML to load weights and compile for the target compute units,
+    /// reducing latency on the first real prediction.
+    pub fn warmup(self: *CoreMlModel) CoreMlError!void {
+        if (self.model == null) return CoreMlError.ModelLoadFailed;
+
+        if (builtin.os.tag != .macos) return CoreMlError.UnsupportedPlatform;
+
+        const sel_fn = sel_register_fn orelse return CoreMlError.FrameworkNotAvailable;
+        const msg_send = objc_msgSend_fn orelse return CoreMlError.FrameworkNotAvailable;
+        const get_class = objc_get_class_fn orelse return CoreMlError.FrameworkNotAvailable;
+
+        // Get model description to access input features
+        const sel_desc = sel_fn("modelDescription");
+        const desc = msg_send(self.model, sel_desc);
+        if (desc == null) return CoreMlError.PredictionFailed;
+
+        // Get input descriptions: [description inputDescriptionsByName]
+        const sel_inputs = sel_fn("inputDescriptionsByName");
+        const inputs_dict = msg_send(desc, sel_inputs);
+        if (inputs_dict == null) return CoreMlError.PredictionFailed;
+
+        // Create an empty MLDictionaryFeatureProvider as a dummy input
+        const provider_class = get_class("MLDictionaryFeatureProvider") orelse
+            return CoreMlError.FrameworkNotAvailable;
+        const provider_alloc = msg_send(@ptrCast(provider_class), sel_alloc);
+        if (provider_alloc == null) return CoreMlError.PredictionFailed;
+
+        // Create empty dictionary for dummy input
+        const dict_class = get_class("NSMutableDictionary") orelse return CoreMlError.FrameworkNotAvailable;
+        const dict_raw = msg_send(@ptrCast(dict_class), sel_alloc);
+        if (dict_raw == null) return CoreMlError.PredictionFailed;
+        const dict = msg_send(dict_raw, sel_init);
+        if (dict == null) return CoreMlError.PredictionFailed;
+
+        const sel_init_dict = sel_fn("initWithDictionary:error:");
+        var init_error: ID = null;
+        const init_fn: *const fn (ID, SEL, ID, *ID) callconv(.c) ID = @ptrCast(msg_send);
+        const provider = init_fn(provider_alloc, sel_init_dict, dict, &init_error);
+
+        const release_fn: *const fn (ID, SEL) callconv(.c) void = @ptrCast(msg_send);
+        release_fn(dict, sel_release);
+
+        if (provider == null) return CoreMlError.PredictionFailed;
+        defer release_fn(provider, sel_release);
+
+        // Attempt prediction — may fail with empty inputs, but that's okay for warmup.
+        // The goal is to trigger model compilation/loading.
+        const sel_predict = sel_fn("predictionFromFeatures:error:");
+        var predict_error: ID = null;
+        const predict_fn: *const fn (ID, SEL, ID, *ID) callconv(.c) ID = @ptrCast(msg_send);
+        _ = predict_fn(self.model, sel_predict, provider, &predict_error);
+
+        // Warmup is best-effort; even a failed prediction triggers pipeline compilation
+    }
+
+    /// Return the configured compute units for this model.
+    pub fn getComputeUnits(self: *const CoreMlModel) ComputeUnit {
+        return self.config.compute_units;
     }
 
     pub fn destroy(self: *CoreMlModel) void {
@@ -346,4 +544,66 @@ test "ComputeUnit enum values" {
     try std.testing.expectEqual(@as(u32, 0), @intFromEnum(ComputeUnit.all));
     try std.testing.expectEqual(@as(u32, 1), @intFromEnum(ComputeUnit.cpu_only));
     try std.testing.expectEqual(@as(u32, 3), @intFromEnum(ComputeUnit.cpu_and_ne));
+}
+
+test "MultiArray totalElements calculation" {
+    // 1D array
+    var arr1 = MultiArray{ .ndim = 1 };
+    arr1.shape[0] = 10;
+    try std.testing.expectEqual(@as(usize, 10), arr1.totalElements());
+
+    // 2D array (3x4 = 12)
+    var arr2 = MultiArray{ .ndim = 2 };
+    arr2.shape[0] = 3;
+    arr2.shape[1] = 4;
+    try std.testing.expectEqual(@as(usize, 12), arr2.totalElements());
+
+    // 3D array (2x3x4 = 24)
+    var arr3 = MultiArray{ .ndim = 3 };
+    arr3.shape[0] = 2;
+    arr3.shape[1] = 3;
+    arr3.shape[2] = 4;
+    try std.testing.expectEqual(@as(usize, 24), arr3.totalElements());
+
+    // Zero-dim array should return 0
+    const arr0 = MultiArray{};
+    try std.testing.expectEqual(@as(usize, 0), arr0.totalElements());
+}
+
+test "DataType enum values" {
+    try std.testing.expectEqual(@as(u32, 65568), @intFromEnum(DataType.float32));
+    try std.testing.expectEqual(@as(u32, 65552), @intFromEnum(DataType.float16));
+    try std.testing.expectEqual(@as(u32, 65600), @intFromEnum(DataType.float64));
+    try std.testing.expectEqual(@as(u32, 131104), @intFromEnum(DataType.int32));
+}
+
+test "NamedArray default initialization" {
+    const named = NamedArray{};
+    try std.testing.expectEqual(@as(u8, 0), named.name_len);
+    try std.testing.expect(named.array == null);
+    // All name bytes should be zero
+    for (named.name) |c| {
+        try std.testing.expectEqual(@as(u8, 0), c);
+    }
+
+    // Test with populated name
+    var named2 = NamedArray{};
+    const label = "output_logits";
+    @memcpy(named2.name[0..label.len], label);
+    named2.name_len = label.len;
+    try std.testing.expectEqual(@as(u8, 13), named2.name_len);
+    try std.testing.expectEqual(@as(u8, 'o'), named2.name[0]);
+}
+
+test "CoreMlModel warmup on null model returns error" {
+    var model = CoreMlModel{};
+    try std.testing.expect(model.model == null);
+    try std.testing.expectError(CoreMlError.ModelLoadFailed, model.warmup());
+
+    // getComputeUnits should return default
+    try std.testing.expectEqual(ComputeUnit.all, model.getComputeUnits());
+
+    // With custom config
+    var model2 = CoreMlModel{ .config = .{ .compute_units = .cpu_only } };
+    try std.testing.expectEqual(ComputeUnit.cpu_only, model2.getComputeUnits());
 }

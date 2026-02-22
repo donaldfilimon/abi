@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **Infrastructure** coverage
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1261` pass / `5` skip / `1266` total
-- Feature tests: `2119` pass / `2123` total
+- Feature tests: `2263` pass / `2268` total
 
 ## Feature Coverage
 
@@ -36,7 +36,7 @@ This guide is generated from repository metadata for **Infrastructure** coverage
 ## Command Entry Points
 
 - `abi acp` — Agent Communication Protocol (card, serve)
-- `abi mcp` — MCP server for WDBX database (serve, tools)
+- `abi mcp` — MCP server for WDBX database or ZLS (serve, tools)
 - `abi network` — Network and distributed systems management
 
 ## Validation Commands

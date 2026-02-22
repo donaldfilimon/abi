@@ -95,7 +95,7 @@ pub const time = @import("../../services/shared/time.zig");
 
 pub const database = @import("database.zig");
 pub const db_helpers = @import("db_helpers.zig");
-pub const storage_v2 = @import("storage_v2.zig");
+pub const storage = @import("storage.zig");
 pub const wdbx = @import("wdbx.zig");
 pub const cli = @import("cli.zig");
 pub const http = @import("http.zig");
@@ -208,13 +208,13 @@ pub const MappedFile = formats.MappedFile;
 pub const MemoryCursor = formats.MemoryCursor;
 
 // Storage v2 exports (industry-standard format)
-pub const FileHeader = storage_v2.FileHeader;
-pub const FileFooter = storage_v2.FileFooter;
-pub const BloomFilter = storage_v2.BloomFilter;
-pub const Crc32 = storage_v2.Crc32;
-pub const StorageV2Config = storage_v2.StorageV2Config;
-pub const saveDatabaseV2 = storage_v2.saveDatabaseV2;
-pub const loadDatabaseV2 = storage_v2.loadDatabaseV2;
+pub const FileHeader = storage.FileHeader;
+pub const FileFooter = storage.FileFooter;
+pub const BloomFilter = storage.BloomFilter;
+pub const Crc32 = storage.Crc32;
+pub const StorageV2Config = storage.StorageV2Config;
+pub const saveDatabaseV2 = storage.saveDatabaseV2;
+pub const loadDatabaseV2 = storage.loadDatabaseV2;
 
 // Vector database format exports
 pub const FormatVectorDatabase = formats.VectorDatabase;
@@ -412,6 +412,12 @@ pub const Context = struct {
         return wdbx.searchVectors(h, self.allocator, query, top_k);
     }
 
+    /// Search for similar vectors into a caller-provided buffer.
+    pub fn searchVectorsInto(self: *Context, query: []const f32, top_k: usize, results: []SearchResult) !usize {
+        const h = try self.getHandle();
+        return wdbx.searchVectorsInto(h, query, top_k, results);
+    }
+
     /// Get database statistics.
     pub fn getStats(self: *Context) !Stats {
         const h = try self.getHandle();
@@ -469,6 +475,15 @@ pub fn search(
     return wdbx.searchVectors(handle, allocator, query, top_k);
 }
 
+pub fn searchInto(
+    handle: *DatabaseHandle,
+    query: []const f32,
+    top_k: usize,
+    results: []SearchResult,
+) usize {
+    return wdbx.searchVectorsInto(handle, query, top_k, results);
+}
+
 pub fn remove(handle: *DatabaseHandle, id: u64) bool {
     return wdbx.deleteVector(handle, id);
 }
@@ -505,13 +520,21 @@ pub fn restore(handle: *DatabaseHandle, path: []const u8) !void {
     try wdbx.restore(handle, path);
 }
 
+pub fn backupToPath(handle: *DatabaseHandle, path: []const u8) !void {
+    try wdbx.backupToPath(handle, path);
+}
+
+pub fn restoreFromPath(handle: *DatabaseHandle, path: []const u8) !void {
+    try wdbx.restoreFromPath(handle, path);
+}
+
 pub fn openFromFile(allocator: std.mem.Allocator, path: []const u8) !DatabaseHandle {
-    const db = try storage_v2.loadDatabase(allocator, path);
+    const db = try storage.loadDatabase(allocator, path);
     return .{ .db = db };
 }
 
 pub fn openOrCreate(allocator: std.mem.Allocator, path: []const u8) !DatabaseHandle {
-    const loaded = storage_v2.loadDatabase(allocator, path);
+    const loaded = storage.loadDatabase(allocator, path);
     if (loaded) |db| {
         return .{ .db = db };
     } else |err| switch (err) {

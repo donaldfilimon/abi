@@ -68,6 +68,10 @@ pub fn buildBearerHeader(_: std.mem.Allocator, _: []const u8) !AuthHeader {
 // ============================================================================
 
 pub const openai = @import("stubs/openai.zig");
+pub const codex = @import("stubs/codex.zig");
+pub const opencode = @import("stubs/opencode.zig");
+pub const claude = @import("stubs/claude.zig");
+pub const gemini = @import("stubs/gemini.zig");
 
 // ============================================================================
 // HuggingFace Connector Stub
@@ -80,6 +84,7 @@ pub const huggingface = @import("stubs/huggingface.zig");
 // ============================================================================
 
 pub const ollama = @import("stubs/ollama.zig");
+pub const ollama_passthrough = @import("stubs/ollama_passthrough.zig");
 
 // ============================================================================
 // Anthropic Connector Stub
@@ -247,6 +252,38 @@ pub fn tryLoadOpenAI(_: std.mem.Allocator) !?openai.Config {
     return null;
 }
 
+pub fn loadCodex(_: std.mem.Allocator) !codex.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadCodex(_: std.mem.Allocator) !?codex.Config {
+    return null;
+}
+
+pub fn loadOpenCode(_: std.mem.Allocator) !opencode.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadOpenCode(_: std.mem.Allocator) !?opencode.Config {
+    return null;
+}
+
+pub fn loadClaude(_: std.mem.Allocator) !claude.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadClaude(_: std.mem.Allocator) !?claude.Config {
+    return null;
+}
+
+pub fn loadGemini(_: std.mem.Allocator) !gemini.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadGemini(_: std.mem.Allocator) !?gemini.Config {
+    return null;
+}
+
 pub fn loadHuggingFace(_: std.mem.Allocator) !huggingface.Config {
     return Error.ConnectorsDisabled;
 }
@@ -260,6 +297,14 @@ pub fn loadOllama(_: std.mem.Allocator) !ollama.Config {
 }
 
 pub fn tryLoadOllama(_: std.mem.Allocator) !?ollama.Config {
+    return null;
+}
+
+pub fn loadOllamaPassthrough(_: std.mem.Allocator) !ollama_passthrough.Config {
+    return Error.ConnectorsDisabled;
+}
+
+pub fn tryLoadOllamaPassthrough(_: std.mem.Allocator) !?ollama_passthrough.Config {
     return null;
 }
 
@@ -369,8 +414,13 @@ test "connectors stub loaders return disabled or null" {
 
 test "connectors stub isAvailable returns false" {
     try std.testing.expect(!openai.isAvailable());
+    try std.testing.expect(!codex.isAvailable());
+    try std.testing.expect(!opencode.isAvailable());
+    try std.testing.expect(!claude.isAvailable());
+    try std.testing.expect(!gemini.isAvailable());
     try std.testing.expect(!huggingface.isAvailable());
     try std.testing.expect(!ollama.isAvailable());
+    try std.testing.expect(!ollama_passthrough.isAvailable());
     try std.testing.expect(!anthropic.isAvailable());
     try std.testing.expect(!mistral.isAvailable());
     try std.testing.expect(!cohere.isAvailable());

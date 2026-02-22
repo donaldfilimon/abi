@@ -15,6 +15,7 @@ const mod = @import("mod.zig");
 const llm_checkpoint = @import("llm_checkpoint.zig");
 const logging = @import("logging.zig");
 const ai_ops = @import("../../gpu/ai_ops.zig");
+const training_bridge = @import("../../gpu/training_bridge.zig");
 
 /// Training configuration for LLM.
 pub const LlmTrainingConfig = struct {
@@ -201,8 +202,8 @@ pub const LlamaTrainer = struct {
     accumulator: mod.GradientAccumulator,
     optimizer_state: OptimizerState,
     stats: TrainingStats,
-    /// GPU operations interface (if GPU enabled)
-    gpu_ops: ?ai_ops.AiOps,
+    /// GPU training bridge (GPU-accelerated ops with CPU fallback)
+    gpu_bridge: ?training_bridge.GpuTrainingBridge,
     /// Accumulated loss for logging
     accum_loss: f32,
     /// Loss history for early stopping
@@ -276,6 +277,19 @@ pub const LlamaTrainer = struct {
             });
         }
 
+        // Initialize GPU bridge if requested
+        var gpu_bridge_inst: ?training_bridge.GpuTrainingBridge = null;
+        if (config.use_gpu) {
+            var bridge = training_bridge.GpuTrainingBridge.init(allocator);
+            if (bridge.gpu_available) {
+                gpu_bridge_inst = bridge;
+                std.log.info("GPU training bridge initialized (backend: {s})", .{bridge.stats.backend_name});
+            } else {
+                bridge.deinit();
+                std.log.info("GPU not available, using CPU-only training", .{});
+            }
+        }
+
         var log_timer = time.Timer.start() catch null;
         const initial_time = if (log_timer) |*t| t.read() else 0;
 
@@ -290,7 +304,7 @@ pub const LlamaTrainer = struct {
                 .v = v,
             },
             .stats = .{},
-            .gpu_ops = null,
+            .gpu_bridge = gpu_bridge_inst,
             .accum_loss = 0,
             .loss_history = std.ArrayListUnmanaged(f32).empty,
             .val_data = null,
@@ -315,6 +329,7 @@ pub const LlamaTrainer = struct {
     pub fn deinit(self: *LlamaTrainer) void {
         if (self.best_weights) |bw| self.allocator.free(bw);
         if (self.logger) |*logger| logger.deinit();
+        if (self.gpu_bridge) |*bridge| bridge.deinit();
         self.loss_history.deinit(self.allocator);
         if (self.optimizer_state.v) |v| self.allocator.free(v);
         if (self.optimizer_state.m) |m| self.allocator.free(m);
@@ -357,8 +372,12 @@ pub const LlamaTrainer = struct {
         const logits = try self.allocator.alloc(f32, token_count * vocab_size);
         defer self.allocator.free(logits);
 
-        // Forward pass through the model (real computation)
-        try self.model.forward(input_ids, logits);
+        // Forward pass through the model (GPU-accelerated when available)
+        if (self.gpu_bridge) |*bridge| {
+            try self.model.forwardGpu(input_ids, logits, bridge);
+        } else {
+            try self.model.forward(input_ids, logits);
+        }
 
         // Compute loss using CrossEntropy
         const loss = try self.loss_fn.forward(logits, labels);
@@ -368,8 +387,12 @@ pub const LlamaTrainer = struct {
         defer self.allocator.free(d_logits);
         self.loss_fn.backward(d_logits);
 
-        // Backward pass through the model (gradient computation)
-        try self.model.backward(d_logits, input_ids);
+        // Backward pass through the model (GPU-accelerated when available)
+        if (self.gpu_bridge) |*bridge| {
+            try self.model.backwardGpu(d_logits, input_ids, bridge);
+        } else {
+            try self.model.backward(d_logits, input_ids);
+        }
 
         // Compute accuracy
         var correct: u64 = 0;
@@ -814,6 +837,12 @@ pub const LlamaTrainer = struct {
         return self.stats;
     }
 
+    /// Get GPU training statistics.
+    pub fn getGpuStats(self: *const LlamaTrainer) training_bridge.GpuTrainingStats {
+        if (self.gpu_bridge) |*bridge| return bridge.getStats();
+        return .{};
+    }
+
     /// Get training report.
     pub fn getReport(self: *const LlamaTrainer) TrainingReport {
         return .{
@@ -854,6 +883,21 @@ pub const LlamaTrainer = struct {
         try logger.logScalar("train/perplexity", self.stats.perplexity, self.stats.global_step);
         try logger.logScalar("train/learning_rate", self.stats.learning_rate, self.stats.global_step);
         try logger.logScalar("train/grad_norm", self.stats.grad_norm, self.stats.global_step);
+        try logger.logScalar("train/throughput", self.stats.throughput, self.stats.global_step);
+
+        // Log GPU stats if bridge is active
+        try self.logGpuStats();
+    }
+
+    fn logGpuStats(self: *LlamaTrainer) !void {
+        var logger = &(self.logger orelse return);
+        const gpu_stats = self.getGpuStats();
+        if (gpu_stats.gpu_available) {
+            try logger.logScalar("gpu/utilization", gpu_stats.utilization, self.stats.global_step);
+            try logger.logScalar("gpu/kernel_time_ms", gpu_stats.avgKernelTimeMs(), self.stats.global_step);
+            try logger.logScalar("gpu/ops_count", @floatFromInt(gpu_stats.total_gpu_ops), self.stats.global_step);
+            try logger.logScalar("gpu/fallback_count", @floatFromInt(gpu_stats.cpu_fallback_ops), self.stats.global_step);
+        }
     }
 
     pub fn finalizeLogging(self: *LlamaTrainer) !void {

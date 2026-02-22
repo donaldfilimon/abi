@@ -27,6 +27,7 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "enable_ai", .path = "features/ai/rag/mod.zig" },
     .{ .flag = "enable_ai", .path = "features/ai/templates/mod.zig" },
     .{ .flag = "enable_ai", .path = "features/ai/orchestration/mod.zig" },
+    .{ .flag = "enable_ai", .path = "features/ai/constitution/mod.zig" },
     .{ .flag = "enable_ai", .path = "features/ai/documents/mod.zig" },
     .{ .flag = "enable_ai", .path = "features/ai/memory/mod.zig" },
     .{ .flag = "enable_ai", .path = "features/ai/tools/mod.zig" },
@@ -77,7 +78,7 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = null, .path = "services/runtime/scheduling/dag_pipeline.zig" },
     .{ .flag = null, .path = "services/shared/utils/swiss_map.zig" },
     .{ .flag = null, .path = "services/shared/utils/abix_serialize.zig" },
-    .{ .flag = null, .path = "services/shared/utils/v2_primitives.zig" },
+    .{ .flag = null, .path = "services/shared/utils/primitives.zig" },
     .{ .flag = null, .path = "services/shared/utils/profiler.zig" },
     .{ .flag = null, .path = "services/shared/utils/structured_error.zig" },
     .{ .flag = null, .path = "services/shared/utils/memory/arena_pool.zig" },
@@ -107,6 +108,11 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = null, .path = "services/connectors/discord/mod.zig" },
     .{ .flag = null, .path = "services/connectors/discord/utils.zig" },
     .{ .flag = null, .path = "services/connectors/discord/rest_encoders.zig" },
+    .{ .flag = null, .path = "services/connectors/claude.zig" },
+    .{ .flag = null, .path = "services/connectors/codex.zig" },
+    .{ .flag = null, .path = "services/connectors/gemini.zig" },
+    .{ .flag = null, .path = "services/connectors/ollama_passthrough.zig" },
+    .{ .flag = null, .path = "services/connectors/opencode.zig" },
     .{ .flag = null, .path = "services/ha/mod.zig" },
     .{ .flag = null, .path = "services/ha/replication.zig" },
     .{ .flag = null, .path = "services/ha/backup.zig" },
@@ -145,8 +151,6 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = null, .path = "core/feature_catalog.zig" },
     .{ .flag = null, .path = "core/registry/mod.zig" },
     .{ .flag = null, .path = "core/registry/stub.zig" },
-    .{ .flag = null, .path = "vnext/capability.zig" },
-    .{ .flag = null, .path = "vnext/config.zig" },
     .{ .flag = null, .path = "services/shared/security/mod.zig" },
     .{ .flag = null, .path = "services/shared/security/csprng.zig" },
     .{ .flag = null, .path = "services/runtime/engine/result_cache.zig" },
@@ -167,7 +171,12 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = null, .path = "services/shared/os.zig" },
     .{ .flag = null, .path = "services/shared/simd/simd_test.zig" },
     .{ .flag = null, .path = "services/shared/resilience/circuit_breaker.zig" },
+    .{ .flag = null, .path = "services/shared/app_paths.zig" },
     .{ .flag = null, .path = "services/tasks/roadmap.zig" },
+    .{ .flag = null, .path = "services/lsp/mod.zig" },
+    .{ .flag = null, .path = "services/lsp/jsonrpc.zig" },
+    .{ .flag = null, .path = "services/lsp/types.zig" },
+    .{ .flag = null, .path = "services/lsp/client.zig" },
 };
 
 /// Wire up the feature-test binary and return its run step.
@@ -195,10 +204,11 @@ pub fn addFeatureTests(
         }),
     });
     feature_tests.root_module.addImport("build_options", build_opts);
-    link.applyFrameworkLinks(
+    link.applyAllPlatformLinks(
         feature_tests.root_module,
         target.result.os.tag,
         options.gpu_metal(),
+        options.gpu_backends,
     );
 
     const run_feature_tests = b.addRunArtifact(feature_tests);

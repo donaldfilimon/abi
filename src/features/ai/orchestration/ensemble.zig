@@ -27,7 +27,7 @@ pub const EnsembleMethod = enum {
     custom,
 
     pub fn toString(self: EnsembleMethod) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 

@@ -56,11 +56,13 @@
 //! > Paths cannot contain `..`, absolute paths, or Windows drive letters.
 //!
 //! ```zig
-//! // Backup
+//! // Safe backup/restore APIs (restricted to backups/<name>)
 //! try abi.database.wdbx.backup(db, "mybackup.db");
+//! try abi.database.wdbx.restore(db, "mybackup.db");
 //!
-//! // Restore
-//! try abi.database.wdbx.restore(allocator, "mybackup.db", "vectors.db");
+//! // Unrestricted path APIs (CLI uses these)
+//! try abi.database.wdbx.backupToPath(db, "/tmp/mybackup.db");
+//! try abi.database.wdbx.restoreFromPath(db, "/tmp/mybackup.db");
 //! ```
 //!
 //! ## See Also

@@ -58,7 +58,7 @@ fn printHelp() void {
         \\  version, --version  Show framework version
         \\  info, system-info   Show framework information and available features
         \\
-        \\For the full CLI (including tui), build the tools/cli entrypoint.
+        \\For the full CLI (including ui dashboards), build the tools/cli entrypoint.
         \\For more advanced usage, see the examples/ directory.
     ;
     std.debug.print("{s}\n", .{help_text});

@@ -17,6 +17,11 @@ pub fn isAvailable(
         .vllm => connectors.vllm.isAvailable(),
         .anthropic => connectors.anthropic.isAvailable(),
         .openai => connectors.openai.isAvailable(),
+        .codex => connectors.codex.isAvailable(),
+        .opencode => connectors.opencode.isAvailable(),
+        .claude => connectors.claude.isAvailable(),
+        .gemini => connectors.gemini.isAvailable(),
+        .ollama_passthrough => connectors.ollama_passthrough.isAvailable(),
         .plugin_http => blk: {
             if (plugin_id == null) break :blk plugins.loader.hasAnyEnabled(.http);
             const match = plugins.loader.findEnabledByKind(allocator, .http, plugin_id) catch null;
@@ -38,4 +43,13 @@ pub fn isAvailable(
             break :blk false;
         },
     };
+}
+
+test "health checks support new providers" {
+    const allocator = std.testing.allocator;
+    _ = isAvailable(allocator, .codex, null);
+    _ = isAvailable(allocator, .opencode, null);
+    _ = isAvailable(allocator, .claude, null);
+    _ = isAvailable(allocator, .gemini, null);
+    _ = isAvailable(allocator, .ollama_passthrough, null);
 }

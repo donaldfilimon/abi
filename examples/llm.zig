@@ -24,7 +24,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     // Initialize framework
     var builder = abi.Framework.builder(allocator);
     var framework = try builder
-        .withAiDefaults()
+        .withLlm(.{})
         .build();
     defer framework.deinit();
 

@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **AI** coverage and stays d
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1261` pass / `5` skip / `1266` total
-- Feature tests: `2119` pass / `2123` total
+- Feature tests: `2263` pass / `2268` total
 
 ## Feature Coverage
 
@@ -30,6 +30,10 @@ This guide is generated from repository metadata for **AI** coverage and stays d
 - **ai** — AI core functionality
   - Build flag: `enable_ai`
   - Source: `src/features/ai/mod.zig`
+- **constitution** — AI safety principles and guardrails
+  - Build flag: `enable_ai`
+  - Source: `src/features/ai/mod.zig`
+  - Parent: `ai`
 - **embeddings** — Vector embeddings generation
   - Build flag: `enable_ai`
   - Source: `src/features/ai/mod.zig`

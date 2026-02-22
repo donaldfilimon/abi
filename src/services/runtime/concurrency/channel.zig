@@ -11,7 +11,7 @@
 //! ═══════════════════════════════════════════════════════════════════════════
 
 const std = @import("std");
-const Math = @import("../../shared/utils/v2_primitives.zig").Math;
+const Math = @import("../../shared/utils/primitives.zig").Math;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 

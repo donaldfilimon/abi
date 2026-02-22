@@ -21,3 +21,7 @@ ABI_TEST_GGUF_MODEL_PATH=
 # ABI_TEST_MODEL_SPEC=TheBloke/Llama-2-7B-GGUF:Q4_K_M
 # ABI_TEST_MODEL_SPEC=https://huggingface.co/.../model.gguf
 ABI_TEST_MODEL_SPEC=
+
+# Optional opt-in vectors (unset keeps them blocked):
+# ABI_TEST_ENABLE_LLM_RUN=1
+# ABI_TEST_ENABLE_MODEL_DOWNLOAD=1

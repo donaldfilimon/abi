@@ -7,8 +7,13 @@
 //! | Connector | Description | Environment Variable |
 //! |-----------|-------------|---------------------|
 //! | OpenAI | GPT-4, GPT-3.5, embeddings | `ABI_OPENAI_API_KEY` |
+//! | Codex | OpenAI-compatible Codex endpoint | `ABI_CODEX_API_KEY` |
+//! | OpenCode | OpenAI-compatible OpenCode endpoint | `ABI_OPENCODE_API_KEY` |
+//! | Claude | Claude API with Anthropic fallback envs | `ABI_CLAUDE_API_KEY` |
+//! | Gemini | Google Gemini native API | `ABI_GEMINI_API_KEY` |
 //! | Anthropic | Claude models | `ABI_ANTHROPIC_API_KEY` |
 //! | Ollama | Local LLM inference | `ABI_OLLAMA_HOST` |
+//! | Ollama Passthrough | OpenAI-compatible Ollama passthrough | `ABI_OLLAMA_PASSTHROUGH_URL` |
 //! | HuggingFace | Inference API | `ABI_HF_API_TOKEN` |
 //! | Mistral | Mistral AI models | `ABI_MISTRAL_API_KEY` |
 //! | Cohere | Cohere models | `ABI_COHERE_API_KEY` |
@@ -43,8 +48,13 @@
 //! ## Sub-modules
 //!
 //! - `openai.zig` - OpenAI API client
+//! - `codex.zig` - Codex OpenAI-compatible client
+//! - `opencode.zig` - OpenCode OpenAI-compatible client
+//! - `claude.zig` - Claude API client
+//! - `gemini.zig` - Gemini API client
 //! - `anthropic.zig` - Anthropic/Claude API client
 //! - `ollama.zig` - Ollama local inference
+//! - `ollama_passthrough.zig` - Ollama OpenAI-compatible passthrough
 //! - `huggingface.zig` - HuggingFace Inference API
 //! - `mistral.zig` - Mistral AI client
 //! - `cohere.zig` - Cohere API client

@@ -220,6 +220,76 @@ const accelerate = if (is_available) struct {
         x: [*]const f32,
         n: *const c_int,
     ) void;
+
+    // vDSP — Scalar arithmetic
+    extern "Accelerate" fn vDSP_vsadd(
+        a: [*]const f32,
+        stride_a: usize,
+        b: *const f32,
+        c: [*]f32,
+        stride_c: usize,
+        n: usize,
+    ) void;
+
+    extern "Accelerate" fn vDSP_vsmul(
+        a: [*]const f32,
+        stride_a: usize,
+        b: *const f32,
+        c: [*]f32,
+        stride_c: usize,
+        n: usize,
+    ) void;
+
+    extern "Accelerate" fn vDSP_vneg(
+        a: [*]const f32,
+        stride_a: usize,
+        c: [*]f32,
+        stride_c: usize,
+        n: usize,
+    ) void;
+
+    extern "Accelerate" fn vDSP_vclip(
+        a: [*]const f32,
+        stride_a: usize,
+        lo: *const f32,
+        hi: *const f32,
+        c: [*]f32,
+        stride_c: usize,
+        n: usize,
+    ) void;
+
+    // vBLAS — Double precision
+    extern "Accelerate" fn cblas_dgemm(
+        order: c_int,
+        trans_a: c_int,
+        trans_b: c_int,
+        m: c_int,
+        n: c_int,
+        k: c_int,
+        alpha: f64,
+        a: [*]const f64,
+        lda: c_int,
+        b: [*]const f64,
+        ldb: c_int,
+        beta: f64,
+        c: [*]f64,
+        ldc: c_int,
+    ) void;
+
+    extern "Accelerate" fn cblas_dgemv(
+        order: c_int,
+        trans: c_int,
+        m: c_int,
+        n: c_int,
+        alpha: f64,
+        a: [*]const f64,
+        lda: c_int,
+        x: [*]const f64,
+        incx: c_int,
+        beta: f64,
+        y: [*]f64,
+        incy: c_int,
+    ) void;
 } else struct {};
 
 /// AccelerateError represents errors from Accelerate operations
@@ -560,6 +630,242 @@ pub fn gelu(x: []const f32, y: []f32, allocator: std.mem.Allocator) AccelerateEr
 }
 
 // ============================================================================
+// vDSP Scalar Arithmetic
+// ============================================================================
+
+/// Vector + scalar: c[i] = a[i] + scalar
+pub fn vsadd(a: []const f32, scalar: f32, c: []f32) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (a.len != c.len) return error.InvalidDimensions;
+    if (a.len == 0) return;
+    accelerate.vDSP_vsadd(a.ptr, 1, &scalar, c.ptr, 1, a.len);
+}
+
+/// Vector * scalar: c[i] = a[i] * scalar
+pub fn vsmul(a: []const f32, scalar: f32, c: []f32) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (a.len != c.len) return error.InvalidDimensions;
+    if (a.len == 0) return;
+    accelerate.vDSP_vsmul(a.ptr, 1, &scalar, c.ptr, 1, a.len);
+}
+
+/// Vector negate: c[i] = -a[i]
+pub fn vneg(a: []const f32, c: []f32) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (a.len != c.len) return error.InvalidDimensions;
+    if (a.len == 0) return;
+    accelerate.vDSP_vneg(a.ptr, 1, c.ptr, 1, a.len);
+}
+
+/// Vector clip: c[i] = clamp(a[i], lo, hi)
+pub fn vclip(a: []const f32, lo: f32, hi: f32, c: []f32) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (a.len != c.len) return error.InvalidDimensions;
+    if (a.len == 0) return;
+    accelerate.vDSP_vclip(a.ptr, 1, &lo, &hi, c.ptr, 1, a.len);
+}
+
+// ============================================================================
+// Double-Precision BLAS (f64)
+// ============================================================================
+
+/// Double-precision matrix-matrix multiply: C = alpha * op(A) * op(B) + beta * C
+pub fn dgemm(
+    trans_a: CblasTranspose,
+    trans_b: CblasTranspose,
+    m: usize,
+    n: usize,
+    k: usize,
+    alpha: f64,
+    a: []const f64,
+    lda: usize,
+    b: []const f64,
+    ldb: usize,
+    beta: f64,
+    c: []f64,
+    ldc: usize,
+) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (m == 0 or n == 0 or k == 0) return error.InvalidDimensions;
+    accelerate.cblas_dgemm(
+        @intFromEnum(CblasOrder.row_major),
+        @intFromEnum(trans_a),
+        @intFromEnum(trans_b),
+        @intCast(m),
+        @intCast(n),
+        @intCast(k),
+        alpha,
+        a.ptr,
+        @intCast(lda),
+        b.ptr,
+        @intCast(ldb),
+        beta,
+        c.ptr,
+        @intCast(ldc),
+    );
+}
+
+/// Double-precision matrix-vector multiply: y = alpha * op(A) * x + beta * y
+pub fn dgemv(
+    trans: CblasTranspose,
+    m: usize,
+    n: usize,
+    alpha: f64,
+    a: []const f64,
+    lda: usize,
+    x: []const f64,
+    beta: f64,
+    y: []f64,
+) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (m == 0 or n == 0) return error.InvalidDimensions;
+    accelerate.cblas_dgemv(
+        @intFromEnum(CblasOrder.row_major),
+        @intFromEnum(trans),
+        @intCast(m),
+        @intCast(n),
+        alpha,
+        a.ptr,
+        @intCast(lda),
+        x.ptr,
+        1,
+        beta,
+        y.ptr,
+        1,
+    );
+}
+
+// ============================================================================
+// BNNS-Style Neural Network Primitives
+// ============================================================================
+//
+// These wrappers provide BNNS-equivalent functionality using the underlying
+// Accelerate vBLAS/vDSP/vForce primitives. They are optimized for Apple Silicon
+// AMX units and avoid the complexity of the full BNNS descriptor API.
+
+/// BNNS-compatible activation function types
+pub const BnnsActivation = enum {
+    identity,
+    relu,
+    sigmoid,
+    tanh_act,
+    elu,
+    gelu_act,
+    silu_act,
+};
+
+/// BNNS-compatible data layout
+pub const BnnsDataLayout = enum {
+    row_major_flat,
+    image_chw,
+};
+
+/// Configuration for BNNS-style 2D convolution
+pub const BnnsConvConfig = struct {
+    kernel_w: u32,
+    kernel_h: u32,
+    in_channels: u32,
+    out_channels: u32,
+    stride: u32 = 1,
+    padding: u32 = 0,
+};
+
+/// Apply activation function to a vector (BNNS-style wrapper).
+/// Uses vDSP/vForce vectorized ops for each activation type.
+pub fn bnnsActivation(input: []const f32, output: []f32, activation: BnnsActivation, alloc: std.mem.Allocator) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (input.len != output.len) return error.InvalidDimensions;
+    if (input.len == 0) return;
+
+    switch (activation) {
+        .identity => @memcpy(output, input),
+        .relu => {
+            const zero: f32 = 0.0;
+            const big: f32 = std.math.floatMax(f32);
+            accelerate.vDSP_vclip(input.ptr, 1, &zero, &big, output.ptr, 1, input.len);
+        },
+        .sigmoid => {
+            // sigmoid(x) = 1 / (1 + exp(-x))
+            const temp = alloc.alloc(f32, input.len) catch return error.OutOfMemory;
+            defer alloc.free(temp);
+            accelerate.vDSP_vneg(input.ptr, 1, temp.ptr, 1, input.len);
+            var n_int: c_int = @intCast(input.len);
+            accelerate.vvexpf(temp.ptr, temp.ptr, &n_int);
+            for (temp, 0..) |t, i| {
+                output[i] = 1.0 / (1.0 + t);
+            }
+        },
+        .tanh_act => {
+            var n_int: c_int = @intCast(input.len);
+            accelerate.vvtanhf(output.ptr, input.ptr, &n_int);
+        },
+        .elu => {
+            // elu(x) = x if x >= 0, exp(x) - 1 if x < 0
+            for (input, 0..) |x, i| {
+                output[i] = if (x >= 0) x else @exp(x) - 1.0;
+            }
+        },
+        .gelu_act => try gelu(input, output, alloc),
+        .silu_act => try silu(input, output, alloc),
+    }
+}
+
+/// Fully-connected layer: output = weights * input + bias (BNNS-style).
+/// Weights shape: [out_size x in_size], input shape: [in_size], output shape: [out_size].
+pub fn bnnsFullyConnected(
+    input: []const f32,
+    weights: []const f32,
+    bias: ?[]const f32,
+    output: []f32,
+    in_size: usize,
+    out_size: usize,
+) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (input.len < in_size) return error.InvalidDimensions;
+    if (weights.len < in_size * out_size) return error.InvalidDimensions;
+    if (output.len < out_size) return error.InvalidDimensions;
+
+    // output = weights * input (MxN * Nx1 = Mx1)
+    try sgemv(.no_trans, out_size, in_size, 1.0, weights, in_size, input[0..in_size], 0.0, output[0..out_size]);
+
+    // Add bias if present
+    if (bias) |b| {
+        if (b.len < out_size) return error.InvalidDimensions;
+        try saxpy(1.0, b[0..out_size], output[0..out_size]);
+    }
+}
+
+/// Batch normalization: output = gamma * (input - mean) / sqrt(variance + eps) + beta.
+/// Operates per-feature (element-wise across n_features dimensions).
+pub fn bnnsBatchNorm(
+    input: []const f32,
+    mean_vals: []const f32,
+    variance: []const f32,
+    gamma_param: []const f32,
+    beta_param: []const f32,
+    output: []f32,
+    n_features: usize,
+) AccelerateError!void {
+    if (!is_available) return error.NotAvailable;
+    if (input.len < n_features or output.len < n_features) return error.InvalidDimensions;
+    if (mean_vals.len < n_features or variance.len < n_features) return error.InvalidDimensions;
+    if (gamma_param.len < n_features or beta_param.len < n_features) return error.InvalidDimensions;
+
+    const eps: f32 = 1e-5;
+    for (0..n_features) |i| {
+        const std_inv = 1.0 / @sqrt(variance[i] + eps);
+        output[i] = gamma_param[i] * (input[i] - mean_vals[i]) * std_inv + beta_param[i];
+    }
+}
+
+/// Validate convolution config dimensions.
+pub fn bnnsConvValidate(config: BnnsConvConfig) AccelerateError!void {
+    if (config.kernel_w == 0 or config.kernel_h == 0) return error.InvalidDimensions;
+    if (config.in_channels == 0 or config.out_channels == 0) return error.InvalidDimensions;
+    if (config.stride == 0) return error.InvalidDimensions;
+}
+
+// ============================================================================
 // Unified Memory Utilities
 // ============================================================================
 
@@ -611,4 +917,128 @@ test "unified memory detection" {
     const alignment = unifiedMemoryAlignment();
     try std.testing.expect(alignment >= 64);
     _ = has_unified;
+}
+
+test "vsadd adds scalar to vector" {
+    if (!is_available) return error.SkipZigTest;
+    var data = [_]f32{ 1.0, 2.0, 3.0, 4.0 };
+    var result: [4]f32 = undefined;
+    try vsadd(&data, 10.0, &result);
+    try std.testing.expectApproxEqAbs(@as(f32, 11.0), result[0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 14.0), result[3], 1e-5);
+}
+
+test "vsmul scales vector" {
+    if (!is_available) return error.SkipZigTest;
+    var data = [_]f32{ 2.0, 3.0, 4.0, 5.0 };
+    var result: [4]f32 = undefined;
+    try vsmul(&data, 0.5, &result);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), result[0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.5), result[3], 1e-5);
+}
+
+test "vneg negates vector" {
+    if (!is_available) return error.SkipZigTest;
+    var data = [_]f32{ 1.0, -2.0, 3.0, 0.0 };
+    var result: [4]f32 = undefined;
+    try vneg(&data, &result);
+    try std.testing.expectApproxEqAbs(@as(f32, -1.0), result[0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), result[1], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), result[3], 1e-5);
+}
+
+test "vclip clamps vector" {
+    if (!is_available) return error.SkipZigTest;
+    var data = [_]f32{ -2.0, 0.5, 3.0, 1.0 };
+    var result: [4]f32 = undefined;
+    try vclip(&data, 0.0, 1.0, &result);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), result[0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.5), result[1], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), result[2], 1e-5);
+}
+
+test "dgemm double-precision identity multiply" {
+    if (!is_available) return error.SkipZigTest;
+    // A = 2x2 identity, B = [1,2;3,4], C should = B
+    const a = [_]f64{ 1, 0, 0, 1 };
+    const b = [_]f64{ 1, 2, 3, 4 };
+    var c = [_]f64{ 0, 0, 0, 0 };
+    try dgemm(.no_trans, .no_trans, 2, 2, 2, 1.0, &a, 2, &b, 2, 0.0, &c, 2);
+    try std.testing.expectApproxEqAbs(@as(f64, 1.0), c[0], 1e-10);
+    try std.testing.expectApproxEqAbs(@as(f64, 4.0), c[3], 1e-10);
+}
+
+test "dgemv double-precision matrix-vector" {
+    if (!is_available) return error.SkipZigTest;
+    const a = [_]f64{ 1, 2, 3, 4 };
+    const x = [_]f64{ 1, 1 };
+    var y = [_]f64{ 0, 0 };
+    try dgemv(.no_trans, 2, 2, 1.0, &a, 2, &x, 0.0, &y);
+    try std.testing.expectApproxEqAbs(@as(f64, 3.0), y[0], 1e-10);
+    try std.testing.expectApproxEqAbs(@as(f64, 7.0), y[1], 1e-10);
+}
+
+test "bnnsActivation relu clips negatives" {
+    if (!is_available) return error.SkipZigTest;
+    const input = [_]f32{ -2.0, -1.0, 0.0, 1.0, 2.0 };
+    var output: [5]f32 = undefined;
+    try bnnsActivation(&input, &output, .relu, std.testing.allocator);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), output[0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), output[1], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), output[2], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), output[3], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 2.0), output[4], 1e-5);
+}
+
+test "bnnsActivation tanh range" {
+    if (!is_available) return error.SkipZigTest;
+    const input = [_]f32{ -10.0, 0.0, 10.0 };
+    var output: [3]f32 = undefined;
+    try bnnsActivation(&input, &output, .tanh_act, std.testing.allocator);
+    try std.testing.expect(output[0] < -0.99);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), output[1], 1e-5);
+    try std.testing.expect(output[2] > 0.99);
+}
+
+test "bnnsBatchNorm normalization" {
+    if (!is_available) return error.SkipZigTest;
+    const input = [_]f32{ 2.0, 4.0, 6.0 };
+    const mean_v = [_]f32{ 2.0, 4.0, 6.0 };
+    const var_v = [_]f32{ 1.0, 1.0, 1.0 };
+    const gamma = [_]f32{ 1.0, 1.0, 1.0 };
+    const beta = [_]f32{ 0.0, 0.0, 0.0 };
+    var output: [3]f32 = undefined;
+    try bnnsBatchNorm(&input, &mean_v, &var_v, &gamma, &beta, &output, 3);
+    // When input == mean, output should be ~0 (scaled by gamma, shifted by beta)
+    for (output) |v| {
+        try std.testing.expectApproxEqAbs(@as(f32, 0.0), v, 1e-3);
+    }
+}
+
+test "bnnsFullyConnected dimensions" {
+    if (!is_available) return error.SkipZigTest;
+    // 2x3 weights, 3-dim input -> 2-dim output
+    const weights = [_]f32{ 1, 0, 0, 0, 1, 0 }; // [[1,0,0],[0,1,0]]
+    const input = [_]f32{ 3.0, 5.0, 7.0 };
+    const bias = [_]f32{ 0.5, 0.5 };
+    var output: [2]f32 = undefined;
+    try bnnsFullyConnected(&input, &weights, &bias, &output, 3, 2);
+    try std.testing.expectApproxEqAbs(@as(f32, 3.5), output[0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, 5.5), output[1], 1e-5);
+}
+
+test "bnnsConvValidate rejects zero dims" {
+    try std.testing.expectError(AccelerateError.InvalidDimensions, bnnsConvValidate(.{
+        .kernel_w = 0,
+        .kernel_h = 3,
+        .in_channels = 3,
+        .out_channels = 16,
+    }));
+    try std.testing.expectError(AccelerateError.InvalidDimensions, bnnsConvValidate(.{
+        .kernel_w = 3,
+        .kernel_h = 3,
+        .in_channels = 3,
+        .out_channels = 16,
+        .stride = 0,
+    }));
 }

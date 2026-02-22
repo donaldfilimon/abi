@@ -1,7 +1,7 @@
 //! Vector Database Example
 //!
-//! Demonstrates the WDBX vector database with HNSW indexing.
-//! Shows database creation, vector insertion, and similarity search.
+//! Demonstrates the WDBX vector database.
+//! Shows database creation, vector insertion, similarity search, and backup/restore.
 //!
 //! Run with: `zig build run-database`
 
@@ -14,8 +14,9 @@ pub fn main(_: std.process.Init) !void {
     const allocator = gpa.allocator();
 
     var builder = abi.Framework.builder(allocator);
+
     var framework = try builder
-        .withDatabaseDefaults()
+        .withDatabase(.{})
         .build();
     defer framework.deinit();
 
@@ -64,4 +65,25 @@ pub fn main(_: std.process.Init) !void {
 
     const stats = abi.database.stats(&handle);
     std.debug.print("Database contains {} vectors of dimension {}\n", .{ stats.count, stats.dimension });
+
+    // Backup and restore (stored under ./backups/)
+    const backup_name = "example_backup.wdbx";
+    abi.database.backup(&handle, backup_name) catch |err| {
+        std.debug.print("Failed to backup database: {t}\n", .{err});
+        return err;
+    };
+    std.debug.print("Backup written to backups/{s}\n", .{backup_name});
+
+    var restored = abi.database.openOrCreate(allocator, "example-restored") catch |err| {
+        std.debug.print("Failed to open restored database: {t}\n", .{err});
+        return err;
+    };
+    defer abi.database.close(&restored);
+
+    abi.database.restore(&restored, backup_name) catch |err| {
+        std.debug.print("Failed to restore database: {t}\n", .{err});
+        return err;
+    };
+    const restored_stats = abi.database.stats(&restored);
+    std.debug.print("Restored {} vectors from backup\n", .{restored_stats.count});
 }

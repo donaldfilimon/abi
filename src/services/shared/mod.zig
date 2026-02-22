@@ -82,6 +82,9 @@ pub const utils = @import("utils.zig");
 /// Provides platform-independent access to OS features.
 pub const os = @import("os.zig");
 
+/// Cross-platform ABI app path resolver (primary config root).
+pub const app_paths = @import("app_paths.zig");
+
 /// Time utilities compatible with Zig 0.16.
 /// Platform-aware implementations for unix timestamps, monotonic clocks, and sleep.
 pub const time = @import("time.zig");

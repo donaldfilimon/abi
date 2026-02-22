@@ -7,7 +7,7 @@
 //! - Cache-aligned storage: 64-byte alignment for hot data
 
 const std = @import("std");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 
 const sync = @import("../../services/shared/sync.zig");
 const Mutex = sync.Mutex;
@@ -368,74 +368,20 @@ pub const Database = struct {
         query: []const f32,
         top_k: usize,
     ) ![]SearchResult {
-        const qlen = query.len;
-        if (qlen == 0 or self.records.items.len == 0 or top_k == 0) {
-            return allocator.alloc(SearchResult, 0);
-        }
-
-        // Pre-compute query norm once
         const query_norm = simd.vectorL2Norm(query);
-        if (query_norm == 0.0) {
-            return allocator.alloc(SearchResult, 0);
-        }
+        return self.searchAllocWithNorm(allocator, query, query_norm, top_k);
+    }
 
-        // Single allocation: results buffer sized to top_k
-        var results = try std.ArrayListUnmanaged(SearchResult).initCapacity(allocator, top_k);
-        errdefer results.deinit(allocator);
-
-        // Track minimum score in results for early rejection
-        var min_score: f32 = -std.math.inf(f32);
-        var min_idx: usize = 0;
-
-        // Check if we have cached norms
-        const use_cached_norms = self.config.cache_norms and
-            self.cached_norms.items.len == self.records.items.len;
-
-        // Single-pass: compute similarity and maintain top-k in-place
-        // Prefetch distance for better cache performance on large datasets
-        const prefetch_distance: usize = 4;
-
-        for (self.records.items, 0..) |record, idx| {
-            // Prefetch upcoming vectors to hide memory latency
-            if (idx + prefetch_distance < self.records.items.len) {
-                const future_record = &self.records.items[idx + prefetch_distance];
-                @prefetch(future_record.vector.ptr, .{ .rw = .read, .locality = 3, .cache = .data });
-            }
-
-            if (record.vector.len != qlen) continue;
-
-            // Use optimized similarity with pre-computed norms
-            const score = if (use_cached_norms)
-                computeCosineSimilarityFast(query, query_norm, record.vector, self.cached_norms.items[idx])
-            else
-                simd.cosineSimilarity(query, record.vector);
-
-            if (results.items.len < top_k) {
-                // Still filling results, always add
-                try results.append(allocator, .{ .id = record.id, .score = score });
-                // Track new minimum
-                if (score < min_score or results.items.len == 1) {
-                    min_score = score;
-                    min_idx = results.items.len - 1;
-                }
-            } else if (score > min_score) {
-                // Replace minimum with this better result
-                results.items[min_idx] = .{ .id = record.id, .score = score };
-                // Find new minimum
-                min_score = results.items[0].score;
-                min_idx = 0;
-                for (results.items, 0..) |r, i| {
-                    if (r.score < min_score) {
-                        min_score = r.score;
-                        min_idx = i;
-                    }
-                }
-            }
-        }
-
-        // Final sort for output ordering (only top_k elements, not full dataset)
-        sortResults(results.items);
-        return results.toOwnedSlice(allocator);
+    /// Fill a caller-provided buffer with up to top_k results.
+    /// Returns the number of results written (sorted by score).
+    pub fn searchInto(
+        self: *Database,
+        query: []const f32,
+        top_k: usize,
+        results: []SearchResult,
+    ) usize {
+        const query_norm = simd.vectorL2Norm(query);
+        return self.searchIntoWithNorm(query, query_norm, top_k, results);
     }
 
     /// Batch search: compute similarity against multiple queries efficiently.
@@ -453,8 +399,17 @@ pub const Database = struct {
             allocator.free(all_results);
         }
 
+        if (queries.len == 0) return all_results;
+
+        const query_norms = try allocator.alloc(f32, queries.len);
+        defer allocator.free(query_norms);
+
         for (queries, 0..) |query, i| {
-            all_results[i] = try self.search(allocator, query, top_k);
+            query_norms[i] = simd.vectorL2Norm(query);
+        }
+
+        for (queries, 0..) |query, i| {
+            all_results[i] = try self.searchAllocWithNorm(allocator, query, query_norms[i], top_k);
         }
 
         return all_results;
@@ -528,6 +483,20 @@ pub const Database = struct {
 
     pub fn optimize(self: *Database) void {
         self.records.shrinkAndFree(self.allocator, self.records.items.len);
+        if (self.config.cache_norms) {
+            self.cached_norms.shrinkAndFree(self.allocator, self.cached_norms.items.len);
+        }
+
+        var compact_index = std.AutoHashMapUnmanaged(u64, usize){};
+        if (compact_index.ensureTotalCapacity(self.allocator, @intCast(self.records.items.len))) {
+            for (self.records.items, 0..) |record, idx| {
+                compact_index.putAssumeCapacity(record.id, idx);
+            }
+            self.id_index.deinit(self.allocator);
+            self.id_index = compact_index;
+        } else |_| {
+            compact_index.deinit(self.allocator);
+        }
     }
 
     /// O(1) lookup using hash index instead of O(n) linear scan
@@ -542,6 +511,105 @@ pub const Database = struct {
             try self.allocator.alloc(f32, vector.len);
         std.mem.copyForwards(f32, copy, vector);
         return copy;
+    }
+
+    fn searchAllocWithNorm(
+        self: *Database,
+        allocator: std.mem.Allocator,
+        query: []const f32,
+        query_norm: f32,
+        top_k: usize,
+    ) ![]SearchResult {
+        if (query.len == 0 or self.records.items.len == 0 or top_k == 0) {
+            return allocator.alloc(SearchResult, 0);
+        }
+        if (query_norm == 0.0) {
+            return allocator.alloc(SearchResult, 0);
+        }
+
+        const alloc_len = @min(top_k, self.records.items.len);
+        if (alloc_len == 0) {
+            return allocator.alloc(SearchResult, 0);
+        }
+
+        var results = try allocator.alloc(SearchResult, alloc_len);
+        errdefer allocator.free(results);
+
+        const count = self.searchIntoWithNorm(query, query_norm, top_k, results);
+        if (count == results.len) return results;
+        return allocator.realloc(results, count);
+    }
+
+    fn searchIntoWithNorm(
+        self: *Database,
+        query: []const f32,
+        query_norm: f32,
+        top_k: usize,
+        results: []SearchResult,
+    ) usize {
+        const qlen = query.len;
+        if (qlen == 0 or self.records.items.len == 0 or top_k == 0 or results.len == 0) {
+            return 0;
+        }
+        if (query_norm == 0.0) return 0;
+
+        const limit = @min(top_k, results.len);
+
+        // Track minimum score in results for early rejection
+        var min_score: f32 = -std.math.inf(f32);
+        var min_idx: usize = 0;
+        var count: usize = 0;
+
+        // Check if we have cached norms
+        const use_cached_norms = self.config.cache_norms and
+            self.cached_norms.items.len == self.records.items.len;
+
+        // Single-pass: compute similarity and maintain top-k in-place
+        // Prefetch distance for better cache performance on large datasets
+        const prefetch_distance: usize = 4;
+
+        for (self.records.items, 0..) |record, idx| {
+            // Prefetch upcoming vectors to hide memory latency
+            if (idx + prefetch_distance < self.records.items.len) {
+                const future_record = &self.records.items[idx + prefetch_distance];
+                @prefetch(future_record.vector.ptr, .{ .rw = .read, .locality = 3, .cache = .data });
+            }
+
+            if (record.vector.len != qlen) continue;
+
+            // Use optimized similarity with pre-computed norms
+            const score = if (use_cached_norms)
+                computeCosineSimilarityFast(query, query_norm, record.vector, self.cached_norms.items[idx])
+            else
+                simd.cosineSimilarity(query, record.vector);
+
+            if (count < limit) {
+                results[count] = .{ .id = record.id, .score = score };
+                if (count == 0 or score < min_score) {
+                    min_score = score;
+                    min_idx = count;
+                }
+                count += 1;
+            } else if (score > min_score) {
+                // Replace minimum with this better result
+                results[min_idx] = .{ .id = record.id, .score = score };
+                // Find new minimum
+                min_score = results[0].score;
+                min_idx = 0;
+                for (results[0..count], 0..) |r, i| {
+                    if (r.score < min_score) {
+                        min_score = r.score;
+                        min_idx = i;
+                    }
+                }
+            }
+        }
+
+        // Final sort for output ordering (only top_k elements, not full dataset)
+        if (count > 1) {
+            sortResults(results[0..count]);
+        }
+        return count;
     }
 
     pub fn saveToFile(self: *const Database, path: []const u8) !void {

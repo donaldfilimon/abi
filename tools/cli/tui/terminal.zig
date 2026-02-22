@@ -233,6 +233,16 @@ pub const Terminal = struct {
         try self.write("\x1b[2J\x1b[H");
     }
 
+    /// Move cursor to (row, col). Zero-indexed; converted to 1-indexed ANSI.
+    pub fn moveTo(self: *Terminal, row: u16, col: u16) !void {
+        var buf: [32]u8 = undefined;
+        const seq = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{
+            @as(u32, row) + 1,
+            @as(u32, col) + 1,
+        }) catch return error.BufferOverflow;
+        try self.write(seq);
+    }
+
     pub fn enterAltScreen(self: *Terminal) !void {
         try self.write("\x1b[?1049h");
     }

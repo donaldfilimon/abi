@@ -318,7 +318,9 @@ fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
 
 pub fn printHelp() void {
     std.debug.print(
-        \\{s}Usage:{s} abi tui
+        \\{s}Usage:{s} abi ui launch
+        \\           abi launch
+        \\           abi start
         \\
         \\Launch an interactive terminal UI to select and run ABI commands.
         \\

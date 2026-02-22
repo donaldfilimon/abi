@@ -158,7 +158,7 @@ pub fn menuItemsExtended() []const MenuItem {
             .action = .{ .command = .config },
             .category = .tools,
             .usage = "abi config <subcommand>",
-            .examples = &[_][]const u8{ "abi config show", "abi config init", "abi config validate" },
+            .examples = &[_][]const u8{ "abi config show", "abi config setup", "abi config validate" },
             .related = &[_][]const u8{ "system-info", "network" },
         },
         .{

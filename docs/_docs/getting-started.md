@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **Start** coverage and stay
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1261` pass / `5` skip / `1266` total
-- Feature tests: `2119` pass / `2123` total
+- Feature tests: `2263` pass / `2268` total
 
 ## Quickstart Commands
 
@@ -36,7 +36,7 @@ zig build check-docs
 - `abi ui gpu` — GPU dashboard
 - `abi llm providers` — inspect local routing state
 
-## Feature Matrix (23 modules)
+## Feature Matrix (24 modules)
 
 | Feature | Build Flag | Parent | Description |
 | --- | --- | --- | --- |
@@ -47,6 +47,7 @@ zig build check-docs
 | benchmarks | `enable_benchmarks` | — | Performance benchmarking and timing |
 | cache | `enable_cache` | — | In-memory caching |
 | cloud | `enable_cloud` | — | Cloud provider integration |
+| constitution | `enable_ai` | ai | AI safety principles and guardrails |
 | database | `enable_database` | — | Vector database (WDBX) |
 | embeddings | `enable_ai` | ai | Vector embeddings generation |
 | gateway | `enable_gateway` | — | API gateway (routing, rate limiting, circuit breaker) |
@@ -70,7 +71,7 @@ zig build check-docs
 - `abi system-info` — Show system and framework status
 - `abi db` — Database operations (add, query, stats, optimize, backup, restore)
 - `abi llm` — LLM inference (run, session, serve, providers, plugins, discover)
-- `abi ui` — UI command family (launch, gpu, train, neural)
+- `abi ui` — UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)
 - `abi gpu` — GPU commands (backends, devices, summary, default)
 - `abi task` — Task management (add, list, done, stats, seed-self-improve)
 - `abi train` — Training pipeline (run, llm, vision, auto, self, resume, info)

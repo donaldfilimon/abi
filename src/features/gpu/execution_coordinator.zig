@@ -32,12 +32,14 @@
 //! ```
 
 const std = @import("std");
+const builtin = @import("builtin");
 const sync = @import("../../services/shared/sync.zig");
 const backend_factory = @import("backend_factory.zig");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 const dispatcher_mod = @import("dispatch/coordinator.zig");
 const device_mod = @import("device.zig");
 const unified_buffer = @import("unified_buffer.zig");
+const metal_mod = @import("backends/metal/mod.zig");
 
 const KernelDispatcher = dispatcher_mod.KernelDispatcher;
 const LaunchConfig = dispatcher_mod.LaunchConfig;
@@ -46,6 +48,7 @@ const Buffer = unified_buffer.Buffer;
 const Device = device_mod.Device;
 
 pub const ExecutionMethod = enum {
+    accelerate,
     gpu,
     simd,
     scalar,
@@ -165,7 +168,7 @@ pub const AdaptiveThresholds = struct {
             const bucket = @min(15, std.math.log2_int(usize, @max(1, sample.size / 64)));
 
             switch (sample.method) {
-                .gpu => {
+                .accelerate, .gpu => {
                     gpu_times[bucket].count += 1;
                     gpu_times[bucket].total_ns += sample.time_ns;
                     gpu_times[bucket].sum_squares += sample.time_ns * sample.time_ns;
@@ -298,6 +301,7 @@ pub const ExecutionCoordinator = struct {
     gpu_backend: ?*backend_factory.BackendInstance = null,
     gpu_available: bool = false,
     simd_available: bool = false,
+    macos_accel: ?metal_mod.MacOSAccelerator = null,
     dispatcher: ?KernelDispatcher = null,
     device: ?Device = null,
     /// Adaptive thresholds for method selection
@@ -354,6 +358,13 @@ pub const ExecutionCoordinator = struct {
                 if (coord.dispatcher != null) {
                     coord.dispatcher.?.setBackendInterface(backend.backend);
                 }
+            }
+        }
+
+        // Initialize macOS unified accelerator on Apple platforms
+        if (comptime builtin.os.tag == .macos) {
+            if (metal_mod.hasAccelerator()) {
+                coord.macos_accel = metal_mod.MacOSAccelerator.init(.{});
             }
         }
 
@@ -421,6 +432,21 @@ pub const ExecutionCoordinator = struct {
         method: ExecutionMethod,
     ) !ExecutionMethod {
         return switch (method) {
+            .accelerate => blk: {
+                if (self.macos_accel == null) {
+                    if (self.config.log_fallbacks) {
+                        std.log.info("Accelerate unavailable for vector add, falling back to SIMD", .{});
+                    }
+                    break :blk try self.vectorAddWithMethod(a, b, result, .simd);
+                }
+                metal_mod.accelerate.vadd(a, b, result) catch |err| {
+                    if (self.config.log_fallbacks) {
+                        std.log.warn("Accelerate vector add failed: {t}, falling back to SIMD", .{err});
+                    }
+                    break :blk try self.vectorAddWithMethod(a, b, result, .simd);
+                };
+                break :blk .accelerate;
+            },
             .gpu => self.vectorAddGpu(a, b, result) catch |err| blk: {
                 // Fallback on GPU failure
                 if (self.config.log_fallbacks) {
@@ -535,6 +561,21 @@ pub const ExecutionCoordinator = struct {
         method: ExecutionMethod,
     ) !ExecutionMethod {
         return switch (method) {
+            .accelerate => blk: {
+                if (self.macos_accel == null) {
+                    if (self.config.log_fallbacks) {
+                        std.log.info("Accelerate unavailable for vector mul, falling back to SIMD", .{});
+                    }
+                    break :blk try self.vectorMulWithMethod(a, b, result, .simd);
+                }
+                metal_mod.accelerate.vmul(a, b, result) catch |err| {
+                    if (self.config.log_fallbacks) {
+                        std.log.warn("Accelerate vector mul failed: {t}, falling back to SIMD", .{err});
+                    }
+                    break :blk try self.vectorMulWithMethod(a, b, result, .simd);
+                };
+                break :blk .accelerate;
+            },
             .gpu => self.vectorMulGpu(a, b, result) catch |err| blk: {
                 if (self.config.log_fallbacks) {
                     std.log.warn("GPU vector mul failed: {}, falling back to SIMD", .{err});
@@ -654,6 +695,27 @@ pub const ExecutionCoordinator = struct {
         method: ExecutionMethod,
     ) !ExecutionMethod {
         return switch (method) {
+            .accelerate => blk: {
+                if (self.macos_accel) |*accel| {
+                    const backend = accel.matmul(a, b, result, m, n, k) catch |err| {
+                        if (self.config.log_fallbacks) {
+                            std.log.warn("Accelerate matmul failed: {t}, falling back to scalar", .{err});
+                        }
+                        break :blk try self.matmulWithMethod(a, b, result, m, n, k, .scalar);
+                    };
+                    if (backend == .none) {
+                        if (self.config.log_fallbacks) {
+                            std.log.info("macOS accelerator unavailable for matmul, falling back to scalar", .{});
+                        }
+                        break :blk try self.matmulWithMethod(a, b, result, m, n, k, .scalar);
+                    }
+                    break :blk .accelerate;
+                }
+                if (self.config.log_fallbacks) {
+                    std.log.info("macOS accelerator unavailable for matmul, falling back to scalar", .{});
+                }
+                break :blk try self.matmulWithMethod(a, b, result, m, n, k, .scalar);
+            },
             .gpu => self.matmulGpu(a, b, result, m, n, k) catch |err| blk: {
                 if (self.config.log_fallbacks) {
                     std.log.warn("GPU matmul failed: {}, falling back to scalar", .{err});
@@ -773,6 +835,21 @@ pub const ExecutionCoordinator = struct {
         method: ExecutionMethod,
     ) !struct { result: f32, method: ExecutionMethod } {
         return switch (method) {
+            .accelerate => blk: {
+                if (self.macos_accel == null) {
+                    if (self.config.log_fallbacks) {
+                        std.log.info("Accelerate unavailable for dot product, falling back to SIMD", .{});
+                    }
+                    break :blk try self.dotProductWithMethod(a, b, .simd);
+                }
+                const result = metal_mod.accelerate.sdot(a, b) catch |err| {
+                    if (self.config.log_fallbacks) {
+                        std.log.warn("Accelerate dot product failed: {t}, falling back to SIMD", .{err});
+                    }
+                    break :blk try self.dotProductWithMethod(a, b, .simd);
+                };
+                break :blk .{ .result = result, .method = .accelerate };
+            },
             .gpu => self.dotProductGpu(a, b) catch |err| blk: {
                 if (self.config.log_fallbacks) {
                     std.log.warn("GPU dot product failed: {}, falling back to SIMD", .{err});
@@ -887,6 +964,21 @@ pub const ExecutionCoordinator = struct {
         method: ExecutionMethod,
     ) !struct { result: f32, method: ExecutionMethod } {
         return switch (method) {
+            .accelerate => blk: {
+                if (self.macos_accel == null) {
+                    if (self.config.log_fallbacks) {
+                        std.log.info("Accelerate unavailable for reduce sum, falling back to SIMD", .{});
+                    }
+                    break :blk try self.reduceSumWithMethod(input, .simd);
+                }
+                const result = metal_mod.accelerate.vsum(input) catch |err| {
+                    if (self.config.log_fallbacks) {
+                        std.log.warn("Accelerate reduce sum failed: {t}, falling back to SIMD", .{err});
+                    }
+                    break :blk try self.reduceSumWithMethod(input, .simd);
+                };
+                break :blk .{ .result = result, .method = .accelerate };
+            },
             .gpu => self.reduceSumGpu(input) catch |err| blk: {
                 if (self.config.log_fallbacks) {
                     std.log.warn("GPU reduce sum failed: {}, falling back to SIMD", .{err});
@@ -1017,6 +1109,7 @@ pub const ExecutionCoordinator = struct {
         simd_threshold: usize,
     ) bool {
         return switch (method) {
+            .accelerate => self.macos_accel != null,
             .gpu => self.gpu_available and size >= gpu_threshold,
             .simd => self.simd_available and size >= simd_threshold,
             .scalar => true,
@@ -1028,6 +1121,7 @@ pub const ExecutionCoordinator = struct {
     fn recordResult(self: *ExecutionCoordinator, method: ExecutionMethod, size: usize, time_ns: u64, op: OperationType) void {
         // Update statistics
         switch (method) {
+            .accelerate => self.total_gpu_ops += 1, // Count accelerate with GPU
             .gpu => self.total_gpu_ops += 1,
             .simd => self.total_simd_ops += 1,
             .scalar => self.total_scalar_ops += 1,
@@ -1054,4 +1148,22 @@ const OperationType = enum {
     vector_multiply,
     matrix_multiply,
     dot_product,
+    activation,
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "ExecutionMethod includes accelerate" {
+    const method: ExecutionMethod = .accelerate;
+    try std.testing.expectEqual(ExecutionMethod.accelerate, method);
+}
+
+test "fallback chain default order" {
+    const config = CoordinatorConfig{};
+    // Default chain is gpu → simd → scalar
+    try std.testing.expectEqual(ExecutionMethod.gpu, config.fallback_chain[0]);
+    try std.testing.expectEqual(ExecutionMethod.simd, config.fallback_chain[1]);
+    try std.testing.expectEqual(ExecutionMethod.scalar, config.fallback_chain[2]);
+}

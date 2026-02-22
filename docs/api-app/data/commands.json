@@ -46,13 +46,15 @@
   },
   {
     "name": "config",
-    "description": "Configuration management (init, show, validate)",
+    "description": "Configuration management (init, setup, show, validate, env)",
     "aliases": [],
     "subcommands": [
       "init",
+      "setup",
       "show",
       "validate",
       "env",
+      "path",
       "help"
     ]
   },
@@ -130,14 +132,6 @@
     ]
   },
   {
-    "name": "gpu-dashboard",
-    "description": "Interactive GPU + Agent monitoring dashboard",
-    "aliases": [
-      "dashboard"
-    ],
-    "subcommands": []
-  },
-  {
     "name": "llm",
     "description": "LLM inference (run, session, serve, providers, plugins, discover)",
     "aliases": [
@@ -156,8 +150,25 @@
     ]
   },
   {
+    "name": "lsp",
+    "description": "ZLS LSP client (request, hover, completion, definition, rename, format)",
+    "aliases": [],
+    "subcommands": [
+      "request",
+      "notify",
+      "hover",
+      "completion",
+      "definition",
+      "references",
+      "rename",
+      "format",
+      "diagnostics",
+      "help"
+    ]
+  },
+  {
     "name": "mcp",
-    "description": "MCP server for WDBX database (serve, tools)",
+    "description": "MCP server for WDBX database or ZLS (serve, tools)",
     "aliases": [],
     "subcommands": [
       "serve",
@@ -344,20 +355,23 @@
     ]
   },
   {
-    "name": "tui",
-    "description": "Launch interactive TUI command menu",
-    "aliases": [],
-    "subcommands": []
-  },
-  {
     "name": "ui",
-    "description": "UI command family (launch, gpu, train, neural)",
-    "aliases": [],
+    "description": "UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)",
+    "aliases": [
+      "launch",
+      "start"
+    ],
     "subcommands": [
       "launch",
       "gpu",
       "train",
       "neural",
+      "model",
+      "streaming",
+      "db",
+      "network",
+      "bench",
+      "brain",
       "help"
     ]
   }

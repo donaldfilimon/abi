@@ -40,6 +40,7 @@ The CI/local wrapper:
 - Loads `tools/scripts/cli_full_env.stub` as environment input.
 - Runs preflight in non-blocking mode, classifying missing prerequisites as blocked rows.
 - Preserves the same JSON/Markdown report outputs under `/tmp`.
+- Uses short PTY probe windows to avoid long hangs in interactive vectors.
 
 Equivalent build-style invocation:
 
@@ -56,7 +57,18 @@ python3 tools/scripts/run_cli_full_matrix.py \\
   --repo /Users/donaldfilimon/abi \\
   --id-prefix nested. \\
   --allow-blocked \\
-  --env-file tools/scripts/cli_full_env.stub
+  --env-file tools/scripts/cli_full_env.stub \\
+  --pty-probe-window 8
+```
+
+Keep isolated temp workspace for debugging failed vectors:
+
+```bash
+python3 tools/scripts/run_cli_full_matrix.py \\
+  --repo /Users/donaldfilimon/abi \\
+  --allow-blocked \\
+  --env-file tools/scripts/cli_full_env.stub \\
+  --keep-temp
 ```
 
 Build shortcut for nested vectors:

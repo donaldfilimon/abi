@@ -18,6 +18,7 @@ test {
         _ = @import("features/ai/rag/mod.zig");
         _ = @import("features/ai/templates/mod.zig");
         _ = @import("features/ai/orchestration/mod.zig");
+        _ = @import("features/ai/constitution/mod.zig");
         _ = @import("features/ai/documents/mod.zig");
 
         // Fixed: persistence.zig coercion, edit_tools I/O API, generator init signature
@@ -94,7 +95,7 @@ test {
     // Shared utility inline tests
     _ = @import("services/shared/utils/swiss_map.zig");
     _ = @import("services/shared/utils/abix_serialize.zig");
-    _ = @import("services/shared/utils/v2_primitives.zig");
+    _ = @import("services/shared/utils/primitives.zig");
     _ = @import("services/shared/utils/profiler.zig");
     _ = @import("services/shared/utils/structured_error.zig");
     _ = @import("services/shared/utils/memory/arena_pool.zig");
@@ -128,6 +129,13 @@ test {
     _ = @import("services/connectors/discord/mod.zig");
     _ = @import("services/connectors/discord/utils.zig");
     _ = @import("services/connectors/discord/rest_encoders.zig");
+
+    // New connectors (claude, codex, gemini, ollama_passthrough, opencode)
+    _ = @import("services/connectors/claude.zig");
+    _ = @import("services/connectors/codex.zig");
+    _ = @import("services/connectors/gemini.zig");
+    _ = @import("services/connectors/ollama_passthrough.zig");
+    _ = @import("services/connectors/opencode.zig");
 
     // HA (high availability) sub-modules
     _ = @import("services/ha/mod.zig");
@@ -188,10 +196,6 @@ test {
     _ = @import("core/registry/mod.zig");
     _ = @import("core/registry/stub.zig");
 
-    // vNext module inline tests
-    _ = @import("vnext/capability.zig");
-    _ = @import("vnext/config.zig");
-
     // Security sub-modules (16 modules, ~68 tests)
     _ = @import("services/shared/security/mod.zig");
     _ = @import("services/shared/security/csprng.zig");
@@ -217,5 +221,12 @@ test {
     _ = @import("services/shared/os.zig");
     _ = @import("services/shared/simd/simd_test.zig");
     _ = @import("services/shared/resilience/circuit_breaker.zig");
+    _ = @import("services/shared/app_paths.zig");
     _ = @import("services/tasks/roadmap.zig");
+
+    // LSP service tests
+    _ = @import("services/lsp/mod.zig");
+    _ = @import("services/lsp/jsonrpc.zig");
+    _ = @import("services/lsp/types.zig");
+    _ = @import("services/lsp/client.zig");
 }

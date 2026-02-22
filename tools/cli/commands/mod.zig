@@ -14,7 +14,6 @@ pub const db = @import("db.zig");
 pub const agent = @import("agent.zig");
 pub const bench = @import("bench/mod.zig");
 pub const gpu = @import("gpu.zig");
-pub const gpu_dashboard = @import("gpu_dashboard.zig");
 pub const network = @import("network.zig");
 pub const system_info = @import("system_info.zig");
 pub const multi_agent = @import("multi_agent.zig");
@@ -28,18 +27,17 @@ pub const embed = @import("embed.zig");
 pub const train = @import("train/mod.zig");
 pub const convert = @import("convert.zig");
 pub const task = @import("task.zig");
-pub const tui = @import("tui/mod.zig");
 pub const ui = @import("ui/mod.zig");
 pub const plugins = @import("plugins.zig");
 pub const profile = @import("profile.zig");
 pub const completions = @import("completions.zig");
 pub const status = @import("status.zig");
 pub const toolchain = @import("toolchain.zig");
+pub const lsp = @import("lsp.zig");
 pub const mcp = @import("mcp.zig");
 pub const acp = @import("acp.zig");
 pub const ralph = @import("ralph/mod.zig");
 pub const gendocs = @import("gendocs.zig");
-
 pub const os_agent = @import("os_agent.zig");
 
 // ─── Comptime-derived command registry ───────────────────────────────────────
@@ -47,12 +45,11 @@ pub const os_agent = @import("os_agent.zig");
 /// Tuple of all registered command modules, in display order.
 /// Each module must export `pub const meta: command_mod.Meta` and `pub fn run`.
 const command_modules = .{
-    db,        agent,       bench,       gpu,         gpu_dashboard,
-    network,   system_info, multi_agent, os_agent,    explore,
-    simd,      config,      discord,     llm,         model,
-    embed,     train,       convert,     task,        tui,
-    ui,        plugins,     profile,     completions, status,
-    toolchain, mcp,         acp,         ralph,       gendocs,
+    db,          agent,    bench,   gpu,         network, system_info,
+    multi_agent, os_agent, explore, simd,        config,  discord,
+    llm,         model,    embed,   train,       convert, task,
+    ui,          plugins,  profile, completions, status,  toolchain,
+    lsp,         mcp,      acp,     ralph,       gendocs,
 };
 
 /// Command descriptors auto-derived from command module metadata.

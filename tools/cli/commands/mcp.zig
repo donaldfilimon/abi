@@ -30,7 +30,7 @@ fn wrapTools(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
 
 pub const meta: command_mod.Meta = .{
     .name = "mcp",
-    .description = "MCP server for WDBX database (serve, tools)",
+    .description = "MCP server for WDBX database or ZLS (serve, tools)",
     .subcommands = &.{ "serve", "tools", "help" },
     .children = &.{
         .{ .name = "serve", .description = "Start MCP server (JSON-RPC over stdio)", .handler = wrapServe },
@@ -61,38 +61,52 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 fn runServeSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    if (parser.wantsHelp()) {
-        printHelp(allocator);
-        return;
-    }
-    if (parser.hasMore()) {
+    var use_zls = false;
+    while (parser.hasMore()) {
+        if (parser.wantsHelp()) {
+            printHelp(allocator);
+            return;
+        }
+        if (parser.consumeFlag(&[_][]const u8{"--zls"})) {
+            use_zls = true;
+            continue;
+        }
         const arg = parser.next().?;
         utils.output.printError("Unexpected argument for 'serve': {s}", .{arg});
-        utils.output.printInfo("Usage: abi mcp serve", .{});
+        utils.output.printInfo("Usage: abi mcp serve [--zls]", .{});
         return;
     }
-    try runServe(allocator);
+    try runServe(allocator, use_zls);
 }
 
 fn runToolsSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    if (parser.wantsHelp()) {
-        printHelp(allocator);
-        return;
-    }
-    if (parser.hasMore()) {
+    var use_zls = false;
+    while (parser.hasMore()) {
+        if (parser.wantsHelp()) {
+            printHelp(allocator);
+            return;
+        }
+        if (parser.consumeFlag(&[_][]const u8{"--zls"})) {
+            use_zls = true;
+            continue;
+        }
         const arg = parser.next().?;
         utils.output.printError("Unexpected argument for 'tools': {s}", .{arg});
-        utils.output.printInfo("Usage: abi mcp tools", .{});
+        utils.output.printInfo("Usage: abi mcp tools [--zls]", .{});
         return;
     }
-    try runTools(allocator);
+    try runTools(allocator, use_zls);
 }
 
-fn runServe(allocator: std.mem.Allocator) !void {
+fn runServe(allocator: std.mem.Allocator, use_zls: bool) !void {
     // Write startup message to stderr (stdout is reserved for JSON-RPC)
-    std.log.info("ABI MCP Server v{s} starting (WDBX database)", .{abi.version()});
+    const server_kind = if (use_zls) "ZLS" else "WDBX";
+    std.log.info("ABI MCP Server v{s} starting ({s})", .{ abi.version(), server_kind });
 
-    var server = try mcp.createWdbxServer(allocator, abi.version());
+    var server = if (use_zls)
+        try mcp.createZlsServer(allocator, abi.version())
+    else
+        try mcp.createWdbxServer(allocator, abi.version());
     defer server.deinit();
 
     // Initialize I/O backend for stdio access
@@ -103,11 +117,15 @@ fn runServe(allocator: std.mem.Allocator) !void {
     try server.run(io_backend.io());
 }
 
-fn runTools(allocator: std.mem.Allocator) !void {
-    var server = try mcp.createWdbxServer(allocator, abi.version());
+fn runTools(allocator: std.mem.Allocator, use_zls: bool) !void {
+    var server = if (use_zls)
+        try mcp.createZlsServer(allocator, abi.version())
+    else
+        try mcp.createWdbxServer(allocator, abi.version());
     defer server.deinit();
 
-    utils.output.printHeader("MCP Tools");
+    const title = if (use_zls) "MCP Tools (ZLS)" else "MCP Tools (WDBX)";
+    utils.output.printHeader(title);
 
     for (server.tools.items) |tool| {
         std.debug.print("\n  {s}\n", .{tool.def.name});
@@ -117,7 +135,11 @@ fn runTools(allocator: std.mem.Allocator) !void {
     std.debug.print("\nTotal: {d} tools available\n", .{server.tools.items.len});
     std.debug.print("\nUsage with Claude Desktop:\n", .{});
     std.debug.print("  Add to claude_desktop_config.json:\n", .{});
-    std.debug.print("  {{\"mcpServers\":{{\"abi-wdbx\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\"]}}}}}}\n", .{});
+    if (use_zls) {
+        std.debug.print("  {{\"mcpServers\":{{\"abi-zls\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\",\"--zls\"]}}}}}}\n", .{});
+    } else {
+        std.debug.print("  {{\"mcpServers\":{{\"abi-wdbx\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\"]}}}}}}\n", .{});
+    }
 }
 
 fn printHelp(allocator: std.mem.Allocator) void {
@@ -133,6 +155,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .newline()
         .section("Options")
         .option(utils.help.common_options.help)
+        .option(.{ .long = "--zls", .description = "Serve ZLS LSP tools instead of WDBX" })
         .newline()
         .section("MCP Tools Exposed")
         .text("  db_query     Vector similarity search\n")
@@ -140,10 +163,12 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .text("  db_stats     Database statistics\n")
         .text("  db_list      List stored vectors\n")
         .text("  db_delete    Delete vector by ID\n")
+        .text("  zls_*        ZLS LSP tools (hover, completion, definition, ...)\n")
         .newline()
         .section("Examples")
         .example("abi mcp serve", "Start MCP server")
-        .example("abi mcp tools", "List available tools");
+        .example("abi mcp serve --zls", "Start ZLS MCP server")
+        .example("abi mcp tools --zls", "List ZLS tools");
 
     builder.print();
 }

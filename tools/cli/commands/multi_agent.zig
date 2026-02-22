@@ -14,6 +14,7 @@ const abi = @import("abi");
 const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
+const app_paths = abi.shared.app_paths;
 
 /// Predefined workflow templates
 const WorkflowTemplate = struct {
@@ -67,6 +68,13 @@ fn wrapMaCreate(ctx: *const context_mod.CommandContext, args: []const [:0]const 
 fn wrapMaStatus(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
     try showStatus(allocator);
+}
+
+fn findTemplate(name: []const u8) ?WorkflowTemplate {
+    for (workflow_templates) |tmpl| {
+        if (std.mem.eql(u8, tmpl.name, name)) return tmpl;
+    }
+    return null;
 }
 
 pub const meta: command_mod.Meta = .{
@@ -138,29 +146,44 @@ fn runInfo(allocator: std.mem.Allocator) !void {
 }
 
 fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.matches(&[_][]const u8{ "--help", "-h", "help" }) and parser.remaining().len == 1) {
+        printRunHelp();
+        return;
+    }
+
     var workflow_name: ?[]const u8 = null;
     var task_description: ?[]const u8 = null;
+    var unexpected_arg: ?[]const u8 = null;
 
     // Parse arguments
     while (parser.hasMore()) {
-        if (parser.consumeOption(&[_][]const u8{ "--workflow", "-w" })) |val| {
+        if (parser.consumeFlag(&[_][]const u8{ "--help", "-h", "help" })) {
+            printRunHelp();
+            return;
+        } else if (parser.consumeOption(&[_][]const u8{ "--workflow", "-w" })) |val| {
             workflow_name = val;
         } else if (parser.consumeOption(&[_][]const u8{ "--task", "-t" })) |val| {
             task_description = val;
         } else {
             // Positional argument is the task
+            const positional = parser.next().?;
             if (task_description == null) {
-                task_description = parser.next();
-            } else {
-                _ = parser.next();
+                task_description = positional;
+            } else if (unexpected_arg == null) {
+                unexpected_arg = positional;
             }
         }
     }
 
+    if (unexpected_arg) |arg| {
+        utils.output.printError("Unexpected argument: {s}", .{arg});
+        printRunHelp();
+        return;
+    }
+
     if (task_description == null) {
         utils.output.printError("No task specified", .{});
-        utils.output.printInfo("Usage: abi multi-agent run --task \"your task description\"", .{});
-        utils.output.printInfo("       abi multi-agent run \"your task description\"", .{});
+        printRunHelp();
         return;
     }
 
@@ -173,22 +196,33 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
 
     utils.output.printHeader("Multi-Agent Workflow");
 
-    // Show workflow info
-    if (workflow_name) |wf| {
-        utils.output.printKeyValue("Workflow", wf);
-        // Find template
-        for (workflow_templates) |tmpl| {
-            if (std.mem.eql(u8, tmpl.name, wf)) {
-                utils.output.printInfo("Using template: {s}", .{tmpl.description});
-                std.debug.print("Agents: ", .{});
-                for (tmpl.agents, 0..) |agent, i| {
+    const selected_template: ?WorkflowTemplate = blk: {
+        if (workflow_name) |wf| {
+            const tmpl = findTemplate(wf) orelse {
+                utils.output.printError("Unknown workflow template: {s}", .{wf});
+                std.debug.print("Available templates: ", .{});
+                for (workflow_templates, 0..) |item, i| {
                     if (i > 0) std.debug.print(", ", .{});
-                    std.debug.print("{s}", .{agent});
+                    std.debug.print("{s}", .{item.name});
                 }
                 std.debug.print("\n", .{});
-                break;
-            }
+                return;
+            };
+            break :blk tmpl;
         }
+        break :blk null;
+    };
+
+    // Show workflow info
+    if (selected_template) |tmpl| {
+        utils.output.printKeyValue("Workflow", tmpl.name);
+        utils.output.printInfo("Using template: {s}", .{tmpl.description});
+        std.debug.print("Agents: ", .{});
+        for (tmpl.agents, 0..) |agent, i| {
+            if (i > 0) std.debug.print(", ", .{});
+            std.debug.print("{s}", .{agent});
+        }
+        std.debug.print("\n", .{});
     } else {
         utils.output.printKeyValue("Workflow", "default (sequential)");
     }
@@ -203,16 +237,10 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     defer coord.deinit();
 
     // Determine agent names from template or defaults
-    const agent_names: []const []const u8 = blk: {
-        if (workflow_name) |wf| {
-            for (workflow_templates) |tmpl| {
-                if (std.mem.eql(u8, tmpl.name, wf)) {
-                    break :blk tmpl.agents;
-                }
-            }
-        }
-        break :blk &[_][]const u8{ "agent-1", "agent-2", "agent-3" };
-    };
+    const agent_names: []const []const u8 = if (selected_template) |tmpl|
+        tmpl.agents
+    else
+        &[_][]const u8{ "agent-1", "agent-2", "agent-3" };
 
     // Create echo agents (safe default — no API keys required)
     const AgentType = abi.ai.agent.Agent;
@@ -274,13 +302,25 @@ fn listWorkflows(allocator: std.mem.Allocator) !void {
 }
 
 fn createWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.matches(&[_][]const u8{ "--help", "-h", "help" }) and parser.remaining().len == 1) {
+        printCreateHelp();
+        return;
+    }
+
     const name = parser.next() orelse {
         utils.output.printError("No workflow name specified", .{});
-        utils.output.printInfo("Usage: abi multi-agent create <name>", .{});
+        printCreateHelp();
         return;
     };
-
-    _ = allocator;
+    if (parser.next()) |extra| {
+        if (utils.args.matchesAny(extra, &.{ "--help", "-h", "help" })) {
+            printCreateHelp();
+            return;
+        }
+        utils.output.printError("Unexpected argument: {s}", .{extra});
+        printCreateHelp();
+        return;
+    }
 
     utils.output.printHeader("Create Workflow");
     utils.output.printKeyValue("Name", name);
@@ -294,10 +334,21 @@ fn createWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
         }
     }
 
+    const workflows_dir = getPrimaryWorkflowsDir(allocator) catch |err| {
+        utils.output.printError("Failed to resolve workflows directory: {t}", .{err});
+        return;
+    };
+    defer allocator.free(workflows_dir);
+
+    const workflow_file_name = try std.fmt.allocPrint(allocator, "{s}.json", .{name});
+    defer allocator.free(workflow_file_name);
+    const workflow_path = try std.fs.path.join(allocator, &.{ workflows_dir, workflow_file_name });
+    defer allocator.free(workflow_path);
+
     // Show creation guidance
     std.debug.print("\nTo create a custom workflow, define it in your configuration:\n", .{});
     std.debug.print("\n", .{});
-    std.debug.print("  ~/.abi/workflows/{s}.json\n", .{name});
+    std.debug.print("  {s}\n", .{workflow_path});
     std.debug.print("\n", .{});
     std.debug.print("Example workflow definition:\n", .{});
     std.debug.print("  {{\n", .{});
@@ -309,6 +360,19 @@ fn createWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     std.debug.print("\n", .{});
 
     utils.output.printSuccess("Workflow configuration guide shown", .{});
+}
+
+fn getPrimaryWorkflowsDir(allocator: std.mem.Allocator) ![]u8 {
+    return app_paths.resolvePath(allocator, "workflows");
+}
+
+fn printRunHelp() void {
+    std.debug.print("Usage: abi multi-agent run [--workflow <name>] --task \"...\"\n", .{});
+    std.debug.print("       abi multi-agent run [--workflow <name>] \"...\"\n", .{});
+}
+
+fn printCreateHelp() void {
+    std.debug.print("Usage: abi multi-agent create <name>\n", .{});
 }
 
 fn showStatus(allocator: std.mem.Allocator) !void {

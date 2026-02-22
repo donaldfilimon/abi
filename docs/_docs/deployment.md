@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **Operations** coverage and
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1261` pass / `5` skip / `1266` total
-- Feature tests: `2119` pass / `2123` total
+- Feature tests: `2263` pass / `2268` total
 
 ## Feature Coverage
 
@@ -33,14 +33,14 @@ No feature modules directly mapped to this section.
 - `src/core/framework.zig` ([api](../api/framework.html))
 - `src/core/registry/mod.zig` ([api](../api/registry.html))
 - `src/services/runtime/mod.zig` ([api](../api/runtime.html))
-- `src/services/shared/simd.zig` ([api](../api/simd.html))
+- `src/services/shared/simd/mod.zig` ([api](../api/simd.html))
 - `src/services/acp/mod.zig` ([api](../api/acp.html))
 - `src/services/ha/mod.zig` ([api](../api/ha.html))
 - `src/services/mcp/mod.zig` ([api](../api/mcp.html))
 
 ## Command Entry Points
 
-- `abi config` — Configuration management (init, show, validate)
+- `abi config` — Configuration management (init, setup, show, validate, env)
 - `abi plugins` — Plugin management (list, enable, disable, info)
 - `abi profile` — User profile and settings management
 - `abi status` — Show framework health and component status

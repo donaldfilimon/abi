@@ -1,5 +1,5 @@
 const std = @import("std");
-const connectors = @import("../../../../../services/connectors/mod.zig");
+const app_paths = @import("../../../../../services/shared/app_paths.zig");
 
 pub const PluginKind = enum {
     http,
@@ -169,20 +169,18 @@ pub fn cloneEntry(allocator: std.mem.Allocator, entry: PluginEntry) !PluginEntry
 }
 
 pub fn defaultPath(allocator: std.mem.Allocator) ![]u8 {
-    const home = try connectors.getFirstEnvOwned(allocator, &.{ "HOME", "USERPROFILE" }) orelse return error.NoHomeDirectory;
-    defer allocator.free(home);
-
-    return std.fmt.allocPrint(allocator, "{s}/.abi/llm_plugins.json", .{home});
+    return app_paths.resolvePath(allocator, "llm_plugins.json");
 }
 
 pub fn loadDefault(allocator: std.mem.Allocator) !Manifest {
-    const path = defaultPath(allocator) catch {
-        return Manifest.init(allocator);
-    };
+    const path = defaultPath(allocator) catch return Manifest.init(allocator);
     defer allocator.free(path);
+    return loadFromFile(allocator, path) catch Manifest.init(allocator);
+}
 
-    return loadFromFile(allocator, path) catch {
-        return Manifest.init(allocator);
+pub fn loadDefaultFromPaths(allocator: std.mem.Allocator, primary_path: []const u8, legacy_path: []const u8) !Manifest {
+    return loadFromFile(allocator, primary_path) catch {
+        return loadFromFile(allocator, legacy_path) catch Manifest.init(allocator);
     };
 }
 
@@ -504,6 +502,34 @@ test "cloneEntry produces independent copy" {
     try std.testing.expectEqual(PluginKind.http, clone.kind);
     // Verify it's an independent copy (different pointer)
     try std.testing.expect(clone.id.ptr != m.entries.items[0].id.ptr);
+}
+
+test "loadDefaultFromPaths falls back to legacy when primary is missing" {
+    const allocator = std.testing.allocator;
+
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+
+    const sub_path_len = std.mem.indexOfScalar(u8, tmp.sub_path[0..], 0) orelse tmp.sub_path.len;
+    const base = try std.fmt.allocPrint(allocator, ".zig-cache/{s}", .{tmp.sub_path[0..sub_path_len]});
+    defer allocator.free(base);
+
+    const primary_path = try std.fs.path.join(allocator, &.{ base, "llm_plugins.primary.json" });
+    defer allocator.free(primary_path);
+    const legacy_path = try std.fs.path.join(allocator, &.{ base, "llm_plugins.legacy.json" });
+    defer allocator.free(legacy_path);
+
+    var legacy_manifest = Manifest.init(allocator);
+    defer legacy_manifest.deinit();
+    try legacy_manifest.addOrUpdateHttp("legacy-http", "http://localhost:9000", "qwen", "ABI_TEST_KEY");
+    try saveToFile(&legacy_manifest, legacy_path);
+
+    var loaded = try loadDefaultFromPaths(allocator, primary_path, legacy_path);
+    defer loaded.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), loaded.entries.items.len);
+    try std.testing.expectEqualStrings("legacy-http", loaded.entries.items[0].id);
+    try std.testing.expectEqual(PluginKind.http, loaded.entries.items[0].kind);
 }
 
 test {

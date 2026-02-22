@@ -1,12 +1,32 @@
 const std = @import("std");
 const ops = @import("../../llm/ops/mod.zig");
 const backward_ops = ops.backward;
+const training_bridge = @import("../../../gpu/training_bridge.zig");
 
 /// Execute a forward pass through the model and write logits.
 pub fn run(
     model: anytype,
     input_ids: []const u32,
     logits_out: []f32,
+) !void {
+    return runInternal(model, input_ids, logits_out, null);
+}
+
+/// Execute a forward pass with optional GPU bridge acceleration.
+pub fn runWithBridge(
+    model: anytype,
+    input_ids: []const u32,
+    logits_out: []f32,
+    bridge: ?*training_bridge.GpuTrainingBridge,
+) !void {
+    return runInternal(model, input_ids, logits_out, bridge);
+}
+
+fn runInternal(
+    model: anytype,
+    input_ids: []const u32,
+    logits_out: []f32,
+    bridge: ?*training_bridge.GpuTrainingBridge,
 ) !void {
     const seq_len: u32 = @intCast(input_ids.len);
     const hidden_dim = model.config.hidden_dim;
@@ -54,7 +74,8 @@ pub fn run(
         // Apply attention normalization per position
         for (0..seq_len) |pos| {
             const offset = pos * hidden_dim;
-            ops.rmsNorm(
+            dispatchRmsNorm(
+                bridge,
                 hidden[offset .. offset + hidden_dim],
                 layer.attn_norm,
                 norm_out[offset .. offset + hidden_dim],
@@ -70,6 +91,7 @@ pub fn run(
             seq_len,
             residual,
             &layer_cache.attn_cache,
+            bridge,
         );
 
         // Residual connection
@@ -87,7 +109,8 @@ pub fn run(
         // Apply FFN normalization per position
         for (0..seq_len) |pos| {
             const offset = pos * hidden_dim;
-            ops.rmsNorm(
+            dispatchRmsNorm(
+                bridge,
                 hidden[offset .. offset + hidden_dim],
                 layer.ffn_norm,
                 norm_out[offset .. offset + hidden_dim],
@@ -103,6 +126,7 @@ pub fn run(
             seq_len,
             residual,
             &layer_cache.ffn_cache,
+            bridge,
         );
 
         // Residual connection
@@ -117,7 +141,8 @@ pub fn run(
     // Step 3: Final layer normalization
     for (0..seq_len) |pos| {
         const offset = pos * hidden_dim;
-        ops.rmsNorm(
+        dispatchRmsNorm(
+            bridge,
             hidden[offset .. offset + hidden_dim],
             model.weights.final_norm,
             norm_out[offset .. offset + hidden_dim],
@@ -153,6 +178,7 @@ fn computeAttentionLayer(
     seq_len: u32,
     output: []f32,
     attn_cache: *backward_ops.attention_backward.AttentionCache,
+    bridge: ?*training_bridge.GpuTrainingBridge,
 ) !void {
     const hidden_dim = model.config.hidden_dim;
     const head_dim = model.config.headDim();
@@ -301,7 +327,7 @@ fn computeAttentionLayer(
                     }
                 }
                 // Apply softmax to this row
-                ops.softmaxInPlace(attn_cache.attn_weights[qi * seq_len .. (qi + 1) * seq_len]);
+                dispatchSoftmax(bridge, attn_cache.attn_weights[qi * seq_len .. (qi + 1) * seq_len]);
             }
         }
 
@@ -333,6 +359,7 @@ fn computeFFNLayer(
     seq_len: u32,
     output: []f32,
     ffn_cache: *backward_ops.ffn_backward.SwigluCache,
+    _: ?*training_bridge.GpuTrainingBridge,
 ) !void {
     const hidden_dim = model.config.hidden_dim;
     const intermediate_dim = model.config.intermediate_dim;
@@ -380,5 +407,30 @@ fn computeFFNLayer(
                 ffn_cache.intermediate[i] = ops.activations.silu(ffn_cache.gate_out[i]) * ffn_cache.up_out[i];
             }
         }
+    }
+}
+
+/// Dispatch rmsNorm through GPU bridge or CPU fallback.
+fn dispatchRmsNorm(
+    bridge: ?*training_bridge.GpuTrainingBridge,
+    input: []const f32,
+    weight: []const f32,
+    output: []f32,
+    eps: f32,
+) void {
+    if (bridge) |b| {
+        @memcpy(output, input);
+        b.rmsNorm(output, weight, eps);
+    } else {
+        ops.rmsNorm(input, weight, output, eps);
+    }
+}
+
+/// Dispatch softmax through GPU bridge or CPU fallback.
+fn dispatchSoftmax(bridge: ?*training_bridge.GpuTrainingBridge, data: []f32) void {
+    if (bridge) |b| {
+        b.softmax(data);
+    } else {
+        ops.softmaxInPlace(data);
     }
 }

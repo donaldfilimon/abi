@@ -14,9 +14,10 @@ const ScoringRule = struct {
 };
 
 const scoring_rules = [_]ScoringRule{
+    // Legacy migration rules (baseline)
     .{
-        .name = "vnext_policy",
-        .keywords = &.{ "compat", "legacy", "vnext", "release" },
+        .name = "compat_policy",
+        .keywords = &.{ "compat", "legacy", "migration", "deprecation" },
         .min_len = 80,
     },
     .{
@@ -38,6 +39,32 @@ const scoring_rules = [_]ScoringRule{
         .name = "migration_mapping",
         .keywords = &.{ "Framework", "App", "Config", "Capability" },
         .min_len = 70,
+    },
+    // Active plan rules (RM-001 through RM-009)
+    .{
+        .name = "build_health",
+        .keywords = &.{ "pass", "skip", "test", "summary", "feature-tests" },
+        .min_len = 40,
+    },
+    .{
+        .name = "cli_framework",
+        .keywords = &.{ "command", "descriptor", "provider", "router", "fallback" },
+        .min_len = 60,
+    },
+    .{
+        .name = "tui_quality",
+        .keywords = &.{ "panel", "render", "layout", "dashboard", "unicode" },
+        .min_len = 60,
+    },
+    .{
+        .name = "feature_structure",
+        .keywords = &.{ "feature", "module", "import", "catalog", "restructure" },
+        .min_len = 60,
+    },
+    .{
+        .name = "skill_learning",
+        .keywords = &.{ "skill", "domain", "lesson", "improve", "iterate" },
+        .min_len = 40,
     },
 };
 

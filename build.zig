@@ -86,7 +86,7 @@ pub fn build(b: *std.Build) void {
     if (targets.pathExists(b, "tools/cli/main.zig"))
         exe.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
     targets.applyPerformanceTweaks(exe, optimize);
-    link.applyFrameworkLinks(exe.root_module, target.result.os.tag, options.gpu_metal());
+    link.applyAllPlatformLinks(exe.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     b.installArtifact(exe);
 
     const run_cli = b.addRunArtifact(exe);
@@ -110,6 +110,24 @@ pub fn build(b: *std.Build) void {
         .timeout_scale = cli_full_timeout_scale,
     });
 
+    // ── TUI / CLI unit tests ───────────────────────────────────────────
+    var tui_tests_step: ?*std.Build.Step = null;
+    if (targets.pathExists(b, "tools/cli/main.zig")) {
+        const cli_test_mod = b.createModule(.{
+            .root_source_file = b.path("tools/cli/mod.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+        });
+        cli_test_mod.addImport("abi", abi_module);
+        const cli_tests_artifact = b.addTest(.{ .root_module = cli_test_mod });
+        link.applyAllPlatformLinks(cli_tests_artifact.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+        const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
+        run_cli_tests.skip_foreign_checks = true;
+        tui_tests_step = b.step("tui-tests", "Run TUI and CLI unit tests");
+        tui_tests_step.?.dependOn(&run_cli_tests.step);
+    }
+
     // ── Lint / format ───────────────────────────────────────────────────
     const fmt_paths = &.{ "build.zig", "build", "src", "tools", "examples" };
     const lint_fmt = b.addFmt(.{ .paths = fmt_paths, .check = true });
@@ -130,31 +148,12 @@ pub fn build(b: *std.Build) void {
         });
         tests.root_module.addImport("abi", abi_module);
         tests.root_module.addImport("build_options", build_opts);
-        link.applyFrameworkLinks(tests.root_module, target.result.os.tag, options.gpu_metal());
+        link.applyAllPlatformLinks(tests.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
         b.step("typecheck", "Compile tests without running").dependOn(&tests.step);
         const run_tests = b.addRunArtifact(tests);
         run_tests.skip_foreign_checks = true;
         test_step = b.step("test", "Run unit tests");
         test_step.?.dependOn(&run_tests.step);
-    }
-
-    // ── vNext compatibility tests ───────────────────────────────────────
-    var vnext_compat_step: ?*std.Build.Step = null;
-    if (targets.pathExists(b, "src/services/tests/vnext_compat_test.zig")) {
-        const vnext_compat = b.addTest(.{
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("src/services/tests/vnext_compat_test.zig"),
-                .target = target,
-                .optimize = optimize,
-                .link_libc = true,
-            }),
-        });
-        vnext_compat.root_module.addImport("abi", abi_module);
-        vnext_compat.root_module.addImport("build_options", build_opts);
-        const run_vnext_compat = b.addRunArtifact(vnext_compat);
-        run_vnext_compat.skip_foreign_checks = true;
-        vnext_compat_step = b.step("vnext-compat", "Run vnext compatibility tests");
-        vnext_compat_step.?.dependOn(&run_vnext_compat.step);
     }
 
     // ── Feature tests (manifest-driven) ─────────────────────────────────
@@ -221,7 +220,7 @@ pub fn build(b: *std.Build) void {
     full_check_step.dependOn(validate_flags_step);
     full_check_step.dependOn(import_check_step);
     full_check_step.dependOn(consistency_step);
-    if (vnext_compat_step) |step| full_check_step.dependOn(step);
+    if (tui_tests_step) |step| full_check_step.dependOn(step);
 
     var check_docs_step: ?*std.Build.Step = null;
 
@@ -274,7 +273,7 @@ pub fn build(b: *std.Build) void {
         profile_mod.addImport("cli", modules.createCliModule(b, abi_profile, target, optimize));
         profile_mod.strip = false;
         profile_mod.omit_frame_pointer = false;
-        link.applyFrameworkLinks(profile_mod, target.result.os.tag, options.gpu_metal());
+        link.applyAllPlatformLinks(profile_mod, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
         b.installArtifact(profile_exe);
         b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
     }

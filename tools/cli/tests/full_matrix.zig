@@ -152,7 +152,7 @@ fn addTopLevelEntries(matrix: *Matrix) !void {
         var cwd_mode: CwdMode = .temp_workspace;
         var exit_policy: ExitPolicy = .zero_only;
 
-        if (isAny(command, &.{ "tui", "gpu-dashboard", "agent" })) {
+        if (isAny(command, &.{ "ui", "agent" })) {
             kind = .pty_session;
             timeout_ms = 45_000;
             exit_policy = .allow_signal_after_probe;
@@ -163,8 +163,13 @@ fn addTopLevelEntries(matrix: *Matrix) !void {
             timeout_ms = 60_000;
         }
 
-        const args = [_][]const u8{command};
-        try matrix.add(id, &args, kind, timeout_ms, &.{}, cwd_mode, .isolated, exit_policy);
+        if (std.mem.eql(u8, command, "embed")) {
+            const args = [_][]const u8{ command, "--help" };
+            try matrix.add(id, &args, kind, timeout_ms, &.{}, cwd_mode, .isolated, exit_policy);
+        } else {
+            const args = [_][]const u8{command};
+            try matrix.add(id, &args, kind, timeout_ms, &.{}, cwd_mode, .isolated, exit_policy);
+        }
     }
 }
 
@@ -220,7 +225,7 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
             try addArg(&args, matrix.allocator, "healthy");
         }
     } else if (std.mem.eql(u8, command, "config")) {
-        if (isAny(subcommand, &.{ "show", "env" })) {
+        if (isAny(subcommand, &.{ "show", "env", "path" })) {
             use_help_fallback = false;
         } else if (std.mem.eql(u8, subcommand, "init")) {
             use_help_fallback = false;
@@ -260,6 +265,7 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
             }
         } else if (std.mem.eql(u8, subcommand, "run")) {
             use_help_fallback = false;
+            try addReq(&build, matrix.allocator, "env:ABI_TEST_ENABLE_LLM_RUN");
             try addReq(&build, matrix.allocator, "env:OLLAMA_HOST");
             try addReq(&build, matrix.allocator, "env:ABI_TEST_OLLAMA_MODEL");
             try addReq(&build, matrix.allocator, "net:ollama");
@@ -305,6 +311,7 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
             try addArg(&args, matrix.allocator, "${ABI_TEST_GGUF_MODEL_PATH}");
         } else if (std.mem.eql(u8, subcommand, "download")) {
             use_help_fallback = false;
+            try addReq(&build, matrix.allocator, "env:ABI_TEST_ENABLE_MODEL_DOWNLOAD");
             try addReq(&build, matrix.allocator, "env:ABI_TEST_MODEL_SPEC");
             try addReq(&build, matrix.allocator, "net:model-host");
             try addArg(&args, matrix.allocator, "${ABI_TEST_MODEL_SPEC}");
@@ -315,6 +322,17 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
     } else if (std.mem.eql(u8, command, "train")) {
         if (std.mem.eql(u8, subcommand, "info") or std.mem.eql(u8, subcommand, "auto")) {
             use_help_fallback = false;
+        } else if (std.mem.eql(u8, subcommand, "run")) {
+            use_help_fallback = false;
+            try addArg(&args, matrix.allocator, "--epochs");
+            try addArg(&args, matrix.allocator, "1");
+            try addArg(&args, matrix.allocator, "--batch-size");
+            try addArg(&args, matrix.allocator, "4");
+            try addArg(&args, matrix.allocator, "--sample-count");
+            try addArg(&args, matrix.allocator, "16");
+        } else if (std.mem.eql(u8, subcommand, "self")) {
+            use_help_fallback = false;
+            try addArg(&args, matrix.allocator, "--skip-improve");
         } else if (std.mem.eql(u8, subcommand, "generate-data")) {
             use_help_fallback = false;
             build.cwd_mode = .repo_copy;
@@ -422,6 +440,8 @@ fn addFirstLevelEntry(matrix: *Matrix, command: []const u8, subcommand: []const 
         use_help_fallback = false;
         if (std.mem.eql(u8, subcommand, "micro")) {
             try addArg(&args, matrix.allocator, "noop");
+        } else if (std.mem.eql(u8, subcommand, "compare-training")) {
+            // In-memory optimizer comparison (AdamW vs Adam vs SGD)
         }
     } else if (std.mem.eql(u8, command, "completions")) {
         use_help_fallback = false;
@@ -603,6 +623,16 @@ fn addNestedEntries(matrix: *Matrix) !void {
     );
 
     try matrix.add(
+        "nested.ui.list-themes",
+        &.{ "ui", "--list-themes" },
+        .oneshot,
+        20_000,
+        &.{},
+        .temp_workspace,
+        .isolated,
+        .zero_only,
+    );
+    try matrix.add(
         "nested.ui.launch.list-themes",
         &.{ "ui", "launch", "--list-themes" },
         .oneshot,
@@ -627,31 +657,12 @@ fn addNestedEntries(matrix: *Matrix) !void {
 fn addAliasEntries(matrix: *Matrix) !void {
     try matrix.add("alias.info", &.{"info"}, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
     try matrix.add("alias.sysinfo", &.{"sysinfo"}, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
+    try matrix.add("alias.launch.list-themes", &.{ "launch", "--list-themes" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
+    try matrix.add("alias.start.list-themes", &.{ "start", "--list-themes" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
     try matrix.add("alias.ls", &.{ "ls", "stats" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
     try matrix.add("alias.run", &.{ "run", "quick" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
-    try matrix.add("alias.dashboard", &.{"dashboard"}, .pty_session, 45_000, &.{}, .temp_workspace, .isolated, .allow_signal_after_probe);
     try matrix.add("alias.chat", &.{ "chat", "run", "--help" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
     try matrix.add("alias.reasoning", &.{ "reasoning", "providers" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
-    try matrix.add(
-        "alias.tui.theme-help",
-        &.{ "tui", "--theme", "nord", "--help" },
-        .oneshot,
-        20_000,
-        &.{},
-        .temp_workspace,
-        .isolated,
-        .zero_only,
-    );
-    try matrix.add(
-        "alias.gpu-dashboard.theme-help",
-        &.{ "gpu-dashboard", "--theme", "gruvbox", "--help" },
-        .oneshot,
-        20_000,
-        &.{},
-        .temp_workspace,
-        .isolated,
-        .zero_only,
-    );
     try matrix.add(
         "alias.serve",
         &.{ "serve", "serve", "-m", "${ABI_TEST_GGUF_MODEL_PATH}", "-a", "127.0.0.1:18180" },

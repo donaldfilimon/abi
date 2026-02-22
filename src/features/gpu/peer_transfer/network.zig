@@ -349,6 +349,99 @@ pub const NetworkPeerTransfer = struct {
 };
 
 // ============================================================================
+// Tensor Serialization
+// ============================================================================
+
+/// Error set for tensor serialization operations.
+pub const TensorError = error{
+    BufferTooSmall,
+    InvalidFormat,
+    UnsupportedVersion,
+    ChecksumMismatch,
+};
+
+/// Wire protocol for tensor data exchange between training nodes.
+///
+/// Format:
+///   Header: "TENS" (4 bytes) + version (1) + dtype (1) + reserved (2) = 8 bytes
+///   Metadata: num_elements (8) + checksum (8) = 16 bytes
+///   Payload: raw tensor data
+pub const TensorSerializer = struct {
+    pub const HEADER_SIZE = 8;
+    pub const METADATA_SIZE = 16;
+    pub const MAGIC = [4]u8{ 'T', 'E', 'N', 'S' };
+    pub const VERSION: u8 = 1;
+
+    pub const DType = enum(u8) {
+        float32 = 0,
+        float16 = 1,
+        bfloat16 = 2,
+    };
+
+    /// Compute the total serialized size for the given number of elements.
+    pub fn serializedSize(num_elements: usize) usize {
+        return HEADER_SIZE + METADATA_SIZE + num_elements * @sizeOf(f32);
+    }
+
+    /// Serialize float32 tensor data into a wire-format buffer.
+    ///
+    /// Returns the number of bytes written.
+    pub fn serialize(data: []const f32, buffer: []u8) TensorError!usize {
+        const total = serializedSize(data.len);
+        if (buffer.len < total) return error.BufferTooSmall;
+
+        // Header
+        @memcpy(buffer[0..4], &MAGIC);
+        buffer[4] = VERSION;
+        buffer[5] = @intFromEnum(DType.float32);
+        buffer[6] = 0;
+        buffer[7] = 0;
+
+        // Metadata
+        std.mem.writeInt(u64, buffer[8..16], data.len, .little);
+        const payload = std.mem.sliceAsBytes(data);
+        const checksum = std.hash.XxHash64.hash(0, payload);
+        std.mem.writeInt(u64, buffer[16..24], checksum, .little);
+
+        // Payload
+        @memcpy(buffer[24 .. 24 + payload.len], payload);
+
+        return total;
+    }
+
+    /// Deserialize wire-format buffer into float32 tensor data.
+    ///
+    /// Returns the number of elements deserialized.
+    pub fn deserialize(buffer: []const u8, output: []f32) TensorError!usize {
+        if (buffer.len < HEADER_SIZE + METADATA_SIZE) return error.BufferTooSmall;
+
+        // Validate header
+        if (!std.mem.eql(u8, buffer[0..4], &MAGIC)) return error.InvalidFormat;
+        if (buffer[4] != VERSION) return error.UnsupportedVersion;
+
+        // Read metadata
+        const num_elements = std.mem.readInt(u64, buffer[8..16], .little);
+        const stored_checksum = std.mem.readInt(u64, buffer[16..24], .little);
+
+        const payload_size = num_elements * @sizeOf(f32);
+        if (buffer.len < HEADER_SIZE + METADATA_SIZE + payload_size) return error.BufferTooSmall;
+        if (output.len < num_elements) return error.BufferTooSmall;
+
+        // Validate checksum
+        const payload = buffer[24 .. 24 + payload_size];
+        const computed_checksum = std.hash.XxHash64.hash(0, payload);
+        if (computed_checksum != stored_checksum) return error.ChecksumMismatch;
+
+        // Copy data — use @as to satisfy @alignCast's need for a known result type
+        const aligned: []align(@alignOf(f32)) const u8 = @alignCast(payload);
+        const typed = std.mem.bytesAsSlice(f32, aligned);
+        @memcpy(output[0..num_elements], typed);
+
+        return num_elements;
+    }
+};
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -484,6 +577,100 @@ test "RemoteNode hostSlice" {
     node.host_len = host.len;
 
     try std.testing.expectEqualStrings("192.168.1.100", node.hostSlice());
+}
+
+// ── TensorSerializer tests ────────────────────────────────────────────────
+
+test "TensorSerializer serialize and deserialize round-trip" {
+    const data = [_]f32{ 1.0, 2.0, 3.0, 4.0, 5.0 };
+    var buf: [256]u8 = undefined;
+
+    const written = try TensorSerializer.serialize(&data, &buf);
+    try std.testing.expectEqual(TensorSerializer.serializedSize(data.len), written);
+
+    var output: [5]f32 = undefined;
+    const count = try TensorSerializer.deserialize(buf[0..written], &output);
+
+    try std.testing.expectEqual(@as(usize, 5), count);
+    for (data, output) |expected, actual| {
+        try std.testing.expectApproxEqAbs(expected, actual, 1e-9);
+    }
+}
+
+test "TensorSerializer checksum validation detects corruption" {
+    const data = [_]f32{ 1.0, 2.0, 3.0 };
+    var buf: [256]u8 = undefined;
+
+    const written = try TensorSerializer.serialize(&data, &buf);
+
+    // Corrupt one byte in the payload region
+    buf[written - 1] ^= 0xFF;
+
+    var output: [3]f32 = undefined;
+    try std.testing.expectError(error.ChecksumMismatch, TensorSerializer.deserialize(buf[0..written], &output));
+}
+
+test "TensorSerializer corrupted header detection" {
+    const data = [_]f32{ 1.0, 2.0 };
+    var buf: [256]u8 = undefined;
+
+    const written = try TensorSerializer.serialize(&data, &buf);
+
+    // Corrupt magic bytes
+    buf[0] = 'X';
+
+    var output: [2]f32 = undefined;
+    try std.testing.expectError(error.InvalidFormat, TensorSerializer.deserialize(buf[0..written], &output));
+}
+
+test "TensorSerializer size calculation" {
+    // 0 elements: header(8) + metadata(16) + 0 = 24
+    try std.testing.expectEqual(@as(usize, 24), TensorSerializer.serializedSize(0));
+
+    // 10 elements: header(8) + metadata(16) + 10*4 = 64
+    try std.testing.expectEqual(@as(usize, 64), TensorSerializer.serializedSize(10));
+
+    // 1000 elements: header(8) + metadata(16) + 1000*4 = 4024
+    try std.testing.expectEqual(@as(usize, 4024), TensorSerializer.serializedSize(1000));
+}
+
+test "TensorSerializer empty tensor round-trip" {
+    const data = [_]f32{};
+    var buf: [64]u8 = undefined;
+
+    const written = try TensorSerializer.serialize(&data, &buf);
+    try std.testing.expectEqual(@as(usize, 24), written); // header + metadata only
+
+    var output: [0]f32 = undefined;
+    const count = try TensorSerializer.deserialize(buf[0..written], &output);
+    try std.testing.expectEqual(@as(usize, 0), count);
+}
+
+test "TensorSerializer buffer too small for serialize" {
+    const data = [_]f32{ 1.0, 2.0, 3.0 };
+    var tiny_buf: [4]u8 = undefined;
+
+    try std.testing.expectError(error.BufferTooSmall, TensorSerializer.serialize(&data, &tiny_buf));
+}
+
+test "TensorSerializer buffer too small for deserialize" {
+    // A buffer smaller than HEADER_SIZE + METADATA_SIZE (24)
+    const tiny = [_]u8{ 'T', 'E', 'N', 'S', 1, 0, 0, 0 };
+    var output: [1]f32 = undefined;
+    try std.testing.expectError(error.BufferTooSmall, TensorSerializer.deserialize(&tiny, &output));
+}
+
+test "TensorSerializer unsupported version" {
+    const data = [_]f32{1.0};
+    var buf: [256]u8 = undefined;
+
+    _ = try TensorSerializer.serialize(&data, &buf);
+
+    // Change version byte to something unsupported
+    buf[4] = 99;
+
+    var output: [1]f32 = undefined;
+    try std.testing.expectError(error.UnsupportedVersion, TensorSerializer.deserialize(&buf, &output));
 }
 
 test {

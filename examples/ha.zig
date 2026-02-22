@@ -19,7 +19,7 @@ pub fn main(_: std.process.Init) !void {
     // Initialize framework
     var builder = abi.Framework.builder(allocator);
     var framework = try builder
-        .withDatabaseDefaults()
+        .withDatabase(.{})
         .build();
     defer framework.deinit();
 

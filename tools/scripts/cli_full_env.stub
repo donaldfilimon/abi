@@ -17,3 +17,7 @@ ABI_TEST_GGUF_MODEL_PATH=/tmp/abi-cli-full-model.gguf
 
 # Model spec or URL for model/llm download flows.
 ABI_TEST_MODEL_SPEC=TheBloke/Llama-2-7B-GGUF:Q4_K_M
+
+# Optional opt-in vectors (leave unset to keep these blocked in local runs):
+# ABI_TEST_ENABLE_LLM_RUN=1
+# ABI_TEST_ENABLE_MODEL_DOWNLOAD=1

@@ -8,6 +8,7 @@
 //! works, find definitions, and trace dependencies.
 
 const std = @import("std");
+const app_paths = @import("../../../services/shared/app_paths.zig");
 
 // ============================================================================
 // Types
@@ -93,7 +94,7 @@ pub const CodebaseIndex = struct {
     pub fn init(allocator: std.mem.Allocator, root_path: []const u8) !Self {
         const root_copy = try allocator.dupe(u8, root_path);
         errdefer allocator.free(root_copy);
-        const index_dir = try allocator.dupe(u8, ".abi/codebase_index");
+        const index_dir = try app_paths.resolvePath(allocator, "codebase_index");
 
         return .{
             .allocator = allocator,

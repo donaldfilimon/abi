@@ -46,7 +46,7 @@ pub const ExecutionStrategy = enum {
     pipeline,
     adaptive,
     pub fn toString(self: ExecutionStrategy) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 
@@ -57,7 +57,7 @@ pub const AggregationStrategy = enum {
     merge,
     first_success,
     pub fn toString(self: AggregationStrategy) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 

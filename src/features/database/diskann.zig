@@ -17,7 +17,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 const index_mod = @import("index.zig");
 
 /// DiskANN configuration parameters

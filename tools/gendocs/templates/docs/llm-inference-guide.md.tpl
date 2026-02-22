@@ -12,7 +12,11 @@ walks a configurable **fallback chain** until a healthy backend responds.
 
 Run `abi llm discover` to scan the local machine and reachable network for active
 backends. The command probes each endpoint's health URL and model list, then writes
-a cached provider manifest to `.abi/providers.json`.
+a cached provider manifest to the platform-specific ABI app root (for example
+`~/Library/Application Support/abi/providers.json` on macOS,
+`$XDG_CONFIG_HOME/abi/providers.json` or `~/.config/abi/providers.json` on Linux, and
+`%APPDATA%\\abi\\providers.json` on Windows), with lazy fallback reads from legacy
+`~/.abi/providers.json` (or `%USERPROFILE%\\.abi\\providers.json`).
 
 ### Routing Order
 

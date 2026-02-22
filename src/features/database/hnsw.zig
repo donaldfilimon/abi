@@ -10,7 +10,7 @@
 
 const std = @import("std");
 const build_options = @import("build_options");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 const index_mod = @import("index.zig");
 const gpu_accel = @import("gpu_accel.zig");
 
@@ -21,6 +21,24 @@ pub const distance_cache = @import("distance_cache.zig");
 pub const SearchState = search_state.SearchState;
 pub const SearchStatePool = search_state.SearchStatePool;
 pub const DistanceCache = distance_cache.DistanceCache;
+
+/// Configuration for adaptive search that auto-tunes ef for target recall.
+pub const AdaptiveSearchConfig = struct {
+    initial_ef: u32 = 50,
+    max_ef: u32 = 500,
+    ef_step: u32 = 50,
+    target_recall: f32 = 0.95,
+    max_iterations: u32 = 5,
+};
+
+/// Statistics about the HNSW index structure.
+pub const IndexStats = struct {
+    num_vectors: usize,
+    num_layers: u32,
+    avg_degree: f32,
+    memory_bytes: usize,
+    entry_point_id: ?u32,
+};
 
 /// HNSW index structure supporting layered graph traversal.
 pub const HnswIndex = struct {
@@ -1167,6 +1185,46 @@ pub const HnswIndex = struct {
         self.gpu_accelerator = accel;
     }
 
+    /// Get statistics about the HNSW index structure.
+    pub fn getStats(self: *const HnswIndex) IndexStats {
+        var total_degree: usize = 0;
+        var total_connections: usize = 0;
+        var memory: usize = 0;
+
+        // Account for nodes array
+        memory += self.nodes.len * @sizeOf(NodeLayers);
+        // Account for norms array
+        memory += self.norms.len * @sizeOf(f32);
+
+        for (self.nodes) |node| {
+            memory += node.layers.len * @sizeOf(index_mod.NeighborList);
+            for (node.layers) |layer| {
+                total_connections += 1;
+                total_degree += layer.nodes.len;
+                memory += layer.nodes.len * @sizeOf(u32);
+            }
+        }
+
+        const avg_degree: f32 = if (total_connections > 0)
+            @as(f32, @floatFromInt(total_degree)) / @as(f32, @floatFromInt(total_connections))
+        else
+            0.0;
+
+        return .{
+            .num_vectors = self.nodes.len,
+            .num_layers = self.getLayerCount(),
+            .avg_degree = avg_degree,
+            .memory_bytes = memory,
+            .entry_point_id = self.entry_point,
+        };
+    }
+
+    /// Get the number of layers in the index.
+    pub fn getLayerCount(self: *const HnswIndex) u32 {
+        if (self.max_layer < 0) return 0;
+        return @intCast(self.max_layer + 1);
+    }
+
     /// Disable GPU acceleration and release associated resources.
     /// Subsequent searches will use SIMD-only distance computation.
     pub fn disableGpuAcceleration(self: *HnswIndex) void {
@@ -1177,6 +1235,59 @@ pub const HnswIndex = struct {
         }
     }
 };
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "IndexStats fields populated correctly" {
+    const allocator = std.testing.allocator;
+
+    // Build a small index to check stats
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 0, .vector = &[_]f32{ 1.0, 0.0, 0.0, 0.0 } },
+        .{ .id = 1, .vector = &[_]f32{ 0.0, 1.0, 0.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 0.0, 1.0, 0.0 } },
+        .{ .id = 3, .vector = &[_]f32{ 0.0, 0.0, 0.0, 1.0 } },
+    };
+
+    var idx = try HnswIndex.build(allocator, &records, 4, 16);
+    defer idx.deinit(allocator);
+
+    const stats = idx.getStats();
+    try std.testing.expectEqual(@as(usize, 4), stats.num_vectors);
+    try std.testing.expect(stats.num_layers >= 1);
+    try std.testing.expect(stats.avg_degree > 0.0);
+    try std.testing.expect(stats.memory_bytes > 0);
+    try std.testing.expect(stats.entry_point_id != null);
+}
+
+test "AdaptiveSearchConfig defaults" {
+    const config = AdaptiveSearchConfig{};
+    try std.testing.expectEqual(@as(u32, 50), config.initial_ef);
+    try std.testing.expectEqual(@as(u32, 500), config.max_ef);
+    try std.testing.expectEqual(@as(u32, 50), config.ef_step);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.95), config.target_recall, 0.001);
+    try std.testing.expectEqual(@as(u32, 5), config.max_iterations);
+}
+
+test "getLayerCount returns expected value" {
+    const allocator = std.testing.allocator;
+
+    const records = [_]index_mod.VectorRecordView{
+        .{ .id = 0, .vector = &[_]f32{ 1.0, 0.0, 0.0 } },
+        .{ .id = 1, .vector = &[_]f32{ 0.0, 1.0, 0.0 } },
+        .{ .id = 2, .vector = &[_]f32{ 0.0, 0.0, 1.0 } },
+    };
+
+    var idx = try HnswIndex.build(allocator, &records, 4, 16);
+    defer idx.deinit(allocator);
+
+    // Layer count should be at least 1 (layer 0 always exists)
+    const layer_count = idx.getLayerCount();
+    try std.testing.expect(layer_count >= 1);
+    try std.testing.expectEqual(layer_count, @as(u32, @intCast(idx.max_layer + 1)));
+}
 
 // Test discovery: pull in extracted test file and sub-modules
 comptime {

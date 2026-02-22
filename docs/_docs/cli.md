@@ -1,6 +1,6 @@
 ---
 title: CLI
-description: 30 commands and aliases for AI, GPU, database, and system management
+description: 29 commands and aliases for AI, GPU, database, and system management
 section: Core
 order: 13
 permalink: /cli/
@@ -8,7 +8,7 @@ permalink: /cli/
 
 # CLI
 ## Summary
-30 commands and aliases for AI, GPU, database, and system management
+29 commands and aliases for AI, GPU, database, and system management
 
 ## Generated Reference
 ## Overview
@@ -19,11 +19,11 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1261` pass / `5` skip / `1266` total
-- Feature tests: `2119` pass / `2123` total
+- Feature tests: `2263` pass / `2268` total
 
 ## Command Tree
 
-Top-level commands: **30** | aliases: **8** | structural subcommands: **148**
+Top-level commands: **29** | aliases: **9** | structural subcommands: **166**
 
 | Command | Aliases | Description | Subcommands |
 | --- | --- | --- | --- |
@@ -31,7 +31,7 @@ Top-level commands: **30** | aliases: **8** | structural subcommands: **148**
 | `agent` | — | Run AI agent (interactive or one-shot) | — |
 | `bench` | run | Run performance benchmarks (all, simd, memory, ai, quick) | all, simd, memory, ai, quick, compare-training, list, micro |
 | `completions` | — | Generate shell completions (bash, zsh, fish, powershell) | bash, zsh, fish, powershell, help |
-| `config` | — | Configuration management (init, show, validate) | init, show, validate, env, help |
+| `config` | — | Configuration management (init, setup, show, validate, env) | init, setup, show, validate, env, path, help |
 | `convert` | — | Dataset conversion tools (tokenbin, text, jsonl, wdbx) | dataset, model, embeddings |
 | `db` | ls | Database operations (add, query, stats, optimize, backup, restore) | add, query, stats, optimize, backup, restore, serve, help |
 | `discord` | — | Discord bot operations (status, guilds, send, commands) | status, info, guilds, send, commands, webhook, channel, help |
@@ -39,9 +39,9 @@ Top-level commands: **30** | aliases: **8** | structural subcommands: **148**
 | `explore` | — | Search and explore codebase | — |
 | `gendocs` | — | Generate API docs (runs zig build gendocs) | — |
 | `gpu` | — | GPU commands (backends, devices, summary, default) | backends, devices, list, summary, default, status |
-| `gpu-dashboard` | dashboard | Interactive GPU + Agent monitoring dashboard | — |
 | `llm` | chat, reasoning, serve | LLM inference (run, session, serve, providers, plugins, discover) | run, session, serve, providers, plugins, discover, help |
-| `mcp` | — | MCP server for WDBX database (serve, tools) | serve, tools, help |
+| `lsp` | — | ZLS LSP client (request, hover, completion, definition, rename, format) | request, notify, hover, completion, definition, references, rename, format, diagnostics, help |
+| `mcp` | — | MCP server for WDBX database or ZLS (serve, tools) | serve, tools, help |
 | `model` | — | Model management (list, download, remove, search) | list, info, download, remove, search, path |
 | `multi-agent` | — | Run multi-agent workflows | info, run, list, create, status |
 | `network` | — | Network and distributed systems management | status, list, nodes, register, unregister, touch, set-status, raft, discovery, balancer, health |
@@ -55,8 +55,7 @@ Top-level commands: **30** | aliases: **8** | structural subcommands: **148**
 | `task` | — | Task management (add, list, done, stats, seed-self-improve) | add, list, ls, show, done, start, cancel, delete, rm, stats, import-roadmap, seed-self-improve, edit, block, unblock, due, help |
 | `toolchain` | — | Build and install Zig/ZLS from master (install, update, status) | install, zig, zls, status, update, path, help |
 | `train` | — | Training pipeline (run, llm, vision, auto, self, resume, info) | run, new, llm, vision, clip, auto, self, resume, monitor, info, generate-data, help |
-| `tui` | — | Launch interactive TUI command menu | — |
-| `ui` | — | UI command family (launch, gpu, train, neural) | launch, gpu, train, neural, help |
+| `ui` | launch, start | UI command family (launch, gpu, train, model, streaming, db, network, bench, brain) | launch, gpu, train, neural, model, streaming, db, network, bench, brain, help |
 
 ## Validation Commands
 

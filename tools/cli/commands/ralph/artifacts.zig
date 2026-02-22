@@ -20,6 +20,12 @@ pub const RunReport = struct {
     started_at: i64,
     ended_at: i64,
     verify_log: []const u8,
+    /// Duration of the run in seconds.
+    duration_seconds: i64 = 0,
+    /// Number of skills extracted during this run.
+    skills_added: u64 = 0,
+    /// Gate command used for verification.
+    gate_command: []const u8 = "zig build verify-all",
 };
 
 pub fn writeIterationArtifact(

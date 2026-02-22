@@ -29,6 +29,7 @@ pub const tools = @import("tools/stub.zig");
 pub const transformer = @import("transformer/stub.zig");
 pub const prompts = @import("prompts/stub.zig");
 pub const abbey = @import("abbey/stub.zig");
+pub const constitution = @import("constitution/stub.zig");
 
 // Local stubs for single-file modules (merged into subdirectory stubs)
 pub const agent = @import("agents/stub.zig");

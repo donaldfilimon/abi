@@ -11,8 +11,8 @@ AI inference, GPU compute, vector database, runtime infrastructure, and operatio
 tooling into a single build with compile-time feature gating.
 
 Version **0.4.0** provides 21 feature modules, 10 GPU backends, 9 LLM provider
-connectors, and 30 CLI commands (plus 8 aliases) — all tested with
-1261 passing tests (5 skipped) and 2082 passing feature tests.
+connectors, and 36 CLI commands (plus 10 aliases) — all tested with
+1261 passing tests (5 skipped) and 2263 passing feature tests.
 
 ## What You Can Build
 
@@ -55,7 +55,7 @@ connectors, and 30 CLI commands (plus 8 aliases) — all tested with
 # Build the framework
 zig build
 
-# See available CLI commands (30 commands + 8 aliases)
+# See available CLI commands (36 commands + 10 aliases)
 zig build run -- --help
 
 # Check system status and enabled features
@@ -85,7 +85,7 @@ pub fn main() !void {
 | Section | Pages | Purpose |
 |---------|-------|---------|
 | **Start** | [Home](/), [Installation](/installation/), [Getting Started](/getting-started/) | Installation, first build, orientation |
-| **Core** | [Architecture](/architecture/), [Configuration](/configuration/), [Framework Lifecycle](/framework/), [CLI](/cli/), [Migration (vNext)](/migration-vnext/) | Module hierarchy, feature gating, build flags, commands |
+| **Core** | [Architecture](/architecture/), [Configuration](/configuration/), [Framework Lifecycle](/framework/), [CLI](/cli/) | Module hierarchy, feature gating, build flags, commands |
 | **Modules** | GPU, AI, Database, Network, ... | Per-module API reference and usage |
 | **Operations** | Deployment, Observability, Security | Production concerns |
 | **Reference** | [API Overview](/api-overview/), [API Reference](/api/), Contributing, Examples | Generated API docs, dev workflow |

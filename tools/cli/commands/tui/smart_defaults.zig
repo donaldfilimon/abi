@@ -19,7 +19,7 @@ const args_info = [_][:0]const u8{"info"};
 const args_monitor = [_][:0]const u8{"monitor"};
 
 pub fn commandDefaultArgs(cmd: anytype) []const [:0]const u8 {
-    const tag = @tagName(cmd);
+    const tag = std.mem.sliceTo(@tagName(cmd), 0);
 
     if (std.mem.eql(u8, tag, "db")) return &args_stats;
     if (std.mem.eql(u8, tag, "bench")) return &args_quick;

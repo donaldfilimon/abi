@@ -38,7 +38,7 @@ const sync = @import("../../services/shared/sync.zig");
 const builtin = @import("builtin");
 const hnsw = @import("hnsw.zig");
 const index_mod = @import("index.zig");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 const ChaseLevDeque = @import("../../services/runtime/concurrency/chase_lev.zig").ChaseLevDeque;
 const WorkStealingScheduler = @import("../../services/runtime/concurrency/chase_lev.zig").WorkStealingScheduler;
 

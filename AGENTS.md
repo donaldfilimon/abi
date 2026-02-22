@@ -9,12 +9,23 @@ See also: `CLAUDE.md` (detailed architecture), `CONTRIBUTING.md` (PR workflow).
 - **Compiler**: `~/.zvm/master/zig` (managed via `zvm use master`).
 - **Std lib source**: `~/.zvm/master/lib/std/` -- read these files when unsure about an API.
 
+## Codex Skills
+
+- **$zig-std-build** — Zig 0.16 stdlib/build workflows, toolchain checks, and validation reporting.
+- **$zig** — ABI Zig 0.16 contributor workflow (build/test gates, CLI, feature modules).
+
+## MCP + LSP
+
+- `abi mcp serve` starts the WDBX MCP server.
+- `abi mcp serve --zls` starts the ZLS MCP server.
+- `abi lsp <subcommand>` runs direct ZLS LSP requests (hover, completion, definition, etc.).
+
 ## Build Commands
 
 ```bash
 zig build                                # Build the project
-zig build run -- --help                  # Run CLI (30 commands + 8 aliases)
-zig build run -- tui                     # Open TUI interface
+zig build run -- --help                  # Run CLI (29 commands + 9 aliases)
+zig build run -- ui launch               # Open TUI interface
 zig fmt .                                # Format all source files
 zig build lint                           # Check formatting (CI mode, no writes)
 zig build fix                            # Auto-format in place
@@ -24,10 +35,9 @@ zig build fix                            # Auto-format in place
 
 ```bash
 zig build test --summary all             # Main test suite (1261 pass, 5 skip)
-zig build feature-tests --summary all    # Feature inline tests (2082 pass)
+zig build feature-tests --summary all    # Feature inline tests (2263 pass)
 zig build cli-tests                      # CLI smoke tests
 zig build validate-flags                 # Compile-check 34 feature flag combos
-zig build vnext-compat                   # vNext compatibility tests
 ```
 
 ### Running a Single Test
@@ -142,7 +152,7 @@ Use submodule paths: `abi.ai.core`, `abi.ai.llm`, `abi.ai.training`, `abi.ai.rea
 
 ### Test Baselines (must be maintained)
 - **Main tests**: 1261 pass, 5 skip (1266 total) -- source of truth: `tools/scripts/baseline.zig`
-- **Feature tests**: 2082 pass, 4 skip (2086 total)
+- **Feature tests**: 2263 pass, 5 skip (2268 total)
 
 ### Test Discovery
 - Use `test { _ = @import(...); }` to include submodule tests. `comptime {}` does NOT work.

@@ -1,6 +1,6 @@
 //! Concurrent Pipeline Example
 //!
-//! Demonstrates a pipeline built from v2 runtime primitives:
+//! Demonstrates a pipeline built from runtime primitives:
 //! - `abi.runtime.Channel` for stage handoff/backpressure
 //! - `abi.runtime.ThreadPool` for parallel stage work
 //! - `abi.runtime.DagPipeline` for stage dependency orchestration
@@ -13,7 +13,7 @@ const abi = @import("abi");
 const U64Channel = abi.runtime.Channel(u64);
 const ThreadPool = abi.runtime.ThreadPool;
 const DagPipeline = abi.runtime.DagPipeline;
-const v2 = abi.shared.utils.v2_primitives;
+const primitives = abi.shared.utils.primitives;
 
 const ProduceCtx = struct {
     pool: *ThreadPool,
@@ -109,7 +109,7 @@ pub fn main(_: std.process.Init) !void {
     const allocator = gpa.allocator();
 
     std.debug.print("\n=== ABI Concurrent Pipeline Demo ===\n", .{});
-    std.debug.print("Platform: {s}\n", .{v2.Platform.description()});
+    std.debug.print("Platform: {s}\n", .{primitives.Platform.description()});
 
     var pool = try ThreadPool.init(allocator, .{ .thread_count = 4 });
     defer pool.deinit();

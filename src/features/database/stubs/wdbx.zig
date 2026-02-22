@@ -7,7 +7,7 @@ pub const wdbx = struct {
     pub const VectorView = types.VectorView;
     pub const Stats = types.Stats;
     pub const BatchItem = types.BatchItem;
-    pub const DatabaseConfig = struct { cache_norms: bool = false, initial_capacity: usize = 0, use_vector_pool: bool = false, thread_safe: bool = false };
+    pub const DatabaseConfig = types.DatabaseConfig;
 
     pub fn createDatabase(_: std.mem.Allocator, _: []const u8) !types.DatabaseHandle {
         return error.DatabaseDisabled;
@@ -27,6 +27,9 @@ pub const wdbx = struct {
     }
     pub fn searchVectors(_: *types.DatabaseHandle, _: std.mem.Allocator, _: []const f32, _: usize) ![]types.SearchResult {
         return error.DatabaseDisabled;
+    }
+    pub fn searchVectorsInto(_: *types.DatabaseHandle, _: []const f32, _: usize, _: []types.SearchResult) usize {
+        return 0;
     }
     pub fn deleteVector(_: *types.DatabaseHandle, _: u64) bool {
         return false;

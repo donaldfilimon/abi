@@ -25,7 +25,6 @@ pub const database = struct {
     };
 };
 pub const db_helpers = struct {};
-pub const storage = struct {};
 pub const http = struct {};
 
 // ============================================================================
@@ -269,10 +268,10 @@ pub const formats = struct {
 };
 
 // ============================================================================
-// Storage v2 stubs
+// Storage stubs (unified storage API)
 // ============================================================================
 
-pub const storage_v2 = struct {
+pub const storage = struct {
     pub const FileHeader = struct {};
     pub const FileFooter = struct {};
     pub const BloomFilter = struct {};

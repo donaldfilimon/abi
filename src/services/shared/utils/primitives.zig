@@ -1,5 +1,5 @@
 // ============================================================================
-// ABI Framework — v2 Utility Primitives
+// ABI Framework — Utility Primitives
 // ============================================================================
 //
 // Adapted from abi-system-v2.0 src/utils.zig for the ABI framework.

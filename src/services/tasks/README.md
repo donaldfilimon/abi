@@ -63,9 +63,8 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 defer _ = gpa.deinit();
 const allocator = gpa.allocator();
 
-// Initialize manager
+// Initialize manager (uses platform default path)
 var manager = try abi.tasks.Manager.init(allocator, .{
-    .storage_path = ".abi/tasks.json",
     .auto_save = true,
 });
 defer manager.deinit();
@@ -222,6 +221,8 @@ try manager.load();
 ```
 
 The storage file location can be customized via `storage_path` in `ManagerConfig`.
+Leaving it empty uses the platform primary ABI config path (for example,
+`~/.config/abi/tasks.json` on Linux, or `~/Library/Application Support/abi/tasks.json` on macOS).
 
 ## Roadmap Integration
 

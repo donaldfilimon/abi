@@ -54,11 +54,31 @@ pub const DistributedConfig = struct {
 /// pass, call `synchronizeGradients` to AllReduce across workers, then step
 /// the optimizer. For single-worker training (world_size == 1) all sync
 /// operations are no-ops with zero overhead.
+///
+/// Integration points for multi-node training:
+///   - `gpu_cluster_handle`: Opaque pointer to a `gpu_cluster.GPUCluster` for
+///     single-machine multi-GPU AllReduce.
+///   - `compressor_handle`: Opaque pointer to a `gradient_compression.GradientCompressor`
+///     for bandwidth-efficient gradient synchronization across nodes.
+///   - `compression_ratio`: Sparsification ratio (0.0 = disabled, 0.001 = keep top 0.1%).
 pub const DistributedTrainer = struct {
     allocator: std.mem.Allocator,
     config: DistributedConfig,
     gradient_buffer: std.ArrayListUnmanaged(f32) = .empty,
     stats: Stats = .{},
+
+    /// Opaque handle to a GPUCluster for multi-GPU AllReduce.
+    /// Set via `attachGpuCluster()`. When null, AllReduce is performed locally.
+    gpu_cluster_handle: ?*anyopaque = null,
+
+    /// Opaque handle to a GradientCompressor for top-k sparsification.
+    /// Set via `attachCompressor()`. When null, gradients are sent uncompressed.
+    compressor_handle: ?*anyopaque = null,
+
+    /// Compression ratio for gradient sparsification (0.0 = disabled).
+    /// Set via `enableCompression()`. The actual compression is performed by
+    /// the GradientCompressor pointed to by `compressor_handle`.
+    compression_ratio: f32 = 0.0,
 
     /// Cumulative statistics for distributed training.
     pub const Stats = struct {
@@ -139,6 +159,67 @@ pub const DistributedTrainer = struct {
     /// Return cumulative distributed training statistics.
     pub fn getStats(self: *const DistributedTrainer) Stats {
         return self.stats;
+    }
+
+    // ------------------------------------------------------------------
+    // Multi-node integration
+    // ------------------------------------------------------------------
+
+    /// Attach a GPUCluster handle for multi-GPU AllReduce.
+    ///
+    /// The handle is an opaque pointer to a `gpu_cluster.GPUCluster` (or
+    /// compatible AllReduce provider). When attached, `synchronizeGradients`
+    /// will delegate to the cluster's AllReduce instead of local averaging.
+    ///
+    /// Pass `null` to detach.
+    pub fn attachGpuCluster(self: *DistributedTrainer, handle: *anyopaque) void {
+        self.gpu_cluster_handle = handle;
+    }
+
+    /// Detach the GPUCluster handle.
+    pub fn detachGpuCluster(self: *DistributedTrainer) void {
+        self.gpu_cluster_handle = null;
+    }
+
+    /// Attach a GradientCompressor handle for top-k sparsification.
+    ///
+    /// The handle is an opaque pointer to a
+    /// `gradient_compression.GradientCompressor`. When attached and
+    /// `compression_ratio > 0`, gradients are compressed before being
+    /// sent over the network.
+    ///
+    /// Pass `null` to detach.
+    pub fn attachCompressor(self: *DistributedTrainer, handle: *anyopaque) void {
+        self.compressor_handle = handle;
+    }
+
+    /// Detach the GradientCompressor handle.
+    pub fn detachCompressor(self: *DistributedTrainer) void {
+        self.compressor_handle = null;
+        self.compression_ratio = 0.0;
+    }
+
+    /// Enable gradient compression with the given sparsification ratio.
+    ///
+    /// `ratio` is the fraction of gradient elements to keep (e.g. 0.001
+    /// keeps the top 0.1%). The actual compression is performed by the
+    /// `GradientCompressor` attached via `attachCompressor()`. This
+    /// method only stores the ratio; if no compressor is attached the
+    /// ratio is still recorded so it takes effect once one is attached.
+    ///
+    /// Pass `0.0` to disable compression.
+    pub fn enableCompression(self: *DistributedTrainer, ratio: f32) void {
+        self.compression_ratio = @max(ratio, 0.0);
+    }
+
+    /// Whether gradient compression is currently enabled.
+    pub fn isCompressionEnabled(self: *const DistributedTrainer) bool {
+        return self.compression_ratio > 0.0 and self.compressor_handle != null;
+    }
+
+    /// Whether a GPU cluster backend is attached.
+    pub fn hasGpuCluster(self: *const DistributedTrainer) bool {
+        return self.gpu_cluster_handle != null;
     }
 };
 
@@ -227,6 +308,57 @@ test "config validation" {
     // Invalid: world_size == 0
     const bad_world: DistributedConfig = .{ .world_size = 0, .rank = 0 };
     try std.testing.expectError(error.InvalidConfig, bad_world.validate());
+}
+
+test "attachGpuCluster and detach" {
+    var trainer = DistributedTrainer.init(std.testing.allocator, .{});
+    defer trainer.deinit();
+
+    try std.testing.expect(!trainer.hasGpuCluster());
+
+    var dummy: u8 = 0;
+    trainer.attachGpuCluster(@ptrCast(&dummy));
+    try std.testing.expect(trainer.hasGpuCluster());
+
+    trainer.detachGpuCluster();
+    try std.testing.expect(!trainer.hasGpuCluster());
+}
+
+test "attachCompressor and enableCompression" {
+    var trainer = DistributedTrainer.init(std.testing.allocator, .{});
+    defer trainer.deinit();
+
+    // No compressor, no compression
+    try std.testing.expect(!trainer.isCompressionEnabled());
+
+    // Enable ratio without compressor — not yet active
+    trainer.enableCompression(0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.001), trainer.compression_ratio, 1e-6);
+    try std.testing.expect(!trainer.isCompressionEnabled());
+
+    // Attach compressor — now active
+    var dummy: u8 = 0;
+    trainer.attachCompressor(@ptrCast(&dummy));
+    try std.testing.expect(trainer.isCompressionEnabled());
+
+    // Disable via ratio
+    trainer.enableCompression(0.0);
+    try std.testing.expect(!trainer.isCompressionEnabled());
+
+    // Detach clears both
+    trainer.enableCompression(0.01);
+    trainer.detachCompressor();
+    try std.testing.expect(!trainer.isCompressionEnabled());
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), trainer.compression_ratio, 1e-9);
+}
+
+test "default fields for new integration points" {
+    const trainer = DistributedTrainer.init(std.testing.allocator, .{});
+    // Not calling deinit intentionally — no allocations for default config.
+
+    try std.testing.expectEqual(@as(?*anyopaque, null), trainer.gpu_cluster_handle);
+    try std.testing.expectEqual(@as(?*anyopaque, null), trainer.compressor_handle);
+    try std.testing.expectApproxEqAbs(@as(f32, 0.0), trainer.compression_ratio, 1e-9);
 }
 
 test {

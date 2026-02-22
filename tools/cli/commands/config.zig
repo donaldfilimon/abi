@@ -4,11 +4,17 @@ const std = @import("std");
 const abi = @import("abi");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
+const app_paths = abi.shared.app_paths;
 
 // Use the shared config module for file-based configuration (legacy format)
 const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
-const shared_config = @import("abi").shared.utils.config;
+const shared_config = abi.shared.utils.config;
+
+const OutputFormat = enum {
+    human,
+    json,
+};
 
 fn wrapCfgInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     try runInit(ctx, args);
@@ -23,21 +29,29 @@ fn wrapCfgEnv(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !
     _ = ctx;
     runEnv();
 }
+fn wrapCfgPath(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    try runPath(ctx);
+}
+fn wrapCfgSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runSetup(ctx, args);
+}
 
 pub const meta: command_mod.Meta = .{
     .name = "config",
-    .description = "Configuration management (init, show, validate)",
-    .subcommands = &.{ "init", "show", "validate", "env", "help" },
+    .description = "Configuration management (init, setup, show, validate, env)",
+    .subcommands = &.{ "init", "setup", "show", "validate", "env", "path", "help" },
     .children = &.{
         .{ .name = "init", .description = "Generate a default configuration file", .handler = wrapCfgInit },
+        .{ .name = "setup", .description = "Bootstrap user config in platform default location", .handler = wrapCfgSetup },
         .{ .name = "show", .description = "Display current configuration", .handler = wrapCfgShow },
         .{ .name = "validate", .description = "Validate a configuration file", .handler = wrapCfgValidate },
         .{ .name = "env", .description = "List environment variables", .handler = wrapCfgEnv },
+        .{ .name = "path", .description = "Print platform default config path", .handler = wrapCfgPath },
     },
 };
 
 const config_subcommands = [_][]const u8{
-    "init", "show", "validate", "env", "help",
+    "init", "setup", "show", "validate", "env", "path", "help",
 };
 
 /// Run the config command with the provided arguments.
@@ -54,10 +68,11 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     // Unknown subcommand
-    std.debug.print("Unknown config command: {s}\n", .{cmd});
+    utils.output.printError("Unknown config command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &config_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
+    utils.output.printInfo("Run 'abi config help' for usage.", .{});
 }
 
 fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -106,7 +121,7 @@ fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
-    var format: enum { human, json } = .human;
+    var format: OutputFormat = .human;
     var config_path: ?[]const u8 = null;
 
     var i: usize = 0;
@@ -131,20 +146,35 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     if (config_path) |path| {
-        // Load and show from file using shared config loader (legacy format)
-        var loader = shared_config.ConfigLoader.init(allocator);
-        const config = loader.loadFromFile(path) catch |err| {
+        var config = loadConfigFromFile(allocator, path) catch |err| {
             std.debug.print("Error loading config file '{s}': {t}\n", .{ path, err });
             return;
         };
-        defer @constCast(&config).deinit();
-
-        switch (format) {
-            .human => printConfigHuman(&config),
-            .json => std.debug.print("{s}\n", .{getDefaultConfigJson()}),
-        }
+        defer config.deinit();
+        return printByFormat(allocator, format, &config);
     } else {
-        // Show default configuration
+        const resolved_path = app_paths.resolvePath(allocator, "config.json") catch |err| {
+            if (err == error.NoHomeDirectory) {
+                switch (format) {
+                    .human => printDefaultConfigHuman(),
+                    .json => std.debug.print("{s}\n", .{getDefaultConfigJson()}),
+                }
+                return;
+            }
+            return err;
+        };
+        defer allocator.free(resolved_path);
+
+        if (loadConfigFromFile(allocator, resolved_path)) |loaded_config| {
+            var config = loaded_config;
+            defer config.deinit();
+            return printByFormat(allocator, format, &config);
+        } else |err| switch (err) {
+            error.FileNotFound => {},
+            else => return err,
+        }
+
+        // Show built-in default configuration only when no user config exists.
         switch (format) {
             .human => printDefaultConfigHuman(),
             .json => std.debug.print("{s}\n", .{getDefaultConfigJson()}),
@@ -223,15 +253,127 @@ fn runEnv() void {
     std.debug.print("  ABI_GPU_BACKEND        Preferred GPU backend\n", .{});
 }
 
+fn printByFormat(
+    allocator: std.mem.Allocator,
+    format: OutputFormat,
+    config: *const shared_config.Config,
+) !void {
+    switch (format) {
+        .human => printConfigHuman(config),
+        .json => try printConfigJson(allocator, config),
+    }
+}
+
+fn loadConfigFromFile(allocator: std.mem.Allocator, path: []const u8) !shared_config.Config {
+    var loader = shared_config.ConfigLoader.init(allocator);
+    defer loader.deinit();
+    return try loader.loadFromFile(path);
+}
+
+fn runPath(ctx: *const context_mod.CommandContext) !void {
+    const allocator = ctx.allocator;
+    const primary_dir = try app_paths.resolvePrimaryRoot(allocator);
+    defer allocator.free(primary_dir);
+
+    const config_path = try app_paths.resolvePath(allocator, "config.json");
+    defer allocator.free(config_path);
+
+    std.debug.print("Primary user config directory: {s}\n", .{primary_dir});
+    std.debug.print("Primary user config file:      {s}\n", .{config_path});
+}
+
+fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
+    var force = false;
+
+    for (args) |arg_z| {
+        const arg = std.mem.sliceTo(arg_z, 0);
+        if (utils.args.matchesAny(arg, &.{ "--force", "-f" })) {
+            force = true;
+            continue;
+        }
+        if (utils.args.matchesAny(arg, &.{ "--help", "-h", "help" })) {
+            printSetupHelp();
+            return;
+        }
+        std.debug.print("Unknown setup option: {s}\n", .{arg});
+        printSetupHelp();
+        return;
+    }
+
+    const config_path = try app_paths.resolvePath(allocator, "config.json");
+    defer allocator.free(config_path);
+    const dir_path = std.fs.path.dirname(config_path) orelse ".";
+
+    var io_backend = cli_io.initIoBackend(allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    std.Io.Dir.cwd().createDirPath(io, dir_path) catch |err| {
+        std.debug.print("Error creating config directory '{s}': {t}\n", .{ dir_path, err });
+        return;
+    };
+
+    const existing = std.Io.Dir.cwd().openFile(io, config_path, .{}) catch |err| switch (err) {
+        error.FileNotFound => null,
+        else => {
+            std.debug.print("Error checking config file '{s}': {t}\n", .{ config_path, err });
+            return;
+        },
+    };
+    if (existing) |file| {
+        file.close(io);
+        if (!force) {
+            std.debug.print("Config already exists: {s}\n", .{config_path});
+            std.debug.print("Use 'abi config setup --force' to overwrite it.\n", .{});
+            printStartupHints(config_path);
+            return;
+        }
+    }
+
+    const file = std.Io.Dir.cwd().createFile(io, config_path, .{ .truncate = true }) catch |err| {
+        std.debug.print("Error creating config file '{s}': {t}\n", .{ config_path, err });
+        return;
+    };
+    defer file.close(io);
+
+    file.writeStreamingAll(io, getDefaultConfigJson()) catch |err| {
+        std.debug.print("Error writing config file: {t}\n", .{err});
+        return;
+    };
+
+    std.debug.print("User config ready: {s}\n", .{config_path});
+    printStartupHints(config_path);
+}
+
+fn printSetupHelp() void {
+    const help_text =
+        "Usage: abi config setup [--force]\n\n" ++
+        "Create the default user config file in the platform-specific location.\n\n" ++
+        "Options:\n" ++
+        "  -f, --force          Overwrite existing config file\n";
+    std.debug.print("{s}", .{help_text});
+}
+
+fn printStartupHints(config_path: []const u8) void {
+    std.debug.print("\nQuick start:\n", .{});
+    std.debug.print("  abi launch                         Open command launcher\n", .{});
+    std.debug.print("  abi config show {s}         Review config\n", .{config_path});
+    std.debug.print("  abi llm discover                    Detect available LLM providers\n", .{});
+    std.debug.print("  abi profile show                    Check active profile settings\n", .{});
+}
+
 fn printHelp() void {
     const help_text =
         "Usage: abi config <command> [options]\n\n" ++
         "Manage ABI framework configuration files.\n\n" ++
         "Commands:\n" ++
         "  init [options]       Generate a default configuration file\n" ++
+        "  setup [--force]      Create user config in platform default location\n" ++
         "  show [file]          Display configuration (default or from file)\n" ++
         "  validate <file>      Validate a configuration file\n" ++
         "  env                  List environment variables\n" ++
+        "  path                 Print primary config path + legacy fallback path\n" ++
         "  help                 Show this help message\n\n" ++
         "Init options:\n" ++
         "  -o, --output <path>  Output file path (default: abi.json)\n\n" ++
@@ -240,6 +382,8 @@ fn printHelp() void {
         "Examples:\n" ++
         "  abi config init                    Create default abi.json\n" ++
         "  abi config init -o myconfig.json   Create custom config file\n" ++
+        "  abi config setup                   Bootstrap user config in platform location\n" ++
+        "  abi config path                    Print user config path\n" ++
         "  abi config show                    Show default configuration\n" ++
         "  abi config show abi.json           Show file configuration\n" ++
         "  abi config show -f json            Show as JSON\n" ++
@@ -313,6 +457,34 @@ fn printDefaultConfigHuman() void {
     std.debug.print("    server_enabled: no\n", .{});
     std.debug.print("    port: 8080\n", .{});
     std.debug.print("    cors_enabled: yes\n", .{});
+}
+
+fn printConfigJson(allocator: std.mem.Allocator, config: *const shared_config.Config) !void {
+    const SerializableConfig = struct {
+        framework: shared_config.FrameworkConfig,
+        database: shared_config.DatabaseConfig,
+        gpu: shared_config.GpuConfig,
+        ai: shared_config.AiConfig,
+        network: shared_config.NetworkConfig,
+        web: shared_config.WebConfig,
+    };
+
+    const payload: SerializableConfig = .{
+        .framework = config.framework,
+        .database = config.database,
+        .gpu = config.gpu,
+        .ai = config.ai,
+        .network = config.network,
+        .web = config.web,
+    };
+
+    var json_writer: std.Io.Writer.Allocating = .init(allocator);
+    defer json_writer.deinit();
+    try std.json.Stringify.value(payload, .{ .whitespace = .indent_2 }, &json_writer.writer);
+
+    const json_data = try json_writer.toOwnedSlice();
+    defer allocator.free(json_data);
+    std.debug.print("{s}\n", .{json_data});
 }
 
 fn getDefaultConfigJson() []const u8 {

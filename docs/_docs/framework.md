@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1261` pass / `5` skip / `1266` total
-- Feature tests: `2119` pass / `2123` total
+- Feature tests: `2263` pass / `2268` total
 
 ## Feature Coverage
 
@@ -33,7 +33,7 @@ No feature modules directly mapped to this section.
 - `src/core/framework.zig` ([api](../api/framework.html))
 - `src/core/registry/mod.zig` ([api](../api/registry.html))
 - `src/services/runtime/mod.zig` ([api](../api/runtime.html))
-- `src/services/shared/simd.zig` ([api](../api/simd.html))
+- `src/services/shared/simd/mod.zig` ([api](../api/simd.html))
 
 ## Command Entry Points
 
@@ -41,7 +41,7 @@ No feature modules directly mapped to this section.
 - `abi agent` — Run AI agent (interactive or one-shot)
 - `abi bench` — Run performance benchmarks (all, simd, memory, ai, quick)
 - `abi completions` — Generate shell completions (bash, zsh, fish, powershell)
-- `abi config` — Configuration management (init, show, validate)
+- `abi config` — Configuration management (init, setup, show, validate, env)
 - `abi convert` — Dataset conversion tools (tokenbin, text, jsonl, wdbx)
 - `abi db` — Database operations (add, query, stats, optimize, backup, restore)
 - `abi discord` — Discord bot operations (status, guilds, send, commands)

@@ -7,6 +7,48 @@ const run_cmd = @import("run.zig");
 
 const ChatMessage = abi.ai.llm.providers.ChatMessage;
 const ProviderId = abi.ai.llm.providers.ProviderId;
+const provider_parser = abi.ai.llm.providers.parser;
+
+const SyncModelEntry = struct {
+    provider: ProviderId,
+    model: []u8,
+};
+
+const SyncState = struct {
+    enabled: bool = false,
+    chain: []ProviderId = &.{},
+    owns_chain: bool = false,
+    next_index: usize = 0,
+    model_map: std.ArrayListUnmanaged(SyncModelEntry) = .empty,
+
+    fn deinit(self: *SyncState, allocator: std.mem.Allocator) void {
+        if (self.owns_chain) allocator.free(self.chain);
+        for (self.model_map.items) |entry| allocator.free(entry.model);
+        self.model_map.deinit(allocator);
+        self.* = undefined;
+    }
+
+    fn modelForProvider(self: *const SyncState, provider: ProviderId) ?[]const u8 {
+        for (self.model_map.items) |entry| {
+            if (entry.provider == provider) return entry.model;
+        }
+        return null;
+    }
+
+    fn setModel(self: *SyncState, allocator: std.mem.Allocator, provider: ProviderId, model: []const u8) !void {
+        for (self.model_map.items) |*entry| {
+            if (entry.provider == provider) {
+                allocator.free(entry.model);
+                entry.model = try allocator.dupe(u8, model);
+                return;
+            }
+        }
+        try self.model_map.append(allocator, .{
+            .provider = provider,
+            .model = try allocator.dupe(u8, model),
+        });
+    }
+};
 
 pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
@@ -17,12 +59,6 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
 
     var options = try run_cmd.parseRunArgs(allocator, args);
     defer allocator.free(options.fallback);
-
-    if (options.model == null) {
-        std.debug.print("Error: --model is required.\n\n", .{});
-        printSessionHelp();
-        return;
-    }
 
     var system_prompt: []const u8 = "You are a concise, practical assistant.";
     var i: usize = 0;
@@ -35,8 +71,20 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
         }
     }
 
+    var sync = try parseSyncArgs(allocator, args);
+    defer sync.deinit(allocator);
+
+    if (options.model == null and !sync.enabled) {
+        std.debug.print("Error: --model is required.\n\n", .{});
+        printSessionHelp();
+        return;
+    }
+    if (options.model == null and sync.enabled) {
+        options.model = "sync";
+    }
+
     std.debug.print("LLM session started (model: {s}).\n", .{options.model.?});
-    std.debug.print("Commands: /quit, /exit, /clear, /help, /providers, /backend <id>, /model <id>\n\n", .{});
+    std.debug.print("Commands: /quit, /exit, /clear, /help, /providers, /backend <id>, /model <id>, /sync\n\n", .{});
 
     // Track heap-allocated model name from /model command to avoid dangling pointers.
     var model_switched: ?[]u8 = null;
@@ -90,6 +138,25 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
             printProviderStatus(allocator);
             continue;
         }
+        if (std.mem.eql(u8, trimmed, "/sync")) {
+            printSyncStatus(&sync);
+            continue;
+        }
+        if (std.mem.startsWith(u8, trimmed, "/sync")) {
+            const rest = std.mem.trim(u8, trimmed["/sync".len..], " \t");
+            if (rest.len == 0) {
+                printSyncStatus(&sync);
+            } else if (std.mem.eql(u8, rest, "on")) {
+                sync.enabled = true;
+                std.debug.print("Sync mode enabled.\n\n", .{});
+            } else if (std.mem.eql(u8, rest, "off")) {
+                sync.enabled = false;
+                std.debug.print("Sync mode disabled.\n\n", .{});
+            } else {
+                std.debug.print("Usage: /sync [on|off]\n\n", .{});
+            }
+            continue;
+        }
         if (std.mem.startsWith(u8, trimmed, "/backend")) {
             const rest = std.mem.trim(u8, trimmed["/backend".len..], " \t");
             if (rest.len == 0) {
@@ -102,10 +169,15 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
             }
             if (parseProviderId(rest)) |new_backend| {
                 options.backend = new_backend;
-                std.debug.print("Backend switched to: {s}\n\n", .{new_backend.label()});
+                if (sync.enabled) {
+                    sync.enabled = false;
+                    std.debug.print("Backend switched to: {s} (sync disabled)\n\n", .{new_backend.label()});
+                } else {
+                    std.debug.print("Backend switched to: {s}\n\n", .{new_backend.label()});
+                }
             } else {
                 std.debug.print("Unknown backend: {s}\n", .{rest});
-                std.debug.print("Available: local_gguf, llama_cpp, mlx, ollama, lm_studio, vllm, anthropic, openai, plugin_http, plugin_native\n\n", .{});
+                std.debug.print("Available: local_gguf, llama_cpp, mlx, ollama, ollama_passthrough, lm_studio, vllm, anthropic, openai, codex, opencode, claude, gemini, plugin_http, plugin_native\n\n", .{});
             }
             continue;
         }
@@ -134,24 +206,65 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
         try history.append(allocator, .{ .role = "user", .content = user_text });
 
         // ── Generate with structured messages ──────────────────────
-        var result = abi.ai.llm.providers.generate(allocator, .{
-            .model = options.model.?,
-            .prompt = trimmed,
-            .messages = history.items,
-            .system_prompt = system_prompt,
-            .backend = options.backend,
-            .fallback = options.fallback,
-            .strict_backend = options.strict_backend,
-            .plugin_id = options.plugin_id,
-            .max_tokens = options.max_tokens,
-            .temperature = options.temperature,
-            .top_p = options.top_p,
-            .top_k = options.top_k,
-            .repetition_penalty = options.repetition_penalty,
-        }) catch |err| {
-            std.debug.print("LLM session call failed: {t}\n\n", .{err});
-            continue;
-        };
+        var result: abi.ai.llm.providers.GenerateResult = undefined;
+        if (sync.enabled and sync.chain.len > 0) {
+            var got_result = false;
+            var attempts: usize = 0;
+            while (attempts < sync.chain.len) : (attempts += 1) {
+                const idx = (sync.next_index + attempts) % sync.chain.len;
+                const provider = sync.chain[idx];
+                const model = sync.modelForProvider(provider) orelse {
+                    std.debug.print("[{s}] skipped: no model configured\n", .{provider.label()});
+                    continue;
+                };
+
+                result = abi.ai.llm.providers.generate(allocator, .{
+                    .model = model,
+                    .prompt = trimmed,
+                    .messages = history.items,
+                    .system_prompt = system_prompt,
+                    .backend = provider,
+                    .fallback = &.{},
+                    .strict_backend = true,
+                    .plugin_id = options.plugin_id,
+                    .max_tokens = options.max_tokens,
+                    .temperature = options.temperature,
+                    .top_p = options.top_p,
+                    .top_k = options.top_k,
+                    .repetition_penalty = options.repetition_penalty,
+                }) catch |err| {
+                    std.debug.print("[{s}] failed: {t}\n", .{ provider.label(), err });
+                    continue;
+                };
+
+                sync.next_index = (idx + 1) % sync.chain.len;
+                got_result = true;
+                break;
+            }
+            if (!got_result) {
+                std.debug.print("All sync providers failed for this turn.\n\n", .{});
+                continue;
+            }
+        } else {
+            result = abi.ai.llm.providers.generate(allocator, .{
+                .model = options.model.?,
+                .prompt = trimmed,
+                .messages = history.items,
+                .system_prompt = system_prompt,
+                .backend = options.backend,
+                .fallback = options.fallback,
+                .strict_backend = options.strict_backend,
+                .plugin_id = options.plugin_id,
+                .max_tokens = options.max_tokens,
+                .temperature = options.temperature,
+                .top_p = options.top_p,
+                .top_k = options.top_k,
+                .repetition_penalty = options.repetition_penalty,
+            }) catch |err| {
+                std.debug.print("LLM session call failed: {t}\n\n", .{err});
+                continue;
+            };
+        }
         defer result.deinit(allocator);
 
         // ── Append assistant response to structured history ────────
@@ -175,15 +288,211 @@ fn printProviderStatus(allocator: std.mem.Allocator) void {
 }
 
 fn parseProviderId(value: []const u8) ?ProviderId {
-    if (ProviderId.fromString(value)) |provider| return provider;
+    return provider_parser.parseProviderId(value);
+}
 
-    if (std.mem.eql(u8, value, "llama-cpp")) return .llama_cpp;
-    if (std.mem.eql(u8, value, "lm-studio")) return .lm_studio;
-    if (std.mem.eql(u8, value, "plugin-http")) return .plugin_http;
-    if (std.mem.eql(u8, value, "plugin-native")) return .plugin_native;
-    if (std.mem.eql(u8, value, "local-gguf")) return .local_gguf;
+fn parseSyncArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !SyncState {
+    var sync = SyncState{};
+    errdefer sync.deinit(allocator);
 
-    return null;
+    var sync_enabled = false;
+    var providers_csv: ?[]const u8 = null;
+    var model_map_csv: ?[]const u8 = null;
+
+    var i: usize = 0;
+    while (i < args.len) {
+        const arg = std.mem.sliceTo(args[i], 0);
+        i += 1;
+
+        if (std.mem.eql(u8, arg, "--sync")) {
+            sync_enabled = true;
+            continue;
+        }
+        if (std.mem.eql(u8, arg, "--sync-providers") and i < args.len) {
+            sync_enabled = true;
+            providers_csv = std.mem.sliceTo(args[i], 0);
+            i += 1;
+            continue;
+        }
+        if (std.mem.eql(u8, arg, "--sync-models") and i < args.len) {
+            sync_enabled = true;
+            model_map_csv = std.mem.sliceTo(args[i], 0);
+            i += 1;
+            continue;
+        }
+    }
+
+    if (!sync_enabled) return sync;
+
+    sync.enabled = true;
+    sync.next_index = 0;
+
+    if (providers_csv) |csv| {
+        var chain_builder = std.ArrayListUnmanaged(ProviderId).empty;
+        defer chain_builder.deinit(allocator);
+
+        var it = std.mem.splitScalar(u8, csv, ',');
+        while (it.next()) |piece| {
+            const trimmed = std.mem.trim(u8, piece, " \t\r\n");
+            if (trimmed.len == 0) continue;
+            const provider = provider_parser.parseProviderId(trimmed) orelse return error.InvalidBackend;
+            var exists = false;
+            for (chain_builder.items) |existing| {
+                if (existing == provider) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) try chain_builder.append(allocator, provider);
+        }
+
+        sync.chain = try chain_builder.toOwnedSlice(allocator);
+        sync.owns_chain = true;
+    } else {
+        sync.chain = try allocator.dupe(ProviderId, abi.ai.llm.providers.registry.sync_round_robin_chain[0..]);
+        sync.owns_chain = true;
+    }
+
+    for (sync.chain) |provider| {
+        if (try defaultModelForProvider(allocator, provider)) |model| {
+            defer allocator.free(model);
+            try sync.setModel(allocator, provider, model);
+        }
+    }
+
+    if (model_map_csv) |csv| {
+        var it = std.mem.splitScalar(u8, csv, ',');
+        while (it.next()) |piece| {
+            const trimmed = std.mem.trim(u8, piece, " \t\r\n");
+            if (trimmed.len == 0) continue;
+
+            const eq_idx = std.mem.indexOfScalar(u8, trimmed, '=') orelse return error.InvalidBackend;
+            const provider_text = std.mem.trim(u8, trimmed[0..eq_idx], " \t");
+            const model_text = std.mem.trim(u8, trimmed[eq_idx + 1 ..], " \t");
+            if (provider_text.len == 0 or model_text.len == 0) return error.InvalidBackend;
+
+            const provider = provider_parser.parseProviderId(provider_text) orelse return error.InvalidBackend;
+            try sync.setModel(allocator, provider, model_text);
+        }
+    }
+
+    return sync;
+}
+
+fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !?[]u8 {
+    switch (provider) {
+        .codex => {
+            if (try abi.connectors.tryLoadCodex(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .opencode => {
+            if (try abi.connectors.tryLoadOpenCode(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .claude => {
+            if (try abi.connectors.tryLoadClaude(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .gemini => {
+            if (try abi.connectors.tryLoadGemini(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .ollama_passthrough => {
+            if (try abi.connectors.tryLoadOllamaPassthrough(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .ollama => {
+            if (try abi.connectors.tryLoadOllama(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .anthropic => {
+            if (try abi.connectors.tryLoadAnthropic(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .openai => {
+            if (try abi.connectors.tryLoadOpenAI(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .llama_cpp => {
+            if (try abi.connectors.tryLoadLlamaCpp(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .mlx => {
+            if (try abi.connectors.tryLoadMLX(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .lm_studio => {
+            if (try abi.connectors.tryLoadLMStudio(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        .vllm => {
+            if (try abi.connectors.tryLoadVLLM(allocator)) |cfg| {
+                var config = cfg;
+                defer config.deinit(allocator);
+                return @as(?[]u8, try allocator.dupe(u8, config.model));
+            }
+            return null;
+        },
+        else => return null,
+    }
+}
+
+fn printSyncStatus(sync: *const SyncState) void {
+    std.debug.print("Sync: {s}\n", .{if (sync.enabled) "enabled" else "disabled"});
+    if (sync.chain.len == 0) {
+        std.debug.print("Sync chain: (empty)\n\n", .{});
+        return;
+    }
+    std.debug.print("Sync chain: ", .{});
+    for (sync.chain, 0..) |provider, idx| {
+        if (idx != 0) std.debug.print(" -> ", .{});
+        std.debug.print("{s}", .{provider.label()});
+    }
+    std.debug.print("\nNext provider: {s}\n\n", .{sync.chain[sync.next_index % sync.chain.len].label()});
 }
 
 fn printSlashHelp() void {
@@ -194,7 +503,8 @@ fn printSlashHelp() void {
             "  /help                  Show this help\n" ++
             "  /providers             Show available providers\n" ++
             "  /backend <id>          Switch backend (e.g. /backend anthropic)\n" ++
-            "  /model <id>            Switch model (e.g. /model llama3)\n\n",
+            "  /model <id>            Switch model (e.g. /model llama3)\n" ++
+            "  /sync [on|off]         Show or toggle sync mode\n\n",
         .{},
     );
 }
@@ -210,6 +520,9 @@ pub fn printSessionHelp() void {
             "  --fallback <csv>        Comma-separated fallback chain\n" ++
             "  --strict-backend        Disable fallback\n" ++
             "  --plugin <id>           Pin plugin id\n" ++
+            "  --sync                  Enable round-robin sync mode\n" ++
+            "  --sync-providers <csv>  Override sync provider chain\n" ++
+            "  --sync-models <csv>     Provider model map (provider=model,...)\n" ++
             "  --system <text>         System prompt\n" ++
             "  -n, --max-tokens <n>    Max tokens (default: 256)\n" ++
             "  -t, --temperature <f>   Temperature (default: 0.7)\n\n" ++
@@ -219,7 +532,34 @@ pub fn printSessionHelp() void {
             "  /help                   Show command help\n" ++
             "  /providers              Show available providers\n" ++
             "  /backend <id>           Switch backend mid-session\n" ++
-            "  /model <id>             Switch model mid-session\n",
+            "  /model <id>             Switch model mid-session\n" ++
+            "  /sync [on|off]          Show or toggle sync mode\n",
         .{},
     );
+}
+
+test "parseSyncArgs parses sync providers and model overrides" {
+    const allocator = std.testing.allocator;
+    const args = [_][:0]const u8{
+        "--sync",
+        "--sync-providers",
+        "codex,claude,gemini",
+        "--sync-models",
+        "codex=gpt-5-codex,claude=claude-3-5-sonnet-20241022",
+    };
+
+    var sync = try parseSyncArgs(allocator, &args);
+    defer sync.deinit(allocator);
+
+    try std.testing.expect(sync.enabled);
+    try std.testing.expectEqual(@as(usize, 3), sync.chain.len);
+    try std.testing.expect(sync.chain[0] == .codex);
+    try std.testing.expect(sync.chain[1] == .claude);
+    try std.testing.expect(sync.chain[2] == .gemini);
+    try std.testing.expect(sync.modelForProvider(.codex) != null);
+    try std.testing.expect(sync.modelForProvider(.claude) != null);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

@@ -22,6 +22,8 @@ pub const ImproveOptions = struct {
     plugin: ?[]const u8 = null,
     worktree: []const u8 = ".",
     require_clean_tree: bool = true,
+    /// Gate command from ralph.yml (default: "zig build verify-all").
+    gate_command: []const u8 = "zig build verify-all",
 };
 
 pub const RunSummary = struct {
@@ -111,7 +113,7 @@ pub fn runImprove(
         errdefer if (verify_result_opt) |*vr| vr.deinit(allocator);
 
         if (!options.analysis_only) {
-            verify_result_opt = try verification.runVerifyAll(allocator, io, options.worktree);
+            verify_result_opt = try verification.runGateCommand(allocator, io, options.worktree, options.gate_command);
             last_gate_passed = verify_result_opt.?.passed;
             last_gate_exit = verify_result_opt.?.exit_code;
 
@@ -134,8 +136,8 @@ pub fn runImprove(
                 while (fix_attempt < options.max_fix_attempts and !last_gate_passed) : (fix_attempt += 1) {
                     const fail_prompt = try std.fmt.allocPrint(
                         allocator,
-                        "verify-all failed (exit {d}). Apply direct code fixes and rerun.\n\nstdout:\n{s}\n\nstderr:\n{s}",
-                        .{ verify_result_opt.?.exit_code, verify_result_opt.?.stdout, verify_result_opt.?.stderr },
+                        "{s} failed (exit {d}). Apply direct code fixes and rerun.\n\nstdout:\n{s}\n\nstderr:\n{s}",
+                        .{ options.gate_command, verify_result_opt.?.exit_code, verify_result_opt.?.stdout, verify_result_opt.?.stderr },
                     );
                     defer allocator.free(fail_prompt);
                     const fix_response = tool_agent.processWithTools(fail_prompt, allocator) catch break;
@@ -143,7 +145,7 @@ pub fn runImprove(
 
                     verify_result_opt.?.deinit(allocator);
                     verify_result_opt = null;
-                    verify_result_opt = try verification.runVerifyAll(allocator, io, options.worktree);
+                    verify_result_opt = try verification.runGateCommand(allocator, io, options.worktree, options.gate_command);
                     last_gate_passed = verify_result_opt.?.passed;
                     last_gate_exit = verify_result_opt.?.exit_code;
                     changed = in_repo and git_ops.hasChanges(allocator, io, options.worktree);
@@ -169,7 +171,7 @@ pub fn runImprove(
             last_gate_exit = 0;
         }
 
-        if (firstSentence(response)) |sentence| {
+        if (extractSkillSentence(response)) |sentence| {
             skills_store.appendSkill(allocator, io, sentence, run_id, if (last_gate_passed) 1.0 else 0.5) catch {};
             skills_added += 1;
         }
@@ -235,6 +237,9 @@ pub fn runImprove(
         .started_at = started_at,
         .ended_at = ended_at,
         .verify_log = verify_log_path,
+        .duration_seconds = ended_at - started_at,
+        .skills_added = skills_added,
+        .gate_command = options.gate_command,
     });
 
     var state = cfg.readState(allocator, io);
@@ -270,11 +275,67 @@ fn fallbackLabel(allocator: std.mem.Allocator, options: ImproveOptions) ![]u8 {
     return buffer.toOwnedSlice(allocator);
 }
 
-fn firstSentence(text: []const u8) ?[]const u8 {
+/// Extract the most meaningful skill-worthy sentence from a response.
+/// Prefers sentences containing action verbs and technical terms over generic openers.
+fn extractSkillSentence(text: []const u8) ?[]const u8 {
     const trimmed = std.mem.trim(u8, text, " \t\r\n");
     if (trimmed.len == 0) return null;
+
+    // Collect up to 5 sentences
+    var sentences: [5][]const u8 = undefined;
+    var sentence_count: usize = 0;
+    var start: usize = 0;
+
     for (trimmed, 0..) |ch, idx| {
-        if (ch == '.' or ch == '\n') return std.mem.trim(u8, trimmed[0 .. idx + 1], " \t\r\n");
+        if (ch == '.' or ch == '\n') {
+            const candidate = std.mem.trim(u8, trimmed[start .. idx + 1], " \t\r\n");
+            if (candidate.len >= 15 and sentence_count < 5) {
+                sentences[sentence_count] = candidate;
+                sentence_count += 1;
+            }
+            start = idx + 1;
+        }
     }
-    return trimmed;
+
+    // Fallback: if no sentences found, use first sentence
+    if (sentence_count == 0) {
+        for (trimmed, 0..) |ch, idx| {
+            if (ch == '.' or ch == '\n') return std.mem.trim(u8, trimmed[0 .. idx + 1], " \t\r\n");
+        }
+        return if (trimmed.len >= 10) trimmed else null;
+    }
+
+    // Score sentences: prefer those with actionable technical content
+    const action_keywords = [_][]const u8{
+        "use",  "avoid",  "always",  "never",  "prefer", "ensure", "require",
+        "must", "should", "instead", "rather", "fix",    "update", "replace",
+    };
+    const technical_keywords = [_][]const u8{
+        "zig",    "build",  "test",   "compile", "allocat", "io",
+        "mod",    "stub",   "import", "feature", "error",   "memory",
+        "config", "module", "gate",   "flag",
+    };
+
+    var best_idx: usize = 0;
+    var best_score: usize = 0;
+
+    for (sentences[0..sentence_count], 0..) |sentence, idx| {
+        var score: usize = 0;
+        for (action_keywords) |kw| {
+            if (std.mem.indexOf(u8, sentence, kw) != null) score += 2;
+        }
+        for (technical_keywords) |kw| {
+            if (std.mem.indexOf(u8, sentence, kw) != null) score += 1;
+        }
+        // Penalize very short or very long
+        if (sentence.len < 30) score = score / 2;
+        if (sentence.len > 200) score = score / 2;
+
+        if (score > best_score) {
+            best_score = score;
+            best_idx = idx;
+        }
+    }
+
+    return sentences[best_idx];
 }

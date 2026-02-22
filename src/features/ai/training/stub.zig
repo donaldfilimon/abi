@@ -252,6 +252,21 @@ pub const TrainingResult = struct {
     pub fn deinit(_: *TrainingResult) void {}
 };
 
+pub const GpuTrainingStats = struct {
+    total_gpu_ops: u64 = 0,
+    gpu_time_ns: u64 = 0,
+    cpu_fallback_ops: u64 = 0,
+    utilization: f32 = 0,
+    backend_name: []const u8 = "none",
+    gpu_available: bool = false,
+    pub fn avgKernelTimeMs(_: GpuTrainingStats) f32 {
+        return 0;
+    }
+    pub fn gpuRatio(_: GpuTrainingStats) f32 {
+        return 0;
+    }
+};
+
 pub const LlamaTrainer = struct {
     pub fn init(_: std.mem.Allocator, _: *TrainableModel, _: LlmTrainingConfig) Error!@This() {
         return error.TrainingDisabled;
@@ -264,6 +279,9 @@ pub const LlamaTrainer = struct {
         return error.TrainingDisabled;
     }
     pub fn getStats(_: *const @This()) TrainingStats {
+        return .{};
+    }
+    pub fn getGpuStats(_: *const @This()) GpuTrainingStats {
         return .{};
     }
     pub fn getReport(_: *const @This()) TrainingReport {

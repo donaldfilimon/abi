@@ -46,7 +46,7 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "help", "status" },
     &.{ "help", "mcp" },
     &.{ "help", "acp" },
-    &.{ "help", "gpu-dashboard" },
+    &.{ "help", "ui" },
 
     // ── Nested help (subcommand-level) ──────────────────────────────────
     &.{ "help", "llm", "run" },
@@ -99,6 +99,10 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "train", "resume", "--help" },
     &.{ "train", "monitor", "--help" },
     &.{ "train", "generate-data", "--help" },
+    &.{ "train", "run", "--epochs", "1", "--batch-size", "4", "--sample-count", "16" },
+    &.{ "train", "self", "--help" },
+    &.{ "train", "help" },
+    &.{ "bench", "compare-training" },
     &.{ "model", "list" },
     &.{ "model", "path" },
     &.{ "model", "info", "--help" },
@@ -142,7 +146,7 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "profile", "list" },
     &.{ "gpu", "list" },
     &.{ "agent", "--help" },
-    &.{ "tui", "--help" },
+    &.{ "ui", "--help" },
     &.{ "embed", "--help" },
     &.{ "explore", "--help" },
 

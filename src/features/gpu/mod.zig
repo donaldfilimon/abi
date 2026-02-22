@@ -190,6 +190,13 @@ pub const peer_transfer = @import("peer_transfer/mod.zig");
 // Mega GPU orchestration (cross-backend coordinator)
 pub const mega = @import("mega/mod.zig");
 
+// AI training bridge (GPU-accelerated training ops with CPU fallback)
+pub const coordinator_ai_ops = @import("coordinator_ai_ops.zig");
+pub const training_bridge = @import("training_bridge.zig");
+
+// Gradient compression for distributed training
+pub const gradient_compression = @import("gradient_compression.zig");
+
 // Include test modules in test builds
 comptime {
     if (@import("builtin").is_test) {
@@ -229,6 +236,11 @@ comptime {
         // Backend extracted tests
         _ = @import("backends/metal_test.zig");
         _ = @import("backends/vulkan_test.zig");
+        // Training bridge tests
+        _ = @import("coordinator_ai_ops.zig");
+        _ = @import("training_bridge.zig");
+        // Gradient compression tests
+        _ = @import("gradient_compression.zig");
     }
 }
 

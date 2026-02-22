@@ -199,6 +199,7 @@ test "llama trainer training step" {
         .max_seq_len = 16,
         .learning_rate = 0.001,
         .grad_accum_steps = 1,
+        .use_gpu = false, // Tests run CPU-only; GPU bridge tested separately
     };
 
     var trainer = try llm_trainer.LlamaTrainer.init(allocator, &model, train_config);

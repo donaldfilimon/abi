@@ -26,7 +26,7 @@ pub const HealthStatus = enum {
     recovering,
 
     pub fn toString(self: HealthStatus) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 
     pub fn isAvailable(self: HealthStatus) bool {
@@ -46,7 +46,7 @@ pub const FallbackPolicy = enum {
     circuit_breaker,
 
     pub fn toString(self: FallbackPolicy) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 

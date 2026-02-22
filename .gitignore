@@ -19,6 +19,7 @@ docs/api-app/data/features.json
 
 # ── Editor and IDE ────────────────────────────────────────────────────
 .vscode/
+.cursor/
 .idea/
 *.swp
 *.swo
@@ -184,3 +185,7 @@ tmpclaude-*
 examples/c_test
 .discord
 *.cell.out
+
+# ── Trash (cleanup staging) ─────────────────────────────────────────
+TRASH/
+TRASH-FILES.md

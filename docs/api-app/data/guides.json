@@ -39,14 +39,7 @@
     "title": "CLI",
     "section": "Core",
     "permalink": "/cli/",
-    "description": "30 commands and aliases for AI, GPU, database, and system management"
-  },
-  {
-    "slug": "migration-vnext",
-    "title": "Migration (vNext)",
-    "section": "Core",
-    "permalink": "/migration-vnext/",
-    "description": "Migration guide for upcoming breaking changes"
+    "description": "29 commands and aliases for AI, GPU, database, and system management"
   },
   {
     "slug": "ai-overview",

@@ -25,6 +25,7 @@ const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 const super_ = @import("ralph/super.zig");
+const app_paths = abi.shared.app_paths;
 
 pub const meta: command_mod.Meta = .{
     .name = "agent",
@@ -38,13 +39,8 @@ const SessionState = struct {
     session_name: []const u8,
     messages: std.ArrayListUnmanaged(abi.ai.memory.Message),
     modified: bool,
-    store: ?abi.ai.memory.SessionStore,
 
     pub fn init(allocator: std.mem.Allocator, name: []const u8) !SessionState {
-        // Use cross-platform path separator
-        const sessions_dir = ".abi" ++ std.fs.path.sep_str ++ "sessions";
-        const store: ?abi.ai.memory.SessionStore = abi.ai.memory.SessionStore.init(allocator, sessions_dir);
-
         // Generate session ID using monotonic time
         var id_buf: [32]u8 = undefined;
         const timestamp = getUnixSeconds();
@@ -66,7 +62,6 @@ const SessionState = struct {
             .session_name = session_name,
             .messages = .empty,
             .modified = false,
-            .store = store,
         };
     }
 
@@ -76,7 +71,6 @@ const SessionState = struct {
             if (msg.name) |n| self.allocator.free(n);
         }
         self.messages.deinit(self.allocator);
-        // SessionStore doesn't need explicit cleanup
         self.allocator.free(self.session_id);
         self.allocator.free(self.session_name);
     }
@@ -94,8 +88,6 @@ const SessionState = struct {
     }
 
     pub fn save(self: *SessionState, name: ?[]const u8) !void {
-        var store = self.store orelse return error.PersistenceDisabled;
-
         // Update name if provided
         if (name) |n| {
             self.allocator.free(self.session_name);
@@ -112,14 +104,20 @@ const SessionState = struct {
             .config = .{},
         };
 
-        try store.saveSession(session_data);
+        const sessions_dir = try app_paths.resolvePath(self.allocator, "sessions");
+        defer self.allocator.free(sessions_dir);
+
+        var primary_store = abi.ai.memory.SessionStore.init(self.allocator, sessions_dir);
+        try primary_store.saveSession(session_data);
         self.modified = false;
     }
 
     pub fn load(self: *SessionState, session_id: []const u8) !void {
-        var store = self.store orelse return error.PersistenceDisabled;
+        const sessions_dir = try app_paths.resolvePath(self.allocator, "sessions");
+        defer self.allocator.free(sessions_dir);
 
-        var data = try store.loadSession(session_id);
+        var primary_store = abi.ai.memory.SessionStore.init(self.allocator, sessions_dir);
+        var data = try primary_store.loadSession(session_id);
         defer data.deinit(self.allocator);
 
         // Clear current messages
@@ -628,16 +626,36 @@ fn handleSlashCommand(
 }
 
 fn listSessions(allocator: std.mem.Allocator) !void {
-    const sessions_dir = ".abi" ++ std.fs.path.sep_str ++ "sessions";
-    var store = abi.ai.memory.SessionStore.init(allocator, sessions_dir);
-
-    const sessions = store.listSessions() catch |err| {
-        std.debug.print("Error listing sessions: {t}\n", .{err});
+    const sessions_dir = app_paths.resolvePath(allocator, "sessions") catch |err| {
+        std.debug.print("Error resolving session directories: {t}\n", .{err});
         return;
     };
-    defer allocator.free(sessions);
+    defer allocator.free(sessions_dir);
 
-    if (sessions.len == 0) {
+    var sessions = std.ArrayListUnmanaged(abi.ai.memory.SessionMeta).empty;
+    defer {
+        for (sessions.items) |*session_meta| session_meta.deinit(allocator);
+        sessions.deinit(allocator);
+    }
+
+    var primary_store = abi.ai.memory.SessionStore.init(allocator, sessions_dir);
+    var primary_sessions: ?[]abi.ai.memory.SessionMeta = null;
+    primary_sessions = primary_store.listSessions() catch |err| switch (err) {
+        error.SessionNotFound => null,
+        else => {
+            std.debug.print("Error listing sessions: {t}\n", .{err});
+            return;
+        },
+    };
+    defer if (primary_sessions) |sessions_list| allocator.free(sessions_list);
+
+    if (primary_sessions) |primary_session_list| {
+        for (primary_session_list) |session_meta| {
+            try sessions.append(allocator, session_meta);
+        }
+    }
+
+    if (sessions.items.len == 0) {
         std.debug.print("No saved sessions found.\n", .{});
         return;
     }
@@ -647,11 +665,7 @@ fn listSessions(allocator: std.mem.Allocator) !void {
     std.debug.print("{s:<20} {s:<20} {s:<10} {s:<10}\n", .{ "ID", "Name", "Messages", "Updated" });
     std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
 
-    for (sessions) |sess_meta| {
-        defer {
-            allocator.free(sess_meta.id);
-            allocator.free(sess_meta.name);
-        }
+    for (sessions.items) |sess_meta| {
         std.debug.print("{s:<20} {s:<20} {d:<10} {d:<10}\n", .{
             sess_meta.id,
             sess_meta.name,
@@ -660,6 +674,13 @@ fn listSessions(allocator: std.mem.Allocator) !void {
         });
     }
     std.debug.print("\n", .{});
+}
+
+fn sessionMetaExistsById(list: []const abi.ai.memory.SessionMeta, session_id: []const u8) bool {
+    for (list) |session_meta| {
+        if (std.mem.eql(u8, session_meta.id, session_id)) return true;
+    }
+    return false;
 }
 
 fn printInteractiveHelp() void {

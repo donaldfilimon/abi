@@ -177,7 +177,8 @@ pub const Stats = struct {
 };
 
 pub const ManagerConfig = struct {
-    storage_path: []const u8 = ".abi/tasks.json",
+    /// Optional storage path override. Empty uses the platform primary path.
+    storage_path: []const u8 = "",
     auto_save: bool = true,
 };
 

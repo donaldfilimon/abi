@@ -1,8 +1,8 @@
-# vnext
+# lsp
 
-> vNext forward API surface (staged compatibility release).
+> LSP (ZLS) client utilities.
 
-**Source:** [`src/vnext/mod.zig`](../../src/vnext/mod.zig)
+**Source:** [`src/services/lsp/mod.zig`](../../src/services/lsp/mod.zig)
 
 **Availability:** Always enabled
 

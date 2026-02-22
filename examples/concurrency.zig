@@ -8,7 +8,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const v2 = abi.shared.utils.v2_primitives;
+const primitives = abi.shared.utils.primitives;
 
 pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -16,7 +16,7 @@ pub fn main(_: std.process.Init) !void {
     const allocator = gpa.allocator();
 
     std.debug.print("\n=== ABI Concurrency Primitives Demo ===\n\n", .{});
-    std.debug.print("Platform: {s}\n\n", .{v2.Platform.description()});
+    std.debug.print("Platform: {s}\n\n", .{primitives.Platform.description()});
 
     // Demo 1: MPMC Queue
     try demoMpmcQueue(allocator);

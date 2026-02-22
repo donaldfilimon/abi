@@ -360,14 +360,14 @@ test "run trivial benchmark and verify results" {
     const alloc = std.testing.allocator;
     var suite = BenchmarkSuite.init("trivial", Config{
         .warmup_iterations = 2,
-        .sample_iterations = 5,
+        .sample_iterations = 50,
     });
     defer suite.deinit(alloc);
 
     const sum_bench = struct {
         fn bench(state: *BenchmarkState) void {
             var total: u64 = 0;
-            for (0..100) |i| {
+            for (0..10_000) |i| {
                 total += i;
             }
             state.doNotOptimize(total);
@@ -380,7 +380,7 @@ test "run trivial benchmark and verify results" {
     try std.testing.expectEqual(@as(usize, 1), suite.results.items.len);
     const r = suite.results.items[0];
     try std.testing.expectEqualStrings("sum-100", r.name);
-    try std.testing.expectEqual(@as(usize, 5), r.iterations);
+    try std.testing.expectEqual(@as(usize, 50), r.iterations);
     try std.testing.expect(r.total_ns > 0);
 }
 

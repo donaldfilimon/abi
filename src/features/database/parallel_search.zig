@@ -15,7 +15,7 @@ const std = @import("std");
 const time = @import("../../services/shared/time.zig");
 const sync = @import("../../services/shared/sync.zig");
 const builtin = @import("builtin");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 
 /// Whether threading is available on this target
 const is_threaded_target = builtin.target.os.tag != .freestanding and

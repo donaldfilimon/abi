@@ -57,7 +57,7 @@ pub const AlignedAllocator = aligned.AlignedAllocator;
 pub const ThreadCache = thread_cache.ThreadCache;
 pub const ThreadArena = thread_cache.ThreadArena;
 
-// v2 memory primitives
+// Extended memory primitives
 pub const ArenaPool = arena_pool.ArenaPool;
 pub const VectorPool = arena_pool.VectorPool;
 pub const ScratchAllocator = arena_pool.ScratchAllocator;

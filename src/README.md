@@ -14,7 +14,6 @@ at compile time via `build_options`.
 | `core/` | Framework orchestration, config, registry, startup |
 | `features/` | 21 feature modules with comptime gating |
 | `services/` | Always-available infrastructure: runtime, platform, shared, connectors, HA, tasks, tests |
-| `vnext/` | Forward API surface (staged vNext compatibility layer) |
 
 ## Module Hierarchy
 
@@ -60,12 +59,6 @@ src/
 │   ├── search/              # Full-text search with BM25 scoring
 │   ├── storage/             # Unified file/object storage
 │   └── web/                 # Web/HTTP framework and middleware
-│
-├── vnext/                   # Forward API surface (staged compatibility)
-│   ├── mod.zig              # Module aggregator
-│   ├── app.zig              # Application handle with builder
-│   ├── capability.zig       # Capability enum for feature discovery
-│   └── config.zig           # AppConfig struct
 │
 └── services/                # Always-available infrastructure
     ├── connectors/          # External API connectors (9 LLM + discord + scheduler)

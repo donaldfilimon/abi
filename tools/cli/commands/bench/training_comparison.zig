@@ -62,7 +62,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
 
         results[result_count] = .{
             .method = cfg.method,
-            .optimizer = @tagName(cfg.optimizer),
+            .optimizer = std.mem.sliceTo(@tagName(cfg.optimizer), 0),
             .final_loss = report.final_loss,
             .total_time_ms = report.total_time_ms,
             .epochs = report.epochs,

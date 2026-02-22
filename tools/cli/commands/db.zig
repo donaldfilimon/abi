@@ -41,24 +41,28 @@ fn printHelp() void {
         \\Vector database commands for storing and querying embeddings.
         \\
         \\Commands:
-        \\  stats                    Show database statistics
-        \\  add --id <n> --embed <t> Add embedding with ID
-        \\  query --embed <text>     Query for similar embeddings
-        \\  optimize                 Optimize database indices
-        \\  backup --path <file>     Backup database to file
-        \\  restore --path <file>    Restore database from backup
+        \\  stats [--db <path>]            Show database statistics
+        \\  add --id <n> --embed <t> [--db <path>] Add embedding with ID
+        \\  query --embed <text> [--db <path>]    Query for similar embeddings
+        \\  optimize [--db <path>]         Optimize database indices
+        \\  backup --db <p> --out <p> Backup database to file
+        \\  restore --db <p> --in <p> Restore database from backup
         \\  serve [--addr <h:p>]     Start database server
         \\  help                     Show this help message
         \\
         \\Options:
-        \\  --path <path>            Database file path (default: wdbx_data)
+        \\  --path <path>            Legacy shorthand for both db and backup path
+        \\  --db <path>              Database file path
+        \\  --out <path>             Backup output path
+        \\  --in <path>              Restore input path
         \\  --top-k <n>              Number of results to return (default: 10)
         \\
         \\Examples:
         \\  abi db stats
         \\  abi db add --id 1 --embed "Hello world"
         \\  abi db query --embed "similar text" --top-k 5
-        \\  abi db backup --path backup.db
+        \\  abi db backup --db state.db --out backup.db
+        \\  abi db restore --db state.db --in backup.db
         \\
     ;
     std.debug.print("{s}", .{help_text});

@@ -53,8 +53,6 @@ nav:
         url: /framework/
       - title: CLI Reference
         url: /cli/
-      - title: Migration (vNext)
-        url: /migration-vnext/
   - title: AI
     children:
       - title: AI Overview

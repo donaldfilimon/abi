@@ -45,7 +45,7 @@ test "exports score_query uses engine" {
     reset_alloc();
 
     const q = "gpu";
-    const t = "gpu-dashboard";
+    const t = "ui gpu";
 
     const q_ptr = alloc(@intCast(q.len));
     const t_ptr = alloc(@intCast(t.len));

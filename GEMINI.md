@@ -50,5 +50,4 @@ The project relies on the standard Zig build system.
     *   `CLAUDE.md` for Zig 0.16 patterns, gotchas, and specific AI assistant guidelines.
     *   `AGENTS.md` for baseline agent guidelines and multi-agent roles.
     *   `CONTRIBUTING.md` for the development workflow and PR checklist.
-*   **vNext Migration:** Be aware of the `abi.vnext` namespace for staged-compatibility during architecture updates (e.g., `abi.vnext.App`). Legacy constructs like `abi.Framework` are in a deprecation cycle.
 *   **Performance:** Code changes should prioritize zero-cost abstractions, comptime optimization, and SIMD-accelerated operations where applicable, maintaining the framework's bare-metal performance goals.

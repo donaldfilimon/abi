@@ -4,6 +4,7 @@ const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 
 const ProviderId = abi.ai.llm.providers.ProviderId;
+const provider_parser = abi.ai.llm.providers.parser;
 
 const RunOptions = struct {
     model: ?[]const u8 = null,
@@ -102,7 +103,7 @@ pub fn parseRunArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !R
             if (i < args.len) {
                 const value = std.mem.sliceTo(args[i], 0);
                 i += 1;
-                options.backend = parseProviderId(value) orelse {
+                options.backend = provider_parser.parseProviderId(value) orelse {
                     std.debug.print("Unknown backend: {s}\n", .{value});
                     return error.InvalidBackend;
                 };
@@ -196,18 +197,6 @@ pub fn parseRunArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !R
     return options;
 }
 
-fn parseProviderId(value: []const u8) ?ProviderId {
-    if (ProviderId.fromString(value)) |provider| return provider;
-
-    if (std.mem.eql(u8, value, "llama-cpp")) return .llama_cpp;
-    if (std.mem.eql(u8, value, "lm-studio")) return .lm_studio;
-    if (std.mem.eql(u8, value, "plugin-http")) return .plugin_http;
-    if (std.mem.eql(u8, value, "plugin-native")) return .plugin_native;
-    if (std.mem.eql(u8, value, "local-gguf")) return .local_gguf;
-
-    return null;
-}
-
 fn parseFallbackCsv(
     allocator: std.mem.Allocator,
     fallback_builder: *std.ArrayListUnmanaged(ProviderId),
@@ -217,7 +206,7 @@ fn parseFallbackCsv(
     while (it.next()) |piece| {
         const trimmed = std.mem.trim(u8, piece, " \t\r\n");
         if (trimmed.len == 0) continue;
-        const provider = parseProviderId(trimmed) orelse {
+        const provider = provider_parser.parseProviderId(trimmed) orelse {
             std.debug.print("Unknown fallback backend: {s}\n", .{trimmed});
             return error.InvalidBackend;
         };
@@ -275,7 +264,7 @@ pub fn printRunHelp() void {
             "Options:\\n" ++
             "  -m, --model <id|path>   Model id or local file path (.gguf, etc.)\\n" ++
             "  -p, --prompt <text>     Prompt text\\n" ++
-            "  --backend <id>          Pin backend (local_gguf, llama_cpp, mlx, ollama, lm_studio, vllm, plugin_http, plugin_native)\\n" ++
+            "  --backend <id>          Pin backend (local_gguf, llama_cpp, mlx, ollama, ollama_passthrough, lm_studio, vllm, anthropic, openai, codex, opencode, claude, gemini, plugin_http, plugin_native)\\n" ++
             "  --fallback <csv>        Comma-separated fallback backend chain\\n" ++
             "  --strict-backend        Disable fallback when backend is unavailable\\n" ++
             "  --plugin <id>           Pin plugin id for plugin_http/plugin_native\\n" ++

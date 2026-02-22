@@ -37,6 +37,7 @@ pub const model = @import("model/mod.zig");
 pub const generation = @import("generation/mod.zig");
 pub const parallel = @import("parallel.zig");
 pub const providers = @import("providers/mod.zig");
+pub const wdbx_fusion = @import("wdbx_fusion.zig");
 
 // Re-exports for convenience
 pub const MappedFile = io.MappedFile;
@@ -71,6 +72,10 @@ pub const StreamingError = generation.StreamingError;
 pub const TokenEvent = generation.TokenEvent;
 pub const SSEFormatter = generation.SSEFormatter;
 pub const collectStreamingResponse = generation.collectStreamingResponse;
+
+// WDBX Fusion exports
+pub const WdbxFusion = wdbx_fusion.WdbxFusion;
+pub const FusionConfig = wdbx_fusion.FusionConfig;
 
 // Parallel inference exports
 pub const ParallelStrategy = parallel.ParallelStrategy;
@@ -208,6 +213,7 @@ pub const Engine = struct {
     backend: EngineBackend = .none,
     config: InferenceConfig,
     stats: InferenceStats,
+    fusion: ?*WdbxFusion = null,
 
     pub fn init(allocator: std.mem.Allocator, config: InferenceConfig) Engine {
         return .{
@@ -215,6 +221,11 @@ pub const Engine = struct {
             .config = config,
             .stats = .{},
         };
+    }
+
+    /// Attach a WDBX fusion engine for RAG-augmented generation.
+    pub fn setFusion(self: *Engine, fus: ?*WdbxFusion) void {
+        self.fusion = fus;
     }
 
     pub fn deinit(self: *Engine) void {

@@ -55,6 +55,7 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     var log_dir: []const u8 = "logs";
     var refresh_ms: u64 = 500;
     var non_interactive = false;
+    var brain_mode = false;
 
     var i: usize = 0;
     while (i < args.len) {
@@ -73,6 +74,11 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
             std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--non-interactive"))
         {
             non_interactive = true;
+            continue;
+        }
+
+        if (std.mem.eql(u8, std.mem.sliceTo(arg, 0), "--brain")) {
+            brain_mode = true;
             continue;
         }
 
@@ -96,6 +102,23 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
         if (run_id == null and arg[0] != '-') {
             run_id = std.mem.sliceTo(arg, 0);
         }
+    }
+
+    // Brain mode: launch brain dashboard with training data source
+    if (brain_mode) {
+        const brain = @import("../ui/brain.zig");
+        const metrics_path = std.fmt.allocPrintSentinel(allocator, "{s}/metrics.jsonl", .{log_dir}, 0) catch |err| {
+            std.debug.print("Failed to build metrics path: {t}\n", .{err});
+            return;
+        };
+        defer allocator.free(metrics_path);
+
+        const brain_args = [_][:0]const u8{ "--training", metrics_path };
+        brain.run(ctx, &brain_args) catch {
+            std.debug.print("Brain dashboard mode requires a terminal.\n", .{});
+            std.debug.print("Use 'abi ui brain --training {s}/metrics.jsonl' instead.\n", .{log_dir});
+        };
+        return;
     }
 
     // Use the default theme from the theme system
@@ -158,6 +181,7 @@ pub fn printMonitorHelp() void {
         \\  --log-dir <path>    Log directory (default: logs)
         \\  --refresh-ms <n>    Refresh interval in milliseconds (default: 500)
         \\  --no-tui            Render a single snapshot and exit
+        \\  --brain             Launch 3D brain visualization instead of panel
         \\
         \\Arguments:
         \\  run-id              Optional run ID to monitor (default: latest)

@@ -148,7 +148,7 @@ pub const StreamingDashboard = struct {
             .ttft_history = RingBuffer(u32, 120).init(),
             .throughput_history = RingBuffer(f32, 120).init(),
             .connection_history = RingBuffer(u16, 120).init(),
-            .ttft_percentiles = try PercentileTracker.init(allocator, 10000),
+            .ttft_percentiles = PercentileTracker.init(allocator, 10000),
             .server_status = .unknown,
             .server_endpoint = endpoint,
             .active_connections = 0,
@@ -164,6 +164,10 @@ pub const StreamingDashboard = struct {
             .last_poll = 0,
             .poll_interval_ms = 500,
         };
+    }
+
+    inline fn moveTo(self: *Self, row: usize, col: usize) !void {
+        try self.term.moveTo(@as(u16, @intCast(row)), @as(u16, @intCast(col)));
     }
 
     /// Clean up dashboard resources
@@ -358,7 +362,7 @@ pub const StreamingDashboard = struct {
 
     fn renderHeader(self: *Self, row: usize, col: usize, width: usize) !void {
         // Top border with title
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.tl);
         try self.term.write(box.h);
@@ -378,7 +382,7 @@ pub const StreamingDashboard = struct {
         try self.term.write(self.theme.reset);
 
         // Status line
-        try self.term.moveTo(row + 1, col);
+        try self.moveTo(row + 1, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -394,7 +398,7 @@ pub const StreamingDashboard = struct {
         // Status indicator
         const status_color = switch (self.server_status) {
             .online => self.theme.success,
-            .offline => self.theme.error_color,
+            .offline => self.theme.@"error",
             .degraded => self.theme.warning,
             .unknown => self.theme.text_dim,
         };
@@ -418,7 +422,7 @@ pub const StreamingDashboard = struct {
         try self.term.write(uptime_str);
 
         // Right border
-        try self.term.moveTo(row + 1, col + width - 1);
+        try self.moveTo(row + 1, col + width - 1);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -426,7 +430,7 @@ pub const StreamingDashboard = struct {
 
     fn renderMetricsPanel(self: *Self, row: usize, col: usize, width: usize) !void {
         // Separator
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
         try render_utils.writeRepeat(self.term, box.h, if (width > 2) width - 2 else 0);
@@ -434,7 +438,7 @@ pub const StreamingDashboard = struct {
         try self.term.write(self.theme.reset);
 
         // TTFT and Throughput boxes header
-        try self.term.moveTo(row + 1, col);
+        try self.moveTo(row + 1, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -447,7 +451,7 @@ pub const StreamingDashboard = struct {
         const latest_ttft = self.ttft_history.latest() orelse 0;
         const latest_throughput = self.throughput_history.latest() orelse 0;
 
-        try self.term.moveTo(row + 2, col);
+        try self.moveTo(row + 2, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -463,7 +467,7 @@ pub const StreamingDashboard = struct {
         const p50 = self.ttft_percentiles.getPercentile(50);
         const total_k = @divFloor(self.total_tokens, 1000);
 
-        try self.term.moveTo(row + 3, col);
+        try self.moveTo(row + 3, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -478,7 +482,7 @@ pub const StreamingDashboard = struct {
         // TTFT P99
         const p99 = self.ttft_percentiles.getPercentile(99);
 
-        try self.term.moveTo(row + 4, col);
+        try self.moveTo(row + 4, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -491,7 +495,7 @@ pub const StreamingDashboard = struct {
         try self.term.write(p99_line);
 
         // Box bottoms
-        try self.term.moveTo(row + 5, col);
+        try self.moveTo(row + 5, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -501,7 +505,7 @@ pub const StreamingDashboard = struct {
 
         // Right borders for all rows
         for (1..6) |r| {
-            try self.term.moveTo(row + r, col + width - 1);
+            try self.moveTo(row + r, col + width - 1);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -510,7 +514,7 @@ pub const StreamingDashboard = struct {
 
     fn renderConnectionsPanel(self: *Self, row: usize, col: usize, width: usize) !void {
         // Separator
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
         try render_utils.writeRepeat(self.term, box.h, if (width > 2) width - 2 else 0);
@@ -518,7 +522,7 @@ pub const StreamingDashboard = struct {
         try self.term.write(self.theme.reset);
 
         // Connection stats
-        try self.term.moveTo(row + 1, col);
+        try self.moveTo(row + 1, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -530,7 +534,7 @@ pub const StreamingDashboard = struct {
         else
             0;
         if (conn_ratio > 0.9) {
-            try self.term.write(self.theme.error_color);
+            try self.term.write(self.theme.@"error");
         } else if (conn_ratio > 0.7) {
             try self.term.write(self.theme.warning);
         } else {
@@ -555,7 +559,7 @@ pub const StreamingDashboard = struct {
         // Error count
         try self.term.write("   Errors: ");
         if (self.error_count > 0) {
-            try self.term.write(self.theme.error_color);
+            try self.term.write(self.theme.@"error");
         }
         var err_buf: [16]u8 = undefined;
         const err_str = std.fmt.bufPrint(&err_buf, "{d}", .{self.error_count}) catch "??";
@@ -570,13 +574,13 @@ pub const StreamingDashboard = struct {
         try self.term.write(bar);
 
         // Right border
-        try self.term.moveTo(row + 1, col + width - 1);
+        try self.moveTo(row + 1, col + width - 1);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
 
         // Sparkline row
-        try self.term.moveTo(row + 2, col);
+        try self.moveTo(row + 2, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -589,7 +593,7 @@ pub const StreamingDashboard = struct {
             const max_conn = self.connection_history.max() orelse 1;
             var iter = self.connection_history.iterator();
             var spark_count: usize = 0;
-            const max_spark = if (width > 40) 30 else 15;
+            const max_spark: usize = if (width > 40) 30 else 15;
 
             while (iter.next()) |conn| {
                 if (spark_count >= max_spark) break;
@@ -612,7 +616,7 @@ pub const StreamingDashboard = struct {
         }
 
         // Right border
-        try self.term.moveTo(row + 2, col + width - 1);
+        try self.moveTo(row + 2, col + width - 1);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -626,7 +630,7 @@ pub const StreamingDashboard = struct {
         height: usize,
     ) !void {
         // Header
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
         try self.term.write(box.h);
@@ -643,7 +647,7 @@ pub const StreamingDashboard = struct {
         const visible_count = @min(requests.len, height - 1);
 
         if (requests.len == 0) {
-            try self.term.moveTo(row + 1, col);
+            try self.moveTo(row + 1, col);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -651,7 +655,7 @@ pub const StreamingDashboard = struct {
             try self.term.write("  No requests recorded yet");
             try self.term.write(self.theme.reset);
 
-            try self.term.moveTo(row + 1, col + width - 1);
+            try self.moveTo(row + 1, col + width - 1);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -664,7 +668,7 @@ pub const StreamingDashboard = struct {
                 if (idx < self.request_scroll) break;
 
                 const req = requests[idx];
-                try self.term.moveTo(row + 1 + shown, col);
+                try self.moveTo(row + 1 + shown, col);
                 try self.term.write(self.theme.border);
                 try self.term.write(box.v);
                 try self.term.write(self.theme.reset);
@@ -685,7 +689,7 @@ pub const StreamingDashboard = struct {
                 // Status code with color
                 try self.term.write("  ");
                 if (req.status_code >= 500) {
-                    try self.term.write(self.theme.error_color);
+                    try self.term.write(self.theme.@"error");
                 } else if (req.status_code >= 400) {
                     try self.term.write(self.theme.warning);
                 } else {
@@ -711,7 +715,7 @@ pub const StreamingDashboard = struct {
                 try self.term.write(self.theme.reset);
 
                 // Right border
-                try self.term.moveTo(row + 1 + shown, col + width - 1);
+                try self.moveTo(row + 1 + shown, col + width - 1);
                 try self.term.write(self.theme.border);
                 try self.term.write(box.v);
                 try self.term.write(self.theme.reset);
@@ -721,12 +725,12 @@ pub const StreamingDashboard = struct {
         // Fill remaining rows
         var r: usize = if (requests.len == 0) 2 else visible_count + 1;
         while (r < height) : (r += 1) {
-            try self.term.moveTo(row + r, col);
+            try self.moveTo(row + r, col);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
 
-            try self.term.moveTo(row + r, col + width - 1);
+            try self.moveTo(row + r, col + width - 1);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -734,7 +738,7 @@ pub const StreamingDashboard = struct {
     }
 
     fn renderFooter(self: *Self, row: usize, col: usize, width: usize) !void {
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.bl);
 

@@ -6,7 +6,7 @@
 //! Uses SIMD acceleration via @Vector for vectorized operations.
 
 const std = @import("std");
-const simd = @import("../../../../services/shared/simd.zig");
+const simd = @import("../../../../services/shared/simd/mod.zig");
 
 /// Compute RMS normalization: x = x / sqrt(mean(x^2) + eps) * weight
 /// x: [dim], weight: [dim], output: [dim]

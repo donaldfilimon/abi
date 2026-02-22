@@ -14,6 +14,7 @@ const forward_mod = @import("forward.zig");
 const backward_mod = @import("backward.zig");
 const io_mod = @import("io.zig");
 const checkpoint_mod = @import("checkpoint.zig");
+const training_bridge = @import("../../../gpu/training_bridge.zig");
 
 pub const TrainableLayerWeights = weights_mod.TrainableLayerWeights;
 pub const TrainableWeights = weights_mod.TrainableWeights;
@@ -94,9 +95,19 @@ pub const TrainableModel = struct {
         return forward_mod.run(self, input_ids, logits_out);
     }
 
+    /// Forward pass with GPU bridge acceleration.
+    pub fn forwardGpu(self: *TrainableModel, input_ids: []const u32, logits_out: []f32, bridge: *training_bridge.GpuTrainingBridge) !void {
+        return forward_mod.runWithBridge(self, input_ids, logits_out, bridge);
+    }
+
     /// Backward pass through the model.
     pub fn backward(self: *TrainableModel, d_logits: []const f32, input_ids: []const u32) !void {
         return backward_mod.backward(self, d_logits, input_ids);
+    }
+
+    /// Backward pass with GPU bridge acceleration.
+    pub fn backwardGpu(self: *TrainableModel, d_logits: []const f32, input_ids: []const u32, bridge: *training_bridge.GpuTrainingBridge) !void {
+        return backward_mod.backwardWithBridge(self, d_logits, input_ids, bridge);
     }
 
     /// Compute cross-entropy loss and its gradient.

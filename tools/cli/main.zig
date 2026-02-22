@@ -13,7 +13,6 @@
 //!   agent            Run AI agent (interactive or one-shot)
 //!   bench            Run performance benchmarks (all, simd, memory, ai, quick)
 //!   gpu              GPU commands (backends, devices, summary, default)
-//!   gpu-dashboard    Interactive GPU + Agent monitoring dashboard
 //!   network          Manage network registry (list, register, status)
 //!   multi-agent      Run multi-agent workflows
 //!   explore          Search and explore codebase
@@ -26,12 +25,13 @@
 //!   train            Training pipeline (run, resume, info)
 //!   convert          Dataset conversion tools (tokenbin, text, jsonl, wdbx)
 //!   task             Task management (add, list, done, stats)
-//!   tui              Launch interactive TUI command menu
+//!   ui               UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)
 //!   plugins          Plugin management (list, enable, disable, info)
 //!   profile          User profile and settings management
 //!   completions      Shell completions (bash, zsh, fish, powershell)
 //!   status           Show framework health and component status
 //!   toolchain        Zig/ZLS toolchain (install, update, status)
+//!   lsp              ZLS LSP client (hover, completion, definition, etc.)
 //!   ralph            Ralph orchestrator (init, run, status, gate, improve, skills)
 
 const std = @import("std");

@@ -3,6 +3,7 @@ const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 
 const ProviderId = abi.ai.llm.providers.ProviderId;
+const provider_parser = abi.ai.llm.providers.parser;
 
 pub fn runProviders(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
@@ -18,7 +19,7 @@ pub fn runProviders(ctx: *const context_mod.CommandContext, args: []const [:0]co
                 return;
             }
             const id_text = std.mem.sliceTo(args[1], 0);
-            const provider = parseProviderId(id_text) orelse {
+            const provider = provider_parser.parseProviderId(id_text) orelse {
                 std.debug.print("Unknown provider: {s}\n", .{id_text});
                 return;
             };
@@ -52,18 +53,6 @@ fn printChain(chain: []const ProviderId) void {
         std.debug.print("{s}", .{provider.label()});
     }
     std.debug.print("\n", .{});
-}
-
-fn parseProviderId(value: []const u8) ?ProviderId {
-    if (ProviderId.fromString(value)) |provider| return provider;
-
-    if (std.mem.eql(u8, value, "llama-cpp")) return .llama_cpp;
-    if (std.mem.eql(u8, value, "lm-studio")) return .lm_studio;
-    if (std.mem.eql(u8, value, "plugin-http")) return .plugin_http;
-    if (std.mem.eql(u8, value, "plugin-native")) return .plugin_native;
-    if (std.mem.eql(u8, value, "local-gguf")) return .local_gguf;
-
-    return null;
 }
 
 pub fn printProvidersHelp() void {

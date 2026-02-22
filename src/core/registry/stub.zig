@@ -26,9 +26,21 @@ pub const Feature = enum {
     web,
     personas,
     cloud,
+    analytics,
+    auth,
+    messaging,
+    cache,
+    storage,
+    search,
+    mobile,
+    gateway,
+    pages,
+    benchmarks,
+    reasoning,
+    constitution,
 
     pub fn name(self: Feature) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 
     pub fn description(self: Feature) []const u8 {
@@ -45,6 +57,18 @@ pub const Feature = enum {
             .web => "Web/HTTP utilities",
             .personas => "Multi-persona AI assistant",
             .cloud => "Cloud provider integration",
+            .analytics => "Analytics event tracking",
+            .auth => "Authentication and security",
+            .messaging => "Event bus and messaging",
+            .cache => "In-memory caching",
+            .storage => "Unified file/object storage",
+            .search => "Full-text search",
+            .mobile => "Mobile platform support",
+            .gateway => "API gateway",
+            .pages => "Dashboard/UI pages",
+            .benchmarks => "Performance benchmarking",
+            .reasoning => "AI reasoning (Abbey, eval, RAG)",
+            .constitution => "AI safety principles and guardrails",
         };
     }
 };
@@ -86,7 +110,7 @@ pub fn isFeatureCompiledIn(comptime feature: Feature) bool {
 /// Get parent feature for sub-features.
 pub fn getParentFeature(feature: Feature) ?Feature {
     return switch (feature) {
-        .llm, .embeddings, .agents, .training, .personas => .ai,
+        .llm, .embeddings, .agents, .training, .personas, .reasoning, .constitution => .ai,
         else => null,
     };
 }

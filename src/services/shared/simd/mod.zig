@@ -14,6 +14,7 @@ pub const extras = @import("extras.zig");
 // ============================================================================
 
 pub const vectorAdd = vector_ops.vectorAdd;
+pub const vectorMul = vector_ops.vectorMul;
 pub const vectorDot = vector_ops.vectorDot;
 pub const vectorL2Norm = vector_ops.vectorL2Norm;
 pub const cosineSimilarity = vector_ops.cosineSimilarity;

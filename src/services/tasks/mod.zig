@@ -16,6 +16,7 @@
 //! ```
 
 const std = @import("std");
+const app_paths = @import("../shared/app_paths.zig");
 
 // Re-export types
 pub const types = @import("types.zig");
@@ -41,6 +42,7 @@ pub const RoadmapItem = roadmap.RoadmapItem;
 pub const Manager = struct {
     allocator: std.mem.Allocator,
     config: ManagerConfig,
+    owns_resolved_storage_paths: bool,
     tasks: std.AutoHashMapUnmanaged(u64, Task),
     next_id: u64,
     dirty: bool,
@@ -49,9 +51,27 @@ pub const Manager = struct {
     strings: std.ArrayListUnmanaged([]u8),
 
     pub fn init(allocator: std.mem.Allocator, config: ManagerConfig) ManagerError!Manager {
+        var resolved_config = config;
+        var owns_resolved_storage_paths = false;
+        const default_config: ManagerConfig = .{};
+
+        if (config.storage_path.len == 0 or std.mem.eql(u8, config.storage_path, default_config.storage_path)) {
+            const resolved_path = app_paths.resolvePath(allocator, "tasks.json") catch |err| switch (err) {
+                error.NoHomeDirectory => return error.PersistenceFailed,
+                error.OutOfMemory => return error.OutOfMemory,
+            };
+            resolved_config.storage_path = resolved_path;
+            owns_resolved_storage_paths = true;
+        }
+
+        errdefer if (owns_resolved_storage_paths) {
+            allocator.free(resolved_config.storage_path);
+        };
+
         var self = Manager{
             .allocator = allocator,
-            .config = config,
+            .config = resolved_config,
+            .owns_resolved_storage_paths = owns_resolved_storage_paths,
             .tasks = .{},
             .next_id = 1,
             .dirty = false,
@@ -79,6 +99,10 @@ pub const Manager = struct {
             self.allocator.free(s);
         }
         self.strings.deinit(self.allocator);
+
+        if (self.owns_resolved_storage_paths) {
+            self.allocator.free(self.config.storage_path);
+        }
 
         self.tasks.deinit(self.allocator);
     }

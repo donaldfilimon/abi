@@ -145,13 +145,12 @@ fn shouldTrackExtraFile(path: []const u8) bool {
     if (std.mem.endsWith(u8, path, "/docs_engine.wasm")) return false;
     if (std.mem.endsWith(u8, path, "/docs_engine.component.wasm")) return false;
     if (std.mem.endsWith(u8, path, "/docs_engine.wit")) return false;
-    if (std.mem.startsWith(u8, path, "docs/plans/archive/")) return false;
     return true;
 }
 
 fn shouldSkipDir(path: []const u8) bool {
-    return std.mem.eql(u8, path, "docs/plans/archive") or
-        std.mem.startsWith(u8, path, "docs/plans/archive/");
+    _ = path;
+    return false;
 }
 
 pub fn writeOutputs(
@@ -173,8 +172,7 @@ pub fn writeOutputs(
     }
 }
 
-test "shouldTrackExtraFile ignores plans archive and wasm artifacts" {
-    try std.testing.expect(!shouldTrackExtraFile("docs/plans/archive/2026-02-21-plan.md"));
+test "shouldTrackExtraFile ignores wasm artifacts" {
     try std.testing.expect(!shouldTrackExtraFile("docs/api-app/data/docs_engine.wasm"));
     try std.testing.expect(shouldTrackExtraFile("docs/plans/index.md"));
 }

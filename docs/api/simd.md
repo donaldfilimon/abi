@@ -2,7 +2,7 @@
 
 > SIMD operations (shorthand for `shared.simd`).
 
-**Source:** [`src/services/shared/simd.zig`](../../src/services/shared/simd.zig)
+**Source:** [`src/services/shared/simd/mod.zig`](../../src/services/shared/simd/mod.zig)
 
 **Availability:** Always enabled
 

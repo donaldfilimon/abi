@@ -5,10 +5,11 @@
 //! - Session listing and metadata
 //! - Path validation (no directory traversal)
 //!
-//! Session files are stored in ~/.abi/sessions/ by default.
+//! Session files are stored under the platform-specific ABI app root by default.
 
 const std = @import("std");
 const time = @import("../../../services/shared/utils.zig");
+const app_paths = @import("../../../services/shared/app_paths.zig");
 const mod = @import("mod.zig");
 
 const Message = mod.Message;
@@ -589,9 +590,7 @@ pub fn createSession(
 
 /// Get default session directory path
 pub fn getDefaultSessionDir(allocator: std.mem.Allocator) ![]u8 {
-    // Use ~/.abi/sessions on Unix, %APPDATA%\abi\sessions on Windows
-    // For simplicity, use .abi/sessions relative to current directory
-    return try allocator.dupe(u8, ".abi/sessions");
+    return app_paths.resolvePath(allocator, "sessions");
 }
 
 // =============================================================================
@@ -653,4 +652,13 @@ test "memory type conversion" {
 
     try std.testing.expectEqualStrings("hybrid", memoryTypeToString(.hybrid));
     try std.testing.expectEqualStrings("short_term", memoryTypeToString(.short_term));
+}
+
+test "getDefaultSessionDir uses platform app root" {
+    const allocator = std.testing.allocator;
+    const path = try getDefaultSessionDir(allocator);
+    defer allocator.free(path);
+
+    try std.testing.expect(std.mem.endsWith(u8, path, "sessions"));
+    try std.testing.expect(!std.mem.eql(u8, path, ".abi/sessions"));
 }

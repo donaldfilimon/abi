@@ -14,7 +14,7 @@
 //! - Zilliz Quantization: https://zilliz.com/learn/scalar-quantization-and-product-quantization
 
 const std = @import("std");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 
 // Re-export ProductQuantizer for backward compatibility
 const product_quantizer = @import("product_quantizer.zig");

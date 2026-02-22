@@ -37,7 +37,7 @@
 //! ═══════════════════════════════════════════════════════════════════════════
 
 const std = @import("std");
-const Math = @import("v2_primitives.zig").Math;
+const Math = @import("primitives.zig").Math;
 
 // ─── Inline Helpers ──────────────────────────────────────────────────────────
 

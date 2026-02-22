@@ -1,19 +1,107 @@
 const std = @import("std");
+const gpu_mod = @import("gpu.zig");
 
-/// Link macOS GPU frameworks (Metal, CoreML, MPS, Foundation) into a module
-/// when targeting macOS with the Metal backend enabled.
+const GpuBackend = gpu_mod.GpuBackend;
+
+// =============================================================================
+// macOS Framework Linking
+// =============================================================================
+
+/// Link macOS frameworks into a module based on target OS and GPU backend.
+/// - Accelerate: always linked on macOS (BLAS/LAPACK/vDSP for CPU math)
+/// - Metal + CoreML + MPS + Foundation: linked when Metal backend enabled
 pub fn applyFrameworkLinks(
     mod: *std.Build.Module,
     os_tag: std.Target.Os.Tag,
     gpu_metal: bool,
 ) void {
-    if (os_tag == .macos and gpu_metal) {
-        mod.linkFramework("Metal", .{});
-        mod.linkFramework("CoreML", .{});
-        mod.linkFramework("MetalPerformanceShaders", .{});
+    if (os_tag == .macos or os_tag == .ios) {
+        // Accelerate provides BLAS, LAPACK, vDSP for CPU-side linear algebra
+        mod.linkFramework("Accelerate", .{});
         mod.linkFramework("Foundation", .{});
+
+        if (gpu_metal) {
+            mod.linkFramework("Metal", .{});
+            mod.linkFramework("CoreML", .{});
+            mod.linkFramework("MetalPerformanceShaders", .{});
+        }
     }
 }
+
+// =============================================================================
+// Linux System Library Linking
+// =============================================================================
+
+/// Link Linux system libraries based on selected GPU backends.
+/// - CUDA: libcuda, libcublas, libcudart
+/// - Vulkan: libvulkan
+/// - OpenGL: libGL
+pub fn applyLinuxLinks(
+    mod: *std.Build.Module,
+    os_tag: std.Target.Os.Tag,
+    gpu_backends: []const GpuBackend,
+) void {
+    if (os_tag != .linux) return;
+
+    mod.linkSystemLibrary("c", .{});
+    mod.linkSystemLibrary("m", .{}); // libm for math
+
+    if (hasBackend(gpu_backends, .cuda)) {
+        mod.linkSystemLibrary("cuda", .{});
+        mod.linkSystemLibrary("cublas", .{});
+        mod.linkSystemLibrary("cudart", .{});
+        mod.linkSystemLibrary("cudnn", .{});
+    }
+    if (hasBackend(gpu_backends, .vulkan)) {
+        mod.linkSystemLibrary("vulkan", .{});
+    }
+    if (hasBackend(gpu_backends, .opengl)) {
+        mod.linkSystemLibrary("GL", .{});
+    }
+}
+
+// =============================================================================
+// Windows System Library Linking
+// =============================================================================
+
+/// Link Windows system libraries based on selected GPU backends.
+/// - CUDA: cuda, cublas
+/// - Vulkan: vulkan-1
+pub fn applyWindowsLinks(
+    mod: *std.Build.Module,
+    os_tag: std.Target.Os.Tag,
+    gpu_backends: []const GpuBackend,
+) void {
+    if (os_tag != .windows) return;
+
+    if (hasBackend(gpu_backends, .cuda)) {
+        mod.linkSystemLibrary("cuda", .{});
+        mod.linkSystemLibrary("cublas", .{});
+    }
+    if (hasBackend(gpu_backends, .vulkan)) {
+        mod.linkSystemLibrary("vulkan-1", .{});
+    }
+}
+
+// =============================================================================
+// Unified Linker Entry Point
+// =============================================================================
+
+/// Apply all platform-specific links for a module. Call this once per artifact.
+pub fn applyAllPlatformLinks(
+    mod: *std.Build.Module,
+    os_tag: std.Target.Os.Tag,
+    gpu_metal: bool,
+    gpu_backends: []const GpuBackend,
+) void {
+    applyFrameworkLinks(mod, os_tag, gpu_metal);
+    applyLinuxLinks(mod, os_tag, gpu_backends);
+    applyWindowsLinks(mod, os_tag, gpu_backends);
+}
+
+// =============================================================================
+// Framework Detection
+// =============================================================================
 
 const required_metal_framework_paths = [_][]const u8{
     "/System/Library/Frameworks/Metal.framework",
@@ -54,6 +142,17 @@ pub fn validateMetalBackendRequest(
             "Install Xcode Command Line Tools or use -Dgpu-backend=auto/vulkan.",
         .{},
     );
+}
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+fn hasBackend(backends: []const GpuBackend, target: GpuBackend) bool {
+    for (backends) |b| {
+        if (b == target) return true;
+    }
+    return false;
 }
 
 fn isExplicitMetalRequested(backend_arg: ?[]const u8) bool {

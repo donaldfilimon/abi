@@ -10,7 +10,6 @@ import pty
 import re
 import select
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
@@ -49,6 +48,17 @@ def parse_args() -> argparse.Namespace:
         "--allow-blocked",
         action="store_true",
         help="Continue when preflight checks fail and mark blocked vectors in the report.",
+    )
+    parser.add_argument(
+        "--pty-probe-window",
+        type=float,
+        default=8.0,
+        help="Seconds to wait for PTY sessions before forcing shutdown.",
+    )
+    parser.add_argument(
+        "--keep-temp",
+        action="store_true",
+        help="Keep isolated temp workspace for debugging.",
     )
     parser.add_argument("--timeout-scale", type=float, default=1.0)
     return parser.parse_args()
@@ -100,6 +110,18 @@ def run_oneshot(cmd: List[str], cwd: Path, env: Dict[str, str], timeout_s: float
     return ExecResult(exit_code=proc.returncode, output=output, elapsed_ms=elapsed)
 
 
+def timeout_output(exc: subprocess.TimeoutExpired) -> str:
+    parts: List[str] = []
+    for payload in (exc.stdout, exc.stderr):
+        if payload is None:
+            continue
+        if isinstance(payload, bytes):
+            parts.append(payload.decode("utf-8", errors="replace"))
+        else:
+            parts.append(payload)
+    return "".join(parts)
+
+
 def run_probe(cmd: List[str], cwd: Path, env: Dict[str, str], timeout_s: float, startup_s: float) -> ExecResult:
     start = time.time()
     proc = subprocess.Popen(
@@ -119,14 +141,6 @@ def run_probe(cmd: List[str], cwd: Path, env: Dict[str, str], timeout_s: float, 
         started = False
     except subprocess.TimeoutExpired:
         started = True
-
-    if proc.stdout is not None and not proc.stdout.closed:
-        try:
-            chunk = proc.stdout.read()  # non-blocking once process exits/terminates
-            if chunk:
-                output_parts.append(chunk)
-        except Exception:
-            pass
 
     if proc.poll() is None:
         proc.terminate()
@@ -163,7 +177,14 @@ def pty_script_for(args: List[str]) -> bytes:
     return b"q"
 
 
-def run_pty(cmd: List[str], args: List[str], cwd: Path, env: Dict[str, str], timeout_s: float) -> ExecResult:
+def run_pty(
+    cmd: List[str],
+    args: List[str],
+    cwd: Path,
+    env: Dict[str, str],
+    timeout_s: float,
+    probe_window_s: float,
+) -> ExecResult:
     start = time.time()
     master_fd, slave_fd = pty.openpty()
 
@@ -202,16 +223,24 @@ def run_pty(cmd: List[str], args: List[str], cwd: Path, env: Dict[str, str], tim
 
         if proc.poll() is None:
             script = pty_script_for(args)
-            os.write(master_fd, script)
+            try:
+                os.write(master_fd, script)
+            except OSError:
+                # The PTY can close between poll and write when the child exits quickly.
+                pass
 
-        deadline = time.time() + timeout_s
+        probe_window = min(timeout_s, max(probe_window_s, 1.0))
+        deadline = time.time() + probe_window
         while time.time() < deadline:
             read_available(0.2)
             if proc.poll() is not None:
                 break
 
         if proc.poll() is None:
-            os.write(master_fd, b"\x03")
+            try:
+                os.write(master_fd, b"\x03")
+            except OSError:
+                pass
             try:
                 proc.wait(timeout=2)
             except subprocess.TimeoutExpired:
@@ -281,7 +310,7 @@ def check_requires(requires: List[str], env: Dict[str, str], blocked_requirement
                 blocked.append(req)
         elif req.startswith("tool:"):
             tool = req.split(":", 1)[1]
-            if shutil.which(tool) is None:
+            if shutil.which(tool, path=env.get("PATH")) is None:
                 blocked.append(req)
     return blocked
 
@@ -481,7 +510,21 @@ def main() -> int:
 
     # Build once and run the resulting binary across all vectors.
     build_cmd = ["zig", "build"]
-    subprocess.run(build_cmd, cwd=str(repo_copy), env=isolated_env, check=True, text=True, capture_output=True)
+    try:
+        subprocess.run(build_cmd, cwd=str(repo_copy), env=isolated_env, check=True, text=True, capture_output=True)
+    except subprocess.CalledProcessError as exc:
+        stdout = (exc.stdout or "")[-4000:]
+        stderr = (exc.stderr or "")[-4000:]
+        if stdout:
+            print(stdout, end="")
+        if stderr:
+            print(stderr, end="", file=sys.stderr)
+        if args.keep_temp:
+            print(f"Temp root kept: {temp_root}")
+        else:
+            shutil.rmtree(temp_root, ignore_errors=True)
+        print("Failed to build CLI binary for matrix run.", file=sys.stderr)
+        return 1
 
     abi_bin = repo_copy / "zig-out" / "bin" / ("abi.exe" if os.name == "nt" else "abi")
     if not abi_bin.exists():
@@ -530,14 +573,26 @@ def main() -> int:
             elif kind == "long_running_probe":
                 result = run_probe(cmd, cwd, isolated_env, timeout_s, startup_s=8.0)
             elif kind == "pty_session":
-                result = run_pty(cmd, expanded_args, cwd, isolated_env, timeout_s)
+                result = run_pty(
+                    cmd,
+                    expanded_args,
+                    cwd,
+                    isolated_env,
+                    timeout_s,
+                    probe_window_s=args.pty_probe_window,
+                )
             else:
                 result = run_oneshot(cmd, cwd, isolated_env, timeout_s)
         except subprocess.TimeoutExpired as exc:
-            result = ExecResult(exit_code=124, output=(exc.stdout or "") + (exc.stderr or ""), elapsed_ms=timeout_ms)
+            result = ExecResult(
+                exit_code=124,
+                output=timeout_output(exc),
+                elapsed_ms=timeout_ms,
+            )
 
         if kind in {"serve_probe", "long_running_probe"} and not result.started:
-            status = "failed"
+            # Some probe commands can exit quickly and successfully in headless mode.
+            status = "passed" if result.exit_code == 0 else "failed"
         else:
             status = "passed" if is_exit_ok(result.exit_code, exit_policy) else "failed"
 
@@ -567,6 +622,10 @@ def main() -> int:
     print(f"Wrote report: {REPORT_JSON}")
     print(f"Wrote markdown: {REPORT_MD}")
     print(f"Logs: {log_dir}")
+    if args.keep_temp or failed:
+        print(f"Temp root kept: {temp_root}")
+    else:
+        shutil.rmtree(temp_root, ignore_errors=True)
 
     if args.allow_blocked:
         return 1 if failed else 0

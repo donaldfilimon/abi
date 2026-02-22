@@ -4,7 +4,7 @@
 //! consistency, fast cosine similarity, and diagnostics.
 
 const std = @import("std");
-const simd = @import("../../services/shared/simd.zig");
+const simd = @import("../../services/shared/simd/mod.zig");
 const database_mod = @import("database.zig");
 const Database = database_mod.Database;
 const computeCosineSimilarityFast = database_mod.computeCosineSimilarityFast;
@@ -23,6 +23,22 @@ test "search sorts by descending similarity and truncates" {
     try std.testing.expectEqual(@as(usize, 2), results.len);
     try std.testing.expectEqual(@as(u64, 1), results[0].id);
     try std.testing.expectEqual(@as(u64, 3), results[1].id);
+}
+
+test "searchInto respects provided buffer" {
+    var db = try Database.init(std.testing.allocator, "search-into-test");
+    defer db.deinit();
+
+    try db.insert(1, &.{ 1.0, 0.0 }, null);
+    try db.insert(2, &.{ 0.0, 1.0 }, null);
+    try db.insert(3, &.{ 1.0, 1.0 }, null);
+
+    var buf: [2]database_mod.SearchResult = undefined;
+    const count = db.searchInto(&.{ 1.0, 0.0 }, 3, &buf);
+
+    try std.testing.expectEqual(@as(usize, 2), count);
+    try std.testing.expectEqual(@as(u64, 1), buf[0].id);
+    try std.testing.expectEqual(@as(u64, 3), buf[1].id);
 }
 
 test "database with cached norms" {

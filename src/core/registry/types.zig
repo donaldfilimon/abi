@@ -89,6 +89,7 @@ test "getParentFeature returns correct parent" {
     try std.testing.expectEqual(Feature.ai, getParentFeature(.embeddings).?);
     try std.testing.expectEqual(Feature.ai, getParentFeature(.agents).?);
     try std.testing.expectEqual(Feature.ai, getParentFeature(.training).?);
+    try std.testing.expectEqual(Feature.ai, getParentFeature(.constitution).?);
     try std.testing.expect(getParentFeature(.gpu) == null);
     try std.testing.expect(getParentFeature(.ai) == null);
 }

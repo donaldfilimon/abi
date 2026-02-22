@@ -40,7 +40,7 @@
 //! ```zig
 //! const logging = @import("shared/logging/mod.zig");
 //! const platform = @import("shared/platform/mod.zig");
-//! const simd = @import("shared/simd.zig");
+//! const simd = @import("shared/simd/mod.zig");
 //! const utils = @import("shared/utils.zig");
 //! ```
 //!

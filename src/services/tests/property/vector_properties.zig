@@ -6,7 +6,7 @@
 //! - Distance metric properties
 //! - Numerical stability tests
 //!
-//! Uses the SIMD operations from src/services/shared/simd.zig
+//! Uses the SIMD operations from src/services/shared/simd/mod.zig
 
 const std = @import("std");
 const property = @import("mod.zig");

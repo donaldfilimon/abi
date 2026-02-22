@@ -36,6 +36,9 @@ pub const SelfEvaluation = struct {
     reasoning_quality: ReasoningQuality,
     improvement_suggestions: []const ImprovementSuggestion,
 
+    // Constitutional alignment (soul prompt compliance)
+    constitutional_alignment: f32, // 0.0 = full violation, 1.0 = fully aligned
+
     // Overall assessment
     overall_quality: f32,
     should_revise: bool,
@@ -85,6 +88,7 @@ pub const DetectedBias = struct {
         bandwagon, // Following popular opinion
         optimism, // Overestimating positive outcomes
         pessimism, // Overestimating negative outcomes
+        constitutional_violation, // Violating ABI's core principles (safety, honesty, privacy, fairness)
     };
 };
 
@@ -179,6 +183,7 @@ pub const SelfReflectionEngine = struct {
         clarity_weight: f32 = 0.1,
         revision_threshold: f32 = 0.6,
         bias_sensitivity: f32 = 0.5,
+        constitutional_weight: f32 = 0.15, // Weight for constitutional alignment
     };
 
     pub fn init(allocator: std.mem.Allocator, config: ReflectionConfig) Self {
@@ -242,7 +247,6 @@ pub const SelfReflectionEngine = struct {
             self.config.accuracy_weight * accuracy +
             self.config.clarity_weight * clarity;
 
-        const should_revise = overall < self.config.revision_threshold;
         const priority: SelfEvaluation.RevisionPriority = if (overall >= 0.8)
             .none
         else if (overall >= 0.7)
@@ -253,6 +257,22 @@ pub const SelfReflectionEngine = struct {
             .high
         else
             .critical;
+
+        // Constitutional alignment check (soul prompt compliance)
+        const constitutional_alignment = self.evaluateConstitutionalAlignment(response);
+
+        // Blend constitutional alignment into overall quality
+        const blended_overall = overall * (1.0 - self.config.constitutional_weight) +
+            constitutional_alignment * self.config.constitutional_weight;
+
+        const final_should_revise = blended_overall < self.config.revision_threshold or
+            constitutional_alignment < 0.5; // Force revision on constitutional issues
+        const final_priority: SelfEvaluation.RevisionPriority = if (constitutional_alignment < 0.3)
+            .critical // Constitutional violation is always critical
+        else if (blended_overall >= 0.8)
+            priority
+        else
+            priority;
 
         const evaluation = SelfEvaluation{
             .response_id = response_id,
@@ -266,9 +286,10 @@ pub const SelfReflectionEngine = struct {
             .potential_biases = bias_buf[0..bias_count],
             .reasoning_quality = reasoning_quality,
             .improvement_suggestions = suggestion_buf[0..suggestion_count],
-            .overall_quality = overall,
-            .should_revise = should_revise,
-            .revision_priority = priority,
+            .constitutional_alignment = constitutional_alignment,
+            .overall_quality = blended_overall,
+            .should_revise = final_should_revise,
+            .revision_priority = final_priority,
         };
 
         // Record for learning
@@ -395,6 +416,64 @@ pub const SelfReflectionEngine = struct {
             std.mem.indexOf(u8, response, "notwithstanding") != null)
         {
             score -= 0.1;
+        }
+
+        return @max(0.0, score);
+    }
+
+    /// Evaluate constitutional alignment — checks response against ABI's core principles.
+    /// Returns 1.0 for fully aligned, 0.0 for severe violations.
+    fn evaluateConstitutionalAlignment(self: *Self, response: []const u8) f32 {
+        _ = self;
+        var score: f32 = 1.0;
+
+        // Safety: check for harmful patterns
+        const harmful_patterns = [_][]const u8{
+            "rm -rf /",    "format c:",    ":(){ :|:& };:", "dd if=/dev/zero",
+            "how to hack", "how to steal", "how to kill",
+        };
+        for (&harmful_patterns) |pattern| {
+            if (std.mem.indexOf(u8, response, pattern) != null) {
+                score -= 0.5;
+            }
+        }
+
+        // Privacy: check for PII patterns (SSN-like NNN-NN-NNNN)
+        if (response.len >= 11) {
+            var i: usize = 0;
+            while (i + 10 < response.len) : (i += 1) {
+                if (response[i + 3] == '-' and response[i + 6] == '-') {
+                    var all_digits = true;
+                    for ([_]usize{ 0, 1, 2, 4, 5, 7, 8, 9, 10 }) |off| {
+                        if (i + off >= response.len or response[i + off] < '0' or response[i + off] > '9') {
+                            all_digits = false;
+                            break;
+                        }
+                    }
+                    if (all_digits) score -= 0.4;
+                }
+            }
+        }
+
+        // Honesty: penalize fabrication indicators
+        const fabrication_signals = [_][]const u8{
+            "studies show that",       "research proves",
+            "it is a well-known fact",
+        };
+        for (&fabrication_signals) |signal| {
+            if (std.mem.indexOf(u8, response, signal) != null) {
+                score -= 0.1; // Mild — may be legitimate
+            }
+        }
+
+        // Fairness: check for biased language
+        const bias_patterns = [_][]const u8{
+            "all women", "all men", "those people",
+        };
+        for (&bias_patterns) |pattern| {
+            if (std.mem.indexOf(u8, response, pattern) != null) {
+                score -= 0.15;
+            }
         }
 
         return @max(0.0, score);

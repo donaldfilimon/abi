@@ -53,49 +53,55 @@ See sub-modules for specialized utilities (crypto, encoding, fs, http, json, net
 Operating system abstraction layer.
 Provides platform-independent access to OS features.
 
+### <a id="pub-const-app-paths"></a>`pub const app_paths`
+
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L86)
+
+Cross-platform ABI app path resolver (primary config root).
+
 ### <a id="pub-const-time"></a>`pub const time`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L87)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L90)
 
 Time utilities compatible with Zig 0.16.
 Platform-aware implementations for unix timestamps, monotonic clocks, and sleep.
 
 ### <a id="pub-const-sync"></a>`pub const sync`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L91)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L94)
 
 Synchronization primitives compatible with Zig 0.16.
 Provides Mutex, RwLock, and other concurrency utilities.
 
 ### <a id="pub-const-io"></a>`pub const io`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L95)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L98)
 
 I/O utilities and helpers for file and stream operations.
 Designed for Zig 0.16's explicit I/O backend model.
 
 ### <a id="pub-const-stub-common"></a>`pub const stub_common`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L99)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L102)
 
 Common stub utilities for feature-disabled builds.
 Provides consistent error types and placeholder implementations.
 
 ### <a id="pub-const-matrix"></a>`pub const matrix`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L102)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L105)
 
 Dense matrix operations with SIMD-accelerated multiply (v2).
 
 ### <a id="pub-const-tensor"></a>`pub const tensor`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L105)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L108)
 
 Multi-dimensional tensor operations with broadcasting (v2).
 
 ### <a id="pub-const-security"></a>`pub const security`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L125)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L128)
 
 Comprehensive security module providing authentication, authorization,
 and encryption features. Includes:
@@ -114,56 +120,56 @@ See `security/mod.zig` for full API documentation.
 
 ### <a id="pub-const-resilience"></a>`pub const resilience`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L129)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L132)
 
 Resilience patterns (circuit breaker, etc.) for fault-tolerant systems.
 Shared implementations used by network, streaming, and gateway modules.
 
 ### <a id="pub-const-signal"></a>`pub const signal`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L133)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L136)
 
 POSIX signal handling for graceful shutdown.
 Sets a shared atomic flag on SIGINT/SIGTERM.
 
 ### <a id="pub-const-log"></a>`pub const log`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L145)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L148)
 
 Log a message at the default scope. Shorthand for `logging.log`.
 Usage: `log.info("message {}", .{value});`
 
 ### <a id="pub-const-logger"></a>`pub const Logger`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L149)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L152)
 
 Scoped logger type for structured logging with context.
 Create with `Logger.init(allocator, .{ .scope = "my_component" })`.
 
 ### <a id="pub-const-vectoradd"></a>`pub const vectorAdd`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L157)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L160)
 
 Add two vectors element-wise using SIMD when available.
 Falls back to scalar operations on platforms without SIMD support.
 
 ### <a id="pub-const-vectordot"></a>`pub const vectorDot`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L161)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L164)
 
 Compute the dot product of two vectors using SIMD acceleration.
 Returns the sum of element-wise products: sum(a[i] * b[i]).
 
 ### <a id="pub-const-vectorl2norm"></a>`pub const vectorL2Norm`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L165)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L168)
 
 Compute the L2 (Euclidean) norm of a vector: sqrt(sum(v[i]^2)).
 Uses SIMD for efficient computation on large vectors.
 
 ### <a id="pub-const-cosinesimilarity"></a>`pub const cosineSimilarity`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L170)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L173)
 
 Compute cosine similarity between two vectors.
 Returns a value in [-1, 1] where 1 indicates identical direction.
@@ -171,14 +177,14 @@ Formula: dot(a, b) / (norm(a) * norm(b))
 
 ### <a id="pub-const-hassimdsupport"></a>`pub const hasSimdSupport`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L174)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L177)
 
 Check if the current platform supports SIMD operations.
 Returns true if hardware SIMD is available and enabled.
 
 ### <a id="pub-const-simplemodulelifecycle"></a>`pub const SimpleModuleLifecycle`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L189)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L192)
 
 Simple module lifecycle management with init/deinit callbacks.
 Tracks initialization state and prevents double-init/deinit.
@@ -192,7 +198,7 @@ defer lifecycle.deinit(myDeinitFn);
 
 ### <a id="pub-const-lifecycleerror"></a>`pub const LifecycleError`
 
-<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L195)
+<sup>**const**</sup> | [source](../../src/services/shared/mod.zig#L198)
 
 Errors that can occur during module lifecycle operations.
 - `AlreadyInitialized`: Module was already initialized

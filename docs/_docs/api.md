@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **Reference** coverage and 
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1261` pass / `5` skip / `1266` total
-- Feature tests: `2119` pass / `2123` total
+- Feature tests: `2263` pass / `2268` total
 
 ## API Surface Summary
 
@@ -36,14 +36,14 @@ This guide is generated from repository metadata for **Reference** coverage and 
 | [ha](../api/ha.html) | Infrastructure | `always-on` |
 | [mcp](../api/mcp.html) | Infrastructure | `always-on` |
 | [connectors](../api/connectors.html) | Utilities | `always-on` |
+| [lsp](../api/lsp.html) | Utilities | `always-on` |
 | [platform](../api/platform.html) | Utilities | `always-on` |
 | [shared](../api/shared.html) | Utilities | `always-on` |
 | [tasks](../api/tasks.html) | Utilities | `always-on` |
-| [vnext](../api/vnext.html) | Utilities | `always-on` |
 
 See generated API app: [../api-app/](../api-app/)
 
-## Feature Matrix (23 modules)
+## Feature Matrix (24 modules)
 
 | Feature | Build Flag | Parent | Description |
 | --- | --- | --- | --- |
@@ -54,6 +54,7 @@ See generated API app: [../api-app/](../api-app/)
 | benchmarks | `enable_benchmarks` | — | Performance benchmarking and timing |
 | cache | `enable_cache` | — | In-memory caching |
 | cloud | `enable_cloud` | — | Cloud provider integration |
+| constitution | `enable_ai` | ai | AI safety principles and guardrails |
 | database | `enable_database` | — | Vector database (WDBX) |
 | embeddings | `enable_ai` | ai | Vector embeddings generation |
 | gateway | `enable_gateway` | — | API gateway (routing, rate limiting, circuit breaker) |

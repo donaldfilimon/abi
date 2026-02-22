@@ -583,7 +583,7 @@ test "gguf writer basic" {
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
-    const path = tmp_dir.dir.realpathAlloc(allocator, ".") catch return;
+    const path = tmp_dir.dir.realPathFileAlloc(std.testing.io, ".", allocator) catch return;
     defer allocator.free(path);
 
     const full_path = std.fmt.allocPrint(allocator, "{s}/test.gguf", .{path}) catch return;
@@ -616,7 +616,7 @@ test "gguf writer duplicate key" {
     var tmp_dir = std.testing.tmpDir(.{});
     defer tmp_dir.cleanup();
 
-    const path = tmp_dir.dir.realpathAlloc(allocator, ".") catch return;
+    const path = tmp_dir.dir.realPathFileAlloc(std.testing.io, ".", allocator) catch return;
     defer allocator.free(path);
 
     const full_path = std.fmt.allocPrint(allocator, "{s}/dup.gguf", .{path}) catch return;

@@ -15,14 +15,15 @@
 //!
 //! The discovery system searches these locations (in order):
 //! 1. `./models/` - Local project directory
-//! 2. `~/.abi/models/` - User home directory
-//! 3. `~/.cache/huggingface/hub/` - HuggingFace cache
-//! 4. `/usr/local/share/abi/models/` - System-wide (Unix)
-//! 5. `%LOCALAPPDATA%\abi\models\` - User local data (Windows)
+//! 2. Platform-specific ABI app root `models/` path
+//! 3. Legacy fallback `~/.abi/models/` (or `%USERPROFILE%\.abi\models`)
+//! 4. `~/.cache/huggingface/hub/` - HuggingFace cache
+//! 5. `/usr/local/share/abi/models/` - System-wide (Unix)
 
 const std = @import("std");
 const builtin = @import("builtin");
 const build_options = @import("build_options");
+const app_paths = @import("../../../services/shared/app_paths.zig");
 
 // libc import for environment access - required for Zig 0.16
 // Not available on freestanding/WASM targets
@@ -56,6 +57,24 @@ fn getEnv(name: [:0]const u8) ?[]const u8 {
         return std.mem.span(ptr);
     }
     return null;
+}
+
+fn runtimePathEnv() app_paths.EnvValues {
+    return .{
+        .appdata = getEnv("APPDATA"),
+        .localappdata = getEnv("LOCALAPPDATA"),
+        .userprofile = getEnv("USERPROFILE"),
+        .home = getEnv("HOME"),
+        .xdg_config_home = getEnv("XDG_CONFIG_HOME"),
+    };
+}
+
+fn resolveAbiModelPathFor(
+    allocator: std.mem.Allocator,
+    os_tag: std.Target.Os.Tag,
+    env: app_paths.EnvValues,
+) ![]u8 {
+    return app_paths.resolvePathFor(allocator, os_tag, env, "models");
 }
 
 /// Model discovery configuration
@@ -422,25 +441,15 @@ pub const ModelDiscovery = struct {
         // Local project directory
         try paths.append(self.allocator, try self.allocator.dupe(u8, "./models"));
 
-        // User home directory
-        if (getEnv("HOME")) |home| {
-            const abi_models = try std.fmt.allocPrint(self.allocator, "{s}/.abi/models", .{home});
-            try paths.append(self.allocator, abi_models);
+        // Primary ABI model path.
+        const abi_models = try resolveAbiModelPathFor(self.allocator, self.capabilities.os, runtimePathEnv());
+        defer self.allocator.free(abi_models);
+        try paths.append(self.allocator, try self.allocator.dupe(u8, abi_models));
 
+        // User home cache locations.
+        if (getEnv("HOME")) |home| {
             const hf_cache = try std.fmt.allocPrint(self.allocator, "{s}/.cache/huggingface/hub", .{home});
             try paths.append(self.allocator, hf_cache);
-        }
-
-        // Windows paths
-        if (getEnv("LOCALAPPDATA")) |local_app_data| {
-            const win_models = try std.fmt.allocPrint(self.allocator, "{s}\\abi\\models", .{local_app_data});
-            try paths.append(self.allocator, win_models);
-        }
-
-        // Also check USERPROFILE on Windows
-        if (getEnv("USERPROFILE")) |user_profile| {
-            const win_abi_models = try std.fmt.allocPrint(self.allocator, "{s}\\.abi\\models", .{user_profile});
-            try paths.append(self.allocator, win_abi_models);
         }
 
         // System-wide paths (Unix)
@@ -728,6 +737,19 @@ test "AdaptiveConfig defaults" {
     try std.testing.expectEqual(@as(u32, 1), config.batch_size);
     try std.testing.expect(config.use_gpu);
     try std.testing.expect(config.use_mmap);
+}
+
+test "resolveAbiModelPathFor uses primary path" {
+    const allocator = std.testing.allocator;
+    const env: app_paths.EnvValues = .{ .home = "/home/tester" };
+
+    const path = try resolveAbiModelPathFor(allocator, .linux, env);
+    defer allocator.free(path);
+
+    const expected = try std.fs.path.join(allocator, &.{ "/home/tester", ".config", "abi", "models" });
+    defer allocator.free(expected);
+
+    try std.testing.expectEqualStrings(expected, path);
 }
 
 test "QuantizationType bits per weight" {

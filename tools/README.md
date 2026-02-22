@@ -6,7 +6,7 @@ Developer tools and internal utilities for the ABI framework.
 
 | Path | Purpose | Build Step |
 | --- | --- | --- |
-| `cli/` | ABI CLI (30 commands + 8 aliases, TUI, utils) | `zig build run -- --help` |
+| `cli/` | ABI CLI (36 commands + 10 aliases, TUI, utils) | `zig build run -- --help` |
 | `gendocs/` | API documentation generator | `zig build gendocs` / `abi gendocs` |
 | `perf/` | Performance KPI verification tool | `zig build check-perf` |
 | `scripts/` | Zig quality-gate and validation scripts | `zig build check-consistency` |

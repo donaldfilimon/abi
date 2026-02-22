@@ -14,8 +14,9 @@ pub fn main(_: std.process.Init) !void {
     const allocator = gpa.allocator();
 
     var builder = abi.Framework.builder(allocator);
+
     var framework = try builder
-        .withAuthDefaults()
+        .withAuth(.{})
         .build();
     defer framework.deinit();
 

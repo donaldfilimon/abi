@@ -1,6 +1,7 @@
 const std = @import("std");
 const ops = @import("../../llm/ops/mod.zig");
 const backward_ops = ops.backward;
+const training_bridge = @import("../../../gpu/training_bridge.zig");
 
 pub fn backward(model: anytype, d_logits: []const f32, input_ids: []const u32) !void {
     const seq_len: u32 = @intCast(input_ids.len);
@@ -165,6 +166,12 @@ pub fn backward(model: anytype, d_logits: []const f32, input_ids: []const u32) !
             model.weights.d_token_embedding[emb_offset + h] += d_hidden[grad_offset + h];
         }
     }
+}
+
+/// Backward pass with optional GPU bridge acceleration.
+/// Currently delegates to CPU backward (GPU backward ops not yet implemented).
+pub fn backwardWithBridge(model: anytype, d_logits: []const f32, input_ids: []const u32, _: ?*training_bridge.GpuTrainingBridge) !void {
+    return backward(model, d_logits, input_ids);
 }
 
 pub fn computeCrossEntropyLoss(

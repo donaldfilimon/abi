@@ -29,6 +29,7 @@ pub const gateway_config = @import("gateway.zig");
 pub const pages_config = @import("pages.zig");
 pub const benchmarks_config = @import("benchmarks.zig");
 pub const plugin_config = @import("plugin.zig");
+pub const lsp_config = @import("lsp.zig");
 pub const loader = @import("loader.zig");
 
 // Re-export loader types
@@ -67,6 +68,7 @@ pub const PagesConfig = pages_config.PagesConfig;
 pub const BenchmarksConfig = benchmarks_config.BenchmarksConfig;
 pub const MobileConfig = mobile_config.MobileConfig;
 pub const PluginConfig = plugin_config.PluginConfig;
+pub const LspConfig = lsp_config.LspConfig;
 
 // ============================================================================
 // Unified Config
@@ -93,6 +95,7 @@ pub const Config = struct {
     pages: ?PagesConfig = null,
     benchmarks: ?BenchmarksConfig = null,
     plugins: PluginConfig = .{},
+    lsp: ?LspConfig = null,
 
     /// Create a config with all compile-time enabled features using defaults.
     pub fn defaults() Config {
@@ -148,6 +151,7 @@ pub const Config = struct {
             .pages => self.pages != null,
             .benchmarks => self.benchmarks != null,
             .reasoning => self.ai != null and build_options.enable_reasoning,
+            .constitution => self.ai != null,
         };
     }
 
@@ -370,6 +374,16 @@ pub const Builder = struct {
 
     pub fn withPlugins(self: *Builder, cfg: PluginConfig) *Builder {
         self.config.plugins = cfg;
+        return self;
+    }
+
+    pub fn withLsp(self: *Builder, cfg: LspConfig) *Builder {
+        self.config.lsp = cfg;
+        return self;
+    }
+
+    pub fn withLspDefaults(self: *Builder) *Builder {
+        self.config.lsp = LspConfig.defaults();
         return self;
     }
 

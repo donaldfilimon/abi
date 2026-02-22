@@ -18,7 +18,7 @@
 
 [Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
 
-**Contents:** [Why ABI?](#why-abi) · [Highlights](#highlights) · [Quick Start](#-quick-start) · [vNext Migration](#vnext-migration) · [Examples](#-examples) · [CLI Reference](#cli-reference) · [Architecture](#architecture) · [Feature Flags](#feature-flags) · [Documentation](#documentation)
+**Contents:** [Why ABI?](#why-abi) · [Highlights](#highlights) · [Quick Start](#-quick-start) · [Examples](#-examples) · [CLI Reference](#cli-reference) · [Architecture](#architecture) · [Feature Flags](#feature-flags) · [Documentation](#documentation)
 
 <br/>
 
@@ -68,7 +68,7 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Interactive CLI** | TUI launcher, GPU dashboard, training monitor | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Interactive CLI** | UI launcher + dashboards (db/gpu/model/network/bench/brain/streaming) | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Streaming API** | SSE/WebSocket inference, circuit breakers, session recovery | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ---
@@ -140,19 +140,6 @@ pub fn main() !void {
     std.debug.print("ABI v{s} ready!\n", .{abi.version()});
 }
 ```
-
----
-
-## vNext Migration
-
-ABI now includes a staged-compatibility `abi.vnext` namespace:
-
-- `abi.vnext.App`
-- `abi.vnext.AppConfig`
-- `abi.vnext.Capability`
-
-Legacy `abi.Framework` and `abi.Config` remain available for one release cycle.
-Migration details and API mapping are documented in `docs/_docs/migration-vnext.md`.
 
 ---
 
@@ -285,7 +272,7 @@ pub fn main() !void {
 # Core Commands
 abi --help                    # Show all commands
 abi system-info               # System and feature status
-abi tui                       # Interactive TUI launcher
+abi ui launch                 # Interactive TUI launcher
 
 # Database Operations
 abi db stats                  # Database statistics

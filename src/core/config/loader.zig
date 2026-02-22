@@ -15,6 +15,11 @@
 //! | ABI_DB_PATH | Database file path | abi.db |
 //! | ABI_OPENAI_API_KEY | OpenAI API key | none |
 //! | ABI_ANTHROPIC_API_KEY | Anthropic API key | none |
+//! | ABI_LSP_ZLS_PATH | ZLS binary path | zls |
+//! | ABI_LSP_ZIG_EXE_PATH | Zig compiler path for ZLS | none |
+//! | ABI_LSP_WORKSPACE_ROOT | LSP workspace root | none |
+//! | ABI_LSP_LOG_LEVEL | ZLS log level (info, warn, error, debug) | info |
+//! | ABI_LSP_ENABLE_SNIPPETS | Enable completion snippets (true/false) | true |
 //!
 //! ## Usage
 //!
@@ -30,6 +35,7 @@ const Config = mod.Config;
 const GpuConfig = mod.GpuConfig;
 const AiConfig = mod.AiConfig;
 const DatabaseConfig = mod.DatabaseConfig;
+const LspConfig = mod.LspConfig;
 const build_options = @import("build_options");
 
 /// Configuration loading errors.
@@ -131,6 +137,46 @@ pub const ConfigLoader = struct {
                 config.database.?.path = path_copy;
             }
         }
+
+        // LSP configuration (ZLS)
+        if (self.getEnv("ABI_LSP_ZLS_PATH") != null or
+            self.getEnv("ABI_LSP_ZIG_EXE_PATH") != null or
+            self.getEnv("ABI_LSP_WORKSPACE_ROOT") != null or
+            self.getEnv("ABI_LSP_LOG_LEVEL") != null or
+            self.getEnv("ABI_LSP_ENABLE_SNIPPETS") != null)
+        {
+            if (config.lsp == null) config.lsp = LspConfig.defaults();
+
+            if (self.getEnv("ABI_LSP_ZLS_PATH")) |path| {
+                const path_copy = self.allocator.dupe(u8, path) catch return error.OutOfMemory;
+                self.allocated_strings.append(self.allocator, path_copy) catch return error.OutOfMemory;
+                config.lsp.?.zls_path = path_copy;
+            }
+
+            if (self.getEnv("ABI_LSP_ZIG_EXE_PATH")) |path| {
+                const path_copy = self.allocator.dupe(u8, path) catch return error.OutOfMemory;
+                self.allocated_strings.append(self.allocator, path_copy) catch return error.OutOfMemory;
+                config.lsp.?.zig_exe_path = path_copy;
+            }
+
+            if (self.getEnv("ABI_LSP_WORKSPACE_ROOT")) |path| {
+                const path_copy = self.allocator.dupe(u8, path) catch return error.OutOfMemory;
+                self.allocated_strings.append(self.allocator, path_copy) catch return error.OutOfMemory;
+                config.lsp.?.workspace_root = path_copy;
+            }
+
+            if (self.getEnv("ABI_LSP_LOG_LEVEL")) |level| {
+                const level_copy = self.allocator.dupe(u8, level) catch return error.OutOfMemory;
+                self.allocated_strings.append(self.allocator, level_copy) catch return error.OutOfMemory;
+                config.lsp.?.log_level = level_copy;
+            }
+
+            if (self.getEnv("ABI_LSP_ENABLE_SNIPPETS")) |flag| {
+                if (parseBool(flag)) |value| {
+                    config.lsp.?.enable_snippets = value;
+                }
+            }
+        }
     }
 
     fn getEnv(self: *Self, name: []const u8) ?[]const u8 {
@@ -156,6 +202,22 @@ pub const ConfigLoader = struct {
             .{ "none", .cpu }, // no GPU → CPU fallback
         });
         return map.get(s);
+    }
+
+    fn parseBool(s: []const u8) ?bool {
+        if (std.ascii.eqlIgnoreCase(s, "true") or
+            std.ascii.eqlIgnoreCase(s, "yes") or
+            std.ascii.eqlIgnoreCase(s, "1"))
+        {
+            return true;
+        }
+        if (std.ascii.eqlIgnoreCase(s, "false") or
+            std.ascii.eqlIgnoreCase(s, "no") or
+            std.ascii.eqlIgnoreCase(s, "0"))
+        {
+            return false;
+        }
+        return null;
     }
 };
 

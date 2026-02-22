@@ -76,7 +76,7 @@ pub const LlmConfig = struct {
     model_path: ?[]const u8 = null,
 
     /// Model to use from registry.
-    model_name: []const u8 = "gpt2",
+    model_name: []const u8 = "gpt-oss:20b",
 
     /// Context window size.
     context_size: u32 = 2048,

@@ -30,9 +30,10 @@ pub const Feature = enum {
     pages,
     benchmarks,
     reasoning,
+    constitution,
 
     pub fn name(self: Feature) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 
     pub fn description(self: Feature) []const u8 {
@@ -274,6 +275,15 @@ pub const all = [_]Metadata{
         .real_module_path = "features/ai/facades/reasoning.zig",
         .stub_module_path = "features/ai/facades/reasoning_stub.zig",
     },
+    .{
+        .feature = .constitution,
+        .description = "AI safety principles and guardrails",
+        .compile_flag_field = "enable_ai",
+        .parity_spec = .ai,
+        .parent = .ai,
+        .real_module_path = "features/ai/mod.zig",
+        .stub_module_path = "features/ai/stub.zig",
+    },
 };
 
 pub const feature_count = all.len;
@@ -360,4 +370,5 @@ test "ai subfeatures point to ai parent" {
     try std.testing.expectEqual(Feature.ai, parent(.training).?);
     try std.testing.expectEqual(Feature.ai, parent(.personas).?);
     try std.testing.expectEqual(Feature.ai, parent(.reasoning).?);
+    try std.testing.expectEqual(Feature.ai, parent(.constitution).?);
 }

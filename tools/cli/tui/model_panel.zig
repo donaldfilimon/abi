@@ -198,7 +198,7 @@ pub const ModelManagementPanel = struct {
                 self.allocator.free(name_copy);
                 continue;
             };
-            const format_copy = self.allocator.dupe(u8, @tagName(model.format)) catch {
+            const format_copy = self.allocator.dupe(u8, std.mem.sliceTo(@tagName(model.format), 0)) catch {
                 self.allocator.free(id_copy);
                 self.allocator.free(name_copy);
                 self.allocator.free(path_copy);
@@ -286,6 +286,10 @@ pub const ModelManagementPanel = struct {
         self.active_model_id = null;
     }
 
+    inline fn moveTo(self: *Self, row: usize, col: usize) !void {
+        try self.term.moveTo(@as(u16, @intCast(row)), @as(u16, @intCast(col)));
+    }
+
     /// Render the panel
     pub fn render(
         self: *Self,
@@ -311,7 +315,7 @@ pub const ModelManagementPanel = struct {
         const title = "Model Management";
         const model_count = self.cached_models.items.len;
 
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.tl);
         try self.term.write(box.dh);
@@ -349,7 +353,7 @@ pub const ModelManagementPanel = struct {
 
         // Empty state
         if (models.len == 0) {
-            try self.term.moveTo(start_row, col);
+            try self.moveTo(start_row, col);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -358,7 +362,7 @@ pub const ModelManagementPanel = struct {
             try self.term.write(self.theme.reset);
 
             // Pad to right border
-            try self.term.moveTo(start_row, col + width - 1);
+            try self.moveTo(start_row, col + width - 1);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -375,7 +379,7 @@ pub const ModelManagementPanel = struct {
             const is_selected = model_idx == self.selected_model;
             const row = start_row + i;
 
-            try self.term.moveTo(row, col);
+            try self.moveTo(row, col);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -444,7 +448,7 @@ pub const ModelManagementPanel = struct {
             }
 
             // Right border
-            try self.term.moveTo(row, col + width - 1);
+            try self.moveTo(row, col + width - 1);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -453,12 +457,12 @@ pub const ModelManagementPanel = struct {
         // Fill remaining rows if needed
         var remaining_row = start_row + visible_count;
         while (remaining_row < start_row + height) : (remaining_row += 1) {
-            try self.term.moveTo(remaining_row, col);
+            try self.moveTo(remaining_row, col);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
 
-            try self.term.moveTo(remaining_row, col + width - 1);
+            try self.moveTo(remaining_row, col + width - 1);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -467,7 +471,7 @@ pub const ModelManagementPanel = struct {
 
     fn renderLocalServers(self: *Self, row: usize, col: usize, width: usize) !void {
         // Separator
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
         try self.term.write(box.h);
@@ -515,7 +519,7 @@ pub const ModelManagementPanel = struct {
         };
 
         for (servers, 0..) |srv, idx| {
-            try self.term.moveTo(row + 1 + idx, col);
+            try self.moveTo(row + 1 + idx, col);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -549,7 +553,7 @@ pub const ModelManagementPanel = struct {
             try self.term.write(self.theme.reset);
 
             // Right border
-            try self.term.moveTo(row + 1 + idx, col + width - 1);
+            try self.moveTo(row + 1 + idx, col + width - 1);
             try self.term.write(self.theme.border);
             try self.term.write(box.v);
             try self.term.write(self.theme.reset);
@@ -558,7 +562,7 @@ pub const ModelManagementPanel = struct {
 
     fn renderDownloads(self: *Self, row: usize, col: usize, width: usize) !void {
         // Separator line
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.lsep);
         if (width > 2) {
@@ -568,7 +572,7 @@ pub const ModelManagementPanel = struct {
         try self.term.write(self.theme.reset);
 
         // Download progress section
-        try self.term.moveTo(row + 1, col);
+        try self.moveTo(row + 1, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -586,7 +590,7 @@ pub const ModelManagementPanel = struct {
             try self.term.write(" ");
 
             // Model name (truncate if needed)
-            const max_name = if (width > 50) 20 else 10;
+            const max_name: usize = if (width > 50) 20 else 10;
             try self.term.write(unicode.truncateToWidth(dl.model_name, max_name));
             try self.term.write("  ");
 
@@ -613,13 +617,13 @@ pub const ModelManagementPanel = struct {
         }
 
         // Right border for download row
-        try self.term.moveTo(row + 1, col + width - 1);
+        try self.moveTo(row + 1, col + width - 1);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
 
         // Transfer rate sparkline row
-        try self.term.moveTo(row + 2, col);
+        try self.moveTo(row + 2, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
@@ -630,7 +634,7 @@ pub const ModelManagementPanel = struct {
             try self.term.write(self.theme.reset);
 
             // Simple ASCII sparkline
-            const max_sparkline = if (width > 50) 30 else 15;
+            const max_sparkline: usize = if (width > 50) 30 else 15;
             var spark_count: usize = 0;
             var iter = self.transfer_rate_history.iterator();
             const max_rate = self.transfer_rate_history.max() orelse 1.0;
@@ -656,14 +660,14 @@ pub const ModelManagementPanel = struct {
         }
 
         // Right border for sparkline row
-        try self.term.moveTo(row + 2, col + width - 1);
+        try self.moveTo(row + 2, col + width - 1);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
     }
 
     fn renderFooter(self: *Self, row: usize, col: usize, width: usize) !void {
-        try self.term.moveTo(row, col);
+        try self.moveTo(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.bl);
 

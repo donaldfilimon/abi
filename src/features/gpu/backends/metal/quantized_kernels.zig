@@ -563,9 +563,9 @@ pub const QuantizedKernelModule = struct {
         };
 
         const config = types.KernelConfig{
-            .grid_size = .{ m, 1, 1 },
-            .block_size = .{ 256, 1, 1 },
-            .shared_memory_size = 0,
+            .grid_dim = .{ m, 1, 1 },
+            .block_dim = .{ 256, 1, 1 },
+            .shared_memory_bytes = 0,
         };
 
         metal.launchKernel(self.allocator, kernel, config, &args) catch
@@ -620,9 +620,9 @@ pub const QuantizedKernelModule = struct {
         };
 
         const config = types.KernelConfig{
-            .grid_size = .{ m, 1, 1 },
-            .block_size = .{ 256, 1, 1 },
-            .shared_memory_size = 0,
+            .grid_dim = .{ m, 1, 1 },
+            .block_dim = .{ 256, 1, 1 },
+            .shared_memory_bytes = 0,
         };
 
         metal.launchKernel(self.allocator, kernel, config, &args) catch
@@ -659,9 +659,9 @@ pub const QuantizedKernelModule = struct {
         const grid_size = (n + threads_per_group - 1) / threads_per_group;
 
         const config = types.KernelConfig{
-            .grid_size = .{ grid_size, 1, 1 },
-            .block_size = .{ threads_per_group, 1, 1 },
-            .shared_memory_size = 0,
+            .grid_dim = .{ grid_size, 1, 1 },
+            .block_dim = .{ threads_per_group, 1, 1 },
+            .shared_memory_bytes = 0,
         };
 
         metal.launchKernel(self.allocator, kernel, config, &args) catch
@@ -693,9 +693,9 @@ pub const QuantizedKernelModule = struct {
         };
 
         const config = types.KernelConfig{
-            .grid_size = .{ 1, 1, 1 },
-            .block_size = .{ 256, 1, 1 },
-            .shared_memory_size = 0,
+            .grid_dim = .{ 1, 1, 1 },
+            .block_dim = .{ 256, 1, 1 },
+            .shared_memory_bytes = 0,
         };
 
         metal.launchKernel(self.allocator, kernel, config, &args) catch
@@ -738,9 +738,9 @@ pub const QuantizedKernelModule = struct {
         };
 
         const config = types.KernelConfig{
-            .grid_size = .{ 1, 1, 1 },
-            .block_size = .{ 256, 1, 1 },
-            .shared_memory_size = 0,
+            .grid_dim = .{ 1, 1, 1 },
+            .block_dim = .{ 256, 1, 1 },
+            .shared_memory_bytes = 0,
         };
 
         metal.launchKernel(self.allocator, kernel, config, &args) catch
@@ -775,9 +775,9 @@ pub const QuantizedKernelModule = struct {
         const grid_size = (n + threads_per_group - 1) / threads_per_group;
 
         const config = types.KernelConfig{
-            .grid_size = .{ grid_size, 1, 1 },
-            .block_size = .{ threads_per_group, 1, 1 },
-            .shared_memory_size = 0,
+            .grid_dim = .{ grid_size, 1, 1 },
+            .block_dim = .{ threads_per_group, 1, 1 },
+            .shared_memory_bytes = 0,
         };
 
         metal.launchKernel(self.allocator, kernel, config, &args) catch
@@ -795,9 +795,10 @@ pub const QuantizedKernelModule = struct {
 /// Compile an MSL kernel from source.
 fn compileKernel(allocator: std.mem.Allocator, source: []const u8, entry_point: []const u8) !*anyopaque {
     const kernel_source = types.KernelSource{
-        .code = source,
+        .name = entry_point,
+        .source = source,
         .entry_point = entry_point,
-        .language = .msl,
+        .backend = .metal,
     };
     return try metal.compileKernel(allocator, kernel_source);
 }

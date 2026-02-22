@@ -1,7 +1,7 @@
 //! User profile management commands for ABI CLI.
 //!
 //! Manage user profiles, preferences, and API keys.
-//! Profile data is persisted to ~/.abi/profiles.json
+//! Profile data is persisted to the platform-specific ABI app root.
 
 const std = @import("std");
 const abi = @import("abi");
@@ -9,6 +9,7 @@ const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
+const app_paths = abi.shared.app_paths;
 
 // libc import for environment access - required for Zig 0.16
 const c = @cImport(@cInclude("stdlib.h"));
@@ -247,36 +248,34 @@ const ProfileStore = struct {
 };
 
 /// Get path to profiles config file
-fn getProfilesConfigPath(allocator: std.mem.Allocator) ![]const u8 {
-    const home = getEnvOwned(allocator, "HOME") orelse
-        getEnvOwned(allocator, "USERPROFILE") orelse
-        return error.NoHomeDirectory;
-    defer allocator.free(home);
-
-    return std.fmt.allocPrint(allocator, "{s}/.abi/profiles.json", .{home});
+fn getProfilesConfigPath(allocator: std.mem.Allocator) ![]u8 {
+    return app_paths.resolvePath(allocator, "profiles.json");
 }
 
-/// Load profile store from disk
-fn loadProfileStore(allocator: std.mem.Allocator) !ProfileStore {
-    var store = ProfileStore.init(allocator);
-    errdefer store.deinit();
+const ProfileLoadState = enum {
+    loaded,
+    missing,
+};
 
-    const config_path = getProfilesConfigPath(allocator) catch return store;
-    defer allocator.free(config_path);
-
+fn tryLoadProfileStoreFromPath(
+    allocator: std.mem.Allocator,
+    path: []const u8,
+    store: *ProfileStore,
+) !ProfileLoadState {
     // Initialize I/O backend for Zig 0.16
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    const content = std.Io.Dir.cwd().readFileAlloc(io, config_path, allocator, .limited(1024 * 1024)) catch {
-        return store; // File doesn't exist, return empty store
+    const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(1024 * 1024)) catch |err| switch (err) {
+        error.FileNotFound => return .missing,
+        else => return err,
     };
     defer allocator.free(content);
 
-    // Parse JSON
+    // Preserve historical behavior: invalid JSON yields an empty store.
     const parsed = std.json.parseFromSlice(std.json.Value, allocator, content, .{}) catch {
-        return store; // Invalid JSON, return empty store
+        return .loaded;
     };
     defer parsed.deinit();
 
@@ -320,6 +319,18 @@ fn loadProfileStore(allocator: std.mem.Allocator) !ProfileStore {
             }
         }
     }
+
+    return .loaded;
+}
+
+/// Load profile store from disk
+fn loadProfileStore(allocator: std.mem.Allocator) !ProfileStore {
+    var store = ProfileStore.init(allocator);
+    errdefer store.deinit();
+
+    const config_path = app_paths.resolvePath(allocator, "profiles.json") catch return store;
+    defer allocator.free(config_path);
+    _ = try tryLoadProfileStoreFromPath(allocator, config_path, &store);
 
     return store;
 }
@@ -371,38 +382,8 @@ fn saveProfileStore(allocator: std.mem.Allocator, store: *const ProfileStore) !v
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    // Ensure directory exists by trying to open/create it
-    const home = getEnvOwned(allocator, "HOME") orelse
-        getEnvOwned(allocator, "USERPROFILE") orelse
-        return error.NoHomeDirectory;
-    defer allocator.free(home);
-
-    const dir_path = try std.fmt.allocPrint(allocator, "{s}/.abi", .{home});
-    defer allocator.free(dir_path);
-
-    // Try to create the directory (using openDir to check if it exists first)
-    _ = std.Io.Dir.cwd().openDir(io, dir_path, .{}) catch {
-        // Directory doesn't exist, use platform-specific mkdir
-        const builtin = @import("builtin");
-        if (comptime builtin.os.tag == .windows) {
-            const kernel32 = struct {
-                extern "kernel32" fn CreateDirectoryA(
-                    lpPathName: [*:0]const u8,
-                    lpSecurityAttributes: ?*anyopaque,
-                ) callconv(.winapi) i32;
-            };
-            const dir_z = allocator.dupeZ(u8, dir_path) catch return error.OutOfMemory;
-            defer allocator.free(dir_z);
-            _ = kernel32.CreateDirectoryA(dir_z.ptr, null);
-        } else {
-            const posix = struct {
-                extern "c" fn mkdir(path: [*:0]const u8, mode: u32) c_int;
-            };
-            const dir_z = allocator.dupeZ(u8, dir_path) catch return error.OutOfMemory;
-            defer allocator.free(dir_z);
-            _ = posix.mkdir(dir_z.ptr, 0o755);
-        }
-    };
+    const dir_path = std.fs.path.dirname(config_path) orelse ".";
+    try std.Io.Dir.cwd().createDirPath(io, dir_path);
 
     // Write file
     var file = try std.Io.Dir.cwd().createFile(io, config_path, .{ .truncate = true });
@@ -529,13 +510,29 @@ fn onUnknownSubcommand(command: []const u8) void {
 }
 
 fn getConfigPath(allocator: std.mem.Allocator) ![]const u8 {
-    // Get home directory (try HOME, then USERPROFILE for Windows)
-    const home = getEnvOwned(allocator, "HOME") orelse
-        getEnvOwned(allocator, "USERPROFILE") orelse
-        return error.NoHomeDirectory;
-    defer allocator.free(home);
+    return app_paths.resolvePath(allocator, "config.json");
+}
 
-    return std.fmt.allocPrint(allocator, "{s}/.abi/config.json", .{home});
+fn getProfilesPrimaryPath(allocator: std.mem.Allocator) ![]u8 {
+    return app_paths.resolvePath(allocator, "profiles.json");
+}
+
+fn printProfilesConfigLocation(allocator: std.mem.Allocator) void {
+    const profiles_path = getProfilesPrimaryPath(allocator) catch {
+        std.debug.print("\nConfig: (unavailable)\n", .{});
+        return;
+    };
+    defer allocator.free(profiles_path);
+    std.debug.print("\nConfig: {s}\n", .{profiles_path});
+}
+
+fn printProfilesSavedPath(allocator: std.mem.Allocator) void {
+    const profiles_path = getProfilesPrimaryPath(allocator) catch {
+        utils.output.printInfo("Changes saved to profile settings", .{});
+        return;
+    };
+    defer allocator.free(profiles_path);
+    utils.output.printInfo("Changes saved to {s}", .{profiles_path});
 }
 
 fn showCurrentProfile(allocator: std.mem.Allocator) !void {
@@ -593,7 +590,7 @@ fn showCurrentProfile(allocator: std.mem.Allocator) !void {
         std.debug.print("  HuggingFace: (not set)\n", .{});
     }
 
-    std.debug.print("\nConfig: ~/.abi/profiles.json\n", .{});
+    printProfilesConfigLocation(allocator);
     std.debug.print("Use 'abi profile set <key> <value>' to update settings\n", .{});
     std.debug.print("Use 'abi profile api-key set <provider> <key>' to set API keys\n", .{});
 }
@@ -631,7 +628,7 @@ fn listProfiles(allocator: std.mem.Allocator) !void {
         });
     }
 
-    std.debug.print("\nConfig: ~/.abi/profiles.json\n", .{});
+    printProfilesConfigLocation(allocator);
     std.debug.print("Use 'abi profile create <name>' to create a new profile\n", .{});
     std.debug.print("Use 'abi profile switch <name>' to switch profiles\n", .{});
 }
@@ -657,7 +654,7 @@ fn createProfile(allocator: std.mem.Allocator, name: []const u8) !void {
     try saveProfileStore(allocator, &store);
 
     utils.output.printSuccess("Profile '{s}' created", .{name});
-    utils.output.printInfo("Changes saved to ~/.abi/profiles.json", .{});
+    printProfilesSavedPath(allocator);
     utils.output.printInfo("Use 'abi profile switch {s}' to activate it", .{name});
 }
 
@@ -689,7 +686,7 @@ fn switchProfile(allocator: std.mem.Allocator, name: []const u8) !void {
     try saveProfileStore(allocator, &store);
 
     utils.output.printSuccess("Switched to profile: {s}", .{name});
-    utils.output.printInfo("Changes saved to ~/.abi/profiles.json", .{});
+    printProfilesSavedPath(allocator);
 }
 
 fn deleteProfile(allocator: std.mem.Allocator, name: []const u8) !void {
@@ -719,7 +716,7 @@ fn deleteProfile(allocator: std.mem.Allocator, name: []const u8) !void {
     try saveProfileStore(allocator, &store);
 
     utils.output.printSuccess("Profile '{s}' deleted", .{name});
-    utils.output.printInfo("Changes saved to ~/.abi/profiles.json", .{});
+    printProfilesSavedPath(allocator);
 }
 
 fn setProfileValue(allocator: std.mem.Allocator, key: []const u8, value: []const u8) !void {
@@ -769,7 +766,7 @@ fn setProfileValue(allocator: std.mem.Allocator, key: []const u8, value: []const
     try saveProfileStore(allocator, &store);
 
     utils.output.printSuccess("Set {s} = {s}", .{ key, value });
-    utils.output.printInfo("Changes saved to ~/.abi/profiles.json", .{});
+    printProfilesSavedPath(allocator);
 }
 
 fn getProfileValue(allocator: std.mem.Allocator, key: []const u8) !void {

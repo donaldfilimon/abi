@@ -49,7 +49,10 @@ pub const ModelBackend = enum {
     anthropic,
     local,
     pub fn toString(self: ModelBackend) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
+    }
+    pub fn toProviderId(_: ModelBackend) u8 {
+        return 0;
     }
 };
 
@@ -64,7 +67,7 @@ pub const Capability = enum {
     vision,
     embedding,
     pub fn toString(self: Capability) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 
@@ -101,7 +104,7 @@ pub const RoutingStrategy = enum {
     cost_optimized,
     latency_optimized,
     pub fn toString(self: RoutingStrategy) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 
@@ -115,7 +118,7 @@ pub const TaskType = enum {
     math,
     general,
     pub fn toString(self: TaskType) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
     pub fn detect(_: []const u8) TaskType {
         return .general;
@@ -156,7 +159,7 @@ pub const EnsembleMethod = enum {
     first_success,
     custom,
     pub fn toString(self: EnsembleMethod) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 
@@ -183,7 +186,7 @@ pub const FallbackPolicy = enum {
     immediate_fallback,
     circuit_breaker,
     pub fn toString(self: FallbackPolicy) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 
@@ -194,7 +197,7 @@ pub const HealthStatus = enum {
     circuit_open,
     recovering,
     pub fn toString(self: HealthStatus) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
     pub fn isAvailable(self: HealthStatus) bool {
         return self == .healthy or self == .degraded;

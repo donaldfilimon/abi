@@ -18,10 +18,10 @@
 | [ha](ha.md) | Infrastructure | High availability (replication, backup, PITR). | `always-on` |
 | [mcp](mcp.md) | Infrastructure | MCP (Model Context Protocol) server for WDBX database. | `always-on` |
 | [connectors](connectors.md) | Utilities | External service connectors (OpenAI, Anthropic, Ollama, etc.). | `always-on` |
+| [lsp](lsp.md) | Utilities | LSP (ZLS) client utilities. | `always-on` |
 | [platform](platform.md) | Utilities | Platform detection and abstraction. | `always-on` |
 | [shared](shared.md) | Utilities | Shared utilities (SIMD, time, sync, security, etc.). | `always-on` |
 | [tasks](tasks.md) | Utilities | Task management system. | `always-on` |
-| [vnext](vnext.md) | Utilities | vNext forward API surface (staged compatibility release). | `always-on` |
 
 ---
 
@@ -30,9 +30,6 @@
 ### [config](config.md)
 
 Unified configuration system.
-
-DEPRECATED: use `abi.vnext.AppConfig` (and set `.framework`) for staged
-migration. Compatibility is preserved for one release cycle.
 
 **Source:** [`src/core/config/mod.zig`](../../src/core/config/mod.zig)
 
@@ -49,11 +46,6 @@ Composable error hierarchy for framework operations.
 ### [framework](framework.md)
 
 Framework orchestration with builder pattern.
-
-DEPRECATED: prefer `abi.vnext.App` for new startup flows.
-Migration mapping:
-- `abi.Framework` -> `abi.vnext.App` + `App.getFramework()`
-- `abi.Config` -> `abi.vnext.AppConfig.framework`
 
 **Source:** [`src/core/framework.zig`](../../src/core/framework.zig)
 
@@ -75,7 +67,7 @@ Runtime infrastructure (thread pool, channels, scheduling).
 
 SIMD operations (shorthand for `shared.simd`).
 
-**Source:** [`src/services/shared/simd.zig`](../../src/services/shared/simd.zig)
+**Source:** [`src/services/shared/simd/mod.zig`](../../src/services/shared/simd/mod.zig)
 
 ## Infrastructure
 
@@ -105,6 +97,12 @@ External service connectors (OpenAI, Anthropic, Ollama, etc.).
 
 **Source:** [`src/services/connectors/mod.zig`](../../src/services/connectors/mod.zig)
 
+### [lsp](lsp.md)
+
+LSP (ZLS) client utilities.
+
+**Source:** [`src/services/lsp/mod.zig`](../../src/services/lsp/mod.zig)
+
 ### [platform](platform.md)
 
 Platform detection and abstraction.
@@ -122,12 +120,6 @@ Shared utilities (SIMD, time, sync, security, etc.).
 Task management system.
 
 **Source:** [`src/services/tasks/mod.zig`](../../src/services/tasks/mod.zig)
-
-### [vnext](vnext.md)
-
-vNext forward API surface (staged compatibility release).
-
-**Source:** [`src/vnext/mod.zig`](../../src/vnext/mod.zig)
 
 ---
 

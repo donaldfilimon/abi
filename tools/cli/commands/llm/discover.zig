@@ -20,8 +20,13 @@ pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]con
         .{ "llama_cpp", "llama.cpp server", "Set LLAMA_CPP_HOST or run: llama-server -m model.gguf" },
         .{ "mlx", "Apple MLX server", "Set MLX_HOST or run: python -m mlx_lm.server --model <model>" },
         .{ "ollama", "Ollama", "Set OLLAMA_HOST or run: ollama serve" },
+        .{ "ollama_passthrough", "Ollama passthrough", "Set OLLAMA_PASSTHROUGH_URL for OpenAI-compatible passthrough endpoint" },
         .{ "lm_studio", "LM Studio", "Set LM_STUDIO_HOST or open LM Studio with server enabled" },
         .{ "vllm", "vLLM server", "Set VLLM_HOST or run: python -m vllm.entrypoints.openai.api_server" },
+        .{ "codex", "Codex", "Set CODEX_API_KEY and optional CODEX_BASE_URL/CODEX_MODEL" },
+        .{ "opencode", "OpenCode", "Set OPENCODE_API_KEY and optional OPENCODE_BASE_URL/OPENCODE_MODEL" },
+        .{ "claude", "Claude", "Set CLAUDE_API_KEY (or ANTHROPIC_API_KEY fallback)" },
+        .{ "gemini", "Gemini", "Set GEMINI_API_KEY and optional GEMINI_MODEL/GEMINI_BASE_URL" },
         .{ "anthropic", "Anthropic Claude", "Set ANTHROPIC_API_KEY (get key at console.anthropic.com)" },
         .{ "openai", "OpenAI", "Set OPENAI_API_KEY (get key at platform.openai.com)" },
         .{ "plugin_http", "HTTP Plugin", "Add via: abi llm plugins add-http <id> --url <base_url>" },
@@ -66,6 +71,7 @@ pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]con
     std.debug.print("  abi llm session --model llama3 --backend ollama\n", .{});
     std.debug.print("  abi llm session --model claude-3-5-sonnet-20241022 --backend anthropic\n", .{});
     std.debug.print("  abi llm session --model gpt-4 --backend openai\n", .{});
+    std.debug.print("  abi llm session --sync --sync-providers codex,opencode,claude,gemini,ollama_passthrough,ollama\n", .{});
     std.debug.print("  abi ralph run --backend anthropic --model claude-3-5-sonnet-20241022 --task \"...\"\n", .{});
     std.debug.print("  abi ralph improve --backend ollama --model llama3\n", .{});
 }

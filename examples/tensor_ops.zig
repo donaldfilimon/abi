@@ -1,10 +1,10 @@
 //! Tensor + Matrix + SIMD Example
 //!
-//! Demonstrates a small end-to-end numeric path using v2 modules:
+//! Demonstrates a small end-to-end numeric path using shared modules:
 //! - Matrix multiply via `abi.shared.matrix.Mat32`
 //! - Tensor transforms via `abi.shared.tensor.Tensor32`
 //! - SIMD vector ops via `abi.simd.vectorAdd` / `abi.simd.vectorDot`
-//! - v2 timing/clamp helpers via `abi.shared.utils.v2_primitives`
+//! - timing/clamp helpers via `abi.shared.utils.primitives`
 //!
 //! Run with: `zig build run-tensor-ops`
 
@@ -14,7 +14,7 @@ const abi = @import("abi");
 const Mat32 = abi.shared.matrix.Mat32;
 const Tensor32 = abi.shared.tensor.Tensor32;
 const Shape = abi.shared.tensor.Shape;
-const v2 = abi.shared.utils.v2_primitives;
+const primitives = abi.shared.utils.primitives;
 
 pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -22,7 +22,7 @@ pub fn main(_: std.process.Init) !void {
     const allocator = gpa.allocator();
 
     std.debug.print("\n=== ABI Tensor Ops Demo ===\n", .{});
-    std.debug.print("Platform: {s}\n", .{v2.Platform.description()});
+    std.debug.print("Platform: {s}\n", .{primitives.Platform.description()});
 
     // ---------------------------------------------------------------------
     // 1) Matrix multiply: A(2x3) * B(3x2) => C(2x2)
@@ -107,7 +107,7 @@ pub fn main(_: std.process.Init) !void {
     var simd_add: [4]f32 = undefined;
     abi.simd.vectorAdd(input.flat(), bias.flat(), simd_add[0..]);
     const alignment_dot = abi.simd.vectorDot(relu_out.flat(), softmax_out.flat());
-    const clamped_dot = v2.Math.clamp(f32, alignment_dot, 0.0, 1_000_000.0);
+    const clamped_dot = primitives.Math.clamp(f32, alignment_dot, 0.0, 1_000_000.0);
 
     std.debug.print("SIMD add(flat input+bias): [{d:.2}, {d:.2}, {d:.2}, {d:.2}]\n", .{
         simd_add[0],
@@ -121,7 +121,7 @@ pub fn main(_: std.process.Init) !void {
     });
 
     const total_activation = relu_out.sum();
-    const bounded_activation = v2.Math.clamp(f32, total_activation, 0.0, 1_000_000.0);
+    const bounded_activation = primitives.Math.clamp(f32, total_activation, 0.0, 1_000_000.0);
     std.debug.print("Total ReLU activation: {d:.3} (bounded: {d:.3})\n", .{
         total_activation,
         bounded_activation,

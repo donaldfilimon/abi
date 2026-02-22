@@ -136,3 +136,8 @@ fn printUnknownCommand(command: []const u8) void {
     }
     std.debug.print("Use 'help' for usage.\n", .{});
 }
+
+test {
+    _ = @import("commands/ui/launch.zig");
+    _ = @import("tui/mod.zig");
+}

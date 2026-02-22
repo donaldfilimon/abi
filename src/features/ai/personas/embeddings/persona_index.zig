@@ -16,7 +16,7 @@ const embeddings = @import("../../embeddings/mod.zig");
 const database = @import("../../../database/mod.zig");
 const seed_data = @import("seed_data.zig");
 const time = @import("../../../../services/shared/time.zig");
-const simd = @import("../../../../services/shared/simd.zig");
+const simd = @import("../../../../services/shared/simd/mod.zig");
 
 /// Result of a persona matching operation.
 pub const PersonaMatch = struct {

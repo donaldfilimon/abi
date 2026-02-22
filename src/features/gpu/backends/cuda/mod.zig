@@ -184,6 +184,31 @@ else
             }
         };
     };
+pub const cudnn = if (shared.dynlibSupported)
+    @import("cudnn.zig")
+else
+    struct {
+        pub const CudnnError = error{
+            LibraryNotFound,
+            HandleCreationFailed,
+            DescriptorFailed,
+            UnsupportedOperation,
+            ExecutionFailed,
+        };
+        pub const CudnnContext = struct {
+            loaded: bool = false,
+            pub fn init() CudnnError!@This() {
+                return CudnnError.LibraryNotFound;
+            }
+            pub fn deinit(_: *@This()) void {}
+            pub fn isLoaded(_: *const @This()) bool {
+                return false;
+            }
+        };
+        pub fn isAvailable() bool {
+            return false;
+        }
+    };
 pub const vtable = @import("vtable.zig");
 
 // VTable backend exports

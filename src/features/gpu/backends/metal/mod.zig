@@ -46,6 +46,9 @@ pub const coreml = @import("coreml.zig");
 pub const mesh_shaders = @import("mesh_shaders.zig");
 pub const ray_tracing = @import("ray_tracing.zig");
 
+// Unified acceleration pipeline
+pub const macos_accelerator = @import("macos_accelerator.zig");
+
 /// Re-export key types for convenience
 pub const QuantizedKernelModule = quantized_kernels.QuantizedKernelModule;
 pub const QuantConfig = quantized_kernels.QuantConfig;
@@ -84,6 +87,11 @@ pub const AccelerationStructure = ray_tracing.AccelerationStructure;
 pub const TriangleGeometry = ray_tracing.TriangleGeometry;
 pub const InstanceDescriptor = ray_tracing.InstanceDescriptor;
 
+/// macOS Accelerator types
+pub const MacOSAccelerator = macos_accelerator.MacOSAccelerator;
+pub const AcceleratorBackend = macos_accelerator.AcceleratorBackend;
+pub const AcceleratorConfig = macos_accelerator.AcceleratorConfig;
+
 /// Quantization block sizes
 pub const Q4_BLOCK_SIZE = quantized_kernels.Q4_BLOCK_SIZE;
 pub const Q4_BLOCK_BYTES = quantized_kernels.Q4_BLOCK_BYTES;
@@ -120,6 +128,11 @@ pub fn hasCoreml() bool {
     return coreml.isAvailable();
 }
 
+/// Check if the unified macOS accelerator is available (Accelerate + MPS + CoreML).
+pub fn hasAccelerator() bool {
+    return accelerate.is_available;
+}
+
 test {
     _ = quantized_kernels;
     _ = accelerate;
@@ -129,4 +142,5 @@ test {
     _ = coreml;
     _ = mesh_shaders;
     _ = ray_tracing;
+    _ = macos_accelerator;
 }

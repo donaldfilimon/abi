@@ -2,7 +2,7 @@
   {
     "name": "config",
     "path": "src/core/config/mod.zig",
-    "description": "Unified configuration system.\n\nDEPRECATED: use `abi.vnext.AppConfig` (and set `.framework`) for staged\nmigration. Compatibility is preserved for one release cycle.",
+    "description": "Unified configuration system.",
     "category": "Core Framework",
     "build_flag": "always-on",
     "symbols": [
@@ -11,56 +11,56 @@
         "signature": "pub const Config",
         "doc": "Unified configuration for the ABI framework.\nAll feature configs are optional - null means the feature is disabled.",
         "kind": "const",
-        "line": 77
+        "line": 79
       },
       {
         "anchor": "pub-fn-defaults-config",
         "signature": "pub fn defaults() Config",
         "doc": "Create a config with all compile-time enabled features using defaults.",
         "kind": "fn",
-        "line": 98
+        "line": 101
       },
       {
         "anchor": "pub-fn-minimal-config",
         "signature": "pub fn minimal() Config",
         "doc": "Create a minimal config with no features enabled.",
         "kind": "fn",
-        "line": 121
+        "line": 124
       },
       {
         "anchor": "pub-fn-isenabled-self-config-feature-feature-bool",
         "signature": "pub fn isEnabled(self: Config, feature: Feature) bool",
         "doc": "Check if a feature is enabled in this config.",
         "kind": "fn",
-        "line": 126
+        "line": 129
       },
       {
         "anchor": "pub-fn-enabledfeatures-self-config-allocator-std-mem-allocator-feature",
         "signature": "pub fn enabledFeatures(self: Config, allocator: std.mem.Allocator) ![]Feature",
         "doc": "Get list of enabled features.",
         "kind": "fn",
-        "line": 155
+        "line": 159
       },
       {
         "anchor": "pub-const-builder",
         "signature": "pub const Builder",
         "doc": "Fluent builder for constructing Config.",
         "kind": "const",
-        "line": 175
+        "line": 179
       },
       {
         "anchor": "pub-fn-build-self-builder-config",
         "signature": "pub fn build(self: *Builder) Config",
         "doc": "Finalize and return the built config; no allocation.",
         "kind": "fn",
-        "line": 377
+        "line": 391
       },
       {
         "anchor": "pub-fn-validate-cfg-config-configerror-void",
         "signature": "pub fn validate(cfg: Config) ConfigError!void",
         "doc": "Validate configuration against compile-time constraints.",
         "kind": "fn",
-        "line": 399
+        "line": 413
       }
     ]
   },
@@ -197,14 +197,14 @@
         "signature": "pub const ParitySpec",
         "doc": "Canonical parity-spec key consumed by API parity tests.",
         "kind": "const",
-        "line": 56
+        "line": 57
       }
     ]
   },
   {
     "name": "framework",
     "path": "src/core/framework.zig",
-    "description": "Framework orchestration with builder pattern.\n\nDEPRECATED: prefer `abi.vnext.App` for new startup flows.\nMigration mapping:\n- `abi.Framework` -> `abi.vnext.App` + `App.getFramework()`\n- `abi.Config` -> `abi.vnext.AppConfig.framework`",
+    "description": "Framework orchestration with builder pattern.",
     "category": "Core Framework",
     "build_flag": "always-on",
     "symbols": [
@@ -972,7 +972,7 @@
   },
   {
     "name": "simd",
-    "path": "src/services/shared/simd.zig",
+    "path": "src/services/shared/simd/mod.zig",
     "description": "SIMD operations (shorthand for `shared.simd`).",
     "category": "Compute & Runtime",
     "build_flag": "always-on",
@@ -1162,7 +1162,7 @@
         "signature": "pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Server",
         "doc": "Create an MCP server pre-configured with WDBX database tools",
         "kind": "fn",
-        "line": 25
+        "line": 29
       }
     ]
   },
@@ -1178,37 +1178,45 @@
         "signature": "pub fn init(_: std.mem.Allocator) !void",
         "doc": "Initialize the connectors subsystem (idempotent; no-op if already initialized).",
         "kind": "fn",
-        "line": 55
+        "line": 60
       },
       {
         "anchor": "pub-fn-deinit-void",
         "signature": "pub fn deinit() void",
         "doc": "Tear down the connectors subsystem; safe to call multiple times.",
         "kind": "fn",
-        "line": 60
+        "line": 65
       },
       {
         "anchor": "pub-fn-isenabled-bool",
         "signature": "pub fn isEnabled() bool",
         "doc": "Returns true; connectors are always available when this module is compiled in.",
         "kind": "fn",
-        "line": 65
+        "line": 70
       },
       {
         "anchor": "pub-fn-isinitialized-bool",
         "signature": "pub fn isInitialized() bool",
         "doc": "Returns true after `init()` has been called.",
         "kind": "fn",
-        "line": 70
+        "line": 75
       },
       {
         "anchor": "pub-fn-getenvowned-allocator-std-mem-allocator-name-const-u8-u8",
         "signature": "pub fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) !?[]u8",
         "doc": "Read environment variable by name; returns owned slice or null if unset. Caller must free.",
         "kind": "fn",
-        "line": 80
+        "line": 85
       }
     ]
+  },
+  {
+    "name": "lsp",
+    "path": "src/services/lsp/mod.zig",
+    "description": "LSP (ZLS) client utilities.",
+    "category": "Utilities",
+    "build_flag": "always-on",
+    "symbols": []
   },
   {
     "name": "platform",
@@ -1332,130 +1340,137 @@
         "line": 83
       },
       {
+        "anchor": "pub-const-app-paths",
+        "signature": "pub const app_paths",
+        "doc": "Cross-platform ABI app path resolver (primary config root).",
+        "kind": "const",
+        "line": 86
+      },
+      {
         "anchor": "pub-const-time",
         "signature": "pub const time",
         "doc": "Time utilities compatible with Zig 0.16.\nPlatform-aware implementations for unix timestamps, monotonic clocks, and sleep.",
         "kind": "const",
-        "line": 87
+        "line": 90
       },
       {
         "anchor": "pub-const-sync",
         "signature": "pub const sync",
         "doc": "Synchronization primitives compatible with Zig 0.16.\nProvides Mutex, RwLock, and other concurrency utilities.",
         "kind": "const",
-        "line": 91
+        "line": 94
       },
       {
         "anchor": "pub-const-io",
         "signature": "pub const io",
         "doc": "I/O utilities and helpers for file and stream operations.\nDesigned for Zig 0.16's explicit I/O backend model.",
         "kind": "const",
-        "line": 95
+        "line": 98
       },
       {
         "anchor": "pub-const-stub-common",
         "signature": "pub const stub_common",
         "doc": "Common stub utilities for feature-disabled builds.\nProvides consistent error types and placeholder implementations.",
         "kind": "const",
-        "line": 99
+        "line": 102
       },
       {
         "anchor": "pub-const-matrix",
         "signature": "pub const matrix",
         "doc": "Dense matrix operations with SIMD-accelerated multiply (v2).",
         "kind": "const",
-        "line": 102
+        "line": 105
       },
       {
         "anchor": "pub-const-tensor",
         "signature": "pub const tensor",
         "doc": "Multi-dimensional tensor operations with broadcasting (v2).",
         "kind": "const",
-        "line": 105
+        "line": 108
       },
       {
         "anchor": "pub-const-security",
         "signature": "pub const security",
         "doc": "Comprehensive security module providing authentication, authorization,\nand encryption features. Includes:\n\n- **API Keys**: Secure key generation with salted hashing\n- **JWT**: Token-based authentication (HS256, HS384, HS512)\n- **RBAC**: Role-based access control with permission caching\n- **TLS**: Secure connection management (TLS 1.2/1.3)\n- **mTLS**: Mutual TLS for bidirectional authentication\n- **Secrets**: Encrypted credential storage with rotation\n- **Rate Limiting**: Token bucket and sliding window algorithms\n- **Encryption**: AES-256-GCM and ChaCha20-Poly1305\n- **Audit**: Tamper-evident security event logging\n\nSee `security/mod.zig` for full API documentation.",
         "kind": "const",
-        "line": 125
+        "line": 128
       },
       {
         "anchor": "pub-const-resilience",
         "signature": "pub const resilience",
         "doc": "Resilience patterns (circuit breaker, etc.) for fault-tolerant systems.\nShared implementations used by network, streaming, and gateway modules.",
         "kind": "const",
-        "line": 129
+        "line": 132
       },
       {
         "anchor": "pub-const-signal",
         "signature": "pub const signal",
         "doc": "POSIX signal handling for graceful shutdown.\nSets a shared atomic flag on SIGINT/SIGTERM.",
         "kind": "const",
-        "line": 133
+        "line": 136
       },
       {
         "anchor": "pub-const-log",
         "signature": "pub const log",
         "doc": "Log a message at the default scope. Shorthand for `logging.log`.\nUsage: `log.info(\"message {}\", .{value});`",
         "kind": "const",
-        "line": 145
+        "line": 148
       },
       {
         "anchor": "pub-const-logger",
         "signature": "pub const Logger",
         "doc": "Scoped logger type for structured logging with context.\nCreate with `Logger.init(allocator, .{ .scope = \"my_component\" })`.",
         "kind": "const",
-        "line": 149
+        "line": 152
       },
       {
         "anchor": "pub-const-vectoradd",
         "signature": "pub const vectorAdd",
         "doc": "Add two vectors element-wise using SIMD when available.\nFalls back to scalar operations on platforms without SIMD support.",
         "kind": "const",
-        "line": 157
+        "line": 160
       },
       {
         "anchor": "pub-const-vectordot",
         "signature": "pub const vectorDot",
         "doc": "Compute the dot product of two vectors using SIMD acceleration.\nReturns the sum of element-wise products: sum(a[i] * b[i]).",
         "kind": "const",
-        "line": 161
+        "line": 164
       },
       {
         "anchor": "pub-const-vectorl2norm",
         "signature": "pub const vectorL2Norm",
         "doc": "Compute the L2 (Euclidean) norm of a vector: sqrt(sum(v[i]^2)).\nUses SIMD for efficient computation on large vectors.",
         "kind": "const",
-        "line": 165
+        "line": 168
       },
       {
         "anchor": "pub-const-cosinesimilarity",
         "signature": "pub const cosineSimilarity",
         "doc": "Compute cosine similarity between two vectors.\nReturns a value in [-1, 1] where 1 indicates identical direction.\nFormula: dot(a, b) / (norm(a) * norm(b))",
         "kind": "const",
-        "line": 170
+        "line": 173
       },
       {
         "anchor": "pub-const-hassimdsupport",
         "signature": "pub const hasSimdSupport",
         "doc": "Check if the current platform supports SIMD operations.\nReturns true if hardware SIMD is available and enabled.",
         "kind": "const",
-        "line": 174
+        "line": 177
       },
       {
         "anchor": "pub-const-simplemodulelifecycle",
         "signature": "pub const SimpleModuleLifecycle",
         "doc": "Simple module lifecycle management with init/deinit callbacks.\nTracks initialization state and prevents double-init/deinit.\n\nExample:\n```zig\nvar lifecycle = SimpleModuleLifecycle{};\ntry lifecycle.init(myInitFn);\ndefer lifecycle.deinit(myDeinitFn);\n```",
         "kind": "const",
-        "line": 189
+        "line": 192
       },
       {
         "anchor": "pub-const-lifecycleerror",
         "signature": "pub const LifecycleError",
         "doc": "Errors that can occur during module lifecycle operations.\n- `AlreadyInitialized`: Module was already initialized\n- `NotInitialized`: Attempted operation on uninitialized module\n- `InitFailed`: Initialization callback returned an error",
         "kind": "const",
-        "line": 195
+        "line": 198
       }
     ]
   },
@@ -1471,142 +1486,134 @@
         "signature": "pub const Manager",
         "doc": "Task Manager - main interface for task operations",
         "kind": "const",
-        "line": 41
+        "line": 42
       },
       {
         "anchor": "pub-fn-add-self-manager-title-const-u8-options-addoptions-managererror-u64",
         "signature": "pub fn add(self: *Manager, title: []const u8, options: AddOptions) ManagerError!u64",
         "doc": "Add a new task",
         "kind": "fn",
-        "line": 91
+        "line": 115
       },
       {
         "anchor": "pub-fn-get-self-const-manager-id-u64-task",
         "signature": "pub fn get(self: *const Manager, id: u64) ?Task",
         "doc": "Get a task by ID",
         "kind": "fn",
-        "line": 106
+        "line": 130
       },
       {
         "anchor": "pub-fn-setstatus-self-manager-id-u64-status-status-managererror-void",
         "signature": "pub fn setStatus(self: *Manager, id: u64, status: Status) ManagerError!void",
         "doc": "Update task status",
         "kind": "fn",
-        "line": 111
+        "line": 135
       },
       {
         "anchor": "pub-fn-complete-self-manager-id-u64-managererror-void",
         "signature": "pub fn complete(self: *Manager, id: u64) ManagerError!void",
         "doc": "Mark task as completed",
         "kind": "fn",
-        "line": 118
+        "line": 142
       },
       {
         "anchor": "pub-fn-start-self-manager-id-u64-managererror-void",
         "signature": "pub fn start(self: *Manager, id: u64) ManagerError!void",
         "doc": "Mark task as in progress",
         "kind": "fn",
-        "line": 123
+        "line": 147
       },
       {
         "anchor": "pub-fn-cancel-self-manager-id-u64-managererror-void",
         "signature": "pub fn cancel(self: *Manager, id: u64) ManagerError!void",
         "doc": "Cancel a task",
         "kind": "fn",
-        "line": 128
+        "line": 152
       },
       {
         "anchor": "pub-fn-delete-self-manager-id-u64-managererror-void",
         "signature": "pub fn delete(self: *Manager, id: u64) ManagerError!void",
         "doc": "Delete a task",
         "kind": "fn",
-        "line": 133
+        "line": 157
       },
       {
         "anchor": "pub-fn-setduedate-self-manager-id-u64-due-date-i64-managererror-void",
         "signature": "pub fn setDueDate(self: *Manager, id: u64, due_date: ?i64) ManagerError!void",
         "doc": "Set due date for a task",
         "kind": "fn",
-        "line": 140
+        "line": 164
       },
       {
         "anchor": "pub-fn-setblockedby-self-manager-id-u64-blocker-id-u64-managererror-void",
         "signature": "pub fn setBlockedBy(self: *Manager, id: u64, blocker_id: ?u64) ManagerError!void",
         "doc": "Set task as blocked by another task",
         "kind": "fn",
-        "line": 147
+        "line": 171
       },
       {
         "anchor": "pub-fn-setpriority-self-manager-id-u64-priority-priority-managererror-void",
         "signature": "pub fn setPriority(self: *Manager, id: u64, priority: Priority) ManagerError!void",
         "doc": "Update task priority",
         "kind": "fn",
-        "line": 154
+        "line": 178
       },
       {
         "anchor": "pub-fn-setcategory-self-manager-id-u64-category-category-managererror-void",
         "signature": "pub fn setCategory(self: *Manager, id: u64, category: Category) ManagerError!void",
         "doc": "Update task category",
         "kind": "fn",
-        "line": 161
+        "line": 185
       },
       {
         "anchor": "pub-fn-settitle-self-manager-id-u64-title-const-u8-managererror-void",
         "signature": "pub fn setTitle(self: *Manager, id: u64, title: []const u8) ManagerError!void",
         "doc": "Update task title",
         "kind": "fn",
-        "line": 168
+        "line": 192
       },
       {
         "anchor": "pub-fn-setdescription-self-manager-id-u64-description-const-u8-managererror-void",
         "signature": "pub fn setDescription(self: *Manager, id: u64, description: ?[]const u8) ManagerError!void",
         "doc": "Update task description",
         "kind": "fn",
-        "line": 175
+        "line": 199
       },
       {
         "anchor": "pub-fn-list-self-const-manager-allocator-std-mem-allocator-filter-filter-managererror-task",
         "signature": "pub fn list(self: *const Manager, allocator: std.mem.Allocator, filter: Filter) ManagerError![]Task",
         "doc": "List tasks with optional filter and sorting",
         "kind": "fn",
-        "line": 186
+        "line": 210
       },
       {
         "anchor": "pub-fn-getstats-self-const-manager-stats",
         "signature": "pub fn getStats(self: *const Manager) Stats",
         "doc": "Get statistics",
         "kind": "fn",
-        "line": 191
+        "line": 215
       },
       {
         "anchor": "pub-fn-save-self-manager-managererror-void",
         "signature": "pub fn save(self: *Manager) ManagerError!void",
         "doc": "Save tasks to file",
         "kind": "fn",
-        "line": 200
+        "line": 224
       },
       {
         "anchor": "pub-fn-load-self-manager-managererror-void",
         "signature": "pub fn load(self: *Manager) ManagerError!void",
         "doc": "Load tasks from file",
         "kind": "fn",
-        "line": 206
+        "line": 230
       },
       {
         "anchor": "pub-fn-importroadmap-self-manager-usize",
         "signature": "pub fn importRoadmap(self: *Manager) !usize",
         "doc": "Import all roadmap items as tasks",
         "kind": "fn",
-        "line": 222
+        "line": 246
       }
     ]
-  },
-  {
-    "name": "vnext",
-    "path": "src/vnext/mod.zig",
-    "description": "vNext forward API surface (staged compatibility release).",
-    "category": "Utilities",
-    "build_flag": "always-on",
-    "symbols": []
   }
 ]

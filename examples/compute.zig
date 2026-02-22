@@ -7,21 +7,21 @@
 
 const std = @import("std");
 const abi = @import("abi");
-const v2 = abi.shared.utils.v2_primitives;
+const primitives = abi.shared.utils.primitives;
 
 pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = abi.Framework.initMinimal(allocator) catch |err| {
+    var framework = abi.init(allocator, abi.Config.minimal()) catch |err| {
         std.debug.print("Failed to initialize framework: {t}\n", .{err});
         return err;
     };
     defer framework.deinit();
 
     std.debug.print("Compute runtime initialized successfully\n", .{});
-    std.debug.print("Platform: {s}\n", .{v2.Platform.description()});
+    std.debug.print("Platform: {s}\n", .{primitives.Platform.description()});
 
     // Check SIMD support
     const has_simd = abi.simd.hasSimdSupport();
@@ -42,6 +42,6 @@ pub fn main(_: std.process.Init) !void {
     abi.simd.vectorAdd(&vec_a, &vec_b, &vec_sum);
     std.debug.print("SIMD vector addition result: [{d:.1}, {d:.1}, {d:.1}, {d:.1}]\n", .{ vec_sum[0], vec_sum[1], vec_sum[2], vec_sum[3] });
 
-    const bounded_dot = v2.Math.clamp(f32, dot_result, -1_000_000.0, 1_000_000.0);
-    std.debug.print("Bounded dot product (v2 clamp): {d:.3}\n", .{bounded_dot});
+    const bounded_dot = primitives.Math.clamp(f32, dot_result, -1_000_000.0, 1_000_000.0);
+    std.debug.print("Bounded dot product (clamp): {d:.3}\n", .{bounded_dot});
 }

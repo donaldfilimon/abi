@@ -10,7 +10,7 @@
 
 ### <a id="pub-const-parityspec"></a>`pub const ParitySpec`
 
-<sup>**const**</sup> | [source](../../src/core/feature_catalog.zig#L56)
+<sup>**const**</sup> | [source](../../src/core/feature_catalog.zig#L57)
 
 Canonical parity-spec key consumed by API parity tests.
 

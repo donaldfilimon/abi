@@ -273,3 +273,123 @@ pub const StreamPool = struct {
         }
     }
 };
+
+/// Lightweight stream pool for multi-stream kernel overlap.
+///
+/// Unlike `StreamPool` (which wraps real CUDA streams and requires driver
+/// initialization), `MultiStreamPool` is a simple index-based pool that
+/// tracks which stream slots are in use. This is useful for scheduling
+/// concurrent compute and data-transfer kernels across multiple CUDA
+/// streams without requiring the full CUDA driver to be loaded.
+///
+/// ## Usage
+/// ```zig
+/// var pool = MultiStreamPool.init(4);
+/// const s0 = try pool.acquire(); // 0
+/// const s1 = try pool.acquire(); // 1
+/// pool.release(s0);
+/// const s2 = try pool.acquire(); // 0 (reused)
+/// ```
+pub const MultiStreamPool = struct {
+    num_streams: u32,
+    in_use: [MAX_STREAMS]bool = [_]bool{false} ** MAX_STREAMS,
+
+    pub const MAX_STREAMS = 16;
+
+    pub fn init(num_streams: u32) MultiStreamPool {
+        return .{
+            .num_streams = @min(num_streams, MAX_STREAMS),
+        };
+    }
+
+    /// Acquire the next available stream index.
+    /// Returns `error.NoStreamsAvailable` if all streams are in use.
+    pub fn acquire(self: *MultiStreamPool) !u32 {
+        for (self.in_use[0..self.num_streams], 0..) |*used, i| {
+            if (!used.*) {
+                used.* = true;
+                return @intCast(i);
+            }
+        }
+        return error.NoStreamsAvailable;
+    }
+
+    /// Release a previously acquired stream index back to the pool.
+    pub fn release(self: *MultiStreamPool, idx: u32) void {
+        if (idx < self.num_streams) {
+            self.in_use[idx] = false;
+        }
+    }
+
+    /// Count the number of currently active (in-use) streams.
+    pub fn activeCount(self: *const MultiStreamPool) u32 {
+        var count: u32 = 0;
+        for (self.in_use[0..self.num_streams]) |used| {
+            if (used) count += 1;
+        }
+        return count;
+    }
+
+    /// Release all streams back to the pool.
+    pub fn releaseAll(self: *MultiStreamPool) void {
+        for (self.in_use[0..self.num_streams]) |*used| {
+            used.* = false;
+        }
+    }
+};
+
+// ============================================================================
+// Tests (MultiStreamPool — does not require CUDA driver)
+// ============================================================================
+
+test "MultiStreamPool acquire and release" {
+    var pool = MultiStreamPool.init(4);
+
+    const s0 = try pool.acquire();
+    try std.testing.expectEqual(@as(u32, 0), s0);
+    try std.testing.expectEqual(@as(u32, 1), pool.activeCount());
+
+    const s1 = try pool.acquire();
+    try std.testing.expectEqual(@as(u32, 1), s1);
+    try std.testing.expectEqual(@as(u32, 2), pool.activeCount());
+
+    pool.release(s0);
+    try std.testing.expectEqual(@as(u32, 1), pool.activeCount());
+
+    // Re-acquire should return the released slot
+    const s2 = try pool.acquire();
+    try std.testing.expectEqual(@as(u32, 0), s2);
+}
+
+test "MultiStreamPool exhaustion returns error" {
+    var pool = MultiStreamPool.init(2);
+
+    _ = try pool.acquire();
+    _ = try pool.acquire();
+
+    try std.testing.expectError(error.NoStreamsAvailable, pool.acquire());
+}
+
+test "MultiStreamPool release out-of-range is safe" {
+    var pool = MultiStreamPool.init(2);
+    // Releasing an index beyond num_streams should be a no-op
+    pool.release(99);
+    try std.testing.expectEqual(@as(u32, 0), pool.activeCount());
+}
+
+test "MultiStreamPool releaseAll" {
+    var pool = MultiStreamPool.init(4);
+
+    _ = try pool.acquire();
+    _ = try pool.acquire();
+    _ = try pool.acquire();
+    try std.testing.expectEqual(@as(u32, 3), pool.activeCount());
+
+    pool.releaseAll();
+    try std.testing.expectEqual(@as(u32, 0), pool.activeCount());
+}
+
+test "MultiStreamPool clamped to MAX_STREAMS" {
+    const pool = MultiStreamPool.init(100);
+    try std.testing.expectEqual(@as(u32, MultiStreamPool.MAX_STREAMS), pool.num_streams);
+}

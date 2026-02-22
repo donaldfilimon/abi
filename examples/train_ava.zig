@@ -162,7 +162,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     var builder = abi.Framework.builder(allocator);
     _ = builder.withAi(ai_config);
     if (config.use_gpu) {
-        _ = builder.withGpuDefaults();
+        _ = builder.withGpu(.{});
     }
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});

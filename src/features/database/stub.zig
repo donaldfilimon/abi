@@ -54,6 +54,9 @@ pub const Context = struct {
     pub fn searchVectors(_: *Context, _: []const f32, _: usize) ![]SearchResult {
         return error.DatabaseDisabled;
     }
+    pub fn searchVectorsInto(_: *Context, _: []const f32, _: usize, _: []SearchResult) !usize {
+        return error.DatabaseDisabled;
+    }
     pub fn getStats(_: *Context) !Stats {
         return error.DatabaseDisabled;
     }
@@ -97,7 +100,6 @@ pub const hnsw = misc.hnsw;
 pub const index = misc.index;
 pub const search_state = misc.search_state;
 pub const distance_cache = misc.distance_cache;
-pub const storage_v2 = misc.storage_v2;
 pub const time = misc.time;
 
 pub const Database = misc.database.Database;
@@ -186,13 +188,13 @@ pub const exportToZon = misc.formats.exportToZon;
 pub const importFromZon = misc.formats.importFromZon;
 
 // --- Storage v2 ---
-pub const FileHeader = misc.storage_v2.FileHeader;
-pub const FileFooter = misc.storage_v2.FileFooter;
-pub const BloomFilter = misc.storage_v2.BloomFilter;
-pub const Crc32 = misc.storage_v2.Crc32;
-pub const StorageV2Config = misc.storage_v2.StorageV2Config;
-pub const saveDatabaseV2 = misc.storage_v2.saveDatabaseV2;
-pub const loadDatabaseV2 = misc.storage_v2.loadDatabaseV2;
+pub const FileHeader = storage.FileHeader;
+pub const FileFooter = storage.FileFooter;
+pub const BloomFilter = storage.BloomFilter;
+pub const Crc32 = storage.Crc32;
+pub const StorageV2Config = storage.StorageV2Config;
+pub const saveDatabaseV2 = storage.saveDatabaseV2;
+pub const loadDatabaseV2 = storage.loadDatabaseV2;
 
 // --- BlockChain ---
 pub const BlockChain = misc.block_chain.BlockChain;
@@ -274,6 +276,9 @@ pub fn insert(_: *DatabaseHandle, _: u64, _: []const f32, _: ?[]const u8) !void 
 }
 pub fn search(_: *DatabaseHandle, _: std.mem.Allocator, _: []const f32, _: usize) ![]SearchResult {
     return error.DatabaseDisabled;
+}
+pub fn searchInto(_: *DatabaseHandle, _: []const f32, _: usize, _: []SearchResult) usize {
+    return 0;
 }
 pub fn remove(_: *DatabaseHandle, _: u64) bool {
     return false;

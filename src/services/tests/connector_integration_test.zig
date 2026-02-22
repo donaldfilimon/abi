@@ -108,6 +108,18 @@ test "all connectors expose Config type" {
 // ============================================================================
 
 test "tryLoad functions return null without env vars" {
+    // Skip if any connector env vars are already set in the environment.
+    const has_openai = std.c.getenv("OPENAI_API_KEY") != null or std.c.getenv("ABI_OPENAI_API_KEY") != null;
+    const has_anthropic = std.c.getenv("ANTHROPIC_API_KEY") != null or std.c.getenv("ABI_ANTHROPIC_API_KEY") != null;
+    const has_hf = std.c.getenv("HF_TOKEN") != null or std.c.getenv("HUGGINGFACE_TOKEN") != null or std.c.getenv("ABI_HUGGINGFACE_TOKEN") != null;
+    const has_discord = std.c.getenv("DISCORD_TOKEN") != null or std.c.getenv("ABI_DISCORD_TOKEN") != null;
+    const has_mistral = std.c.getenv("MISTRAL_API_KEY") != null or std.c.getenv("ABI_MISTRAL_API_KEY") != null;
+    const has_cohere = std.c.getenv("COHERE_API_KEY") != null or std.c.getenv("ABI_COHERE_API_KEY") != null;
+
+    if (has_openai or has_anthropic or has_hf or has_discord or has_mistral or has_cohere) {
+        return error.SkipZigTest;
+    }
+
     const allocator = std.testing.allocator;
 
     // Without API keys set, tryLoad* should return null, not error.

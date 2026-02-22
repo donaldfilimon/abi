@@ -39,6 +39,10 @@ const utils = @import("../../../services/shared/utils.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const Mutex = sync.Mutex;
 
+// Provider router for real inference dispatch
+const provider_router = @import("../llm/providers/router.zig");
+const provider_types = @import("../llm/providers/types.zig");
+
 // Sub-modules
 pub const router = @import("router.zig");
 pub const ensemble = @import("ensemble.zig");
@@ -131,7 +135,18 @@ pub const ModelBackend = enum {
     local,
 
     pub fn toString(self: ModelBackend) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
+    }
+
+    /// Map to provider router ProviderId for real inference dispatch.
+    pub fn toProviderId(self: ModelBackend) provider_types.ProviderId {
+        return switch (self) {
+            .openai => .openai,
+            .ollama => .ollama,
+            .huggingface => .openai, // HuggingFace uses OpenAI-compatible API
+            .anthropic => .anthropic,
+            .local => .llama_cpp,
+        };
     }
 };
 
@@ -148,7 +163,7 @@ pub const Capability = enum {
     embedding,
 
     pub fn toString(self: Capability) []const u8 {
-        return @tagName(self);
+        return std.mem.sliceTo(@tagName(self), 0);
     }
 };
 
@@ -744,17 +759,38 @@ pub const Orchestrator = struct {
             self.mutex.unlock();
         }
 
-        // Simulated response: Routes to the model but doesn't call a real backend.
-        // To wire up real inference, integrate abbey.ClientWrapper here:
-        //   1. Map model.config.backend (ModelBackend) to abbey client type
-        //   2. Build a CompletionRequest from `prompt`
-        //   3. Call client.complete(request) and return response.content
-        const prompt_preview = if (prompt.len > 60) prompt[0..60] else prompt;
-        const response = std.fmt.allocPrint(
-            response_allocator,
-            "[{s}/{s}] {s}",
-            .{ model.config.backend.toString(), model.config.id, prompt_preview },
-        ) catch return OrchestrationError.OutOfMemory;
+        // Dispatch to real LLM backend via the provider router.
+        // Maps ModelBackend → ProviderId and calls the full fallback chain.
+        const provider_id = model.config.backend.toProviderId();
+        const model_name = if (model.config.model_name.len > 0)
+            model.config.model_name
+        else
+            model.config.id;
+
+        var result = provider_router.generate(response_allocator, .{
+            .model = model_name,
+            .prompt = prompt,
+            .backend = provider_id,
+            .fallback = &.{},
+            .strict_backend = false,
+            .max_tokens = model.config.max_tokens,
+        }) catch |err| {
+            // Record failure and propagate
+            self.mutex.lock();
+            model.consecutive_failures += 1;
+            model.total_failures += 1;
+            model.last_failure_time = utils.unixMs();
+            if (model.consecutive_failures >= 3) {
+                model.status = .unhealthy;
+            }
+            self.mutex.unlock();
+            _ = err;
+            return OrchestrationError.AllModelsFailed;
+        };
+        // Transfer ownership: dupe content, free result metadata
+        const response = response_allocator.dupe(u8, result.content) catch
+            return OrchestrationError.OutOfMemory;
+        result.deinit(response_allocator);
 
         // Reset consecutive failures on success
         self.mutex.lock();

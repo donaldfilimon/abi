@@ -92,6 +92,7 @@ pub const templates = if (build_options.enable_ai) @import("templates/mod.zig") 
 pub const eval = if (build_options.enable_ai) @import("eval/mod.zig") else @import("eval/stub.zig");
 pub const explore = if (build_options.enable_explore) @import("explore/mod.zig") else @import("explore/stub.zig");
 pub const orchestration = if (build_options.enable_ai) @import("orchestration/mod.zig") else @import("orchestration/stub.zig");
+pub const constitution = if (build_options.enable_ai) @import("constitution/mod.zig") else @import("constitution/stub.zig");
 
 // Tool-augmented agent with tool execution loop
 pub const tool_agent = @import("tools/tool_agent.zig");
