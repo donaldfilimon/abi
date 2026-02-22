@@ -11,16 +11,19 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = @import("../utils/io_backend.zig");
 const mcp = abi.mcp;
 
 // Wrapper functions for comptime children dispatch
-fn wrapServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapServe(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runServeSubcommand(allocator, &parser);
 }
-fn wrapTools(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapTools(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runToolsSubcommand(allocator, &parser);
 }
@@ -30,8 +33,8 @@ pub const meta: command_mod.Meta = .{
     .description = "MCP server for WDBX database (serve, tools)",
     .subcommands = &.{ "serve", "tools", "help" },
     .children = &.{
-        .{ .name = "serve", .description = "Start MCP server (JSON-RPC over stdio)", .handler = .{ .basic = wrapServe } },
-        .{ .name = "tools", .description = "List available MCP tools", .handler = .{ .basic = wrapTools } },
+        .{ .name = "serve", .description = "Start MCP server (JSON-RPC over stdio)", .handler = wrapServe },
+        .{ .name = "tools", .description = "List available MCP tools", .handler = wrapTools },
     },
 };
 
@@ -39,7 +42,8 @@ const mcp_subcommands = [_][]const u8{ "serve", "tools", "help" };
 
 /// Run the mcp command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         printHelp(allocator);
         return;

@@ -17,52 +17,56 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const tasks = abi.tasks;
 const time_utils = abi.shared.utils;
 
 // Wrapper functions for comptime children dispatch
-fn wrapAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runAdd(allocator, args);
+fn wrapAdd(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runAdd(ctx, args);
 }
-fn wrapList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runList(allocator, args);
+fn wrapList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runList(ctx, args);
 }
-fn wrapShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runShow(allocator, args);
+fn wrapShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runShow(ctx, args);
 }
-fn wrapDone(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runDone(allocator, args);
+fn wrapDone(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runDone(ctx, args);
 }
-fn wrapStart(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runStart(allocator, args);
+fn wrapStart(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runStart(ctx, args);
 }
-fn wrapCancel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runCancel(allocator, args);
+fn wrapCancel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runCancel(ctx, args);
 }
-fn wrapDelete(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runDelete(allocator, args);
+fn wrapDelete(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runDelete(ctx, args);
 }
-fn wrapStats(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapStats(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try runStats(allocator);
 }
-fn wrapImportRoadmap(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapImportRoadmap(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try runImportRoadmap(allocator);
 }
-fn wrapSeedSelfImprove(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapSeedSelfImprove(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try runSeedSelfImprove(allocator);
 }
-fn wrapEdit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runEdit(allocator, args);
+fn wrapEdit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runEdit(ctx, args);
 }
-fn wrapBlock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runBlock(allocator, args);
+fn wrapBlock(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runBlock(ctx, args);
 }
-fn wrapUnblock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runUnblock(allocator, args);
+fn wrapUnblock(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runUnblock(ctx, args);
 }
-fn wrapDue(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runDue(allocator, args);
+fn wrapDue(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runDue(ctx, args);
 }
 
 pub const meta: command_mod.Meta = .{
@@ -70,22 +74,22 @@ pub const meta: command_mod.Meta = .{
     .description = "Task management (add, list, done, stats, seed-self-improve)",
     .subcommands = &.{ "add", "list", "ls", "show", "done", "start", "cancel", "delete", "rm", "stats", "import-roadmap", "seed-self-improve", "edit", "block", "unblock", "due", "help" },
     .children = &.{
-        .{ .name = "add", .description = "Add a new task", .handler = .{ .basic = wrapAdd } },
-        .{ .name = "list", .description = "List tasks with optional filters", .handler = .{ .basic = wrapList } },
-        .{ .name = "ls", .description = "List tasks with optional filters", .handler = .{ .basic = wrapList } },
-        .{ .name = "show", .description = "Show task details", .handler = .{ .basic = wrapShow } },
-        .{ .name = "done", .description = "Mark task as completed", .handler = .{ .basic = wrapDone } },
-        .{ .name = "start", .description = "Mark task as in-progress", .handler = .{ .basic = wrapStart } },
-        .{ .name = "cancel", .description = "Cancel a task", .handler = .{ .basic = wrapCancel } },
-        .{ .name = "delete", .description = "Delete a task", .handler = .{ .basic = wrapDelete } },
-        .{ .name = "rm", .description = "Delete a task", .handler = .{ .basic = wrapDelete } },
-        .{ .name = "stats", .description = "Show task statistics", .handler = .{ .basic = wrapStats } },
-        .{ .name = "import-roadmap", .description = "Import roadmap items as tasks", .handler = .{ .basic = wrapImportRoadmap } },
-        .{ .name = "seed-self-improve", .description = "Seed a self-improvement execution plan", .handler = .{ .basic = wrapSeedSelfImprove } },
-        .{ .name = "edit", .description = "Edit task properties", .handler = .{ .basic = wrapEdit } },
-        .{ .name = "block", .description = "Mark task blocked by another task", .handler = .{ .basic = wrapBlock } },
-        .{ .name = "unblock", .description = "Remove blocked status", .handler = .{ .basic = wrapUnblock } },
-        .{ .name = "due", .description = "Set or clear task due date", .handler = .{ .basic = wrapDue } },
+        .{ .name = "add", .description = "Add a new task", .handler = wrapAdd },
+        .{ .name = "list", .description = "List tasks with optional filters", .handler = wrapList },
+        .{ .name = "ls", .description = "List tasks with optional filters", .handler = wrapList },
+        .{ .name = "show", .description = "Show task details", .handler = wrapShow },
+        .{ .name = "done", .description = "Mark task as completed", .handler = wrapDone },
+        .{ .name = "start", .description = "Mark task as in-progress", .handler = wrapStart },
+        .{ .name = "cancel", .description = "Cancel a task", .handler = wrapCancel },
+        .{ .name = "delete", .description = "Delete a task", .handler = wrapDelete },
+        .{ .name = "rm", .description = "Delete a task", .handler = wrapDelete },
+        .{ .name = "stats", .description = "Show task statistics", .handler = wrapStats },
+        .{ .name = "import-roadmap", .description = "Import roadmap items as tasks", .handler = wrapImportRoadmap },
+        .{ .name = "seed-self-improve", .description = "Seed a self-improvement execution plan", .handler = wrapSeedSelfImprove },
+        .{ .name = "edit", .description = "Edit task properties", .handler = wrapEdit },
+        .{ .name = "block", .description = "Mark task blocked by another task", .handler = wrapBlock },
+        .{ .name = "unblock", .description = "Remove blocked status", .handler = wrapUnblock },
+        .{ .name = "due", .description = "Set or clear task due date", .handler = wrapDue },
     },
 };
 
@@ -98,7 +102,8 @@ const task_subcommands = [_][]const u8{
 };
 
 /// Run the task command with the provided arguments.
-pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    _ = ctx;
     if (args.len == 0) {
         printHelp();
         return;
@@ -115,7 +120,8 @@ pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runAdd(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var title: ?[]const u8 = null;
     var description: ?[]const u8 = null;
     var priority: tasks.Priority = .normal;
@@ -202,7 +208,8 @@ fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printSuccess("Created task #{d}: {s}", .{ id, title.? });
 }
 
-fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var filter = tasks.Filter{};
 
     var i: usize = 0;
@@ -339,7 +346,8 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("\n  Total: {d} task(s)\n\n", .{task_list.len});
 }
 
-fn runShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
@@ -398,7 +406,8 @@ fn runShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("\n", .{});
 }
 
-fn runDone(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runDone(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
@@ -419,7 +428,8 @@ fn runDone(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printSuccess("Task #{d} marked as completed", .{id});
 }
 
-fn runStart(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runStart(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
@@ -440,7 +450,8 @@ fn runStart(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printSuccess("Task #{d} marked as in-progress", .{id});
 }
 
-fn runCancel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runCancel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
@@ -461,7 +472,8 @@ fn runCancel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printSuccess("Task #{d} cancelled", .{id});
 }
 
-fn runDelete(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runDelete(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
@@ -626,7 +638,8 @@ fn taskTitleExists(existing: []const tasks.Task, title: []const u8) bool {
     return false;
 }
 
-fn runEdit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runEdit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
@@ -715,7 +728,8 @@ fn runEdit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runBlock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runBlock(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len < 2) {
         utils.output.printError("Usage: abi task block <task_id> <blocker_id>", .{});
         std.debug.print("Marks task <task_id> as blocked by <blocker_id>\n", .{});
@@ -757,7 +771,8 @@ fn runBlock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printSuccess("Task #{d} is now blocked by #{d}", .{ id, blocker_id });
 }
 
-fn runUnblock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runUnblock(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     const id = utils.args.parseRequiredId(args, "Task") orelse return;
 
     var manager = tasks.Manager.init(allocator, .{}) catch |err| {
@@ -778,7 +793,8 @@ fn runUnblock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printSuccess("Task #{d} unblocked", .{id});
 }
 
-fn runDue(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runDue(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len < 2) {
         utils.output.printError("Usage: abi task due <task_id> <due_date>", .{});
         std.debug.print("Due date formats: +Nd (days), +Nh (hours), +Nm (minutes), 'clear', or Unix timestamp\n", .{});

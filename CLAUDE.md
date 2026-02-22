@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
 | **Test baseline** | 1261 pass, 5 skip (1266 total) — must be maintained |
-| **Feature tests** | 2082 pass (2086 total), 4 skip — `zig build feature-tests` |
+| **Feature tests** | 2119 pass (2123 total), 4 skip — `zig build feature-tests` |
 | **CLI commands** | 30 commands + 8 aliases |
 | **Feature modules** | 21 (comptime-gated; see Feature Flags) |
 
@@ -289,7 +289,7 @@ Keep commits focused; don't mix refactors with behavior changes.
 ## Testing Patterns
 
 **Main tests**: 1261 pass, 5 skip (1266 total) — `zig build test --summary all`
-**Feature tests**: 2082 pass (2086 total), 4 skip — `zig build feature-tests --summary all`
+**Feature tests**: 2119 pass (2123 total), 4 skip — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):

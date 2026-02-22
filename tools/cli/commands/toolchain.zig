@@ -13,6 +13,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 // libc import for environment and process access - required for Zig 0.16
@@ -22,27 +23,33 @@ const c = @cImport({
 });
 
 // Wrapper functions for comptime children dispatch
-fn wrapInstall(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapInstall(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = ArgParser.init(allocator, args);
     try runInstallBoth(allocator, &parser);
 }
-fn wrapZig(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapZig(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = ArgParser.init(allocator, args);
     try runInstallZig(allocator, &parser);
 }
-fn wrapZls(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapZls(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = ArgParser.init(allocator, args);
     try runInstallZls(allocator, &parser);
 }
-fn wrapStatus(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = ArgParser.init(allocator, args);
     try runStatusSubcommand(allocator, &parser);
 }
-fn wrapUpdate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapUpdate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = ArgParser.init(allocator, args);
     try runUpdateSubcommand(allocator, &parser);
 }
-fn wrapPath(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = ArgParser.init(allocator, args);
     try runPathSubcommand(allocator, &parser);
 }
@@ -52,12 +59,12 @@ pub const meta: command_mod.Meta = .{
     .description = "Build and install Zig/ZLS from master (install, update, status)",
     .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "help" },
     .children = &.{
-        .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = .{ .basic = wrapInstall } },
-        .{ .name = "zig", .description = "Install only Zig from master", .handler = .{ .basic = wrapZig } },
-        .{ .name = "zls", .description = "Install only ZLS from master", .handler = .{ .basic = wrapZls } },
-        .{ .name = "status", .description = "Show installed versions", .handler = .{ .basic = wrapStatus } },
-        .{ .name = "update", .description = "Update to latest master", .handler = .{ .basic = wrapUpdate } },
-        .{ .name = "path", .description = "Print install directory for shell config", .handler = .{ .basic = wrapPath } },
+        .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = wrapInstall },
+        .{ .name = "zig", .description = "Install only Zig from master", .handler = wrapZig },
+        .{ .name = "zls", .description = "Install only ZLS from master", .handler = wrapZls },
+        .{ .name = "status", .description = "Show installed versions", .handler = wrapStatus },
+        .{ .name = "update", .description = "Update to latest master", .handler = wrapUpdate },
+        .{ .name = "path", .description = "Print install directory for shell config", .handler = wrapPath },
     },
 };
 
@@ -84,7 +91,8 @@ const toolchain_subcommands = [_][]const u8{
 
 /// Run the toolchain command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         printHelp(allocator);
         return;

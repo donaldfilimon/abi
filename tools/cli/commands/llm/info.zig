@@ -1,12 +1,14 @@
 //! LLM info subcommand - Show model information.
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const mod = @import("mod.zig");
 
-pub fn runInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         mod.printHelp();
         return;

@@ -1,13 +1,15 @@
 //! Self-training orchestration: auto-train + Ralph self-improvement + optional visualization.
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const auto = @import("auto.zig");
 const ralph_improve = @import("../ralph/improve.zig");
 const ralph_workspace = @import("../ralph/workspace.zig");
 const neural_ui = @import("../ui/neural.zig");
 
-pub fn runSelfTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printHelp();
         return;
@@ -73,7 +75,7 @@ pub fn runSelfTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !v
         if (multimodal) {
             try auto_args.append(allocator, "--multimodal");
         }
-        try auto.runAutoTrain(allocator, auto_args.items);
+        try auto.runAutoTrain(ctx, auto_args.items);
     } else {
         std.debug.print("==> Stage 1/3: self-training skipped\n", .{});
     }
@@ -93,7 +95,7 @@ pub fn runSelfTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !v
             try improve_args.appendSlice(allocator, &[_][:0]const u8{ "--task", task_z });
         }
 
-        try ralph_improve.runImprove(allocator, improve_args.items);
+        try ralph_improve.runImprove(ctx, improve_args.items);
     } else {
         std.debug.print("==> Stage 2/3: self-improvement loop skipped\n", .{});
     }

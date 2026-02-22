@@ -1,13 +1,15 @@
 //! ralph improve — autonomous self-improvement loop with guardrails.
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const cfg = @import("config.zig");
 const runtime = @import("runtime.zig");
 
-pub fn runImprove(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var config_path: []const u8 = cfg.CONFIG_FILE;
     var i: usize = 0;
     while (i < args.len) : (i += 1) {

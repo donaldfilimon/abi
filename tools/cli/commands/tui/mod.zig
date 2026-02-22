@@ -9,6 +9,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
 
@@ -24,7 +25,6 @@ const theme_options = @import("../ui/theme_options.zig");
 pub const meta: command_mod.Meta = .{
     .name = "tui",
     .description = "Launch interactive TUI command menu",
-    .io_mode = .io,
     .forward = .{
         .target = "ui",
         .prepend_args = &[_][:0]const u8{"launch"},
@@ -39,7 +39,9 @@ const TuiState = state_mod.TuiState;
 // ═══════════════════════════════════════════════════════════════════
 
 /// Entry point for the TUI command.
-pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
+    const io = ctx.io;
     var parsed = try theme_options.parseThemeArgs(allocator, args);
     defer parsed.deinit();
 
@@ -54,8 +56,9 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8)
     }
 
     if (parsed.remaining_args.len > 0) {
-        utils.output.printError("Unknown argument for ui launch: {s}", .{parsed.remaining_args[0]});
+        utils.output.printError("Unknown launcher argument: {s}", .{parsed.remaining_args[0]});
         theme_options.printThemeHint();
+        utils.output.printInfo("Run 'abi ui launch --help' for launcher usage.", .{});
         return error.InvalidArgument;
     }
 

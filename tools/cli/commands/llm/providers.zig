@@ -1,9 +1,11 @@
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 
 const ProviderId = abi.ai.llm.providers.ProviderId;
 
-pub fn runProviders(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runProviders(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len > 0) {
         const cmd = std.mem.sliceTo(args[0], 0);
         if (std.mem.eql(u8, cmd, "--help") or std.mem.eql(u8, cmd, "-h") or std.mem.eql(u8, cmd, "help")) {

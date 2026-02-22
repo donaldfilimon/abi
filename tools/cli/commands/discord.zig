@@ -10,32 +10,37 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 
 const discord = abi.connectors.discord;
 
 // Wrapper functions for comptime children dispatch
-fn wrapDcStatus(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapDcStatus(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try printStatus(allocator);
 }
-fn wrapDcInfo(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapDcInfo(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try printBotInfo(allocator);
 }
-fn wrapDcGuilds(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapDcGuilds(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try listGuilds(allocator);
 }
-fn wrapDcSend(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try sendMessage(allocator, args);
+fn wrapDcSend(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try sendMessage(ctx, args);
 }
-fn wrapDcCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapDcCommands(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try manageCommands(allocator, &parser);
 }
-fn wrapDcWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try executeWebhook(allocator, args);
+fn wrapDcWebhook(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try executeWebhook(ctx, args);
 }
-fn wrapDcChannel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try channelInfo(allocator, args);
+fn wrapDcChannel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try channelInfo(ctx, args);
 }
 
 pub const meta: command_mod.Meta = .{
@@ -43,13 +48,13 @@ pub const meta: command_mod.Meta = .{
     .description = "Discord bot operations (status, guilds, send, commands)",
     .subcommands = &.{ "status", "info", "guilds", "send", "commands", "webhook", "channel", "help" },
     .children = &.{
-        .{ .name = "status", .description = "Show configuration status", .handler = .{ .basic = wrapDcStatus } },
-        .{ .name = "info", .description = "Get bot user information", .handler = .{ .basic = wrapDcInfo } },
-        .{ .name = "guilds", .description = "List guilds the bot is in", .handler = .{ .basic = wrapDcGuilds } },
-        .{ .name = "send", .description = "Send message to a channel", .handler = .{ .basic = wrapDcSend } },
-        .{ .name = "commands", .description = "Manage application commands", .handler = .{ .basic = wrapDcCommands } },
-        .{ .name = "webhook", .description = "Execute a webhook", .handler = .{ .basic = wrapDcWebhook } },
-        .{ .name = "channel", .description = "Get channel information", .handler = .{ .basic = wrapDcChannel } },
+        .{ .name = "status", .description = "Show configuration status", .handler = wrapDcStatus },
+        .{ .name = "info", .description = "Get bot user information", .handler = wrapDcInfo },
+        .{ .name = "guilds", .description = "List guilds the bot is in", .handler = wrapDcGuilds },
+        .{ .name = "send", .description = "Send message to a channel", .handler = wrapDcSend },
+        .{ .name = "commands", .description = "Manage application commands", .handler = wrapDcCommands },
+        .{ .name = "webhook", .description = "Execute a webhook", .handler = wrapDcWebhook },
+        .{ .name = "channel", .description = "Get channel information", .handler = wrapDcChannel },
     },
 };
 
@@ -58,7 +63,8 @@ const discord_subcommands = [_][]const u8{
 };
 
 /// Run the discord command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     // Check if web feature is enabled (Discord requires web/HTTP support)
     if (!abi.web.isEnabled()) {
         utils.output.printError("Web feature is disabled.", .{});
@@ -209,7 +215,8 @@ fn listGuilds(allocator: std.mem.Allocator) !void {
     }
 }
 
-fn sendMessage(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn sendMessage(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len < 2) {
         utils.output.printError("Missing channel ID or message content", .{});
         utils.output.printInfo("Usage: abi discord send <channel_id> <message>", .{});
@@ -243,7 +250,8 @@ fn sendMessage(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     utils.output.printKeyValue("Channel", sent_message.channel_id);
 }
 
-fn channelInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn channelInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len < 1) {
         utils.output.printError("Missing channel ID", .{});
         utils.output.printInfo("Usage: abi discord channel <channel_id>", .{});
@@ -450,7 +458,8 @@ fn dcCommandsDelete(allocator: std.mem.Allocator, parser: *utils.args.ArgParser)
     utils.output.printSuccess("Command deleted successfully.", .{});
 }
 
-fn executeWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn executeWebhook(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len < 2) {
         utils.output.printError("Missing webhook URL or message", .{});
         utils.output.printInfo("Usage: abi discord webhook <webhook_url> <message>", .{});

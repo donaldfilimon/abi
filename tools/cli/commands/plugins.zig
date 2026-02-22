@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
@@ -235,31 +236,36 @@ fn getPlugin(allocator: std.mem.Allocator, name: []const u8) !?PluginInfo {
 }
 
 // Wrapper functions for comptime children dispatch
-fn wrapPlList(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapPlList(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try listPlugins(allocator);
 }
-fn wrapPlInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapPlInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         utils.output.printError("Usage: abi plugins info <name>", .{});
         return;
     }
     try showPluginInfo(allocator, std.mem.sliceTo(args[0], 0));
 }
-fn wrapPlEnable(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapPlEnable(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         utils.output.printError("Usage: abi plugins enable <name>", .{});
         return;
     }
     try enablePlugin(allocator, std.mem.sliceTo(args[0], 0));
 }
-fn wrapPlDisable(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapPlDisable(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         utils.output.printError("Usage: abi plugins disable <name>", .{});
         return;
     }
     try disablePlugin(allocator, std.mem.sliceTo(args[0], 0));
 }
-fn wrapPlSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapPlSearch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     const query = if (args.len > 0) std.mem.sliceTo(args[0], 0) else "";
     try searchPlugins(allocator, query);
 }
@@ -269,11 +275,11 @@ pub const meta: command_mod.Meta = .{
     .description = "Plugin management (list, enable, disable, info)",
     .subcommands = &.{ "list", "info", "enable", "disable", "search" },
     .children = &.{
-        .{ .name = "list", .description = "List installed plugins", .handler = .{ .basic = wrapPlList } },
-        .{ .name = "info", .description = "Show detailed plugin information", .handler = .{ .basic = wrapPlInfo } },
-        .{ .name = "enable", .description = "Enable a plugin", .handler = .{ .basic = wrapPlEnable } },
-        .{ .name = "disable", .description = "Disable a plugin", .handler = .{ .basic = wrapPlDisable } },
-        .{ .name = "search", .description = "Search available plugins", .handler = .{ .basic = wrapPlSearch } },
+        .{ .name = "list", .description = "List installed plugins", .handler = wrapPlList },
+        .{ .name = "info", .description = "Show detailed plugin information", .handler = wrapPlInfo },
+        .{ .name = "enable", .description = "Enable a plugin", .handler = wrapPlEnable },
+        .{ .name = "disable", .description = "Disable a plugin", .handler = wrapPlDisable },
+        .{ .name = "search", .description = "Search available plugins", .handler = wrapPlSearch },
     },
 };
 
@@ -281,7 +287,8 @@ const plugin_subcommands = [_][]const u8{
     "list", "info", "enable", "disable", "search", "help",
 };
 
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         // Default action: list plugins
         try listPlugins(allocator);

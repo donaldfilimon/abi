@@ -3,25 +3,31 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const gpu_detect = abi.gpu.backends.detect;
 const gpu_listing = abi.gpu.backends.listing;
 const gpu_meta = abi.gpu.backends.meta;
 
 // Wrapper functions for comptime children dispatch
-fn wrapBackends(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapBackends(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try printBackends(allocator);
 }
-fn wrapSummaryCmd(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapSummaryCmd(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try printSummaryCommand(allocator);
 }
-fn wrapDevices(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapDevices(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try printDevices(allocator);
 }
-fn wrapDefault(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapDefault(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try printDefaultDevice(allocator);
 }
-fn wrapStatus(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapStatus(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try printStatus(allocator);
 }
 
@@ -30,12 +36,12 @@ pub const meta: command_mod.Meta = .{
     .description = "GPU commands (backends, devices, summary, default)",
     .subcommands = &.{ "backends", "devices", "list", "summary", "default", "status" },
     .children = &.{
-        .{ .name = "backends", .description = "List GPU backends and build flags", .handler = .{ .basic = wrapBackends } },
-        .{ .name = "devices", .description = "List detected GPU devices", .handler = .{ .basic = wrapDevices } },
-        .{ .name = "list", .description = "List detected GPU devices", .handler = .{ .basic = wrapDevices } },
-        .{ .name = "summary", .description = "Show GPU module summary", .handler = .{ .basic = wrapSummaryCmd } },
-        .{ .name = "default", .description = "Show default GPU device", .handler = .{ .basic = wrapDefault } },
-        .{ .name = "status", .description = "Show native/fallback status", .handler = .{ .basic = wrapStatus } },
+        .{ .name = "backends", .description = "List GPU backends and build flags", .handler = wrapBackends },
+        .{ .name = "devices", .description = "List detected GPU devices", .handler = wrapDevices },
+        .{ .name = "list", .description = "List detected GPU devices", .handler = wrapDevices },
+        .{ .name = "summary", .description = "Show GPU module summary", .handler = wrapSummaryCmd },
+        .{ .name = "default", .description = "Show default GPU device", .handler = wrapDefault },
+        .{ .name = "status", .description = "Show native/fallback status", .handler = wrapStatus },
     },
 };
 
@@ -44,7 +50,8 @@ const gpu_subcommands = [_][]const u8{
 };
 
 /// Run the GPU command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         // Default action: show backends + devices
         try printBackends(allocator);

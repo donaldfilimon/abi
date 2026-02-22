@@ -11,16 +11,19 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 const acp = abi.acp;
 
 // Wrapper functions for comptime children dispatch
-fn wrapCard(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapCard(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runCardSubcommand(allocator, &parser);
 }
-fn wrapServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapServe(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runServeSubcommand(allocator, &parser);
 }
@@ -30,8 +33,8 @@ pub const meta: command_mod.Meta = .{
     .description = "Agent Communication Protocol (card, serve)",
     .subcommands = &.{ "card", "serve", "help" },
     .children = &.{
-        .{ .name = "card", .description = "Print agent card JSON to stdout", .handler = .{ .basic = wrapCard } },
-        .{ .name = "serve", .description = "Start ACP HTTP server (default 127.0.0.1:8080)", .handler = .{ .basic = wrapServe } },
+        .{ .name = "card", .description = "Print agent card JSON to stdout", .handler = wrapCard },
+        .{ .name = "serve", .description = "Start ACP HTTP server (default 127.0.0.1:8080)", .handler = wrapServe },
     },
 };
 
@@ -39,7 +42,8 @@ const acp_subcommands = [_][]const u8{ "card", "serve", "help" };
 
 /// Run the acp command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         printHelp(allocator);
         return;

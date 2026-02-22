@@ -1,4 +1,5 @@
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
@@ -7,7 +8,8 @@ const run_cmd = @import("run.zig");
 const ChatMessage = abi.ai.llm.providers.ChatMessage;
 const ProviderId = abi.ai.llm.providers.ProviderId;
 
-pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printSessionHelp();
         return;

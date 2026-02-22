@@ -1,6 +1,7 @@
 //! Dynamic 3D neural network visualization for terminal UI.
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const shared_time = abi.shared.time;
 
@@ -26,7 +27,8 @@ const Projected = struct {
     activity: f32,
 };
 
-pub fn run(allocator: std.mem.Allocator, _: std.Io, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try runVisualizer(allocator, args);
 }
 

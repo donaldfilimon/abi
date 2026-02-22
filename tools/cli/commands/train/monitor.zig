@@ -5,12 +5,14 @@
 //! TUI dashboard for tracking training progress.
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 const tui = @import("../../tui/mod.zig");
 const mod = @import("mod.zig");
 
-pub fn runResume(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runResume(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         mod.printHelp();
         return;
@@ -41,7 +43,8 @@ pub fn runResume(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
     std.debug.print("Checkpoint loaded successfully.\n", .{});
 }
 
-pub fn runMonitor(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printMonitorHelp();
         return;

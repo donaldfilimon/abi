@@ -5,6 +5,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 
 pub const meta: command_mod.Meta = .{
@@ -13,7 +14,8 @@ pub const meta: command_mod.Meta = .{
     .subcommands = &.{"help"},
 };
 
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printHelp(allocator);
         return;

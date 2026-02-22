@@ -13,6 +13,7 @@
 
 const std = @import("std");
 const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const suites = @import("suites.zig");
 const micro = @import("micro.zig");
@@ -111,7 +112,8 @@ pub const BenchmarkError = std.mem.Allocator.Error || error{
 pub const BenchmarkFn = *const fn (std.mem.Allocator, *std.ArrayListUnmanaged(BenchResult)) BenchmarkError!void;
 
 /// Run the benchmark command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
 
     if (!parser.hasMore() or parser.wantsHelp()) {

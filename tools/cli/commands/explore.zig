@@ -3,6 +3,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 
 pub const meta: command_mod.Meta = .{
@@ -17,7 +18,8 @@ const DebugWriter = struct {
 };
 
 /// Run the explore command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
 
     if (parser.wantsHelp()) {

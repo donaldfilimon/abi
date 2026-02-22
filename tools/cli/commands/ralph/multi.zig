@@ -60,7 +60,7 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     }
     for (results) |*r| r.* = null;
 
-    var ctx: abi.ai.abbey.ralph_swarm.ParallelRalphContext = .{
+    var parallel_ctx: abi.ai.abbey.ralph_swarm.ParallelRalphContext = .{
         .allocator = allocator,
         .bus = &bus,
         .goals = goals,
@@ -77,7 +77,7 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 
     for (goals, 0..) |_, idx| {
         const uidx: u32 = @intCast(idx);
-        if (!pool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &ctx, uidx })) {
+        if (!pool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &parallel_ctx, uidx })) {
             std.debug.print("Schedule failed for agent {d}\n", .{idx});
             return;
         }

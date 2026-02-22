@@ -16,6 +16,7 @@
 
 const std = @import("std");
 const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 
 const run_train = @import("run_train.zig");
@@ -29,49 +30,49 @@ const info = @import("info.zig");
 const data = @import("data.zig");
 
 // Wrapper functions for comptime children dispatch
-fn wrapRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tRun(allocator, &parser);
+fn wrapRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tRun(ctx, &parser);
 }
-fn wrapNew(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tNew(allocator, &parser);
+fn wrapNew(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tNew(ctx, &parser);
 }
-fn wrapLlm(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tLlm(allocator, &parser);
+fn wrapLlm(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tLlm(ctx, &parser);
 }
-fn wrapVision(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tVision(allocator, &parser);
+fn wrapVision(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tVision(ctx, &parser);
 }
-fn wrapClip(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tClip(allocator, &parser);
+fn wrapClip(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tClip(ctx, &parser);
 }
-fn wrapAuto(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tAuto(allocator, &parser);
+fn wrapAuto(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tAuto(ctx, &parser);
 }
-fn wrapSelf(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tSelf(allocator, &parser);
+fn wrapSelf(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tSelf(ctx, &parser);
 }
-fn wrapResume(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tResume(allocator, &parser);
+fn wrapResume(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tResume(ctx, &parser);
 }
-fn wrapMonitor(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tMonitor(allocator, &parser);
+fn wrapMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tMonitor(ctx, &parser);
 }
-fn wrapInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tInfo(allocator, &parser);
+fn wrapInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tInfo(ctx, &parser);
 }
-fn wrapGenerateData(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try tGenerateData(allocator, &parser);
+fn wrapGenerateData(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try tGenerateData(ctx, &parser);
 }
 
 pub const meta: command_mod.Meta = .{
@@ -79,53 +80,53 @@ pub const meta: command_mod.Meta = .{
     .description = "Training pipeline (run, llm, vision, auto, self, resume, info)",
     .subcommands = &.{ "run", "new", "llm", "vision", "clip", "auto", "self", "resume", "monitor", "info", "generate-data", "help" },
     .children = &.{
-        .{ .name = "run", .description = "Run basic training pipeline", .handler = .{ .basic = wrapRun } },
-        .{ .name = "new", .description = "Create and train a new transformer from scratch", .handler = .{ .basic = wrapNew } },
-        .{ .name = "llm", .description = "Train LLM from GGUF model file", .handler = .{ .basic = wrapLlm } },
-        .{ .name = "vision", .description = "Train Vision Transformer (ViT)", .handler = .{ .basic = wrapVision } },
-        .{ .name = "clip", .description = "Train CLIP multimodal model", .handler = .{ .basic = wrapClip } },
-        .{ .name = "auto", .description = "Auto-train with seed data", .handler = .{ .basic = wrapAuto } },
-        .{ .name = "self", .description = "Self-improvement pipeline", .handler = .{ .basic = wrapSelf } },
-        .{ .name = "resume", .description = "Resume training from checkpoint", .handler = .{ .basic = wrapResume } },
-        .{ .name = "monitor", .description = "Monitor training progress (TUI dashboard)", .handler = .{ .basic = wrapMonitor } },
-        .{ .name = "info", .description = "Show default training configuration", .handler = .{ .basic = wrapInfo } },
-        .{ .name = "generate-data", .description = "Generate synthetic tokenized data", .handler = .{ .basic = wrapGenerateData } },
+        .{ .name = "run", .description = "Run basic training pipeline", .handler = wrapRun },
+        .{ .name = "new", .description = "Create and train a new transformer from scratch", .handler = wrapNew },
+        .{ .name = "llm", .description = "Train LLM from GGUF model file", .handler = wrapLlm },
+        .{ .name = "vision", .description = "Train Vision Transformer (ViT)", .handler = wrapVision },
+        .{ .name = "clip", .description = "Train CLIP multimodal model", .handler = wrapClip },
+        .{ .name = "auto", .description = "Auto-train with seed data", .handler = wrapAuto },
+        .{ .name = "self", .description = "Self-improvement pipeline", .handler = wrapSelf },
+        .{ .name = "resume", .description = "Resume training from checkpoint", .handler = wrapResume },
+        .{ .name = "monitor", .description = "Monitor training progress (TUI dashboard)", .handler = wrapMonitor },
+        .{ .name = "info", .description = "Show default training configuration", .handler = wrapInfo },
+        .{ .name = "generate-data", .description = "Generate synthetic tokenized data", .handler = wrapGenerateData },
     },
 };
 
 // Subcommand dispatch (mirrors ralph.zig pattern)
 
-fn tRun(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try run_train.runTrain(allocator, parser.remaining());
+fn tRun(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try run_train.runTrain(ctx, parser.remaining());
 }
-fn tNew(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try new_model.runNewModel(allocator, parser.remaining());
+fn tNew(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try new_model.runNewModel(ctx, parser.remaining());
 }
-fn tLlm(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try llm_train.runLlmTrain(allocator, parser.remaining());
+fn tLlm(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try llm_train.runLlmTrain(ctx, parser.remaining());
 }
-fn tVision(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try vision.runVisionTrain(allocator, parser.remaining());
+fn tVision(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try vision.runVisionTrain(ctx, parser.remaining());
 }
-fn tClip(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try vision.runClipTrain(allocator, parser.remaining());
+fn tClip(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try vision.runClipTrain(ctx, parser.remaining());
 }
-fn tAuto(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try auto.runAutoTrain(allocator, parser.remaining());
+fn tAuto(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try auto.runAutoTrain(ctx, parser.remaining());
 }
-fn tSelf(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try self_train.runSelfTrain(allocator, parser.remaining());
+fn tSelf(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try self_train.runSelfTrain(ctx, parser.remaining());
 }
-fn tResume(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try monitor.runResume(allocator, parser.remaining());
+fn tResume(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try monitor.runResume(ctx, parser.remaining());
 }
-fn tMonitor(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try monitor.runMonitor(allocator, parser.remaining());
+fn tMonitor(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try monitor.runMonitor(ctx, parser.remaining());
 }
-fn tInfo(_: std.mem.Allocator, _: *utils.args.ArgParser) !void {
+fn tInfo(_: *const context_mod.CommandContext, _: *utils.args.ArgParser) !void {
     info.runInfo();
 }
-fn tGenerateData(_: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+fn tGenerateData(_: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
     try data.runGenerateData(parser.remaining());
 }
 const train_subcommands = [_][]const u8{
@@ -134,7 +135,8 @@ const train_subcommands = [_][]const u8{
 
 /// Run the train command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
-pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    _ = ctx;
     if (args.len == 0) {
         printHelp();
         return;

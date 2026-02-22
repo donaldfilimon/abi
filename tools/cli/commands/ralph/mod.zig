@@ -12,6 +12,7 @@
 
 const std = @import("std");
 const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 
 const init_mod = @import("init.zig");
@@ -24,37 +25,37 @@ const super_mod = @import("super.zig");
 const multi_mod = @import("multi.zig");
 
 // Wrapper functions for comptime children dispatch
-fn wrapInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try ralphInit(allocator, &parser);
+fn wrapInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try ralphInit(ctx, &parser);
 }
-fn wrapRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try ralphRun(allocator, &parser);
+fn wrapRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try ralphRun(ctx, &parser);
 }
-fn wrapSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try ralphSuper(allocator, &parser);
+fn wrapSuper(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try ralphSuper(ctx, &parser);
 }
-fn wrapMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try ralphMulti(allocator, &parser);
+fn wrapMulti(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try ralphMulti(ctx, &parser);
 }
-fn wrapStatus(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try ralphStatus(allocator, &parser);
+fn wrapStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try ralphStatus(ctx, &parser);
 }
-fn wrapGate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try ralphGate(allocator, &parser);
+fn wrapGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try ralphGate(ctx, &parser);
 }
-fn wrapImprove(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try ralphImprove(allocator, &parser);
+fn wrapImprove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try ralphImprove(ctx, &parser);
 }
-fn wrapSkills(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try ralphSkills(allocator, &parser);
+fn wrapSkills(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
+    try ralphSkills(ctx, &parser);
 }
 
 pub const meta: command_mod.Meta = .{
@@ -62,17 +63,17 @@ pub const meta: command_mod.Meta = .{
     .description = "Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)",
     .subcommands = &.{ "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help" },
     .children = &.{
-        .{ .name = "init", .description = "Create workspace: ralph.yml, .ralph/, PROMPT.md", .handler = .{ .basic = wrapInit } },
-        .{ .name = "run", .description = "Execute the Ralph iterative loop", .handler = .{ .basic = wrapRun } },
-        .{ .name = "super", .description = "Init if needed, run, optional gate (power one-shot)", .handler = .{ .basic = wrapSuper } },
-        .{ .name = "super-ralph", .description = "Init if needed, run, optional gate (power one-shot)", .handler = .{ .basic = wrapSuper } },
-        .{ .name = "multi", .description = "Zig-native multithreaded multi-agent", .handler = .{ .basic = wrapMulti } },
-        .{ .name = "swarm", .description = "Zig-native multithreaded multi-agent", .handler = .{ .basic = wrapMulti } },
-        .{ .name = "status", .description = "Show loop state, skills stored, last run stats", .handler = .{ .basic = wrapStatus } },
-        .{ .name = "gate", .description = "Native quality gate", .handler = .{ .basic = wrapGate } },
-        .{ .name = "improve", .description = "Autonomous self-improvement loop", .handler = .{ .basic = wrapImprove } },
-        .{ .name = "skills", .description = "List/add/clear persisted skills", .handler = .{ .basic = wrapSkills } },
-        .{ .name = "skill", .description = "List/add/clear persisted skills", .handler = .{ .basic = wrapSkills } },
+        .{ .name = "init", .description = "Create workspace: ralph.yml, .ralph/, PROMPT.md", .handler = wrapInit },
+        .{ .name = "run", .description = "Execute the Ralph iterative loop", .handler = wrapRun },
+        .{ .name = "super", .description = "Init if needed, run, optional gate (power one-shot)", .handler = wrapSuper },
+        .{ .name = "super-ralph", .description = "Init if needed, run, optional gate (power one-shot)", .handler = wrapSuper },
+        .{ .name = "multi", .description = "Zig-native multithreaded multi-agent", .handler = wrapMulti },
+        .{ .name = "swarm", .description = "Zig-native multithreaded multi-agent", .handler = wrapMulti },
+        .{ .name = "status", .description = "Show loop state, skills stored, last run stats", .handler = wrapStatus },
+        .{ .name = "gate", .description = "Native quality gate", .handler = wrapGate },
+        .{ .name = "improve", .description = "Autonomous self-improvement loop", .handler = wrapImprove },
+        .{ .name = "skills", .description = "List/add/clear persisted skills", .handler = wrapSkills },
+        .{ .name = "skill", .description = "List/add/clear persisted skills", .handler = wrapSkills },
     },
 };
 
@@ -80,29 +81,29 @@ pub const meta: command_mod.Meta = .{
 // Subcommand dispatch (mirrors config.zig pattern)
 // ============================================================================
 
-fn ralphInit(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try init_mod.runInit(allocator, parser.remaining());
+fn ralphInit(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try init_mod.runInit(ctx, parser.remaining());
 }
-fn ralphRun(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try run_mod.runRun(allocator, parser.remaining());
+fn ralphRun(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try run_mod.runRun(ctx, parser.remaining());
 }
-fn ralphStatus(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try status_mod.runStatus(allocator, parser.remaining());
+fn ralphStatus(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try status_mod.runStatus(ctx, parser.remaining());
 }
-fn ralphGate(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try gate_mod.runGate(allocator, parser.remaining());
+fn ralphGate(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try gate_mod.runGate(ctx, parser.remaining());
 }
-fn ralphImprove(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try improve_mod.runImprove(allocator, parser.remaining());
+fn ralphImprove(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try improve_mod.runImprove(ctx, parser.remaining());
 }
-fn ralphSkills(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try skills_mod.runSkills(allocator, parser.remaining());
+fn ralphSkills(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try skills_mod.runSkills(ctx, parser.remaining());
 }
-fn ralphSuper(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try super_mod.runSuper(allocator, parser.remaining());
+fn ralphSuper(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try super_mod.runSuper(ctx.allocator, parser.remaining());
 }
-fn ralphMulti(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try multi_mod.runMulti(allocator, parser.remaining());
+fn ralphMulti(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
+    try multi_mod.runMulti(ctx.allocator, parser.remaining());
 }
 const ralph_subcommands = [_][]const u8{
     "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help",
@@ -110,7 +111,8 @@ const ralph_subcommands = [_][]const u8{
 
 /// Entry point called by CLI dispatcher.
 /// Only reached when no child matches (help / unknown).
-pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    _ = ctx;
     if (args.len == 0) {
         printHelp();
         return;

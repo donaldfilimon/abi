@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const spec = @import("../spec.zig");
 const Feature = @import("abi").config.Feature;
@@ -15,7 +16,8 @@ pub const meta: command_mod.Meta = .{
 };
 
 /// Entry point for the completions command.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     _ = allocator;
     var parser = utils.args.ArgParser.init(std.heap.page_allocator, args);
 

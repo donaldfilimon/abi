@@ -1,7 +1,9 @@
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 
-pub fn runDiscover(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len > 0) {
         const arg = std.mem.sliceTo(args[0], 0);
         if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "help")) {

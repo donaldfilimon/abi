@@ -1,6 +1,7 @@
 //! ralph run — Execute iterative loop via Abbey engine or provider router
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
@@ -10,7 +11,8 @@ const skills_store = @import("skills_store.zig");
 const providers = abi.ai.llm.providers;
 const ProviderId = providers.ProviderId;
 
-pub fn runRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var task_override: ?[]const u8 = null;
     var iter_override: ?usize = null;
     var auto_skill = false;

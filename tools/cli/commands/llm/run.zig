@@ -1,4 +1,5 @@
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 
@@ -19,7 +20,8 @@ const RunOptions = struct {
     json: bool = false,
 };
 
-pub fn runRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printRunHelp();
         return;

@@ -1,6 +1,7 @@
 //! ralph status — show runtime state, latest run, and persisted skills.
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const cfg = @import("config.zig");
@@ -25,7 +26,8 @@ const ReportView = struct {
     }
 };
 
-pub fn runStatus(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     for (args) |arg| {
         if (utils.args.matchesAny(std.mem.sliceTo(arg, 0), &[_][]const u8{ "--help", "-h", "help" })) {
             std.debug.print(

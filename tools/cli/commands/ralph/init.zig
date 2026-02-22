@@ -1,6 +1,7 @@
 //! ralph init — Create workspace: ralph.yml, .ralph/, PROMPT.md
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const cfg = @import("config.zig");
@@ -50,7 +51,8 @@ const PROMPT_MD_TEMPLATE =
     \\
 ;
 
-pub fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var backend: []const u8 = "llama_cpp";
     var force = false;
 

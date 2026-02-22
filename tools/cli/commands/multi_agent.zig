@@ -12,10 +12,8 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
-
-// libc import for environment access - required for Zig 0.16
-const c = @cImport(@cInclude("stdlib.h"));
 
 /// Predefined workflow templates
 const WorkflowTemplate = struct {
@@ -48,21 +46,26 @@ const workflow_templates = [_]WorkflowTemplate{
 };
 
 // Wrapper functions for comptime children dispatch
-fn wrapMaInfo(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapMaInfo(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try runInfo(allocator);
 }
-fn wrapMaRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapMaRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runWorkflow(allocator, &parser);
 }
-fn wrapMaList(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapMaList(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try listWorkflows(allocator);
 }
-fn wrapMaCreate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapMaCreate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try createWorkflow(allocator, &parser);
 }
-fn wrapMaStatus(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapMaStatus(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try showStatus(allocator);
 }
 
@@ -71,11 +74,11 @@ pub const meta: command_mod.Meta = .{
     .description = "Run multi-agent workflows",
     .subcommands = &.{ "info", "run", "list", "create", "status" },
     .children = &.{
-        .{ .name = "info", .description = "Show coordinator status and capabilities", .handler = .{ .basic = wrapMaInfo } },
-        .{ .name = "run", .description = "Execute a task using the coordinator", .handler = .{ .basic = wrapMaRun } },
-        .{ .name = "list", .description = "List available workflow templates", .handler = .{ .basic = wrapMaList } },
-        .{ .name = "create", .description = "Create a new workflow configuration", .handler = .{ .basic = wrapMaCreate } },
-        .{ .name = "status", .description = "Show current coordinator status", .handler = .{ .basic = wrapMaStatus } },
+        .{ .name = "info", .description = "Show coordinator status and capabilities", .handler = wrapMaInfo },
+        .{ .name = "run", .description = "Execute a task using the coordinator", .handler = wrapMaRun },
+        .{ .name = "list", .description = "List available workflow templates", .handler = wrapMaList },
+        .{ .name = "create", .description = "Create a new workflow configuration", .handler = wrapMaCreate },
+        .{ .name = "status", .description = "Show current coordinator status", .handler = wrapMaStatus },
     },
 };
 
@@ -84,21 +87,22 @@ const ma_subcommands = [_][]const u8{
 };
 
 /// Entry point for the `multi-agent` command.
-pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
-        printHelp(std.heap.page_allocator);
+        printHelp(allocator);
         return;
     }
     const cmd = std.mem.sliceTo(args[0], 0);
     if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
-        printHelp(std.heap.page_allocator);
+        printHelp(allocator);
         return;
     }
-    // Unknown subcommand
-    utils.output.printError("unknown subcommand: {s}", .{cmd});
+    utils.output.printError("Unknown multi-agent subcommand: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &ma_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
+    utils.output.printInfo("Run 'abi multi-agent help' for usage.", .{});
 }
 
 fn runInfo(allocator: std.mem.Allocator) !void {

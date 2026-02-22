@@ -47,27 +47,35 @@ test "ha stress: backup under concurrent write load" {
     defer orchestrator.deinit();
 
     // Atomic counters for tracking
+    var backup_attempts = std.atomic.Value(u64).init(0);
     var backups_completed = std.atomic.Value(u64).init(0);
+    var backup_errors = std.atomic.Value(u64).init(0);
     var writes_completed = std.atomic.Value(u64).init(0);
-    var stop_flag = std.atomic.Value(bool).init(false);
 
     // Start backup thread
     const backup_thread = try std.Thread.spawn(.{}, struct {
         fn run(
             bo: *ha.BackupOrchestrator,
+            attempts: *std.atomic.Value(u64),
             completed: *std.atomic.Value(u64),
-            stop: *std.atomic.Value(bool),
+            errors: *std.atomic.Value(u64),
             ops: u64,
         ) void {
             var i: u64 = 0;
-            while (i < ops and !stop.load(.acquire)) {
-                _ = bo.triggerBackup() catch continue;
+            while (i < ops) {
+                _ = attempts.fetchAdd(1, .monotonic);
+                _ = bo.triggerBackup() catch {
+                    _ = errors.fetchAdd(1, .monotonic);
+                    i += 1;
+                    std.atomic.spinLoopHint();
+                    continue;
+                };
                 _ = completed.fetchAdd(1, .monotonic);
                 i += 1;
                 std.atomic.spinLoopHint();
             }
         }
-    }.run, .{ &orchestrator, &backups_completed, &stop_flag, profile.operations / 10 });
+    }.run, .{ &orchestrator, &backup_attempts, &backups_completed, &backup_errors, profile.operations / 10 });
 
     // Simulate write threads (updating orchestrator state)
     const write_count = @min(profile.concurrent_tasks, 16);
@@ -77,33 +85,35 @@ test "ha stress: backup under concurrent write load" {
         write_threads[i] = try std.Thread.spawn(.{}, struct {
             fn run(
                 completed: *std.atomic.Value(u64),
-                stop: *std.atomic.Value(bool),
                 ops: u64,
             ) void {
                 var j: u64 = 0;
-                while (j < ops and !stop.load(.acquire)) {
+                while (j < ops) {
                     // Simulate write work
                     _ = completed.fetchAdd(1, .monotonic);
                     j += 1;
                     std.atomic.spinLoopHint();
                 }
             }
-        }.run, .{ &writes_completed, &stop_flag, profile.operations / write_count });
+        }.run, .{ &writes_completed, profile.operations / write_count });
     }
 
     // Wait for threads
     for (0..write_count) |i| {
         write_threads[i].join();
     }
-    stop_flag.store(true, .release);
     backup_thread.join();
 
     // Verify results
+    const total_backup_attempts = backup_attempts.load(.acquire);
     const total_backups = backups_completed.load(.acquire);
+    const total_backup_errors = backup_errors.load(.acquire);
     const total_writes = writes_completed.load(.acquire);
 
+    try std.testing.expect(total_backup_attempts > 0);
     try std.testing.expect(total_backups > 0);
     try std.testing.expect(total_writes > 0);
+    try std.testing.expectEqual(total_backup_attempts, total_backups + total_backup_errors);
 
     // Verify backup history consistency
     const backups = orchestrator.listBackups();

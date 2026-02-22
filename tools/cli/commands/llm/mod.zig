@@ -9,6 +9,7 @@
 
 const std = @import("std");
 const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 
 const run_cmd = @import("run.zig");
@@ -25,12 +26,12 @@ pub const meta: command_mod.Meta = .{
     .subcommands = &.{ "run", "session", "serve", "providers", "plugins", "discover", "help" },
     .kind = .group,
     .children = &.{
-        .{ .name = "run", .description = "One-shot generation through provider router", .handler = .{ .basic = run_cmd.runRun } },
-        .{ .name = "session", .description = "Interactive session through provider router", .handler = .{ .basic = session_cmd.runSession } },
-        .{ .name = "serve", .description = "Start streaming HTTP server", .handler = .{ .basic = serve_cmd.runServe } },
-        .{ .name = "providers", .description = "Show provider availability and routing order", .handler = .{ .basic = providers_cmd.runProviders } },
-        .{ .name = "plugins", .description = "Manage HTTP/native provider plugins", .handler = .{ .basic = plugins_cmd.runPlugins } },
-        .{ .name = "discover", .description = "Auto-discover available LLM providers", .handler = .{ .basic = discover_cmd.runDiscover } },
+        .{ .name = "run", .description = "One-shot generation through provider router", .handler = run_cmd.runRun },
+        .{ .name = "session", .description = "Interactive session through provider router", .handler = session_cmd.runSession },
+        .{ .name = "serve", .description = "Start streaming HTTP server", .handler = serve_cmd.runServe },
+        .{ .name = "providers", .description = "Show provider availability and routing order", .handler = providers_cmd.runProviders },
+        .{ .name = "plugins", .description = "Manage HTTP/native provider plugins", .handler = plugins_cmd.runPlugins },
+        .{ .name = "discover", .description = "Auto-discover available LLM providers", .handler = discover_cmd.runDiscover },
     },
 };
 
@@ -40,7 +41,8 @@ pub const meta: command_mod.Meta = .{
 /// - No args: print help
 /// - Unknown subcommands: print error + suggestion
 /// - Explicit help request
-pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    _ = ctx;
     if (args.len == 0) {
         printHelp();
         return;

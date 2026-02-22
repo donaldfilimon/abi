@@ -7,18 +7,20 @@ const cli_io = utils.io_backend;
 
 // Use the shared config module for file-based configuration (legacy format)
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const shared_config = @import("abi").shared.utils.config;
 
-fn wrapCfgInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runInit(allocator, args);
+fn wrapCfgInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runInit(ctx, args);
 }
-fn wrapCfgShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runShow(allocator, args);
+fn wrapCfgShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runShow(ctx, args);
 }
-fn wrapCfgValidate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runValidate(allocator, args);
+fn wrapCfgValidate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runValidate(ctx, args);
 }
-fn wrapCfgEnv(_: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapCfgEnv(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    _ = ctx;
     runEnv();
 }
 
@@ -27,10 +29,10 @@ pub const meta: command_mod.Meta = .{
     .description = "Configuration management (init, show, validate)",
     .subcommands = &.{ "init", "show", "validate", "env", "help" },
     .children = &.{
-        .{ .name = "init", .description = "Generate a default configuration file", .handler = .{ .basic = wrapCfgInit } },
-        .{ .name = "show", .description = "Display current configuration", .handler = .{ .basic = wrapCfgShow } },
-        .{ .name = "validate", .description = "Validate a configuration file", .handler = .{ .basic = wrapCfgValidate } },
-        .{ .name = "env", .description = "List environment variables", .handler = .{ .basic = wrapCfgEnv } },
+        .{ .name = "init", .description = "Generate a default configuration file", .handler = wrapCfgInit },
+        .{ .name = "show", .description = "Display current configuration", .handler = wrapCfgShow },
+        .{ .name = "validate", .description = "Validate a configuration file", .handler = wrapCfgValidate },
+        .{ .name = "env", .description = "List environment variables", .handler = wrapCfgEnv },
     },
 };
 
@@ -39,7 +41,8 @@ const config_subcommands = [_][]const u8{
 };
 
 /// Run the config command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     _ = allocator;
     if (args.len == 0) {
         printHelp();
@@ -57,7 +60,8 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var output_path: []const u8 = "abi.json";
 
     var i: usize = 0;
@@ -100,7 +104,8 @@ fn runInit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("Run 'abi config validate {s}' to check your configuration.\n", .{output_path});
 }
 
-fn runShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var format: enum { human, json } = .human;
     var config_path: ?[]const u8 = null;
 
@@ -147,7 +152,8 @@ fn runShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runValidate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runValidate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         std.debug.print("Usage: abi config validate <config-file>\n", .{});
         return;

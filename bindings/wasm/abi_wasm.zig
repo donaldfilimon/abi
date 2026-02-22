@@ -82,98 +82,40 @@ export fn version(out_ptr: [*]u8, out_max: usize) usize {
 // ============================================================================
 // WASM-native Key-Value Cache
 //
-// A simple open-addressing hash map cache suitable for wasm32. Avoids
-// 64-bit atomics and POSIX dependencies present in the main cache module.
+// Backed by std.StringHashMapUnmanaged to preserve correctness across
+// collision-heavy workloads and deletions.
 // ============================================================================
 
-const CACHE_BUCKETS = 512;
 const CACHE_MAX_ENTRIES = 256;
 
-const CacheEntry = struct {
-    key: ?[]const u8 = null,
-    value: ?[]const u8 = null,
-    key_buf: ?[]u8 = null,
-    value_buf: ?[]u8 = null,
-    occupied: bool = false,
-};
-
-var cache_entries: [CACHE_BUCKETS]CacheEntry = [_]CacheEntry{.{}} ** CACHE_BUCKETS;
-var cache_count: u32 = 0;
+var cache_entries: std.StringHashMapUnmanaged([]u8) = .empty;
 var cache_initialized: bool = false;
 
-fn cacheHash(key: []const u8) usize {
-    // FNV-1a hash
-    var h: u32 = 2166136261;
-    for (key) |byte| {
-        h ^= byte;
-        h *%= 16777619;
-    }
-    return h % CACHE_BUCKETS;
-}
-
-fn cacheFindSlot(key: []const u8) ?usize {
-    const start = cacheHash(key);
-    var i: usize = 0;
-    while (i < CACHE_BUCKETS) : (i += 1) {
-        const idx = (start + i) % CACHE_BUCKETS;
-        const entry = &cache_entries[idx];
-        if (!entry.occupied) return null;
-        if (entry.key) |k| {
-            if (std.mem.eql(u8, k, key)) return idx;
-        }
-    }
-    return null;
-}
-
-fn cacheFindOrInsertSlot(key: []const u8) ?usize {
-    const start = cacheHash(key);
-    var first_empty: ?usize = null;
-    var i: usize = 0;
-    while (i < CACHE_BUCKETS) : (i += 1) {
-        const idx = (start + i) % CACHE_BUCKETS;
-        const entry = &cache_entries[idx];
-        if (!entry.occupied) {
-            if (first_empty == null) first_empty = idx;
-            return first_empty;
-        }
-        if (entry.key) |k| {
-            if (std.mem.eql(u8, k, key)) return idx;
-        }
-    }
-    return first_empty;
-}
-
-fn cacheFreeBufs(entry: *CacheEntry) void {
+fn cacheFreeAllEntries() void {
     const allocator = wasmAllocator();
-    if (entry.key_buf) |kb| {
-        allocator.free(kb);
-        entry.key_buf = null;
-        entry.key = null;
+    var iter = cache_entries.iterator();
+    while (iter.next()) |entry| {
+        allocator.free(@constCast(entry.key_ptr.*));
+        allocator.free(entry.value_ptr.*);
     }
-    if (entry.value_buf) |vb| {
-        allocator.free(vb);
-        entry.value_buf = null;
-        entry.value = null;
-    }
+    cache_entries.clearRetainingCapacity();
 }
 
 /// Initialize the WASM cache.
 /// Returns 0 on success.
 export fn cache_init() i32 {
     if (cache_initialized) return 0;
-    cache_entries = [_]CacheEntry{.{}} ** CACHE_BUCKETS;
-    cache_count = 0;
+    cache_entries = .empty;
     cache_initialized = true;
     return 0;
 }
 
 /// Tear down the cache, freeing all entries.
 export fn cache_deinit() void {
-    for (&cache_entries) |*entry| {
-        if (entry.occupied) cacheFreeBufs(entry);
-        entry.occupied = false;
-    }
-    cache_count = 0;
+    if (!cache_initialized) return;
+    cacheFreeAllEntries();
+    cache_entries.deinit(wasmAllocator());
+    cache_entries = .empty;
     cache_initialized = false;
 }
 
@@ -190,31 +132,29 @@ export fn cache_put(
     const val = val_ptr[0..val_len];
     const allocator = wasmAllocator();
 
-    const slot = cacheFindOrInsertSlot(key) orelse return -1;
-    var entry = &cache_entries[slot];
-
-    if (entry.occupied) {
+    if (cache_entries.getPtr(key)) |existing_val| {
         // Update existing — free old value
-        if (entry.value_buf) |vb| allocator.free(vb);
-        entry.value_buf = allocator.dupe(u8, val) catch return -1;
-        entry.value = entry.value_buf;
+        const new_val = allocator.dupe(u8, val) catch return -1;
+        allocator.free(existing_val.*);
+        existing_val.* = new_val;
         return 0;
     }
 
-    if (cache_count >= CACHE_MAX_ENTRIES) return -1;
+    if (cache_entries.count() >= CACHE_MAX_ENTRIES) return -1;
 
     // New entry
-    entry.key_buf = allocator.dupe(u8, key) catch return -1;
-    entry.key = entry.key_buf;
-    entry.value_buf = allocator.dupe(u8, val) catch {
-        if (entry.key_buf) |kb| allocator.free(kb);
-        entry.key_buf = null;
-        entry.key = null;
+    const key_copy = allocator.dupe(u8, key) catch return -1;
+    const val_copy = allocator.dupe(u8, val) catch {
+        allocator.free(key_copy);
         return -1;
     };
-    entry.value = entry.value_buf;
-    entry.occupied = true;
-    cache_count += 1;
+
+    cache_entries.put(allocator, key_copy, val_copy) catch {
+        allocator.free(key_copy);
+        allocator.free(val_copy);
+        return -1;
+    };
+
     return 0;
 }
 
@@ -229,9 +169,7 @@ export fn cache_get(
 ) i32 {
     if (!cache_initialized) return -1;
     const key = key_ptr[0..key_len];
-    const slot = cacheFindSlot(key) orelse return 0;
-    const entry = &cache_entries[slot];
-    const val = entry.value orelse return 0;
+    const val = cache_entries.get(key) orelse return 0;
     if (val.len > out_max) return -1;
     @memcpy(out_ptr[0..val.len], val);
     return @intCast(val.len);
@@ -239,35 +177,33 @@ export fn cache_get(
 
 /// Return the current number of live cache entries.
 export fn cache_size() u32 {
-    return cache_count;
+    return @intCast(cache_entries.count());
 }
 
 /// Check whether a key exists in the cache.
 /// Returns 1 if present, 0 if absent.
 export fn cache_contains(key_ptr: [*]const u8, key_len: usize) i32 {
     if (!cache_initialized) return 0;
-    return if (cacheFindSlot(key_ptr[0..key_len]) != null) 1 else 0;
+    return if (cache_entries.contains(key_ptr[0..key_len])) 1 else 0;
 }
 
 /// Delete a cache entry by key.
 /// Returns 1 if the key was present and removed, 0 if absent, -1 on error.
 export fn cache_delete(key_ptr: [*]const u8, key_len: usize) i32 {
     if (!cache_initialized) return -1;
-    const slot = cacheFindSlot(key_ptr[0..key_len]) orelse return 0;
-    var entry = &cache_entries[slot];
-    cacheFreeBufs(entry);
-    entry.occupied = false;
-    cache_count -|= 1;
-    return 1;
+    const allocator = wasmAllocator();
+    if (cache_entries.fetchRemove(key_ptr[0..key_len])) |kv| {
+        allocator.free(@constCast(kv.key));
+        allocator.free(kv.value);
+        return 1;
+    }
+    return 0;
 }
 
 /// Remove all entries from the cache.
 export fn cache_clear() void {
-    for (&cache_entries) |*entry| {
-        if (entry.occupied) cacheFreeBufs(entry);
-        entry.occupied = false;
-    }
-    cache_count = 0;
+    if (!cache_initialized) return;
+    cacheFreeAllEntries();
 }
 
 // ============================================================================

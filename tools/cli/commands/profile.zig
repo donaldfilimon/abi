@@ -6,6 +6,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
@@ -13,43 +14,53 @@ const cli_io = utils.io_backend;
 const c = @cImport(@cInclude("stdlib.h"));
 
 // Wrapper functions for comptime children dispatch
-fn wrapShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runShowSubcommand(allocator, &parser);
 }
-fn wrapList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runListSubcommand(allocator, &parser);
 }
-fn wrapCreate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapCreate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runCreateSubcommand(allocator, &parser);
 }
-fn wrapSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapSwitch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runSwitchSubcommand(allocator, &parser);
 }
-fn wrapDelete(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapDelete(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runDeleteSubcommand(allocator, &parser);
 }
-fn wrapSet(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapSet(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runSetSubcommand(allocator, &parser);
 }
-fn wrapGet(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapGet(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runGetSubcommand(allocator, &parser);
 }
-fn wrapApiKey(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapApiKey(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runApiKeySubcommand(allocator, &parser);
 }
-fn wrapExport(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapExport(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runExportSubcommand(allocator, &parser);
 }
-fn wrapImport(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapImport(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try runImportSubcommand(allocator, &parser);
 }
@@ -59,16 +70,16 @@ pub const meta: command_mod.Meta = .{
     .description = "User profile and settings management",
     .subcommands = &.{ "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help" },
     .children = &.{
-        .{ .name = "show", .description = "Show current profile", .handler = .{ .basic = wrapShow } },
-        .{ .name = "list", .description = "List all profiles", .handler = .{ .basic = wrapList } },
-        .{ .name = "create", .description = "Create a new profile", .handler = .{ .basic = wrapCreate } },
-        .{ .name = "switch", .description = "Switch to a profile", .handler = .{ .basic = wrapSwitch } },
-        .{ .name = "delete", .description = "Delete a profile", .handler = .{ .basic = wrapDelete } },
-        .{ .name = "set", .description = "Set a profile setting", .handler = .{ .basic = wrapSet } },
-        .{ .name = "get", .description = "Get a profile setting", .handler = .{ .basic = wrapGet } },
-        .{ .name = "api-key", .description = "Manage API keys", .handler = .{ .basic = wrapApiKey } },
-        .{ .name = "export", .description = "Export profile to file", .handler = .{ .basic = wrapExport } },
-        .{ .name = "import", .description = "Import profile from file", .handler = .{ .basic = wrapImport } },
+        .{ .name = "show", .description = "Show current profile", .handler = wrapShow },
+        .{ .name = "list", .description = "List all profiles", .handler = wrapList },
+        .{ .name = "create", .description = "Create a new profile", .handler = wrapCreate },
+        .{ .name = "switch", .description = "Switch to a profile", .handler = wrapSwitch },
+        .{ .name = "delete", .description = "Delete a profile", .handler = wrapDelete },
+        .{ .name = "set", .description = "Set a profile setting", .handler = wrapSet },
+        .{ .name = "get", .description = "Get a profile setting", .handler = wrapGet },
+        .{ .name = "api-key", .description = "Manage API keys", .handler = wrapApiKey },
+        .{ .name = "export", .description = "Export profile to file", .handler = wrapExport },
+        .{ .name = "import", .description = "Import profile from file", .handler = wrapImport },
     },
 };
 
@@ -405,7 +416,8 @@ const profile_subcommands = [_][]const u8{
 
 /// Entry point for the profile command.
 /// Only reached when no child matches (help / unknown / default).
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         // Default action: show current profile
         try showCurrentProfile(allocator);

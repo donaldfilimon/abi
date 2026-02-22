@@ -8,6 +8,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const tui = @import("../tui/mod.zig");
 const utils = @import("../utils/mod.zig");
 const theme_options = @import("ui/theme_options.zig");
@@ -17,7 +18,6 @@ pub const meta: command_mod.Meta = .{
     .name = "gpu-dashboard",
     .description = "Interactive GPU + Agent monitoring dashboard",
     .aliases = &.{"dashboard"},
-    .io_mode = .io,
     .forward = .{
         .target = "ui",
         .prepend_args = &[_][:0]const u8{"gpu"},
@@ -117,7 +117,9 @@ const box = struct {
 // ===============================================================================
 
 /// Entry point for the GPU dashboard command.
-pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
+    const io = ctx.io;
     var parsed = try theme_options.parseThemeArgs(allocator, args);
     defer parsed.deinit();
 

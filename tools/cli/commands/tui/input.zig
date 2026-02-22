@@ -5,6 +5,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
 const types = @import("types.zig");
@@ -240,7 +241,7 @@ pub fn executeActionFromState(state: *TuiState, action: Action) !bool {
     try state.terminal.exit();
     errdefer state.terminal.enter() catch {};
 
-    try runAction(state.allocator, state.framework, action);
+    runAction(state.allocator, state.framework, action) catch {};
     std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
     _ = state.terminal.readKey() catch {};
     try state.terminal.enter();
@@ -252,33 +253,66 @@ fn runAction(allocator: std.mem.Allocator, framework: *abi.Framework, action: Ac
     std.debug.print("\n", .{});
 
     switch (action) {
-        .command => |cmd| try runCommand(allocator, cmd),
+        .command => |cmd| runCommand(allocator, cmd) catch |err| {
+            utils.output.printError("Command '{s}' failed: {t}", .{ commandLabel(cmd), err });
+            return err;
+        },
         .version => utils.output.printInfo("ABI Framework v{s}", .{abi.version()}),
         .help => printHelp(),
         .quit => {},
     }
 }
 
+fn commandLabel(cmd: Command) []const u8 {
+    return switch (cmd) {
+        .db => "db",
+        .agent => "agent",
+        .bench => "bench",
+        .config => "config",
+        .discord => "discord",
+        .embed => "embed",
+        .explore => "explore",
+        .gpu => "gpu",
+        .llm => "llm",
+        .model => "model",
+        .network => "network",
+        .ralph => "ralph",
+        .simd => "simd",
+        .system_info => "system-info",
+        .train => "train",
+        .train_monitor => "train monitor",
+        .task => "task",
+    };
+}
+
 fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
     const cmd_args = menu_mod.commandDefaultArgs(cmd);
+    var io_backend = utils.io_backend.initIoBackend(allocator);
+    defer io_backend.deinit();
+
+    const cmd_ctx = context_mod.CommandContext{
+        .allocator = allocator,
+        .io = io_backend.io(),
+    };
+
     switch (cmd) {
-        .db => try db.run(allocator, cmd_args),
-        .agent => try agent.run(allocator, cmd_args),
-        .bench => try bench.run(allocator, cmd_args),
-        .config => try config.run(allocator, cmd_args),
-        .discord => try discord.run(allocator, cmd_args),
-        .embed => try embed.run(allocator, cmd_args),
-        .explore => try explore.run(allocator, cmd_args),
-        .gpu => try gpu.run(allocator, cmd_args),
-        .llm => try llm.run(allocator, cmd_args),
-        .model => try model.run(allocator, cmd_args),
-        .network => try network.run(allocator, cmd_args),
-        .ralph => try ralph.run(allocator, cmd_args),
-        .simd => try simd.run(allocator, cmd_args),
-        .system_info => try system_info.run(allocator, cmd_args),
-        .train => try train.run(allocator, cmd_args),
-        .train_monitor => try train.run(allocator, cmd_args),
-        .task => try task.run(allocator, cmd_args),
+        .db => try db.run(&cmd_ctx, cmd_args),
+        .agent => try agent.run(&cmd_ctx, cmd_args),
+        .bench => try bench.run(&cmd_ctx, cmd_args),
+        .config => try config.run(&cmd_ctx, cmd_args),
+        .discord => try discord.run(&cmd_ctx, cmd_args),
+        .embed => try embed.run(&cmd_ctx, cmd_args),
+        .explore => try explore.run(&cmd_ctx, cmd_args),
+        .gpu => try gpu.run(&cmd_ctx, cmd_args),
+        .llm => try llm.run(&cmd_ctx, cmd_args),
+        .model => try model.run(&cmd_ctx, cmd_args),
+        .network => try network.run(&cmd_ctx, cmd_args),
+        .ralph => try ralph.run(&cmd_ctx, cmd_args),
+        .simd => try simd.run(&cmd_ctx, cmd_args),
+        .system_info => try system_info.run(&cmd_ctx, cmd_args),
+        .train => try train.run(&cmd_ctx, cmd_args),
+        .train_monitor => try train.run(&cmd_ctx, cmd_args),
+        .task => try task.run(&cmd_ctx, cmd_args),
     }
 }
 

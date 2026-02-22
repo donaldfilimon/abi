@@ -2,15 +2,17 @@
 
 const std = @import("std");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 
 pub const meta: command_mod.Meta = .{
     .name = "gendocs",
     .description = "Generate API docs (runs zig build gendocs)",
-    .io_mode = .io,
 };
 
-pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
+    const io = ctx.io;
     if (utils.args.containsHelpArgs(args)) {
         printHelp();
         return;

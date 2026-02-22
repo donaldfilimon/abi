@@ -1,9 +1,11 @@
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 
 const plugins = abi.ai.llm.providers.plugins;
 
-pub fn runPlugins(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runPlugins(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         return listPlugins(allocator);
     }
@@ -19,11 +21,11 @@ pub fn runPlugins(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     }
 
     if (std.mem.eql(u8, sub, "add-http")) {
-        return addHttpPlugin(allocator, args[1..]);
+        return addHttpPlugin(ctx, args[1..]);
     }
 
     if (std.mem.eql(u8, sub, "add-native")) {
-        return addNativePlugin(allocator, args[1..]);
+        return addNativePlugin(ctx, args[1..]);
     }
 
     if (std.mem.eql(u8, sub, "enable")) {
@@ -35,7 +37,7 @@ pub fn runPlugins(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     }
 
     if (std.mem.eql(u8, sub, "remove")) {
-        return removePlugin(allocator, args[1..]);
+        return removePlugin(ctx, args[1..]);
     }
 
     std.debug.print("Unknown llm plugins subcommand: {s}\n", .{sub});
@@ -84,7 +86,8 @@ fn listPlugins(allocator: std.mem.Allocator) !void {
     }
 }
 
-fn addHttpPlugin(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn addHttpPlugin(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         std.debug.print("Usage: abi llm plugins add-http <id> --url <base_url> [--model <model>] [--api-key-env <env>]\n", .{});
         return;
@@ -133,7 +136,8 @@ fn addHttpPlugin(allocator: std.mem.Allocator, args: []const [:0]const u8) !void
     std.debug.print("Configured HTTP plugin '{s}'.\n", .{id});
 }
 
-fn addNativePlugin(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn addNativePlugin(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         std.debug.print("Usage: abi llm plugins add-native <id> --library <path> [--symbol <name>]\n", .{});
         return;
@@ -194,7 +198,8 @@ fn setEnabled(allocator: std.mem.Allocator, args: []const [:0]const u8, enabled:
     std.debug.print("Plugin '{s}' {s}.\n", .{ id, if (enabled) "enabled" else "disabled" });
 }
 
-fn removePlugin(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn removePlugin(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         std.debug.print("Usage: abi llm plugins remove <id>\n", .{});
         return;

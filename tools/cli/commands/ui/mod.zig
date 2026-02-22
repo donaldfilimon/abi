@@ -2,23 +2,27 @@
 
 const std = @import("std");
 const command_mod = @import("../../command.zig");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const launch = @import("launch.zig");
 const gpu_cmd = @import("gpu.zig");
 const train_cmd = @import("train.zig");
 const neural = @import("neural.zig");
 
+const ui_subcommands = [_][]const u8{
+    "launch", "gpu", "train", "neural", "help",
+};
+
 pub const meta: command_mod.Meta = .{
     .name = "ui",
     .description = "UI command family (launch, gpu, train, neural)",
     .subcommands = &.{ "launch", "gpu", "train", "neural", "help" },
-    .io_mode = .io,
     .kind = .group,
     .children = &.{
-        .{ .name = "launch", .description = "Open command launcher TUI", .handler = .{ .io = launch.run } },
-        .{ .name = "gpu", .description = "Open GPU dashboard TUI", .handler = .{ .io = gpu_cmd.run } },
-        .{ .name = "train", .description = "Open training monitor TUI", .handler = .{ .io = train_cmd.run } },
-        .{ .name = "neural", .description = "Render dynamic 3D neural network view", .handler = .{ .io = neural.run } },
+        .{ .name = "launch", .description = "Open command launcher TUI", .handler = launch.run },
+        .{ .name = "gpu", .description = "Open GPU dashboard TUI", .handler = gpu_cmd.run },
+        .{ .name = "train", .description = "Open training monitor TUI", .handler = train_cmd.run },
+        .{ .name = "neural", .description = "Render dynamic 3D neural network view", .handler = neural.run },
     },
 };
 
@@ -28,9 +32,9 @@ pub const meta: command_mod.Meta = .{
 /// - No args: default to launch
 /// - Unknown subcommands: print error + help
 /// - Explicit help request
-pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     if (args.len == 0) {
-        try launch.run(allocator, io, args);
+        try launch.run(ctx, args);
         return;
     }
     const sub = std.mem.sliceTo(args[0], 0);
@@ -38,7 +42,11 @@ pub fn run(allocator: std.mem.Allocator, io: std.Io, args: []const [:0]const u8)
         printHelp();
         return;
     }
-    std.debug.print("Unknown ui command: {s}\n", .{sub});
+    utils.output.printError("Unknown ui subcommand: {s}", .{sub});
+    if (utils.args.suggestCommand(sub, &ui_subcommands)) |suggestion| {
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
+    }
+    utils.output.printInfo("Run 'abi ui help' for usage.", .{});
     printHelp();
 }
 

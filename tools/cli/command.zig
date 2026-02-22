@@ -6,12 +6,12 @@
 //! bridge (catalog → descriptor → wiring) that previously existed.
 
 const std = @import("std");
+const context_mod = @import("framework/context.zig");
 const types = @import("framework/types.zig");
 
 pub const CommandDescriptor = types.CommandDescriptor;
 pub const CommandHandler = types.CommandHandler;
 pub const CommandForward = types.CommandForward;
-pub const CommandIoMode = types.CommandIoMode;
 pub const CommandKind = types.CommandKind;
 
 /// Child command metadata for group commands (e.g. llm children, ui children).
@@ -28,7 +28,6 @@ pub const Meta = struct {
     description: []const u8,
     aliases: []const []const u8 = &.{},
     subcommands: []const []const u8 = &.{},
-    io_mode: CommandIoMode = .basic,
     kind: CommandKind = .action,
     forward: ?CommandForward = null,
     children: []const ChildMeta = &.{},
@@ -78,10 +77,7 @@ pub fn toDescriptor(comptime Module: type) CommandDescriptor {
         .subcommands = m.subcommands,
         .children = convertChildren(m.children),
         .kind = m.kind,
-        .handler = switch (m.io_mode) {
-            .basic => .{ .basic = Module.run },
-            .io => .{ .io = Module.run },
-        },
+        .handler = Module.run,
         .forward = m.forward,
     };
 }
@@ -94,25 +90,24 @@ const TestBasicModule = struct {
         .name = "test-basic",
         .description = "A basic test command",
     };
-    pub fn run(_: std.mem.Allocator, _: []const [:0]const u8) !void {}
+    pub fn run(_: *const context_mod.CommandContext, _: []const [:0]const u8) !void {}
 };
 
-/// IO command module with aliases, subcommands, and forward.
-const TestIoModule = struct {
+/// Group command module with aliases, subcommands, and forward.
+const TestGroupForwardModule = struct {
     pub const meta: Meta = .{
-        .name = "test-io",
-        .description = "An IO test command",
+        .name = "test-group-forward",
+        .description = "A group-forward test command",
         .aliases = &.{ "tio", "io-test" },
         .subcommands = &.{ "sub1", "sub2", "help" },
-        .io_mode = .io,
         .kind = .group,
         .forward = .{ .target = "other-cmd", .prepend_args = &.{"launch"}, .warning = "deprecated" },
     };
-    pub fn run(_: std.mem.Allocator, _: std.Io, _: []const [:0]const u8) !void {}
+    pub fn run(_: *const context_mod.CommandContext, _: []const [:0]const u8) !void {}
 };
 
-fn stubChild1(_: std.mem.Allocator, _: []const [:0]const u8) !void {}
-fn stubChild2(_: std.mem.Allocator, _: []const [:0]const u8) !void {}
+fn stubChild1(_: *const context_mod.CommandContext, _: []const [:0]const u8) !void {}
+fn stubChild2(_: *const context_mod.CommandContext, _: []const [:0]const u8) !void {}
 
 /// Group command with children.
 const TestGroupModule = struct {
@@ -121,11 +116,11 @@ const TestGroupModule = struct {
         .description = "A group command",
         .kind = .group,
         .children = &.{
-            .{ .name = "child-a", .description = "First child", .handler = .{ .basic = stubChild1 } },
-            .{ .name = "child-b", .description = "Second child", .handler = .{ .basic = stubChild2 } },
+            .{ .name = "child-a", .description = "First child", .handler = stubChild1 },
+            .{ .name = "child-b", .description = "Second child", .handler = stubChild2 },
         },
     };
-    pub fn run(_: std.mem.Allocator, _: []const [:0]const u8) !void {}
+    pub fn run(_: *const context_mod.CommandContext, _: []const [:0]const u8) !void {}
 };
 
 test "toDescriptor: basic module produces correct descriptor" {
@@ -137,26 +132,18 @@ test "toDescriptor: basic module produces correct descriptor" {
     try std.testing.expectEqual(@as(usize, 0), d.children.len);
     try std.testing.expectEqual(CommandKind.action, d.kind);
     try std.testing.expect(d.forward == null);
-    // Handler should be .basic variant
-    switch (d.handler) {
-        .basic => {},
-        .io => return error.TestUnexpectedResult,
-    }
+    try std.testing.expectEqual(@as(CommandHandler, TestBasicModule.run), d.handler);
 }
 
-test "toDescriptor: io module preserves aliases, subcommands, forward" {
-    const d = comptime toDescriptor(TestIoModule);
-    try std.testing.expectEqualStrings("test-io", d.name);
+test "toDescriptor: group module preserves aliases, subcommands, forward" {
+    const d = comptime toDescriptor(TestGroupForwardModule);
+    try std.testing.expectEqualStrings("test-group-forward", d.name);
     try std.testing.expectEqual(@as(usize, 2), d.aliases.len);
     try std.testing.expectEqualStrings("tio", d.aliases[0]);
     try std.testing.expectEqualStrings("io-test", d.aliases[1]);
     try std.testing.expectEqual(@as(usize, 3), d.subcommands.len);
     try std.testing.expectEqual(CommandKind.group, d.kind);
-    // Handler should be .io variant
-    switch (d.handler) {
-        .io => {},
-        .basic => return error.TestUnexpectedResult,
-    }
+    try std.testing.expectEqual(@as(CommandHandler, TestGroupForwardModule.run), d.handler);
     // Forward
     try std.testing.expect(d.forward != null);
     try std.testing.expectEqualStrings("other-cmd", d.forward.?.target);
@@ -172,11 +159,7 @@ test "toDescriptor: group module converts children correctly" {
     try std.testing.expectEqualStrings("First child", d.children[0].description);
     try std.testing.expectEqualStrings("child-b", d.children[1].name);
     try std.testing.expectEqualStrings("Second child", d.children[1].description);
-    // Verify child handlers are .basic variant
-    switch (d.children[0].handler) {
-        .basic => {},
-        .io => return error.TestUnexpectedResult,
-    }
+    try std.testing.expectEqual(@as(CommandHandler, stubChild1), d.children[0].handler);
 }
 
 test "convertChildren: empty input returns empty slice" {
@@ -187,7 +170,7 @@ test "convertChildren: empty input returns empty slice" {
 test "validate: accepts valid modules" {
     // These should not compile-error.
     comptime validate(TestBasicModule);
-    comptime validate(TestIoModule);
+    comptime validate(TestGroupForwardModule);
     comptime validate(TestGroupModule);
 }
 
@@ -196,7 +179,6 @@ test "Meta defaults: verify zero-value defaults" {
     try std.testing.expectEqual(@as(usize, 0), m.aliases.len);
     try std.testing.expectEqual(@as(usize, 0), m.subcommands.len);
     try std.testing.expectEqual(@as(usize, 0), m.children.len);
-    try std.testing.expectEqual(CommandIoMode.basic, m.io_mode);
     try std.testing.expectEqual(CommandKind.action, m.kind);
     try std.testing.expect(m.forward == null);
 }

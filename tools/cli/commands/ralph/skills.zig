@@ -1,12 +1,14 @@
 //! ralph skills — list/add/clear persisted skills.
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const skills_store = @import("skills_store.zig");
 const cfg = @import("config.zig");
 
-pub fn runSkills(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runSkills(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();

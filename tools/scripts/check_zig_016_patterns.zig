@@ -52,6 +52,18 @@ pub fn main(_: std.process.Init) !void {
     );
     try scanForbidden(
         allocator,
+        "^[[:space:]]*[^/].*std\\.io\\.AnyWriter",
+        "legacy AnyWriter path from std.io; use std.Io writer abstractions in Zig 0.16",
+        &errors,
+    );
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*getStd(Out|Err)\\(",
+        "legacy std.io.getStdOut/getStdErr API usage removed in Zig 0.16",
+        &errors,
+    );
+    try scanForbidden(
+        allocator,
         "^[[:space:]]*[^/].*std\\.time\\.nanoTimestamp\\(",
         "nanoTimestamp legacy API removed in Zig 0.16",
         &errors,

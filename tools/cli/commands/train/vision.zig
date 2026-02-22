@@ -4,10 +4,12 @@
 //! training Vision Transformer (ViT) and CLIP multimodal models.
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
 const utils = @import("../../utils/mod.zig");
 
-pub fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printVisionHelp();
         return;
@@ -352,7 +354,8 @@ pub fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) 
     std.debug.print("Wall time:   {d:.2}s\n", .{elapsed_s});
 }
 
-pub fn runClipTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printClipHelp();
         return;

@@ -9,18 +9,19 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
 // Wrapper functions for comptime children dispatch
-fn wrapDataset(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runDataset(allocator, args);
+fn wrapDataset(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runDataset(ctx, args);
 }
-fn wrapModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runModel(allocator, args);
+fn wrapModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runModel(ctx, args);
 }
-fn wrapEmbeddings(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runEmbeddings(allocator, args);
+fn wrapEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runEmbeddings(ctx, args);
 }
 
 pub const meta: command_mod.Meta = .{
@@ -28,9 +29,9 @@ pub const meta: command_mod.Meta = .{
     .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)",
     .subcommands = &.{ "dataset", "model", "embeddings" },
     .children = &.{
-        .{ .name = "dataset", .description = "Convert between dataset formats", .handler = .{ .basic = wrapDataset } },
-        .{ .name = "model", .description = "Convert between model formats", .handler = .{ .basic = wrapModel } },
-        .{ .name = "embeddings", .description = "Convert embedding file formats", .handler = .{ .basic = wrapEmbeddings } },
+        .{ .name = "dataset", .description = "Convert between dataset formats", .handler = wrapDataset },
+        .{ .name = "model", .description = "Convert between model formats", .handler = wrapModel },
+        .{ .name = "embeddings", .description = "Convert embedding file formats", .handler = wrapEmbeddings },
     },
 };
 
@@ -38,7 +39,8 @@ const convert_subcommands = [_][]const u8{
     "dataset", "model", "embeddings", "help",
 };
 
-pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    _ = ctx;
     if (args.len == 0) {
         printHelp();
         return;
@@ -55,7 +57,8 @@ pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runDataset(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runDataset(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var input_path: ?[]const u8 = null;
     var output_path: ?[]const u8 = null;
     var format: ?[]const u8 = null;
@@ -121,7 +124,8 @@ fn runDataset(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runModel(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    _ = ctx;
     var input_path: ?[]const u8 = null;
     var output_path: ?[]const u8 = null;
     var format: ?[]const u8 = null;
@@ -252,7 +256,8 @@ fn runModel(_: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("Supported formats: info, to-safetensors, to-gguf\n", .{});
 }
 
-fn runEmbeddings(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var input_path: ?[]const u8 = null;
     var output_path: ?[]const u8 = null;
     var format: ?[]const u8 = null;

@@ -15,27 +15,28 @@ const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
 // Wrapper functions for comptime children dispatch
-fn wrapList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runList(allocator, args);
+fn wrapList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runList(ctx, args);
 }
-fn wrapInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runInfo(allocator, args);
+fn wrapInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runInfo(ctx, args);
 }
-fn wrapDownload(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runDownload(allocator, args);
+fn wrapDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runDownload(ctx, args);
 }
-fn wrapRemove(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runRemove(allocator, args);
+fn wrapRemove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runRemove(ctx, args);
 }
-fn wrapSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runSearch(allocator, args);
+fn wrapSearch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runSearch(ctx, args);
 }
-fn wrapPath(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    try runPath(allocator, args);
+fn wrapPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    try runPath(ctx, args);
 }
 
 pub const meta: command_mod.Meta = .{
@@ -43,12 +44,12 @@ pub const meta: command_mod.Meta = .{
     .description = "Model management (list, download, remove, search)",
     .subcommands = &.{ "list", "info", "download", "remove", "search", "path" },
     .children = &.{
-        .{ .name = "list", .description = "List cached models", .handler = .{ .basic = wrapList } },
-        .{ .name = "info", .description = "Show detailed model information", .handler = .{ .basic = wrapInfo } },
-        .{ .name = "download", .description = "Download model from HuggingFace or URL", .handler = .{ .basic = wrapDownload } },
-        .{ .name = "remove", .description = "Remove a cached model", .handler = .{ .basic = wrapRemove } },
-        .{ .name = "search", .description = "Search HuggingFace for models", .handler = .{ .basic = wrapSearch } },
-        .{ .name = "path", .description = "Show or set cache directory", .handler = .{ .basic = wrapPath } },
+        .{ .name = "list", .description = "List cached models", .handler = wrapList },
+        .{ .name = "info", .description = "Show detailed model information", .handler = wrapInfo },
+        .{ .name = "download", .description = "Download model from HuggingFace or URL", .handler = wrapDownload },
+        .{ .name = "remove", .description = "Remove a cached model", .handler = wrapRemove },
+        .{ .name = "search", .description = "Search HuggingFace for models", .handler = wrapSearch },
+        .{ .name = "path", .description = "Show or set cache directory", .handler = wrapPath },
     },
 };
 
@@ -57,7 +58,8 @@ const model_subcommands = [_][]const u8{
 };
 
 /// Run the model command with the provided arguments.
-pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    _ = ctx;
     if (args.len == 0) {
         printHelp();
         return;
@@ -78,7 +80,8 @@ pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
 // Subcommand Implementations
 // ============================================================================
 
-fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printListHelp();
         return;
@@ -126,7 +129,8 @@ fn runList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args) or args.len == 0) {
         printInfoHelp();
         return;
@@ -185,7 +189,8 @@ fn runInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runDownload(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args) or args.len == 0) {
         printDownloadHelp();
         return;
@@ -287,7 +292,8 @@ fn runDownload(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runRemove(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runRemove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args) or args.len == 0) {
         printRemoveHelp();
         return;
@@ -338,7 +344,8 @@ fn runRemove(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 }
 
-fn runSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runSearch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     _ = allocator;
 
     if (utils.args.containsHelpArgs(args) or args.len == 0) {
@@ -366,7 +373,8 @@ fn runSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     std.debug.print("  abi model download <author>/<model>:Q4_K_M\n", .{});
 }
 
-fn runPath(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn runPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (utils.args.containsHelpArgs(args)) {
         printPathHelp();
         return;

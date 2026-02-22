@@ -3,62 +3,73 @@
 const std = @import("std");
 const abi = @import("abi");
 const command_mod = @import("../command.zig");
+const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const ArgParser = utils.args.ArgParser;
 
 // Wrapper functions for comptime children dispatch.
 // Each wrapper performs network init/deinit (previously done in run()).
-fn wrapStatus(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapStatus(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     try printStatus();
 }
-fn wrapList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     var parser = ArgParser.init(allocator, args);
     try runListSubcommand(allocator, &parser);
 }
-fn wrapRegister(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapRegister(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     var parser = ArgParser.init(allocator, args);
     try runRegisterSubcommand(allocator, &parser);
 }
-fn wrapUnregister(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapUnregister(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     var parser = ArgParser.init(allocator, args);
     try runUnregisterSubcommand(allocator, &parser);
 }
-fn wrapTouch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapTouch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     var parser = ArgParser.init(allocator, args);
     try runTouchSubcommand(allocator, &parser);
 }
-fn wrapSetStatus(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+fn wrapSetStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     var parser = ArgParser.init(allocator, args);
     try runSetStatusSubcommand(allocator, &parser);
 }
-fn wrapRaft(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapRaft(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     printRaftStatus(allocator);
 }
-fn wrapDiscovery(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapDiscovery(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     printDiscoveryStatus(allocator);
 }
-fn wrapBalancer(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapBalancer(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     printBalancerStatus(allocator);
 }
-fn wrapHealth(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+fn wrapHealth(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     try initNetwork(allocator);
     defer abi.network.deinit();
     printHealthStatus(allocator);
@@ -79,17 +90,17 @@ pub const meta: command_mod.Meta = .{
     .description = "Network and distributed systems management",
     .subcommands = &.{ "status", "list", "nodes", "register", "unregister", "touch", "set-status", "raft", "discovery", "balancer", "health" },
     .children = &.{
-        .{ .name = "status", .description = "Show network config and node count", .handler = .{ .basic = wrapStatus } },
-        .{ .name = "list", .description = "List registered nodes", .handler = .{ .basic = wrapList } },
-        .{ .name = "nodes", .description = "List registered nodes", .handler = .{ .basic = wrapList } },
-        .{ .name = "register", .description = "Register or update a node", .handler = .{ .basic = wrapRegister } },
-        .{ .name = "unregister", .description = "Remove a node", .handler = .{ .basic = wrapUnregister } },
-        .{ .name = "touch", .description = "Update node heartbeat timestamp", .handler = .{ .basic = wrapTouch } },
-        .{ .name = "set-status", .description = "Set status (healthy, degraded, offline)", .handler = .{ .basic = wrapSetStatus } },
-        .{ .name = "raft", .description = "Show Raft consensus state", .handler = .{ .basic = wrapRaft } },
-        .{ .name = "discovery", .description = "Show service discovery status", .handler = .{ .basic = wrapDiscovery } },
-        .{ .name = "balancer", .description = "Show load balancer status", .handler = .{ .basic = wrapBalancer } },
-        .{ .name = "health", .description = "Show cluster health evaluation", .handler = .{ .basic = wrapHealth } },
+        .{ .name = "status", .description = "Show network config and node count", .handler = wrapStatus },
+        .{ .name = "list", .description = "List registered nodes", .handler = wrapList },
+        .{ .name = "nodes", .description = "List registered nodes", .handler = wrapList },
+        .{ .name = "register", .description = "Register or update a node", .handler = wrapRegister },
+        .{ .name = "unregister", .description = "Remove a node", .handler = wrapUnregister },
+        .{ .name = "touch", .description = "Update node heartbeat timestamp", .handler = wrapTouch },
+        .{ .name = "set-status", .description = "Set status (healthy, degraded, offline)", .handler = wrapSetStatus },
+        .{ .name = "raft", .description = "Show Raft consensus state", .handler = wrapRaft },
+        .{ .name = "discovery", .description = "Show service discovery status", .handler = wrapDiscovery },
+        .{ .name = "balancer", .description = "Show load balancer status", .handler = wrapBalancer },
+        .{ .name = "health", .description = "Show cluster health evaluation", .handler = wrapHealth },
     },
 };
 
@@ -99,7 +110,8 @@ const network_subcommands = [_][]const u8{
 
 /// Run the network command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     if (args.len == 0) {
         printHelp(allocator);
         return;

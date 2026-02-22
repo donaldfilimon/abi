@@ -1,6 +1,7 @@
 //! ralph super — one-shot: init if needed, run, optional gate
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const cfg = @import("config.zig");
@@ -69,11 +70,15 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
+    const cmd_ctx = context_mod.CommandContext{
+        .allocator = allocator,
+        .io = io,
+    };
 
     const has_workspace = cfg.fileExists(io, cfg.STATE_FILE) or cfg.fileExists(io, config_path);
     if (!has_workspace) {
         std.debug.print("No Ralph workspace found. Running init...\n", .{});
-        try init_mod.runInit(allocator, &[_][:0]const u8{});
+        try init_mod.runInit(&cmd_ctx, &[_][:0]const u8{});
     }
 
     // Build run args and invoke run.
@@ -109,7 +114,7 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
         try to_free.append(allocator, config_z);
         try run_args.appendSlice(allocator, &[_][:0]const u8{ "--config", config_z });
     }
-    try run_mod.runRun(allocator, run_args.items);
+    try run_mod.runRun(&cmd_ctx, run_args.items);
 
     if (do_gate) {
         std.debug.print("\nRunning quality gate...\n", .{});
@@ -129,6 +134,6 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
             try gate_args.appendSlice(allocator, &[_][:0]const u8{ "--in", gate_in_z });
         }
         try gate_args.appendSlice(allocator, &[_][:0]const u8{ "--out", gate_out_z });
-        try gate_mod.runGate(allocator, gate_args.items);
+        try gate_mod.runGate(&cmd_ctx, gate_args.items);
     }
 }

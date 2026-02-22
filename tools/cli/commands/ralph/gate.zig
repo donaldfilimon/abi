@@ -1,6 +1,7 @@
 //! ralph gate — native replacement for check_ralph_gate.sh + score_ralph_results.py
 
 const std = @import("std");
+const context_mod = @import("../../framework/context.zig");
 const utils = @import("../../utils/mod.zig");
 const cli_io = utils.io_backend;
 const cfg = @import("config.zig");
@@ -94,7 +95,8 @@ fn scoreItem(
     return res;
 }
 
-pub fn runGate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    const allocator = ctx.allocator;
     var in_path: []const u8 = "reports/ralph_upgrade_results_openai.json";
     var out_path: []const u8 = "reports/ralph_upgrade_summary.md";
     var min_average: f64 = 0.75;
