@@ -70,3 +70,65 @@ fn deinitResponse(allocator: std.mem.Allocator, response: *connectors.vllm.ChatC
     allocator.free(response.choices);
     response.* = undefined;
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "generate rejects non-http plugin kind" {
+    const allocator = std.testing.allocator;
+    const entry = manifest.PluginEntry{
+        .id = @constCast("native-plugin"),
+        .kind = .native,
+        .enabled = true,
+        .base_url = @constCast("http://localhost:8080"),
+    };
+
+    const cfg = types.GenerateConfig{
+        .model = "test-model",
+        .prompt = "hello",
+    };
+
+    const result = generate(allocator, entry, cfg);
+    try std.testing.expectError(errors.ProviderError.InvalidPlugin, result);
+}
+
+test "generate rejects disabled plugin" {
+    const allocator = std.testing.allocator;
+    const entry = manifest.PluginEntry{
+        .id = @constCast("disabled-plugin"),
+        .kind = .http,
+        .enabled = false,
+        .base_url = @constCast("http://localhost:8080"),
+    };
+
+    const cfg = types.GenerateConfig{
+        .model = "test-model",
+        .prompt = "hello",
+    };
+
+    const result = generate(allocator, entry, cfg);
+    try std.testing.expectError(errors.ProviderError.PluginDisabled, result);
+}
+
+test "generate rejects plugin without base_url" {
+    const allocator = std.testing.allocator;
+    const entry = manifest.PluginEntry{
+        .id = @constCast("no-url"),
+        .kind = .http,
+        .enabled = true,
+        .base_url = null,
+    };
+
+    const cfg = types.GenerateConfig{
+        .model = "test-model",
+        .prompt = "hello",
+    };
+
+    const result = generate(allocator, entry, cfg);
+    try std.testing.expectError(errors.ProviderError.InvalidPlugin, result);
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

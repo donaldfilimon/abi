@@ -233,8 +233,9 @@ pub const Client = struct {
         }
 
         var choices = try self.allocator.alloc(Choice, choices_array.items.len);
+        var choices_filled: usize = 0;
         errdefer {
-            for (choices) |*choice| {
+            for (choices[0..choices_filled]) |*choice| {
                 self.allocator.free(choice.message.role);
                 self.allocator.free(choice.message.content);
                 self.allocator.free(choice.finish_reason);
@@ -260,6 +261,7 @@ pub const Client = struct {
                 },
                 .finish_reason = finish_reason,
             };
+            choices_filled += 1;
         }
 
         const usage_obj = try json_utils.parseObjectField(object, "usage");

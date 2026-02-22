@@ -208,14 +208,14 @@ pub const ApiKeyManager = struct {
         return self.keys.get(key_id);
     }
 
-    pub fn getKeysForUser(self: *ApiKeyManager, user_id: []const u8) []*ApiKey {
+    pub fn getKeysForUser(self: *ApiKeyManager, user_id: []const u8) ![]*ApiKey {
         var result = std.ArrayListUnmanaged(*ApiKey).empty;
         for (self.keys.values()) |key| {
             if (std.mem.eql(u8, key.user_id, user_id)) {
-                result.appendAssumeCapacity(key);
+                try result.append(self.allocator, key);
             }
         }
-        return result.items;
+        return result.toOwnedSlice(self.allocator);
     }
 
     pub fn hasScope(self: *ApiKey, scope: []const u8) bool {

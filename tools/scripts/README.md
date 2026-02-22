@@ -49,4 +49,22 @@ zig build cli-tests-full \\
   -Dcli-full-allow-blocked=true
 ```
 
+Nested-only matrix run:
+
+```bash
+python3 tools/scripts/run_cli_full_matrix.py \\
+  --repo /Users/donaldfilimon/abi \\
+  --id-prefix nested. \\
+  --allow-blocked \\
+  --env-file tools/scripts/cli_full_env.stub
+```
+
+Build shortcut for nested vectors:
+
+```bash
+zig build cli-tests-nested \\
+  -Dcli-full-env-file=tools/scripts/cli_full_env.stub \\
+  -Dcli-full-allow-blocked=true
+```
+
 Update `baseline.zig` only after re-validating baselines in CI/local gates.

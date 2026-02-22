@@ -120,6 +120,8 @@ pub const AbbeyPersona = struct {
     }
 
     /// Process a request using Abbey's empathetic and technical logic.
+    /// Note: returns anyerror to match PersonaInterface.VTable.process signature.
+    /// Actual errors: TimerFailed, OutOfMemory, and errors from engine.process().
     pub fn process(self: *Self, request: types.PersonaRequest) anyerror!types.PersonaResponse {
         var timer = time.Timer.start() catch {
             return error.TimerFailed;

@@ -136,6 +136,8 @@ pub const AvivaPersona = struct {
     }
 
     /// Process a request using Aviva's direct and expert logic.
+    /// Note: returns anyerror to match PersonaInterface.VTable.process signature.
+    /// Actual errors: TimerFailed, OutOfMemory, and errors from agent.process().
     pub fn process(self: *Self, request: types.PersonaRequest) anyerror!types.PersonaResponse {
         var timer = time.Timer.start() catch {
             return error.TimerFailed;

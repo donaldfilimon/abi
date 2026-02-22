@@ -242,7 +242,14 @@ pub const Client = struct {
 
         const content_array = try json_utils.parseArrayField(object, "content");
         var content_blocks = try self.allocator.alloc(ContentBlock, content_array.items.len);
-        errdefer self.allocator.free(content_blocks);
+        var blocks_filled: usize = 0;
+        errdefer {
+            for (content_blocks[0..blocks_filled]) |block| {
+                self.allocator.free(block.type);
+                self.allocator.free(block.text);
+            }
+            self.allocator.free(content_blocks);
+        }
 
         for (content_array.items, 0..) |item, i| {
             const content_obj = try json_utils.getRequiredObject(item);
@@ -250,6 +257,7 @@ pub const Client = struct {
             errdefer self.allocator.free(block_type);
             const text = try json_utils.parseStringField(content_obj, "text", self.allocator);
             content_blocks[i] = .{ .type = block_type, .text = text };
+            blocks_filled += 1;
         }
 
         const usage_obj = try json_utils.parseObjectField(object, "usage");

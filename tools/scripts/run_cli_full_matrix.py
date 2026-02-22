@@ -40,6 +40,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repo", required=True, help="ABI repository root")
     parser.add_argument("--env-file", help="Path to KEY=VALUE env file")
     parser.add_argument(
+        "--id-prefix",
+        action="append",
+        default=[],
+        help="Limit run to matrix IDs starting with this prefix. Repeatable.",
+    )
+    parser.add_argument(
         "--allow-blocked",
         action="store_true",
         help="Continue when preflight checks fail and mark blocked vectors in the report.",
@@ -435,6 +441,19 @@ def main() -> int:
             return 1
 
     matrix = json.loads(MATRIX_JSON.read_text(encoding="utf-8"))
+    if not isinstance(matrix, list):
+        print("Matrix JSON was not a list of entries.", file=sys.stderr)
+        return 1
+
+    if args.id_prefix:
+        requested_prefixes = [prefix for prefix in args.id_prefix if prefix]
+        if not requested_prefixes:
+            print("At least one non-empty --id-prefix is required when filtering.", file=sys.stderr)
+            return 1
+        matrix = [entry for entry in matrix if any(str(entry.get("id", "")).startswith(prefix) for prefix in requested_prefixes)]
+        if not matrix:
+            print(f"No matrix entries matched --id-prefix filters: {requested_prefixes}", file=sys.stderr)
+            return 1
 
     run_id = f"run-{int(time.time())}"
     log_dir = LOG_ROOT / run_id

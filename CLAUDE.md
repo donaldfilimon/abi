@@ -2,79 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Status: ready for use.** Single entry for AI assistants (Claude, Codex, Cursor). Use the Quick Reference and Build & Test Commands below; for rules, skills, plans, and agents see [Skills, Plans, and Agents](#skills-plans-and-agents-full-index).
-
-## Working outside the Ralph loop (Cursor / Claude)
-
-When you assist in **Cursor** (or any direct editor/chat session), you are **outside the Ralph loop**. Use this section to stay in the right mode and avoid confusing the two workflows.
-
-### Two modes at a glance
-
-| Aspect | Outside the loop (you, in Cursor) | Inside the loop (Ralph) |
-|--------|-----------------------------------|-------------------------|
-| **Trigger** | User asks you in chat; you edit and suggest commands | User runs `abi ralph run` (or `abi agent ralph --task "..."`); Abbey engine drives an iterative loop |
-| **Input** | Chat messages, open files, repo context | `PROMPT.md` or `--task "..."`, plus optional `.ralph/` skills and state |
-| **Flow** | Single conversational turn or short back-and-forth; you run `zig build` / tests as needed | Multi-step loop until `LOOP_COMPLETE` or max iterations; engine calls LLM, runs tools, updates state |
-| **State** | No reliance on `.ralph/` or `ralph.yml` for *this* session | Uses `.ralph/` (state, lock, logs), `ralph.yml` (backend, prompt_file, max_iterations) |
-| **Quality** | Validate with `zig build full-check` (or `zig build test`, `zig fmt`, etc.) | Optional: `abi ralph gate` / `zig build ralph-gate` on Ralph run outputs; `zig build verify-all` includes ralph-gate |
-| **Self-improvement / learning** | Update CLAUDE.md, `.claude/rules/zig.md`, or baselines; no `.ralph/` skill store this session | Skills in Abbey memory (`.skill`); `ralph improve`, `ralph run --auto-skill`, `ralph skills add/list/clear`; lessons injected into next run’s system prompt |
-
-### Do (outside the loop)
-
-- **Edit and run locally:** Make changes, then run `zig build`, `zig build test`, `zig build full-check`, `zig fmt`, etc. directly. Do not invoke or depend on `abi ralph run` or `PROMPT.md` for this session.
-- **Single conversational flow:** Treat this as one chat/agent session. There is no iterative Ralph loop here—no Abbey engine steps, no `LOOP_COMPLETE` promise, no `.ralph/` state machine.
-- **Follow CLAUDE.md:** Use the build/test/format commands, gotchas, and conventions in this file. Stub parity, feature flags, and test baselines apply to your edits.
-- **Suggest Ralph when it fits:** If the user describes a long, multi-step task that would benefit from an iterative agent run, you can suggest they try `abi ralph run --task "..."` or `abi ralph improve` as a *separate* workflow—without you driving that loop yourself.
-
-### Don’t (outside the loop)
-
-- **Don’t** assume you are inside a Ralph run: no reading/writing `PROMPT.md` or `.ralph/` state as part of your normal response flow.
-- **Don’t** require the user to run `abi ralph run` to validate the changes you make in this session; use `zig build full-check` (and optionally `zig build verify-all`).
-- **Don’t** drive multi-turn “Ralph-style” loops (e.g. “I will now run N iterations until LOOP_COMPLETE”) unless the user explicitly asks you to use the Ralph CLI.
-
-### Quality gates for your changes
-
-- **Standard:** `zig build full-check` (format + tests + feature tests + flag validation + CLI smoke).
-- **Release-grade:** `zig build verify-all` (adds consistency checks, examples, and check-wasm).
-
-### Where Ralph lives (for reference)
-
-- **Config:** `ralph.yml` (backend, prompt_file, max_iterations, etc.).
-- **Runtime state:** `.ralph/` (e.g. state, lock, logs, agent data).
-- **CLI:** `abi ralph init | run | super | multi | status | gate | improve | skills`; see `abi ralph help` and `tools/cli/commands/ralph/`.
-
-### Self-improvement and learning
-
-Learning and improvement happen in different ways depending on mode.
-
-**Outside the loop (you, in Cursor):**
-
-- **Improve by following and updating project knowledge:** Use CLAUDE.md and `.claude/rules/zig.md` as the source of truth. When you discover a new gotcha, a better pattern, or a doc fix, propose edits to those files so future sessions (and humans) benefit.
-- **Validate and correct:** Run `zig build full-check`, fix failing tests, run `/baseline-sync` when test counts change. Learning here is “get the repo to a good state and capture it in docs and baselines.”
-- **No persistent skill store for this session:** You do not write to `.ralph/` or Abbey memory. Session context is your only memory unless the user explicitly asks you to add a skill via Ralph (e.g. `abi ralph skills add "..."`).
-- **When you learn something worth reusing:** Prefer updating CLAUDE.md or `.claude/rules/zig.md` (or a skill file under `.claude/skills/`) so it applies to all future Cursor sessions. Suggest “add this to CLAUDE.md” or “run baseline-sync” rather than only mentioning it in chat.
-
-**Inside the loop (Ralph):**
-
-- **Skills:** Ralph stores lessons in Abbey semantic memory (category `.skill`). They are injected into the system prompt for future `abi ralph run` / `abi ralph improve` so the agent can reuse them across runs.
-- **How skills are added:**
-  - **Manual:** `abi ralph skills add "lesson text"` or `abi ralph run --store-skill "lesson"`.
-  - **Automatic:** `abi ralph run --auto-skill` or `abi ralph improve` (default) call the engine’s `extractAndStoreSkill(goal, result)` so the LLM summarizes a lesson from the run and it is stored.
-- **Self-improvement pass:** `abi ralph improve` runs a loop with a task like “analyze source, identify issues, extract a lesson”; result can be auto-stored as a skill. Use when the user wants Ralph to reflect on the codebase and persist a lesson.
-- **Inspect or clear:** `abi ralph skills` lists count and stats; `abi ralph skills clear` wipes Abbey memory (all skills). Implementation: `src/features/ai/abbey/engine.zig` (`storeSkill`, `extractAndStoreSkill`), `memory/mod.zig` (`getSkillsContext`).
-
-**Summary:** Outside the loop, you improve by editing code and docs and running checks; inside the loop, Ralph improves by storing and reusing skills in Abbey memory. Use the right channel for the current mode.
-
-### Super Ralph (power use)
-
-When the user wants **autonomous multi-step execution** with skill memory and optional quality gates, use or suggest the Ralph CLI.
-
-- **One-shot power command:** `abi ralph super --task "goal"` — inits workspace if missing, runs the loop, optional `--auto-skill` and `--gate`.
-- **When to suggest:** User says "Ralph", "super ralph", "run the loop", "do everything", "full migration", or describes a long multi-step task that should run iteratively with verification.
-- **When not to:** Single-file edits, bounded refactors in one session — do those yourself; suggest Ralph only if they explicitly want the loop.
-- **Quality gate:** After Ralph produces report JSON, `abi ralph gate` (or `zig build ralph-gate`) enforces the score threshold; `zig build verify-all` includes ralph-gate.
-- **Multi-Ralph (Zig, fast):** Lock-free RalphBus (`ralph_multi`) + parallel swarm (`ralph_swarm`) — `abi ralph multi -t "g1" -t "g2"` runs N agents on the runtime ThreadPool; or from Zig: `ThreadPool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &ctx, index })`.
-- **Skill:** `.claude/skills/super-ralph/SKILL.md`.
+**Status: ready for use.** Single entry for AI assistants (Claude, Codex, Cursor). For rules, skills, plans, and agents see [Skills, Plans, and Agents](#skills-plans-and-agents-full-index).
 
 ## Quick Reference
 
@@ -122,7 +50,7 @@ zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
 zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke tests
-zig build toolchain-doctor                  # Diagnose local Zig PATH/version drift vs .zigversion
+zig build toolchain-doctor                   # Diagnose local Zig PATH/version drift vs .zigversion
 zig build validate-flags                     # Compile-check 34 feature flag combos
 zig build cli-tests                          # CLI smoke tests (top-level + nested, e.g. help llm, bench micro hash)
 zig build lint                               # CI formatting check
@@ -132,8 +60,8 @@ zig build check-wasm                         # Check WASM compilation
 zig build verify-all                         # full-check + consistency + examples + check-wasm
 zig build ralph-gate                         # Require live Ralph report and threshold pass
 tools/scripts/check_zig_version_consistency.zig     # Verify .zigversion matches build.zig/docs
-zig run tools/scripts/toolchain_doctor.zig             # Diagnose PATH precedence and active zig mismatch
-zig std                                     # Print stdlib source path (useful for reading std lib internals)
+zig run tools/scripts/toolchain_doctor.zig          # Diagnose PATH precedence and active zig mismatch
+zig std                                      # Print stdlib source path (useful for reading std lib internals)
 ```
 
 ### Running the CLI
@@ -152,64 +80,18 @@ zig build run -- serve -m model.gguf         # Alias for `llm serve`
 
 Feature-related commands and flags: [Features and the CLI](#features-and-the-cli).
 
-### Feature Flags
+## After Making Changes
 
-The codebase has **21 comptime-gated feature modules**. Each is switched by a build flag; when disabled, the stub is linked and the feature returns `error.FeatureDisabled`. The canonical list lives in `src/core/feature_catalog.zig`; build options in `build/options.zig`.
-
-**Usage:** `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
-
-All features default to `true` except `-Denable-mobile`. GPU backends: `auto`, `none`,
-`cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `tpu`, `webgl2`, `opengl`, `opengles`, `fpga`, `simulated`.
-Neural networks can use GPU (CUDA/Metal/Vulkan), WebGPU, TPU (when runtime linked), or multi-threaded CPU via `abi.runtime.ThreadPool` / `InferenceConfig.num_threads`.
-The `simulated` backend is always enabled as a software fallback for testing without GPU hardware.
-
-**By area:**
-
-| Feature | Build Flag | Notes |
-|---------|------------|-------|
-| *AI* | | |
-| `ai` | `-Denable-ai` | Also: `-Denable-llm`, `-Denable-vision`, `-Denable-explore` |
-| `ai.core` | `-Denable-ai` | Agents, tools, prompts, personas, memory (access: `abi.ai.core`) |
-| `ai.llm` | `-Denable-llm` | LLM, embeddings, vision, streaming, transformer (access: `abi.ai.llm`) |
-| `ai.training` | `-Denable-training` | Training pipelines, federated learning (access: `abi.ai.training`) |
-| `ai.reasoning` | `-Denable-reasoning` | Abbey, RAG, eval, templates, orchestration (access: `abi.ai.reasoning`) |
-| *Infrastructure* | | |
-| `analytics` | `-Denable-analytics` | |
-| `auth` | `-Denable-auth` | Re-exports `services/shared/security/` (17 modules) |
-| `cache` | `-Denable-cache` | In-memory LRU/LFU, TTL, eviction |
-| `cloud` | `-Denable-cloud` | Own flag (decoupled from web) |
-| `database` | `-Denable-database` | |
-| `gpu` | `-Denable-gpu` | Backend selection via `-Dgpu-backend=` |
-| `messaging` | `-Denable-messaging` | Event bus, pub/sub, message queues |
-| `network` | `-Denable-network` | |
-| `observability` | `-Denable-profiling` | Not `-Denable-observability` |
-| `search` | `-Denable-search` | Full-text search |
-| `storage` | `-Denable-storage` | Unified file/object storage |
-| `gateway` | `-Denable-gateway` | API gateway: routing, rate limiting, circuit breaker |
-| `web` | `-Denable-web` | |
-| *Platform / tooling* | | |
-| `mobile` | `-Denable-mobile` | Defaults to `false` |
-| `pages` | `-Denable-pages` | Dashboard/UI pages with URL path routing |
-| `benchmarks` | `-Denable-benchmarks` | Built-in benchmark suite |
-
-**Checking feature status:** Run `zig build run -- system-info` for a summary of which features are compiled in and runtime status. In code, use `build_options.enable_<name>` (comptime) or the Framework getters after init.
-
-**When editing a feature:** Keep `mod.zig` and `stub.zig` in sync (same public API); run `zig build -Denable-<feature>=false` and `zig build -Denable-<feature>=true`; finish with `zig build validate-flags`.
-
-#### Features and the CLI
-
-The CLI exposes feature status and lets you inspect or override (runtime) which features are enabled.
-
-| CLI | Purpose |
-|-----|---------|
-| `abi system-info` (aliases: `info`, `sysinfo`) | Full report: platform, SIMD, GPU, network, AI connectors, and **Feature Matrix** (each `abi.Feature` with enabled yes/no). Use this to see what is compiled in and currently enabled. |
-| `abi --list-features` | List all features with COMPILED / DISABLED (comptime). Exits after printing; no other command runs. |
-| `abi status` | Framework health and feature count (e.g. “N/M features active”). |
-| `abi config show` | Shows config including selected `enable_*` flags. |
-
-**Runtime overrides (optional):** You can pass `--enable-<feature>` or `--disable-<feature>` before a command (e.g. `abi --disable-gpu bench all`). Only features that are **compiled in** can be enabled; disabled-at-build-time features cannot be turned on at runtime. Rebuild with `-Denable-<name>=true` to compile in a feature.
-
-**Commands that require a feature:** These exit with a clear error if the feature is disabled (compile or runtime): `db` → database; `embed`, `convert`, `explore`, `multi-agent` (info/run) → ai; `discord` → web; `train` (llm/vision) → llm/vision; `bench` (database/training suites) → database/training. Use `abi system-info` or `abi --list-features` to confirm before running them.
+| Changed... | Run |
+|------------|-----|
+| Any `.zig` file | `zig fmt .` |
+| Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 2082+) |
+| Build flags / options | `zig build validate-flags` |
+| Public API | `zig build test --summary all` + update examples |
+| Anything (full gate) | `zig build full-check` |
+| Everything (release gate) | `zig build verify-all` (full-check + consistency + examples + check-wasm) |
+| Build artifacts in `exe/` | Add `exe/` to `.gitignore` (see .gitignore) — standard output is `zig-out/` |
 
 ## Critical Gotchas
 
@@ -223,7 +105,7 @@ The CLI exposes feature status and lets you inspect or override (runtime) which 
 6. `@field(build_options, field_name)` requires comptime context — use `inline for` not runtime `for`
 7. **API break (v0.4.0):** Facade aliases and flat exports removed — see [AI Modules](#ai-modules) and [GPU Module](#gpu-module) for the new namespaced access patterns
 
-**Full reference:** See [`.claude/rules/zig.md`](.claude/rules/zig.md) (auto-loaded for all `.zig` files) for the complete gotchas table with 19 entries covering I/O, `@typeInfo`, allocators, test discovery, and more. These patterns are also duplicated in CLAUDE.md above — when updating, keep both in sync.
+**Full reference (19 entries):** `.claude/rules/zig.md` is auto-loaded for all `.zig` files. It covers I/O, `@typeInfo`, allocators, test discovery, format specifiers, and more.
 
 ### I/O Backend (Required for any file/network ops)
 
@@ -299,28 +181,6 @@ src/api/                 → Additional executable entry points (e.g., `main.zig
 Import convention: public API uses `@import("abi")`, internal modules import
 via their parent `mod.zig`. Never use direct file paths for cross-module imports.
 
-### v2 Integration Map
-
-The v2 adoption is wired through `shared` and `runtime` surfaces, not feature-local deep
-imports.
-
-| Area | Source Location | Public Access Path |
-|------|------------------|--------------------|
-| Primitive helpers | `src/services/shared/utils/v2_primitives.zig` | `abi.shared.utils.v2_primitives` |
-| Structured errors | `src/services/shared/utils/structured_error.zig` | `abi.shared.utils.structured_error` |
-| SwissMap | `src/services/shared/utils/swiss_map.zig` | `abi.shared.utils.swiss_map` |
-| ABIX serialization | `src/services/shared/utils/abix_serialize.zig` | `abi.shared.utils.abix_serialize` |
-| Profiler / benchmark | `src/services/shared/utils/{profiler,benchmark}.zig` | `abi.shared.utils.{profiler,benchmark}` |
-| Arena/combinator allocators | `src/services/shared/utils/memory/{arena_pool,combinators}.zig` | `abi.shared.memory.{ArenaPool,FallbackAllocator}` |
-| Vyukov channel | `src/services/runtime/concurrency/channel.zig` | `abi.runtime.Channel` |
-| Work-stealing thread pool | `src/services/runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
-| DAG pipeline scheduler | `src/services/runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
-| Shared radix tree | `src/services/shared/utils/radix_tree.zig` | Used by gateway + pages for URL routing |
-| Circuit breaker | `src/services/shared/resilience/circuit_breaker.zig` | `abi.shared.resilience.{Simple,Atomic,Mutex}CircuitBreaker` |
-
-When updating any entry above, verify import-chain stability:
-`src/abi.zig` -> `src/services/{shared,runtime}/mod.zig` -> sub-module.
-
 ### Framework Lifecycle
 
 The `Framework` struct (`src/core/framework.zig`) manages feature initialization through
@@ -335,6 +195,16 @@ var fw = try abi.initDefault(allocator);
 var fw = try abi.init(allocator, .{ .gpu = .{ .backend = .vulkan } });
 ```
 
+### Access Patterns
+
+All access uses namespaced paths through `abi.<module>`. There are no top-level
+convenience aliases or flat re-exports. Examples: `abi.gpu.unified.MatrixDims`,
+`abi.ai.agent.Agent`, `abi.simd.vectorAdd`, `abi.connectors.discord`.
+
+**Removed (v0.4.0):** `abi.ai_core`, `abi.inference`, `abi.training`, `abi.reasoning`
+(facade aliases); ~156 flat AI type aliases (e.g., `abi.ai.Agent`); ~173 flat GPU type
+aliases (e.g., `abi.gpu.MatrixDims`). Use submodule paths instead.
+
 ### vNext Migration (Staged)
 
 `src/vnext/` provides a forward API surface wrapping `Framework`:
@@ -345,16 +215,6 @@ var fw = try abi.init(allocator, .{ .gpu = .{ .backend = .vulkan } });
 **Current state (v0.4.0):** Capability checking and basic `App` methods (`.feature()`,
 `.has()`, `.state()`) are implemented in `src/vnext/app.zig`. Use `app.getFramework()`
 to access the full Framework during transition. Compatibility tests: `zig build vnext-compat`.
-
-### Access Patterns
-
-All access uses namespaced paths through `abi.<module>`. There are no top-level
-convenience aliases or flat re-exports. Examples: `abi.gpu.unified.MatrixDims`,
-`abi.ai.agent.Agent`, `abi.simd.vectorAdd`, `abi.connectors.discord`.
-
-**Removed (v0.4.0):** `abi.ai_core`, `abi.inference`, `abi.training`, `abi.reasoning`
-(facade aliases); ~156 flat AI type aliases (e.g., `abi.ai.Agent`); ~173 flat GPU type
-aliases (e.g., `abi.gpu.MatrixDims`). Use submodule paths instead.
 
 ## AI Modules
 
@@ -398,6 +258,55 @@ choice. WASM targets auto-disable `database`, `network`, and `gpu`.
 - All expose `isAvailable()` for zero-allocation env var checks
 - Shared types in `shared.zig`: `ChatMessage`, `Role`, `ConnectorError`, `secureFree`
 - All use `model_owned: bool` for ownership tracking (prevents use-after-free in `loadFromEnv`)
+
+## Coding Style
+
+- 4 spaces, no tabs; lines under 100 chars
+- `PascalCase` types, `camelCase` functions/variables, `*Config` for config structs
+- Explicit imports only (no `usingnamespace`)
+- Prefer `std.ArrayListUnmanaged` over `std.ArrayList` — unmanaged passes allocator per-call, giving better control over memory ownership and reducing hidden allocator dependencies:
+  ```zig
+  // Preferred
+  var list: std.ArrayListUnmanaged(u8) = .empty;
+  defer list.deinit(allocator);
+  try list.append(allocator, item);
+
+  // Avoid (hides allocator dependency)
+  var list: std.ArrayList(u8) = .empty;
+  ```
+- Always `zig fmt .` before committing
+- Import public API via `@import("abi")`, not deep file paths
+- Feature modules cannot `@import("abi")` (circular) — use relative imports to `services/shared/`
+- `std.log.*` in library code; `std.debug.print` only in CLI tools and display functions
+- Modern format specifiers: `{t}` for enums/errors, `{B}`/`{Bi}` for byte sizes, `{D}` for durations, `{b64}` for base64
+- For null-terminated C strings: `std.fmt.allocPrintSentinel(alloc, fmt, args, sentinel)` or use string literal `.ptr` (which is `[*:0]const u8`)
+
+## Commit Convention
+
+`<type>: <short summary>` — types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
+Keep commits focused; don't mix refactors with behavior changes.
+
+## Testing Patterns
+
+**Main tests**: 1261 pass, 5 skip (1266 total) — `zig build test --summary all`
+**Feature tests**: 2082 pass (2086 total), 4 skip — `zig build feature-tests --summary all`
+Both baselines must be maintained.
+
+**Two test roots** (each is a separate binary with its own module path):
+- `src/services/tests/mod.zig` — main tests; discovers tests via `abi.<feature>` import chain
+- `src/feature_test_root.zig` — feature inline tests; can `@import("features/...")` and `@import("services/...")` directly
+
+**Why two roots?** Module path restrictions prevent `src/services/tests/mod.zig` from importing
+`src/services/mcp/server.zig` (outside its module path). The feature test root at `src/` level
+can reach both `features/` and `services/` subdirectories.
+
+- Unit tests: `*_test.zig` files alongside code
+- Integration/stress/chaos/parity/property tests: `src/services/tests/`
+- Skip hardware-gated tests with `error.SkipZigTest`
+- Parity tests verify `mod.zig` and `stub.zig` export the same interface
+- **Test discovery**: Use `test { _ = @import(...); }` to include submodule tests — `comptime {}` does NOT discover tests
+- **Standalone test files**: For modules whose `mod.zig` re-exports sub-modules with compile issues (gpu, auth, database), create `*_test.zig` alongside mod.zig that imports only the parent — avoids triggering lazy compilation of broken sub-modules
+- **GPU/database test gap**: These modules cannot be registered in `feature_test_root.zig` — backend source files have Zig 0.16 compatibility issues (`*const DynLib`, stale struct fields, extern enum tag width). They compile fine through `zig build test` via the named `abi` module. Needs dedicated migration pass.
 
 ## Key File Locations
 
@@ -443,6 +352,86 @@ for HTTP/API-level rate limiting with per-key tracking, bans, and whitelist.
 
 **Verify:** `zig build validate-flags`
 
+## Feature Flags
+
+The codebase has **21 comptime-gated feature modules**. Each is switched by a build flag; when disabled, the stub is linked and the feature returns `error.FeatureDisabled`. The canonical list lives in `src/core/feature_catalog.zig`; build options in `build/options.zig`.
+
+**Usage:** `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
+
+All features default to `true` except `-Denable-mobile`. GPU backends: `auto`, `none`,
+`cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `tpu`, `webgl2`, `opengl`, `opengles`, `fpga`, `simulated`.
+The `simulated` backend is always enabled as a software fallback for testing without GPU hardware.
+
+**By area:**
+
+| Feature | Build Flag | Notes |
+|---------|------------|-------|
+| *AI* | | |
+| `ai` | `-Denable-ai` | Also: `-Denable-llm`, `-Denable-vision`, `-Denable-explore` |
+| `ai.core` | `-Denable-ai` | Agents, tools, prompts, personas, memory (access: `abi.ai.core`) |
+| `ai.llm` | `-Denable-llm` | LLM, embeddings, vision, streaming, transformer (access: `abi.ai.llm`) |
+| `ai.training` | `-Denable-training` | Training pipelines, federated learning (access: `abi.ai.training`) |
+| `ai.reasoning` | `-Denable-reasoning` | Abbey, RAG, eval, templates, orchestration (access: `abi.ai.reasoning`) |
+| *Infrastructure* | | |
+| `analytics` | `-Denable-analytics` | |
+| `auth` | `-Denable-auth` | Re-exports `services/shared/security/` (17 modules) |
+| `cache` | `-Denable-cache` | In-memory LRU/LFU, TTL, eviction |
+| `cloud` | `-Denable-cloud` | Own flag (decoupled from web) |
+| `database` | `-Denable-database` | |
+| `gpu` | `-Denable-gpu` | Backend selection via `-Dgpu-backend=` |
+| `messaging` | `-Denable-messaging` | Event bus, pub/sub, message queues |
+| `network` | `-Denable-network` | |
+| `observability` | `-Denable-profiling` | Not `-Denable-observability` |
+| `search` | `-Denable-search` | Full-text search |
+| `storage` | `-Denable-storage` | Unified file/object storage |
+| `gateway` | `-Denable-gateway` | API gateway: routing, rate limiting, circuit breaker |
+| `web` | `-Denable-web` | |
+| *Platform / tooling* | | |
+| `mobile` | `-Denable-mobile` | Defaults to `false` |
+| `pages` | `-Denable-pages` | Dashboard/UI pages with URL path routing |
+| `benchmarks` | `-Denable-benchmarks` | Built-in benchmark suite |
+
+**Checking feature status:** Run `zig build run -- system-info` for a summary of which features are compiled in and runtime status. In code, use `build_options.enable_<name>` (comptime) or the Framework getters after init.
+
+**When editing a feature:** Keep `mod.zig` and `stub.zig` in sync (same public API); run `zig build -Denable-<feature>=false` and `zig build -Denable-<feature>=true`; finish with `zig build validate-flags`.
+
+### Features and the CLI
+
+The CLI exposes feature status and lets you inspect or override (runtime) which features are enabled.
+
+| CLI | Purpose |
+|-----|---------|
+| `abi system-info` (aliases: `info`, `sysinfo`) | Full report: platform, SIMD, GPU, network, AI connectors, and **Feature Matrix** (each `abi.Feature` with enabled yes/no). |
+| `abi --list-features` | List all features with COMPILED / DISABLED (comptime). Exits after printing. |
+| `abi status` | Framework health and feature count (e.g. "N/M features active"). |
+| `abi config show` | Shows config including selected `enable_*` flags. |
+
+**Runtime overrides (optional):** You can pass `--enable-<feature>` or `--disable-<feature>` before a command (e.g. `abi --disable-gpu bench all`). Only features that are **compiled in** can be enabled; disabled-at-build-time features cannot be turned on at runtime. Rebuild with `-Denable-<name>=true` to compile in a feature.
+
+**Commands that require a feature:** These exit with a clear error if the feature is disabled (compile or runtime): `db` → database; `embed`, `convert`, `explore`, `multi-agent` (info/run) → ai; `discord` → web; `train` (llm/vision) → llm/vision; `bench` (database/training suites) → database/training. Use `abi system-info` or `abi --list-features` to confirm before running them.
+
+## v2 Integration Map
+
+The v2 adoption is wired through `shared` and `runtime` surfaces, not feature-local deep
+imports.
+
+| Area | Source Location | Public Access Path |
+|------|------------------|--------------------|
+| Primitive helpers | `src/services/shared/utils/v2_primitives.zig` | `abi.shared.utils.v2_primitives` |
+| Structured errors | `src/services/shared/utils/structured_error.zig` | `abi.shared.utils.structured_error` |
+| SwissMap | `src/services/shared/utils/swiss_map.zig` | `abi.shared.utils.swiss_map` |
+| ABIX serialization | `src/services/shared/utils/abix_serialize.zig` | `abi.shared.utils.abix_serialize` |
+| Profiler / benchmark | `src/services/shared/utils/{profiler,benchmark}.zig` | `abi.shared.utils.{profiler,benchmark}` |
+| Arena/combinator allocators | `src/services/shared/utils/memory/{arena_pool,combinators}.zig` | `abi.shared.memory.{ArenaPool,FallbackAllocator}` |
+| Vyukov channel | `src/services/runtime/concurrency/channel.zig` | `abi.runtime.Channel` |
+| Work-stealing thread pool | `src/services/runtime/scheduling/thread_pool.zig` | `abi.runtime.ThreadPool` |
+| DAG pipeline scheduler | `src/services/runtime/scheduling/dag_pipeline.zig` | `abi.runtime.DagPipeline` |
+| Shared radix tree | `src/services/shared/utils/radix_tree.zig` | Used by gateway + pages for URL routing |
+| Circuit breaker | `src/services/shared/resilience/circuit_breaker.zig` | `abi.shared.resilience.{Simple,Atomic,Mutex}CircuitBreaker` |
+
+When updating any entry above, verify import-chain stability:
+`src/abi.zig` -> `src/services/{shared,runtime}/mod.zig` -> sub-module.
+
 ## Environment Variables
 
 | Variable | Purpose |
@@ -465,98 +454,52 @@ for HTTP/API-level rate limiting with per-key tracking, bans, and whitelist.
 | `ABI_MLX_MODEL` | Default MLX model |
 | `ABI_MLX_API_KEY` | MLX API key (optional) |
 
-## Coding Style
+## Working with Ralph (Agent Loop)
 
-- 4 spaces, no tabs; lines under 100 chars
-- `PascalCase` types, `camelCase` functions/variables, `*Config` for config structs
-- Explicit imports only (no `usingnamespace`); prefer `std.ArrayListUnmanaged`
-- Always `zig fmt .` before committing
-- Import public API via `@import("abi")`, not deep file paths
-- Feature modules cannot `@import("abi")` (circular) — use relative imports to `services/shared/`
-- `std.log.*` in library code; `std.debug.print` only in CLI tools and display functions
-- Modern format specifiers: `{t}` for enums/errors, `{B}`/`{Bi}` for byte sizes, `{D}` for durations, `{b64}` for base64
-- For null-terminated C strings: `std.fmt.allocPrintSentinel(alloc, fmt, args, sentinel)` or use string literal `.ptr` (which is `[*:0]const u8`)
+You are **outside the Ralph loop** unless the user explicitly runs `abi ralph run`. Do not drive Ralph-style iterative loops or read/write `.ralph/` state in normal sessions.
 
-## Commit Convention
+**Your workflow:** Edit code → run `zig build full-check` → done. Suggest Ralph only if the user wants autonomous multi-step execution.
 
-`<type>: <short summary>` — types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
-Keep commits focused; don't mix refactors with behavior changes.
+**Quality gates:** `zig build full-check` (standard) or `zig build verify-all` (release-grade, adds consistency + examples + wasm).
 
-## Testing Patterns
+**Ralph reference:** Config in `ralph.yml`, state in `.ralph/`, CLI via `abi ralph init | run | super | multi | status | gate | improve | skills`. Power command: `abi ralph super --task "goal"`. Multi-agent: `abi ralph multi -t "g1" -t "g2"`. Skills: `.claude/skills/super-ralph/SKILL.md`.
 
-**Main tests**: 1261 pass, 5 skip (1266 total) — `zig build test --summary all`
-**Feature tests**: 2082 pass (2086 total), 4 skip — `zig build feature-tests --summary all`
-Both baselines must be maintained.
-
-**Two test roots** (each is a separate binary with its own module path):
-- `src/services/tests/mod.zig` — main tests; discovers tests via `abi.<feature>` import chain
-- `src/feature_test_root.zig` — feature inline tests; can `@import("features/...")` and `@import("services/...")` directly
-
-**Why two roots?** Module path restrictions prevent `src/services/tests/mod.zig` from importing
-`src/services/mcp/server.zig` (outside its module path). The feature test root at `src/` level
-can reach both `features/` and `services/` subdirectories.
-
-- Unit tests: `*_test.zig` files alongside code
-- Integration/stress/chaos/parity/property tests: `src/services/tests/`
-- Skip hardware-gated tests with `error.SkipZigTest`
-- Parity tests verify `mod.zig` and `stub.zig` export the same interface
-- **Test discovery**: Use `test { _ = @import(...); }` to include submodule tests — `comptime {}` does NOT discover tests
-- **Standalone test files**: For modules whose `mod.zig` re-exports sub-modules with compile issues (gpu, auth, database), create `*_test.zig` alongside mod.zig that imports only the parent — avoids triggering lazy compilation of broken sub-modules
-- **GPU/database test gap**: These modules cannot be registered in `feature_test_root.zig` — backend source files have Zig 0.16 compatibility issues (`*const DynLib`, stale struct fields, extern enum tag width). They compile fine through `zig build test` via the named `abi` module. Needs dedicated migration pass.
-
-## After Making Changes
-
-| Changed... | Run |
-|------------|-----|
-| Any `.zig` file | `zig fmt .` |
-| Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 2082+) |
-| Build flags / options | `zig build validate-flags` |
-| Public API | `zig build test --summary all` + update examples |
-| Anything (full gate) | `zig build full-check` |
-| Everything (release gate) | `zig build verify-all` (full-check + consistency + examples + check-wasm) |
-| Build artifacts in `exe/` | Add `exe/` to `.gitignore` (see .gitignore) — standard output is `zig-out/` |
+**Learning channels:** Outside the loop, update CLAUDE.md / `.claude/rules/zig.md` / `.claude/skills/`. Inside the loop, Ralph stores lessons in Abbey semantic memory (`.skill` category) via `--auto-skill` or `abi ralph skills add "lesson"`.
 
 ## Skills, Plans, and Agents (full index)
-
-Use this section to find rules, skills, execution plans, and agent definitions. You are working **outside the Ralph loop** (Cursor/Claude direct-assist); Ralph is a separate iterative agent invoked via `abi ralph run`.
 
 ### When to use what
 
 | Context | Use |
 |--------|-----|
 | **This session (Cursor/Claude)** | CLAUDE.md, `.claude/rules/zig.md`. Edit, build, test; suggest `/baseline-sync` or `/zig-migrate` when relevant. |
-| **Ralph iterative loop** | User runs `abi ralph run` or `abi ralph improve`; skills live in Abbey memory (`.ralph/`). You do not drive that loop unless asked. |
+| **Ralph iterative loop** | User runs `abi ralph run` or `abi ralph improve`; skills live in Abbey memory (`.ralph/`). |
 | **Codex / external runner** | Same baselines; `tools/scripts/baseline.zig` is source of truth. |
 
 ### Rules (auto-loaded)
 
 | Path | Purpose |
 |------|---------|
-| `.claude/rules/zig.md` | Zig 0.16 gotchas (19 entries), test baselines, I/O backend, stub conventions, import rules. Auto-loaded for all `.zig` files. Keep in sync with CLAUDE.md Critical Gotchas. |
+| `.claude/rules/zig.md` | Zig 0.16 gotchas (19 entries), test baselines, I/O backend, stub conventions, import rules. Auto-loaded for all `.zig` files. |
 
 ### Custom skills (invoke by name)
 
 | Skill | Invocation | Purpose |
 |-------|------------|---------|
-| **baseline-sync** | `/baseline-sync` | Sync test baseline numbers from `tools/scripts/baseline.zig` to doc files. Run after test count changes. See `.claude/skills/baseline-sync/SKILL.md`. |
-| **zig-migrate** | `/zig-migrate [file-or-dir]` | Apply Zig 0.16 migration patterns (DynLib, I/O backend, format specifiers, etc.). See `.claude/skills/zig-migrate/SKILL.md`. |
-| **super-ralph** | `/super-ralph` or suggest | Run or suggest Ralph: `abi ralph super --task "..."` (init-if-needed, run, optional `--gate`/`--auto-skill`); multi-Ralph via `abi.ai.abbey.ralph_multi`. See `.claude/skills/super-ralph/SKILL.md` and [Super Ralph (power use)](#super-ralph-power-use). |
+| **baseline-sync** | `/baseline-sync` | Sync test baseline numbers from `tools/scripts/baseline.zig` to doc files. Run after test count changes. |
+| **zig-migrate** | `/zig-migrate [file-or-dir]` | Apply Zig 0.16 migration patterns (DynLib, I/O backend, format specifiers, etc.). |
+| **super-ralph** | `/super-ralph` or suggest | Run Ralph: `abi ralph super --task "..."` with optional `--gate`/`--auto-skill`. |
 
 Skill index: `.claude/skills/README.md` (if present) or list `ls .claude/skills/*/SKILL.md`.
-
-### CI quality gate scripts (reference)
-
-See table in [CI Quality Gate Scripts](#ci-quality-gate-scripts) below. Key: `tools/scripts/check_test_baseline_consistency.zig`, `tools/scripts/baseline.zig`, `zig build full-check`, `zig build validate-flags`.
 
 ### Ready for use — checklist
 
 | Check | Action |
 |-------|--------|
-| **Entry** | Use this file (CLAUDE.md) as single entry; open [Skills, Plans, and Agents](#skills-plans-and-agents-full-index) for rules, skills, plans, agents. |
+| **Entry** | Use this file (CLAUDE.md) as single entry. |
 | **Baseline** | Source of truth: `tools/scripts/baseline.zig`. After test count changes run `/baseline-sync`. |
 | **Gate** | Before claiming done: `zig build full-check`. |
-| **Ralph** | You are outside the loop unless the user runs `abi ralph run`; do not drive the loop from this session. |
+| **Ralph** | You are outside the loop unless the user runs `abi ralph run`. |
 
 ---
 

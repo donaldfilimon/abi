@@ -104,6 +104,11 @@ pub fn build(b: *std.Build) void {
         .allow_blocked = cli_full_allow_blocked,
         .timeout_scale = cli_full_timeout_scale,
     });
+    _ = cli_tests.addCliTestsNested(b, .{
+        .env_file = cli_full_env_file,
+        .allow_blocked = cli_full_allow_blocked,
+        .timeout_scale = cli_full_timeout_scale,
+    });
 
     // ── Lint / format ───────────────────────────────────────────────────
     const fmt_paths = &.{ "build.zig", "build", "src", "tools", "examples" };

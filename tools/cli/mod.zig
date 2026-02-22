@@ -78,6 +78,8 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
     const ctx = framework.context.CommandContext{
         .allocator = allocator,
         .io = io,
+        .stdout = std.io.getStdOut().writer().any(),
+        .stderr = std.io.getStdErr().writer().any(),
     };
 
     if (try framework.router.runCommand(ctx, &commands.descriptors, command, args[2..])) {
@@ -119,6 +121,8 @@ fn runHelpTarget(
     const ctx = framework.context.CommandContext{
         .allocator = allocator,
         .io = io,
+        .stdout = std.io.getStdOut().writer().any(),
+        .stderr = std.io.getStdErr().writer().any(),
     };
 
     if (try framework.router.runCommand(ctx, &commands.descriptors, command, forwarded.items)) {

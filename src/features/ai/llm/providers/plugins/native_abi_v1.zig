@@ -46,3 +46,66 @@ pub fn statusFromCode(code: i32) Status {
         else => .failed,
     };
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "ABI_VERSION is 1" {
+    try @import("std").testing.expectEqual(@as(u32, 1), ABI_VERSION);
+}
+
+test "statusFromCode maps known codes" {
+    const testing = @import("std").testing;
+    try testing.expectEqual(Status.ok, statusFromCode(0));
+    try testing.expectEqual(Status.not_available, statusFromCode(1));
+    try testing.expectEqual(Status.invalid_request, statusFromCode(2));
+    try testing.expectEqual(Status.failed, statusFromCode(3));
+}
+
+test "statusFromCode maps unknown codes to failed" {
+    const testing = @import("std").testing;
+    try testing.expectEqual(Status.failed, statusFromCode(-1));
+    try testing.expectEqual(Status.failed, statusFromCode(99));
+    try testing.expectEqual(Status.failed, statusFromCode(4));
+}
+
+test "GenerateRequest struct layout" {
+    const testing = @import("std").testing;
+    // Verify the struct is extern and has expected fields
+    const info = @typeInfo(GenerateRequest);
+    try testing.expect(info == .@"struct");
+    try testing.expect(info.@"struct".layout == .@"extern");
+    try testing.expectEqual(@as(usize, 7), info.@"struct".fields.len);
+}
+
+test "GenerateResponse default values" {
+    const resp = GenerateResponse{};
+    const testing = @import("std").testing;
+    try testing.expectEqual(@as(i32, -1), resp.status);
+    try testing.expectEqual(@as(usize, 0), resp.text_len);
+    try testing.expectEqual(@as(usize, 0), resp.model_len);
+    try testing.expect(resp.error_ptr == null);
+    try testing.expectEqual(@as(usize, 0), resp.error_len);
+    try testing.expect(resp.release == null);
+}
+
+test "PluginV1 struct layout" {
+    const testing = @import("std").testing;
+    const info = @typeInfo(PluginV1);
+    try testing.expect(info == .@"struct");
+    try testing.expect(info.@"struct".layout == .@"extern");
+    try testing.expectEqual(@as(usize, 4), info.@"struct".fields.len);
+}
+
+test "Status enum values" {
+    const testing = @import("std").testing;
+    try testing.expectEqual(@as(i32, 0), @intFromEnum(Status.ok));
+    try testing.expectEqual(@as(i32, 1), @intFromEnum(Status.not_available));
+    try testing.expectEqual(@as(i32, 2), @intFromEnum(Status.invalid_request));
+    try testing.expectEqual(@as(i32, 3), @intFromEnum(Status.failed));
+}
+
+test {
+    @import("std").testing.refAllDecls(@This());
+}

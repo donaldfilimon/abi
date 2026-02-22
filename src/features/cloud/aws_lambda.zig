@@ -559,6 +559,8 @@ pub fn runHandler(allocator: std.mem.Allocator, handler: CloudHandler) !void {
 }
 
 /// Create a simple handler wrapper for testing.
+/// Note: handle() returns anyerror!CloudResponse to match the CloudHandler
+/// function pointer type, which must accept any user-provided handler error.
 pub fn createTestHandler(comptime handler_fn: anytype) CloudHandler {
     return struct {
         pub fn handle(event: *CloudEvent, allocator: std.mem.Allocator) anyerror!CloudResponse {

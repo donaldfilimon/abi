@@ -285,15 +285,19 @@ pub const SecretsManager = struct {
                 .value = encrypted,
                 .cached_at = time.unixSeconds(),
             });
-        } else {
-            defer encrypted.deinit();
         }
 
         self.stats.secrets_loaded += 1;
         self.stats.secrets_accessed += 1;
 
-        // Return decrypted copy
-        return encrypted.decrypt(self.master_key);
+        // Decrypt before potentially cleaning up the non-cached encrypted value.
+        const decrypted = try encrypted.decrypt(self.master_key);
+
+        if (!self.config.cache_secrets) {
+            encrypted.deinit();
+        }
+
+        return decrypted;
     }
 
     /// Set a secret

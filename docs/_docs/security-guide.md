@@ -199,7 +199,7 @@ This guide is generated from repository metadata for **Guides** coverage and sta
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
 - Main tests: `1261` pass / `5` skip / `1266` total
-- Feature tests: `2082` pass / `2086` total
+- Feature tests: `2119` pass / `2123` total
 
 ## Feature Coverage
 

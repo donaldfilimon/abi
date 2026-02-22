@@ -792,7 +792,7 @@ pub fn trainWithResult(
     return .{
         .allocator = allocator,
         .report = .{
-            .epochs = config.epochs,
+            .epochs = @as(u32, @intCast(last_epoch + 1)),
             .batches = @as(u32, @intCast(batches_per_epoch)),
             .final_loss = loss_history[last_epoch],
             .final_accuracy = accuracy_history[last_epoch],

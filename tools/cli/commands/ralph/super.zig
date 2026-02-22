@@ -76,29 +76,37 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
         try init_mod.runInit(allocator, &[_][:0]const u8{});
     }
 
-    // Build run args and invoke run
+    // Build run args and invoke run.
+    // Allocated sentinel strings must live until after runRun returns,
+    // so we collect them for deferred cleanup instead of freeing inside each if-block.
     var run_args = std.ArrayListUnmanaged([:0]const u8).empty;
     defer run_args.deinit(allocator);
+    var to_free = std.ArrayListUnmanaged([:0]const u8).empty;
+    defer {
+        for (to_free.items) |s| allocator.free(s);
+        to_free.deinit(allocator);
+    }
+
     if (task_override) |t| {
         const tz = try allocator.dupeZ(u8, t);
-        defer allocator.free(tz);
+        try to_free.append(allocator, tz);
         try run_args.appendSlice(allocator, &[_][:0]const u8{ "--task", tz });
     }
     if (iter_override) |n| {
         const s = try std.fmt.allocPrintSentinel(allocator, "{d}", .{n}, 0);
-        defer allocator.free(s);
+        try to_free.append(allocator, s);
         try run_args.append(allocator, "--iterations");
         try run_args.append(allocator, s);
     }
     if (auto_skill) try run_args.append(allocator, "--auto-skill");
     if (store_skill) |s| {
         const store_z = try allocator.dupeZ(u8, s);
-        defer allocator.free(store_z);
+        try to_free.append(allocator, store_z);
         try run_args.appendSlice(allocator, &[_][:0]const u8{ "--store-skill", store_z });
     }
     if (!std.mem.eql(u8, config_path, cfg.CONFIG_FILE)) {
         const config_z = try allocator.dupeZ(u8, config_path);
-        defer allocator.free(config_z);
+        try to_free.append(allocator, config_z);
         try run_args.appendSlice(allocator, &[_][:0]const u8{ "--config", config_z });
     }
     try run_mod.runRun(allocator, run_args.items);
@@ -106,13 +114,18 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     if (do_gate) {
         std.debug.print("\nRunning quality gate...\n", .{});
         const gate_out_z = try allocator.dupeZ(u8, gate_out);
-        defer allocator.free(gate_out_z);
         var gate_args = std.ArrayListUnmanaged([:0]const u8).empty;
-        defer gate_args.deinit(allocator);
+        var gate_free = std.ArrayListUnmanaged([:0]const u8).empty;
+        defer {
+            for (gate_free.items) |s| allocator.free(s);
+            gate_free.deinit(allocator);
+            gate_args.deinit(allocator);
+        }
+        try gate_free.append(allocator, gate_out_z);
 
         if (gate_in) |in_path| {
             const gate_in_z = try allocator.dupeZ(u8, in_path);
-            defer allocator.free(gate_in_z);
+            try gate_free.append(allocator, gate_in_z);
             try gate_args.appendSlice(allocator, &[_][:0]const u8{ "--in", gate_in_z });
         }
         try gate_args.appendSlice(allocator, &[_][:0]const u8{ "--out", gate_out_z });
