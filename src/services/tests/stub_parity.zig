@@ -550,3 +550,37 @@ test "all feature modules have consistent API surface" {
         try verifyContextPattern(abi.ai);
     }
 }
+
+// ============================================================================
+// Constitution Module Parity
+// ============================================================================
+
+test "constitution stub parity - types exist" {
+    const Constitution = abi.ai.constitution;
+
+    // Key types must exist in both real and stub implementations
+    try testing.expect(@hasDecl(Constitution, "Principle"));
+    try testing.expect(@hasDecl(Constitution, "Severity"));
+    try testing.expect(@hasDecl(Constitution, "ConstitutionalScore"));
+    try testing.expect(@hasDecl(Constitution, "TrainingGuardrails"));
+    try testing.expect(@hasDecl(Constitution, "ConstitutionalRule"));
+    try testing.expect(@hasDecl(Constitution, "Violation"));
+    try testing.expect(@hasDecl(Constitution, "Constitution"));
+
+    // Sub-modules must exist
+    try testing.expect(@hasDecl(Constitution, "principles"));
+    try testing.expect(@hasDecl(Constitution, "enforcement"));
+}
+
+test "constitution stub parity - Constitution methods" {
+    const C = abi.ai.constitution.Constitution;
+
+    try testing.expect(@hasDecl(C, "init"));
+    try testing.expect(@hasDecl(C, "initWithGuardrails"));
+    try testing.expect(@hasDecl(C, "getSystemPreamble"));
+    try testing.expect(@hasDecl(C, "evaluate"));
+    try testing.expect(@hasDecl(C, "constitutionalLoss"));
+    try testing.expect(@hasDecl(C, "alignmentScore"));
+    try testing.expect(@hasDecl(C, "isCompliant"));
+    try testing.expect(@hasDecl(C, "getPrinciples"));
+}
