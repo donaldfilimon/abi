@@ -164,7 +164,7 @@ pub const LambdaRuntime = struct {
     /// http://{runtime_api}/2018-06-01/runtime/invocation/{request_id}/response
     fn sendResponse(self: *LambdaRuntime, request_id: []const u8, response: *const CloudResponse) !void {
         // Format the response body
-        const body = try formatResponse(self.allocator, response);
+        const body = try this_module.formatResponse(self.allocator, response);
         defer self.allocator.free(body);
 
         // Build path
@@ -241,6 +241,37 @@ const HttpResponse = struct {
     deadline_ms: ?u64 = null,
 };
 
+/// Parse a dotted-decimal IPv4 address string into 4 bytes.
+/// Returns null if the string is not a valid IPv4 address.
+fn parseIp4Bytes(text: []const u8) ?[4]u8 {
+    var bytes: [4]u8 = undefined;
+    var index: u8 = 0;
+    var current: u16 = 0;
+    var saw_digit = false;
+
+    for (text) |ch| {
+        switch (ch) {
+            '.' => {
+                if (!saw_digit or index >= 3) return null;
+                bytes[index] = @intCast(current);
+                index += 1;
+                current = 0;
+                saw_digit = false;
+            },
+            '0'...'9' => {
+                saw_digit = true;
+                current = current * 10 + @as(u16, ch - '0');
+                if (current > 255) return null;
+            },
+            else => return null,
+        }
+    }
+
+    if (!saw_digit or index != 3) return null;
+    bytes[index] = @intCast(current);
+    return bytes;
+}
+
 /// Parse a "host:port" string. If no port, defaults to 80.
 fn parseHostPort(host_port: []const u8) struct { host: []const u8, port: u16 } {
     if (std.mem.lastIndexOfScalar(u8, host_port, ':')) |colon| {
@@ -260,15 +291,9 @@ fn httpRequest(
 ) !HttpResponse {
     const hp = parseHostPort(host_port);
 
-    // Resolve the host to an IPv4 address
-    // The Lambda runtime API is typically 127.0.0.1 or a local address
-    var ip_bytes: [4]u8 = .{ 127, 0, 0, 1 };
-    if (std.net.Ip4Address.parse(hp.host, hp.port)) |parsed| {
-        ip_bytes = parsed.sa.addr;
-    } else |_| {
-        // If not a numeric IP, default to localhost (Lambda runtime is local)
-        ip_bytes = .{ 127, 0, 0, 1 };
-    }
+    // Parse the host as an IPv4 dotted-decimal address.
+    // The Lambda runtime API is typically a local address (e.g. 127.0.0.1:9001).
+    const ip_bytes = parseIp4Bytes(hp.host) orelse [4]u8{ 127, 0, 0, 1 };
 
     const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.STREAM, 0);
     if (sock < 0) return CloudError.ProviderError;

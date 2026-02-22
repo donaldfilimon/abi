@@ -165,6 +165,7 @@ pub const cli_commands = [_][]const []const u8{
 /// Options for the exhaustive CLI integration test runner.
 pub const CliTestsFullOptions = struct {
     env_file: ?[]const u8 = null,
+    allow_blocked: bool = false,
     timeout_scale: f64 = 1.0,
 };
 
@@ -201,6 +202,8 @@ pub fn addCliTestsFull(b: *std.Build, options: CliTestsFullOptions) *std.Build.S
     run_full.setCwd(b.path("."));
     if (options.env_file) |env_file|
         run_full.addArgs(&.{ "--env-file", env_file });
+    if (options.allow_blocked)
+        run_full.addArg("--allow-blocked");
     step.dependOn(&run_full.step);
     return step;
 }

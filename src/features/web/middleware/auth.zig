@@ -195,30 +195,13 @@ pub fn validateJwt(token: []const u8, secret: []const u8) AuthResult {
     }
     if (diff != 0) return authFail("Invalid signature");
 
-    // Base64url-decode the payload to extract the "sub" claim as user_id.
-    var payload_buf: [4096]u8 = undefined;
-    const payload_json = std.base64.url_safe_no_pad.Decoder.decode(&payload_buf, payload_b64) catch {
-        // Payload decode failed — fall back to default user_id for compatibility.
-        return AuthResult{
-            .authenticated = true,
-            .user_id = "jwt_user",
-            .error_message = null,
-        };
-    };
-
-    // Search for "sub":"<value>" in the JSON payload.
-    const sub_value = extractSubClaim(payload_json) orelse {
-        // No "sub" claim found — fall back for backward compatibility.
-        return AuthResult{
-            .authenticated = true,
-            .user_id = "jwt_user",
-            .error_message = null,
-        };
-    };
-
+    // Signature valid — return authenticated with a static user_id.
+    // Sub-claim extraction is intentionally omitted: the decoded payload
+    // would live on the stack and returning a slice into it would dangle.
+    // For full claims parsing (including "sub"), use shared_jwt.JwtManager.
     return AuthResult{
         .authenticated = true,
-        .user_id = sub_value,
+        .user_id = "jwt_user",
         .error_message = null,
     };
 }
@@ -229,19 +212,6 @@ fn authFail(message: []const u8) AuthResult {
         .user_id = null,
         .error_message = message,
     };
-}
-
-/// Extract the "sub" string claim from a JSON payload without allocating.
-/// Searches for the pattern `"sub":"<value>"` and returns the value slice.
-/// Returns `null` when the claim is absent or malformed.
-fn extractSubClaim(json: []const u8) ?[]const u8 {
-    const needle = "\"sub\":\"";
-    const idx = std.mem.indexOf(u8, json, needle) orelse return null;
-    const start = idx + needle.len;
-    if (start >= json.len) return null;
-    const end = std.mem.indexOfScalarPos(u8, json, start, '"') orelse return null;
-    if (end <= start) return null;
-    return json[start..end];
 }
 
 /// Checks if an API key is valid. Returns false when no keys are configured.
@@ -335,7 +305,7 @@ test "validateJwt format" {
     try std.testing.expect(!no_secret.authenticated);
 }
 
-test "validateJwt sub claim extraction" {
+test "validateJwt valid signature returns jwt_user" {
     // Build a valid JWT with sub claim: {"sub":"alice"}
     const header_b64 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"; // {"alg":"HS256","typ":"JWT"}
     const payload_b64 = "eyJzdWIiOiJhbGljZSJ9"; // {"sub":"alice"}
@@ -354,8 +324,8 @@ test "validateJwt sub claim extraction" {
 
     const result = validateJwt(token, secret);
     try std.testing.expect(result.authenticated);
-    // The sub claim should be extracted from the payload
-    try std.testing.expectEqualStrings("alice", result.user_id.?);
+    // Lightweight validator returns static user_id; use JwtManager for sub claim parsing
+    try std.testing.expectEqualStrings("jwt_user", result.user_id.?);
 }
 
 test "validateJwt fallback when no sub claim" {

@@ -247,6 +247,7 @@ pub const Client = struct {
         for (content_array.items, 0..) |item, i| {
             const content_obj = try json_utils.getRequiredObject(item);
             const block_type = try json_utils.parseStringField(content_obj, "type", self.allocator);
+            errdefer self.allocator.free(block_type);
             const text = try json_utils.parseStringField(content_obj, "text", self.allocator);
             content_blocks[i] = .{ .type = block_type, .text = text };
         }

@@ -80,14 +80,14 @@ pub const AllReduceAlgorithm = enum {
     bucket,
 };
 
-/// Warning flags for simulated operations.
-var warned_simulated_allreduce: bool = false;
-var warned_simulated_peer_transfer: bool = false;
+/// Warning flags for simulated operations (atomic for thread safety).
+var warned_simulated_allreduce: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
+var warned_simulated_peer_transfer: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
 
 /// Log a warning once about simulated multi-GPU operations.
-fn warnSimulatedOnce(comptime msg: []const u8, warned: *bool) void {
-    if (!warned.*) {
-        warned.* = true;
+fn warnSimulatedOnce(comptime msg: []const u8, warned: *std.atomic.Value(bool)) void {
+    if (!warned.load(.acquire)) {
+        warned.store(true, .release);
         std.log.warn("[multi_device] " ++ msg, .{});
     }
 }

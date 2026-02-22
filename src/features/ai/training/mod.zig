@@ -422,6 +422,7 @@ pub const AdamOptimizer = struct {
     }
 
     pub fn step(self: *AdamOptimizer, model: *ModelState, lr: f32, current_step: u64) void {
+        if (current_step == 0) return;
         self.t = current_step;
         const beta1 = self.beta1;
         const beta2 = self.beta2;
@@ -470,6 +471,7 @@ pub const AdamWOptimizer = struct {
     }
 
     pub fn step(self: *AdamWOptimizer, model: *ModelState, lr: f32, current_step: u64) void {
+        if (current_step == 0) return;
         self.t = current_step;
         const beta1 = self.beta1;
         const beta2 = self.beta2;
