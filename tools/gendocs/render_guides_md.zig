@@ -298,6 +298,11 @@ fn featureMatchesSlug(slug: []const u8, feat: model.FeatureDoc) bool {
     if (std.mem.eql(u8, slug, "ai-reasoning")) return std.mem.eql(u8, feat.name, "reasoning");
     if (std.mem.eql(u8, slug, "database")) return std.mem.eql(u8, feat.name, "database");
     if (std.mem.eql(u8, slug, "gpu-backends")) return std.mem.eql(u8, feat.name, "gpu");
+    if (std.mem.eql(u8, slug, "llm-inference-guide")) return std.mem.eql(u8, feat.name, "llm") or std.mem.eql(u8, feat.name, "embeddings");
+    if (std.mem.eql(u8, slug, "ralph-guide")) return std.mem.eql(u8, feat.name, "agents") or std.mem.eql(u8, feat.name, "reasoning");
+    if (std.mem.eql(u8, slug, "security-guide")) return std.mem.eql(u8, feat.name, "auth");
+    if (std.mem.eql(u8, slug, "streaming-guide")) return std.mem.eql(u8, feat.name, "llm");
+    if (std.mem.eql(u8, slug, "connectors-guide")) return std.mem.eql(u8, feat.name, "llm");
     return false;
 }
 
@@ -570,6 +575,7 @@ fn moduleMatchesSection(section: []const u8, mod: model.ModuleDoc) bool {
     if (std.mem.eql(u8, section, "Core")) return mod.category == .core or mod.category == .compute;
     if (std.mem.eql(u8, section, "Services")) return std.mem.indexOf(u8, mod.path, "services") != null;
     if (std.mem.eql(u8, section, "GPU")) return std.mem.indexOf(u8, mod.path, "features/gpu") != null;
+    if (std.mem.eql(u8, section, "Guides")) return mod.category == .ai or std.mem.indexOf(u8, mod.path, "services/connectors") != null;
     return true;
 }
 
@@ -605,6 +611,14 @@ fn commandMatchesSection(section: []const u8, name: []const u8) bool {
             std.mem.eql(u8, name, "config") or
             std.mem.eql(u8, name, "plugins") or
             std.mem.eql(u8, name, "profile");
+    }
+    if (std.mem.eql(u8, section, "Guides")) {
+        return std.mem.eql(u8, name, "llm") or
+            std.mem.eql(u8, name, "ralph") or
+            std.mem.eql(u8, name, "agent") or
+            std.mem.eql(u8, name, "embed") or
+            std.mem.eql(u8, name, "train") or
+            std.mem.eql(u8, name, "model");
     }
     return true;
 }

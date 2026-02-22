@@ -40,6 +40,7 @@ pub const Context = struct {
     pub fn isCloudEnvironment(_: *const Context) bool {
         return false;
     }
+    /// Note: returns anyerror!CloudResponse to match the CloudHandler function pointer type.
     pub fn wrapHandler(_: *Context, comptime handler: fn (*CloudEvent, std.mem.Allocator) anyerror!CloudResponse) CloudHandler {
         _ = handler;
         return struct {

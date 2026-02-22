@@ -32,3 +32,12 @@ pub fn runHandler(allocator: std.mem.Allocator, handler: types.CloudHandler) !vo
     _ = handler;
     return types.Error.CloudDisabled;
 }
+
+pub fn createTestHandler(comptime handler_fn: anytype) types.CloudHandler {
+    _ = handler_fn;
+    return struct {
+        pub fn handle(_: *types.CloudEvent, _: std.mem.Allocator) anyerror!types.CloudResponse {
+            return types.Error.CloudDisabled;
+        }
+    }.handle;
+}

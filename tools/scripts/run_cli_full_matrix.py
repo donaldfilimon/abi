@@ -39,6 +39,17 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run full CLI matrix")
     parser.add_argument("--repo", required=True, help="ABI repository root")
     parser.add_argument("--env-file", help="Path to KEY=VALUE env file")
+    parser.add_argument(
+        "--id-prefix",
+        action="append",
+        default=[],
+        help="Limit run to matrix IDs starting with this prefix. Repeatable.",
+    )
+    parser.add_argument(
+        "--allow-blocked",
+        action="store_true",
+        help="Continue when preflight checks fail and mark blocked vectors in the report.",
+    )
     parser.add_argument("--timeout-scale", type=float, default=1.0)
     return parser.parse_args()
 
@@ -252,9 +263,13 @@ def is_exit_ok(exit_code: int, policy: str) -> bool:
     return exit_code == 0 or exit_code < 0 or exit_code in {130, 143}
 
 
-def check_requires(requires: List[str], env: Dict[str, str]) -> List[str]:
+def check_requires(requires: List[str], env: Dict[str, str], blocked_requirements: List[str]) -> List[str]:
     blocked: List[str] = []
+    blocked_set = set(blocked_requirements)
     for req in requires:
+        if req in blocked_set:
+            blocked.append(req)
+            continue
         if req.startswith("env:"):
             key = req.split(":", 1)[1]
             if not env.get(key):
@@ -269,6 +284,23 @@ def check_requires(requires: List[str], env: Dict[str, str]) -> List[str]:
             if shutil.which(tool) is None:
                 blocked.append(req)
     return blocked
+
+
+def blocked_requirements_from_preflight(preflight_details: Dict[str, object]) -> List[str]:
+    blocked: List[str] = []
+    blocked.extend(f"env:{name}" for name in preflight_details.get("missing_env", []))
+    blocked.extend(f"tool:{name}" for name in preflight_details.get("missing_tools", []))
+    blocked.extend(f"net:{name}" for name in preflight_details.get("failed_connectivity", []))
+    return sorted(set(blocked))
+
+
+def coerce_preflight_details(raw: Dict[str, object]) -> Dict[str, object]:
+    result: Dict[str, object] = {
+        "missing_env": raw.get("missing_env", []),
+        "missing_tools": raw.get("missing_tools", []),
+        "failed_connectivity": raw.get("failed_connectivity", []),
+    }
+    return result
 
 
 def sanitize_filename(name: str) -> str:
@@ -328,14 +360,37 @@ def main() -> int:
     merged_env.update(env_overrides)
 
     # Generate matrix from typed Zig manifest.
-    run_checked(
-        ["zig", "run", "tools/cli/tests/full_matrix.zig", "--", "--json-out", str(MATRIX_JSON)],
-        cwd=repo,
-        env=merged_env,
-        timeout=180,
-    )
+    try:
+        run_checked(
+            [
+                "zig",
+                "run",
+                "--dep",
+                "abi",
+                "-Mmain=tools/cli/full_matrix_main.zig",
+                "--dep",
+                "build_options",
+                "-Mabi=src/abi.zig",
+                "-Mbuild_options=tools/cli/tests/build_options_stub.zig",
+                "--",
+                "--json-out",
+                str(MATRIX_JSON),
+            ],
+            cwd=repo,
+            env=merged_env,
+            timeout=180,
+        )
+    except subprocess.CalledProcessError as exc:
+        stdout = (exc.stdout or "")[-4000:]
+        stderr = (exc.stderr or "")[-4000:]
+        if stdout:
+            print(stdout, end="")
+        if stderr:
+            print(stderr, end="", file=sys.stderr)
+        print("Matrix generation failed. Could not compile or emit CLI matrix JSON.", file=sys.stderr)
+        return 1
 
-    # Run strict preflight.
+    # Run preflight.
     preflight_cmd = [
         "zig",
         "run",
@@ -354,19 +409,21 @@ def main() -> int:
         text=True,
         capture_output=True,
     )
+    preflight_details: Dict[str, object] = {}
+    if PRECHECK_JSON.exists():
+        try:
+            raw = json.loads(PRECHECK_JSON.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                preflight_details = coerce_preflight_details(raw)
+        except Exception:
+            preflight_details = {}
+
+    preflight_blocked_reqs = blocked_requirements_from_preflight(preflight_details)
+    preflight_blocked_record: Dict[str, object] | None = None
     if preflight.returncode != 0:
         blocked_by: List[str] = ["preflight"]
-        preflight_details: Dict[str, object] = {}
-        if PRECHECK_JSON.exists():
-            try:
-                preflight_details = json.loads(PRECHECK_JSON.read_text(encoding="utf-8"))
-                blocked_by.extend(f"env:{name}" for name in preflight_details.get("missing_env", []))
-                blocked_by.extend(f"tool:{name}" for name in preflight_details.get("missing_tools", []))
-                blocked_by.extend(f"net:{name}" for name in preflight_details.get("failed_connectivity", []))
-            except Exception:
-                preflight_details = {}
-
-        blocked_record = {
+        blocked_by.extend(preflight_blocked_reqs)
+        preflight_blocked_record = {
             "id": "preflight",
             "status": "blocked",
             "blocked_by": sorted(set(blocked_by)),
@@ -375,13 +432,28 @@ def main() -> int:
             "failed_connectivity": preflight_details.get("failed_connectivity", []),
             "output_tail": (preflight.stdout + preflight.stderr)[-4000:],
         }
-        write_reports([], [blocked_record], [], run_id="preflight-blocked")
+
         print(preflight.stdout, end="")
         print(preflight.stderr, end="", file=sys.stderr)
         print(f"Preflight failed. See: {PRECHECK_JSON}")
-        return 1
+        if not args.allow_blocked:
+            write_reports([], [preflight_blocked_record], [], run_id="preflight-blocked")
+            return 1
 
     matrix = json.loads(MATRIX_JSON.read_text(encoding="utf-8"))
+    if not isinstance(matrix, list):
+        print("Matrix JSON was not a list of entries.", file=sys.stderr)
+        return 1
+
+    if args.id_prefix:
+        requested_prefixes = [prefix for prefix in args.id_prefix if prefix]
+        if not requested_prefixes:
+            print("At least one non-empty --id-prefix is required when filtering.", file=sys.stderr)
+            return 1
+        matrix = [entry for entry in matrix if any(str(entry.get("id", "")).startswith(prefix) for prefix in requested_prefixes)]
+        if not matrix:
+            print(f"No matrix entries matched --id-prefix filters: {requested_prefixes}", file=sys.stderr)
+            return 1
 
     run_id = f"run-{int(time.time())}"
     log_dir = LOG_ROOT / run_id
@@ -418,6 +490,9 @@ def main() -> int:
     records: List[dict] = []
     failed: List[dict] = []
     blocked: List[dict] = []
+    if preflight_blocked_record is not None:
+        blocked.append(preflight_blocked_record)
+
 
     for idx, entry in enumerate(matrix, start=1):
         entry_id = entry["id"]
@@ -430,7 +505,7 @@ def main() -> int:
         exit_policy = entry.get("exit_policy", "zero_only")
 
         expanded_args, missing_vars = expand_args(raw_args, isolated_env)
-        missing_reqs = check_requires(requires, isolated_env)
+        missing_reqs = check_requires(requires, isolated_env, preflight_blocked_reqs)
 
         if missing_vars or missing_reqs:
             item = {
@@ -493,6 +568,8 @@ def main() -> int:
     print(f"Wrote markdown: {REPORT_MD}")
     print(f"Logs: {log_dir}")
 
+    if args.allow_blocked:
+        return 1 if failed else 0
     return 1 if failed or blocked else 0
 
 

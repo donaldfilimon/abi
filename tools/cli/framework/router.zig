@@ -38,7 +38,7 @@ fn runDescriptor(
 
     if (descriptor.forward) |forward| {
         if (forward.warning) |warning| {
-            std.debug.print("Warning: {s}\n", .{warning});
+            try ctx.stdout.print("Warning: {s}\n", .{warning});
         }
 
         const target = completion.findDescriptor(descriptors, forward.target) orelse return errors.Error.UnknownCommand;
@@ -53,8 +53,5 @@ fn runDescriptor(
         return;
     }
 
-    switch (descriptor.handler) {
-        .basic => |handler| try handler(ctx.allocator, args),
-        .io => |handler| try handler(ctx.allocator, ctx.io, args),
-    }
+    try descriptor.handler(&ctx, args);
 }

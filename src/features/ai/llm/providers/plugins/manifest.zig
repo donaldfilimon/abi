@@ -338,3 +338,174 @@ fn freeOptional(allocator: std.mem.Allocator, value: *?[]u8) void {
         value.* = null;
     }
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "Manifest.init creates empty manifest" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try std.testing.expectEqual(@as(usize, 0), m.entries.items.len);
+}
+
+test "addOrUpdateHttp adds new entry" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateHttp("test-http", "http://localhost:8080", "gpt-4", "MY_KEY");
+
+    try std.testing.expectEqual(@as(usize, 1), m.entries.items.len);
+    const entry = m.entries.items[0];
+    try std.testing.expectEqual(PluginKind.http, entry.kind);
+    try std.testing.expect(entry.enabled);
+    try std.testing.expectEqualStrings("test-http", entry.id);
+    try std.testing.expectEqualStrings("http://localhost:8080", entry.base_url.?);
+    try std.testing.expectEqualStrings("gpt-4", entry.model.?);
+    try std.testing.expectEqualStrings("MY_KEY", entry.api_key_env.?);
+    try std.testing.expect(entry.library_path == null);
+}
+
+test "addOrUpdateHttp updates existing entry" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateHttp("plugin1", "http://old.host", "old-model", null);
+    try m.addOrUpdateHttp("plugin1", "http://new.host", "new-model", "KEY_ENV");
+
+    // Should still be 1 entry, not 2
+    try std.testing.expectEqual(@as(usize, 1), m.entries.items.len);
+    const entry = m.entries.items[0];
+    try std.testing.expectEqualStrings("http://new.host", entry.base_url.?);
+    try std.testing.expectEqualStrings("new-model", entry.model.?);
+    try std.testing.expectEqualStrings("KEY_ENV", entry.api_key_env.?);
+}
+
+test "addOrUpdateNative adds new entry" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateNative("test-native", "/usr/lib/plugin.dylib", "my_symbol");
+
+    try std.testing.expectEqual(@as(usize, 1), m.entries.items.len);
+    const entry = m.entries.items[0];
+    try std.testing.expectEqual(PluginKind.native, entry.kind);
+    try std.testing.expect(entry.enabled);
+    try std.testing.expectEqualStrings("/usr/lib/plugin.dylib", entry.library_path.?);
+    try std.testing.expectEqualStrings("my_symbol", entry.symbol.?);
+    try std.testing.expect(entry.base_url == null);
+}
+
+test "addOrUpdateNative updates existing entry" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateNative("p1", "/old/path.dylib", null);
+    try m.addOrUpdateNative("p1", "/new/path.dylib", "new_sym");
+
+    try std.testing.expectEqual(@as(usize, 1), m.entries.items.len);
+    try std.testing.expectEqualStrings("/new/path.dylib", m.entries.items[0].library_path.?);
+    try std.testing.expectEqualStrings("new_sym", m.entries.items[0].symbol.?);
+}
+
+test "find returns entry when present" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateHttp("alpha", "http://a", null, null);
+    try m.addOrUpdateHttp("beta", "http://b", null, null);
+
+    const found = m.find("beta");
+    try std.testing.expect(found != null);
+    try std.testing.expectEqualStrings("beta", found.?.id);
+
+    try std.testing.expect(m.find("nonexistent") == null);
+}
+
+test "findIndex returns correct index" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateHttp("first", "http://1", null, null);
+    try m.addOrUpdateHttp("second", "http://2", null, null);
+    try m.addOrUpdateHttp("third", "http://3", null, null);
+
+    try std.testing.expectEqual(@as(?usize, 0), m.findIndex("first"));
+    try std.testing.expectEqual(@as(?usize, 1), m.findIndex("second"));
+    try std.testing.expectEqual(@as(?usize, 2), m.findIndex("third"));
+    try std.testing.expectEqual(@as(?usize, null), m.findIndex("missing"));
+}
+
+test "remove removes entry and returns true" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateHttp("a", "http://a", null, null);
+    try m.addOrUpdateHttp("b", "http://b", null, null);
+
+    try std.testing.expect(m.remove("a"));
+    try std.testing.expectEqual(@as(usize, 1), m.entries.items.len);
+    try std.testing.expectEqualStrings("b", m.entries.items[0].id);
+
+    // Removing non-existent returns false
+    try std.testing.expect(!m.remove("a"));
+}
+
+test "setEnabled toggles enabled flag" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateHttp("p", "http://p", null, null);
+    try std.testing.expect(m.entries.items[0].enabled);
+
+    try std.testing.expect(m.setEnabled("p", false));
+    try std.testing.expect(!m.entries.items[0].enabled);
+
+    try std.testing.expect(m.setEnabled("p", true));
+    try std.testing.expect(m.entries.items[0].enabled);
+
+    // Non-existent returns false
+    try std.testing.expect(!m.setEnabled("nope", false));
+}
+
+test "PluginKind.fromString and label round-trip" {
+    try std.testing.expectEqual(PluginKind.http, PluginKind.fromString("http").?);
+    try std.testing.expectEqual(PluginKind.native, PluginKind.fromString("native").?);
+    try std.testing.expect(PluginKind.fromString("unknown") == null);
+
+    try std.testing.expectEqualStrings("http", PluginKind.http.label());
+    try std.testing.expectEqualStrings("native", PluginKind.native.label());
+}
+
+test "cloneEntry produces independent copy" {
+    const allocator = std.testing.allocator;
+    var m = Manifest.init(allocator);
+    defer m.deinit();
+
+    try m.addOrUpdateHttp("orig", "http://example.com", "model-1", "KEY");
+
+    var clone = try cloneEntry(allocator, m.entries.items[0]);
+    defer clone.deinit(allocator);
+
+    try std.testing.expectEqualStrings("orig", clone.id);
+    try std.testing.expectEqualStrings("http://example.com", clone.base_url.?);
+    try std.testing.expectEqualStrings("model-1", clone.model.?);
+    try std.testing.expectEqualStrings("KEY", clone.api_key_env.?);
+    try std.testing.expectEqual(PluginKind.http, clone.kind);
+    // Verify it's an independent copy (different pointer)
+    try std.testing.expect(clone.id.ptr != m.entries.items[0].id.ptr);
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

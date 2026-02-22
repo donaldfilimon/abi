@@ -65,6 +65,9 @@ comptime {
         _ = @import("streaming_recovery.zig");
     }
     _ = @import("c_api_test.zig");
+
+    // Cross-module feature integration (cache+storage, search, messaging+gateway)
+    _ = @import("cross_module_test.zig");
 }
 
 // ============================================================================

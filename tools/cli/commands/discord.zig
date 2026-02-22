@@ -340,6 +340,11 @@ fn dcCommandsList(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     }
 
     var client = discord.createClient(allocator) catch |err| {
+        if (err == error.MissingBotToken) {
+            utils.output.printWarning("Discord not configured", .{});
+            utils.output.printInfo("Set DISCORD_BOT_TOKEN to list application commands.", .{});
+            return;
+        }
         utils.output.printError("Failed to create Discord client: {t}", .{err});
         return;
     };

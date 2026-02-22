@@ -80,14 +80,14 @@ pub const AllReduceAlgorithm = enum {
     bucket,
 };
 
-/// Warning flags for simulated operations.
-var warned_simulated_allreduce: bool = false;
-var warned_simulated_peer_transfer: bool = false;
+/// Warning flags for simulated operations (atomic for thread safety).
+var warned_simulated_allreduce: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
+var warned_simulated_peer_transfer: std.atomic.Value(bool) = std.atomic.Value(bool).init(false);
 
 /// Log a warning once about simulated multi-GPU operations.
-fn warnSimulatedOnce(comptime msg: []const u8, warned: *bool) void {
-    if (!warned.*) {
-        warned.* = true;
+fn warnSimulatedOnce(comptime msg: []const u8, warned: *std.atomic.Value(bool)) void {
+    // Use cmpxchg to avoid TOCTOU race between load and store.
+    if (warned.cmpxchgStrong(false, true, .acq_rel, .acquire) == null) {
         std.log.warn("[multi_device] " ++ msg, .{});
     }
 }
@@ -471,34 +471,26 @@ pub const GPUCluster = struct {
     }
 
     /// Tree AllReduce implementation (for many devices).
+    /// NOTE: Currently simulated — with a single data buffer there are no
+    /// distinct per-device copies to reduce. We simulate the n-way reduction
+    /// the same way directAllReduce does (treat the buffer as already holding
+    /// each device's identical copy, so a sum is multiplied by n, etc.).
     fn treeAllReduce(self: *GPUCluster, data: []f32, op: ReduceOp) !void {
         const n = self.device_group.activeDeviceCount();
         if (n <= 1) return;
 
-        // Reduce phase: binary tree reduction
-        var stride: usize = 1;
-        while (stride < n) : (stride *= 2) {
-            for (0..n) |i| {
-                if (i % (stride * 2) == 0 and i + stride < n) {
-                    // Reduce from device i+stride to device i
-                    // In real implementation, use peer transfer
-                    for (data) |*d| {
-                        d.* = applyOp(d.*, d.*, op);
-                    }
-                }
-            }
-        }
+        warnSimulatedOnce("Tree AllReduce is simulated locally - no real peer transfers.", &warned_simulated_allreduce);
 
-        // Broadcast phase: reverse tree
-        stride = n / 2;
-        while (stride >= 1) : (stride /= 2) {
-            for (0..n) |i| {
-                if (i % (stride * 2) == 0 and i + stride < n) {
-                    // Broadcast from device i to device i+stride
-                    // In real implementation, use peer transfer
-                }
+        // Simulated n-way reduction (same as directAllReduce).
+        for (data) |*d| {
+            var val = d.*;
+            for (1..n) |_| {
+                val = applyOp(val, d.*, op);
             }
-            if (stride == 1) break;
+            if (op == .avg) {
+                val /= @as(f32, @floatFromInt(n));
+            }
+            d.* = val;
         }
 
         if (self.barrier) |*barrier| {
@@ -584,6 +576,13 @@ pub const GPUCluster = struct {
         if (n == 0) return &.{};
 
         var chunks = try self.allocator.alloc(DeviceChunk, n);
+        var chunks_filled: usize = 0;
+        errdefer {
+            for (chunks[0..chunks_filled]) |chunk| {
+                if (chunk.data.len > 0) self.allocator.free(chunk.data);
+            }
+            self.allocator.free(chunks);
+        }
 
         for (self.device_group.active_devices.items, 0..) |device_id, i| {
             const start = i * chunk_size;
@@ -603,6 +602,7 @@ pub const GPUCluster = struct {
                     .data = &.{},
                 };
             }
+            chunks_filled += 1;
         }
 
         return chunks;

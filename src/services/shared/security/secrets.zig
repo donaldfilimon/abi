@@ -277,7 +277,7 @@ pub const SecretsManager = struct {
         try self.validateSecret(name, value);
 
         // Encrypt and cache
-        const encrypted = try self.encryptSecret(value);
+        var encrypted = try self.encryptSecret(value);
 
         if (self.config.cache_secrets) {
             const name_copy = try self.allocator.dupe(u8, name);
@@ -290,9 +290,14 @@ pub const SecretsManager = struct {
         self.stats.secrets_loaded += 1;
         self.stats.secrets_accessed += 1;
 
-        // Return decrypted copy
-        var encrypted_copy = encrypted;
-        return encrypted_copy.decrypt(self.master_key);
+        // Decrypt before potentially cleaning up the non-cached encrypted value.
+        const decrypted = try encrypted.decrypt(self.master_key);
+
+        if (!self.config.cache_secrets) {
+            encrypted.deinit();
+        }
+
+        return decrypted;
     }
 
     /// Set a secret
@@ -719,6 +724,7 @@ pub const SecretsManager = struct {
 
         // Always cache locally for fast reads
         const cache_key = try std.fmt.allocPrint(self.allocator, "vault:{s}", .{name});
+        errdefer self.allocator.free(cache_key);
         const encrypted = try self.encryptSecret(value);
 
         try self.cache.put(self.allocator, cache_key, .{

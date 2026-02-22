@@ -616,19 +616,22 @@ pub const PeerTransferManager = struct {
 
     /// Wait for all active transfers to complete.
     pub fn waitAll(self: *Self) !void {
+        // Snapshot the current length under the lock so we iterate a stable
+        // index range. The items pointer may be invalidated by concurrent
+        // appends, so we re-index through self.active_transfers.items each
+        // iteration (safe as long as we only access indices < snapshot_len).
         self.mutex.lock();
-        const transfers = self.active_transfers.items;
+        const snapshot_len = self.active_transfers.items.len;
         self.mutex.unlock();
 
-        for (transfers) |*transfer| {
+        var idx: usize = 0;
+        while (idx < snapshot_len) : (idx += 1) {
+            const transfer = &self.active_transfers.items[idx];
             if (!transfer.isComplete()) {
-                // Cast away const for mutable handle
-                const mutable_transfer: *TransferHandle = @constCast(transfer);
-                self.waitForTransfer(mutable_transfer) catch |err| {
+                self.waitForTransfer(transfer) catch |err| {
                     if (self.recovery_strategy == .abort) {
                         return err;
                     }
-                    // Log and continue for other strategies
                     self.stats.failed_transfers += 1;
                 };
             }

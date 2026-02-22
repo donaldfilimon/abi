@@ -78,6 +78,8 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
     const ctx = framework.context.CommandContext{
         .allocator = allocator,
         .io = io,
+        .stdout = std.io.getStdOut().writer().any(),
+        .stderr = std.io.getStdErr().writer().any(),
     };
 
     if (try framework.router.runCommand(ctx, &commands.descriptors, command, args[2..])) {
@@ -98,18 +100,29 @@ fn runHelpTarget(
     const command = framework.completion.resolveAlias(&commands.descriptors, raw_command);
     var forwarded = std.ArrayListUnmanaged([:0]const u8).empty;
 
-    for (extra_args) |arg| {
-        try forwarded.append(arena_allocator, arg);
-    }
-
     const help_arg: [:0]const u8 = "help";
-    if (forwarded.items.len == 0 or !framework.types.isHelpToken(forwarded.items[forwarded.items.len - 1])) {
+
+    // Force help mode first so nested help requests don't accidentally execute
+    // command logic that expects positional arguments (for example:
+    // `abi help plugins enable` should not run `plugins enable help`).
+    if (extra_args.len == 0) {
         try forwarded.append(arena_allocator, help_arg);
+    } else if (framework.types.isHelpToken(std.mem.sliceTo(extra_args[0], 0))) {
+        for (extra_args) |arg| {
+            try forwarded.append(arena_allocator, arg);
+        }
+    } else {
+        try forwarded.append(arena_allocator, help_arg);
+        for (extra_args) |arg| {
+            try forwarded.append(arena_allocator, arg);
+        }
     }
 
     const ctx = framework.context.CommandContext{
         .allocator = allocator,
         .io = io,
+        .stdout = std.io.getStdOut().writer().any(),
+        .stderr = std.io.getStdErr().writer().any(),
     };
 
     if (try framework.router.runCommand(ctx, &commands.descriptors, command, forwarded.items)) {

@@ -62,6 +62,8 @@ pub const GenericPersona = struct {
         return self.persona_type;
     }
 
+    /// Note: returns anyerror to match PersonaInterface.VTable.process signature.
+    /// Actual errors: TimerFailed, OutOfMemory, and errors from agent.process().
     pub fn process(self: *Self, request: types.PersonaRequest) anyerror!types.PersonaResponse {
         var timer = time.Timer.start() catch {
             return error.TimerFailed;

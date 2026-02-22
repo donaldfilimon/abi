@@ -88,3 +88,115 @@ test "auth permission enum" {
     const perm2: auth.Permission = .write;
     try std.testing.expect(perm2 != .admin);
 }
+
+// ── Additional inline tests ───────────────────────────────────────────
+
+test "auth JWT has three base64url parts" {
+    const allocator = std.testing.allocator;
+    const token = try auth.createToken(allocator, "jwt_struct_user");
+    defer allocator.free(token.raw);
+
+    // A valid JWT always has exactly 3 dot-separated segments
+    var count: u32 = 0;
+    var it = std.mem.splitScalar(u8, token.raw, '.');
+    while (it.next()) |_| count += 1;
+    try std.testing.expectEqual(@as(u32, 3), count);
+
+    // Each segment must be non-empty
+    var it2 = std.mem.splitScalar(u8, token.raw, '.');
+    while (it2.next()) |seg| {
+        try std.testing.expect(seg.len > 0);
+    }
+}
+
+test "auth verifyToken rejects tampered payload" {
+    const allocator = std.testing.allocator;
+    const token = try auth.createToken(allocator, "tamper_user");
+    defer allocator.free(token.raw);
+
+    // Tamper with the payload (second segment): flip a character
+    var tampered = try allocator.dupe(u8, token.raw);
+    defer allocator.free(tampered);
+
+    // Find second dot-separated segment and flip a byte in it
+    if (std.mem.indexOfScalar(u8, tampered, '.')) |first_dot| {
+        if (std.mem.indexOfScalarPos(u8, tampered, first_dot + 1, '.')) |second_dot| {
+            const mid = first_dot + 1 + (second_dot - first_dot - 1) / 2;
+            tampered[mid] ^= 0x01;
+        }
+    }
+
+    const result = auth.verifyToken(tampered);
+    try std.testing.expectError(error.InvalidCredentials, result);
+}
+
+test "auth verifyToken rejects empty string" {
+    const result = auth.verifyToken("");
+    try std.testing.expectError(error.InvalidCredentials, result);
+}
+
+test "auth verifyToken rejects malformed token" {
+    const result = auth.verifyToken("not-a-jwt-token");
+    try std.testing.expectError(error.InvalidCredentials, result);
+}
+
+test "auth checkPermission admin returns false without role assignment" {
+    // An ephemeral RbacManager with no role assignments always returns false
+    const result = try auth.checkPermission("admin_user", .admin);
+    try std.testing.expect(!result);
+}
+
+test "auth checkPermission write returns false without role assignment" {
+    const result = try auth.checkPermission("some_user", .write);
+    try std.testing.expect(!result);
+}
+
+test "auth session IDs are unique across users" {
+    const allocator = std.testing.allocator;
+
+    const s1 = try auth.createSession(allocator, "user_aaa");
+    defer allocator.free(s1.id);
+    defer if (s1.user_id.len > 0) allocator.free(s1.user_id);
+
+    const s2 = try auth.createSession(allocator, "user_bbb");
+    defer allocator.free(s2.id);
+    defer if (s2.user_id.len > 0) allocator.free(s2.user_id);
+
+    // Session IDs must differ
+    try std.testing.expect(!std.mem.eql(u8, s1.id, s2.id));
+}
+
+test "auth session timestamps are valid" {
+    const allocator = std.testing.allocator;
+    const sess = try auth.createSession(allocator, "ts_user");
+    defer allocator.free(sess.id);
+    defer if (sess.user_id.len > 0) allocator.free(sess.user_id);
+
+    // expires_at must be >= created_at (lifetime is added)
+    try std.testing.expect(sess.expires_at >= sess.created_at);
+    // expires_at should be strictly positive (session has a real lifetime)
+    try std.testing.expect(sess.expires_at > 0);
+}
+
+test "auth createToken verifyToken round-trip preserves user_id" {
+    const allocator = std.testing.allocator;
+    const user_ids = [_][]const u8{ "alice", "bob", "charlie" };
+
+    for (user_ids) |uid| {
+        const token = try auth.createToken(allocator, uid);
+        defer allocator.free(token.raw);
+
+        const verified = try auth.verifyToken(token.raw);
+        defer if (verified.claims.sub.len > 0)
+            std.heap.page_allocator.free(verified.claims.sub);
+
+        try std.testing.expectEqualStrings(uid, verified.claims.sub);
+    }
+}
+
+test "auth token claims sub matches input" {
+    const allocator = std.testing.allocator;
+    const token = try auth.createToken(allocator, "claims_check");
+    defer allocator.free(token.raw);
+    try std.testing.expectEqualStrings("claims_check", token.claims.sub);
+}

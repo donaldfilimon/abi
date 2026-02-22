@@ -107,6 +107,8 @@ pub fn runImprove(
         var changed = in_repo and git_ops.hasChanges(allocator, io, options.worktree);
         var committed = false;
         var verify_result_opt: ?verification.VerifyResult = null;
+        // Ensure verify_result_opt is cleaned up if we exit the iteration early via try.
+        errdefer if (verify_result_opt) |*vr| vr.deinit(allocator);
 
         if (!options.analysis_only) {
             verify_result_opt = try verification.runVerifyAll(allocator, io, options.worktree);
@@ -140,6 +142,7 @@ pub fn runImprove(
                     defer allocator.free(fix_response);
 
                     verify_result_opt.?.deinit(allocator);
+                    verify_result_opt = null;
                     verify_result_opt = try verification.runVerifyAll(allocator, io, options.worktree);
                     last_gate_passed = verify_result_opt.?.passed;
                     last_gate_exit = verify_result_opt.?.exit_code;
@@ -194,6 +197,7 @@ pub fn runImprove(
             allocator.free(verify_log_path);
             verify_log_path = new_log;
             verify_result_opt.?.deinit(allocator);
+            verify_result_opt = null;
         }
 
         if (!options.analysis_only and last_gate_passed and !changed) break;

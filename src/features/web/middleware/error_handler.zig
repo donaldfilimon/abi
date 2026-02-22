@@ -133,6 +133,8 @@ pub fn sendHtmlError(
 }
 
 /// Maps Zig errors to HTTP status codes.
+/// Note: accepts anyerror intentionally — this is a catch-all error mapper
+/// that must handle any error from any handler in the middleware pipeline.
 pub fn errorToStatus(err: anyerror) server.Status {
     return switch (err) {
         // Client errors (4xx)
@@ -160,6 +162,8 @@ pub fn errorToStatus(err: anyerror) server.Status {
 }
 
 /// Maps errors to human-readable messages.
+/// Note: accepts anyerror intentionally — this is a catch-all error mapper
+/// that must handle any error from any handler in the middleware pipeline.
 pub fn errorToMessage(err: anyerror) []const u8 {
     return switch (err) {
         error.InvalidRequest, error.MalformedRequest => "Invalid request",

@@ -305,6 +305,209 @@ const MemoryBackend = struct {
     }
 };
 
+// ── Local Backend ─────────────────────────────────────────────────────
+//
+// The local backend wraps the in-memory engine and persists objects to the
+// filesystem at `{base_path}/{key}`.  Reads hit the memory cache first
+// (fast path) and fall back to disk on a miss (cold-start recovery).
+// Writes are dual-write: memory + disk.  Deletes remove from both.
+//
+// The backend owns an `std.Io.Threaded` instance so that Dir/File I/O
+// operations can be performed without requiring the caller to pass an Io
+// context through the vtable.
+
+const LocalBackend = struct {
+    allocator: std.mem.Allocator,
+    inner: *MemoryBackend,
+    base_path: []const u8, // owned
+    io_backend: std.Io.Threaded,
+
+    fn create(allocator: std.mem.Allocator, max_mb: u32, base_path: []const u8) !*LocalBackend {
+        const lb = try allocator.create(LocalBackend);
+        errdefer allocator.destroy(lb);
+
+        const inner = try MemoryBackend.create(allocator, max_mb);
+        errdefer inner.destroy();
+
+        const owned_path = try allocator.dupe(u8, base_path);
+        errdefer allocator.free(owned_path);
+
+        lb.* = .{
+            .allocator = allocator,
+            .inner = inner,
+            .base_path = owned_path,
+            .io_backend = std.Io.Threaded.init(allocator, .{}),
+        };
+
+        // Ensure the base directory exists on disk.
+        const io = lb.io_backend.io();
+        const cwd = std.Io.Dir.cwd();
+        _ = cwd.createDirPathOpen(io, owned_path, .{}) catch {};
+
+        return lb;
+    }
+
+    fn destroy(self: *LocalBackend) void {
+        self.inner.destroy();
+        self.io_backend.deinit();
+        self.allocator.free(self.base_path);
+        self.allocator.destroy(self);
+    }
+
+    /// Open the base_path as a Dir handle (relative to cwd).
+    fn openBaseDir(self: *LocalBackend) ?std.Io.Dir {
+        const io = self.io_backend.io();
+        const cwd = std.Io.Dir.cwd();
+        return cwd.openDir(io, self.base_path, .{}) catch null;
+    }
+
+    /// Persist data to disk at `{base_path}/{key}`.  Creates parent
+    /// directories as needed via atomic file creation.
+    fn persistToDisk(self: *LocalBackend, key: []const u8, data: []const u8) void {
+        const io = self.io_backend.io();
+        const base_dir = self.openBaseDir() orelse return;
+        defer base_dir.close(io);
+
+        // Use createFileAtomic with make_path to handle subdirectories.
+        var atomic_file = base_dir.createFileAtomic(io, key, .{
+            .make_path = true,
+            .replace = true,
+        }) catch return;
+        defer atomic_file.deinit(io);
+
+        atomic_file.file.writeStreamingAll(io, data) catch return;
+        atomic_file.replace(io) catch return;
+    }
+
+    /// Read data from disk at `{base_path}/{key}`.
+    fn readFromDisk(self: *LocalBackend, allocator: std.mem.Allocator, key: []const u8) ?[]u8 {
+        const io = self.io_backend.io();
+        const base_dir = self.openBaseDir() orelse return null;
+        defer base_dir.close(io);
+
+        return base_dir.readFileAlloc(io, key, allocator, .limited(64 * 1024 * 1024)) catch null;
+    }
+
+    /// Remove a file from disk at `{base_path}/{key}`.  Silently ignores
+    /// missing files.
+    fn removeFromDisk(self: *LocalBackend, key: []const u8) void {
+        const io = self.io_backend.io();
+        const base_dir = self.openBaseDir() orelse return;
+        defer base_dir.close(io);
+
+        base_dir.deleteFile(io, key) catch {};
+    }
+
+    /// Check whether a file exists on disk at `{base_path}/{key}`.
+    fn existsOnDisk(self: *LocalBackend, key: []const u8) bool {
+        const io = self.io_backend.io();
+        const base_dir = self.openBaseDir() orelse return false;
+        defer base_dir.close(io);
+
+        var file = base_dir.openFile(io, key, .{}) catch return false;
+        file.close(io);
+        return true;
+    }
+
+    fn putImpl(ctx: *anyopaque, key: []const u8, data: []const u8, meta: ?ObjectMetadata) StorageError!void {
+        const self: *LocalBackend = @ptrCast(@alignCast(ctx));
+        // Write to in-memory cache first.
+        try MemoryBackend.putImpl(@ptrCast(self.inner), key, data, meta);
+        // Best-effort persist to disk.
+        self.persistToDisk(key, data);
+    }
+
+    fn getImpl(ctx: *anyopaque, allocator: std.mem.Allocator, key: []const u8) StorageError![]u8 {
+        const self: *LocalBackend = @ptrCast(@alignCast(ctx));
+        // Fast path: serve from memory cache.
+        return MemoryBackend.getImpl(@ptrCast(self.inner), allocator, key) catch |err| switch (err) {
+            error.ObjectNotFound => {
+                // Cold-start recovery: try reading from disk.
+                const disk_data = self.readFromDisk(allocator, key) orelse
+                    return error.ObjectNotFound;
+                // Re-populate memory cache (best-effort).
+                MemoryBackend.putImpl(@ptrCast(self.inner), key, disk_data, null) catch {};
+                return disk_data;
+            },
+            else => return err,
+        };
+    }
+
+    fn deleteImpl(ctx: *anyopaque, key: []const u8) StorageError!bool {
+        const self: *LocalBackend = @ptrCast(@alignCast(ctx));
+        const was_in_memory = try MemoryBackend.deleteImpl(@ptrCast(self.inner), key);
+        // Best-effort remove from disk.
+        self.removeFromDisk(key);
+        return was_in_memory;
+    }
+
+    fn listImpl(ctx: *anyopaque, allocator: std.mem.Allocator, prefix: []const u8) StorageError![]StorageObject {
+        const self: *LocalBackend = @ptrCast(@alignCast(ctx));
+        return MemoryBackend.listImpl(@ptrCast(self.inner), allocator, prefix);
+    }
+
+    fn existsImpl(ctx: *anyopaque, key: []const u8) bool {
+        const self: *LocalBackend = @ptrCast(@alignCast(ctx));
+        // Check memory first, then fall back to disk.
+        if (MemoryBackend.existsImpl(@ptrCast(self.inner), key)) return true;
+        return self.existsOnDisk(key);
+    }
+
+    fn statsImpl(ctx: *anyopaque) StorageStats {
+        const self: *LocalBackend = @ptrCast(@alignCast(ctx));
+        var s = MemoryBackend.statsImpl(@ptrCast(self.inner));
+        s.backend = .local;
+        return s;
+    }
+
+    fn deinitImpl(ctx: *anyopaque) void {
+        const self: *LocalBackend = @ptrCast(@alignCast(ctx));
+        self.destroy();
+    }
+
+    const vtable = Backend.VTable{
+        .put = putImpl,
+        .get = getImpl,
+        .delete = deleteImpl,
+        .list = listImpl,
+        .exists = existsImpl,
+        .getStats = statsImpl,
+        .deinitFn = deinitImpl,
+    };
+
+    fn backend(self: *LocalBackend) Backend {
+        return .{ .ptr = self, .vtable = &vtable };
+    }
+};
+
+/// Guess a MIME content type from the file extension of `key`.
+fn guessContentType(key: []const u8) []const u8 {
+    const ext = std.fs.path.extension(key); // includes leading dot
+    if (ext.len == 0) return "application/octet-stream";
+    const lookup = .{
+        .{ ".txt", "text/plain" },
+        .{ ".json", "application/json" },
+        .{ ".html", "text/html" },
+        .{ ".htm", "text/html" },
+        .{ ".css", "text/css" },
+        .{ ".js", "application/javascript" },
+        .{ ".png", "image/png" },
+        .{ ".jpg", "image/jpeg" },
+        .{ ".jpeg", "image/jpeg" },
+        .{ ".gif", "image/gif" },
+        .{ ".svg", "image/svg+xml" },
+        .{ ".xml", "application/xml" },
+        .{ ".pdf", "application/pdf" },
+        .{ ".zip", "application/zip" },
+        .{ ".md", "text/markdown" },
+        .{ ".csv", "text/csv" },
+    };
+    inline for (lookup) |pair| {
+        if (std.mem.eql(u8, ext, pair[0])) return pair[1];
+    }
+    return "application/octet-stream";
+}
+
 // ── Module State ──────────────────────────────────────────────────────
 
 var storage_state: ?*StorageState = null;
@@ -318,8 +521,8 @@ const StorageState = struct {
 
 // ── Public API ────────────────────────────────────────────────────────
 
-/// Initialize the global storage singleton. Only the `memory` backend is
-/// currently available; `local`, `s3`, and `gcs` return `BackendNotAvailable`.
+/// Initialize the global storage singleton. The `memory` and `local` backends
+/// are available; `s3` and `gcs` return `BackendNotAvailable`.
 pub fn init(allocator: std.mem.Allocator, config: StorageConfig) StorageError!void {
     if (storage_state != null) return;
 
@@ -329,7 +532,12 @@ pub fn init(allocator: std.mem.Allocator, config: StorageConfig) StorageError!vo
                 return error.OutOfMemory;
             break :blk mb.backend();
         },
-        .local, .s3, .gcs => return error.BackendNotAvailable,
+        .local => blk: {
+            const lb = LocalBackend.create(allocator, config.max_object_size_mb, config.base_path) catch
+                return error.OutOfMemory;
+            break :blk lb.backend();
+        },
+        .s3, .gcs => return error.BackendNotAvailable,
     };
 
     const s = allocator.create(StorageState) catch return error.OutOfMemory;
@@ -647,12 +855,19 @@ test "StorageBackend enum coverage" {
     try std.testing.expectEqual(@as(usize, 4), backends.len);
 }
 
-test "storage local backend not available" {
+test "storage local backend init succeeds" {
     const allocator = std.testing.allocator;
-    try std.testing.expectError(
-        error.BackendNotAvailable,
-        init(allocator, .{ .backend = .local }),
-    );
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+    defer deinit();
+
+    try std.testing.expect(isInitialized());
+    const s = stats();
+    try std.testing.expectEqual(StorageBackend.local, s.backend);
 }
 
 test "storage s3 backend not available" {
@@ -766,4 +981,186 @@ test "storage list with no matches" {
     const results = try listObjects(allocator, "beta");
     defer allocator.free(results);
     try std.testing.expectEqual(@as(usize, 0), results.len);
+}
+
+/// Build the absolute path for a testing tmpDir sub_path (relative to
+/// `.zig-cache/tmp/{sub_path}`).  Caller owns the returned slice.
+fn tmpSubPath(allocator: std.mem.Allocator, sub_path: []const u8) ![]u8 {
+    return std.fmt.allocPrint(allocator, ".zig-cache/tmp/{s}", .{sub_path});
+}
+
+// ── Local Backend Tests ──────────────────────────────────────────────
+
+test "local backend put and get round-trip" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+    defer deinit();
+
+    try putObject(allocator, "greet.txt", "hello local");
+    const data = try getObject(allocator, "greet.txt");
+    defer allocator.free(data);
+    try std.testing.expectEqualStrings("hello local", data);
+}
+
+test "local backend delete then get returns ObjectNotFound" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+    defer deinit();
+
+    try putObject(allocator, "tmp-key", "value");
+    const deleted = try deleteObject("tmp-key");
+    try std.testing.expect(deleted);
+
+    try std.testing.expectError(error.ObjectNotFound, getObject(allocator, "tmp-key"));
+
+    // Idempotent: deleting again returns false, no error
+    const again = try deleteObject("tmp-key");
+    try std.testing.expect(!again);
+}
+
+test "local backend list with prefix" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+    defer deinit();
+
+    try putObject(allocator, "images/a.png", "a");
+    try putObject(allocator, "images/b.png", "b");
+    try putObject(allocator, "docs/readme.md", "c");
+
+    const images = try listObjects(allocator, "images/");
+    defer allocator.free(images);
+    try std.testing.expectEqual(@as(usize, 2), images.len);
+
+    const docs = try listObjects(allocator, "docs/");
+    defer allocator.free(docs);
+    try std.testing.expectEqual(@as(usize, 1), docs.len);
+}
+
+test "local backend exists returns true and false" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+    defer deinit();
+
+    try putObject(allocator, "present", "yes");
+
+    const yes = try objectExists("present");
+    try std.testing.expect(yes);
+
+    const no = try objectExists("absent");
+    try std.testing.expect(!no);
+}
+
+test "local backend path traversal rejected" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+    defer deinit();
+
+    try std.testing.expectError(error.InvalidKey, putObject(allocator, "../etc/passwd", "bad"));
+    try std.testing.expectError(error.InvalidKey, putObject(allocator, "a/../../b", "bad"));
+    try std.testing.expectError(error.InvalidKey, putObject(allocator, "..", "bad"));
+    try std.testing.expectError(error.InvalidKey, putObject(allocator, "/absolute", "bad"));
+}
+
+test "local backend stats reports local type" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+    defer deinit();
+
+    try putObject(allocator, "k", "value");
+    const s = stats();
+    try std.testing.expectEqual(StorageBackend.local, s.backend);
+    try std.testing.expectEqual(@as(u64, 1), s.total_objects);
+    try std.testing.expectEqual(@as(u64, 5), s.total_bytes);
+}
+
+test "local backend persistence across deinit and re-init" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    // Phase 1: write some data and tear down.
+    {
+        try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+        try putObject(allocator, "persist.txt", "surviving data");
+        try putObject(allocator, "nested/dir/file.bin", "deep value");
+        deinit();
+    }
+
+    // Phase 2: re-init from the same path — data should be recoverable
+    // from disk even though the memory cache is empty.
+    {
+        try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+        defer deinit();
+
+        const data = try getObject(allocator, "persist.txt");
+        defer allocator.free(data);
+        try std.testing.expectEqualStrings("surviving data", data);
+
+        const nested = try getObject(allocator, "nested/dir/file.bin");
+        defer allocator.free(nested);
+        try std.testing.expectEqualStrings("deep value", nested);
+    }
+}
+
+test "local backend delete removes from disk" {
+    const allocator = std.testing.allocator;
+    var tmp = std.testing.tmpDir(.{});
+    defer tmp.cleanup();
+    const tmp_path = try tmpSubPath(allocator, &tmp.sub_path);
+    defer allocator.free(tmp_path);
+
+    // Write, delete, then re-init — key should be gone from disk.
+    {
+        try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+        try putObject(allocator, "ephemeral", "gone soon");
+        _ = try deleteObject("ephemeral");
+        deinit();
+    }
+    {
+        try init(allocator, .{ .backend = .local, .base_path = tmp_path });
+        defer deinit();
+
+        try std.testing.expectError(error.ObjectNotFound, getObject(allocator, "ephemeral"));
+    }
+}
+
+test "guessContentType known extensions" {
+    try std.testing.expectEqualStrings("text/plain", guessContentType("file.txt"));
+    try std.testing.expectEqualStrings("application/json", guessContentType("data.json"));
+    try std.testing.expectEqualStrings("image/png", guessContentType("icon.png"));
+    try std.testing.expectEqualStrings("text/html", guessContentType("index.html"));
+    try std.testing.expectEqualStrings("application/octet-stream", guessContentType("noext"));
+    try std.testing.expectEqualStrings("text/markdown", guessContentType("README.md"));
 }

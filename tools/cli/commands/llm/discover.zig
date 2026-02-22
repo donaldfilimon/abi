@@ -44,7 +44,7 @@ pub fn runDiscover(allocator: std.mem.Allocator, args: []const [:0]const u8) !vo
         }
     }
 
-    std.debug.print("\n{d}/10 providers available\n\n", .{available_count});
+    std.debug.print("\n{d}/{d} providers available\n\n", .{ available_count, providers.len });
 
     std.debug.print("Default routing (model file path):\n  ", .{});
     for (abi.ai.llm.providers.registry.file_model_chain[0..], 0..) |p, idx| {

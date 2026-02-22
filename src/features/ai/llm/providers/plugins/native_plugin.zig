@@ -107,3 +107,79 @@ fn load(allocator: std.mem.Allocator, plugin_entry: manifest.PluginEntry) !Loade
         .vtable = plugin,
     };
 }
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+test "generate rejects non-native plugin kind" {
+    const allocator = std.testing.allocator;
+    const entry = manifest.PluginEntry{
+        .id = @constCast("http-plugin"),
+        .kind = .http,
+        .enabled = true,
+        .library_path = @constCast("/nonexistent/lib.dylib"),
+    };
+
+    const cfg = types.GenerateConfig{
+        .model = "test-model",
+        .prompt = "hello",
+    };
+
+    const result = generate(allocator, entry, cfg);
+    try std.testing.expectError(errors.ProviderError.InvalidPlugin, result);
+}
+
+test "generate rejects disabled native plugin" {
+    const allocator = std.testing.allocator;
+    const entry = manifest.PluginEntry{
+        .id = @constCast("disabled-native"),
+        .kind = .native,
+        .enabled = false,
+        .library_path = @constCast("/nonexistent/lib.dylib"),
+    };
+
+    const cfg = types.GenerateConfig{
+        .model = "test-model",
+        .prompt = "hello",
+    };
+
+    const result = generate(allocator, entry, cfg);
+    try std.testing.expectError(errors.ProviderError.PluginDisabled, result);
+}
+
+test "generate rejects native plugin without library_path" {
+    const allocator = std.testing.allocator;
+    const entry = manifest.PluginEntry{
+        .id = @constCast("no-path"),
+        .kind = .native,
+        .enabled = true,
+        .library_path = null,
+    };
+
+    const cfg = types.GenerateConfig{
+        .model = "test-model",
+        .prompt = "hello",
+    };
+
+    // load() will return InvalidPlugin because library_path is null
+    const result = generate(allocator, entry, cfg);
+    try std.testing.expectError(errors.ProviderError.InvalidPlugin, result);
+}
+
+test "load returns NotAvailable for nonexistent library" {
+    const allocator = std.testing.allocator;
+    const entry = manifest.PluginEntry{
+        .id = @constCast("missing-lib"),
+        .kind = .native,
+        .enabled = true,
+        .library_path = @constCast("/nonexistent/path/to/lib.dylib"),
+    };
+
+    const result = load(allocator, entry);
+    try std.testing.expectError(errors.ProviderError.NotAvailable, result);
+}
+
+test {
+    std.testing.refAllDecls(@This());
+}

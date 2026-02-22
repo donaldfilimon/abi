@@ -271,5 +271,40 @@
     "section": "Services",
     "permalink": "/acp/",
     "description": "Agent Communication Protocol integration"
+  },
+  {
+    "slug": "llm-inference-guide",
+    "title": "LLM Inference Guide",
+    "section": "Guides",
+    "permalink": "/llm-inference-guide/",
+    "description": "Provider router architecture, backend selection, fallback chains, and CLI usage for LLM inference"
+  },
+  {
+    "slug": "ralph-guide",
+    "title": "Ralph Orchestrator Guide",
+    "section": "Guides",
+    "permalink": "/ralph-guide/",
+    "description": "Autonomous AI code agent with iterative improvement loops, skill memory, and multi-agent coordination"
+  },
+  {
+    "slug": "security-guide",
+    "title": "Security Module Guide",
+    "section": "Guides",
+    "permalink": "/security-guide/",
+    "description": "JWT, RBAC, session management, encryption, TLS/mTLS, certificate management, API keys, secrets, and audit logging"
+  },
+  {
+    "slug": "streaming-guide",
+    "title": "Streaming Guide",
+    "section": "Guides",
+    "permalink": "/streaming-guide/",
+    "description": "AI streaming architecture with SSE, WebSocket, backpressure handling, and circuit breaker patterns"
+  },
+  {
+    "slug": "connectors-guide",
+    "title": "Connectors Guide",
+    "section": "Guides",
+    "permalink": "/connectors-guide/",
+    "description": "Connector configuration, environment variables, auto-discovery, and custom plugin connectors"
   }
 ]

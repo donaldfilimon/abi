@@ -38,6 +38,11 @@ pub fn build(b: *std.Build) void {
         "cli-full-env-file",
         "Path to KEY=VALUE env file for exhaustive CLI integration tests",
     );
+    const cli_full_allow_blocked = b.option(
+        bool,
+        "cli-full-allow-blocked",
+        "Continue cli-tests-full when preflight checks fail and mark blocked rows",
+    ) orelse false;
     const cli_full_timeout_scale = b.option(
         f64,
         "cli-full-timeout-scale",
@@ -96,6 +101,12 @@ pub fn build(b: *std.Build) void {
     const cli_tests_step = cli_tests.addCliTests(b, exe);
     _ = cli_tests.addCliTestsFull(b, .{
         .env_file = cli_full_env_file,
+        .allow_blocked = cli_full_allow_blocked,
+        .timeout_scale = cli_full_timeout_scale,
+    });
+    _ = cli_tests.addCliTestsNested(b, .{
+        .env_file = cli_full_env_file,
+        .allow_blocked = cli_full_allow_blocked,
         .timeout_scale = cli_full_timeout_scale,
     });
 

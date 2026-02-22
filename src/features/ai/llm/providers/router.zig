@@ -304,11 +304,13 @@ fn setConnectorModel(
 ) !void {
     if (model.len == 0) return;
 
+    const new_model = try allocator.dupe(u8, model);
+
     if (model_owned_ptr.*) {
         allocator.free(@constCast(model_ptr.*));
     }
 
-    model_ptr.* = try allocator.dupe(u8, model);
+    model_ptr.* = new_model;
     model_owned_ptr.* = true;
 }
 
@@ -393,6 +395,7 @@ fn generateAnthropic(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !t
     defer deinitAnthropicResponse(allocator, &response);
 
     const text = try client.getResponseText(response);
+    errdefer allocator.free(text);
 
     return .{
         .provider = .anthropic,

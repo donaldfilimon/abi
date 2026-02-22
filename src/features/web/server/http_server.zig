@@ -281,8 +281,9 @@ pub const Server = struct {
             std.log.err("Accept failed: {t}", .{err});
             return ServerError.InternalError;
         };
-        // Close the socket since this stub server doesn't process connections yet.
-        // A full implementation would pass client_sock to a connection handler.
+        // TODO(web): Stub server — close immediately. A real implementation would
+        // pass client_sock to a connection handler that reads requests, invokes
+        // self.handler, and writes responses. See Server.RequestHandler.
         std.posix.close(client_sock);
 
         self.mutex.lock();

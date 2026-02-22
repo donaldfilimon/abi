@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const context_mod = @import("context.zig");
+
 pub const CommandIoMode = enum {
     basic,
     io,
@@ -18,10 +20,7 @@ pub const CommandForward = struct {
     warning: ?[]const u8 = null,
 };
 
-pub const CommandHandler = union(CommandIoMode) {
-    basic: *const fn (std.mem.Allocator, []const [:0]const u8) anyerror!void,
-    io: *const fn (std.mem.Allocator, std.Io, []const [:0]const u8) anyerror!void,
-};
+pub const CommandHandler = *const fn (ctx: *const context_mod.CommandContext, args: []const [:0]const u8) anyerror!void;
 
 pub const CommandDescriptor = struct {
     name: []const u8,
