@@ -28,10 +28,11 @@ pub fn renderStatus(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     try term.write(th.reset);
     try term.write(" ");
 
-    var buf: [64]u8 = undefined;
+    var cpu_buf: [16]u8 = undefined;
+    var shown_buf: [32]u8 = undefined;
     const cpu_count = std.Thread.getCpuCount() catch 1;
-    const cpu_str = std.fmt.bufPrint(&buf, "{d}", .{cpu_count}) catch "?";
-    const shown_str = std.fmt.bufPrint(&buf, "{d}/{d}", .{
+    const cpu_str = std.fmt.bufPrint(&cpu_buf, "{d}", .{cpu_count}) catch "?";
+    const shown_str = std.fmt.bufPrint(&shown_buf, "{d}/{d}", .{
         state.filtered_indices.items.len,
         state.items.len,
     }) catch "?/?";
@@ -89,7 +90,7 @@ pub fn renderHelp(term: *tui.Terminal, state: *TuiState, width: usize) !void {
 
     try term.write(chrome.frame);
     try term.write(box.bl);
-    try writeRepeat(term, box.h, tui_layout.clampedFrameWidth(state.term_size.cols) - 2);
+    try writeRepeat(term, box.h, inner);
     try term.write(box.br);
     try term.write(th.reset);
     try term.write("\n");

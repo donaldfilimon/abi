@@ -553,7 +553,7 @@ fn resolveOllamaModelHint(config_model: ?[]const u8, path: []const u8) ?[]const 
         return path;
     }
 
-    const base = std.fs.path.basename(path);
+    const base = if (std.mem.lastIndexOfScalar(u8, path, '/')) |pos| path[pos + 1 ..] else path;
     if (std.mem.indexOf(u8, base, "gpt-oss") != null or std.mem.indexOf(u8, base, "GPT-OSS") != null) {
         return "gpt-oss";
     }

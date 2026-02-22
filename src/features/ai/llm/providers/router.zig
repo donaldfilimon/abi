@@ -393,6 +393,7 @@ fn generateAnthropic(allocator: std.mem.Allocator, cfg: types.GenerateConfig) !t
     defer deinitAnthropicResponse(allocator, &response);
 
     const text = try client.getResponseText(response);
+    errdefer allocator.free(text);
 
     return .{
         .provider = .anthropic,

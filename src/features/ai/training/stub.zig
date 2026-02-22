@@ -11,6 +11,7 @@ pub const CheckpointError = error{ InvalidFormat, UnsupportedVersion, PayloadToo
 pub const SaveError = Error || CheckpointError;
 pub const LoadError = Error || CheckpointError;
 pub const TrainError = Error;
+pub const GradientError = error{ NormOverflow, InvalidGradient };
 pub const VisionTrainingError = error{ InvalidImageSize, InvalidBatchSize, ConfigMismatch, NoActivationCache, OutOfMemory, VisionDisabled };
 pub const MultimodalTrainingError = error{ InvalidBatchSize, DimensionMismatch, NoActivationCache, OutOfMemory, InvalidTemperature, MultimodalDisabled };
 
@@ -506,7 +507,7 @@ pub const Context = struct {
     pub fn saveCheckpoint(_: *Context, _: []const u8, _: anytype) Error!void {
         return error.TrainingDisabled;
     }
-    pub fn loadCheckpoint(_: *Context, _: []const u8, comptime _: type) Error!void {
+    pub fn loadCheckpointData(_: *Context, _: []const u8, comptime T: type) Error!T {
         return error.TrainingDisabled;
     }
 };
@@ -515,6 +516,10 @@ pub const Context = struct {
 
 pub fn selfLearningConfigFromCore(_: config_module.TrainingConfig) SelfLearningConfig {
     return .{};
+}
+
+pub fn train(_: std.mem.Allocator, _: TrainingConfig) Error!void {
+    return error.TrainingDisabled;
 }
 
 pub fn isEnabled() bool {
@@ -563,9 +568,7 @@ pub const distributed = struct {
         bucket_size_bytes: usize = 25 * 1024 * 1024,
         enable_compression: bool = false,
         reduce_op: ReduceOp = .average,
-        pub fn validate(_: @This()) error{InvalidConfig}!void {
-            return error.InvalidConfig;
-        }
+        pub fn validate(_: @This()) error{InvalidConfig}!void {}
     };
 
     const Self = @This();
@@ -597,6 +600,88 @@ pub const distributed = struct {
 
 pub const DistributedConfig = distributed.DistributedConfig;
 pub const DistributedTrainer = distributed.DistributedTrainer;
+
+// ── Missing type stubs for mod.zig parity ──────────────────────────────────
+
+pub const LoraConfig = struct { rank: u32 = 8, alpha: f32 = 16.0, dropout: f32 = 0.1, target_modules: []const []const u8 = &.{} };
+pub const LoraAdapter = struct {
+    pub fn init(_: std.mem.Allocator, _: LoraConfig) Error!@This() {
+        return error.TrainingDisabled;
+    }
+    pub fn deinit(_: *@This()) void {}
+};
+pub const LoraLayerAdapters = struct {};
+pub const LoraModel = struct {
+    pub fn init(_: std.mem.Allocator, _: anytype, _: LoraConfig) Error!@This() {
+        return error.TrainingDisabled;
+    }
+    pub fn deinit(_: *@This()) void {}
+};
+
+pub const MixedPrecisionConfig = struct { enabled: bool = false, loss_scale: f32 = 1.0 };
+pub const MixedPrecisionContext = struct {
+    pub fn init(_: std.mem.Allocator, _: MixedPrecisionConfig) Error!@This() {
+        return error.TrainingDisabled;
+    }
+    pub fn deinit(_: *@This()) void {}
+};
+pub const LossScaler = struct {};
+pub const MasterWeights = struct {};
+pub fn fp32ToFp16(_: []const f32, _: []u16) void {}
+pub fn fp16ToFp32(_: []const u16, _: []f32) void {}
+
+pub const TrainingLogger = struct {
+    pub fn init(_: std.mem.Allocator, _: TrainingLogConfig) Error!@This() {
+        return error.TrainingDisabled;
+    }
+    pub fn deinit(_: *@This()) void {}
+};
+pub const TrainingLogConfig = struct { log_interval: u32 = 10, log_dir: ?[]const u8 = null };
+pub const TrainingLogMetric = struct { name: []const u8 = "", value: f32 = 0 };
+
+pub const TrainableWeights = struct {};
+pub const TrainableLayerWeights = struct {};
+pub const ActivationCache = struct {};
+pub const ModelLoadError = error{InvalidFormat};
+pub const TrainableViTLayerWeights = struct {};
+pub const ViTActivationCache = struct {};
+pub const TextTransformerLayerWeights = struct {};
+pub const TrainableTextEncoderWeights = struct {};
+
+pub const SaveCheckpointError = SaveError;
+pub const LoadCheckpointError = LoadError;
+pub const SaveLatestCheckpointError = SaveError;
+pub const LlmCheckpoint = struct {};
+pub const LlmCheckpointView = struct {};
+pub const LoadLlmCheckpointError = LoadError;
+pub const SaveLlmCheckpointError = SaveError;
+pub fn loadLlmCheckpoint(_: std.mem.Allocator, _: []const u8) LoadError!LlmCheckpoint {
+    return error.TrainingDisabled;
+}
+pub fn saveLlmCheckpoint(_: std.mem.Allocator, _: []const u8, _: anytype) SaveError!void {
+    return error.TrainingDisabled;
+}
+pub const GradientAccumulatorFull = struct {};
+
+pub const CrossEntropyLoss = struct {};
+pub const MSELoss = struct {};
+pub const FocalLoss = struct {};
+pub fn perplexity(_: f32) f32 {
+    return 0;
+}
+pub fn klDivergence(_: []const f32, _: []const f32) f32 {
+    return 0;
+}
+
+pub fn clipGradients(_: []f32, _: f32) f32 {
+    return 0;
+}
+pub fn saveModelToWdbx(_: std.mem.Allocator, _: anytype, _: []const u8) Error!void {
+    return error.TrainingDisabled;
+}
+pub fn calculateLearningRate(_: TrainingConfig, _: u64, _: f32) f32 {
+    return 0;
+}
 
 // ── Submodule re-exports ───────────────────────────────────────────────────
 

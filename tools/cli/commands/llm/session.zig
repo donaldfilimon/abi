@@ -36,6 +36,10 @@ pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
     std.debug.print("LLM session started (model: {s}).\n", .{options.model.?});
     std.debug.print("Commands: /quit, /exit, /clear, /help, /providers, /backend <id>, /model <id>\n\n", .{});
 
+    // Track heap-allocated model name from /model command to avoid dangling pointers.
+    var model_switched: ?[]u8 = null;
+    defer if (model_switched) |m| allocator.free(m);
+
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
     const io = io_backend.io();
@@ -109,8 +113,16 @@ pub fn runSession(allocator: std.mem.Allocator, args: []const [:0]const u8) !voi
                 std.debug.print("Current model: {s}\n\n", .{options.model.?});
                 continue;
             }
-            options.model = rest;
-            std.debug.print("Model switched to: {s}\n\n", .{rest});
+            // Dupe into heap so it survives read buffer reuse
+            const model_copy = allocator.dupe(u8, rest) catch {
+                std.debug.print("Error: out of memory\n", .{});
+                continue;
+            };
+            // Free previous model if it was heap-allocated via /model
+            if (model_switched) |prev| allocator.free(prev);
+            model_switched = model_copy;
+            options.model = model_copy;
+            std.debug.print("Model switched to: {s}\n\n", .{model_copy});
             continue;
         }
 

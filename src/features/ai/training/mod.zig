@@ -228,7 +228,10 @@ pub const TrainingConfig = struct {
         if (self.weight_decay < 0) {
             return TrainingError.InvalidConfiguration;
         }
-        if (self.warmup_steps > self.decay_steps and self.learning_rate_schedule == .warmup_cosine) {
+        if (self.warmup_steps >= self.decay_steps and self.learning_rate_schedule == .warmup_cosine) {
+            return TrainingError.InvalidConfiguration;
+        }
+        if (self.decay_steps == 0 and self.learning_rate_schedule == .cosine) {
             return TrainingError.InvalidConfiguration;
         }
     }
@@ -265,9 +268,13 @@ pub const ModelState = struct {
 
     pub fn init(allocator: std.mem.Allocator, size: usize, name: []const u8) !ModelState {
         const weights = try allocator.alloc(f32, size);
+        errdefer allocator.free(weights);
         const gradients = try allocator.alloc(f32, size);
+        errdefer allocator.free(gradients);
         const momentum = try allocator.alloc(f32, size);
+        errdefer allocator.free(momentum);
         const velocity = try allocator.alloc(f32, size);
+        errdefer allocator.free(velocity);
 
         initializeXavierUniform(weights, size);
         @memset(gradients, 0);
@@ -373,9 +380,11 @@ pub const SgdOptimizer = struct {
 
         if (model.momentum) |mom| {
             for (model.weights, model.gradients, mom) |*w, *g, *m| {
+                const m_old = m.*;
                 m.* = momentum_val * m.* + g.*;
                 if (self.nesterov) {
-                    w.* -= lr * (g.* + momentum_val * m.*);
+                    // Nesterov: use old momentum for look-ahead
+                    w.* -= lr * (g.* + momentum_val * m_old);
                 } else {
                     w.* -= lr * m.*;
                 }
@@ -426,9 +435,8 @@ pub const AdamOptimizer = struct {
                 for (0..model.weights.len) |i| {
                     m[i] = beta1 * m[i] + (1 - beta1) * model.gradients[i];
                     v[i] = beta2 * v[i] + (1 - beta2) * model.gradients[i] * model.gradients[i];
-                    const mi_hat = m[i] / (1 - std.math.pow(f32, beta1, step_f));
-                    const vi_hat = v[i] / (1 - std.math.pow(f32, beta2, step_f));
-                    model.weights[i] -= lr_adjusted * mi_hat / (vi_hat + epsilon);
+                    // lr_adjusted already has bias correction; use raw m/v
+                    model.weights[i] -= lr_adjusted * m[i] / (@sqrt(v[i]) + epsilon);
                 }
             }
         }
@@ -475,13 +483,15 @@ pub const AdamWOptimizer = struct {
 
         if (model.momentum) |*m| {
             if (model.velocity) |*v| {
+                const bc1 = 1 - std.math.pow(f32, beta1, step_f);
+                const bc2 = 1 - std.math.pow(f32, beta2, step_f);
+                const lr_adjusted = lr * @sqrt(bc2) / bc1;
                 for (0..model.weights.len) |i| {
                     const g = model.gradients[i];
                     m.*[i] = beta1 * m.*[i] + (1 - beta1) * g;
                     v.*[i] = beta2 * v.*[i] + (1 - beta2) * g * g;
-                    const mi_hat = m.*[i] / (1 - std.math.pow(f32, beta1, step_f));
-                    const vi_hat = v.*[i] / (1 - std.math.pow(f32, beta2, step_f));
-                    model.weights[i] -= lr * mi_hat / (vi_hat + epsilon);
+                    // Use lr_adjusted with raw m/v (bias correction in lr)
+                    model.weights[i] -= lr_adjusted * m.*[i] / (@sqrt(v.*[i]) + epsilon);
                 }
             }
         }
@@ -561,7 +571,7 @@ pub const Context = struct {
 };
 
 pub fn isEnabled() bool {
-    return build_options.enable_ai;
+    return build_options.enable_ai and build_options.enable_training;
 }
 
 pub fn calculateLearningRate(config: TrainingConfig, step_val: u64, base_lr: f32) f32 {
@@ -578,8 +588,8 @@ pub fn calculateLearningRate(config: TrainingConfig, step_val: u64, base_lr: f32
             }
             const adjusted_step = step_val - config.warmup_steps;
             const adjusted_decay = config.decay_steps - config.warmup_steps;
-            const progress = @as(f32, @floatFromInt(adjusted_step)) / @as(f32, @floatFromInt(adjusted_decay));
-            return base_lr * 0.5 * (1 + @cos(progress * std.math.pi)) * @max(config.min_learning_rate / base_lr, 0.1);
+            const progress = @min(1.0, @as(f32, @floatFromInt(adjusted_step)) / @as(f32, @floatFromInt(adjusted_decay)));
+            return config.min_learning_rate + (base_lr - config.min_learning_rate) * 0.5 * (1 + @cos(progress * std.math.pi));
         },
         .step => {
             const decay = @as(f32, @floatFromInt(step_val / config.decay_steps));
@@ -667,7 +677,7 @@ pub fn trainWithResult(
     errdefer model.deinit();
 
     var optimizer = try Optimizer.init(allocator, &model, config);
-    defer optimizer.deinit(allocator);
+    errdefer optimizer.deinit(allocator);
 
     var accumulator = try gradient.GradientAccumulator.init(allocator, model.gradients.len);
     defer accumulator.deinit();

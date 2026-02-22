@@ -142,7 +142,8 @@ pub fn ensureDir(io: std.Io, path: []const u8) void {
 }
 
 pub fn fileExists(io: std.Io, path: []const u8) bool {
-    _ = std.Io.Dir.cwd().openFile(io, path, .{}) catch return false;
+    var file = std.Io.Dir.cwd().openFile(io, path, .{}) catch return false;
+    file.close(io);
     return true;
 }
 

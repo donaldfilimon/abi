@@ -8,7 +8,9 @@ pub const CompactLayout = struct {
 
 pub fn computeVisibleRows(rows: u16) usize {
     const content_rows = rows -| 11;
-    return @max(@as(usize, 5), @as(usize, @intCast(content_rows)));
+    // On very small terminals, don't promise more rows than physically exist
+    const min_rows: usize = if (rows >= 11) 5 else @max(1, @as(usize, rows) -| 6);
+    return @max(min_rows, @as(usize, @intCast(content_rows)));
 }
 
 pub fn clampedFrameWidth(cols: u16) usize {
@@ -36,7 +38,9 @@ pub fn menuStartRow(state: anytype) u16 {
         row += @as(u16, @intCast(shown + 2));
     }
 
-    return row;
+    // Don't exceed terminal height minus footer space
+    const max_row = state.term_size.rows -| 3;
+    return @min(row, max_row);
 }
 
 pub fn clickedIndexFromRow(
