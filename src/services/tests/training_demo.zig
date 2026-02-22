@@ -6,7 +6,7 @@ test "demo training of testingllm" {
     if (!build_options.enable_ai) return error.SkipZigTest;
     const allocator = std.testing.allocator;
     // Simple config for a tiny model
-    const config = abi.ai.TrainingConfig{
+    const config = abi.ai.training.TrainingConfig{
         .epochs = 2,
         .batch_size = 2,
         .sample_count = 8,
@@ -17,7 +17,7 @@ test "demo training of testingllm" {
         .max_checkpoints = 2,
         .checkpoint_path = "./testingllm.ckpt",
     };
-    var result = try abi.ai.trainWithResult(allocator, config);
+    var result = try abi.ai.training.trainWithResult(allocator, config);
     defer result.deinit();
     // Ensure checkpoints were saved
     try std.testing.expect(result.checkpoints.count() > 0);

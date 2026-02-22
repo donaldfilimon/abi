@@ -15,7 +15,7 @@ pub fn runTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
         return;
     }
 
-    var config = abi.ai.TrainingConfig{};
+    var config = abi.ai.training.TrainingConfig{};
 
     var i: usize = 0;
     while (i < args.len) {
@@ -209,7 +209,7 @@ pub fn runTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
         return;
     };
 
-    var result = abi.ai.trainWithResult(allocator, config) catch |err| {
+    var result = abi.ai.training.trainWithResult(allocator, config) catch |err| {
         std.debug.print("Training failed: {t}\n", .{err});
         return;
     };

@@ -9,50 +9,52 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 
 const discord = abi.connectors.discord;
 
-fn dcStatus(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printStatus(alloc);
+// Wrapper functions for comptime children dispatch
+fn wrapDcStatus(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try printStatus(allocator);
 }
-fn dcInfo(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printBotInfo(alloc);
+fn wrapDcInfo(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try printBotInfo(allocator);
 }
-fn dcGuilds(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try listGuilds(alloc);
+fn wrapDcGuilds(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try listGuilds(allocator);
 }
-fn dcSend(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try sendMessage(alloc, parser.remaining());
+fn wrapDcSend(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try sendMessage(allocator, args);
 }
-fn dcCommands(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try manageCommands(alloc, parser);
+fn wrapDcCommands(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try manageCommands(allocator, &parser);
 }
-fn dcWebhook(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try executeWebhook(alloc, parser.remaining());
+fn wrapDcWebhook(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try executeWebhook(allocator, args);
 }
-fn dcChannel(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try channelInfo(alloc, parser.remaining());
-}
-fn dcDefault(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try printStatus(alloc);
-}
-fn dcUnknown(cmd: []const u8) void {
-    utils.output.printError("Unknown discord command: {s}", .{cmd});
+fn wrapDcChannel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try channelInfo(allocator, args);
 }
 
-const discord_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"status"}, .run = dcStatus },
-    .{ .names = &.{"info"}, .run = dcInfo },
-    .{ .names = &.{"guilds"}, .run = dcGuilds },
-    .{ .names = &.{"send"}, .run = dcSend },
-    .{ .names = &.{"commands"}, .run = dcCommands },
-    .{ .names = &.{"webhook"}, .run = dcWebhook },
-    .{ .names = &.{"channel"}, .run = dcChannel },
+pub const meta: command_mod.Meta = .{
+    .name = "discord",
+    .description = "Discord bot operations (status, guilds, send, commands)",
+    .subcommands = &.{ "status", "info", "guilds", "send", "commands", "webhook", "channel", "help" },
+    .children = &.{
+        .{ .name = "status", .description = "Show configuration status", .handler = .{ .basic = wrapDcStatus } },
+        .{ .name = "info", .description = "Get bot user information", .handler = .{ .basic = wrapDcInfo } },
+        .{ .name = "guilds", .description = "List guilds the bot is in", .handler = .{ .basic = wrapDcGuilds } },
+        .{ .name = "send", .description = "Send message to a channel", .handler = .{ .basic = wrapDcSend } },
+        .{ .name = "commands", .description = "Manage application commands", .handler = .{ .basic = wrapDcCommands } },
+        .{ .name = "webhook", .description = "Execute a webhook", .handler = .{ .basic = wrapDcWebhook } },
+        .{ .name = "channel", .description = "Get channel information", .handler = .{ .basic = wrapDcChannel } },
+    },
+};
+
+const discord_subcommands = [_][]const u8{
+    "status", "info", "guilds", "send", "commands", "webhook", "channel", "help",
 };
 
 /// Run the discord command with the provided arguments.
@@ -63,15 +65,21 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
         utils.output.printInfo("Rebuild with: zig build -Denable-web=true", .{});
         return;
     }
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &discord_commands,
-        dcDefault,
-        printHelp,
-        dcUnknown,
-    );
+    if (args.len == 0) {
+        // Default action: show status
+        try printStatus(allocator);
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp(allocator);
+        return;
+    }
+    // Unknown subcommand
+    utils.output.printError("Unknown discord command: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &discord_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 /// Print a short discord summary for system-info.

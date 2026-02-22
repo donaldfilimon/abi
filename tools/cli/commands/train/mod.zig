@@ -15,6 +15,7 @@
 //! - train help                    - Show help message
 
 const std = @import("std");
+const command_mod = @import("../../command.zig");
 const utils = @import("../../utils/mod.zig");
 
 const run_train = @import("run_train.zig");
@@ -26,6 +27,71 @@ const self_train = @import("self.zig");
 const monitor = @import("monitor.zig");
 const info = @import("info.zig");
 const data = @import("data.zig");
+
+// Wrapper functions for comptime children dispatch
+fn wrapRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tRun(allocator, &parser);
+}
+fn wrapNew(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tNew(allocator, &parser);
+}
+fn wrapLlm(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tLlm(allocator, &parser);
+}
+fn wrapVision(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tVision(allocator, &parser);
+}
+fn wrapClip(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tClip(allocator, &parser);
+}
+fn wrapAuto(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tAuto(allocator, &parser);
+}
+fn wrapSelf(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tSelf(allocator, &parser);
+}
+fn wrapResume(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tResume(allocator, &parser);
+}
+fn wrapMonitor(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tMonitor(allocator, &parser);
+}
+fn wrapInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tInfo(allocator, &parser);
+}
+fn wrapGenerateData(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try tGenerateData(allocator, &parser);
+}
+
+pub const meta: command_mod.Meta = .{
+    .name = "train",
+    .description = "Training pipeline (run, llm, vision, auto, self, resume, info)",
+    .subcommands = &.{ "run", "new", "llm", "vision", "clip", "auto", "self", "resume", "monitor", "info", "generate-data", "help" },
+    .children = &.{
+        .{ .name = "run", .description = "Run basic training pipeline", .handler = .{ .basic = wrapRun } },
+        .{ .name = "new", .description = "Create and train a new transformer from scratch", .handler = .{ .basic = wrapNew } },
+        .{ .name = "llm", .description = "Train LLM from GGUF model file", .handler = .{ .basic = wrapLlm } },
+        .{ .name = "vision", .description = "Train Vision Transformer (ViT)", .handler = .{ .basic = wrapVision } },
+        .{ .name = "clip", .description = "Train CLIP multimodal model", .handler = .{ .basic = wrapClip } },
+        .{ .name = "auto", .description = "Auto-train with seed data", .handler = .{ .basic = wrapAuto } },
+        .{ .name = "self", .description = "Self-improvement pipeline", .handler = .{ .basic = wrapSelf } },
+        .{ .name = "resume", .description = "Resume training from checkpoint", .handler = .{ .basic = wrapResume } },
+        .{ .name = "monitor", .description = "Monitor training progress (TUI dashboard)", .handler = .{ .basic = wrapMonitor } },
+        .{ .name = "info", .description = "Show default training configuration", .handler = .{ .basic = wrapInfo } },
+        .{ .name = "generate-data", .description = "Generate synthetic tokenized data", .handler = .{ .basic = wrapGenerateData } },
+    },
+};
 
 // Subcommand dispatch (mirrors ralph.zig pattern)
 
@@ -62,38 +128,27 @@ fn tInfo(_: std.mem.Allocator, _: *utils.args.ArgParser) !void {
 fn tGenerateData(_: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
     try data.runGenerateData(parser.remaining());
 }
-pub fn trainUnknown(cmd: []const u8) void {
-    std.debug.print("Unknown train command: {s}\n", .{cmd});
-}
-pub fn printHelpAlloc(_: std.mem.Allocator) void {
-    printHelp();
-}
-
-const train_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"run"}, .run = tRun },
-    .{ .names = &.{"new"}, .run = tNew },
-    .{ .names = &.{"llm"}, .run = tLlm },
-    .{ .names = &.{"vision"}, .run = tVision },
-    .{ .names = &.{"clip"}, .run = tClip },
-    .{ .names = &.{"auto"}, .run = tAuto },
-    .{ .names = &.{"self"}, .run = tSelf },
-    .{ .names = &.{"resume"}, .run = tResume },
-    .{ .names = &.{"monitor"}, .run = tMonitor },
-    .{ .names = &.{"info"}, .run = tInfo },
-    .{ .names = &.{"generate-data"}, .run = tGenerateData },
+const train_subcommands = [_][]const u8{
+    "run", "new", "llm", "vision", "clip", "auto", "self", "resume", "monitor", "info", "generate-data", "help",
 };
 
 /// Run the train command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &train_commands,
-        null,
-        printHelpAlloc,
-        trainUnknown,
-    );
+/// Only reached when no child matches (help / unknown).
+pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        printHelp();
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp();
+        return;
+    }
+    // Unknown subcommand
+    std.debug.print("Unknown train command: {s}\n", .{cmd});
+    if (utils.args.suggestCommand(cmd, &train_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 pub fn printHelp() void {

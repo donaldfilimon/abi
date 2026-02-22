@@ -4,6 +4,7 @@
 //! requests to handlers. Uses Zig 0.16 std.Io.Threaded for async I/O.
 
 const std = @import("std");
+const Io = std.Io;
 const time = @import("../../../services/shared/time.zig");
 const sync = @import("../../../services/shared/sync.zig");
 const types = @import("types.zig");
@@ -45,23 +46,25 @@ pub const Server = struct {
         method: types.Method,
         path: []const u8,
         query: ?[]const u8,
-        headers: std.StringHashMap([]const u8),
+        headers: std.StringHashMapUnmanaged([]const u8),
         body: ?[]const u8,
         connection: *Connection,
+        allocator: std.mem.Allocator,
 
         pub fn init(allocator: std.mem.Allocator) Request {
             return .{
                 .method = .GET,
                 .path = "/",
                 .query = null,
-                .headers = std.StringHashMap([]const u8).init(allocator),
+                .headers = .empty,
                 .body = null,
                 .connection = undefined,
+                .allocator = allocator,
             };
         }
 
         pub fn deinit(self: *Request) void {
-            self.headers.deinit();
+            self.headers.deinit(self.allocator);
         }
 
         /// Gets a header value (case-insensitive).
@@ -73,7 +76,7 @@ pub const Server = struct {
     /// Simplified response structure for handler.
     pub const Response = struct {
         status: types.Status,
-        headers: std.StringHashMap([]const u8),
+        headers: std.StringHashMapUnmanaged([]const u8),
         body: std.ArrayListUnmanaged(u8),
         sent: bool,
         allocator: std.mem.Allocator,
@@ -81,7 +84,7 @@ pub const Server = struct {
         pub fn init(allocator: std.mem.Allocator) Response {
             return .{
                 .status = .ok,
-                .headers = std.StringHashMap([]const u8).init(allocator),
+                .headers = .empty,
                 .body = .empty,
                 .sent = false,
                 .allocator = allocator,
@@ -89,7 +92,7 @@ pub const Server = struct {
         }
 
         pub fn deinit(self: *Response) void {
-            self.headers.deinit();
+            self.headers.deinit(self.allocator);
             self.body.deinit(self.allocator);
         }
 
@@ -101,7 +104,7 @@ pub const Server = struct {
 
         /// Sets a response header.
         pub fn setHeader(self: *Response, name: []const u8, value: []const u8) !*Response {
-            try self.headers.put(name, value);
+            try self.headers.put(self.allocator, name, value);
             return self;
         }
 
@@ -223,11 +226,16 @@ pub const Server = struct {
         const enable: i32 = 1;
         _ = std.posix.setsockopt(sock, std.posix.SOL.SOCKET, std.posix.SO.REUSEADDR, std.mem.asBytes(&enable));
 
-        // Bind
-        const addr = std.net.Address.parseIp4(self.config.host, self.config.port) catch
+        // Bind - parse address using Zig 0.16 Io.net API
+        const ip4 = Io.net.Ip4Address.parse(self.config.host, self.config.port) catch
             return ServerError.BindFailed;
 
-        std.posix.bind(sock, &addr.any, addr.getOsSockLen()) catch
+        const sin: std.c.sockaddr.in = .{
+            .port = std.mem.nativeToBig(u16, ip4.port),
+            .addr = @bitCast(ip4.bytes),
+        };
+        const sock_addr: *const std.posix.sockaddr = @ptrCast(&sin);
+        std.posix.bind(sock, sock_addr, @sizeOf(std.c.sockaddr.in)) catch
             return ServerError.BindFailed;
 
         // Listen
@@ -284,7 +292,12 @@ pub const Server = struct {
         self.stats.active_connections += 1;
         self.mutex.unlock();
 
-        const address = std.net.Address{ .any = client_addr };
+        // Convert the raw sockaddr to an IpAddress
+        const sin: *const std.c.sockaddr.in = @ptrCast(@alignCast(&client_addr));
+        const address: Io.net.IpAddress = .{ .ip4 = .{
+            .bytes = @bitCast(sin.addr),
+            .port = std.mem.bigToNative(u16, sin.port),
+        } };
         return Connection.init(self.allocator, conn_id, address);
     }
 

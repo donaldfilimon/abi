@@ -4,6 +4,7 @@ const std = @import("std");
 const utils = @import("../../utils/mod.zig");
 const auto = @import("auto.zig");
 const ralph_improve = @import("../ralph/improve.zig");
+const ralph_workspace = @import("../ralph/workspace.zig");
 const neural_ui = @import("../ui/neural.zig");
 
 pub fn runSelfTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -99,6 +100,7 @@ pub fn runSelfTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !v
 
     if (run_visualize) {
         std.debug.print("==> Stage 3/3: dynamic neural visualization\n", .{});
+        printLatestRalphBanner(allocator);
         const frames_str = try std.fmt.allocPrintSentinel(allocator, "{d}", .{visualize_frames}, 0);
         defer allocator.free(frames_str);
         const viz_args = [_][:0]const u8{
@@ -108,6 +110,17 @@ pub fn runSelfTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !v
         try neural_ui.runVisualizer(allocator, &viz_args);
     } else {
         std.debug.print("==> Stage 3/3: visualization skipped\n", .{});
+    }
+}
+
+fn printLatestRalphBanner(allocator: std.mem.Allocator) void {
+    var io_backend = utils.io_backend.initIoBackend(allocator);
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    if (ralph_workspace.latestReportPath(allocator, io)) |path| {
+        defer allocator.free(path);
+        std.debug.print("   latest Ralph report: {s}\n", .{path});
     }
 }
 

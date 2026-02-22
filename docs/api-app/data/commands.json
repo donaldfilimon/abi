@@ -139,7 +139,7 @@
   },
   {
     "name": "llm",
-    "description": "LLM inference (run, session, serve, providers, plugins)",
+    "description": "LLM inference (run, session, serve, providers, plugins, discover)",
     "aliases": [
       "chat",
       "reasoning",
@@ -151,6 +151,7 @@
       "serve",
       "providers",
       "plugins",
+      "discover",
       "help"
     ]
   },
@@ -191,7 +192,7 @@
   },
   {
     "name": "network",
-    "description": "Manage network registry (list, register, status)",
+    "description": "Network and distributed systems management",
     "aliases": [],
     "subcommands": [
       "status",
@@ -200,8 +201,18 @@
       "register",
       "unregister",
       "touch",
-      "set-status"
+      "set-status",
+      "raft",
+      "discovery",
+      "balancer",
+      "health"
     ]
+  },
+  {
+    "name": "os-agent",
+    "description": "OS-aware AI agent with tools, memory, and self-learning",
+    "aliases": [],
+    "subcommands": []
   },
   {
     "name": "plugins",
@@ -246,7 +257,10 @@
       "gate",
       "improve",
       "skills",
-      "help"
+      "help",
+      "super-ralph",
+      "swarm",
+      "skill"
     ]
   },
   {

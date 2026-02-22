@@ -64,6 +64,7 @@ pub const dependency = struct {
     pub const DependencyEdge = stub_root.DependencyEdge;
     pub const ImportType = stub_root.ImportType;
     pub const DependencyGraph = stub_root.DependencyGraph;
+    pub const ModuleDependency = stub_root.DependencyGraph.ModuleDependency;
     pub const DependencyAnalyzer = stub_root.DependencyAnalyzer;
     pub const buildDependencyGraph = stub_root.buildDependencyGraph;
 };
@@ -157,9 +158,19 @@ pub const ExploreResult = struct {
 pub const QueryIntent = enum { search, definition, usage, structure };
 pub const ParsedQuery = struct { original: []const u8, intent: QueryIntent, terms: []const []const u8 };
 pub const QueryUnderstanding = struct {
-    pub fn parse(_: std.mem.Allocator, query_str: []const u8) ParsedQuery {
+    allocator: std.mem.Allocator,
+
+    pub fn init(allocator: std.mem.Allocator) QueryUnderstanding {
+        return .{ .allocator = allocator };
+    }
+
+    pub fn deinit(_: *QueryUnderstanding) void {}
+
+    pub fn parse(_: *QueryUnderstanding, query_str: []const u8) ParsedQuery {
         return .{ .original = query_str, .intent = .search, .terms = &.{} };
     }
+
+    pub fn freeParsedQuery(_: *QueryUnderstanding, _: *ParsedQuery) void {}
 };
 
 // --- Stub Impl Types ---
@@ -170,10 +181,20 @@ pub const FileVisitor = struct {
     }
     pub fn deinit(_: *FileVisitor) void {}
 };
-pub const FileStats = struct { total_files: usize = 0, total_bytes: u64 = 0 };
+
+// Fix 1: FileStats with all 7 fields matching fs.zig
+pub const FileStats = struct {
+    path: []const u8 = "",
+    size_bytes: u64 = 0,
+    mtime: i128 = 0,
+    ctime: i128 = 0,
+    is_directory: bool = false,
+    is_symlink: bool = false,
+    mode: u16 = 0,
+};
 
 pub const SearchPattern = struct { pattern: []const u8 = "", pattern_type: PatternType = .literal };
-pub const PatternType = enum { literal, glob, regex };
+pub const PatternType = enum { literal, glob, regex, fuzzy, compound };
 pub const PatternCompiler = struct {
     pub fn init(_: std.mem.Allocator) PatternCompiler {
         return .{};
@@ -206,31 +227,96 @@ pub const ExploreAgent = struct {
     }
 };
 
-pub const AstNode = struct { node_type: AstNodeType = .unknown, name: []const u8 = "" };
-pub const AstNodeType = enum { unknown, function, struct_decl, variable, import };
+pub const AstNode = struct { node_type: AstNodeType = .other, name: []const u8 = "" };
+
+// Fix 2: AstNodeType with all 25 variants matching ast.zig
+pub const AstNodeType = enum {
+    function,
+    struct_type,
+    enum_type,
+    union_type,
+    interface_type,
+    class_type,
+    const_decl,
+    var_decl,
+    type_alias,
+    import_decl,
+    test_decl,
+    comment,
+    doc_comment,
+    error_decl,
+    fn_param,
+    fn_return_type,
+    block,
+    if_stmt,
+    while_stmt,
+    for_stmt,
+    switch_stmt,
+    field,
+    method,
+    property,
+    other,
+};
+
 pub const ParsedFile = struct { path: []const u8 = "", nodes: []AstNode = &.{} };
+
+// Fix 3: AstParser with nodeToMatchType
 pub const AstParser = struct {
     pub fn init(_: std.mem.Allocator) AstParser {
         return .{};
     }
     pub fn deinit(_: *AstParser) void {}
+    pub fn nodeToMatchType(_: AstNodeType) MatchType {
+        return .exact;
+    }
 };
 
+// Fix 5: ParallelExplorer.init matching real parallel.zig (5 params including io)
 pub const ParallelExplorer = struct {
-    pub fn init(_: std.mem.Allocator, _: ExploreConfig) ParallelExplorer {
+    pub fn init(_: std.mem.Allocator, _: ExploreConfig, _: *ExploreResult, _: []const SearchPattern, _: std.Io) ParallelExplorer {
         return .{};
     }
     pub fn deinit(_: *ParallelExplorer) void {}
 };
 pub const WorkItem = struct { path: []const u8 = "" };
 
-pub const Function = struct { name: []const u8 = "", file: []const u8 = "", line: u32 = 0 };
+pub const Function = struct { name: []const u8 = "", file_path: []const u8 = "", line: usize = 0 };
 pub const CallEdge = struct { caller: Function = .{}, callee: Function = .{} };
+
+// Fix 6: CallGraph with all methods from callgraph.zig
 pub const CallGraph = struct {
     functions: []Function = &.{},
     edges: []CallEdge = &.{},
+
+    pub fn init(_: std.mem.Allocator) CallGraph {
+        return .{};
+    }
+
     pub fn deinit(_: *CallGraph) void {}
+
+    pub fn addFunction(_: *CallGraph, _: Function) !void {
+        return error.ExploreDisabled;
+    }
+
+    pub fn addCall(_: *CallGraph, _: Function, _: Function) !void {
+        return error.ExploreDisabled;
+    }
+
+    pub fn getCallees(_: *const CallGraph, _: []const u8) ?[]const Function {
+        return null;
+    }
+
+    pub fn getCallers(_: *const CallGraph, _: []const u8) ?[]const Function {
+        return null;
+    }
+
+    pub fn hasPathTo(_: *const CallGraph, _: []const u8, _: []const u8) bool {
+        return false;
+    }
+
+    pub fn toDot(_: *const CallGraph, _: anytype) !void {}
 };
+
 pub const CallGraphBuilder = struct {
     pub fn init(_: std.mem.Allocator) CallGraphBuilder {
         return .{};
@@ -238,14 +324,53 @@ pub const CallGraphBuilder = struct {
     pub fn deinit(_: *CallGraphBuilder) void {}
 };
 
-pub const Module = struct { name: []const u8 = "", path: []const u8 = "" };
-pub const DependencyEdge = struct { from: Module = .{}, to: Module = .{}, import_type: ImportType = .standard };
-pub const ImportType = enum { standard, package, builtin };
+pub const Module = struct { name: []const u8 = "", file_path: []const u8 = "", file_type: []const u8 = "" };
+pub const DependencyEdge = struct { from: Module = .{}, to: Module = .{}, import_type: ImportType = .local };
+pub const ImportType = enum { std, external, local, relative };
+
+// Fix 7: DependencyGraph with all methods from dependency.zig
 pub const DependencyGraph = struct {
     modules: []Module = &.{},
     edges: []DependencyEdge = &.{},
+
+    pub const ModuleDependency = struct {
+        module: Module,
+        import_type: ImportType,
+    };
+
+    pub fn init(_: std.mem.Allocator) DependencyGraph {
+        return .{};
+    }
+
     pub fn deinit(_: *DependencyGraph) void {}
+
+    pub fn addModule(_: *DependencyGraph, _: Module) !void {
+        return error.ExploreDisabled;
+    }
+
+    pub fn addDependency(_: *DependencyGraph, _: Module, _: Module, _: ImportType) !void {
+        return error.ExploreDisabled;
+    }
+
+    pub fn getDependencies(_: *const DependencyGraph, _: []const u8) ?[]const ModuleDependency {
+        return null;
+    }
+
+    pub fn getDependents(_: *const DependencyGraph, _: []const u8) ?[]const ModuleDependency {
+        return null;
+    }
+
+    pub fn findCircularDependencies(_: *const DependencyGraph) !std.ArrayListUnmanaged([]const []const u8) {
+        return .empty;
+    }
+
+    pub fn topologicalSort(_: *const DependencyGraph) !std.ArrayListUnmanaged([]const u8) {
+        return .empty;
+    }
+
+    pub fn toDot(_: *const DependencyGraph, _: anytype) !void {}
 };
+
 pub const DependencyAnalyzer = struct {
     pub fn init(_: std.mem.Allocator) DependencyAnalyzer {
         return .{};
@@ -255,14 +380,15 @@ pub const DependencyAnalyzer = struct {
 
 // --- Free Functions ---
 
-pub fn createDefaultAgent(_: std.mem.Allocator) ExploreAgent {
-    return .{};
+// Fix 8: createDefault/Quick/ThoroughAgent return ExploreError!ExploreAgent
+pub fn createDefaultAgent(_: std.mem.Allocator) ExploreError!ExploreAgent {
+    return error.ExploreDisabled;
 }
-pub fn createQuickAgent(_: std.mem.Allocator) ExploreAgent {
-    return .{};
+pub fn createQuickAgent(_: std.mem.Allocator) ExploreError!ExploreAgent {
+    return error.ExploreDisabled;
 }
-pub fn createThoroughAgent(_: std.mem.Allocator) ExploreAgent {
-    return .{};
+pub fn createThoroughAgent(_: std.mem.Allocator) ExploreError!ExploreAgent {
+    return error.ExploreDisabled;
 }
 
 pub fn parallelExplore(_: std.mem.Allocator, _: []const u8, _: ExploreConfig, _: []const u8) ExploreError!ExploreResult {
@@ -497,9 +623,10 @@ pub const CodeSnippet = struct {
     relevance_score: f32 = 0,
 };
 
+// Fix 9: CodebaseAnswer.snippets uses .empty (Zig 0.16 pattern)
 pub const CodebaseAnswer = struct {
     allocator: std.mem.Allocator,
-    snippets: std.ArrayListUnmanaged(CodeSnippet) = .{},
+    snippets: std.ArrayListUnmanaged(CodeSnippet) = .empty,
     summary: []const u8 = "",
 
     pub fn deinit(_: *CodebaseAnswer) void {}
@@ -543,4 +670,9 @@ pub const CodebaseIndex = struct {
 
 pub fn isEnabled() bool {
     return false;
+}
+
+// Fix 10: refAllDecls test at end of file
+test {
+    std.testing.refAllDecls(@This());
 }

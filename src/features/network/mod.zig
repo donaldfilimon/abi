@@ -48,7 +48,7 @@ pub const circuit_breaker = @import("circuit_breaker.zig");
 
 // Unified Memory and Linking modules
 pub const unified_memory = @import("unified_memory/mod.zig");
-pub const linking = @import("linking.zig");
+pub const linking = @import("linking/mod.zig");
 
 // ============================================================================
 // Node Registry exports
@@ -255,7 +255,10 @@ pub const LinkStats = linking.LinkStats;
 pub const TransportType = linking.TransportType;
 pub const SecureChannel = linking.SecureChannel;
 pub const ChannelConfig = linking.ChannelConfig;
+pub const ChannelState = linking.ChannelState;
+pub const ChannelStats = linking.ChannelStats;
 pub const EncryptionType = linking.EncryptionType;
+pub const LinkError = linking.LinkError;
 pub const ThunderboltTransport = linking.ThunderboltTransport;
 pub const ThunderboltConfig = linking.ThunderboltConfig;
 pub const ThunderboltDevice = linking.ThunderboltDevice;

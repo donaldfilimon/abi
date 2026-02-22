@@ -15,6 +15,8 @@ pub fn isAvailable(
         .ollama => connectors.ollama.isAvailable(),
         .lm_studio => connectors.lm_studio.isAvailable(),
         .vllm => connectors.vllm.isAvailable(),
+        .anthropic => connectors.anthropic.isAvailable(),
+        .openai => connectors.openai.isAvailable(),
         .plugin_http => blk: {
             if (plugin_id == null) break :blk plugins.loader.hasAnyEnabled(.http);
             const match = plugins.loader.findEnabledByKind(allocator, .http, plugin_id) catch null;

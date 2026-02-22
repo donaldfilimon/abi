@@ -2,7 +2,13 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "simd",
+    .description = "Run SIMD performance demo",
+};
 
 /// Run the SIMD performance demonstration.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

@@ -27,6 +27,11 @@ pub const wdbx_dataset = @import("../database/wdbx.zig");
 pub const lora = @import("lora.zig");
 pub const mixed_precision = @import("mixed_precision.zig");
 pub const logging = @import("logging.zig");
+pub const distributed = @import("distributed.zig");
+
+// Distributed training exports
+pub const DistributedConfig = distributed.DistributedConfig;
+pub const DistributedTrainer = distributed.DistributedTrainer;
 
 // Checkpoint exports
 pub const Checkpoint = checkpoint.Checkpoint;
@@ -178,6 +183,7 @@ pub const OptimizerType = enum {
 
 pub const LearningRateSchedule = enum {
     constant,
+    linear,
     cosine,
     warmup_cosine,
     step,
@@ -239,6 +245,13 @@ pub const TrainingReport = struct {
     checkpoints_saved: u32 = 0,
     early_stopped: bool = false,
     total_time_ms: u64 = 0,
+    best_val_loss: f32 = 0,
+    best_val_accuracy: f32 = 0,
+    final_perplexity: f32 = 0,
+    total_steps: u64 = 0,
+    total_tokens: u64 = 0,
+    total_time_ns: u64 = 0,
+    avg_throughput: f32 = 0,
 };
 
 pub const ModelState = struct {
@@ -554,6 +567,10 @@ pub fn isEnabled() bool {
 pub fn calculateLearningRate(config: TrainingConfig, step_val: u64, base_lr: f32) f32 {
     return switch (config.learning_rate_schedule) {
         .constant => base_lr,
+        .linear => {
+            const progress = @min(1.0, @as(f32, @floatFromInt(step_val)) / @as(f32, @floatFromInt(config.decay_steps)));
+            return base_lr * (1.0 - progress) + config.min_learning_rate * progress;
+        },
         .cosine => base_lr * 0.5 * (1 + @cos(@as(f32, @floatFromInt(step_val % config.decay_steps)) * 2 * std.math.pi / @as(f32, @floatFromInt(config.decay_steps)))),
         .warmup_cosine => {
             if (step_val < config.warmup_steps) {
@@ -670,10 +687,12 @@ pub fn trainWithResult(
     var best_loss: f32 = 1e10;
     var patience_counter: u32 = 0;
     var early_stopped: bool = false;
+    var last_epoch: usize = 0;
 
     var training_timer = time.Timer.start() catch return error.InvalidConfiguration;
 
     for (0..config.epochs) |epoch| {
+        last_epoch = epoch;
         var epoch_loss: f32 = 0;
         var epoch_accuracy: f32 = 0;
         var batch_count: u32 = 0;
@@ -763,8 +782,8 @@ pub fn trainWithResult(
         .report = .{
             .epochs = config.epochs,
             .batches = @as(u32, @intCast(batches_per_epoch)),
-            .final_loss = loss_history[config.epochs - 1],
-            .final_accuracy = accuracy_history[config.epochs - 1],
+            .final_loss = loss_history[last_epoch],
+            .final_accuracy = accuracy_history[last_epoch],
             .best_loss = best_loss,
             .learning_rate = final_lr,
             .gradient_updates = model.step,

@@ -8,6 +8,8 @@ pub const all_providers = [_]types.ProviderId{
     .ollama,
     .lm_studio,
     .vllm,
+    .anthropic,
+    .openai,
     .plugin_http,
     .plugin_native,
 };
@@ -31,6 +33,8 @@ pub const model_name_chain = [_]types.ProviderId{
     .vllm,
     .plugin_http,
     .plugin_native,
+    .anthropic,
+    .openai,
 };
 
 pub fn looksLikeModelPath(value: []const u8) bool {

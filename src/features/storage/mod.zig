@@ -612,3 +612,158 @@ test "storage capacity limit" {
     try std.testing.expectEqual(@as(u64, 1), s.total_objects);
     try std.testing.expect(s.total_bytes < 1024 * 1024);
 }
+
+test "StorageConfig default values" {
+    const config = StorageConfig{};
+    try std.testing.expectEqual(StorageBackend.memory, config.backend);
+    try std.testing.expectEqualStrings("./storage", config.base_path);
+    try std.testing.expectEqual(@as(u32, 1024), config.max_object_size_mb);
+}
+
+test "StorageConfig.defaults matches zero-init" {
+    const a = StorageConfig{};
+    const b = StorageConfig.defaults();
+    try std.testing.expectEqual(a.backend, b.backend);
+    try std.testing.expectEqualStrings(a.base_path, b.base_path);
+    try std.testing.expectEqual(a.max_object_size_mb, b.max_object_size_mb);
+}
+
+test "StorageObject default values" {
+    const obj = StorageObject{};
+    try std.testing.expectEqualStrings("", obj.key);
+    try std.testing.expectEqual(@as(u64, 0), obj.size);
+    try std.testing.expectEqualStrings("application/octet-stream", obj.content_type);
+    try std.testing.expectEqual(@as(u64, 0), obj.last_modified);
+}
+
+test "ObjectMetadata default values" {
+    const meta = ObjectMetadata{};
+    try std.testing.expectEqualStrings("application/octet-stream", meta.content_type);
+    try std.testing.expectEqual(@as(u8, 0), meta.custom_count);
+}
+
+test "StorageBackend enum coverage" {
+    const backends = [_]StorageBackend{ .memory, .local, .s3, .gcs };
+    try std.testing.expectEqual(@as(usize, 4), backends.len);
+}
+
+test "storage local backend not available" {
+    const allocator = std.testing.allocator;
+    try std.testing.expectError(
+        error.BackendNotAvailable,
+        init(allocator, .{ .backend = .local }),
+    );
+}
+
+test "storage s3 backend not available" {
+    const allocator = std.testing.allocator;
+    try std.testing.expectError(
+        error.BackendNotAvailable,
+        init(allocator, .{ .backend = .s3 }),
+    );
+}
+
+test "storage gcs backend not available" {
+    const allocator = std.testing.allocator;
+    try std.testing.expectError(
+        error.BackendNotAvailable,
+        init(allocator, .{ .backend = .gcs }),
+    );
+}
+
+test "storage get nonexistent key returns ObjectNotFound" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .backend = .memory });
+    defer deinit();
+
+    try std.testing.expectError(error.ObjectNotFound, getObject(allocator, "no-such-key"));
+}
+
+test "storage key validation edge cases" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .backend = .memory });
+    defer deinit();
+
+    // Single dot is valid
+    try putObject(allocator, "file.txt", "ok");
+    const data = try getObject(allocator, "file.txt");
+    defer allocator.free(data);
+    try std.testing.expectEqualStrings("ok", data);
+
+    // Double dot at end without trailing slash is fine (not traversal)
+    // "foo.." has ".." but followed by end of string with i+2 >= key.len
+    // AND preceded by non-slash — let's test actual traversal patterns
+    try std.testing.expectError(error.InvalidKey, putObject(allocator, "..", "bad"));
+    try std.testing.expectError(error.InvalidKey, putObject(allocator, "a/../b", "bad"));
+}
+
+test "storage stats empty" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .backend = .memory });
+    defer deinit();
+
+    const s = stats();
+    try std.testing.expectEqual(@as(u64, 0), s.total_objects);
+    try std.testing.expectEqual(@as(u64, 0), s.total_bytes);
+    try std.testing.expectEqual(StorageBackend.memory, s.backend);
+}
+
+test "storage Context init and deinit" {
+    const allocator = std.testing.allocator;
+    const ctx = try Context.init(allocator, .{});
+    defer ctx.deinit();
+    try std.testing.expectEqual(StorageBackend.memory, ctx.config.backend);
+}
+
+test "storage re-initialization guard" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .backend = .memory });
+    defer deinit();
+
+    // Second init should be no-op
+    try init(allocator, .{ .backend = .memory, .max_object_size_mb = 1 });
+    // Original config should still be active (1024 MB limit)
+    try putObject(allocator, "test", "data");
+    const s = stats();
+    try std.testing.expectEqual(@as(u64, 1), s.total_objects);
+}
+
+test "storage delete updates stats" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .backend = .memory });
+    defer deinit();
+
+    try putObject(allocator, "x", "12345");
+    const s1 = stats();
+    try std.testing.expectEqual(@as(u64, 5), s1.total_bytes);
+    try std.testing.expectEqual(@as(u64, 1), s1.total_objects);
+
+    _ = try deleteObject("x");
+    const s2 = stats();
+    try std.testing.expectEqual(@as(u64, 0), s2.total_bytes);
+    try std.testing.expectEqual(@as(u64, 0), s2.total_objects);
+}
+
+test "storage list empty prefix returns all" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .backend = .memory });
+    defer deinit();
+
+    try putObject(allocator, "a", "1");
+    try putObject(allocator, "b", "2");
+
+    const all = try listObjects(allocator, "");
+    defer allocator.free(all);
+    try std.testing.expectEqual(@as(usize, 2), all.len);
+}
+
+test "storage list with no matches" {
+    const allocator = std.testing.allocator;
+    try init(allocator, .{ .backend = .memory });
+    defer deinit();
+
+    try putObject(allocator, "alpha", "data");
+    const results = try listObjects(allocator, "beta");
+    defer allocator.free(results);
+    try std.testing.expectEqual(@as(usize, 0), results.len);
+}

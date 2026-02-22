@@ -35,7 +35,7 @@
 //! ## Feature Modules
 //!
 //! Access features through namespace exports:
-//! - `abi.ai` / `abi.ai_core` / `abi.inference` / `abi.training` / `abi.reasoning`
+//! - `abi.ai` (with submodules: `.core`, `.llm`, `.training`, `.streaming`, etc.)
 //! - `abi.gpu`, `abi.database`, `abi.network`, `abi.web`, `abi.cloud`
 //! - `abi.observability`, `abi.analytics`, `abi.auth`, `abi.messaging`
 //! - `abi.cache`, `abi.storage`, `abi.search`, `abi.gateway`, `abi.pages`
@@ -132,29 +132,12 @@ pub const ai = if (build_options.enable_ai)
 else
     @import("features/ai/stub.zig");
 
-/// AI Core — agents, tools, prompts, memory, discovery.
-pub const ai_core = if (build_options.enable_ai)
-    @import("features/ai/facades/core.zig")
-else
-    @import("features/ai/facades/core_stub.zig");
-
-/// AI Inference — LLM, embeddings, vision, streaming, transformer.
-pub const inference = if (build_options.enable_llm)
-    @import("features/ai/facades/inference.zig")
-else
-    @import("features/ai/facades/inference_stub.zig");
-
-/// AI Training — training pipelines, federated learning, data loading.
-pub const training = if (build_options.enable_training)
-    @import("features/ai/facades/training.zig")
-else
-    @import("features/ai/facades/training_stub.zig");
-
-/// AI Reasoning — Abbey, RAG, eval, templates, explore, orchestration.
-pub const reasoning = if (build_options.enable_reasoning)
-    @import("features/ai/facades/reasoning.zig")
-else
-    @import("features/ai/facades/reasoning_stub.zig");
+// NOTE(v0.4.0): Facade aliases `inference`, `training`, `reasoning`, `ai_core`
+// have been removed. Use the canonical sub-module paths instead:
+//   abi.ai.llm          (was abi.inference)
+//   abi.ai.training      (was abi.training)
+//   abi.ai.orchestration (was abi.reasoning)
+//   abi.ai.core          (was abi.ai_core)
 
 /// Vector database.
 pub const database = if (build_options.enable_database)

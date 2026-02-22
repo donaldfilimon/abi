@@ -396,19 +396,19 @@ const WorkerState = struct {
         const m_val = if (layer == 0) self.graph.m_max0 else self.graph.m_max;
 
         // Build candidate list using BFS expansion
-        var candidates = std.AutoHashMap(u32, f32).init(self.allocator);
-        defer candidates.deinit();
+        var candidates: std.AutoHashMapUnmanaged(u32, f32) = .empty;
+        defer candidates.deinit(self.allocator);
 
-        var visited = std.AutoHashMap(u32, void).init(self.allocator);
-        defer visited.deinit();
+        var visited: std.AutoHashMapUnmanaged(u32, void) = .empty;
+        defer visited.deinit(self.allocator);
 
         var queue = std.ArrayListUnmanaged(u32).empty;
         defer queue.deinit(self.allocator);
 
         // Start with entry point
         const entry_dist = self.computeDistance(node_id, entry);
-        try candidates.put(entry, entry_dist);
-        try visited.put(entry, {});
+        try candidates.put(self.allocator, entry, entry_dist);
+        try visited.put(self.allocator, entry, {});
         try queue.append(self.allocator, entry);
 
         var head: usize = 0;
@@ -418,9 +418,9 @@ const WorkerState = struct {
 
             for (neighbors) |neighbor| {
                 if (!visited.contains(neighbor)) {
-                    try visited.put(neighbor, {});
+                    try visited.put(self.allocator, neighbor, {});
                     const dist = self.computeDistance(node_id, neighbor);
-                    try candidates.put(neighbor, dist);
+                    try candidates.put(self.allocator, neighbor, dist);
                     try queue.append(self.allocator, neighbor);
                 }
             }
@@ -450,15 +450,15 @@ const WorkerState = struct {
             if (needs_add) {
                 if (neighbor_links.len >= m_val) {
                     // Need to prune - collect distances and select
-                    var link_candidates = std.AutoHashMap(u32, f32).init(self.allocator);
-                    defer link_candidates.deinit();
+                    var link_candidates: std.AutoHashMapUnmanaged(u32, f32) = .empty;
+                    defer link_candidates.deinit(self.allocator);
 
                     for (neighbor_links) |existing| {
                         const dist = self.computeDistance(neighbor, existing);
-                        try link_candidates.put(existing, dist);
+                        try link_candidates.put(self.allocator, existing, dist);
                     }
                     const new_dist = self.computeDistance(neighbor, node_id);
-                    try link_candidates.put(node_id, new_dist);
+                    try link_candidates.put(self.allocator, node_id, new_dist);
 
                     const pruned = try self.selectNeighborsHeuristic(neighbor, &link_candidates, m_val);
                     defer self.allocator.free(pruned);
@@ -476,7 +476,7 @@ const WorkerState = struct {
     fn selectNeighborsHeuristic(
         self: *WorkerState,
         node_id: u32,
-        candidates: *std.AutoHashMap(u32, f32),
+        candidates: *std.AutoHashMapUnmanaged(u32, f32),
         m_val: usize,
     ) ![]u32 {
         const Pair = struct { id: u32, dist: f32 };

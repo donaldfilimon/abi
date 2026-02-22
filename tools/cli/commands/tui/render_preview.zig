@@ -1,191 +1,163 @@
 //! Command preview renderer for command launcher TUI.
 
 const tui = @import("../../tui/mod.zig");
-const types = @import("types.zig");
 const state_mod = @import("state.zig");
+const style_adapter = @import("style_adapter.zig");
 
 const TuiState = state_mod.TuiState;
-const box = types.box;
 const unicode = tui.unicode;
 const writeRepeat = tui.render_utils.writeRepeat;
 
 pub fn render(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     const th = state.theme();
+    const chrome = style_adapter.launcher(th);
     const item = state.selectedItem() orelse return;
+    const inner = width -| 2;
 
     try term.write("\n");
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dtl);
-    try writeRepeat(term, tui.widgets.box.dh, width - 2);
-    try term.write(tui.widgets.box.dtr);
+    try term.write(chrome.frame);
+    try term.write("╭");
+    try writeRepeat(term, "─", inner);
+    try term.write("╮");
     try term.write(th.reset);
     try term.write("\n");
 
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
+    try term.write(chrome.frame);
+    try term.write("│");
     try term.write(th.reset);
     try term.write(" ");
-    try term.write(th.bold);
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.chip_fg);
+    try term.write(" PREVIEW ");
+    try term.write(th.reset);
+    try term.write(" ");
     try term.write(item.categoryColor(th));
-    try term.write(item.label);
+    try term.write(th.bold);
+    const title_max = inner -| 12;
+    const title = unicode.truncateToWidth(item.label, title_max);
+    try term.write(title);
     try term.write(th.reset);
-
-    const title_w = unicode.displayWidth(item.label) + 2;
-    if (title_w < width - 1) {
-        try writeRepeat(term, " ", width - 1 - title_w);
-    }
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
-    try term.write(th.reset);
-    try term.write("\n");
-
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
-    try term.write(th.reset);
-    try term.write(" ");
-    try term.write(th.text_dim);
-    try term.write(item.description);
-    try term.write(th.reset);
-
-    const desc_w = unicode.displayWidth(item.description) + 2;
-    if (desc_w < width - 1) {
-        try writeRepeat(term, " ", width - 1 - desc_w);
-    }
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
+    const title_w = 11 + unicode.displayWidth(title);
+    if (title_w < inner) try writeRepeat(term, " ", inner - title_w);
+    try term.write(chrome.frame);
+    try term.write("│");
     try term.write(th.reset);
     try term.write("\n");
 
-    try term.write(th.primary);
-    try term.write(box.lsep);
-    try writeRepeat(term, tui.widgets.box.dh, width - 2);
-    try term.write(box.rsep);
+    try term.write(chrome.frame);
+    try term.write("├");
+    try writeRepeat(term, "─", inner);
+    try term.write("┤");
     try term.write(th.reset);
     try term.write("\n");
 
+    try renderSection(term, th, chrome, "DESCRIPTION", item.description, inner);
     if (item.usage.len > 0) {
-        try renderSection(term, th, "Usage", width);
-        try renderLine(term, th, item.usage, width);
+        try renderSection(term, th, chrome, "USAGE", item.usage, inner);
     }
 
     if (item.examples.len > 0) {
-        try renderSection(term, th, "Examples", width);
+        try renderSectionHeader(term, th, chrome, "EXAMPLES", inner);
         for (item.examples) |example| {
-            try term.write(th.primary);
-            try term.write(tui.widgets.box.dv);
-            try term.write(th.reset);
-            try term.write("   ");
-            try term.write(th.success);
-            try term.write("$ ");
-            try term.write(th.reset);
-            try term.write(example);
-
-            const ex_w = unicode.displayWidth(example) + 5;
-            if (ex_w < width - 1) {
-                try writeRepeat(term, " ", width - 1 - ex_w);
-            }
-            try term.write(th.primary);
-            try term.write(tui.widgets.box.dv);
-            try term.write(th.reset);
-            try term.write("\n");
+            try renderBodyLine(term, th, chrome, example, inner, "$ ");
         }
     }
 
     if (item.related.len > 0) {
-        try renderSection(term, th, "Related", width);
-        try term.write(th.primary);
-        try term.write(tui.widgets.box.dv);
-        try term.write(th.reset);
-        try term.write("   ");
-
-        var total_w: usize = 3;
-        for (item.related, 0..) |rel, i| {
-            if (i > 0) {
-                try term.write(", ");
-                total_w += 2;
-            }
-            try term.write(th.accent);
-            try term.write(rel);
-            try term.write(th.reset);
-            total_w += unicode.displayWidth(rel);
+        try renderSectionHeader(term, th, chrome, "RELATED", inner);
+        for (item.related) |related| {
+            try renderBodyLine(term, th, chrome, related, inner, "- ");
         }
-
-        if (total_w < width - 1) {
-            try writeRepeat(term, " ", width - 1 - total_w);
-        }
-        try term.write(th.primary);
-        try term.write(tui.widgets.box.dv);
-        try term.write(th.reset);
-        try term.write("\n");
     }
 
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dbl);
-    try writeRepeat(term, tui.widgets.box.dh, width - 2);
-    try term.write(tui.widgets.box.dbr);
-    try term.write(th.reset);
-    try term.write("\n\n");
-
-    try term.write(th.text_dim);
-    try term.write(" Press ");
-    try term.write(th.reset);
-    try term.write(th.accent);
-    try term.write("Enter");
-    try term.write(th.reset);
-    try term.write(th.text_dim);
-    try term.write(" to run, ");
-    try term.write(th.reset);
-    try term.write(th.accent);
-    try term.write("Esc");
-    try term.write(th.reset);
-    try term.write(th.text_dim);
-    try term.write(" to go back\n");
-    try term.write(th.reset);
-}
-
-fn renderSection(term: *tui.Terminal, th: *const tui.Theme, title: []const u8, width: usize) !void {
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
-    try term.write(th.reset);
-    try writeRepeat(term, " ", width - 2);
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
+    try term.write(chrome.frame);
+    try term.write("╰");
+    try writeRepeat(term, "─", inner);
+    try term.write("╯");
     try term.write(th.reset);
     try term.write("\n");
 
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
+    try term.write(chrome.subtitle);
+    try term.write(" ");
+    try term.write(chrome.keycap_bg);
+    try term.write(chrome.keycap_fg);
+    try term.write(" Enter ");
+    try term.write(th.reset);
+    try term.write(chrome.subtitle);
+    try term.write(" run  ");
+    try term.write(chrome.keycap_bg);
+    try term.write(chrome.keycap_fg);
+    try term.write(" Esc ");
+    try term.write(th.reset);
+    try term.write(chrome.subtitle);
+    try term.write(" back");
+    try term.write(th.reset);
+    try term.write("\n");
+}
+
+fn renderSection(
+    term: *tui.Terminal,
+    th: *const tui.Theme,
+    chrome: style_adapter.ChromeStyle,
+    title: []const u8,
+    body: []const u8,
+    inner: usize,
+) !void {
+    try renderSectionHeader(term, th, chrome, title, inner);
+    try renderBodyLine(term, th, chrome, body, inner, "");
+}
+
+fn renderSectionHeader(
+    term: *tui.Terminal,
+    th: *const tui.Theme,
+    chrome: style_adapter.ChromeStyle,
+    title: []const u8,
+    inner: usize,
+) !void {
+    try term.write(chrome.frame);
+    try term.write("│");
     try term.write(th.reset);
     try term.write(" ");
-    try term.write(th.bold);
-    try term.write(th.primary);
+    try term.write(chrome.chip_bg);
+    try term.write(chrome.chip_fg);
+    try term.write(" ");
     try term.write(title);
-    try term.write(":");
+    try term.write(" ");
     try term.write(th.reset);
-
-    const sect_w = unicode.displayWidth(title) + 3;
-    if (sect_w < width - 1) {
-        try writeRepeat(term, " ", width - 1 - sect_w);
-    }
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
+    const used = title.len + 4;
+    if (used < inner) try writeRepeat(term, " ", inner - used);
+    try term.write(chrome.frame);
+    try term.write("│");
     try term.write(th.reset);
     try term.write("\n");
 }
 
-fn renderLine(term: *tui.Terminal, th: *const tui.Theme, text: []const u8, width: usize) !void {
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
+fn renderBodyLine(
+    term: *tui.Terminal,
+    th: *const tui.Theme,
+    chrome: style_adapter.ChromeStyle,
+    text: []const u8,
+    inner: usize,
+    prefix: []const u8,
+) !void {
+    try term.write(chrome.frame);
+    try term.write("│");
     try term.write(th.reset);
-    try term.write("   ");
-    try term.write(text);
-
-    const line_w = unicode.displayWidth(text) + 3;
-    if (line_w < width - 1) {
-        try writeRepeat(term, " ", width - 1 - line_w);
+    try term.write(" ");
+    if (prefix.len > 0) {
+        try term.write(chrome.title);
+        try term.write(prefix);
+        try term.write(th.reset);
     }
-    try term.write(th.primary);
-    try term.write(tui.widgets.box.dv);
+    const body_max = inner -| 1 -| prefix.len;
+    const body = unicode.truncateToWidth(text, body_max);
+    try term.write(th.text_dim);
+    try term.write(body);
+    try term.write(th.reset);
+    const used = 1 + prefix.len + unicode.displayWidth(body);
+    if (used < inner) try writeRepeat(term, " ", inner - used);
+    try term.write(chrome.frame);
+    try term.write("│");
     try term.write(th.reset);
     try term.write("\n");
 }

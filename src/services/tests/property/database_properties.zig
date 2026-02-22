@@ -200,23 +200,23 @@ test "triangle inequality holds for L2 distance" {
 
 /// Simple in-memory database model for testing invariants
 const DatabaseModel = struct {
-    vectors: std.AutoHashMap(u64, [VECTOR_DIM]f32),
+    vectors: std.AutoHashMapUnmanaged(u64, [VECTOR_DIM]f32),
     allocator: std.mem.Allocator,
 
     fn init(allocator: std.mem.Allocator) DatabaseModel {
         return .{
-            .vectors = std.AutoHashMap(u64, [VECTOR_DIM]f32).init(allocator),
+            .vectors = .empty,
             .allocator = allocator,
         };
     }
 
     fn deinit(self: *DatabaseModel) void {
-        self.vectors.deinit();
+        self.vectors.deinit(self.allocator);
         self.* = undefined;
     }
 
     fn insert(self: *DatabaseModel, id: u64, vector: [VECTOR_DIM]f32) !void {
-        try self.vectors.put(id, vector);
+        try self.vectors.put(self.allocator, id, vector);
     }
 
     fn delete(self: *DatabaseModel, id: u64) bool {

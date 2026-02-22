@@ -190,7 +190,7 @@ pub const TestSuite = struct {
         var result_buf = try g.createBuffer(f32, dim * dim, .{});
         defer g.destroyBuffer(&result_buf);
 
-        const dims = gpu.MatrixDims{ .m = dim, .n = dim, .k = dim };
+        const dims = gpu.unified.MatrixDims{ .m = dim, .n = dim, .k = dim };
         _ = try g.matrixMultiply(&a_buf, &b_buf, &result_buf, dims);
 
         try result_buf.read(f32, result_data);
@@ -296,7 +296,7 @@ pub const TestSuite = struct {
         var result_buf = try g.createBuffer(f32, size, .{});
         defer g.destroyBuffer(&result_buf);
 
-        const dims = gpu.MatrixDims{ .m = dim, .n = dim, .k = dim };
+        const dims = gpu.unified.MatrixDims{ .m = dim, .n = dim, .k = dim };
 
         var timer = try time.Timer.start();
         var total_time: u64 = 0;

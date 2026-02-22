@@ -93,10 +93,10 @@ pub const FileFilter = struct {
     modified_after: ?i128 = null,
     modified_before: ?i128 = null,
 
-    pub fn matches(self: *const FileFilter, stats: std.fs.File.Stat) bool {
+    pub fn matches(self: *const FileFilter, stats: anytype) bool {
         if (self.extensions) |exts| {
-            const path = stats.path orelse return false;
-            const ext = std.fs.path.extension(path);
+            const path = if (@hasField(@TypeOf(stats), "path")) stats.path else return false;
+            const ext = std.Io.Dir.path.extension(path);
             var found = false;
             for (exts) |e| {
                 if (std.mem.eql(u8, ext, e)) {
@@ -108,8 +108,8 @@ pub const FileFilter = struct {
         }
 
         if (self.exclude_extensions) |exts| {
-            const path = stats.path orelse return false;
-            const ext = std.fs.path.extension(path);
+            const path = if (@hasField(@TypeOf(stats), "path")) stats.path else return false;
+            const ext = std.Io.Dir.path.extension(path);
             for (exts) |e| {
                 if (std.mem.eql(u8, ext, e)) {
                     return false;
@@ -148,3 +148,7 @@ pub const SearchOptions = struct {
     patterns: []const []const u8,
     config: ExploreConfig,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

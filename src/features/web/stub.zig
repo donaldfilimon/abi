@@ -137,6 +137,98 @@ pub const StubRouter = struct {
     }
 };
 
+// --- Server and Middleware Stubs ---
+
+pub const server = struct {
+    pub const Server = StubServer;
+    pub const ServerConfig = struct {
+        host: []const u8 = "127.0.0.1",
+        port: u16 = 8080,
+        max_connections: usize = 1024,
+        read_timeout_ms: u32 = 30_000,
+        write_timeout_ms: u32 = 30_000,
+        keep_alive: bool = true,
+        keep_alive_timeout_ms: u32 = 5_000,
+        worker_threads: u32 = 4,
+    };
+    pub const ServerState = enum { stopped, starting, running, stopping };
+    pub const ServerStats = struct {};
+    pub const ServerError = error{WebDisabled};
+};
+
+const StubServer = struct {
+    pub fn init(_: std.mem.Allocator, _: anytype) StubServer {
+        return .{};
+    }
+    pub fn deinit(_: *StubServer) void {}
+};
+
+pub const middleware = struct {
+    pub const observability = struct {
+        pub const BUCKET_COUNT: usize = 8;
+        pub const bucket_bounds_us: [BUCKET_COUNT]u64 = .{
+            100,
+            500,
+            1_000,
+            5_000,
+            50_000,
+            200_000,
+            1_000_000,
+            std.math.maxInt(u64),
+        };
+        pub const RequestMetrics = StubRequestMetrics;
+        pub const MetricsSnapshot = StubMetricsSnapshot;
+        pub const MetricsMiddleware = StubMetricsMiddleware;
+    };
+
+    pub const MetricsMiddleware = StubMetricsMiddleware;
+    pub const RequestMetrics = StubRequestMetrics;
+    pub const MetricsSnapshot = StubMetricsSnapshot;
+};
+
+const stub_bucket_count = 8;
+
+const StubRequestMetrics = struct {
+    start_ns: i128,
+};
+
+const StubMetricsSnapshot = struct {
+    total_requests: u64,
+    total_errors: u64,
+    active_requests: u64,
+    request_durations_us: [stub_bucket_count]u64,
+    status_counts: [6]u64,
+};
+
+const StubMetricsMiddleware = struct {
+    total_requests: u64 = 0,
+    total_errors: u64 = 0,
+    active_requests: u64 = 0,
+    request_durations_us: [stub_bucket_count]u64 = .{0} ** stub_bucket_count,
+    status_counts: [6]u64 = .{0} ** 6,
+
+    pub fn init() StubMetricsMiddleware {
+        return .{};
+    }
+    pub fn processRequest(_: *StubMetricsMiddleware) StubRequestMetrics {
+        return .{ .start_ns = 0 };
+    }
+    pub fn recordResponse(_: *StubMetricsMiddleware, _: StubRequestMetrics, _: u16) void {}
+    pub fn getSnapshot(_: *const StubMetricsMiddleware) StubMetricsSnapshot {
+        return .{
+            .total_requests = 0,
+            .total_errors = 0,
+            .active_requests = 0,
+            .request_durations_us = .{0} ** stub_bucket_count,
+            .status_counts = .{0} ** 6,
+        };
+    }
+    pub fn formatPrometheus(_: *const StubMetricsMiddleware, _: std.mem.Allocator) ![]u8 {
+        return error.WebDisabled;
+    }
+    pub fn reset(_: *StubMetricsMiddleware) void {}
+};
+
 // --- Re-exports ---
 
 pub const WebError = types.WebError;

@@ -57,11 +57,11 @@ pub const RouteContext = struct {
     /// Request body.
     body: []const u8,
     /// Path parameters (e.g., persona name).
-    path_params: std.StringHashMap([]const u8),
+    path_params: std.StringHashMapUnmanaged([]const u8),
     /// Query parameters.
-    query_params: std.StringHashMap([]const u8),
+    query_params: std.StringHashMapUnmanaged([]const u8),
     /// Request headers.
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
     /// Response body buffer.
     response_body: std.ArrayListUnmanaged(u8),
     /// Response status.
@@ -77,18 +77,18 @@ pub const RouteContext = struct {
         return .{
             .allocator = allocator,
             .body = &.{},
-            .path_params = std.StringHashMap([]const u8).init(allocator),
-            .query_params = std.StringHashMap([]const u8).init(allocator),
-            .headers = std.StringHashMap([]const u8).init(allocator),
+            .path_params = .empty,
+            .query_params = .empty,
+            .headers = .empty,
             .response_body = std.ArrayListUnmanaged(u8).empty,
             .chat_handler = handler,
         };
     }
 
     pub fn deinit(self: *RouteContext) void {
-        self.path_params.deinit();
-        self.query_params.deinit();
-        self.headers.deinit();
+        self.path_params.deinit(self.allocator);
+        self.query_params.deinit(self.allocator);
+        self.headers.deinit(self.allocator);
         self.response_body.deinit(self.allocator);
     }
 

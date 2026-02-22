@@ -121,3 +121,82 @@ test "SensorData default values" {
     try std.testing.expectEqual(@as(u64, 0), data.timestamp_ms);
     try std.testing.expectEqual(@as(usize, 3), data.values.len);
 }
+
+test "MobileConfig default values" {
+    const config = MobileConfig{};
+    try std.testing.expectEqual(MobilePlatform.auto, config.platform);
+    try std.testing.expect(!config.enable_sensors);
+    try std.testing.expect(!config.enable_notifications);
+}
+
+test "MobileConfig.defaults matches zero-init" {
+    const a = MobileConfig{};
+    const b = MobileConfig.defaults();
+    try std.testing.expectEqual(a.platform, b.platform);
+    try std.testing.expectEqual(a.enable_sensors, b.enable_sensors);
+    try std.testing.expectEqual(a.enable_notifications, b.enable_notifications);
+}
+
+test "MobilePlatform enum coverage" {
+    const platforms = [_]MobilePlatform{ .auto, .ios, .android };
+    try std.testing.expectEqual(@as(usize, 3), platforms.len);
+    // Verify they are distinct
+    try std.testing.expect(platforms[0] != platforms[1]);
+    try std.testing.expect(platforms[1] != platforms[2]);
+    try std.testing.expect(platforms[0] != platforms[2]);
+}
+
+test "Context default state is active" {
+    const ctx = try Context.init(std.testing.allocator, .{});
+    defer ctx.deinit();
+    try std.testing.expectEqual(LifecycleState.active, ctx.state);
+}
+
+test "Context with android platform" {
+    const ctx = try Context.init(std.testing.allocator, .{
+        .platform = .android,
+        .enable_sensors = false,
+        .enable_notifications = true,
+    });
+    defer ctx.deinit();
+    try std.testing.expectEqual(MobilePlatform.android, ctx.config.platform);
+    try std.testing.expect(!ctx.config.enable_sensors);
+    try std.testing.expect(ctx.config.enable_notifications);
+}
+
+test "SensorData custom values" {
+    const data = SensorData{
+        .timestamp_ms = 12345,
+        .values = .{ 1.0, -2.5, 9.81 },
+    };
+    try std.testing.expectEqual(@as(u64, 12345), data.timestamp_ms);
+    try std.testing.expectApproxEqAbs(@as(f32, 1.0), data.values[0], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, -2.5), data.values[1], 0.001);
+    try std.testing.expectApproxEqAbs(@as(f32, 9.81), data.values[2], 0.001);
+}
+
+test "MobileError error set" {
+    const errors = [_]MobileError{
+        error.FeatureDisabled,
+        error.PlatformNotSupported,
+        error.SensorUnavailable,
+        error.NotificationFailed,
+        error.OutOfMemory,
+    };
+    try std.testing.expectEqual(@as(usize, 5), errors.len);
+}
+
+test "readSensor with different sensor names" {
+    // Should return default data regardless of sensor name
+    const accel = try readSensor("accelerometer");
+    const gyro = try readSensor("gyroscope");
+    try std.testing.expectEqual(accel.timestamp_ms, gyro.timestamp_ms);
+    try std.testing.expectEqual(accel.values[0], gyro.values[0]);
+}
+
+test "multiple init deinit cycles" {
+    try init(std.testing.allocator, .{});
+    deinit();
+    try init(std.testing.allocator, .{ .platform = .ios });
+    deinit();
+}

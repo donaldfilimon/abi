@@ -15,8 +15,14 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
+
+pub const meta: command_mod.Meta = .{
+    .name = "embed",
+    .description = "Generate embeddings from text (openai, mistral, cohere, ollama)",
+};
 
 pub const Provider = enum {
     openai,

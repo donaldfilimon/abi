@@ -305,12 +305,12 @@ pub const HashRing = struct {
         var stats = LoadStats{};
 
         // Count virtual nodes per physical node
-        var node_counts = std.StringHashMap(usize).init(self.allocator);
-        defer node_counts.deinit();
+        var node_counts: std.StringHashMapUnmanaged(usize) = .empty;
+        defer node_counts.deinit(self.allocator);
 
         for (self.virtual_nodes.items) |vnode| {
             const count = node_counts.get(vnode.physical_node) orelse 0;
-            node_counts.put(vnode.physical_node, count + 1) catch continue;
+            node_counts.put(self.allocator, vnode.physical_node, count + 1) catch continue;
         }
 
         // Calculate statistics
@@ -359,8 +359,8 @@ pub const ShardManager = struct {
     node_registry: *network.NodeRegistry,
 
     // Topology awareness for locality placement
-    node_latencies: std.StringHashMap(u64), // Node -> average latency (ms)
-    node_regions: std.StringHashMap([]const u8), // Node -> region/zone
+    node_latencies: std.StringHashMapUnmanaged(u64), // Node -> average latency (ms)
+    node_regions: std.StringHashMapUnmanaged([]const u8), // Node -> region/zone
 
     const Self = @This();
 
@@ -383,8 +383,8 @@ pub const ShardManager = struct {
             .config = config,
             .hash_ring = ring,
             .node_registry = node_registry,
-            .node_latencies = std.StringHashMap(u64).init(allocator),
-            .node_regions = std.StringHashMap([]const u8).init(allocator),
+            .node_latencies = .empty,
+            .node_regions = .empty,
         };
     }
 
@@ -395,14 +395,14 @@ pub const ShardManager = struct {
         while (iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
         }
-        self.node_latencies.deinit();
+        self.node_latencies.deinit(self.allocator);
 
         var region_iter = self.node_regions.iterator();
         while (region_iter.next()) |entry| {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.*);
         }
-        self.node_regions.deinit();
+        self.node_regions.deinit(self.allocator);
     }
 
     /// Determine shard placement for a conversation block
@@ -461,7 +461,7 @@ pub const ShardManager = struct {
             latency_ptr.* = @as(u64, @intFromFloat(0.8 * @as(f64, @floatFromInt(latency_ptr.*)) +
                 0.2 * @as(f64, @floatFromInt(latency_ms))));
         } else {
-            try self.node_latencies.put(node_copy, latency_ms);
+            try self.node_latencies.put(self.allocator, node_copy, latency_ms);
         }
     }
 
@@ -470,7 +470,7 @@ pub const ShardManager = struct {
         const node_copy = try self.allocator.dupe(u8, node_id);
         const region_copy = try self.allocator.dupe(u8, region);
 
-        try self.node_regions.put(node_copy, region_copy);
+        try self.node_regions.put(self.allocator, node_copy, region_copy);
     }
 
     /// Handle node join (add to hash ring)

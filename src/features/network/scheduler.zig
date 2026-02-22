@@ -263,7 +263,10 @@ pub const TaskScheduler = struct {
         _ = self;
         if (nodes.len == 0) return null;
 
-        const index = std.crypto.random.intRangeLessThan(usize, nodes.len);
+        var rand_buf: [8]u8 = undefined;
+        std.c.arc4random_buf(&rand_buf, rand_buf.len);
+        const rand_val = std.mem.readInt(u64, &rand_buf, .little);
+        const index = rand_val % nodes.len;
         return nodes[index];
     }
 

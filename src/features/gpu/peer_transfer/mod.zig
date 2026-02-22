@@ -45,6 +45,9 @@ pub const cuda_backend = if (build_options.gpu_cuda and backend_shared.dynlibSup
 pub const vulkan_backend = if (build_options.gpu_vulkan) @import("vulkan.zig") else struct {};
 pub const metal_backend = if (build_options.gpu_metal) @import("metal.zig") else struct {};
 
+// Network-based cross-node peer transfer
+pub const network = @import("network.zig");
+
 pub const DeviceId = multi_device.DeviceId;
 pub const DeviceGroup = multi_device.DeviceGroup;
 pub const ReduceOp = multi_device.ReduceOp;
@@ -229,7 +232,7 @@ pub const TransferStats = struct {
 pub const PeerTransferManager = struct {
     allocator: std.mem.Allocator,
     device_group: *DeviceGroup,
-    capabilities: std.AutoHashMap(u64, TransferCapability),
+    capabilities: std.AutoHashMapUnmanaged(u64, TransferCapability),
     active_transfers: std.ArrayListUnmanaged(TransferHandle),
     recovery_strategy: RecoveryStrategy,
     stats: TransferStats,
@@ -246,7 +249,7 @@ pub const PeerTransferManager = struct {
         var manager = Self{
             .allocator = allocator,
             .device_group = device_group,
-            .capabilities = std.AutoHashMap(u64, TransferCapability).init(allocator),
+            .capabilities = .empty,
             .active_transfers = .{},
             .recovery_strategy = .retry_with_fallback,
             .stats = .{},
@@ -264,7 +267,7 @@ pub const PeerTransferManager = struct {
     /// Deinitialize the manager.
     pub fn deinit(self: *Self) void {
         self.host_staged_backend.deinit();
-        self.capabilities.deinit();
+        self.capabilities.deinit(self.allocator);
         self.active_transfers.deinit(self.allocator);
         self.* = undefined;
     }
@@ -279,7 +282,7 @@ pub const PeerTransferManager = struct {
 
                 const capability = try self.probeDevicePair(src_id, dst_id);
                 const pair = DevicePair{ .src = src_id, .dst = dst_id };
-                try self.capabilities.put(pair.hash(), capability);
+                try self.capabilities.put(self.allocator, pair.hash(), capability);
             }
         }
     }

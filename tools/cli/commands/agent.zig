@@ -20,9 +20,15 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 const super_ = @import("ralph/super.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "agent",
+    .description = "Run AI agent (interactive or one-shot)",
+};
 
 /// Session state for the interactive agent.
 const SessionState = struct {
@@ -317,7 +323,7 @@ pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     if (use_tools) {
         // Tool-augmented agent mode
-        var tool_agent = try abi.ai.ToolAugmentedAgent.init(allocator, .{
+        var tool_agent = try abi.ai.tool_agent.ToolAugmentedAgent.init(allocator, .{
             .agent = .{
                 .name = name,
                 .system_prompt = persona.system_prompt,
@@ -639,16 +645,16 @@ fn listSessions(allocator: std.mem.Allocator) !void {
     std.debug.print("{s:<20} {s:<20} {s:<10} {s:<10}\n", .{ "ID", "Name", "Messages", "Updated" });
     std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
 
-    for (sessions) |meta| {
+    for (sessions) |sess_meta| {
         defer {
-            allocator.free(meta.id);
-            allocator.free(meta.name);
+            allocator.free(sess_meta.id);
+            allocator.free(sess_meta.name);
         }
         std.debug.print("{s:<20} {s:<20} {d:<10} {d:<10}\n", .{
-            meta.id,
-            meta.name,
-            meta.message_count,
-            meta.updated_at,
+            sess_meta.id,
+            sess_meta.name,
+            sess_meta.message_count,
+            sess_meta.updated_at,
         });
     }
     std.debug.print("\n", .{});

@@ -18,8 +18,38 @@ This guide is generated from repository metadata for **AI** coverage and stays d
 ## Build Snapshot
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
-- Main tests: `1270` pass / `5` skip / `1275` total
-- Feature tests: `1535` pass / `1535` total
+- Main tests: `1254` pass / `5` skip / `1259` total
+- Feature tests: `2044` pass / `2048` total
+
+## Feature Coverage
+
+- **agents** — AI agent runtime
+  - Build flag: `enable_ai`
+  - Source: `src/features/ai/facades/core.zig`
+  - Parent: `ai`
+- **ai** — AI core functionality
+  - Build flag: `enable_ai`
+  - Source: `src/features/ai/mod.zig`
+- **embeddings** — Vector embeddings generation
+  - Build flag: `enable_ai`
+  - Source: `src/features/ai/mod.zig`
+  - Parent: `ai`
+- **llm** — Local LLM inference
+  - Build flag: `enable_llm`
+  - Source: `src/features/ai/facades/inference.zig`
+  - Parent: `ai`
+- **personas** — Multi-persona AI assistant
+  - Build flag: `enable_ai`
+  - Source: `src/features/ai/mod.zig`
+  - Parent: `ai`
+- **reasoning** — AI reasoning (Abbey, eval, RAG)
+  - Build flag: `enable_reasoning`
+  - Source: `src/features/ai/facades/reasoning.zig`
+  - Parent: `ai`
+- **training** — Model training pipelines
+  - Build flag: `enable_training`
+  - Source: `src/features/ai/facades/training.zig`
+  - Parent: `ai`
 
 ## Module Coverage
 
@@ -29,7 +59,7 @@ This guide is generated from repository metadata for **AI** coverage and stays d
 
 - `abi agent` — Run AI agent (interactive or one-shot)
 - `abi embed` — Generate embeddings from text (openai, mistral, cohere, ollama)
-- `abi llm` — LLM inference (run, session, serve, providers, plugins)
+- `abi llm` — LLM inference (run, session, serve, providers, plugins, discover)
 - `abi model` — Model management (list, download, remove, search)
 - `abi multi-agent` — Run multi-agent workflows
 - `abi ralph` — Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)

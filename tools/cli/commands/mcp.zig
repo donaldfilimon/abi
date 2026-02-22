@@ -10,36 +10,50 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = @import("../utils/io_backend.zig");
-const subcommand = @import("../utils/subcommand.zig");
 const mcp = abi.mcp;
 
+// Wrapper functions for comptime children dispatch
+fn wrapServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runServeSubcommand(allocator, &parser);
+}
+fn wrapTools(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runToolsSubcommand(allocator, &parser);
+}
+
+pub const meta: command_mod.Meta = .{
+    .name = "mcp",
+    .description = "MCP server for WDBX database (serve, tools)",
+    .subcommands = &.{ "serve", "tools", "help" },
+    .children = &.{
+        .{ .name = "serve", .description = "Start MCP server (JSON-RPC over stdio)", .handler = .{ .basic = wrapServe } },
+        .{ .name = "tools", .description = "List available MCP tools", .handler = .{ .basic = wrapTools } },
+    },
+};
+
+const mcp_subcommands = [_][]const u8{ "serve", "tools", "help" };
+
+/// Run the mcp command with the provided arguments.
+/// Only reached when no child matches (help / unknown).
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printHelp(allocator);
         return;
     }
-
-    var parser = utils.args.ArgParser.init(allocator, args);
-    if (parser.wantsHelp()) {
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
         printHelp(allocator);
         return;
     }
-
-    const commands = [_]subcommand.Command{
-        .{ .names = &.{"serve"}, .run = runServeSubcommand },
-        .{ .names = &.{"tools"}, .run = runToolsSubcommand },
-    };
-
-    try subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &commands,
-        null,
-        printHelp,
-        onUnknownCommand,
-    );
+    // Unknown subcommand
+    utils.output.printError("Unknown mcp command: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &mcp_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn runServeSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
@@ -68,10 +82,6 @@ fn runToolsSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParse
         return;
     }
     try runTools(allocator);
-}
-
-fn onUnknownCommand(command: []const u8) void {
-    utils.output.printError("Unknown subcommand: {s}", .{command});
 }
 
 fn runServe(allocator: std.mem.Allocator) !void {

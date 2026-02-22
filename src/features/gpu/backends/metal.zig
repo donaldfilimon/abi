@@ -238,10 +238,18 @@ pub fn init() !void {
         std.log.err("Failed to load Objective-C runtime", .{});
         return MetalError.ObjcRuntimeUnavailable;
     }
+    errdefer {
+        if (objc_lib) |*lib| lib.close();
+        objc_lib = null;
+    }
 
     if (!tryLoadMetal()) {
         std.log.err("Failed to load Metal framework", .{});
         return MetalError.InitializationFailed;
+    }
+    errdefer {
+        if (metal_lib) |*lib| lib.close();
+        metal_lib = null;
     }
 
     if (!loadMetalFunctions()) {
@@ -258,6 +266,11 @@ pub fn init() !void {
     if (device == null) {
         std.log.err("MTLCreateSystemDefaultDevice returned null", .{});
         return MetalError.DeviceNotFound;
+    }
+    errdefer {
+        if (objc_msgSend_void) |release_fn| {
+            if (device != null) release_fn(device.?, sel_release);
+        }
     }
 
     // Query device properties
@@ -276,6 +289,11 @@ pub fn init() !void {
     if (command_queue == null) {
         std.log.err("Failed to create Metal command queue", .{});
         return MetalError.CommandQueueCreationFailed;
+    }
+    errdefer {
+        if (objc_msgSend_void) |release_fn| {
+            if (command_queue != null) release_fn(command_queue.?, sel_release);
+        }
     }
 
     metal_device = device;
@@ -339,11 +357,40 @@ fn queryDeviceProperties(device: ID) void {
 pub fn deinit() void {
     // Release Metal objects using Objective-C runtime
     if (objc_msgSend_void) |release_fn| {
+        // Release pending command buffers
+        for (pending_command_buffers.items) |cmd_buffer| {
+            if (cmd_buffer != null) {
+                release_fn(cmd_buffer, sel_release);
+            }
+        }
+
+        // Release cached pipeline states
+        var pipe_it = pipeline_cache.iterator();
+        while (pipe_it.next()) |entry| {
+            if (entry.value_ptr.* != null) {
+                release_fn(entry.value_ptr.*, sel_release);
+            }
+        }
+
         if (metal_command_queue != null) {
             release_fn(metal_command_queue, sel_release);
         }
         // Device is typically not released - managed by system
     }
+
+    // Deinit pending command buffers ArrayList
+    if (pending_buffers_allocator) |alloc| {
+        pending_command_buffers.deinit(alloc);
+    }
+    pending_command_buffers = .empty;
+    pending_buffers_allocator = null;
+
+    // Deinit pipeline cache HashMap
+    if (pipeline_cache_allocator) |alloc| {
+        pipeline_cache.deinit(alloc);
+    }
+    pipeline_cache = .empty;
+    pipeline_cache_allocator = null;
 
     metal_device = null;
     metal_command_queue = null;
@@ -525,7 +572,14 @@ pub fn compileKernel(
     }
 
     // Allocate SafeMetalKernel with magic validation header for safe pointer casting
-    const safe_kernel = allocator.create(SafeMetalKernel) catch return types.KernelError.CompilationFailed;
+    const safe_kernel = allocator.create(SafeMetalKernel) catch {
+        if (objc_msgSend_void) |release_fn| {
+            release_fn(pipeline_state, sel_release);
+            release_fn(function, sel_release);
+            release_fn(library, sel_release);
+        }
+        return types.KernelError.CompilationFailed;
+    };
     safe_kernel.* = .{
         .magic = kernel_magic, // Set magic for pointer validation
         .inner = .{

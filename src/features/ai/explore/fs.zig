@@ -12,7 +12,7 @@ pub const FileStats = struct {
     mode: u16,
 
     pub fn fromDirEntry(allocator: std.mem.Allocator, io: std.Io, base_path: []const u8, entry: std.Io.Dir.Entry) !FileStats {
-        const full_path = try std.fs.path.join(allocator, &.{ base_path, entry.name });
+        const full_path = try std.Io.Dir.path.join(allocator, &.{ base_path, entry.name });
         errdefer allocator.free(full_path);
 
         var stats: FileStats = undefined;
@@ -122,7 +122,7 @@ pub const FileVisitor = struct {
         }) |entry| {
             if (self.shouldSkip(entry.name)) continue;
 
-            const full_path = std.fs.path.join(self.allocator, &.{ dir_path, entry.name }) catch {
+            const full_path = std.Io.Dir.path.join(self.allocator, &.{ dir_path, entry.name }) catch {
                 self.error_count += 1;
                 continue;
             };
@@ -171,7 +171,7 @@ pub const FileVisitor = struct {
     }
 };
 
-fn matchesGlob(pattern: []const u8, name: []const u8) bool {
+pub fn matchesGlob(pattern: []const u8, name: []const u8) bool {
     if (pattern.len == 0) return false;
 
     if (std.mem.endsWith(u8, pattern, "*")) {
@@ -188,11 +188,11 @@ fn matchesGlob(pattern: []const u8, name: []const u8) bool {
 }
 
 pub fn getFileExtension(filename: []const u8) []const u8 {
-    return std.fs.path.extension(filename);
+    return std.Io.Dir.path.extension(filename);
 }
 
 pub fn getFileBasename(filename: []const u8) []const u8 {
-    const basename = std.fs.path.basename(filename);
+    const basename = std.Io.Dir.path.basename(filename);
     const ext = getFileExtension(basename);
     if (ext.len > 0) {
         return basename[0 .. basename.len - ext.len];
@@ -237,17 +237,16 @@ pub fn determineFileType(filename: []const u8) []const u8 {
 }
 
 pub fn readFileContent(allocator: std.mem.Allocator, io: std.Io, path: []const u8, max_size: ?usize) ![]const u8 {
-    const file = std.Io.Dir.cwd().openFile(io, path, .{}) catch {
-        return error.FileNotFound;
+    const max_bytes = max_size orelse (16 * 1024 * 1024);
+    return std.Io.Dir.cwd().readFileAlloc(
+        io,
+        path,
+        allocator,
+        .limited(max_bytes),
+    ) catch |err| switch (err) {
+        error.FileNotFound => error.FileNotFound,
+        else => err,
     };
-    defer file.close(io);
-
-    const stat = try file.stat(io);
-    const max_bytes = max_size orelse stat.size;
-    const size = @min(stat.size, max_bytes);
-
-    const content = try file.readToEndAlloc(allocator, io, size);
-    return content;
 }
 
 pub fn readFileLines(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !std.ArrayListUnmanaged([]const u8) {
@@ -279,4 +278,8 @@ pub fn countLines(content: []const u8) usize {
         if (c == '\n') count += 1;
     }
     return count;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

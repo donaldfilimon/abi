@@ -4,6 +4,7 @@
 //! alerting rules system for proactive system monitoring.
 
 const std = @import("std");
+const Io = std.Io;
 const observability = @import("mod.zig");
 
 // ============================================================================
@@ -499,10 +500,17 @@ pub const PrometheusExporter = struct {
         self.* = undefined;
     }
 
+    /// Start the Prometheus metrics exporter.
+    ///
+    /// Sets the `running` flag so that `generateMetrics()` can be called,
+    /// but does NOT bind a network port or spawn an HTTP server thread.
+    /// To expose metrics over HTTP, mount
+    /// `abi.web.middleware.observability.MetricsMiddleware.formatPrometheus()`
+    /// in your web server's router, or call `generateMetrics()` directly
+    /// and serve the output from an existing HTTP handler.
     pub fn start(self: *PrometheusExporter) !void {
         if (self.running.load(.acquire)) return;
         self.running.store(true, .release);
-        // In a real implementation, this would spawn a thread for the HTTP server
     }
 
     pub fn stop(self: *PrometheusExporter) void {
@@ -576,7 +584,7 @@ pub const StatsDConfig = struct {
 pub const StatsDClient = struct {
     allocator: std.mem.Allocator,
     config: StatsDConfig,
-    socket: ?std.net.Stream = null,
+    stream: ?Io.net.Stream = null,
     buffer: std.ArrayListUnmanaged(u8),
     connected: bool,
 
@@ -584,29 +592,32 @@ pub const StatsDClient = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .socket = null,
+            .stream = null,
             .buffer = .{},
             .connected = false,
         };
     }
 
-    pub fn deinit(self: *StatsDClient) void {
-        self.disconnect();
+    pub fn deinit(self: *StatsDClient, io: Io) void {
+        self.disconnect(io);
         self.buffer.deinit(self.allocator);
         self.* = undefined;
     }
 
-    pub fn connect(self: *StatsDClient) !void {
+    pub fn connect(self: *StatsDClient, io: Io) !void {
         if (self.connected) return;
-        const address = try std.net.Address.parseIp4(self.config.host, self.config.port);
-        self.socket = std.net.tcpConnectToAddress(address) catch return StatsDError.ConnectionFailed;
+        const address: Io.net.IpAddress = Io.net.IpAddress.parseIp4(
+            self.config.host,
+            self.config.port,
+        ) catch return StatsDError.ConnectionFailed;
+        self.stream = address.connect(io, .{ .mode = .stream }) catch return StatsDError.ConnectionFailed;
         self.connected = true;
     }
 
-    pub fn disconnect(self: *StatsDClient) void {
-        if (self.socket) |*socket| {
-            socket.close();
-            self.socket = null;
+    pub fn disconnect(self: *StatsDClient, io: Io) void {
+        if (self.stream) |*stream| {
+            stream.close(io);
+            self.stream = null;
         }
         self.connected = false;
     }

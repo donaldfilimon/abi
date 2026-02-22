@@ -18,12 +18,12 @@ This guide is generated from repository metadata for **Core** coverage and stays
 ## Build Snapshot
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
-- Main tests: `1270` pass / `5` skip / `1275` total
-- Feature tests: `1535` pass / `1535` total
+- Main tests: `1254` pass / `5` skip / `1259` total
+- Feature tests: `2044` pass / `2048` total
 
 ## Command Tree
 
-Top-level commands: **29** | aliases: **8** | structural subcommands: **140**
+Top-level commands: **30** | aliases: **8** | structural subcommands: **148**
 
 | Command | Aliases | Description | Subcommands |
 | --- | --- | --- | --- |
@@ -40,14 +40,15 @@ Top-level commands: **29** | aliases: **8** | structural subcommands: **140**
 | `gendocs` | — | Generate API docs (runs zig build gendocs) | — |
 | `gpu` | — | GPU commands (backends, devices, summary, default) | backends, devices, list, summary, default, status |
 | `gpu-dashboard` | dashboard | Interactive GPU + Agent monitoring dashboard | — |
-| `llm` | chat, reasoning, serve | LLM inference (run, session, serve, providers, plugins) | run, session, serve, providers, plugins, help |
+| `llm` | chat, reasoning, serve | LLM inference (run, session, serve, providers, plugins, discover) | run, session, serve, providers, plugins, discover, help |
 | `mcp` | — | MCP server for WDBX database (serve, tools) | serve, tools, help |
 | `model` | — | Model management (list, download, remove, search) | list, info, download, remove, search, path |
 | `multi-agent` | — | Run multi-agent workflows | info, run, list, create, status |
-| `network` | — | Manage network registry (list, register, status) | status, list, nodes, register, unregister, touch, set-status |
+| `network` | — | Network and distributed systems management | status, list, nodes, register, unregister, touch, set-status, raft, discovery, balancer, health |
+| `os-agent` | — | OS-aware AI agent with tools, memory, and self-learning | — |
 | `plugins` | — | Plugin management (list, enable, disable, info) | list, info, enable, disable, search |
 | `profile` | — | User profile and settings management | show, list, create, switch, delete, set, get, api-key, export, import, help |
-| `ralph` | — | Ralph orchestrator (init, run, super, multi, status, gate, improve, skills) | init, run, super, multi, status, gate, improve, skills, help |
+| `ralph` | — | Ralph orchestrator (init, run, super, multi, status, gate, improve, skills) | init, run, super, multi, status, gate, improve, skills, help, super-ralph, swarm, skill |
 | `simd` | — | Run SIMD performance demo | — |
 | `status` | — | Show framework health and component status | help |
 | `system-info` | info, sysinfo | Show system and framework status | — |

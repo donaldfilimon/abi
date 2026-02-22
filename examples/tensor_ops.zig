@@ -16,7 +16,7 @@ const Tensor32 = abi.shared.tensor.Tensor32;
 const Shape = abi.shared.tensor.Shape;
 const v2 = abi.shared.utils.v2_primitives;
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

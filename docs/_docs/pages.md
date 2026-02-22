@@ -18,8 +18,14 @@ This guide is generated from repository metadata for **Infrastructure** coverage
 ## Build Snapshot
 
 - Zig pin: `0.16.0-dev.2623+27eec9bd6`
-- Main tests: `1270` pass / `5` skip / `1275` total
-- Feature tests: `1535` pass / `1535` total
+- Main tests: `1254` pass / `5` skip / `1259` total
+- Feature tests: `2044` pass / `2048` total
+
+## Feature Coverage
+
+- **pages** — Dashboard/UI pages with URL routing
+  - Build flag: `enable_pages`
+  - Source: `src/features/pages/mod.zig`
 
 ## Module Coverage
 
@@ -31,7 +37,7 @@ This guide is generated from repository metadata for **Infrastructure** coverage
 
 - `abi acp` — Agent Communication Protocol (card, serve)
 - `abi mcp` — MCP server for WDBX database (serve, tools)
-- `abi network` — Manage network registry (list, register, status)
+- `abi network` — Network and distributed systems management
 
 ## Validation Commands
 

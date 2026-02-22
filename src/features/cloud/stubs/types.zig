@@ -66,8 +66,8 @@ pub const CloudEvent = struct {
     provider: CloudProvider,
     method: ?HttpMethod = null,
     path: ?[]const u8 = null,
-    query_params: ?std.StringHashMap([]const u8) = null,
-    headers: ?std.StringHashMap([]const u8) = null,
+    query_params: ?std.StringHashMapUnmanaged([]const u8) = null,
+    headers: ?std.StringHashMapUnmanaged([]const u8) = null,
     body: ?[]const u8 = null,
     json_body: ?std.json.Value = null,
     source: ?[]const u8 = null,
@@ -130,7 +130,7 @@ pub const CloudEvent = struct {
 /// Cloud response stub.
 pub const CloudResponse = struct {
     status_code: u16 = 200,
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
     body: []const u8 = "",
     is_base64_encoded: bool = false,
     allocator: std.mem.Allocator,
@@ -138,7 +138,7 @@ pub const CloudResponse = struct {
     pub fn init(allocator: std.mem.Allocator) CloudResponse {
         return .{
             .allocator = allocator,
-            .headers = std.StringHashMap([]const u8).init(allocator),
+            .headers = .empty,
         };
     }
 
@@ -179,7 +179,7 @@ pub const CloudResponse = struct {
     }
 
     pub fn deinit(self: *CloudResponse) void {
-        self.headers.deinit();
+        self.headers.deinit(self.allocator);
     }
 };
 

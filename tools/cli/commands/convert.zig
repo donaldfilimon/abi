@@ -8,43 +8,51 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
-// Subcommand dispatch
-
-fn cDataset(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runDataset(allocator, parser.remaining());
+// Wrapper functions for comptime children dispatch
+fn wrapDataset(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runDataset(allocator, args);
 }
-fn cModel(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runModel(allocator, parser.remaining());
+fn wrapModel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runModel(allocator, args);
 }
-fn cEmbeddings(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runEmbeddings(allocator, parser.remaining());
-}
-fn convertUnknown(cmd: []const u8) void {
-    std.debug.print("Unknown convert command: {s}\n", .{cmd});
-}
-fn printHelpAlloc(_: std.mem.Allocator) void {
-    printHelp();
+fn wrapEmbeddings(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runEmbeddings(allocator, args);
 }
 
-const convert_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"dataset"}, .run = cDataset },
-    .{ .names = &.{"model"}, .run = cModel },
-    .{ .names = &.{"embeddings"}, .run = cEmbeddings },
+pub const meta: command_mod.Meta = .{
+    .name = "convert",
+    .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)",
+    .subcommands = &.{ "dataset", "model", "embeddings" },
+    .children = &.{
+        .{ .name = "dataset", .description = "Convert between dataset formats", .handler = .{ .basic = wrapDataset } },
+        .{ .name = "model", .description = "Convert between model formats", .handler = .{ .basic = wrapModel } },
+        .{ .name = "embeddings", .description = "Convert embedding file formats", .handler = .{ .basic = wrapEmbeddings } },
+    },
 };
 
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &convert_commands,
-        null,
-        printHelpAlloc,
-        convertUnknown,
-    );
+const convert_subcommands = [_][]const u8{
+    "dataset", "model", "embeddings", "help",
+};
+
+pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        printHelp();
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp();
+        return;
+    }
+    // Unknown subcommand
+    std.debug.print("Unknown convert command: {s}\n", .{cmd});
+    if (utils.args.suggestCommand(cmd, &convert_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn runDataset(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
@@ -96,14 +104,14 @@ fn runDataset(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
 
     if (std.mem.eql(u8, format.?, "to-wdbx")) {
         std.debug.print("Converting TokenBin {s} -> WDBX {s}...\n", .{ input_path.?, output_path.? });
-        abi.ai.tokenBinToWdbx(allocator, input_path.?, output_path.?, block_size) catch |err| {
+        abi.ai.database.tokenBinToWdbx(allocator, input_path.?, output_path.?, block_size) catch |err| {
             std.debug.print("Conversion failed: {t}\n", .{err});
             return;
         };
         std.debug.print("Success.\n", .{});
     } else if (std.mem.eql(u8, format.?, "to-tokenbin")) {
         std.debug.print("Converting WDBX {s} -> TokenBin {s}...\n", .{ input_path.?, output_path.? });
-        abi.ai.wdbxToTokenBin(allocator, input_path.?, output_path.?) catch |err| {
+        abi.ai.database.wdbxToTokenBin(allocator, input_path.?, output_path.?) catch |err| {
             std.debug.print("Conversion failed: {t}\n", .{err});
             return;
         };

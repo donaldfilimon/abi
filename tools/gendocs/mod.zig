@@ -4,6 +4,7 @@ const source_abi = @import("source_abi.zig");
 const source_cli = @import("source_cli.zig");
 const source_readme = @import("source_readme.zig");
 const source_roadmap = @import("source_roadmap.zig");
+const source_features = @import("source_features.zig");
 const source_baseline = @import("source_baseline.zig");
 const render_api_md = @import("render_api_md.zig");
 const render_guides_md = @import("render_guides_md.zig");
@@ -52,6 +53,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
     const commands = try source_cli.discoverCommands(allocator, io, cwd);
     defer model.deinitCommandSlice(allocator, commands);
 
+    const features = try source_features.discoverFeatures(allocator, io, cwd);
+    defer model.deinitFeatureSlice(allocator, features);
+
     const readmes = try source_readme.collectReadmeSummaries(allocator, io, cwd);
     defer model.deinitReadmeSlice(allocator, readmes);
 
@@ -77,6 +81,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
             meta,
             modules,
             commands,
+            features,
             readmes,
             roadmap_data.roadmap_entries,
             roadmap_data.plan_entries,
@@ -94,6 +99,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
             allocator,
             modules,
             commands,
+            features,
             roadmap_data.roadmap_entries,
             roadmap_data.plan_entries,
             &outputs,

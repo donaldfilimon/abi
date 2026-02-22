@@ -156,8 +156,11 @@ test "parallel explorer creation" {
     defer result.deinit();
 
     const patterns = [_]explore.SearchPattern{};
+    var io_backend: std.Io.Threaded = .init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
 
-    const explorer = explore.ParallelExplorer.init(allocator, config, &result, &patterns);
+    const explorer = explore.ParallelExplorer.init(allocator, config, &result, &patterns, io);
     _ = explorer;
 
     try std.testing.expect(true);
@@ -259,8 +262,11 @@ test "parallel explorer cancellation" {
     defer result.deinit();
 
     const patterns = [_]explore.SearchPattern{};
+    var io_backend: std.Io.Threaded = .init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
 
-    var explorer = explore.ParallelExplorer.init(allocator, config, &result, &patterns);
+    var explorer = explore.ParallelExplorer.init(allocator, config, &result, &patterns, io);
 
     try std.testing.expect(explorer.getProcessedCount() == 0);
 }

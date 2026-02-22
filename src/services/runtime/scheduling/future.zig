@@ -365,16 +365,72 @@ pub fn race(comptime T: type, allocator: std.mem.Allocator, futures: []Future(T)
 }
 
 /// Create a future that resolves after a delay.
-pub fn delay(allocator: std.mem.Allocator, ns: u64) Future(void) {
-    var result = Future(void).init(allocator);
+///
+/// Records a monotonic-clock wake time (now + `ns` nanoseconds). The
+/// future starts in the `pending` state; callers should poll it via
+/// `poll()` — when the wake time has elapsed the future auto-resolves
+/// on the next `poll()` call. This avoids blocking the caller's thread
+/// but does NOT use kernel async I/O or a background timer thread, so
+/// resolution granularity depends on how often `poll()` is called.
+pub fn delay(allocator: std.mem.Allocator, ns: u64) SleepFuture {
+    var ts: std.c.timespec = undefined;
+    _ = std.c.clock_gettime(.MONOTONIC, &ts);
 
-    // In a real implementation, this would use async I/O
-    // For now, we just resolve immediately for the API shape
-    _ = ns;
-    result.resolve({});
+    const extra_sec: i64 = @intCast(ns / std.time.ns_per_s);
+    const extra_nsec: i64 = @intCast(ns % std.time.ns_per_s);
 
-    return result;
+    var wake_nsec = ts.nsec + extra_nsec;
+    var wake_sec = ts.sec + extra_sec;
+    if (wake_nsec >= std.time.ns_per_s) {
+        wake_nsec -= std.time.ns_per_s;
+        wake_sec += 1;
+    }
+
+    return .{
+        .inner = Future(void).init(allocator),
+        .wake_sec = wake_sec,
+        .wake_nsec = wake_nsec,
+    };
 }
+
+/// A future that resolves once a monotonic-clock deadline elapses.
+/// Created by `delay()`. Call `poll()` periodically; it will
+/// auto-resolve the inner future when the wake time has passed.
+pub const SleepFuture = struct {
+    inner: Future(void),
+    wake_sec: i64,
+    wake_nsec: i64,
+
+    /// Check whether the sleep duration has elapsed. If so, the inner
+    /// future is resolved and the result is returned. Returns `null`
+    /// while the deadline has not yet passed.
+    pub fn poll(self: *SleepFuture) ?Future(void).Result {
+        if (self.inner.isComplete()) return self.inner.result;
+
+        var ts: std.c.timespec = undefined;
+        _ = std.c.clock_gettime(.MONOTONIC, &ts);
+
+        if (ts.sec > self.wake_sec or
+            (ts.sec == self.wake_sec and ts.nsec >= self.wake_nsec))
+        {
+            self.inner.resolve({});
+            return self.inner.result;
+        }
+        return null;
+    }
+
+    /// Returns `true` once the wake time has passed and the future
+    /// has been resolved.
+    pub fn isReady(self: *SleepFuture) bool {
+        if (self.inner.isComplete()) return true;
+        _ = self.poll();
+        return self.inner.isComplete();
+    }
+
+    pub fn deinit(self: *SleepFuture) void {
+        self.inner.deinit();
+    }
+};
 
 /// Promise - the producer side of a Future.
 pub fn Promise(comptime T: type) type {

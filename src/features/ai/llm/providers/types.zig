@@ -7,6 +7,8 @@ pub const ProviderId = enum {
     ollama,
     lm_studio,
     vllm,
+    anthropic,
+    openai,
     plugin_http,
     plugin_native,
 
@@ -18,6 +20,8 @@ pub const ProviderId = enum {
             .ollama => "ollama",
             .lm_studio => "lm_studio",
             .vllm => "vllm",
+            .anthropic => "anthropic",
+            .openai => "openai",
             .plugin_http => "plugin_http",
             .plugin_native => "plugin_native",
         };
@@ -33,6 +37,13 @@ pub const ProviderId = enum {
     }
 };
 
+/// Structured chat message for multi-turn conversations.
+/// Layout-compatible with connector shared.ChatMessage.
+pub const ChatMessage = struct {
+    role: []const u8,
+    content: []const u8,
+};
+
 pub const GenerateConfig = struct {
     model: []const u8,
     prompt: []const u8,
@@ -45,6 +56,13 @@ pub const GenerateConfig = struct {
     top_p: f32 = 0.9,
     top_k: u32 = 40,
     repetition_penalty: f32 = 1.1,
+    /// Optional structured messages for multi-turn conversations.
+    /// When set, providers that support chat completions will use these
+    /// instead of wrapping `prompt` in a single user message.
+    messages: ?[]const ChatMessage = null,
+    /// Optional system prompt. Used by providers that support a dedicated
+    /// system message field (e.g., Anthropic).
+    system_prompt: ?[]const u8 = null,
 };
 
 pub const GenerateResult = struct {

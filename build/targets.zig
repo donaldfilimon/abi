@@ -48,6 +48,9 @@ pub const example_targets = [_]BuildTarget{
     .{ .name = "example-ai-training", .step_name = "run-ai-training", .description = "Run AI training example", .source_path = "examples/ai_training.zig" },
     .{ .name = "example-ai-reasoning", .step_name = "run-ai-reasoning", .description = "Run AI reasoning example", .source_path = "examples/ai_reasoning.zig" },
     .{ .name = "example-mobile", .step_name = "run-mobile", .description = "Run mobile example", .source_path = "examples/mobile.zig" },
+    .{ .name = "example-gpu-training", .step_name = "run-gpu-training", .description = "Run GPU + training integration example", .source_path = "examples/gpu_training.zig" },
+    .{ .name = "example-distributed-db", .step_name = "run-distributed-db", .description = "Run distributed database integration example", .source_path = "examples/distributed_db.zig" },
+    .{ .name = "example-web-observability", .step_name = "run-web-observability", .description = "Run web + observability integration example", .source_path = "examples/web_observability.zig" },
 };
 
 /// Check whether a path exists within the build root.

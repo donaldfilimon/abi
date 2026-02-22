@@ -546,19 +546,10 @@ pub const SecretsManager = struct {
     fn loadFromVault(self: *SecretsManager, name: []const u8) SecretsError![]u8 {
         // HashiCorp Vault / AWS Secrets Manager integration
         // Requires vault_url and vault_token to be configured
-        const vault_url = self.config.vault_url orelse return error.NotImplemented;
-        const vault_token = self.config.vault_token orelse return error.NotImplemented;
+        const vault_url = self.config.vault_url orelse return error.VaultUrlNotConfigured;
+        const vault_token = self.config.vault_token orelse return error.VaultTokenNotConfigured;
 
-        // Build the secret path
-        // HashiCorp Vault format: GET /v1/secret/data/{name}
-        const url = std.fmt.allocPrint(self.allocator, "{s}/v1/secret/data/{s}", .{
-            vault_url,
-            name,
-        }) catch return error.OutOfMemory;
-        defer self.allocator.free(url);
-
-        // For now, check if we have a cached vault response in memory
-        // This allows testing without actual vault connectivity
+        // Check local vault cache first (allows testing without connectivity)
         const cache_key = std.fmt.allocPrint(self.allocator, "vault:{s}", .{name}) catch return error.OutOfMemory;
         defer self.allocator.free(cache_key);
 
@@ -567,25 +558,127 @@ pub const SecretsManager = struct {
             return value.decrypt(self.master_key);
         }
 
-        // HashiCorp Vault network integration not yet implemented
-        // Requirements:
-        // - HTTP client with HTTPS support (use src/features/web/client.zig)
-        // - Request headers: X-Vault-Token: {vault_token}
-        // - GET request to: {vault_url}/v1/secret/data/{name}
-        // - JSON parsing for response: {"data": {"data": {"value": "secret"}}}
-        // - Error handling for: 404 (not found), 403 (forbidden), network errors
-        // - Optional: Response caching with TTL
-        // - Optional: Token renewal if token expires
-        //
-        // For now, log that vault is configured but network requests not implemented
-        _ = vault_token;
-        std.log.warn("Vault integration configured but network requests not implemented. URL: {s}", .{url});
+        // Build the Vault API URL: GET /v1/secret/data/{name}
+        const url = std.fmt.allocPrint(self.allocator, "{s}/v1/secret/data/{s}", .{
+            vault_url,
+            name,
+        }) catch return error.OutOfMemory;
+        defer self.allocator.free(url);
 
-        return error.NotImplemented;
+        // Perform HTTP GET to HashiCorp Vault using AsyncHttpClient
+        const async_http = @import("../utils/http/async_http.zig");
+
+        var client = async_http.AsyncHttpClient.init(self.allocator) catch |err| {
+            std.log.err("Failed to initialize HTTP client for Vault: {}", .{err});
+            return error.VaultConnectionFailed;
+        };
+        defer client.deinit();
+
+        var request = async_http.HttpRequest.init(self.allocator, .get, url) catch |err| {
+            std.log.err("Failed to create Vault HTTP request: {}", .{err});
+            return error.VaultRequestFailed;
+        };
+        defer request.deinit();
+
+        // Set Vault authentication header
+        request.setHeader("X-Vault-Token", vault_token) catch return error.OutOfMemory;
+
+        var response = client.fetchJson(&request) catch |err| {
+            std.log.err("Vault HTTP request failed for secret '{s}': {}", .{ name, err });
+            return error.VaultConnectionFailed;
+        };
+        defer response.deinit();
+
+        // Handle non-success HTTP status
+        if (!response.isSuccess()) {
+            std.log.err("Vault returned HTTP {d} for secret '{s}'", .{ response.status_code, name });
+            if (response.status_code == 404) return error.SecretNotFound;
+            return error.VaultRequestFailed;
+        }
+
+        // Parse Vault KV v2 response: {"data": {"data": {"key": "value", ...}}}
+        // We extract the inner "data" object and look for a "value" key first,
+        // falling back to the secret name as key.
+        const secret_value = parseVaultResponse(self.allocator, response.body, name) catch |err| {
+            std.log.err("Failed to parse Vault response for secret '{s}': {}", .{ name, err });
+            return error.InvalidSecretFormat;
+        };
+
+        return secret_value;
+    }
+
+    /// Parse a HashiCorp Vault KV v2 JSON response and extract the secret value.
+    ///
+    /// Vault KV v2 response format:
+    /// ```json
+    /// {
+    ///   "data": {
+    ///     "data": { "value": "secret-text", ... },
+    ///     "metadata": { "version": 1, ... }
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// Lookup priority:
+    /// 1. Inner `data.data.value` (conventional single-value secret)
+    /// 2. Inner `data.data.<name>` (key matching the requested secret name)
+    /// 3. First value in inner `data.data` (fallback for single-key secrets)
+    fn parseVaultResponse(allocator: std.mem.Allocator, body: []u8, name: []const u8) ![]u8 {
+        const parsed = std.json.parseFromSlice(
+            std.json.Value,
+            allocator,
+            body,
+            .{ .ignore_unknown_fields = true },
+        ) catch return error.InvalidSecretFormat;
+        defer parsed.deinit();
+
+        const root = parsed.value;
+
+        // Navigate: root.data.data
+        const outer_data = switch (root) {
+            .object => |obj| obj.get("data") orelse return error.SecretNotFound,
+            else => return error.InvalidSecretFormat,
+        };
+        const inner_data = switch (outer_data) {
+            .object => |obj| obj.get("data") orelse return error.SecretNotFound,
+            else => return error.InvalidSecretFormat,
+        };
+        const data_obj = switch (inner_data) {
+            .object => |obj| obj,
+            else => return error.InvalidSecretFormat,
+        };
+
+        // 1. Try "value" key (conventional)
+        if (data_obj.get("value")) |val| {
+            return extractStringValue(allocator, val);
+        }
+
+        // 2. Try key matching the requested secret name
+        if (data_obj.get(name)) |val| {
+            return extractStringValue(allocator, val);
+        }
+
+        // 3. Fallback: first entry in the map
+        var it = data_obj.iterator();
+        if (it.next()) |entry| {
+            return extractStringValue(allocator, entry.value_ptr.*);
+        }
+
+        return error.SecretNotFound;
+    }
+
+    fn extractStringValue(allocator: std.mem.Allocator, val: std.json.Value) ![]u8 {
+        return switch (val) {
+            .string => |s| allocator.dupe(u8, s) catch return error.OutOfMemory,
+            .integer => |i| std.fmt.allocPrint(allocator, "{d}", .{i}) catch return error.OutOfMemory,
+            .float => |f| std.fmt.allocPrint(allocator, "{d}", .{f}) catch return error.OutOfMemory,
+            .bool => |b| allocator.dupe(u8, if (b) "true" else "false") catch return error.OutOfMemory,
+            else => error.InvalidSecretFormat,
+        };
     }
 
     fn saveToFile(self: *SecretsManager, name: []const u8, encrypted: SecretValue) SecretsError!void {
-        const secrets_path = self.config.secrets_file orelse return error.NotImplemented;
+        const secrets_path = self.config.secrets_file orelse return error.SecretsFileNotConfigured;
 
         // Pack encrypted data: nonce (12) + tag (16) + ciphertext
         const packed_data = try self.packEncryptedValue(encrypted);
@@ -614,11 +707,9 @@ pub const SecretsManager = struct {
 
     fn saveToVault(self: *SecretsManager, name: []const u8, value: []const u8) SecretsError!void {
         // HashiCorp Vault write operation
-        // PUT /v1/secret/data/{name} with JSON body {"data": {"value": "..."}}
-        const vault_url = self.config.vault_url orelse return error.NotImplemented;
-        const vault_token = self.config.vault_token orelse return error.NotImplemented;
-
-        _ = vault_token;
+        // POST /v1/secret/data/{name} with JSON body {"data": {"value": "..."}}
+        const vault_url = self.config.vault_url orelse return error.VaultUrlNotConfigured;
+        const vault_token = self.config.vault_token orelse return error.VaultTokenNotConfigured;
 
         const url = std.fmt.allocPrint(self.allocator, "{s}/v1/secret/data/{s}", .{
             vault_url,
@@ -626,7 +717,7 @@ pub const SecretsManager = struct {
         }) catch return error.OutOfMemory;
         defer self.allocator.free(url);
 
-        // For testing: cache the value locally with a vault: prefix
+        // Always cache locally for fast reads
         const cache_key = try std.fmt.allocPrint(self.allocator, "vault:{s}", .{name});
         const encrypted = try self.encryptSecret(value);
 
@@ -635,19 +726,49 @@ pub const SecretsManager = struct {
             .cached_at = time.unixSeconds(),
         });
 
-        // HashiCorp Vault write not yet implemented
-        // Requirements:
-        // - HTTP client with PUT/POST support (use src/features/web/client.zig)
-        // - Request headers: X-Vault-Token: {vault_token}, Content-Type: application/json
-        // - JSON request body: {"data": {"value": "{value}"}}
-        // - PUT/POST to: {vault_url}/v1/secret/data/{name}
-        // - Parse response for success/failure status
-        // - Handle errors: 403 (forbidden), 500 (server error), network errors
-        std.log.info("Vault secret cached locally (network write not implemented). Key: {s}", .{name});
+        // Perform HTTP POST to HashiCorp Vault KV v2
+        const async_http = @import("../utils/http/async_http.zig");
+
+        var client = async_http.AsyncHttpClient.init(self.allocator) catch |err| {
+            std.log.err("Failed to initialize HTTP client for Vault write: {}", .{err});
+            return error.VaultConnectionFailed;
+        };
+        defer client.deinit();
+
+        var request = async_http.HttpRequest.init(self.allocator, .post, url) catch |err| {
+            std.log.err("Failed to create Vault write request: {}", .{err});
+            return error.VaultRequestFailed;
+        };
+        defer request.deinit();
+
+        request.setHeader("X-Vault-Token", vault_token) catch return error.OutOfMemory;
+
+        // Build Vault KV v2 write payload: {"data": {"value": "<secret>"}}
+        const json_body = std.fmt.allocPrint(
+            self.allocator,
+            "{{\"data\":{{\"value\":\"{s}\"}}}}",
+            .{value},
+        ) catch return error.OutOfMemory;
+        defer self.allocator.free(json_body);
+
+        request.setJsonBody(json_body) catch return error.OutOfMemory;
+
+        var response = client.fetch(&request) catch |err| {
+            std.log.err("Vault write request failed for secret '{s}': {}", .{ name, err });
+            return error.VaultConnectionFailed;
+        };
+        defer response.deinit();
+
+        if (!response.isSuccess()) {
+            std.log.err("Vault returned HTTP {d} on write for secret '{s}'", .{ response.status_code, name });
+            return error.VaultRequestFailed;
+        }
+
+        std.log.info("Vault secret written successfully. Key: {s}", .{name});
     }
 
     fn deleteFromFile(self: *SecretsManager, name: []const u8) SecretsError!void {
-        const secrets_path = self.config.secrets_file orelse return error.NotImplemented;
+        const secrets_path = self.config.secrets_file orelse return error.SecretsFileNotConfigured;
         const io = self.io_backend.io();
 
         // Read existing file (Zig 0.16 I/O API)
@@ -688,14 +809,17 @@ pub const SecretsManager = struct {
         // Write back (Zig 0.16 I/O API)
         var write_file = std.Io.Dir.cwd().createFile(io, secrets_path, .{ .truncate = true }) catch return error.FileWriteFailed;
         defer write_file.close(io);
-        write_file.writer(io).writeAll(new_content.items) catch return error.FileWriteFailed;
+        var write_buf: [4096]u8 = undefined;
+        var writer = write_file.writer(io, &write_buf);
+        writer.interface.writeAll(new_content.items) catch return error.FileWriteFailed;
+        writer.flush() catch return error.FileWriteFailed;
     }
 
     fn deleteFromVault(self: *SecretsManager, name: []const u8) SecretsError!void {
         // HashiCorp Vault delete operation
         // DELETE /v1/secret/data/{name}
-        const vault_url = self.config.vault_url orelse return error.NotImplemented;
-        _ = vault_url;
+        const vault_url = self.config.vault_url orelse return error.VaultUrlNotConfigured;
+        const vault_token = self.config.vault_token orelse return error.VaultTokenNotConfigured;
 
         // Remove from local cache
         const cache_key = try std.fmt.allocPrint(self.allocator, "vault:{s}", .{name});
@@ -707,14 +831,44 @@ pub const SecretsManager = struct {
             v.value.deinit();
         }
 
-        // HashiCorp Vault delete not yet implemented
-        // Requirements:
-        // - HTTP client with DELETE support (use src/features/web/client.zig)
-        // - Request headers: X-Vault-Token: {vault_token}
-        // - DELETE to: {vault_url}/v1/secret/data/{name}
-        // - Handle success/failure responses
-        // - Handle errors: 404 (not found), 403 (forbidden), network errors
-        std.log.info("Vault secret removed from local cache (network delete not implemented). Key: {s}", .{name});
+        // Perform HTTP DELETE to HashiCorp Vault KV v2
+        const async_http = @import("../utils/http/async_http.zig");
+
+        const url = std.fmt.allocPrint(self.allocator, "{s}/v1/secret/data/{s}", .{
+            vault_url,
+            name,
+        }) catch return error.OutOfMemory;
+        defer self.allocator.free(url);
+
+        var client = async_http.AsyncHttpClient.init(self.allocator) catch |err| {
+            std.log.err("Failed to initialize HTTP client for Vault delete: {}", .{err});
+            return error.VaultConnectionFailed;
+        };
+        defer client.deinit();
+
+        var request = async_http.HttpRequest.init(self.allocator, .delete, url) catch |err| {
+            std.log.err("Failed to create Vault delete request: {}", .{err});
+            return error.VaultRequestFailed;
+        };
+        defer request.deinit();
+
+        request.setHeader("X-Vault-Token", vault_token) catch return error.OutOfMemory;
+
+        var response = client.fetch(&request) catch |err| {
+            std.log.err("Vault delete request failed for secret '{s}': {}", .{ name, err });
+            return error.VaultConnectionFailed;
+        };
+        defer response.deinit();
+
+        if (!response.isSuccess()) {
+            // 404 is acceptable for delete (secret may already be gone)
+            if (response.status_code != 404) {
+                std.log.err("Vault returned HTTP {d} on delete for secret '{s}'", .{ response.status_code, name });
+                return error.VaultRequestFailed;
+            }
+        }
+
+        std.log.info("Vault secret deleted. Key: {s}", .{name});
     }
 
     fn envExists(self: *SecretsManager, name: []const u8) bool {
@@ -724,9 +878,9 @@ pub const SecretsManager = struct {
         }) catch return false;
         defer self.allocator.free(env_name);
 
-        const env_name_z = std.cstr.addNullTerminator(self.allocator, env_name) catch return false;
+        const env_name_z = std.fmt.allocPrintSentinel(self.allocator, "{s}", .{env_name}, 0) catch return false;
         defer self.allocator.free(env_name_z);
-        const name_z = std.cstr.addNullTerminator(self.allocator, name) catch return false;
+        const name_z = std.fmt.allocPrintSentinel(self.allocator, "{s}", .{name}, 0) catch return false;
         defer self.allocator.free(name_z);
         return std.c.getenv(env_name_z.ptr) != null or std.c.getenv(name_z.ptr) != null;
     }
@@ -870,11 +1024,20 @@ pub const SecretsError = error{
     DecryptionFailed,
     ReadOnlyProvider,
     RequiredSecretMissing,
-    NotImplemented,
     OutOfMemory,
     FileWriteFailed,
     /// No master key provided when require_master_key is true
     MasterKeyRequired,
+    /// Vault URL not set in SecretsConfig
+    VaultUrlNotConfigured,
+    /// Vault authentication token not set in SecretsConfig
+    VaultTokenNotConfigured,
+    /// Secrets file path not set in SecretsConfig
+    SecretsFileNotConfigured,
+    /// HTTP request to Vault returned a non-success status
+    VaultRequestFailed,
+    /// Could not establish a connection to the Vault server
+    VaultConnectionFailed,
 };
 
 // Tests

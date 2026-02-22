@@ -10,7 +10,7 @@ const std = @import("std");
 const abi = @import("abi");
 const v2 = abi.shared.utils.v2_primitives;
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();

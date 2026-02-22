@@ -2,7 +2,13 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "explore",
+    .description = "Search and explore codebase",
+};
 
 const DebugWriter = struct {
     pub fn print(_: @This(), comptime fmt: []const u8, args: anytype) !void {

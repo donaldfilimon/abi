@@ -4,7 +4,15 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
+
+pub const meta: command_mod.Meta = .{
+    .name = "db",
+    .description = "Database operations (add, query, stats, optimize, backup, restore)",
+    .aliases = &.{"ls"},
+    .subcommands = &.{ "add", "query", "stats", "optimize", "backup", "restore", "serve", "help" },
+};
 
 /// Run the database command with the provided arguments.
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

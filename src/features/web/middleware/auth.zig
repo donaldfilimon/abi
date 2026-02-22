@@ -1,11 +1,17 @@
 //! Authentication Middleware
 //!
 //! Provides JWT and API key authentication for HTTP requests.
+//! Delegates to shared security modules from `services/shared/security/`
+//! for JWT and API key operations where possible.
 
 const std = @import("std");
 const types = @import("types.zig");
 const server = @import("../server/mod.zig");
 const MiddlewareContext = types.MiddlewareContext;
+
+// Shared security modules — used for delegation where applicable.
+const shared_jwt = @import("../../../services/shared/security/jwt.zig");
+const shared_api_keys = @import("../../../services/shared/security/api_keys.zig");
 
 /// Authentication configuration.
 pub const AuthConfig = struct {
@@ -120,10 +126,17 @@ pub fn authenticate(ctx: *MiddlewareContext, config: AuthConfig) AuthResult {
 }
 
 /// Extracts Bearer token from Authorization header.
+/// Delegates to `shared_jwt.extractBearerToken` for the standard "Bearer"
+/// scheme; falls back to manual prefix-stripping for custom schemes.
 pub fn extractBearerToken(ctx: *MiddlewareContext, config: AuthConfig) ?[]const u8 {
     const auth_header = ctx.request.getHeader(config.token_header) orelse return null;
 
-    // Check for scheme prefix
+    // For the standard Bearer scheme, delegate to the shared JWT helper.
+    if (std.mem.eql(u8, config.token_scheme, "Bearer")) {
+        return shared_jwt.extractBearerToken(auth_header);
+    }
+
+    // Custom scheme: manual prefix-stripping.
     if (config.token_scheme.len > 0) {
         if (!std.mem.startsWith(u8, auth_header, config.token_scheme)) {
             return null;
@@ -142,6 +155,13 @@ pub fn extractBearerToken(ctx: *MiddlewareContext, config: AuthConfig) ?[]const 
 }
 
 /// Validates a JWT token structure and HMAC-SHA256 signature.
+///
+/// NOTE: For full-featured JWT handling (claims parsing, expiration checks,
+/// algorithm selection, token blacklisting), use `shared_jwt.JwtManager`
+/// from `services/shared/security/jwt.zig` directly. This lightweight
+/// inline validator is kept for the middleware hot-path where allocating a
+/// JwtManager is undesirable. It verifies the HMAC-SHA256 signature and
+/// extracts a hardcoded user_id; claims parsing is not performed here.
 pub fn validateJwt(token: []const u8, secret: []const u8) AuthResult {
     // JWT must have 3 parts: header.payload.signature
     var parts = std.mem.splitScalar(u8, token, '.');
@@ -168,16 +188,37 @@ pub fn validateJwt(token: []const u8, secret: []const u8) AuthResult {
 
     if (decoded_sig.len != mac.len) return authFail("Invalid signature");
 
-    // Timing-safe comparison
+    // Timing-safe comparison (same approach as shared_jwt constantTimeEqlSlice)
     var diff: u8 = 0;
     for (decoded_sig, &mac) |a, b| {
         diff |= a ^ b;
     }
     if (diff != 0) return authFail("Invalid signature");
 
+    // Base64url-decode the payload to extract the "sub" claim as user_id.
+    var payload_buf: [4096]u8 = undefined;
+    const payload_json = std.base64.url_safe_no_pad.Decoder.decode(&payload_buf, payload_b64) catch {
+        // Payload decode failed — fall back to default user_id for compatibility.
+        return AuthResult{
+            .authenticated = true,
+            .user_id = "jwt_user",
+            .error_message = null,
+        };
+    };
+
+    // Search for "sub":"<value>" in the JSON payload.
+    const sub_value = extractSubClaim(payload_json) orelse {
+        // No "sub" claim found — fall back for backward compatibility.
+        return AuthResult{
+            .authenticated = true,
+            .user_id = "jwt_user",
+            .error_message = null,
+        };
+    };
+
     return AuthResult{
         .authenticated = true,
-        .user_id = "jwt_user",
+        .user_id = sub_value,
         .error_message = null,
     };
 }
@@ -190,7 +231,25 @@ fn authFail(message: []const u8) AuthResult {
     };
 }
 
+/// Extract the "sub" string claim from a JSON payload without allocating.
+/// Searches for the pattern `"sub":"<value>"` and returns the value slice.
+/// Returns `null` when the claim is absent or malformed.
+fn extractSubClaim(json: []const u8) ?[]const u8 {
+    const needle = "\"sub\":\"";
+    const idx = std.mem.indexOf(u8, json, needle) orelse return null;
+    const start = idx + needle.len;
+    if (start >= json.len) return null;
+    const end = std.mem.indexOfScalarPos(u8, json, start, '"') orelse return null;
+    if (end <= start) return null;
+    return json[start..end];
+}
+
 /// Checks if an API key is valid. Returns false when no keys are configured.
+///
+/// NOTE: This performs a simple plaintext comparison against a static list,
+/// suitable for lightweight middleware use. For production API key management
+/// with salted hashing, key rotation, scopes, and expiration, use
+/// `shared_api_keys.ApiKeyManager` from `services/shared/security/api_keys.zig`.
 pub fn isValidApiKey(key: []const u8, valid_keys: []const []const u8) bool {
     if (valid_keys.len == 0) return false;
     for (valid_keys) |valid_key| {
@@ -219,9 +278,11 @@ pub fn isPublicPath(path: []const u8, public_paths: []const []const u8) bool {
 }
 
 /// Generates a simple API key (for testing/development).
+/// For production key generation with salted hashing, scopes, and metadata,
+/// use `shared_api_keys.ApiKeyManager.generateKey()`.
 pub fn generateApiKey(allocator: std.mem.Allocator) ![]u8 {
     var key: [32]u8 = undefined;
-    std.crypto.random.bytes(&key);
+    std.c.arc4random_buf(&key, key.len);
 
     // SAFETY: 32 bytes × 2 hex chars = 64 chars, buffer is exactly 64 bytes - cannot overflow
     var hex: [64]u8 = undefined;
@@ -233,9 +294,9 @@ pub fn generateApiKey(allocator: std.mem.Allocator) ![]u8 {
 test "extractBearerToken" {
     const allocator = std.testing.allocator;
 
-    var headers = std.StringHashMap([]const u8).init(allocator);
-    defer headers.deinit();
-    try headers.put("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature");
+    var headers: std.StringHashMapUnmanaged([]const u8) = .empty;
+    defer headers.deinit(allocator);
+    try headers.put(allocator, "Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature");
 
     var request = server.ParsedRequest{
         .method = .GET,
@@ -261,10 +322,6 @@ test "extractBearerToken" {
 }
 
 test "validateJwt format" {
-    // Valid JWT format (3 parts)
-    const valid = validateJwt("header.payload.signature", "secret");
-    try std.testing.expect(valid.authenticated);
-
     // Invalid format (2 parts)
     const invalid = validateJwt("header.payload", "secret");
     try std.testing.expect(!invalid.authenticated);
@@ -272,6 +329,54 @@ test "validateJwt format" {
     // Invalid format (no dots)
     const invalid2 = validateJwt("invalidtoken", "secret");
     try std.testing.expect(!invalid2.authenticated);
+
+    // Empty secret
+    const no_secret = validateJwt("header.payload.signature", "");
+    try std.testing.expect(!no_secret.authenticated);
+}
+
+test "validateJwt sub claim extraction" {
+    // Build a valid JWT with sub claim: {"sub":"alice"}
+    const header_b64 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"; // {"alg":"HS256","typ":"JWT"}
+    const payload_b64 = "eyJzdWIiOiJhbGljZSJ9"; // {"sub":"alice"}
+    const secret = "test-secret-key-32-bytes-long!!";
+
+    // Compute HMAC-SHA256 over "header.payload"
+    const signed_portion = header_b64 ++ "." ++ payload_b64;
+    var mac: [std.crypto.auth.hmac.sha2.HmacSha256.mac_length]u8 = undefined;
+    std.crypto.auth.hmac.sha2.HmacSha256.create(&mac, signed_portion, secret);
+
+    // Base64url-encode the signature
+    var sig_b64: [std.base64.url_safe_no_pad.Encoder.calcSize(mac.len)]u8 = undefined;
+    _ = std.base64.url_safe_no_pad.Encoder.encode(&sig_b64, &mac);
+
+    const token = signed_portion ++ "." ++ sig_b64;
+
+    const result = validateJwt(token, secret);
+    try std.testing.expect(result.authenticated);
+    // The sub claim should be extracted from the payload
+    try std.testing.expectEqualStrings("alice", result.user_id.?);
+}
+
+test "validateJwt fallback when no sub claim" {
+    // Build a valid JWT without sub claim: {"exp":9999999999}
+    const header_b64 = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"; // {"alg":"HS256","typ":"JWT"}
+    const payload_b64 = "eyJleHAiOjk5OTk5OTk5OTl9"; // {"exp":9999999999}
+    const secret = "test-secret-key-32-bytes-long!!";
+
+    const signed_portion = header_b64 ++ "." ++ payload_b64;
+    var mac: [std.crypto.auth.hmac.sha2.HmacSha256.mac_length]u8 = undefined;
+    std.crypto.auth.hmac.sha2.HmacSha256.create(&mac, signed_portion, secret);
+
+    var sig_b64: [std.base64.url_safe_no_pad.Encoder.calcSize(mac.len)]u8 = undefined;
+    _ = std.base64.url_safe_no_pad.Encoder.encode(&sig_b64, &mac);
+
+    const token = signed_portion ++ "." ++ sig_b64;
+
+    const result = validateJwt(token, secret);
+    try std.testing.expect(result.authenticated);
+    // No sub claim → falls back to "jwt_user"
+    try std.testing.expectEqualStrings("jwt_user", result.user_id.?);
 }
 
 test "isPublicPath" {

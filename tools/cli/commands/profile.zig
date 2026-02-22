@@ -5,11 +5,72 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
 // libc import for environment access - required for Zig 0.16
 const c = @cImport(@cInclude("stdlib.h"));
+
+// Wrapper functions for comptime children dispatch
+fn wrapShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runShowSubcommand(allocator, &parser);
+}
+fn wrapList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runListSubcommand(allocator, &parser);
+}
+fn wrapCreate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runCreateSubcommand(allocator, &parser);
+}
+fn wrapSwitch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runSwitchSubcommand(allocator, &parser);
+}
+fn wrapDelete(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runDeleteSubcommand(allocator, &parser);
+}
+fn wrapSet(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runSetSubcommand(allocator, &parser);
+}
+fn wrapGet(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runGetSubcommand(allocator, &parser);
+}
+fn wrapApiKey(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runApiKeySubcommand(allocator, &parser);
+}
+fn wrapExport(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runExportSubcommand(allocator, &parser);
+}
+fn wrapImport(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runImportSubcommand(allocator, &parser);
+}
+
+pub const meta: command_mod.Meta = .{
+    .name = "profile",
+    .description = "User profile and settings management",
+    .subcommands = &.{ "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help" },
+    .children = &.{
+        .{ .name = "show", .description = "Show current profile", .handler = .{ .basic = wrapShow } },
+        .{ .name = "list", .description = "List all profiles", .handler = .{ .basic = wrapList } },
+        .{ .name = "create", .description = "Create a new profile", .handler = .{ .basic = wrapCreate } },
+        .{ .name = "switch", .description = "Switch to a profile", .handler = .{ .basic = wrapSwitch } },
+        .{ .name = "delete", .description = "Delete a profile", .handler = .{ .basic = wrapDelete } },
+        .{ .name = "set", .description = "Set a profile setting", .handler = .{ .basic = wrapSet } },
+        .{ .name = "get", .description = "Get a profile setting", .handler = .{ .basic = wrapGet } },
+        .{ .name = "api-key", .description = "Manage API keys", .handler = .{ .basic = wrapApiKey } },
+        .{ .name = "export", .description = "Export profile to file", .handler = .{ .basic = wrapExport } },
+        .{ .name = "import", .description = "Import profile from file", .handler = .{ .basic = wrapImport } },
+    },
+};
 
 /// Get environment variable (owned memory) - Zig 0.16 compatible.
 fn getEnvOwned(allocator: std.mem.Allocator, name: []const u8) ?[]u8 {
@@ -31,16 +92,18 @@ const Profile = struct {
     default_provider: []const u8 = "openai",
     temperature: f32 = 0.7,
     max_tokens: u32 = 2048,
-    api_keys: std.StringHashMap([]const u8),
+    api_keys: std.StringHashMapUnmanaged([]const u8),
+    allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator) Profile {
         return Profile{
-            .api_keys = std.StringHashMap([]const u8).init(allocator),
+            .api_keys = .empty,
+            .allocator = allocator,
         };
     }
 
     pub fn deinit(self: *Profile) void {
-        self.api_keys.deinit();
+        self.api_keys.deinit(self.allocator);
     }
 };
 
@@ -336,31 +399,28 @@ fn saveProfileStore(allocator: std.mem.Allocator, store: *const ProfileStore) !v
     try file.writeStreamingAll(io, json_buf.items);
 }
 
+const profile_subcommands = [_][]const u8{
+    "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help",
+};
+
 /// Entry point for the profile command.
+/// Only reached when no child matches (help / unknown / default).
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-
-    const commands = [_]utils.subcommand.Command{
-        .{ .names = &.{"show"}, .run = runShowSubcommand },
-        .{ .names = &.{"list"}, .run = runListSubcommand },
-        .{ .names = &.{"create"}, .run = runCreateSubcommand },
-        .{ .names = &.{"switch"}, .run = runSwitchSubcommand },
-        .{ .names = &.{"delete"}, .run = runDeleteSubcommand },
-        .{ .names = &.{"set"}, .run = runSetSubcommand },
-        .{ .names = &.{"get"}, .run = runGetSubcommand },
-        .{ .names = &.{"api-key"}, .run = runApiKeySubcommand },
-        .{ .names = &.{"export"}, .run = runExportSubcommand },
-        .{ .names = &.{"import"}, .run = runImportSubcommand },
-    };
-
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &commands,
-        runDefaultProfileAction,
-        printHelpWithAllocator,
-        onUnknownSubcommand,
-    );
+    if (args.len == 0) {
+        // Default action: show current profile
+        try showCurrentProfile(allocator);
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp();
+        return;
+    }
+    // Unknown subcommand
+    utils.output.printError("Unknown profile command: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &profile_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn runDefaultProfileAction(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {

@@ -13,7 +13,7 @@ const fs = @import("fs.zig");
 pub const Function = struct {
     name: []const u8,
     file_path: []const u8,
-    line: u32,
+    line: usize,
 };
 
 /// Represents an edge in the call graph (caller -> callee)
@@ -180,11 +180,12 @@ pub const CallGraphBuilder = struct {
 
     fn extractFunctions(self: *CallGraphBuilder, parsed_file: *const ParsedFile, file_path: []const u8) !void {
         for (parsed_file.nodes.items) |node| {
-            if (node.type == .function_def) {
+            if (node.node_type == .function) {
+                if (node.name.len == 0) continue;
                 const func: Function = .{
-                    .name = node.name orelse continue,
+                    .name = node.name,
                     .file_path = file_path,
-                    .line = node.line,
+                    .line = node.line_number,
                 };
                 try self.graph.addFunction(func);
             }
@@ -193,27 +194,26 @@ pub const CallGraphBuilder = struct {
 
     fn extractCalls(self: *CallGraphBuilder, parsed_file: *const ParsedFile, file_path: []const u8) !void {
         for (parsed_file.nodes.items) |node| {
-            if (node.type == .function_def) {
+            if (node.node_type == .function) {
+                if (node.name.len == 0) continue;
                 const caller: Function = .{
-                    .name = node.name orelse continue,
+                    .name = node.name,
                     .file_path = file_path,
-                    .line = node.line,
+                    .line = node.line_number,
                 };
 
-                if (node.children) |children| {
-                    for (children) |child| {
-                        if (child.type == .function_call) {
-                            const callee_name = child.name orelse continue;
+                for (node.children.items) |child| {
+                    if (child.node_type == .method) {
+                        if (child.name.len == 0) continue;
 
-                            // Find or create callee function
-                            const callee: Function = .{
-                                .name = callee_name,
-                                .file_path = file_path,
-                                .line = child.line,
-                            };
+                        // Find or create callee function
+                        const callee: Function = .{
+                            .name = child.name,
+                            .file_path = file_path,
+                            .line = child.line_number,
+                        };
 
-                            try self.graph.addCall(caller, callee);
-                        }
+                        try self.graph.addCall(caller, callee);
                     }
                 }
             }
@@ -232,7 +232,7 @@ pub fn buildCallGraph(allocator: std.mem.Allocator, file_paths: []const []const 
     defer builder.deinit();
 
     // Create I/O backend for synchronous file operations
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }) catch return error.IoInitFailed;
+    var io_backend: std.Io.Threaded = .init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
 
@@ -286,4 +286,8 @@ pub fn buildCallGraph(allocator: std.mem.Allocator, file_paths: []const []const 
     }
 
     return result;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

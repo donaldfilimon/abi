@@ -10,7 +10,7 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -151,7 +151,7 @@ fn taskBasedRouting(allocator: std.mem.Allocator) !void {
     });
 
     // Test task type detection
-    const prompts = [_]struct { text: []const u8, task: ?abi.ai.TaskType }{
+    const prompts = [_]struct { text: []const u8, task: ?abi.ai.orchestration.TaskType }{
         .{ .text = "Write a function to sort an array", .task = .coding },
         .{ .text = "Write a poem about the ocean", .task = .creative },
         .{ .text = "Calculate the derivative of x^2 + 3x", .task = .math },
@@ -161,7 +161,7 @@ fn taskBasedRouting(allocator: std.mem.Allocator) !void {
 
     for (prompts) |p| {
         // Detect task type if not provided
-        const task_type = p.task orelse abi.ai.TaskType.detect(p.text);
+        const task_type = p.task orelse abi.ai.orchestration.TaskType.detect(p.text);
         const result = try orchestrator.route(p.text, task_type);
 
         std.debug.print("Prompt: \"{s}\"\n", .{p.text});

@@ -1,7 +1,7 @@
 const std = @import("std");
 const util = @import("util.zig");
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();

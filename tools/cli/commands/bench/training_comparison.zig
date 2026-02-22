@@ -6,7 +6,7 @@ const std = @import("std");
 const abi = @import("abi");
 
 pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: bool) void {
-    if (!abi.training.isEnabled()) {
+    if (!abi.ai.training.isEnabled()) {
         if (!json_mode) {
             std.debug.print("Training feature is disabled. Rebuild with -Denable-training=true\n", .{});
         }
@@ -24,7 +24,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
 
     const configs = [_]struct {
         method: []const u8,
-        optimizer: abi.training.OptimizerType,
+        optimizer: abi.ai.training.OptimizerType,
     }{
         .{ .method = "Full fine-tune", .optimizer = .adamw },
         .{ .method = "Full fine-tune", .optimizer = .adam },
@@ -41,7 +41,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
     }
 
     for (configs) |cfg| {
-        const train_config = abi.training.TrainingConfig{
+        const train_config = abi.ai.training.TrainingConfig{
             .epochs = 5,
             .batch_size = 8,
             .learning_rate = 0.001,
@@ -53,7 +53,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
             .checkpoint_interval = 0,
         };
 
-        const report = abi.training.train(allocator, train_config) catch |err| {
+        const report = abi.ai.training.trainAndReport(allocator, train_config) catch |err| {
             if (!json_mode) {
                 std.debug.print("  {s} ({t}): error - {t}\n", .{ cfg.method, cfg.optimizer, err });
             }

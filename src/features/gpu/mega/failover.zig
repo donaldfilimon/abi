@@ -38,7 +38,7 @@ pub const FailoverPolicy = struct {
 pub const FailoverManager = struct {
     allocator: std.mem.Allocator,
     policy: FailoverPolicy,
-    health: std.AutoHashMap(backend_mod.Backend, BackendHealth),
+    health: std.AutoHashMapUnmanaged(backend_mod.Backend, BackendHealth),
     priority_order: std.ArrayListUnmanaged(backend_mod.Backend),
     current_primary: ?backend_mod.Backend,
     events: std.ArrayListUnmanaged(FailoverEvent),
@@ -52,7 +52,7 @@ pub const FailoverManager = struct {
         self.* = .{
             .allocator = allocator,
             .policy = policy,
-            .health = std.AutoHashMap(backend_mod.Backend, BackendHealth).init(allocator),
+            .health = .empty,
             .priority_order = .{},
             .current_primary = null,
             .events = .{},
@@ -63,7 +63,7 @@ pub const FailoverManager = struct {
     }
 
     pub fn deinit(self: *FailoverManager) void {
-        self.health.deinit();
+        self.health.deinit(self.allocator);
         self.priority_order.deinit(self.allocator);
         self.events.deinit(self.allocator);
         self.allocator.destroy(self);
@@ -73,7 +73,7 @@ pub const FailoverManager = struct {
     pub fn registerBackend(self: *FailoverManager, backend: backend_mod.Backend) !void {
         self.mutex.lock();
         defer self.mutex.unlock();
-        try self.health.put(backend, .{ .backend = backend });
+        try self.health.put(self.allocator, backend, .{ .backend = backend });
         try self.priority_order.append(self.allocator, backend);
         self.stats.backends_available += 1;
         if (self.current_primary == null) {

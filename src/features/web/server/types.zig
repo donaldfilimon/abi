@@ -4,6 +4,7 @@
 //! These types follow Zig 0.16 conventions and integrate with std.Io.Threaded.
 
 const std = @import("std");
+const Io = std.Io;
 const time = @import("../../../services/shared/time.zig");
 
 /// Configuration for the HTTP server.
@@ -29,11 +30,11 @@ pub const ServerConfig = struct {
     /// Number of worker threads (0 = auto-detect).
     worker_threads: u32 = 0,
 
-    /// Returns the address string for binding.
-    pub fn getBindAddress(self: ServerConfig) std.net.Address {
-        return std.net.Address.parseIp4(self.host, self.port) catch
-            std.net.Address.parseIp6(self.host, self.port) catch
-            std.net.Address.initIp4(.{ 127, 0, 0, 1 }, self.port);
+    /// Returns the address for binding.
+    pub fn getBindAddress(self: ServerConfig) Io.net.IpAddress {
+        return Io.net.IpAddress.parseIp4(self.host, self.port) catch
+            Io.net.IpAddress.parseIp6(self.host, self.port) catch
+            .{ .ip4 = .loopback(self.port) };
     }
 };
 
@@ -66,7 +67,7 @@ pub const Connection = struct {
     /// Unique connection identifier.
     id: u64,
     /// Client socket address.
-    address: std.net.Address,
+    address: Io.net.IpAddress,
     /// Connection creation timestamp (milliseconds since epoch).
     created_at: i64,
     /// Last activity timestamp.
@@ -79,7 +80,7 @@ pub const Connection = struct {
     allocator: std.mem.Allocator,
 
     /// Creates a new connection.
-    pub fn init(allocator: std.mem.Allocator, id: u64, address: std.net.Address) Connection {
+    pub fn init(allocator: std.mem.Allocator, id: u64, address: Io.net.IpAddress) Connection {
         const now = time.nowMs();
         return .{
             .id = id,
@@ -112,8 +113,8 @@ pub const Connection = struct {
 
     /// Formats the connection address as a string.
     pub fn formatAddress(self: Connection, buf: []u8) []const u8 {
-        var writer = std.Io.Writer.fixed(buf);
-        self.address.format(&.{}, &writer) catch return "<unknown>";
+        var writer = Io.Writer.fixed(buf);
+        self.address.format(&writer) catch return "<unknown>";
         return buf[0..writer.end];
     }
 };
@@ -228,7 +229,7 @@ test "ServerState transitions" {
 
 test "Connection lifecycle" {
     const allocator = std.testing.allocator;
-    const addr = std.net.Address.initIp4(.{ 127, 0, 0, 1 }, 12345);
+    const addr: Io.net.IpAddress = .{ .ip4 = .loopback(12345) };
     var conn = Connection.init(allocator, 1, addr);
 
     try std.testing.expectEqual(@as(u64, 1), conn.id);

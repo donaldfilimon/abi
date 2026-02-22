@@ -53,10 +53,10 @@ const DevicePairSupport = struct {
 };
 
 /// Global state
-var external_memory_matrix: ?std.AutoHashMap(u64, DevicePairSupport) = null;
+var external_memory_matrix: ?std.AutoHashMapUnmanaged(u64, DevicePairSupport) = null;
 var vulkan_peer_initialized: bool = false;
 var ext_functions: ?VulkanExtFunctions = null;
-var device_contexts: ?std.AutoHashMap(DeviceId, DeviceContext) = null;
+var device_contexts: ?std.AutoHashMapUnmanaged(DeviceId, DeviceContext) = null;
 var allocator_ref: ?std.mem.Allocator = null;
 
 /// Per-device context for Vulkan operations
@@ -76,8 +76,8 @@ pub fn init(allocator: std.mem.Allocator, device_count: usize) !void {
     }
 
     allocator_ref = allocator;
-    external_memory_matrix = std.AutoHashMap(u64, DevicePairSupport).init(allocator);
-    device_contexts = std.AutoHashMap(DeviceId, DeviceContext).init(allocator);
+    external_memory_matrix = .empty;
+    device_contexts = .empty;
 
     // Load extension functions if we have a valid context
     if (vulkan.vulkan_context) |ctx| {
@@ -85,7 +85,7 @@ pub fn init(allocator: std.mem.Allocator, device_count: usize) !void {
         ext_functions = vulkan_ext.getExtFunctions().*;
 
         // Store the default context for device 0
-        try device_contexts.?.put(0, .{
+        try device_contexts.?.put(allocator, 0, .{
             .device = ctx.device,
             .physical_device = ctx.physical_device,
             .memory_properties = ctx.memory_properties,
@@ -101,11 +101,11 @@ pub fn init(allocator: std.mem.Allocator, device_count: usize) !void {
 /// Deinitialize Vulkan peer transfer backend.
 pub fn deinit() void {
     if (device_contexts) |*contexts| {
-        contexts.deinit();
+        if (allocator_ref) |alloc| contexts.deinit(alloc);
         device_contexts = null;
     }
     if (external_memory_matrix) |*matrix| {
-        matrix.deinit();
+        if (allocator_ref) |alloc| matrix.deinit(alloc);
         external_memory_matrix = null;
     }
     ext_functions = null;
@@ -135,7 +135,7 @@ fn probeExternalMemorySupport(device_count: usize) !void {
             };
 
             const key = pairKey(@intCast(src), @intCast(dst));
-            try external_memory_matrix.?.put(key, support);
+            try external_memory_matrix.?.put(allocator_ref.?, key, support);
         }
     }
 }

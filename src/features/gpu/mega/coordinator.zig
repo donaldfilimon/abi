@@ -151,7 +151,7 @@ pub const ScheduleDecision = struct {
 pub const Coordinator = struct {
     allocator: std.mem.Allocator,
     backends: std.ArrayListUnmanaged(BackendInstance),
-    device_groups: std.AutoHashMap(backend_mod.Backend, *multi_device.DeviceGroup),
+    device_groups: std.AutoHashMapUnmanaged(backend_mod.Backend, *multi_device.DeviceGroup),
     scheduling_history: std.ArrayListUnmanaged(SchedulingRecord),
     stats: CoordinatorStats,
     next_decision_id: u64,
@@ -196,7 +196,7 @@ pub const Coordinator = struct {
         self.* = .{
             .allocator = allocator,
             .backends = .{},
-            .device_groups = std.AutoHashMap(backend_mod.Backend, *multi_device.DeviceGroup).init(allocator),
+            .device_groups = .empty,
             .scheduling_history = .{},
             .stats = .{},
             .next_decision_id = 1,
@@ -217,7 +217,7 @@ pub const Coordinator = struct {
             entry.value_ptr.*.deinit();
             self.allocator.destroy(entry.value_ptr.*);
         }
-        self.device_groups.deinit();
+        self.device_groups.deinit(self.allocator);
 
         self.backends.deinit(self.allocator);
         self.scheduling_history.deinit(self.allocator);

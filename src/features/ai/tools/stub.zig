@@ -43,6 +43,9 @@ pub const tool = struct {
             return .{ .allocator = allocator };
         }
         pub fn deinit(_: *OuterToolRegistry) void {}
+        pub fn get(_: *OuterToolRegistry, _: []const u8) ?*const OuterTool {
+            return null;
+        }
     };
 
     const OuterContext = struct {};

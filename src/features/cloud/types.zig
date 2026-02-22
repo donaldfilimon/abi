@@ -72,10 +72,10 @@ pub const CloudEvent = struct {
     path: ?[]const u8 = null,
 
     /// Query parameters as key-value pairs.
-    query_params: ?std.StringHashMap([]const u8) = null,
+    query_params: ?std.StringHashMapUnmanaged([]const u8) = null,
 
     /// Request headers as key-value pairs.
-    headers: ?std.StringHashMap([]const u8) = null,
+    headers: ?std.StringHashMapUnmanaged([]const u8) = null,
 
     /// Request body (raw bytes).
     body: ?[]const u8 = null,
@@ -171,10 +171,10 @@ pub const CloudEvent = struct {
     /// Free allocated resources.
     pub fn deinit(self: *CloudEvent) void {
         if (self.query_params) |*params| {
-            params.deinit();
+            params.deinit(self.allocator);
         }
         if (self.headers) |*hdrs| {
-            hdrs.deinit();
+            hdrs.deinit(self.allocator);
         }
     }
 };
@@ -185,7 +185,7 @@ pub const CloudResponse = struct {
     status_code: u16 = 200,
 
     /// Response headers.
-    headers: std.StringHashMap([]const u8),
+    headers: std.StringHashMapUnmanaged([]const u8),
 
     /// Response body.
     body: []const u8 = "",
@@ -200,14 +200,14 @@ pub const CloudResponse = struct {
     pub fn init(allocator: std.mem.Allocator) CloudResponse {
         return .{
             .allocator = allocator,
-            .headers = std.StringHashMap([]const u8).init(allocator),
+            .headers = .empty,
         };
     }
 
     /// Create a success response with JSON body.
     pub fn json(allocator: std.mem.Allocator, body: []const u8) !CloudResponse {
         var resp = CloudResponse.init(allocator);
-        try resp.headers.put("Content-Type", "application/json");
+        try resp.headers.put(allocator, "Content-Type", "application/json");
         resp.body = body;
         return resp;
     }
@@ -215,7 +215,7 @@ pub const CloudResponse = struct {
     /// Create a success response with plain text body.
     pub fn text(allocator: std.mem.Allocator, body: []const u8) !CloudResponse {
         var resp = CloudResponse.init(allocator);
-        try resp.headers.put("Content-Type", "text/plain");
+        try resp.headers.put(allocator, "Content-Type", "text/plain");
         resp.body = body;
         return resp;
     }
@@ -224,7 +224,7 @@ pub const CloudResponse = struct {
     pub fn err(allocator: std.mem.Allocator, status_code: u16, message: []const u8) !CloudResponse {
         var resp = CloudResponse.init(allocator);
         resp.status_code = status_code;
-        try resp.headers.put("Content-Type", "application/json");
+        try resp.headers.put(allocator, "Content-Type", "application/json");
 
         // Format error as JSON using Zig 0.16 API
         var out: std.Io.Writer.Allocating = .init(allocator);
@@ -247,7 +247,7 @@ pub const CloudResponse = struct {
 
     /// Set a header.
     pub fn setHeader(self: *CloudResponse, key: []const u8, value: []const u8) !void {
-        try self.headers.put(key, value);
+        try self.headers.put(self.allocator, key, value);
     }
 
     /// Set the response body.
@@ -262,7 +262,7 @@ pub const CloudResponse = struct {
 
     /// Free allocated resources.
     pub fn deinit(self: *CloudResponse) void {
-        self.headers.deinit();
+        self.headers.deinit(self.allocator);
     }
 };
 
@@ -278,7 +278,7 @@ pub const CloudConfig = struct {
     timeout_seconds: u32 = 30,
 
     /// Environment variables.
-    environment: std.StringHashMap([]const u8) = undefined,
+    environment: std.StringHashMapUnmanaged([]const u8) = .empty,
 
     /// Whether to enable tracing.
     tracing_enabled: bool = false,
@@ -368,32 +368,32 @@ pub fn jsonStringOrNull(value: std.json.Value) ?[]const u8 {
     };
 }
 
-/// Parse a JSON object into a StringHashMap (string values only).
+/// Parse a JSON object into a StringHashMapUnmanaged (string values only).
 pub fn parseJsonStringMap(
     allocator: std.mem.Allocator,
     object_value: std.json.Value,
-) !std.StringHashMap([]const u8) {
-    var out = std.StringHashMap([]const u8).init(allocator);
-    errdefer out.deinit();
+) !std.StringHashMapUnmanaged([]const u8) {
+    var out: std.StringHashMapUnmanaged([]const u8) = .empty;
+    errdefer out.deinit(allocator);
 
     var iter = object_value.object.iterator();
     while (iter.next()) |entry| {
         if (entry.value_ptr.* == .string) {
-            try out.put(entry.key_ptr.*, entry.value_ptr.string);
+            try out.put(allocator, entry.key_ptr.*, entry.value_ptr.string);
         }
     }
 
     return out;
 }
 
-/// Parse a JSON object of headers into a StringHashMap.
+/// Parse a JSON object of headers into a StringHashMapUnmanaged.
 /// Handles both string values and array-of-string values (takes the first).
 pub fn parseJsonHeaderMap(
     allocator: std.mem.Allocator,
     object_value: std.json.Value,
-) !std.StringHashMap([]const u8) {
-    var out = std.StringHashMap([]const u8).init(allocator);
-    errdefer out.deinit();
+) !std.StringHashMapUnmanaged([]const u8) {
+    var out: std.StringHashMapUnmanaged([]const u8) = .empty;
+    errdefer out.deinit(allocator);
 
     var iter = object_value.object.iterator();
     while (iter.next()) |entry| {
@@ -403,25 +403,25 @@ pub fn parseJsonHeaderMap(
             else => continue,
         };
         // Keep original key storage; CloudEvent.getHeader performs case-insensitive lookup.
-        try out.put(entry.key_ptr.*, header_value);
+        try out.put(allocator, entry.key_ptr.*, header_value);
     }
 
     return out;
 }
 
-/// Clone a StringHashMap, preserving original keys.
+/// Clone a StringHashMapUnmanaged, preserving original keys.
 /// CloudEvent.getHeader performs case-insensitive lookup at query time.
 pub fn cloneStringMap(
     allocator: std.mem.Allocator,
-    source: std.StringHashMap([]const u8),
-) !std.StringHashMap([]const u8) {
-    var clone = std.StringHashMap([]const u8).init(allocator);
-    errdefer clone.deinit();
+    source: std.StringHashMapUnmanaged([]const u8),
+) !std.StringHashMapUnmanaged([]const u8) {
+    var clone: std.StringHashMapUnmanaged([]const u8) = .empty;
+    errdefer clone.deinit(allocator);
 
     var iter = source.iterator();
     while (iter.next()) |entry| {
         // Keep original key storage; CloudEvent.getHeader performs case-insensitive lookup.
-        try clone.put(entry.key_ptr.*, entry.value_ptr.*);
+        try clone.put(allocator, entry.key_ptr.*, entry.value_ptr.*);
     }
 
     return clone;

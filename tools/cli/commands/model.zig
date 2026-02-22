@@ -14,67 +14,64 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
-const model_subcommands = [_][]const u8{
-    "list",
-    "info",
-    "download",
-    "remove",
-    "search",
-    "path",
-    "help",
+// Wrapper functions for comptime children dispatch
+fn wrapList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runList(allocator, args);
+}
+fn wrapInfo(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runInfo(allocator, args);
+}
+fn wrapDownload(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runDownload(allocator, args);
+}
+fn wrapRemove(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runRemove(allocator, args);
+}
+fn wrapSearch(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runSearch(allocator, args);
+}
+fn wrapPath(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runPath(allocator, args);
+}
+
+pub const meta: command_mod.Meta = .{
+    .name = "model",
+    .description = "Model management (list, download, remove, search)",
+    .subcommands = &.{ "list", "info", "download", "remove", "search", "path" },
+    .children = &.{
+        .{ .name = "list", .description = "List cached models", .handler = .{ .basic = wrapList } },
+        .{ .name = "info", .description = "Show detailed model information", .handler = .{ .basic = wrapInfo } },
+        .{ .name = "download", .description = "Download model from HuggingFace or URL", .handler = .{ .basic = wrapDownload } },
+        .{ .name = "remove", .description = "Remove a cached model", .handler = .{ .basic = wrapRemove } },
+        .{ .name = "search", .description = "Search HuggingFace for models", .handler = .{ .basic = wrapSearch } },
+        .{ .name = "path", .description = "Show or set cache directory", .handler = .{ .basic = wrapPath } },
+    },
 };
 
-fn mdList(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runList(alloc, parser.remaining());
-}
-fn mdInfo(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runInfo(alloc, parser.remaining());
-}
-fn mdDownload(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runDownload(alloc, parser.remaining());
-}
-fn mdRemove(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runRemove(alloc, parser.remaining());
-}
-fn mdSearch(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runSearch(alloc, parser.remaining());
-}
-fn mdPath(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runPath(alloc, parser.remaining());
-}
-fn mdUnknown(cmd: []const u8) void {
+const model_subcommands = [_][]const u8{
+    "list", "info", "download", "remove", "search", "path", "help",
+};
+
+/// Run the model command with the provided arguments.
+pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        printHelp();
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp();
+        return;
+    }
+    // Unknown subcommand
     std.debug.print("Unknown model command: {s}\n", .{cmd});
     if (utils.args.suggestCommand(cmd, &model_subcommands)) |suggestion| {
         std.debug.print("Did you mean: {s}\n", .{suggestion});
     }
-}
-fn printHelpAlloc(_: std.mem.Allocator) void {
-    printHelp();
-}
-
-const md_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"list"}, .run = mdList },
-    .{ .names = &.{"info"}, .run = mdInfo },
-    .{ .names = &.{"download"}, .run = mdDownload },
-    .{ .names = &.{"remove"}, .run = mdRemove },
-    .{ .names = &.{"search"}, .run = mdSearch },
-    .{ .names = &.{"path"}, .run = mdPath },
-};
-
-/// Run the model command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &md_commands,
-        null,
-        printHelpAlloc,
-        mdUnknown,
-    );
 }
 
 // ============================================================================

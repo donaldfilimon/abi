@@ -123,7 +123,7 @@ pub const ExploreResult = struct {
         try self.matches.append(self.allocator, match);
         self.matches_found += 1;
 
-        const dir = std.fs.path.dirname(match.file_path) orelse "";
+        const dir = std.Io.Dir.path.dirname(match.file_path) orelse "";
         if (self.file_summaries.getPtr(dir)) |summary| {
             summary.total_matches += 1;
             summary.match_types.set(match.match_type, summary.match_types.get(match.match_type) + 1);
@@ -226,3 +226,7 @@ pub const ExplorationStats = struct {
         self.cancelled = self.cancelled or other.cancelled;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -9,7 +9,7 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -33,7 +33,7 @@ pub fn main() !void {
     // === Training Configuration ===
     std.debug.print("--- Training Configuration ---\n", .{});
 
-    const config = abi.ai.TrainingConfig{
+    const config = abi.ai.training.TrainingConfig{
         .epochs = 5,
         .batch_size = 32,
         .sample_count = 256,
@@ -56,7 +56,7 @@ pub fn main() !void {
     // === Run Training ===
     std.debug.print("\n--- Starting Training ---\n", .{});
 
-    var result = abi.ai.trainWithResult(allocator, config) catch |err| {
+    var result = abi.ai.training.trainWithResult(allocator, config) catch |err| {
         std.debug.print("Training failed: {t}\n", .{err});
         return err;
     };
@@ -107,7 +107,7 @@ pub fn main() !void {
 
     // Try to load checkpoint and continue training
     if (config.checkpoint_path) |checkpoint_path| {
-        if (abi.ai.loadCheckpoint(allocator, checkpoint_path)) |checkpoint| {
+        if (abi.ai.training.loadCheckpoint(allocator, checkpoint_path)) |checkpoint| {
             var checkpoint_mut = checkpoint;
             defer checkpoint_mut.deinit(allocator);
             std.debug.print("Loaded checkpoint from step {d}\n", .{checkpoint.step});

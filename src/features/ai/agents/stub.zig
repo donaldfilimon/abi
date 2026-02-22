@@ -2,6 +2,7 @@
 
 const std = @import("std");
 const config_module = @import("../../../core/config/mod.zig");
+const llm_providers = @import("../llm/stub.zig").providers;
 
 pub const Error = error{ AgentsDisabled, AgentNotFound, ToolNotFound, ExecutionFailed, MaxAgentsReached };
 
@@ -38,6 +39,7 @@ pub const AgentBackend = enum {
     ollama,
     huggingface,
     local,
+    provider_router,
 };
 
 pub const OperationContext = enum {
@@ -97,6 +99,10 @@ pub const AgentConfig = struct {
     max_tokens: u32 = DEFAULT_MAX_TOKENS,
     backend: AgentBackend = .echo,
     model: []const u8 = "gpt-4",
+    provider_backend: ?llm_providers.ProviderId = null,
+    provider_fallback: []const llm_providers.ProviderId = &.{},
+    provider_strict_backend: bool = false,
+    provider_plugin_id: ?[]const u8 = null,
     system_prompt: ?[]const u8 = null,
 
     pub fn validate(self: AgentConfig) AgentError!void {

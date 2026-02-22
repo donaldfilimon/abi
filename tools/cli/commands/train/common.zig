@@ -11,14 +11,14 @@ const tui = @import("../../tui/mod.zig");
 pub const cli_io = utils.io_backend;
 pub const gguf_writer = abi.ai.llm.io.gguf_writer;
 
-pub fn parseOptimizer(val: []const u8) abi.ai.OptimizerType {
+pub fn parseOptimizer(val: []const u8) abi.ai.training.OptimizerType {
     if (std.mem.eql(u8, val, "sgd")) return .sgd;
     if (std.mem.eql(u8, val, "adam")) return .adam;
     if (std.mem.eql(u8, val, "adamw")) return .adamw;
     return .adamw; // default
 }
 
-pub fn parseLrSchedule(val: []const u8) abi.ai.LearningRateSchedule {
+pub fn parseLrSchedule(val: []const u8) abi.ai.training.LearningRateSchedule {
     if (std.mem.eql(u8, val, "constant")) return .constant;
     if (std.mem.eql(u8, val, "cosine")) return .cosine;
     if (std.mem.eql(u8, val, "warmup_cosine")) return .warmup_cosine;
@@ -122,7 +122,7 @@ pub fn loadTokensFromPath(
 ) ![]u32 {
     switch (format) {
         .tokenbin => {
-            var tokens = try abi.ai.readTokenBinFile(allocator, path);
+            var tokens = try abi.ai.database.readTokenBinFile(allocator, path);
             if (max_tokens > 0 and tokens.len > max_tokens) {
                 const trimmed = try allocator.alloc(u32, max_tokens);
                 @memcpy(trimmed, tokens[0..max_tokens]);

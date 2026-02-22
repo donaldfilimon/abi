@@ -7,7 +7,7 @@ pub const CompactLayout = struct {
 };
 
 pub fn computeVisibleRows(rows: u16) usize {
-    const content_rows = rows -| 10;
+    const content_rows = rows -| 11;
     return @max(@as(usize, 5), @as(usize, @intCast(content_rows)));
 }
 
@@ -23,7 +23,7 @@ pub fn completionDropdownRowCount(state: anytype) u16 {
 }
 
 pub fn menuStartRow(state: anytype) u16 {
-    var row: u16 = 3;
+    var row: u16 = 4;
     if (state.notification != null) row += 1;
 
     if (state.search_mode or state.search_len > 0) {

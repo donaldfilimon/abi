@@ -40,7 +40,7 @@ test "cloud lifecycle: CloudEvent creation" {
 
     // Create JSON response
     var response = try abi.cloud.CloudResponse.json(allocator, "{\"status\": \"ok\"}");
-    defer response.headers.deinit();
+    defer response.deinit();
 
     try testing.expectEqual(@as(u16, 200), response.status_code);
     try testing.expect(response.body.len > 0);
@@ -51,27 +51,27 @@ test "cloud lifecycle: CloudResponse status codes" {
 
     // Success response using json
     var ok_response = try abi.cloud.CloudResponse.json(allocator, "{\"message\": \"Success\"}");
-    defer ok_response.headers.deinit();
+    defer ok_response.deinit();
     try testing.expectEqual(@as(u16, 200), ok_response.status_code);
 
     // Error responses using err() helper
     var bad_request = try abi.cloud.CloudResponse.err(allocator, 400, "Invalid input");
     defer {
-        bad_request.headers.deinit();
+        bad_request.deinit();
         allocator.free(bad_request.body);
     }
     try testing.expectEqual(@as(u16, 400), bad_request.status_code);
 
     var not_found = try abi.cloud.CloudResponse.err(allocator, 404, "Resource not found");
     defer {
-        not_found.headers.deinit();
+        not_found.deinit();
         allocator.free(not_found.body);
     }
     try testing.expectEqual(@as(u16, 404), not_found.status_code);
 
     var server_error = try abi.cloud.CloudResponse.err(allocator, 500, "Internal error");
     defer {
-        server_error.headers.deinit();
+        server_error.deinit();
         allocator.free(server_error.body);
     }
     try testing.expectEqual(@as(u16, 500), server_error.status_code);

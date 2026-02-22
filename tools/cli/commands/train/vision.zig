@@ -200,7 +200,7 @@ pub fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) 
         .use_class_token = true,
     };
 
-    const trainable_vit_config = abi.ai.TrainableViTConfig{
+    const trainable_vit_config = abi.ai.training.TrainableViTConfig{
         .vit_config = vit_config,
         .max_batch_size = batch_size,
         .num_classes = num_classes,
@@ -241,7 +241,7 @@ pub fn runVisionTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) 
 
     // Initialize model
     std.debug.print("Initializing ViT model with random weights...\n", .{});
-    var model = abi.ai.TrainableViTModel.init(allocator, trainable_vit_config) catch |err| {
+    var model = abi.ai.training.TrainableViTModel.init(allocator, trainable_vit_config) catch |err| {
         std.debug.print("Error initializing model: {t}\n", .{err});
         return;
     };
@@ -547,14 +547,14 @@ pub fn runClipTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !v
         .use_class_token = true,
     };
 
-    const vision_config = abi.ai.TrainableViTConfig{
+    const vision_config = abi.ai.training.TrainableViTConfig{
         .vit_config = vit_config,
         .max_batch_size = batch_size,
         .num_classes = 0, // CLIP uses projection
         .projection_dim = projection_dim,
     };
 
-    const clip_config = abi.ai.CLIPTrainingConfig{
+    const clip_config = abi.ai.training.CLIPTrainingConfig{
         .vision_config = vision_config,
         .text_hidden_size = text_hidden,
         .text_num_layers = text_layers,
@@ -602,7 +602,7 @@ pub fn runClipTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !v
 
     // Initialize model
     std.debug.print("Initializing CLIP model with random weights...\n", .{});
-    var model = abi.ai.TrainableCLIPModel.init(allocator, clip_config) catch |err| {
+    var model = abi.ai.training.TrainableCLIPModel.init(allocator, clip_config) catch |err| {
         std.debug.print("Error initializing model: {t}\n", .{err});
         return;
     };

@@ -26,12 +26,12 @@ const required_tools = [_][]const u8{
 
 const EnvOverlay = struct {
     allocator: std.mem.Allocator,
-    values: std.StringHashMap([]const u8),
+    values: std.StringHashMapUnmanaged([]const u8),
 
     fn init(allocator: std.mem.Allocator) EnvOverlay {
         return .{
             .allocator = allocator,
-            .values = std.StringHashMap([]const u8).init(allocator),
+            .values = .empty,
         };
     }
 
@@ -41,7 +41,7 @@ const EnvOverlay = struct {
             self.allocator.free(entry.key_ptr.*);
             self.allocator.free(entry.value_ptr.*);
         }
-        self.values.deinit();
+        self.values.deinit(self.allocator);
     }
 
     fn get(self: *const EnvOverlay, key: []const u8) ?[]const u8 {
@@ -55,7 +55,7 @@ const EnvOverlay = struct {
         const value_copy = try self.allocator.dupe(u8, value);
         errdefer self.allocator.free(value_copy);
 
-        try self.values.put(key_copy, value_copy);
+        try self.values.put(self.allocator, key_copy, value_copy);
     }
 };
 

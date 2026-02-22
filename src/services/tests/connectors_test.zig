@@ -218,10 +218,10 @@ test "discord tools registration" {
 
     const allocator = std.testing.allocator;
 
-    var registry = abi.ai.ToolRegistry.init(allocator);
+    var registry = abi.ai.tools.ToolRegistry.init(allocator);
     defer registry.deinit();
 
-    try abi.ai.registerDiscordTools(&registry);
+    try abi.ai.tools.registerDiscordTools(&registry);
 
     // Verify all Discord tools are registered
     try std.testing.expect(registry.get("discord_send_message") != null);
@@ -238,17 +238,17 @@ test "discord tool definitions are valid" {
     if (!build_options.enable_ai) return error.SkipZigTest;
 
     // Verify send_message tool
-    const send_tool = abi.ai.DiscordTools.send_message_tool;
+    const send_tool = abi.ai.tools.DiscordTools.send_message_tool;
     try std.testing.expectEqualStrings("discord_send_message", send_tool.name);
     try std.testing.expect(send_tool.parameters.len >= 2);
 
     // Verify get_channel tool
-    const channel_tool = abi.ai.DiscordTools.get_channel_tool;
+    const channel_tool = abi.ai.tools.DiscordTools.get_channel_tool;
     try std.testing.expectEqualStrings("discord_get_channel", channel_tool.name);
     try std.testing.expect(channel_tool.parameters.len >= 1);
 
     // Verify list_guilds tool
-    const guilds_tool = abi.ai.DiscordTools.list_guilds_tool;
+    const guilds_tool = abi.ai.tools.DiscordTools.list_guilds_tool;
     try std.testing.expectEqualStrings("discord_list_guilds", guilds_tool.name);
 }
 

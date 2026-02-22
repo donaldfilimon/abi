@@ -18,6 +18,7 @@ const block_chain = parent.block_chain;
 pub const DistributedBlockChainError = error{
     NotLeader,
     ConsensusTimeout,
+    CommitTimeout,
     BlockConflict,
     ShardUnavailable,
     NodeDisconnected,
@@ -36,6 +37,10 @@ pub const DistributedBlockChainConfig = struct {
     replication_factor: u32 = 3,
     /// Sync timeout in milliseconds
     sync_timeout_ms: u64 = 5000,
+    /// TCP listen port for transport
+    listen_port: u16 = 9000,
+    /// Maximum poll iterations to wait for Raft commit
+    commit_timeout_polls: u32 = 1000,
 };
 
 /// Block chain wrapper configuration
@@ -53,12 +58,12 @@ pub const DistributedBlockChain = struct {
     node_id: []const u8,
 
     // Local storage
-    local_chains: std.StringHashMap(block_chain.BlockChain), // session_id -> chain
+    local_chains: std.StringHashMapUnmanaged(block_chain.BlockChain), // session_id -> chain
     mvcc_store: block_chain.MvccStore,
 
     // Distributed coordination
     raft_node: ?network.RaftNode,
-    transport: ?network.TcpTransport,
+    transport: ?*network.TcpTransport,
     is_initialized: bool = false,
 
     const Self = @This();
@@ -75,7 +80,7 @@ pub const DistributedBlockChain = struct {
             .allocator = allocator,
             .config = config,
             .node_id = node_id_copy,
-            .local_chains = std.StringHashMap(block_chain.BlockChain).init(allocator),
+            .local_chains = .empty,
             .mvcc_store = block_chain.MvccStore.init(allocator),
             .raft_node = null,
             .transport = null,
@@ -89,13 +94,13 @@ pub const DistributedBlockChain = struct {
             entry.value_ptr.deinit();
             self.allocator.free(entry.key_ptr.*);
         }
-        self.local_chains.deinit();
+        self.local_chains.deinit(self.allocator);
 
         // Clean up distributed components
         if (self.raft_node) |*raft| {
             raft.deinit();
         }
-        if (self.transport) |*transport| {
+        if (self.transport) |transport| {
             transport.deinit();
         }
 
@@ -119,8 +124,11 @@ pub const DistributedBlockChain = struct {
             }
         }
 
-        // Initialize network transport
-        self.transport = try network.TcpTransport.init(self.allocator, .{ .listen_address = "0.0.0.0", .listen_port = 9000 });
+        // Initialize network transport with configurable port
+        self.transport = try network.TcpTransport.init(self.allocator, .{
+            .listen_address = "0.0.0.0",
+            .listen_port = self.config.listen_port,
+        });
 
         self.is_initialized = true;
         std.log.info("DistributedBlockChain: Node {s} started and joined cluster", .{self.node_id});
@@ -135,7 +143,7 @@ pub const DistributedBlockChain = struct {
             self.raft_node = null;
         }
 
-        if (self.transport) |*transport| {
+        if (self.transport) |transport| {
             transport.deinit();
             self.transport = null;
         }
@@ -145,6 +153,11 @@ pub const DistributedBlockChain = struct {
     }
 
     /// Add a block to the distributed chain (requires consensus)
+    ///
+    /// When running in a cluster, the block is first appended to the Raft log.
+    /// The method then polls the Raft commit index to confirm the entry has been
+    /// committed by a quorum before applying it to local storage.  In single-node
+    /// mode (no peers) the leader auto-commits, so the poll succeeds immediately.
     pub fn addBlock(
         self: *Self,
         session_id: []const u8,
@@ -167,27 +180,105 @@ pub const DistributedBlockChain = struct {
         // Append to Raft log (will replicate to followers)
         const log_index = try self.raft_node.?.appendCommand(serialized);
 
-        // Wait for commit (simplified - real impl would async wait)
-        // For now, assume committed and add locally
+        // Poll for Raft commit confirmation
+        var committed = false;
+        var poll_count: u32 = 0;
+        while (poll_count < self.config.commit_timeout_polls) : (poll_count += 1) {
+            if (self.raft_node.?.commit_index >= log_index) {
+                committed = true;
+                break;
+            }
+            // In single-node mode the leader auto-commits; no peers to wait for.
+            if (self.raft_node.?.peers.count() == 0) {
+                // Advance commit index directly for solo leader
+                self.raft_node.?.commit_index = log_index;
+                committed = true;
+                break;
+            }
+        }
+        if (!committed) return DistributedBlockChainError.CommitTimeout;
 
-        // Add to local chain
+        // Raft entry is committed — apply to local chain
         const local_chain = try self.getOrCreateChain(session_id);
         const block_id = try local_chain.addBlock(config);
 
-        std.log.info("DistributedBlockChain: Block {d} added to session {s} via consensus (log index: {d})", .{ block_id, session_id, log_index });
+        std.log.info("DistributedBlockChain: Block {d} committed to session {s} (log index: {d}, polls: {d})", .{ block_id, session_id, log_index, poll_count });
 
         return block_id;
     }
 
-    /// Get a block from the chain (local or remote)
+    /// Get a block from the chain (local or remote).
+    ///
+    /// First checks local storage. If the block is not found locally and the
+    /// node is part of a cluster with an active TCP transport, a best-effort
+    /// remote query is sent to the Raft leader (or first available peer) using
+    /// the `db_search_request` message type.  If the transport is unavailable
+    /// or no peer responds, `null` is returned.
     pub fn getBlock(self: *Self, session_id: []const u8, block_id: u64) ?block_chain.ConversationBlock {
         // First check local chain
         if (self.local_chains.get(session_id)) |chain| {
             return chain.getBlock(block_id);
         }
 
-        // If not found locally and we're in a cluster, could query other nodes
-        // For now, return null
+        // Attempt remote query if we are in a cluster with transport
+        if (self.is_initialized) {
+            if (self.transport) |transport| {
+                if (self.raft_node) |raft| {
+                    // Build a lightweight query payload: session_id + block_id
+                    var query_buf: [256]u8 = undefined;
+                    const session_len: u32 = @intCast(session_id.len);
+                    var pos: usize = 0;
+
+                    // Write session length (4 bytes LE)
+                    @memcpy(query_buf[pos..][0..4], &std.mem.toBytes(session_len));
+                    pos += 4;
+
+                    // Write session id
+                    if (pos + session_id.len <= query_buf.len) {
+                        @memcpy(query_buf[pos..][0..session_id.len], session_id);
+                        pos += session_id.len;
+                    } else {
+                        return null; // session_id too long for buffer
+                    }
+
+                    // Write block_id (8 bytes LE)
+                    @memcpy(query_buf[pos..][0..8], &std.mem.toBytes(block_id));
+                    pos += 8;
+
+                    const payload = query_buf[0..pos];
+
+                    // Determine target: prefer the known leader, else first peer
+                    const target_id = raft.leader_id orelse blk: {
+                        var peer_iter = raft.peers.keyIterator();
+                        break :blk if (peer_iter.next()) |k| k.* else null;
+                    };
+
+                    if (target_id) |peer_addr| {
+                        // Use the configured listen port for the remote node
+                        const response_data = transport.sendRequest(
+                            peer_addr,
+                            self.config.listen_port,
+                            .db_search_request,
+                            payload,
+                        ) catch |err| {
+                            std.log.warn("DistributedBlockChain: Remote block query failed for session {s} block {d}: {t}", .{ session_id, block_id, err });
+                            return null;
+                        };
+                        defer self.allocator.free(response_data);
+
+                        // NOTE: Full deserialization of a remote block response
+                        // requires a wire-format contract between nodes. For now
+                        // we log the attempt and fall through to null — a future
+                        // iteration will decode db_search_response payloads into
+                        // ConversationBlock values.
+                        std.log.debug("DistributedBlockChain: Remote query sent for session {s} block {d}, got {d} bytes", .{ session_id, block_id, response_data.len });
+                    }
+                }
+            } else {
+                std.log.debug("DistributedBlockChain: No transport available for remote block query", .{});
+            }
+        }
+
         return null;
     }
 
@@ -224,7 +315,7 @@ pub const DistributedBlockChain = struct {
         errdefer self.allocator.free(session_copy);
 
         const chain = block_chain.BlockChain.init(self.allocator, session_copy);
-        try self.local_chains.put(session_copy, chain);
+        try self.local_chains.put(self.allocator, session_copy, chain);
 
         return self.local_chains.getPtr(session_copy).?;
     }
@@ -417,4 +508,76 @@ test "DistributedBlockChain chain management" {
     const stats = dbc.getLocalStats();
     try std.testing.expect(stats.session_count >= 1);
     try std.testing.expect(stats.total_blocks >= 1);
+}
+
+test "DistributedBlockChain single-node addBlock auto-commits" {
+    const allocator = std.testing.allocator;
+
+    var dbc = try DistributedBlockChain.init(allocator, "solo-node", .{});
+    defer dbc.deinit();
+
+    // Initialize Raft without peers (single-node cluster)
+    dbc.raft_node = try network.RaftNode.init(allocator, "solo-node", dbc.config.raft_config);
+    dbc.is_initialized = true;
+
+    // Force leader state so appendCommand succeeds
+    dbc.raft_node.?.state = .leader;
+    dbc.raft_node.?.current_term = 1;
+
+    const dim = 64;
+    const embedding = try allocator.alloc(f32, dim);
+    defer allocator.free(embedding);
+    @memset(embedding, 0.5);
+
+    const config = block_chain.BlockConfig{
+        .query_embedding = embedding,
+        .persona_tag = .{ .primary_persona = .abbey },
+        .routing_weights = .{ .abbey_weight = 1.0 },
+        .intent = .empathy_seeking,
+    };
+
+    // Single-node: should auto-commit without timeout
+    const block_id = try dbc.addBlock("auto-session", config);
+    try std.testing.expect(block_id != 0);
+
+    // Verify Raft commit index was advanced
+    try std.testing.expect(dbc.raft_node.?.commit_index >= 1);
+}
+
+test "DistributedBlockChain getBlock returns locally added block" {
+    const allocator = std.testing.allocator;
+
+    var dbc = try DistributedBlockChain.init(allocator, "local-get-node", .{});
+    defer dbc.deinit();
+
+    const dim = 64;
+    const embedding = try allocator.alloc(f32, dim);
+    defer allocator.free(embedding);
+    @memset(embedding, 0.3);
+
+    const config = block_chain.BlockConfig{
+        .query_embedding = embedding,
+        .persona_tag = .{ .primary_persona = .aviva },
+        .routing_weights = .{ .aviva_weight = 1.0 },
+        .intent = .technical_problem,
+    };
+
+    const block_id = try dbc.addBlock("get-session", config);
+    const block = dbc.getBlock("get-session", block_id);
+    try std.testing.expect(block != null);
+}
+
+test "DistributedBlockChain getBlock non-existent returns null" {
+    const allocator = std.testing.allocator;
+
+    var dbc = try DistributedBlockChain.init(allocator, "null-get-node", .{});
+    defer dbc.deinit();
+
+    // Query a session/block that was never added
+    const block = dbc.getBlock("no-such-session", 999);
+    try std.testing.expect(block == null);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

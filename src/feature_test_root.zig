@@ -147,7 +147,6 @@ test {
     _ = @import("services/shared/logging.zig");
     _ = @import("services/shared/plugins.zig");
     _ = @import("services/shared/utils.zig");
-    _ = @import("services/shared/platform.zig");
 
     // Shared memory utilities
     _ = @import("services/shared/utils/memory/aligned.zig");

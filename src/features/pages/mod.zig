@@ -646,3 +646,168 @@ test "pages render increments stats" {
 
     try std.testing.expectEqual(@as(u64, 2), stats().total_renders);
 }
+
+test "PagesConfig default values" {
+    const config = PagesConfig{};
+    try std.testing.expectEqual(@as(u32, 256), config.max_pages);
+    try std.testing.expectEqualStrings("default", config.default_layout);
+    try std.testing.expect(config.enable_template_cache);
+    try std.testing.expectEqual(@as(u32, 64), config.template_cache_size);
+    try std.testing.expectEqual(@as(u64, 0), config.default_cache_ttl_ms);
+}
+
+test "Page default values" {
+    const page = Page{};
+    try std.testing.expectEqualStrings("/", page.path);
+    try std.testing.expectEqualStrings("", page.title);
+    try std.testing.expectEqualStrings("default", page.layout);
+    try std.testing.expectEqual(HttpMethod.GET, page.method);
+    try std.testing.expect(!page.require_auth);
+    try std.testing.expectEqual(@as(u64, 0), page.cache_ttl_ms);
+    try std.testing.expectEqual(@as(u8, 0), page.metadata_count);
+}
+
+test "HttpMethod enum coverage" {
+    const methods = [_]HttpMethod{ .GET, .POST, .PUT, .DELETE, .PATCH, .HEAD, .OPTIONS };
+    try std.testing.expectEqual(@as(usize, 7), methods.len);
+}
+
+test "pages invalid path rejected" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    try std.testing.expectError(error.InvalidPath, addPage(.{ .path = "", .title = "Empty" }));
+}
+
+test "pages getPage returns null for missing" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    const result = getPage("/nonexistent");
+    try std.testing.expect(result == null);
+}
+
+test "pages matchPage returns null for unregistered path" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    const result = try matchPage("/does/not/exist");
+    try std.testing.expect(result == null);
+}
+
+test "pages render PageNotFound for missing page" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    try std.testing.expectError(error.PageNotFound, renderPage(allocator, "/missing", &.{}));
+}
+
+test "pages removePage returns false for nonexistent" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    const removed = try removePage("/ghost");
+    try std.testing.expect(!removed);
+}
+
+test "pages template with default vars" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    var tmpl = TemplateRef{
+        .source = "Hi {{user}}, welcome to {{site}}!",
+    };
+    tmpl.default_vars[0] = .{ .key = "user", .value = "Guest" };
+    tmpl.default_vars[1] = .{ .key = "site", .value = "ABI" };
+    tmpl.var_count = 2;
+
+    try addPage(.{
+        .path = "/welcome",
+        .title = "Welcome",
+        .content = .{ .template = tmpl },
+    });
+
+    // Render with defaults
+    var r1 = try renderPage(allocator, "/welcome", &.{});
+    defer r1.deinit(allocator);
+    try std.testing.expectEqualStrings("Hi Guest, welcome to ABI!", r1.body);
+
+    // Override one default
+    var r2 = try renderPage(allocator, "/welcome", &.{
+        .{ .key = "user", .value = "Alice" },
+    });
+    defer r2.deinit(allocator);
+    try std.testing.expectEqualStrings("Hi Alice, welcome to ABI!", r2.body);
+}
+
+test "pages stats with mixed content types" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    try addPage(.{ .path = "/static1", .title = "S1", .content = .{ .static = "a" } });
+    try addPage(.{ .path = "/static2", .title = "S2", .content = .{ .static = "b" } });
+    try addPage(.{
+        .path = "/tmpl1",
+        .title = "T1",
+        .content = .{ .template = .{ .source = "{{x}}" } },
+    });
+
+    const s = stats();
+    try std.testing.expectEqual(@as(u32, 3), s.total_pages);
+    try std.testing.expectEqual(@as(u32, 2), s.static_pages);
+    try std.testing.expectEqual(@as(u32, 1), s.template_pages);
+}
+
+test "PageMatch getParam returns null for missing" {
+    var m = PageMatch{ .page = .{} };
+    m.param_count = 0;
+    try std.testing.expect(m.getParam("anything") == null);
+}
+
+test "RenderResult non-owned deinit is safe" {
+    const allocator = std.testing.allocator;
+    var result = RenderResult{
+        .title = "test",
+        .body = &.{},
+        .layout = "default",
+        .body_owned = false,
+    };
+    // deinit on non-owned body should not free anything
+    result.deinit(allocator);
+}
+
+test "pages listPages returns empty slice" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    const pages = listPages();
+    try std.testing.expectEqual(@as(usize, 0), pages.len);
+}
+
+test "pages add page with auth and cache" {
+    const allocator = std.testing.allocator;
+    try init(allocator, PagesConfig.defaults());
+    defer deinit();
+
+    try addPage(.{
+        .path = "/admin",
+        .title = "Admin",
+        .require_auth = true,
+        .cache_ttl_ms = 60000,
+        .method = .POST,
+    });
+
+    const page = getPage("/admin");
+    try std.testing.expect(page != null);
+    try std.testing.expect(page.?.require_auth);
+    try std.testing.expectEqual(@as(u64, 60000), page.?.cache_ttl_ms);
+    try std.testing.expectEqual(HttpMethod.POST, page.?.method);
+}

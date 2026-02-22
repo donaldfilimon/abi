@@ -15,7 +15,7 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     var store_skill: ?[]const u8 = null;
     var do_gate = false;
     var config_path: []const u8 = cfg.CONFIG_FILE;
-    var gate_in: []const u8 = "reports/ralph_upgrade_results_openai.json";
+    var gate_in: ?[]const u8 = null;
     var gate_out: []const u8 = "reports/ralph_upgrade_summary.md";
 
     var i: usize = 0;
@@ -57,7 +57,7 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
                 \\      --auto-skill       Extract and store a skill after the run
                 \\      --store-skill <s>  Manually store a skill string after run
                 \\      --gate             Run quality gate after the run (--in/--out apply)
-                \\      --gate-in <path>   Gate input JSON (default: reports/ralph_upgrade_results_openai.json)
+                \\      --gate-in <path>   Gate input JSON/report (default: latest .ralph run report)
                 \\      --gate-out <path>  Gate output Markdown
                 \\  -h, --help             Show this help
                 \\
@@ -105,11 +105,17 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 
     if (do_gate) {
         std.debug.print("\nRunning quality gate...\n", .{});
-        const gate_in_z = try allocator.dupeZ(u8, gate_in);
         const gate_out_z = try allocator.dupeZ(u8, gate_out);
-        defer allocator.free(gate_in_z);
         defer allocator.free(gate_out_z);
-        const gate_args = [_][:0]const u8{ "--in", gate_in_z, "--out", gate_out_z };
-        try gate_mod.runGate(allocator, &gate_args);
+        var gate_args = std.ArrayListUnmanaged([:0]const u8).empty;
+        defer gate_args.deinit(allocator);
+
+        if (gate_in) |in_path| {
+            const gate_in_z = try allocator.dupeZ(u8, in_path);
+            defer allocator.free(gate_in_z);
+            try gate_args.appendSlice(allocator, &[_][:0]const u8{ "--in", gate_in_z });
+        }
+        try gate_args.appendSlice(allocator, &[_][:0]const u8{ "--out", gate_out_z });
+        try gate_mod.runGate(allocator, gate_args.items);
     }
 }

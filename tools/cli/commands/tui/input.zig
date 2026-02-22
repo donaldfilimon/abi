@@ -77,12 +77,12 @@ pub fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
                     't' => {
                         // Cycle theme
                         state.theme_manager.nextTheme();
-                        state.showNotification("Theme changed", .info);
+                        state.showNotification(themeNotificationMessage(state.theme_manager.current.name), .info);
                     },
                     'T' => {
                         // Cycle theme backwards
                         state.theme_manager.prevTheme();
-                        state.showNotification("Theme changed", .info);
+                        state.showNotification(themeNotificationMessage(state.theme_manager.current.name), .info);
                     },
                     '?' => {
                         // Show preview for selected item
@@ -120,6 +120,25 @@ pub fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
         else => {},
     }
     return false;
+}
+
+fn themeNotificationMessage(theme_name: []const u8) []const u8 {
+    return if (std.mem.eql(u8, theme_name, "default"))
+        "Theme: default"
+    else if (std.mem.eql(u8, theme_name, "monokai"))
+        "Theme: monokai"
+    else if (std.mem.eql(u8, theme_name, "solarized"))
+        "Theme: solarized"
+    else if (std.mem.eql(u8, theme_name, "nord"))
+        "Theme: nord"
+    else if (std.mem.eql(u8, theme_name, "gruvbox"))
+        "Theme: gruvbox"
+    else if (std.mem.eql(u8, theme_name, "high_contrast"))
+        "Theme: high_contrast"
+    else if (std.mem.eql(u8, theme_name, "minimal"))
+        "Theme: minimal"
+    else
+        "Theme changed";
 }
 
 fn handlePreviewKey(state: *TuiState, key: tui.Key) !bool {

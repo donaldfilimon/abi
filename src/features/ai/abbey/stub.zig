@@ -366,6 +366,80 @@ pub const Abbey = struct {
 pub const LegacyResponse = struct { content: []const u8 = "", confidence: StubConfidence = .{}, emotional_context: StubEmotionalState = .{}, reasoning_summary: ?[]const u8 = null, topics: []const []const u8 = &.{} };
 pub const LegacyStats = struct { turn_count: usize = 0, relationship_score: f32 = 0, current_emotion: StubEmotionType = .neutral, topics_discussed: usize = 0 };
 
+// ── Ralph Swarm (parallel multi-agent) ─────────────────────────────────────
+
+pub const ralph_swarm = struct {
+    pub const ParallelRalphContext = struct {
+        allocator: std.mem.Allocator,
+        bus: *ralph_multi.RalphBus,
+        goals: []const []const u8,
+        results: []?[]const u8,
+        max_iterations: usize,
+        post_result_to_bus: bool = true,
+    };
+
+    pub fn parallelRalphWorker(_: *ParallelRalphContext, _: u32) void {}
+};
+
+// ── Ralph Multi-Agent Coordination ─────────────────────────────────────────
+
+pub const ralph_multi = struct {
+    pub const max_message_content_len = 1024;
+
+    pub const RalphMessageKind = enum(u8) {
+        task_result,
+        handoff,
+        skill_share,
+        coordination,
+    };
+
+    pub const RalphMessage = struct {
+        from_id: u32 = 0,
+        to_id: u32 = 0,
+        kind: RalphMessageKind = .task_result,
+        content_len: u16 = 0,
+        content: [max_message_content_len]u8 = [_]u8{0} ** max_message_content_len,
+
+        pub fn setContent(self: *RalphMessage, slice: []const u8) void {
+            const n = @min(slice.len, max_message_content_len);
+            @memcpy(self.content[0..n], slice[0..n]);
+            self.content_len = @intCast(n);
+        }
+
+        pub fn getContent(self: *const RalphMessage) []const u8 {
+            return self.content[0..self.content_len];
+        }
+    };
+
+    pub const RalphBus = struct {
+        allocator: std.mem.Allocator,
+
+        pub fn init(allocator: std.mem.Allocator, _: usize) !RalphBus {
+            return .{ .allocator = allocator };
+        }
+        pub fn deinit(_: *RalphBus) void {}
+        pub fn send(_: *RalphBus, _: RalphMessage) !void {
+            return error.FeatureDisabled;
+        }
+        pub fn trySend(_: *RalphBus, _: RalphMessage) bool {
+            return false;
+        }
+        pub fn recv(_: *RalphBus) !RalphMessage {
+            return error.FeatureDisabled;
+        }
+        pub fn tryRecv(_: *RalphBus) ?RalphMessage {
+            return null;
+        }
+        pub fn recvFor(_: *RalphBus, _: u32) ?RalphMessage {
+            return null;
+        }
+        pub fn close(_: *RalphBus) void {}
+        pub fn isClosed(_: *const RalphBus) bool {
+            return true;
+        }
+    };
+};
+
 // ── Convenience Functions ──────────────────────────────────────────────────
 
 pub fn createEngine(_: std.mem.Allocator) !StubAbbeyEngine {

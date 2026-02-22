@@ -1,7 +1,7 @@
-//! CLI command and completion metadata derived from canonical command catalog.
+//! CLI command and completion metadata derived from command descriptors.
 
 const std = @import("std");
-const catalog = @import("tests/catalog.zig");
+const commands = @import("commands/mod.zig");
 
 pub const CommandInfo = struct {
     name: []const u8,
@@ -18,14 +18,14 @@ pub const CommandSubcommands = struct {
     subcommands: []const []const u8,
 };
 
-const command_infos_array: [catalog.commands.len + 2]CommandInfo = blk: {
-    var infos: [catalog.commands.len + 2]CommandInfo = undefined;
+const command_infos_array: [commands.descriptors.len + 2]CommandInfo = blk: {
+    var infos: [commands.descriptors.len + 2]CommandInfo = undefined;
     var index: usize = 0;
 
-    for (catalog.commands) |spec| {
+    for (commands.descriptors) |desc| {
         infos[index] = .{
-            .name = spec.name,
-            .description = spec.description,
+            .name = desc.name,
+            .description = desc.description,
         };
         index += 1;
     }
@@ -41,8 +41,8 @@ pub const command_infos = command_infos_array;
 
 const alias_count: usize = blk: {
     var count: usize = 0;
-    for (catalog.commands) |spec| {
-        count += spec.aliases.len;
+    for (commands.descriptors) |desc| {
+        count += desc.aliases.len;
     }
     break :blk count;
 };
@@ -51,11 +51,11 @@ const aliases_array: [alias_count]AliasInfo = blk: {
     var out: [alias_count]AliasInfo = undefined;
     var index: usize = 0;
 
-    for (catalog.commands) |spec| {
-        for (spec.aliases) |alias| {
+    for (commands.descriptors) |desc| {
+        for (desc.aliases) |alias| {
             out[index] = .{
                 .alias = alias,
-                .target = spec.name,
+                .target = desc.name,
             };
             index += 1;
         }
@@ -68,8 +68,8 @@ pub const aliases = aliases_array;
 
 const subcommand_count: usize = blk: {
     var count: usize = 0;
-    for (catalog.commands) |spec| {
-        if (effectiveCompletions(spec).len > 0) count += 1;
+    for (commands.descriptors) |desc| {
+        if (desc.subcommands.len > 0) count += 1;
     }
     break :blk count;
 };
@@ -78,12 +78,11 @@ const command_subcommands_array: [subcommand_count]CommandSubcommands = blk: {
     var out: [subcommand_count]CommandSubcommands = undefined;
     var index: usize = 0;
 
-    for (catalog.commands) |spec| {
-        const tokens = effectiveCompletions(spec);
-        if (tokens.len > 0) {
+    for (commands.descriptors) |desc| {
+        if (desc.subcommands.len > 0) {
             out[index] = .{
-                .command = spec.name,
-                .subcommands = tokens,
+                .command = desc.name,
+                .subcommands = desc.subcommands,
             };
             index += 1;
         }
@@ -94,12 +93,12 @@ const command_subcommands_array: [subcommand_count]CommandSubcommands = blk: {
 
 pub const command_subcommands = command_subcommands_array;
 
-const command_names_array: [catalog.commands.len + 2][]const u8 = blk: {
-    var out: [catalog.commands.len + 2][]const u8 = undefined;
+const command_names_array: [commands.descriptors.len + 2][]const u8 = blk: {
+    var out: [commands.descriptors.len + 2][]const u8 = undefined;
     var index: usize = 0;
 
-    for (catalog.commands) |spec| {
-        out[index] = spec.name;
+    for (commands.descriptors) |desc| {
+        out[index] = desc.name;
         index += 1;
     }
 
@@ -149,16 +148,11 @@ pub fn findSubcommands(command: []const u8) ?[]const []const u8 {
     return null;
 }
 
-fn effectiveCompletions(spec: catalog.CommandSpec) []const []const u8 {
-    if (spec.completion_tokens.len > 0) return spec.completion_tokens;
-    return spec.subcommands;
-}
-
 test "alias targets resolve to known command" {
     for (aliases) |alias| {
         var found = false;
-        for (command_names) |command| {
-            if (std.mem.eql(u8, alias.target, command)) {
+        for (command_names) |cmd_name| {
+            if (std.mem.eql(u8, alias.target, cmd_name)) {
                 found = true;
                 break;
             }
@@ -168,10 +162,10 @@ test "alias targets resolve to known command" {
 }
 
 test "command names are unique" {
-    for (command_names, 0..) |command, i| {
+    for (command_names, 0..) |cmd_name, i| {
         var index: usize = 0;
         while (index < i) : (index += 1) {
-            try std.testing.expect(!std.mem.eql(u8, command, command_names[index]));
+            try std.testing.expect(!std.mem.eql(u8, cmd_name, command_names[index]));
         }
     }
 }

@@ -158,14 +158,14 @@ pub fn runAutoTrainMicroVision(allocator: std.mem.Allocator) !void {
         .in_channels = 3,
         .use_class_token = true,
     };
-    const trainable_vit_config = abi.ai.TrainableViTConfig{
+    const trainable_vit_config = abi.ai.training.TrainableViTConfig{
         .vit_config = vit_config,
         .max_batch_size = batch_size,
         .num_classes = num_classes,
         .dropout = 0.1,
     };
 
-    var model = abi.ai.TrainableViTModel.init(allocator, trainable_vit_config) catch return;
+    var model = abi.ai.training.TrainableViTModel.init(allocator, trainable_vit_config) catch return;
     defer model.deinit();
 
     const image_dim = image_size * image_size * 3;
@@ -212,13 +212,13 @@ pub fn runAutoTrainMicroClip(allocator: std.mem.Allocator) !void {
         .in_channels = 3,
         .use_class_token = true,
     };
-    const vision_config = abi.ai.TrainableViTConfig{
+    const vision_config = abi.ai.training.TrainableViTConfig{
         .vit_config = vit_config,
         .max_batch_size = batch_size,
         .num_classes = 0,
         .projection_dim = projection_dim,
     };
-    const clip_config = abi.ai.CLIPTrainingConfig{
+    const clip_config = abi.ai.training.CLIPTrainingConfig{
         .vision_config = vision_config,
         .text_hidden_size = 64,
         .text_vocab_size = text_vocab,
@@ -230,7 +230,7 @@ pub fn runAutoTrainMicroClip(allocator: std.mem.Allocator) !void {
         .learnable_temperature = false,
     };
 
-    var model = abi.ai.TrainableCLIPModel.init(allocator, clip_config) catch return;
+    var model = abi.ai.training.TrainableCLIPModel.init(allocator, clip_config) catch return;
     defer model.deinit();
 
     const image_dim = image_size * image_size * 3;

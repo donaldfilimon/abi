@@ -56,7 +56,7 @@ pub const Message = shared.ChatMessage;
 
 pub const ChatCompletionRequest = struct {
     model: []const u8,
-    messages: []Message,
+    messages: []const Message,
     temperature: f32 = 0.7,
     max_tokens: ?u32 = null,
     stream: bool = false,
@@ -132,13 +132,13 @@ pub const Client = struct {
         const json = try self.encodeChatRequest(request);
         defer self.allocator.free(json);
 
-        var http_req = try async_http.HttpRequest.init(self.allocator, .POST, url);
+        var http_req = try async_http.HttpRequest.init(self.allocator, .post, url);
         defer http_req.deinit();
 
         try http_req.setBearerToken(self.config.api_key);
         try http_req.setJsonBody(json);
 
-        const http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
+        var http_res = try self.http.fetchJsonWithRetry(&http_req, shared.DEFAULT_RETRY_OPTIONS);
         defer http_res.deinit();
 
         if (!http_res.isSuccess()) {
@@ -151,7 +151,7 @@ pub const Client = struct {
         return try self.decodeChatResponse(http_res.body);
     }
 
-    pub fn chat(self: *Client, messages: []Message) !ChatCompletionResponse {
+    pub fn chat(self: *Client, messages: []const Message) !ChatCompletionResponse {
         return try self.chatCompletion(.{
             .model = self.config.model,
             .messages = messages,
@@ -175,7 +175,7 @@ pub const Client = struct {
         const json = try self.encodeChatRequest(req);
         defer self.allocator.free(json);
 
-        var http_req = try async_http.HttpRequest.init(self.allocator, .POST, url);
+        var http_req = try async_http.HttpRequest.init(self.allocator, .post, url);
         defer http_req.deinit();
 
         try http_req.setBearerToken(self.config.api_key);

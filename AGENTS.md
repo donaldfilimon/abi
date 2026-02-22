@@ -23,8 +23,8 @@ zig build fix                            # Auto-format in place
 ## Test Commands
 
 ```bash
-zig build test --summary all             # Main test suite (1270 pass, 5 skip)
-zig build feature-tests --summary all    # Feature inline tests (1535 pass)
+zig build test --summary all             # Main test suite (1254 pass, 5 skip)
+zig build feature-tests --summary all    # Feature inline tests (2044 pass)
 zig build cli-tests                      # CLI smoke tests
 zig build validate-flags                 # Compile-check 34 feature flag combos
 zig build vnext-compat                   # vNext compatibility tests
@@ -86,6 +86,8 @@ examples/                    Runnable example programs
 ### Imports
 - Use explicit imports only. Never use `usingnamespace`.
 - Public API consumers import via `@import("abi")`, not deep file paths.
+- Access types via namespaced submodule paths (e.g., `abi.ai.agent.Agent`, `abi.gpu.unified.MatrixDims`). There are no flat convenience aliases at the `abi.ai` or `abi.gpu` level.
+- AI sub-features: `abi.ai.core`, `abi.ai.llm`, `abi.ai.training`, `abi.ai.reasoning` (not `abi.ai_core`, `abi.inference`, etc.).
 - Feature modules must NOT `@import("abi")` (circular). Use relative paths to `services/shared/`.
 - Standard library: `const std = @import("std");` at top of every file.
 
@@ -119,6 +121,11 @@ else
     @import("features/gpu/stub.zig");
 ```
 
+**API break (v0.4.0):** Facade aliases (`abi.ai_core`, `abi.inference`, `abi.training`,
+`abi.reasoning`) removed. Flat type re-exports removed from `ai` (~156) and `gpu` (~173).
+Use submodule paths: `abi.ai.core`, `abi.ai.llm`, `abi.ai.training`, `abi.ai.reasoning`,
+`abi.gpu.unified.MatrixDims`, `abi.gpu.profiling.Profiler`, etc.
+
 ### Editing a Feature Module
 1. Update `mod.zig` with your changes.
 2. Update sibling `stub.zig` to keep the same public API signatures.
@@ -134,8 +141,8 @@ else
 ## Testing
 
 ### Test Baselines (must be maintained)
-- **Main tests**: 1270 pass, 5 skip (1275 total) -- source of truth: `tools/scripts/baseline.zig`
-- **Feature tests**: 1535 pass (1535 total)
+- **Main tests**: 1254 pass, 5 skip (1259 total) -- source of truth: `tools/scripts/baseline.zig`
+- **Feature tests**: 2044 pass, 4 skip (2048 total)
 
 ### Test Discovery
 - Use `test { _ = @import(...); }` to include submodule tests. `comptime {}` does NOT work.

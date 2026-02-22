@@ -6,7 +6,7 @@ fn checkContains(content: []const u8, needle: []const u8) bool {
     return std.mem.indexOf(u8, content, needle) != null;
 }
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
@@ -127,6 +127,12 @@ pub fn main() !void {
         "1252 pass",
         "1512 pass",
         "1534 pass",
+        "1976 pass",
+        "1535 pass",
+        "1975 pass",
+        "1996 pass",
+        "1997 pass",
+        "2001 total",
     };
 
     for (stale_markers) |marker| {

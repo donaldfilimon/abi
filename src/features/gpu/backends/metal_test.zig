@@ -49,9 +49,12 @@ test "DeviceInfo struct has correct fields" {
     try std.testing.expect(info.has_unified_memory);
 }
 
-test "metal capability mapping covers metal4 threshold" {
+test "metal capability mapping covers metal3 threshold" {
     try std.testing.expectEqual(caps.MetalLevel.none, caps.levelFromFamily(.apple6));
+    try std.testing.expectEqual(caps.MetalLevel.metal3, caps.levelFromFamily(.apple7));
     try std.testing.expectEqual(caps.MetalLevel.metal3, caps.levelFromFamily(.apple8));
     try std.testing.expectEqual(caps.MetalLevel.metal4, caps.levelFromFamily(.apple9));
+    // M1 (apple7) and M2 (apple8) now meet the required level
+    try std.testing.expect(caps.MetalLevel.metal3.atLeast(caps.required_runtime_level));
     try std.testing.expect(caps.MetalLevel.metal4.atLeast(caps.required_runtime_level));
 }

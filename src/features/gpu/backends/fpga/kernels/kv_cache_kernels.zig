@@ -128,7 +128,7 @@ pub const HierarchicalKVCache = struct {
     free_blocks: std.ArrayListUnmanaged(u32),
 
     // Per-layer block mappings: layer -> sequence -> block_id
-    layer_mappings: []std.AutoHashMap(u32, u32),
+    layer_mappings: []std.AutoHashMapUnmanaged(u32, u32),
 
     // Memory pool per tier
     bram_used: u64 = 0,
@@ -136,7 +136,7 @@ pub const HierarchicalKVCache = struct {
     ddr_used: u64 = 0,
 
     // Prefix cache: hash -> block_id
-    prefix_cache: std.AutoHashMap(u64, u32),
+    prefix_cache: std.AutoHashMapUnmanaged(u64, u32),
 
     // Statistics
     stats: CacheStats = .{},
@@ -147,13 +147,13 @@ pub const HierarchicalKVCache = struct {
             .allocator = allocator,
             .blocks = .{},
             .free_blocks = .{},
-            .layer_mappings = try allocator.alloc(std.AutoHashMap(u32, u32), config.num_layers),
-            .prefix_cache = std.AutoHashMap(u64, u32).init(allocator),
+            .layer_mappings = try allocator.alloc(std.AutoHashMapUnmanaged(u32, u32), config.num_layers),
+            .prefix_cache = .empty,
         };
 
         // Initialize per-layer mappings
         for (cache.layer_mappings) |*mapping| {
-            mapping.* = std.AutoHashMap(u32, u32).init(allocator);
+            mapping.* = .empty;
         }
 
         return cache;
@@ -174,10 +174,10 @@ pub const HierarchicalKVCache = struct {
 
         self.blocks.deinit(self.allocator);
         self.free_blocks.deinit(self.allocator);
-        self.prefix_cache.deinit();
+        self.prefix_cache.deinit(self.allocator);
 
         for (self.layer_mappings) |*mapping| {
-            mapping.deinit();
+            mapping.deinit(self.allocator);
         }
         self.allocator.free(self.layer_mappings);
     }
@@ -233,7 +233,7 @@ pub const HierarchicalKVCache = struct {
         }
 
         // Register in layer mapping
-        try self.layer_mappings[layer].put(seq_offset, block_id);
+        try self.layer_mappings[layer].put(self.allocator, seq_offset, block_id);
 
         self.stats.allocated_blocks += 1;
         return &self.blocks.items[block_id];
@@ -333,7 +333,7 @@ pub const HierarchicalKVCache = struct {
 
         block.prefix_hash = prefix_hash;
         block.state = .pinned;
-        try self.prefix_cache.put(prefix_hash, block.id);
+        try self.prefix_cache.put(self.allocator, prefix_hash, block.id);
     }
 
     /// Select appropriate memory tier based on usage

@@ -604,24 +604,178 @@ pub const ServiceDiscovery = struct {
         self.cached_services.clearRetainingCapacity();
     }
 
+    // ── HTTP/1.1 client ──────────────────────────────────────────────
+
+    pub const HttpError = error{
+        ConnectionRefused,
+        Timeout,
+        InvalidResponse,
+        TooLarge,
+        InvalidUrl,
+    };
+
+    pub const ParsedUrl = struct {
+        host: []const u8,
+        port: u16,
+        path: []const u8,
+    };
+
+    /// Parse an `http://host:port/path` URL into components.
+    /// Only plain HTTP is supported (no HTTPS).
+    pub fn parseUrl(url: []const u8) HttpError!ParsedUrl {
+        const scheme = "http://";
+        if (!std.mem.startsWith(u8, url, scheme))
+            return HttpError.InvalidUrl;
+
+        const after_scheme = url[scheme.len..];
+        // Split host+port from path at the first '/'
+        const slash_idx = std.mem.indexOfScalar(u8, after_scheme, '/') orelse after_scheme.len;
+        const host_port = after_scheme[0..slash_idx];
+        const path = if (slash_idx < after_scheme.len) after_scheme[slash_idx..] else "/";
+
+        // Split host and port at last ':'
+        if (std.mem.lastIndexOfScalar(u8, host_port, ':')) |colon| {
+            const port = std.fmt.parseInt(u16, host_port[colon + 1 ..], 10) catch
+                return HttpError.InvalidUrl;
+            return .{ .host = host_port[0..colon], .port = port, .path = path };
+        }
+        // No explicit port – default to 80
+        return .{ .host = host_port, .port = 80, .path = path };
+    }
+
+    const c = std.c;
+    const max_response_bytes: usize = 4 * 1024 * 1024; // 4 MiB
+    const http_timeout_secs: c_int = 5;
+
+    /// Parse a dotted-quad IPv4 string into 4 bytes.
+    fn parseIp4Bytes(text: []const u8) HttpError![4]u8 {
+        var bytes: [4]u8 = .{ 0, 0, 0, 0 };
+        var octet_idx: usize = 0;
+        var start: usize = 0;
+        for (text, 0..) |ch, i| {
+            if (ch == '.') {
+                if (octet_idx >= 3) return HttpError.ConnectionRefused;
+                bytes[octet_idx] = std.fmt.parseInt(u8, text[start..i], 10) catch
+                    return HttpError.ConnectionRefused;
+                octet_idx += 1;
+                start = i + 1;
+            }
+        }
+        if (octet_idx != 3) return HttpError.ConnectionRefused;
+        bytes[3] = std.fmt.parseInt(u8, text[start..], 10) catch
+            return HttpError.ConnectionRefused;
+        return bytes;
+    }
+
+    /// Open a TCP socket to `host:port`, set timeouts, and return the fd.
+    fn httpConnect(host: []const u8, port: u16) HttpError!c.fd_t {
+        const ip_bytes = parseIp4Bytes(host) catch return HttpError.ConnectionRefused;
+
+        const fd = c.socket(c.AF.INET, c.SOCK.STREAM, 0);
+        if (fd < 0) return HttpError.ConnectionRefused;
+        errdefer _ = c.close(fd);
+
+        // Set recv/send timeouts
+        const tv = c.timeval{ .sec = http_timeout_secs, .usec = 0 };
+        _ = c.setsockopt(fd, c.SOL.SOCKET, c.SO.RCVTIMEO, @ptrCast(&tv), @sizeOf(c.timeval));
+        _ = c.setsockopt(fd, c.SOL.SOCKET, c.SO.SNDTIMEO, @ptrCast(&tv), @sizeOf(c.timeval));
+
+        var sa: c.sockaddr.in = .{
+            .family = c.AF.INET,
+            .port = @byteSwap(port),
+            .addr = @bitCast(ip_bytes),
+        };
+        if (c.connect(fd, @ptrCast(&sa), @sizeOf(c.sockaddr.in)) < 0)
+            return HttpError.ConnectionRefused;
+
+        return fd;
+    }
+
+    /// Send all bytes on `fd`, handling partial writes.
+    fn httpSendAll(fd: c.fd_t, data: []const u8) HttpError!void {
+        var sent: usize = 0;
+        while (sent < data.len) {
+            const n = c.send(fd, data[sent..].ptr, data.len - sent, 0);
+            if (n <= 0) return HttpError.ConnectionRefused;
+            sent += @intCast(n);
+        }
+    }
+
+    /// Read the full response from `fd` into an allocated buffer.
+    fn httpRecvAll(self: *ServiceDiscovery, fd: c.fd_t) ![]const u8 {
+        var buf: std.ArrayListUnmanaged(u8) = .empty;
+        errdefer buf.deinit(self.allocator);
+
+        var tmp: [4096]u8 = undefined;
+        while (true) {
+            const n = c.recv(fd, &tmp, tmp.len, 0);
+            if (n < 0) return HttpError.Timeout;
+            if (n == 0) break;
+            const count: usize = @intCast(n);
+            if (buf.items.len + count > max_response_bytes) return HttpError.TooLarge;
+            try buf.appendSlice(self.allocator, tmp[0..count]);
+        }
+        return buf.toOwnedSlice(self.allocator);
+    }
+
+    /// Extract the body from a raw HTTP response (everything after `\r\n\r\n`).
+    pub fn httpExtractBody(self: *ServiceDiscovery, raw: []const u8) ![]const u8 {
+        const delim = "\r\n\r\n";
+        const idx = std.mem.indexOf(u8, raw, delim) orelse
+            return HttpError.InvalidResponse;
+        return try self.allocator.dupe(u8, raw[idx + delim.len ..]);
+    }
+
+    fn httpRequestImpl(self: *ServiceDiscovery, method: []const u8, url: []const u8, body: []const u8) ![]const u8 {
+        const parsed = try parseUrl(url);
+
+        const fd = try httpConnect(parsed.host, parsed.port);
+        defer _ = c.close(fd);
+
+        // Build request into a single buffer
+        var req_buf: std.ArrayListUnmanaged(u8) = .empty;
+        defer req_buf.deinit(self.allocator);
+
+        // Request line
+        try req_buf.appendSlice(self.allocator, method);
+        try req_buf.appendSlice(self.allocator, " ");
+        try req_buf.appendSlice(self.allocator, parsed.path);
+        try req_buf.appendSlice(self.allocator, " HTTP/1.1\r\nHost: ");
+        try req_buf.appendSlice(self.allocator, parsed.host);
+        try req_buf.appendSlice(self.allocator, "\r\nConnection: close\r\n");
+
+        if (body.len > 0) {
+            try req_buf.appendSlice(self.allocator, "Content-Type: application/json\r\nContent-Length: ");
+            var len_buf: [20]u8 = undefined;
+            const len_str = std.fmt.bufPrint(&len_buf, "{d}", .{body.len}) catch unreachable;
+            try req_buf.appendSlice(self.allocator, len_str);
+            try req_buf.appendSlice(self.allocator, "\r\n");
+        }
+
+        try req_buf.appendSlice(self.allocator, "\r\n");
+        if (body.len > 0) {
+            try req_buf.appendSlice(self.allocator, body);
+        }
+
+        try httpSendAll(fd, req_buf.items);
+
+        const raw = try self.httpRecvAll(fd);
+        defer self.allocator.free(raw);
+
+        return self.httpExtractBody(raw);
+    }
+
     fn httpGet(self: *ServiceDiscovery, url: []const u8) ![]const u8 {
-        _ = url;
-        // Simulated HTTP GET - in production, use actual HTTP client
-        return try self.allocator.dupe(u8, "[]");
+        return self.httpRequestImpl("GET", url, "");
     }
 
     fn httpPut(self: *ServiceDiscovery, url: []const u8, body: []const u8) !void {
-        _ = self;
-        _ = url;
-        _ = body;
-        // Simulated HTTP PUT - in production, use actual HTTP client
+        const response = try self.httpRequestImpl("PUT", url, body);
+        self.allocator.free(response);
     }
 
     fn httpPost(self: *ServiceDiscovery, url: []const u8, body: []const u8) ![]const u8 {
-        _ = url;
-        _ = body;
-        // Simulated HTTP POST - in production, use actual HTTP client
-        return try self.allocator.dupe(u8, "{}");
+        return self.httpRequestImpl("POST", url, body);
     }
 };
 
@@ -682,6 +836,57 @@ test "address port parsing" {
     const result2 = parseAddressPort("localhost");
     try std.testing.expectEqualStrings("localhost", result2.address);
     try std.testing.expectEqual(@as(u16, 9000), result2.port);
+}
+
+test "parseUrl extracts host, port, and path" {
+    // Standard URL with host, port, and path
+    const r1 = try ServiceDiscovery.parseUrl("http://127.0.0.1:8500/v1/health/service/web");
+    try std.testing.expectEqualStrings("127.0.0.1", r1.host);
+    try std.testing.expectEqual(@as(u16, 8500), r1.port);
+    try std.testing.expectEqualStrings("/v1/health/service/web", r1.path);
+
+    // URL with no explicit path
+    const r2 = try ServiceDiscovery.parseUrl("http://10.0.0.1:2379");
+    try std.testing.expectEqualStrings("10.0.0.1", r2.host);
+    try std.testing.expectEqual(@as(u16, 2379), r2.port);
+    try std.testing.expectEqualStrings("/", r2.path);
+
+    // URL with default port (no port specified)
+    const r3 = try ServiceDiscovery.parseUrl("http://consul.local/v1/agent");
+    try std.testing.expectEqualStrings("consul.local", r3.host);
+    try std.testing.expectEqual(@as(u16, 80), r3.port);
+    try std.testing.expectEqualStrings("/v1/agent", r3.path);
+
+    // Invalid scheme
+    try std.testing.expectError(
+        ServiceDiscovery.HttpError.InvalidUrl,
+        ServiceDiscovery.parseUrl("https://secure.host/path"),
+    );
+
+    // Invalid port
+    try std.testing.expectError(
+        ServiceDiscovery.HttpError.InvalidUrl,
+        ServiceDiscovery.parseUrl("http://host:notaport/path"),
+    );
+}
+
+test "httpExtractBody parses HTTP response" {
+    const allocator = std.testing.allocator;
+    var discovery = try ServiceDiscovery.init(allocator, .{
+        .service_name = "test-http",
+    });
+    defer discovery.deinit();
+
+    const raw = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\n{\"status\":\"ok\"}";
+    const body = try discovery.httpExtractBody(raw);
+    defer allocator.free(body);
+
+    try std.testing.expectEqualStrings("{\"status\":\"ok\"}", body);
+}
+
+test "httpGet against real server requires network (skip)" {
+    // No server available in test environment
+    return error.SkipZigTest;
 }
 
 test "static discovery with registry" {

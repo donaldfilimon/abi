@@ -44,7 +44,11 @@ pub const TuiState = struct {
         allocator: std.mem.Allocator,
         terminal: *tui.Terminal,
         framework: *abi.Framework,
+        initial_theme: *const tui.Theme,
     ) !TuiState {
+        var theme_manager = tui.ThemeManager.init();
+        theme_manager.current = initial_theme;
+
         var state = TuiState{
             .allocator = allocator,
             .terminal = terminal,
@@ -58,7 +62,7 @@ pub const TuiState = struct {
             .search_len = 0,
             .visible_rows = 10,
             .term_size = terminal.size(),
-            .theme_manager = tui.ThemeManager.init(),
+            .theme_manager = theme_manager,
             .preview_mode = false,
             .history = .empty,
             .show_history = false,

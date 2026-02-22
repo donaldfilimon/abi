@@ -63,7 +63,8 @@ const PeerAccessState = struct {
 /// Global CUDA peer transfer state
 var cuda_peer_lib: ?std.DynLib = null;
 var nccl_lib: ?std.DynLib = null;
-var peer_access_matrix: ?std.AutoHashMap(u64, PeerAccessState) = null;
+var peer_access_matrix: ?std.AutoHashMapUnmanaged(u64, PeerAccessState) = null;
+var cuda_allocator_ref: ?std.mem.Allocator = null;
 var nccl_initialized: bool = false;
 var nccl_comms: ?[]NcclComm = null;
 
@@ -91,7 +92,8 @@ pub fn init(allocator: std.mem.Allocator, device_count: usize) !void {
     }
 
     // Initialize peer access matrix
-    peer_access_matrix = std.AutoHashMap(u64, PeerAccessState).init(allocator);
+    peer_access_matrix = .empty;
+    cuda_allocator_ref = allocator;
 
     // Try to load NCCL
     loadNCCL() catch |err| {
@@ -120,9 +122,10 @@ pub fn deinit() void {
     }
 
     if (peer_access_matrix) |*matrix| {
-        matrix.deinit();
+        if (cuda_allocator_ref) |alloc| matrix.deinit(alloc);
         peer_access_matrix = null;
     }
+    cuda_allocator_ref = null;
 
     nccl_initialized = false;
 }
@@ -177,7 +180,7 @@ fn probePeerAccess(device_count: usize) !void {
 
             if (result == .success and can_access != 0) {
                 const key = pairKey(@intCast(src), @intCast(dst));
-                try peer_access_matrix.?.put(key, .{
+                try peer_access_matrix.?.put(cuda_allocator_ref.?, key, .{
                     .enabled = true,
                     .bidirectional = false, // Check reverse direction
                 });

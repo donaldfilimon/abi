@@ -11,6 +11,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 
 // libc import for environment access - required for Zig 0.16
@@ -46,47 +47,58 @@ const workflow_templates = [_]WorkflowTemplate{
     },
 };
 
-fn cmdInfo(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try runInfo(alloc);
+// Wrapper functions for comptime children dispatch
+fn wrapMaInfo(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try runInfo(allocator);
 }
-fn cmdRun(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try runWorkflow(alloc, parser);
+fn wrapMaRun(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runWorkflow(allocator, &parser);
 }
-fn cmdList(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try listWorkflows(alloc);
+fn wrapMaList(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try listWorkflows(allocator);
 }
-fn cmdCreate(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    try createWorkflow(alloc, parser);
+fn wrapMaCreate(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try createWorkflow(allocator, &parser);
 }
-fn cmdStatus(alloc: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
-    try showStatus(alloc);
-}
-fn onUnknown(cmd: []const u8) void {
-    utils.output.printError("unknown subcommand: {s}", .{cmd});
+fn wrapMaStatus(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try showStatus(allocator);
 }
 
-const ma_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"info"}, .run = cmdInfo },
-    .{ .names = &.{"run"}, .run = cmdRun },
-    .{ .names = &.{"list"}, .run = cmdList },
-    .{ .names = &.{"create"}, .run = cmdCreate },
-    .{ .names = &.{"status"}, .run = cmdStatus },
+pub const meta: command_mod.Meta = .{
+    .name = "multi-agent",
+    .description = "Run multi-agent workflows",
+    .subcommands = &.{ "info", "run", "list", "create", "status" },
+    .children = &.{
+        .{ .name = "info", .description = "Show coordinator status and capabilities", .handler = .{ .basic = wrapMaInfo } },
+        .{ .name = "run", .description = "Execute a task using the coordinator", .handler = .{ .basic = wrapMaRun } },
+        .{ .name = "list", .description = "List available workflow templates", .handler = .{ .basic = wrapMaList } },
+        .{ .name = "create", .description = "Create a new workflow configuration", .handler = .{ .basic = wrapMaCreate } },
+        .{ .name = "status", .description = "Show current coordinator status", .handler = .{ .basic = wrapMaStatus } },
+    },
+};
+
+const ma_subcommands = [_][]const u8{
+    "info", "run", "list", "create", "status", "help",
 };
 
 /// Entry point for the `multi-agent` command.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &ma_commands,
-        null,
-        printHelp,
-        onUnknown,
-    );
+pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        printHelp(std.heap.page_allocator);
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp(std.heap.page_allocator);
+        return;
+    }
+    // Unknown subcommand
+    utils.output.printError("unknown subcommand: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &ma_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn runInfo(allocator: std.mem.Allocator) !void {
@@ -107,8 +119,8 @@ fn runInfo(allocator: std.mem.Allocator) !void {
         return;
     }
 
-    // Use the public API re‑exported via `abi.ai`.
-    const Coordinator = abi.ai.MultiAgentCoordinator;
+    // Use the public API via `abi.ai.multi_agent`.
+    const Coordinator = abi.ai.multi_agent.Coordinator;
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 
@@ -182,7 +194,7 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     std.debug.print("\n", .{});
 
     // Initialize coordinator
-    const Coordinator = abi.ai.MultiAgentCoordinator;
+    const Coordinator = abi.ai.multi_agent.Coordinator;
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 
@@ -199,7 +211,7 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     };
 
     // Create echo agents (safe default — no API keys required)
-    const AgentType = abi.ai.Agent;
+    const AgentType = abi.ai.agent.Agent;
     var agent_storage = allocator.alloc(AgentType, agent_names.len) catch {
         utils.output.printError("Failed to allocate agents", .{});
         return;
@@ -309,7 +321,7 @@ fn showStatus(allocator: std.mem.Allocator) !void {
     }
 
     // Initialize coordinator
-    const Coordinator = abi.ai.MultiAgentCoordinator;
+    const Coordinator = abi.ai.multi_agent.Coordinator;
     var coord = Coordinator.init(allocator);
     defer coord.deinit();
 

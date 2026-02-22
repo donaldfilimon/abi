@@ -14,7 +14,7 @@ const multi_agent = abi.ai.multi_agent;
 const Coordinator = multi_agent.Coordinator;
 const CoordinatorConfig = multi_agent.CoordinatorConfig;
 const AgentHealth = multi_agent.AgentHealth;
-const Agent = abi.ai.Agent;
+const Agent = abi.ai.agent.Agent;
 const messaging = multi_agent.messaging;
 
 // ============================================================================

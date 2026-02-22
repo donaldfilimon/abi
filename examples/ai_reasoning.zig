@@ -8,15 +8,15 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main() !void {
+pub fn main(_: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     std.debug.print("=== ABI AI Reasoning Example ===\n\n", .{});
 
-    if (!abi.reasoning.isEnabled()) {
-        std.debug.print("Reasoning feature is disabled. Enable with -Denable-reasoning=true\n", .{});
+    if (!abi.ai.isEnabled()) {
+        std.debug.print("AI feature is disabled. Enable with -Denable-ai=true\n", .{});
         return;
     }
 
@@ -33,11 +33,11 @@ pub fn main() !void {
     std.debug.print("Orchestration: multi-model coordination\n", .{});
     std.debug.print("Documents: document processing pipelines\n", .{});
 
-    // Verify sub-module accessibility
-    _ = abi.reasoning.abbey;
-    _ = abi.reasoning.explore;
-    _ = abi.reasoning.orchestration;
-    _ = abi.reasoning.documents;
+    // Verify sub-module accessibility (canonical paths under abi.ai.*)
+    _ = abi.ai.abbey;
+    _ = abi.ai.explore;
+    _ = abi.ai.orchestration;
+    _ = abi.ai.documents;
     std.debug.print("\nAll sub-modules accessible.\n", .{});
 
     // --- RAG Pipeline ---

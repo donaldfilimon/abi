@@ -10,36 +10,50 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
-const subcommand = @import("../utils/subcommand.zig");
 const acp = abi.acp;
 
+// Wrapper functions for comptime children dispatch
+fn wrapCard(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runCardSubcommand(allocator, &parser);
+}
+fn wrapServe(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    var parser = utils.args.ArgParser.init(allocator, args);
+    try runServeSubcommand(allocator, &parser);
+}
+
+pub const meta: command_mod.Meta = .{
+    .name = "acp",
+    .description = "Agent Communication Protocol (card, serve)",
+    .subcommands = &.{ "card", "serve", "help" },
+    .children = &.{
+        .{ .name = "card", .description = "Print agent card JSON to stdout", .handler = .{ .basic = wrapCard } },
+        .{ .name = "serve", .description = "Start ACP HTTP server (default 127.0.0.1:8080)", .handler = .{ .basic = wrapServe } },
+    },
+};
+
+const acp_subcommands = [_][]const u8{ "card", "serve", "help" };
+
+/// Run the acp command with the provided arguments.
+/// Only reached when no child matches (help / unknown).
 pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printHelp(allocator);
         return;
     }
-
-    var parser = utils.args.ArgParser.init(allocator, args);
-    if (parser.wantsHelp()) {
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
         printHelp(allocator);
         return;
     }
-
-    const commands = [_]subcommand.Command{
-        .{ .names = &.{"card"}, .run = runCardSubcommand },
-        .{ .names = &.{"serve"}, .run = runServeSubcommand },
-    };
-
-    try subcommand.runSubcommand(
-        allocator,
-        &parser,
-        &commands,
-        null,
-        printHelp,
-        onUnknownCommand,
-    );
+    // Unknown subcommand
+    utils.output.printError("Unknown acp command: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &acp_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn runCardSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
@@ -62,10 +76,6 @@ fn runServeSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParse
         return;
     }
     try runServe(allocator, parser);
-}
-
-fn onUnknownCommand(command: []const u8) void {
-    utils.output.printError("Unknown subcommand: {s}", .{command});
 }
 
 fn runCard(allocator: std.mem.Allocator) !void {

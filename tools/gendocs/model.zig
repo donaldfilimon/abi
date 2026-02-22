@@ -95,6 +95,24 @@ pub const CliCommand = struct {
     }
 };
 
+pub const FeatureDoc = struct {
+    name: []const u8,
+    description: []const u8,
+    compile_flag: []const u8,
+    parent: []const u8, // "" if no parent
+    real_module_path: []const u8,
+    stub_module_path: []const u8,
+
+    pub fn deinit(self: FeatureDoc, allocator: std.mem.Allocator) void {
+        allocator.free(self.name);
+        allocator.free(self.description);
+        allocator.free(self.compile_flag);
+        allocator.free(self.parent);
+        allocator.free(self.real_module_path);
+        allocator.free(self.stub_module_path);
+    }
+};
+
 pub const ReadmeSummary = struct {
     path: []const u8,
     title: []const u8,
@@ -204,6 +222,11 @@ pub fn deinitCommandSlice(allocator: std.mem.Allocator, commands: []CliCommand) 
     allocator.free(commands);
 }
 
+pub fn deinitFeatureSlice(allocator: std.mem.Allocator, features: []FeatureDoc) void {
+    for (features) |f| f.deinit(allocator);
+    allocator.free(features);
+}
+
 pub fn deinitReadmeSlice(allocator: std.mem.Allocator, summaries: []ReadmeSummary) void {
     for (summaries) |summary| summary.deinit(allocator);
     allocator.free(summaries);
@@ -237,6 +260,10 @@ pub fn compareSymbols(_: void, lhs: SymbolDoc, rhs: SymbolDoc) bool {
 }
 
 pub fn compareCommands(_: void, lhs: CliCommand, rhs: CliCommand) bool {
+    return std.mem.lessThan(u8, lhs.name, rhs.name);
+}
+
+pub fn compareFeatures(_: void, lhs: FeatureDoc, rhs: FeatureDoc) bool {
     return std.mem.lessThan(u8, lhs.name, rhs.name);
 }
 

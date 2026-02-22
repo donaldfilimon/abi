@@ -613,3 +613,7 @@ pub const AstParser = struct {
         };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

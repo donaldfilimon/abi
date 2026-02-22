@@ -121,7 +121,6 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = null, .path = "services/shared/logging.zig" },
     .{ .flag = null, .path = "services/shared/plugins.zig" },
     .{ .flag = null, .path = "services/shared/utils.zig" },
-    .{ .flag = null, .path = "services/shared/platform.zig" },
     .{ .flag = null, .path = "services/shared/utils/memory/aligned.zig" },
     .{ .flag = null, .path = "services/shared/utils/memory/stack.zig" },
     .{ .flag = null, .path = "services/shared/utils/memory/tracking.zig" },

@@ -104,3 +104,7 @@ pub fn buildDependencyGraph(allocator: std.mem.Allocator, file_paths: []const []
 pub fn isEnabled() bool {
     return build_options.enable_ai and build_options.enable_explore;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

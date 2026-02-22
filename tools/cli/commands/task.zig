@@ -16,83 +16,103 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const command_mod = @import("../command.zig");
 const utils = @import("../utils/mod.zig");
 const tasks = abi.tasks;
 const time_utils = abi.shared.utils;
 
-fn tAdd(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runAdd(a, p.remaining());
+// Wrapper functions for comptime children dispatch
+fn wrapAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runAdd(allocator, args);
 }
-fn tList(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runList(a, p.remaining());
+fn wrapList(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runList(allocator, args);
 }
-fn tShow(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runShow(a, p.remaining());
+fn wrapShow(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runShow(allocator, args);
 }
-fn tDone(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runDone(a, p.remaining());
+fn wrapDone(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runDone(allocator, args);
 }
-fn tStart(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runStart(a, p.remaining());
+fn wrapStart(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runStart(allocator, args);
 }
-fn tCancel(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runCancel(a, p.remaining());
+fn wrapCancel(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runCancel(allocator, args);
 }
-fn tDelete(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runDelete(a, p.remaining());
+fn wrapDelete(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runDelete(allocator, args);
 }
-fn tStats(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    _ = p;
-    try runStats(a);
+fn wrapStats(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try runStats(allocator);
 }
-fn tImport(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    _ = p;
-    try runImportRoadmap(a);
+fn wrapImportRoadmap(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try runImportRoadmap(allocator);
 }
-fn tSeedSelfImprove(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    _ = p;
-    try runSeedSelfImprove(a);
+fn wrapSeedSelfImprove(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
+    try runSeedSelfImprove(allocator);
 }
-fn tEdit(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runEdit(a, p.remaining());
+fn wrapEdit(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runEdit(allocator, args);
 }
-fn tBlock(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runBlock(a, p.remaining());
+fn wrapBlock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runBlock(allocator, args);
 }
-fn tUnblock(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runUnblock(a, p.remaining());
+fn wrapUnblock(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runUnblock(allocator, args);
 }
-fn tDue(a: std.mem.Allocator, p: *utils.args.ArgParser) !void {
-    try runDue(a, p.remaining());
-}
-fn tUnknown(cmd: []const u8) void {
-    utils.output.printError("Unknown task command: {s}", .{cmd});
-}
-fn tHelp(_: std.mem.Allocator) void {
-    printHelp();
+fn wrapDue(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
+    try runDue(allocator, args);
 }
 
-const task_commands = [_]utils.subcommand.Command{
-    .{ .names = &.{"add"}, .run = tAdd },
-    .{ .names = &.{ "list", "ls" }, .run = tList },
-    .{ .names = &.{"show"}, .run = tShow },
-    .{ .names = &.{"done"}, .run = tDone },
-    .{ .names = &.{"start"}, .run = tStart },
-    .{ .names = &.{"cancel"}, .run = tCancel },
-    .{ .names = &.{ "delete", "rm" }, .run = tDelete },
-    .{ .names = &.{"stats"}, .run = tStats },
-    .{ .names = &.{"import-roadmap"}, .run = tImport },
-    .{ .names = &.{"seed-self-improve"}, .run = tSeedSelfImprove },
-    .{ .names = &.{"edit"}, .run = tEdit },
-    .{ .names = &.{"block"}, .run = tBlock },
-    .{ .names = &.{"unblock"}, .run = tUnblock },
-    .{ .names = &.{"due"}, .run = tDue },
+pub const meta: command_mod.Meta = .{
+    .name = "task",
+    .description = "Task management (add, list, done, stats, seed-self-improve)",
+    .subcommands = &.{ "add", "list", "ls", "show", "done", "start", "cancel", "delete", "rm", "stats", "import-roadmap", "seed-self-improve", "edit", "block", "unblock", "due", "help" },
+    .children = &.{
+        .{ .name = "add", .description = "Add a new task", .handler = .{ .basic = wrapAdd } },
+        .{ .name = "list", .description = "List tasks with optional filters", .handler = .{ .basic = wrapList } },
+        .{ .name = "ls", .description = "List tasks with optional filters", .handler = .{ .basic = wrapList } },
+        .{ .name = "show", .description = "Show task details", .handler = .{ .basic = wrapShow } },
+        .{ .name = "done", .description = "Mark task as completed", .handler = .{ .basic = wrapDone } },
+        .{ .name = "start", .description = "Mark task as in-progress", .handler = .{ .basic = wrapStart } },
+        .{ .name = "cancel", .description = "Cancel a task", .handler = .{ .basic = wrapCancel } },
+        .{ .name = "delete", .description = "Delete a task", .handler = .{ .basic = wrapDelete } },
+        .{ .name = "rm", .description = "Delete a task", .handler = .{ .basic = wrapDelete } },
+        .{ .name = "stats", .description = "Show task statistics", .handler = .{ .basic = wrapStats } },
+        .{ .name = "import-roadmap", .description = "Import roadmap items as tasks", .handler = .{ .basic = wrapImportRoadmap } },
+        .{ .name = "seed-self-improve", .description = "Seed a self-improvement execution plan", .handler = .{ .basic = wrapSeedSelfImprove } },
+        .{ .name = "edit", .description = "Edit task properties", .handler = .{ .basic = wrapEdit } },
+        .{ .name = "block", .description = "Mark task blocked by another task", .handler = .{ .basic = wrapBlock } },
+        .{ .name = "unblock", .description = "Remove blocked status", .handler = .{ .basic = wrapUnblock } },
+        .{ .name = "due", .description = "Set or clear task due date", .handler = .{ .basic = wrapDue } },
+    },
+};
+
+const task_subcommands = [_][]const u8{
+    "add",  "list",  "ls",             "show",
+    "done", "start", "cancel",         "delete",
+    "rm",   "stats", "import-roadmap", "seed-self-improve",
+    "edit", "block", "unblock",        "due",
+    "help",
 };
 
 /// Run the task command with the provided arguments.
-pub fn run(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try utils.subcommand.runSubcommand(allocator, &parser, &task_commands, null, tHelp, tUnknown);
+pub fn run(_: std.mem.Allocator, args: []const [:0]const u8) !void {
+    if (args.len == 0) {
+        printHelp();
+        return;
+    }
+    const cmd = std.mem.sliceTo(args[0], 0);
+    if (utils.args.matchesAny(cmd, &.{ "--help", "-h", "help" })) {
+        printHelp();
+        return;
+    }
+    // Unknown subcommand
+    utils.output.printError("Unknown task command: {s}", .{cmd});
+    if (utils.args.suggestCommand(cmd, &task_subcommands)) |suggestion| {
+        std.debug.print("Did you mean: {s}\n", .{suggestion});
+    }
 }
 
 fn runAdd(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {

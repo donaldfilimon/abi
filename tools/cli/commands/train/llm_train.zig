@@ -32,7 +32,7 @@ pub fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !vo
     const model_path = std.mem.sliceTo(args[0], 0);
 
     // Parse LLM training options
-    var config = abi.ai.LlmTrainingConfig{};
+    var config = abi.ai.training.LlmTrainingConfig{};
     var use_gpu: bool = true;
     var dataset_url: ?[]const u8 = null;
     var dataset_path: ?[]const u8 = null;
@@ -337,7 +337,7 @@ pub fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !vo
 
     // Load model
     std.debug.print("Loading model from {s}...\n", .{model_path});
-    var model = abi.ai.TrainableModel.fromGguf(allocator, model_path) catch |err| {
+    var model = abi.ai.training.TrainableModel.fromGguf(allocator, model_path) catch |err| {
         std.debug.print("Error loading GGUF model: {t}\n", .{err});
         return;
     };
@@ -386,7 +386,7 @@ pub fn runLlmTrain(allocator: std.mem.Allocator, args: []const [:0]const u8) !vo
     var train_tokens: []u32 = &.{};
     const tokenizer_ptr: ?*abi.ai.llm.tokenizer.Tokenizer = if (tokenizer) |*tok| tok else null;
     if (dataset_wdbx) |db_path| {
-        var wdbx_dataset = abi.ai.WdbxTokenDataset.init(allocator, db_path) catch |err| {
+        var wdbx_dataset = abi.ai.database.WdbxTokenDataset.init(allocator, db_path) catch |err| {
             std.debug.print("Error opening WDBX dataset: {t}\n", .{err});
             return;
         };
