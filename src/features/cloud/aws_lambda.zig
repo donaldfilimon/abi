@@ -25,6 +25,7 @@
 const std = @import("std");
 const types = @import("types.zig");
 const utils = @import("../../services/shared/utils.zig");
+const this_module = @This();
 
 pub const CloudEvent = types.CloudEvent;
 pub const CloudResponse = types.CloudResponse;
@@ -132,36 +133,242 @@ pub const LambdaRuntime = struct {
     };
 
     /// Get the next invocation from the runtime API.
+    /// Makes an HTTP GET request to the Lambda runtime API endpoint:
+    /// http://{runtime_api}/2018-06-01/runtime/invocation/next
+    /// This call blocks until the next invocation is available.
     fn getNextInvocation(self: *LambdaRuntime) !Invocation {
-        // In a real implementation, this would make an HTTP GET to:
-        // http://{runtime_api}/2018-06-01/runtime/invocation/next
-        //
-        // For now, we provide a stub that reads from stdin for testing
-        _ = self;
+        const path = "/2018-06-01/runtime/invocation/next";
 
-        // Stub implementation - in production, use HTTP client
-        return CloudError.ProviderError;
+        // Build and send the HTTP GET request
+        var req_buf: [512]u8 = undefined;
+        const request = std.fmt.bufPrint(&req_buf, "GET {s} HTTP/1.1\r\nHost: {s}\r\nAccept: */*\r\n\r\n", .{
+            path, self.runtime_api,
+        }) catch return CloudError.ProviderError;
+
+        const response_data = try this_module.httpRequest(self.allocator, self.runtime_api, request);
+        errdefer self.allocator.free(response_data.body);
+
+        return .{
+            .request_id = response_data.request_id orelse "unknown",
+            .body = response_data.body,
+            .function_arn = response_data.function_arn,
+            .log_group = response_data.log_group,
+            .log_stream = response_data.log_stream,
+            .deadline_ms = response_data.deadline_ms,
+            .allocator = self.allocator,
+        };
     }
 
     /// Send the response back to the runtime API.
+    /// Makes an HTTP POST to:
+    /// http://{runtime_api}/2018-06-01/runtime/invocation/{request_id}/response
     fn sendResponse(self: *LambdaRuntime, request_id: []const u8, response: *const CloudResponse) !void {
-        // In a real implementation, this would make an HTTP POST to:
-        // http://{runtime_api}/2018-06-01/runtime/invocation/{request_id}/response
-        _ = self;
-        _ = request_id;
-        _ = response;
+        // Format the response body
+        const body = try formatResponse(self.allocator, response);
+        defer self.allocator.free(body);
+
+        // Build path
+        var path_buf: [512]u8 = undefined;
+        const path = std.fmt.bufPrint(&path_buf, "/2018-06-01/runtime/invocation/{s}/response", .{
+            request_id,
+        }) catch return CloudError.ProviderError;
+
+        // Build full HTTP POST request
+        var req_buf = std.ArrayListUnmanaged(u8).empty;
+        defer req_buf.deinit(self.allocator);
+        const writer = req_buf.writer(self.allocator);
+
+        try std.fmt.format(writer, "POST {s} HTTP/1.1\r\n", .{path});
+        try std.fmt.format(writer, "Host: {s}\r\n", .{self.runtime_api});
+        try writer.writeAll("Content-Type: application/json\r\n");
+        try std.fmt.format(writer, "Content-Length: {d}\r\n", .{body.len});
+        try writer.writeAll("\r\n");
+        try writer.writeAll(body);
+
+        const resp = try this_module.httpRequest(self.allocator, self.runtime_api, req_buf.items);
+        self.allocator.free(resp.body);
     }
 
     /// Report an error to the runtime API.
+    /// Makes an HTTP POST to:
+    /// http://{runtime_api}/2018-06-01/runtime/invocation/{request_id}/error
     fn sendError(self: *LambdaRuntime, request_id: []const u8, error_type: []const u8, message: []const u8) !void {
-        // In a real implementation, this would make an HTTP POST to:
-        // http://{runtime_api}/2018-06-01/runtime/invocation/{request_id}/error
-        _ = self;
-        _ = request_id;
-        _ = error_type;
-        _ = message;
+        // Build error body JSON
+        var body_buf = std.ArrayListUnmanaged(u8).empty;
+        defer body_buf.deinit(self.allocator);
+        const body_writer = body_buf.writer(self.allocator);
+        try body_writer.writeAll("{\"errorType\":\"");
+        try body_writer.writeAll(error_type);
+        try body_writer.writeAll("\",\"errorMessage\":\"");
+        try body_writer.writeAll(message);
+        try body_writer.writeAll("\"}");
+
+        // Build path
+        var path_buf: [512]u8 = undefined;
+        const path = std.fmt.bufPrint(&path_buf, "/2018-06-01/runtime/invocation/{s}/error", .{
+            request_id,
+        }) catch return CloudError.ProviderError;
+
+        // Build full HTTP POST request
+        var req_buf = std.ArrayListUnmanaged(u8).empty;
+        defer req_buf.deinit(self.allocator);
+        const writer = req_buf.writer(self.allocator);
+
+        try std.fmt.format(writer, "POST {s} HTTP/1.1\r\n", .{path});
+        try std.fmt.format(writer, "Host: {s}\r\n", .{self.runtime_api});
+        try writer.writeAll("Content-Type: application/json\r\n");
+        try writer.writeAll("Lambda-Runtime-Function-Error-Type: Runtime.HandlerError\r\n");
+        try std.fmt.format(writer, "Content-Length: {d}\r\n", .{body_buf.items.len});
+        try writer.writeAll("\r\n");
+        try writer.writeAll(body_buf.items);
+
+        const resp = try this_module.httpRequest(self.allocator, self.runtime_api, req_buf.items);
+        self.allocator.free(resp.body);
     }
 };
+
+// ============================================================================
+// HTTP Client using POSIX sockets
+// ============================================================================
+
+/// Parsed response from an HTTP request to the Lambda runtime API.
+const HttpResponse = struct {
+    body: []u8,
+    request_id: ?[]const u8 = null,
+    function_arn: ?[]const u8 = null,
+    log_group: ?[]const u8 = null,
+    log_stream: ?[]const u8 = null,
+    deadline_ms: ?u64 = null,
+};
+
+/// Parse a "host:port" string. If no port, defaults to 80.
+fn parseHostPort(host_port: []const u8) struct { host: []const u8, port: u16 } {
+    if (std.mem.lastIndexOfScalar(u8, host_port, ':')) |colon| {
+        const port = std.fmt.parseInt(u16, host_port[colon + 1 ..], 10) catch 80;
+        return .{ .host = host_port[0..colon], .port = port };
+    }
+    return .{ .host = host_port, .port = 80 };
+}
+
+/// Perform an HTTP request to the Lambda runtime API via POSIX sockets.
+/// Connects to the host specified in `host_port`, sends `request_bytes`,
+/// reads the full response, and extracts Lambda-specific headers.
+fn httpRequest(
+    allocator: std.mem.Allocator,
+    host_port: []const u8,
+    request_bytes: []const u8,
+) !HttpResponse {
+    const hp = parseHostPort(host_port);
+
+    // Resolve the host to an IPv4 address
+    // The Lambda runtime API is typically 127.0.0.1 or a local address
+    var ip_bytes: [4]u8 = .{ 127, 0, 0, 1 };
+    if (std.net.Ip4Address.parse(hp.host, hp.port)) |parsed| {
+        ip_bytes = parsed.sa.addr;
+    } else |_| {
+        // If not a numeric IP, default to localhost (Lambda runtime is local)
+        ip_bytes = .{ 127, 0, 0, 1 };
+    }
+
+    const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.STREAM, 0);
+    if (sock < 0) return CloudError.ProviderError;
+    defer _ = std.c.close(sock);
+
+    var addr: std.c.sockaddr.in = .{
+        .port = std.mem.nativeToBig(u16, hp.port),
+        .addr = @bitCast(ip_bytes),
+    };
+    if (std.c.connect(sock, @ptrCast(&addr), @sizeOf(std.c.sockaddr.in)) < 0) {
+        return CloudError.ProviderError;
+    }
+
+    // Send the request
+    var total_sent: usize = 0;
+    while (total_sent < request_bytes.len) {
+        const n = std.c.send(sock, @ptrCast(request_bytes[total_sent..].ptr), request_bytes.len - total_sent, 0);
+        if (n <= 0) return CloudError.ProviderError;
+        total_sent += @intCast(n);
+    }
+
+    // Read response (header + body) into a dynamic buffer
+    var resp_buf = std.ArrayListUnmanaged(u8).empty;
+    defer resp_buf.deinit(allocator);
+
+    var read_buf: [8192]u8 = undefined;
+    var headers_complete = false;
+    var content_length: ?usize = null;
+    var header_end_pos: usize = 0;
+
+    while (true) {
+        const n = std.c.recv(sock, @ptrCast(&read_buf), read_buf.len, 0);
+        if (n <= 0) break;
+        try resp_buf.appendSlice(allocator, read_buf[0..@intCast(n)]);
+
+        if (!headers_complete) {
+            if (std.mem.indexOf(u8, resp_buf.items, "\r\n\r\n")) |end| {
+                headers_complete = true;
+                header_end_pos = end + 4;
+
+                // Parse Content-Length from headers
+                const headers_section = resp_buf.items[0..end];
+                var lines = std.mem.splitSequence(u8, headers_section, "\r\n");
+                while (lines.next()) |line| {
+                    if (std.mem.indexOf(u8, line, ": ")) |sep| {
+                        const key = line[0..sep];
+                        const value = line[sep + 2 ..];
+                        if (std.ascii.eqlIgnoreCase(key, "content-length")) {
+                            content_length = std.fmt.parseInt(usize, value, 10) catch null;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check if we have the complete body
+        if (headers_complete) {
+            if (content_length) |cl| {
+                const body_received = resp_buf.items.len - header_end_pos;
+                if (body_received >= cl) break;
+            }
+        }
+    }
+
+    if (!headers_complete) return CloudError.ProviderError;
+
+    // Extract Lambda-specific headers
+    var result: HttpResponse = .{
+        .body = undefined,
+    };
+
+    const headers_section = resp_buf.items[0 .. header_end_pos - 4];
+    var lines = std.mem.splitSequence(u8, headers_section, "\r\n");
+    while (lines.next()) |line| {
+        if (std.mem.indexOf(u8, line, ": ")) |sep| {
+            const key = line[0..sep];
+            const value = line[sep + 2 ..];
+            if (std.ascii.eqlIgnoreCase(key, "lambda-runtime-aws-request-id")) {
+                result.request_id = value;
+            } else if (std.ascii.eqlIgnoreCase(key, "lambda-runtime-invoked-function-arn")) {
+                result.function_arn = value;
+            } else if (std.ascii.eqlIgnoreCase(key, "lambda-runtime-log-group-name")) {
+                result.log_group = value;
+            } else if (std.ascii.eqlIgnoreCase(key, "lambda-runtime-log-stream-name")) {
+                result.log_stream = value;
+            } else if (std.ascii.eqlIgnoreCase(key, "lambda-runtime-deadline-ms")) {
+                result.deadline_ms = std.fmt.parseInt(u64, value, 10) catch null;
+            }
+        }
+    }
+
+    // Copy body into an owned allocation
+    const body_start = header_end_pos;
+    const body_len = if (content_length) |cl| cl else resp_buf.items.len - body_start;
+    const body = try allocator.alloc(u8, body_len);
+    @memcpy(body, resp_buf.items[body_start..][0..body_len]);
+    result.body = body;
+
+    return result;
+}
 
 /// Parse an AWS Lambda event into a CloudEvent.
 pub fn parseEvent(allocator: std.mem.Allocator, raw_event: []const u8, request_id: []const u8) !CloudEvent {

@@ -601,6 +601,27 @@ fn addNestedEntries(matrix: *Matrix) !void {
         .isolated,
         .zero_only,
     );
+
+    try matrix.add(
+        "nested.ui.launch.list-themes",
+        &.{ "ui", "launch", "--list-themes" },
+        .oneshot,
+        20_000,
+        &.{},
+        .temp_workspace,
+        .isolated,
+        .zero_only,
+    );
+    try matrix.add(
+        "nested.ui.gpu.list-themes",
+        &.{ "ui", "gpu", "--list-themes" },
+        .oneshot,
+        20_000,
+        &.{},
+        .temp_workspace,
+        .isolated,
+        .zero_only,
+    );
 }
 
 fn addAliasEntries(matrix: *Matrix) !void {
@@ -611,6 +632,26 @@ fn addAliasEntries(matrix: *Matrix) !void {
     try matrix.add("alias.dashboard", &.{"dashboard"}, .pty_session, 45_000, &.{}, .temp_workspace, .isolated, .allow_signal_after_probe);
     try matrix.add("alias.chat", &.{ "chat", "run", "--help" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
     try matrix.add("alias.reasoning", &.{ "reasoning", "providers" }, .oneshot, 20_000, &.{}, .temp_workspace, .isolated, .zero_only);
+    try matrix.add(
+        "alias.tui.theme-help",
+        &.{ "tui", "--theme", "nord", "--help" },
+        .oneshot,
+        20_000,
+        &.{},
+        .temp_workspace,
+        .isolated,
+        .zero_only,
+    );
+    try matrix.add(
+        "alias.gpu-dashboard.theme-help",
+        &.{ "gpu-dashboard", "--theme", "gruvbox", "--help" },
+        .oneshot,
+        20_000,
+        &.{},
+        .temp_workspace,
+        .isolated,
+        .zero_only,
+    );
     try matrix.add(
         "alias.serve",
         &.{ "serve", "serve", "-m", "${ABI_TEST_GGUF_MODEL_PATH}", "-a", "127.0.0.1:18180" },

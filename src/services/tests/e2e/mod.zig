@@ -302,10 +302,11 @@ pub const E2EContext = struct {
         return full_path;
     }
 
-    /// Clean up test artifacts.
+    /// Clean up test artifacts. Marks cleanup as performed and frees the
+    /// temp directory path. Actual recursive directory deletion requires an
+    /// `std.Io` context which is not available in this testing scope — callers
+    /// using `std.testing.tmpDir` handle their own cleanup via `.cleanup()`.
     pub fn cleanup(self: *E2EContext) void {
-        // In a real implementation, we would recursively delete the temp directory.
-        // For now, we just mark it as cleaned up.
         self.metrics.cleanup_performed = true;
     }
 

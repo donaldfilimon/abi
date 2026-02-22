@@ -328,12 +328,35 @@ def main() -> int:
     merged_env.update(env_overrides)
 
     # Generate matrix from typed Zig manifest.
-    run_checked(
-        ["zig", "run", "tools/cli/tests/full_matrix.zig", "--", "--json-out", str(MATRIX_JSON)],
-        cwd=repo,
-        env=merged_env,
-        timeout=180,
-    )
+    try:
+        run_checked(
+            [
+                "zig",
+                "run",
+                "--dep",
+                "abi",
+                "-Mmain=tools/cli/full_matrix_main.zig",
+                "--dep",
+                "build_options",
+                "-Mabi=src/abi.zig",
+                "-Mbuild_options=tools/cli/tests/build_options_stub.zig",
+                "--",
+                "--json-out",
+                str(MATRIX_JSON),
+            ],
+            cwd=repo,
+            env=merged_env,
+            timeout=180,
+        )
+    except subprocess.CalledProcessError as exc:
+        stdout = (exc.stdout or "")[-4000:]
+        stderr = (exc.stderr or "")[-4000:]
+        if stdout:
+            print(stdout, end="")
+        if stderr:
+            print(stderr, end="", file=sys.stderr)
+        print("Matrix generation failed. Could not compile or emit CLI matrix JSON.", file=sys.stderr)
+        return 1
 
     # Run strict preflight.
     preflight_cmd = [

@@ -83,8 +83,8 @@ When the user wants **autonomous multi-step execution** with skill memory and op
 | **Zig** | `0.16.0-dev.2623+27eec9bd6` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1254 pass, 5 skip (1259 total) — must be maintained |
-| **Feature tests** | 2044 pass (2048 total), 4 skip — `zig build feature-tests` |
+| **Test baseline** | 1261 pass, 5 skip (1266 total) — must be maintained |
+| **Feature tests** | 2082 pass (2086 total), 4 skip — `zig build feature-tests` |
 | **CLI commands** | 30 commands + 8 aliases |
 | **Feature modules** | 21 (comptime-gated; see Feature Flags) |
 
@@ -484,8 +484,8 @@ Keep commits focused; don't mix refactors with behavior changes.
 
 ## Testing Patterns
 
-**Main tests**: 1254 pass, 5 skip (1259 total) — `zig build test --summary all`
-**Feature tests**: 2044 pass (2048 total), 4 skip — `zig build feature-tests --summary all`
+**Main tests**: 1261 pass, 5 skip (1266 total) — `zig build test --summary all`
+**Feature tests**: 2082 pass (2086 total), 4 skip — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 
 **Two test roots** (each is a separate binary with its own module path):
@@ -510,7 +510,7 @@ can reach both `features/` and `services/` subdirectories.
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 2044+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 2082+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |

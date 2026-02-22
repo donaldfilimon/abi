@@ -118,12 +118,136 @@ pub const AzureRuntime = struct {
     }
 
     /// Run the custom handler HTTP server.
-    /// Azure Functions custom handlers communicate via HTTP.
+    /// Azure Functions custom handlers communicate via HTTP on
+    /// FUNCTIONS_HTTPWORKER_PORT (default 7071). Starts a TCP listener
+    /// using POSIX sockets and dispatches each request to the user handler.
     pub fn run(self: *AzureRuntime) !void {
-        // In a real implementation, this would start an HTTP server
-        // listening on FUNCTIONS_HTTPWORKER_PORT
-        _ = self;
-        return CloudError.ProviderError;
+        const sock = std.c.socket(std.c.AF.INET, std.c.SOCK.STREAM, 0);
+        if (sock < 0) return CloudError.ProviderError;
+        defer _ = std.c.close(sock);
+
+        // Enable SO_REUSEADDR to allow quick restarts
+        const enable: c_int = 1;
+        _ = std.c.setsockopt(
+            sock,
+            @intCast(std.c.SOL.SOCKET),
+            std.c.SO.REUSEADDR,
+            @ptrCast(&enable),
+            @sizeOf(c_int),
+        );
+
+        var addr: std.c.sockaddr.in = .{
+            .port = std.mem.nativeToBig(u16, self.config.port),
+            .addr = 0, // INADDR_ANY
+        };
+        if (std.c.bind(sock, @ptrCast(&addr), @sizeOf(std.c.sockaddr.in)) < 0) {
+            return CloudError.ProviderError;
+        }
+        if (std.c.listen(sock, 128) < 0) {
+            return CloudError.ProviderError;
+        }
+
+        std.log.info("Azure Functions custom handler listening on port {d}", .{self.config.port});
+
+        // Accept loop
+        while (true) {
+            const client = std.c.accept(sock, null, null);
+            if (client < 0) continue;
+            defer _ = std.c.close(client);
+
+            self.handleClient(client) catch |err| {
+                std.log.warn("Error handling Azure request: {t}", .{err});
+                const err_resp = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n";
+                _ = std.c.write(client, err_resp.ptr, err_resp.len);
+            };
+        }
+    }
+
+    /// Handle a single client connection from the Azure Functions host.
+    /// Reads the HTTP request body (JSON invocation payload), processes it
+    /// via the user handler, and writes back an HTTP response with the
+    /// formatted Azure invocation response.
+    fn handleClient(self: *AzureRuntime, client: std.c.fd_t) !void {
+        // Read request into buffer (max 64KB)
+        var buf: [65536]u8 = undefined;
+        var total_read: usize = 0;
+
+        // Read until we have the full headers (terminated by \r\n\r\n)
+        while (total_read < buf.len) {
+            const n = std.c.read(client, buf[total_read..].ptr, buf.len - total_read);
+            if (n <= 0) break;
+            total_read += @intCast(n);
+            if (std.mem.indexOf(u8, buf[0..total_read], "\r\n\r\n") != null) break;
+        }
+        if (total_read == 0) return;
+
+        const request_data = buf[0..total_read];
+
+        // Find end of headers
+        const header_end = std.mem.indexOf(u8, request_data, "\r\n\r\n") orelse return;
+        const headers_section = request_data[0..header_end];
+        const body_start = header_end + 4;
+
+        // Parse Content-Length from headers
+        var content_length: usize = 0;
+        var line_iter = std.mem.splitSequence(u8, headers_section, "\r\n");
+        _ = line_iter.next(); // skip request line
+        while (line_iter.next()) |line| {
+            if (line.len == 0) break;
+            if (std.mem.indexOf(u8, line, ": ")) |sep| {
+                const key = line[0..sep];
+                const value = line[sep + 2 ..];
+                if (std.ascii.eqlIgnoreCase(key, "content-length")) {
+                    content_length = std.fmt.parseInt(usize, value, 10) catch 0;
+                }
+            }
+        }
+
+        // Read remaining body if Content-Length indicates more data
+        var body_data = request_data[body_start..total_read];
+        var dynamic_body: ?[]u8 = null;
+        defer if (dynamic_body) |db| self.allocator.free(db);
+
+        if (content_length > body_data.len and content_length <= 1048576) {
+            var full_body = try self.allocator.alloc(u8, content_length);
+            errdefer self.allocator.free(full_body);
+            @memcpy(full_body[0..body_data.len], body_data);
+            var body_read = body_data.len;
+
+            while (body_read < content_length) {
+                const n = std.c.read(client, full_body[body_read..].ptr, content_length - body_read);
+                if (n <= 0) break;
+                body_read += @intCast(n);
+            }
+            dynamic_body = full_body;
+            body_data = full_body[0..body_read];
+        }
+
+        if (body_data.len == 0) return;
+
+        // Process the Azure invocation request (JSON body from Functions host)
+        const response_json = try self.processInvocation(body_data);
+        defer self.allocator.free(response_json);
+
+        // Build HTTP response
+        var resp_buf = std.ArrayListUnmanaged(u8).empty;
+        defer resp_buf.deinit(self.allocator);
+        const writer = resp_buf.writer(self.allocator);
+
+        try writer.writeAll("HTTP/1.1 200 OK\r\n");
+        try writer.writeAll("Content-Type: application/json\r\n");
+        try std.fmt.format(writer, "Content-Length: {d}\r\n", .{response_json.len});
+        try writer.writeAll("Connection: close\r\n\r\n");
+        try writer.writeAll(response_json);
+
+        // Send full response
+        const resp_data = resp_buf.items;
+        var sent: usize = 0;
+        while (sent < resp_data.len) {
+            const n = std.c.write(client, resp_data[sent..].ptr, resp_data.len - sent);
+            if (n <= 0) break;
+            sent += @intCast(n);
+        }
     }
 
     /// Process an invocation request from the Functions host.

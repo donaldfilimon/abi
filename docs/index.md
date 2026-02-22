@@ -12,7 +12,7 @@ tooling into a single build with compile-time feature gating.
 
 Version **0.4.0** provides 21 feature modules, 10 GPU backends, 9 LLM provider
 connectors, and 30 CLI commands (plus 8 aliases) — all tested with
-1254 passing tests (5 skipped) and 2044 passing feature tests.
+1261 passing tests (5 skipped) and 2082 passing feature tests.
 
 ## What You Can Build
 
