@@ -135,7 +135,7 @@ pub const ModelBackend = enum {
     local,
 
     pub fn toString(self: ModelBackend) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 
     /// Map to provider router ProviderId for real inference dispatch.
@@ -163,7 +163,7 @@ pub const Capability = enum {
     embedding,
 
     pub fn toString(self: Capability) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 

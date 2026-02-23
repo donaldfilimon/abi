@@ -53,7 +53,7 @@ pub const BackendType = enum {
     custom,
 
     pub fn toString(self: BackendType) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 

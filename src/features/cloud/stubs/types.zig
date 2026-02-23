@@ -56,7 +56,7 @@ pub const HttpMethod = enum {
     }
 
     pub fn toString(self: HttpMethod) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -201,7 +201,7 @@ pub const CloudConfig = struct {
         @"error",
 
         pub fn toString(self: LogLevel) []const u8 {
-            return std.mem.sliceTo(@tagName(self), 0);
+            return @tagName(self);
         }
     };
 

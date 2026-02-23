@@ -35,7 +35,7 @@ pub const EventType = enum {
     health_check,
 
     pub fn toString(self: EventType) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 

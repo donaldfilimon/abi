@@ -33,7 +33,7 @@ pub const Feature = enum {
     constitution,
 
     pub fn name(self: Feature) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 
     pub fn description(self: Feature) []const u8 {

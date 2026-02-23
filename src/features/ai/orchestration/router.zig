@@ -29,7 +29,7 @@ pub const RoutingStrategy = enum {
     latency_optimized,
 
     pub fn toString(self: RoutingStrategy) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -53,7 +53,7 @@ pub const TaskType = enum {
     general,
 
     pub fn toString(self: TaskType) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 
     /// Detect task type from prompt content (heuristic-based).

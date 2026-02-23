@@ -62,7 +62,7 @@ pub const CloudConfig = struct {
         @"error",
 
         pub fn toString(self: LogLevel) []const u8 {
-            return std.mem.sliceTo(@tagName(self), 0);
+            return @tagName(self);
         }
     };
 
