@@ -189,7 +189,7 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     ) catch {
         std.debug.print("ERROR: missing live Ralph results: {s}\n", .{in_path});
         std.debug.print("Run:\n  abi ralph run --task \"...\" --auto-skill\n", .{});
-        std.process.exit(1);
+        return error.ExecutionFailed;
     };
     defer allocator.free(json_contents);
 
@@ -201,7 +201,7 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         .{},
     ) catch {
         std.debug.print("Invalid JSON in {s}\n", .{in_path});
-        std.process.exit(1);
+        return error.ExecutionFailed;
     };
     defer parsed.deinit();
 
@@ -239,7 +239,7 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
                 if (std.fs.path.dirname(out_path)) |dir| cfg.ensureDir(io, dir);
                 cfg.writeFile(allocator, io, out_path, summary) catch {};
                 std.debug.print("{s}\n", .{summary});
-                if (!gate_passed) std.process.exit(2);
+                if (!gate_passed) return error.ExecutionFailed;
                 std.debug.print("OK: Ralph gate passed ({s}).\n", .{out_path});
                 return;
             }
@@ -251,13 +251,13 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         .array => |a| a.items,
         else => {
             std.debug.print("Results JSON must be a top-level array.\n", .{});
-            std.process.exit(1);
+            return error.ExecutionFailed;
         },
     };
 
     if (items.len == 0) {
         std.debug.print("Results file is empty.\n", .{});
-        std.process.exit(1);
+        return error.ExecutionFailed;
     }
 
     // Score each item against its matching rule
@@ -335,7 +335,7 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
             "FAIL: Ralph gate did not pass (avg={d:.3} < threshold={d:.3})\n",
             .{ avg, min_average },
         );
-        std.process.exit(2);
+        return error.ExecutionFailed;
     }
     std.debug.print("OK: Ralph gate passed ({s}).\n", .{out_path});
 }

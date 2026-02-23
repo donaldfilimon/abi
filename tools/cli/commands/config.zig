@@ -201,7 +201,7 @@ fn runValidate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     var config = loader.loadFromFile(path) catch |err| {
         std.debug.print("Error: Failed to load '{s}'\n", .{path});
         std.debug.print("  Reason: {t}\n", .{err});
-        std.process.exit(1);
+        return error.ExecutionFailed;
     };
     defer config.deinit();
 
@@ -209,7 +209,7 @@ fn runValidate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     config.validate() catch |err| {
         std.debug.print("Error: Configuration validation failed\n", .{});
         std.debug.print("  Reason: {t}\n", .{err});
-        std.process.exit(1);
+        return error.ExecutionFailed;
     };
 
     std.debug.print("Configuration file '{s}' is valid.\n", .{path});

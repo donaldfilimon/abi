@@ -3,6 +3,10 @@
     "zig-docs": {
       "command": "npx",
       "args": ["-y", "@nicholasq/zig-docs-mcp"]
+    },
+    "zig-stdlib": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/claude-code-mcp-filesystem", "/Users/donaldfilimon/.zvm/master/lib/std"]
     }
   }
 }

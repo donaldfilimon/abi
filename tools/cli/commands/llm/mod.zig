@@ -56,7 +56,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     if (utils.args.suggestCommand(sub, &.{ "run", "session", "serve", "providers", "plugins", "discover" })) |suggestion| {
         std.debug.print("Did you mean: {s}\n", .{suggestion});
     }
-    std.process.exit(1);
+    return error.ExecutionFailed;
 }
 
 pub fn printHelp() void {

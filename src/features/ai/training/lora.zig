@@ -137,8 +137,9 @@ pub const LoraAdapter = struct {
         // Temporary for intermediate result: x @ B^T
         // x: [batch, in_features], B: [rank, in_features], B^T: [in_features, rank]
         // result: [batch, rank]
-        var temp: [4096]f32 = undefined;
-        const temp_slice = temp[0 .. batch_size * self.rank];
+        const temp_len = batch_size * self.rank;
+        var temp_stack: [4096]f32 = undefined;
+        const temp_slice = if (temp_len <= 4096) temp_stack[0..temp_len] else return;
 
         // x @ B^T = [batch, rank]
         for (0..batch_size) |b| {
@@ -175,8 +176,10 @@ pub const LoraAdapter = struct {
         const batch_size = @as(u32, @intCast(x.len / self.in_features));
 
         // Compute intermediate: h = x @ B^T
-        var h: [4096]f32 = undefined;
-        const h_slice = h[0 .. batch_size * self.rank];
+        const h_len = batch_size * self.rank;
+        var h_stack: [4096]f32 = undefined;
+        if (h_len > 4096) return; // batch too large for stack buffers
+        const h_slice = h_stack[0..h_len];
 
         for (0..batch_size) |b| {
             for (0..self.rank) |r| {
@@ -202,8 +205,10 @@ pub const LoraAdapter = struct {
         }
 
         // d_h = d_out @ A (upstream gradient through A)
-        var d_h: [4096]f32 = undefined;
-        const d_h_slice = d_h[0 .. batch_size * self.rank];
+        var d_h_stack: [4096]f32 = undefined;
+        const d_h_len = batch_size * self.rank;
+        if (d_h_len > 4096) return; // batch too large for stack buffers
+        const d_h_slice = d_h_stack[0..d_h_len];
 
         for (0..batch_size) |b| {
             for (0..self.rank) |r| {
@@ -434,11 +439,21 @@ pub const LoraModel = struct {
 
     /// Merge all LoRA weights into base model.
     /// After merging, LoRA adapters can be discarded.
+    /// `base_weights` must be a `TrainableWeights` or compatible struct with
+    /// a `.layers` field of `TrainableLayerWeights` slices.
     pub fn mergeWeights(self: *const LoraModel, base_weights: anytype) void {
-        // This would merge LoRA weights into the base model weights
-        // The exact implementation depends on the base model structure
-        _ = self;
-        _ = base_weights;
+        for (self.layer_adapters, 0..) |*adapter, i| {
+            if (i >= base_weights.layers.len) break;
+            const layer = &base_weights.layers[i];
+
+            if (adapter.q_adapter) |*a| a.mergeInto(layer.w_q);
+            if (adapter.k_adapter) |*a| a.mergeInto(layer.w_k);
+            if (adapter.v_adapter) |*a| a.mergeInto(layer.w_v);
+            if (adapter.o_adapter) |*a| a.mergeInto(layer.w_o);
+            if (adapter.gate_adapter) |*a| a.mergeInto(layer.w_gate);
+            if (adapter.up_adapter) |*a| a.mergeInto(layer.w_up);
+            if (adapter.down_adapter) |*a| a.mergeInto(layer.w_down);
+        }
     }
 
     /// Save LoRA weights to file.
@@ -498,8 +513,16 @@ pub const LoraModel = struct {
             }
         }
 
-        _ = path;
-        // Save to file (would use checkpoint system)
+        // Write raw f32 weights to binary file
+        var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+        defer io_backend.deinit();
+        const io = io_backend.io();
+
+        const dir = std.Io.Dir.cwd();
+        try dir.writeFile(io, .{
+            .sub_path = path,
+            .data = std.mem.sliceAsBytes(weights),
+        });
     }
 };
 

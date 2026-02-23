@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Version** | 0.4.0 |
 | **Test baseline** | 1290 pass, 6 skip (1296 total) — must be maintained |
 | **Feature tests** | 2360 pass (2365 total), 5 skip — `zig build feature-tests` |
-| **CLI commands** | 29 commands (+ aliases) |
+| **CLI commands** | 29 commands + 9 aliases |
 | **Feature modules** | 24 (comptime-gated; see Feature Flags) |
 
 ## Build & Test Commands
@@ -45,6 +45,8 @@ zig build examples                           # Build all examples
 zig build check-wasm                         # Check WASM compilation
 zig build verify-all                         # full-check + consistency + examples + check-wasm
 zig build validate-baseline                  # Verify test baselines match across all files
+zig build check-consistency                  # Zig version/baseline/0.16 pattern checks
+zig build check-imports                      # No circular @import("abi") in feature modules
 zig build ralph-gate                         # Require live Ralph report and threshold pass
 zig std                                      # Print stdlib source path (useful for reading std lib internals)
 ```
@@ -52,7 +54,7 @@ zig std                                      # Print stdlib source path (useful 
 ### Running the CLI
 
 ```bash
-zig build run -- --help                      # CLI help (36 commands + 10 aliases)
+zig build run -- --help                      # CLI help (29 commands + 9 aliases)
 zig build run -- system-info                 # System and feature status (incl. Feature Matrix)
 zig build run -- --list-features             # List features (COMPILED/DISABLED) and exit
 zig build run -- status                      # Framework health and feature count
@@ -76,6 +78,7 @@ Feature-related commands and flags: [Features and the CLI](#features-and-the-cli
 | Feature inline tests | `zig build feature-tests --summary all` (must stay at 2360+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
+| Connector (`src/services/connectors/`) | `zig build test --summary all` + update env var docs |
 | Anything (full gate) | `zig build full-check` |
 | Everything (release gate) | `zig build verify-all` (full-check + consistency + examples + check-wasm) |
 | Build artifacts in `exe/` | Add `exe/` to `.gitignore` (see .gitignore) — standard output is `zig-out/` |
@@ -151,7 +154,7 @@ src/services/            → Always-available infrastructure (runtime, platform,
 src/services/mcp/        → MCP server (JSON-RPC 2.0 over stdio, WDBX + ZLS tools)
 src/services/acp/        → ACP server (agent communication protocol)
 src/services/connectors/ → LLM provider connectors (15 providers + discord + scheduler)
-tools/cli/               → Primary CLI entry point and command registration (36 commands)
+tools/cli/               → Primary CLI entry point and command registration (29 commands + 9 aliases)
 src/api/                 → Additional executable entry points (e.g., `main.zig`)
 ```
 
@@ -292,6 +295,18 @@ can reach both `features/` and `services/` subdirectories.
 | ACP service | `src/services/acp/` (agent communication protocol) |
 | UI dashboards | `tools/cli/commands/ui/`, `tools/cli/commands/tui/`, `tools/cli/tui/` |
 
+### Gendocs Pipeline
+
+| Command | Purpose |
+|---------|---------|
+| `zig build gendocs` | Generate all docs (76 artifacts: 43 guides, API md, coverage, WASM app) |
+| `zig build gendocs -- --check` | Drift check — fails if generated docs differ from disk |
+| `zig build check-docs` | Alias for gendocs --check (used in CI) |
+
+Key files: `tools/gendocs/mod.zig` (orchestrator), `tools/gendocs/site_map.zig` (43 guide specs),
+`tools/gendocs/assets/` (HTML/CSS/JS for API app, embedded via `@embedFile`).
+Guide templates: `tools/gendocs/templates/docs/*.md.tpl`.
+
 ### Adding a New Feature Module (9 integration points)
 
 1. `build/options.zig` — add `enable_<name>` field + CLI option
@@ -430,6 +445,11 @@ You are **outside the Ralph loop** unless the user explicitly runs `abi ralph ru
 | **super-ralph** | `/super-ralph` or suggest | Run Ralph: `abi ralph super --task "..."` with optional `--gate`/`--auto-skill`. |
 | **zig-std** | `/zig-std` | Look up Zig 0.16 std lib API from actual source at `~/.zvm/master/lib/std/`. |
 | **zig-build** | `/zig-build` | Run build/test/format pipeline. Use `/zig-build full` for CLI+flags, `/zig-build verify` for release gate. |
+| **new-feature** | `/new-feature` | Scaffold a new comptime-gated feature module through all 9 integration points. |
+| **cli-add-command** | `/cli-add-command` | Scaffold a new CLI command with proper registration and feature gating. |
+| **connector-add** | `/connector-add` | Scaffold a new LLM provider connector with env var config and availability check. |
+| **parity-check** | `/parity-check` | Verify mod.zig/stub.zig signature parity for a feature module. |
+| **ci-gate** | `/ci-gate [level]` | Run quality gates (basic/full/release) with failure diagnosis and fix suggestions. |
 
 Skill index: `.claude/skills/README.md` (if present) or list `ls .claude/skills/*/SKILL.md`.
 
@@ -446,17 +466,28 @@ Skill index: `.claude/skills/README.md` (if present) or list `ls .claude/skills/
 
 ## Claude Code Configuration
 
-- **MCP servers** (`.mcp.json`): `zig-docs` (Zig stdlib documentation lookup), `zls` (ZLS LSP tools), `supabase` (Supabase project MCP), `context7` (live library documentation lookup)
+- **MCP servers** (`.mcp.json`): `zig-docs` (Zig stdlib documentation lookup), `zig-stdlib` (filesystem access to `~/.zvm/master/lib/std/`), `zls` (ZLS LSP tools), `supabase` (Supabase project MCP), `context7` (live library documentation lookup)
 - **Local settings** (`.claude/settings.local.json`): MCP server enablement
 - **Rules** (`.claude/rules/zig.md`): Zig 0.16 gotchas and baseline markers (auto-loaded for `.zig` files)
 
 ### Hooks (`.claude/settings.json`)
 
-Four PostToolUse hooks fire automatically:
-1. **Auto-format**: Runs `zig fmt` on any `.zig` file you create or edit — no manual step needed
-2. **Stub parity reminder**: Warns when you edit a `mod.zig` that has a sibling `stub.zig`
-3. **Build options reminder**: Warns when you edit `build/options.zig` to also update `build/flags.zig`
-4. **Baseline drift detector**: After `zig build test/feature-tests`, warns if pass count differs from `baseline.zig`
+11 hooks fire automatically (1 PreToolUse + 10 PostToolUse):
+
+**PreToolUse:**
+1. **Circular import blocker**: Prevents `@import("abi")` in feature module files
+
+**PostToolUse:**
+1. **Auto-format**: Runs `zig fmt` on any `.zig` file you create or edit
+2. **Stub parity reminder (mod→stub)**: Warns when you edit a `mod.zig` that has a sibling `stub.zig`
+3. **Stub parity reminder (stub→mod)**: Warns when you edit a `stub.zig` to also check `mod.zig`
+4. **Build options reminder**: Warns when you edit `build/options.zig` to also update `build/flags.zig`
+5. **Build flags reminder**: Warns when you edit `build/flags.zig` to also update `build/options.zig`
+6. **Feature catalog reminder**: Warns when you edit `feature_catalog.zig`
+7. **Baseline drift detector**: After `zig build test/feature-tests`, warns if pass count differs from `baseline.zig`
+8. **Test discovery guard**: Warns if `comptime {}` is used instead of `test {}` for imports
+9. **abi.zig change warning**: Warns when editing `src/abi.zig` to verify public API surface
+10. **baseline.zig source-of-truth guard**: Warns when editing `tools/scripts/baseline.zig`
 
 Custom skills: see [Custom skills (invoke by name)](#custom-skills-invoke-by-name) above.
 

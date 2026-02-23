@@ -20,7 +20,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     var file = std.Io.Dir.cwd().openFile(io, "build.zig", .{}) catch {
         std.debug.print("Error: build.zig not found in current directory. Run from repo root.\n", .{});
-        std.process.exit(1);
+        return error.ExecutionFailed;
     };
     defer file.close(io);
 
@@ -40,7 +40,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
         std.debug.print("Error: unknown argument for gendocs: {s}\n", .{arg});
         printHelp();
-        std.process.exit(1);
+        return error.ExecutionFailed;
     }
 
     var argv = std.ArrayListUnmanaged([]const u8).empty;
@@ -63,8 +63,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     const term = try child.wait(io);
     switch (term) {
-        .exited => |code| if (code != 0) std.process.exit(1),
-        else => std.process.exit(1),
+        .exited => |code| if (code != 0) return error.ExecutionFailed,
+        else => return error.ExecutionFailed,
     }
 }
 
