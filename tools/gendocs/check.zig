@@ -49,7 +49,7 @@ pub fn verifyOutputs(
     try collectExtraFiles(allocator, io, cwd, "docs/api", &expected_map, true, &extra);
     try collectExtraFiles(allocator, io, cwd, "docs/_docs", &expected_map, true, &extra);
     try collectExtraFiles(allocator, io, cwd, "docs/plans", &expected_map, true, &extra);
-    try collectExtraFiles(allocator, io, cwd, "docs/api-app", &expected_map, false, &extra);
+    try collectExtraFiles(allocator, io, cwd, "docs", &expected_map, false, &extra);
 
     if (missing.items.len == 0 and changed.items.len == 0 and extra.items.len == 0) {
         std.debug.print("OK: docs are up to date\n", .{});
@@ -149,7 +149,7 @@ fn shouldTrackExtraFile(path: []const u8) bool {
 }
 
 fn shouldSkipDir(path: []const u8) bool {
-    _ = path;
+    if (std.mem.endsWith(u8, path, "/data") and std.mem.indexOf(u8, path, "api-app") != null) return true;
     return false;
 }
 
@@ -173,7 +173,7 @@ pub fn writeOutputs(
 }
 
 test "shouldTrackExtraFile ignores wasm artifacts" {
-    try std.testing.expect(!shouldTrackExtraFile("docs/api-app/data/docs_engine.wasm"));
+    try std.testing.expect(!shouldTrackExtraFile("docs/data/docs_engine.wasm"));
     try std.testing.expect(shouldTrackExtraFile("docs/plans/index.md"));
 }
 

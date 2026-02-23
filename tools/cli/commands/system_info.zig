@@ -49,18 +49,24 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     try gpu.printSummary(allocator);
     network.printSummary();
 
-    // AI Connector Availability
+    // AI Connector Availability (all 15 providers)
     utils.output.printHeader("AI Connectors");
     const connector_status = [_]struct { name: []const u8, available: bool }{
         .{ .name = "OpenAI", .available = abi.connectors.openai.isAvailable() },
         .{ .name = "Anthropic", .available = abi.connectors.anthropic.isAvailable() },
+        .{ .name = "Claude", .available = abi.connectors.claude.isAvailable() },
         .{ .name = "Ollama", .available = abi.connectors.ollama.isAvailable() },
+        .{ .name = "Ollama Passthrough", .available = abi.connectors.ollama_passthrough.isAvailable() },
         .{ .name = "HuggingFace", .available = abi.connectors.huggingface.isAvailable() },
         .{ .name = "Mistral", .available = abi.connectors.mistral.isAvailable() },
         .{ .name = "Cohere", .available = abi.connectors.cohere.isAvailable() },
+        .{ .name = "Gemini", .available = abi.connectors.gemini.isAvailable() },
+        .{ .name = "Codex", .available = abi.connectors.codex.isAvailable() },
+        .{ .name = "OpenCode", .available = abi.connectors.opencode.isAvailable() },
         .{ .name = "LM Studio", .available = abi.connectors.lm_studio.isAvailable() },
         .{ .name = "vLLM", .available = abi.connectors.vllm.isAvailable() },
         .{ .name = "MLX", .available = abi.connectors.mlx.isAvailable() },
+        .{ .name = "llama.cpp", .available = abi.connectors.llama_cpp.isAvailable() },
     };
     for (connector_status) |conn| {
         utils.output.printKeyValue(conn.name, if (conn.available) "configured" else "not configured");

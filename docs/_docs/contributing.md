@@ -37,6 +37,11 @@ No feature modules directly mapped to this section.
 - `src/services/acp/mod.zig` ([api](../api/acp.html))
 - `src/services/ha/mod.zig` ([api](../api/ha.html))
 - `src/services/mcp/mod.zig` ([api](../api/mcp.html))
+- `src/services/connectors/mod.zig` ([api](../api/connectors.html))
+- `src/services/lsp/mod.zig` ([api](../api/lsp.html))
+- `src/services/platform/mod.zig` ([api](../api/platform.html))
+- `src/services/shared/mod.zig` ([api](../api/shared.html))
+- `src/services/tasks/mod.zig` ([api](../api/tasks.html))
 
 ## Command Entry Points
 
@@ -48,6 +53,27 @@ No feature modules directly mapped to this section.
 - `abi convert` — Dataset conversion tools (tokenbin, text, jsonl, wdbx)
 - `abi db` — Database operations (add, query, stats, optimize, backup, restore)
 - `abi discord` — Discord bot operations (status, guilds, send, commands)
+- `abi embed` — Generate embeddings from text (openai, mistral, cohere, ollama)
+- `abi explore` — Search and explore codebase
+- `abi gendocs` — Generate API docs (runs zig build gendocs)
+- `abi gpu` — GPU commands (backends, devices, summary, default)
+- `abi llm` — LLM inference (run, session, serve, providers, plugins, discover)
+- `abi lsp` — ZLS LSP client (request, hover, completion, definition, rename, format)
+- `abi mcp` — MCP server for WDBX database or ZLS (serve, tools)
+- `abi model` — Model management (list, download, remove, search)
+- `abi multi-agent` — Run multi-agent workflows
+- `abi network` — Network and distributed systems management
+- `abi os-agent` — OS-aware AI agent with tools, memory, and self-learning
+- `abi plugins` — Plugin management (list, enable, disable, info)
+- `abi profile` — User profile and settings management
+- `abi ralph` — Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)
+- `abi simd` — Run SIMD performance demo
+- `abi status` — Show framework health and component status
+- `abi system-info` — Show system and framework status
+- `abi task` — Task management (add, list, done, stats, seed-self-improve)
+- `abi toolchain` — Build and install Zig/ZLS from master (install, update, status)
+- `abi train` — Training pipeline (run, llm, vision, auto, self, resume, info)
+- `abi ui` — UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)
 
 ## Validation Commands
 

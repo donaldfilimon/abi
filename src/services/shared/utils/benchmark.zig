@@ -152,7 +152,7 @@ pub const Suite = struct {
 
 // ─── Statistical Functions ───────────────────────────────────────────────────
 
-fn calcStats(samples: []const u64) Stats {
+fn calcStats(samples: []u64) Stats {
     if (samples.len == 0) return std.mem.zeroes(Stats);
 
     var sum: u64 = 0;
@@ -175,8 +175,17 @@ fn calcStats(samples: []const u64) Stats {
     }
     const std_dev = @sqrt(var_sum / n);
 
-    const median = mean;
-    const p99 = mean + 2.326 * std_dev;
+    // Sort in-place for median and percentile computation
+    std.mem.sort(u64, samples, {}, std.sort.asc(u64));
+
+    const median: f64 = if (samples.len % 2 == 1)
+        @as(f64, @floatFromInt(samples[samples.len / 2]))
+    else
+        (@as(f64, @floatFromInt(samples[samples.len / 2 - 1])) + @as(f64, @floatFromInt(samples[samples.len / 2]))) / 2.0;
+
+    // Real p99: sorted-sample percentile
+    const p99_idx = @min(samples.len - 1, (samples.len * 99) / 100);
+    const p99: f64 = @as(f64, @floatFromInt(samples[p99_idx]));
 
     return Stats{
         .mean = mean,
@@ -184,7 +193,7 @@ fn calcStats(samples: []const u64) Stats {
         .std_dev = std_dev,
         .min = min_val,
         .max = max_val,
-        .p99 = @intFromFloat(@max(0, p99)),
+        .p99 = @intFromFloat(@max(@as(f64, 0), p99)),
         .sample_count = samples.len,
         .throughput_ops = if (mean > 0) 1_000_000_000.0 / mean else 0,
     };
@@ -233,8 +242,10 @@ fn printResult(writer: anytype, result: *const Result) !void {
 }
 
 test "calcStats computes basic aggregates" {
-    const stats = calcStats(&.{ 10, 20, 30 });
+    var data = [_]u64{ 10, 20, 30 };
+    const stats = calcStats(&data);
     try std.testing.expectEqual(@as(f64, 20), stats.mean);
+    try std.testing.expectEqual(@as(f64, 20), stats.median);
     try std.testing.expectEqual(@as(u64, 10), stats.min);
     try std.testing.expectEqual(@as(u64, 30), stats.max);
     try std.testing.expectEqual(@as(usize, 3), stats.sample_count);

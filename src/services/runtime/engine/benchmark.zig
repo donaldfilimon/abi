@@ -1,6 +1,5 @@
 //! Benchmark utilities for compute runtime.
 //!
-//! Note: Full benchmark implementation is in benchmarks/legacy.zig.
 //! This module provides minimal exports for API compatibility.
 
 const std = @import("std");

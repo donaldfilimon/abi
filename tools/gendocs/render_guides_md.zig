@@ -29,13 +29,19 @@ pub fn render(
     outputs: *std.ArrayListUnmanaged(model.OutputFile),
 ) !void {
     for (site_map.guides) |guide| {
-        const template = loadTemplate(allocator, io, cwd, guide) catch defaultTemplate;
+        const template = loadTemplate(allocator, io, cwd, guide) catch |err| blk: {
+            if (err == error.FileNotFound) {
+                std.debug.print("WARN: missing template for guide '{s}': {s}\n", .{ guide.slug, guide.template_path });
+            }
+            break :blk defaultTemplate;
+        };
         defer allocator.free(template);
 
         const auto_content = try buildAutoContent(
             allocator,
             guide.slug,
             guide.section,
+            guide.feature_tags,
             build_meta,
             modules,
             commands,
@@ -137,6 +143,7 @@ fn buildAutoContent(
     allocator: std.mem.Allocator,
     slug: []const u8,
     section: []const u8,
+    feature_tags: []const []const u8,
     build_meta: model.BuildMeta,
     modules: []const model.ModuleDoc,
     commands: []const model.CliCommand,
@@ -185,7 +192,7 @@ fn buildAutoContent(
         try appendModuleCoverage(allocator, &out, section, modules);
     } else if (std.mem.eql(u8, slug, "gpu") or std.mem.eql(u8, slug, "gpu-backends")) {
         try appendGpuSummary(allocator, &out, modules);
-        try appendFeatureCoverage(allocator, &out, "gpu", features);
+        try appendFeatureCoverage(allocator, &out, slug, feature_tags, features);
     } else if (std.mem.eql(u8, slug, "connectors")) {
         try appendConnectorsSummary(allocator, &out, readmes);
     } else if (std.mem.eql(u8, slug, "roadmap")) {
@@ -204,7 +211,7 @@ fn buildAutoContent(
             \\
         );
     } else {
-        try appendFeatureCoverage(allocator, &out, slug, features);
+        try appendFeatureCoverage(allocator, &out, slug, feature_tags, features);
         try appendModuleCoverage(allocator, &out, section, modules);
         try appendCommandEntryPoints(allocator, &out, section, commands);
     }
@@ -267,12 +274,13 @@ fn appendFeatureCoverage(
     allocator: std.mem.Allocator,
     out: *std.ArrayListUnmanaged(u8),
     slug: []const u8,
+    feature_tags: []const []const u8,
     features: []const model.FeatureDoc,
 ) !void {
     try out.appendSlice(allocator, "## Feature Coverage\n\n");
     var count: usize = 0;
     for (features) |feat| {
-        if (!featureMatchesSlug(slug, feat)) continue;
+        if (!featureMatchesSlug(slug, feature_tags, feat)) continue;
         count += 1;
         try appendFmt(allocator, out, "- **{s}** — {s}\n", .{ feat.name, feat.description });
         try appendFmt(allocator, out, "  - Build flag: `{s}`\n", .{feat.compile_flag});
@@ -287,23 +295,17 @@ fn appendFeatureCoverage(
     try out.append(allocator, '\n');
 }
 
-fn featureMatchesSlug(slug: []const u8, feat: model.FeatureDoc) bool {
-    // Direct name match (e.g. slug="gpu" matches feat.name="gpu")
-    if (std.mem.eql(u8, slug, feat.name)) return true;
-    // Section-based matching for multi-feature pages
-    if (std.mem.eql(u8, slug, "ai-overview")) return std.mem.eql(u8, feat.name, "ai") or std.mem.eql(u8, feat.parent, "ai");
-    if (std.mem.eql(u8, slug, "ai-core")) return std.mem.eql(u8, feat.name, "agents") or std.mem.eql(u8, feat.name, "personas");
-    if (std.mem.eql(u8, slug, "ai-inference")) return std.mem.eql(u8, feat.name, "llm") or std.mem.eql(u8, feat.name, "embeddings");
-    if (std.mem.eql(u8, slug, "ai-training")) return std.mem.eql(u8, feat.name, "training");
-    if (std.mem.eql(u8, slug, "ai-reasoning")) return std.mem.eql(u8, feat.name, "reasoning");
-    if (std.mem.eql(u8, slug, "database")) return std.mem.eql(u8, feat.name, "database");
-    if (std.mem.eql(u8, slug, "gpu-backends")) return std.mem.eql(u8, feat.name, "gpu");
-    if (std.mem.eql(u8, slug, "llm-inference-guide")) return std.mem.eql(u8, feat.name, "llm") or std.mem.eql(u8, feat.name, "embeddings");
-    if (std.mem.eql(u8, slug, "ralph-guide")) return std.mem.eql(u8, feat.name, "agents") or std.mem.eql(u8, feat.name, "reasoning");
-    if (std.mem.eql(u8, slug, "security-guide")) return std.mem.eql(u8, feat.name, "auth");
-    if (std.mem.eql(u8, slug, "streaming-guide")) return std.mem.eql(u8, feat.name, "llm");
-    if (std.mem.eql(u8, slug, "connectors-guide")) return std.mem.eql(u8, feat.name, "llm");
-    return false;
+fn featureMatchesSlug(slug: []const u8, feature_tags: []const []const u8, feat: model.FeatureDoc) bool {
+    // If the guide declares explicit feature_tags, match against those
+    if (feature_tags.len > 0) {
+        for (feature_tags) |tag| {
+            if (std.mem.eql(u8, tag, feat.name)) return true;
+            if (std.mem.eql(u8, tag, feat.parent)) return true;
+        }
+        return false;
+    }
+    // Fallback: direct slug-to-feature-name match
+    return std.mem.eql(u8, slug, feat.name);
 }
 
 fn appendCliSummary(
@@ -532,7 +534,6 @@ fn appendModuleCoverage(
     for (modules) |mod| {
         if (!moduleMatchesSection(section, mod)) continue;
         count += 1;
-        if (count > 10) break;
         try appendFmt(allocator, out, "- `{s}` ([api](../api/{s}.html))\n", .{ mod.path, mod.name });
     }
     if (count == 0) {
@@ -552,7 +553,6 @@ fn appendCommandEntryPoints(
     for (commands) |command| {
         if (!commandMatchesSection(section, command.name)) continue;
         count += 1;
-        if (count > 8) break;
         try appendFmt(allocator, out, "- `abi {s}` — {s}\n", .{ command.name, command.description });
     }
     if (count == 0) {

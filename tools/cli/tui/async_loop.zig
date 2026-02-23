@@ -201,6 +201,9 @@ pub const AsyncLoop = struct {
                     try render(self);
                 }
 
+                // Flush all buffered output in a single syscall
+                try self.terminal.flush();
+
                 self.last_refresh_time = frame_start;
                 self.frame_count += 1;
 

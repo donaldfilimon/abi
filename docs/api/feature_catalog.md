@@ -1,5 +1,10 @@
 # feature_catalog
 
+> Canonical feature catalog for ABI.
+
+Centralizes feature descriptions, compile-time flag mappings, parent-child
+relationships, and real/stub module paths used by parity checks.
+
 **Source:** [`src/core/feature_catalog.zig`](../../src/core/feature_catalog.zig)
 
 **Availability:** Always enabled

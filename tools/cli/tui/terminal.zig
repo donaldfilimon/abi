@@ -10,6 +10,9 @@ const posix = std.posix;
 const windows = std.os.windows;
 const events = @import("events.zig");
 
+// Global pointer for signal handler cleanup (only one TUI can be active at a time)
+var active_terminal: ?*Terminal = null;
+
 // Platform detection for cross-platform compatibility
 const is_windows = builtin.os.tag == .windows;
 const is_wasm = builtin.os.tag == .wasi or builtin.os.tag == .emscripten or
@@ -165,6 +168,8 @@ pub const Terminal = struct {
     input_pos: usize,
     raw_state: RawState,
     active: bool,
+    write_buf: [16384]u8,
+    write_pos: usize,
 
     /// Check if TUI is supported on the current platform
     pub fn isSupported() bool {
@@ -193,6 +198,8 @@ pub const Terminal = struct {
         terminal.input_pos = 0;
         terminal.raw_state = .none;
         terminal.active = false;
+        terminal.write_buf = undefined;
+        terminal.write_pos = 0;
         return terminal;
     }
 
@@ -216,20 +223,36 @@ pub const Terminal = struct {
         try self.enterAltScreen();
         try self.hideCursor();
         try self.enableMouse();
-        try self.clear();
+        try self.clearFull();
+        try self.flush();
         self.active = true;
+        active_terminal = self;
+        installSignalHandlers();
     }
 
     pub fn exit(self: *Terminal) !void {
         if (!self.active) return;
+        active_terminal = null;
+        self.write_pos = 0;
         try self.disableMouse();
         try self.showCursor();
         try self.exitAltScreen();
+        try self.flush();
         try self.leaveRawMode();
         self.active = false;
     }
 
     pub fn clear(self: *Terminal) !void {
+        try self.write("\x1b[H");
+    }
+
+    /// Clear from cursor to end of screen — call after rendering to wipe leftover lines.
+    pub fn clearToEnd(self: *Terminal) !void {
+        try self.write("\x1b[J");
+    }
+
+    /// Full screen clear (for initial setup, not per-frame).
+    pub fn clearFull(self: *Terminal) !void {
         try self.write("\x1b[2J\x1b[H");
     }
 
@@ -277,10 +300,34 @@ pub const Terminal = struct {
         try self.write("\x1b[?1000l\x1b[?1006l");
     }
 
+    /// Buffered write — appends to internal buffer. Call flush() to emit.
+    /// If the buffer would overflow, flushes first then writes directly for
+    /// oversized payloads.
     pub fn write(self: *Terminal, text: []const u8) !void {
+        if (text.len == 0) return;
+        if (self.write_pos + text.len <= self.write_buf.len) {
+            @memcpy(self.write_buf[self.write_pos..][0..text.len], text);
+            self.write_pos += text.len;
+        } else {
+            // Flush current buffer, then handle the new data
+            try self.flush();
+            if (text.len <= self.write_buf.len) {
+                @memcpy(self.write_buf[0..text.len], text);
+                self.write_pos = text.len;
+            } else {
+                // Oversized — write directly
+                const io = self.io_backend.io();
+                try self.stdout_file.writeStreamingAll(io, text);
+            }
+        }
+    }
+
+    /// Flush the write buffer to stdout in a single syscall.
+    pub fn flush(self: *Terminal) !void {
+        if (self.write_pos == 0) return;
         const io = self.io_backend.io();
-        // Use writeStreamingAll for Zig 0.16 compatibility
-        try self.stdout_file.writeStreamingAll(io, text);
+        try self.stdout_file.writeStreamingAll(io, self.write_buf[0..self.write_pos]);
+        self.write_pos = 0;
     }
 
     pub fn readEvent(self: *Terminal) !events.Event {
@@ -700,3 +747,43 @@ pub const Terminal = struct {
         }
     }
 };
+
+// Signal-safe cleanup: restore terminal state on unexpected termination.
+// Uses only async-signal-safe syscalls (write, tcsetattr).
+fn signalHandler(sig: posix.SIG) callconv(.c) void {
+    const term = active_terminal orelse return;
+    active_terminal = null;
+
+    // Write cleanup sequences directly (signal-safe, no buffering)
+    const cleanup = "\x1b[?1000l\x1b[?1006l" ++ // disable mouse
+        "\x1b[?25h" ++ // show cursor
+        "\x1b[?1049l"; // exit alt screen
+    _ = posix.system.write(term.stdout_file.handle, cleanup.ptr, cleanup.len);
+
+    // Restore original termios
+    switch (term.raw_state) {
+        .posix => |state| _ = posix.system.tcsetattr(term.stdin_file.handle, .FLUSH, &state.termios),
+        else => {},
+    }
+
+    // Re-raise with default handler so process exits with correct status
+    const default_action: posix.Sigaction = .{
+        .handler = .{ .handler = posix.SIG.DFL },
+        .mask = posix.sigemptyset(),
+        .flags = 0,
+    };
+    posix.sigaction(sig, &default_action, null);
+    posix.raise(sig) catch {};
+}
+
+fn installSignalHandlers() void {
+    if (comptime !is_posix) return;
+
+    const action: posix.Sigaction = .{
+        .handler = .{ .handler = &signalHandler },
+        .mask = posix.sigemptyset(),
+        .flags = posix.SA.RESETHAND,
+    };
+    posix.sigaction(.TERM, &action, null);
+    posix.sigaction(.INT, &action, null);
+}

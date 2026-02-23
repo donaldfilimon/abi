@@ -141,6 +141,37 @@ pub fn printBulletList(title: []const u8, items: []const []const u8) void {
     }
 }
 
+/// Print a separator line of a given width.
+pub fn printSeparator(width: usize) void {
+    var i: usize = 0;
+    while (i < width) : (i += 1) {
+        std.debug.print("-", .{});
+    }
+    std.debug.print("\n", .{});
+}
+
+/// Print a status line with icon: [ok] or [--] with appropriate coloring.
+pub fn printStatusLine(label: []const u8, enabled: bool) void {
+    const icon_color = if (enabled) Color.get(Color.green) else Color.get(Color.dim);
+    const marker = if (enabled) "[ok]" else "[--]";
+    const reset = Color.get(Color.reset);
+    std.debug.print("  {s}{s}{s} {s}\n", .{ icon_color, marker, reset, label });
+}
+
+/// Print a status line with a formatted label (for enum/tag names).
+pub fn printStatusLineFmt(comptime fmt: []const u8, args: anytype, enabled: bool) void {
+    const icon_color = if (enabled) Color.get(Color.green) else Color.get(Color.dim);
+    const marker = if (enabled) "[ok]" else "[--]";
+    const reset = Color.get(Color.reset);
+    std.debug.print("  {s}{s}{s} ", .{ icon_color, marker, reset });
+    std.debug.print(fmt ++ "\n", args);
+}
+
+/// Print a count summary (e.g., "12/24 features active").
+pub fn printCountSummary(count: usize, total: usize, label: []const u8) void {
+    std.debug.print("\n  {d}/{d} {s}\n", .{ count, total, label });
+}
+
 /// Re-export color constants for direct access (e.g., utils.output.color.green).
 pub const color = Color;
 

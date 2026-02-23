@@ -1,0 +1,194 @@
+[
+  {
+    "name": "agents",
+    "description": "AI agent runtime",
+    "compile_flag": "enable_ai",
+    "parent": "ai",
+    "real_module_path": "features/ai/facades/core.zig",
+    "stub_module_path": "features/ai/facades/core_stub.zig"
+  },
+  {
+    "name": "ai",
+    "description": "AI core functionality",
+    "compile_flag": "enable_ai",
+    "parent": "",
+    "real_module_path": "features/ai/mod.zig",
+    "stub_module_path": "features/ai/stub.zig"
+  },
+  {
+    "name": "analytics",
+    "description": "Analytics event tracking",
+    "compile_flag": "enable_analytics",
+    "parent": "",
+    "real_module_path": "features/analytics/mod.zig",
+    "stub_module_path": "features/analytics/stub.zig"
+  },
+  {
+    "name": "auth",
+    "description": "Authentication and security",
+    "compile_flag": "enable_auth",
+    "parent": "",
+    "real_module_path": "features/auth/mod.zig",
+    "stub_module_path": "features/auth/stub.zig"
+  },
+  {
+    "name": "benchmarks",
+    "description": "Performance benchmarking and timing",
+    "compile_flag": "enable_benchmarks",
+    "parent": "",
+    "real_module_path": "features/benchmarks/mod.zig",
+    "stub_module_path": "features/benchmarks/stub.zig"
+  },
+  {
+    "name": "cache",
+    "description": "In-memory caching",
+    "compile_flag": "enable_cache",
+    "parent": "",
+    "real_module_path": "features/cache/mod.zig",
+    "stub_module_path": "features/cache/stub.zig"
+  },
+  {
+    "name": "cloud",
+    "description": "Cloud provider integration",
+    "compile_flag": "enable_cloud",
+    "parent": "",
+    "real_module_path": "features/cloud/mod.zig",
+    "stub_module_path": "features/cloud/stub.zig"
+  },
+  {
+    "name": "constitution",
+    "description": "AI safety principles and guardrails",
+    "compile_flag": "enable_ai",
+    "parent": "ai",
+    "real_module_path": "features/ai/mod.zig",
+    "stub_module_path": "features/ai/stub.zig"
+  },
+  {
+    "name": "database",
+    "description": "Vector database (WDBX)",
+    "compile_flag": "enable_database",
+    "parent": "",
+    "real_module_path": "features/database/mod.zig",
+    "stub_module_path": "features/database/stub.zig"
+  },
+  {
+    "name": "embeddings",
+    "description": "Vector embeddings generation",
+    "compile_flag": "enable_ai",
+    "parent": "ai",
+    "real_module_path": "features/ai/mod.zig",
+    "stub_module_path": "features/ai/stub.zig"
+  },
+  {
+    "name": "gateway",
+    "description": "API gateway (routing, rate limiting, circuit breaker)",
+    "compile_flag": "enable_gateway",
+    "parent": "",
+    "real_module_path": "features/gateway/mod.zig",
+    "stub_module_path": "features/gateway/stub.zig"
+  },
+  {
+    "name": "gpu",
+    "description": "GPU acceleration and compute",
+    "compile_flag": "enable_gpu",
+    "parent": "",
+    "real_module_path": "features/gpu/mod.zig",
+    "stub_module_path": "features/gpu/stub.zig"
+  },
+  {
+    "name": "llm",
+    "description": "Local LLM inference",
+    "compile_flag": "enable_llm",
+    "parent": "ai",
+    "real_module_path": "features/ai/facades/inference.zig",
+    "stub_module_path": "features/ai/facades/inference_stub.zig"
+  },
+  {
+    "name": "messaging",
+    "description": "Event bus and messaging",
+    "compile_flag": "enable_messaging",
+    "parent": "",
+    "real_module_path": "features/messaging/mod.zig",
+    "stub_module_path": "features/messaging/stub.zig"
+  },
+  {
+    "name": "mobile",
+    "description": "Mobile platform support",
+    "compile_flag": "enable_mobile",
+    "parent": "",
+    "real_module_path": "features/mobile/mod.zig",
+    "stub_module_path": "features/mobile/stub.zig"
+  },
+  {
+    "name": "network",
+    "description": "Distributed compute network",
+    "compile_flag": "enable_network",
+    "parent": "",
+    "real_module_path": "features/network/mod.zig",
+    "stub_module_path": "features/network/stub.zig"
+  },
+  {
+    "name": "observability",
+    "description": "Metrics, tracing, profiling",
+    "compile_flag": "enable_profiling",
+    "parent": "",
+    "real_module_path": "features/observability/mod.zig",
+    "stub_module_path": "features/observability/stub.zig"
+  },
+  {
+    "name": "pages",
+    "description": "Dashboard/UI pages with URL routing",
+    "compile_flag": "enable_pages",
+    "parent": "",
+    "real_module_path": "features/pages/mod.zig",
+    "stub_module_path": "features/pages/stub.zig"
+  },
+  {
+    "name": "personas",
+    "description": "Multi-persona AI assistant",
+    "compile_flag": "enable_ai",
+    "parent": "ai",
+    "real_module_path": "features/ai/mod.zig",
+    "stub_module_path": "features/ai/stub.zig"
+  },
+  {
+    "name": "reasoning",
+    "description": "AI reasoning (Abbey, eval, RAG)",
+    "compile_flag": "enable_reasoning",
+    "parent": "ai",
+    "real_module_path": "features/ai/facades/reasoning.zig",
+    "stub_module_path": "features/ai/facades/reasoning_stub.zig"
+  },
+  {
+    "name": "search",
+    "description": "Full-text search",
+    "compile_flag": "enable_search",
+    "parent": "",
+    "real_module_path": "features/search/mod.zig",
+    "stub_module_path": "features/search/stub.zig"
+  },
+  {
+    "name": "storage",
+    "description": "Unified file/object storage",
+    "compile_flag": "enable_storage",
+    "parent": "",
+    "real_module_path": "features/storage/mod.zig",
+    "stub_module_path": "features/storage/stub.zig"
+  },
+  {
+    "name": "training",
+    "description": "Model training pipelines",
+    "compile_flag": "enable_training",
+    "parent": "ai",
+    "real_module_path": "features/ai/facades/training.zig",
+    "stub_module_path": "features/ai/facades/training_stub.zig"
+  },
+  {
+    "name": "web",
+    "description": "Web/HTTP utilities",
+    "compile_flag": "enable_web",
+    "parent": "",
+    "real_module_path": "features/web/mod.zig",
+    "stub_module_path": "features/web/stub.zig"
+  }
+]

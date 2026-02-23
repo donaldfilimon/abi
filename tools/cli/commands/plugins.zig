@@ -22,15 +22,24 @@ const PluginInfo = struct {
     config_schema: ?[]const u8 = null,
 };
 
-// Built-in plugin definitions (static metadata)
+// Built-in plugin definitions (static metadata — all 15 LLM providers + discord + scheduler)
 const builtin_plugins = [_]PluginInfo{
     .{ .name = "openai-connector", .description = "OpenAI API integration", .enabled = true },
-    .{ .name = "ollama-connector", .description = "Ollama local LLM integration", .enabled = true },
     .{ .name = "anthropic-connector", .description = "Anthropic Claude API integration", .enabled = true },
+    .{ .name = "claude-connector", .description = "Claude with Anthropic env fallbacks", .enabled = true },
+    .{ .name = "ollama-connector", .description = "Ollama local LLM integration", .enabled = true },
+    .{ .name = "ollama-passthrough", .description = "Ollama OpenAI-compatible passthrough", .enabled = true },
     .{ .name = "huggingface-connector", .description = "HuggingFace model hub", .enabled = true },
-    .{ .name = "discord-bot", .description = "Discord bot framework", .enabled = false },
     .{ .name = "mistral-connector", .description = "Mistral AI API integration", .enabled = true },
     .{ .name = "cohere-connector", .description = "Cohere AI API integration", .enabled = true },
+    .{ .name = "gemini-connector", .description = "Google Gemini API integration", .enabled = true },
+    .{ .name = "codex-connector", .description = "Codex (OpenAI-compatible) integration", .enabled = true },
+    .{ .name = "opencode-connector", .description = "OpenCode (OpenAI-compatible) integration", .enabled = true },
+    .{ .name = "lm-studio-connector", .description = "LM Studio local server integration", .enabled = true },
+    .{ .name = "vllm-connector", .description = "vLLM inference server integration", .enabled = true },
+    .{ .name = "mlx-connector", .description = "MLX Apple Silicon inference", .enabled = true },
+    .{ .name = "llama-cpp-connector", .description = "llama.cpp local server integration", .enabled = true },
+    .{ .name = "discord-bot", .description = "Discord bot framework", .enabled = false },
 };
 
 /// Plugin state persisted to disk
@@ -83,11 +92,11 @@ fn getPluginsConfigPath(allocator: std.mem.Allocator) ![]u8 {
 
 fn printPluginsConfigLocation(allocator: std.mem.Allocator) void {
     const config_path = getPluginsConfigPath(allocator) catch {
-        std.debug.print("Config: (unavailable)\n", .{});
+        utils.output.printKeyValue("Config", "(unavailable)");
         return;
     };
     defer allocator.free(config_path);
-    std.debug.print("Config: {s}\n", .{config_path});
+    utils.output.printKeyValue("Config", config_path);
 }
 
 fn printPluginsSavedPath(allocator: std.mem.Allocator) void {
@@ -285,7 +294,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown subcommand: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &plugin_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -302,21 +311,21 @@ fn listPlugins(allocator: std.mem.Allocator) !void {
         return;
     }
 
-    std.debug.print("\n{s:<25} {s:<10} {s:<40}\n", .{ "NAME", "STATUS", "DESCRIPTION" });
-    std.debug.print("{s}\n", .{"-" ** 75});
+    utils.output.println("\n{s:<25} {s:<10} {s:<40}", .{ "NAME", "STATUS", "DESCRIPTION" });
+    utils.output.printSeparator(75);
 
     var enabled_count: usize = 0;
     for (plugins) |plugin| {
         const status_str = if (plugin.enabled) "enabled" else "disabled";
         if (plugin.enabled) enabled_count += 1;
-        std.debug.print("{s:<25} {s:<10} {s:<40}\n", .{
+        utils.output.println("{s:<25} {s:<10} {s:<40}", .{
             plugin.name,
             status_str,
             truncate(plugin.description, 40),
         });
     }
 
-    std.debug.print("\nTotal: {d} plugin(s), {d} enabled\n", .{ plugins.len, enabled_count });
+    utils.output.println("\nTotal: {d} plugin(s), {d} enabled", .{ plugins.len, enabled_count });
     printPluginsConfigLocation(allocator);
 }
 
@@ -325,43 +334,61 @@ fn showPluginInfo(allocator: std.mem.Allocator, name: []const u8) !void {
 
     if (plugin_opt) |plugin| {
         utils.output.printHeader("Plugin Information");
-        std.debug.print("\n", .{});
-        std.debug.print("Name:        {s}\n", .{plugin.name});
-        std.debug.print("Version:     {s}\n", .{plugin.version});
-        std.debug.print("Description: {s}\n", .{plugin.description});
-        std.debug.print("Author:      {s}\n", .{plugin.author});
-        std.debug.print("Status:      {s}\n", .{if (plugin.enabled) "Enabled" else "Disabled"});
+        utils.output.println("", .{});
+        utils.output.printKeyValue("Name", plugin.name);
+        utils.output.printKeyValue("Version", plugin.version);
+        utils.output.printKeyValue("Description", plugin.description);
+        utils.output.printKeyValue("Author", plugin.author);
+        utils.output.printKeyValue("Status", if (plugin.enabled) "Enabled" else "Disabled");
 
         if (plugin.dependencies.len > 0) {
-            std.debug.print("Dependencies:\n", .{});
+            utils.output.println("  Dependencies:", .{});
             for (plugin.dependencies) |dep| {
-                std.debug.print("  - {s}\n", .{dep});
+                utils.output.println("    - {s}", .{dep});
             }
         }
 
         if (plugin.config_schema) |schema| {
-            std.debug.print("\nConfiguration Schema:\n", .{});
-            std.debug.print("{s}\n", .{schema});
+            utils.output.println("\n  Configuration Schema:", .{});
+            utils.output.println("  {s}", .{schema});
         }
 
-        // Show environment variable requirements
-        std.debug.print("\nEnvironment Variables:\n", .{});
+        // Show environment variable requirements (ABI_* convention)
+        utils.output.println("\n  Environment Variables:", .{});
         if (std.mem.eql(u8, plugin.name, "openai-connector")) {
-            std.debug.print("  ABI_OPENAI_API_KEY - OpenAI API key\n", .{});
+            utils.output.println("    ABI_OPENAI_API_KEY - OpenAI API key", .{});
         } else if (std.mem.eql(u8, plugin.name, "anthropic-connector")) {
-            std.debug.print("  ABI_ANTHROPIC_API_KEY - Anthropic API key\n", .{});
+            utils.output.println("    ABI_ANTHROPIC_API_KEY - Anthropic API key", .{});
+        } else if (std.mem.eql(u8, plugin.name, "claude-connector")) {
+            utils.output.println("    ABI_CLAUDE_API_KEY (falls back to ABI_ANTHROPIC_API_KEY)", .{});
         } else if (std.mem.eql(u8, plugin.name, "huggingface-connector")) {
-            std.debug.print("  ABI_HF_API_TOKEN - HuggingFace token\n", .{});
+            utils.output.println("    ABI_HF_API_TOKEN - HuggingFace token", .{});
         } else if (std.mem.eql(u8, plugin.name, "ollama-connector")) {
-            std.debug.print("  ABI_OLLAMA_HOST - Ollama host (default: http://127.0.0.1:11434)\n", .{});
+            utils.output.println("    ABI_OLLAMA_HOST - Ollama host (default: http://127.0.0.1:11434)", .{});
+        } else if (std.mem.eql(u8, plugin.name, "ollama-passthrough")) {
+            utils.output.println("    ABI_OLLAMA_PASSTHROUGH_URL - Ollama passthrough URL", .{});
         } else if (std.mem.eql(u8, plugin.name, "discord-bot")) {
-            std.debug.print("  DISCORD_BOT_TOKEN - Discord bot token\n", .{});
+            utils.output.println("    DISCORD_BOT_TOKEN - Discord bot token", .{});
         } else if (std.mem.eql(u8, plugin.name, "mistral-connector")) {
-            std.debug.print("  MISTRAL_API_KEY - Mistral API key\n", .{});
+            utils.output.println("    ABI_MISTRAL_API_KEY - Mistral API key", .{});
         } else if (std.mem.eql(u8, plugin.name, "cohere-connector")) {
-            std.debug.print("  COHERE_API_KEY - Cohere API key\n", .{});
+            utils.output.println("    ABI_COHERE_API_KEY - Cohere API key", .{});
+        } else if (std.mem.eql(u8, plugin.name, "gemini-connector")) {
+            utils.output.println("    ABI_GEMINI_API_KEY - Google Gemini API key", .{});
+        } else if (std.mem.eql(u8, plugin.name, "codex-connector")) {
+            utils.output.println("    ABI_CODEX_API_KEY (falls back to ABI_OPENAI_API_KEY)", .{});
+        } else if (std.mem.eql(u8, plugin.name, "opencode-connector")) {
+            utils.output.println("    ABI_OPENCODE_API_KEY (falls back to ABI_OPENAI_API_KEY)", .{});
+        } else if (std.mem.eql(u8, plugin.name, "lm-studio-connector")) {
+            utils.output.println("    ABI_LM_STUDIO_HOST - LM Studio host (default: http://localhost:1234)", .{});
+        } else if (std.mem.eql(u8, plugin.name, "vllm-connector")) {
+            utils.output.println("    ABI_VLLM_HOST - vLLM server host", .{});
+        } else if (std.mem.eql(u8, plugin.name, "mlx-connector")) {
+            utils.output.println("    ABI_MLX_HOST - MLX server host", .{});
+        } else if (std.mem.eql(u8, plugin.name, "llama-cpp-connector")) {
+            utils.output.println("    ABI_LLAMA_CPP_HOST - llama.cpp host (default: http://localhost:8080)", .{});
         } else {
-            std.debug.print("  (none required)\n", .{});
+            utils.output.println("    (none required)", .{});
         }
     } else {
         utils.output.printError("Plugin not found: {s}", .{name});
@@ -455,20 +482,29 @@ fn searchPlugins(allocator: std.mem.Allocator, query: []const u8) !void {
         installed: bool,
     }{
         .{ .name = "openai-connector", .description = "OpenAI API integration", .installed = true },
-        .{ .name = "ollama-connector", .description = "Ollama local LLM integration", .installed = true },
         .{ .name = "anthropic-connector", .description = "Anthropic Claude API integration", .installed = true },
+        .{ .name = "claude-connector", .description = "Claude with Anthropic env fallbacks", .installed = true },
+        .{ .name = "ollama-connector", .description = "Ollama local LLM integration", .installed = true },
+        .{ .name = "ollama-passthrough", .description = "Ollama OpenAI-compatible passthrough", .installed = true },
         .{ .name = "huggingface-connector", .description = "HuggingFace model hub", .installed = true },
-        .{ .name = "discord-bot", .description = "Discord bot framework", .installed = true },
         .{ .name = "mistral-connector", .description = "Mistral AI API integration", .installed = true },
         .{ .name = "cohere-connector", .description = "Cohere AI API integration", .installed = true },
+        .{ .name = "gemini-connector", .description = "Google Gemini API integration", .installed = true },
+        .{ .name = "codex-connector", .description = "Codex (OpenAI-compatible)", .installed = true },
+        .{ .name = "opencode-connector", .description = "OpenCode (OpenAI-compatible)", .installed = true },
+        .{ .name = "lm-studio-connector", .description = "LM Studio local server", .installed = true },
+        .{ .name = "vllm-connector", .description = "vLLM inference server", .installed = true },
+        .{ .name = "mlx-connector", .description = "MLX Apple Silicon inference", .installed = true },
+        .{ .name = "llama-cpp-connector", .description = "llama.cpp local server", .installed = true },
+        .{ .name = "discord-bot", .description = "Discord bot framework", .installed = true },
         .{ .name = "metrics-prometheus", .description = "Prometheus metrics exporter", .installed = false },
         .{ .name = "storage-s3", .description = "AWS S3 storage backend", .installed = false },
         .{ .name = "storage-gcs", .description = "Google Cloud Storage backend", .installed = false },
         .{ .name = "cache-redis", .description = "Redis caching layer", .installed = false },
     };
 
-    std.debug.print("\n{s:<25} {s:<12} {s:<10} {s:<30}\n", .{ "NAME", "STATUS", "ENABLED", "DESCRIPTION" });
-    std.debug.print("{s}\n", .{"-" ** 77});
+    utils.output.println("\n{s:<25} {s:<12} {s:<10} {s:<30}", .{ "NAME", "STATUS", "ENABLED", "DESCRIPTION" });
+    utils.output.printSeparator(77);
 
     var count: usize = 0;
     for (available) |plugin| {
@@ -483,7 +519,7 @@ fn searchPlugins(allocator: std.mem.Allocator, query: []const u8) !void {
 
         const status = if (plugin.installed) "installed" else "available";
         const enabled = if (plugin.installed) (if (state.isEnabled(plugin.name)) "yes" else "no") else "-";
-        std.debug.print("{s:<25} {s:<12} {s:<10} {s:<30}\n", .{
+        utils.output.println("{s:<25} {s:<12} {s:<10} {s:<30}", .{
             plugin.name,
             status,
             enabled,
@@ -495,9 +531,10 @@ fn searchPlugins(allocator: std.mem.Allocator, query: []const u8) !void {
     if (count == 0) {
         utils.output.printInfo("No plugins match query: {s}", .{query});
     } else {
-        std.debug.print("\nFound: {d} plugin(s)\n", .{count});
-        std.debug.print("\nUse 'abi plugins enable <name>' to enable a plugin\n", .{});
-        std.debug.print("Use 'abi plugins disable <name>' to disable a plugin\n", .{});
+        utils.output.println("\nFound: {d} plugin(s)", .{count});
+        utils.output.println("", .{});
+        utils.output.printInfo("Use 'abi plugins enable <name>' to enable a plugin", .{});
+        utils.output.printInfo("Use 'abi plugins disable <name>' to disable a plugin", .{});
     }
 }
 
@@ -510,7 +547,7 @@ fn printHelp() void {
     const help =
         \\Usage: abi plugins <subcommand> [options]
         \\
-        \\Manage ABI framework plugins.
+        \\Manage ABI framework plugins (16 built-in connectors + extensions).
         \\
         \\Subcommands:
         \\  list                  List installed plugins (default)
@@ -521,11 +558,11 @@ fn printHelp() void {
         \\  help                  Show this help
         \\
         \\Examples:
-        \\  abi plugins                   # List installed plugins
-        \\  abi plugins info openai       # Show OpenAI connector info
-        \\  abi plugins enable redis      # Enable Redis plugin
-        \\  abi plugins search storage    # Search for storage plugins
+        \\  abi plugins                          # List installed plugins
+        \\  abi plugins info openai-connector    # Show OpenAI connector info
+        \\  abi plugins enable discord-bot       # Enable Discord bot plugin
+        \\  abi plugins search llm               # Search for LLM plugins
         \\
     ;
-    std.debug.print("{s}", .{help});
+    utils.output.print("{s}", .{help});
 }

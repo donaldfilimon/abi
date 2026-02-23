@@ -188,7 +188,7 @@
   {
     "name": "feature_catalog",
     "path": "src/core/feature_catalog.zig",
-    "description": "",
+    "description": "Canonical feature catalog for ABI.\n\nCentralizes feature descriptions, compile-time flag mappings, parent-child\nrelationships, and real/stub module paths used by parity checks.",
     "category": "Core Framework",
     "build_flag": "always-on",
     "symbols": [

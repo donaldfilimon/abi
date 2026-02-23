@@ -38,7 +38,7 @@ function jsScore(query, text) {
   if (t === q) return 1200;
   if (t.startsWith(q)) return 900 - (t.length - q.length);
   if (t.includes(q)) return 600 - t.indexOf(q);
-  const words = q.split(/\\s+/).filter(Boolean);
+  const words = q.split(/\s+/).filter(Boolean);
   let s = 0;
   for (const w of words) if (t.includes(w)) s += 120;
   return s;
@@ -76,8 +76,8 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
           score,
           title: mod.name,
           subtitle: `${mod.category} • ${mod.build_flag}`,
-          detail: `Path: ${mod.path}\\n\\n${mod.description}`,
-          href: `../api/${mod.name}.html`,
+          detail: `Path: ${mod.path}\n\n${mod.description}`,
+          href: `./api/${mod.name}.html`,
         });
       }
       if (type === "all" || type === "symbols") {
@@ -89,8 +89,8 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
               score: symScore,
               title: symbol.signature,
               subtitle: `${mod.name} • line ${symbol.line}`,
-              detail: `${symbol.doc}\\n\\nSource: ${mod.path}#L${symbol.line}`,
-              href: `../api/${mod.name}.html#${symbol.anchor}`,
+              detail: `${symbol.doc}\n\nSource: ${mod.path}#L${symbol.line}`,
+              href: `./api/${mod.name}.html#${symbol.anchor}`,
             });
           }
         }
@@ -108,8 +108,8 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
           score,
           title: cmd.name,
           subtitle: `aliases: ${cmd.aliases.join(", ") || "none"}`,
-          detail: `${cmd.description}\\n\\nSubcommands: ${subs.join(", ") || "none"}`,
-          href: `../cli/`,
+          detail: `${cmd.description}\n\nSubcommands: ${subs.join(", ") || "none"}`,
+          href: `./cli/`,
         });
       }
     }
@@ -124,8 +124,8 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
           score,
           title: guide.title,
           subtitle: `${guide.section} • ${guide.slug}`,
-          detail: `${guide.description}\\n\\nPermalink: ${guide.permalink}`,
-          href: `../${guide.slug}/`,
+          detail: `${guide.description}\n\nPermalink: ${guide.permalink}`,
+          href: `./${guide.slug}/`,
         });
       }
     }
@@ -141,8 +141,8 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
           score,
           title: plan.title,
           subtitle: `${plan.status} • owner: ${plan.owner}`,
-          detail: `${plan.scope}\\n\\nValidation: ${gateText || "none"}`,
-          href: `../plans/${plan.slug}.md`,
+          detail: `${plan.scope}\n\nValidation: ${gateText || "none"}`,
+          href: `./plans/${plan.slug}.md`,
         });
       }
     }
@@ -157,8 +157,8 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
           score,
           title: `${item.id} ${item.title}`,
           subtitle: `${item.horizon} • ${item.track} • ${item.status}`,
-          detail: `${item.summary}\\n\\nOwner: ${item.owner}\\nValidation Gate: ${item.validation_gate}\\nPlan: ${item.plan_title}`,
-          href: `../roadmap/`,
+          detail: `${item.summary}\n\nOwner: ${item.owner}\nValidation Gate: ${item.validation_gate}\nPlan: ${item.plan_title}`,
+          href: `./roadmap/`,
         });
       }
     }
@@ -180,7 +180,7 @@ function renderStats(modules, commands, guides, plans, roadmap) {
     `${roadmap.length} roadmap`,
     rankerLabel,
   ];
-  el.innerHTML = chips.map((c) => `<span class=\"chip\">${c}</span>`).join("");
+  el.innerHTML = chips.map((c) => `<span class="chip">${c}</span>`).join("");
 }
 
 function bindUI(modules, commands, guides, plans, roadmap) {
@@ -210,7 +210,7 @@ function bindUI(modules, commands, guides, plans, roadmap) {
     const node = nodes[clamped];
     const row = rows[clamped];
     node.classList.add("active");
-    details.innerHTML = `${row.detail}\\n\\n<a href=\"${row.href}\">Open source page</a>`;
+    details.innerHTML = `${row.detail}\n\n<a href="${row.href}">Open source page</a>`;
     if (!silent) node.scrollIntoView({ block: "nearest" });
   }
 
@@ -227,7 +227,7 @@ function bindUI(modules, commands, guides, plans, roadmap) {
     for (const [idx, row] of rows.entries()) {
       const li = document.createElement("li");
       li.tabIndex = 0;
-      li.innerHTML = `<div><strong>${row.title}</strong></div><div class=\"result-meta\">${row.type} • ${row.subtitle}</div>`;
+      li.innerHTML = `<div><strong>${row.title}</strong></div><div class="result-meta">${row.type} • ${row.subtitle}</div>`;
       li.addEventListener("click", () => setActive(idx));
       li.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {

@@ -9,7 +9,7 @@
 | --- | --- | --- | --- |
 | [config](config.md) | Core Framework | Unified configuration system. | `always-on` |
 | [errors](errors.md) | Core Framework | Composable error hierarchy for framework operations. | `always-on` |
-| [feature_catalog](feature_catalog.md) | Core Framework | — | `always-on` |
+| [feature_catalog](feature_catalog.md) | Core Framework | Canonical feature catalog for ABI. | `always-on` |
 | [framework](framework.md) | Core Framework | Framework orchestration with builder pattern. | `always-on` |
 | [registry](registry.md) | Core Framework | Plugin registry for feature management. | `always-on` |
 | [runtime](runtime.md) | Compute & Runtime | Runtime infrastructure (thread pool, channels, scheduling). | `always-on` |
@@ -40,6 +40,11 @@ Composable error hierarchy for framework operations.
 **Source:** [`src/core/errors.zig`](../../src/core/errors.zig)
 
 ### [feature_catalog](feature_catalog.md)
+
+Canonical feature catalog for ABI.
+
+Centralizes feature descriptions, compile-time flag mappings, parent-child
+relationships, and real/stub module paths used by parity checks.
 
 **Source:** [`src/core/feature_catalog.zig`](../../src/core/feature_catalog.zig)
 

@@ -130,7 +130,7 @@ fn trimTrailingSlash(value: []const u8) []const u8 {
     return value[0..end];
 }
 
-pub fn main(init: std.process.Init.Minimal) !void {
+pub fn main(init: std.process.Init) !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
@@ -139,7 +139,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    var args_iter = try std.process.Args.Iterator.initAllocator(init.args, allocator);
+    var args_iter = try std.process.Args.Iterator.initAllocator(init.minimal.args, allocator);
     defer args_iter.deinit();
 
     var args = std.ArrayListUnmanaged([]const u8).empty;

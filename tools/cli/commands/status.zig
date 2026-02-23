@@ -36,46 +36,51 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     utils.output.printKeyValue("State", state_str);
 
     // Feature status using the registry for complete coverage
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
     const features = std.enums.values(abi.Feature);
     var enabled_count: usize = 0;
     for (features) |tag| {
         const enabled = fw.isEnabled(tag);
-        const icon = if (enabled) utils.output.Color.get(utils.output.Color.green) else utils.output.Color.get(utils.output.Color.dim);
-        const marker = if (enabled) "[ok]" else "[--]";
-        const reset = utils.output.Color.get(utils.output.Color.reset);
-        std.debug.print("  {s}{s}{s} {t}\n", .{ icon, marker, reset, tag });
+        utils.output.printStatusLineFmt("{t}", .{tag}, enabled);
         if (enabled) enabled_count += 1;
     }
 
-    std.debug.print("\n  {d}/{d} features active\n", .{ enabled_count, features.len });
+    utils.output.printCountSummary(enabled_count, features.len, "features active");
 
-    // Connector status
-    std.debug.print("\n", .{});
+    // Connector status (all 15 providers)
+    utils.output.println("", .{});
     const connectors = [_]struct { name: []const u8, available: bool }{
         .{ .name = "openai", .available = abi.connectors.openai.isAvailable() },
         .{ .name = "anthropic", .available = abi.connectors.anthropic.isAvailable() },
+        .{ .name = "claude", .available = abi.connectors.claude.isAvailable() },
         .{ .name = "ollama", .available = abi.connectors.ollama.isAvailable() },
+        .{ .name = "ollama_passthrough", .available = abi.connectors.ollama_passthrough.isAvailable() },
         .{ .name = "huggingface", .available = abi.connectors.huggingface.isAvailable() },
         .{ .name = "mistral", .available = abi.connectors.mistral.isAvailable() },
         .{ .name = "cohere", .available = abi.connectors.cohere.isAvailable() },
+        .{ .name = "gemini", .available = abi.connectors.gemini.isAvailable() },
+        .{ .name = "codex", .available = abi.connectors.codex.isAvailable() },
+        .{ .name = "opencode", .available = abi.connectors.opencode.isAvailable() },
         .{ .name = "lm_studio", .available = abi.connectors.lm_studio.isAvailable() },
         .{ .name = "vllm", .available = abi.connectors.vllm.isAvailable() },
         .{ .name = "mlx", .available = abi.connectors.mlx.isAvailable() },
+        .{ .name = "llama_cpp", .available = abi.connectors.llama_cpp.isAvailable() },
     };
     var conn_count: usize = 0;
     for (connectors) |c| {
         if (c.available) conn_count += 1;
     }
-    std.debug.print("  {d}/{d} connectors configured\n", .{ conn_count, connectors.len });
+    utils.output.printCountSummary(conn_count, connectors.len, "connectors configured");
 
     // Overall health
     const healthy = fw.state == .running or fw.state == .initializing;
-    std.debug.print("\n  Status: {s}{s}{s}\n\n", .{
+    utils.output.println("", .{});
+    utils.output.println("  Status: {s}{s}{s}", .{
         if (healthy) utils.output.Color.get(utils.output.Color.green) else utils.output.Color.get(utils.output.Color.red),
         if (healthy) "HEALTHY" else "UNHEALTHY",
         utils.output.Color.get(utils.output.Color.reset),
     });
+    utils.output.println("", .{});
 }
 
 fn printHelp(allocator: std.mem.Allocator) void {

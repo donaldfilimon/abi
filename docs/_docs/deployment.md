@@ -37,6 +37,11 @@ No feature modules directly mapped to this section.
 - `src/services/acp/mod.zig` ([api](../api/acp.html))
 - `src/services/ha/mod.zig` ([api](../api/ha.html))
 - `src/services/mcp/mod.zig` ([api](../api/mcp.html))
+- `src/services/connectors/mod.zig` ([api](../api/connectors.html))
+- `src/services/lsp/mod.zig` ([api](../api/lsp.html))
+- `src/services/platform/mod.zig` ([api](../api/platform.html))
+- `src/services/shared/mod.zig` ([api](../api/shared.html))
+- `src/services/tasks/mod.zig` ([api](../api/tasks.html))
 
 ## Command Entry Points
 

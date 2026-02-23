@@ -43,7 +43,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     try cwd.createDirPath(io, "docs/api");
     if (!opts.api_only) {
         try cwd.createDirPath(io, "docs/_docs");
-        try cwd.createDirPath(io, "docs/api-app/data");
+        try cwd.createDirPath(io, "docs/data");
         try cwd.createDirPath(io, "docs/plans");
     }
 
@@ -156,7 +156,7 @@ fn printHelp() void {
         \\  docs/api/*.md
         \\  docs/_docs/*.md
         \\  docs/plans/*.md
-        \\  docs/api-app/*
+        \\  docs/*
         \\
     , .{});
 }
@@ -167,21 +167,21 @@ fn verifyWasmDrift(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) !v
 
     try runWasmBuild(allocator, io, generated_path);
 
-    const expected = try cwd.readFileAlloc(io, "docs/api-app/data/docs_engine.wasm", allocator, .limited(8 * 1024 * 1024));
+    const expected = try cwd.readFileAlloc(io, "docs/data/docs_engine.wasm", allocator, .limited(8 * 1024 * 1024));
     defer allocator.free(expected);
 
     const generated = try cwd.readFileAlloc(io, generated_path, allocator, .limited(8 * 1024 * 1024));
     defer allocator.free(generated);
 
     if (!std.mem.eql(u8, expected, generated)) {
-        std.debug.print("ERROR: docs/api-app/data/docs_engine.wasm is out of date\n", .{});
+        std.debug.print("ERROR: docs/data/docs_engine.wasm is out of date\n", .{});
         return check.CheckError.DriftDetected;
     }
 }
 
 fn buildWasmAssets(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) !void {
     _ = cwd;
-    try runWasmBuild(allocator, io, "docs/api-app/data/docs_engine.wasm");
+    try runWasmBuild(allocator, io, "docs/data/docs_engine.wasm");
 }
 
 fn runWasmBuild(allocator: std.mem.Allocator, io: std.Io, emit_path: []const u8) !void {
@@ -212,9 +212,9 @@ fn tryBuildComponent(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) 
             "wasm-tools",
             "component",
             "new",
-            "docs/api-app/data/docs_engine.wasm",
+            "docs/data/docs_engine.wasm",
             "-o",
-            "docs/api-app/data/docs_engine.component.wasm",
+            "docs/data/docs_engine.component.wasm",
         };
 
         runCommand(io, &argv) catch |err| {
@@ -225,7 +225,7 @@ fn tryBuildComponent(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) 
     // Keep WIT source co-located with generated app data for discoverability.
     const wit = try cwd.readFileAlloc(io, "tools/gendocs/wasm/wit/docs_engine.wit", allocator, .limited(64 * 1024));
     defer allocator.free(wit);
-    var out = try cwd.createFile(io, "docs/api-app/data/docs_engine.wit", .{ .truncate = true });
+    var out = try cwd.createFile(io, "docs/data/docs_engine.wit", .{ .truncate = true });
     defer out.close(io);
     try out.writeStreamingAll(io, wit);
 }

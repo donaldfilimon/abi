@@ -36,6 +36,15 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 
+    // S5: Pre-check that rg (ripgrep) is available
+    const rg_check = try util.captureCommand(allocator, "rg --version");
+    defer allocator.free(rg_check.output);
+    if (rg_check.exit_code != 0) {
+        std.debug.print("ERROR: 'rg' (ripgrep) is required but not found in PATH.\n", .{});
+        std.debug.print("Install with: brew install ripgrep (macOS) or cargo install ripgrep\n", .{});
+        std.process.exit(1);
+    }
+
     var errors: usize = 0;
 
     try scanForbidden(
@@ -110,6 +119,32 @@ pub fn main(_: std.process.Init) !void {
         allocator,
         "^[[:space:]]*[^/].*comptime[[:space:]]*\\{[[:space:]]*_[[:space:]]*=[[:space:]]*@import\\(",
         "legacy comptime-based test discovery detected; use test { _ = @import(...); }",
+        &errors,
+    );
+
+    // S6: Additional deprecated patterns
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*std\\.json\\.stringifyAlloc\\(",
+        "legacy std.json.stringifyAlloc; use std.json.Stringify.valueAlloc in Zig 0.16",
+        &errors,
+    );
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*std\\.process\\.argsAlloc\\(",
+        "legacy std.process.argsAlloc; use init.minimal.args.toSlice(arena) in Zig 0.16",
+        &errors,
+    );
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*std\\.crypto\\.random",
+        "legacy std.crypto.random; use std.c.arc4random_buf in Zig 0.16",
+        &errors,
+    );
+    try scanForbidden(
+        allocator,
+        "^[[:space:]]*[^/].*std\\.posix\\.getenv\\(",
+        "legacy std.posix.getenv; use std.c.getenv in Zig 0.16",
         &errors,
     );
 

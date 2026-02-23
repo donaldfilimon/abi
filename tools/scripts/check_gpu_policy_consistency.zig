@@ -44,8 +44,8 @@ fn checkCase(target_case: TargetCase, mismatches: *usize) void {
     if (!std.mem.eql(u8, @tagName(build_class), @tagName(runtime_class))) {
         mismatch(
             mismatches,
-            "{s}: classify mismatch (build={s}, runtime={s})\n",
-            .{ target_case.name, @tagName(build_class), @tagName(runtime_class) },
+            "{s}: classify mismatch (build={t}, runtime={t})\n",
+            .{ target_case.name, build_class, runtime_class },
         );
     }
 

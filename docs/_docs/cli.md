@@ -1,6 +1,6 @@
 ---
 title: CLI
-description: 29 commands and aliases for AI, GPU, database, and system management
+description: 29 commands + 9 aliases for AI, GPU, database, and system management
 section: Core
 order: 13
 permalink: /cli/
@@ -8,7 +8,7 @@ permalink: /cli/
 
 # CLI
 ## Summary
-29 commands and aliases for AI, GPU, database, and system management
+29 commands + 9 aliases for AI, GPU, database, and system management
 
 ## Generated Reference
 ## Overview

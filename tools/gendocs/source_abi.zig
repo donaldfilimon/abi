@@ -80,15 +80,35 @@ fn parseModuleDeclaration(
     const full_path = try std.fmt.allocPrint(allocator, "src/{s}", .{import_path});
     errdefer allocator.free(full_path);
 
-    const symbols = parseModuleSymbols(allocator, full_path) catch try allocator.dupe(model.SymbolDoc, &.{});
+    const parse_result = parseModuleFile(allocator, full_path) catch {
+        return .{
+            .name = try allocator.dupe(u8, name),
+            .path = full_path,
+            .description = try allocator.dupe(u8, std.mem.trim(u8, docs, " \t\r\n")),
+            .category = categorizeByPath(import_path, name),
+            .build_flag = try allocator.dupe(u8, build_flag),
+            .symbols = try allocator.dupe(model.SymbolDoc, &.{}),
+        };
+    };
+
+    // Use /// doc from abi.zig if available, otherwise fall back to //! module doc
+    const trimmed_docs = std.mem.trim(u8, docs, " \t\r\n");
+    const description = if (trimmed_docs.len > 0) blk: {
+        if (parse_result.module_doc.len > 0) allocator.free(parse_result.module_doc);
+        break :blk try allocator.dupe(u8, trimmed_docs);
+    } else if (parse_result.module_doc.len > 0) blk: {
+        break :blk parse_result.module_doc;
+    } else blk: {
+        break :blk try allocator.dupe(u8, "");
+    };
 
     return .{
         .name = try allocator.dupe(u8, name),
         .path = full_path,
-        .description = try allocator.dupe(u8, std.mem.trim(u8, docs, " \t\r\n")),
+        .description = description,
         .category = categorizeByPath(import_path, name),
         .build_flag = try allocator.dupe(u8, build_flag),
-        .symbols = symbols,
+        .symbols = parse_result.symbols,
     };
 }
 
@@ -107,7 +127,36 @@ fn parseImportPath(rhs: []const u8) ?[]const u8 {
     return tail[0..import_end];
 }
 
-pub fn parseModuleSymbols(allocator: std.mem.Allocator, path: []const u8) ![]model.SymbolDoc {
+const ModuleParseResult = struct {
+    symbols: []model.SymbolDoc,
+    module_doc: []const u8,
+};
+
+fn extractModuleDoc(allocator: std.mem.Allocator, source: []const u8) ![]const u8 {
+    var doc_buf = std.ArrayListUnmanaged(u8).empty;
+    errdefer doc_buf.deinit(allocator);
+
+    var lines = std.mem.splitScalar(u8, source, '\n');
+    while (lines.next()) |raw_line| {
+        const line = std.mem.trim(u8, raw_line, " \t\r");
+        if (std.mem.startsWith(u8, line, "//!")) {
+            const content = std.mem.trimStart(u8, if (line.len > 3) line[3..] else "", " ");
+            if (doc_buf.items.len > 0) try doc_buf.append(allocator, '\n');
+            try doc_buf.appendSlice(allocator, content);
+            continue;
+        }
+        if (line.len == 0) continue;
+        break;
+    }
+
+    if (doc_buf.items.len == 0) {
+        doc_buf.deinit(allocator);
+        return "";
+    }
+    return doc_buf.toOwnedSlice(allocator);
+}
+
+fn parseModuleFile(allocator: std.mem.Allocator, path: []const u8) !ModuleParseResult {
     var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     defer io_backend.deinit();
     const io = io_backend.io();
@@ -116,6 +165,18 @@ pub fn parseModuleSymbols(allocator: std.mem.Allocator, path: []const u8) ![]mod
     const source = try cwd.readFileAlloc(io, path, allocator, .limited(4 * 1024 * 1024));
     defer allocator.free(source);
 
+    const module_doc = try extractModuleDoc(allocator, source);
+    const symbols = try parseSymbolsFromSource(allocator, source);
+    return .{ .symbols = symbols, .module_doc = module_doc };
+}
+
+pub fn parseModuleSymbols(allocator: std.mem.Allocator, path: []const u8) ![]model.SymbolDoc {
+    const result = try parseModuleFile(allocator, path);
+    if (result.module_doc.len > 0) allocator.free(result.module_doc);
+    return result.symbols;
+}
+
+fn parseSymbolsFromSource(allocator: std.mem.Allocator, source: []const u8) ![]model.SymbolDoc {
     var symbols = std.ArrayListUnmanaged(model.SymbolDoc).empty;
     errdefer {
         for (symbols.items) |sym| sym.deinit(allocator);
@@ -272,11 +333,7 @@ fn slugify(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
 }
 
 fn categorizeByPath(path: []const u8, name: []const u8) model.Category {
-    if (std.mem.startsWith(u8, path, "features/ai") or
-        std.mem.eql(u8, name, "inference") or
-        std.mem.eql(u8, name, "training") or
-        std.mem.eql(u8, name, "reasoning"))
-    {
+    if (std.mem.startsWith(u8, path, "features/ai")) {
         return .ai;
     }
 

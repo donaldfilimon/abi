@@ -1,6 +1,0 @@
-# GitHub Pages + Jekyll (Just the Docs)
-# Run: bundle install && bundle exec jekyll serve
-source "https://rubygems.org"
-gem "jekyll", "~> 3.10"
-gem "just-the-docs"
-gem "webrick", "~> 1.8"

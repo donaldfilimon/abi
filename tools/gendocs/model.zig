@@ -191,6 +191,8 @@ pub const GuideSpec = struct {
     order: usize,
     permalink: []const u8,
     template_path: []const u8,
+    /// Feature names that this guide covers (matched against FeatureDoc.name and .parent).
+    feature_tags: []const []const u8 = &.{},
 };
 
 pub const BuildMeta = struct {

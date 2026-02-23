@@ -12,7 +12,7 @@ at compile time via `build_options`.
 |-----------|-------------|
 | `api/` | Executable entry points (`main.zig`) |
 | `core/` | Framework orchestration, config, registry, startup |
-| `features/` | 21 feature modules with comptime gating |
+| `features/` | 24 feature modules with comptime gating |
 | `services/` | Always-available infrastructure: runtime, platform, shared, connectors, HA, tasks, tests |
 
 ## Module Hierarchy
@@ -28,7 +28,7 @@ src/
 ├── core/                    # Framework orchestration
 │   ├── config/              # Unified configuration (per-feature configs + stubs/)
 │   ├── errors.zig           # Error hierarchy
-│   ├── feature_catalog.zig  # Canonical feature definitions (21 entries)
+│   ├── feature_catalog.zig  # Canonical feature definitions (24 entries)
 │   ├── framework.zig        # Framework lifecycle state machine
 │   ├── framework/           # Framework internals (builder, context_init, lifecycle, shutdown, state_machine)
 │   ├── health.zig           # Health monitoring
@@ -61,7 +61,7 @@ src/
 │   └── web/                 # Web/HTTP framework and middleware
 │
 └── services/                # Always-available infrastructure
-    ├── connectors/          # External API connectors (9 LLM + discord + scheduler)
+    ├── connectors/          # External API connectors (15 LLM + discord + scheduler)
     │   ├── mod.zig          #   Aggregator + loader helpers
     │   ├── anthropic.zig    #   Claude API
     │   ├── openai.zig       #   OpenAI API
@@ -130,7 +130,7 @@ else
     @import("features/gpu/stub.zig");  // Returns error.FeatureDisabled
 ```
 
-All 21 features default to `true` except `enable_mobile`. Validate combinations: `zig build validate-flags`.
+All 24 features default to `true` except `enable_mobile`. Validate combinations: `zig build validate-flags`.
 
 ## Import Conventions
 

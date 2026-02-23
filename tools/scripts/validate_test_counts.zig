@@ -136,12 +136,12 @@ fn parseMode(args: []const []const u8) !Mode {
     return error.InvalidMode;
 }
 
-pub fn main(init: std.process.Init.Minimal) !void {
+pub fn main(init: std.process.Init) !void {
     var gpa_state = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa_state.deinit();
     const allocator = gpa_state.allocator();
 
-    var args_iter = try std.process.Args.Iterator.initAllocator(init.args, allocator);
+    var args_iter = try std.process.Args.Iterator.initAllocator(init.minimal.args, allocator);
     defer args_iter.deinit();
 
     var args = std.ArrayListUnmanaged([]const u8).empty;

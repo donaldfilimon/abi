@@ -37,7 +37,11 @@ pub fn runBenchmarkSuite(allocator: std.mem.Allocator, config: mod.BenchConfig) 
             try runSuiteWithResults(allocator, "SIMD Operations", runSimdBenchmarks, &results, config.output_json);
             try runSuiteWithResults(allocator, "Memory Patterns", runMemoryBenchmarks, &results, config.output_json);
             try runSuiteWithResults(allocator, "Concurrency", runConcurrencyBenchmarks, &results, config.output_json);
+            try runSuiteWithResults(allocator, "Database/HNSW", runDatabaseBenchmarks, &results, config.output_json);
+            try runSuiteWithResults(allocator, "Network/HTTP", runNetworkBenchmarks, &results, config.output_json);
+            try runSuiteWithResults(allocator, "Cryptography", runCryptoBenchmarks, &results, config.output_json);
             try runSuiteWithResults(allocator, "AI/ML", runAiBenchmarks, &results, config.output_json);
+            try runSuiteWithResults(allocator, "Streaming Inference", runStreamingBenchmarks, &results, config.output_json);
         },
         .simd => try runSuiteWithResults(allocator, "SIMD Operations", runSimdBenchmarks, &results, config.output_json),
         .memory => try runSuiteWithResults(allocator, "Memory Patterns", runMemoryBenchmarks, &results, config.output_json),
