@@ -13,12 +13,10 @@
 //!     return try cloud.CloudResponse.json(allocator, "{\"message\":\"Hello from GCP!\"}");
 //! }
 //!
-//! pub fn main() !void {
-//!     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-//!     defer _ = gpa.deinit();
-//!     const allocator = gpa.allocator();
+//! pub fn main(init: std.process.Init) !void {
+//!     const arena = init.arena.allocator();
 //!
-//!     try cloud.gcp_functions.runHandler(allocator, handler, 8080);
+//!     try cloud.gcp_functions.runHandler(arena, handler, 8080);
 //! }
 //! ```
 

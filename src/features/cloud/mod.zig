@@ -32,19 +32,17 @@
 //!     );
 //! }
 //!
-//! pub fn main() !void {
-//!     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-//!     defer _ = gpa.deinit();
-//!     const allocator = gpa.allocator();
+//! pub fn main(init: std.process.Init) !void {
+//!     const arena = init.arena.allocator();
 //!
 //!     // Deploy to AWS Lambda
-//!     try cloud.aws_lambda.runHandler(allocator, handler);
+//!     try cloud.aws_lambda.runHandler(arena, handler);
 //!
 //!     // Or Google Cloud Functions
-//!     // try cloud.gcp_functions.runHandler(allocator, handler, 8080);
+//!     // try cloud.gcp_functions.runHandler(arena, handler, 8080);
 //!
 //!     // Or Azure Functions
-//!     // try cloud.azure_functions.runHandler(allocator, handler);
+//!     // try cloud.azure_functions.runHandler(arena, handler);
 //! }
 //! ```
 //!

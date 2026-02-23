@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2623+27eec9bd6` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1290 pass, 6 skip (1296 total) — must be maintained |
+| **Test baseline** | 1289 pass, 7 skip (1296 total) — must be maintained |
 | **Feature tests** | 2332 pass (2337 total), 5 skip — `zig build feature-tests` |
 | **CLI commands** | 29 commands (+ aliases) |
 | **Feature modules** | 24 (comptime-gated; see Feature Flags) |
@@ -250,7 +250,7 @@ See `AGENTS.md`. Format: `<type>: <short summary>` (feat, fix, docs, refactor, t
 
 ## Testing Patterns
 
-**Main tests**: 1290 pass, 6 skip (1296 total) — `zig build test --summary all`
+**Main tests**: 1289 pass, 7 skip (1296 total) — `zig build test --summary all`
 **Feature tests**: 2332 pass (2337 total), 5 skip — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 (Also in `.claude/rules/zig.md`, auto-loaded for `.zig` files.)

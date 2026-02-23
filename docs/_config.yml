@@ -25,7 +25,7 @@ search_enabled: true
 search_tokenizer_separator: /[\s\-/]+/
 
 # Footer
-footer_content: "Built with Zig 0.16 · ABI v0.4.0 · 1284 pass, 6 skip · 2264 feature tests"
+footer_content: "Built with Zig 0.16 · ABI v0.4.0 · 1289 pass, 7 skip · 2332 feature tests"
 
 # Collections: _docs for all content pages (outputs to /pagename.html)
 collections:

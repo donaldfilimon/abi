@@ -13,12 +13,10 @@
 //!     return try cloud.CloudResponse.json(allocator, "{\"message\":\"Hello from Lambda!\"}");
 //! }
 //!
-//! pub fn main() !void {
-//!     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-//!     defer _ = gpa.deinit();
-//!     const allocator = gpa.allocator();
+//! pub fn main(init: std.process.Init) !void {
+//!     const arena = init.arena.allocator();
 //!
-//!     try cloud.aws_lambda.runHandler(allocator, handler);
+//!     try cloud.aws_lambda.runHandler(arena, handler);
 //! }
 //! ```
 

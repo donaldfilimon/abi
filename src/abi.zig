@@ -10,11 +10,10 @@
 //! const std = @import("std");
 //! const abi = @import("abi");
 //!
-//! pub fn main() !void {
-//!     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-//!     defer _ = gpa.deinit();
+//! pub fn main(init: std.process.Init) !void {
+//!     const arena = init.arena.allocator();
 //!
-//!     var fw = try abi.initDefault(gpa.allocator());
+//!     var fw = try abi.initDefault(arena);
 //!     defer fw.deinit();
 //!
 //!     std.debug.print("ABI v{s}\n", .{abi.version()});

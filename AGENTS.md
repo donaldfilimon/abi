@@ -34,7 +34,7 @@ zig build fix                            # Auto-format in place
 ## Test Commands
 
 ```bash
-zig build test --summary all             # Main test suite (1290 pass, 6 skip)
+zig build test --summary all             # Main test suite (1289 pass, 7 skip)
 zig build feature-tests --summary all    # Feature inline tests (2332 pass)
 zig build cli-tests                      # CLI smoke tests
 zig build validate-flags                 # Compile-check 34 feature flag combos
@@ -151,7 +151,7 @@ Use submodule paths: `abi.ai.core`, `abi.ai.llm`, `abi.ai.training`, `abi.ai.rea
 ## Testing
 
 ### Test Baselines (must be maintained)
-- **Main tests**: 1290 pass, 6 skip (1296 total) -- source of truth: `tools/scripts/baseline.zig`
+- **Main tests**: 1289 pass, 7 skip (1296 total) -- source of truth: `tools/scripts/baseline.zig`
 - **Feature tests**: 2332 pass, 5 skip (2337 total)
 
 ### Test Discovery
