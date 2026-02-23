@@ -122,7 +122,7 @@ fn initClientContext(
     var cfg = env.config;
     applyConfigOverrides(&cfg, params);
 
-    var io_backend = initIoBackend(allocator);
+    var io_backend = try initIoBackend(allocator);
     errdefer io_backend.deinit();
 
     var client = try lsp.Client.init(allocator, io_backend.io(), cfg);
@@ -131,10 +131,10 @@ fn initClientContext(
     return .{ .env = env, .io_backend = io_backend, .client = client };
 }
 
-fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
+fn initIoBackend(allocator: std.mem.Allocator) !std.Io.Threaded {
     const Result = @TypeOf(std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }));
     if (@typeInfo(Result) == .error_union) {
-        return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty }) catch @panic("I/O backend init failed");
+        return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
     }
     return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
 }

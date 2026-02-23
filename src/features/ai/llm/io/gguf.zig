@@ -684,14 +684,14 @@ pub const GgufFile = struct {
         }
     }
 
-    /// Print summary to stderr (convenience wrapper for CLI usage)
+    /// Print summary via std.log (convenience wrapper for CLI usage)
     pub fn printSummaryDebug(self: *const GgufFile) void {
-        const DebugWriter = struct {
+        const LogWriter = struct {
             pub fn print(_: @This(), comptime fmt: []const u8, args: anytype) !void {
-                std.debug.print(fmt, args);
+                std.log.info(fmt, args);
             }
         };
-        self.printSummary(DebugWriter{}) catch {};
+        self.printSummary(LogWriter{}) catch {};
     }
 };
 

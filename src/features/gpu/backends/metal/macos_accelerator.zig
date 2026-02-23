@@ -144,7 +144,9 @@ pub const MacOSAccelerator = struct {
         self.command_queue = msg_send(self.metal_device.?, sel_new_queue) orelse return error.CommandQueueCreationFailed;
 
         // Initialize MPS with the device
-        mps.init(self.metal_device.?, null, null) catch {};
+        mps.init(self.metal_device.?, null, null) catch |err| {
+            std.log.warn("MPS init failed (GPU dispatch unavailable): {}", .{err});
+        };
         self.mps_ready = true;
     }
 
@@ -248,8 +250,9 @@ pub const MacOSAccelerator = struct {
             .mps_gpu => {
                 // Try MPS GPU dispatch if Metal runtime is initialized.
                 if (self.mps_ready and self.metal_device != null and self.command_queue != null) {
-                    self.executeMpsMatmul(a, b, result, m, n, k) catch {
+                    self.executeMpsMatmul(a, b, result, m, n, k) catch |err| {
                         // MPS dispatch failed — fall through to Accelerate CPU
+                        std.log.warn("MPS matmul dispatch failed, falling back to Accelerate CPU: {}", .{err});
                     };
                     // If we get here without error, MPS handled it via shared memory.
                     // The result buffer is already populated (unified memory).
@@ -294,10 +297,16 @@ pub const MacOSAccelerator = struct {
             }
 
             // Step 2: Subtract max (numerical stability) via vDSP_vsadd
-            accelerate.vsadd(data, -max_val, data) catch {};
+            accelerate.vsadd(data, -max_val, data) catch |err| {
+                std.log.warn("accelerate vsadd failed in softmax, falling back to scalar: {}", .{err});
+                for (data) |*v| v.* -= max_val;
+            };
 
             // Step 3: Exponentiate via vForce vvexpf
-            accelerate.vexp(data, data) catch {};
+            accelerate.vexp(data, data) catch |err| {
+                std.log.warn("accelerate vexp failed in softmax, falling back to scalar: {}", .{err});
+                for (data) |*v| v.* = @exp(v.*);
+            };
 
             // Step 4: Sum (scalar — no vDSP_sve wrapper yet)
             var total: f32 = 0;
@@ -305,7 +314,11 @@ pub const MacOSAccelerator = struct {
 
             // Step 5: Normalize via vDSP_vsmul
             if (total > 0) {
-                accelerate.vsmul(data, 1.0 / total, data) catch {};
+                accelerate.vsmul(data, 1.0 / total, data) catch |err| {
+                    std.log.warn("accelerate vsmul failed in softmax, falling back to scalar: {}", .{err});
+                    const inv_total = 1.0 / total;
+                    for (data) |*v| v.* *= inv_total;
+                };
             }
         } else {
             // Scalar fallback
@@ -345,10 +358,16 @@ pub const MacOSAccelerator = struct {
             const rms = 1.0 / @sqrt(sum_sq / @as(f32, @floatFromInt(len)) + eps);
 
             // Step 3: input * weight → output via vDSP_vmul (slice-based)
-            accelerate.vmul(input[0..len], weight[0..len], output[0..len]) catch {};
+            accelerate.vmul(input[0..len], weight[0..len], output[0..len]) catch |err| {
+                std.log.warn("accelerate vmul failed in rmsnorm, falling back to scalar: {}", .{err});
+                for (0..len) |i| output[i] = input[i] * weight[i];
+            };
 
             // Step 4: Scale by RMS via vDSP_vsmul (slice-based)
-            accelerate.vsmul(output[0..len], rms, output[0..len]) catch {};
+            accelerate.vsmul(output[0..len], rms, output[0..len]) catch |err| {
+                std.log.warn("accelerate vsmul failed in rmsnorm, falling back to scalar: {}", .{err});
+                for (0..len) |i| output[i] *= rms;
+            };
         } else {
             // Scalar fallback
             var sum_sq: f32 = 0;
@@ -390,7 +409,10 @@ pub const MacOSAccelerator = struct {
                     continue;
                 };
                 // Step 2: exp(-x) via vForce
-                accelerate.vexp(dst, dst) catch {};
+                accelerate.vexp(dst, dst) catch |err| {
+                    std.log.warn("accelerate vexp failed in silu, falling back to scalar: {}", .{err});
+                    for (dst) |*v| v.* = @exp(v.*);
+                };
                 // Step 3: x * sigmoid(x)
                 for (0..remaining) |i| {
                     const sigmoid = 1.0 / (1.0 + tmp[i]);
@@ -430,7 +452,10 @@ pub const MacOSAccelerator = struct {
                     dst[i] = sqrt_2_over_pi * (x + 0.044715 * x * x * x);
                 }
                 // tanh via vForce vvtanhf (slice-based)
-                accelerate.vtanh(dst, dst) catch {};
+                accelerate.vtanh(dst, dst) catch |err| {
+                    std.log.warn("accelerate vtanh failed in gelu, falling back to scalar: {}", .{err});
+                    for (dst) |*v| v.* = std.math.tanh(v.*);
+                };
                 // result = 0.5 * x * (1 + tanh(inner))
                 for (0..remaining) |i| {
                     data[offset + i] = 0.5 * data[offset + i] * (1.0 + tmp[i]);

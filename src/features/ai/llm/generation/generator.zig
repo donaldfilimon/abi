@@ -269,10 +269,10 @@ pub const Generator = struct {
     }
 };
 
-/// Display function: writes streaming text directly to stderr.
+/// Display function: logs streaming text via std.log.
 /// For writing to a specific destination, use `streamToWriter` instead.
 pub fn streamToStdout(text: []const u8) void {
-    std.debug.print("{s}", .{text});
+    std.log.info("{s}", .{text});
 }
 
 /// Write streaming text to an arbitrary writer.

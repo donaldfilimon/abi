@@ -471,11 +471,11 @@ pub const SSEFormatter = struct {
     }
 };
 
-/// Display function: writes streaming token text directly to stderr.
+/// Display function: logs streaming token text via std.log.
 /// For writing to a specific destination, use `streamEventToWriter` instead.
 pub fn streamToStdout(event: TokenEvent) void {
     if (event.text) |text| {
-        std.debug.print("{s}", .{text});
+        std.log.info("{s}", .{text});
     }
 }
 
@@ -486,13 +486,13 @@ pub fn streamEventToWriter(event: TokenEvent, writer: anytype) !void {
     }
 }
 
-/// Display function: prints generation stats directly to stderr.
+/// Display function: logs generation stats via std.log.
 /// For writing to a specific destination, use `writeCompletionStats` instead.
 pub fn printCompletionStats(stats: StreamingStats) void {
-    std.debug.print("\n\n--- Generation Complete ---\n", .{});
-    std.debug.print("Tokens: {d}\n", .{stats.tokens_generated});
-    std.debug.print("Speed: {d:.1} tok/s\n", .{stats.tokensPerSecond()});
-    std.debug.print("Time to first token: {d:.1}ms\n", .{stats.timeToFirstTokenMs()});
+    std.log.info("--- Generation Complete ---", .{});
+    std.log.info("Tokens: {d}", .{stats.tokens_generated});
+    std.log.info("Speed: {d:.1} tok/s", .{stats.tokensPerSecond()});
+    std.log.info("Time to first token: {d:.1}ms", .{stats.timeToFirstTokenMs()});
 }
 
 /// Write generation stats to an arbitrary writer.

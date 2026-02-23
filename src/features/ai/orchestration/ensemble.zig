@@ -27,7 +27,7 @@ pub const EnsembleMethod = enum {
     custom,
 
     pub fn toString(self: EnsembleMethod) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -476,8 +476,9 @@ test "averaging ensemble with numbers" {
     defer std.testing.allocator.free(result.response);
 
     // Average should be 11.0
-    // SAFETY: The averaging ensemble method always produces a valid float string via allocPrint("{d:.6}", ...).
-    // Test inputs are controlled numeric strings that produce a predictable numeric output.
-    const avg = std.fmt.parseFloat(f64, result.response) catch unreachable;
+    const avg = std.fmt.parseFloat(f64, result.response) catch |err| {
+        std.debug.print("ensemble test: failed to parse '{s}': {}\n", .{ result.response, err });
+        return error.InvalidResponse;
+    };
     try std.testing.expect(@abs(avg - 11.0) < 0.001);
 }

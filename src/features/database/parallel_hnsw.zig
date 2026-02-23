@@ -648,9 +648,7 @@ pub const ParallelHnswBuilder = struct {
         const m_l = 1.0 / @log(@as(f32, @floatFromInt(self.config.m)));
         const seed = self.config.seed orelse blk: {
             var buf: [8]u8 = undefined;
-            std.posix.getrandom(&buf) catch {
-                break :blk 42;
-            };
+            std.c.arc4random_buf(&buf, buf.len);
             break :blk std.mem.readInt(u64, &buf, .little);
         };
 
