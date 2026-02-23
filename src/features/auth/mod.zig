@@ -276,3 +276,7 @@ pub fn checkPermission(user_id: []const u8, permission: Permission) AuthError!bo
 test {
     _ = @import("auth_test.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

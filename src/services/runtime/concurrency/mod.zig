@@ -243,3 +243,7 @@ test "work queue is FIFO" {
     try std.testing.expectEqual(@as(?u32, 3), queue.dequeue());
     try std.testing.expectEqual(@as(?u32, null), queue.dequeue());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

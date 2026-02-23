@@ -193,3 +193,7 @@ pub fn createPipeline(allocator: std.mem.Allocator) RagPipeline {
 pub fn createPipelineWithConfig(allocator: std.mem.Allocator, config: RagConfig) RagPipeline {
     return RagPipeline.init(allocator, config);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

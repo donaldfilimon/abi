@@ -164,3 +164,7 @@ test "platform category detection" {
     const is_any = isDesktop() or isMobile() or isWasm();
     _ = is_any; // May be false on unusual platforms, that's ok
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

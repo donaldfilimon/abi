@@ -119,3 +119,7 @@ pub fn getCircuitState(_: []const u8) CircuitBreakerState {
     return .closed;
 }
 pub fn resetCircuit(_: []const u8) void {}
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -6,6 +6,7 @@
 //! - `base`: Core buffer types, synchronous pool, async transfers
 //! - `pool`: Advanced size-class allocation with fragmentation mitigation
 //! - `lockfree`: Lock-free resource pool with generational handles
+const std = @import("std");
 
 pub const base = @import("base.zig");
 pub const pool = @import("pool.zig");
@@ -39,4 +40,8 @@ test {
     _ = base;
     _ = pool;
     _ = lockfree;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

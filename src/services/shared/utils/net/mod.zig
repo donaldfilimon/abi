@@ -63,3 +63,7 @@ test "parseHostPort handles ipv4 and ipv6" {
     try std.testing.expectEqualStrings("::1", hp6.host);
     try std.testing.expectEqual(@as(u16, 9090), hp6.port);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

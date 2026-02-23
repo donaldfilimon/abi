@@ -991,3 +991,7 @@ test "LayoutAnalyzer stats" {
     try std.testing.expect(stats.word_count >= 9);
     try std.testing.expectEqual(@as(usize, 3), stats.line_count);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

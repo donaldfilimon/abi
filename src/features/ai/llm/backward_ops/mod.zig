@@ -105,3 +105,7 @@ test "gradient clipping by value" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.5), grad[1], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), grad[2], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

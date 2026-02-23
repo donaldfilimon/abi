@@ -180,3 +180,7 @@ pub fn aggregatePerplexity(_: []const PerplexityResult) PerplexityResult {
 pub fn computePerplexityFromProbs(_: []const f64) PerplexityResult {
     return .{};
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

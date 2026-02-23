@@ -1,4 +1,5 @@
 //! Constitution Stub — Returns safe defaults when AI is not compiled.
+const std = @import("std");
 
 const root = @This();
 
@@ -103,3 +104,7 @@ pub const Constitution = struct {
         return &[_]root.Principle{};
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

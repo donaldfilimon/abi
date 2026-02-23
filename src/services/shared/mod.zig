@@ -201,3 +201,7 @@ test "shared module" {
     // Basic smoke test
     try std.testing.expect(hasSimdSupport() or !hasSimdSupport());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -83,3 +83,7 @@ pub fn listObjects(_: std.mem.Allocator, _: []const u8) StorageError![]StorageOb
 pub fn stats() StorageStats {
     return .{};
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

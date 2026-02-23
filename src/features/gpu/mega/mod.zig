@@ -65,6 +65,7 @@
 //!
 //! The Coordinator uses internal synchronization for thread-safe operation.
 //! Multiple threads can call `schedule()` concurrently.
+const std = @import("std");
 
 pub const coordinator = @import("coordinator.zig");
 pub const scheduler = @import("scheduler.zig");
@@ -145,4 +146,8 @@ test {
     _ = queue;
     _ = failover;
     _ = metrics;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

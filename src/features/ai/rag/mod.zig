@@ -402,3 +402,7 @@ test {
     _ = retriever;
     _ = context;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

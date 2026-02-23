@@ -32,6 +32,7 @@
 //! var buffer: [1024]u8 = undefined;
 //! var stack = memory.stack.StackAllocator.init(&buffer);
 //! ```
+const std = @import("std");
 
 pub const pool = @import("pool.zig");
 pub const zerocopy = @import("zerocopy.zig");
@@ -76,4 +77,8 @@ test {
     _ = thread_cache;
     _ = arena_pool;
     _ = combinators;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

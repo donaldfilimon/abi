@@ -480,3 +480,7 @@ test "disableFeature fails for comptime_only" {
 
     try std.testing.expectError(Registry.Error.InvalidMode, reg.disableFeature(.gpu));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

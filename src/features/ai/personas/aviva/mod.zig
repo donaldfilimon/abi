@@ -325,3 +325,7 @@ test "query type helpers" {
     try std.testing.expect(!QueryType.factual_query.recommendsCodeBlock());
     try std.testing.expect(QueryType.factual_query.recommendsBrevity());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

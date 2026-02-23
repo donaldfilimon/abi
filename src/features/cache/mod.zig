@@ -954,3 +954,7 @@ test "cache FIFO shared read lock path" {
     try std.testing.expect(val != null);
     try std.testing.expectEqualSlices(u8, "hello", val.?);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

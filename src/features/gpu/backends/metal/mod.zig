@@ -33,6 +33,7 @@
 //!     // Data can be shared between CPU and GPU without explicit copies
 //! }
 //! ```
+const std = @import("std");
 
 // Core submodules
 pub const quantized_kernels = @import("quantized_kernels.zig");
@@ -143,4 +144,8 @@ test {
     _ = mesh_shaders;
     _ = ray_tracing;
     _ = macos_accelerator;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

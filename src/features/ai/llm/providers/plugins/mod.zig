@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const manifest = @import("manifest.zig");
 pub const loader = @import("loader.zig");
 pub const http_plugin = @import("http_plugin.zig");
@@ -9,7 +11,6 @@ pub const native_plugin = @import("native_plugin.zig");
 // ============================================================================
 
 test "module re-exports are accessible" {
-    const std = @import("std");
     // Verify all submodule types are reachable
     _ = manifest.Manifest;
     _ = manifest.PluginEntry;
@@ -31,4 +32,8 @@ test {
     _ = http_plugin;
     _ = native_abi_v1;
     _ = native_plugin;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

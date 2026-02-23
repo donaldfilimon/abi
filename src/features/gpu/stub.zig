@@ -361,3 +361,7 @@ pub fn deinit() void {}
 pub fn ensureInitialized(_: std.mem.Allocator) Error!void {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

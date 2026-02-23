@@ -141,3 +141,7 @@ test "buildKernelIR for all types" {
         try std.testing.expect(ir.buffers.len > 0);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

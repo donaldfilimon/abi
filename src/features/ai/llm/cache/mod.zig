@@ -32,3 +32,7 @@ test "cache module imports" {
     _ = ring_buffer;
     _ = paged_kv_cache;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

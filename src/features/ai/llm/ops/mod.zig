@@ -82,3 +82,7 @@ test "ops module imports" {
     _ = gpu_memory_pool;
     _ = backward;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

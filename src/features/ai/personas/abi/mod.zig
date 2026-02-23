@@ -304,3 +304,7 @@ test "AbiRouter policy violation" {
     try std.testing.expect(decision.selected_persona == .abi);
     try std.testing.expect(!decision.policy_flags.is_safe);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

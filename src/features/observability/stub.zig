@@ -160,3 +160,7 @@ pub const SystemInfo = system_info.SystemInfo;
 
 // Core Metrics Module (Stub)
 pub const core_metrics = @import("stubs/core_metrics.zig");
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -400,3 +400,7 @@ test {
     _ = local;
     _ = external;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -246,3 +246,7 @@ test {
     _ = renderer;
     _ = library;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

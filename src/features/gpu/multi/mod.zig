@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const multi_device = @import("../multi_device.zig");
 
 pub const cluster = @import("../cluster/context.zig");
@@ -31,3 +33,7 @@ pub const DeviceChunk = multi_device.DeviceChunk;
 pub const ClusterStats = multi_device.ClusterStats;
 pub const GradientBucket = multi_device.GradientBucket;
 pub const GradientBucketManager = multi_device.GradientBucketManager;
+
+test {
+    std.testing.refAllDecls(@This());
+}

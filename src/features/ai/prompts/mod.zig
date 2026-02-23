@@ -71,3 +71,7 @@ test "prompt module basics" {
 
     try std.testing.expect(prompt.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

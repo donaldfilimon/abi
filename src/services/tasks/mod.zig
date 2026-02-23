@@ -313,3 +313,7 @@ test "Manager list sorting by priority" {
     try std.testing.expectEqual(Priority.normal, sorted_asc[1].priority);
     try std.testing.expectEqual(Priority.high, sorted_asc[2].priority);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

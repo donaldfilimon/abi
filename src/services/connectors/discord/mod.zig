@@ -209,3 +209,7 @@ test "permission check" {
     try std.testing.expect(hasPermission(perms, Permission.ADMINISTRATOR));
     try std.testing.expect(!hasPermission(perms, Permission.MANAGE_GUILD));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

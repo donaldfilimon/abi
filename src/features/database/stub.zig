@@ -313,3 +313,7 @@ pub fn openFromFile(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
 pub fn openOrCreate(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

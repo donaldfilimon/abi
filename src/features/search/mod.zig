@@ -892,3 +892,7 @@ test "search single character query" {
     defer allocator.free(results);
     try std.testing.expectEqual(@as(usize, 1), results.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

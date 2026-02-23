@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const types = @import("types.zig");
 pub const selection = @import("selection.zig");
 pub const create = @import("create.zig");
@@ -20,3 +22,7 @@ pub const detectAvailableBackends = selection.detectAvailableBackends;
 pub const isBackendAvailable = selection.isBackendAvailable;
 pub const selectBestBackendWithFallback = selection.selectBestBackendWithFallback;
 pub const selectBackendWithFeatures = selection.selectBackendWithFeatures;
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -649,3 +649,7 @@ test "transformer inference" {
 
     try std.testing.expect(output.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

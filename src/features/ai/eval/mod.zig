@@ -370,3 +370,7 @@ test {
     _ = metrics;
     _ = tokenizer;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

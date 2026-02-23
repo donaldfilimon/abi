@@ -16,3 +16,7 @@ pub const SystemInfo = struct {
         return error.FeatureDisabled;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

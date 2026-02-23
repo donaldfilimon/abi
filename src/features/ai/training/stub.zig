@@ -715,3 +715,7 @@ pub const trainable_model = struct {
     pub const TrainableModel = stub_root.TrainableModel;
     pub const TrainableModelConfig = stub_root.TrainableModelConfig;
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

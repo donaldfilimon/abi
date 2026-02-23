@@ -143,3 +143,7 @@ pub fn deinit() void {}
 pub fn createAgent(_: std.mem.Allocator, _: []const u8) !Agent {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

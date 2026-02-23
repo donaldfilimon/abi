@@ -809,3 +809,7 @@ test "gateway getRoutes returns all routes" {
     const routes = getRoutes();
     try std.testing.expectEqual(@as(usize, 3), routes.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

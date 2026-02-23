@@ -244,3 +244,7 @@ test {
     _ = manager;
     _ = persistence;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

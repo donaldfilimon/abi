@@ -308,3 +308,7 @@ pub fn createMemoryManager(allocator: std.mem.Allocator) MemoryManager {
 pub fn createMemoryManagerWithConfig(allocator: std.mem.Allocator, config: MemoryConfig) MemoryManager {
     return MemoryManager.init(allocator, config);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

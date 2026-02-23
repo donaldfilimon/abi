@@ -317,3 +317,7 @@ pub fn parseJsonValue(_: std.mem.Allocator, _: Response) !ParsedJson {
 pub fn isSuccessStatus(status: u16) bool {
     return http.isSuccess(status);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

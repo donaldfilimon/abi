@@ -830,3 +830,7 @@ test {
     _ = aggregation;
     _ = messaging;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

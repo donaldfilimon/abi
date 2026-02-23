@@ -303,3 +303,7 @@ test "steal policy types accessible" {
     _ = StealPolicyConfig;
     _ = StealStats;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

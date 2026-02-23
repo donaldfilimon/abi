@@ -1,6 +1,7 @@
 //! AI Core stub — active when AI feature is disabled.
 //!
 //! Provides disabled versions of fundamental types and configuration.
+const std = @import("std");
 
 // ============================================================================
 // Core Types
@@ -132,4 +133,8 @@ pub fn getTimestampSec() i64 {
 }
 pub fn loadConfigFromEnvironment() !AbbeyConfig {
     return error.FeatureDisabled;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

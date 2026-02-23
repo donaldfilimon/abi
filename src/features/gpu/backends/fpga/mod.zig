@@ -80,3 +80,7 @@ pub fn getDeviceInfo(device_id: u32) error{DeviceNotFound}!struct {
         .is_emulated = true,
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

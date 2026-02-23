@@ -583,3 +583,7 @@ test "SIMD normalizeEmbedding handles already normalized" {
     try std.testing.expectEqual(@as(f32, 1.0), normalized[0]);
     try std.testing.expectEqual(@as(f32, 0.0), normalized[1]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

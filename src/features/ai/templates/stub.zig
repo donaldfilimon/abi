@@ -121,3 +121,7 @@ pub fn formatChatHistory(_: std.mem.Allocator, _: []const ChatMessage) ![]u8 {
 }
 
 pub const ChatMessage = struct { role: []const u8, content: []const u8 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

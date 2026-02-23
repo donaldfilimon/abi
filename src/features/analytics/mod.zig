@@ -547,3 +547,7 @@ test "Event.Value union variants" {
         else => return error.TestUnexpectedResult,
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

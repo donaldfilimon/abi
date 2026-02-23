@@ -453,3 +453,7 @@ test "HaConfig default values" {
     try std.testing.expectEqual(@as(u32, 30), config.health_check_interval_sec);
     try std.testing.expect(config.auto_failover);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

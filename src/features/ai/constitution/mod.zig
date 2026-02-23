@@ -9,6 +9,7 @@
 //! - Training: `computeConstitutionalLoss()` → weight RLHF reward
 //! - Post-generation: `evaluateResponse()` → validate outputs
 //! - Reflection: `alignmentScore()` → Abbey self-evaluation
+const std = @import("std");
 
 pub const principles = @import("principles.zig");
 pub const enforcement = @import("enforcement.zig");
@@ -96,4 +97,8 @@ test "Constitution principles count" {
 test {
     _ = principles;
     _ = enforcement;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

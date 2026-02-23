@@ -25,3 +25,7 @@ test "model module imports" {
     _ = layer;
     _ = llama;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

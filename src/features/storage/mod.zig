@@ -1164,3 +1164,7 @@ test "guessContentType known extensions" {
     try std.testing.expectEqualStrings("application/octet-stream", guessContentType("noext"));
     try std.testing.expectEqualStrings("text/markdown", guessContentType("README.md"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

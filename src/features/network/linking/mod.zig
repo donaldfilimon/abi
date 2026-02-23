@@ -666,3 +666,7 @@ test "LinkStats recording" {
     stats.recordError(true);
     try std.testing.expectEqual(@as(u64, 1), stats.send_errors);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

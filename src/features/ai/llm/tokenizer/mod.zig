@@ -262,3 +262,7 @@ test "unified tokenizer init" {
     try std.testing.expectEqual(TokenizerKind.unknown, unk_tok.getKind());
     try std.testing.expectEqual(@as(u32, 0), unk_tok.vocabSize());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -139,3 +139,7 @@ test {
     _ = learning;
     _ = gpu_ops;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

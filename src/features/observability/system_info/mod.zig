@@ -24,3 +24,7 @@ pub const SystemInfo = struct {
         return utils.unixMs();
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

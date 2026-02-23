@@ -138,3 +138,7 @@ pub fn readSensor(_: []const u8) MobileError!SensorData {
 pub fn sendNotification(_: []const u8, _: []const u8) MobileError!void {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

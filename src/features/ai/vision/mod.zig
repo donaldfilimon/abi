@@ -340,3 +340,7 @@ test {
     _ = vit;
     _ = multimodal;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

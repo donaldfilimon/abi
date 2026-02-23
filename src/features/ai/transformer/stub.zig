@@ -54,3 +54,7 @@ pub const TransformerModel = struct {
         return error.FeatureDisabled;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

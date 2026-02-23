@@ -5,6 +5,7 @@
 //! - `types`: Error types, configuration structs, execution results
 //! - `coordinator`: Kernel compilation and dispatch to backends
 //! - `batch`: Batched small-operation dispatcher
+const std = @import("std");
 
 pub const types = @import("types.zig");
 pub const coordinator = @import("coordinator.zig");
@@ -35,4 +36,8 @@ test {
     _ = types;
     _ = coordinator;
     _ = batch;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

@@ -250,3 +250,7 @@ pub const ViTConfig = struct {
         return .{ .image_size = image_size, .patch_size = patch_size, .hidden_size = 1280, .num_layers = 32, .num_heads = 16, .mlp_dim = 5120 };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

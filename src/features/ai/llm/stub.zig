@@ -859,3 +859,7 @@ pub fn isEnabled() bool {
 pub fn infer(_: std.mem.Allocator, _: []const u8, _: []const u8) LlmError![]u8 {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

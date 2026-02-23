@@ -39,3 +39,7 @@ test "io module imports" {
     _ = gguf_writer;
     _ = tensor_loader;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

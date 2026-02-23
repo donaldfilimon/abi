@@ -406,3 +406,7 @@ test {
     _ = semantic;
     _ = @import("working.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

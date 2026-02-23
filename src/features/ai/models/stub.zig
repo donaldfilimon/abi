@@ -211,3 +211,7 @@ test "stub returns disabled error" {
     const manager_result = Manager.init(std.testing.allocator, .{});
     try std.testing.expectError(error.ModelsDisabled, manager_result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

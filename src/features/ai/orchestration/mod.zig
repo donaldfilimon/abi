@@ -923,3 +923,7 @@ test {
     _ = ensemble;
     _ = fallback;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

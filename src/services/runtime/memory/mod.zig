@@ -438,3 +438,7 @@ test "ZeroCopyBuffer wrap" {
     data[0] = 99;
     try std.testing.expectEqual(@as(u8, 99), buf.slice()[0]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

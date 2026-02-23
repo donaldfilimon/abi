@@ -42,3 +42,7 @@ pub fn writeTokenBinFile(_: std.mem.Allocator, _: []const u8, _: []const u32) !v
 pub fn exportGguf(_: std.mem.Allocator, _: anytype, _: []const u8) !void {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -959,3 +959,7 @@ test "messaging patternMatches internal function" {
     try std.testing.expect(patternMatches("", ""));
     try std.testing.expect(!patternMatches("foo", ""));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

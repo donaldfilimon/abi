@@ -246,3 +246,7 @@ test "format roundtrip integration" {
     defer allocator.free(data);
     try std.testing.expectEqual(@as(usize, 32), data.len); // 8 floats * 4 bytes
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

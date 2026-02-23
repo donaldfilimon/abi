@@ -121,3 +121,7 @@ pub const Experiment = struct {
         return 0;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

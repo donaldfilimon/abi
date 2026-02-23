@@ -119,3 +119,7 @@ test "huggingface types available" {
     _ = HuggingFaceModel;
     _ = SearchResult;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

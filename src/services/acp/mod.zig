@@ -575,3 +575,7 @@ test "appendEscaped handles control characters" {
     try std.testing.expect(std.mem.indexOf(u8, buf.items, "\\t") != null);
     try std.testing.expect(std.mem.indexOf(u8, buf.items, "\\u") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

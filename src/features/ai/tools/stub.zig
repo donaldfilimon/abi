@@ -236,3 +236,7 @@ pub fn generateToolDescriptions(_: anytype, _: std.mem.Allocator) error{FeatureD
 pub fn parseToolCalls(_: []const u8, _: std.mem.Allocator) error{FeatureDisabled}!std.ArrayListUnmanaged(ToolCallRequest) {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

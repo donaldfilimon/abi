@@ -667,3 +667,7 @@ test "PitrManager stub operations" {
     try std.testing.expectEqual(@as(usize, 0), pm.getRecoveryPoints().len);
     try std.testing.expect(pm.findNearestRecoveryPoint(12345) == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

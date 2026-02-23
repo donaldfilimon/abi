@@ -3,6 +3,7 @@
 //! Mirrors the public API surface of each real connector but returns
 //! `error.ConnectorsDisabled` for all operations. Used when connectors
 //! are compiled out or for type-checking without network dependencies.
+const std = @import("std");
 
 pub const openai = @import("openai.zig");
 pub const codex = @import("codex.zig");
@@ -22,3 +23,7 @@ pub const llama_cpp = @import("llama_cpp.zig");
 pub const discord = @import("discord.zig");
 pub const local_scheduler = @import("local_scheduler.zig");
 pub const contract = @import("contract.zig");
+
+test {
+    std.testing.refAllDecls(@This());
+}

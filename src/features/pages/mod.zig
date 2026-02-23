@@ -811,3 +811,7 @@ test "pages add page with auth and cache" {
     try std.testing.expectEqual(@as(u64, 60000), page.?.cache_ttl_ms);
     try std.testing.expectEqual(HttpMethod.POST, page.?.method);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

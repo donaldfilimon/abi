@@ -168,3 +168,7 @@ test "agents context tool registry lazy initialization" {
     const registry2 = try ctx.getToolRegistry();
     try std.testing.expect(registry1 == registry2);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

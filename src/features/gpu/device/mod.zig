@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const types = @import("types.zig");
 pub const vendor = @import("vendor.zig");
 pub const selector = @import("selector.zig");
@@ -11,3 +13,7 @@ pub const DeviceFeature = types.DeviceFeature;
 pub const DeviceSelector = types.DeviceSelector;
 pub const DeviceSelectionCriteria = types.DeviceSelectionCriteria;
 pub const DeviceManager = manager.DeviceManager;
+
+test {
+    std.testing.refAllDecls(@This());
+}

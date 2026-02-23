@@ -223,3 +223,7 @@ test "mergeSearchResults correctness" {
     try std.testing.expectEqual(@as(u64, 2), merged[1].vector_id); // distance 0.2
     try std.testing.expectEqual(@as(u64, 4), merged[2].vector_id); // distance 0.3
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

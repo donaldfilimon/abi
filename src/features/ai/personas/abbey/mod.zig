@@ -307,3 +307,7 @@ test "reasoning module re-exports" {
     _ = ReasoningChain;
     _ = ReasoningStep;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

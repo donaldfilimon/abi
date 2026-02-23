@@ -624,3 +624,7 @@ test {
     _ = @import("request_types.zig");
     _ = @import("server_test.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

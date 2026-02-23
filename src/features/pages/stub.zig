@@ -125,3 +125,7 @@ pub fn listPages() []const Page {
 pub fn stats() PagesStats {
     return .{};
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -341,3 +341,7 @@ pub const BackendConfig = struct {
     /// GLSL target variant (Vulkan, OpenGL, or OpenGL ES). Only used when language == .glsl.
     glsl_target: glsl.Target = .vulkan,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -67,3 +67,7 @@ pub fn query(_: std.mem.Allocator, _: []const u8, _: []const u8) SearchError![]S
 pub fn stats() SearchStats {
     return .{};
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

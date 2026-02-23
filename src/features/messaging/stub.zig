@@ -101,3 +101,7 @@ pub fn clearDeadLetters() void {}
 pub fn messagingStats() MessagingStats {
     return .{};
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

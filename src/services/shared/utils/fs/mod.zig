@@ -120,3 +120,7 @@ test "normalizeBackupPath rejects invalid paths" {
     try std.testing.expectError(PathValidationError.InvalidPath, normalizeBackupPath(std.testing.allocator, "../etc/passwd"));
     try std.testing.expectError(PathValidationError.InvalidPath, normalizeBackupPath(std.testing.allocator, "/absolute/path"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

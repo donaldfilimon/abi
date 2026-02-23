@@ -61,3 +61,7 @@ test "hex encoding roundtrip" {
 test "hex decode rejects odd length" {
     try std.testing.expectError(EncodingError.InvalidHex, hexDecode(std.testing.allocator, "abc"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

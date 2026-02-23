@@ -320,3 +320,7 @@ test "createWdbxServer registers tools" {
     try std.testing.expectEqualStrings("db_list", server.tools.items[3].def.name);
     try std.testing.expectEqualStrings("db_delete", server.tools.items[4].def.name);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

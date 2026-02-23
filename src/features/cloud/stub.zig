@@ -113,3 +113,7 @@ pub fn isEnabled() bool {
 pub fn isInitialized() bool {
     return initialized;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

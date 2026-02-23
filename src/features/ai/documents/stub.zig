@@ -174,3 +174,7 @@ pub const Error = DocumentPipeline.Error;
 pub fn isEnabled() bool {
     return false;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

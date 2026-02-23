@@ -302,3 +302,7 @@ test "escape string control characters" {
 
     try std.testing.expectEqualSlices(u8, input, parsed.value.string);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

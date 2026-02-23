@@ -335,3 +335,7 @@ test "DSL module exports" {
     _ = AccessMode.read_only;
     _ = BuiltinKernel.vector_add;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -87,3 +87,7 @@ pub fn createBuilderWithPersona(allocator: std.mem.Allocator, persona_type: Pers
 pub fn createBuilderWithCustomPersona(allocator: std.mem.Allocator, persona: Persona) PromptBuilder {
     return PromptBuilder.initCustom(allocator, persona);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

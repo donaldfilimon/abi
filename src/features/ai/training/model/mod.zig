@@ -1,6 +1,7 @@
 //! Trainable Model Module
 //!
 //! Refactored model structure.
+const std = @import("std");
 
 pub const config = @import("config.zig");
 pub const layer = @import("layer.zig");
@@ -16,3 +17,7 @@ pub const TrainableLayerWeights = layer.TrainableLayerWeights;
 pub const TrainableWeights = weights.TrainableWeights;
 pub const ActivationCache = cache.ActivationCache;
 pub const TrainableModel = model.TrainableModel;
+
+test {
+    std.testing.refAllDecls(@This());
+}

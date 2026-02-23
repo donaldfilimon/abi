@@ -65,3 +65,7 @@ test "tensor module imports" {
     _ = quantized;
     _ = view;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -2,6 +2,7 @@
 //!
 //! Provides shared implementations of common resilience patterns used
 //! across feature modules (network, streaming, gateway).
+const std = @import("std");
 
 pub const circuit_breaker = @import("circuit_breaker.zig");
 pub const rate_limiter = @import("rate_limiter.zig");
@@ -28,4 +29,8 @@ pub const SimpleRateLimiter = rate_limiter.SimpleRateLimiter;
 test {
     _ = circuit_breaker;
     _ = rate_limiter;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

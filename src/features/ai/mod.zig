@@ -536,3 +536,7 @@ test "ai module init gating" {
     deinit();
     try std.testing.expect(!isInitialized());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

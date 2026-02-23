@@ -42,3 +42,7 @@ test "generation module imports" {
     _ = batch;
     _ = streaming;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -38,6 +38,7 @@
 //!     code: wasmModule.exports.getQ4ShaderSource()
 //! });
 //! ```
+const std = @import("std");
 
 pub const quantized_kernels = @import("quantized_kernels.zig");
 
@@ -59,4 +60,8 @@ pub fn isAvailable() bool {
 
 test {
     _ = quantized_kernels;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

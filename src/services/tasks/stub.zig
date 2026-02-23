@@ -385,3 +385,7 @@ pub fn init(_: std.mem.Allocator) ManagerError!void {
 }
 
 pub fn deinit() void {}
+
+test {
+    std.testing.refAllDecls(@This());
+}

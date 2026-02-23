@@ -736,3 +736,7 @@ test "DevicePair hashing" {
     try std.testing.expect(pair1.eql(pair3));
     try std.testing.expect(!pair1.eql(pair2));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

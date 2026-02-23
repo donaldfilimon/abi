@@ -88,3 +88,7 @@ pub const Coordinator = struct {
         return 0;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -1321,3 +1321,7 @@ test "parity suite is catalog-backed" {
         try std.testing.expect(required.len > 0);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

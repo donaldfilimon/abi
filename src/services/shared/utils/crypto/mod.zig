@@ -150,3 +150,7 @@ test "sha256 and constant time compare" {
     try std.testing.expect(constantTimeEqual("same", "same"));
     try std.testing.expect(!constantTimeEqual("same", "diff"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

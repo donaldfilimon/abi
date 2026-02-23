@@ -655,3 +655,7 @@ fn stubTimestampSec() i64 {
 fn stubLoadFromEnvironment() !StubAbbeyConfig {
     return error.FeatureDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

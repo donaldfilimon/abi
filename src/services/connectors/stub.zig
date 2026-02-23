@@ -428,3 +428,7 @@ test "connectors stub isAvailable returns false" {
     try std.testing.expect(!vllm.isAvailable());
     try std.testing.expect(!mlx.isAvailable());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

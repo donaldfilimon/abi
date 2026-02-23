@@ -510,3 +510,7 @@ fn loadCudaFunctions(allocator: std.mem.Allocator) bool {
     const funcs = cuda_loader.load(allocator) catch return false;
     return funcs.core.cuInit != null and funcs.core.cuDeviceGetCount != null;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

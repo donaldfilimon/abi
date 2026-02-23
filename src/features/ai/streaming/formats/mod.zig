@@ -112,3 +112,7 @@ test "format abi chunk" {
 test {
     _ = openai;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

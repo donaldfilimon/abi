@@ -320,3 +320,7 @@ test "AuthHeader.header returns HTTP header" {
 test "isEnabled always returns true" {
     try std.testing.expect(isEnabled());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

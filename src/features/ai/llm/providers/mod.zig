@@ -26,3 +26,7 @@ pub fn generate(allocator: std.mem.Allocator, cfg: GenerateConfig) !GenerateResu
 pub fn getModelProfile(name: []const u8) ?*const ModelProfile {
     return model_profiles.getProfile(name);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

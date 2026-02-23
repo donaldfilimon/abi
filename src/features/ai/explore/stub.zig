@@ -672,7 +672,6 @@ pub fn isEnabled() bool {
     return false;
 }
 
-// Fix 10: refAllDecls test at end of file
 test {
     std.testing.refAllDecls(@This());
 }

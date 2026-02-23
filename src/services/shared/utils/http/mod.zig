@@ -103,3 +103,7 @@ test "http helpers" {
     try std.testing.expect(isSuccess(200));
     try std.testing.expect(!isSuccess(404));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -68,3 +68,7 @@ pub fn size() u32 {
 pub fn stats() CacheStats {
     return .{};
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

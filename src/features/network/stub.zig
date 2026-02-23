@@ -321,3 +321,7 @@ pub fn initWithConfig(_: std.mem.Allocator, _: NetworkConfig) Error!void {
     return error.FeatureDisabled;
 }
 pub fn deinit() void {}
+
+test {
+    std.testing.refAllDecls(@This());
+}
