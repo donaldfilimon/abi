@@ -11,8 +11,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | **Zig** | `0.16.0-dev.2623+27eec9bd6` or newer (pinned in `.zigversion`) |
 | **Entry Point** | `src/abi.zig` |
 | **Version** | 0.4.0 |
-| **Test baseline** | 1289 pass, 7 skip (1296 total) — must be maintained |
-| **Feature tests** | 2332 pass (2337 total), 5 skip — `zig build feature-tests` |
+| **Test baseline** | 1290 pass, 6 skip (1296 total) — must be maintained |
+| **Feature tests** | 2360 pass (2365 total), 5 skip — `zig build feature-tests` |
 | **CLI commands** | 29 commands (+ aliases) |
 | **Feature modules** | 24 (comptime-gated; see Feature Flags) |
 
@@ -73,7 +73,7 @@ Feature-related commands and flags: [Features and the CLI](#features-and-the-cli
 |------------|-----|
 | Any `.zig` file | `zig fmt .` |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 2332+) |
+| Feature inline tests | `zig build feature-tests --summary all` (must stay at 2360+) |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Anything (full gate) | `zig build full-check` |
@@ -250,8 +250,8 @@ See `AGENTS.md`. Format: `<type>: <short summary>` (feat, fix, docs, refactor, t
 
 ## Testing Patterns
 
-**Main tests**: 1289 pass, 7 skip (1296 total) — `zig build test --summary all`
-**Feature tests**: 2332 pass (2337 total), 5 skip — `zig build feature-tests --summary all`
+**Main tests**: 1290 pass, 6 skip (1296 total) — `zig build test --summary all`
+**Feature tests**: 2360 pass (2365 total), 5 skip — `zig build feature-tests --summary all`
 Both baselines must be maintained.
 (Also in `.claude/rules/zig.md`, auto-loaded for `.zig` files.)
 

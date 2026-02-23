@@ -163,6 +163,8 @@ pub fn main(_: std.process.Init) !void {
         "1290 total",
         "2264 pass",
         "2269 total",
+        "2332 pass",
+        "2337 total",
     };
 
     for (stale_markers) |marker| {
