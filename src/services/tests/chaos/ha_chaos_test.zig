@@ -47,7 +47,7 @@ fn validateSystemConsistency(manager: *ha.HaManager) !void {
 test "ha chaos: backup survives allocation failures" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 12345);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 12345);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -98,7 +98,7 @@ test "ha chaos: backup survives allocation failures" {
 test "ha chaos: backup orchestrator handles disk failures" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 54321);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 54321);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -140,7 +140,7 @@ test "ha chaos: backup orchestrator handles disk failures" {
 test "ha chaos: replication handles network partitions" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 11111);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 11111);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -204,7 +204,7 @@ test "ha chaos: replication handles network partitions" {
 test "ha chaos: replication survives allocation failures during replica operations" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 22222);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 22222);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -259,7 +259,7 @@ test "ha chaos: replication survives allocation failures during replica operatio
 test "ha chaos: pitr handles allocation failures during checkpoint creation" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 33333);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 33333);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -327,7 +327,7 @@ test "ha chaos: pitr handles allocation failures during checkpoint creation" {
 test "ha chaos: pitr recovery point lookup under chaos" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 44444);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 44444);
     defer chaos_ctx.deinit();
 
     // Lower probability for this test to ensure some checkpoints are created
@@ -390,7 +390,7 @@ test "ha chaos: pitr recovery point lookup under chaos" {
 test "ha chaos: manager handles chaos during failover" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 55555);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 55555);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -453,7 +453,7 @@ test "ha chaos: manager handles chaos during failover" {
 test "ha chaos: full system under combined failures" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 66666);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 66666);
     defer chaos_ctx.deinit();
 
     // Multiple fault types at once
@@ -520,7 +520,7 @@ test "ha chaos: full system under combined failures" {
 test "ha chaos: recovery after chaos period ends" {
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 77777);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 77777);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{

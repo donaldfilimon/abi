@@ -42,7 +42,7 @@ test "database chaos: vector insertion survives allocation failures" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 12345);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 12345);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -112,7 +112,7 @@ test "database chaos: search returns correct results after partial writes" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 23456);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 23456);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -195,7 +195,7 @@ test "database chaos: update operations maintain consistency" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 34567);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 34567);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -267,7 +267,7 @@ test "database chaos: delete operations are atomic" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 45678);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 45678);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -332,7 +332,7 @@ test "database chaos: HNSW index survives allocation failures during constructio
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 56789);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 56789);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -409,7 +409,7 @@ test "database chaos: batch processor handles failures gracefully" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 67890);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 67890);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -479,7 +479,7 @@ test "database chaos: concurrent access survives random failures" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 78901);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 78901);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -599,7 +599,7 @@ test "database chaos: full recovery after chaos period" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 89012);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 89012);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{

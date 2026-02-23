@@ -77,12 +77,37 @@ pub const Task = struct {
     retry_count: u3 = 0,
 };
 
+/// Simple counting semaphore using atomics (Zig 0.16 compatible).
+const SimpleSemaphore = struct {
+    permits: std.atomic.Value(u32),
+
+    fn init(initial: u32) SimpleSemaphore {
+        return .{ .permits = std.atomic.Value(u32).init(initial) };
+    }
+
+    fn wait(self: *SimpleSemaphore) void {
+        while (true) {
+            const current = self.permits.load(.acquire);
+            if (current > 0) {
+                if (self.permits.cmpxchgWeak(current, current - 1, .acq_rel, .monotonic) == null) {
+                    return;
+                }
+            }
+            std.atomic.spinLoopHint();
+        }
+    }
+
+    fn post(self: *SimpleSemaphore) void {
+        _ = self.permits.fetchAdd(1, .release);
+    }
+};
+
 pub const TaskTool = struct {
     allocator: std.mem.Allocator,
     subagents: std.StringHashMapUnmanaged(Subagent),
     tasks: std.ArrayListUnmanaged(Task),
     task_ids: std.StringHashMapUnmanaged(usize),
-    semaphore: std.Thread.Semaphore,
+    semaphore: SimpleSemaphore,
     next_task_id: u64 = 0,
 
     pub fn init(allocator: std.mem.Allocator) TaskTool {
@@ -91,7 +116,7 @@ pub const TaskTool = struct {
             .subagents = .{},
             .tasks = std.ArrayListUnmanaged(Task).empty,
             .task_ids = .{},
-            .semaphore = std.Thread.Semaphore.init(4),
+            .semaphore = SimpleSemaphore.init(4),
         };
     }
 
@@ -251,7 +276,7 @@ pub const TaskTool = struct {
     }
 
     pub fn getStatistics(self: *TaskTool) !json.Value {
-        var stats = json.Object.init(self.allocator);
+        var stats = json.ObjectMap.init(self.allocator);
         errdefer stats.deinit();
 
         var subagent_stats = json.Array.init(self.allocator);
@@ -259,7 +284,7 @@ pub const TaskTool = struct {
 
         var iterator = self.subagents.valueIterator();
         while (iterator.next()) |subagent| {
-            var sub_stat = json.Object.init(self.allocator);
+            var sub_stat = json.ObjectMap.init(self.allocator);
             errdefer sub_stat.deinit();
 
             sub_stat.put("name", json.Value{ .string = subagent.name }) catch |err| {

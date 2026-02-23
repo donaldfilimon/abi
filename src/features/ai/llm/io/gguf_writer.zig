@@ -606,7 +606,7 @@ test "gguf writer basic" {
     try writer.finalize();
 
     // Verify file was created
-    const stat = tmp_dir.dir.statFile("test.gguf") catch return;
+    const stat = tmp_dir.dir.statFile(std.testing.io, "test.gguf", .{}) catch return;
     try std.testing.expect(stat.size > 0);
 }
 

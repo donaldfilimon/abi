@@ -68,7 +68,6 @@ pub const isByteSlice = types.isByteSlice;
 // NUMA support
 pub const CpuTopology = numa.CpuTopology;
 pub const NumaNode = numa.NumaNode;
-pub const CpuInfo = numa.CpuInfo;
 
 // Benchmarking
 pub const BenchmarkResult = benchmark.BenchmarkResult;
@@ -86,15 +85,16 @@ pub const RoundRobinStealPolicy = steal_policy.RoundRobinStealPolicy;
 pub const StealPolicyConfig = if (has_threads) steal_policy.StealPolicyConfig else struct {};
 pub const StealStats = if (has_threads) steal_policy.StealStats else struct {};
 
-// Workload types (from engine_impl)
-pub const ExecutionContext = engine_impl.ExecutionContext;
-pub const WorkloadHints = engine_impl.WorkloadHints;
-pub const WorkloadVTable = engine_impl.WorkloadVTable;
-pub const GPUWorkloadVTable = engine_impl.GPUWorkloadVTable;
-pub const ResultHandle = engine_impl.ResultHandle;
-pub const ResultVTable = engine_impl.ResultVTable;
-pub const WorkItem = engine_impl.WorkItem;
-pub const runWorkItem = engine_impl.runWorkItem;
+// Workload types — defined in engine_stub.zig only; provide stubs when threaded.
+const stub_types = @import("engine_stub.zig");
+pub const ExecutionContext = stub_types.ExecutionContext;
+pub const WorkloadHints = stub_types.WorkloadHints;
+pub const WorkloadVTable = stub_types.WorkloadVTable;
+pub const GPUWorkloadVTable = stub_types.GPUWorkloadVTable;
+pub const ResultHandle = stub_types.ResultHandle;
+pub const ResultVTable = stub_types.ResultVTable;
+pub const WorkItem = stub_types.WorkItem;
+pub const runWorkItem = stub_types.runWorkItem;
 
 /// Create an engine with default configuration.
 pub fn createEngine(allocator: std.mem.Allocator) !Engine {

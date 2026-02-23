@@ -93,7 +93,7 @@ pub const ConfigLoader = struct {
             if (config.gpu == null) config.gpu = GpuConfig.defaults();
             if (self.getEnv("ABI_GPU_BACKEND")) |backend_str| {
                 if (parseGpuBackend(backend_str)) |backend| {
-                    config.gpu.?.preferred_backend = backend;
+                    config.gpu.?.backend = backend;
                 }
             }
         }
@@ -112,19 +112,8 @@ pub const ConfigLoader = struct {
                 config.ai.?.llm.?.model_path = path_copy;
             }
 
-            // Temperature
-            if (self.getEnv("ABI_LLM_TEMPERATURE")) |temp_str| {
-                if (std.fmt.parseFloat(f32, temp_str)) |temp| {
-                    config.ai.?.temperature = temp;
-                } else |_| {}
-            }
-
-            // Max tokens
-            if (self.getEnv("ABI_LLM_MAX_TOKENS")) |tokens_str| {
-                if (std.fmt.parseInt(u32, tokens_str, 10)) |tokens| {
-                    config.ai.?.max_tokens = tokens;
-                } else |_| {}
-            }
+            // Temperature and max_tokens are runtime InferenceConfig settings,
+            // not static AiConfig/LlmConfig fields. Set via llm.Engine.init().
         }
 
         // Database configuration

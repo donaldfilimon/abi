@@ -30,7 +30,7 @@ test "network chaos: raft handles message loss during election" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 12345);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 12345);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -67,7 +67,7 @@ test "network chaos: raft cluster election with partitions" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 23456);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 23456);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -156,7 +156,7 @@ test "network chaos: raft log replication with message delays" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 34567);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 34567);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -225,7 +225,7 @@ test "network chaos: raft vote rejection handles outdated terms with chaos" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 45678);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 45678);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -285,7 +285,7 @@ test "network chaos: load balancer handles node failures" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 56789);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 56789);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -356,7 +356,7 @@ test "network chaos: load balancer sticky sessions under failures" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 67890);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 67890);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -423,7 +423,7 @@ test "network chaos: circuit breaker opens under failure load" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 78901);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 78901);
     defer chaos_ctx.deinit();
 
     // Configure chaos to trigger many failures
@@ -480,7 +480,7 @@ test "network chaos: circuit breaker registry handles multiple breakers under ch
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 89012);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 89012);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -553,7 +553,7 @@ test "network chaos: circuit breaker recovery after chaos ends" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 90123);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 90123);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -620,7 +620,7 @@ test "network chaos: service discovery handles registration failures" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 11111);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 11111);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -676,7 +676,7 @@ test "network chaos: node registry handles concurrent chaos" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 22222);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 22222);
     defer chaos_ctx.deinit();
 
     try chaos_ctx.addFault(.{
@@ -736,7 +736,7 @@ test "network chaos: full network stack under combined failures" {
 
     const allocator = std.testing.allocator;
 
-    var chaos_ctx = try chaos.ChaosContext.init(allocator, 33333);
+    var chaos_ctx = chaos.ChaosContext.init(allocator, 33333);
     defer chaos_ctx.deinit();
 
     // Multiple fault types

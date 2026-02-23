@@ -6,6 +6,8 @@
 //! - Discord integration tools
 //! - Task management and subagent coordination
 
+const std = @import("std");
+
 pub const tool = @import("tool.zig");
 pub const task = @import("task.zig");
 pub const discord_tools = @import("discord.zig");
@@ -82,14 +84,5 @@ pub fn registerAllAgentTools(registry: *ToolRegistry) !void {
 }
 
 test {
-    _ = tool;
-    _ = task;
-    _ = discord_tools;
-    _ = os_tools;
-    _ = file_tools;
-    _ = search_tools;
-    _ = edit_tools;
-    _ = process_tools;
-    _ = network_tools;
-    _ = system_tools;
+    std.testing.refAllDecls(@This());
 }

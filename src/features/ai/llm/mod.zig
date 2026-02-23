@@ -78,12 +78,7 @@ pub const WdbxFusion = wdbx_fusion.WdbxFusion;
 pub const FusionConfig = wdbx_fusion.FusionConfig;
 
 // Parallel inference exports
-pub const ParallelStrategy = parallel.ParallelStrategy;
-pub const ParallelConfig = parallel.ParallelConfig;
-pub const ParallelMode = parallel.ParallelMode;
-pub const ParallelCoordinator = parallel.ParallelCoordinator;
-pub const TensorParallelConfig = parallel.TensorParallelConfig;
-pub const PipelineParallelConfig = parallel.PipelineParallelConfig;
+pub const ParallelExecutor = parallel.ParallelExecutor;
 
 /// LLM-specific errors
 pub const LlmError = error{
@@ -659,4 +654,8 @@ test "inference stats formatting" {
 
     try std.testing.expectEqual(@as(f64, 100.0), stats.prefillTokensPerSecond());
     try std.testing.expectEqual(@as(f64, 25.0), stats.decodeTokensPerSecond());
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

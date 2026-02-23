@@ -5,7 +5,7 @@
 
 const std = @import("std");
 const Io = std.Io;
-const observability = @import("mod.zig");
+const collector_mod = @import("metrics/collector.zig");
 
 // ============================================================================
 // Alerting System (from alerting.zig)
@@ -481,11 +481,11 @@ pub const PrometheusConfig = struct {
 pub const PrometheusExporter = struct {
     allocator: std.mem.Allocator,
     config: PrometheusConfig,
-    metrics: *observability.MetricsCollector,
+    metrics: *collector_mod.MetricsCollector,
     running: std.atomic.Value(bool),
     server_thread: ?std.Thread = null,
 
-    pub fn init(allocator: std.mem.Allocator, config: PrometheusConfig, metrics: *observability.MetricsCollector) !PrometheusExporter {
+    pub fn init(allocator: std.mem.Allocator, config: PrometheusConfig, metrics: *collector_mod.MetricsCollector) !PrometheusExporter {
         return .{
             .allocator = allocator,
             .config = config,
@@ -546,14 +546,24 @@ pub fn generateMetricsOutput(
     try output.appendSlice(allocator, "# Prometheus metrics exported by ABI framework\n\n");
 
     for (counters) |counter| {
-        try std.fmt.format(output.writer(allocator), "{s}_{s} {d}\n", .{ namespace, counter.name, counter.value });
+        const line = try std.fmt.allocPrint(allocator, "{s}_{s} {d}\n", .{ namespace, counter.name, counter.value });
+        defer allocator.free(line);
+        try output.appendSlice(allocator, line);
     }
 
     for (histograms) |hist| {
-        try std.fmt.format(output.writer(allocator), "{s}_{s}_sum {d}\n", .{ namespace, hist.name, hist.sum });
-        try std.fmt.format(output.writer(allocator), "{s}_{s}_count {d}\n", .{ namespace, hist.name, hist.count });
+        const sum_line = try std.fmt.allocPrint(allocator, "{s}_{s}_sum {d}\n", .{ namespace, hist.name, hist.sum });
+        defer allocator.free(sum_line);
+        try output.appendSlice(allocator, sum_line);
+
+        const count_line = try std.fmt.allocPrint(allocator, "{s}_{s}_count {d}\n", .{ namespace, hist.name, hist.count });
+        defer allocator.free(count_line);
+        try output.appendSlice(allocator, count_line);
+
         for (hist.buckets, hist.bounds) |bucket_count, bound| {
-            try std.fmt.format(output.writer(allocator), "{s}_{s}_bucket{{le=\"{d}\"}} {d}\n", .{ namespace, hist.name, bound, bucket_count });
+            const bucket_line = try std.fmt.allocPrint(allocator, "{s}_{s}_bucket{{le=\"{d}\"}} {d}\n", .{ namespace, hist.name, bound, bucket_count });
+            defer allocator.free(bucket_line);
+            try output.appendSlice(allocator, bucket_line);
         }
         try output.append(allocator, '\n');
     }
@@ -683,4 +693,8 @@ test "alert condition evaluate equal" {
 test "alert condition evaluate not_equal" {
     try std.testing.expect(AlertCondition.not_equal.evaluate(5.0, 6.0));
     try std.testing.expect(!AlertCondition.not_equal.evaluate(5.0, 5.0));
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

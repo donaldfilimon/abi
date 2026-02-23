@@ -51,7 +51,7 @@ pub const parallelForEach = task_group_mod.parallelForEach;
 pub const AsyncRuntime = async_mod.AsyncRuntime;
 pub const AsyncRuntimeOptions = async_mod.AsyncRuntimeOptions;
 pub const TaskHandle = async_mod.TaskHandle;
-pub const AsyncTaskGroup = async_mod.AsyncTaskGroup;
+pub const AsyncTaskGroup = async_mod.TaskGroup;
 pub const AsyncError = async_mod.AsyncError;
 
 // Work-stealing thread pool (v2)

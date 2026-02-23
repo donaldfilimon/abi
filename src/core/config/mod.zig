@@ -41,7 +41,7 @@ pub const feature_count = feature_catalog.feature_count;
 // Re-export config types by domain (convenience; use *_config for defaults/helpers)
 // Compute
 pub const GpuConfig = gpu_config.GpuConfig;
-pub const RecoveryConfig = gpu_config.RecoveryConfig;
+pub const RecoveryConfig = gpu_config.GpuConfig.RecoveryConfig;
 pub const AiConfig = ai_config.AiConfig;
 pub const LlmConfig = ai_config.LlmConfig;
 pub const EmbeddingsConfig = ai_config.EmbeddingsConfig;
@@ -535,4 +535,8 @@ test "validate returns FeatureDisabled for llm when llm build flag is disabled" 
         config.ai = ai;
         try std.testing.expectError(ConfigError.FeatureDisabled, validate(config));
     }
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }
