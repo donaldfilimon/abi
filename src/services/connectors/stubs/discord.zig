@@ -13,7 +13,7 @@ pub const DiscordError = error{
     NotFound,
 };
 
-pub const Snowflake = u64;
+pub const Snowflake = []const u8;
 
 pub const Config = struct {
     token: []u8,

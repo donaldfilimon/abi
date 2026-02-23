@@ -414,8 +414,8 @@ test "assertions work correctly" {
     try std.testing.expect(!assert.isSorted(i32, &unsorted));
 }
 
-// Force-include submodule tests
-comptime {
+// NOTE: test {} required for Zig 0.16 test discovery (not comptime)
+test {
     _ = generators;
     _ = vector_properties;
     _ = database_properties;

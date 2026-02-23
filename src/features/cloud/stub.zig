@@ -31,7 +31,7 @@ pub const Context = struct {
     config: CloudConfig,
     provider: ?CloudProvider = null,
     pub fn init(_: std.mem.Allocator, _: CloudConfig) !*Context {
-        return Error.CloudDisabled;
+        return Error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn getProvider(_: *const Context) ?CloudProvider {
@@ -45,7 +45,7 @@ pub const Context = struct {
         _ = handler;
         return struct {
             fn wrapped(_: *CloudEvent, _: std.mem.Allocator) anyerror!CloudResponse {
-                return Error.CloudDisabled;
+                return Error.FeatureDisabled;
             }
         }.wrapped;
     }
@@ -97,12 +97,12 @@ pub fn detectProviderWithAllocator(_: std.mem.Allocator) ?CloudProvider {
     return null;
 }
 pub fn runHandler(_: std.mem.Allocator, _: CloudHandler) !void {
-    return Error.CloudDisabled;
+    return Error.FeatureDisabled;
 }
 
 var initialized: bool = false;
 pub fn init(_: std.mem.Allocator) !void {
-    return Error.CloudDisabled;
+    return Error.FeatureDisabled;
 }
 pub fn deinit() void {
     initialized = false;

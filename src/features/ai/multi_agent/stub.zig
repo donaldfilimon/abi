@@ -6,7 +6,7 @@ const retry = @import("../../../services/shared/utils/retry.zig");
 pub const aggregation = @import("aggregation.zig");
 pub const messaging = @import("messaging.zig");
 
-pub const Error = error{ AgentDisabled, NoAgents, MaxAgentsReached, AgentNotFound, ExecutionFailed, AggregationFailed, Timeout };
+pub const Error = error{ FeatureDisabled, NoAgents, MaxAgentsReached, AgentNotFound, ExecutionFailed, AggregationFailed, Timeout };
 
 pub const AgentResult = struct { agent_index: usize, response: []u8, success: bool, duration_ns: u64, timed_out: bool = false };
 
@@ -46,7 +46,7 @@ pub const ExecutionStrategy = enum {
     pipeline,
     adaptive,
     pub fn toString(self: ExecutionStrategy) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -57,7 +57,7 @@ pub const AggregationStrategy = enum {
     merge,
     first_success,
     pub fn toString(self: AggregationStrategy) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -90,13 +90,13 @@ pub const Coordinator = struct {
         self.agents.deinit(self.allocator);
     }
     pub fn register(_: *Coordinator, _: *anyopaque) Error!void {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getAgentHealth(_: *const Coordinator, _: usize) ?AgentHealth {
         return null;
     }
     pub fn sendMessage(_: *Coordinator, _: messaging.AgentMessage) Error!void {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
     pub fn pendingMessages(_: *const Coordinator, _: usize) ?usize {
         return null;
@@ -105,10 +105,10 @@ pub const Coordinator = struct {
         return 0;
     }
     pub fn onEvent(_: *Coordinator, _: messaging.EventType, _: messaging.EventCallback) !void {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
     pub fn runTask(_: *Coordinator, _: []const u8) Error![]u8 {
-        return error.AgentDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: *const Coordinator) CoordinatorStats {
         return .{};

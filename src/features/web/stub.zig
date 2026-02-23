@@ -75,25 +75,25 @@ pub const StubChatHandler = struct {
         return .{ .allocator = allocator };
     }
     pub fn handleChat(_: *StubChatHandler, _: []const u8) ![]const u8 {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn handleAbbeyChat(_: *StubChatHandler, _: []const u8) ![]const u8 {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn handleAvivaChat(_: *StubChatHandler, _: []const u8) ![]const u8 {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn handleChatWithPersonaResult(_: *StubChatHandler, _: []const u8, _: ?persona_types.PersonaType) !StubChatResult {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn listPersonas(_: *StubChatHandler) ![]const u8 {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getMetrics(_: *StubChatHandler) ![]const u8 {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn formatError(_: *StubChatHandler, _: []const u8, _: []const u8, _: ?[]const u8) ![]const u8 {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -153,7 +153,7 @@ pub const server = struct {
     };
     pub const ServerState = enum { stopped, starting, running, stopping };
     pub const ServerStats = struct {};
-    pub const ServerError = error{WebDisabled};
+    pub const ServerError = error{FeatureDisabled};
 };
 
 const StubServer = struct {
@@ -224,7 +224,7 @@ const StubMetricsMiddleware = struct {
         };
     }
     pub fn formatPrometheus(_: *const StubMetricsMiddleware, _: std.mem.Allocator) ![]u8 {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn reset(_: *StubMetricsMiddleware) void {}
 };
@@ -247,21 +247,21 @@ pub const Context = struct {
     config: config_module.WebConfig,
     http_client: ?HttpClient = null,
     pub fn init(_: std.mem.Allocator, _: config_module.WebConfig) !*Context {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn get(_: *Context, _: []const u8) !Response {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getWithOptions(_: *Context, _: []const u8, _: RequestOptions) !Response {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn postJson(_: *Context, _: []const u8, _: []const u8) !Response {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
     pub fn freeResponse(_: *Context, _: Response) void {}
     pub fn parseJsonValue(_: *Context, _: Response) !ParsedJson {
-        return error.WebDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -287,7 +287,7 @@ pub const http = struct {
 var initialized: bool = false;
 
 pub fn init(_: std.mem.Allocator) !void {
-    return error.WebDisabled;
+    return error.FeatureDisabled;
 }
 pub fn deinit() void {
     initialized = false;
@@ -302,17 +302,17 @@ pub fn isInitialized() bool {
 // --- Convenience Functions ---
 
 pub fn get(_: std.mem.Allocator, _: []const u8) !Response {
-    return error.WebDisabled;
+    return error.FeatureDisabled;
 }
 pub fn getWithOptions(_: std.mem.Allocator, _: []const u8, _: RequestOptions) !Response {
-    return error.WebDisabled;
+    return error.FeatureDisabled;
 }
 pub fn postJson(_: std.mem.Allocator, _: []const u8, _: []const u8) !Response {
-    return error.WebDisabled;
+    return error.FeatureDisabled;
 }
 pub fn freeResponse(_: std.mem.Allocator, _: Response) void {}
 pub fn parseJsonValue(_: std.mem.Allocator, _: Response) !ParsedJson {
-    return error.WebDisabled;
+    return error.FeatureDisabled;
 }
 pub fn isSuccessStatus(status: u16) bool {
     return http.isSuccess(status);

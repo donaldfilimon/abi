@@ -2,8 +2,8 @@
 
 const std = @import("std");
 
-pub const ParseError = error{TemplatesDisabled};
-pub const RenderError = error{TemplatesDisabled};
+pub const ParseError = error{FeatureDisabled};
+pub const RenderError = error{FeatureDisabled};
 
 pub const Token = union(enum) {
     text: []const u8,
@@ -18,10 +18,10 @@ pub const Parser = struct {
         return .{ .allocator = allocator };
     }
     pub fn parse(_: *Parser, _: []const u8) ParseError![]Token {
-        return ParseError.TemplatesDisabled;
+        return ParseError.FeatureDisabled;
     }
     pub fn extractVariables(_: *Parser, _: []const Token) ![]const []const u8 {
-        return ParseError.TemplatesDisabled;
+        return ParseError.FeatureDisabled;
     }
 };
 
@@ -34,10 +34,10 @@ pub const Renderer = struct {
         return .{ .allocator = allocator, .options = options };
     }
     pub fn render(_: *Renderer, _: []const Token, _: anytype) RenderError![]u8 {
-        return RenderError.TemplatesDisabled;
+        return RenderError.FeatureDisabled;
     }
     pub fn renderWithMap(_: *Renderer, _: []const Token, _: std.StringHashMapUnmanaged([]const u8)) RenderError![]u8 {
-        return RenderError.TemplatesDisabled;
+        return RenderError.FeatureDisabled;
     }
 };
 
@@ -69,14 +69,14 @@ pub const Template = struct {
     source: []const u8,
     variables: []const []const u8,
     pub fn init(_: std.mem.Allocator, _: []const u8, _: []const u8) !Template {
-        return error.TemplatesDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Template) void {}
     pub fn render(_: *const Template, _: anytype) ![]u8 {
-        return error.TemplatesDisabled;
+        return error.FeatureDisabled;
     }
     pub fn renderWithOptions(_: *const Template, _: anytype, _: RenderOptions) ![]u8 {
-        return error.TemplatesDisabled;
+        return error.FeatureDisabled;
     }
     pub fn validateValues(_: *const Template, _: anytype) bool {
         return false;
@@ -94,30 +94,30 @@ pub const TemplateRegistry = struct {
     }
     pub fn deinit(_: *TemplateRegistry) void {}
     pub fn register(_: *TemplateRegistry, _: []const u8, _: []const u8) !void {
-        return error.TemplatesDisabled;
+        return error.FeatureDisabled;
     }
     pub fn registerBuiltin(_: *TemplateRegistry, _: BuiltinTemplates) !void {
-        return error.TemplatesDisabled;
+        return error.FeatureDisabled;
     }
     pub fn get(_: *const TemplateRegistry, _: []const u8) ?*const Template {
         return null;
     }
     pub fn renderTemplate(_: *const TemplateRegistry, _: []const u8, _: anytype) ![]u8 {
-        return error.TemplatesDisabled;
+        return error.FeatureDisabled;
     }
     pub fn listTemplates(_: *const TemplateRegistry, _: std.mem.Allocator) ![][]const u8 {
-        return error.TemplatesDisabled;
+        return error.FeatureDisabled;
     }
 };
 
 pub fn renderTemplate(_: std.mem.Allocator, _: []const u8, _: anytype) ![]u8 {
-    return error.TemplatesDisabled;
+    return error.FeatureDisabled;
 }
 pub fn formatChatMessage(_: std.mem.Allocator, _: []const u8, _: []const u8) ![]u8 {
-    return error.TemplatesDisabled;
+    return error.FeatureDisabled;
 }
 pub fn formatChatHistory(_: std.mem.Allocator, _: []const ChatMessage) ![]u8 {
-    return error.TemplatesDisabled;
+    return error.FeatureDisabled;
 }
 
 pub const ChatMessage = struct { role: []const u8, content: []const u8 };

@@ -106,37 +106,37 @@ pub const statsd = exporters.statsd;
 
 // Monitoring re-exports for parity with mod.zig
 pub const monitoring = alerting;
-pub const MonitoringError = error{MonitoringDisabled};
+pub const MonitoringError = error{FeatureDisabled};
 pub const StatsDClient = struct {};
 pub const StatsDConfig = struct {};
-pub const StatsDError = error{StatsDDisabled};
+pub const StatsDError = error{FeatureDisabled};
 
 // Unified observability bundle (stub)
 pub const ObservabilityBundle = struct {
     pub fn init(_: std.mem.Allocator, _: BundleConfig) Error!ObservabilityBundle {
-        return error.ObservabilityDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *ObservabilityBundle) void {}
     pub fn start(_: *ObservabilityBundle) Error!void {
-        return error.ObservabilityDisabled;
+        return error.FeatureDisabled;
     }
     pub fn stop(_: *ObservabilityBundle) void {}
     pub fn startSpan(_: *ObservabilityBundle, _: []const u8) Error!?OtelSpan {
-        return error.ObservabilityDisabled;
+        return error.FeatureDisabled;
     }
 };
 
 // Context for Framework integration
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.ObservabilityConfig) Error!*Context {
-        return error.ObservabilityDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn recordMetric(_: *Context, _: []const u8, _: f64) Error!void {
-        return error.ObservabilityDisabled;
+        return error.FeatureDisabled;
     }
     pub fn startSpan(_: *Context, _: []const u8) Error!Span {
-        return error.ObservabilityDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getSummary(_: *Context) ?MetricsSummary {
         return null;
@@ -150,7 +150,7 @@ pub fn isInitialized() bool {
     return false;
 }
 pub fn init(_: std.mem.Allocator) Error!void {
-    return error.ObservabilityDisabled;
+    return error.FeatureDisabled;
 }
 pub fn deinit() void {}
 

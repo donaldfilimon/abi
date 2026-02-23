@@ -5,7 +5,7 @@ const config_module = @import("../../core/config/mod.zig");
 
 // --- Error Types ---
 
-pub const DatabaseFeatureError = error{DatabaseDisabled};
+pub const DatabaseFeatureError = error{FeatureDisabled};
 pub const DatabaseError = error{
     DuplicateId,
     VectorNotFound,
@@ -13,7 +13,7 @@ pub const DatabaseError = error{
     PoolExhausted,
     PersistenceError,
     ConcurrencyError,
-    DatabaseDisabled,
+    FeatureDisabled,
 };
 
 // --- Local Stubs Imports ---
@@ -39,29 +39,29 @@ pub const Context = struct {
     config: config_module.DatabaseConfig,
     handle: ?DatabaseHandle = null,
     pub fn init(_: std.mem.Allocator, _: config_module.DatabaseConfig) !*Context {
-        return error.DatabaseDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn getHandle(_: *Context) !*DatabaseHandle {
-        return error.DatabaseDisabled;
+        return error.FeatureDisabled;
     }
     pub fn openDatabase(_: *Context, _: []const u8) !*DatabaseHandle {
-        return error.DatabaseDisabled;
+        return error.FeatureDisabled;
     }
     pub fn insertVector(_: *Context, _: u64, _: []const f32, _: ?[]const u8) !void {
-        return error.DatabaseDisabled;
+        return error.FeatureDisabled;
     }
     pub fn searchVectors(_: *Context, _: []const f32, _: usize) ![]SearchResult {
-        return error.DatabaseDisabled;
+        return error.FeatureDisabled;
     }
     pub fn searchVectorsInto(_: *Context, _: []const f32, _: usize, _: []SearchResult) !usize {
-        return error.DatabaseDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: *Context) !Stats {
-        return error.DatabaseDisabled;
+        return error.FeatureDisabled;
     }
     pub fn optimize(_: *Context) !void {
-        return error.DatabaseDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -250,7 +250,7 @@ pub const ParallelBuildStats = misc.parallel_hnsw.ParallelBuildStats;
 var initialized: bool = false;
 
 pub fn init(_: std.mem.Allocator) !void {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn deinit() void {
     initialized = false;
@@ -265,17 +265,17 @@ pub fn isInitialized() bool {
 // --- Core Database Operations ---
 
 pub fn open(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn connect(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn close(_: *DatabaseHandle) void {}
 pub fn insert(_: *DatabaseHandle, _: u64, _: []const f32, _: ?[]const u8) !void {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn search(_: *DatabaseHandle, _: std.mem.Allocator, _: []const f32, _: usize) ![]SearchResult {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn searchInto(_: *DatabaseHandle, _: []const f32, _: usize, _: []SearchResult) usize {
     return 0;
@@ -284,13 +284,13 @@ pub fn remove(_: *DatabaseHandle, _: u64) bool {
     return false;
 }
 pub fn update(_: *DatabaseHandle, _: u64, _: []const f32) !bool {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn get(_: *DatabaseHandle, _: u64) ?VectorView {
     return null;
 }
 pub fn list(_: *DatabaseHandle, _: std.mem.Allocator, _: usize) ![]VectorView {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn stats(_: *DatabaseHandle) Stats {
     return .{};
@@ -299,17 +299,17 @@ pub fn diagnostics(_: *DatabaseHandle) DiagnosticsInfo {
     return .{};
 }
 pub fn optimize(_: *DatabaseHandle) !void {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn backup(_: *DatabaseHandle, _: []const u8) !void {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn restore(_: *DatabaseHandle, _: []const u8) !void {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn openFromFile(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }
 pub fn openOrCreate(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
-    return error.DatabaseDisabled;
+    return error.FeatureDisabled;
 }

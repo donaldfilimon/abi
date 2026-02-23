@@ -4,7 +4,7 @@ const std = @import("std");
 const config_module = @import("../../../core/config/mod.zig");
 
 pub const LlmError = error{
-    LlmDisabled,
+    FeatureDisabled,
     InvalidModelFormat,
     UnsupportedQuantization,
     ModelTooLarge,
@@ -47,7 +47,7 @@ pub const TensorMap = struct {
 pub const GgufFile = struct {
     tensors: TensorMap = .{},
     pub fn open(_: std.mem.Allocator, _: []const u8) LlmError!GgufFile {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn close(_: *GgufFile) void {}
     pub fn deinit(_: *GgufFile) void {}
@@ -64,10 +64,10 @@ pub const BpeTokenizer = struct {
     }
     pub fn deinit(_: *BpeTokenizer) void {}
     pub fn encode(_: *const BpeTokenizer, _: std.mem.Allocator, _: []const u8) LlmError![]u32 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn decode(_: *const BpeTokenizer, _: std.mem.Allocator, _: []const u32) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
 };
 pub const Tokenizer = BpeTokenizer;
@@ -93,23 +93,23 @@ pub const ModelInfo = struct {
 
 pub const Model = struct {
     pub fn load(_: std.mem.Allocator, _: []const u8) LlmError!Model {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Model) void {}
     pub fn generate(_: *Model, _: []const u32, _: GeneratorConfig) LlmError![]u32 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn generateText(_: *Model, _: std.mem.Allocator, _: []const u8) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn info(_: *const Model) ModelInfo {
         return .{};
     }
     pub fn encode(_: *Model, _: []const u8) LlmError![]u32 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn decode(_: *Model, _: []const u32) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -193,7 +193,7 @@ pub const StreamingError = error{
     BufferOverflow,
     AlreadyStreaming,
     TimerFailed,
-    LlmDisabled,
+    FeatureDisabled,
 };
 
 pub const StreamingState = enum { idle, prefilling, generating, completed, cancelled, errored };
@@ -269,11 +269,11 @@ pub const StreamingGenerator = struct {
 
 pub const StreamingResponse = struct {
     pub fn init(_: std.mem.Allocator, _: anytype, _: []const u32, _: StreamingConfig, _: anytype) StreamingError!StreamingResponse {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *StreamingResponse) void {}
     pub fn next(_: *StreamingResponse) StreamingError!?TokenEvent {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn cancel(_: *StreamingResponse) void {}
     pub fn isCancelled(_: *StreamingResponse) bool {
@@ -289,25 +289,25 @@ pub const StreamingResponse = struct {
         return &[_]u32{};
     }
     pub fn getText(_: *StreamingResponse) StreamingError!?[]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn reset(_: *StreamingResponse, _: []const u32) void {}
 };
 
 pub const SSEFormatter = struct {
     pub fn formatTokenEvent(_: std.mem.Allocator, _: TokenEvent) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn formatCompletionEvent(_: std.mem.Allocator, _: StreamingStats) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn formatErrorEvent(_: std.mem.Allocator, _: StreamingError) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
 };
 
 pub fn collectStreamingResponse(_: std.mem.Allocator, _: *StreamingResponse) LlmError!struct { text: ?[]u8, stats: StreamingStats } {
-    return error.LlmDisabled;
+    return error.FeatureDisabled;
 }
 
 // --- Inference Engine ---
@@ -363,25 +363,25 @@ pub const Engine = struct {
     }
     pub fn deinit(_: *Engine) void {}
     pub fn loadModel(_: *Engine, _: []const u8) LlmError!void {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn generate(_: *Engine, _: std.mem.Allocator, _: []const u8) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn generateStreaming(_: *Engine, _: []const u8, _: *const fn ([]const u8) void) LlmError!void {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn createStreamingResponse(_: *Engine, _: []const u8, _: StreamingConfig) LlmError!StreamingResponse {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn generateStreamingWithConfig(_: *Engine, _: []const u8, _: StreamingConfig) LlmError!StreamingStats {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn tokenize(_: *Engine, _: std.mem.Allocator, _: []const u8) LlmError![]u32 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn detokenize(_: *Engine, _: std.mem.Allocator, _: []const u32) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: *Engine) InferenceStats {
         return .{};
@@ -428,7 +428,7 @@ pub const tokenizer = struct {
     pub const Tokenizer = stub_root.Tokenizer;
     pub const Vocab = stub_root.Vocab;
     pub fn loadFromGguf(_: std.mem.Allocator, _: *const stub_root.GgufFile) LlmError!stub_root.Tokenizer {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -475,7 +475,7 @@ pub const parallel = struct {
 
 pub const providers = struct {
     pub const ProviderError = error{
-        LlmDisabled,
+        FeatureDisabled,
         InvalidProvider,
         InvalidBackend,
         ModelRequired,
@@ -508,7 +508,7 @@ pub const providers = struct {
         plugin_native,
 
         pub fn label(self: ProviderId) []const u8 {
-            return std.mem.sliceTo(@tagName(self), 0);
+            return @tagName(self);
         }
 
         pub fn fromString(value: []const u8) ?ProviderId {
@@ -589,7 +589,7 @@ pub const providers = struct {
     };
 
     pub fn generate(_: std.mem.Allocator, _: GenerateConfig) ProviderError!GenerateResult {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
 
     pub const health = struct {
@@ -728,10 +728,10 @@ pub const providers = struct {
                     return null;
                 }
                 pub fn addOrUpdateHttp(_: *Manifest, _: []const u8, _: []const u8, _: ?[]const u8, _: ?[]const u8) !void {
-                    return error.LlmDisabled;
+                    return error.FeatureDisabled;
                 }
                 pub fn addOrUpdateNative(_: *Manifest, _: []const u8, _: []const u8, _: ?[]const u8) !void {
-                    return error.LlmDisabled;
+                    return error.FeatureDisabled;
                 }
                 pub fn setEnabled(_: *Manifest, _: []const u8, _: bool) bool {
                     return false;
@@ -745,7 +745,7 @@ pub const providers = struct {
                 return Manifest.init(allocator);
             }
             pub fn saveDefault(_: *const Manifest) !void {
-                return error.LlmDisabled;
+                return error.FeatureDisabled;
             }
         };
         pub const loader = struct {
@@ -791,11 +791,11 @@ pub const CacheEntry = struct {
 
 pub const WdbxFusion = struct {
     pub fn init(_: std.mem.Allocator, _: FusionConfig) LlmError!WdbxFusion {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *WdbxFusion) void {}
     pub fn cacheEmbedding(_: *WdbxFusion, _: []const u8, _: []const f32) LlmError!void {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getCachedEmbedding(_: *const WdbxFusion, _: []const u8) ?[]const f32 {
         return null;
@@ -805,13 +805,13 @@ pub const WdbxFusion = struct {
         _: []const u8,
         _: *const fn ([]const u8, std.mem.Allocator) anyerror![]f32,
     ) LlmError![]const f32 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn addDocument(_: *WdbxFusion, _: []const u8, _: []const u8, _: []const f32) LlmError!u64 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn retrieveContext(_: *const WdbxFusion, _: std.mem.Allocator, _: []const f32) LlmError![]ContextChunk {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn augmentPrompt(_: *const WdbxFusion, allocator: std.mem.Allocator, prompt: []const u8, _: []const f32) LlmError![]u8 {
         return allocator.dupe(u8, prompt) catch return error.OutOfMemory;
@@ -834,21 +834,21 @@ pub const wdbx_fusion = struct {
 // --- Context ---
 
 pub const Context = struct {
-    pub fn init(_: std.mem.Allocator, _: config_module.LlmConfig) error{LlmDisabled}!*Context {
-        return error.LlmDisabled;
+    pub fn init(_: std.mem.Allocator, _: config_module.LlmConfig) error{FeatureDisabled}!*Context {
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn getEngine(_: *Context) LlmError!*Engine {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn generate(_: *Context, _: []const u8) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn tokenize(_: *Context, _: []const u8) LlmError![]u32 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
     pub fn detokenize(_: *Context, _: []const u32) LlmError![]u8 {
-        return error.LlmDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -857,5 +857,5 @@ pub fn isEnabled() bool {
 }
 
 pub fn infer(_: std.mem.Allocator, _: []const u8, _: []const u8) LlmError![]u8 {
-    return error.LlmDisabled;
+    return error.FeatureDisabled;
 }

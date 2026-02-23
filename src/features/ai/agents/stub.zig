@@ -4,7 +4,7 @@ const std = @import("std");
 const config_module = @import("../../../core/config/mod.zig");
 const llm_providers = @import("../llm/stub.zig").providers;
 
-pub const Error = error{ AgentsDisabled, AgentNotFound, ToolNotFound, ExecutionFailed, MaxAgentsReached };
+pub const Error = error{ FeatureDisabled, AgentNotFound, ToolNotFound, ExecutionFailed, MaxAgentsReached };
 
 // ---------------------------------------------------------------------------
 // Agent types (merged from stubs/agent.zig)
@@ -315,7 +315,7 @@ pub const GpuAgent = struct {
     stats: AgentStats = .{},
 
     pub fn init(_: std.mem.Allocator) !*@This() {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn initWithConfig(
@@ -325,13 +325,13 @@ pub const GpuAgent = struct {
             enable_learning: bool = true,
         },
     ) !*@This() {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn deinit(_: *@This()) void {}
 
     pub fn process(_: *@This(), _: GpuAwareRequest) !GpuAwareResponse {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn getStats(self: *const @This()) AgentStats {
@@ -353,7 +353,7 @@ pub const GpuAgent = struct {
     }
 
     pub fn getBackendsSummary(_: *@This(), _: std.mem.Allocator) ![]const BackendInfo {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn getLearningStats(_: *@This()) ?LearningStatsInfo {
@@ -367,20 +367,20 @@ pub const GpuAgent = struct {
 
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.AgentsConfig) Error!*Context {
-        return error.AgentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn createAgent(_: *Context, _: []const u8) Error!*Agent {
-        return error.AgentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getAgent(_: *Context, _: []const u8) ?*Agent {
         return null;
     }
     pub fn getToolRegistry(_: *Context) Error!*ToolRegistry {
-        return error.AgentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn registerTool(_: *Context, _: Tool) Error!void {
-        return error.AgentsDisabled;
+        return error.FeatureDisabled;
     }
 };
 

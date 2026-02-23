@@ -89,13 +89,12 @@ pub const scale = extras.scale;
 // Test discovery
 // ============================================================================
 
-comptime {
-    if (@import("builtin").is_test) {
-        _ = vector_ops;
-        _ = activations;
-        _ = distances;
-        _ = integer_ops;
-        _ = extras;
-        _ = @import("simd_test.zig");
-    }
+// NOTE: test {} required for Zig 0.16 test discovery (not comptime)
+test {
+    _ = vector_ops;
+    _ = activations;
+    _ = distances;
+    _ = integer_ops;
+    _ = extras;
+    _ = @import("simd_test.zig");
 }

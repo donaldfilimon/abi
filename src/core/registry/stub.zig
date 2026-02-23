@@ -4,7 +4,7 @@
 //! Provides the same API surface as mod.zig but with minimal functionality.
 //!
 //! All feature queries return false, and registration operations return
-//! error.RegistryDisabled.
+//! error.FeatureDisabled.
 
 const std = @import("std");
 
@@ -40,7 +40,7 @@ pub const Feature = enum {
     constitution,
 
     pub fn name(self: Feature) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 
     pub fn description(self: Feature) []const u8 {
@@ -120,7 +120,7 @@ pub fn getParentFeature(feature: Feature) ?Feature {
 // ============================================================================
 
 /// Stub Registry providing the same API surface as the real implementation.
-/// All operations either return false or error.RegistryDisabled.
+/// All operations either return false or error.FeatureDisabled.
 pub const Registry = struct {
     /// Error type for Registry operations.
     pub const Error = error{
@@ -135,7 +135,6 @@ pub const Registry = struct {
         LibraryLoadFailed,
         SymbolNotFound,
         InvalidMode,
-        RegistryDisabled,
         OutOfMemory,
     };
 
@@ -154,17 +153,17 @@ pub const Registry = struct {
     }
 
     // ========================================================================
-    // Registration API (all return RegistryDisabled)
+    // Registration API (all return FeatureDisabled)
     // ========================================================================
 
-    /// Stub: Returns error.RegistryDisabled.
+    /// Stub: Returns error.FeatureDisabled.
     pub fn registerComptime(self: *Registry, comptime feature: Feature) Error!void {
         _ = self;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
-    /// Stub: Returns error.RegistryDisabled.
+    /// Stub: Returns error.FeatureDisabled.
     pub fn registerRuntimeToggle(
         self: *Registry,
         comptime feature: Feature,
@@ -175,10 +174,10 @@ pub const Registry = struct {
         _ = feature;
         _ = ContextType;
         _ = config_ptr;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
-    /// Stub: Returns error.RegistryDisabled.
+    /// Stub: Returns error.FeatureDisabled.
     pub fn registerDynamic(
         self: *Registry,
         feature: Feature,
@@ -187,39 +186,39 @@ pub const Registry = struct {
         _ = self;
         _ = feature;
         _ = library_path;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
     // ========================================================================
-    // Lifecycle Management (all return RegistryDisabled)
+    // Lifecycle Management (all return FeatureDisabled)
     // ========================================================================
 
-    /// Stub: Returns error.RegistryDisabled.
+    /// Stub: Returns error.FeatureDisabled.
     pub fn initFeature(self: *Registry, feature: Feature) Error!void {
         _ = self;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
-    /// Stub: Returns error.RegistryDisabled.
+    /// Stub: Returns error.FeatureDisabled.
     pub fn deinitFeature(self: *Registry, feature: Feature) Error!void {
         _ = self;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
-    /// Stub: Returns error.RegistryDisabled.
+    /// Stub: Returns error.FeatureDisabled.
     pub fn enableFeature(self: *Registry, feature: Feature) Error!void {
         _ = self;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
-    /// Stub: Returns error.RegistryDisabled.
+    /// Stub: Returns error.FeatureDisabled.
     pub fn disableFeature(self: *Registry, feature: Feature) Error!void {
         _ = self;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
     // ========================================================================
@@ -254,7 +253,7 @@ pub const Registry = struct {
         return null;
     }
 
-    /// Stub: Returns error.RegistryDisabled.
+    /// Stub: Returns error.FeatureDisabled.
     pub fn getContext(
         self: *const Registry,
         feature: Feature,
@@ -262,7 +261,7 @@ pub const Registry = struct {
     ) Error!*ContextType {
         _ = self;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
     /// Stub: Returns an empty slice.
@@ -302,7 +301,7 @@ pub const registration = struct {
         _ = allocator;
         _ = registrations;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn registerRuntimeToggle(
@@ -317,7 +316,7 @@ pub const registration = struct {
         _ = feature;
         _ = ContextType;
         _ = config_ptr;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn registerDynamic(
@@ -330,7 +329,7 @@ pub const registration = struct {
         _ = registrations;
         _ = feature;
         _ = library_path;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -344,13 +343,13 @@ pub const lifecycle = struct {
         _ = allocator;
         _ = registrations;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn deinitFeature(registrations: anytype, feature: Feature) Registry.Error!void {
         _ = registrations;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn enableFeature(
@@ -363,7 +362,7 @@ pub const lifecycle = struct {
         _ = registrations;
         _ = runtime_overrides;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn disableFeature(
@@ -376,7 +375,7 @@ pub const lifecycle = struct {
         _ = registrations;
         _ = runtime_overrides;
         _ = feature;
-        return error.RegistryDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -400,11 +399,11 @@ test "stub isEnabled always returns false" {
     try std.testing.expect(!reg.isEnabled(.database));
 }
 
-test "stub registerComptime returns RegistryDisabled" {
+test "stub registerComptime returns FeatureDisabled" {
     var reg = Registry.init(std.testing.allocator);
     defer reg.deinit();
 
-    try std.testing.expectError(error.RegistryDisabled, reg.registerComptime(.gpu));
+    try std.testing.expectError(error.FeatureDisabled, reg.registerComptime(.gpu));
 }
 
 test "stub listFeatures returns empty slice" {

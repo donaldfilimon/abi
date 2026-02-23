@@ -71,7 +71,7 @@ pub const dependency = struct {
 
 // --- Error & Enums ---
 
-pub const ExploreError = error{ExploreDisabled};
+pub const ExploreError = error{FeatureDisabled};
 pub const ExploreLevel = enum(u2) { quick = 0, medium = 1, thorough = 2, deep = 3 };
 pub const OutputFormat = enum { human, json, compact, yaml };
 pub const FileType = enum { source, header, test_file, documentation, config, data, binary, other };
@@ -206,17 +206,17 @@ pub const ExploreAgent = struct {
     allocator: std.mem.Allocator = undefined,
     config: ExploreConfig = .{},
     pub fn init(_: std.mem.Allocator, _: ExploreConfig) ExploreError!ExploreAgent {
-        return ExploreError.ExploreDisabled;
+        return ExploreError.FeatureDisabled;
     }
     pub fn deinit(_: *ExploreAgent) void {}
     pub fn explore(_: *ExploreAgent, _: []const u8, _: []const u8) ExploreError!ExploreResult {
-        return ExploreError.ExploreDisabled;
+        return ExploreError.FeatureDisabled;
     }
     pub fn exploreWithPatterns(_: *ExploreAgent, _: []const u8, _: []const []const u8) ExploreError!ExploreResult {
-        return ExploreError.ExploreDisabled;
+        return ExploreError.FeatureDisabled;
     }
     pub fn exploreNaturalLanguage(_: *ExploreAgent, _: []const u8, _: []const u8) ExploreError!ExploreResult {
-        return ExploreError.ExploreDisabled;
+        return ExploreError.FeatureDisabled;
     }
     pub fn cancel(_: *ExploreAgent) void {}
     pub fn isCancelled(_: *ExploreAgent) bool {
@@ -295,11 +295,11 @@ pub const CallGraph = struct {
     pub fn deinit(_: *CallGraph) void {}
 
     pub fn addFunction(_: *CallGraph, _: Function) !void {
-        return error.ExploreDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn addCall(_: *CallGraph, _: Function, _: Function) !void {
-        return error.ExploreDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn getCallees(_: *const CallGraph, _: []const u8) ?[]const Function {
@@ -345,11 +345,11 @@ pub const DependencyGraph = struct {
     pub fn deinit(_: *DependencyGraph) void {}
 
     pub fn addModule(_: *DependencyGraph, _: Module) !void {
-        return error.ExploreDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn addDependency(_: *DependencyGraph, _: Module, _: Module, _: ImportType) !void {
-        return error.ExploreDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn getDependencies(_: *const DependencyGraph, _: []const u8) ?[]const ModuleDependency {
@@ -382,23 +382,23 @@ pub const DependencyAnalyzer = struct {
 
 // Fix 8: createDefault/Quick/ThoroughAgent return ExploreError!ExploreAgent
 pub fn createDefaultAgent(_: std.mem.Allocator) ExploreError!ExploreAgent {
-    return error.ExploreDisabled;
+    return error.FeatureDisabled;
 }
 pub fn createQuickAgent(_: std.mem.Allocator) ExploreError!ExploreAgent {
-    return error.ExploreDisabled;
+    return error.FeatureDisabled;
 }
 pub fn createThoroughAgent(_: std.mem.Allocator) ExploreError!ExploreAgent {
-    return error.ExploreDisabled;
+    return error.FeatureDisabled;
 }
 
 pub fn parallelExplore(_: std.mem.Allocator, _: []const u8, _: ExploreConfig, _: []const u8) ExploreError!ExploreResult {
-    return ExploreError.ExploreDisabled;
+    return ExploreError.FeatureDisabled;
 }
 pub fn buildCallGraph(_: std.mem.Allocator, _: []const []const u8) ExploreError!CallGraph {
-    return ExploreError.ExploreDisabled;
+    return ExploreError.FeatureDisabled;
 }
 pub fn buildDependencyGraph(_: std.mem.Allocator, _: []const []const u8) ExploreError!DependencyGraph {
-    return ExploreError.ExploreDisabled;
+    return ExploreError.FeatureDisabled;
 }
 
 // --- Discovery types (merged from stubs/discovery.zig) ---
@@ -565,19 +565,19 @@ pub const ModelDiscovery = struct {
     }
 
     pub fn scanAll(_: *@This()) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn scanPath(_: *@This(), _: []const u8) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn addModelPath(_: *@This(), _: []const u8) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn addModelWithSize(_: *@This(), _: []const u8, _: u64) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn getModels(self: *@This()) []DiscoveredModel {
@@ -649,18 +649,18 @@ pub const IndexStats = struct {
 pub const CodebaseIndex = struct {
     const Self = @This();
 
-    pub fn init(_: std.mem.Allocator, _: []const u8) error{AiDisabled}!Self {
-        return error.AiDisabled;
+    pub fn init(_: std.mem.Allocator, _: []const u8) error{FeatureDisabled}!Self {
+        return error.FeatureDisabled;
     }
 
     pub fn deinit(_: *Self) void {}
 
-    pub fn indexFile(_: *Self, _: []const u8, _: []const u8) error{AiDisabled}!void {
-        return error.AiDisabled;
+    pub fn indexFile(_: *Self, _: []const u8, _: []const u8) error{FeatureDisabled}!void {
+        return error.FeatureDisabled;
     }
 
-    pub fn query(_: *Self, _: []const u8) error{AiDisabled}!CodebaseAnswer {
-        return error.AiDisabled;
+    pub fn query(_: *Self, _: []const u8) error{FeatureDisabled}!CodebaseAnswer {
+        return error.FeatureDisabled;
     }
 
     pub fn getStats(_: *const Self) IndexStats {

@@ -22,7 +22,7 @@ pub const AnalyticsConfig = struct {
 
 // --- Engine ---
 
-pub const AnalyticsError = error{ BufferFull, InvalidEvent, FlushFailed, AnalyticsDisabled, OutOfMemory };
+pub const AnalyticsError = error{ BufferFull, InvalidEvent, FlushFailed, FeatureDisabled, OutOfMemory };
 
 pub const Engine = struct {
     allocator: std.mem.Allocator,
@@ -36,10 +36,10 @@ pub const Engine = struct {
     }
     pub fn deinit(_: *Engine) void {}
     pub fn track(_: *Engine, _: []const u8) AnalyticsError!void {
-        return AnalyticsError.AnalyticsDisabled;
+        return AnalyticsError.FeatureDisabled;
     }
     pub fn trackWithSession(_: *Engine, _: []const u8, _: ?[]const u8) AnalyticsError!void {
-        return AnalyticsError.AnalyticsDisabled;
+        return AnalyticsError.FeatureDisabled;
     }
     pub fn startSession(_: *Engine) u64 {
         return 0;
@@ -84,7 +84,7 @@ pub const Context = struct {
     config: AnalyticsConfig,
     engine: ?Engine = null,
     pub fn init(_: std.mem.Allocator, _: AnalyticsConfig) !*Context {
-        return AnalyticsError.AnalyticsDisabled;
+        return AnalyticsError.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn getEngine(_: *Context) ?*Engine {
@@ -96,7 +96,7 @@ pub const Context = struct {
 
 var initialized: bool = false;
 pub fn init(_: std.mem.Allocator) !void {
-    return AnalyticsError.AnalyticsDisabled;
+    return AnalyticsError.FeatureDisabled;
 }
 pub fn deinit() void {
     initialized = false;

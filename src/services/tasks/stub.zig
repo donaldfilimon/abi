@@ -1,6 +1,6 @@
 //! Task Management Stub Module
 //!
-//! Provides API compatibility with mod.zig while returning TasksDisabled for all operations.
+//! Provides API compatibility with mod.zig while returning FeatureDisabled for all operations.
 //! Types are kept minimal - only essential ones needed for compile-time checking.
 
 const std = @import("std");
@@ -10,7 +10,7 @@ const std = @import("std");
 // ============================================================================
 
 pub const ManagerError = error{
-    TasksDisabled,
+    FeatureDisabled,
     TaskNotFound,
     InvalidOperation,
     PersistenceFailed,
@@ -218,16 +218,16 @@ pub const types = struct {
 
 pub const persistence = struct {
     pub fn save(_: std.mem.Allocator, _: []const u8, _: anytype, _: u64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn load(_: std.mem.Allocator, _: []const u8, _: anytype, _: *u64, _: anytype) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 };
 
 pub const querying = struct {
     pub fn list(_: anytype, _: std.mem.Allocator, _: Filter) ManagerError![]Task {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: anytype) Stats {
         return .{};
@@ -236,34 +236,34 @@ pub const querying = struct {
 
 pub const lifecycle = struct {
     pub fn add(_: std.mem.Allocator, _: anytype, _: anytype, _: *u64, _: []const u8, _: AddOptions) ManagerError!u64 {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn get(_: anytype, _: u64) ?Task {
         return null;
     }
     pub fn setStatus(_: anytype, _: u64, _: Status) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn delete(_: anytype, _: u64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn setDueDate(_: anytype, _: u64, _: ?i64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn setBlockedBy(_: anytype, _: u64, _: ?u64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn setPriority(_: anytype, _: u64, _: Priority) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn setCategory(_: anytype, _: u64, _: Category) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn setTitle(_: std.mem.Allocator, _: anytype, _: anytype, _: u64, _: []const u8) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
     pub fn setDescription(_: std.mem.Allocator, _: anytype, _: anytype, _: u64, _: ?[]const u8) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -271,7 +271,7 @@ pub const roadmap = struct {
     pub const RoadmapItem = @import("stub.zig").RoadmapItem;
 
     pub fn importAll(_: std.mem.Allocator, _: anytype, _: *u64, _: anytype) !usize {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -286,14 +286,14 @@ pub const Manager = struct {
     pub fn init(allocator: std.mem.Allocator, config: ManagerConfig) ManagerError!Manager {
         _ = allocator;
         _ = config;
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn deinit(_: *Manager) void {}
 
     // Lifecycle Operations
     pub fn add(_: *Manager, _: []const u8, _: AddOptions) ManagerError!u64 {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn get(_: *const Manager, _: u64) ?Task {
@@ -301,52 +301,52 @@ pub const Manager = struct {
     }
 
     pub fn setStatus(_: *Manager, _: u64, _: Status) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn complete(_: *Manager, _: u64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn start(_: *Manager, _: u64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn cancel(_: *Manager, _: u64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn delete(_: *Manager, _: u64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn setDueDate(_: *Manager, _: u64, _: ?i64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn setBlockedBy(_: *Manager, _: u64, _: ?u64) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn setPriority(_: *Manager, _: u64, _: Priority) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn setCategory(_: *Manager, _: u64, _: Category) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn setTitle(_: *Manager, _: u64, _: []const u8) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn setDescription(_: *Manager, _: u64, _: ?[]const u8) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     // Querying Operations
     pub fn list(_: *const Manager, _: std.mem.Allocator, _: Filter) ManagerError![]Task {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn getStats(_: *const Manager) Stats {
@@ -355,16 +355,16 @@ pub const Manager = struct {
 
     // Persistence Operations
     pub fn save(_: *Manager) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn load(_: *Manager) ManagerError!void {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 
     // Roadmap Integration
     pub fn importRoadmap(_: *Manager) !usize {
-        return error.TasksDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -381,7 +381,7 @@ pub fn isInitialized() bool {
 }
 
 pub fn init(_: std.mem.Allocator) ManagerError!void {
-    return error.TasksDisabled;
+    return error.FeatureDisabled;
 }
 
 pub fn deinit() void {}

@@ -83,7 +83,7 @@ pub const ShortTermMemory = struct {
         self.* = undefined;
     }
     pub fn add(_: *ShortTermMemory, _: Message) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getMessages(_: *const ShortTermMemory) []const Message {
         return &[_]Message{};
@@ -103,13 +103,13 @@ pub const SlidingWindowMemory = struct {
         self.* = undefined;
     }
     pub fn add(_: *SlidingWindowMemory, _: Message) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn setSystemMessage(_: *SlidingWindowMemory, _: Message) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getMessages(_: *const SlidingWindowMemory, _: std.mem.Allocator) ![]Message {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn clear(_: *SlidingWindowMemory) void {}
     pub fn getStats(_: *const SlidingWindowMemory) MemoryStats {
@@ -126,10 +126,10 @@ pub const SummarizingMemory = struct {
         self.* = undefined;
     }
     pub fn add(_: *SummarizingMemory, _: Message) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getContext(_: *const SummarizingMemory, _: std.mem.Allocator) ![]Message {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn clear(_: *SummarizingMemory) void {}
     pub fn getStats(_: *const SummarizingMemory) MemoryStats {
@@ -152,10 +152,10 @@ pub const LongTermMemory = struct {
         self.* = undefined;
     }
     pub fn store(_: *LongTermMemory, _: Message, _: ?[]const f32, _: f32) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn retrieve(_: *LongTermMemory, _: []const u8, _: ?usize) ![]RetrievalResult {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn clear(_: *LongTermMemory) void {}
     pub fn getStats(_: *const LongTermMemory) MemoryStats {
@@ -198,19 +198,19 @@ pub const MemoryManager = struct {
         self.* = undefined;
     }
     pub fn setSystemMessage(_: *MemoryManager, _: Message) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn add(_: *MemoryManager, _: Message) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn addUserMessage(_: *MemoryManager, _: []const u8) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn addAssistantMessage(_: *MemoryManager, _: []const u8) !void {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getContext(_: *MemoryManager, _: ?usize) ![]Message {
-        return error.MemoryDisabled;
+        return error.FeatureDisabled;
     }
     pub fn clear(_: *MemoryManager) void {}
 };
@@ -218,7 +218,7 @@ pub const MemoryManager = struct {
 // --- Persistence Types ---
 
 pub const PersistenceError = error{
-    PersistenceDisabled,
+    FeatureDisabled,
     SessionNotFound,
     InvalidSessionData,
     PathTraversal,
@@ -272,16 +272,16 @@ pub const SessionStore = struct {
         return .{ .allocator = allocator, .base_dir = base_dir };
     }
     pub fn saveSession(_: *SessionStore, _: SessionData) PersistenceError!void {
-        return error.PersistenceDisabled;
+        return error.FeatureDisabled;
     }
     pub fn loadSession(_: *SessionStore, _: []const u8) PersistenceError!SessionData {
-        return error.PersistenceDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deleteSession(_: *SessionStore, _: []const u8) PersistenceError!void {
-        return error.PersistenceDisabled;
+        return error.FeatureDisabled;
     }
     pub fn listSessions(_: *SessionStore) PersistenceError![]SessionMeta {
-        return error.PersistenceDisabled;
+        return error.FeatureDisabled;
     }
     pub fn sessionExists(_: *SessionStore, _: []const u8) bool {
         return false;

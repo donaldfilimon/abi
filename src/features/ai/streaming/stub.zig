@@ -96,10 +96,10 @@ pub const streaming_metrics = struct {
 
 // ── Error types ────────────────────────────────────────────────────────────
 
-pub const StreamingError = error{ StreamingDisabled, StreamClosed, InvalidState, GenerationFailed };
+pub const StreamingError = error{ FeatureDisabled, StreamClosed, InvalidState, GenerationFailed };
 
 pub const StreamingServerError = std.mem.Allocator.Error || error{
-    StreamingDisabled,
+    FeatureDisabled,
     InvalidAddress,
     InvalidRequest,
     Unauthorized,
@@ -360,7 +360,7 @@ pub const StreamEvent = struct {
 
 pub const CachedToken = struct { event_id: u64, text: []const u8, timestamp_ms: i64 };
 
-// ── Stub type impls (all methods return error.StreamingDisabled or no-op) ──
+// ── Stub type impls (all methods return error.FeatureDisabled or no-op) ──
 
 pub const SseEncoder = struct {
     allocator: std.mem.Allocator,
@@ -371,7 +371,7 @@ pub const SseEncoder = struct {
         self.* = undefined;
     }
     pub fn encode(_: *SseEncoder, _: StreamEvent) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -384,7 +384,7 @@ pub const SseDecoder = struct {
         self.* = undefined;
     }
     pub fn feed(_: *SseDecoder, _: []const u8) ![]SseEvent {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -424,7 +424,7 @@ pub const TokenBuffer = struct {
         self.* = undefined;
     }
     pub fn push(_: *TokenBuffer, _: StreamToken) !void {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn pop(_: *TokenBuffer) ?StreamToken {
         return null;
@@ -449,7 +449,7 @@ pub const TokenBuffer = struct {
         return .{};
     }
     pub fn flushAsText(_: *TokenBuffer) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -461,10 +461,10 @@ pub const CoalescingBuffer = struct {
     }
     pub fn deinit(_: *CoalescingBuffer) void {}
     pub fn add(_: *CoalescingBuffer, _: []const u8) !?[]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn flush(_: *CoalescingBuffer) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn len(_: *const CoalescingBuffer) usize {
         return 0;
@@ -483,10 +483,10 @@ pub const StreamingGenerator = struct {
     }
     pub fn deinit(_: *StreamingGenerator) void {}
     pub fn start(_: *StreamingGenerator, _: []const u8) StreamingError!void {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn next(_: *StreamingGenerator) StreamingError!?GeneratorStreamToken {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn pause(_: *StreamingGenerator) void {}
     pub fn resumeGeneration(_: *StreamingGenerator) void {}
@@ -496,7 +496,7 @@ pub const StreamingGenerator = struct {
         self.state = .idle;
     }
     pub fn getGeneratedText(_: *StreamingGenerator, _: std.mem.Allocator) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn tokenCount(_: *const StreamingGenerator) usize {
         return 0;
@@ -515,16 +515,16 @@ pub const EnhancedStreamingGenerator = struct {
         self.* = undefined;
     }
     pub fn start(_: *EnhancedStreamingGenerator) !void {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn emit(_: *EnhancedStreamingGenerator, _: StreamToken) !?[]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn flush(_: *EnhancedStreamingGenerator) ![][]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn complete(_: *EnhancedStreamingGenerator) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: *const EnhancedStreamingGenerator) StreamStats {
         return .{};
@@ -540,7 +540,7 @@ pub const StreamingServer = struct {
         self.* = undefined;
     }
     pub fn serve(_: *StreamingServer) !void {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -553,7 +553,7 @@ pub const WebSocketHandler = struct {
         self.* = undefined;
     }
     pub fn sendText(_: *WebSocketHandler, _: []const u8) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -567,7 +567,7 @@ pub const Backend = struct {
         self.* = undefined;
     }
     pub fn generate(_: *Backend, _: []const u8, _: BackendGenerationConfig) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -580,10 +580,10 @@ pub const BackendRouter = struct {
         self.* = undefined;
     }
     pub fn getBackend(_: *BackendRouter, _: BackendType) !*Backend {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn listModelsJson(_: *BackendRouter, _: std.mem.Allocator) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -633,10 +633,10 @@ pub const SessionCache = struct {
         self.* = undefined;
     }
     pub fn storeToken(_: *SessionCache, _: []const u8, _: u64, _: []const u8, _: BackendType, _: u64) !void {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getTokensAfter(_: *SessionCache, _: []const u8, _: u64) ![]CachedToken {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn invalidateSession(_: *SessionCache, _: []const u8) void {}
     pub fn cleanup(_: *SessionCache) void {}
@@ -662,19 +662,19 @@ pub const StreamingMetrics = struct {
 // ── Free functions ─────────────────────────────────────────────────────────
 
 pub fn streamInference(_: std.mem.Allocator, _: *transformer.TransformerModel, _: []const u8, _: GenerationConfig, _: anytype) !void {
-    return error.StreamingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn formatStreamOutput(_: []const GeneratorStreamToken, _: std.mem.Allocator) ![]u8 {
-    return error.StreamingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn createChunkedStream(_: std.mem.Allocator, _: []const GeneratorStreamToken, _: usize) ![]const []const u8 {
-    return error.StreamingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn createSseStream(_: std.mem.Allocator, _: []const []const u8) ![]u8 {
-    return error.StreamingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeWebSocketAcceptKey(_: std.mem.Allocator, _: []const u8) ![]u8 {
-    return error.StreamingDisabled;
+    return error.FeatureDisabled;
 }
 
 // ── OpenAI format stubs ────────────────────────────────────────────────────
@@ -691,12 +691,12 @@ pub const formats_openai = struct {
         pub fn deinit(_: *const ChatCompletionRequest, _: std.mem.Allocator) void {}
     };
     pub fn parseRequest(_: std.mem.Allocator, _: []const u8) !ChatCompletionRequest {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn formatStreamChunk(_: std.mem.Allocator, _: []const u8, _: []const u8, _: u32, _: bool) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn formatResponse(_: std.mem.Allocator, _: []const u8, _: []const u8) ![]u8 {
-        return error.StreamingDisabled;
+        return error.FeatureDisabled;
     }
 };

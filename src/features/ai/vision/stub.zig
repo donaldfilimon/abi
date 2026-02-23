@@ -4,9 +4,9 @@ const std = @import("std");
 
 // --- Errors ---
 
-pub const Error = error{ VisionDisabled, InvalidImage, UnsupportedFormat, DecodeFailed, EncodeFailed, OutOfMemory };
-pub const ImageError = error{ InvalidDimensions, InvalidChannels, DataSizeMismatch, OutOfBounds, OutOfMemory, VisionDisabled };
-pub const PreprocessError = error{ InvalidDimensions, InvalidChannels, DimensionMismatch, OutOfMemory, VisionDisabled };
+pub const Error = error{ FeatureDisabled, InvalidImage, UnsupportedFormat, DecodeFailed, EncodeFailed, OutOfMemory };
+pub const ImageError = error{ InvalidDimensions, InvalidChannels, DataSizeMismatch, OutOfBounds, OutOfMemory, FeatureDisabled };
+pub const PreprocessError = error{ InvalidDimensions, InvalidChannels, DimensionMismatch, OutOfMemory, FeatureDisabled };
 
 // --- Image Types ---
 
@@ -23,10 +23,10 @@ pub const Image = struct {
     data: []u8 = &.{},
     allocator: std.mem.Allocator = undefined,
     pub fn init(_: std.mem.Allocator, _: u32, _: u32, _: u8) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn fromData(_: std.mem.Allocator, _: u32, _: u32, _: u8, _: []const u8) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Image) void {}
     pub fn getPixel(_: *const Image, _: u32, _: u32) ?[]const u8 {
@@ -34,7 +34,7 @@ pub const Image = struct {
     }
     pub fn setPixel(_: *Image, _: u32, _: u32, _: []const u8) void {}
     pub fn clone(_: *const Image) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn fill(_: *Image, _: []const u8) void {}
     pub fn pixelCount(_: *const Image) usize {
@@ -65,35 +65,35 @@ pub const image = struct {
 
 pub const preprocessing = struct {
     pub fn resize(_: *const Image, _: u32, _: u32) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn normalize(_: *Image, _: [3]f32, _: [3]f32) void {}
     pub fn toFloat(_: *const Image, _: std.mem.Allocator) Error![]f32 {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn toFloatNormalized(_: *const Image, _: std.mem.Allocator, _: [3]f32, _: [3]f32) Error![]f32 {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn centerCrop(_: *const Image, _: u32) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn centerCropRect(_: *const Image, _: u32, _: u32) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn pad(_: *const Image, _: u32, _: u8) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn padAsymmetric(_: *const Image, _: u32, _: u32, _: u32, _: u32, _: u8) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn toGrayscale(_: *const Image) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn flipHorizontal(_: *const Image) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn flipVertical(_: *const Image) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -114,29 +114,29 @@ pub const flipVertical = preprocessing.flipVertical;
 pub const conv = struct {
     pub const Conv2D = struct {
         pub fn init(_: std.mem.Allocator, _: anytype) Error!@This() {
-            return error.VisionDisabled;
+            return error.FeatureDisabled;
         }
         pub fn deinit(_: *@This()) void {}
     };
     pub const ConvGradients = struct {};
     pub fn im2col(_: anytype) Error!void {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn col2im(_: anytype) Error!void {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
 };
 
 pub const pooling = struct {
     pub const MaxPool2D = struct {
         pub fn init(_: std.mem.Allocator, _: u32, _: u32, _: u32) Error!@This() {
-            return error.VisionDisabled;
+            return error.FeatureDisabled;
         }
         pub fn deinit(_: *@This()) void {}
     };
     pub const AvgPool2D = struct {
         pub fn init(_: std.mem.Allocator, _: u32, _: u32, _: u32) Error!@This() {
-            return error.VisionDisabled;
+            return error.FeatureDisabled;
         }
         pub fn deinit(_: *@This()) void {}
     };
@@ -147,14 +147,14 @@ pub const pooling = struct {
     };
     pub const PoolResult = struct {};
     pub fn globalAvgPool2D(_: anytype) Error!void {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
 };
 
 pub const batchnorm = struct {
     pub const BatchNorm2D = struct {
         pub fn init(_: std.mem.Allocator, _: anytype) Error!@This() {
-            return error.VisionDisabled;
+            return error.FeatureDisabled;
         }
         pub fn deinit(_: *@This()) void {}
     };
@@ -190,17 +190,17 @@ pub const ClipNorm = struct {
 pub const Context = struct {
     allocator: std.mem.Allocator = undefined,
     pub fn init(_: std.mem.Allocator) Error!*Context {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn createImage(_: *Context, _: u32, _: u32, _: u8) Error!Image {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn preprocessForModel(_: *Context, _: *const Image, _: u32) Error![]f32 {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn preprocessForModelCustom(_: *Context, _: *const Image, _: u32, _: [3]f32, _: [3]f32) Error![]f32 {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
 };
 

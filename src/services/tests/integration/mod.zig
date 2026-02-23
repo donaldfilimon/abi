@@ -51,8 +51,8 @@ pub const assertInRange = fixtures.assertInRange;
 pub const generateTestVector = fixtures.generateTestVector;
 pub const generateRandomMatrix = fixtures.generateRandomMatrix;
 
-// Force-reference test modules to include them in test build
-comptime {
+// NOTE: test {} required for Zig 0.16 test discovery (not comptime)
+test {
     // Always include core infrastructure tests
     _ = fixtures;
     _ = mocks;
@@ -68,6 +68,9 @@ comptime {
 
     // Cross-module feature integration (cache+storage, search, messaging+gateway)
     _ = @import("cross_module_test.zig");
+
+    // v2 integration tests
+    _ = @import("v2.zig");
 }
 
 // ============================================================================

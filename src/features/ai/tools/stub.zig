@@ -194,28 +194,28 @@ pub const ToolAugmentedAgent = struct {
 
     const Self = @This();
 
-    pub fn init(_: std.mem.Allocator, _: ToolAgentConfig) error{AiDisabled}!Self {
-        return error.AiDisabled;
+    pub fn init(_: std.mem.Allocator, _: ToolAgentConfig) error{FeatureDisabled}!Self {
+        return error.FeatureDisabled;
     }
 
     pub fn deinit(_: *Self) void {}
 
     pub fn registerCodeAgentTools(_: *Self) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn registerAllAgentTools(_: *Self) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn registerTool(_: *Self, _: anytype) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
 
     pub fn setConfirmationCallback(_: *Self, _: ConfirmationFn) void {}
 
-    pub fn processWithTools(_: *Self, _: []const u8, _: std.mem.Allocator) error{AiDisabled}![]u8 {
-        return error.AiDisabled;
+    pub fn processWithTools(_: *Self, _: []const u8, _: std.mem.Allocator) error{FeatureDisabled}![]u8 {
+        return error.FeatureDisabled;
     }
 
     pub fn getToolCallLog(_: *const Self) []const ToolCallRecord {
@@ -229,10 +229,10 @@ pub const ToolAugmentedAgent = struct {
     pub fn clearLog(_: *Self) void {}
 };
 
-pub fn generateToolDescriptions(_: anytype, _: std.mem.Allocator) error{AiDisabled}![]u8 {
-    return error.AiDisabled;
+pub fn generateToolDescriptions(_: anytype, _: std.mem.Allocator) error{FeatureDisabled}![]u8 {
+    return error.FeatureDisabled;
 }
 
-pub fn parseToolCalls(_: []const u8, _: std.mem.Allocator) error{AiDisabled}!std.ArrayListUnmanaged(ToolCallRequest) {
-    return error.AiDisabled;
+pub fn parseToolCalls(_: []const u8, _: std.mem.Allocator) error{FeatureDisabled}!std.ArrayListUnmanaged(ToolCallRequest) {
+    return error.FeatureDisabled;
 }

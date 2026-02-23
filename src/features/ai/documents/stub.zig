@@ -101,13 +101,13 @@ pub const TextSegmenter = struct {
         return .{ .allocator = allocator, .config = config };
     }
     pub fn segmentSentences(_: *TextSegmenter, _: []const u8) ![]TextSegment {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn segmentChunks(_: *TextSegmenter, _: []const u8) ![]TextSegment {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn segmentParagraphs(_: *TextSegmenter, _: []const u8) ![]TextSegment {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -117,7 +117,7 @@ pub const EntityExtractor = struct {
         return .{ .allocator = allocator };
     }
     pub fn extractAll(_: *EntityExtractor, _: []const u8) ![]NamedEntity {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -127,7 +127,7 @@ pub const LayoutAnalyzer = struct {
         return .{ .allocator = allocator };
     }
     pub fn analyzeMarkdown(_: *LayoutAnalyzer, _: []const u8) ![]DocumentElement {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn computeStats(_: *LayoutAnalyzer, _: []const u8) Document.DocumentMetadata {
         return .{};
@@ -152,21 +152,21 @@ pub const DocumentPipeline = struct {
     }
     pub fn deinit(_: *DocumentPipeline) void {}
     pub fn parse(_: *DocumentPipeline, _: ?[]const u8, _: []const u8) !Document {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getSummarySegments(_: *DocumentPipeline, _: *const Document, _: usize) []const TextSegment {
         return &.{};
     }
     pub fn searchSegments(_: *DocumentPipeline, _: *const Document, _: []const u8) ![]const TextSegment {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getHeadings(_: *DocumentPipeline, _: *const Document) ![]const DocumentElement {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getTableOfContents(_: *DocumentPipeline, _: *const Document) ![]DocumentElement {
-        return error.DocumentsDisabled;
+        return error.FeatureDisabled;
     }
-    pub const Error = error{ DocumentTooLarge, InvalidFormat, ParseError, OutOfMemory, DocumentsDisabled };
+    pub const Error = error{ DocumentTooLarge, InvalidFormat, ParseError, OutOfMemory, FeatureDisabled };
 };
 
 pub const Error = DocumentPipeline.Error;

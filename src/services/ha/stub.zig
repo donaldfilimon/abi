@@ -1,12 +1,12 @@
 //! Stub for High Availability module when disabled.
 //!
-//! Mirrors the full API of mod.zig, returning error.HaDisabled for all operations.
+//! Mirrors the full API of mod.zig, returning error.FeatureDisabled for all operations.
 
 const std = @import("std");
 
 /// HA module errors.
 pub const Error = error{
-    HaDisabled,
+    FeatureDisabled,
     BackupsDisabled,
     PitrDisabled,
     BackupInProgress,
@@ -104,7 +104,7 @@ pub const ReplicationManager = struct {
         _ = node_id;
         _ = region;
         _ = address;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn removeReplica(self: *ReplicationManager, node_id: u64, reason: DisconnectReason) void {
@@ -127,13 +127,13 @@ pub const ReplicationManager = struct {
         _ = self;
         _ = key;
         _ = value;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn promoteToPrimary(self: *ReplicationManager, node_id: u64) Error!void {
         _ = self;
         _ = node_id;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn processHeartbeat(self: *ReplicationManager, node_id: u64, sequence: u64) void {
@@ -271,12 +271,12 @@ pub const BackupOrchestrator = struct {
 
     pub fn triggerBackup(self: *BackupOrchestrator) Error!u64 {
         _ = self;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn triggerFullBackup(self: *BackupOrchestrator) Error!u64 {
         _ = self;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn listBackups(self: *BackupOrchestrator) []const BackupMetadata {
@@ -292,13 +292,13 @@ pub const BackupOrchestrator = struct {
 
     pub fn applyRetention(self: *BackupOrchestrator) Error!void {
         _ = self;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn verifyBackup(self: *BackupOrchestrator, backup_id: u64) Error!bool {
         _ = self;
         _ = backup_id;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 };
 
@@ -398,12 +398,12 @@ pub const PitrManager = struct {
         _ = key;
         _ = value;
         _ = previous_value;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn createCheckpoint(self: *PitrManager) Error!u64 {
         _ = self;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn getRecoveryPoints(self: *PitrManager) []const RecoveryPoint {
@@ -420,18 +420,18 @@ pub const PitrManager = struct {
     pub fn recoverToTimestamp(self: *PitrManager, timestamp: i64) Error!void {
         _ = self;
         _ = timestamp;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn recoverToSequence(self: *PitrManager, sequence: u64) Error!void {
         _ = self;
         _ = sequence;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn applyRetention(self: *PitrManager) Error!void {
         _ = self;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 };
 
@@ -511,7 +511,7 @@ pub const HaManager = struct {
 
     pub fn start(self: *HaManager) Error!void {
         _ = self;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn stop(self: *HaManager) void {
@@ -533,19 +533,19 @@ pub const HaManager = struct {
 
     pub fn triggerBackup(self: *HaManager) Error!u64 {
         _ = self;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn recoverToPoint(self: *HaManager, timestamp: i64) Error!void {
         _ = self;
         _ = timestamp;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn failoverTo(self: *HaManager, target_node_id: u64) Error!void {
         _ = self;
         _ = target_node_id;
-        return Error.HaDisabled;
+        return Error.FeatureDisabled;
     }
 };
 
@@ -594,7 +594,7 @@ var initialized: bool = false;
 
 pub fn init(allocator: std.mem.Allocator) Error!void {
     _ = allocator;
-    return Error.HaDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn deinit() void {
@@ -622,8 +622,8 @@ test "HaManager stub initialization" {
     });
     defer manager.deinit();
 
-    // Start should return HaDisabled
-    try std.testing.expectError(Error.HaDisabled, manager.start());
+    // Start should return FeatureDisabled
+    try std.testing.expectError(Error.FeatureDisabled, manager.start());
 
     // getStatus should return default values
     const status = manager.getStatus();
@@ -640,8 +640,8 @@ test "ReplicationManager stub operations" {
 
     try std.testing.expectEqual(@as(u32, 0), rm.getReplicaCount());
     try std.testing.expectEqual(@as(u64, 0), rm.getMaxLag());
-    try std.testing.expectError(Error.HaDisabled, rm.addReplica(1, "us-east-1", "10.0.0.1:5432"));
-    try std.testing.expectError(Error.HaDisabled, rm.replicate("key", "value"));
+    try std.testing.expectError(Error.FeatureDisabled, rm.addReplica(1, "us-east-1", "10.0.0.1:5432"));
+    try std.testing.expectError(Error.FeatureDisabled, rm.replicate("key", "value"));
 }
 
 test "BackupOrchestrator stub operations" {
@@ -652,7 +652,7 @@ test "BackupOrchestrator stub operations" {
 
     try std.testing.expectEqual(BackupState.idle, bo.getState());
     try std.testing.expect(!bo.isBackupDue());
-    try std.testing.expectError(Error.HaDisabled, bo.triggerBackup());
+    try std.testing.expectError(Error.FeatureDisabled, bo.triggerBackup());
     try std.testing.expectEqual(@as(usize, 0), bo.listBackups().len);
 }
 
@@ -663,7 +663,7 @@ test "PitrManager stub operations" {
     defer pm.deinit();
 
     try std.testing.expectEqual(@as(u64, 0), pm.getCurrentSequence());
-    try std.testing.expectError(Error.HaDisabled, pm.createCheckpoint());
+    try std.testing.expectError(Error.FeatureDisabled, pm.createCheckpoint());
     try std.testing.expectEqual(@as(usize, 0), pm.getRecoveryPoints().len);
     try std.testing.expect(pm.findNearestRecoveryPoint(12345) == null);
 }

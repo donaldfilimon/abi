@@ -76,8 +76,8 @@ pub const sleepMs = profiles.sleepMs;
 pub const getActiveProfile = profiles.getActiveProfile;
 pub const getProfileByName = profiles.getProfileByName;
 
-// Force-reference test modules to include them in test build
-comptime {
+// NOTE: test {} required for Zig 0.16 test discovery (not comptime)
+test {
     // Always include profiles infrastructure
     _ = profiles;
 

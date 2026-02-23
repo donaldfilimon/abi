@@ -6,7 +6,7 @@ const stub_common = @import("../../services/shared/stub_common.zig");
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 
-pub const Error = error{ GpuDisabled, NoDeviceAvailable, InitializationFailed, InvalidConfig, OutOfMemory, KernelCompilationFailed, KernelExecutionFailed } || stub_common.CommonError;
+pub const Error = error{ FeatureDisabled, NoDeviceAvailable, InitializationFailed, InvalidConfig, OutOfMemory, KernelCompilationFailed, KernelExecutionFailed } || stub_common.CommonError;
 pub const GpuError = Error;
 pub const MemoryError = error{ OutOfMemory, InvalidPointer, BufferTooSmall, HostAccessDisabled, DeviceMemoryMissing, SizeMismatch, InvalidOffset, TransferFailed };
 pub const KernelError = error{ CompilationFailed, InvalidKernel, InvalidArgument, LaunchFailed, BackendUnsupported };
@@ -114,7 +114,7 @@ pub const backends = struct {
         }
 
         pub fn availableBackends(_: std.mem.Allocator) Error![]types.Backend {
-            return error.GpuDisabled;
+            return error.FeatureDisabled;
         }
     };
 
@@ -146,11 +146,11 @@ pub const backends = struct {
 
     pub const listing = struct {
         pub fn listBackendInfo(_: std.mem.Allocator) Error![]types.BackendInfo {
-            return error.GpuDisabled;
+            return error.FeatureDisabled;
         }
 
         pub fn listDevices(_: std.mem.Allocator) Error![]types.DeviceInfo {
-            return error.GpuDisabled;
+            return error.FeatureDisabled;
         }
 
         pub fn defaultDevice(_: std.mem.Allocator) !?types.DeviceInfo {
@@ -212,7 +212,7 @@ pub const Gpu = struct {
     config: GpuConfig = .{},
 
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!Gpu {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Gpu) void {}
     pub fn isAvailable(_: *const Gpu) bool {
@@ -222,38 +222,38 @@ pub const Gpu = struct {
         return null;
     }
     pub fn createBuffer(_: *Gpu, _: usize, _: BufferOptions) Error!*UnifiedBuffer {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn createBufferFromSlice(_: *Gpu, comptime _: type, _: anytype, _: BufferOptions) Error!*UnifiedBuffer {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn destroyBuffer(_: *Gpu, _: *UnifiedBuffer) void {}
     pub fn vectorAdd(_: *Gpu, _: *UnifiedBuffer, _: *UnifiedBuffer, _: *UnifiedBuffer) Error!ExecutionResult {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn matrixMultiply(_: *Gpu, _: *UnifiedBuffer, _: *UnifiedBuffer, _: *UnifiedBuffer, _: execution.MatrixDims) Error!ExecutionResult {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getHealth(_: *const Gpu) Error!HealthStatus {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn synchronize(_: *Gpu) Error!void {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn createStream(_: *Gpu, _: StreamOptions) Error!*Stream {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn createEvent(_: *Gpu, _: EventOptions) Error!*Event {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn checkHealth(_: *const Gpu) HealthStatus {
         return .unhealthy;
     }
     pub fn reduceSum(_: *Gpu, _: *UnifiedBuffer) Error!struct { value: f32, stats: ExecutionResult } {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn dotProduct(_: *Gpu, _: *UnifiedBuffer, _: *UnifiedBuffer) Error!struct { value: f32, stats: ExecutionResult } {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: *const Gpu) GpuStats {
         return .{};
@@ -276,7 +276,7 @@ pub const GpuDevice = struct {
     };
 
     pub fn init(_: std.mem.Allocator, _: GpuConfig) Error!GpuDevice {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *GpuDevice) void {}
     pub fn backendName(_: *const GpuDevice) []const u8 {
@@ -286,20 +286,20 @@ pub const GpuDevice = struct {
         return .{};
     }
     pub fn createBuffer(_: *GpuDevice, comptime _: type, _: usize, _: BufferOptions) Error!UnifiedBuffer {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn createBufferFromSlice(_: *GpuDevice, comptime _: type, _: anytype, _: BufferOptions) Error!UnifiedBuffer {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn destroyBuffer(_: *GpuDevice, _: *UnifiedBuffer) void {}
     pub fn vectorAdd(_: *GpuDevice, _: *UnifiedBuffer, _: *UnifiedBuffer, _: *UnifiedBuffer) Error!ExecutionResult {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn matrixMultiply(_: *GpuDevice, _: *UnifiedBuffer, _: *UnifiedBuffer, _: *UnifiedBuffer, _: execution.MatrixDims) Error!ExecutionResult {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn compileAndRun(_: *GpuDevice, _: *const anyopaque, _: LaunchConfig, _: anytype) Error!ExecutionResult {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn memoryInfo(_: *GpuDevice) MemoryInfo {
         return .{};
@@ -308,7 +308,7 @@ pub const GpuDevice = struct {
         return .{};
     }
     pub fn sync(_: *GpuDevice) Error!void {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn isAvailable(_: *const GpuDevice) bool {
         return false;
@@ -322,27 +322,27 @@ pub const GpuDevice = struct {
 
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.GpuConfig) !*Context {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn getGpu(_: *Context) Error!*Gpu {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn createBuffer(_: *Context, comptime _: type, _: usize, _: BufferOptions) Error!UnifiedBuffer {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn createBufferFromSlice(_: *Context, comptime T: type, _: []const T, _: BufferOptions) Error!UnifiedBuffer {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn destroyBuffer(_: *Context, _: *UnifiedBuffer) void {}
     pub fn vectorAdd(_: *Context, _: *UnifiedBuffer, _: *UnifiedBuffer, _: *UnifiedBuffer) Error!ExecutionResult {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn matrixMultiply(_: *Context, _: *UnifiedBuffer, _: *UnifiedBuffer, _: *UnifiedBuffer, _: execution.MatrixDims) Error!ExecutionResult {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getHealth(_: *Context) Error!HealthStatus {
-        return error.GpuDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -355,9 +355,9 @@ pub fn isInitialized() bool {
     return false;
 }
 pub fn init(_: std.mem.Allocator) Error!void {
-    return error.GpuDisabled;
+    return error.FeatureDisabled;
 }
 pub fn deinit() void {}
 pub fn ensureInitialized(_: std.mem.Allocator) Error!void {
-    return error.GpuDisabled;
+    return error.FeatureDisabled;
 }

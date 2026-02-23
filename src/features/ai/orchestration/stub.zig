@@ -15,7 +15,7 @@ pub const OrchestrationError = error{
     ModelDisabled,
     RateLimitExceeded,
     OutOfMemory,
-    OrchestrationDisabled,
+    FeatureDisabled,
 };
 
 // --- Config Types ---
@@ -49,7 +49,7 @@ pub const ModelBackend = enum {
     anthropic,
     local,
     pub fn toString(self: ModelBackend) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
     pub fn toProviderId(_: ModelBackend) u8 {
         return 0;
@@ -67,7 +67,7 @@ pub const Capability = enum {
     vision,
     embedding,
     pub fn toString(self: Capability) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -104,7 +104,7 @@ pub const RoutingStrategy = enum {
     cost_optimized,
     latency_optimized,
     pub fn toString(self: RoutingStrategy) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -118,7 +118,7 @@ pub const TaskType = enum {
     math,
     general,
     pub fn toString(self: TaskType) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
     pub fn detect(_: []const u8) TaskType {
         return .general;
@@ -159,7 +159,7 @@ pub const EnsembleMethod = enum {
     first_success,
     custom,
     pub fn toString(self: EnsembleMethod) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -186,7 +186,7 @@ pub const FallbackPolicy = enum {
     immediate_fallback,
     circuit_breaker,
     pub fn toString(self: FallbackPolicy) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
 };
 
@@ -197,7 +197,7 @@ pub const HealthStatus = enum {
     circuit_open,
     recovering,
     pub fn toString(self: HealthStatus) []const u8 {
-        return std.mem.sliceTo(@tagName(self), 0);
+        return @tagName(self);
     }
     pub fn isAvailable(self: HealthStatus) bool {
         return self == .healthy or self == .degraded;
@@ -238,38 +238,38 @@ pub const ModelEntry = struct {
 
 pub const Orchestrator = struct {
     pub fn init(_: std.mem.Allocator, _: OrchestrationConfig) OrchestrationError!Orchestrator {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Orchestrator) void {}
     pub fn registerModel(_: *Orchestrator, _: ModelConfig) OrchestrationError!void {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
     pub fn unregisterModel(_: *Orchestrator, _: []const u8) OrchestrationError!void {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getModel(_: *Orchestrator, _: []const u8) ?*ModelEntry {
         return null;
     }
     pub fn setModelEnabled(_: *Orchestrator, _: []const u8, _: bool) OrchestrationError!void {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
     pub fn setModelHealth(_: *Orchestrator, _: []const u8, _: HealthStatus) OrchestrationError!void {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
     pub fn route(_: *Orchestrator, _: []const u8, _: ?TaskType) OrchestrationError!RouteResult {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
     pub fn execute(_: *Orchestrator, _: []const u8, _: ?TaskType, _: std.mem.Allocator) OrchestrationError![]u8 {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
     pub fn executeEnsemble(_: *Orchestrator, _: []const u8, _: ?TaskType, _: std.mem.Allocator) OrchestrationError!EnsembleResult {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: *Orchestrator) OrchestratorStats {
         return .{};
     }
     pub fn listModels(_: *Orchestrator, _: std.mem.Allocator) OrchestrationError![][]const u8 {
-        return error.OrchestrationDisabled;
+        return error.FeatureDisabled;
     }
 };
 

@@ -1,6 +1,6 @@
 //! Stub for Connectors module when disabled.
 //!
-//! Mirrors the full API of mod.zig, returning error.ConnectorsDisabled for all operations.
+//! Mirrors the full API of mod.zig, returning error.FeatureDisabled for all operations.
 
 const std = @import("std");
 
@@ -9,7 +9,7 @@ pub const shared = @import("shared.zig");
 
 /// Connectors module errors.
 pub const Error = error{
-    ConnectorsDisabled,
+    FeatureDisabled,
     MissingApiKey,
     MissingApiToken,
     MissingBotToken,
@@ -22,7 +22,7 @@ pub const Error = error{
 var initialized: bool = false;
 
 pub fn init(_: std.mem.Allocator) !void {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn deinit() void {
@@ -38,11 +38,11 @@ pub fn isInitialized() bool {
 }
 
 pub fn getEnvOwned(_: std.mem.Allocator, _: []const u8) !?[]u8 {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn getFirstEnvOwned(_: std.mem.Allocator, _: []const []const u8) !?[]u8 {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 /// Auth header stub.
@@ -60,7 +60,7 @@ pub const AuthHeader = struct {
 };
 
 pub fn buildBearerHeader(_: std.mem.Allocator, _: []const u8) !AuthHeader {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 // ============================================================================
@@ -221,18 +221,18 @@ pub const discord = struct {
         allocator: std.mem.Allocator,
 
         pub fn init(_: std.mem.Allocator, _: Config) !Client {
-            return Error.ConnectorsDisabled;
+            return Error.FeatureDisabled;
         }
 
         pub fn deinit(_: *Client) void {}
     };
 
     pub fn loadFromEnv(_: std.mem.Allocator) !Config {
-        return Error.ConnectorsDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn createClient(_: std.mem.Allocator) !Client {
-        return Error.ConnectorsDisabled;
+        return Error.FeatureDisabled;
     }
 
     pub fn isAvailable() bool {
@@ -245,7 +245,7 @@ pub const discord = struct {
 // ============================================================================
 
 pub fn loadOpenAI(_: std.mem.Allocator) !openai.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadOpenAI(_: std.mem.Allocator) !?openai.Config {
@@ -253,7 +253,7 @@ pub fn tryLoadOpenAI(_: std.mem.Allocator) !?openai.Config {
 }
 
 pub fn loadCodex(_: std.mem.Allocator) !codex.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadCodex(_: std.mem.Allocator) !?codex.Config {
@@ -261,7 +261,7 @@ pub fn tryLoadCodex(_: std.mem.Allocator) !?codex.Config {
 }
 
 pub fn loadOpenCode(_: std.mem.Allocator) !opencode.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadOpenCode(_: std.mem.Allocator) !?opencode.Config {
@@ -269,7 +269,7 @@ pub fn tryLoadOpenCode(_: std.mem.Allocator) !?opencode.Config {
 }
 
 pub fn loadClaude(_: std.mem.Allocator) !claude.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadClaude(_: std.mem.Allocator) !?claude.Config {
@@ -277,7 +277,7 @@ pub fn tryLoadClaude(_: std.mem.Allocator) !?claude.Config {
 }
 
 pub fn loadGemini(_: std.mem.Allocator) !gemini.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadGemini(_: std.mem.Allocator) !?gemini.Config {
@@ -285,7 +285,7 @@ pub fn tryLoadGemini(_: std.mem.Allocator) !?gemini.Config {
 }
 
 pub fn loadHuggingFace(_: std.mem.Allocator) !huggingface.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadHuggingFace(_: std.mem.Allocator) !?huggingface.Config {
@@ -293,7 +293,7 @@ pub fn tryLoadHuggingFace(_: std.mem.Allocator) !?huggingface.Config {
 }
 
 pub fn loadOllama(_: std.mem.Allocator) !ollama.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadOllama(_: std.mem.Allocator) !?ollama.Config {
@@ -301,7 +301,7 @@ pub fn tryLoadOllama(_: std.mem.Allocator) !?ollama.Config {
 }
 
 pub fn loadOllamaPassthrough(_: std.mem.Allocator) !ollama_passthrough.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadOllamaPassthrough(_: std.mem.Allocator) !?ollama_passthrough.Config {
@@ -309,11 +309,11 @@ pub fn tryLoadOllamaPassthrough(_: std.mem.Allocator) !?ollama_passthrough.Confi
 }
 
 pub fn loadLocalScheduler(_: std.mem.Allocator) !local_scheduler.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn loadDiscord(_: std.mem.Allocator) !discord.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadDiscord(_: std.mem.Allocator) !?discord.Config {
@@ -321,7 +321,7 @@ pub fn tryLoadDiscord(_: std.mem.Allocator) !?discord.Config {
 }
 
 pub fn loadAnthropic(_: std.mem.Allocator) !anthropic.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadAnthropic(_: std.mem.Allocator) !?anthropic.Config {
@@ -329,7 +329,7 @@ pub fn tryLoadAnthropic(_: std.mem.Allocator) !?anthropic.Config {
 }
 
 pub fn loadMistral(_: std.mem.Allocator) !mistral.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadMistral(_: std.mem.Allocator) !?mistral.Config {
@@ -337,7 +337,7 @@ pub fn tryLoadMistral(_: std.mem.Allocator) !?mistral.Config {
 }
 
 pub fn loadCohere(_: std.mem.Allocator) !cohere.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadCohere(_: std.mem.Allocator) !?cohere.Config {
@@ -345,7 +345,7 @@ pub fn tryLoadCohere(_: std.mem.Allocator) !?cohere.Config {
 }
 
 pub fn loadLMStudio(_: std.mem.Allocator) !lm_studio.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadLMStudio(_: std.mem.Allocator) !?lm_studio.Config {
@@ -353,7 +353,7 @@ pub fn tryLoadLMStudio(_: std.mem.Allocator) !?lm_studio.Config {
 }
 
 pub fn loadVLLM(_: std.mem.Allocator) !vllm.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadVLLM(_: std.mem.Allocator) !?vllm.Config {
@@ -361,7 +361,7 @@ pub fn tryLoadVLLM(_: std.mem.Allocator) !?vllm.Config {
 }
 
 pub fn loadMLX(_: std.mem.Allocator) !mlx.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadMLX(_: std.mem.Allocator) !?mlx.Config {
@@ -369,7 +369,7 @@ pub fn tryLoadMLX(_: std.mem.Allocator) !?mlx.Config {
 }
 
 pub fn loadLlamaCpp(_: std.mem.Allocator) !llama_cpp.Config {
-    return Error.ConnectorsDisabled;
+    return Error.FeatureDisabled;
 }
 
 pub fn tryLoadLlamaCpp(_: std.mem.Allocator) !?llama_cpp.Config {
@@ -386,15 +386,15 @@ test "connectors stub returns disabled" {
 }
 
 test "connectors stub init returns error" {
-    try std.testing.expectError(Error.ConnectorsDisabled, init(std.testing.allocator));
+    try std.testing.expectError(Error.FeatureDisabled, init(std.testing.allocator));
 }
 
 test "connectors stub loaders return disabled or null" {
-    try std.testing.expectError(Error.ConnectorsDisabled, loadOpenAI(std.testing.allocator));
-    try std.testing.expectError(Error.ConnectorsDisabled, loadAnthropic(std.testing.allocator));
-    try std.testing.expectError(Error.ConnectorsDisabled, loadLMStudio(std.testing.allocator));
-    try std.testing.expectError(Error.ConnectorsDisabled, loadVLLM(std.testing.allocator));
-    try std.testing.expectError(Error.ConnectorsDisabled, loadMLX(std.testing.allocator));
+    try std.testing.expectError(Error.FeatureDisabled, loadOpenAI(std.testing.allocator));
+    try std.testing.expectError(Error.FeatureDisabled, loadAnthropic(std.testing.allocator));
+    try std.testing.expectError(Error.FeatureDisabled, loadLMStudio(std.testing.allocator));
+    try std.testing.expectError(Error.FeatureDisabled, loadVLLM(std.testing.allocator));
+    try std.testing.expectError(Error.FeatureDisabled, loadMLX(std.testing.allocator));
 
     const openai_opt = try tryLoadOpenAI(std.testing.allocator);
     try std.testing.expectEqual(@as(?openai.Config, null), openai_opt);

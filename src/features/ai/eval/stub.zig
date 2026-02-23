@@ -111,59 +111,59 @@ pub const Evaluator = struct {
         return .{ .allocator = allocator, .config = config };
     }
     pub fn evaluate(_: *Evaluator, _: []const u8, _: []const u8) !EvaluationResult {
-        return error.EvalDisabled;
+        return error.FeatureDisabled;
     }
     pub fn evaluateBatch(_: *Evaluator, _: []const []const u8, _: []const []const u8) !EvaluationReport {
-        return error.EvalDisabled;
+        return error.FeatureDisabled;
     }
 };
 
 // --- Metric Functions ---
 
 pub fn computeBleu(_: std.mem.Allocator, _: []const u8, _: []const u8, _: u32, _: SmoothingMethod) !BleuScore {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeBleuMultiRef(_: std.mem.Allocator, _: []const u8, _: []const []const u8, _: u32, _: SmoothingMethod) !BleuScore {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeRouge(_: std.mem.Allocator, _: []const u8, _: []const u8, _: RougeType) !RougeScore {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeRougeN(_: std.mem.Allocator, _: []const u8, _: []const u8, _: usize) !RougeScore {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeRougeL(_: std.mem.Allocator, _: []const u8, _: []const u8) !RougeScore {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computePerplexity(_: []const f64) PerplexityResult {
     return .{};
 }
 pub fn computeF1(_: std.mem.Allocator, _: []const u8, _: []const u8) !f64 {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeExactMatch(_: []const u8, _: []const u8) f64 {
     return 0;
 }
 pub fn computeCER(_: std.mem.Allocator, _: []const u8, _: []const u8) !f64 {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeWER(_: std.mem.Allocator, _: []const u8, _: []const u8) !f64 {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeNormalizedExactMatch(_: std.mem.Allocator, _: []const u8, _: []const u8) !f64 {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn levenshteinDistance(_: std.mem.Allocator, _: []const u8, _: []const u8) !usize {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeTokenMetrics(_: std.mem.Allocator, _: []const u8, _: []const u8) !TokenMetrics {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn computeTextStatistics(_: []const u8) TextStatistics {
     return .{};
 }
 pub fn computeWindowedPerplexity(_: std.mem.Allocator, _: []const f64, _: usize) ![]PerplexityResult {
-    return error.EvalDisabled;
+    return error.FeatureDisabled;
 }
 pub fn perplexityFromCrossEntropy(_: f64) f64 {
     return 0;

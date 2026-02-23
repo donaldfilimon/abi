@@ -3,7 +3,7 @@
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-pub const Error = error{ AiDisabled, LlmDisabled, EmbeddingsDisabled, AgentsDisabled, TrainingDisabled, ModelNotFound, InferenceFailed, InvalidConfig };
+pub const Error = error{ FeatureDisabled, ModelNotFound, InferenceFailed, InvalidConfig };
 
 // Sub-module stubs (each has its own stub.zig)
 pub const core = @import("core/stub.zig");
@@ -81,23 +81,23 @@ pub const SelfImprover = self_improve.SelfImprover;
 pub const Context = struct {
     pub const SubFeature = enum { llm, embeddings, agents, training, personas };
     pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) Error!*Context {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn getLlm(_: *Context) Error!*llm.Context {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getEmbeddings(_: *Context) Error!*embeddings.Context {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getAgents(_: *Context) Error!*agents.Context {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getTraining(_: *Context) Error!*training.Context {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getPersonas(_: *Context) Error!*personas.Context {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
     pub fn isSubFeatureEnabled(_: *Context, _: SubFeature) bool {
         return false;
@@ -118,10 +118,10 @@ pub const Context = struct {
         return .{};
     }
     pub fn addModelPath(_: *Context, _: []const u8) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
     pub fn addModelWithSize(_: *Context, _: []const u8, _: u64) !void {
-        return error.AiDisabled;
+        return error.FeatureDisabled;
     }
     pub fn clearDiscoveredModels(_: *Context) void {}
 };
@@ -136,10 +136,10 @@ pub fn isInitialized() bool {
     return false;
 }
 pub fn init(_: std.mem.Allocator) Error!void {
-    return error.AiDisabled;
+    return error.FeatureDisabled;
 }
 pub fn deinit() void {}
 
 pub fn createAgent(_: std.mem.Allocator, _: []const u8) !Agent {
-    return error.AiDisabled;
+    return error.FeatureDisabled;
 }

@@ -6,14 +6,14 @@ const vision = @import("../vision/stub.zig");
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 
-pub const Error = error{ TrainingDisabled, InvalidConfig, CheckpointFailed, TrainingFailed, OutOfMemory };
+pub const Error = error{ FeatureDisabled, InvalidConfig, CheckpointFailed, TrainingFailed, OutOfMemory };
 pub const CheckpointError = error{ InvalidFormat, UnsupportedVersion, PayloadTooLarge };
 pub const SaveError = Error || CheckpointError;
 pub const LoadError = Error || CheckpointError;
 pub const TrainError = Error;
 pub const GradientError = error{ NormOverflow, InvalidGradient };
-pub const VisionTrainingError = error{ InvalidImageSize, InvalidBatchSize, ConfigMismatch, NoActivationCache, OutOfMemory, VisionDisabled };
-pub const MultimodalTrainingError = error{ InvalidBatchSize, DimensionMismatch, NoActivationCache, OutOfMemory, InvalidTemperature, MultimodalDisabled };
+pub const VisionTrainingError = error{ InvalidImageSize, InvalidBatchSize, ConfigMismatch, NoActivationCache, OutOfMemory, FeatureDisabled };
+pub const MultimodalTrainingError = error{ InvalidBatchSize, DimensionMismatch, NoActivationCache, OutOfMemory, InvalidTemperature, FeatureDisabled };
 
 // ── Enums ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ pub const TrainingConfig = struct {
     early_stopping_threshold: f32 = 1e-4,
     mixed_precision: bool = false,
     pub fn validate(_: TrainingConfig) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -269,14 +269,14 @@ pub const GpuTrainingStats = struct {
 
 pub const LlamaTrainer = struct {
     pub fn init(_: std.mem.Allocator, _: *TrainableModel, _: LlmTrainingConfig) Error!@This() {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *@This()) void {}
     pub fn trainStepWithMetrics(_: *@This(), _: []const u32, _: []const u32) Error!StepMetrics {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn saveCheckpoint(_: *@This(), _: []const u8) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: *const @This()) TrainingStats {
         return .{};
@@ -292,17 +292,17 @@ pub const LlamaTrainer = struct {
 pub const TrainableModel = struct {
     config: TrainableModelConfig = .{},
     pub fn init(_: std.mem.Allocator, _: anytype) Error!@This() {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn fromGguf(_: std.mem.Allocator, _: []const u8) Error!@This() {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *@This()) void {}
     pub fn numParams(_: @This()) u64 {
         return 0;
     }
     pub fn exportToGguf(_: *const @This(), _: std.mem.Allocator, _: []const u8, _: anytype) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -310,7 +310,7 @@ pub const TrainableViTWeights = struct {
     allocator: std.mem.Allocator,
     config: TrainableViTConfig,
     pub fn init(_: std.mem.Allocator, _: TrainableViTConfig) VisionTrainingError!TrainableViTWeights {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *TrainableViTWeights) void {}
     pub fn zeroGradients(_: *TrainableViTWeights) void {}
@@ -320,20 +320,20 @@ pub const TrainableViTModel = struct {
     allocator: std.mem.Allocator,
     config: TrainableViTConfig,
     pub fn init(_: std.mem.Allocator, _: TrainableViTConfig) VisionTrainingError!TrainableViTModel {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *TrainableViTModel) void {}
     pub fn forward(_: *TrainableViTModel, _: []const f32, _: u32, _: []f32) VisionTrainingError!void {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn backward(_: *TrainableViTModel, _: []const f32, _: u32) VisionTrainingError!void {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getGradients(_: *const TrainableViTModel) ?*anyopaque {
         return null;
     }
     pub fn applyGradients(_: *TrainableViTModel, _: f32) VisionTrainingError!void {
-        return error.VisionDisabled;
+        return error.FeatureDisabled;
     }
     pub fn zeroGradients(_: *TrainableViTModel) void {}
     pub fn computeGradientNorm(_: *const TrainableViTModel) f32 {
@@ -349,14 +349,14 @@ pub const TrainableCLIPModel = struct {
     allocator: std.mem.Allocator,
     config: CLIPTrainingConfig,
     pub fn init(_: std.mem.Allocator, _: CLIPTrainingConfig) MultimodalTrainingError!TrainableCLIPModel {
-        return error.MultimodalDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *TrainableCLIPModel) void {}
     pub fn encodeImages(_: *TrainableCLIPModel, _: []const f32, _: u32, _: []f32) MultimodalTrainingError!void {
-        return error.MultimodalDisabled;
+        return error.FeatureDisabled;
     }
     pub fn encodeText(_: *TrainableCLIPModel, _: []const u32, _: u32, _: []f32) MultimodalTrainingError!void {
-        return error.MultimodalDisabled;
+        return error.FeatureDisabled;
     }
     pub fn computeContrastiveLoss(_: *TrainableCLIPModel, _: []const f32, _: []const f32, _: u32, _: []f32, _: []f32) f32 {
         return 0.0;
@@ -373,7 +373,7 @@ pub const TrainableCLIPModel = struct {
 
 pub const BatchIterator = struct {
     pub fn init(_: std.mem.Allocator, _: *const TokenizedDataset, _: u32, _: u32, _: bool) Error!BatchIterator {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *BatchIterator) void {}
     pub fn next(_: *BatchIterator) ?Batch {
@@ -390,7 +390,7 @@ pub const TokenizedDataset = struct {
     data: []const u32 = &.{},
     owns_data: bool = false,
     pub fn load(_: std.mem.Allocator, _: []const u8) Error!TokenizedDataset {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn fromSlice(allocator: std.mem.Allocator, data: []const u32) TokenizedDataset {
         return .{ .allocator = allocator, .data = data, .owns_data = false };
@@ -420,7 +420,7 @@ pub const DataLoader = struct {
     }
     pub fn deinit(_: *DataLoader) void {}
     pub fn iterator(_: *const DataLoader) Error!BatchIterator {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn numBatches(_: *const DataLoader) usize {
         return 0;
@@ -439,10 +439,10 @@ pub const SequencePacker = struct {
     }
     pub fn deinit(_: *SequencePacker) void {}
     pub fn addSequence(_: *SequencePacker, _: []const u32) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn pack(_: *SequencePacker, _: u32) Error!PackedBatch {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub const PackedBatch = struct {
         allocator: std.mem.Allocator,
@@ -460,26 +460,26 @@ pub const SequencePacker = struct {
 
 pub const SelfLearningSystem = struct {
     pub fn init(_: std.mem.Allocator, _: SelfLearningConfig) Error!SelfLearningSystem {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *SelfLearningSystem) void {}
     pub fn recordExperience(_: *SelfLearningSystem, _: []const u32, _: []const u32, _: FeedbackType, _: f32, _: ExperienceType) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn recordVisionExperience(_: *SelfLearningSystem, _: []const u32, _: []const u32, _: []const u8, _: FeedbackType, _: f32) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn recordVideoExperience(_: *SelfLearningSystem, _: []const u32, _: []const u32, _: []const u8, _: FeedbackType, _: f32) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn recordAudioExperience(_: *SelfLearningSystem, _: []const u32, _: []const u32, _: []const u8, _: FeedbackType, _: f32) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn recordGenericExperience(_: *SelfLearningSystem, _: []const u32, _: []const u32, _: []const u8, _: ?[]const u8, _: FeedbackType, _: f32) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn update(_: *SelfLearningSystem) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getStats(_: *const SelfLearningSystem) LearningStats {
         return .{};
@@ -488,45 +488,45 @@ pub const SelfLearningSystem = struct {
 
 pub const WdbxTokenDataset = struct {
     pub fn init(_: std.mem.Allocator, _: []const u8) Error!WdbxTokenDataset {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *WdbxTokenDataset) void {}
     pub fn save(_: *WdbxTokenDataset) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn appendTokens(_: *WdbxTokenDataset, _: []const u32, _: ?[]const u8) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn importTokenBin(_: *WdbxTokenDataset, _: []const u32, _: u32) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn collectTokens(_: *WdbxTokenDataset, _: std.mem.Allocator, _: usize) Error![]u32 {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn exportTokenBinFile(_: *WdbxTokenDataset, _: std.mem.Allocator, _: []const u8, _: usize) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn ingestText(_: *WdbxTokenDataset, _: std.mem.Allocator, _: anytype, _: []const u8, _: u32) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.TrainingConfig) Error!*Context {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn train(_: *Context, _: TrainingConfig) Error!TrainingResult {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn getCheckpointStore(_: *Context) Error!*CheckpointStore {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn saveCheckpoint(_: *Context, _: []const u8, _: anytype) Error!void {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn loadCheckpointData(_: *Context, _: []const u8, comptime T: type) Error!T {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -537,41 +537,41 @@ pub fn selfLearningConfigFromCore(_: config_module.TrainingConfig) SelfLearningC
 }
 
 pub fn train(_: std.mem.Allocator, _: TrainingConfig) Error!void {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 
 pub fn isEnabled() bool {
     return false;
 }
 pub fn trainAndReport(_: std.mem.Allocator, _: TrainingConfig) Error!TrainingReport {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn trainWithResult(_: std.mem.Allocator, _: TrainingConfig) Error!TrainingResult {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn trainLlm(_: std.mem.Allocator, _: *TrainableModel, _: LlmTrainingConfig, _: []const u32) Error!TrainingReport {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn encodeTokenBlock(_: std.mem.Allocator, _: []const u32, _: ?[]const u8) Error![]u8 {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn decodeTokenBlock(_: std.mem.Allocator, _: []const u8) Error!TokenBlock {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn readTokenBinFile(_: std.mem.Allocator, _: []const u8) Error![]u32 {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn writeTokenBinFile(_: std.mem.Allocator, _: []const u8, _: []const u32) Error!void {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn loadCheckpoint(_: std.mem.Allocator, _: []const u8) LoadError!Checkpoint {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn saveCheckpoint(_: std.mem.Allocator, _: []const u8, _: CheckpointView) SaveError!void {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn parseInstructionDataset(_: std.mem.Allocator, _: []const u8) Error!std.ArrayListUnmanaged(InstructionSample) {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 
 // ── Distributed training stub ──────────────────────────────────────────────
@@ -624,14 +624,14 @@ pub const DistributedTrainer = distributed.DistributedTrainer;
 pub const LoraConfig = struct { rank: u32 = 8, alpha: f32 = 16.0, dropout: f32 = 0.1, target_modules: []const []const u8 = &.{} };
 pub const LoraAdapter = struct {
     pub fn init(_: std.mem.Allocator, _: LoraConfig) Error!@This() {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *@This()) void {}
 };
 pub const LoraLayerAdapters = struct {};
 pub const LoraModel = struct {
     pub fn init(_: std.mem.Allocator, _: anytype, _: LoraConfig) Error!@This() {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *@This()) void {}
 };
@@ -639,7 +639,7 @@ pub const LoraModel = struct {
 pub const MixedPrecisionConfig = struct { enabled: bool = false, loss_scale: f32 = 1.0 };
 pub const MixedPrecisionContext = struct {
     pub fn init(_: std.mem.Allocator, _: MixedPrecisionConfig) Error!@This() {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *@This()) void {}
 };
@@ -650,7 +650,7 @@ pub fn fp16ToFp32(_: []const u16, _: []f32) void {}
 
 pub const TrainingLogger = struct {
     pub fn init(_: std.mem.Allocator, _: TrainingLogConfig) Error!@This() {
-        return error.TrainingDisabled;
+        return error.FeatureDisabled;
     }
     pub fn deinit(_: *@This()) void {}
 };
@@ -674,10 +674,10 @@ pub const LlmCheckpointView = struct {};
 pub const LoadLlmCheckpointError = LoadError;
 pub const SaveLlmCheckpointError = SaveError;
 pub fn loadLlmCheckpoint(_: std.mem.Allocator, _: []const u8) LoadError!LlmCheckpoint {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn saveLlmCheckpoint(_: std.mem.Allocator, _: []const u8, _: anytype) SaveError!void {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub const GradientAccumulatorFull = struct {};
 
@@ -695,7 +695,7 @@ pub fn clipGradients(_: []f32, _: f32) f32 {
     return 0;
 }
 pub fn saveModelToWdbx(_: std.mem.Allocator, _: anytype, _: []const u8) Error!void {
-    return error.TrainingDisabled;
+    return error.FeatureDisabled;
 }
 pub fn calculateLearningRate(_: TrainingConfig, _: u64, _: f32) f32 {
     return 0;

@@ -69,7 +69,7 @@ pub const Chunker = struct {
         self.* = undefined;
     }
     pub fn chunk(_: *Chunker, _: []const u8) ![]Chunk {
-        return error.RagDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -88,7 +88,7 @@ pub const Retriever = struct {
         self.* = undefined;
     }
     pub fn computeEmbedding(_: *Retriever, _: []const u8) !?[]f32 {
-        return error.RagDisabled;
+        return error.FeatureDisabled;
     }
     pub fn computeSimilarity(_: *const Retriever, _: []const f32, _: []const f32) f32 {
         return 0;
@@ -131,7 +131,7 @@ pub const ContextBuilder = struct {
         self.* = undefined;
     }
     pub fn build(_: *ContextBuilder, _: []const u8, _: []const RetrievalResult, _: usize) !RagContext {
-        return error.RagDisabled;
+        return error.FeatureDisabled;
     }
 };
 
@@ -168,13 +168,13 @@ pub const RagPipeline = struct {
         self.* = undefined;
     }
     pub fn addDocument(_: *RagPipeline, _: Document) !void {
-        return error.RagDisabled;
+        return error.FeatureDisabled;
     }
     pub fn addText(_: *RagPipeline, _: []const u8, _: ?[]const u8) !void {
-        return error.RagDisabled;
+        return error.FeatureDisabled;
     }
     pub fn query(_: *RagPipeline, _: []const u8, _: ?usize) !RagResponse {
-        return error.RagDisabled;
+        return error.FeatureDisabled;
     }
     pub fn chunkCount(_: *const RagPipeline) usize {
         return 0;
