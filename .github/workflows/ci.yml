@@ -50,6 +50,8 @@ jobs:
         run: zig build validate-baseline
       - name: Validate feature flags
         run: zig build validate-flags
+      - name: CLI smoke tests
+        run: zig build cli-tests
 
   examples:
     name: Examples
