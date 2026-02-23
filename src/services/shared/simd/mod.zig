@@ -2,6 +2,7 @@
 //!
 //! Re-exports from focused submodules. Every public symbol from the
 //! original monolithic simd.zig is available here.
+const std = @import("std");
 
 pub const vector_ops = @import("vector_ops.zig");
 pub const activations = @import("activations.zig");
@@ -97,4 +98,8 @@ test {
     _ = integer_ops;
     _ = extras;
     _ = @import("simd_test.zig");
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

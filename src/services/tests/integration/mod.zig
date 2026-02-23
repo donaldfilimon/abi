@@ -242,3 +242,7 @@ test "integration: random matrix generation" {
     // Check values are in expected range
     try assertInRange(mat, -1.0, 1.0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

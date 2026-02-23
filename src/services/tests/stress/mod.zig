@@ -307,3 +307,7 @@ test "stress: tracking allocator stats" {
     try std.testing.expectEqual(@as(u64, 0), stats2.current_bytes);
     try std.testing.expectEqual(@as(u64, 512), stats2.peak_bytes); // Peak preserved
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -425,3 +425,7 @@ test {
         _ = gguf_test;
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

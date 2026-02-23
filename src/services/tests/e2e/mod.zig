@@ -659,3 +659,7 @@ test "E2EMetrics: calculations" {
     try std.testing.expectEqual(@as(u64, 500_000), metrics.avgOperationTimeNs());
     try std.testing.expectEqual(@as(u64, 6_500_000), metrics.totalDurationNs());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
