@@ -4,7 +4,7 @@
 //! Provides simulated mobile platform behavior for development and testing.
 
 const std = @import("std");
-const mobile_config = @import("../../core/config/mobile.zig");
+const mobile_config = @import("../../core/config/platform.zig");
 
 pub const MobileConfig = mobile_config.MobileConfig;
 pub const MobilePlatform = mobile_config.MobileConfig.Platform;

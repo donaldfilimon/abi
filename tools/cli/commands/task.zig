@@ -320,18 +320,18 @@ fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
         // Color based on status
         const status_color = switch (task.status) {
-            .pending => utils.output.Color.yellow,
-            .in_progress => utils.output.Color.cyan,
-            .completed => utils.output.Color.green,
-            .cancelled => utils.output.Color.dim,
-            .blocked => utils.output.Color.red,
+            .pending => utils.output.Color.yellow(),
+            .in_progress => utils.output.Color.cyan(),
+            .completed => utils.output.Color.green(),
+            .cancelled => utils.output.Color.dim(),
+            .blocked => utils.output.Color.red(),
         };
 
         std.debug.print("  {d:<6} {s}{s:<12}{s} {s:<10} {s:<10} {s}", .{
             task.id,
             status_color,
             status_str,
-            utils.output.Color.reset,
+            utils.output.Color.reset(),
             priority_str,
             category_str,
             title_display,
@@ -389,7 +389,7 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         defer if (due_str.len > 0 and !std.mem.eql(u8, due_str, "unknown")) allocator.free(due_str);
         utils.output.printKeyValue("Due", due_str);
         if (task.isOverdue()) {
-            std.debug.print("  {s}OVERDUE{s}\n", .{ utils.output.Color.red, utils.output.Color.reset });
+            std.debug.print("  {s}OVERDUE{s}\n", .{ utils.output.Color.red(), utils.output.Color.reset() });
         }
     }
 
@@ -508,12 +508,12 @@ fn runStats(allocator: std.mem.Allocator) !void {
     std.debug.print("\n", .{});
 
     std.debug.print("  Total:       {d}\n", .{stats.total});
-    std.debug.print("  {s}Pending:{s}     {d}\n", .{ utils.output.Color.yellow, utils.output.Color.reset, stats.pending });
-    std.debug.print("  {s}In Progress:{s} {d}\n", .{ utils.output.Color.cyan, utils.output.Color.reset, stats.in_progress });
-    std.debug.print("  {s}Completed:{s}   {d}\n", .{ utils.output.Color.green, utils.output.Color.reset, stats.completed });
-    std.debug.print("  {s}Cancelled:{s}   {d}\n", .{ utils.output.Color.dim, utils.output.Color.reset, stats.cancelled });
-    std.debug.print("  {s}Blocked:{s}     {d}\n", .{ utils.output.Color.red, utils.output.Color.reset, stats.blocked });
-    std.debug.print("  {s}Overdue:{s}     {d}\n", .{ utils.output.Color.red, utils.output.Color.reset, stats.overdue });
+    std.debug.print("  {s}Pending:{s}     {d}\n", .{ utils.output.Color.yellow(), utils.output.Color.reset(), stats.pending });
+    std.debug.print("  {s}In Progress:{s} {d}\n", .{ utils.output.Color.cyan(), utils.output.Color.reset(), stats.in_progress });
+    std.debug.print("  {s}Completed:{s}   {d}\n", .{ utils.output.Color.green(), utils.output.Color.reset(), stats.completed });
+    std.debug.print("  {s}Cancelled:{s}   {d}\n", .{ utils.output.Color.dim(), utils.output.Color.reset(), stats.cancelled });
+    std.debug.print("  {s}Blocked:{s}     {d}\n", .{ utils.output.Color.red(), utils.output.Color.reset(), stats.blocked });
+    std.debug.print("  {s}Overdue:{s}     {d}\n", .{ utils.output.Color.red(), utils.output.Color.reset(), stats.overdue });
 
     if (stats.total > 0) {
         const completion_rate = @as(f64, @floatFromInt(stats.completed)) / @as(f64, @floatFromInt(stats.total)) * 100.0;

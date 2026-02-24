@@ -20,7 +20,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     // Check if LLM feature is enabled
     if (!abi.ai.llm.isEnabled()) {
-        std.debug.print("Error: LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
+        utils.output.printError("LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
         return;
     }
 
@@ -369,7 +369,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     defer if (tokenizer) |*tok| tok.deinit();
 
     if (dataset_format != .tokenbin) {
-        var gguf_file = abi.ai.llm.io.gguf.GgufFile.open(allocator, model_path) catch |err| {
+        var gguf_file = abi.ai.llm.io.GgufFile.open(allocator, model_path) catch |err| {
             std.debug.print("Error opening GGUF for tokenizer: {t}\n", .{err});
             return;
         };
@@ -411,7 +411,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
         train_tokens = try wdbx_dataset.collectTokens(dataset_max_tokens);
     } else {
         if (dataset.path.len == 0) {
-            std.debug.print("Error: dataset path or URL required when --dataset-wdbx is not provided.\n", .{});
+            utils.output.printError("dataset path or URL required when --dataset-wdbx is not provided.\n", .{});
             return;
         }
         train_tokens = try common.loadTokensFromPath(
@@ -425,7 +425,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     defer allocator.free(train_tokens);
 
     if (train_tokens.len == 0) {
-        std.debug.print("Error: dataset yielded no tokens.\n", .{});
+        utils.output.printError("dataset yielded no tokens.\n", .{});
         return;
     }
 
@@ -433,10 +433,18 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     std.debug.print("Starting LLM training...\n", .{});
 
+    var timer = abi.shared.time.Timer.start() catch {
+        utils.output.printError("failed to start timer", .{});
+        return;
+    };
+
     const report = abi.ai.training.llm_trainer.trainLlm(allocator, &model, config, train_tokens) catch |err| {
         std.debug.print("Training failed: {t}\n", .{err});
         return;
     };
+
+    const elapsed_ns = timer.read();
+    const elapsed_ms = elapsed_ns / std.time.ns_per_ms;
 
     std.debug.print("\nTraining Complete\n", .{});
     std.debug.print("=================\n", .{});
@@ -445,5 +453,6 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     std.debug.print("Total steps:      {d}\n", .{report.total_steps});
     std.debug.print("Tokens processed: {d}\n", .{report.total_tokens});
     std.debug.print("Total time:       {d:.2}s\n", .{@as(f64, @floatFromInt(report.total_time_ns)) / 1e9});
+    std.debug.print("Wall time:        {d}ms\n", .{elapsed_ms});
     std.debug.print("Checkpoints saved:{d}\n", .{report.checkpoints_saved});
 }

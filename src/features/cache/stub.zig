@@ -3,7 +3,7 @@
 //! API-compatible no-op implementations when cache is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/cache.zig");
+const core_config = @import("../../core/config/platform.zig");
 const stub_context = @import("../../core/stub_context.zig");
 
 pub const CacheConfig = core_config.CacheConfig;

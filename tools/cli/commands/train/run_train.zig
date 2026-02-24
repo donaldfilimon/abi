@@ -17,6 +17,11 @@ pub fn runTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const 
         return;
     }
 
+    if (!abi.ai.training.isEnabled()) {
+        utils.output.printError("training feature is not enabled. Build with -Denable-training=true", .{});
+        return;
+    }
+
     var config = abi.ai.training.TrainingConfig{};
 
     var i: usize = 0;
@@ -207,7 +212,7 @@ pub fn runTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     std.debug.print("Starting training...\n\n", .{});
 
     var timer = abi.shared.time.Timer.start() catch {
-        std.debug.print("Error: Failed to start timer\n", .{});
+        utils.output.printError("Failed to start timer\n", .{});
         return;
     };
 

@@ -43,6 +43,34 @@ pub fn exportGguf(_: std.mem.Allocator, _: anytype, _: []const u8) !void {
     return error.FeatureDisabled;
 }
 
+pub const BrainExportConfig = struct {
+    wdbx_path: []const u8,
+    gguf_path: ?[]const u8 = null,
+    include_training_history: bool = true,
+    include_embeddings: bool = true,
+};
+
+pub const TrainingMetadata = struct {
+    model_name: []const u8 = "unnamed",
+    epochs_completed: u32 = 0,
+    final_loss: f32 = 0.0,
+    learning_rate: f32 = 0.0,
+    lora_rank: u32 = 0,
+    training_samples: u64 = 0,
+    timestamp: i64 = 0,
+};
+
+pub const ExportResult = struct {
+    wdbx_written: bool = false,
+    gguf_written: bool = false,
+    wdbx_size_bytes: u64 = 0,
+    gguf_size_bytes: u64 = 0,
+};
+
+pub fn exportDual(_: std.mem.Allocator, _: anytype, _: BrainExportConfig, _: ?TrainingMetadata) !ExportResult {
+    return error.FeatureDisabled;
+}
+
 test {
     std.testing.refAllDecls(@This());
 }

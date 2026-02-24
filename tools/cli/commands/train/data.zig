@@ -84,7 +84,7 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
 
     // Create output file
     const file = std.Io.Dir.cwd().createFile(io, output_path, .{}) catch |err| {
-        std.debug.print("Error: could not create output file '{s}': {t}\n", .{ output_path, err });
+        utils.output.printError("could not create output file '{s}': {t}\n", .{ output_path, err });
         return;
     };
     defer file.close(io);

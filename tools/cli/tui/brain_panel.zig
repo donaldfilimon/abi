@@ -33,7 +33,7 @@ pub const BrainDashboardPanel = struct {
         self: *const BrainDashboardPanel,
         data: *const DashboardData,
         start_row: u16,
-        _: u16,
+        start_col: u16,
         width: u16,
         height: u16,
     ) !void {
@@ -48,30 +48,31 @@ pub const BrainDashboardPanel = struct {
 
         const half_w = width / 2;
         const third_h = height / 3;
+        const bottom_h = height - third_h * 2; // Use remaining height for bottom row
         const row0 = start_row;
         const row1 = start_row + third_h;
         const row2 = start_row + third_h * 2;
 
         // Row 1: WDBX Status | Learning Status
-        try self.renderPanel(term, theme, "WDBX Status", row0, 0, half_w, third_h);
-        try self.renderWdbxStatus(data, row0 + 1, 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "WDBX Status", row0, start_col, half_w, third_h);
+        try self.renderWdbxStatus(data, row0 + 1, start_col + 1, half_w - 2, third_h - 2);
 
-        try self.renderPanel(term, theme, "Learning Status", row0, half_w, half_w, third_h);
-        try self.renderLearningStatus(data, row0 + 1, half_w + 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "Learning Status", row0, start_col + half_w, half_w, third_h);
+        try self.renderLearningStatus(data, row0 + 1, start_col + half_w + 1, half_w - 2, third_h - 2);
 
         // Row 2: Throughput | Reward History
-        try self.renderPanel(term, theme, "Throughput", row1, 0, half_w, third_h);
-        try self.renderThroughput(data, row1 + 1, 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "Throughput", row1, start_col, half_w, third_h);
+        try self.renderThroughput(data, row1 + 1, start_col + 1, half_w - 2, third_h - 2);
 
-        try self.renderPanel(term, theme, "Reward History", row1, half_w, half_w, third_h);
-        try self.renderRewardHistory(data, row1 + 1, half_w + 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "Reward History", row1, start_col + half_w, half_w, third_h);
+        try self.renderRewardHistory(data, row1 + 1, start_col + half_w + 1, half_w - 2, third_h - 2);
 
-        // Row 3: Similarity Scores | Attention Pattern
-        try self.renderPanel(term, theme, "Similarity", row2, 0, half_w, third_h);
-        try self.renderSimilarity(data, row2 + 1, 1, half_w - 2, third_h - 2);
+        // Row 3: Similarity Scores | Attention Pattern (uses remaining height)
+        try self.renderPanel(term, theme, "Similarity", row2, start_col, half_w, bottom_h);
+        try self.renderSimilarity(data, row2 + 1, start_col + 1, half_w - 2, bottom_h -| 2);
 
-        try self.renderPanel(term, theme, "Attention", row2, half_w, half_w, third_h);
-        try self.renderAttention(data, row2 + 1, half_w + 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "Attention", row2, start_col + half_w, half_w, bottom_h);
+        try self.renderAttention(data, row2 + 1, start_col + half_w + 1, half_w - 2, bottom_h -| 2);
     }
 
     // ── Panel Chrome ──────────────────────────────────────────────────────────
@@ -225,10 +226,12 @@ pub const BrainDashboardPanel = struct {
         const spark_count = ringToSparkline(&data.insert_rate, &spark_vals);
         const spark_width = @min(spark_count, @as(usize, width) -| 8);
         var spark_buf: [512]u8 = undefined;
-        const spark = SparklineChart.render(spark_vals[spark_count - spark_width .. spark_count], &spark_buf);
-        try term.write(theme.success);
-        try term.write(spark);
-        try term.write(theme.reset);
+        if (spark_width > 0) {
+            const spark = SparklineChart.render(spark_vals[spark_count - spark_width .. spark_count], &spark_buf);
+            try term.write(theme.success);
+            try term.write(spark);
+            try term.write(theme.reset);
+        }
 
         const ins_rate = data.insert_rate.latest() orelse 0;
         const rate_str = std.fmt.bufPrint(&buf, " {d:.0}/s", .{ins_rate}) catch "";
@@ -246,10 +249,12 @@ pub const BrainDashboardPanel = struct {
         const spark_count2 = ringToSparkline(&data.search_rate, &spark_vals2);
         const spark_width2 = @min(spark_count2, @as(usize, width) -| 8);
         var spark_buf2: [512]u8 = undefined;
-        const spark2 = SparklineChart.render(spark_vals2[spark_count2 - spark_width2 .. spark_count2], &spark_buf2);
-        try term.write(theme.info);
-        try term.write(spark2);
-        try term.write(theme.reset);
+        if (spark_width2 > 0) {
+            const spark2 = SparklineChart.render(spark_vals2[spark_count2 - spark_width2 .. spark_count2], &spark_buf2);
+            try term.write(theme.info);
+            try term.write(spark2);
+            try term.write(theme.reset);
+        }
 
         const search_rate = data.search_rate.latest() orelse 0;
         const rate_str2 = std.fmt.bufPrint(&buf, " {d:.0}/s", .{search_rate}) catch "";
@@ -273,10 +278,12 @@ pub const BrainDashboardPanel = struct {
         const spark_count = ringToSparkline(&data.reward_history, &spark_vals);
         const spark_width = @min(spark_count, @as(usize, width) -| 6);
         var spark_buf: [512]u8 = undefined;
-        const spark = SparklineChart.render(spark_vals[spark_count - spark_width .. spark_count], &spark_buf);
-        try term.write(theme.warning);
-        try term.write(spark);
-        try term.write(theme.reset);
+        if (spark_width > 0) {
+            const spark = SparklineChart.render(spark_vals[spark_count - spark_width .. spark_count], &spark_buf);
+            try term.write(theme.warning);
+            try term.write(spark);
+            try term.write(theme.reset);
+        }
 
         // Loss sparkline
         try setCursor(term, row + 2, col);
@@ -288,10 +295,12 @@ pub const BrainDashboardPanel = struct {
         const spark_count2 = ringToSparkline(&data.loss_history, &spark_vals2);
         const spark_width2 = @min(spark_count2, @as(usize, width) -| 6);
         var spark_buf2: [512]u8 = undefined;
-        const spark2 = SparklineChart.render(spark_vals2[spark_count2 - spark_width2 .. spark_count2], &spark_buf2);
-        try term.write("\x1b[38;5;203m"); // light red for loss
-        try term.write(spark2);
-        try term.write(theme.reset);
+        if (spark_width2 > 0) {
+            const spark2 = SparklineChart.render(spark_vals2[spark_count2 - spark_width2 .. spark_count2], &spark_buf2);
+            try term.write(theme.@"error"); // themed red for loss
+            try term.write(spark2);
+            try term.write(theme.reset);
+        }
 
         const loss_val = data.loss_history.latest() orelse 0;
         const loss_str = std.fmt.bufPrint(&buf, " {d:.3}", .{loss_val}) catch "";
@@ -315,10 +324,12 @@ pub const BrainDashboardPanel = struct {
         const spark_count = ringToSparkline(&data.similarity_scores, &spark_vals);
         const spark_width = @min(spark_count, @as(usize, width) -| 8);
         var spark_buf: [512]u8 = undefined;
-        const spark = SparklineChart.render(spark_vals[spark_count - spark_width .. spark_count], &spark_buf);
-        try term.write(theme.primary);
-        try term.write(spark);
-        try term.write(theme.reset);
+        if (spark_width > 0) {
+            const spark = SparklineChart.render(spark_vals[spark_count - spark_width .. spark_count], &spark_buf);
+            try term.write(theme.primary);
+            try term.write(spark);
+            try term.write(theme.reset);
+        }
 
         // Stats row
         try setCursor(term, row + 2, col);
@@ -692,7 +703,6 @@ fn ringToSparkline(ring: *const RingBuf120, out: *[120]u8) usize {
 }
 
 fn setCursor(term: *Terminal, row: u16, col: u16) !void {
-    var buf: [16]u8 = undefined;
-    const seq = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{ @as(u32, row) + 1, @as(u32, col) + 1 }) catch return;
-    try term.write(seq);
+    // Match agent_panel/gpu_monitor convention: saturating -1 for 0-indexed coords.
+    try term.moveTo(row -| 1, col -| 1);
 }

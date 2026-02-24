@@ -39,6 +39,7 @@ pub const acp = @import("acp.zig");
 pub const ralph = @import("ralph/mod.zig");
 pub const gendocs = @import("gendocs.zig");
 pub const os_agent = @import("os_agent.zig");
+pub const brain = @import("brain.zig");
 
 // ─── Comptime-derived command registry ───────────────────────────────────────
 
@@ -49,7 +50,7 @@ const command_modules = .{
     multi_agent, os_agent, explore, simd,        config,  discord,
     llm,         model,    embed,   train,       convert, task,
     ui,          plugins,  profile, completions, status,  toolchain,
-    lsp,         mcp,      acp,     ralph,       gendocs,
+    lsp,         mcp,      acp,     ralph,       gendocs, brain,
 };
 
 /// Command descriptors auto-derived from command module metadata.

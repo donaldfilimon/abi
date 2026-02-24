@@ -14,6 +14,7 @@ const shared_config = abi.shared.utils.config;
 const OutputFormat = enum {
     human,
     json,
+    zon,
 };
 
 fn wrapCfgInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -77,7 +78,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
-    var output_path: []const u8 = "abi.json";
+    var output_path: []const u8 = "abi.zon";
 
     var i: usize = 0;
     while (i < args.len) {
@@ -93,8 +94,11 @@ fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         }
     }
 
-    // Create default configuration
-    const default_config = getDefaultConfigJson();
+    // Create default configuration (ZON or JSON based on output path)
+    const default_config = if (std.mem.endsWith(u8, output_path, ".json"))
+        getDefaultConfigJson()
+    else
+        getDefaultConfigZon();
 
     // Create io backend for filesystem operations
     var io_backend = cli_io.initIoBackend(allocator);
@@ -103,14 +107,14 @@ fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     // Write to file
     const file = std.Io.Dir.cwd().createFile(io, output_path, .{ .truncate = true }) catch |err| {
-        std.debug.print("Error creating config file '{s}': {t}\n", .{ output_path, err });
+        utils.output.printError("creating config file '{s}': {t}", .{ output_path, err });
         return;
     };
     defer file.close(io);
 
     // Use writeStreamingAll for Zig 0.16 compatibility
     file.writeStreamingAll(io, default_config) catch |err| {
-        std.debug.print("Error writing config file: {t}\n", .{err});
+        utils.output.printError("writing config file: {t}", .{err});
         return;
     };
 
@@ -134,6 +138,8 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
                 const fmt = std.mem.sliceTo(args[i], 0);
                 if (std.mem.eql(u8, fmt, "json")) {
                     format = .json;
+                } else if (std.mem.eql(u8, fmt, "zon")) {
+                    format = .zon;
                 }
                 i += 1;
             }
@@ -147,7 +153,7 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     if (config_path) |path| {
         var config = loadConfigFromFile(allocator, path) catch |err| {
-            std.debug.print("Error loading config file '{s}': {t}\n", .{ path, err });
+            utils.output.printError("loading config file '{s}': {t}", .{ path, err });
             return;
         };
         defer config.deinit();
@@ -158,6 +164,7 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
                 switch (format) {
                     .human => printDefaultConfigHuman(),
                     .json => std.debug.print("{s}\n", .{getDefaultConfigJson()}),
+                    .zon => std.debug.print("{s}\n", .{getDefaultConfigZon()}),
                 }
                 return;
             }
@@ -178,6 +185,7 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         switch (format) {
             .human => printDefaultConfigHuman(),
             .json => std.debug.print("{s}\n", .{getDefaultConfigJson()}),
+            .zon => std.debug.print("{s}\n", .{getDefaultConfigZon()}),
         }
     }
 }
@@ -197,60 +205,61 @@ fn runValidate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     const path = std.mem.sliceTo(args[0], 0);
 
     // Try to load the configuration file using shared config loader (legacy format)
+    const output = utils.output;
     var loader = shared_config.ConfigLoader.init(allocator);
     var config = loader.loadFromFile(path) catch |err| {
-        std.debug.print("Error: Failed to load '{s}'\n", .{path});
-        std.debug.print("  Reason: {t}\n", .{err});
+        output.printError("Failed to load '{s}'", .{path});
+        output.println("  Reason: {t}", .{err});
         return error.ExecutionFailed;
     };
     defer config.deinit();
 
     // Validate the configuration
     config.validate() catch |err| {
-        std.debug.print("Error: Configuration validation failed\n", .{});
-        std.debug.print("  Reason: {t}\n", .{err});
+        output.printError("Configuration validation failed", .{});
+        output.println("  Reason: {t}", .{err});
         return error.ExecutionFailed;
     };
 
-    std.debug.print("Configuration file '{s}' is valid.\n", .{path});
-    std.debug.print("\nConfiguration summary:\n", .{});
+    output.printSuccess("Configuration file '{s}' is valid.", .{path});
+    output.println("\nConfiguration summary:", .{});
     printConfigHuman(&config);
 }
 
 fn runEnv() void {
-    std.debug.print("Environment Variables for ABI Framework\n", .{});
-    std.debug.print("========================================\n\n", .{});
+    const output = utils.output;
+    output.printHeader("Environment Variables for ABI Framework");
 
-    std.debug.print("Framework Settings:\n", .{});
-    std.debug.print("  ABI_ENABLE_AI          Enable AI features (true/false)\n", .{});
-    std.debug.print("  ABI_ENABLE_GPU         Enable GPU features (true/false)\n", .{});
-    std.debug.print("  ABI_ENABLE_WEB         Enable web features (true/false)\n", .{});
-    std.debug.print("  ABI_ENABLE_DATABASE    Enable database features (true/false)\n", .{});
-    std.debug.print("  ABI_ENABLE_NETWORK     Enable network features (true/false)\n", .{});
-    std.debug.print("  ABI_WORKER_THREADS     Number of worker threads (0=auto)\n", .{});
-    std.debug.print("  ABI_LOG_LEVEL          Log level (debug/info/warn/err)\n", .{});
+    output.println("\n{s}Framework Settings:{s}", .{ output.Color.bold(), output.Color.reset() });
+    output.printKeyValue("ABI_ENABLE_AI", "Enable AI features (true/false)");
+    output.printKeyValue("ABI_ENABLE_GPU", "Enable GPU features (true/false)");
+    output.printKeyValue("ABI_ENABLE_WEB", "Enable web features (true/false)");
+    output.printKeyValue("ABI_ENABLE_DATABASE", "Enable database features (true/false)");
+    output.printKeyValue("ABI_ENABLE_NETWORK", "Enable network features (true/false)");
+    output.printKeyValue("ABI_WORKER_THREADS", "Number of worker threads (0=auto)");
+    output.printKeyValue("ABI_LOG_LEVEL", "Log level (debug/info/warn/err)");
 
-    std.debug.print("\nAI Connectors:\n", .{});
-    std.debug.print("  ABI_OPENAI_API_KEY     OpenAI API key\n", .{});
-    std.debug.print("  OPENAI_API_KEY         OpenAI API key (fallback)\n", .{});
-    std.debug.print("  ABI_HF_API_TOKEN       HuggingFace API token\n", .{});
-    std.debug.print("  HF_API_TOKEN           HuggingFace API token (fallback)\n", .{});
-    std.debug.print("  ABI_OLLAMA_HOST        Ollama host URL\n", .{});
-    std.debug.print("  OLLAMA_HOST            Ollama host URL (fallback)\n", .{});
+    output.println("\n{s}AI Connectors:{s}", .{ output.Color.bold(), output.Color.reset() });
+    output.printKeyValue("ABI_OPENAI_API_KEY", "OpenAI API key");
+    output.printKeyValue("OPENAI_API_KEY", "OpenAI API key (fallback)");
+    output.printKeyValue("ABI_HF_API_TOKEN", "HuggingFace API token");
+    output.printKeyValue("HF_API_TOKEN", "HuggingFace API token (fallback)");
+    output.printKeyValue("ABI_OLLAMA_HOST", "Ollama host URL");
+    output.printKeyValue("OLLAMA_HOST", "Ollama host URL (fallback)");
 
-    std.debug.print("\nDatabase:\n", .{});
-    std.debug.print("  ABI_DATABASE_NAME      Database file name\n", .{});
+    output.println("\n{s}Database:{s}", .{ output.Color.bold(), output.Color.reset() });
+    output.printKeyValue("ABI_DATABASE_NAME", "Database file name");
 
-    std.debug.print("\nNetwork:\n", .{});
-    std.debug.print("  ABI_CLUSTER_ID         Cluster identifier\n", .{});
-    std.debug.print("  ABI_NODE_ADDRESS       Node address (host:port)\n", .{});
+    output.println("\n{s}Network:{s}", .{ output.Color.bold(), output.Color.reset() });
+    output.printKeyValue("ABI_CLUSTER_ID", "Cluster identifier");
+    output.printKeyValue("ABI_NODE_ADDRESS", "Node address (host:port)");
 
-    std.debug.print("\nWeb:\n", .{});
-    std.debug.print("  ABI_WEB_PORT           Web server port\n", .{});
-    std.debug.print("  ABI_WEB_CORS           Enable CORS (true/false)\n", .{});
+    output.println("\n{s}Web:{s}", .{ output.Color.bold(), output.Color.reset() });
+    output.printKeyValue("ABI_WEB_PORT", "Web server port");
+    output.printKeyValue("ABI_WEB_CORS", "Enable CORS (true/false)");
 
-    std.debug.print("\nGPU:\n", .{});
-    std.debug.print("  ABI_GPU_BACKEND        Preferred GPU backend\n", .{});
+    output.println("\n{s}GPU:{s}", .{ output.Color.bold(), output.Color.reset() });
+    output.printKeyValue("ABI_GPU_BACKEND", "Preferred GPU backend");
 }
 
 fn printByFormat(
@@ -261,6 +270,7 @@ fn printByFormat(
     switch (format) {
         .human => printConfigHuman(config),
         .json => try printConfigJson(allocator, config),
+        .zon => std.debug.print("{s}\n", .{getDefaultConfigZon()}),
     }
 }
 
@@ -296,7 +306,7 @@ fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
             printSetupHelp();
             return;
         }
-        std.debug.print("Unknown setup option: {s}\n", .{arg});
+        utils.output.printError("unknown setup option: {s}", .{arg});
         printSetupHelp();
         return;
     }
@@ -310,14 +320,14 @@ fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     const io = io_backend.io();
 
     std.Io.Dir.cwd().createDirPath(io, dir_path) catch |err| {
-        std.debug.print("Error creating config directory '{s}': {t}\n", .{ dir_path, err });
+        utils.output.printError("creating config directory '{s}': {t}", .{ dir_path, err });
         return;
     };
 
     const existing = std.Io.Dir.cwd().openFile(io, config_path, .{}) catch |err| switch (err) {
         error.FileNotFound => null,
         else => {
-            std.debug.print("Error checking config file '{s}': {t}\n", .{ config_path, err });
+            utils.output.printError("checking config file '{s}': {t}", .{ config_path, err });
             return;
         },
     };
@@ -332,13 +342,13 @@ fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     }
 
     const file = std.Io.Dir.cwd().createFile(io, config_path, .{ .truncate = true }) catch |err| {
-        std.debug.print("Error creating config file '{s}': {t}\n", .{ config_path, err });
+        utils.output.printError("creating config file '{s}': {t}", .{ config_path, err });
         return;
     };
     defer file.close(io);
 
     file.writeStreamingAll(io, getDefaultConfigJson()) catch |err| {
-        std.debug.print("Error writing config file: {t}\n", .{err});
+        utils.output.printError("writing config file: {t}", .{err});
         return;
     };
 
@@ -376,12 +386,12 @@ fn printHelp() void {
         "  path                 Print primary config path + legacy fallback path\n" ++
         "  help                 Show this help message\n\n" ++
         "Init options:\n" ++
-        "  -o, --output <path>  Output file path (default: abi.json)\n\n" ++
+        "  -o, --output <path>  Output file path (default: abi.zon)\n\n" ++
         "Show options:\n" ++
-        "  -f, --format <fmt>   Output format: human, json (default: human)\n\n" ++
+        "  -f, --format <fmt>   Output format: human, json, zon (default: human)\n\n" ++
         "Examples:\n" ++
-        "  abi config init                    Create default abi.json\n" ++
-        "  abi config init -o myconfig.json   Create custom config file\n" ++
+        "  abi config init                    Create default abi.zon\n" ++
+        "  abi config init -o myconfig.json   Create JSON config file\n" ++
         "  abi config setup                   Bootstrap user config in platform location\n" ++
         "  abi config path                    Print user config path\n" ++
         "  abi config show                    Show default configuration\n" ++
@@ -485,6 +495,72 @@ fn printConfigJson(allocator: std.mem.Allocator, config: *const shared_config.Co
     const json_data = try json_writer.toOwnedSlice();
     defer allocator.free(json_data);
     std.debug.print("{s}\n", .{json_data});
+}
+
+fn getDefaultConfigZon() []const u8 {
+    return 
+    \\// ABI Framework Configuration (ZON format)
+    \\.{
+    \\    .framework = .{
+    \\        .enable_ai = true,
+    \\        .enable_gpu = true,
+    \\        .enable_web = true,
+    \\        .enable_database = true,
+    \\        .enable_network = false,
+    \\        .enable_profiling = false,
+    \\        .worker_threads = 0,
+    \\        .log_level = .info,
+    \\    },
+    \\    .database = .{
+    \\        .name = "abi.db",
+    \\        .max_records = 0,
+    \\        .persistence_enabled = true,
+    \\        .persistence_path = "abi_data",
+    \\        .vector_search_enabled = true,
+    \\        .default_search_limit = 10,
+    \\        .max_vector_dimension = 4096,
+    \\    },
+    \\    .gpu = .{
+    \\        .enable_cuda = false,
+    \\        .enable_vulkan = false,
+    \\        .enable_metal = false,
+    \\        .enable_webgpu = false,
+    \\        .enable_opengl = false,
+    \\        .enable_opengles = false,
+    \\        .enable_webgl2 = false,
+    \\        .preferred_backend = .auto,
+    \\        .memory_pool_mb = 0,
+    \\    },
+    \\    .ai = .{
+    \\        .default_model = "",
+    \\        .max_tokens = 2048,
+    \\        .temperature = 0.7,
+    \\        .top_p = 0.9,
+    \\        .streaming_enabled = true,
+    \\        .timeout_ms = 60000,
+    \\        .history_enabled = true,
+    \\        .max_history = 100,
+    \\    },
+    \\    .network = .{
+    \\        .distributed_enabled = false,
+    \\        .cluster_id = "default",
+    \\        .node_address = "0.0.0.0:9000",
+    \\        .heartbeat_interval_ms = 5000,
+    \\        .node_timeout_ms = 30000,
+    \\        .max_nodes = 16,
+    \\        .peer_discovery = false,
+    \\    },
+    \\    .web = .{
+    \\        .server_enabled = false,
+    \\        .port = 8080,
+    \\        .max_connections = 256,
+    \\        .request_timeout_ms = 30000,
+    \\        .cors_enabled = true,
+    \\        .cors_origins = "*",
+    \\    },
+    \\}
+    \\
+    ;
 }
 
 fn getDefaultConfigJson() []const u8 {

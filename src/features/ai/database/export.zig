@@ -46,6 +46,8 @@ pub fn exportGguf(
     const io = io_backend.io();
     var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
     defer file.close(io);
-    var writer = file.writer(io);
+    var write_buf: [65536]u8 = undefined;
+    var writer = file.writer(io, &write_buf);
     try writer.writeAll(gguf_bytes);
+    try writer.flush();
 }

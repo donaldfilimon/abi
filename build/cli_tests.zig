@@ -47,6 +47,8 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "help", "mcp" },
     &.{ "help", "acp" },
     &.{ "help", "ui" },
+    &.{ "help", "lsp" },
+    &.{ "help", "os-agent" },
 
     // ── Nested help (subcommand-level) ──────────────────────────────────
     &.{ "help", "llm", "run" },
@@ -78,6 +80,22 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "help", "discord", "guilds" },
     &.{ "help", "plugins", "enable" },
     &.{ "help", "plugins", "disable" },
+    &.{ "help", "ralph", "init" },
+    &.{ "help", "ralph", "improve" },
+    &.{ "help", "ralph", "gate" },
+    &.{ "help", "ralph", "config" },
+    &.{ "help", "profile", "create" },
+    &.{ "help", "profile", "switch" },
+    &.{ "help", "profile", "delete" },
+    &.{ "help", "profile", "api-key" },
+    &.{ "help", "profile", "export" },
+    &.{ "help", "profile", "import" },
+    &.{ "help", "model", "download" },
+    &.{ "help", "model", "remove" },
+    &.{ "help", "model", "search" },
+    &.{ "help", "lsp", "hover" },
+    &.{ "help", "lsp", "completion" },
+    &.{ "help", "lsp", "request" },
 
     // ── Functional subcommands ──────────────────────────────────────────
     &.{ "llm", "run", "--help" },
@@ -150,6 +168,31 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "embed", "--help" },
     &.{ "explore", "--help" },
 
+    // ── LSP and OS-Agent (previously uncovered) ──────────────────────────
+    &.{ "lsp", "--help" },
+    &.{ "os-agent", "--help" },
+    &.{ "lsp", "hover", "--help" },
+    &.{ "lsp", "completion", "--help" },
+    &.{ "lsp", "request", "--help" },
+
+    // ── Profile subcommands ────────────────────────────────────────────
+    &.{ "profile", "create", "--help" },
+    &.{ "profile", "switch", "--help" },
+    &.{ "profile", "delete", "--help" },
+    &.{ "profile", "api-key", "--help" },
+    &.{ "profile", "export", "--help" },
+    &.{ "profile", "import", "--help" },
+
+    // ── Model subcommands ──────────────────────────────────────────────
+    &.{ "model", "download", "--help" },
+    &.{ "model", "remove", "--help" },
+    &.{ "model", "search", "--help" },
+
+    // ── Discord subcommands (safe, no network) ─────────────────────────
+    &.{ "discord", "send", "--help" },
+    &.{ "discord", "webhook", "--help" },
+    &.{ "discord", "guilds", "--help" },
+
     // ── DB subcommands with --help ──────────────────────────────────────
     &.{ "db", "add", "--help" },
     &.{ "db", "query", "--help" },
@@ -197,13 +240,9 @@ pub fn addCliTests(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step 
 pub fn addCliTestsFull(b: *std.Build, options: CliTestsFullOptions) *std.Build.Step {
     const step = b.step("cli-tests-full", "Run exhaustive behavioral CLI command-tree tests");
 
-    const matrix_gen = b.addSystemCommand(&.{
-        "zig", "run", "tools/cli/full_matrix_main.zig", "--", "--json-out", b.pathFromRoot(".zig-cache/matrix.json")
-    });
-    
-    const run_full = b.addSystemCommand(&.{
-        "zig", "run", "tools/cli/tests/runner.zig", "--", "--matrix", b.pathFromRoot(".zig-cache/matrix.json"), "--bin", b.pathFromRoot("zig-out/bin/abi")
-    });
+    const matrix_gen = b.addSystemCommand(&.{ "zig", "run", "tools/cli/full_matrix_main.zig", "--", "--json-out", b.pathFromRoot(".zig-cache/matrix.json") });
+
+    const run_full = b.addSystemCommand(&.{ "zig", "run", "tools/cli/tests/runner.zig", "--", "--matrix", b.pathFromRoot(".zig-cache/matrix.json"), "--bin", b.pathFromRoot("zig-out/bin/abi") });
     run_full.step.dependOn(&matrix_gen.step);
     run_full.setCwd(b.path("."));
     if (options.env_file) |env_file|

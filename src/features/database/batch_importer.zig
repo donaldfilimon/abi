@@ -340,12 +340,17 @@ pub const BatchImporter = struct {
             records: []const ZonRecord = &.{},
         };
 
-        // Try parsing as wrapped format first (with .records field)
-        const parsed_wrapped = std.zon.parseFromSlice(ZonWrapper, self.allocator, data, .{});
-        if (parsed_wrapped) |parsed| {
-            defer parsed.deinit();
+        // ZON parser requires sentinel-terminated source
+        const zon_source = std.fmt.allocPrintSentinel(self.allocator, "{s}", .{data}, 0) catch
+            return error.OutOfMemory;
+        defer self.allocator.free(zon_source);
 
-            for (parsed.value.records) |zon_record| {
+        // Try parsing as wrapped format first (with .records field)
+        const parsed_wrapped = std.zon.parse.fromSliceAlloc(ZonWrapper, self.allocator, zon_source, null, .{});
+        if (parsed_wrapped) |parsed| {
+            defer std.zon.parse.free(self.allocator, parsed);
+
+            for (parsed.records) |zon_record| {
                 const vector_data = try self.allocator.dupe(f32, zon_record.vector);
                 errdefer self.allocator.free(vector_data);
 
@@ -371,13 +376,13 @@ pub const BatchImporter = struct {
             return records.toOwnedSlice(self.allocator);
         } else |_| {
             // Try parsing as direct array format
-            const parsed_array = std.zon.parseFromSlice([]const ZonRecord, self.allocator, data, .{}) catch |err| {
+            const parsed_array = std.zon.parse.fromSliceAlloc([]const ZonRecord, self.allocator, zon_source, null, .{}) catch |err| {
                 std.log.warn("Failed to parse ZON data: {t}", .{err});
                 return err;
             };
-            defer parsed_array.deinit();
+            defer std.zon.parse.free(self.allocator, parsed_array);
 
-            for (parsed_array.value) |zon_record| {
+            for (parsed_array) |zon_record| {
                 const vector_data = try self.allocator.dupe(f32, zon_record.vector);
                 errdefer self.allocator.free(vector_data);
 

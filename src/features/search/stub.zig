@@ -3,7 +3,7 @@
 //! API-compatible no-op implementations when search is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/search.zig");
+const core_config = @import("../../core/config/content.zig");
 const stub_context = @import("../../core/stub_context.zig");
 
 pub const SearchConfig = core_config.SearchConfig;

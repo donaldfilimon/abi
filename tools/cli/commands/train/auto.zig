@@ -40,7 +40,7 @@ pub fn runAutoTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     };
 
     var system = abi.ai.training.SelfLearningSystem.init(allocator, config) catch |err| {
-        std.debug.print("Error: Self-learning init failed: {t}\n", .{err});
+        utils.output.printError("Self-learning init failed: {t}\n", .{err});
         return;
     };
     defer system.deinit();

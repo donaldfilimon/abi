@@ -15,6 +15,7 @@ const training = @import("../training/mod.zig");
 const lora_mod = @import("../training/lora.zig");
 const bpe = @import("../llm/tokenizer/bpe.zig");
 const gguf_reader = @import("../llm/io/gguf.zig");
+const brain_export = @import("../database/brain_export.zig");
 
 /// Configuration for Abbey fine-tuning.
 pub const AbbyTrainConfig = struct {
@@ -44,6 +45,8 @@ pub const AbbyTrainConfig = struct {
     save_adapter_path: ?[]const u8 = null,
     /// Checkpoint directory
     checkpoint_path: ?[]const u8 = null,
+    /// Output path for native .wdbx brain file (dual export)
+    wdbx_output_path: ?[]const u8 = null,
 };
 
 /// Format an instruction sample into the Alpaca prompt template for tokenization.
@@ -108,7 +111,7 @@ pub fn run(allocator: std.mem.Allocator, config: AbbyTrainConfig) !void {
         allocator,
         .limited(256 * 1024 * 1024), // 256 MB max
     ) catch |err| {
-        std.log.err("Failed to read JSONL: {s}", .{@errorName(err)});
+        std.log.err("Failed to read JSONL: {t}", .{err});
         return err;
     };
     defer allocator.free(jsonl_data);
@@ -226,7 +229,39 @@ pub fn run(allocator: std.mem.Allocator, config: AbbyTrainConfig) !void {
     };
     try model.exportToGguf(allocator, config.output_path, gguf_export_config);
 
+    // ── Step 9: Dual brain export (.wdbx + .gguf) ────────────────────────
+    if (config.wdbx_output_path) |wdbx_path| {
+        std.log.info("Exporting WDBX brain to: {s}", .{wdbx_path});
+
+        var ts: std.c.timespec = undefined;
+        _ = std.c.clock_gettime(.REALTIME, &ts);
+
+        const brain_cfg = brain_export.BrainExportConfig{
+            .wdbx_path = wdbx_path,
+            .gguf_path = null, // GGUF already exported above
+            .include_training_history = true,
+            .include_embeddings = true,
+        };
+        const meta = brain_export.TrainingMetadata{
+            .model_name = "abbey",
+            .epochs_completed = config.epochs,
+            .learning_rate = config.learning_rate,
+            .lora_rank = config.lora_rank,
+            .training_samples = samples.items.len,
+            .timestamp = @intCast(ts.sec),
+        };
+
+        if (brain_export.exportDual(allocator, &model.state, brain_cfg, meta)) |_| {
+            std.log.info("WDBX brain exported to: {s}", .{wdbx_path});
+        } else |err| {
+            std.log.warn("WDBX brain export failed: {t}", .{err});
+        }
+    }
+
     std.log.info("Done! Model exported to: {s}", .{config.output_path});
+    if (config.wdbx_output_path) |wdbx_path| {
+        std.log.info("  WDBX brain: {s}", .{wdbx_path});
+    }
     std.log.info("Next steps:", .{});
     std.log.info("  1. Create Modelfile: FROM ./{s}", .{config.output_path});
     std.log.info("  2. ollama create abbey -f Modelfile", .{});

@@ -286,7 +286,7 @@ fn printNodes(allocator: std.mem.Allocator) !void {
     }
     utils.output.printHeaderFmt("Registered Nodes ({d})", .{nodes.len});
     for (nodes) |node| {
-        std.debug.print("  " ++ utils.output.color.green ++ "•" ++ utils.output.color.reset ++ " {s: <15} {s: <20} ({t}) seen {d}ms ago\n", .{ node.id, node.address, node.status, node.last_seen_ms });
+        std.debug.print("  {s}•{s} {s: <15} {s: <20} ({t}) seen {d}ms ago\n", .{ utils.output.Color.green(), utils.output.Color.reset(), node.id, node.address, node.status, node.last_seen_ms });
     }
 }
 
@@ -384,14 +384,17 @@ fn printBalancerStatus(allocator: std.mem.Allocator) void {
         std.debug.print("\n", .{});
         for (lb.nodes.items) |*node| {
             const health_indicator = if (node.is_healthy)
-                utils.output.color.green ++ "healthy" ++ utils.output.color.reset
+                @as([]const u8, "healthy")
             else
-                utils.output.color.red ++ "unhealthy" ++ utils.output.color.reset;
-            std.debug.print("  {s: <15} w={d: <4} conns={d: <4} ({s})\n", .{
+                @as([]const u8, "unhealthy");
+            const health_color = if (node.is_healthy) utils.output.Color.green() else utils.output.Color.red();
+            std.debug.print("  {s: <15} w={d: <4} conns={d: <4} ({s}{s}{s})\n", .{
                 node.id,
                 node.weight,
                 node.current_connections.load(.monotonic),
+                health_color,
                 health_indicator,
+                utils.output.Color.reset(),
             });
         }
     }

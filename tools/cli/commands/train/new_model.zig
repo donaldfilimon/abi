@@ -84,7 +84,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     // Check if LLM feature is enabled
     if (!abi.ai.llm.isEnabled()) {
-        std.debug.print("Error: LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
+        utils.output.printError("LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
         return;
     }
 
@@ -428,7 +428,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
                 train_tokens = trimmed;
             }
         } else {
-            std.debug.print("Error: JSONL format requires a tokenizer (use --dataset-format text or tokenbin)\n", .{});
+            utils.output.printError("JSONL format requires a tokenizer (use --dataset-format text or tokenbin)\n", .{});
             return;
         }
 
@@ -480,7 +480,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     std.debug.print("Starting training from scratch...\n", .{});
     var timer = abi.shared.time.Timer.start() catch {
-        std.debug.print("Error: Failed to start timer\n", .{});
+        utils.output.printError("Failed to start timer\n", .{});
         return;
     };
 
@@ -556,7 +556,7 @@ pub fn runExternalQuantize(gguf_path: []const u8, quant_type: []const u8) void {
         gguf_path[0..dot_pos],
         quant_type,
     }) catch {
-        std.debug.print("Error: output path too long\n", .{});
+        utils.output.printError("output path too long\n", .{});
         return;
     };
 

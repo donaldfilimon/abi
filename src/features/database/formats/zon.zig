@@ -119,21 +119,26 @@ pub const ZonFormat = struct {
 
     /// Parse ZON data into a database structure.
     pub fn parse(self: *ZonFormat, data: []const u8) !ZonDatabase {
-        const parsed = std.zon.parseFromSlice(ZonDatabase, self.allocator, data, .{}) catch |err| {
+        // ZON parser requires sentinel-terminated source
+        const zon_source = std.fmt.allocPrintSentinel(self.allocator, "{s}", .{data}, 0) catch
+            return ZonFormatError.OutOfMemory;
+        defer self.allocator.free(zon_source);
+
+        const parsed = std.zon.parse.fromSliceAlloc(ZonDatabase, self.allocator, zon_source, null, .{}) catch |err| {
             std.log.warn("ZON parse error: {t}", .{err});
             return ZonFormatError.ParseError;
         };
-        defer parsed.deinit();
+        defer std.zon.parse.free(self.allocator, parsed);
 
         // Validate version
-        if (parsed.value.version > ZON_FORMAT_VERSION) {
+        if (parsed.version > ZON_FORMAT_VERSION) {
             return ZonFormatError.InvalidVersion;
         }
 
         // Validate dimension consistency
-        if (parsed.value.records.len > 0) {
-            const expected_dim = parsed.value.dimension;
-            for (parsed.value.records) |record| {
+        if (parsed.records.len > 0) {
+            const expected_dim = parsed.dimension;
+            for (parsed.records) |record| {
                 if (expected_dim > 0 and record.vector.len != expected_dim) {
                     return ZonFormatError.DimensionMismatch;
                 }
@@ -141,7 +146,7 @@ pub const ZonFormat = struct {
         }
 
         // Deep copy the parsed data
-        return self.deepCopyDatabase(parsed.value);
+        return self.deepCopyDatabase(parsed);
     }
 
     /// Deep copy a ZonDatabase structure.
@@ -203,99 +208,12 @@ pub const ZonFormat = struct {
         };
     }
 
-    /// Serialize a database structure to ZON format.
+    /// Serialize a database structure to ZON format using std.zon.stringify.
     pub fn serialize(self: *ZonFormat, db: ZonDatabase) ![]u8 {
         var aw = std.Io.Writer.Allocating.init(self.allocator);
         errdefer aw.deinit();
-        const writer = &aw.writer;
-
-        try writer.writeAll(".{\n");
-
-        // Write header fields
-        try writer.writeAll("    .version = ");
-        try std.fmt.formatInt(db.version, 10, .lower, .{}, writer);
-        try writer.writeAll(",\n");
-
-        try writer.writeAll("    .name = ");
-        try writeZonString(writer, db.name);
-        try writer.writeAll(",\n");
-
-        try writer.writeAll("    .dimension = ");
-        try std.fmt.formatInt(db.dimension, 10, .lower, .{}, writer);
-        try writer.writeAll(",\n");
-
-        try writer.writeAll("    .distance_metric = .");
-        // Use {t} format specifier instead of @tagName (Zig 0.16)
-        try std.fmt.format(writer, "{t}", .{db.distance_metric});
-        try writer.writeAll(",\n");
-
-        // Optional timestamps
-        if (db.created_at) |ts| {
-            try writer.writeAll("    .created_at = ");
-            try std.fmt.formatInt(ts, 10, .lower, .{}, writer);
-            try writer.writeAll(",\n");
-        }
-
-        if (db.modified_at) |ts| {
-            try writer.writeAll("    .modified_at = ");
-            try std.fmt.formatInt(ts, 10, .lower, .{}, writer);
-            try writer.writeAll(",\n");
-        }
-
-        // Optional database metadata
-        if (db.db_metadata) |meta| {
-            try writer.writeAll("    .db_metadata = ");
-            try writeZonString(writer, meta);
-            try writer.writeAll(",\n");
-        }
-
-        // Write records
-        try writer.writeAll("    .records = .{\n");
-
-        for (db.records, 0..) |record, idx| {
-            try self.writeRecord(writer, record);
-            if (idx < db.records.len - 1) {
-                try writer.writeAll(",");
-            }
-            try writer.writeAll("\n");
-        }
-
-        try writer.writeAll("    },\n");
-        try writer.writeAll("}\n");
-
+        try std.zon.stringify.serialize(db, .{ .whitespace = true }, &aw.writer);
         return aw.toOwnedSlice();
-    }
-
-    /// Write a single record in ZON format.
-    fn writeRecord(self: *ZonFormat, writer: anytype, record: ZonRecord) !void {
-        _ = self;
-        try writer.writeAll("        .{ ");
-
-        // Write ID
-        try writer.writeAll(".id = ");
-        try std.fmt.formatInt(record.id, 10, .lower, .{}, writer);
-
-        // Write vector
-        try writer.writeAll(", .vector = .{ ");
-        for (record.vector, 0..) |v, i| {
-            if (i > 0) try writer.writeAll(", ");
-            try std.fmt.formatFloat(writer, v, .{});
-        }
-        try writer.writeAll(" }");
-
-        // Optional metadata
-        if (record.metadata) |meta| {
-            try writer.writeAll(", .metadata = ");
-            try writeZonString(writer, meta);
-        }
-
-        // Optional text
-        if (record.text) |txt| {
-            try writer.writeAll(", .text = ");
-            try writeZonString(writer, txt);
-        }
-
-        try writer.writeAll(" }");
     }
 
     /// Import batch records from ZON data.

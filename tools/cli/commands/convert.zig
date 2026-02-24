@@ -101,7 +101,7 @@ fn runDataset(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
     }
 
     if (input_path == null or output_path == null or format == null) {
-        std.debug.print("Error: --input, --output, and --format are required.\n", .{});
+        utils.output.printError("--input, --output, and --format are required.\n", .{});
         return;
     }
 
@@ -159,7 +159,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     }
 
     if (input_path == null) {
-        std.debug.print("Error: --input is required.\n", .{});
+        utils.output.printError("--input is required.\n", .{});
         return;
     }
 
@@ -199,7 +199,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     }
 
     if (output_path == null) {
-        std.debug.print("Error: --output is required for conversion.\n", .{});
+        utils.output.printError("--output is required for conversion.\n", .{});
         return;
     }
 
@@ -208,7 +208,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
 
         // Check AI feature
         if (!abi.ai.isEnabled()) {
-            std.debug.print("Error: AI feature is disabled. Rebuild with: zig build -Denable-ai=true\n", .{});
+            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Denable-ai=true\n", .{});
             return;
         }
 
@@ -230,7 +230,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
 
         // Check AI feature
         if (!abi.ai.isEnabled()) {
-            std.debug.print("Error: AI feature is disabled. Rebuild with: zig build -Denable-ai=true\n", .{});
+            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Denable-ai=true\n", .{});
             return;
         }
 
@@ -291,7 +291,7 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
     }
 
     if (input_path == null or output_path == null or format == null) {
-        std.debug.print("Error: --input, --output, and --format are required.\n", .{});
+        utils.output.printError("--input, --output, and --format are required.\n", .{});
         std.debug.print("\nUsage: abi convert embeddings --input <file> --output <file> --format <fmt>\n", .{});
         std.debug.print("\nFormats:\n", .{});
         std.debug.print("  json    JSON array format\n", .{});
@@ -375,7 +375,7 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
     defer if (owns_embeddings) allocator.free(embeddings);
 
     if (embeddings.len == 0) {
-        std.debug.print("Error: Could not parse embeddings from input file\n", .{});
+        utils.output.printError("Could not parse embeddings from input file\n", .{});
         return;
     }
 

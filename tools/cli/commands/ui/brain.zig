@@ -672,14 +672,10 @@ fn writeKeyHint(
     try term.write(theme_val.reset);
 }
 
-fn writeRepeat(term: *tui.Terminal, char: []const u8, count: usize) !void {
-    for (0..count) |_| try term.write(char);
-}
+const writeRepeat = tui.render_utils.writeRepeat;
 
 fn setCursorPosition(term: *tui.Terminal, row: u16, col: u16) !void {
-    var buf: [16]u8 = undefined;
-    const seq = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{ row + 1, col + 1 }) catch return;
-    try term.write(seq);
+    try term.moveTo(row, col);
 }
 
 fn printFallbackInfo() void {

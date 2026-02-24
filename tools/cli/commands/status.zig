@@ -76,9 +76,9 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     const healthy = fw.state == .running or fw.state == .initializing;
     utils.output.println("", .{});
     utils.output.println("  Status: {s}{s}{s}", .{
-        if (healthy) utils.output.Color.get(utils.output.Color.green) else utils.output.Color.get(utils.output.Color.red),
+        if (healthy) utils.output.Color.green() else utils.output.Color.red(),
         if (healthy) "HEALTHY" else "UNHEALTHY",
-        utils.output.Color.get(utils.output.Color.reset),
+        utils.output.Color.reset(),
     });
     utils.output.println("", .{});
 }

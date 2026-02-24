@@ -264,6 +264,7 @@ pub const AgentPanel = struct {
         try self.term.write("]");
 
         // Pad and close
+        if (width < 4) return;
         const content_len = 12 + 3 + unicode.displayWidth(self.phase.name()) + 2;
         if (content_len < width - 2) {
             try render_utils.writeRepeat(self.term, " ", width - 2 - content_len);
@@ -473,9 +474,8 @@ pub const AgentPanel = struct {
     }
 
     fn setCursorPosition(self: *AgentPanel, row: u16, col: u16) !void {
-        var buf: [16]u8 = undefined;
-        const seq = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{ row, col }) catch return;
-        try self.term.write(seq);
+        // Delegate to terminal.moveTo (0-indexed), converting from 1-indexed.
+        try self.term.moveTo(row -| 1, col -| 1);
     }
 };
 

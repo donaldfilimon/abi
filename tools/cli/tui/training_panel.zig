@@ -146,7 +146,7 @@ pub const TrainingPanel = struct {
 
     /// Render the help overlay
     fn renderHelpOverlay(self: *TrainingPanel, writer: anytype) !void {
-        const help_width = 50;
+        const help_width = @min(@as(usize, 50), self.width -| 4);
 
         // Top border
         try writer.print("{s}╭", .{self.theme.primary});
@@ -369,6 +369,9 @@ pub const TrainingPanel = struct {
 
     fn renderLossPanel(self: *TrainingPanel, writer: anytype) !void {
         const tm = &self.training_metrics;
+        // Derive column widths from panel width (3 = left│ + center│ + right│)
+        const left_inner = (self.width -| 3) / 2;
+        const right_inner = self.width -| 3 -| left_inner;
 
         // Title row
         try writer.print("{s}│{s} {s}Loss{s}", .{
@@ -377,14 +380,14 @@ pub const TrainingPanel = struct {
             self.theme.bold,
             self.theme.reset,
         });
-        try self.writeRepeat(writer, " ", 31);
+        try self.writeRepeat(writer, " ", left_inner -| 5); // " Loss" = 5
         try writer.print("{s}│{s} {s}Learning Rate{s}", .{
             self.theme.primary,
             self.theme.reset,
             self.theme.bold,
             self.theme.reset,
         });
-        try self.writeRepeat(writer, " ", 19);
+        try self.writeRepeat(writer, " ", right_inner -| 15); // " Learning Rate" = 15
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
 
         // Sparkline row
@@ -401,9 +404,9 @@ pub const TrainingPanel = struct {
         const lr_display_width = unicode.displayWidth(lr_sparkline);
 
         try writer.print("{s}│{s} {s}", .{ self.theme.primary, self.theme.reset, loss_sparkline });
-        try self.writeRepeat(writer, " ", 35 - @min(35, loss_display_width));
+        try self.writeRepeat(writer, " ", left_inner -| (1 + loss_display_width));
         try writer.print("{s}│{s} {s}", .{ self.theme.primary, self.theme.reset, lr_sparkline });
-        try self.writeRepeat(writer, " ", 32 - @min(32, lr_display_width));
+        try self.writeRepeat(writer, " ", right_inner -| (1 + lr_display_width));
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
 
         // Values row
@@ -417,13 +420,13 @@ pub const TrainingPanel = struct {
             train_loss,
             val_loss,
         });
-        try self.writeRepeat(writer, " ", 10);
+        try self.writeRepeat(writer, " ", left_inner -| 26); // " train: X.XXXX  val: X.XXXX" ~26
         try writer.print("{s}│{s} current: {d:.6}", .{
             self.theme.primary,
             self.theme.reset,
             lr,
         });
-        try self.writeRepeat(writer, " ", 15);
+        try self.writeRepeat(writer, " ", right_inner -| 19); // " current: X.XXXXXX" ~19
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
 
         // Progress row
@@ -435,12 +438,12 @@ pub const TrainingPanel = struct {
             tm.current_step,
             tm.total_steps,
         });
-        try self.writeRepeat(writer, " ", 6);
+        try self.writeRepeat(writer, " ", left_inner -| 29); // " epoch: d/d    step: d/d" ~29
         try writer.print("{s}│{s} schedule: cosine", .{
             self.theme.primary,
             self.theme.reset,
         });
-        try self.writeRepeat(writer, " ", 14);
+        try self.writeRepeat(writer, " ", right_inner -| 18); // " schedule: cosine" = 18
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
     }
 
@@ -450,6 +453,8 @@ pub const TrainingPanel = struct {
 
     fn renderResourcesPanel(self: *TrainingPanel, writer: anytype) !void {
         const tm = &self.training_metrics;
+        const left_inner = (self.width -| 3) / 2;
+        const right_inner = self.width -| 3 -| left_inner;
 
         // Title row
         try writer.print("{s}│{s} {s}Resources{s}", .{
@@ -458,14 +463,14 @@ pub const TrainingPanel = struct {
             self.theme.bold,
             self.theme.reset,
         });
-        try self.writeRepeat(writer, " ", 26);
+        try self.writeRepeat(writer, " ", left_inner -| 10); // " Resources" = 10
         try writer.print("{s}│{s} {s}Checkpoints{s}", .{
             self.theme.primary,
             self.theme.reset,
             self.theme.bold,
             self.theme.reset,
         });
-        try self.writeRepeat(writer, " ", 21);
+        try self.writeRepeat(writer, " ", right_inner -| 12); // " Checkpoints" = 12
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
 
         // GPU row (placeholder - would need actual GPU stats)
@@ -476,7 +481,7 @@ pub const TrainingPanel = struct {
             self.theme.reset,
             gpu_gauge,
         });
-        try self.writeRepeat(writer, " ", 10);
+        try self.writeRepeat(writer, " ", left_inner -| 26); // " GPU:  [gauge] N/A" ~26
 
         // Checkpoint info
         const ckpt_count = tm.checkpoint_count;
@@ -492,7 +497,7 @@ pub const TrainingPanel = struct {
                 self.theme.reset,
             });
         }
-        try self.writeRepeat(writer, " ", 10);
+        try self.writeRepeat(writer, " ", right_inner -| 24); // " ✓ N checkpoints saved" ~24
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
 
         // Memory row
@@ -502,7 +507,7 @@ pub const TrainingPanel = struct {
             self.theme.reset,
             mem_gauge,
         });
-        try self.writeRepeat(writer, " ", 10);
+        try self.writeRepeat(writer, " ", left_inner -| 26); // " VRAM: [gauge] N/A" ~26
 
         // Last checkpoint
         if (tm.checkpoint_count > 0) {
@@ -518,7 +523,7 @@ pub const TrainingPanel = struct {
                 self.theme.reset,
             });
         }
-        try self.writeRepeat(writer, " ", 12);
+        try self.writeRepeat(writer, " ", right_inner -| 22); // " ★ latest: X.X MB" ~22
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
     }
 
@@ -531,7 +536,7 @@ pub const TrainingPanel = struct {
             self.theme.primary,
             self.theme.reset,
         });
-        try self.writeRepeat(writer, " ", 4);
+        try self.writeRepeat(writer, " ", self.width -| 65); // footer text ~63 + 2 borders
         try writer.print("{s}│{s}\n", .{ self.theme.primary, self.theme.reset });
 
         try writer.print("{s}╰", .{self.theme.primary});
@@ -552,17 +557,19 @@ pub const TrainingPanel = struct {
             .bottom => .{ "├", "┴", "┤" },
         };
 
+        const left_divider: usize = (self.width -| 3) / 2;
+        const right_divider: usize = self.width -| 3 -| left_divider;
         try writer.print("{s}{s}", .{ self.theme.primary, chars[0] });
-        try self.writeRepeat(writer, "─", 35);
+        try self.writeRepeat(writer, "─", left_divider);
         try writer.print("{s}", .{chars[1]});
-        try self.writeRepeat(writer, "─", self.width - 38);
+        try self.writeRepeat(writer, "─", right_divider);
         try writer.print("{s}{s}\n", .{ chars[2], self.theme.reset });
     }
 
     /// Write a character repeated `count` times.
     /// Mirrors `render_utils.writeRepeat` for generic (non-Terminal) writers.
     fn writeRepeat(_: *TrainingPanel, writer: anytype, char: []const u8, count: usize) !void {
-        genericWriteRepeat(writer, char, count);
+        try genericWriteRepeat(writer, char, count);
     }
 
     // =========================================================================
@@ -641,6 +648,7 @@ pub const TrainingPanel = struct {
             if (needs_render) {
                 try term.clear();
                 try self.render(writer);
+                try term.flush();
                 needs_render = false;
             }
 
@@ -889,9 +897,9 @@ pub const TrainingPanel = struct {
 /// Write a character repeated `count` times to a generic writer.
 /// This is the generic-writer equivalent of `render_utils.writeRepeat`
 /// (which requires a `*Terminal`).
-fn genericWriteRepeat(writer: anytype, char: []const u8, count: usize) void {
+fn genericWriteRepeat(writer: anytype, char: []const u8, count: usize) !void {
     for (0..count) |_| {
-        writer.print("{s}", .{char}) catch return;
+        try writer.print("{s}", .{char});
     }
 }
 

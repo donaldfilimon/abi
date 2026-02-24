@@ -17,7 +17,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
 
     // Check if Vision feature is enabled
     if (!abi.ai.vision.isEnabled()) {
-        std.debug.print("Error: Vision feature is not enabled. Build with -Denable-vision=true\n", .{});
+        utils.output.printError("Vision feature is not enabled. Build with -Denable-vision=true\n", .{});
         return;
     }
 
@@ -279,7 +279,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
     std.debug.print("Starting Vision training...\n", .{});
 
     var timer = abi.shared.time.Timer.start() catch {
-        std.debug.print("Error: Failed to start timer\n", .{});
+        utils.output.printError("Failed to start timer\n", .{});
         return;
     };
 
@@ -363,7 +363,7 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
 
     // Check if Vision feature is enabled
     if (!abi.ai.vision.isEnabled()) {
-        std.debug.print("Error: Vision feature is not enabled. Build with -Denable-vision=true\n", .{});
+        utils.output.printError("Vision feature is not enabled. Build with -Denable-vision=true\n", .{});
         return;
     }
 
@@ -643,7 +643,7 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     std.debug.print("Starting CLIP contrastive training...\n", .{});
 
     var timer = abi.shared.time.Timer.start() catch {
-        std.debug.print("Error: Failed to start timer\n", .{});
+        utils.output.printError("Failed to start timer\n", .{});
         return;
     };
 

@@ -70,10 +70,11 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     // Unknown subcommand
-    std.debug.print("Unknown model command: {s}\n", .{cmd});
+    utils.output.printError("unknown model command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &model_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("did you mean: {s}", .{suggestion});
     }
+    utils.output.printInfo("Run 'abi model help' for usage.", .{});
 }
 
 // ============================================================================
@@ -103,7 +104,7 @@ fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     // Initialize manager
     var manager = abi.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
-        std.debug.print("Error initializing model manager: {t}\n", .{err});
+        utils.output.printError("initializing model manager: {t}", .{err});
         return;
     };
     defer manager.deinit();
@@ -158,7 +159,7 @@ fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     } else {
         // Model name - look up in cache
         var manager = abi.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
-            std.debug.print("Error initializing model manager: {t}\n", .{err});
+            utils.output.printError("initializing model manager: {t}", .{err});
             return;
         };
         defer manager.deinit();
@@ -223,7 +224,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     }
 
     if (model_spec == null) {
-        std.debug.print("Error: Model specification required.\n\n", .{});
+        utils.output.printError("Model specification required.\n", .{});
         printDownloadHelp();
         return;
     }
@@ -312,7 +313,7 @@ fn runRemove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
     }
 
     var manager = abi.ai.models.Manager.init(allocator, .{ .auto_scan = false }) catch |err| {
-        std.debug.print("Error initializing model manager: {t}\n", .{err});
+        utils.output.printError("initializing model manager: {t}", .{err});
         return;
     };
     defer manager.deinit();
@@ -381,7 +382,7 @@ fn runPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     var manager = abi.ai.models.Manager.init(allocator, .{}) catch |err| {
-        std.debug.print("Error initializing model manager: {t}\n", .{err});
+        utils.output.printError("initializing model manager: {t}", .{err});
         return;
     };
     defer manager.deinit();
@@ -466,22 +467,14 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
     else
         "model.gguf";
 
-    // ANSI color codes for pretty output
-    const colors = struct {
-        const reset = "\x1b[0m";
-        const bold = "\x1b[1m";
-        const dim = "\x1b[2m";
-        const green = "\x1b[32m";
-        const cyan = "\x1b[36m";
-        const yellow = "\x1b[33m";
-        const red = "\x1b[31m";
-        const up_line = "\x1b[1A";
-        const clear_line = "\x1b[2K";
-    };
+    const Color = utils.output.Color;
+    // Cursor control sequences (not color — always emitted)
+    const up_line = "\x1b[1A";
+    const clear_line = "\x1b[2K";
 
-    std.debug.print("\n{s}{s}Downloading Model{s}\n", .{ colors.bold, colors.cyan, colors.reset });
-    std.debug.print("{s}URL:{s} {s}\n", .{ colors.dim, colors.reset, url });
-    std.debug.print("{s}Output:{s} {s}\n\n", .{ colors.dim, colors.reset, filename });
+    std.debug.print("\n{s}{s}Downloading Model{s}\n", .{ Color.bold(), Color.cyan(), Color.reset() });
+    std.debug.print("{s}URL:{s} {s}\n", .{ Color.dim(), Color.reset(), url });
+    std.debug.print("{s}Output:{s} {s}\n\n", .{ Color.dim(), Color.reset(), filename });
 
     // Initialize I/O backend for HTTP download
     var io_backend = cli_io.initIoBackend(allocator);
@@ -505,7 +498,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
             if (ProgressState.lines_printed > 0) {
                 var i: usize = 0;
                 while (i < ProgressState.lines_printed) : (i += 1) {
-                    std.debug.print("{s}{s}", .{ colors.up_line, colors.clear_line });
+                    std.debug.print("{s}{s}", .{ up_line, clear_line });
                 }
             }
 
@@ -530,33 +523,33 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
             const speed_mb = @as(f64, @floatFromInt(progress.speed_bytes_per_sec)) / (1024 * 1024);
 
             // Line 1: Progress bar and percentage
-            const bar_color = if (progress.percent >= 100) colors.green else colors.cyan;
+            const bar_color = if (progress.percent >= 100) Color.green() else Color.cyan();
             std.debug.print("{s}{s}{s} {d}%{s}\n", .{
                 bar_color,
                 &bar,
-                colors.reset,
+                Color.reset(),
                 progress.percent,
-                colors.reset,
+                Color.reset(),
             });
 
             // Line 2: Size and speed
             if (progress.total_bytes > 0) {
                 std.debug.print("{s}Size:{s} {d:.1} / {d:.1} MB  {s}Speed:{s} {d:.1} MB/s\n", .{
-                    colors.dim,
-                    colors.reset,
+                    Color.dim(),
+                    Color.reset(),
                     downloaded_mb,
                     total_mb,
-                    colors.dim,
-                    colors.reset,
+                    Color.dim(),
+                    Color.reset(),
                     speed_mb,
                 });
             } else {
                 std.debug.print("{s}Downloaded:{s} {d:.1} MB  {s}Speed:{s} {d:.1} MB/s\n", .{
-                    colors.dim,
-                    colors.reset,
+                    Color.dim(),
+                    Color.reset(),
                     downloaded_mb,
-                    colors.dim,
-                    colors.reset,
+                    Color.dim(),
+                    Color.reset(),
                     speed_mb,
                 });
             }
@@ -567,8 +560,8 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
                     const hours = eta / 3600;
                     const mins = (eta % 3600) / 60;
                     std.debug.print("{s}ETA:{s} {d}h {d}m remaining\n", .{
-                        colors.dim,
-                        colors.reset,
+                        Color.dim(),
+                        Color.reset(),
                         hours,
                         mins,
                     });
@@ -576,20 +569,20 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
                     const mins = eta / 60;
                     const secs = eta % 60;
                     std.debug.print("{s}ETA:{s} {d}m {d}s remaining\n", .{
-                        colors.dim,
-                        colors.reset,
+                        Color.dim(),
+                        Color.reset(),
                         mins,
                         secs,
                     });
                 } else {
                     std.debug.print("{s}ETA:{s} {d}s remaining\n", .{
-                        colors.dim,
-                        colors.reset,
+                        Color.dim(),
+                        Color.reset(),
                         eta,
                     });
                 }
             } else {
-                std.debug.print("{s}ETA:{s} calculating...\n", .{ colors.dim, colors.reset });
+                std.debug.print("{s}ETA:{s} calculating...\n", .{ Color.dim(), Color.reset() });
             }
 
             // Track state for next update
@@ -613,42 +606,42 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
         if (ProgressState.lines_printed > 0) {
             var i: usize = 0;
             while (i < ProgressState.lines_printed) : (i += 1) {
-                std.debug.print("{s}{s}", .{ colors.up_line, colors.clear_line });
+                std.debug.print("{s}{s}", .{ up_line, clear_line });
             }
         }
 
         // Show success summary
-        std.debug.print("{s}{s}✓ Download Complete{s}\n\n", .{ colors.bold, colors.green, colors.reset });
+        std.debug.print("{s}{s}✓ Download Complete{s}\n\n", .{ Color.bold(), Color.green(), Color.reset() });
 
         const size_mb = @as(f64, @floatFromInt(download_result.bytes_downloaded)) / (1024 * 1024);
-        std.debug.print("{s}File:{s} {s}\n", .{ colors.dim, colors.reset, download_result.path });
-        std.debug.print("{s}Size:{s} {d:.2} MB\n", .{ colors.dim, colors.reset, size_mb });
-        std.debug.print("{s}SHA256:{s} {s}\n", .{ colors.dim, colors.reset, &download_result.checksum });
+        std.debug.print("{s}File:{s} {s}\n", .{ Color.dim(), Color.reset(), download_result.path });
+        std.debug.print("{s}Size:{s} {d:.2} MB\n", .{ Color.dim(), Color.reset(), size_mb });
+        std.debug.print("{s}SHA256:{s} {s}\n", .{ Color.dim(), Color.reset(), &download_result.checksum });
 
         if (download_result.was_resumed) {
-            std.debug.print("{s}(Download was resumed from partial file){s}\n", .{ colors.yellow, colors.reset });
+            std.debug.print("{s}(Download was resumed from partial file){s}\n", .{ Color.yellow(), Color.reset() });
         }
 
         if (download_result.checksum_verified) {
-            std.debug.print("{s}✓ Checksum verified{s}\n", .{ colors.green, colors.reset });
+            std.debug.print("{s}✓ Checksum verified{s}\n", .{ Color.green(), Color.reset() });
         }
 
         std.debug.print("\nUse 'abi model info {s}' to view model details.\n", .{filename});
     } else |err| {
         // Download failed - show error and fallback instructions
-        std.debug.print("\n{s}{s}Download failed: {t}{s}\n\n", .{ colors.bold, colors.red, err, colors.reset });
+        utils.output.printError("Download failed: {t}\n", .{err});
 
         // Show fallback curl/wget commands
         std.debug.print("You can download manually with:\n\n", .{});
         std.debug.print("{s}curl:{s}\n  curl -L -o \"{s}\" \"{s}\"\n\n", .{
-            colors.dim,
-            colors.reset,
+            Color.dim(),
+            Color.reset(),
             filename,
             url,
         });
         std.debug.print("{s}wget:{s}\n  wget -O \"{s}\" \"{s}\"\n", .{
-            colors.dim,
-            colors.reset,
+            Color.dim(),
+            Color.reset(),
             filename,
             url,
         });

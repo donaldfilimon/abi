@@ -4,7 +4,7 @@
 //! Sub-module re-exports match mod.zig surface for parity.
 
 const std = @import("std");
-const core_config = @import("../../core/config/auth.zig");
+const core_config = @import("../../core/config/platform.zig");
 const stub_context = @import("../../core/stub_context.zig");
 
 pub const AuthConfig = core_config.AuthConfig;

@@ -21,7 +21,7 @@
 //! - `abi.auth.headers` — Security headers middleware
 
 const std = @import("std");
-const core_config = @import("../../core/config/auth.zig");
+const core_config = @import("../../core/config/platform.zig");
 
 pub const AuthConfig = core_config.AuthConfig;
 

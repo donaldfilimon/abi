@@ -8,6 +8,7 @@
 const std = @import("std");
 const abi = @import("abi");
 const terminal = @import("terminal.zig");
+const render_utils = @import("render_utils.zig");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Constants
@@ -397,6 +398,9 @@ pub const Dialog = struct {
         try self.term.write(colors.reset);
         try self.term.write(" ");
 
+        // Flush before blocking on user input to ensure prompt is visible
+        try self.term.flush();
+
         // Read response
         while (true) {
             const key = try self.term.readKey();
@@ -475,8 +479,9 @@ pub const Dialog = struct {
             try self.term.write(text[start..end]);
 
             const line_len = end - start + 2;
-            if (line_len < self.width - 1) {
-                try writeRepeat(self.term, " ", self.width - 1 - line_len);
+            const inner_w: usize = @as(usize, self.width) -| 1;
+            if (line_len < inner_w) {
+                try writeRepeat(self.term, " ", inner_w - line_len);
             }
 
             try self.term.write(border_color);
@@ -844,11 +849,7 @@ pub const ProgressGauge = struct {
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════
 
-fn writeRepeat(term: *terminal.Terminal, char: []const u8, count: usize) !void {
-    for (0..count) |_| {
-        try term.write(char);
-    }
-}
+const writeRepeat = render_utils.writeRepeat;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Tests

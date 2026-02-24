@@ -2,13 +2,8 @@ const std = @import("std");
 
 const multi_device = @import("../multi_device.zig");
 
-pub const cluster = @import("../cluster/context.zig");
-pub const collectives = @import("../cluster/collectives.zig");
-pub const partition = @import("../cluster/partition.zig");
-pub const group = @import("../group/discovery.zig");
-pub const scheduler = @import("../group/scheduler.zig");
-pub const barrier = @import("../group/barrier.zig");
-pub const stats = @import("../group/stats.zig");
+pub const cluster = @import("../gpu_cluster.zig");
+pub const group = @import("../device_group.zig");
 
 pub const DeviceId = multi_device.DeviceId;
 pub const DeviceType = multi_device.DeviceType;

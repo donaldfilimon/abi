@@ -11,7 +11,7 @@
 //! - Snippet: window with highest match density
 
 const std = @import("std");
-const core_config = @import("../../core/config/search.zig");
+const core_config = @import("../../core/config/content.zig");
 const sync = @import("../../services/shared/sync.zig");
 
 pub const SearchConfig = core_config.SearchConfig;

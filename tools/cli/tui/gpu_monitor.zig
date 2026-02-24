@@ -395,8 +395,9 @@ pub const GpuMonitor = struct {
 
         // Close line
         const line1_len = 4 + name_display_width + 3 + unicode.displayWidth(backend_label);
-        if (line1_len < width - 2) {
-            try render_utils.writeRepeat(self.term, " ", width - 2 - line1_len);
+        const inner1 = @as(usize, width) -| 2;
+        if (line1_len < inner1) {
+            try render_utils.writeRepeat(self.term, " ", inner1 - line1_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -427,8 +428,9 @@ pub const GpuMonitor = struct {
         try self.term.write(self.theme.reset);
 
         const line2_len = 11 + 20 + unicode.displayWidth(mem_str);
-        if (line2_len < width - 2) {
-            try render_utils.writeRepeat(self.term, " ", width - 2 - line2_len);
+        const inner2 = @as(usize, width) -| 2;
+        if (line2_len < inner2) {
+            try render_utils.writeRepeat(self.term, " ", inner2 - line2_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -471,8 +473,9 @@ pub const GpuMonitor = struct {
         }
 
         const line3_len = 9 + 10 + unicode.displayWidth(util_str) + 8 + 4;
-        if (line3_len < width - 2) {
-            try render_utils.writeRepeat(self.term, " ", width - 2 - line3_len);
+        const inner3 = @as(usize, width) -| 2;
+        if (line3_len < inner3) {
+            try render_utils.writeRepeat(self.term, " ", inner3 - line3_len);
         }
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.v);
@@ -573,7 +576,7 @@ pub const GpuMonitor = struct {
     }
 
     fn renderProgressBar(self: *GpuMonitor, percent: u8, width: usize) !void {
-        const filled = (percent * @as(u8, @intCast(width))) / 100;
+        const filled = (@as(usize, percent) * width) / 100;
 
         // Color based on percentage
         if (percent >= 90) {
@@ -608,9 +611,8 @@ pub const GpuMonitor = struct {
     }
 
     fn setCursorPosition(self: *GpuMonitor, row: u16, col: u16) !void {
-        var buf: [16]u8 = undefined;
-        const seq = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{ row, col }) catch return;
-        try self.term.write(seq);
+        // Delegate to terminal.moveTo (0-indexed), converting from 1-indexed.
+        try self.term.moveTo(row -| 1, col -| 1);
     }
 };
 

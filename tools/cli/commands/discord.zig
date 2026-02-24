@@ -211,7 +211,7 @@ fn listGuilds(allocator: std.mem.Allocator) !void {
 
     utils.output.printHeaderFmt("Guilds ({d})", .{guilds.len});
     for (guilds) |guild| {
-        std.debug.print("  " ++ utils.output.color.green ++ "•" ++ utils.output.color.reset ++ " {s: <20} (ID: {s})\n", .{ guild.name, guild.id });
+        std.debug.print("  {s}•{s} {s: <20} (ID: {s})\n", .{ utils.output.Color.green(), utils.output.Color.reset(), guild.name, guild.id });
     }
 }
 
@@ -383,7 +383,7 @@ fn dcCommandsList(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
 
     utils.output.printHeaderFmt("Application Commands ({d})", .{commands.len});
     for (commands) |cmd| {
-        std.debug.print("  " ++ utils.output.color.cyan ++ "/" ++ utils.output.color.reset ++ "{s: <15} - {s} (ID: {s})\n", .{ cmd.name, cmd.description, cmd.id });
+        std.debug.print("  {s}/{s}{s: <15} - {s} (ID: {s})\n", .{ utils.output.Color.cyan(), utils.output.Color.reset(), cmd.name, cmd.description, cmd.id });
     }
 }
 
