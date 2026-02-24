@@ -439,7 +439,7 @@ pub const EmotionProcessor = struct {
 
     /// Convert text to lowercase for pattern matching.
     fn toLower(self: *const Self, text: []const u8) ![]u8 {
-        return string_utils.toLowerAscii(self.allocator, text);
+        return string_utils.string.toLowerAscii(self.allocator, text);
     }
 };
 

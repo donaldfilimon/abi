@@ -1112,3 +1112,7 @@ test "layer norm" {
 
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), mean, 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -658,3 +658,7 @@ test "counterfactual reasoner" {
     try std.testing.expect(result.confidence > 0);
     try std.testing.expect(result.reasoning_chain.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

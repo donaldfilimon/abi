@@ -85,3 +85,7 @@ pub fn isAvailable() bool {
 test "codex availability returns bool" {
     _ = isAvailable();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

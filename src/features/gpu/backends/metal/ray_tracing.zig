@@ -884,3 +884,7 @@ test "BoundingBox size" {
     // BoundingBox should be 24 bytes (6 x f32)
     try std.testing.expectEqual(@as(usize, 24), @sizeOf(BoundingBox));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

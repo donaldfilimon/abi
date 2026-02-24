@@ -38,3 +38,7 @@ pub const CpuInfo = struct {
     id: usize = 0,
     numa_node: usize = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -24,3 +24,7 @@ pub const DiagnosticsInfo = struct {
         return false;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

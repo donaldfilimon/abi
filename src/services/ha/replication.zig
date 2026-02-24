@@ -390,3 +390,7 @@ test "ReplicationManager add/remove replica" {
     manager.removeReplica(12345, .node_shutdown);
     try std.testing.expectEqual(@as(u32, 0), manager.getReplicaCount());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -469,3 +469,7 @@ test "memory cursor alignment" {
     cursor.alignTo(8);
     try std.testing.expectEqual(@as(usize, 8), cursor.position);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

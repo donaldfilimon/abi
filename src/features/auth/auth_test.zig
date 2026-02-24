@@ -200,3 +200,7 @@ test "auth token claims sub matches input" {
     defer allocator.free(token.raw);
     try std.testing.expectEqualStrings("claims_check", token.claims.sub);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -1,5 +1,6 @@
 const backend_mod = @import("../../backend.zig");
 const common = @import("common.zig");
+const std = @import("std");
 
 pub const Profile = enum {
     desktop,
@@ -26,3 +27,7 @@ pub const Profile = enum {
         };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

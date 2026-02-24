@@ -1464,3 +1464,7 @@ test "ExecutionResult throughput" {
     try std.testing.expectApproxEqAbs(@as(f64, 1.0), result.throughputGBps(), 0.01);
     try std.testing.expectApproxEqAbs(@as(f64, 1_000_000.0), result.elementsPerSecond(), 1.0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

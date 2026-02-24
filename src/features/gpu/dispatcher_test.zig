@@ -65,3 +65,7 @@ test "KernelDispatcher init and deinit" {
     try std.testing.expectEqual(@as(u64, 0), stats.kernels_compiled);
     try std.testing.expectEqual(@as(u64, 0), stats.kernels_executed);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

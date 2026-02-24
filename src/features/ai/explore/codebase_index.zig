@@ -365,3 +365,7 @@ test "IndexStats - default" {
     try std.testing.expectEqual(@as(usize, 0), stats.total_chunks);
     try std.testing.expectEqual(@as(usize, 0), stats.total_size_bytes);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

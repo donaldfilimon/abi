@@ -86,3 +86,7 @@ test "plugin registry findByName" {
     const not_found = registry.findByName("nonexistent");
     try std.testing.expect(not_found == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

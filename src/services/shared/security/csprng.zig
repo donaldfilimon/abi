@@ -128,3 +128,7 @@ test "fillRandom supports large buffer" {
     }
     try std.testing.expect(!all_zero);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

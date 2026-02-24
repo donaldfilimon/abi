@@ -41,3 +41,7 @@ pub fn base64Encode(_: std.mem.Allocator, _: []const u8) ![]const u8 {
 pub fn base64Decode(_: std.mem.Allocator, _: []const u8) ![]const u8 {
     return error.NetworkDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

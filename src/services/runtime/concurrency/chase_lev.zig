@@ -483,3 +483,7 @@ test "work-stealing scheduler basic" {
 
     try std.testing.expectEqual(expected_pending, scheduler.totalPending());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

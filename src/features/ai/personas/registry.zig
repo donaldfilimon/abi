@@ -117,3 +117,7 @@ pub const PersonaRegistry = struct {
         return removed;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

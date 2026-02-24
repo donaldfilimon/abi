@@ -134,3 +134,7 @@ test "stdgpu and webgl2 are strict when disabled" {
         );
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

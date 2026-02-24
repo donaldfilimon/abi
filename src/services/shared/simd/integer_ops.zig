@@ -284,3 +284,7 @@ test "addScalarInPlace offsets" {
     try std.testing.expectApproxEqAbs(@as(f32, 11.0), data[0], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 13.0), data[2], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

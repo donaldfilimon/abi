@@ -360,3 +360,7 @@ test "rate limiter" {
 
     try std.testing.expect(limiter.getAvailable() < 10.0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

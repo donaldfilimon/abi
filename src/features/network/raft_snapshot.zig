@@ -401,3 +401,7 @@ pub fn applyConfigChange(node: *RaftNode, change: ConfigChangeRequest) !void {
         },
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

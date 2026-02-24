@@ -493,3 +493,7 @@ test "batchnorm2d backward" {
     // Beta gradient should be sum of grad_output = 4
     try std.testing.expectApproxEqAbs(@as(f32, 4.0), grads.beta_grad[0], 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

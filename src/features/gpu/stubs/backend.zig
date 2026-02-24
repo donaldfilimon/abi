@@ -41,3 +41,7 @@ pub const Summary = struct {
     device_count: usize = 0,
     emulated_devices: usize = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

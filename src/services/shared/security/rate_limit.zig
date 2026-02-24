@@ -829,3 +829,7 @@ test "presets maintain backwards compatibility" {
     try std.testing.expect(!lenient.enabled);
     try std.testing.expect(!login.enabled);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

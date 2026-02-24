@@ -363,3 +363,7 @@ test "create rag prompt" {
     try std.testing.expect(std.mem.indexOf(u8, prompt, "What is AI?") != null);
     try std.testing.expect(std.mem.indexOf(u8, prompt, "Artificial Intelligence") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

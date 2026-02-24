@@ -200,3 +200,7 @@ test "batch capacity" {
     try std.testing.expect(gen.isFull());
     try std.testing.expectError(error.BatchFull, gen.addSequence(&prompt));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

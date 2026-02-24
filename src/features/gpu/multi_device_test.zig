@@ -242,3 +242,7 @@ test "scatter gather" {
     // Should have some data
     try std.testing.expect(output[0] == 1.0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

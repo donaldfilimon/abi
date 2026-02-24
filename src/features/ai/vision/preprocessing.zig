@@ -490,3 +490,7 @@ test "flipHorizontal mirrors image" {
     try std.testing.expectEqual(@as(u8, 255), flipped.getPixel(2, 0).?[0]);
     try std.testing.expectEqual(@as(u8, 255), flipped.getPixel(3, 0).?[0]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

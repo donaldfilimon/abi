@@ -496,3 +496,7 @@ test "discord tool registry integration" {
     try std.testing.expect(registry.get("discord_list_guilds") != null);
     try std.testing.expect(registry.get("discord_get_bot_info") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

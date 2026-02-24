@@ -482,3 +482,7 @@ test "BuiltinVar.getType" {
     try std.testing.expectEqual(types.Type.vec3u32(), BuiltinVar.global_invocation_id.getType());
     try std.testing.expectEqual(types.Type.u32Type(), BuiltinVar.local_invocation_index.getType());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

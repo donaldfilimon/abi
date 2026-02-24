@@ -631,3 +631,7 @@ test "gguf writer duplicate key" {
     const result = writer.addMetadataString("test.key", "value2");
     try std.testing.expectError(error.DuplicateKey, result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

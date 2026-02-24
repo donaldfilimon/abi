@@ -1073,3 +1073,7 @@ test "llama trainer init" {
 
     try std.testing.expectEqual(@as(u32, 0), trainer.stats.epoch);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

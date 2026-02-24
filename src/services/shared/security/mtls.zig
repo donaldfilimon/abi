@@ -387,3 +387,7 @@ test "mtls policy" {
     const valid = try policy.validateCertificate(&cert);
     try std.testing.expect(valid);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

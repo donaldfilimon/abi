@@ -65,3 +65,7 @@ pub fn createStub(comptime config: StubConfig) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

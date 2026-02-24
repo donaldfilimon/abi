@@ -390,3 +390,7 @@ test "create chunked stream" {
     try std.testing.expectEqualStrings("cd", chunks[1]);
     try std.testing.expectEqualStrings("e", chunks[2]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

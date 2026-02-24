@@ -15,3 +15,7 @@ test "CUDA loader basic functionality" {
     // Clean up.
     loader.unload();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

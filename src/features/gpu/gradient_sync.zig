@@ -151,3 +151,7 @@ pub const GradientBucketManager = struct {
         self.current_bucket = 0;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

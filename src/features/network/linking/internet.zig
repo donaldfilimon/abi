@@ -794,3 +794,7 @@ test "Address formatting" {
     // Check prefix matches
     try std.testing.expect(std.mem.startsWith(u8, &formatted, expected));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

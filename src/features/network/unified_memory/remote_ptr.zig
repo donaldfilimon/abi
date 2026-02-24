@@ -556,3 +556,7 @@ test "RemoteMemoryHandle creation" {
     try std.testing.expect(handle.permissions.write);
     try std.testing.expectEqual(RemoteMemoryHandle.State.valid, handle.state);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

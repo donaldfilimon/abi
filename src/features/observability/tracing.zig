@@ -597,3 +597,7 @@ test "sampler" {
     sampler = TraceSampler.init(.always_off, 0.0);
     try std.testing.expect(!sampler.shouldSample(trace_id));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

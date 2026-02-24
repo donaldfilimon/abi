@@ -91,3 +91,7 @@ pub const WeatherClient = struct {
         _ = response;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

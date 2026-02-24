@@ -9,3 +9,7 @@ pub const KernelCache = struct {};
 pub const KernelCacheConfig = struct {};
 pub const CacheStats = struct {};
 pub const PortableKernelSource = struct {};
+
+test {
+    std.testing.refAllDecls(@This());
+}

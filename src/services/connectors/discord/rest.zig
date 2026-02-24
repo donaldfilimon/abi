@@ -1090,3 +1090,7 @@ pub const Client = struct {
         return try parsers.parseOAuth2Token(self.allocator, response.body);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

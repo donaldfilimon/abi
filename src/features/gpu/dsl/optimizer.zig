@@ -238,3 +238,7 @@ test "pass names" {
     try std.testing.expectEqualStrings("constant-folding", OptimizationPass.constant_folding.name());
     try std.testing.expectEqualStrings("dead-code-elimination", OptimizationPass.dead_code_elimination.name());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

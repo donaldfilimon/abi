@@ -138,3 +138,7 @@ pub const SearchStatePool = struct {
         _ = self.available.fetchOr(@as(u64, 1) << @intCast(idx), .release);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

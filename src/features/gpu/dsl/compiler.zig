@@ -258,3 +258,7 @@ test "backendSupportsCompilation" {
     try std.testing.expect(backendSupportsCompilation(.webgpu));
     try std.testing.expect(!backendSupportsCompilation(.webgl2));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

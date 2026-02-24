@@ -482,3 +482,7 @@ test "HostStagedBackend allReduce" {
     try std.testing.expectApproxEqAbs(@as(f32, 10.0), buf1[2], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 12.0), buf1[3], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

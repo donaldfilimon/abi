@@ -505,3 +505,7 @@ test "helper functions" {
     try std.testing.expect(!isPowerOfTwo(.{ .u32_ = 7 }));
     try std.testing.expect(!isPowerOfTwo(.{ .u32_ = 0 }));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

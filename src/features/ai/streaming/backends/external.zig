@@ -391,3 +391,7 @@ test "build ollama request" {
     try std.testing.expect(std.mem.indexOf(u8, request, "llama2") != null);
     try std.testing.expect(std.mem.indexOf(u8, request, "Test prompt") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

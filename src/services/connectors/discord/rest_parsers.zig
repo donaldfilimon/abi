@@ -454,3 +454,7 @@ pub fn parseOAuth2Token(allocator: std.mem.Allocator, json: []const u8) !OAuth2T
         .scope = try json_utils.parseStringField(object, "scope", allocator),
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

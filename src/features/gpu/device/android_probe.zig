@@ -77,3 +77,7 @@ test "android probe reset clears cached selection" {
     try std.testing.expect(cached == null);
     try std.testing.expect(!resolved);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

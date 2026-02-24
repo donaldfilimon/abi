@@ -618,3 +618,7 @@ test "config validation failures" {
 
     try invalid_config.validate();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

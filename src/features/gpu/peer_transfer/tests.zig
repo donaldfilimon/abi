@@ -642,3 +642,7 @@ test "Memory leak check under repeated operations" {
     const stats = backend.getStats();
     try testing.expect(stats.transfers > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

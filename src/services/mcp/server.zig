@@ -650,3 +650,7 @@ test "handleMessage tool error returns isError" {
     try std.testing.expect(std.mem.indexOf(u8, written, "\"isError\":true") != null);
     try std.testing.expect(std.mem.indexOf(u8, written, "Error:") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

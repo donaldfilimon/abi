@@ -371,3 +371,7 @@ test "mixed precision context" {
     try std.testing.expectEqual(@as(f32, 1.0), grads[0]);
     try std.testing.expectEqual(@as(f32, 2.0), grads[1]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

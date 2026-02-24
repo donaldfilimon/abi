@@ -32,3 +32,7 @@ pub fn encodeResult(_: std.mem.Allocator, _: ResultEnvelope) ![]const u8 {
 pub fn decodeResult(_: std.mem.Allocator, _: []const u8) !ResultEnvelope {
     return error.NetworkDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

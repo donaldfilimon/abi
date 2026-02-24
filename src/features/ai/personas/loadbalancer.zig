@@ -481,3 +481,7 @@ test "node status weight" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.5), NodeStatus.degraded.toWeight(), 0.01);
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), NodeStatus.circuit_broken.toWeight(), 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

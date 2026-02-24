@@ -105,3 +105,7 @@ test "failover reason coverage" {
     };
     try std.testing.expectEqual(@as(usize, 9), reasons.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

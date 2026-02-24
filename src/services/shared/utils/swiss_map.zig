@@ -650,3 +650,7 @@ test "SwissMap seeded hash" {
     try std.testing.expectEqual(@as(?u32, 10), map.get(1));
     try std.testing.expectEqual(@as(?u32, 20), map.get(2));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

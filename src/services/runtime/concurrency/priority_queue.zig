@@ -698,3 +698,7 @@ test "priority weights" {
     try std.testing.expectEqual(@as(u32, 2), Priority.low.toWeight());
     try std.testing.expectEqual(@as(u32, 1), Priority.background.toWeight());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

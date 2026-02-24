@@ -837,3 +837,7 @@ test "pre-built templates" {
     defer coder.deinit();
     try std.testing.expectEqualStrings("CodeBot", coder.getName());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

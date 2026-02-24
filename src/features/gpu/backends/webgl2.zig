@@ -115,3 +115,7 @@ test "allocateDeviceMemory returns ComputeShadersUnavailable" {
     const result = allocateDeviceMemory(1024);
     try std.testing.expectError(error.ComputeShadersUnavailable, result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

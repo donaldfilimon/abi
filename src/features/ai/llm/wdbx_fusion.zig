@@ -421,3 +421,7 @@ test "cosineSimilarity correctness" {
     const b = [_]f32{ 0.0, 1.0, 0.0 };
     try std.testing.expect(@abs(cosineSimilarity(&a, &b)) < 1e-5);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

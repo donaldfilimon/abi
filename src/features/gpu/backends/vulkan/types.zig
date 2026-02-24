@@ -1,5 +1,7 @@
 //! Vulkan type definitions extracted for deprecation/cleanup.
 
+const std = @import("std");
+
 pub const VkResult = enum(i32) {
     success = 0,
     not_ready = 1,
@@ -539,3 +541,7 @@ pub const VkResetCommandBufferFn = *const fn (VkCommandBuffer, u32) callconv(.c)
 pub const VkResetCommandPoolFn = *const fn (VkDevice, VkCommandPool, u32) callconv(.c) VkResult;
 pub const VkEnumerateInstanceLayerPropertiesFn = *const fn (*u32, ?[*]VkLayerProperties) callconv(.c) VkResult;
 pub const VkCmdPushConstantsFn = *const fn (VkCommandBuffer, VkPipelineLayout, VkShaderStageFlags, u32, u32, *const anyopaque) callconv(.c) void;
+
+test {
+    std.testing.refAllDecls(@This());
+}

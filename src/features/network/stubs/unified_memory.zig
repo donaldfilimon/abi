@@ -60,3 +60,7 @@ pub const MemoryNode = struct {
     total_memory: usize = 0,
     available_memory: usize = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

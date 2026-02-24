@@ -58,3 +58,7 @@ pub fn wdbxToTokenBin(
     const bytes = std.mem.sliceAsBytes(tokens);
     try file.writeStreamingAll(io, bytes);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

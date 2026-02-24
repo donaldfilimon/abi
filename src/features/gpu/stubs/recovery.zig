@@ -4,3 +4,7 @@ pub const recovery = struct {};
 pub const failover = struct {};
 pub const RecoveryManager = struct {};
 pub const FailoverManager = struct {};
+
+test {
+    std.testing.refAllDecls(@This());
+}

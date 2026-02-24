@@ -520,3 +520,7 @@ test "circuit breaker registry getOrCreate" {
     try std.testing.expectEqual(@as(u32, 2), stats.total_breakers);
     try std.testing.expectEqual(@as(u32, 2), stats.closed_breakers);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

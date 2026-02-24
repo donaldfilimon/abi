@@ -85,3 +85,7 @@ test "CancellationSource basic" {
     const token = source.getToken();
     try std.testing.expect(!token.isCancelled());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

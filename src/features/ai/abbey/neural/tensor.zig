@@ -546,3 +546,7 @@ test "tensor softmax" {
     const total = s.sum();
     try std.testing.expect(@abs(total - 1.0) < 0.0001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

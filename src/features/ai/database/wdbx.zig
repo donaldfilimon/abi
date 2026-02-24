@@ -448,3 +448,7 @@ test "mapWdbxError maps known errors" {
     try std.testing.expectEqual(DatasetError.InvalidFormat, mapWdbxError(error.InvalidFormat));
     try std.testing.expectEqual(DatasetError.ReadFailed, mapWdbxError(error.Unexpected));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

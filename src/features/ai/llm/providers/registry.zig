@@ -86,3 +86,7 @@ test "sync round robin chain includes requested providers" {
     try std.testing.expectEqual(types.ProviderId.ollama_passthrough, sync_round_robin_chain[4]);
     try std.testing.expectEqual(types.ProviderId.ollama, sync_round_robin_chain[5]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

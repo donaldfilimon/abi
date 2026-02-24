@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const ProviderError = error{
     InvalidProvider,
     InvalidBackend,
@@ -13,3 +15,7 @@ pub const ProviderError = error{
     GenerationFailed,
     MissingApiKey,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

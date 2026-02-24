@@ -274,3 +274,7 @@ test "document type from extension" {
     try std.testing.expectEqual(DocumentType.html, DocumentType.fromExtension(".html"));
     try std.testing.expectEqual(DocumentType.other, DocumentType.fromExtension(".xyz"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

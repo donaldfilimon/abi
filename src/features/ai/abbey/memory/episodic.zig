@@ -426,3 +426,7 @@ test "episodic retrieval" {
     const recent = memory.getRecent(2);
     try std.testing.expectEqual(@as(usize, 2), recent.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

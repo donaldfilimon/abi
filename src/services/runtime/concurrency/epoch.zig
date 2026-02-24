@@ -468,3 +468,7 @@ test "lock-free stack EBR concurrent" {
     // Total pushed should equal total popped + remaining
     try std.testing.expectEqual(total_pushed, total_popped + remaining);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

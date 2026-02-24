@@ -573,3 +573,7 @@ test "Tensor relu" {
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), out.data[3], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 2.0), out.data[4], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

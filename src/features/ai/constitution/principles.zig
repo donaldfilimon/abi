@@ -163,3 +163,7 @@ test "severity weights are ordered" {
     try std.testing.expect(Severity.advisory.weight() < Severity.required.weight());
     try std.testing.expect(Severity.required.weight() < Severity.critical.weight());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

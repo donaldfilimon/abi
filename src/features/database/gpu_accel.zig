@@ -794,3 +794,7 @@ test "GpuAccelerator stats tracking" {
     const reset_stats = accel.getStats();
     try std.testing.expectEqual(@as(u64, 0), reset_stats.simd_ops);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -271,3 +271,7 @@ test "selectOptimalMatmulTile with device info" {
     try std.testing.expect(tile.n >= 16);
     try std.testing.expect(tile.k >= 8);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

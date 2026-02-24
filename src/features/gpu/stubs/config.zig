@@ -7,3 +7,7 @@ pub const GpuConfig = struct {
     enable_profiling: bool = false,
     memory_mode: memory_mod.MemoryMode = .automatic,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

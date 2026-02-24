@@ -379,3 +379,7 @@ test "conflict resolution integration with WDBX blocks" {
 
     std.debug.print("✓ Conflict resolution integrated with WDBX blocks\n", .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

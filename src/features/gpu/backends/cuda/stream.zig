@@ -393,3 +393,7 @@ test "MultiStreamPool clamped to MAX_STREAMS" {
     const pool = MultiStreamPool.init(100);
     try std.testing.expectEqual(@as(u32, MultiStreamPool.MAX_STREAMS), pool.num_streams);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -403,3 +403,7 @@ test "sse heartbeat" {
 
     try std.testing.expect(std.mem.indexOf(u8, heartbeat, "heartbeat") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

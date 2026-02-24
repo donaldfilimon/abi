@@ -622,3 +622,7 @@ test "task group builder" {
     try std.testing.expect(group.config.cancel_on_failure);
     try std.testing.expectEqualStrings("test-group", group.config.name.?);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

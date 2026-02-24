@@ -70,3 +70,7 @@ fn shouldInclude(ctx: SelectionContext, backend_name: []const u8) bool {
 
     return ctx.enable_gpu;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

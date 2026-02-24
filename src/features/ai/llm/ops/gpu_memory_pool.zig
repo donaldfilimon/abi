@@ -1078,3 +1078,7 @@ pub fn copyFromBuffer(buffer: *const PooledBuffer, dest: []u8) !void {
 test {
     _ = @import("gpu_memory_pool_test.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

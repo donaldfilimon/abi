@@ -208,3 +208,7 @@ pub fn build(comptime Framework: type, comptime Builder: type, self: *Builder) F
     }
     return Framework.init(self.allocator, config);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

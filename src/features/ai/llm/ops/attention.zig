@@ -753,3 +753,7 @@ test "flash attention matches standard" {
         try std.testing.expect(diff < 1e-4);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -317,3 +317,7 @@ test "getUniqueId returns unique values" {
     // IDs should be different (with very high probability given sleep)
     try std.testing.expect(id1 != id2 or id2 != id3);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

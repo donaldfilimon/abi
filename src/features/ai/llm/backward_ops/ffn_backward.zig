@@ -355,3 +355,7 @@ test "gelu derivative" {
 
     try std.testing.expectApproxEqAbs(numerical, analytical, 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -369,3 +369,7 @@ test "train step computes loss and gradients" {
     }
     try std.testing.expect(has_nonzero_grad);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

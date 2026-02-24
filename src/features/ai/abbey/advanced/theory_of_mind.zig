@@ -615,3 +615,7 @@ test "knowledge gap detection" {
     try std.testing.expect(gaps.len > 0);
     try std.testing.expectEqual(TheoryOfMind.GapType.definition, gaps[0].gap_type);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

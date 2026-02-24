@@ -360,3 +360,7 @@ test "MessageChannel type alias" {
     try std.testing.expect(@sizeOf(Message) <= 128);
     try std.testing.expect(@TypeOf(MessageChannel) != void);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

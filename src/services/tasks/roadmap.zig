@@ -156,3 +156,7 @@ test "importAll keeps dedupe-by-title behavior" {
     try std.testing.expectEqual(catalog.nonDoneEntryCount() - 1, imported);
     try std.testing.expectEqual(catalog.nonDoneEntryCount(), tasks_map.count());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

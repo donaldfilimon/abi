@@ -372,3 +372,7 @@ test "Matrix scaleInPlace" {
     try std.testing.expectApproxEqAbs(@as(f32, 20.0), m.at(0, 0), 0.01);
     try std.testing.expectApproxEqAbs(@as(f32, 30.0), m.at(1, 1), 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

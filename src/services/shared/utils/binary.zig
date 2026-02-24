@@ -140,3 +140,7 @@ test "serialization cursor basic" {
 
     try std.testing.expect(!cursor.hasRemaining());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

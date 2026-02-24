@@ -495,3 +495,7 @@ test "response headers generation" {
     }
     try std.testing.expect(found_origin);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

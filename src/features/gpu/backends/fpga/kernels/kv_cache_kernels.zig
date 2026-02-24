@@ -699,3 +699,7 @@ test "memory tier properties" {
 
     try std.testing.expect(MemoryTier.bram.bandwidthGbps() > MemoryTier.hbm.bandwidthGbps());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

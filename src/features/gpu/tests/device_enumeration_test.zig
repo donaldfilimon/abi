@@ -47,3 +47,7 @@ test "select best device with custom selector" {
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

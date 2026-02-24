@@ -355,3 +355,7 @@ test "Logger filtering by severity" {
     logger.log(&ctx); // should not crash, just skip
     try std.testing.expectEqual(@as(u64, 0), logger.total_logged.load(.acquire));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

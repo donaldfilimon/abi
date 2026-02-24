@@ -95,3 +95,7 @@ pub const AsyncTransfer = struct {
         return error.GpuDisabled;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

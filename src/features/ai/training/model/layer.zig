@@ -157,3 +157,7 @@ pub const TrainableLayerWeights = struct {
         @memset(self.d_ffn_norm, 0);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

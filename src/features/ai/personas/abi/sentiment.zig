@@ -562,7 +562,7 @@ test "SentimentAnalyzer basic analysis" {
     const analyzer = SentimentAnalyzer.init(allocator);
 
     var result = try analyzer.analyze("I'm frustrated with this bug");
-    defer result.deinit(&result, allocator);
+    defer result.deinit(allocator);
 
     try std.testing.expect(result.primary_emotion == .frustrated);
     try std.testing.expect(result.requires_empathy);
@@ -573,7 +573,7 @@ test "SentimentAnalyzer technical detection" {
     const analyzer = SentimentAnalyzer.init(allocator);
 
     var result = try analyzer.analyze("How do I implement this function in Zig?");
-    defer result.deinit(&result, allocator);
+    defer result.deinit(allocator);
 
     try std.testing.expect(result.is_technical);
     try std.testing.expect(result.intent == .question or result.intent == .explanation_request);
@@ -584,7 +584,7 @@ test "SentimentAnalyzer urgency detection" {
     const analyzer = SentimentAnalyzer.init(allocator);
 
     var result = try analyzer.analyze("This is urgent! The server is down!");
-    defer result.deinit(&result, allocator);
+    defer result.deinit(allocator);
 
     try std.testing.expect(result.urgency_score >= 0.8);
 }
@@ -594,7 +594,7 @@ test "SentimentAnalyzer negation handling" {
     const analyzer = SentimentAnalyzer.init(allocator);
 
     var result = try analyzer.analyze("I'm not frustrated at all, just curious");
-    defer result.deinit(&result, allocator);
+    defer result.deinit(allocator);
 
     // Should detect curious, not frustrated
     try std.testing.expect(result.primary_emotion != .frustrated);
@@ -605,7 +605,7 @@ test "SentimentAnalyzer multi-emotion detection" {
     const analyzer = SentimentAnalyzer.init(allocator);
 
     var result = try analyzer.analyze("I'm stressed and confused about this deadline");
-    defer result.deinit(&result, allocator);
+    defer result.deinit(allocator);
 
     try std.testing.expect(result.primary_emotion == .stressed or result.primary_emotion == .confused);
     try std.testing.expect(result.urgency_score > 0.5); // "deadline" should boost urgency
@@ -616,10 +616,10 @@ test "SentimentAnalyzer intent classification" {
     const analyzer = SentimentAnalyzer.init(allocator);
 
     var greeting = try analyzer.analyze("Hello, how are you?");
-    defer greeting.deinit(&greeting, allocator);
+    defer greeting.deinit(allocator);
     try std.testing.expect(greeting.intent == .greeting);
 
     var code_req = try analyzer.analyze("Write a function to sort arrays");
-    defer code_req.deinit(&code_req, allocator);
+    defer code_req.deinit(allocator);
     try std.testing.expect(code_req.intent == .code_request);
 }

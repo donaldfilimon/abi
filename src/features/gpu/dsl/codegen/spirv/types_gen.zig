@@ -179,3 +179,7 @@ pub fn TypeGenMixin(comptime Self: type) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

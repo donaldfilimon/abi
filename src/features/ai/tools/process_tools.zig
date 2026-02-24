@@ -175,3 +175,7 @@ test "spawn_background_tool creation" {
 test "all_tools count" {
     try std.testing.expectEqual(@as(usize, 3), all_tools.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

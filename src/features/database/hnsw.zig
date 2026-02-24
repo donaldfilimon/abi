@@ -1297,3 +1297,7 @@ comptime {
         _ = distance_cache;
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

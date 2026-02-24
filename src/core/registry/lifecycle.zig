@@ -110,3 +110,7 @@ pub fn disableFeature(
     reg.enabled = false;
     try runtime_overrides.put(allocator, feature, false);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

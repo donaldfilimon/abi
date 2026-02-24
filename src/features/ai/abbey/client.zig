@@ -850,3 +850,7 @@ test "retry handler" {
 
     try std.testing.expect(delay2 > delay1);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

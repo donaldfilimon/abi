@@ -225,7 +225,7 @@ pub const KnowledgeRetriever = struct {
             if (frag.relevance >= self.config.min_relevance and
                 frag.confidence >= self.config.min_confidence)
             {
-                try result.fragments.append(frag);
+                try result.fragments.append(self.allocator, frag);
                 if (result.fragments.items.len >= self.config.max_fragments) break;
             }
         }
@@ -429,7 +429,7 @@ test "get best fragment" {
     var result = RetrievalResult.init(std.testing.allocator, "test");
     defer result.deinit();
 
-    try result.fragments.append(.{
+    try result.fragments.append(std.testing.allocator, .{
         .content = "Test content",
         .source = .{
             .name = "Test Source",

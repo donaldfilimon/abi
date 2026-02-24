@@ -514,3 +514,7 @@ test "cancellation token" {
     token.reset();
     try std.testing.expect(!token.isCancelled());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

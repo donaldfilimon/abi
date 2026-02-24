@@ -24,3 +24,7 @@ pub const PeerAddress = struct {
     address: []const u8 = "",
     port: u16 = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

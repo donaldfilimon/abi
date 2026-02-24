@@ -309,3 +309,7 @@ test "failover wraparound" {
     try std.testing.expect(target != null);
     try std.testing.expectEqual(backend_mod.Backend.metal, target.?);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

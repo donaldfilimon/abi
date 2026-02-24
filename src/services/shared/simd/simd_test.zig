@@ -575,3 +575,7 @@ test "scale large array" {
         try std.testing.expectApproxEqAbs(expected, out[i], 1e-5);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

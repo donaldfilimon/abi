@@ -871,3 +871,7 @@ test "createCollector - creates valid collector" {
     counter.inc(1);
     try std.testing.expectEqual(@as(u64, 1), counter.get());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

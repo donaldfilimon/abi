@@ -6,6 +6,7 @@
 pub const primitives = @import("./core_metrics/primitives.zig");
 pub const prometheus = @import("./core_metrics/prometheus.zig");
 pub const sliding_window = @import("./core_metrics/sliding_window.zig");
+const std = @import("std");
 
 // Re-export core types
 pub const Counter = primitives.Counter;
@@ -22,3 +23,7 @@ pub const MetricWriter = prometheus.MetricWriter;
 pub const SlidingWindow = sliding_window.SlidingWindow;
 pub const StandardWindow = sliding_window.StandardWindow;
 pub const TimestampedSample = sliding_window.TimestampedSample;
+
+test {
+    std.testing.refAllDecls(@This());
+}

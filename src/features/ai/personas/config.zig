@@ -106,3 +106,7 @@ pub const RegistryConfig = struct {
     /// Default priority for registered personas.
     default_priority: u8 = 5,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

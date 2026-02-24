@@ -778,3 +778,7 @@ test "category scheduling" {
     }
     try std.testing.expectEqual(@as(u64, categories.len), total_category_count);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

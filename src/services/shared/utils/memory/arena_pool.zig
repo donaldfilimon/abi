@@ -498,3 +498,7 @@ test "ScratchAllocator swap" {
     const b = scratch.current().alloc(200, 8);
     try std.testing.expect(b != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

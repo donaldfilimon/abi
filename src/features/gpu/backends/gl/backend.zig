@@ -36,3 +36,7 @@ test "build enablement follows profile flags" {
     try std.testing.expectEqual(build_options.gpu_opengl, isProfileEnabledAtBuild(.desktop));
     try std.testing.expectEqual(build_options.gpu_opengles, isProfileEnabledAtBuild(.es));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

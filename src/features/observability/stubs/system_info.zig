@@ -3,6 +3,8 @@
 //! Stub implementation when observability is disabled.
 //! All functions return 0.
 
+const std = @import("std");
+
 /// SystemInfo offers static helpers for runtime data.
 /// Stub version returns 0 for all values.
 pub const SystemInfo = struct {
@@ -16,3 +18,7 @@ pub const SystemInfo = struct {
         return 0;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

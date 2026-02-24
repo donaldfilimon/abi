@@ -370,3 +370,7 @@ test "radix_tree splitPath strips leading slash" {
     try std.testing.expectEqualStrings("users", iter.next().?);
     try std.testing.expect(iter.next() == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -660,3 +660,7 @@ test "builder basic" {
     try std.testing.expect(desc != null);
     try std.testing.expectEqual(DataType.f32, desc.?.data_type);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

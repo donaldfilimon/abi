@@ -460,3 +460,7 @@ test "long-term memory with custom recency half-life" {
     const entry = memory.memories.items[0];
     try std.testing.expect(entry.last_accessed >= 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

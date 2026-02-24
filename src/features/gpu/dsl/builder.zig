@@ -818,3 +818,7 @@ test "KernelBuilder vector_add kernel" {
     try std.testing.expectEqual(@as(usize, 1), ir.uniforms.len);
     try std.testing.expectEqual(@as(usize, 1), ir.body.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

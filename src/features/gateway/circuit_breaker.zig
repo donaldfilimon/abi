@@ -2,6 +2,7 @@
 
 const types = @import("types.zig");
 const resilience = @import("../../services/shared/resilience/circuit_breaker.zig");
+const std = @import("std");
 
 pub const CircuitBreakerState = types.CircuitBreakerState;
 pub const CircuitBreakerConfig = types.CircuitBreakerConfig;
@@ -41,3 +42,7 @@ pub const CircuitBreaker = struct {
         self.inner.forceState(.half_open);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

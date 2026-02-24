@@ -212,3 +212,7 @@ test "short-term memory clear" {
     memory.clear();
     try std.testing.expect(memory.isEmpty());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -421,3 +421,7 @@ test "IntentClassifier basic classification" {
     const fact_text = "What is the capital of France?";
     try std.testing.expect(classifier.classify(fact_text) == .factual_inquiry);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

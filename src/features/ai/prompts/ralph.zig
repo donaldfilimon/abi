@@ -53,3 +53,7 @@ pub fn formatLoopInjection(
         original_goal,
     });
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

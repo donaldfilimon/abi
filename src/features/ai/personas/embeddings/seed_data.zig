@@ -464,3 +464,7 @@ test "findDomainMapping returns correct mapping" {
     try std.testing.expect(frustration != null);
     try std.testing.expect(frustration.?.primary_persona == .abbey);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

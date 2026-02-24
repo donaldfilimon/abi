@@ -483,3 +483,7 @@ test "MemoryRegion page state tracking" {
     region.clearDirty(2);
     try std.testing.expect(!region.isDirty(2));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

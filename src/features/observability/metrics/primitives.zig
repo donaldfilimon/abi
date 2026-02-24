@@ -88,3 +88,7 @@ test "Histogram percentile" {
     const p50 = hist.percentile(0.5);
     try std.testing.expect(p50 >= 10 and p50 <= 100);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -817,3 +817,7 @@ test "quantization bits per weight" {
     try std.testing.expectApproxEqAbs(@as(f32, 6.0), QuantType.q5_1.bitsPerWeight(), 0.01);
     try std.testing.expectApproxEqAbs(@as(f32, 8.5), QuantType.q8_0.bitsPerWeight(), 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

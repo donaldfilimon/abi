@@ -213,3 +213,7 @@ pub const DPOOptimizer = struct {
         return self.preference_pairs.items.len >= self.config.min_pairs;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

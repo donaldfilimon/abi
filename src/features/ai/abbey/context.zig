@@ -413,3 +413,7 @@ test "context window" {
     try std.testing.expectEqual(@as(usize, 2), window.messages.items.len);
     try std.testing.expect(window.current_tokens < window.max_tokens);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

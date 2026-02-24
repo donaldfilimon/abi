@@ -745,3 +745,7 @@ test "formatRangeHeader uses caller buffer" {
     try std.testing.expectEqualStrings("bytes=128-", header_one);
     try std.testing.expectEqualStrings("bytes=4096-", header_two);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

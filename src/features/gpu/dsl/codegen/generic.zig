@@ -1215,3 +1215,7 @@ test "CudaGenerator basic" {
     try std.testing.expect(std.mem.indexOf(u8, result.code, "#include <cuda_runtime.h>") != null);
     try std.testing.expect(std.mem.indexOf(u8, result.code, "__global__") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

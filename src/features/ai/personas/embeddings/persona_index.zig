@@ -382,3 +382,7 @@ test "makePersonaId and personaFromId roundtrip" {
         try std.testing.expect(persona == recovered);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

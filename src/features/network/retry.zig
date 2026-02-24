@@ -502,3 +502,7 @@ test "retryable errors" {
     try std.testing.expect(!retryable.shouldRetry(error.Unknown));
     try std.testing.expect(!retryable.shouldRetry(error.TimerFailed));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -105,3 +105,7 @@ test "Persona Registry Thread-Safety" {
 
     for (threads) |t| t.join();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

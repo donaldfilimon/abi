@@ -534,3 +534,7 @@ test "memoization" {
     try std.testing.expectEqual(@as(u64, 25), memo.call(5));
     try std.testing.expect(memo.cache.getStats().hits > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

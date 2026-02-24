@@ -26,3 +26,7 @@ pub const Config = struct {
 pub fn loadFromEnv(_: std.mem.Allocator) !Config {
     return error.ConnectorsDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

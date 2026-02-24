@@ -951,3 +951,7 @@ test "gpu stats tracking" {
     try std.testing.expectEqual(@as(u64, 1), stats.fallback_ops);
     try std.testing.expectApproxEqAbs(@as(f64, 0.666), stats.gpuUtilization(), 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

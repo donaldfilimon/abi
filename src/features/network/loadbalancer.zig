@@ -596,3 +596,7 @@ test "node state scoring" {
     const score3 = node.getScore();
     try std.testing.expectEqual(@as(f64, 0), score3);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

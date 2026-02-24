@@ -223,3 +223,7 @@ pub fn callTask(comptime ResultType: type, task: anytype, allocator: std.mem.All
 
     @compileError("Task must be a function or type with execute(allocator)");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

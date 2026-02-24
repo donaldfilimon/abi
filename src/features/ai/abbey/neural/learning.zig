@@ -642,3 +642,7 @@ test "loss functions" {
     const mse = LossFn.mse(&pred, &target);
     try std.testing.expect(mse > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

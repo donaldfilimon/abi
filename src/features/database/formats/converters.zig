@@ -639,3 +639,7 @@ test "converter unified dtype to safetensors" {
     try std.testing.expectEqualStrings("F32", try unifiedDtypeToSafeTensors(.f32));
     try std.testing.expectEqualStrings("I64", try unifiedDtypeToSafeTensors(.i64));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

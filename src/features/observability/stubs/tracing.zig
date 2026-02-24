@@ -89,3 +89,7 @@ pub fn formatSpanId(_: [8]u8) [16]u8 {
 pub fn createOtelResource(_: std.mem.Allocator, _: []const u8) types.Error!void {
     return error.ObservabilityDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

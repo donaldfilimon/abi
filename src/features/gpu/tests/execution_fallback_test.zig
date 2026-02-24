@@ -62,3 +62,7 @@ test "explicit method override" {
     try std.testing.expect(exec_method == .simd or exec_method == .scalar);
     try std.testing.expectEqual(@as(f32, 6), result[0]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

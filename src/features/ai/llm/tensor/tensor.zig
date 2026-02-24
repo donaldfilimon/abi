@@ -440,3 +440,7 @@ test "element count and strides" {
     try std.testing.expectEqual(@as(u32, 5), strides[2]); // 5
     try std.testing.expectEqual(@as(u32, 1), strides[3]); // 1
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

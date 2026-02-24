@@ -553,3 +553,7 @@ test "scheduler learning stats" {
     try std.testing.expectEqual(@as(f32, 0.0), stats.avg_episode_reward);
     try std.testing.expect(stats.exploration_rate > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

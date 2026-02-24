@@ -326,3 +326,7 @@ test "createWebGpuVTable" {
         try std.testing.expect(err == error.NotAvailable or err == error.InitFailed);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

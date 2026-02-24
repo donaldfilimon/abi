@@ -945,3 +945,7 @@ test "DeviceMemoryError enum covers all cases" {
     };
     try std.testing.expectEqual(@as(usize, 3), errors.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

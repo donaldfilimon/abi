@@ -386,3 +386,7 @@ test "ConfigLoader defaults are valid" {
     const config = try loader.load();
     try mod.validate(config);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

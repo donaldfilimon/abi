@@ -97,3 +97,7 @@ pub fn registerDefaultMetrics(_: *MetricsCollector) types.Error!DefaultMetrics {
 
 pub fn recordRequest(_: *DefaultMetrics, _: u64) void {}
 pub fn recordError(_: *DefaultMetrics, _: u64) void {}
+
+test {
+    std.testing.refAllDecls(@This());
+}

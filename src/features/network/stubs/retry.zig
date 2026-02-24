@@ -47,3 +47,7 @@ pub fn retry(_: anytype) !void {
 pub fn retryWithStrategy(_: RetryStrategy, _: anytype) !void {
     return error.NetworkDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

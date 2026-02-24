@@ -442,3 +442,7 @@ test "coalescing buffer" {
     defer allocator.free(result3.?);
     try std.testing.expectEqualStrings("Hello world.", result3.?);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

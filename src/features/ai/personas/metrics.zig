@@ -426,3 +426,7 @@ test "latency window sliding" {
     try std.testing.expectEqual(@as(usize, 5), window.samples.items.len);
     try std.testing.expectEqual(@as(u64, 200), window.samples.items[0]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

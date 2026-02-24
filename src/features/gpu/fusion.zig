@@ -1060,3 +1060,7 @@ test "fusion optimizer auto-apply dot product" {
     // First operation should now be dot_product
     try std.testing.expectEqual(OpType.dot_product, optimizer.nodes.items[0].op);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

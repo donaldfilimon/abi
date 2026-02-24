@@ -203,3 +203,7 @@ test "sliding window min max" {
     try std.testing.expectApproxEqAbs(@as(f64, 10), min_val, 0.001);
     try std.testing.expectApproxEqAbs(@as(f64, 90), max_val, 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

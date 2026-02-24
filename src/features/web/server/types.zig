@@ -252,3 +252,7 @@ test "ServerStats calculations" {
     try std.testing.expect(stats.uptimeMs() >= 1000);
     try std.testing.expect(stats.requestsPerSecond() > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

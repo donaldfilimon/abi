@@ -13,3 +13,7 @@ pub const MetricsSummary = struct {
 
 pub const KernelMetrics = struct {};
 pub const MetricsCollector = struct {};
+
+test {
+    std.testing.refAllDecls(@This());
+}

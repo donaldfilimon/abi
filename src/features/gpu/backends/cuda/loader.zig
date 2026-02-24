@@ -477,3 +477,7 @@ pub fn unloadModule(module: *anyopaque) void {
         _ = unload_fn(module);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

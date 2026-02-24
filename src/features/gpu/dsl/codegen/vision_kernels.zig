@@ -78,3 +78,7 @@ pub const VisionKernels = struct {
         try g.writer.writeAll("// ResizeBilinear generated implementation\n");
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

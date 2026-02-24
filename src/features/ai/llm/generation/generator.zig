@@ -306,3 +306,7 @@ test "generation result stats" {
     // 50 tokens / 1 second = 50 tok/s
     try std.testing.expectEqual(@as(f64, 50.0), result.tokensPerSecond());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

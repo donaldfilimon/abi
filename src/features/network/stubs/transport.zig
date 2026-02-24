@@ -53,3 +53,7 @@ pub const RpcSerializer = struct {
 pub fn parseAddress(_: []const u8) !struct { host: []const u8, port: u16 } {
     return error.NetworkDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

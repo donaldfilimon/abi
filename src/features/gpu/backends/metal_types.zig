@@ -178,3 +178,7 @@ pub const DeviceInfo = struct {
     supports_neural_engine: bool = false,
     metal_level: u8 = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

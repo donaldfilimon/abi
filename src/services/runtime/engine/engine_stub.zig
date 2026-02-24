@@ -88,3 +88,7 @@ pub const DistributedComputeEngine = struct {
 pub fn runWorkItem(item: *WorkItem) void {
     _ = item;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

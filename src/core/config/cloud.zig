@@ -215,3 +215,7 @@ pub const CloudConfig = struct {
         };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

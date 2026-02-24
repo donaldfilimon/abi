@@ -286,3 +286,7 @@ test "bleu no match" {
 
     try std.testing.expect(result.score < 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

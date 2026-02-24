@@ -627,3 +627,7 @@ pub const KernelConfig = struct {
     block_size: [3]u32 = .{ 256, 1, 1 },
     shared_memory: u32 = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

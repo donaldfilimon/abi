@@ -476,3 +476,7 @@ test "list personas" {
     const all = listPersonas();
     try std.testing.expect(all.len >= 13);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

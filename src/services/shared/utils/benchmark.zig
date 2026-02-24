@@ -263,3 +263,7 @@ test "filterOutliers keeps all samples with large threshold" {
         try std.testing.expectEqual(expected, actual);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

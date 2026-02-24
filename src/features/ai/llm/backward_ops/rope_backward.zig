@@ -199,3 +199,7 @@ test "rope gradient verification" {
     const is_valid = try verifyRopeGradient(allocator, 64, 100, 10000.0);
     try std.testing.expect(is_valid);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

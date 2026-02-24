@@ -513,3 +513,7 @@ test "ReplicationState lag calculation" {
     // Lag for unknown peer => full lag (current_seq - 0)
     try std.testing.expectEqual(@as(u64, 10), state.getReplicationLag(99, 10));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

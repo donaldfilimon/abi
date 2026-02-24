@@ -1113,3 +1113,7 @@ test {
     _ = @import("batch.zig");
     _ = @import("../dispatcher_test.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

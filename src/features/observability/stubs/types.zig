@@ -42,3 +42,7 @@ pub const AlertState = enum { pending, firing, resolved };
 pub const AlertSeverity = enum { info, warning, critical };
 pub const AlertError = error{AlertDisabled};
 pub const AlertCallback = *const fn () void;
+
+test {
+    std.testing.refAllDecls(@This());
+}

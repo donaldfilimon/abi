@@ -854,3 +854,7 @@ test {
     _ = @import("raft_snapshot.zig");
     _ = @import("raft_test.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

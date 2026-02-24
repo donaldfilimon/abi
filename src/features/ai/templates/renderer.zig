@@ -276,3 +276,7 @@ test "render strict mode missing variable" {
     const result = renderer_instance.render(tokens, .{});
     try std.testing.expectError(RenderError.MissingVariable, result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

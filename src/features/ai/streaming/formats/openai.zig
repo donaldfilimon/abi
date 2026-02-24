@@ -472,3 +472,7 @@ test "format prompt from messages" {
     try std.testing.expect(std.mem.indexOf(u8, prompt, "User: Hi") != null);
     try std.testing.expect(std.mem.indexOf(u8, prompt, "Assistant:") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

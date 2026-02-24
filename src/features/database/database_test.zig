@@ -174,3 +174,7 @@ test "diagnostics on empty database" {
     try std.testing.expectEqual(@as(usize, 0), diag.memory.vector_bytes);
     try std.testing.expect(diag.isHealthy());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

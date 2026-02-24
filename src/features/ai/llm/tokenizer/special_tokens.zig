@@ -278,3 +278,7 @@ test "chat template formatting" {
     try std.testing.expect(std.mem.indexOf(u8, result, "<<SYS>>") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "Hello!") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

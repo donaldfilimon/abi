@@ -1,8 +1,11 @@
 const common = @import("common.zig");
 const opengl = @import("../opengl.zig");
 const opengles = @import("../opengles.zig");
+const std = @import("std");
 
-pub fn init(api: common.Api) anyerror!void {
+const GlInitError = opengl.OpenGlError || opengles.OpenGlesError;
+
+pub fn init(api: common.Api) GlInitError!void {
     switch (api) {
         .opengl => try opengl.init(),
         .opengles => try opengles.init(),
@@ -21,4 +24,8 @@ pub fn isAvailable(api: common.Api) bool {
         .opengl => opengl.isAvailable(),
         .opengles => opengles.isAvailable(),
     };
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

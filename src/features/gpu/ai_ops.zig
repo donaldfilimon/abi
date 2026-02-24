@@ -952,3 +952,7 @@ else
             emulated_devices: usize,
         };
     };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -334,3 +334,7 @@ pub const TaskTool = struct {
         return json.Value{ .object = stats };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

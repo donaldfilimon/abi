@@ -424,3 +424,7 @@ test "tracking allocator peak usage" {
     try std.testing.expectEqual(@as(u64, 300), stats.peak_bytes); // Peak unchanged
     try std.testing.expectEqual(@as(u64, 0), stats.current_bytes);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

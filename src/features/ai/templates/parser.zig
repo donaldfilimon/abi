@@ -244,3 +244,7 @@ test "parse unterminated variable" {
     const result = parser_instance.parse("Hello, {{name");
     try std.testing.expectError(ParseError.UnterminatedVariable, result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -388,3 +388,7 @@ test "sentencepiece encode decode roundtrip" {
 
     try std.testing.expect(encoded.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

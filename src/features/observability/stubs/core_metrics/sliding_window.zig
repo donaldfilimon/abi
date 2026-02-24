@@ -49,3 +49,7 @@ pub fn SlidingWindow(comptime max_samples: usize) type {
 
 /// Standard 1000-sample sliding window.
 pub const StandardWindow = SlidingWindow(1000);
+
+test {
+    std.testing.refAllDecls(@This());
+}

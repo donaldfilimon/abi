@@ -53,3 +53,7 @@ test "health checks support new providers" {
     _ = isAvailable(allocator, .gemini, null);
     _ = isAvailable(allocator, .ollama_passthrough, null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

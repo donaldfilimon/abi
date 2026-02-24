@@ -681,3 +681,7 @@ test "dispatch stats tracking" {
     // Each activation call records one stat
     try std.testing.expectEqual(@as(u64, 3), stats.total_ops);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

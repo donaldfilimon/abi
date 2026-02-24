@@ -200,3 +200,7 @@ test "task group awaits tasks" {
     try group.await();
     try std.testing.expectEqual(@as(u32, 2), counter.load(.seq_cst));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

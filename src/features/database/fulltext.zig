@@ -808,3 +808,7 @@ test "search safely handles SQL-like input" {
     // Verify these were indexed as regular documents
     try std.testing.expectEqual(@as(u64, 5), index.documentCount());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -139,3 +139,7 @@ test "prometheus histogram export" {
     try std.testing.expect(std.mem.indexOf(u8, output, "request_duration_ms_sum") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "request_duration_ms_count") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

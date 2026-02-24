@@ -183,3 +183,7 @@ pub const DiagnosticsInfo = struct {
         return self.index_health >= 0.99 and self.norm_cache_health >= 0.99;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

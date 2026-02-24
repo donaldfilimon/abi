@@ -659,3 +659,7 @@ test "RecoveryConfig presets" {
     try std.testing.expectEqual(@as(u32, 5), external_config.circuit_breaker.failure_threshold);
     try std.testing.expectEqual(@as(u64, 120_000), external_config.circuit_breaker.timeout_ms);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

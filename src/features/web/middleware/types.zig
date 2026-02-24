@@ -262,3 +262,7 @@ test "MiddlewareChain abort stops execution" {
     try std.testing.expectEqualStrings("ran", ctx.get("first").?);
     try std.testing.expect(ctx.get("second") == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

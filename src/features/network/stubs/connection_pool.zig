@@ -45,3 +45,7 @@ pub const PoolBuilder = struct {
         return error.NetworkDisabled;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -405,3 +405,7 @@ test "summarizing memory context retrieval" {
     try std.testing.expect(context.len >= 3);
     try std.testing.expectEqual(MessageRole.system, context[0].role);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

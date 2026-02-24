@@ -1,3 +1,5 @@
+const std = @import("std");
+
 // std.gpu types — stubs for Zig 0.16 native GPU address spaces and shader built-ins
 
 pub fn GlobalPtr(comptime T: type) type {
@@ -31,3 +33,7 @@ pub fn localInvocationId() [3]u32 {
 }
 pub fn workgroupBarrier() void {}
 pub fn setLocalSize(_: [3]u32) void {}
+
+test {
+    std.testing.refAllDecls(@This());
+}

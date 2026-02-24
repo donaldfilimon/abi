@@ -96,3 +96,7 @@ test "provider id includes new provider labels" {
     try std.testing.expect(ProviderId.fromString("codex") != null);
     try std.testing.expect(ProviderId.fromString("gemini") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

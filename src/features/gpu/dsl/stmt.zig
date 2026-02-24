@@ -367,3 +367,7 @@ test "ifStmt creates if statement" {
     try std.testing.expect(stmt.* == .if_);
     try std.testing.expect(stmt.if_.else_body == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

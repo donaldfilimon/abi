@@ -15,3 +15,7 @@ pub const BuiltinVar = enum {};
 pub const Stmt = struct {};
 pub const GeneratedSource = struct {};
 pub const CompileOptions = struct {};
+
+test {
+    std.testing.refAllDecls(@This());
+}

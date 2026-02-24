@@ -265,3 +265,7 @@ test "power profile calculations" {
     const energy = profile.calculateEnergy(3600000, 1.0); // 1 hour at full load
     try std.testing.expect(energy > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

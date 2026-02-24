@@ -27,3 +27,7 @@ pub fn pathMatchesRoute(request_path: []const u8, route_path: []const u8) bool {
         if (!std.mem.eql(u8, rseg, rq.?)) return false;
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

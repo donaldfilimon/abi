@@ -455,3 +455,7 @@ test "ToolRegistry - empty registry" {
     try std.testing.expect(!registry.contains("any_tool"));
     try std.testing.expect(registry.get("any_tool") == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

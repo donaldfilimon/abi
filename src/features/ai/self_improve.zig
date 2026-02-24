@@ -322,3 +322,7 @@ test "SelfImprover - get latest metrics" {
     const latest = improver.getLatestMetrics().?;
     try std.testing.expect(latest.overall > 0.7);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

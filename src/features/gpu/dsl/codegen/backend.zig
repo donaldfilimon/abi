@@ -304,3 +304,7 @@ test "validateForBackend" {
     const result = validateForBackend(&ir, caps);
     try std.testing.expect(result.isValid());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

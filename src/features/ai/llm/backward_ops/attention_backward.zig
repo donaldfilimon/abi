@@ -342,3 +342,7 @@ test "attention backward basic" {
     try std.testing.expect(has_nonzero_k);
     try std.testing.expect(has_nonzero_v);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

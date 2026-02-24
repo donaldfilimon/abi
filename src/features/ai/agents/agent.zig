@@ -1026,3 +1026,7 @@ test "operation context toString" {
     try std.testing.expectEqualStrings("API request", OperationContext.api_request.toString());
     try std.testing.expectEqualStrings("JSON parsing", OperationContext.json_parsing.toString());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

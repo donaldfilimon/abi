@@ -42,3 +42,7 @@ pub const Vendor = enum {
         return .unknown;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

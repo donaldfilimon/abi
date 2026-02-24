@@ -1048,3 +1048,7 @@ test "MultiModalConfig defaults" {
     try std.testing.expectEqual(@as(f32, 0.07), config.temperature);
     try std.testing.expect(config.learnable_temperature);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

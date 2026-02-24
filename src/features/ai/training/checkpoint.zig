@@ -305,3 +305,7 @@ test "checkpoint save/load roundtrip" {
     try std.testing.expectEqual(@as(u64, 1234), loaded.timestamp);
     try std.testing.expectEqualSlices(f32, &weights, loaded.weights);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

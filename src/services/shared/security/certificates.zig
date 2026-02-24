@@ -758,3 +758,7 @@ test "certificate manager" {
     try std.testing.expect(current != null);
     try std.testing.expectEqualStrings("server.local", current.?.subject_cn);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

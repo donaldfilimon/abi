@@ -23,3 +23,7 @@ pub const GradientBucketManager = struct {
     }
     pub fn deinit(_: *@This()) void {}
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

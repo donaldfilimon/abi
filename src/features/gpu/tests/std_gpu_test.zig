@@ -60,3 +60,7 @@ test "std.gpu buffer allocation" {
         try std.testing.expectEqualStrings(test_data, read_buffer[0..test_data.len]);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

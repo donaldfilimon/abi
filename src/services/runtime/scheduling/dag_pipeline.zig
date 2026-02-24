@@ -452,3 +452,7 @@ test "Pipeline stages without executors pass by default" {
     try std.testing.expect(result.success);
     try std.testing.expectEqual(@as(u8, 1), result.stages_run);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

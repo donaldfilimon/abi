@@ -356,3 +356,7 @@ test "gpu training stats" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.8), stats.gpuRatio(), 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 0.0125), stats.avgKernelTimeMs(), 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

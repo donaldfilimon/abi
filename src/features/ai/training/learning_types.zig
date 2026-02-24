@@ -171,3 +171,7 @@ pub const LearningExperience = struct {
         if (self.content_type) |ct| allocator.free(ct);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

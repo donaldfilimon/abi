@@ -434,3 +434,7 @@ fn dispatchSoftmax(bridge: ?*training_bridge.GpuTrainingBridge, data: []f32) voi
         ops.softmaxInPlace(data);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

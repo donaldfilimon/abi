@@ -958,3 +958,7 @@ test "l2 normalize" {
     for (data) |v| norm_sq += v * v;
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), norm_sq, 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

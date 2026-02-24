@@ -649,3 +649,7 @@ test "key wrapper" {
 
     try std.testing.expectEqualSlices(u8, &dek, &unwrapped);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

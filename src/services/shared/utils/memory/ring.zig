@@ -416,3 +416,7 @@ test "ring buffer statistics" {
     try std.testing.expectEqual(@as(u64, 2), stats.total_read);
     try std.testing.expectEqual(@as(usize, 2), stats.length);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

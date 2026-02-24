@@ -694,3 +694,7 @@ test "kmeans cluster stats" {
     }
     try std.testing.expectEqual(@as(usize, 4), total_size);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

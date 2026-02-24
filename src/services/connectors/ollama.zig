@@ -561,3 +561,7 @@ test "ollama parseOptionalU32" {
     const missing = parseOptionalU32(obj, "nonexistent");
     try std.testing.expect(missing == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

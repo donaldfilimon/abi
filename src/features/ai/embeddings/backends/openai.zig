@@ -315,3 +315,7 @@ test "model default dimensions" {
     try std.testing.expectEqual(@as(usize, 1536), Model.defaultDimensions(Model.text_embedding_ada_002));
     try std.testing.expectEqual(@as(usize, 1536), Model.defaultDimensions("unknown-model"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

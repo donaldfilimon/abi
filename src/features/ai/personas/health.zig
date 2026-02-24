@@ -518,3 +518,7 @@ test "error rate score calculation" {
     // Above unhealthy threshold
     try std.testing.expect(checker.calculateErrorRateScore(0.20) < 0.5);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

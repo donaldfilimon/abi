@@ -740,3 +740,7 @@ test "BuiltinKernel.isReduction" {
     try std.testing.expect(!BuiltinKernel.vector_add.isReduction());
     try std.testing.expect(!BuiltinKernel.matrix_multiply.isReduction());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

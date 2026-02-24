@@ -713,3 +713,7 @@ test "flash attention memory efficiency" {
     try std.testing.expect(kernel.q_tile.?.len == 32 * 64);
     try std.testing.expect(kernel.s_tile.?.len == 32 * 32);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

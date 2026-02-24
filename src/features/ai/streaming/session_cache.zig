@@ -518,3 +518,7 @@ test "hashPrompt consistency" {
     try std.testing.expectEqual(hash1, hash2);
     try std.testing.expect(hash1 != hash3);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

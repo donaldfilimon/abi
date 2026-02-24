@@ -624,3 +624,7 @@ test "RateLimiter(.none) fixed window denied has retry_after_ns" {
     try std.testing.expect(!r.isAllowed());
     try std.testing.expect(r.denied.retry_after_ns > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

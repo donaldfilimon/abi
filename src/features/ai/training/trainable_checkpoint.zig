@@ -238,3 +238,7 @@ pub fn dequantizeQ8_0(data: []const u8, dest: []f32, allocator: std.mem.Allocato
         data_idx += 32;
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

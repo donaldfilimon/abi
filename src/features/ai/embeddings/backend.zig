@@ -138,3 +138,7 @@ test "backend config defaults" {
     try std.testing.expectEqual(@as(u32, 30_000), config.timeout_ms);
     try std.testing.expect(config.enable_cache);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

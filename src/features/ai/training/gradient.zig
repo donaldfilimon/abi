@@ -118,3 +118,7 @@ test "gradient accumulator rejects mismatched sizes" {
         accumulator.add(&.{ 1.0, 2.0, 3.0 }),
     );
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

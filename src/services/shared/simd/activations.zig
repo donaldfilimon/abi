@@ -568,3 +568,7 @@ fn tanhVec(x: @Vector(VectorSize, f32)) @Vector(VectorSize, f32) {
     const exp2x = @exp(two * x);
     return (exp2x - one) / (exp2x + one);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

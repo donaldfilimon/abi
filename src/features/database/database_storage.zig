@@ -168,3 +168,7 @@ pub const VectorPool = struct {
         total_bytes: usize,
     };
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

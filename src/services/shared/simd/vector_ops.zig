@@ -427,3 +427,7 @@ test "batchDotProduct" {
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), results[0], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 2.0), results[1], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

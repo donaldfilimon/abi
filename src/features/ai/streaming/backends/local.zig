@@ -336,3 +336,7 @@ test "local stream state completion" {
     const result = backend.startStream("test", .{});
     try std.testing.expectError(LocalBackendError.ModelNotLoaded, result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

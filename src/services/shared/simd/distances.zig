@@ -235,3 +235,7 @@ pub fn matrixMultiply(
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

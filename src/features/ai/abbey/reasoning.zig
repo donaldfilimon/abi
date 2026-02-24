@@ -327,3 +327,7 @@ test "research trigger" {
 
     try std.testing.expect(chain.researchTriggered());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -81,3 +81,7 @@ pub fn createRegistry(allocator: std.mem.Allocator) ModelRegistry {
 pub fn createAgent(_: std.mem.Allocator, _: []const u8) !Agent {
     return error.AiDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

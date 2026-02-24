@@ -671,3 +671,7 @@ pub const ClusterStats = struct {
     parallelism: ParallelismStrategy,
     allreduce_algo: AllReduceAlgorithm,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

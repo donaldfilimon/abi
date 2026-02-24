@@ -494,3 +494,7 @@ test "dependency graph topological sort" {
 
     try std.testing.expect(sorted.items.len == 3);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

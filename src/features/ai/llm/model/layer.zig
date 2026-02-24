@@ -284,3 +284,7 @@ test "transformer layer init" {
 
     try std.testing.expectEqual(@as(usize, 4096), layer.hidden_scratch.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

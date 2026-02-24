@@ -454,3 +454,7 @@ test "none token" {
     try std.testing.expect(!token.isCancelled());
     try std.testing.expect(!token.isCancellationRequested());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

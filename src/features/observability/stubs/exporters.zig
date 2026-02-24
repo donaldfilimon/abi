@@ -11,3 +11,7 @@ pub fn generateMetricsOutput(_: std.mem.Allocator, _: *anyopaque) types.Error![]
 
 // StatsD (stub)
 pub const statsd = struct {};
+
+test {
+    std.testing.refAllDecls(@This());
+}

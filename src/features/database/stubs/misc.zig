@@ -408,3 +408,7 @@ pub const distance_cache = struct {};
 // ============================================================================
 
 pub const time = struct {};
+
+test {
+    std.testing.refAllDecls(@This());
+}

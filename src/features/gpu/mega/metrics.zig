@@ -316,3 +316,7 @@ test "prometheus export" {
     try std.testing.expect(std.mem.indexOf(u8, output, "backend=\"cuda\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, output, "backend=\"vulkan\"") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -204,3 +204,7 @@ pub fn getNormEps(gguf_file: *gguf.GgufFile) ?f32 {
     const val = gguf_file.getMetadata(key) orelse return null;
     return val.asF32();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

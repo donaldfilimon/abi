@@ -949,3 +949,7 @@ test "llm kernels availability check" {
     // Just check that availability check doesn't crash
     _ = isAvailable();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

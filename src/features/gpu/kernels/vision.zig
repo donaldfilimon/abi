@@ -896,3 +896,7 @@ test "buildCol2imKernel" {
     try std.testing.expectEqual(@as(usize, 2), ir.buffers.len); // col_input, output
     try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

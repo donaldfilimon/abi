@@ -291,3 +291,7 @@ test "createOpenGLESVTable" {
             err == error.DriverNotFound);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

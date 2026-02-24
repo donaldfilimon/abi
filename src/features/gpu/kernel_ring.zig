@@ -250,3 +250,7 @@ test "KernelRing isEmpty and clear" {
     ring.clear();
     try std.testing.expect(ring.isEmpty());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

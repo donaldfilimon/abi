@@ -170,3 +170,7 @@ test "weather url respects current toggle" {
     defer allocator.free(url);
     try std.testing.expect(std.mem.indexOf(u8, url, "current_weather=false") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -91,3 +91,7 @@ pub fn generateFunctionJson(allocator: std.mem.Allocator, function_name: []const
     _ = trigger_type;
     return types.Error.CloudDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

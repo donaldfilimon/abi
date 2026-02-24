@@ -802,3 +802,7 @@ test "estimated bandwidth calculation" {
     const bandwidth = workload.estimatedBandwidth();
     try std.testing.expectEqual(@as(u64, (1024 + 1024) * 4 * 4), bandwidth);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

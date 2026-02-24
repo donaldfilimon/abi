@@ -63,3 +63,7 @@ pub const GpuConfig = struct {
         return .cpu;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -121,3 +121,7 @@ pub const platform_ns = struct {};
 pub const backend_factory_ns = struct {};
 pub const dispatcher_ns = struct {};
 pub const diagnostics_ns = struct {};
+
+test {
+    std.testing.refAllDecls(@This());
+}

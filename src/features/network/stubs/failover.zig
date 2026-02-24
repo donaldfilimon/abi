@@ -20,3 +20,7 @@ pub const FailoverEvent = struct {
     to_node: []const u8 = "",
     state: FailoverState = .normal,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

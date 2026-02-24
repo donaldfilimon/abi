@@ -1319,3 +1319,7 @@ test "loadDatabaseV2 detects missing bloom block when flag is set" {
     const loaded = loadDatabaseV2(allocator, path, .{ .verify_checksums = false });
     try std.testing.expectError(error.InvalidBloomFilter, loaded);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

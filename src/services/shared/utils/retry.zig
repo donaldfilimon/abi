@@ -92,3 +92,7 @@ test "calculateDelay" {
     try std.testing.expectEqual(@as(u64, 200), calculateDelay(config, 1));
     try std.testing.expectEqual(@as(u64, 400), calculateDelay(config, 2));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

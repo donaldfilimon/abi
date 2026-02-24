@@ -303,3 +303,7 @@ test "MeshDispatchConfig defaults" {
     try std.testing.expectEqual(@as(usize, 1), dispatch.threadgroups.width);
     try std.testing.expectEqual(@as(usize, 128), dispatch.threads_per_mesh.width);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

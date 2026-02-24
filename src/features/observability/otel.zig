@@ -662,3 +662,7 @@ test "trace id formatting" {
     const formatted = formatTraceId(trace_id);
     try std.testing.expectEqualStrings("0123456789abcdef0123456789abcdef", &formatted);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

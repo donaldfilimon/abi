@@ -927,3 +927,7 @@ test "layer norm cpu" {
     const mean_val = (x[0] + x[1] + x[2] + x[3]) / 4.0;
     try std.testing.expectApproxEqAbs(@as(f32, 0), mean_val, 0.0001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

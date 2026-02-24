@@ -370,3 +370,7 @@ test "BackupOrchestrator trigger backup" {
     try std.testing.expect(backup_id > 0);
     try std.testing.expectEqual(@as(usize, 1), orchestrator.backup_history.items.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

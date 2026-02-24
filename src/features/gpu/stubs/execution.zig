@@ -30,3 +30,7 @@ pub const DotProductResult = struct {
     value: f32 = 0.0,
     stats: ExecutionResult = .{},
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

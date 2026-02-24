@@ -763,3 +763,7 @@ test "ThunderboltDevice supportsDma checks" {
     device.security = .rejected;
     try std.testing.expect(!device.supportsDma());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

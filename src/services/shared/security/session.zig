@@ -654,3 +654,7 @@ test "max sessions per user" {
     const retrieved = try manager.get(id1, .{});
     try std.testing.expect(retrieved == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -391,3 +391,7 @@ test "compression roundtrip lz4" {
 
     try std.testing.expectEqualSlices(u8, &input, decompressed);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

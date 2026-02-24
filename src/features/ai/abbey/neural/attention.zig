@@ -568,3 +568,7 @@ test "multi-head attention" {
     try std.testing.expectEqual(@as(usize, 2), attn.output.shape[0]);
     try std.testing.expectEqual(@as(usize, 16), attn.output.shape[1]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

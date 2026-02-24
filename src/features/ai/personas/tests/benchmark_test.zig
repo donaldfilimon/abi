@@ -1,7 +1,7 @@
 //! Performance Benchmarks for Multi-Persona AI Assistant
 //!
 //! Measures latency, throughput, and memory usage of key components.
-//! Run with: zig build test --summary all
+//! Run with: zig build feature-tests --summary all
 //!
 //! Targets:
 //! - Routing decision <50ms
@@ -10,7 +10,6 @@
 
 const std = @import("std");
 const time = @import("../../../../services/shared/time.zig");
-const sync = @import("../../../../services/shared/sync.zig");
 const testing = std.testing;
 
 // Import modules to benchmark
@@ -49,59 +48,36 @@ const BenchmarkResult = struct {
     }
 };
 
-fn benchmark(name: []const u8, iterations: u32, func: anytype) BenchmarkResult {
-    var total_ns: u64 = 0;
-    var min_ns: u64 = std.math.maxInt(u64);
-    var max_ns: u64 = 0;
-
-    var i: u32 = 0;
-    while (i < iterations) : (i += 1) {
-        var timer = time.Timer.start() catch continue;
-        func();
-        const elapsed = timer.read();
-
-        total_ns += elapsed;
-        min_ns = @min(min_ns, elapsed);
-        max_ns = @max(max_ns, elapsed);
-    }
-
-    return .{
-        .name = name,
-        .iterations = iterations,
-        .total_ns = total_ns,
-        .avg_ns = total_ns / @as(u64, iterations),
-        .min_ns = min_ns,
-        .max_ns = max_ns,
-    };
-}
-
 // ============================================================================
 // Sentiment Analysis Benchmarks
 // ============================================================================
 
 test "benchmark: sentiment analysis - short text" {
-    var analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
-    defer analyzer.deinit();
+    const analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
 
     const text = "I love this!";
-    const iterations: u32 = 1000;
 
-    const result = benchmark("sentiment_short", iterations, struct {
-        fn run(a: *sentiment.SentimentAnalyzer, t: []const u8) void {
-            _ = a.analyze(t);
-        }
-    }.run);
+    // Run multiple times and measure
+    var total_ns: u64 = 0;
+    const iterations: u32 = 100;
 
-    _ = result;
-    _ = text;
+    var i: u32 = 0;
+    while (i < iterations) : (i += 1) {
+        var timer = time.Timer.start() catch continue;
+        var result = try analyzer.analyze(text);
+        result.deinit(testing.allocator);
+        total_ns += timer.read();
+    }
+
+    const avg_ns = total_ns / iterations;
+    const avg_ms = @as(f64, @floatFromInt(avg_ns)) / 1_000_000.0;
 
     // Target: <10ms average
-    // Note: In test mode we can't actually pass parameters, so this is simplified
+    try testing.expect(avg_ms < 100.0);
 }
 
 test "benchmark: sentiment analysis - long text" {
-    var analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
-    defer analyzer.deinit();
+    const analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
 
     const long_text =
         \\I have been working on this project for weeks now, and while there are
@@ -117,7 +93,8 @@ test "benchmark: sentiment analysis - long text" {
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
         var timer = time.Timer.start() catch continue;
-        _ = analyzer.analyze(long_text);
+        var result = try analyzer.analyze(long_text);
+        result.deinit(testing.allocator);
         total_ns += timer.read();
     }
 
@@ -133,7 +110,7 @@ test "benchmark: sentiment analysis - long text" {
 // ============================================================================
 
 test "benchmark: policy checking" {
-    var checker = policy.PolicyChecker.init(testing.allocator);
+    var checker = try policy.PolicyChecker.init(testing.allocator);
     defer checker.deinit();
 
     const test_inputs = [_][]const u8{
@@ -150,7 +127,8 @@ test "benchmark: policy checking" {
     while (i < iterations) : (i += 1) {
         for (test_inputs) |input| {
             var timer = time.Timer.start() catch continue;
-            _ = checker.check(input);
+            var result = try checker.check(input);
+            result.deinit(testing.allocator);
             total_ns += timer.read();
         }
     }
@@ -206,8 +184,7 @@ test "benchmark: routing rules evaluation" {
     var engine = rules.RulesEngine.init(testing.allocator);
     defer engine.deinit();
 
-    var analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
-    defer analyzer.deinit();
+    const analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
 
     const test_requests = [_][]const u8{
         "I'm so frustrated with this bug!",
@@ -222,11 +199,13 @@ test "benchmark: routing rules evaluation" {
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
         for (test_requests) |content| {
-            const request = types.PersonaRequest{ .content = content };
-            const sent_result = analyzer.analyze(content);
+            var sent_result = try analyzer.analyze(content);
+            defer sent_result.deinit(testing.allocator);
 
             var timer = time.Timer.start() catch continue;
-            _ = engine.evaluate(request, sent_result);
+            // evaluate() takes (sentiment, content) not (request, sentiment)
+            var scores = engine.evaluate(sent_result, content);
+            scores.deinit();
             total_ns += timer.read();
         }
     }
@@ -341,17 +320,18 @@ test "benchmark: memory allocation patterns" {
 
     var i: u32 = 0;
     while (i < iterations) : (i += 1) {
-        // Create and destroy sentiment analyzer
+        // Create and destroy sentiment analyzer (no deinit needed)
         {
-            var analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
-            _ = analyzer.analyze("Test input for memory benchmarking.");
-            analyzer.deinit();
+            const analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
+            var result = try analyzer.analyze("Test input for memory benchmarking.");
+            result.deinit(testing.allocator);
         }
 
         // Create and destroy policy checker
         {
-            var checker = policy.PolicyChecker.init(testing.allocator);
-            _ = checker.check("Test input for memory benchmarking.");
+            var checker = try policy.PolicyChecker.init(testing.allocator);
+            var result = try checker.check("Test input for memory benchmarking.");
+            result.deinit(testing.allocator);
             checker.deinit();
         }
 
@@ -372,10 +352,9 @@ test "benchmark: memory allocation patterns" {
 
 test "benchmark: full routing pipeline" {
     // Simulate the complete routing decision flow
-    var analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
-    defer analyzer.deinit();
+    const analyzer = sentiment.SentimentAnalyzer.init(testing.allocator);
 
-    var checker = policy.PolicyChecker.init(testing.allocator);
+    var checker = try policy.PolicyChecker.init(testing.allocator);
     defer checker.deinit();
 
     var engine = rules.RulesEngine.init(testing.allocator);
@@ -398,20 +377,20 @@ test "benchmark: full routing pipeline" {
             var timer = time.Timer.start() catch continue;
 
             // Step 1: Sentiment analysis
-            const sent_result = analyzer.analyze(query);
+            var sent_result = try analyzer.analyze(query);
+            defer sent_result.deinit(testing.allocator);
 
             // Step 2: Policy check
-            const policy_result = checker.check(query);
-            _ = policy_result;
+            var policy_result = try checker.check(query);
+            policy_result.deinit(testing.allocator);
 
             // Step 3: Query classification
             const classification = cls.classify(query);
             _ = classification;
 
             // Step 4: Rules evaluation
-            const request = types.PersonaRequest{ .content = query };
-            const scores = engine.evaluate(request, sent_result);
-            _ = scores;
+            var scores = engine.evaluate(sent_result, query);
+            scores.deinit();
 
             total_ns += timer.read();
         }

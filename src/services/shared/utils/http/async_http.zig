@@ -628,3 +628,7 @@ test "calculateRetryDelay exponential backoff" {
     const d10 = calculateRetryDelay(10, 1000, 60_000);
     try std.testing.expect(d10 <= 60_000 + 15_000);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

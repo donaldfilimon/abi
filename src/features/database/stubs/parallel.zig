@@ -93,3 +93,7 @@ pub const ParallelSearchStats = struct {
 pub fn batchCosineDistances(_: []const f32, _: f32, _: []const []const f32, distances: []f32) void {
     @memset(distances, 1.0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

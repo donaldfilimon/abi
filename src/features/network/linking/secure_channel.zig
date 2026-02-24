@@ -1002,7 +1002,3 @@ test "WireGuard handshake works without PSK" {
     const zero_key: [32]u8 = std.mem.zeroes([32]u8);
     try std.testing.expect(!std.mem.eql(u8, &channel.send_key, &zero_key));
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

@@ -301,3 +301,7 @@ test "research alignment: MVCC with version vectors" {
 
     std.debug.print("✓ MVCC timestamp ordering validated\n", .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

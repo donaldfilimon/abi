@@ -55,3 +55,7 @@ pub const WeatherConfig = struct {
 pub const JsonValue = std.json.Value;
 /// Parsed JSON with ownership.
 pub const ParsedJson = std.json.Parsed(JsonValue);
+
+test {
+    std.testing.refAllDecls(@This());
+}

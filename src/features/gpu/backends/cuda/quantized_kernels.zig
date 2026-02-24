@@ -506,3 +506,7 @@ test "kernel source compilation check" {
     try std.testing.expect(Q8_MATMUL_KERNEL.len > 100);
     try std.testing.expect(SWIGLU_KERNEL.len > 50);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

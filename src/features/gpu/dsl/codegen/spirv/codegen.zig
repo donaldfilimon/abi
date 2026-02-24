@@ -463,3 +463,7 @@ pub fn CodeGenMixin(comptime Self: type) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

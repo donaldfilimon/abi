@@ -161,3 +161,7 @@ test "launch config explicit local size overrides policy hint" {
     };
     try std.testing.expectEqual([3]u32{ 32, 2, 1 }, cfg.effectiveLocalSize());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

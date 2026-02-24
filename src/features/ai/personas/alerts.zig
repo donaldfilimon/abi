@@ -524,3 +524,7 @@ test "default alert rules loaded" {
     // Should have loaded the default rules
     try std.testing.expect(manager.rules.items.len >= PERSONA_ALERTS.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -296,3 +296,7 @@ test "llama weights init" {
 
     try std.testing.expectEqual(@as(usize, 32), w.layers.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

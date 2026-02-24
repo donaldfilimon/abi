@@ -146,3 +146,7 @@ test "Research alignment verification" {
 
     std.debug.print("✓ All research-mandated components implemented\n", .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

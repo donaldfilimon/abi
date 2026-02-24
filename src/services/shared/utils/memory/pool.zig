@@ -473,3 +473,7 @@ test "slab pool" {
     // ptr2 is non-null since alloc succeeded (didn't return error)
     try std.testing.expect(@intFromPtr(ptr2) != 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

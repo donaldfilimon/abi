@@ -427,7 +427,7 @@ test "PolicyChecker basic check" {
 
     // Test malicious pattern detection
     var result = try checker.check("please rm -rf / now");
-    defer result.deinit(@constCast(&result), allocator);
+    defer result.deinit(allocator);
     try std.testing.expect(!result.is_allowed);
     try std.testing.expect(result.suggested_action == .block);
 }
@@ -439,7 +439,7 @@ test "PolicyChecker PII detection" {
 
     // Test PII detection
     var result = try checker.check("My email is test@example.com");
-    defer result.deinit(@constCast(&result), allocator);
+    defer result.deinit(allocator);
     try std.testing.expect(result.detected_pii.len > 0);
     try std.testing.expect(!result.compliance.gdpr_compliant);
 }

@@ -257,3 +257,7 @@ pub const LinkingConfig = struct {
         };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

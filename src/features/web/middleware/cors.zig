@@ -742,3 +742,7 @@ test "strict_config rejects all origins" {
     try std.testing.expectEqual(@as(usize, 0), strict_config.allowed_origins.len);
     try std.testing.expect(!strict_config.allow_credentials);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

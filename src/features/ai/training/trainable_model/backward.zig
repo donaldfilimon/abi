@@ -240,3 +240,7 @@ pub fn trainStep(model: anytype, input_ids: []const u32, target_ids: []const u32
 
     return loss;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

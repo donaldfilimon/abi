@@ -461,3 +461,7 @@ test "calibration tracking" {
     const metrics = calibrator.getCalibrationMetrics();
     try std.testing.expectEqual(@as(usize, 3), metrics.total_predictions);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -41,3 +41,7 @@ pub fn createTestHandler(comptime handler_fn: anytype) types.CloudHandler {
         }
     }.handle;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

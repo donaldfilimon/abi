@@ -1,3 +1,5 @@
+const std = @import("std");
+
 pub const DiagnosticsInfo = struct {
     available: bool = false,
     backend: []const u8 = "none",
@@ -24,3 +26,7 @@ pub const GpuErrorType = enum {
     resource,
     synchronization,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

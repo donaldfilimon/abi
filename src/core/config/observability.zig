@@ -35,3 +35,7 @@ pub const ObservabilityConfig = struct {
         };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

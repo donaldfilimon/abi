@@ -15,3 +15,7 @@ pub const MetricValues = struct {};
 pub fn createAlertRule() types.Error!AlertRule {
     return error.ObservabilityDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

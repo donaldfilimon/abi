@@ -469,3 +469,7 @@ test "escapeString" {
     const escaped = try escapeString(allocator, "hello\nworld");
     try std.testing.expectEqualStrings("hello\\nworld", escaped);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

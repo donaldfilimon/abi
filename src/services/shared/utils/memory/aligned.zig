@@ -273,3 +273,7 @@ test "align up/down" {
     try std.testing.expectEqual(@as(usize, 64), alignDown(64, .cache_line));
     try std.testing.expectEqual(@as(usize, 64), alignDown(127, .cache_line));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

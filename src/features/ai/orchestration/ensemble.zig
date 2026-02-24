@@ -482,3 +482,7 @@ test "averaging ensemble with numbers" {
     };
     try std.testing.expect(@abs(avg - 11.0) < 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

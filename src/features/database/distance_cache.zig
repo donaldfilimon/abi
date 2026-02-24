@@ -109,3 +109,7 @@ pub const DistanceCache = struct {
         return .{ .hits = self.hits, .misses = self.misses, .hit_rate = hit_rate };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

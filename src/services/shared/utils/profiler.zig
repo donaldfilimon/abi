@@ -371,3 +371,7 @@ test "Category labels" {
     try std.testing.expectEqualStrings("gpu", Category.gpu.label());
     try std.testing.expectEqualStrings("io", Category.io.label());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -855,3 +855,7 @@ test "ElementType size" {
     try std.testing.expect(ElementType.f32.size() == 4);
     try std.testing.expect(ElementType.f64.size() == 8);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

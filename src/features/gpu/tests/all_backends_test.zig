@@ -104,3 +104,7 @@ test "device capability queries" {
         try std.testing.expect(shared_mem >= 1024); // At least 1KB
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

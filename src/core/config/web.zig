@@ -60,3 +60,7 @@ test "WebConfig.productionDefaults has rate limiting enabled" {
     try std.testing.expectEqual(@as(u32, 60), config.rate_limit.window_seconds);
     try std.testing.expectEqual(@as(u32, 20), config.rate_limit.burst);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

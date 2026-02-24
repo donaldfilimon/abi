@@ -376,3 +376,7 @@ test "memory pool total fragmentation ratio" {
 
     pool.release(buf);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

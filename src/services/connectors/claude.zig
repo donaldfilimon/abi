@@ -91,3 +91,7 @@ pub fn isAvailable() bool {
 test "claude availability returns bool" {
     _ = isAvailable();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

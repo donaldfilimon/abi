@@ -128,3 +128,7 @@ test "admin reload error types" {
     const err2: StreamingServerError = StreamingServerError.ModelReloadTimeout;
     try std.testing.expect(err1 != err2);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

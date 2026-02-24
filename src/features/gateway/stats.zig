@@ -20,3 +20,7 @@ pub const LatencyHistogram = struct {
         return @intCast(self.total_ns / self.count / std.time.ns_per_ms);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

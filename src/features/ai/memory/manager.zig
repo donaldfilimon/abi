@@ -388,3 +388,7 @@ test "memory manager statistics" {
     try std.testing.expectEqual(@as(u64, 1), stats.total_messages);
     try std.testing.expectEqual(MemoryType.sliding_window, stats.primary_type);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

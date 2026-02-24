@@ -563,3 +563,7 @@ test "batch cosine similarity kernel" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.0), results[1], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, -1.0), results[2], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

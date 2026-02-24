@@ -94,3 +94,7 @@ pub fn runHandler(allocator: std.mem.Allocator, handler: types.CloudHandler, por
     _ = port;
     return types.Error.CloudDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

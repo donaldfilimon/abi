@@ -187,3 +187,7 @@ test "distributed computation: fault tolerance" {
     try std.testing.expect(recovered);
     try std.testing.expect(recovery_system.current_attempt >= 2);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

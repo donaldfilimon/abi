@@ -226,3 +226,7 @@ pub const InvocationMetadata = struct {
         return null;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

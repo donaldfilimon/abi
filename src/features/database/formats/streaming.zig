@@ -420,3 +420,7 @@ test "streaming writer with compression" {
     const t = reader.next().?;
     try std.testing.expect(t.compressed);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

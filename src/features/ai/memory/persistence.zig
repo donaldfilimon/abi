@@ -662,3 +662,7 @@ test "getDefaultSessionDir uses platform app root" {
     try std.testing.expect(std.mem.endsWith(u8, path, "sessions"));
     try std.testing.expect(!std.mem.eql(u8, path, ".abi/sessions"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

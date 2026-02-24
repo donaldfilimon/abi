@@ -226,3 +226,7 @@ test "constitutional loss within bounds" {
     const loss = computeConstitutionalLoss(&[_]f32{}, &guardrails);
     try std.testing.expect(loss >= 0.0 and loss <= 1.0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -51,3 +51,7 @@ test "linux vulkan minimum api version is 1.3" {
     try std.testing.expect(!caps.meetsTargetMinimum(.linux, caps.encodeApiVersion(.{ .major = 1, .minor = 2, .patch = 0 })));
     try std.testing.expect(caps.meetsTargetMinimum(.linux, caps.encodeApiVersion(.{ .major = 1, .minor = 3, .patch = 0 })));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

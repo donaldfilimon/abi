@@ -703,3 +703,7 @@ test "config memory calculation" {
     const total = per_page * 1024 * 32;
     try std.testing.expectEqual(total, config.totalMemoryBytes());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

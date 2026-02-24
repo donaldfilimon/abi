@@ -47,3 +47,7 @@ pub fn restore(allocator: std.mem.Allocator, agent: *agent_mod.Agent, overrides:
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

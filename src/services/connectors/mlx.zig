@@ -373,3 +373,7 @@ test "mlx chat request encoding" {
 test "isAvailable returns bool" {
     _ = isAvailable();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

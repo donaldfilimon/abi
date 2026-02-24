@@ -348,3 +348,7 @@ test "query understanding patterns are case-insensitive" {
     try std.testing.expect(has_pub_fn);
     try std.testing.expect(has_handler);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

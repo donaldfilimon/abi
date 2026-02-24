@@ -174,3 +174,7 @@ pub const SampledBatch = struct {
         self.allocator.free(self.weights);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

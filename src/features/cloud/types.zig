@@ -483,3 +483,7 @@ test "CloudResponse error creation" {
 
     try std.testing.expectEqual(@as(u16, 404), resp.status_code);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

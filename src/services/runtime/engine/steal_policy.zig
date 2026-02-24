@@ -411,3 +411,7 @@ test "numa steal policy victim ordering" {
         try std.testing.expect(v != 0);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

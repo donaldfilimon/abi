@@ -39,3 +39,7 @@ pub const NodeRegistry = struct {
         return &.{};
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

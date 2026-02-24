@@ -357,3 +357,7 @@ test "rope inverse" {
         try std.testing.expectApproxEqAbs(x_orig[i], x[i], 0.001);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

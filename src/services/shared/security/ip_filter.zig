@@ -709,3 +709,7 @@ test "allowlist takes precedence" {
     const result2 = filter.check("5.6.7.8");
     try std.testing.expect(!result2.allowed);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

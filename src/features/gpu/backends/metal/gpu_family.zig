@@ -268,3 +268,7 @@ test "chipVariant parsing" {
 test "apple10 name" {
     try std.testing.expectEqualStrings("Apple10 (A18, M4+) [Metal 4]", MetalGpuFamily.apple10.name());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

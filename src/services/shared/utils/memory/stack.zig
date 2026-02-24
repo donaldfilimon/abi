@@ -479,3 +479,7 @@ test "stack allocator LIFO free" {
 
     _ = usage_after_b;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

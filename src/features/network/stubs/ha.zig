@@ -34,3 +34,7 @@ pub const HealthCheckResult = struct {
 };
 
 pub const FailoverPolicy = enum { automatic, manual, consensus };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -308,3 +308,7 @@ test "platform description" {
     const desc = platformDescription();
     try std.testing.expect(desc.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -364,3 +364,7 @@ test "gpu backward stats" {
     // Either used GPU or fell back to CPU
     try std.testing.expect(s.gpu_ops + s.cpu_fallbacks >= 1);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

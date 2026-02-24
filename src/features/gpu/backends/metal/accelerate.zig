@@ -1042,3 +1042,7 @@ test "bnnsConvValidate rejects zero dims" {
         .stride = 0,
     }));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

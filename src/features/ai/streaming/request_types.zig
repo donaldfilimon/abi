@@ -109,3 +109,7 @@ pub fn extractJsonFloat(json: []const u8, key: []const u8) ?f64 {
     if (pos == num_start) return null;
     return std.fmt.parseFloat(f64, json[num_start..pos]) catch null;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

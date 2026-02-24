@@ -59,3 +59,7 @@ test "benchmark result" {
     };
     try std.testing.expectEqualStrings("test", result.name);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

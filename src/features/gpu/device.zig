@@ -996,3 +996,7 @@ test "DeviceManager init and deinit" {
     _ = manager.deviceCount();
     _ = manager.hasDevices();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -309,3 +309,7 @@ test "loader initialization" {
     const count = detectFpgaDevices();
     _ = count;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

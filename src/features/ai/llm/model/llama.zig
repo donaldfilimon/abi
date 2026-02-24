@@ -293,3 +293,7 @@ test "llama model init" {
     try std.testing.expectEqual(@as(u32, 2), model.config.n_layers);
     try std.testing.expectEqual(@as(u32, 0), model.currentPosition());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

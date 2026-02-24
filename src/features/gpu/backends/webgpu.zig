@@ -654,3 +654,7 @@ test "enumerateDevices returns empty when not initialized" {
 test "isAvailable returns false when not initialized" {
     try std.testing.expect(!isAvailable());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

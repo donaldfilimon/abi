@@ -537,3 +537,7 @@ test "AdaptiveLearner trend analysis" {
     const trend = learner.analyzeTrend(.abbey, 10);
     try std.testing.expect(trend.trend == .improving);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

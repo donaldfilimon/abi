@@ -115,3 +115,7 @@ fn mapPersonaType(persona_type: types.PersonaType) ?prompt_personas.PersonaType 
         .abi => .abi,
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

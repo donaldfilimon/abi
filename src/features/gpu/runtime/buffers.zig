@@ -1,4 +1,5 @@
 const unified_buffer = @import("../unified_buffer.zig");
+const std = @import("std");
 
 pub const Buffer = unified_buffer.Buffer;
 pub const BufferOptions = unified_buffer.BufferOptions;
@@ -9,3 +10,7 @@ pub const ElementType = unified_buffer.ElementType;
 pub const BufferView = unified_buffer.BufferView;
 pub const MappedBuffer = unified_buffer.MappedBuffer;
 pub const BufferStats = unified_buffer.BufferStats;
+
+test {
+    std.testing.refAllDecls(@This());
+}

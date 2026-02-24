@@ -840,3 +840,7 @@ test "quantization constants" {
     try std.testing.expectEqual(@as(u32, 32), Q8_BLOCK_SIZE);
     try std.testing.expectEqual(@as(u32, 34), Q8_BLOCK_BYTES);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

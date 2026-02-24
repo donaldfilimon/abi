@@ -40,3 +40,7 @@ pub const DatabaseConfig = struct {
         };
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

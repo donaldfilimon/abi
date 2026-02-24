@@ -1139,3 +1139,7 @@ test "system info" {
     try testing.expect(getCpuCount() >= 1);
     try testing.expect(getPageSize() > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

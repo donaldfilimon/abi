@@ -87,28 +87,29 @@ pub const ConfigError = config_module.ConfigError;
 pub const Registry = registry_mod.Registry;
 pub const RegistryError = registry_mod.types.Error;
 
-// Feature modules - imported based on build configuration
-const gpu_mod = if (build_options.enable_gpu) @import("../features/gpu/mod.zig") else @import("../features/gpu/stub.zig");
-const ai_mod = if (build_options.enable_ai) @import("../features/ai/mod.zig") else @import("../features/ai/stub.zig");
-const database_mod = if (build_options.enable_database) @import("../features/database/mod.zig") else @import("../features/database/stub.zig");
-const network_mod = if (build_options.enable_network) @import("../features/network/mod.zig") else @import("../features/network/stub.zig");
-const observability_mod = if (build_options.enable_profiling) @import("../features/observability/mod.zig") else @import("../features/observability/stub.zig");
-const web_mod = if (build_options.enable_web) @import("../features/web/mod.zig") else @import("../features/web/stub.zig");
-const cloud_mod = if (build_options.enable_cloud) @import("../features/cloud/mod.zig") else @import("../features/cloud/stub.zig");
-const analytics_mod = if (build_options.enable_analytics) @import("../features/analytics/mod.zig") else @import("../features/analytics/stub.zig");
-const auth_mod = if (build_options.enable_auth) @import("../features/auth/mod.zig") else @import("../features/auth/stub.zig");
-const messaging_mod = if (build_options.enable_messaging) @import("../features/messaging/mod.zig") else @import("../features/messaging/stub.zig");
-const cache_mod = if (build_options.enable_cache) @import("../features/cache/mod.zig") else @import("../features/cache/stub.zig");
-const storage_mod = if (build_options.enable_storage) @import("../features/storage/mod.zig") else @import("../features/storage/stub.zig");
-const search_mod = if (build_options.enable_search) @import("../features/search/mod.zig") else @import("../features/search/stub.zig");
-const gateway_mod = if (build_options.enable_gateway) @import("../features/gateway/mod.zig") else @import("../features/gateway/stub.zig");
-const pages_mod = if (build_options.enable_pages) @import("../features/pages/mod.zig") else @import("../features/pages/stub.zig");
-const benchmarks_mod = if (build_options.enable_benchmarks) @import("../features/benchmarks/mod.zig") else @import("../features/benchmarks/stub.zig");
-const mobile_mod = if (build_options.enable_mobile) @import("../features/mobile/mod.zig") else @import("../features/mobile/stub.zig");
-const ai_core_mod = if (build_options.enable_ai) @import("../features/ai/facades/core.zig") else @import("../features/ai/facades/core_stub.zig");
-const ai_inference_mod = if (build_options.enable_llm) @import("../features/ai/facades/inference.zig") else @import("../features/ai/facades/inference_stub.zig");
-const ai_training_mod = if (build_options.enable_training) @import("../features/ai/facades/training.zig") else @import("../features/ai/facades/training_stub.zig");
-const ai_reasoning_mod = if (build_options.enable_reasoning) @import("../features/ai/facades/reasoning.zig") else @import("../features/ai/facades/reasoning_stub.zig");
+// Shared comptime-gated feature imports (DRY: single source of truth).
+const fi = @import("framework/feature_imports.zig");
+const gpu_mod = fi.gpu_mod;
+const ai_mod = fi.ai_mod;
+const database_mod = fi.database_mod;
+const network_mod = fi.network_mod;
+const observability_mod = fi.observability_mod;
+const web_mod = fi.web_mod;
+const cloud_mod = fi.cloud_mod;
+const analytics_mod = fi.analytics_mod;
+const auth_mod = fi.auth_mod;
+const messaging_mod = fi.messaging_mod;
+const cache_mod = fi.cache_mod;
+const storage_mod = fi.storage_mod;
+const search_mod = fi.search_mod;
+const gateway_mod = fi.gateway_mod;
+const pages_mod = fi.pages_mod;
+const benchmarks_mod = fi.benchmarks_mod;
+const mobile_mod = fi.mobile_mod;
+const ai_core_mod = fi.ai_core_mod;
+const ai_inference_mod = fi.ai_inference_mod;
+const ai_training_mod = fi.ai_training_mod;
+const ai_reasoning_mod = fi.ai_reasoning_mod;
 const ha_mod = @import("../services/ha/mod.zig");
 const runtime_mod = @import("../services/runtime/mod.zig");
 
@@ -767,4 +768,8 @@ test "Framework.listRegisteredFeatures returns empty for minimal" {
     defer std.testing.allocator.free(features);
 
     try std.testing.expectEqual(@as(usize, 0), features.len);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

@@ -436,3 +436,7 @@ test "working memory context building" {
     try std.testing.expect(context.len > 0);
     try std.testing.expect(std.mem.indexOf(u8, context, "[User]") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -219,3 +219,7 @@ test "StreamingRetryableErrors shouldRetry" {
     try std.testing.expect(!errors.shouldRetry(error.CircuitBreakerOpen));
     try std.testing.expect(!errors.shouldRetry(error.InvalidSessionId));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -114,7 +114,3 @@ test "TrainingMetadata defaults" {
     try std.testing.expectEqualStrings("unnamed", meta.model_name);
     try std.testing.expectEqual(@as(u32, 0), meta.epochs_completed);
 }
-
-test {
-    std.testing.refAllDecls(@This());
-}

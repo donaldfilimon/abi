@@ -307,6 +307,12 @@ pub fn backup(_: *DatabaseHandle, _: []const u8) !void {
 pub fn restore(_: *DatabaseHandle, _: []const u8) !void {
     return error.FeatureDisabled;
 }
+pub fn backupToPath(_: *DatabaseHandle, _: []const u8) !void {
+    return error.FeatureDisabled;
+}
+pub fn restoreFromPath(_: *DatabaseHandle, _: []const u8) !void {
+    return error.FeatureDisabled;
+}
 pub fn openFromFile(_: std.mem.Allocator, _: []const u8) !DatabaseHandle {
     return error.FeatureDisabled;
 }

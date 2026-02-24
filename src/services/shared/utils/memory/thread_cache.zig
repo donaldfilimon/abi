@@ -435,3 +435,7 @@ test "thread arena" {
     const c = try alloc.alloc(u8, 300);
     try std.testing.expectEqual(@as(usize, 300), c.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

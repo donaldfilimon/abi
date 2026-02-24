@@ -70,3 +70,7 @@ pub const RateLimiter = struct {
         return toGatewayResult(result);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -229,3 +229,7 @@ test "encodeApplicationCommand with options" {
     try std.testing.expect(std.mem.indexOf(u8, json_str, "\"name\":\"query\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, json_str, "\"required\":true") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

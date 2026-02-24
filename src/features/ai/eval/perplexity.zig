@@ -238,3 +238,7 @@ test "perplexity from probs long sequence" {
     // Perplexity of uniform 0.1 = 1/0.1 = 10
     try std.testing.expectApproxEqAbs(@as(f64, 10.0), result.perplexity, 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

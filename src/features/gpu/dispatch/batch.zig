@@ -244,3 +244,7 @@ pub const BatchedDispatcher = struct {
         self.auto_flush_size = size;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

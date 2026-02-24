@@ -683,3 +683,7 @@ test "workgroup calculation" {
     try std.testing.expectEqual(@as(u32, 13), wg[0]); // ceil(200/16)
     try std.testing.expectEqual(@as(u32, 7), wg[1]); // ceil(100/16)
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

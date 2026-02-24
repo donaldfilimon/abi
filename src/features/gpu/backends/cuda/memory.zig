@@ -259,3 +259,7 @@ pub fn memcpyDeviceToDevice(dst: *anyopaque, src: *anyopaque, size: usize) Memor
     const result = copy_fn(dst_ptr, src_ptr, size);
     try checkResult(result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -125,3 +125,7 @@ test "model registry register update remove" {
     try std.testing.expect(registry.remove("tiny"));
     try std.testing.expectEqual(@as(usize, 0), registry.count());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

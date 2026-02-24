@@ -608,3 +608,7 @@ test "Snapshot backendSuccessRate" {
     // Unused backend should have 0 rate
     try std.testing.expectEqual(@as(f64, 0.0), snap.backendSuccessRate(.local));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

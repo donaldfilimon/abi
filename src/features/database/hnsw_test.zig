@@ -244,3 +244,7 @@ test "hnsw enable search pool on deserialized index" {
 
     try std.testing.expect(results.len >= 1);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

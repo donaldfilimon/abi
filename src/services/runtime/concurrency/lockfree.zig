@@ -396,3 +396,7 @@ test "lock-free queue basic invariants" {
     try std.testing.expectEqual(@as(usize, 0), queue.len());
     try std.testing.expect(queue.isEmpty());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -90,3 +90,7 @@ pub fn createClient(_: std.mem.Allocator) !Client {
 pub fn isAvailable() bool {
     return contract.unavailable();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

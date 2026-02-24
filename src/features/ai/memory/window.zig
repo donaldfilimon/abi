@@ -294,3 +294,7 @@ test "sliding window get within budget" {
     try std.testing.expect(recent.len >= 1);
     try std.testing.expect(recent.len <= 2);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

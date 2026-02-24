@@ -178,3 +178,7 @@ test "framework error includes all categories" {
     try std.testing.expect(err1 != err2);
     try std.testing.expect(err2 != err3);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -419,3 +419,7 @@ test "distance metric enum" {
     try std.testing.expectEqualStrings("dot_product", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.dot_product}) catch "");
     try std.testing.expectEqualStrings("manhattan", std.fmt.bufPrint(&buf, "{t}", .{DistanceMetric.manhattan}) catch "");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

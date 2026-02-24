@@ -501,3 +501,7 @@ test "Metal isAvailable" {
     // On macOS, Metal availability depends on hardware/VM
     // so we don't assert either way
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

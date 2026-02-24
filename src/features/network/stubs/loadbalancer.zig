@@ -28,3 +28,7 @@ pub const NodeStats = struct {
     error_count: u64 = 0,
     avg_latency_ms: f64 = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

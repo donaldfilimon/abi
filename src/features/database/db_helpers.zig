@@ -43,3 +43,7 @@ test "vector parse and format" {
 test "vector parse rejects empty input" {
     try std.testing.expectError(HelperError.InvalidVector, parseVector(std.testing.allocator, ""));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

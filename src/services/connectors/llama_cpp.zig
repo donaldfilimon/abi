@@ -349,3 +349,7 @@ test "llama_cpp chat request encoding" {
 test "llama_cpp isAvailable returns bool" {
     _ = isAvailable();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

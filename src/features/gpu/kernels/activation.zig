@@ -365,3 +365,7 @@ test "buildGeluKernel" {
     try std.testing.expectEqual(@as(usize, 1), ir.uniforms.len); // n
     try std.testing.expectEqual(@as(u32, 256), ir.workgroup_size[0]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

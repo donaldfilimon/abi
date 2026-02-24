@@ -333,3 +333,7 @@ pub const PolicyNetwork = struct {
         return actor_params + critic_params;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

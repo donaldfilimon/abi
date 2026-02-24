@@ -50,3 +50,7 @@ pub const AggregateStats = struct {
     total_failures: u64 = 0,
     total_successes: u64 = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

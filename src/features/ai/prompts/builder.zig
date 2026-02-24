@@ -423,3 +423,7 @@ test "prompt builder export" {
     try std.testing.expect(std.mem.indexOf(u8, exported, "=== PROMPT EXPORT ===") != null);
     try std.testing.expect(std.mem.indexOf(u8, exported, "Persona: coder") != null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

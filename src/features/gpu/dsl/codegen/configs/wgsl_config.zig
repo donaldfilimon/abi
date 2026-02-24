@@ -3,6 +3,7 @@
 //! Comptime configuration for WGSL code generation targeting WebGPU.
 
 const mod = @import("mod.zig");
+const std = @import("std");
 
 /// WGSL type names.
 pub const type_names = mod.TypeNames{
@@ -106,3 +107,7 @@ pub const config = mod.BackendConfig{
     .select_reversed = true, // WGSL select is (false, true, cond)
     .while_style = .loop_break, // WGSL uses loop { if (!cond) break; }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

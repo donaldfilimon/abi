@@ -173,3 +173,7 @@ test "safe backup and restore reject unsafe paths" {
     try std.testing.expectError(fs.PathValidationError.InvalidPath, backup(&handle, "../bad.wdbx"));
     try std.testing.expectError(fs.PathValidationError.InvalidPath, restore(&handle, "../bad.wdbx"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

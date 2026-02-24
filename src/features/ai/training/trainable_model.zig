@@ -4,6 +4,7 @@
 //! split implementation modules under `src/features/ai/training/trainable_model/`.
 
 const core = @import("trainable_model/core.zig");
+const std = @import("std");
 
 pub const TrainableLayerWeights = core.TrainableLayerWeights;
 pub const TrainableWeights = core.TrainableWeights;
@@ -15,3 +16,7 @@ pub const CheckpointingStrategy = core.CheckpointingStrategy;
 pub const TrainableModelConfig = core.TrainableModelConfig;
 pub const TrainableModel = core.TrainableModel;
 pub const TrainStepResult = core.TrainableModel.TrainStepResult;
+
+test {
+    std.testing.refAllDecls(@This());
+}

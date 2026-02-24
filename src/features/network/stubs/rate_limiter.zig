@@ -47,3 +47,7 @@ pub const LimiterStats = struct {
     allowed_requests: u64 = 0,
     rejected_requests: u64 = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

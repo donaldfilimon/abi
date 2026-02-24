@@ -434,3 +434,7 @@ test "route definitions" {
     }
     try std.testing.expect(found_chat);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

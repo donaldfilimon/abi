@@ -457,3 +457,7 @@ test "sequence packer" {
 
     try std.testing.expectEqual(@as(u32, 2), packed_batch.num_batches);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -69,3 +69,7 @@ pub const Context = struct {
 pub fn isEnabled() bool {
     return false;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

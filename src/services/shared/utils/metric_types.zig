@@ -158,3 +158,7 @@ pub fn Histogram(comptime bucket_count: usize) type {
 
 /// Standard latency histogram with default buckets.
 pub const LatencyHistogram = Histogram(default_latency_buckets.len);
+
+test {
+    std.testing.refAllDecls(@This());
+}

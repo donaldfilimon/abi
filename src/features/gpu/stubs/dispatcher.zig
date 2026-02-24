@@ -26,3 +26,7 @@ pub const KernelArgs = struct {
         return .{};
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

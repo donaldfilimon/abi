@@ -638,3 +638,7 @@ test "sampler reset clears mirostat state" {
         0.001,
     );
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

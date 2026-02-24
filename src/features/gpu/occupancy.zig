@@ -653,3 +653,7 @@ test "cuda compute capability presets" {
     try std.testing.expectEqual(@as(u32, 2048), turing.max_threads_per_sm);
     try std.testing.expectEqual(@as(u32, 16), turing.max_blocks_per_sm);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

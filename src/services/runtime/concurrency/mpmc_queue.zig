@@ -421,3 +421,7 @@ test "blocking mpmc queue" {
     try std.testing.expectEqual(@as(?u32, 2), queue.tryPop());
     try std.testing.expectEqual(@as(?u32, null), queue.tryPop());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

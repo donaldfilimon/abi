@@ -556,3 +556,7 @@ test "Stream record and wait event" {
     try std.testing.expect(event.getState() == .recorded);
     try std.testing.expect(event.stream_id == stream.id);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -234,3 +234,7 @@ test "rms norm simd matches basic" {
         try std.testing.expectApproxEqAbs(output_basic[i], output_simd[i], 1e-5);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

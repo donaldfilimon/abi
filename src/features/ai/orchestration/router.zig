@@ -425,3 +425,7 @@ test "prompt contains rule" {
     try std.testing.expect(rule.matches("Write Python code for sorting", null));
     try std.testing.expect(!rule.matches("Write JavaScript code for sorting", null));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

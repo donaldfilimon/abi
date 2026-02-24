@@ -249,3 +249,7 @@ fn rmsNormForward(x: []const f32, weight: []const f32, output: []f32, eps: f32) 
         output[i] = x[i] * inv_rms * weight[i];
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

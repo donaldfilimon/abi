@@ -1054,3 +1054,7 @@ test "streaming callbacks struct" {
 
     try std.testing.expect(called);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

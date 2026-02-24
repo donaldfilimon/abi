@@ -8,3 +8,7 @@ pub const ExecutionCoordinator = struct {
 };
 
 pub const ExecutionMethod = enum { gpu, simd, scalar };
+
+test {
+    std.testing.refAllDecls(@This());
+}

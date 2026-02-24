@@ -281,3 +281,7 @@ test "list builtin templates" {
     const templates = listBuiltinTemplates();
     try std.testing.expect(templates.len >= 10);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

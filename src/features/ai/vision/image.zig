@@ -283,3 +283,7 @@ test "Image supports RGBA" {
     const retrieved = img.getPixel(2, 2).?;
     try std.testing.expectEqual(@as(u8, 200), retrieved[3]); // Alpha
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

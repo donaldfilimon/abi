@@ -105,3 +105,7 @@ pub fn registerDynamic(
         .initialized = false,
     });
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

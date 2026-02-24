@@ -469,3 +469,7 @@ test "cublas availability check" {
     const available = isAvailable();
     _ = available;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

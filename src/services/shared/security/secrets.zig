@@ -1111,3 +1111,7 @@ test "secret encryption round trip" {
 
     try std.testing.expectEqualStrings("my-secret-value", retrieved);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

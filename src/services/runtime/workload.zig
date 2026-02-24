@@ -271,3 +271,7 @@ test "mlp task runs forward pass" {
     try std.testing.expectEqual(@as(f32, 3), output[0]);
     try std.testing.expectEqual(@as(f32, 3), output[1]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

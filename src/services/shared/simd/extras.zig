@@ -449,3 +449,7 @@ test "scale out-of-place" {
     try std.testing.expectApproxEqAbs(@as(f32, 6.0), out[1], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 9.0), out[2], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

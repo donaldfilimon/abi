@@ -428,3 +428,7 @@ test "memory pool swap remove updates lookup correctly" {
 
     try std.testing.expectEqual(@as(usize, 0), pool.buffers.items.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

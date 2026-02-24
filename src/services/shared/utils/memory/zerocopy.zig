@@ -267,3 +267,7 @@ test "shared buffer" {
     try std.testing.expectEqual(@as(usize, 0), stats.total_readers);
     try std.testing.expectEqual(@as(usize, 0), stats.total_writers);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

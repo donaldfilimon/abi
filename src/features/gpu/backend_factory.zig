@@ -694,3 +694,7 @@ test "simulated and webgl2 do not advertise atomics/shared memory" {
     try std.testing.expect(!backendSupportsFeature(.webgl2, .atomics));
     try std.testing.expect(!backendSupportsFeature(.webgl2, .shared_memory));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

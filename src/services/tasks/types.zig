@@ -232,3 +232,7 @@ test "SortBy string conversion" {
     try std.testing.expectEqual(SortBy.due_date, SortBy.fromString("due_date").?);
     try std.testing.expectEqual(SortBy.due_date, SortBy.fromString("due").?);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

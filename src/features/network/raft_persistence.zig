@@ -210,3 +210,7 @@ pub const RaftPersistence = struct {
         UnsupportedVersion,
     } || std.mem.Allocator.Error || std.Io.Dir.ReadFileAllocError;
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

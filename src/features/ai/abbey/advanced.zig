@@ -26,3 +26,4 @@ pub const UncertaintyArea = @import("advanced/mod.zig").UncertaintyArea;
 pub const DetectedBias = @import("advanced/mod.zig").DetectedBias;
 pub const ReasoningQuality = @import("advanced/mod.zig").ReasoningQuality;
 pub const SelfReflectionEngine = @import("advanced/mod.zig").SelfReflectionEngine;
+const std = @import("std");

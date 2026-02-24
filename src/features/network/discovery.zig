@@ -909,3 +909,7 @@ test "static discovery with registry" {
     const services = try discovery.discover("test-service");
     try std.testing.expectEqual(@as(usize, 2), services.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

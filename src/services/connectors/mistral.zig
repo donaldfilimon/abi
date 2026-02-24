@@ -515,3 +515,7 @@ test "isAvailable returns bool" {
     // Just verify it returns without crashing - actual availability depends on env
     _ = isAvailable();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

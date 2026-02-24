@@ -50,3 +50,7 @@ pub const ParallelExecutor = struct {
         }
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

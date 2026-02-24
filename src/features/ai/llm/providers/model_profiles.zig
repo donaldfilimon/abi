@@ -136,3 +136,7 @@ test "getProviderChain empty for unknown" {
     const chain = getProviderChain("unknown-model");
     try std.testing.expect(chain.len == 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -128,3 +128,7 @@ pub const TrainableWeights = struct {
         return self.config.numParams();
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

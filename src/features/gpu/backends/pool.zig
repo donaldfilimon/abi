@@ -49,3 +49,7 @@ test "pool rejects unavailable explicit backend" {
         );
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

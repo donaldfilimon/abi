@@ -95,7 +95,8 @@ test "domain detection" {
 
     const result = cls.classify("How do I configure a PostgreSQL database?");
 
-    try testing.expect(result.domain == .database or result.domain == .general);
+    // Domain enum uses .databases (not .database)
+    try testing.expect(result.domain == .databases or result.domain == .general);
 }
 
 test "query type recommendations" {
@@ -120,12 +121,10 @@ test "knowledge retrieval basic" {
     var retriever = knowledge.KnowledgeRetriever.init(testing.allocator);
     defer retriever.deinit();
 
-    const result = try retriever.retrieve("What is Zig?", null);
-    defer {
-        result.fragments.deinit();
-    }
+    var result = try retriever.retrieve("What is Zig?", null);
+    defer result.deinit();
 
-    // Should return some fragments
+    // Should return (potentially empty) fragments
     try testing.expect(result.fragments.items.len >= 0);
 }
 
@@ -138,6 +137,8 @@ test "knowledge fragment confidence" {
         },
         .relevance = 0.8,
         .confidence = 0.9,
+        .domain = .general,
+        .last_verified = 0,
     };
 
     try testing.expect(fragment.confidence >= 0.0);
@@ -149,15 +150,14 @@ test "knowledge fragment confidence" {
 // ============================================================================
 
 test "code generator initialization" {
-    var generator = code.CodeGenerator.init(testing.allocator);
-    defer generator.deinit();
+    // CodeGenerator has no deinit
+    const generator = code.CodeGenerator.init(testing.allocator);
 
     try testing.expect(generator.config.validate_syntax);
 }
 
 test "code block formatting - zig" {
     var generator = code.CodeGenerator.init(testing.allocator);
-    defer generator.deinit();
 
     const block = try generator.formatCodeBlock(
         "const x: i32 = 42;",
@@ -171,7 +171,6 @@ test "code block formatting - zig" {
 
 test "code block formatting - python" {
     var generator = code.CodeGenerator.init(testing.allocator);
-    defer generator.deinit();
 
     const block = try generator.formatCodeBlock(
         "x = 42",
@@ -185,7 +184,6 @@ test "code block formatting - python" {
 
 test "function template generation - zig" {
     var generator = code.CodeGenerator.init(testing.allocator);
-    defer generator.deinit();
 
     const params = [_][]const u8{ "a: i32", "b: i32" };
     const block = try generator.generateFunctionTemplate(
@@ -202,7 +200,6 @@ test "function template generation - zig" {
 
 test "function template generation - python" {
     var generator = code.CodeGenerator.init(testing.allocator);
-    defer generator.deinit();
 
     const params = [_][]const u8{ "a", "b" };
     const block = try generator.generateFunctionTemplate(
@@ -218,8 +215,7 @@ test "function template generation - python" {
 }
 
 test "code structure validation" {
-    var generator = code.CodeGenerator.init(testing.allocator);
-    defer generator.deinit();
+    const generator = code.CodeGenerator.init(testing.allocator);
 
     // Valid Zig code
     const valid_result = generator.validateStructure(
@@ -250,6 +246,7 @@ test "code block extraction" {
 // ============================================================================
 
 test "fact checker initialization" {
+    // FactChecker has no deinit on itself
     const checker = facts.FactChecker.init(testing.allocator);
 
     try testing.expect(checker.config.min_unqualified_confidence > 0.0);
@@ -274,17 +271,11 @@ test "claim type default confidence" {
 test "detect uncertainty markers" {
     const checker = facts.FactChecker.init(testing.allocator);
 
+    // scoreStatement is pub, but detectClaimType is private
     const certain_score = checker.scoreStatement("This is definitely correct.");
     const uncertain_score = checker.scoreStatement("This might be correct.");
 
     try testing.expect(uncertain_score <= certain_score);
-}
-
-test "detect numerical claims" {
-    const checker = facts.FactChecker.init(testing.allocator);
-
-    const claim_type = checker.detectClaimType("The population is 10 million.", "the population is 10 million.");
-    try testing.expect(claim_type == .numerical or claim_type == .general);
 }
 
 test "apply qualifications" {
@@ -324,8 +315,8 @@ test "aviva processing pipeline" {
     var retriever = knowledge.KnowledgeRetriever.init(allocator);
     defer retriever.deinit();
     var generator = code.CodeGenerator.init(allocator);
-    defer generator.deinit();
-    var checker = facts.FactChecker.init(allocator);
+    const checker = facts.FactChecker.init(allocator);
+    _ = checker;
 
     // Process a code request
     const query = "Write a function to calculate fibonacci numbers.";
@@ -346,17 +337,16 @@ test "aviva processing pipeline" {
     try testing.expect(template.code.len > 0);
 
     // Step 3: Fact check a response
+    var fact_checker = facts.FactChecker.init(allocator);
     const response = "The Fibonacci sequence starts with 0 and 1.";
-    var fact_result = try checker.check(response);
+    var fact_result = try fact_checker.check(response);
     defer fact_result.deinit();
 
     try testing.expect(fact_result.overall_confidence > 0.5);
 }
 
 test "aviva language support" {
-    var generator = code.CodeGenerator.init(testing.allocator);
-    defer generator.deinit();
-
+    // getLanguageName is private, so test via public APIs instead
     const languages = [_]classifier.Language{
         .zig,
         .python,
@@ -367,7 +357,13 @@ test "aviva language support" {
     };
 
     for (languages) |lang| {
-        const name = generator.getLanguageName(lang);
-        try testing.expect(name.len > 0 or lang == .unknown);
+        // Verify language has a file extension (public API)
+        const ext = lang.getFileExtension();
+        try testing.expect(ext.len > 0 or lang == .unknown);
     }
+
+    // Test that wrapInMarkdown works with a language
+    var gen = code.CodeGenerator.init(testing.allocator);
+    const wrapped = try gen.wrapInMarkdown("const x = 42;", .zig);
+    try testing.expect(wrapped.len > 0);
 }

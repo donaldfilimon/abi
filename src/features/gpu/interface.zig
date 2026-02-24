@@ -471,3 +471,7 @@ test "launch config" {
     };
     try std.testing.expectEqual(@as(u64, 4 * 2 * 128), config.threads());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

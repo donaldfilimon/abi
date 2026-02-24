@@ -46,3 +46,7 @@ pub fn StubContextWithConfig(comptime ConfigT: type) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

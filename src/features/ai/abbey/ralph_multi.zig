@@ -133,3 +133,7 @@ test "ralph_multi bus send tryRecv" {
     try std.testing.expectEqual(@as(u32, 1), received.?.from_id);
     try std.testing.expectEqualStrings("hello", received.?.getContent());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

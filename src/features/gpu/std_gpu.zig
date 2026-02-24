@@ -859,3 +859,7 @@ test "workgroup calculations" {
     try std.testing.expectEqual(@as(u32, 120), wg2d.x);
     try std.testing.expectEqual(@as(u32, 68), wg2d.y);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

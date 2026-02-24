@@ -567,3 +567,7 @@ pub const DeviceBarrier = struct {
         }
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

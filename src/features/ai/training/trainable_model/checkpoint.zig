@@ -196,3 +196,7 @@ pub fn exportToGguf(
 }
 
 const trainable_checkpoint = @import("../trainable_checkpoint.zig");
+
+test {
+    std.testing.refAllDecls(@This());
+}

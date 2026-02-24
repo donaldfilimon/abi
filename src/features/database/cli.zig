@@ -800,3 +800,7 @@ test "isBareLegacyFilename identifies bare names only" {
     try std.testing.expect(!isBareLegacyFilename("../legacy.db"));
     try std.testing.expect(!isBareLegacyFilename(""));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

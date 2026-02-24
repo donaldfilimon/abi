@@ -423,3 +423,7 @@ test "semantic memory category retrieval" {
     defer if (facts.len > 0) allocator.free(facts);
     try std.testing.expectEqual(@as(usize, 2), facts.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

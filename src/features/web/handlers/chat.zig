@@ -601,3 +601,7 @@ test "rate limiter stats tracking" {
 test "http status includes rate limit code" {
     try std.testing.expectEqual(@as(u16, 429), HttpStatus.too_many_requests);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

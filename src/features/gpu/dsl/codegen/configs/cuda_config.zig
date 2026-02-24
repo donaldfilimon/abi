@@ -3,6 +3,7 @@
 //! Comptime configuration for CUDA C code generation targeting NVIDIA GPUs.
 
 const mod = @import("mod.zig");
+const std = @import("std");
 
 /// CUDA type names.
 pub const type_names = mod.TypeNames{
@@ -147,3 +148,7 @@ pub const config = mod.BackendConfig{
     .select_reversed = false,
     .while_style = .native,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

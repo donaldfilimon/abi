@@ -307,3 +307,7 @@ test "multi-GPU scheduling: fault tolerance and recovery" {
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

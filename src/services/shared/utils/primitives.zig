@@ -537,3 +537,7 @@ test "Platform description is non-empty" {
     const desc = Platform.description();
     try std.testing.expect(desc.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -385,3 +385,7 @@ test "TrackingAllocator reset" {
     try std.testing.expectEqual(@as(u64, 0), s.free_count);
     try std.testing.expectEqual(@as(u64, 0), s.peak_bytes);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

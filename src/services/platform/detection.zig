@@ -147,3 +147,7 @@ test "PlatformInfo fields are consistent" {
     try std.testing.expectEqual(Os.current(), info.os);
     try std.testing.expectEqual(Arch.current(), info.arch);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

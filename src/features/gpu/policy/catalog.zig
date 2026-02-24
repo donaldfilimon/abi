@@ -60,3 +60,7 @@ pub fn withAndroidPrimary(primary: BackendName) []const BackendName {
 pub fn defaultOrderForTarget(os_tag: std.Target.Os.Tag, abi: std.Target.Abi) []const BackendName {
     return defaultOrder(classify(os_tag, abi));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

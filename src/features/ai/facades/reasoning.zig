@@ -165,3 +165,7 @@ test "ai_reasoning type re-exports distinct types" {
     try std.testing.expect(@TypeOf(DocumentFormat) != void);
     try std.testing.expect(@TypeOf(EntityType) != void);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

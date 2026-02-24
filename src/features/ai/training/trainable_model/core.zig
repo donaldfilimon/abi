@@ -409,3 +409,7 @@ pub const TrainableModel = struct {
         return checkpoint_mod.exportToGguf(self, allocator, path, config);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

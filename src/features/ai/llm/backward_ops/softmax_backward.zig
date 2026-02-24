@@ -207,3 +207,7 @@ test "cross entropy softmax backward sparse" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.3), d_input[1], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, -0.5), d_input[2], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

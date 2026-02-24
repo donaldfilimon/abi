@@ -932,3 +932,7 @@ pub const SelfLearningSystem = struct {
             self.stats.avg_reward < self.config.self_eval_threshold;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

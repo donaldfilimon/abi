@@ -1585,3 +1585,7 @@ pub const SpirvGenerator = struct {
         try operands.append(self.allocator, word); // Includes null terminator in remaining bytes
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

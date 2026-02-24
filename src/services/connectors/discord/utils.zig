@@ -295,3 +295,7 @@ test "daysInMonth February" {
     try std.testing.expectEqual(@as(i64, 29), daysInMonth(2024, 2));
     try std.testing.expectEqual(@as(i64, 28), daysInMonth(2023, 2));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

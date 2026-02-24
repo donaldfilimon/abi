@@ -367,3 +367,7 @@ test "reduceOpToNccl conversion" {
     try std.testing.expect(reduceOpToNccl(.product) == .prod);
     try std.testing.expect(reduceOpToNccl(.avg) == .avg);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -552,3 +552,7 @@ test "conv2d no bias" {
     try std.testing.expectEqual(@as(usize, 432), conv.paramCount());
     try std.testing.expect(conv.bias == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -61,3 +61,7 @@ pub const RateLimitResult = struct {
     remaining: u32 = 0,
     reset_after_ms: u64 = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

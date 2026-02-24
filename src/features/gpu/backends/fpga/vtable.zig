@@ -369,3 +369,7 @@ pub fn createFpgaVTable(allocator: std.mem.Allocator) interface.BackendError!int
     const impl = try FpgaBackend.init(allocator);
     return interface.createBackend(FpgaBackend, impl);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

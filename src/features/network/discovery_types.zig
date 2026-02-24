@@ -186,3 +186,7 @@ test "service ID generation is unique and correctly formatted" {
 
     try std.testing.expectEqual(rounds, seen.count());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -93,3 +93,7 @@ pub fn getStats(tasks: *const std.AutoHashMapUnmanaged(u64, Task)) Stats {
     }
     return stats;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

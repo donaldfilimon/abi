@@ -305,3 +305,7 @@ test "rouge-l partial match" {
     try std.testing.expectApproxEqAbs(@as(f64, 1.0), result.precision, 0.0001);
     try std.testing.expectApproxEqAbs(@as(f64, 0.5), result.recall, 0.0001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

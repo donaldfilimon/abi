@@ -180,3 +180,7 @@ pub fn setDescription(
     ptr.description = owned_desc;
     ptr.updated_at = time_utils.unixSeconds();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -77,3 +77,7 @@ pub fn isAvailable() bool {
 test "ollama_passthrough availability returns bool" {
     _ = isAvailable();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

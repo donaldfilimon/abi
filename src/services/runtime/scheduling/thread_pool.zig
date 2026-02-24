@@ -408,3 +408,7 @@ test "Task type has correct max_capture_size" {
     try std.testing.expect(Task.max_capture_size >= 64);
     try std.testing.expect(@sizeOf(Task) > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

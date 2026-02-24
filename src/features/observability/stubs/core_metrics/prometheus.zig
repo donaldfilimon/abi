@@ -36,3 +36,7 @@ pub const MetricWriter = struct {
 
     pub fn clear(_: *Self) void {}
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

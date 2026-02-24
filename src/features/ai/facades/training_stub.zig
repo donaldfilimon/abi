@@ -69,3 +69,7 @@ pub fn train(_: std.mem.Allocator, _: TrainingConfig) TrainError!TrainingReport 
 pub fn trainWithResult(_: std.mem.Allocator, _: TrainingConfig) TrainError!TrainingResult {
     return error.TrainingDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

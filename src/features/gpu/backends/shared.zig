@@ -58,3 +58,7 @@ pub fn openFirst(libs: []const []const u8) ?std.DynLib {
     }
     return null;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

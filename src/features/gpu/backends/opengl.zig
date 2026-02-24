@@ -756,3 +756,7 @@ test "enumerateDevices returns empty when not initialized" {
     }
     try std.testing.expectEqual(@as(usize, 0), devices.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

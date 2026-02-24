@@ -92,3 +92,7 @@ test "CUDA VTable integration - synchronization" {
         return err;
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

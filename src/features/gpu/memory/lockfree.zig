@@ -937,3 +937,7 @@ test "lock-free pool concurrent stress test" {
     const stats = pool.getStats();
     try std.testing.expectEqual(@as(u64, 0), stats.active_allocations);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -266,3 +266,7 @@ test "constant folding unary ops" {
     try std.testing.expect(result3 != null);
     try std.testing.expectEqual(false, result3.?.bool_);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

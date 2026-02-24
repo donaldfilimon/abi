@@ -69,3 +69,7 @@ pub const IoBackend = struct {
         self.* = undefined;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

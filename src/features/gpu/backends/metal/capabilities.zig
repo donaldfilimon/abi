@@ -96,3 +96,7 @@ test "required runtime level is metal3" {
     try std.testing.expectEqual(MetalLevel.metal3, required_runtime_level);
     try std.testing.expectEqual(MetalLevel.metal4, preferred_runtime_level);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

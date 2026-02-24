@@ -892,3 +892,7 @@ test "gpu agent backends summary" {
     // Should have at least one backend (cpu fallback)
     try std.testing.expect(backends.len >= 1);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

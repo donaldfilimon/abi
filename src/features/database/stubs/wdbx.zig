@@ -56,3 +56,7 @@ pub const wdbx = struct {
         return error.DatabaseDisabled;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -76,3 +76,7 @@ test "count tokens" {
     try std.testing.expectEqual(@as(usize, 0), countTokens(""));
     try std.testing.expectEqual(@as(usize, 2), countTokens("  hello   world  "));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

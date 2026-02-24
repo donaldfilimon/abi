@@ -287,3 +287,7 @@ pub fn expectThroughput(expected: struct {
     // For now, just validate it's positive
     std.debug.assert(expected.actual_ops_per_second > 0.0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

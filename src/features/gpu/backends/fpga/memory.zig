@@ -324,3 +324,7 @@ test "fpga memory allocation" {
 
     try std.testing.expect(buffer.isValid());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -1376,3 +1376,7 @@ test {
     _ = @import("metal/mesh_shaders.zig");
     _ = @import("metal/ray_tracing.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

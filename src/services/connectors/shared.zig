@@ -392,3 +392,7 @@ test "anyEnvIsSet returns false for empty list" {
     const empty = [_][]const u8{};
     try std.testing.expect(!anyEnvIsSet(&empty));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

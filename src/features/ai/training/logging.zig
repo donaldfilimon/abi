@@ -540,3 +540,7 @@ test "MetricsStream logScalar writes JSONL" {
     // Verify file was written (offset should have advanced)
     try std.testing.expect(stream.offset > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

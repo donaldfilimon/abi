@@ -56,3 +56,7 @@ pub const Stream = struct {
         self.running.store(false, .release);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

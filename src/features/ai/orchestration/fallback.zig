@@ -552,3 +552,7 @@ test "health status availability" {
     try std.testing.expect(!HealthStatus.circuit_open.isAvailable());
     try std.testing.expect(!HealthStatus.recovering.isAvailable());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

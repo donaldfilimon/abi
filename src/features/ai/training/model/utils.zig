@@ -12,3 +12,7 @@ pub fn initializeXavier(weights: []f32) void {
         w.* = (rng.random().float(f32) * 2.0 - 1.0) * limit;
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

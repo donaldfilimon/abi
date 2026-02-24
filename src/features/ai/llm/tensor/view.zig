@@ -296,3 +296,7 @@ test "transpose 2D" {
     // Original [0,1] = 2, transposed [1,0] = 2
     try std.testing.expectEqual(@as(f32, 2.0), try transposed.get(1, 0, 0, 0));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

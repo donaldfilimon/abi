@@ -1,4 +1,5 @@
 const catalog = @import("catalog.zig");
+const std = @import("std");
 
 pub const OptimizationHints = struct {
     default_local_size: u32,
@@ -60,4 +61,8 @@ pub fn forPlatform(platform: catalog.PlatformClass) OptimizationHints {
             .transfer_chunk_bytes = 1 * 1024 * 1024,
         },
     };
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

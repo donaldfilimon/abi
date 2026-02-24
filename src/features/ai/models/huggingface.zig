@@ -439,3 +439,7 @@ test "getQuantizationInfo" {
     try std.testing.expect(quants.len > 0);
     try std.testing.expectEqualStrings("Q4_K_M", quants[0].name);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -45,3 +45,7 @@ test "KernelRing fast‑path reuse increments ring_hits" {
     _ = result2;
     try std.testing.expectEqual(@as(u64, 1), ctx.ring_hits);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

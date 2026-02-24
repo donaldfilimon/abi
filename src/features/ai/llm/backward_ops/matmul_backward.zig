@@ -221,3 +221,7 @@ test "bias backward" {
     try std.testing.expectApproxEqAbs(@as(f32, 7), d_bias[1], 0.001); // 2 + 5
     try std.testing.expectApproxEqAbs(@as(f32, 9), d_bias[2], 0.001); // 3 + 6
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

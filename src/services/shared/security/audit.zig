@@ -823,3 +823,7 @@ test "audit severity filtering" {
     const stats = logger.getStats();
     try std.testing.expectEqual(@as(u64, 1), stats.total_events);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

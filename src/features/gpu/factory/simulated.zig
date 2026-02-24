@@ -151,3 +151,7 @@ pub fn createSimulatedVTable(allocator: std.mem.Allocator) interface.BackendErro
     const impl = SimulatedBackend.init(allocator) catch return interface.BackendError.OutOfMemory;
     return interface.createBackend(SimulatedBackend, impl);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -93,3 +93,7 @@ test "getParentFeature returns correct parent" {
     try std.testing.expect(getParentFeature(.gpu) == null);
     try std.testing.expect(getParentFeature(.ai) == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

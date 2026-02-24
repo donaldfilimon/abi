@@ -46,3 +46,7 @@ fn handleSignal(sig: c_int) callconv(.c) void {
     _ = sig;
     shutdown_requested.store(true, .release);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

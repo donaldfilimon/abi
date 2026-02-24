@@ -601,3 +601,7 @@ test "config with sliding window memory calculation" {
     // Window should use 1/8 the memory
     try std.testing.expectEqual(full_memory / 8, window_memory);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

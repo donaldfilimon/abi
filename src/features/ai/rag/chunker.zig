@@ -463,3 +463,7 @@ test "recursive chunking" {
 
     try std.testing.expect(chunks.len >= 1);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -194,3 +194,7 @@ test "CircuitBreaker reset" {
     try std.testing.expectEqual(CircuitState.closed, cb.getState());
     try std.testing.expect(cb.canAttempt());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

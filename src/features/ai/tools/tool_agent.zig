@@ -612,3 +612,7 @@ test "ToolAugmentedAgent - isDestructiveTool" {
     try std.testing.expect(!agent.isDestructiveTool("read_file"));
     try std.testing.expect(!agent.isDestructiveTool("system_info"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

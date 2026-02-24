@@ -339,3 +339,7 @@ test "parameter estimation" {
     try std.testing.expect(params > 6_000_000_000);
     try std.testing.expect(params < 8_000_000_000);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

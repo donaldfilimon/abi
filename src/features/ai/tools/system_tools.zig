@@ -223,3 +223,7 @@ test "watch_file_tool creation" {
 test "all_tools count" {
     try std.testing.expectEqual(@as(usize, 4), all_tools.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

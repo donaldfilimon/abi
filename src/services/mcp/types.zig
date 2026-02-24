@@ -177,3 +177,7 @@ test "writeError format" {
     const expected = "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}\n";
     try std.testing.expectEqualStrings(expected, buf[0..writer.end]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -153,3 +153,7 @@ test "vocab byte level" {
     try std.testing.expect(vocab.hasId(0));
     try std.testing.expect(vocab.hasId(255));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

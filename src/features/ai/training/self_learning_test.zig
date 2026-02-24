@@ -65,3 +65,7 @@ test "SelfLearningSystem initialization" {
 
     try std.testing.expectEqual(@as(u64, 0), system.stats.total_experiences);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

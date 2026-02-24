@@ -845,3 +845,7 @@ test "extract bearer token" {
     const no_bearer = extractBearerToken("Basic dXNlcjpwYXNz");
     try std.testing.expect(no_bearer == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

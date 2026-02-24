@@ -518,3 +518,7 @@ test "reduction kernels - body contains barrier statements" {
     // (8 stride iterations + initial load + final atomic = many statements)
     try std.testing.expect(ir.body.len >= 10);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

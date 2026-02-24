@@ -627,3 +627,7 @@ test "lora model" {
     // Zero gradients
     model.zeroGrad();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

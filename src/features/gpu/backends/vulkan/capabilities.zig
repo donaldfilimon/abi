@@ -61,3 +61,7 @@ test "linux requires at least vulkan 1.3" {
     try std.testing.expect(!meetsTargetMinimum(.linux, encodeApiVersion(.{ .major = 1, .minor = 2, .patch = 203 })));
     try std.testing.expect(meetsTargetMinimum(.linux, encodeApiVersion(.{ .major = 1, .minor = 3, .patch = 0 })));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

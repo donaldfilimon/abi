@@ -22,3 +22,7 @@ pub fn createClient(_: std.mem.Allocator) !Client {
 pub fn isAvailable() bool {
     return false;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

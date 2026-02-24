@@ -18,3 +18,4 @@ pub const opengl = @import("opengl.zig");
 pub const opengles = @import("opengles.zig");
 pub const gl = @import("gl/mod.zig");
 pub const directml = @import("directml/mod.zig");
+const std = @import("std");

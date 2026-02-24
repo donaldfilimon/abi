@@ -169,3 +169,7 @@ test "quantization savings calculation" {
     // Q8_0: 32 blocks * 34 bytes = 1088 bytes (~3.75x savings)
     try std.testing.expectEqual(@as(usize, 1088), savings_q8.quant_bytes);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

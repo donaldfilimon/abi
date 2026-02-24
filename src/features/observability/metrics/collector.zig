@@ -312,3 +312,7 @@ pub const ErrorMetrics = struct {
         self.patterns_detected.inc(1);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -617,3 +617,7 @@ test "quantization bits" {
     try std.testing.expectEqual(@as(u8, 8), QuantizationType.q8_0.bitsPerValue());
     try std.testing.expectEqual(@as(u8, 32), QuantizationType.q4_0.blockSize());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

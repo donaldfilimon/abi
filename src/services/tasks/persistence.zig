@@ -186,3 +186,7 @@ pub fn load(
 
     next_id.* = next_id_local;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

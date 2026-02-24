@@ -18,6 +18,7 @@
 //! - `zls_*` — ZLS LSP tools (hover, completion, definition, etc.)
 
 const std = @import("std");
+const build_options = @import("build_options");
 pub const types = @import("types.zig");
 pub const Server = @import("server.zig").Server;
 pub const RegisteredTool = @import("server.zig").RegisteredTool;
@@ -91,8 +92,11 @@ pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Serv
 // Tool Handlers
 // ═══════════════════════════════════════════════════════════════
 
-/// Shared database access — uses the database feature module
-const database = @import("../../features/database/mod.zig");
+/// Shared database access — comptime-gated to support disabled database feature.
+const database = if (build_options.enable_database)
+    @import("../../features/database/mod.zig")
+else
+    @import("../../features/database/stub.zig");
 
 fn getOrCreateDb(allocator: std.mem.Allocator, name_opt: ?[]const u8) !database.DatabaseHandle {
     const name = name_opt orelse "default";

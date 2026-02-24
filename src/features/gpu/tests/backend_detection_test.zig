@@ -44,3 +44,7 @@ test "backend detection with feature requirements" {
         try std.testing.expect(backend != .stdgpu);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

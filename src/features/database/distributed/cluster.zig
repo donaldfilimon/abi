@@ -529,3 +529,7 @@ test "ClusterManager serializeHeartbeat creates valid message" {
     try std.testing.expectEqual(@as(u64, 1000), vec_count);
     try std.testing.expectEqual(@as(u32, 4), shard_count);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

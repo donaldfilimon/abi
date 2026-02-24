@@ -477,3 +477,7 @@ test "all_tools count" {
     const testing = std.testing;
     try testing.expectEqual(@as(usize, 11), all_tools.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

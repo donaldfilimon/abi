@@ -455,3 +455,7 @@ test "nonDoneEntryCount excludes done roadmap entries" {
     }
     try std.testing.expectEqual(expected, nonDoneEntryCount());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

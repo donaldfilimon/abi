@@ -109,3 +109,7 @@ pub fn ConstGenMixin(comptime Self: type) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

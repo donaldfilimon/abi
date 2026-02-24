@@ -336,3 +336,7 @@ test "mxfp4 dequantization" {
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), output[0], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 2.0), output[16], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

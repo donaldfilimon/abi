@@ -709,3 +709,7 @@ fn convertToConnectorMessages(
     }
     return msgs;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

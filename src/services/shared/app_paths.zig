@@ -184,3 +184,7 @@ test "resolvePrimaryRootFor linux requires HOME when XDG is unset" {
     const env: EnvValues = .{};
     try std.testing.expectError(error.NoHomeDirectory, resolvePrimaryRootFor(allocator, .linux, env));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

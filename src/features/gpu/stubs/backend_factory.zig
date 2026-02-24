@@ -21,3 +21,7 @@ pub fn createBestBackend(_: std.mem.Allocator) !BackendInstance {
 }
 
 pub fn destroyBackend(_: *BackendInstance) void {}
+
+test {
+    std.testing.refAllDecls(@This());
+}

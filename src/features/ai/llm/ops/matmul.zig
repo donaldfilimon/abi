@@ -248,3 +248,7 @@ test "matrix vector multiply" {
     try std.testing.expectApproxEqAbs(@as(f32, 14), y[0], 0.001);
     try std.testing.expectApproxEqAbs(@as(f32, 32), y[1], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

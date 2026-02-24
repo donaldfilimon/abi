@@ -311,3 +311,7 @@ test "bpe tokenizer init" {
     try std.testing.expect(tokenizer.add_bos);
     try std.testing.expect(!tokenizer.add_eos);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

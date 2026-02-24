@@ -58,3 +58,7 @@ test "metal capability mapping covers metal3 threshold" {
     try std.testing.expect(caps.MetalLevel.metal3.atLeast(caps.required_runtime_level));
     try std.testing.expect(caps.MetalLevel.metal4.atLeast(caps.required_runtime_level));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

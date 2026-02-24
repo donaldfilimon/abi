@@ -691,3 +691,7 @@ fn dequantizeWeightForPrecision(
         },
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -343,3 +343,7 @@ test "retriever embedding" {
     try std.testing.expect(emb != null);
     try std.testing.expectEqual(@as(usize, 64), emb.?.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

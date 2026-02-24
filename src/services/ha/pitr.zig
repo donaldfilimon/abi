@@ -412,3 +412,7 @@ test "PitrManager capture and checkpoint" {
     try std.testing.expectEqual(@as(usize, 1), points.len);
     try std.testing.expectEqual(@as(u64, 3), points[0].operation_count);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

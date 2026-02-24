@@ -333,3 +333,7 @@ test "scoreResponse calculates correctly" {
     const structured_score = scoreResponse("# Title\n\nHello world.\n\n- Item\n\n```code```\n\n**Bold**.");
     try std.testing.expect(structured_score > simple_score);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

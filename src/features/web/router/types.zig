@@ -249,3 +249,7 @@ test "joinPath" {
     defer allocator.free(path3);
     try std.testing.expectEqualStrings("/", path3);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -4,6 +4,7 @@
 //! OpenGL, and OpenGL ES.
 
 const mod = @import("mod.zig");
+const std = @import("std");
 
 /// GLSL target variants.
 pub const Target = enum {
@@ -122,3 +123,7 @@ pub const config = mod.BackendConfig{
     .select_reversed = false,
     .while_style = .native,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

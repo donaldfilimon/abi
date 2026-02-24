@@ -134,3 +134,7 @@ pub const ConfigChangeRequest = struct {
 pub fn applyConfigChange(_: *RaftNode, _: ConfigChangeRequest) !void {
     return error.NetworkDisabled;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

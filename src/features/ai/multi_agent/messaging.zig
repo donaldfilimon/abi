@@ -373,3 +373,7 @@ test "agent message tags" {
     };
     try std.testing.expectEqual(AgentMessage.MessageTag.control, msg.tag);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

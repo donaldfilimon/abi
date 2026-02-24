@@ -470,3 +470,7 @@ test "cpu topology detection" {
     try std.testing.expect(topology.cpu_count >= 1);
     try std.testing.expect(topology.cores_per_node >= 1);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

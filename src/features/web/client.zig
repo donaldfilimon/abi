@@ -296,3 +296,7 @@ test "request options effective max response bytes" {
     const large_options = RequestOptions{ .max_response_bytes = 200 * 1024 * 1024 };
     try std.testing.expectEqual(RequestOptions.MAX_ALLOWED_RESPONSE_BYTES, large_options.effectiveMaxResponseBytes());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

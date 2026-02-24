@@ -436,3 +436,7 @@ test "gguf type conversion" {
     try std.testing.expectEqual(GgufTensorType.f32, GgufTensorType.fromUnified(.f32).?);
     try std.testing.expectEqual(GgufTensorType.q8_0, GgufTensorType.fromUnified(.q8_0).?);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

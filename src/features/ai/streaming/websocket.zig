@@ -403,3 +403,7 @@ test "websocket close codes" {
     try std.testing.expectEqual(@as(u16, 1000), @intFromEnum(CloseCode.normal));
     try std.testing.expectEqual(@as(u16, 1001), @intFromEnum(CloseCode.going_away));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

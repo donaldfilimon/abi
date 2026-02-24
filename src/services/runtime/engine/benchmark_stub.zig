@@ -19,3 +19,7 @@ pub fn runBenchmarks(allocator: std.mem.Allocator) ![]BenchmarkResult {
     _ = allocator;
     return &[_]BenchmarkResult{};
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

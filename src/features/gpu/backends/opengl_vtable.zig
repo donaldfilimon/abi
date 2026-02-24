@@ -363,3 +363,7 @@ test "createOpenGLVTable" {
             err == error.DriverNotFound);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

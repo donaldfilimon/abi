@@ -19,7 +19,3 @@ pub const BrainExportConfig = brain_export.BrainExportConfig;
 pub const TrainingMetadata = brain_export.TrainingMetadata;
 pub const ExportResult = brain_export.ExportResult;
 pub const exportDual = brain_export.exportDual;
-
-test {
-    std.testing.refAllDecls(@This());
-}

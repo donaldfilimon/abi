@@ -793,3 +793,7 @@ test "improvement trend" {
     const trend = engine.getImprovementTrend();
     try std.testing.expectEqual(ImprovementTrend.Trend.stable, trend.trend);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

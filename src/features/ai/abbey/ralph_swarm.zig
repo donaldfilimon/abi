@@ -69,3 +69,7 @@ test "ralph_swarm worker args fit typical task capture" {
     const capture_size = @sizeOf(*ParallelRalphContext) + @sizeOf(u32);
     try std.testing.expect(capture_size <= 128);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

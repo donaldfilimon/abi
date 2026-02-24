@@ -525,3 +525,7 @@ test "Writer reset and reuse" {
     try w.writeU8(2);
     try std.testing.expectEqual(@as(usize, 1), w.bytesWritten());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -35,6 +35,7 @@ pub const primitives = @import("primitives.zig");
 pub const prometheus = @import("prometheus.zig");
 pub const sliding_window = @import("sliding_window.zig");
 pub const collector = @import("collector.zig");
+const std = @import("std");
 
 // Re-export core types (lightweight, no name field)
 pub const Counter = primitives.Counter;
@@ -68,4 +69,8 @@ test {
     _ = prometheus;
     _ = sliding_window;
     _ = collector;
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

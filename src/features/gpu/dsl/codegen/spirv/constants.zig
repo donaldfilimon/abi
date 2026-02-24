@@ -5,6 +5,8 @@
 //!
 //! Specification: https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html
 
+const std = @import("std");
+
 /// SPIR-V magic number identifying the binary format.
 pub const SPIRV_MAGIC: u32 = 0x07230203;
 
@@ -477,3 +479,7 @@ pub const Scope = enum(u32) {
     Subgroup = 3,
     Invocation = 4,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

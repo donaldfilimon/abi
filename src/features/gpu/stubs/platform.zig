@@ -30,3 +30,7 @@ pub fn isWebGpuSupported() bool {
 pub fn platformDescription() []const u8 {
     return "GPU disabled at compile time";
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

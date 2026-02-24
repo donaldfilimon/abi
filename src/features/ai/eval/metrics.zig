@@ -476,3 +476,7 @@ test "text statistics all same" {
     try std.testing.expectEqual(@as(usize, 1), stats.unique_words);
     try std.testing.expectApproxEqAbs(@as(f64, 0.25), stats.type_token_ratio, 0.0001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

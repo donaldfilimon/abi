@@ -651,3 +651,7 @@ test "state change callback fires" {
     cb.recordFailure();
     try std.testing.expect(T.called);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -71,3 +71,7 @@ pub const CpuBuffer = struct {
 pub fn isTest() bool {
     return @import("builtin").is_test;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

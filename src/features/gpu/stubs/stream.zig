@@ -10,3 +10,7 @@ pub const Event = struct {};
 pub const EventOptions = struct {};
 pub const EventFlags = packed struct {};
 pub const EventState = enum { pending, completed };
+
+test {
+    std.testing.refAllDecls(@This());
+}

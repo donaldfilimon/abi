@@ -643,3 +643,7 @@ test "layer norm" {
     const first_row_mean = (output.data[0] + output.data[1] + output.data[2] + output.data[3]) / 4.0;
     try std.testing.expect(@abs(first_row_mean) < 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

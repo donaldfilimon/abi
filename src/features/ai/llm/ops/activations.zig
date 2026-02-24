@@ -250,3 +250,7 @@ test "sigmoid bounds" {
     try std.testing.expect(sigmoid(10) < 1);
     try std.testing.expectApproxEqAbs(@as(f32, 0.5), sigmoid(0), 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

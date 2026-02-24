@@ -239,3 +239,7 @@ test "SPIR-V external validation hint" {
     try std.testing.expect(result.spirv_binary != null);
     try std.testing.expect(result.spirv_binary.?.len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

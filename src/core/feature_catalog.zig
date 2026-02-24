@@ -372,3 +372,7 @@ test "ai subfeatures point to ai parent" {
     try std.testing.expectEqual(Feature.ai, parent(.reasoning).?);
     try std.testing.expectEqual(Feature.ai, parent(.constitution).?);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

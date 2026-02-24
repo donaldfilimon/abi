@@ -1167,3 +1167,7 @@ test "fallback chain default order" {
     try std.testing.expectEqual(ExecutionMethod.simd, config.fallback_chain[1]);
     try std.testing.expectEqual(ExecutionMethod.scalar, config.fallback_chain[2]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -123,3 +123,7 @@ test "SyncEvent waitTimeout returns true when signaled" {
     const completed = event.waitTimeout(1_000_000_000); // 1s timeout
     try std.testing.expect(completed);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

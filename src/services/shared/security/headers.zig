@@ -637,3 +637,7 @@ test "strict preset" {
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

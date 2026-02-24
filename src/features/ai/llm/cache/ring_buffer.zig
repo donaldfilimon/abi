@@ -264,3 +264,7 @@ test "kv ring buffer" {
     const retrieved_k = rb.getK(0).?;
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), retrieved_k[0], 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

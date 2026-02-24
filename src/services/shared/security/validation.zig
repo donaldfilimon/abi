@@ -926,3 +926,7 @@ test "validate ip address" {
     try std.testing.expect(!validator.validateIpAddress("1.2.3").valid);
     try std.testing.expect(!validator.validateIpAddress("not.an.ip").valid);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

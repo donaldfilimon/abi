@@ -442,3 +442,7 @@ test "perplexity" {
     // Loss of 1 should give perplexity of e ≈ 2.718
     try std.testing.expectApproxEqAbs(@as(f32, 2.718), perplexity(1.0), 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

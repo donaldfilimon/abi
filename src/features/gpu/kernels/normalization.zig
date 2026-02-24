@@ -293,3 +293,7 @@ test "buildLayerNormKernel" {
     try std.testing.expectEqual(@as(usize, 4), ir.buffers.len); // input, gamma, beta, output
     try std.testing.expectEqual(@as(usize, 4), ir.uniforms.len); // mean, variance, epsilon, n
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

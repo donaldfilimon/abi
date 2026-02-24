@@ -189,3 +189,7 @@ test "buildBatchCosineSimilarityKernel" {
     try std.testing.expectEqual(@as(usize, 3), ir.buffers.len); // query, vectors, output
     try std.testing.expectEqual(@as(usize, 3), ir.uniforms.len); // query_norm, num_vectors, dim
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

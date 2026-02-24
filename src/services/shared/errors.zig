@@ -115,3 +115,7 @@ test "config errors cover common cases" {
     }
     try std.testing.expectEqual(@as(usize, 4), test_errors.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

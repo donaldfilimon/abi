@@ -373,3 +373,7 @@ test "linalg kernels - element types are f32" {
         try std.testing.expectEqual(Type{ .scalar = .f32 }, buffer.element_type);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

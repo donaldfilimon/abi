@@ -644,3 +644,7 @@ test "stats tracking" {
     try std.testing.expectEqual(@as(u64, 1), stats.q8_ops);
     try std.testing.expectEqual(@as(u64, 1), stats.swiglu_ops);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

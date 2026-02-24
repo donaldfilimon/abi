@@ -290,3 +290,7 @@ test "AdaptiveTiling elementwise tile selection" {
     try std.testing.expect(small_tile <= 64);
     try std.testing.expect(small_tile % 32 == 0); // Warp aligned
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

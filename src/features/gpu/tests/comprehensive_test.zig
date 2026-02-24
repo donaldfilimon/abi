@@ -568,3 +568,7 @@ test "comprehensive GPU test suite" {
     // Verify we got some results
     try std.testing.expect(suite.getResults().len > 0);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

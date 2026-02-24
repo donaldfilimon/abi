@@ -303,3 +303,7 @@ test "vector database save/load" {
 
     try std.testing.expectEqual(@as(usize, 2), loaded.count());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

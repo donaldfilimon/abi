@@ -108,3 +108,7 @@ test "local scheduler empty path endpoint" {
     // Empty path should produce just the base URL with prefix
     try std.testing.expectEqualStrings("http://localhost:9090/", url);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

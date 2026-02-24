@@ -429,3 +429,7 @@ test "header lookup is case-insensitive" {
 
     try std.testing.expectEqualStrings("text/plain", request.getHeader("Content-Type").?);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

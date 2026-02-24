@@ -83,3 +83,7 @@ test "scoped timer start returns timer" {
         try std.testing.expectEqualStrings("test", t.label);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

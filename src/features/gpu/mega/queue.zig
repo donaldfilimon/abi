@@ -355,3 +355,7 @@ test "queue cancel" {
     try std.testing.expect(cancelled);
     try std.testing.expect(queue.isEmpty());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

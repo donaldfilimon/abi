@@ -226,3 +226,7 @@ test "health check tracking" {
     try std.testing.expectEqualStrings("node-1", primary);
     allocator.free(primary);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -354,3 +354,7 @@ test "AccessMode.canRead" {
     try std.testing.expect(AccessMode.read_write.canRead());
     try std.testing.expect(!AccessMode.write_only.canRead());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -281,3 +281,7 @@ test "coordinator ai ops rmsnorm" {
     // RMS of normalized values should be close to 1
     try std.testing.expectApproxEqAbs(@as(f32, 1.0), rms, 0.01);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -2,6 +2,7 @@
 //!
 //! Comptime configuration for MSL code generation targeting Apple Metal.
 
+const std = @import("std");
 const mod = @import("mod.zig");
 
 /// MSL type names.
@@ -157,3 +158,7 @@ pub const config = mod.BackendConfig{
     .select_reversed = true, // MSL select is (false, true, cond)
     .while_style = .native,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

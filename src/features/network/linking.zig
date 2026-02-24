@@ -130,3 +130,7 @@ test "link config default transport" {
     const config = LinkConfig{};
     try std.testing.expectEqual(TransportType.auto, config.transport);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

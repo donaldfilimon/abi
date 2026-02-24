@@ -766,3 +766,7 @@ test "ModelFormat from extension" {
     try std.testing.expectEqual(ModelFormat.pytorch_bin, ModelFormat.fromExtension(".bin"));
     try std.testing.expectEqual(ModelFormat.unknown, ModelFormat.fromExtension(".xyz"));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

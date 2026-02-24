@@ -411,3 +411,7 @@ test "research alignment: intelligent sharding strategy" {
 
     std.debug.print("✓ All research-mandated sharding concepts validated\n", .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

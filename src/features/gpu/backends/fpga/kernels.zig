@@ -3,6 +3,8 @@
 //! Defines the hardware kernels available on the FPGA bitstream.
 //! Based on internal FPGA research notes (see ROADMAP.md for status).
 
+const std = @import("std");
+
 pub const KernelID = enum(u32) {
     QuantizedMatMul = 1,
     StreamingSoftmax = 2,
@@ -21,3 +23,7 @@ pub const AttentionConfig = struct {
     head_dim: u32,
     num_heads: u32,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -36,3 +36,7 @@ pub const SchedulerStats = struct {
     completed_tasks: usize = 0,
     failed_tasks: usize = 0,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

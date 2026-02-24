@@ -628,3 +628,7 @@ test "createMetalBuffer and destroyMetalBuffer lifecycle" {
     try std.testing.expectEqual(@as(usize, 0), zero_handle.length);
     manager.destroyMetalBuffer(&zero_handle);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}
