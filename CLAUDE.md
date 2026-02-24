@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Single entry for AI assistants (Claude, Codex, Cursor). Code style, naming, commits, and formatting rules are in `AGENTS.md`. Zig 0.16 gotchas (20 entries) are in `.claude/rules/zig.md` (auto-loaded for all `.zig` files).
+Single entry for AI assistants (Claude, Codex, Cursor). Code style, naming, commits, and formatting rules are in `AGENTS.md`.
 
 ## Quick Reference
 
@@ -13,7 +13,7 @@ Single entry for AI assistants (Claude, Codex, Cursor). Code style, naming, comm
 | **Version** | 0.4.0 |
 | **Test baseline** | 1290 pass, 6 skip (1296 total) — source of truth: `tools/scripts/baseline.zig` |
 | **Feature tests** | 2360 pass (2365 total), 5 skip — `zig build feature-tests` |
-| **CLI** | 29 commands + 9 aliases — `zig build run -- --help` |
+| **CLI** | 30 commands + 9 aliases — `zig build run -- --help` |
 | **Features** | 24 comptime-gated modules (see [Feature Flags](#feature-flags)) |
 
 ## Build & Test Commands
@@ -34,16 +34,21 @@ zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
 zig build fix                                # Auto-format in place (CI-friendly)
-zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke
-zig build verify-all                         # full-check + consistency + examples + check-wasm (release gate)
+zig build full-check                         # Format + tests + flag validation + CLI smoke + imports + consistency + TUI
+zig build verify-all                         # full-check + feature tests + examples + check-wasm + check-docs (release gate)
 zig build validate-flags                     # Compile-check 34 feature flag combos
 zig build cli-tests                          # CLI smoke tests
+zig build tui-tests                          # TUI and CLI unit tests
 zig build lint                               # CI formatting check (no writes)
 zig build check-consistency                  # Zig version/baseline/0.16 pattern checks
 zig build check-imports                      # No circular @import("abi") in feature modules
 zig build validate-baseline                  # Verify test baselines match across all files
-zig build gendocs                            # Generate API docs (76 artifacts)
+zig build gendocs                            # Generate API docs
 zig build benchmarks                         # Run performance benchmarks
+zig build check-wasm                         # WASM target compilation check
+zig build check-docs                         # Validate docs outputs are up to date
+zig build ralph-gate                         # Require live Ralph scoring report and threshold pass
+zig build toolchain-doctor                   # Diagnose local Zig PATH/version drift
 ```
 
 ### Running the CLI
@@ -84,12 +89,31 @@ Hooks auto-enforce: `zig fmt`, stub parity reminders, import rules, baseline dri
 6. `@field(build_options, field_name)` requires comptime context — use `inline for` not runtime `for`
 7. **API break (v0.4.0):** Facade aliases and flat exports removed — use `abi.ai.agent.Agent` not `abi.ai.Agent`
 
-**Full reference (20 entries):** `.claude/rules/zig.md` auto-loads for all `.zig` files.
+**More Zig 0.16 patterns (correct → wrong):**
 
-**I/O patterns** (code examples in global CLAUDE.md and `.claude/rules/zig.md`):
+| Correct (0.16) | Wrong (old) |
+|----------------|-------------|
+| `std.Io.Dir.cwd()` | `std.fs.cwd()` |
+| `std.ArrayList(T) = .empty` | `.init(allocator)` |
+| `std.json.Stringify.valueAlloc(...)` | `std.json.stringifyAlloc` |
+| `pub fn main(init: std.process.Init) !void` | `pub fn main() !void` |
+| `std.c.arc4random_buf(...)` | `std.crypto.random` |
+| `std.c.getenv(...)` | `std.posix.getenv` |
+| `{t}` format specifier for enums/errors | `@tagName()` with `{s}` |
+| `std.Io.Writer.fixed(&buf)` | `std.io.fixedBufferStream()` |
+
+**I/O patterns:**
 - **I/O Backend**: `std.Io.Threaded.init(allocator, .{ .environ = ... })` → `.io()` — required for all file/network ops
 - **Stdio writer**: `std.Io.File.stdout().writer(io, &buf)` — always call `.flush()` after writing
 - **Fixed-buffer writer**: `std.Io.Writer.fixed(&buf)` — replaces removed `std.io.fixedBufferStream()`
+
+```zig
+// In CLI (has real environ):
+var io_backend: std.Io.Threaded = .init(allocator, .{ .environ = init.environ });
+// In library code:
+var io_backend: std.Io.Threaded = .init(allocator, .{ .environ = std.process.Environ.empty });
+const io = io_backend.io();
+```
 
 ## Architecture: Comptime Feature Gating
 
@@ -114,15 +138,31 @@ This means:
 
 ```
 build.zig                → Top-level build script (delegates to build/)
-build/                   → Split build system (options, modules, flags, targets, gpu, mobile, wasm)
+build/                   → Split build system (11 files: options, modules, flags, targets,
+                           gpu, gpu_policy, mobile, wasm, link, cli_tests, test_discovery)
 src/abi.zig              → Public API, comptime feature selection (no flat type aliases)
-src/core/                → Framework lifecycle, config builder, registry
+src/core/                → Framework lifecycle, config builder, registry, errors, stub_context
 src/features/<name>/     → mod.zig + stub.zig per feature (24 catalog entries, 17 dirs, 7 AI sub-features)
-src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
-src/services/connectors/ → LLM provider connectors (15 providers + discord + scheduler)
-src/services/mcp/        → MCP server (JSON-RPC 2.0 over stdio, WDBX + ZLS tools)
-src/services/acp/        → ACP server (agent communication protocol)
+src/services/            → Always-available infrastructure (10 service modules)
+  runtime/               → Thread pool, channels, scheduling
+  platform/              → Platform detection and abstraction
+  shared/                → Utilities (SIMD, time, sync, security, resilience, matrix, tensor, etc.)
+  shared/security/       → Security infrastructure (17 modules)
+  shared/resilience/     → Circuit breaker, rate limiter
+  connectors/            → LLM provider connectors (15 providers + scheduler)
+  mcp/                   → MCP server (JSON-RPC 2.0 over stdio, WDBX + ZLS tools)
+  acp/                   → ACP server (agent communication protocol)
+  ha/                    → High availability (replication, backup, PITR)
+  lsp/                   → LSP (ZLS) client utilities
+  tasks/                 → Task management and roadmap
+  tests/                 → Integration and system tests (main test root)
 tools/cli/               → CLI entry point, command registration, TUI dashboards
+  commands/              → 30 command modules (some with sub-directories)
+  framework/             → CLI router, completion, context, help, types
+  tui/                   → Terminal UI dashboards
+  utils/                 → CLI argument parsing, output formatting, I/O backend
+examples/                → 40 runnable example programs
+docs/                    → Generated documentation (api, gpu, data)
 ```
 
 Import convention: public API uses `@import("abi")`, internal modules import
@@ -139,6 +179,14 @@ var fw = try abi.initDefault(allocator);
 
 // 2. Custom config
 var fw = try abi.init(allocator, .{ .gpu = .{ .backend = .vulkan } });
+
+// 3. Builder pattern
+var fw = try abi.Framework.builder(allocator)
+    .withGpu(.{ .backend = .vulkan })
+    .withAi(.{ .llm = .{ .model_path = "./models/llama.gguf" } })
+    .withDatabase(.{ .path = "./data" })
+    .build();
+defer fw.deinit();
 ```
 
 ### Access Patterns
@@ -156,6 +204,11 @@ All access uses namespaced submodule paths — no top-level aliases or flat re-e
 | Connectors | `abi.connectors.discord`, `abi.connectors.openai` | (always available) |
 | Runtime | `abi.runtime.Channel`, `abi.runtime.ThreadPool` | (always available) |
 | Shared | `abi.shared.resilience.AtomicCircuitBreaker` | (always available) |
+| MCP | `abi.mcp` | (always available) |
+| ACP | `abi.acp` | (always available) |
+| HA | `abi.ha` | (always available) |
+| LSP | `abi.lsp` | (always available) |
+| Tasks | `abi.tasks` | (always available) |
 
 **Removed in v0.4.0:** `abi.ai_core`, `abi.inference`, `abi.training`, `abi.reasoning`
 (facade aliases); ~329 flat type aliases. Use submodule paths instead.
@@ -170,6 +223,9 @@ All access uses namespaced submodule paths — no top-level aliases or flat re-e
   ```
 - Modern format specifiers: `{t}` for enums/errors, `{B}`/`{Bi}` for byte sizes, `{D}` for durations, `{b64}` for base64
 - For null-terminated C strings: `std.fmt.allocPrintSentinel(alloc, fmt, args, 0)` or use string literal `.ptr`
+- `std.log.*` in library code. `std.debug.print` only in CLI tools and TUI display functions
+- Explicit imports only. Never use `usingnamespace`
+- End every source file with: `test { std.testing.refAllDecls(@This()); }`
 
 ## Testing Patterns
 
@@ -186,6 +242,13 @@ can reach both `features/` and `services/` subdirectories.
 - Parity tests verify `mod.zig` and `stub.zig` export the same interface
 - **GPU/database test gap**: Backend source files have Zig 0.16 compatibility issues; they compile through `zig build test` via the named `abi` module but cannot be registered in `feature_test_root.zig`
 
+**Test utilities:**
+```zig
+const allocator = std.testing.allocator;
+const io = std.testing.io;
+var tmp = std.testing.tmpDir(.{}); defer tmp.cleanup();
+```
+
 ## Key File Locations
 
 | Need to... | Look at |
@@ -193,13 +256,19 @@ can reach both `features/` and `services/` subdirectories.
 | Add/modify public API | `src/abi.zig` |
 | Change build flags | `build/options.zig` + `build/flags.zig` |
 | Feature catalog (canonical list) | `src/core/feature_catalog.zig` |
-| Add a CLI command | `tools/cli/commands/`, register in `tools/cli/main.zig` |
+| Add a CLI command | `tools/cli/commands/`, register in `tools/cli/commands/mod.zig` |
 | Add config for a feature | `src/core/config/` |
 | Write integration tests | `src/services/tests/` |
 | Add a GPU backend | `src/features/gpu/backends/` |
 | Security infrastructure | `src/services/shared/security/` (17 modules) |
-| Generate API docs | `zig build gendocs` (76 artifacts) |
+| Resilience (circuit breaker) | `src/services/shared/resilience/` |
+| Generate API docs | `zig build gendocs` |
 | Examples | `examples/` (40 examples) |
+| CLI framework | `tools/cli/framework/` (router, completion, context) |
+| TUI dashboards | `tools/cli/tui/` |
+| Build system | `build/` (11 modules) |
+| Test baselines | `tools/scripts/baseline.zig` (source of truth) |
+| Consistency scripts | `tools/scripts/check_*.zig` |
 
 ### Adding a New Feature Module (9 integration points)
 
@@ -232,16 +301,57 @@ GPU backends: `auto`, `none`, `cuda`, `vulkan`, `metal`, `stdgpu`, `webgpu`, `tp
 | `observability` | `-Denable-profiling` | NOT `-Denable-observability` |
 | `ai.orchestration` | `-Denable-reasoning` | Flag says "reasoning", access path is `abi.ai.orchestration` |
 | `mobile` | `-Denable-mobile` | Defaults to `false` (all others default `true`) |
-| AI sub-features | `-Denable-llm`, `-Denable-training`, `-Denable-reasoning` | `embeddings`, `agents`, `personas` share `-Denable-ai` |
+| AI sub-features | `-Denable-llm`, `-Denable-training`, `-Denable-reasoning` | `embeddings`, `agents`, `personas`, `constitution` share `-Denable-ai` |
 | Internal (no catalog) | `-Denable-explore`, `-Denable-vision` | Derived from `-Denable-ai` |
 
 **Runtime overrides:** `abi --enable-<feature>` / `--disable-<feature>` before a command. Only compiled-in features can be enabled at runtime. Use `abi --list-features` or `abi system-info` to check.
 
-## Environment Variables
+## CLI Commands (30 commands)
 
-Connectors follow the pattern `ABI_<PROVIDER>_API_KEY`, `ABI_<PROVIDER>_HOST`, `ABI_<PROVIDER>_MODEL`.
+Commands are registered in `tools/cli/commands/mod.zig`. Each module exports `pub const meta: command_mod.Meta` and `pub fn run`.
 
-**Non-obvious variables (these break the pattern):**
+| Command | Aliases | Description |
+|---------|---------|-------------|
+| `db` | `ls` | Database operations |
+| `agent` | — | AI agent runtime |
+| `bench` | `run` | Performance benchmarking |
+| `gpu` | — | GPU management |
+| `network` | — | Network operations |
+| `system-info` | `info`, `sysinfo` | System and feature status |
+| `multi-agent` | — | Multi-agent orchestration |
+| `os-agent` | — | OS-level agent |
+| `explore` | — | Code exploration |
+| `simd` | — | SIMD operations |
+| `config` | — | Configuration management |
+| `discord` | — | Discord bot integration |
+| `llm` | `chat`, `reasoning`, `serve` | LLM inference and chat |
+| `model` | — | Model management |
+| `embed` | — | Embedding generation |
+| `train` | — | Training pipelines |
+| `convert` | — | Model conversion |
+| `task` | — | Task management |
+| `ui` | `launch`, `start` | TUI dashboards |
+| `plugins` | — | Plugin management |
+| `profile` | — | Performance profiling |
+| `completions` | — | Shell completions |
+| `status` | — | Framework health |
+| `toolchain` | — | Toolchain management |
+| `lsp` | — | LSP/ZLS integration |
+| `mcp` | — | MCP server (stdio JSON-RPC) |
+| `acp` | — | Agent communication protocol |
+| `ralph` | — | Agent loop (super, multi, run) |
+| `gendocs` | — | Documentation generation |
+| `brain` | — | Knowledge management |
+
+## Connectors (15 LLM providers + scheduler)
+
+Located in `src/services/connectors/`. Each connector follows `ABI_<PROVIDER>_API_KEY` / `ABI_<PROVIDER>_HOST` / `ABI_<PROVIDER>_MODEL` env var patterns.
+
+**Providers:** anthropic, claude, codex, cohere, gemini, huggingface, llama_cpp, lm_studio, mistral, mlx, ollama, ollama_passthrough, openai, opencode, vllm
+
+**Scheduler:** `local_scheduler` — local job scheduling
+
+**Non-obvious environment variables:**
 
 | Variable | Gotcha |
 |----------|--------|
@@ -251,6 +361,12 @@ Connectors follow the pattern `ABI_<PROVIDER>_API_KEY`, `ABI_<PROVIDER>_HOST`, `
 | `ABI_MASTER_KEY` | Secrets encryption key (production) |
 
 Fallbacks: `claude` connector checks `ABI_ANTHROPIC_*`; `codex`/`opencode` check `ABI_OPENAI_*`.
+
+## Security Infrastructure
+
+Located in `src/services/shared/security/` (17 modules):
+
+`api_keys`, `audit`, `certificates`, `cors`, `csprng`, `encryption`, `headers`, `ip_filter`, `jwt`, `mtls`, `password`, `rate_limit`, `rbac`, `secrets`, `session`, `tls`, `validation`
 
 ## Ralph (Agent Loop)
 
@@ -274,7 +390,6 @@ You are **outside the Ralph loop** unless the user explicitly runs `abi ralph ru
 ## References
 
 - `AGENTS.md` — Code style, naming, imports, error handling, commits, PR checklist
-- `.claude/rules/zig.md` — Zig 0.16 gotchas table (20 entries, auto-loaded for `.zig` files)
-- `.claude/skills/` — Skill implementations; index: `.claude/skills/README.md`
 - `tools/scripts/baseline.zig` — Canonical test baseline (source of truth)
 - `CONTRIBUTING.md` — Development workflow and PR checklist
+- `SECURITY.md` — Vulnerability reporting
