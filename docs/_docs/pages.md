@@ -25,7 +25,7 @@ This guide is generated from repository metadata for **Infrastructure** coverage
 
 - **pages** — Dashboard/UI pages with URL routing
   - Build flag: `enable_pages`
-  - Source: `src/features/pages/mod.zig`
+  - Source: `src/features/observability/pages/mod.zig`
 
 ## Module Coverage
 

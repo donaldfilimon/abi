@@ -422,16 +422,26 @@ fn runDefaultProfileAction(allocator: std.mem.Allocator, parser: *utils.args.Arg
 }
 
 fn runShowSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     try showCurrentProfile(allocator);
 }
 
 fn runListSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
-    _ = parser;
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     try listProfiles(allocator);
 }
 
 fn runCreateSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     const name = parser.next() orelse {
         utils.output.printError("Usage: abi profile create <name>", .{});
         return;
@@ -440,6 +450,10 @@ fn runCreateSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgPars
 }
 
 fn runSwitchSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     const name = parser.next() orelse {
         utils.output.printError("Usage: abi profile switch <name>", .{});
         return;
@@ -448,6 +462,10 @@ fn runSwitchSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgPars
 }
 
 fn runDeleteSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     const name = parser.next() orelse {
         utils.output.printError("Usage: abi profile delete <name>", .{});
         return;
@@ -456,6 +474,10 @@ fn runDeleteSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgPars
 }
 
 fn runSetSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     const key = parser.next() orelse {
         utils.output.printError("Usage: abi profile set <key> <value>", .{});
         return;
@@ -468,6 +490,10 @@ fn runSetSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser)
 }
 
 fn runGetSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     const key = parser.next() orelse {
         utils.output.printError("Usage: abi profile get <key>", .{});
         return;
@@ -480,6 +506,10 @@ fn runApiKeySubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgPars
 }
 
 fn runExportSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     const path = parser.next();
     if (parser.hasMore()) {
         utils.output.printError("Usage: abi profile export [path]", .{});
@@ -489,6 +519,10 @@ fn runExportSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgPars
 }
 
 fn runImportSubcommand(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
+    if (parser.wantsHelp()) {
+        printHelp();
+        return;
+    }
     const path = parser.next() orelse {
         utils.output.printError("Usage: abi profile import <path>", .{});
         return;

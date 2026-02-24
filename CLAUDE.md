@@ -91,6 +91,8 @@ Hooks auto-enforce: `zig fmt`, stub parity reminders, import rules, baseline dri
 - **Stdio writer**: `std.Io.File.stdout().writer(io, &buf)` — always call `.flush()` after writing
 - **Fixed-buffer writer**: `std.Io.Writer.fixed(&buf)` — replaces removed `std.io.fixedBufferStream()`
 
+**Test runner "failed command":** If `zig build test` fails with `failed command: .../test --cache-dir=... --seed=0x... --listen=-`, a parallel test worker exited non-zero (flaky test, OOM, or timeout). Try: re-run `zig build test --summary all`; or limit build jobs `zig build test -j 1 --summary all`; or run the test binary in single-process mode (build first, then run the cached test binary with only `--cache-dir=./.zig-cache` and `--seed=0x<N>` and no `--listen=-`) to see the failing test name.
+
 ## Architecture: Comptime Feature Gating
 
 The central architectural pattern is **comptime feature gating** in `src/abi.zig`. Each

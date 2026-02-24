@@ -140,8 +140,8 @@
     "description": "Dashboard/UI pages with URL routing",
     "compile_flag": "enable_pages",
     "parent": "",
-    "real_module_path": "features/pages/mod.zig",
-    "stub_module_path": "features/pages/stub.zig"
+    "real_module_path": "features/observability/pages/mod.zig",
+    "stub_module_path": "features/observability/pages/stub.zig"
   },
   {
     "name": "personas",

@@ -48,6 +48,7 @@ No feature modules directly mapped to this section.
 - `abi acp` — Agent Communication Protocol (card, serve)
 - `abi agent` — Run AI agent (interactive or one-shot)
 - `abi bench` — Run performance benchmarks (all, simd, memory, ai, quick)
+- `abi brain` — Brain file management (export, info)
 - `abi completions` — Generate shell completions (bash, zsh, fish, powershell)
 - `abi config` — Configuration management (init, setup, show, validate, env)
 - `abi convert` — Dataset conversion tools (tokenbin, text, jsonl, wdbx)

@@ -3,8 +3,8 @@
 //! API-compatible no-op implementations when pages feature is disabled.
 
 const std = @import("std");
-const core_config = @import("../../core/config/content.zig");
-const stub_context = @import("../../core/stub_context.zig");
+const core_config = @import("../../../core/config/content.zig");
+const stub_context = @import("../../../core/stub_context.zig");
 
 pub const PagesConfig = core_config.PagesConfig;
 

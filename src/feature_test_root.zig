@@ -51,7 +51,7 @@ test {
     if (build_options.enable_messaging) _ = @import("features/messaging/mod.zig");
     if (build_options.enable_search) _ = @import("features/search/mod.zig");
     if (build_options.enable_storage) _ = @import("features/storage/mod.zig");
-    if (build_options.enable_pages) _ = @import("features/pages/mod.zig");
+    if (build_options.enable_pages) _ = @import("features/observability/pages/mod.zig");
 
     // Analytics, observability, mobile, and benchmarks inline tests
     if (build_options.enable_analytics) _ = @import("features/analytics/mod.zig");

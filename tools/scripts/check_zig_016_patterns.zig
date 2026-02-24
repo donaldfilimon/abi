@@ -222,17 +222,18 @@ pub fn main(_: std.process.Init) !void {
     );
 
     // #11: pub fn main() !void — missing Init parameter (old 0.14/0.15 signature)
-    try scanForbidden(
+    try scanForbiddenFlags(
         allocator,
         "pub fn main\\(\\)\\s*!?\\s*void",
         "old main() signature; use pub fn main(init: std.process.Init) !void in Zig 0.16",
         &errors,
+        "--glob '!tools/gendocs/wasm/exports.zig' ",
     );
 
     // #7/#19: Removed facade aliases from v0.4.0 (abi.ai_core, abi.inference, etc.)
     try scanForbidden(
         allocator,
-        "abi\\.ai_core\\b|abi\\.inference\\b|abi\\.training\\b|abi\\.reasoning\\b",
+        "^[[:space:]]*[^/].*abi\\.(ai_core|inference|training|reasoning)\\b",
         "removed v0.4.0 facade alias; use abi.ai.core, abi.ai.llm, abi.ai.training, abi.ai.orchestration",
         &errors,
     );

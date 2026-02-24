@@ -10,9 +10,9 @@
 //! - RwLock for concurrent page lookups
 
 const std = @import("std");
-const core_config = @import("../../core/config/content.zig");
-const sync = @import("../../services/shared/sync.zig");
-const radix = @import("../../services/shared/utils/radix_tree.zig");
+const core_config = @import("../../../core/config/content.zig");
+const sync = @import("../../../services/shared/sync.zig");
+const radix = @import("../../../services/shared/utils/radix_tree.zig");
 
 /// Shared radix tree instantiated for page indices.
 const PageTree = radix.RadixTree(u32);
