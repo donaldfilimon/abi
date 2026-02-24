@@ -343,14 +343,37 @@ pub fn createClient(allocator: std.mem.Allocator) !Client {
     return try Client.init(allocator, config);
 }
 
-/// Check if the Ollama connector is available (host env var is set).
-/// Ollama doesn't require an API key, only a reachable host.
-/// This is a zero-allocation health check suitable for status dashboards.
+/// Check if Ollama has explicit host configuration in env vars.
 pub fn isAvailable() bool {
     return shared.anyEnvIsSet(&.{
         "ABI_OLLAMA_HOST",
         "OLLAMA_HOST",
     });
+}
+
+/// Probe whether Ollama is reachable at the configured/default host.
+///
+/// This enables local-default operation (`http://127.0.0.1:11434`) even when
+/// `OLLAMA_HOST` is not explicitly set.
+pub fn isReachable(allocator: std.mem.Allocator) bool {
+    var config = loadFromEnv(allocator) catch return false;
+    defer config.deinit(allocator);
+
+    var http = async_http.AsyncHttpClient.init(allocator) catch return false;
+    defer http.deinit();
+
+    const url = std.fmt.allocPrint(allocator, "{s}/api/tags", .{config.host}) catch return false;
+    defer allocator.free(url);
+
+    var req = async_http.HttpRequest.init(allocator, .get, url) catch return false;
+    defer req.deinit();
+    req.timeout_ms = 1500;
+    req.follow_redirects = false;
+
+    var res = http.fetch(&req) catch return false;
+    defer res.deinit();
+
+    return res.isSuccess();
 }
 
 fn parseOptionalU32(object: std.json.ObjectMap, field: []const u8) ?u32 {

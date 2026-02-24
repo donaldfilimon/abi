@@ -12,7 +12,7 @@ pub fn isAvailable(
         .local_gguf => true,
         .llama_cpp => connectors.llama_cpp.isAvailable(),
         .mlx => connectors.mlx.isAvailable(),
-        .ollama => connectors.ollama.isAvailable(),
+        .ollama => connectors.ollama.isAvailable() or connectors.ollama.isReachable(allocator),
         .lm_studio => connectors.lm_studio.isAvailable(),
         .vllm => connectors.vllm.isAvailable(),
         .anthropic => connectors.anthropic.isAvailable(),

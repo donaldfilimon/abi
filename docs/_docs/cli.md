@@ -23,13 +23,14 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 ## Command Tree
 
-Top-level commands: **29** | aliases: **9** | structural subcommands: **166**
+Top-level commands: **30** | aliases: **9** | structural subcommands: **169**
 
 | Command | Aliases | Description | Subcommands |
 | --- | --- | --- | --- |
 | `acp` | — | Agent Communication Protocol (card, serve) | card, serve, help |
 | `agent` | — | Run AI agent (interactive or one-shot) | — |
 | `bench` | run | Run performance benchmarks (all, simd, memory, ai, quick) | all, simd, memory, ai, quick, compare-training, list, micro |
+| `brain` | — | Brain file management (export, info) | export, info, help |
 | `completions` | — | Generate shell completions (bash, zsh, fish, powershell) | bash, zsh, fish, powershell, help |
 | `config` | — | Configuration management (init, setup, show, validate, env) | init, setup, show, validate, env, path, help |
 | `convert` | — | Dataset conversion tools (tokenbin, text, jsonl, wdbx) | dataset, model, embeddings |

@@ -39,8 +39,6 @@ fn readSlice(ptr: u32, len: u32) ?[]const u8 {
     return bump_memory[start..end];
 }
 
-pub fn main() void {}
-
 test "exports score_query uses engine" {
     reset_alloc();
 

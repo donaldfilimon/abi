@@ -11,56 +11,56 @@
         "signature": "pub const Config",
         "doc": "Unified configuration for the ABI framework.\nAll feature configs are optional - null means the feature is disabled.",
         "kind": "const",
-        "line": 79
+        "line": 75
       },
       {
         "anchor": "pub-fn-defaults-config",
         "signature": "pub fn defaults() Config",
         "doc": "Create a config with all compile-time enabled features using defaults.",
         "kind": "fn",
-        "line": 101
+        "line": 97
       },
       {
         "anchor": "pub-fn-minimal-config",
         "signature": "pub fn minimal() Config",
         "doc": "Create a minimal config with no features enabled.",
         "kind": "fn",
-        "line": 124
+        "line": 120
       },
       {
         "anchor": "pub-fn-isenabled-self-config-feature-feature-bool",
         "signature": "pub fn isEnabled(self: Config, feature: Feature) bool",
         "doc": "Check if a feature is enabled in this config.",
         "kind": "fn",
-        "line": 129
+        "line": 125
       },
       {
         "anchor": "pub-fn-enabledfeatures-self-config-allocator-std-mem-allocator-feature",
         "signature": "pub fn enabledFeatures(self: Config, allocator: std.mem.Allocator) ![]Feature",
         "doc": "Get list of enabled features.",
         "kind": "fn",
-        "line": 159
+        "line": 155
       },
       {
         "anchor": "pub-const-builder",
         "signature": "pub const Builder",
         "doc": "Fluent builder for constructing Config.",
         "kind": "const",
-        "line": 179
+        "line": 175
       },
       {
         "anchor": "pub-fn-build-self-builder-config",
         "signature": "pub fn build(self: *Builder) Config",
         "doc": "Finalize and return the built config; no allocation.",
         "kind": "fn",
-        "line": 391
+        "line": 387
       },
       {
         "anchor": "pub-fn-validate-cfg-config-configerror-void",
         "signature": "pub fn validate(cfg: Config) ConfigError!void",
         "doc": "Validate configuration against compile-time constraints.",
         "kind": "fn",
-        "line": 413
+        "line": 409
       }
     ]
   },
@@ -213,546 +213,546 @@
         "signature": "pub const Framework",
         "doc": "Framework orchestration handle.\n\nThe Framework struct is the central coordinator for the ABI framework. It manages\nthe lifecycle of all enabled feature modules, provides access to their contexts,\nand maintains the framework's runtime state.\n\n## Thread Safety\n\nThe Framework itself is not thread-safe. If you need to access the framework from\nmultiple threads, you should use external synchronization or ensure each thread\nhas its own Framework instance.\n\n## Memory Management\n\nThe Framework allocates memory for feature contexts during initialization. All\nallocated memory is released when `deinit()` is called. The caller must ensure\nthe provided allocator remains valid for the lifetime of the Framework.\n\n## Example\n\n```zig\nvar fw = try Framework.init(allocator, Config.defaults());\ndefer fw.deinit();\n\n// Check state\nif (fw.isRunning()) {\n// Access features\nif (fw.gpu) |gpu_ctx| {\n// Use GPU...\n}\n}\n```",
         "kind": "const",
-        "line": 147
+        "line": 148
       },
       {
         "anchor": "pub-const-state",
         "signature": "pub const State",
         "doc": "Framework lifecycle states.",
         "kind": "const",
-        "line": 215
+        "line": 216
       },
       {
         "anchor": "pub-const-error",
         "signature": "pub const Error",
         "doc": "Composable framework error set.\nSee `core/errors.zig` for the full hierarchy.",
         "kind": "const",
-        "line": 219
+        "line": 220
       },
       {
         "anchor": "pub-fn-init-allocator-std-mem-allocator-cfg-config-error-framework",
         "signature": "pub fn init(allocator: std.mem.Allocator, cfg: Config) Error!Framework",
         "doc": "Initialize the framework with the given configuration.\n\nThis is the primary initialization method for the Framework. It validates the\nconfiguration, initializes all enabled feature modules, and transitions the\nframework to the `running` state.\n\n## Parameters\n\n- `allocator`: Memory allocator for framework resources. Must remain valid for\nthe lifetime of the Framework.\n- `cfg`: Configuration specifying which features to enable and their settings.\n\n## Returns\n\nA fully initialized Framework instance in the `running` state.\n\n## Errors\n\n- `ConfigError.FeatureDisabled`: A feature is enabled in config but disabled at compile time\n- `error.OutOfMemory`: Memory allocation failed\n- `error.FeatureInitFailed`: A feature module failed to initialize\n\n## Example\n\n```zig\nvar fw = try Framework.init(allocator, .{\n.gpu = .{ .backend = .vulkan },\n.database = .{ .path = \"./data\" },\n});\ndefer fw.deinit();\n```",
         "kind": "fn",
-        "line": 252
+        "line": 253
       },
       {
         "anchor": "pub-fn-initwithio-allocator-std-mem-allocator-cfg-config-io-std-io-error-framework",
         "signature": "pub fn initWithIo(allocator: std.mem.Allocator, cfg: Config, io: std.Io) Error!Framework",
         "doc": "Initialize the framework with the given configuration **and** an I/O backend.\nThis method is used by the builder when `withIo` is supplied.",
         "kind": "fn",
-        "line": 258
+        "line": 259
       },
       {
         "anchor": "pub-fn-initdefault-allocator-std-mem-allocator-error-framework",
         "signature": "pub fn initDefault(allocator: std.mem.Allocator) Error!Framework",
         "doc": "Create a framework with default configuration.\n\nThis is a convenience method that creates a framework with all compile-time\nenabled features also enabled at runtime with their default settings.\n\n## Parameters\n\n- `allocator`: Memory allocator for framework resources\n\n## Returns\n\nA Framework instance with default configuration.\n\n## Example\n\n```zig\nvar fw = try Framework.initDefault(allocator);\ndefer fw.deinit();\n```",
         "kind": "fn",
-        "line": 281
+        "line": 282
       },
       {
         "anchor": "pub-fn-initminimal-allocator-std-mem-allocator-error-framework",
         "signature": "pub fn initMinimal(allocator: std.mem.Allocator) Error!Framework",
         "doc": "Create a framework with minimal configuration (no features enabled).\n\nThis creates a framework with no optional features enabled. Only the\nruntime context is initialized. Useful for testing or when you want\nto explicitly enable specific features.\n\n## Parameters\n\n- `allocator`: Memory allocator for framework resources\n\n## Returns\n\nA Framework instance with minimal configuration.\n\n## Example\n\n```zig\nvar fw = try Framework.initMinimal(allocator);\ndefer fw.deinit();\n\n// Only runtime is available, no features enabled\ntry std.testing.expect(fw.gpu == null);\ntry std.testing.expect(fw.ai == null);\n```",
         "kind": "fn",
-        "line": 309
+        "line": 310
       },
       {
         "anchor": "pub-fn-builder-allocator-std-mem-allocator-frameworkbuilder",
         "signature": "pub fn builder(allocator: std.mem.Allocator) FrameworkBuilder",
         "doc": "Start building a framework configuration.\n\nReturns a FrameworkBuilder that provides a fluent API for configuring\nand initializing the framework.\n\n## Parameters\n\n- `allocator`: Memory allocator for framework resources\n\n## Returns\n\nA FrameworkBuilder instance for configuring the framework.\n\n## Example\n\n```zig\nvar fw = try Framework.builder(allocator)\n.withGpuDefaults()\n.withAi(.{ .llm = .{} })\n.build();\ndefer fw.deinit();\n```",
         "kind": "fn",
-        "line": 335
+        "line": 336
       },
       {
         "anchor": "pub-fn-deinit-self-framework-void",
         "signature": "pub fn deinit(self: *Framework) void",
         "doc": "Shutdown and cleanup the framework.\n\nThis method transitions the framework to the `stopping` state, deinitializes\nall feature contexts in reverse order of initialization, cleans up the registry,\nand finally transitions to `stopped`.\n\nAfter calling `deinit()`, the framework instance should not be used. Any\npointers to feature contexts become invalid.\n\nThis method is idempotent - calling it multiple times is safe.\n\n## Example\n\n```zig\nvar fw = try Framework.initDefault(allocator);\n// ... use framework ...\nfw.deinit();  // Clean up all resources\n```",
         "kind": "fn",
-        "line": 357
+        "line": 358
       },
       {
         "anchor": "pub-fn-shutdownwithtimeout-self-framework-timeout-ms-u64-bool",
         "signature": "pub fn shutdownWithTimeout(self: *Framework, timeout_ms: u64) bool",
         "doc": "Shutdown with timeout. Currently synchronous (timeout reserved for\nfuture async cleanup). Returns true if clean shutdown completed.",
         "kind": "fn",
-        "line": 363
+        "line": 364
       },
       {
         "anchor": "pub-fn-isrunning-self-const-framework-bool",
         "signature": "pub fn isRunning(self: *const Framework) bool",
         "doc": "Check if the framework is running.",
         "kind": "fn",
-        "line": 372
+        "line": 373
       },
       {
         "anchor": "pub-fn-isenabled-self-const-framework-feature-feature-bool",
         "signature": "pub fn isEnabled(self: *const Framework, feature: Feature) bool",
         "doc": "Check if a feature is enabled.",
         "kind": "fn",
-        "line": 377
+        "line": 378
       },
       {
         "anchor": "pub-fn-getstate-self-const-framework-state",
         "signature": "pub fn getState(self: *const Framework) State",
         "doc": "Get the current framework state.",
         "kind": "fn",
-        "line": 382
+        "line": 383
       },
       {
         "anchor": "pub-fn-getgpu-self-framework-error-gpu-mod-context",
         "signature": "pub fn getGpu(self: *Framework) Error!*gpu_mod.Context",
         "doc": "Get GPU context (returns error if not enabled).",
         "kind": "fn",
-        "line": 391
+        "line": 392
       },
       {
         "anchor": "pub-fn-getai-self-framework-error-ai-mod-context",
         "signature": "pub fn getAi(self: *Framework) Error!*ai_mod.Context",
         "doc": "Get AI context (returns error if not enabled).",
         "kind": "fn",
-        "line": 396
+        "line": 397
       },
       {
         "anchor": "pub-fn-getdatabase-self-framework-error-database-mod-context",
         "signature": "pub fn getDatabase(self: *Framework) Error!*database_mod.Context",
         "doc": "Get database context (returns error if not enabled).",
         "kind": "fn",
-        "line": 401
+        "line": 402
       },
       {
         "anchor": "pub-fn-getnetwork-self-framework-error-network-mod-context",
         "signature": "pub fn getNetwork(self: *Framework) Error!*network_mod.Context",
         "doc": "Get network context (returns error if not enabled).",
         "kind": "fn",
-        "line": 406
+        "line": 407
       },
       {
         "anchor": "pub-fn-getobservability-self-framework-error-observability-mod-context",
         "signature": "pub fn getObservability(self: *Framework) Error!*observability_mod.Context",
         "doc": "Get observability context (returns error if not enabled).",
         "kind": "fn",
-        "line": 411
+        "line": 412
       },
       {
         "anchor": "pub-fn-getweb-self-framework-error-web-mod-context",
         "signature": "pub fn getWeb(self: *Framework) Error!*web_mod.Context",
         "doc": "Get web context (returns error if not enabled).",
         "kind": "fn",
-        "line": 416
+        "line": 417
       },
       {
         "anchor": "pub-fn-getcloud-self-framework-error-cloud-mod-context",
         "signature": "pub fn getCloud(self: *Framework) Error!*cloud_mod.Context",
         "doc": "Get cloud context (returns error if not enabled).",
         "kind": "fn",
-        "line": 421
+        "line": 422
       },
       {
         "anchor": "pub-fn-getanalytics-self-framework-error-analytics-mod-context",
         "signature": "pub fn getAnalytics(self: *Framework) Error!*analytics_mod.Context",
         "doc": "Get analytics context (returns error if not enabled).",
         "kind": "fn",
-        "line": 426
+        "line": 427
       },
       {
         "anchor": "pub-fn-getauth-self-framework-error-auth-mod-context",
         "signature": "pub fn getAuth(self: *Framework) Error!*auth_mod.Context",
         "doc": "Get auth context (returns error if not enabled).",
         "kind": "fn",
-        "line": 431
+        "line": 432
       },
       {
         "anchor": "pub-fn-getmessaging-self-framework-error-messaging-mod-context",
         "signature": "pub fn getMessaging(self: *Framework) Error!*messaging_mod.Context",
         "doc": "Get messaging context (returns error if not enabled).",
         "kind": "fn",
-        "line": 436
+        "line": 437
       },
       {
         "anchor": "pub-fn-getcache-self-framework-error-cache-mod-context",
         "signature": "pub fn getCache(self: *Framework) Error!*cache_mod.Context",
         "doc": "Get cache context (returns error if not enabled).",
         "kind": "fn",
-        "line": 441
+        "line": 442
       },
       {
         "anchor": "pub-fn-getstorage-self-framework-error-storage-mod-context",
         "signature": "pub fn getStorage(self: *Framework) Error!*storage_mod.Context",
         "doc": "Get storage context (returns error if not enabled).",
         "kind": "fn",
-        "line": 446
+        "line": 447
       },
       {
         "anchor": "pub-fn-getsearch-self-framework-error-search-mod-context",
         "signature": "pub fn getSearch(self: *Framework) Error!*search_mod.Context",
         "doc": "Get search context (returns error if not enabled).",
         "kind": "fn",
-        "line": 451
+        "line": 452
       },
       {
         "anchor": "pub-fn-getgateway-self-framework-error-gateway-mod-context",
         "signature": "pub fn getGateway(self: *Framework) Error!*gateway_mod.Context",
         "doc": "Get gateway context (returns error if not enabled).",
         "kind": "fn",
-        "line": 456
+        "line": 457
       },
       {
         "anchor": "pub-fn-getpages-self-framework-error-pages-mod-context",
         "signature": "pub fn getPages(self: *Framework) Error!*pages_mod.Context",
         "doc": "Get pages context (returns error if not enabled).",
         "kind": "fn",
-        "line": 461
+        "line": 462
       },
       {
         "anchor": "pub-fn-getbenchmarks-self-framework-error-benchmarks-mod-context",
         "signature": "pub fn getBenchmarks(self: *Framework) Error!*benchmarks_mod.Context",
         "doc": "Get benchmarks context (returns error if not enabled).",
         "kind": "fn",
-        "line": 466
+        "line": 467
       },
       {
         "anchor": "pub-fn-getmobile-self-framework-error-mobile-mod-context",
         "signature": "pub fn getMobile(self: *Framework) Error!*mobile_mod.Context",
         "doc": "Get mobile context (returns error if not enabled).",
         "kind": "fn",
-        "line": 471
+        "line": 472
       },
       {
         "anchor": "pub-fn-getaicore-self-framework-error-ai-core-mod-context",
         "signature": "pub fn getAiCore(self: *Framework) Error!*ai_core_mod.Context",
         "doc": "Get AI core context (agents, tools, prompts).",
         "kind": "fn",
-        "line": 476
+        "line": 477
       },
       {
         "anchor": "pub-fn-getaiinference-self-framework-error-ai-inference-mod-context",
         "signature": "pub fn getAiInference(self: *Framework) Error!*ai_inference_mod.Context",
         "doc": "Get AI inference context (LLM, embeddings, vision).",
         "kind": "fn",
-        "line": 481
+        "line": 482
       },
       {
         "anchor": "pub-fn-getaitraining-self-framework-error-ai-training-mod-context",
         "signature": "pub fn getAiTraining(self: *Framework) Error!*ai_training_mod.Context",
         "doc": "Get AI training context (pipelines, federated).",
         "kind": "fn",
-        "line": 486
+        "line": 487
       },
       {
         "anchor": "pub-fn-getaireasoning-self-framework-error-ai-reasoning-mod-context",
         "signature": "pub fn getAiReasoning(self: *Framework) Error!*ai_reasoning_mod.Context",
         "doc": "Get AI reasoning context (Abbey, RAG, eval).",
         "kind": "fn",
-        "line": 491
+        "line": 492
       },
       {
         "anchor": "pub-fn-getruntime-self-framework-runtime-mod-context",
         "signature": "pub fn getRuntime(self: *Framework) *runtime_mod.Context",
         "doc": "Get runtime context (always available).",
         "kind": "fn",
-        "line": 496
+        "line": 497
       },
       {
         "anchor": "pub-fn-getregistry-self-framework-registry",
         "signature": "pub fn getRegistry(self: *Framework) *Registry",
         "doc": "Get the feature registry for runtime feature management.",
         "kind": "fn",
-        "line": 501
+        "line": 502
       },
       {
         "anchor": "pub-fn-isfeatureregistered-self-const-framework-feature-feature-bool",
         "signature": "pub fn isFeatureRegistered(self: *const Framework, feature: Feature) bool",
         "doc": "Check if a feature is registered in the registry.",
         "kind": "fn",
-        "line": 506
+        "line": 507
       },
       {
         "anchor": "pub-fn-listregisteredfeatures-self-const-framework-allocator-std-mem-allocator-registryerror-feature",
         "signature": "pub fn listRegisteredFeatures(self: *const Framework, allocator: std.mem.Allocator) RegistryError![]Feature",
         "doc": "List all registered features.",
         "kind": "fn",
-        "line": 511
+        "line": 512
       },
       {
         "anchor": "pub-const-frameworkbuilder",
         "signature": "pub const FrameworkBuilder",
         "doc": "Fluent builder for Framework initialization.",
         "kind": "const",
-        "line": 517
+        "line": 518
       },
       {
         "anchor": "pub-fn-withdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Start with default configuration.",
         "kind": "fn",
-        "line": 529
+        "line": 530
       },
       {
         "anchor": "pub-fn-withgpu-self-frameworkbuilder-gpu-config-config-module-gpuconfig-frameworkbuilder",
         "signature": "pub fn withGpu(self: *FrameworkBuilder, gpu_config: config_module.GpuConfig) *FrameworkBuilder",
         "doc": "Enable GPU with configuration.",
         "kind": "fn",
-        "line": 534
+        "line": 535
       },
       {
         "anchor": "pub-fn-withgpudefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withGpuDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable GPU with defaults.",
         "kind": "fn",
-        "line": 539
+        "line": 540
       },
       {
         "anchor": "pub-fn-withio-self-frameworkbuilder-io-std-io-frameworkbuilder",
         "signature": "pub fn withIo(self: *FrameworkBuilder, io: std.Io) *FrameworkBuilder",
         "doc": "Provide a shared I/O backend for the framework.\nPass the `std.Io` obtained from `IoBackend.init`.",
         "kind": "fn",
-        "line": 545
+        "line": 546
       },
       {
         "anchor": "pub-fn-withai-self-frameworkbuilder-ai-config-config-module-aiconfig-frameworkbuilder",
         "signature": "pub fn withAi(self: *FrameworkBuilder, ai_config: config_module.AiConfig) *FrameworkBuilder",
         "doc": "Enable AI with configuration.",
         "kind": "fn",
-        "line": 550
+        "line": 551
       },
       {
         "anchor": "pub-fn-withaidefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withAiDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable AI with defaults.",
         "kind": "fn",
-        "line": 555
+        "line": 556
       },
       {
         "anchor": "pub-fn-withllm-self-frameworkbuilder-llm-config-config-module-llmconfig-frameworkbuilder",
         "signature": "pub fn withLlm(self: *FrameworkBuilder, llm_config: config_module.LlmConfig) *FrameworkBuilder",
         "doc": "Enable LLM only.",
         "kind": "fn",
-        "line": 560
+        "line": 561
       },
       {
         "anchor": "pub-fn-withdatabase-self-frameworkbuilder-db-config-config-module-databaseconfig-frameworkbuilder",
         "signature": "pub fn withDatabase(self: *FrameworkBuilder, db_config: config_module.DatabaseConfig) *FrameworkBuilder",
         "doc": "Enable database with configuration.",
         "kind": "fn",
-        "line": 565
+        "line": 566
       },
       {
         "anchor": "pub-fn-withdatabasedefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withDatabaseDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable database with defaults.",
         "kind": "fn",
-        "line": 570
+        "line": 571
       },
       {
         "anchor": "pub-fn-withnetwork-self-frameworkbuilder-net-config-config-module-networkconfig-frameworkbuilder",
         "signature": "pub fn withNetwork(self: *FrameworkBuilder, net_config: config_module.NetworkConfig) *FrameworkBuilder",
         "doc": "Enable network with configuration.",
         "kind": "fn",
-        "line": 575
+        "line": 576
       },
       {
         "anchor": "pub-fn-withnetworkdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withNetworkDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable network with defaults.",
         "kind": "fn",
-        "line": 580
+        "line": 581
       },
       {
         "anchor": "pub-fn-withobservability-self-frameworkbuilder-obs-config-config-module-observabilityconfig-frameworkbuilder",
         "signature": "pub fn withObservability(self: *FrameworkBuilder, obs_config: config_module.ObservabilityConfig) *FrameworkBuilder",
         "doc": "Enable observability with configuration.",
         "kind": "fn",
-        "line": 585
+        "line": 586
       },
       {
         "anchor": "pub-fn-withobservabilitydefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withObservabilityDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable observability with defaults.",
         "kind": "fn",
-        "line": 590
+        "line": 591
       },
       {
         "anchor": "pub-fn-withweb-self-frameworkbuilder-web-config-config-module-webconfig-frameworkbuilder",
         "signature": "pub fn withWeb(self: *FrameworkBuilder, web_config: config_module.WebConfig) *FrameworkBuilder",
         "doc": "Enable web with configuration.",
         "kind": "fn",
-        "line": 595
+        "line": 596
       },
       {
         "anchor": "pub-fn-withwebdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withWebDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable web with defaults.",
         "kind": "fn",
-        "line": 600
+        "line": 601
       },
       {
         "anchor": "pub-fn-withanalytics-self-frameworkbuilder-analytics-cfg-config-module-analyticsconfig-frameworkbuilder",
         "signature": "pub fn withAnalytics(self: *FrameworkBuilder, analytics_cfg: config_module.AnalyticsConfig) *FrameworkBuilder",
         "doc": "Enable analytics with configuration.",
         "kind": "fn",
-        "line": 605
+        "line": 606
       },
       {
         "anchor": "pub-fn-withanalyticsdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withAnalyticsDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable analytics with defaults.",
         "kind": "fn",
-        "line": 610
+        "line": 611
       },
       {
         "anchor": "pub-fn-withcloud-self-frameworkbuilder-cloud-config-config-module-cloudconfig-frameworkbuilder",
         "signature": "pub fn withCloud(self: *FrameworkBuilder, cloud_config: config_module.CloudConfig) *FrameworkBuilder",
         "doc": "Enable cloud with configuration.",
         "kind": "fn",
-        "line": 615
+        "line": 616
       },
       {
         "anchor": "pub-fn-withclouddefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withCloudDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable cloud with defaults.",
         "kind": "fn",
-        "line": 620
+        "line": 621
       },
       {
         "anchor": "pub-fn-withauth-self-frameworkbuilder-auth-config-config-module-authconfig-frameworkbuilder",
         "signature": "pub fn withAuth(self: *FrameworkBuilder, auth_config: config_module.AuthConfig) *FrameworkBuilder",
         "doc": "Enable auth with configuration.",
         "kind": "fn",
-        "line": 625
+        "line": 626
       },
       {
         "anchor": "pub-fn-withauthdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withAuthDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable auth with defaults.",
         "kind": "fn",
-        "line": 630
+        "line": 631
       },
       {
         "anchor": "pub-fn-withmessaging-self-frameworkbuilder-msg-config-config-module-messagingconfig-frameworkbuilder",
         "signature": "pub fn withMessaging(self: *FrameworkBuilder, msg_config: config_module.MessagingConfig) *FrameworkBuilder",
         "doc": "Enable messaging with configuration.",
         "kind": "fn",
-        "line": 635
+        "line": 636
       },
       {
         "anchor": "pub-fn-withmessagingdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withMessagingDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable messaging with defaults.",
         "kind": "fn",
-        "line": 640
+        "line": 641
       },
       {
         "anchor": "pub-fn-withcache-self-frameworkbuilder-cache-config-config-module-cacheconfig-frameworkbuilder",
         "signature": "pub fn withCache(self: *FrameworkBuilder, cache_config: config_module.CacheConfig) *FrameworkBuilder",
         "doc": "Enable cache with configuration.",
         "kind": "fn",
-        "line": 645
+        "line": 646
       },
       {
         "anchor": "pub-fn-withcachedefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withCacheDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable cache with defaults.",
         "kind": "fn",
-        "line": 650
+        "line": 651
       },
       {
         "anchor": "pub-fn-withstorage-self-frameworkbuilder-storage-config-config-module-storageconfig-frameworkbuilder",
         "signature": "pub fn withStorage(self: *FrameworkBuilder, storage_config: config_module.StorageConfig) *FrameworkBuilder",
         "doc": "Enable storage with configuration.",
         "kind": "fn",
-        "line": 655
+        "line": 656
       },
       {
         "anchor": "pub-fn-withstoragedefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withStorageDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable storage with defaults.",
         "kind": "fn",
-        "line": 660
+        "line": 661
       },
       {
         "anchor": "pub-fn-withsearch-self-frameworkbuilder-search-config-config-module-searchconfig-frameworkbuilder",
         "signature": "pub fn withSearch(self: *FrameworkBuilder, search_config: config_module.SearchConfig) *FrameworkBuilder",
         "doc": "Enable search with configuration.",
         "kind": "fn",
-        "line": 665
+        "line": 666
       },
       {
         "anchor": "pub-fn-withsearchdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withSearchDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable search with defaults.",
         "kind": "fn",
-        "line": 670
+        "line": 671
       },
       {
         "anchor": "pub-fn-withgateway-self-frameworkbuilder-gateway-cfg-config-module-gatewayconfig-frameworkbuilder",
         "signature": "pub fn withGateway(self: *FrameworkBuilder, gateway_cfg: config_module.GatewayConfig) *FrameworkBuilder",
         "doc": "Enable gateway with configuration.",
         "kind": "fn",
-        "line": 675
+        "line": 676
       },
       {
         "anchor": "pub-fn-withgatewaydefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withGatewayDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable gateway with defaults.",
         "kind": "fn",
-        "line": 680
+        "line": 681
       },
       {
         "anchor": "pub-fn-withpages-self-frameworkbuilder-pages-cfg-config-module-pagesconfig-frameworkbuilder",
         "signature": "pub fn withPages(self: *FrameworkBuilder, pages_cfg: config_module.PagesConfig) *FrameworkBuilder",
         "doc": "Enable pages with configuration.",
         "kind": "fn",
-        "line": 685
+        "line": 686
       },
       {
         "anchor": "pub-fn-withpagesdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withPagesDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable pages with defaults.",
         "kind": "fn",
-        "line": 690
+        "line": 691
       },
       {
         "anchor": "pub-fn-withbenchmarks-self-frameworkbuilder-benchmarks-cfg-config-module-benchmarksconfig-frameworkbuilder",
         "signature": "pub fn withBenchmarks(self: *FrameworkBuilder, benchmarks_cfg: config_module.BenchmarksConfig) *FrameworkBuilder",
         "doc": "Enable benchmarks with configuration.",
         "kind": "fn",
-        "line": 695
+        "line": 696
       },
       {
         "anchor": "pub-fn-withbenchmarksdefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withBenchmarksDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable benchmarks with defaults.",
         "kind": "fn",
-        "line": 700
+        "line": 701
       },
       {
         "anchor": "pub-fn-withmobile-self-frameworkbuilder-mobile-cfg-config-module-mobileconfig-frameworkbuilder",
         "signature": "pub fn withMobile(self: *FrameworkBuilder, mobile_cfg: config_module.MobileConfig) *FrameworkBuilder",
         "doc": "Enable mobile with configuration.",
         "kind": "fn",
-        "line": 705
+        "line": 706
       },
       {
         "anchor": "pub-fn-withmobiledefaults-self-frameworkbuilder-frameworkbuilder",
         "signature": "pub fn withMobileDefaults(self: *FrameworkBuilder) *FrameworkBuilder",
         "doc": "Enable mobile with defaults.",
         "kind": "fn",
-        "line": 710
+        "line": 711
       },
       {
         "anchor": "pub-fn-withplugins-self-frameworkbuilder-plugin-config-config-module-pluginconfig-frameworkbuilder",
         "signature": "pub fn withPlugins(self: *FrameworkBuilder, plugin_config: config_module.PluginConfig) *FrameworkBuilder",
         "doc": "Configure plugins.",
         "kind": "fn",
-        "line": 715
+        "line": 716
       },
       {
         "anchor": "pub-fn-build-self-frameworkbuilder-framework-error-framework",
         "signature": "pub fn build(self: *FrameworkBuilder) Framework.Error!Framework",
         "doc": "Build and initialize the framework.\nIf an I/O backend was supplied via `withIo`, it will be stored in the\nresulting `Framework` instance.",
         "kind": "fn",
-        "line": 722
+        "line": 723
       }
     ]
   },
@@ -1162,7 +1162,7 @@
         "signature": "pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Server",
         "doc": "Create an MCP server pre-configured with WDBX database tools",
         "kind": "fn",
-        "line": 29
+        "line": 30
       }
     ]
   },

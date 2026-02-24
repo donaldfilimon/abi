@@ -210,9 +210,9 @@ else
 
 /// Dashboard/UI pages with URL path routing.
 pub const pages = if (build_options.enable_pages)
-    @import("features/pages/mod.zig")
+    @import("features/observability/pages/mod.zig")
 else
-    @import("features/pages/stub.zig");
+    @import("features/observability/pages/stub.zig");
 
 /// Performance benchmarking and timing.
 pub const benchmarks = if (build_options.enable_benchmarks)

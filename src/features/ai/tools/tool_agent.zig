@@ -197,7 +197,12 @@ pub const ToolAugmentedAgent = struct {
         while (iteration < self.config.max_tool_iterations) : (iteration += 1) {
             // Parse tool calls from response
             var tool_calls = parseToolCalls(response, allocator) catch {
-                // If parsing fails, treat as final response
+                if (iteration + 1 < self.config.max_tool_iterations and shouldRepairStructuredReply(response)) {
+                    const repaired = try self.repairStructuredReply(response, allocator);
+                    allocator.free(response);
+                    response = repaired;
+                    continue;
+                }
                 break;
             };
             defer {
@@ -208,7 +213,15 @@ pub const ToolAugmentedAgent = struct {
                 tool_calls.deinit(allocator);
             }
 
-            if (tool_calls.items.len == 0) break;
+            if (tool_calls.items.len == 0) {
+                if (iteration + 1 < self.config.max_tool_iterations and shouldRepairStructuredReply(response)) {
+                    const repaired = try self.repairStructuredReply(response, allocator);
+                    allocator.free(response);
+                    response = repaired;
+                    continue;
+                }
+                break;
+            }
 
             // Execute each tool call
             var results_buf = std.ArrayListUnmanaged(u8).empty;
@@ -331,6 +344,21 @@ pub const ToolAugmentedAgent = struct {
         }
         self.tool_descriptions = try generateToolDescriptions(&self.tool_registry, self.allocator);
     }
+
+    fn repairStructuredReply(self: *Self, response: []const u8, allocator: std.mem.Allocator) ![]u8 {
+        const prompt = try std.fmt.allocPrint(
+            allocator,
+            "Your previous reply looked like structured payload instead of a final user answer.\n" ++
+                "Previous reply:\n{s}\n\n" ++
+                "If you need tools, use strictly:\n" ++
+                "<tool_call>{{\"name\":\"tool_name\",\"args\":{{...}}}}</tool_call>\n\n" ++
+                "Otherwise return a concise natural-language final answer with no JSON.",
+            .{response},
+        );
+        defer allocator.free(prompt);
+
+        return self.agent.process(prompt, allocator);
+    }
 };
 
 // ============================================================================
@@ -372,6 +400,17 @@ pub fn generateToolDescriptions(registry: *const ToolRegistry, allocator: std.me
     }
 
     return try buf.toOwnedSlice(allocator);
+}
+
+fn shouldRepairStructuredReply(response: []const u8) bool {
+    const trimmed = std.mem.trim(u8, response, " \t\r\n");
+    if (trimmed.len == 0) return true;
+
+    if (std.mem.startsWith(u8, trimmed, "{") or std.mem.startsWith(u8, trimmed, "[")) return true;
+    if (std.mem.startsWith(u8, trimmed, "```")) return true;
+    if (std.mem.startsWith(u8, trimmed, "<tool_call>") and std.mem.indexOf(u8, trimmed, "</tool_call>") == null) return true;
+    if (std.mem.indexOf(u8, trimmed, "\"args\"") != null and std.mem.indexOf(u8, trimmed, "\"name\"") == null) return true;
+    return false;
 }
 
 // ============================================================================
@@ -457,7 +496,63 @@ pub fn parseToolCalls(response: []const u8, allocator: std.mem.Allocator) !std.A
         pos = end + close_tag.len;
     }
 
+    if (calls.items.len == 0) {
+        if (try parseStandaloneToolCall(response, allocator)) |call| {
+            try calls.append(allocator, call);
+        }
+    }
+
     return calls;
+}
+
+fn parseStandaloneToolCall(response: []const u8, allocator: std.mem.Allocator) !?ToolCallRequest {
+    const normalized = normalizeStandaloneJson(response);
+    if (normalized.len == 0) return null;
+    if (normalized[0] != '{') return null;
+
+    const parsed = json.parseFromSlice(json.Value, allocator, normalized, .{}) catch return null;
+    defer parsed.deinit();
+
+    const obj = switch (parsed.value) {
+        .object => |o| o,
+        else => return null,
+    };
+
+    const name_val = obj.get("name") orelse return null;
+    const name = switch (name_val) {
+        .string => |s| s,
+        else => return null,
+    };
+
+    var args_json: []u8 = undefined;
+    if (obj.get("args")) |args_val| {
+        args_json = json.Stringify.valueAlloc(allocator, args_val, .{}) catch return null;
+    } else {
+        args_json = try allocator.dupe(u8, "{}");
+    }
+    errdefer allocator.free(args_json);
+
+    const name_copy = try allocator.dupe(u8, name);
+    errdefer allocator.free(name_copy);
+
+    return .{
+        .name = name_copy,
+        .args_json = args_json,
+    };
+}
+
+fn normalizeStandaloneJson(response: []const u8) []const u8 {
+    var trimmed = std.mem.trim(u8, response, " \t\r\n");
+    if (!std.mem.startsWith(u8, trimmed, "```")) return trimmed;
+
+    const first_nl = std.mem.indexOfScalar(u8, trimmed, '\n') orelse return trimmed;
+    trimmed = std.mem.trim(u8, trimmed[first_nl + 1 ..], " \t\r\n");
+
+    if (std.mem.endsWith(u8, trimmed, "```")) {
+        trimmed = std.mem.trim(u8, trimmed[0 .. trimmed.len - 3], " \t\r\n");
+    }
+
+    return trimmed;
 }
 
 // ============================================================================
@@ -538,6 +633,46 @@ test "parseToolCalls - malformed JSON skipped" {
 
     try std.testing.expectEqual(@as(usize, 1), calls.items.len);
     try std.testing.expectEqualStrings("shell", calls.items[0].name);
+}
+
+test "parseToolCalls - standalone JSON tool call" {
+    const allocator = std.testing.allocator;
+
+    const response = "{\"name\":\"search_files\",\"args\":{\"path\":\"src\",\"recursive\":true}}";
+
+    var calls = try parseToolCalls(response, allocator);
+    defer {
+        for (calls.items) |tc| {
+            allocator.free(tc.name);
+            allocator.free(tc.args_json);
+        }
+        calls.deinit(allocator);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), calls.items.len);
+    try std.testing.expectEqualStrings("search_files", calls.items[0].name);
+}
+
+test "parseToolCalls - fenced JSON tool call" {
+    const allocator = std.testing.allocator;
+
+    const response =
+        \\```json
+        \\{"name":"read_file","args":{"path":"src/abi.zig"}}
+        \\```
+    ;
+
+    var calls = try parseToolCalls(response, allocator);
+    defer {
+        for (calls.items) |tc| {
+            allocator.free(tc.name);
+            allocator.free(tc.args_json);
+        }
+        calls.deinit(allocator);
+    }
+
+    try std.testing.expectEqual(@as(usize, 1), calls.items.len);
+    try std.testing.expectEqualStrings("read_file", calls.items[0].name);
 }
 
 test "generateToolDescriptions - empty registry" {

@@ -30,11 +30,215 @@ const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
+const app_paths = abi.shared.app_paths;
 
 pub const meta: command_mod.Meta = .{
     .name = "os-agent",
     .description = "OS-aware AI agent with tools, memory, and self-learning",
 };
+
+const SessionState = struct {
+    allocator: std.mem.Allocator,
+    session_id: []const u8,
+    session_name: []const u8,
+    messages: std.ArrayListUnmanaged(abi.ai.memory.Message) = .empty,
+    created_at: i64,
+    modified: bool = false,
+
+    pub fn init(allocator: std.mem.Allocator, name: []const u8) !SessionState {
+        const now = abi.shared.utils.unixSeconds();
+        return .{
+            .allocator = allocator,
+            .session_id = try makeSessionId(allocator, name),
+            .session_name = try allocator.dupe(u8, name),
+            .created_at = now,
+        };
+    }
+
+    pub fn deinit(self: *SessionState) void {
+        self.clear();
+        self.messages.deinit(self.allocator);
+        self.allocator.free(self.session_id);
+        self.allocator.free(self.session_name);
+    }
+
+    pub fn addMessage(self: *SessionState, role: abi.ai.memory.MessageRole, content: []const u8) !void {
+        const content_copy = try self.allocator.dupe(u8, content);
+        errdefer self.allocator.free(content_copy);
+
+        try self.messages.append(self.allocator, .{
+            .role = role,
+            .content = content_copy,
+            .timestamp = abi.shared.utils.unixSeconds(),
+        });
+        self.modified = true;
+    }
+
+    pub fn clear(self: *SessionState) void {
+        for (self.messages.items) |*msg| {
+            msg.deinit(self.allocator);
+        }
+        self.messages.clearRetainingCapacity();
+        self.modified = true;
+    }
+
+    pub fn load(self: *SessionState) !void {
+        const sessions_dir = try resolveAndEnsureSessionsDir(self.allocator);
+        defer self.allocator.free(sessions_dir);
+
+        var store = abi.ai.memory.SessionStore.init(self.allocator, sessions_dir);
+        if (!store.sessionExists(self.session_id)) return;
+
+        var loaded = try store.loadSession(self.session_id);
+        defer loaded.deinit(self.allocator);
+
+        for (self.messages.items) |*msg| {
+            msg.deinit(self.allocator);
+        }
+        self.messages.clearRetainingCapacity();
+
+        for (loaded.messages) |msg| {
+            try self.messages.append(self.allocator, try msg.clone(self.allocator));
+        }
+
+        self.created_at = loaded.created_at;
+        self.modified = false;
+    }
+
+    pub fn save(self: *SessionState, model: []const u8, system_prompt: []const u8, temperature: f32) !void {
+        const sessions_dir = try resolveAndEnsureSessionsDir(self.allocator);
+        defer self.allocator.free(sessions_dir);
+
+        var store = abi.ai.memory.SessionStore.init(self.allocator, sessions_dir);
+        const now = abi.shared.utils.unixSeconds();
+        const session_data = abi.ai.memory.SessionData{
+            .id = self.session_id,
+            .name = self.session_name,
+            .created_at = self.created_at,
+            .updated_at = now,
+            .messages = self.messages.items,
+            .config = .{
+                .memory_type = .hybrid,
+                .max_tokens = 8000,
+                .temperature = temperature,
+                .model = model,
+                .system_prompt = system_prompt,
+            },
+        };
+
+        try store.saveSession(session_data);
+        self.modified = false;
+    }
+};
+
+fn resolveAndEnsureSessionsDir(allocator: std.mem.Allocator) ![]u8 {
+    const root_dir = try app_paths.resolvePrimaryRoot(allocator);
+    defer allocator.free(root_dir);
+    const sessions_dir = try app_paths.resolvePath(allocator, "sessions");
+    errdefer allocator.free(sessions_dir);
+
+    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    std.Io.Dir.cwd().createDir(io, root_dir, .default_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    std.Io.Dir.cwd().createDir(io, sessions_dir, .default_dir) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+
+    return sessions_dir;
+}
+
+fn makeSessionId(allocator: std.mem.Allocator, name: []const u8) ![]u8 {
+    var out = std.ArrayListUnmanaged(u8).empty;
+    defer out.deinit(allocator);
+
+    try out.appendSlice(allocator, "os_agent_");
+    for (name) |c| {
+        const valid = (c >= 'a' and c <= 'z') or
+            (c >= 'A' and c <= 'Z') or
+            (c >= '0' and c <= '9') or
+            c == '-' or
+            c == '_';
+        try out.append(allocator, if (valid) c else '_');
+    }
+
+    if (out.items.len == "os_agent_".len) {
+        try out.appendSlice(allocator, "default");
+    }
+    return out.toOwnedSlice(allocator);
+}
+
+fn buildSessionAwareInput(
+    allocator: std.mem.Allocator,
+    history: []const abi.ai.memory.Message,
+    user_input: []const u8,
+) ![]u8 {
+    if (history.len == 0) return allocator.dupe(u8, user_input);
+
+    var writer: std.Io.Writer.Allocating = .init(allocator);
+    errdefer writer.deinit();
+
+    try writer.writer.writeAll(
+        \\Use the following prior conversation context when relevant.
+        \\Do not repeat it verbatim unless asked.
+        \\
+        \\[Session Context]
+        \\
+    );
+
+    const max_messages: usize = 12;
+    const start = if (history.len > max_messages) history.len - max_messages else 0;
+    for (history[start..]) |msg| {
+        const role_label = switch (msg.role) {
+            .system => "System",
+            .user => "User",
+            .assistant => "Assistant",
+            .tool => "Tool",
+        };
+        const excerpt = if (msg.content.len > 800) msg.content[0..800] else msg.content;
+        try writer.writer.print("{s}: {s}\n", .{ role_label, excerpt });
+    }
+
+    try writer.writer.print(
+        \\
+        \\[Current User Message]
+        \\{s}
+        \\
+    , .{user_input});
+
+    return writer.toOwnedSlice();
+}
+
+fn responseNeedsRecovery(response: []const u8) bool {
+    const trimmed = std.mem.trim(u8, response, " \t\r\n");
+    if (trimmed.len == 0) return true;
+    if (std.mem.startsWith(u8, trimmed, "{") or std.mem.startsWith(u8, trimmed, "[")) return true;
+    if (std.mem.startsWith(u8, trimmed, "```")) return true;
+    if (std.mem.indexOf(u8, trimmed, "\"args\"") != null and std.mem.indexOf(u8, trimmed, "\"name\"") == null) return true;
+    return false;
+}
+
+fn recoverUserFacingResponse(
+    tool_agent: *abi.ai.tool_agent.ToolAugmentedAgent,
+    user_input: []const u8,
+    previous_response: []const u8,
+    allocator: std.mem.Allocator,
+) ![]u8 {
+    const repair_prompt = try std.fmt.allocPrint(
+        allocator,
+        "You produced a non-user-facing reply.\nUser message:\n{s}\n\n" ++
+            "Previous reply:\n{s}\n\n" ++
+            "Now provide a concise natural-language answer for the user (no JSON).",
+        .{ user_input, previous_response },
+    );
+    defer allocator.free(repair_prompt);
+    return tool_agent.agent.process(repair_prompt, allocator);
+}
 
 /// Run the os-agent command.
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -142,9 +346,30 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var improver = abi.ai.self_improve.SelfImprover.init(allocator);
     defer improver.deinit();
 
+    // Initialize and load persisted session state.
+    var session = try SessionState.init(allocator, session_name);
+    defer session.deinit();
+    session.load() catch |err| {
+        std.debug.print("Warning: could not load session '{s}': {t}\n", .{ session_name, err });
+    };
+
     if (message) |msg| {
+        const input = try buildSessionAwareInput(allocator, session.messages.items, msg);
+        defer allocator.free(input);
+
         // One-shot mode
-        const response = try tool_agent.processWithTools(msg, allocator);
+        var response = try tool_agent.processWithTools(input, allocator);
+        if (responseNeedsRecovery(response)) {
+            const repaired = recoverUserFacingResponse(&tool_agent, msg, response, allocator) catch null;
+            if (repaired) |fixed| {
+                allocator.free(response);
+                response = fixed;
+            }
+        }
+        if (std.mem.trim(u8, response, " \t\r\n").len == 0) {
+            allocator.free(response);
+            response = try allocator.dupe(u8, "I couldn't produce a final answer for that request. Please try a more specific prompt.");
+        }
         defer allocator.free(response);
 
         // Show tool calls if any
@@ -163,18 +388,25 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         // Record metrics
         const metrics = improver.evaluateResponse(response, msg);
         try improver.recordMetrics(metrics);
+        try session.addMessage(.user, msg);
+        try session.addMessage(.assistant, response);
+        session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
+            std.debug.print("Warning: failed to persist os-agent session: {t}\n", .{err});
+        };
         return;
     }
 
     // Interactive mode
-    try runInteractive(allocator, &tool_agent, &improver, session_name);
+    try runInteractive(allocator, &tool_agent, &improver, &session, model_name, system_prompt);
 }
 
 fn runInteractive(
     allocator: std.mem.Allocator,
     tool_agent: *abi.ai.tool_agent.ToolAugmentedAgent,
     improver: *abi.ai.self_improve.SelfImprover,
-    session_name: []const u8,
+    session: *SessionState,
+    model_name: []const u8,
+    system_prompt: []const u8,
 ) !void {
     std.debug.print("\n{s}", .{
         \\╔════════════════════════════════════════════════════════════╗
@@ -182,9 +414,12 @@ fn runInteractive(
         \\╚════════════════════════════════════════════════════════════╝
         \\
     });
-    std.debug.print("\nSession: {s}\n", .{session_name});
+    std.debug.print("\nSession: {s}\n", .{session.session_name});
     std.debug.print("Tools: {d} registered | Memory: enabled | Self-reflection: enabled\n", .{tool_agent.toolCount()});
+    std.debug.print("Loaded messages: {d}\n", .{session.messages.items.len});
     std.debug.print("Type '/help' for commands, 'exit' to quit.\n\n", .{});
+
+    var seed_with_session_context = session.messages.items.len > 0;
 
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
@@ -209,21 +444,47 @@ fn runInteractive(
 
         // Exit
         if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) {
+            if (session.modified) {
+                session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
+                    std.debug.print("Warning: failed to persist os-agent session: {t}\n", .{err});
+                };
+            }
             break;
         }
 
         // Slash commands
         if (trimmed[0] == '/') {
-            handleSlashCommand(trimmed, tool_agent, improver);
+            handleSlashCommand(trimmed, tool_agent, improver, session, model_name, system_prompt);
             continue;
         }
 
+        const input = if (seed_with_session_context)
+            try buildSessionAwareInput(allocator, session.messages.items, trimmed)
+        else
+            try allocator.dupe(u8, trimmed);
+        defer allocator.free(input);
+
         // Process with tools
-        const response = tool_agent.processWithTools(trimmed, allocator) catch |err| {
+        var response = tool_agent.processWithTools(input, allocator) catch |err| {
             std.debug.print("Error: {t}\n", .{err});
             continue;
         };
+        if (responseNeedsRecovery(response)) {
+            const repaired = recoverUserFacingResponse(tool_agent, trimmed, response, allocator) catch null;
+            if (repaired) |fixed| {
+                allocator.free(response);
+                response = fixed;
+            }
+        }
+        if (std.mem.trim(u8, response, " \t\r\n").len == 0) {
+            allocator.free(response);
+            response = allocator.dupe(u8, "I couldn't produce a final answer for that request. Please try a more specific prompt.") catch {
+                std.debug.print("Error: OutOfMemory\n", .{});
+                continue;
+            };
+        }
         defer allocator.free(response);
+        seed_with_session_context = false;
 
         // Show tool calls
         const log = tool_agent.getToolCallLog();
@@ -236,6 +497,16 @@ fn runInteractive(
         }
 
         std.debug.print("\n{s}\n\n", .{response});
+
+        session.addMessage(.user, trimmed) catch |err| {
+            std.debug.print("Warning: failed to record user message: {t}\n", .{err});
+        };
+        session.addMessage(.assistant, response) catch |err| {
+            std.debug.print("Warning: failed to record assistant message: {t}\n", .{err});
+        };
+        session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
+            std.debug.print("Warning: failed to persist os-agent session: {t}\n", .{err});
+        };
 
         // Record metrics and clear log for next turn
         const metrics = improver.evaluateResponse(response, trimmed);
@@ -250,6 +521,9 @@ fn handleSlashCommand(
     input: []const u8,
     tool_agent: *abi.ai.tool_agent.ToolAugmentedAgent,
     improver: *abi.ai.self_improve.SelfImprover,
+    session: *SessionState,
+    model_name: []const u8,
+    system_prompt: []const u8,
 ) void {
     var iter = std.mem.splitScalar(u8, input[1..], ' ');
     const cmd = iter.first();
@@ -310,6 +584,7 @@ fn handleSlashCommand(
 
     if (std.mem.eql(u8, cmd, "memory")) {
         std.debug.print("\nMemory Status:\n", .{});
+        std.debug.print("  Session messages:     {d}\n", .{session.messages.items.len});
         std.debug.print("  Interactions tracked: {d}\n", .{improver.total_interactions});
         std.debug.print("  Feedback recorded:    {d} positive, {d} negative\n\n", .{
             improver.positive_feedback,
@@ -318,9 +593,40 @@ fn handleSlashCommand(
         return;
     }
 
+    if (std.mem.eql(u8, cmd, "save")) {
+        session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
+            std.debug.print("Error saving session: {t}\n", .{err});
+            return;
+        };
+        std.debug.print("Session saved: {s} ({d} messages)\n", .{ session.session_name, session.messages.items.len });
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "load")) {
+        session.load() catch |err| {
+            std.debug.print("Error loading session: {t}\n", .{err});
+            return;
+        };
+        std.debug.print("Session loaded: {s} ({d} messages)\n", .{ session.session_name, session.messages.items.len });
+        return;
+    }
+
+    if (std.mem.eql(u8, cmd, "info")) {
+        std.debug.print("\nSession Information:\n", .{});
+        std.debug.print("  ID: {s}\n", .{session.session_id});
+        std.debug.print("  Name: {s}\n", .{session.session_name});
+        std.debug.print("  Messages: {d}\n", .{session.messages.items.len});
+        std.debug.print("  Modified: {}\n\n", .{session.modified});
+        return;
+    }
+
     if (std.mem.eql(u8, cmd, "clear")) {
         tool_agent.clearLog();
-        std.debug.print("Tool call log cleared.\n", .{});
+        session.clear();
+        session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
+            std.debug.print("Warning: failed to persist cleared session: {t}\n", .{err});
+        };
+        std.debug.print("Session history and tool call log cleared.\n", .{});
         return;
     }
 
@@ -346,6 +652,9 @@ fn printInteractiveHelp() void {
         \\  /reflect   - Show self-reflection scores for last response
         \\  /metrics   - Show performance metrics over time
         \\  /memory    - Show memory statistics
+        \\  /save      - Persist current session state
+        \\  /load      - Reload current session from disk
+        \\  /info      - Show session metadata
         \\  /clear     - Clear tool call log
         \\  exit, quit - Exit the agent
         \\
@@ -384,6 +693,9 @@ fn printHelp() void {
         \\  /reflect    Show quality scores for last response
         \\  /metrics    Show performance over time
         \\  /memory     Show memory statistics
+        \\  /save       Persist current session state
+        \\  /load       Reload current session from disk
+        \\  /info       Show session metadata
         \\  /clear      Clear tool call log
         \\  exit, quit  Exit the agent
         \\

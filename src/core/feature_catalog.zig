@@ -255,8 +255,8 @@ pub const all = [_]Metadata{
         .description = "Dashboard/UI pages with URL routing",
         .compile_flag_field = "enable_pages",
         .parity_spec = .pages,
-        .real_module_path = "features/pages/mod.zig",
-        .stub_module_path = "features/pages/stub.zig",
+        .real_module_path = "features/observability/pages/mod.zig",
+        .stub_module_path = "features/observability/pages/stub.zig",
     },
     .{
         .feature = .benchmarks,

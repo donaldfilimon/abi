@@ -12,7 +12,7 @@
 
 ### <a id="pub-fn-createwdbxserver-allocator-std-mem-allocator-version-const-u8-server"></a>`pub fn createWdbxServer(allocator: std.mem.Allocator, version: []const u8) !Server`
 
-<sup>**fn**</sup> | [source](../../src/services/mcp/mod.zig#L29)
+<sup>**fn**</sup> | [source](../../src/services/mcp/mod.zig#L30)
 
 Create an MCP server pre-configured with WDBX database tools
 

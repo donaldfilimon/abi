@@ -33,6 +33,16 @@
     ]
   },
   {
+    "name": "brain",
+    "description": "Brain file management (export, info)",
+    "aliases": [],
+    "subcommands": [
+      "export",
+      "info",
+      "help"
+    ]
+  },
+  {
     "name": "completions",
     "description": "Generate shell completions (bash, zsh, fish, powershell)",
     "aliases": [],

@@ -22,7 +22,7 @@ pub const cache_mod = if (build_options.enable_cache) @import("../../features/ca
 pub const storage_mod = if (build_options.enable_storage) @import("../../features/storage/mod.zig") else @import("../../features/storage/stub.zig");
 pub const search_mod = if (build_options.enable_search) @import("../../features/search/mod.zig") else @import("../../features/search/stub.zig");
 pub const gateway_mod = if (build_options.enable_gateway) @import("../../features/gateway/mod.zig") else @import("../../features/gateway/stub.zig");
-pub const pages_mod = if (build_options.enable_pages) @import("../../features/pages/mod.zig") else @import("../../features/pages/stub.zig");
+pub const pages_mod = if (build_options.enable_pages) @import("../../features/observability/pages/mod.zig") else @import("../../features/observability/pages/stub.zig");
 pub const benchmarks_mod = if (build_options.enable_benchmarks) @import("../../features/benchmarks/mod.zig") else @import("../../features/benchmarks/stub.zig");
 pub const mobile_mod = if (build_options.enable_mobile) @import("../../features/mobile/mod.zig") else @import("../../features/mobile/stub.zig");
 

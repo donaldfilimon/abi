@@ -240,10 +240,14 @@ pub fn addCliTests(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step 
 pub fn addCliTestsFull(b: *std.Build, options: CliTestsFullOptions) *std.Build.Step {
     const step = b.step("cli-tests-full", "Run exhaustive behavioral CLI command-tree tests");
 
-    const matrix_gen = b.addSystemCommand(&.{ "zig", "run", "tools/cli/full_matrix_main.zig", "--", "--json-out", b.pathFromRoot(".zig-cache/matrix.json") });
-
-    const run_full = b.addSystemCommand(&.{ "zig", "run", "tools/cli/tests/runner.zig", "--", "--matrix", b.pathFromRoot(".zig-cache/matrix.json"), "--bin", b.pathFromRoot("zig-out/bin/abi") });
-    run_full.step.dependOn(&matrix_gen.step);
+    const run_full = b.addSystemCommand(&.{
+        "python3",
+        "tools/scripts/run_cli_full_matrix.py",
+        "--repo",
+        b.pathFromRoot("."),
+        "--timeout-scale",
+        b.fmt("{d}", .{options.timeout_scale}),
+    });
     run_full.setCwd(b.path("."));
     if (options.env_file) |env_file|
         run_full.addArgs(&.{ "--env-file", env_file });

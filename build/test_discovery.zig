@@ -47,7 +47,7 @@ pub const feature_test_manifest = [_]FeatureTestEntry{
     .{ .flag = "enable_messaging", .path = "features/messaging/mod.zig" },
     .{ .flag = "enable_search", .path = "features/search/mod.zig" },
     .{ .flag = "enable_storage", .path = "features/storage/mod.zig" },
-    .{ .flag = "enable_pages", .path = "features/pages/mod.zig" },
+    .{ .flag = "enable_pages", .path = "features/observability/pages/mod.zig" },
     .{ .flag = "enable_analytics", .path = "features/analytics/mod.zig" },
     .{ .flag = "enable_profiling", .path = "features/observability/mod.zig" },
     .{ .flag = "enable_mobile", .path = "features/mobile/mod.zig" },

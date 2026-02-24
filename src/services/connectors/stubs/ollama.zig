@@ -95,6 +95,10 @@ pub fn isAvailable() bool {
     return false;
 }
 
+pub fn isReachable(_: std.mem.Allocator) bool {
+    return false;
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
