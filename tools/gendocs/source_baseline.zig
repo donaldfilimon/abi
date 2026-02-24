@@ -12,6 +12,7 @@ pub fn loadBuildMeta(allocator: std.mem.Allocator, io: std.Io, cwd: std.Io.Dir) 
         .test_main_skip = try parseUsizeConst(source, "test_main_skip"),
         .test_main_total = try parseUsizeConst(source, "test_main_total"),
         .test_feature_pass = try parseUsizeConst(source, "test_feature_pass"),
+        .test_feature_skip = try parseUsizeConst(source, "test_feature_skip"),
         .test_feature_total = try parseUsizeConst(source, "test_feature_total"),
     };
 }
@@ -44,12 +45,14 @@ test "baseline parser reads constants" {
         \\pub const test_main_skip: usize = 2;
         \\pub const test_main_total: usize = 3;
         \\pub const test_feature_pass: usize = 4;
-        \\pub const test_feature_total: usize = 5;
+        \\pub const test_feature_skip: usize = 5;
+        \\pub const test_feature_total: usize = 6;
     ;
 
     const zig_version = try parseStringConst(std.testing.allocator, sample, "zig_version");
     defer std.testing.allocator.free(zig_version);
 
     try std.testing.expectEqualStrings("0.16.0-dev.9999+abcd", zig_version);
-    try std.testing.expectEqual(@as(usize, 5), try parseUsizeConst(sample, "test_feature_total"));
+    try std.testing.expectEqual(@as(usize, 5), try parseUsizeConst(sample, "test_feature_skip"));
+    try std.testing.expectEqual(@as(usize, 6), try parseUsizeConst(sample, "test_feature_total"));
 }

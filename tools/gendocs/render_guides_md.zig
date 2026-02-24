@@ -167,13 +167,14 @@ fn buildAutoContent(
     try appendFmt(
         allocator,
         &out,
-        "- Zig pin: `{s}`\n- Main tests: `{d}` pass / `{d}` skip / `{d}` total\n- Feature tests: `{d}` pass / `{d}` total\n\n",
+        "- Zig pin: `{s}`\n- Main tests: `{d}` pass / `{d}` skip / `{d}` total\n- Feature tests: `{d}` pass / `{d}` skip / `{d}` total\n\n",
         .{
             build_meta.zig_version,
             build_meta.test_main_pass,
             build_meta.test_main_skip,
             build_meta.test_main_total,
             build_meta.test_feature_pass,
+            build_meta.test_feature_skip,
             build_meta.test_feature_total,
         },
     );
