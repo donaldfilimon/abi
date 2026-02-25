@@ -2,6 +2,7 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const utils = @import("../../utils/mod.zig");
 const providers = abi.ai.llm.providers;
 const cfg = @import("config.zig");
 const workspace = @import("workspace.zig");
@@ -49,7 +50,7 @@ pub fn runImprove(
 
     const in_repo = git_ops.isGitRepo(allocator, io, options.worktree);
     if (!options.analysis_only and options.require_clean_tree and in_repo and git_ops.hasChanges(allocator, io, options.worktree)) {
-        std.debug.print("Refusing autonomous apply on dirty tree. Commit or stash changes, or use --analysis-only.\n", .{});
+        utils.output.printError("Refusing autonomous apply on dirty tree. Commit or stash changes, or use --analysis-only.", .{});
         return error.DirtyTree;
     }
 

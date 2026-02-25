@@ -259,5 +259,5 @@ fn printHelp() void {
         \\  t / T              Cycle themes
         \\
     ;
-    std.debug.print("{s}", .{help});
+    utils.output.print("{s}", .{help});
 }

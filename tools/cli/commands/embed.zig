@@ -166,7 +166,7 @@ fn readFile(allocator: std.mem.Allocator, path: []const u8) ![]const u8 {
 
     const io = io_backend.io();
     const content = std.Io.Dir.cwd().readFileAlloc(io, path, allocator, .limited(10 * 1024 * 1024)) catch |err| {
-        utils.output.printError("Error reading file: {t}", .{err});
+        utils.output.printError("reading file: {t}", .{err});
         return EmbedError.FileReadError;
     };
 
@@ -296,7 +296,7 @@ fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []cons
 
     const io = io_backend.io();
     var file = std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true }) catch |err| {
-        utils.output.printError("Error creating output file: {t}", .{err});
+        utils.output.printError("creating output file: {t}", .{err});
         return EmbedError.OutputError;
     };
     defer file.close(io);
@@ -330,7 +330,7 @@ fn writeOutput(allocator: std.mem.Allocator, path: []const u8, embedding: []cons
 
     // Use writeStreamingAll for Zig 0.16 compatibility
     file.writeStreamingAll(io, output.items) catch |err| {
-        utils.output.printError("Error writing output: {t}", .{err});
+        utils.output.printError("writing output: {t}", .{err});
         return EmbedError.OutputError;
     };
 }

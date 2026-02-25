@@ -309,7 +309,7 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
 
     // Read input file
     const content = std.Io.Dir.cwd().readFileAlloc(io, input_path.?, allocator, .limited(100 * 1024 * 1024)) catch |err| {
-        utils.output.printError("Error reading input file: {t}", .{err});
+        utils.output.printError("reading input file: {t}", .{err});
         return;
     };
     defer allocator.free(content);
@@ -358,7 +358,7 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
         if (content.len >= 4 and content.len % 4 == 0) {
             const float_count = content.len / 4;
             embeddings = allocator.alloc(f32, float_count) catch {
-                utils.output.printError("Error allocating memory", .{});
+                utils.output.printError("allocating memory", .{});
                 return;
             };
             owns_embeddings = true;
@@ -411,12 +411,12 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
 
     // Write output file
     var file = std.Io.Dir.cwd().createFile(io, output_path.?, .{ .truncate = true }) catch |err| {
-        utils.output.printError("Error creating output file: {t}", .{err});
+        utils.output.printError("creating output file: {t}", .{err});
         return;
     };
     defer file.close(io);
     file.writeStreamingAll(io, output.items) catch |err| {
-        utils.output.printError("Error writing output: {t}", .{err});
+        utils.output.printError("writing output: {t}", .{err});
         return;
     };
 

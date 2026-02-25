@@ -84,7 +84,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     // Check if LLM feature is enabled
     if (!abi.ai.llm.isEnabled()) {
-        utils.output.printError("LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
+        utils.output.printError("LLM feature is not enabled. Build with -Denable-llm=true", .{});
         return;
     }
 
@@ -336,47 +336,48 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
     const num_params = model_config.numParams();
 
     // Print configuration
-    std.debug.print("New Transformer Model Configuration\n", .{});
-    std.debug.print("====================================\n", .{});
-    std.debug.print("Architecture:\n", .{});
-    std.debug.print("  Hidden dim:       {d}\n", .{hidden_dim});
-    std.debug.print("  Num layers:       {d}\n", .{num_layers});
-    std.debug.print("  Num heads:        {d}\n", .{num_heads});
-    std.debug.print("  Intermediate dim: {d}\n", .{intermediate_dim});
-    std.debug.print("  Vocab size:       {d}\n", .{vocab_size});
-    std.debug.print("  Max seq len:      {d}\n", .{max_seq_len});
-    std.debug.print("  Parameters:       {d} ({d:.2} MB)\n", .{
+    utils.output.printHeader("New Transformer Model Configuration");
+    utils.output.println("Architecture:", .{});
+    utils.output.printKeyValueFmt("Hidden dim", "{d}", .{hidden_dim});
+    utils.output.printKeyValueFmt("Num layers", "{d}", .{num_layers});
+    utils.output.printKeyValueFmt("Num heads", "{d}", .{num_heads});
+    utils.output.printKeyValueFmt("Intermediate dim", "{d}", .{intermediate_dim});
+    utils.output.printKeyValueFmt("Vocab size", "{d}", .{vocab_size});
+    utils.output.printKeyValueFmt("Max seq len", "{d}", .{max_seq_len});
+    utils.output.printKeyValueFmt("Parameters", "{d} ({d:.2} MB)", .{
         num_params,
         @as(f64, @floatFromInt(num_params * 4)) / (1024 * 1024),
     });
-    std.debug.print("\nTraining:\n", .{});
-    std.debug.print("  Epochs:           {d}\n", .{epochs});
-    std.debug.print("  Batch size:       {d}\n", .{batch_size});
-    std.debug.print("  Learning rate:    {e:.2}\n", .{learning_rate});
-    std.debug.print("  Warmup steps:     {d}\n", .{warmup_steps});
-    std.debug.print("  Weight decay:     {d:.4}\n", .{weight_decay});
-    std.debug.print("  Gradient clip:    {d:.2}\n", .{gradient_clip});
-    std.debug.print("  Grad accumulation:{d}\n", .{grad_accum_steps});
+    utils.output.println("", .{});
+    utils.output.println("Training:", .{});
+    utils.output.printKeyValueFmt("Epochs", "{d}", .{epochs});
+    utils.output.printKeyValueFmt("Batch size", "{d}", .{batch_size});
+    utils.output.printKeyValueFmt("Learning rate", "{e:.2}", .{learning_rate});
+    utils.output.printKeyValueFmt("Warmup steps", "{d}", .{warmup_steps});
+    utils.output.printKeyValueFmt("Weight decay", "{d:.4}", .{weight_decay});
+    utils.output.printKeyValueFmt("Gradient clip", "{d:.2}", .{gradient_clip});
+    utils.output.printKeyValueFmt("Grad accumulation", "{d}", .{grad_accum_steps});
     if (dataset_path) |path| {
-        std.debug.print("  Dataset:          {s}\n", .{path});
-        std.debug.print("  Dataset format:   {t}\n", .{dataset_format});
+        utils.output.printKeyValueFmt("Dataset", "{s}", .{path});
+        utils.output.printKeyValueFmt("Dataset format", "{t}", .{dataset_format});
     } else {
-        std.debug.print("  Dataset:          (synthetic)\n", .{});
+        utils.output.printKeyValue("Dataset", "(synthetic)");
     }
     if (export_gguf_path) |path| {
-        std.debug.print("  Export GGUF:      {s}\n", .{path});
+        utils.output.printKeyValueFmt("Export GGUF", "{s}", .{path});
     }
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     // Create model from scratch
-    std.debug.print("Initializing model with random weights...\n", .{});
+    utils.output.println("Initializing model with random weights...", .{});
     var model = abi.ai.training.TrainableModel.init(allocator, model_config) catch |err| {
-        std.debug.print("Error initializing model: {t}\n", .{err});
+        utils.output.printError("initializing model: {t}", .{err});
         return;
     };
     defer model.deinit();
 
-    std.debug.print("Model initialized: {d} parameters\n\n", .{num_params});
+    utils.output.println("Model initialized: {d} parameters", .{num_params});
+    utils.output.println("", .{});
 
     // Prepare training tokens
     var train_tokens: []u32 = &.{};
@@ -384,20 +385,20 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     if (dataset_path) |path| {
         // Load dataset if provided
-        std.debug.print("Loading dataset from {s}...\n", .{path});
+        utils.output.println("Loading dataset from {s}...", .{path});
 
         // For text format without tokenizer, we need to create synthetic tokens
         // based on byte values (simple character-level encoding)
         if (dataset_format == .text) {
             const text = common.readTextFile(allocator, path) catch |err| {
-                std.debug.print("Error reading dataset: {t}\n", .{err});
+                utils.output.printError("reading dataset: {t}", .{err});
                 return;
             };
             defer allocator.free(text);
 
             // Simple byte-level tokenization
             train_tokens = allocator.alloc(u32, text.len) catch |err| {
-                std.debug.print("Error allocating tokens: {t}\n", .{err});
+                utils.output.printError("allocating tokens: {t}", .{err});
                 return;
             };
             for (text, 0..) |byte, idx| {
@@ -406,7 +407,7 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
             if (dataset_max_tokens > 0 and train_tokens.len > dataset_max_tokens) {
                 const trimmed = allocator.alloc(u32, dataset_max_tokens) catch |err| {
-                    std.debug.print("Error trimming tokens: {t}\n", .{err});
+                    utils.output.printError("trimming tokens: {t}", .{err});
                     return;
                 };
                 @memcpy(trimmed, train_tokens[0..dataset_max_tokens]);
@@ -415,12 +416,12 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
             }
         } else if (dataset_format == .tokenbin) {
             train_tokens = abi.ai.database.readTokenBinFile(allocator, path) catch |err| {
-                std.debug.print("Error reading tokenbin: {t}\n", .{err});
+                utils.output.printError("reading tokenbin: {t}", .{err});
                 return;
             };
             if (dataset_max_tokens > 0 and train_tokens.len > dataset_max_tokens) {
                 const trimmed = allocator.alloc(u32, dataset_max_tokens) catch |err| {
-                    std.debug.print("Error trimming tokens: {t}\n", .{err});
+                    utils.output.printError("trimming tokens: {t}", .{err});
                     return;
                 };
                 @memcpy(trimmed, train_tokens[0..dataset_max_tokens]);
@@ -428,16 +429,17 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
                 train_tokens = trimmed;
             }
         } else {
-            utils.output.printError("JSONL format requires a tokenizer (use --dataset-format text or tokenbin)\n", .{});
+            utils.output.printError("JSONL format requires a tokenizer (use --dataset-format text or tokenbin)", .{});
             return;
         }
 
-        std.debug.print("Loaded {d} tokens\n\n", .{train_tokens.len});
+        utils.output.println("Loaded {d} tokens", .{train_tokens.len});
+        utils.output.println("", .{});
     } else {
         // Generate synthetic training data
         const num_tokens = @as(usize, max_seq_len) * batch_size * 10;
         train_tokens = allocator.alloc(u32, num_tokens) catch |err| {
-            std.debug.print("Error allocating synthetic tokens: {t}\n", .{err});
+            utils.output.printError("allocating synthetic tokens: {t}", .{err});
             return;
         };
 
@@ -445,7 +447,8 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
         for (train_tokens) |*t| {
             t.* = rng.random().intRangeLessThan(u32, 0, vocab_size);
         }
-        std.debug.print("Generated {d} synthetic tokens for training\n\n", .{num_tokens});
+        utils.output.println("Generated {d} synthetic tokens for training", .{num_tokens});
+        utils.output.println("", .{});
     }
 
     // Clamp tokens to vocab size
@@ -478,31 +481,30 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
     }
     llm_config.export_name = export_name;
 
-    std.debug.print("Starting training from scratch...\n", .{});
+    utils.output.println("Starting training from scratch...", .{});
     var timer = abi.shared.time.Timer.start() catch {
-        utils.output.printError("Failed to start timer\n", .{});
+        utils.output.printError("Failed to start timer", .{});
         return;
     };
 
     const report = abi.ai.training.llm_trainer.trainLlm(allocator, &model, llm_config, train_tokens) catch |err| {
-        std.debug.print("Training failed: {t}\n", .{err});
+        utils.output.printError("Training failed: {t}", .{err});
         return;
     };
 
     const elapsed_ns = timer.read();
     const elapsed_s = @as(f64, @floatFromInt(elapsed_ns)) / 1e9;
 
-    std.debug.print("\nTraining Complete\n", .{});
-    std.debug.print("=================\n", .{});
-    std.debug.print("Final loss:       {d:.6}\n", .{report.final_loss});
-    std.debug.print("Final accuracy:   {d:.2}%\n", .{report.final_accuracy * 100});
-    std.debug.print("Total steps:      {d}\n", .{report.total_steps});
-    std.debug.print("Tokens processed: {d}\n", .{report.total_tokens});
-    std.debug.print("Wall time:        {d:.2}s\n", .{elapsed_s});
-    std.debug.print("Checkpoints saved:{d}\n", .{report.checkpoints_saved});
+    utils.output.printHeader("Training Complete");
+    utils.output.printKeyValueFmt("Final loss", "{d:.6}", .{report.final_loss});
+    utils.output.printKeyValueFmt("Final accuracy", "{d:.2}%", .{report.final_accuracy * 100});
+    utils.output.printKeyValueFmt("Total steps", "{d}", .{report.total_steps});
+    utils.output.printKeyValueFmt("Tokens processed", "{d}", .{report.total_tokens});
+    utils.output.printKeyValueFmt("Wall time", "{d:.2}s", .{elapsed_s});
+    utils.output.printKeyValueFmt("Checkpoints saved", "{d}", .{report.checkpoints_saved});
     if (export_path) |path| {
         var tokenizer_build = ByteTokenizerBuild.init(allocator, vocab_size) catch |err| {
-            std.debug.print("Error preparing tokenizer export: {t}\n", .{err});
+            utils.output.printError("preparing tokenizer export: {t}", .{err});
             return;
         };
         defer tokenizer_build.deinit(allocator);
@@ -511,10 +513,10 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
             .name = export_name,
             .tokenizer = tokenizer_build.toConfig(),
         }) catch |err| {
-            std.debug.print("Error exporting GGUF: {t}\n", .{err});
+            utils.output.printError("exporting GGUF: {t}", .{err});
             return;
         };
-        std.debug.print("Model exported to:{s}\n", .{path});
+        utils.output.printSuccess("Model exported to: {s}", .{path});
 
         // External quantization via llama-quantize
         if (external_quantize) |quant_type| {
@@ -525,7 +527,8 @@ pub fn runNewModel(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
 pub fn runExternalQuantize(gguf_path: []const u8, quant_type: []const u8) void {
     const alloc = std.heap.page_allocator;
-    std.debug.print("\nExternal quantization: {s}\n", .{quant_type});
+    utils.output.println("", .{});
+    utils.output.println("External quantization: {s}", .{quant_type});
 
     // Initialize I/O backend for subprocess
     var io_backend = cli_io.initIoBackend(alloc);
@@ -556,16 +559,16 @@ pub fn runExternalQuantize(gguf_path: []const u8, quant_type: []const u8) void {
         gguf_path[0..dot_pos],
         quant_type,
     }) catch {
-        utils.output.printError("output path too long\n", .{});
+        utils.output.printError("output path too long", .{});
         return;
     };
 
-    std.debug.print("Running: llama-quantize {s} {s} {s}\n", .{ gguf_path, out_path, quant_type });
+    utils.output.println("Running: llama-quantize {s} {s} {s}", .{ gguf_path, out_path, quant_type });
 
     const result = std.process.run(alloc, io, .{
         .argv = &.{ "llama-quantize", gguf_path, out_path, quant_type },
     }) catch |err| {
-        std.debug.print("Error running llama-quantize: {t}\n", .{err});
+        utils.output.printError("running llama-quantize: {t}", .{err});
         return;
     };
     defer {
@@ -574,17 +577,17 @@ pub fn runExternalQuantize(gguf_path: []const u8, quant_type: []const u8) void {
     }
 
     if (result.term == .exited and result.term.exited == 0) {
-        std.debug.print("Quantized model saved to: {s}\n", .{out_path});
+        utils.output.printSuccess("Quantized model saved to: {s}", .{out_path});
     } else {
-        std.debug.print("llama-quantize failed\n", .{});
+        utils.output.printError("llama-quantize failed", .{});
         if (result.stderr.len > 0) {
-            std.debug.print("{s}\n", .{result.stderr});
+            utils.output.println("{s}", .{result.stderr});
         }
     }
 }
 
 pub fn printQuantizeHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\llama-quantize not found in PATH.
         \\
         \\To install llama.cpp tools:
@@ -643,5 +646,5 @@ pub fn printNewHelp() void {
         \\  abi train new --export-gguf model.gguf --external-quantize q4_k_m
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }

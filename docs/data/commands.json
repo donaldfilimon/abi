@@ -216,6 +216,7 @@
     "subcommands": [
       "info",
       "run",
+      "run-workflow",
       "list",
       "create",
       "status"

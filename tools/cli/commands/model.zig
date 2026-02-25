@@ -255,7 +255,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         defer hf_client.deinit();
 
         const url = hf_client.resolveDownloadUrl(parsed.model_id, filename) catch |err| {
-            utils.output.printError("Error building URL: {t}", .{err});
+            utils.output.printError("building URL: {t}", .{err});
             return;
         };
         defer allocator.free(url);
@@ -269,7 +269,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         defer hf_client.deinit();
 
         const filename = hf_client.buildFilenameFromHint(parsed.model_id, quant) catch |err| {
-            utils.output.printError("Error building filename: {t}", .{err});
+            utils.output.printError("building filename: {t}", .{err});
             return;
         };
         defer allocator.free(filename);
@@ -277,7 +277,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         utils.output.printInfo("Resolved filename: {s}", .{filename});
 
         const url = hf_client.resolveDownloadUrl(parsed.model_id, filename) catch |err| {
-            utils.output.printError("Error building URL: {t}", .{err});
+            utils.output.printError("building URL: {t}", .{err});
             return;
         };
         defer allocator.free(url);
@@ -344,7 +344,7 @@ fn runRemove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
 
         // Remove from catalog
         manager.removeModel(model_name) catch |err| {
-            utils.output.printError("Error removing model: {t}", .{err});
+            utils.output.printError("removing model: {t}", .{err});
             return;
         };
 
@@ -443,7 +443,7 @@ fn scanModelDirectories(allocator: std.mem.Allocator, manager: *abi.ai.models.Ma
 
 fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {
     var gguf_file = abi.ai.llm.io.GgufFile.open(allocator, path) catch |err| {
-        utils.output.printError("Error opening GGUF file: {t}", .{err});
+        utils.output.printError("opening GGUF file: {t}", .{err});
         return;
     };
     defer gguf_file.deinit();

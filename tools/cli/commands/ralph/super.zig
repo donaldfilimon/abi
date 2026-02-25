@@ -45,7 +45,7 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
             i += 1;
             if (i < args.len) gate_out = std.mem.sliceTo(args[i], 0);
         } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
-            std.debug.print(
+            utils.output.print(
                 \\Usage: abi ralph super [options]
                 \\
                 \\Super Ralph: init workspace if missing, run the loop, optionally run quality gate.
@@ -77,7 +77,7 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
 
     const has_workspace = cfg.fileExists(io, cfg.STATE_FILE) or cfg.fileExists(io, config_path);
     if (!has_workspace) {
-        std.debug.print("No Ralph workspace found. Running init...\n", .{});
+        utils.output.printInfo("No Ralph workspace found. Running init...", .{});
         try init_mod.runInit(&cmd_ctx, &[_][:0]const u8{});
     }
 
@@ -117,7 +117,7 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     try run_mod.runRun(&cmd_ctx, run_args.items);
 
     if (do_gate) {
-        std.debug.print("\nRunning quality gate...\n", .{});
+        utils.output.println("\nRunning quality gate...", .{});
         const gate_out_z = try allocator.dupeZ(u8, gate_out);
         var gate_args = std.ArrayListUnmanaged([:0]const u8).empty;
         var gate_free = std.ArrayListUnmanaged([:0]const u8).empty;

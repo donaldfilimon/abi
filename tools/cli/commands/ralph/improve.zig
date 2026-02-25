@@ -78,7 +78,7 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
             if (i < args.len) {
                 const raw = std.mem.sliceTo(args[i], 0);
                 backend = abi.ai.llm.providers.ProviderId.fromString(raw) orelse {
-                    std.debug.print("Unknown provider backend: {s}\n", .{raw});
+                    utils.output.printError("Unknown provider backend: {s}", .{raw});
                     return;
                 };
             }
@@ -109,8 +109,8 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     const fallback_slice = try fallback_buf.toOwnedSlice(allocator);
     defer allocator.free(fallback_slice);
 
-    std.debug.print(
-        "Starting Ralph improve (mode={s}, iterations={d}, backend={s})\n",
+    utils.output.printInfo(
+        "Starting Ralph improve (mode={s}, iterations={d}, backend={s})",
         .{
             if (analysis_only) "analysis-only" else "autonomous-apply",
             max_iterations,
@@ -134,8 +134,8 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     });
     defer allocator.free(summary.run_id);
 
-    std.debug.print(
-        "Ralph improve complete. run_id={s} iterations={d} passing={d} gate_passed={s} exit={d}\n",
+    utils.output.printSuccess(
+        "Ralph improve complete. run_id={s} iterations={d} passing={d} gate_passed={s} exit={d}",
         .{
             summary.run_id,
             summary.iterations,
@@ -169,7 +169,7 @@ fn appendProvidersCsv(
 }
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi ralph improve [options]
         \\
         \\Autonomous Ralph improve loop with per-iteration verify-all gate.

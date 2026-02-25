@@ -20,13 +20,14 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     // Check if LLM feature is enabled
     if (!abi.ai.llm.isEnabled()) {
-        utils.output.printError("LLM feature is not enabled. Build with -Denable-llm=true\n", .{});
+        utils.output.printError("LLM feature is not enabled. Build with -Denable-llm=true", .{});
         return;
     }
 
     if (args.len == 0) {
-        std.debug.print("Usage: abi train llm <model.gguf> [options]\n", .{});
-        std.debug.print("\nUse 'abi train help' for full options list.\n", .{});
+        utils.output.println("Usage: abi train llm <model.gguf> [options]", .{});
+        utils.output.println("", .{});
+        utils.output.println("Use 'abi train help' for full options list.", .{});
         return;
     }
 
@@ -297,59 +298,59 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     }
 
     // Print configuration
-    std.debug.print("LLM Training Configuration\n", .{});
-    std.debug.print("==========================\n", .{});
-    std.debug.print("Model:            {s}\n", .{model_path});
-    std.debug.print("Epochs:           {d}\n", .{config.epochs});
-    std.debug.print("Batch size:       {d}\n", .{config.batch_size});
-    std.debug.print("Max seq len:      {d}\n", .{config.max_seq_len});
-    std.debug.print("Learning rate:    {e:.2}\n", .{config.learning_rate});
-    std.debug.print("Optimizer:        {t}\n", .{config.optimizer});
-    std.debug.print("LR schedule:      {t}\n", .{config.lr_schedule});
-    std.debug.print("Warmup steps:     {d}\n", .{config.warmup_steps});
-    std.debug.print("Weight decay:     {d:.4}\n", .{config.weight_decay});
-    std.debug.print("Gradient clip:    {d:.2}\n", .{config.max_grad_norm});
-    std.debug.print("Grad accumulation:{d}\n", .{config.grad_accum_steps});
+    utils.output.printHeader("LLM Training Configuration");
+    utils.output.printKeyValueFmt("Model", "{s}", .{model_path});
+    utils.output.printKeyValueFmt("Epochs", "{d}", .{config.epochs});
+    utils.output.printKeyValueFmt("Batch size", "{d}", .{config.batch_size});
+    utils.output.printKeyValueFmt("Max seq len", "{d}", .{config.max_seq_len});
+    utils.output.printKeyValueFmt("Learning rate", "{e:.2}", .{config.learning_rate});
+    utils.output.printKeyValueFmt("Optimizer", "{t}", .{config.optimizer});
+    utils.output.printKeyValueFmt("LR schedule", "{t}", .{config.lr_schedule});
+    utils.output.printKeyValueFmt("Warmup steps", "{d}", .{config.warmup_steps});
+    utils.output.printKeyValueFmt("Weight decay", "{d:.4}", .{config.weight_decay});
+    utils.output.printKeyValueFmt("Gradient clip", "{d:.2}", .{config.max_grad_norm});
+    utils.output.printKeyValueFmt("Grad accumulation", "{d}", .{config.grad_accum_steps});
     if (config.label_smoothing > 0) {
-        std.debug.print("Label smoothing:  {d:.2}\n", .{config.label_smoothing});
+        utils.output.printKeyValueFmt("Label smoothing", "{d:.2}", .{config.label_smoothing});
     }
     if (config.checkpoint_interval > 0) {
-        std.debug.print("Checkpoint interval: {d}\n", .{config.checkpoint_interval});
+        utils.output.printKeyValueFmt("Checkpoint interval", "{d}", .{config.checkpoint_interval});
     }
     if (config.checkpoint_path) |path| {
-        std.debug.print("Checkpoint path:  {s}\n", .{path});
+        utils.output.printKeyValueFmt("Checkpoint path", "{s}", .{path});
     }
     config.use_gpu = use_gpu;
-    std.debug.print("Use GPU:          {}\n", .{config.use_gpu});
-    std.debug.print("Dataset format:   {t}\n", .{dataset_format});
+    utils.output.printKeyValueFmt("Use GPU", "{}", .{config.use_gpu});
+    utils.output.printKeyValueFmt("Dataset format", "{t}", .{dataset_format});
     if (dataset_url) |url| {
-        std.debug.print("Dataset URL:      {s}\n", .{url});
+        utils.output.printKeyValueFmt("Dataset URL", "{s}", .{url});
     }
     if (dataset_path) |path| {
-        std.debug.print("Dataset path:     {s}\n", .{path});
+        utils.output.printKeyValueFmt("Dataset path", "{s}", .{path});
     }
     if (dataset_wdbx) |path| {
-        std.debug.print("Dataset WDBX:     {s}\n", .{path});
+        utils.output.printKeyValueFmt("Dataset WDBX", "{s}", .{path});
     }
     if (dataset_max_tokens > 0) {
-        std.debug.print("Max tokens:       {d}\n", .{dataset_max_tokens});
+        utils.output.printKeyValueFmt("Max tokens", "{d}", .{dataset_max_tokens});
     }
-    std.debug.print("Mixed precision:  {}\n", .{config.mixed_precision});
-    std.debug.print("\n", .{});
+    utils.output.printKeyValueFmt("Mixed precision", "{}", .{config.mixed_precision});
+    utils.output.println("", .{});
 
     // Load model
-    std.debug.print("Loading model from {s}...\n", .{model_path});
+    utils.output.println("Loading model from {s}...", .{model_path});
     var model = abi.ai.training.TrainableModel.fromGguf(allocator, model_path) catch |err| {
-        std.debug.print("Error loading GGUF model: {t}\n", .{err});
+        utils.output.printError("loading GGUF model: {t}", .{err});
         return;
     };
     defer model.deinit();
 
     const num_params = model.numParams();
-    std.debug.print("Model initialized: {d} parameters ({d:.2} MB)\n\n", .{
+    utils.output.println("Model initialized: {d} parameters ({d:.2} MB)", .{
         num_params,
         @as(f64, @floatFromInt(num_params * 4)) / (1024 * 1024),
     });
+    utils.output.println("", .{});
 
     if (export_gguf_path) |path| {
         config.export_gguf_path = path;
@@ -370,13 +371,13 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     if (dataset_format != .tokenbin) {
         var gguf_file = abi.ai.llm.io.GgufFile.open(allocator, model_path) catch |err| {
-            std.debug.print("Error opening GGUF for tokenizer: {t}\n", .{err});
+            utils.output.printError("opening GGUF for tokenizer: {t}", .{err});
             return;
         };
         defer gguf_file.deinit();
 
         const tok = abi.ai.llm.tokenizer.loadFromGguf(allocator, &gguf_file) catch |err| {
-            std.debug.print("Error loading tokenizer from GGUF: {t}\n", .{err});
+            utils.output.printError("loading tokenizer from GGUF: {t}", .{err});
             return;
         };
         tokenizer = tok;
@@ -389,7 +390,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     const tokenizer_ptr: ?*abi.ai.llm.tokenizer.Tokenizer = if (tokenizer) |*tok| tok else null;
     if (dataset_wdbx) |db_path| {
         var wdbx_dataset = abi.ai.database.WdbxTokenDataset.init(allocator, db_path) catch |err| {
-            std.debug.print("Error opening WDBX dataset: {t}\n", .{err});
+            utils.output.printError("opening WDBX dataset: {t}", .{err});
             return;
         };
         defer wdbx_dataset.deinit();
@@ -411,7 +412,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
         train_tokens = try wdbx_dataset.collectTokens(dataset_max_tokens);
     } else {
         if (dataset.path.len == 0) {
-            utils.output.printError("dataset path or URL required when --dataset-wdbx is not provided.\n", .{});
+            utils.output.printError("dataset path or URL required when --dataset-wdbx is not provided.", .{});
             return;
         }
         train_tokens = try common.loadTokensFromPath(
@@ -425,13 +426,13 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     defer allocator.free(train_tokens);
 
     if (train_tokens.len == 0) {
-        utils.output.printError("dataset yielded no tokens.\n", .{});
+        utils.output.printError("dataset yielded no tokens.", .{});
         return;
     }
 
     common.clampTokens(train_tokens, model.config.vocab_size);
 
-    std.debug.print("Starting LLM training...\n", .{});
+    utils.output.println("Starting LLM training...", .{});
 
     var timer = abi.shared.time.Timer.start() catch {
         utils.output.printError("failed to start timer", .{});
@@ -439,20 +440,19 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     };
 
     const report = abi.ai.training.llm_trainer.trainLlm(allocator, &model, config, train_tokens) catch |err| {
-        std.debug.print("Training failed: {t}\n", .{err});
+        utils.output.printError("Training failed: {t}", .{err});
         return;
     };
 
     const elapsed_ns = timer.read();
     const elapsed_ms = elapsed_ns / std.time.ns_per_ms;
 
-    std.debug.print("\nTraining Complete\n", .{});
-    std.debug.print("=================\n", .{});
-    std.debug.print("Final loss:       {d:.6}\n", .{report.final_loss});
-    std.debug.print("Final accuracy:   {d:.2}%\n", .{report.final_accuracy * 100});
-    std.debug.print("Total steps:      {d}\n", .{report.total_steps});
-    std.debug.print("Tokens processed: {d}\n", .{report.total_tokens});
-    std.debug.print("Total time:       {d:.2}s\n", .{@as(f64, @floatFromInt(report.total_time_ns)) / 1e9});
-    std.debug.print("Wall time:        {d}ms\n", .{elapsed_ms});
-    std.debug.print("Checkpoints saved:{d}\n", .{report.checkpoints_saved});
+    utils.output.printHeader("Training Complete");
+    utils.output.printKeyValueFmt("Final loss", "{d:.6}", .{report.final_loss});
+    utils.output.printKeyValueFmt("Final accuracy", "{d:.2}%", .{report.final_accuracy * 100});
+    utils.output.printKeyValueFmt("Total steps", "{d}", .{report.total_steps});
+    utils.output.printKeyValueFmt("Tokens processed", "{d}", .{report.total_tokens});
+    utils.output.printKeyValueFmt("Total time", "{d:.2}s", .{@as(f64, @floatFromInt(report.total_time_ns)) / 1e9});
+    utils.output.printKeyValueFmt("Wall time", "{d}ms", .{elapsed_ms});
+    utils.output.printKeyValueFmt("Checkpoints saved", "{d}", .{report.checkpoints_saved});
 }

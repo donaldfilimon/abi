@@ -64,12 +64,12 @@ pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     }
 
     if (!run_auto and !run_improve and !run_visualize) {
-        std.debug.print("Nothing to do: all stages are disabled.\n", .{});
+        utils.output.printWarning("Nothing to do: all stages are disabled.", .{});
         return;
     }
 
     if (run_auto) {
-        std.debug.print("==> Stage 1/3: self-training\n", .{});
+        utils.output.println("==> Stage 1/3: self-training", .{});
         var auto_args = std.ArrayListUnmanaged([:0]const u8).empty;
         defer auto_args.deinit(allocator);
         if (multimodal) {
@@ -77,11 +77,11 @@ pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
         }
         try auto.runAutoTrain(ctx, auto_args.items);
     } else {
-        std.debug.print("==> Stage 1/3: self-training skipped\n", .{});
+        utils.output.println("==> Stage 1/3: self-training skipped", .{});
     }
 
     if (run_improve) {
-        std.debug.print("==> Stage 2/3: self-improvement loop\n", .{});
+        utils.output.println("==> Stage 2/3: self-improvement loop", .{});
         var improve_args = std.ArrayListUnmanaged([:0]const u8).empty;
         defer improve_args.deinit(allocator);
 
@@ -97,11 +97,11 @@ pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
 
         try ralph_improve.runImprove(ctx, improve_args.items);
     } else {
-        std.debug.print("==> Stage 2/3: self-improvement loop skipped\n", .{});
+        utils.output.println("==> Stage 2/3: self-improvement loop skipped", .{});
     }
 
     if (run_visualize) {
-        std.debug.print("==> Stage 3/3: dynamic neural visualization\n", .{});
+        utils.output.println("==> Stage 3/3: dynamic neural visualization", .{});
         printLatestRalphBanner(allocator);
         const frames_str = try std.fmt.allocPrintSentinel(allocator, "{d}", .{visualize_frames}, 0);
         defer allocator.free(frames_str);
@@ -111,7 +111,7 @@ pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
         };
         try neural_ui.runVisualizer(allocator, &viz_args);
     } else {
-        std.debug.print("==> Stage 3/3: visualization skipped\n", .{});
+        utils.output.println("==> Stage 3/3: visualization skipped", .{});
     }
 }
 
@@ -122,12 +122,12 @@ fn printLatestRalphBanner(allocator: std.mem.Allocator) void {
 
     if (ralph_workspace.latestReportPath(allocator, io)) |path| {
         defer allocator.free(path);
-        std.debug.print("   latest Ralph report: {s}\n", .{path});
+        utils.output.println("   latest Ralph report: {s}", .{path});
     }
 }
 
 pub fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi train self [options]
         \\
         \\Run ABI self-improvement pipeline:

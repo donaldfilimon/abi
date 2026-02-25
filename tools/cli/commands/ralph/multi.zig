@@ -23,7 +23,7 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
             i += 1;
             if (i < args.len) workers = std.fmt.parseInt(u32, std.mem.sliceTo(args[i], 0), 10) catch 0;
         } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
-            std.debug.print(
+            utils.output.print(
                 \\Usage: abi ralph multi [options]
                 \\
                 \\Zig-native multithreaded multi-agent: N Ralph loops in parallel via ThreadPool + RalphBus.
@@ -40,7 +40,7 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     }
 
     if (tasks_list.items.len == 0) {
-        std.debug.print("No tasks. Use -t/--task at least once (e.g. abi ralph multi -t \"goal1\" -t \"goal2\").\n", .{});
+        utils.output.printWarning("No tasks. Use -t/--task at least once (e.g. abi ralph multi -t \"goal1\" -t \"goal2\").", .{});
         return;
     }
 
@@ -69,7 +69,7 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
         .post_result_to_bus = true,
     };
 
-    std.debug.print("Ralph multi: {d} agents, {d} threads, {d} iterations each.\n", .{
+    utils.output.printInfo("Ralph multi: {d} agents, {d} threads, {d} iterations each.", .{
         goals.len,
         pool.thread_count,
         max_iterations,
@@ -78,27 +78,27 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     for (goals, 0..) |_, idx| {
         const uidx: u32 = @intCast(idx);
         if (!pool.schedule(abi.ai.abbey.ralph_swarm.parallelRalphWorker, .{ &parallel_ctx, uidx })) {
-            std.debug.print("Schedule failed for agent {d}\n", .{idx});
+            utils.output.printError("Schedule failed for agent {d}", .{idx});
             return;
         }
     }
     pool.waitIdle();
 
-    std.debug.print("\n=== Results ===\n", .{});
+    utils.output.printHeader("Results");
     for (results, 0..) |r, idx| {
-        std.debug.print("--- Agent {d} ---\n", .{idx});
-        if (r) |s| std.debug.print("{s}\n", .{s}) else std.debug.print("(failed)\n", .{});
+        utils.output.println("--- Agent {d} ---", .{idx});
+        if (r) |s| utils.output.println("{s}", .{s}) else utils.output.println("(failed)", .{});
     }
 
     var msg_count: usize = 0;
     while (bus.tryRecv()) |msg| {
         msg_count += 1;
-        std.debug.print("[bus] from={d} to={d} kind={t}: {s}\n", .{
+        utils.output.println("[bus] from={d} to={d} kind={t}: {s}", .{
             msg.from_id,
             msg.to_id,
             msg.kind,
             msg.getContent(),
         });
     }
-    if (msg_count > 0) std.debug.print("Bus messages: {d}\n", .{msg_count});
+    if (msg_count > 0) utils.output.println("Bus messages: {d}", .{msg_count});
 }

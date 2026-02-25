@@ -47,7 +47,7 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
             if (i < args.len) {
                 const raw = std.mem.sliceTo(args[i], 0);
                 backend_override = ProviderId.fromString(raw) orelse {
-                    std.debug.print("Unknown provider backend: {s}\n", .{raw});
+                    utils.output.printError("Unknown provider backend: {s}", .{raw});
                     return;
                 };
             }
@@ -83,8 +83,8 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         allocator,
         .limited(64 * 1024),
     ) catch |err| {
-        std.debug.print("Cannot read {s}: {t}\n", .{ config_path, err });
-        std.debug.print("Run 'abi ralph init' to create a workspace.\n", .{});
+        utils.output.printError("Cannot read {s}: {t}", .{ config_path, err });
+        utils.output.printInfo("Run 'abi ralph init' to create a workspace.", .{});
         return;
     };
     defer allocator.free(yml_contents);
@@ -119,19 +119,19 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
             allocator,
             .limited(256 * 1024),
         ) catch |err| {
-            std.debug.print("Cannot read {s}: {t}\n", .{ ralph_cfg.prompt_file, err });
-            std.debug.print("Use --task or edit {s}.\n", .{ralph_cfg.prompt_file});
+            utils.output.printError("Cannot read {s}: {t}", .{ ralph_cfg.prompt_file, err });
+            utils.output.printInfo("Use --task or edit {s}.", .{ralph_cfg.prompt_file});
             return;
         };
         prompt_owned = content;
         break :blk content;
     };
 
-    std.debug.print("Starting Ralph loop (backend: {s}, max_iterations: {d})\n", .{
+    utils.output.printInfo("Starting Ralph loop (backend: {s}, max_iterations: {d})", .{
         if (effective_backend) |b| b.label() else "auto(abbey)",
         max_iterations,
     });
-    std.debug.print("Goal: {s}\n\n", .{goal});
+    utils.output.println("Goal: {s}\n", .{goal});
 
     // Decide execution path: use provider router when an explicit non-legacy
     // backend was requested via CLI flag, otherwise fall back to Abbey engine.
@@ -154,17 +154,19 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         // Skill storage (no engine available in provider-routed mode)
         const skills_added = handleSkills(allocator, io, store_skill, auto_skill, goal, result);
         updateState(allocator, io, skills_added);
-        std.debug.print("\n=== Ralph Run Complete ===\n{s}\n", .{result});
+        utils.output.println("", .{});
+        utils.output.printHeader("Ralph Run Complete");
+        utils.output.println("{s}", .{result});
     } else {
         // --- Legacy Abbey engine path ---
         var engine = abi.ai.abbey.createEngine(allocator) catch |err| {
-            std.debug.print("Failed to create Abbey engine: {t}\n", .{err});
+            utils.output.printError("Failed to create Abbey engine: {t}", .{err});
             return;
         };
         defer engine.deinit();
 
         const result = engine.runRalphLoop(goal, max_iterations) catch |err| {
-            std.debug.print("Ralph loop failed: {t}\n", .{err});
+            utils.output.printError("Ralph loop failed: {t}", .{err});
             return;
         };
         defer allocator.free(result);
@@ -176,10 +178,10 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         if (store_skill) |s| {
             _ = engine.storeSkill(s) catch {};
             skills_store.appendSkill(allocator, io, s, null, 1.0) catch |err| {
-                std.debug.print("Warning: could not persist skill: {t}\n", .{err});
+                utils.output.printWarning("Could not persist skill: {t}", .{err});
             };
             skills_added += 1;
-            std.debug.print("Skill stored.\n", .{});
+            utils.output.printSuccess("Skill stored.", .{});
         }
         if (auto_skill) {
             const stored = engine.extractAndStoreSkill(goal, result) catch false;
@@ -188,12 +190,14 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
                     skills_store.appendSkill(allocator, io, lesson, null, 0.8) catch {};
                 }
                 skills_added += 1;
-                std.debug.print("Auto-skill extracted and stored.\n", .{});
+                utils.output.printSuccess("Auto-skill extracted and stored.", .{});
             }
         }
 
         updateState(allocator, io, skills_added);
-        std.debug.print("\n=== Ralph Run Complete ===\n{s}\n", .{result});
+        utils.output.println("", .{});
+        utils.output.printHeader("Ralph Run Complete");
+        utils.output.println("{s}", .{result});
     }
 }
 
@@ -216,7 +220,7 @@ fn runProviderLoop(allocator: std.mem.Allocator, opts: ProviderLoopOpts) ![]u8 {
 
     var iter: usize = 0;
     while (iter < opts.max_iterations) : (iter += 1) {
-        std.debug.print("--- iteration {d}/{d} ---\n", .{ iter + 1, opts.max_iterations });
+        utils.output.println("--- iteration {d}/{d} ---", .{ iter + 1, opts.max_iterations });
 
         var result = providers.generate(allocator, .{
             .model = opts.model,
@@ -228,25 +232,25 @@ fn runProviderLoop(allocator: std.mem.Allocator, opts: ProviderLoopOpts) ![]u8 {
             .max_tokens = 1200,
             .temperature = 0.7,
         }) catch |err| {
-            std.debug.print("Provider generate failed: {t}\n", .{err});
+            utils.output.printError("Provider generate failed: {t}", .{err});
             return error.ProviderGenerateFailed;
         };
         defer result.deinit(allocator);
 
-        std.debug.print("[{s}] ", .{result.provider.label()});
-        std.debug.print("{s}\n\n", .{result.content});
+        utils.output.print("[{s}] ", .{result.provider.label()});
+        utils.output.println("{s}\n", .{result.content});
 
         try output_buf.appendSlice(allocator, result.content);
         try output_buf.append(allocator, '\n');
 
         // Check for completion promise
         if (cfg.containsIgnoreCase(result.content, opts.completion_promise)) {
-            std.debug.print("Completion promise \"{s}\" found — stopping.\n", .{opts.completion_promise});
+            utils.output.printSuccess("Completion promise \"{s}\" found — stopping.", .{opts.completion_promise});
             break;
         }
     }
 
-    std.debug.print("--- provider loop finished ({d} iterations) ---\n", .{iter});
+    utils.output.println("--- provider loop finished ({d} iterations) ---", .{iter});
     return try output_buf.toOwnedSlice(allocator);
 }
 
@@ -263,10 +267,10 @@ fn handleSkills(
     var skills_added: u64 = 0;
     if (store_skill) |s| {
         skills_store.appendSkill(allocator, io, s, null, 1.0) catch |err| {
-            std.debug.print("Warning: could not persist skill: {t}\n", .{err});
+            utils.output.printWarning("could not persist skill: {t}", .{err});
         };
         skills_added += 1;
-        std.debug.print("Skill stored.\n", .{});
+        utils.output.printSuccess("Skill stored.", .{});
     }
     _ = result;
     return skills_added;
@@ -308,7 +312,7 @@ fn appendProvidersCsv(
 }
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi ralph run [options]
         \\
         \\Execute the Ralph iterative loop via the Abbey engine or a provider backend.

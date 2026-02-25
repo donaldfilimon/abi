@@ -272,5 +272,5 @@ fn printHelp() void {
         \\  abi ui streaming http://192.168.1.100:8080
         \\
     ;
-    std.debug.print("{s}", .{help});
+    utils.output.print("{s}", .{help});
 }

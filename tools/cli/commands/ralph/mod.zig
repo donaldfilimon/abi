@@ -123,9 +123,9 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     // Unknown subcommand
-    std.debug.print("Unknown ralph subcommand: {s}\n", .{cmd});
+    utils.output.printError("Unknown ralph subcommand: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &ralph_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -134,7 +134,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 // ============================================================================
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.println(
         \\Usage: abi ralph <subcommand> [options]
         \\
         \\Ralph orchestrator — iterative AI agent loop with skill memory.
@@ -163,6 +163,5 @@ fn printHelp() void {
         \\Multi-Ralph: Lock-free RalphBus (ralph_multi) + parallel swarm (ralph_swarm) — Zig-native, fast multithreading.
         \\
         \\Run 'abi ralph <subcommand> help' for subcommand-specific help.
-        \\
     , .{});
 }

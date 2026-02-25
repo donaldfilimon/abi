@@ -65,7 +65,7 @@ pub fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         } else if (std.mem.eql(u8, arg, "--force") or std.mem.eql(u8, arg, "-f")) {
             force = true;
         } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
-            std.debug.print(
+            utils.output.println(
                 \\Usage: abi ralph init [options]
                 \\
                 \\Create a Ralph workspace in the current directory.
@@ -74,7 +74,6 @@ pub fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u
                 \\  -b, --backend <name>  LLM backend (default: llama_cpp)
                 \\  -f, --force           Overwrite existing workspace
                 \\  -h, --help            Show this help
-                \\
             , .{});
             return;
         }
@@ -85,10 +84,7 @@ pub fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     const io = io_backend.io();
 
     if (cfg.fileExists(io, cfg.WORKSPACE_DIR ++ "/state.json") and !force) {
-        std.debug.print(
-            "Workspace already exists (.ralph/). Use --force to reinitialize.\n",
-            .{},
-        );
+        utils.output.printWarning("Workspace already exists (.ralph/). Use --force to reinitialize.", .{});
         return;
     }
 
@@ -111,8 +107,8 @@ pub fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     // Write initial state
     cfg.writeState(allocator, io, .{});
 
-    std.debug.print(
-        \\Ralph workspace initialized.
+    utils.output.printSuccess("Ralph workspace initialized.", .{});
+    utils.output.println(
         \\
         \\  ralph.yml   — configuration (backend: {s})
         \\  PROMPT.md   — edit this with your task
@@ -121,6 +117,5 @@ pub fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         \\Next steps:
         \\  1. Edit PROMPT.md with your task description
         \\  2. Run: abi ralph run
-        \\
     , .{backend});
 }

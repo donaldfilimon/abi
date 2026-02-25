@@ -150,7 +150,7 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         } else if (std.mem.eql(u8, arg, "--require-live")) {
             require_live = true;
         } else if (utils.args.matchesAny(arg, &[_][]const u8{ "--help", "-h", "help" })) {
-            std.debug.print(
+            utils.output.print(
                 \\Usage: abi ralph gate [options]
                 \\
                 \\Native quality gate — replaces check_ralph_gate.sh + score_ralph_results.py.
@@ -187,8 +187,8 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         allocator,
         .limited(16 * 1024 * 1024),
     ) catch {
-        std.debug.print("ERROR: missing live Ralph results: {s}\n", .{in_path});
-        std.debug.print("Run:\n  abi ralph run --task \"...\" --auto-skill\n", .{});
+        utils.output.printError("missing live Ralph results: {s}", .{in_path});
+        utils.output.println("Run:\n  abi ralph run --task \"...\" --auto-skill", .{});
         return error.ExecutionFailed;
     };
     defer allocator.free(json_contents);
@@ -200,7 +200,7 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         json_contents,
         .{},
     ) catch {
-        std.debug.print("Invalid JSON in {s}\n", .{in_path});
+        utils.output.printError("Invalid JSON in {s}", .{in_path});
         return error.ExecutionFailed;
     };
     defer parsed.deinit();
@@ -238,9 +238,9 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
                 defer allocator.free(summary);
                 if (std.fs.path.dirname(out_path)) |dir| cfg.ensureDir(io, dir);
                 cfg.writeFile(allocator, io, out_path, summary) catch {};
-                std.debug.print("{s}\n", .{summary});
+                utils.output.println("{s}", .{summary});
                 if (!gate_passed) return error.ExecutionFailed;
-                std.debug.print("OK: Ralph gate passed ({s}).\n", .{out_path});
+                utils.output.printSuccess("Ralph gate passed ({s}).", .{out_path});
                 return;
             }
         },
@@ -250,13 +250,13 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     const items = switch (parsed.value) {
         .array => |a| a.items,
         else => {
-            std.debug.print("Results JSON must be a top-level array.\n", .{});
+            utils.output.printError("Results JSON must be a top-level array.", .{});
             return error.ExecutionFailed;
         },
     };
 
     if (items.len == 0) {
-        std.debug.print("Results file is empty.\n", .{});
+        utils.output.printError("Results file is empty.", .{});
         return error.ExecutionFailed;
     }
 
@@ -325,17 +325,14 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     // Ensure output parent directory exists, then write
     if (std.fs.path.dirname(out_path)) |dir| cfg.ensureDir(io, dir);
     cfg.writeFile(allocator, io, out_path, summary) catch |err| {
-        std.debug.print("Warning: could not write {s}: {t}\n", .{ out_path, err });
+        utils.output.printWarning("could not write {s}: {t}", .{ out_path, err });
     };
 
-    std.debug.print("{s}\n", .{summary});
+    utils.output.println("{s}", .{summary});
 
     if (!passed) {
-        std.debug.print(
-            "FAIL: Ralph gate did not pass (avg={d:.3} < threshold={d:.3})\n",
-            .{ avg, min_average },
-        );
+        utils.output.printError("Ralph gate did not pass (avg={d:.3} < threshold={d:.3})", .{ avg, min_average });
         return error.ExecutionFailed;
     }
-    std.debug.print("OK: Ralph gate passed ({s}).\n", .{out_path});
+    utils.output.printSuccess("Ralph gate passed ({s}).", .{out_path});
 }

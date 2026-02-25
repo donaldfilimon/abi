@@ -657,15 +657,15 @@ fn setCursorPosition(term: *tui.Terminal, row: u16, col: u16) !void {
 }
 
 fn printFallbackInfo() !void {
-    std.debug.print("\nGPU Backend Information:\n", .{});
-    std.debug.print("  Use 'abi gpu backends' for backend details\n", .{});
-    std.debug.print("  Use 'abi gpu devices' for device listing\n", .{});
-    std.debug.print("\nAgent Information:\n", .{});
-    std.debug.print("  Use 'abi agent' for agent interaction\n", .{});
+    utils.output.println("\nGPU Backend Information:", .{});
+    utils.output.println("  Use 'abi gpu backends' for backend details", .{});
+    utils.output.println("  Use 'abi gpu devices' for device listing", .{});
+    utils.output.println("\nAgent Information:", .{});
+    utils.output.println("  Use 'abi agent' for agent interaction", .{});
 }
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi ui gpu [OPTIONS]
         \\
         \\Launch an interactive GPU monitoring dashboard with real-time

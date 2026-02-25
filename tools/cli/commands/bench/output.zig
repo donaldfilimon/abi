@@ -162,18 +162,18 @@ pub fn outputJson(allocator: std.mem.Allocator, results: []const mod.BenchResult
         const io = io_backend.io();
 
         const file = std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true }) catch |err| {
-            std.debug.print("Error creating output file: {t}\n", .{err});
+            utils.output.printError("creating output file: {t}", .{err});
             return;
         };
         defer file.close(io);
 
         file.writeStreamingAll(io, json_text) catch |err| {
-            std.debug.print("Error writing to file: {t}\n", .{err});
+            utils.output.printError("writing to file: {t}", .{err});
             return;
         };
-        std.debug.print("Results written to: {s}\n", .{path});
+        utils.output.printSuccess("Results written to: {s}", .{path});
     } else {
-        std.debug.print("{s}", .{json_text});
+        utils.output.print("{s}", .{json_text});
     }
 }
 
@@ -185,11 +185,11 @@ pub fn printHeader() void {
         \\╚════════════════════════════════════════════════════════════════════════════╝
         \\
     ;
-    std.debug.print("{s}", .{header});
+    utils.output.print("{s}", .{header});
 }
 
 pub fn printFooter(duration_sec: f64) void {
-    std.debug.print("================================================================================\n", .{});
-    std.debug.print(" BENCHMARK COMPLETE - Total time: {d:.2}s\n", .{duration_sec});
-    std.debug.print("================================================================================\n", .{});
+    utils.output.println("================================================================================", .{});
+    utils.output.println(" BENCHMARK COMPLETE - Total time: {d:.2}s", .{duration_sec});
+    utils.output.println("================================================================================", .{});
 }

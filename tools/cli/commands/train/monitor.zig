@@ -19,28 +19,31 @@ pub fn runResume(ctx: *const context_mod.CommandContext, args: []const [:0]const
     }
 
     if (args.len == 0) {
-        std.debug.print("Usage: abi train resume <checkpoint-path>\n", .{});
+        utils.output.println("Usage: abi train resume <checkpoint-path>", .{});
         return;
     }
 
     const checkpoint_path = std.mem.sliceTo(args[0], 0);
-    std.debug.print("Loading checkpoint: {s}\n", .{checkpoint_path});
+    utils.output.println("Loading checkpoint: {s}", .{checkpoint_path});
 
     // Load checkpoint
     var ckpt = abi.ai.training.loadCheckpoint(allocator, checkpoint_path) catch |err| {
-        std.debug.print("Error loading checkpoint: {t}\n", .{err});
-        std.debug.print("\nNote: Resume functionality loads model weights from a saved checkpoint.\n", .{});
-        std.debug.print("Use 'abi train run --checkpoint-path <path>' to save checkpoints during training.\n", .{});
+        utils.output.printError("loading checkpoint: {t}", .{err});
+        utils.output.println("", .{});
+        utils.output.println("Note: Resume functionality loads model weights from a saved checkpoint.", .{});
+        utils.output.println("Use 'abi train run --checkpoint-path <path>' to save checkpoints during training.", .{});
         return;
     };
     defer ckpt.deinit(allocator);
 
-    std.debug.print("\nCheckpoint Info:\n", .{});
-    std.debug.print("  Step:      {d}\n", .{ckpt.step});
-    std.debug.print("  Timestamp: {d}\n", .{ckpt.timestamp});
-    std.debug.print("  Weights:   {d} parameters\n", .{ckpt.weights.len});
-    std.debug.print("\nNote: Full resume training not yet implemented.\n", .{});
-    std.debug.print("Checkpoint loaded successfully.\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("Checkpoint Info:", .{});
+    utils.output.printKeyValueFmt("Step", "{d}", .{ckpt.step});
+    utils.output.printKeyValueFmt("Timestamp", "{d}", .{ckpt.timestamp});
+    utils.output.printKeyValueFmt("Weights", "{d} parameters", .{ckpt.weights.len});
+    utils.output.println("", .{});
+    utils.output.printInfo("Full resume training not yet implemented.", .{});
+    utils.output.printSuccess("Checkpoint loaded successfully.", .{});
 }
 
 pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -86,11 +89,11 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
             if (i < args.len) {
                 const value = std.mem.sliceTo(args[i], 0);
                 refresh_ms = std.fmt.parseInt(u64, value, 10) catch {
-                    std.debug.print("Invalid --refresh-ms value: {s}\n", .{value});
+                    utils.output.printError("Invalid --refresh-ms value: {s}", .{value});
                     return;
                 };
                 if (refresh_ms == 0) {
-                    std.debug.print("--refresh-ms must be greater than 0\n", .{});
+                    utils.output.printError("--refresh-ms must be greater than 0", .{});
                     return;
                 }
                 i += 1;
@@ -108,15 +111,15 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     if (brain_mode) {
         const brain = @import("../ui/brain.zig");
         const metrics_path = std.fmt.allocPrintSentinel(allocator, "{s}/metrics.jsonl", .{log_dir}, 0) catch |err| {
-            std.debug.print("Failed to build metrics path: {t}\n", .{err});
+            utils.output.printError("Failed to build metrics path: {t}", .{err});
             return;
         };
         defer allocator.free(metrics_path);
 
         const brain_args = [_][:0]const u8{ "--training", metrics_path };
         brain.run(ctx, &brain_args) catch {
-            std.debug.print("Brain dashboard mode requires a terminal.\n", .{});
-            std.debug.print("Use 'abi ui brain --training {s}/metrics.jsonl' instead.\n", .{log_dir});
+            utils.output.printWarning("Brain dashboard mode requires a terminal.", .{});
+            utils.output.println("Use 'abi ui brain --training {s}/metrics.jsonl' instead.", .{log_dir});
         };
         return;
     }
@@ -138,7 +141,8 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
 
         panel.runInteractive(&terminal) catch |err| {
             // Fall back to non-interactive mode on error
-            std.debug.print("Interactive mode failed ({t}), falling back to snapshot mode.\n\n", .{err});
+            utils.output.printWarning("Interactive mode failed ({t}), falling back to snapshot mode.", .{err});
+            utils.output.println("", .{});
             non_interactive = true;
         };
 
@@ -149,7 +153,7 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     const DebugWriter = struct {
         pub const Error = error{};
         pub fn print(_: @This(), comptime fmt: []const u8, print_args: anytype) Error!void {
-            std.debug.print(fmt, print_args);
+            utils.output.print(fmt, print_args);
         }
     };
 
@@ -157,18 +161,20 @@ pub fn runMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     panel.loadMetricsFile(panel.buildMetricsPath()) catch {};
 
     panel.render(DebugWriter{}) catch |err| {
-        std.debug.print("Error rendering panel: {t}\n", .{err});
+        utils.output.printError("rendering panel: {t}", .{err});
         return;
     };
 
-    std.debug.print("\nTraining Monitor (snapshot mode)\n", .{});
-    std.debug.print("Log directory: {s}\n", .{log_dir});
+    utils.output.println("", .{});
+    utils.output.println("Training Monitor (snapshot mode)", .{});
+    utils.output.printKeyValueFmt("Log directory", "{s}", .{log_dir});
     if (run_id) |id| {
-        std.debug.print("Run ID: {s}\n", .{id});
+        utils.output.printKeyValueFmt("Run ID", "{s}", .{id});
     } else {
-        std.debug.print("Monitoring: current/latest run\n", .{});
+        utils.output.println("Monitoring: current/latest run", .{});
     }
-    std.debug.print("\nRun without --no-tui for interactive mode.\n", .{});
+    utils.output.println("", .{});
+    utils.output.printInfo("Run without --no-tui for interactive mode.", .{});
 }
 
 pub fn printMonitorHelp() void {
@@ -191,7 +197,7 @@ pub fn printMonitorHelp() void {
         \\  h       Toggle history mode
         \\  q       Quit
         \\  ?       Show help
-        \\  ←/→     Switch between runs (history mode)
+        \\  <-/->     Switch between runs (history mode)
         \\
         \\Examples:
         \\  abi train monitor                    # Monitor latest run
@@ -201,5 +207,5 @@ pub fn printMonitorHelp() void {
         \\  abi train monitor --no-tui           # Snapshot mode
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }

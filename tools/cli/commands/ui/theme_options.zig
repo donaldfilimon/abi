@@ -94,21 +94,21 @@ pub fn parseThemeArgs(
 
 pub fn printAvailableThemes() void {
     const names = tui.themes.themeNames();
-    std.debug.print("Available themes:\n", .{});
+    utils.output.println("Available themes:", .{});
     for (names) |name| {
-        std.debug.print("  {s}\n", .{name});
+        utils.output.println("  {s}", .{name});
     }
 }
 
 pub fn printThemeHint() void {
     const names = tui.themes.themeNames();
-    std.debug.print("Valid themes: ", .{});
+    utils.output.print("Valid themes: ", .{});
     for (names, 0..) |name, idx| {
-        if (idx > 0) std.debug.print(", ", .{});
-        std.debug.print("{s}", .{name});
+        if (idx > 0) utils.output.print(", ", .{});
+        utils.output.print("{s}", .{name});
     }
-    std.debug.print("\n", .{});
-    std.debug.print("Use --list-themes to see available names.\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("Use --list-themes to see available names.", .{});
 }
 
 test "parseThemeArgs parses valid theme and list flag" {

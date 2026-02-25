@@ -268,5 +268,5 @@ fn printHelp() void {
         \\  p                  Pause/resume refresh
         \\
     ;
-    std.debug.print("{s}", .{help});
+    utils.output.print("{s}", .{help});
 }

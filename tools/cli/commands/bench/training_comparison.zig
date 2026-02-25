@@ -4,11 +4,12 @@
 
 const std = @import("std");
 const abi = @import("abi");
+const utils = @import("../../utils/mod.zig");
 
 pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: bool) void {
     if (!abi.ai.training.isEnabled()) {
         if (!json_mode) {
-            std.debug.print("Training feature is disabled. Rebuild with -Denable-training=true\n", .{});
+            utils.output.printWarning("Training feature is disabled. Rebuild with -Denable-training=true", .{});
         }
         return;
     }
@@ -35,9 +36,9 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
     var result_count: usize = 0;
 
     if (!json_mode) {
-        std.debug.print("\nTraining Benchmark Comparison\n", .{});
-        std.debug.print("=============================\n", .{});
-        std.debug.print("Config: epochs=5, batch_size=8, lr=0.001\n\n", .{});
+        utils.output.println("\nTraining Benchmark Comparison", .{});
+        utils.output.println("=============================", .{});
+        utils.output.println("Config: epochs=5, batch_size=8, lr=0.001\n", .{});
     }
 
     for (configs) |cfg| {
@@ -55,7 +56,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
 
         const report = abi.ai.training.trainAndReport(allocator, train_config) catch |err| {
             if (!json_mode) {
-                std.debug.print("  {s} ({t}): error - {t}\n", .{ cfg.method, cfg.optimizer, err });
+                utils.output.printError("  {s} ({t}): error - {t}", .{ cfg.method, cfg.optimizer, err });
             }
             continue;
         };
@@ -73,15 +74,15 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
 
     if (result_count == 0) {
         if (!json_mode) {
-            std.debug.print("  No training benchmarks completed.\n", .{});
+            utils.output.printWarning("No training benchmarks completed.", .{});
         }
         return;
     }
 
     if (json_mode) {
-        std.debug.print("{{ \"training_benchmarks\": [\n", .{});
+        utils.output.println("{{ \"training_benchmarks\": [", .{});
         for (results[0..result_count], 0..) |r, idx| {
-            std.debug.print("  {{ \"method\": \"{s}\", \"optimizer\": \"{s}\", \"final_loss\": {d:.4}, \"time_ms\": {d}, \"epochs\": {d}, \"batches\": {d} }}", .{
+            utils.output.print("  {{ \"method\": \"{s}\", \"optimizer\": \"{s}\", \"final_loss\": {d:.4}, \"time_ms\": {d}, \"epochs\": {d}, \"batches\": {d} }}", .{
                 r.method,
                 r.optimizer,
                 r.final_loss,
@@ -89,15 +90,15 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
                 r.epochs,
                 r.batches,
             });
-            if (idx < result_count - 1) std.debug.print(",", .{});
-            std.debug.print("\n", .{});
+            if (idx < result_count - 1) utils.output.print(",", .{});
+            utils.output.println("", .{});
         }
-        std.debug.print("] }}\n", .{});
+        utils.output.println("] }}", .{});
     } else {
-        std.debug.print("  {s:<18} {s:<10} {s:>12} {s:>10} {s:>8}\n", .{ "Method", "Optimizer", "Final Loss", "Time (ms)", "Batches" });
-        std.debug.print("  {s:<18} {s:<10} {s:>12} {s:>10} {s:>8}\n", .{ "-" ** 18, "-" ** 10, "-" ** 12, "-" ** 10, "-" ** 8 });
+        utils.output.println("  {s:<18} {s:<10} {s:>12} {s:>10} {s:>8}", .{ "Method", "Optimizer", "Final Loss", "Time (ms)", "Batches" });
+        utils.output.println("  {s:<18} {s:<10} {s:>12} {s:>10} {s:>8}", .{ "-" ** 18, "-" ** 10, "-" ** 12, "-" ** 10, "-" ** 8 });
         for (results[0..result_count]) |r| {
-            std.debug.print("  {s:<18} {s:<10} {d:>12.4} {d:>10} {d:>8}\n", .{
+            utils.output.println("  {s:<18} {s:<10} {d:>12.4} {d:>10} {d:>8}", .{
                 r.method,
                 r.optimizer,
                 r.final_loss,
@@ -110,11 +111,11 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
         if (result_count >= 2) {
             const baseline_ms = results[0].total_time_ms;
             if (baseline_ms > 0) {
-                std.debug.print("\n  Speed vs {s} ({s}):\n", .{ results[0].method, results[0].optimizer });
+                utils.output.println("\n  Speed vs {s} ({s}):", .{ results[0].method, results[0].optimizer });
                 for (results[1..result_count]) |r| {
                     if (r.total_time_ms > 0) {
                         const ratio = @as(f64, @floatFromInt(baseline_ms)) / @as(f64, @floatFromInt(r.total_time_ms));
-                        std.debug.print("    {s} ({s}): {d:.2}x\n", .{ r.method, r.optimizer, ratio });
+                        utils.output.println("    {s} ({s}): {d:.2}x", .{ r.method, r.optimizer, ratio });
                     }
                 }
             }

@@ -9,17 +9,18 @@ const abi = @import("abi");
 const mod = @import("mod.zig");
 const output = @import("output.zig");
 const training_comparison = @import("training_comparison.zig");
+const utils = @import("../../utils/mod.zig");
 
 /// Run the selected benchmark suite
 pub fn runBenchmarkSuite(allocator: std.mem.Allocator, config: mod.BenchConfig) !void {
     const timer = abi.shared.time.Timer.start() catch {
-        std.debug.print("Timer not available on this platform.\n", .{});
+        utils.output.printError("Timer not available on this platform.", .{});
         return;
     };
 
     if (!config.output_json) {
         output.printHeader();
-        std.debug.print("Running suite: {s}\n\n", .{config.suite.toString()});
+        utils.output.println("Running suite: {s}\n", .{config.suite.toString()});
     }
 
     // Collect results
@@ -80,13 +81,13 @@ pub fn runSuiteWithResults(
     json_mode: bool,
 ) !void {
     if (!json_mode) {
-        std.debug.print("--------------------------------------------------------------------------------\n", .{});
-        std.debug.print("  {s}\n", .{name});
-        std.debug.print("--------------------------------------------------------------------------------\n", .{});
+        utils.output.println("--------------------------------------------------------------------------------", .{});
+        utils.output.println("  {s}", .{name});
+        utils.output.println("--------------------------------------------------------------------------------", .{});
     }
     try benchFn(allocator, results);
     if (!json_mode) {
-        std.debug.print("\n", .{});
+        utils.output.println("", .{});
     }
 }
 
@@ -126,7 +127,7 @@ pub fn runSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUn
             .name_allocated = true,
         });
 
-        std.debug.print("  dot_product[{d}]: {d:.0} ops/sec, {d:.0}ns mean\n", .{ size, result.ops_per_sec, result.mean_ns });
+        utils.output.println("  dot_product[{d}]: {d:.0} ops/sec, {d:.0}ns mean", .{ size, result.ops_per_sec, result.mean_ns });
     }
 }
 
@@ -146,7 +147,7 @@ pub fn runMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
             .name_allocated = true,
         });
 
-        std.debug.print("  alloc_free[{d}]: {d:.0} ops/sec, {d:.0}ns mean\n", .{ size, result.ops_per_sec, result.mean_ns });
+        utils.output.println("  alloc_free[{d}]: {d:.0} ops/sec, {d:.0}ns mean", .{ size, result.ops_per_sec, result.mean_ns });
     }
 }
 
@@ -176,13 +177,13 @@ pub fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, results: *std.Arra
         .iterations = iterations,
     });
 
-    std.debug.print("  atomic_increment: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+    utils.output.println("  atomic_increment: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
 }
 
 pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(mod.BenchResult)) mod.BenchmarkError!void {
     // Check if database feature is enabled
     if (!abi.database.isEnabled()) {
-        std.debug.print("  (Database benchmarks require -Denable-database=true build flag)\n", .{});
+        utils.output.println("  (Database benchmarks require -Denable-database=true build flag)", .{});
         return;
     }
 
@@ -233,7 +234,7 @@ pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLi
             .iterations = iterations,
         });
 
-        std.debug.print("  hnsw_insert[128d]: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  hnsw_insert[128d]: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 
     // HNSW search benchmark
@@ -294,7 +295,7 @@ pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLi
             .iterations = iterations,
         });
 
-        std.debug.print("  hnsw_search[1k x 128d]: {d:.0} ops/sec, {d:.2}ms mean\n", .{ ops_per_sec, mean_ns / 1_000_000.0 });
+        utils.output.println("  hnsw_search[1k x 128d]: {d:.0} ops/sec, {d:.2}ms mean", .{ ops_per_sec, mean_ns / 1_000_000.0 });
     }
 
     // Distance computation benchmark
@@ -338,7 +339,7 @@ pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLi
             .iterations = iterations,
         });
 
-        std.debug.print("  euclidean_dist[128d]: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  euclidean_dist[128d]: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 }
 
@@ -385,7 +386,7 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLis
             .iterations = iterations,
         });
 
-        std.debug.print("  http_header_parse: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  http_header_parse: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 
     // URL parsing benchmark
@@ -439,7 +440,7 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLis
             .iterations = iterations,
         });
 
-        std.debug.print("  url_parse: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  url_parse: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 
     // JSON parsing benchmark (simple key-value extraction)
@@ -483,7 +484,7 @@ pub fn runNetworkBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayLis
             .iterations = iterations,
         });
 
-        std.debug.print("  json_key_scan: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  json_key_scan: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 }
 
@@ -517,7 +518,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
             .iterations = iterations,
         });
 
-        std.debug.print("  sha256[450B]: {d:.0} ops/sec, {d:.2} MB/s\n", .{ ops_per_sec, throughput_mb });
+        utils.output.println("  sha256[450B]: {d:.0} ops/sec, {d:.2} MB/s", .{ ops_per_sec, throughput_mb });
     }
 
     // Blake3 hash benchmark
@@ -548,7 +549,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
             .iterations = iterations,
         });
 
-        std.debug.print("  blake3[54B]: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  blake3[54B]: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 
     // HMAC-SHA256 benchmark
@@ -580,7 +581,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
             .iterations = iterations,
         });
 
-        std.debug.print("  hmac_sha256: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  hmac_sha256: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 
     // ChaCha20-Poly1305 encryption benchmark
@@ -623,7 +624,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
             .iterations = iterations,
         });
 
-        std.debug.print("  chacha20_poly1305[256B]: {d:.0} ops/sec, {d:.2} MB/s\n", .{ ops_per_sec, throughput_mb });
+        utils.output.println("  chacha20_poly1305[256B]: {d:.0} ops/sec, {d:.2} MB/s", .{ ops_per_sec, throughput_mb });
     }
 
     // Random number generation benchmark
@@ -656,7 +657,7 @@ pub fn runCryptoBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayList
             .iterations = iterations,
         });
 
-        std.debug.print("  prng_u64: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  prng_u64: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 }
 
@@ -713,7 +714,7 @@ pub fn runAiBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnma
         .name_allocated = true,
     });
 
-    std.debug.print("  matmul[{d}x{d}x{d}]: {d:.2} GFLOPS, {d:.0}ns mean\n", .{ m, k, n, gflops, mean_ns });
+    utils.output.println("  matmul[{d}x{d}x{d}]: {d:.2} GFLOPS, {d:.0}ns mean", .{ m, k, n, gflops, mean_ns });
 }
 
 pub fn runStreamingBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(mod.BenchResult)) mod.BenchmarkError!void {
@@ -791,7 +792,7 @@ pub fn runStreamingBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayL
             .name_allocated = true,
         });
 
-        std.debug.print("  streaming[{d} tokens]: TTFT={d:.2}ms, throughput={d:.1} tok/s\n", .{
+        utils.output.println("  streaming[{d} tokens]: TTFT={d:.2}ms, throughput={d:.1} tok/s", .{
             token_count,
             ttft_mean / 1_000_000.0,
             throughput_mean,
@@ -830,7 +831,7 @@ pub fn runStreamingBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayL
             .iterations = encode_iterations,
         });
 
-        std.debug.print("  sse_encode: {d:.0} ops/sec, {d:.0}ns mean\n", .{ ops_per_sec, mean_ns });
+        utils.output.println("  sse_encode: {d:.0} ops/sec, {d:.0}ns mean", .{ ops_per_sec, mean_ns });
     }
 }
 
@@ -862,7 +863,7 @@ pub fn runQuickSimdBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayL
         .iterations = result.iterations,
     });
 
-    std.debug.print("  quick_dot_product: {d:.0} ops/sec\n", .{result.ops_per_sec});
+    utils.output.println("  quick_dot_product: {d:.0} ops/sec", .{result.ops_per_sec});
 }
 
 pub fn runQuickMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(mod.BenchResult)) mod.BenchmarkError!void {
@@ -877,5 +878,5 @@ pub fn runQuickMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.Arra
         .iterations = result.iterations,
     });
 
-    std.debug.print("  quick_alloc: {d:.0} ops/sec\n", .{result.ops_per_sec});
+    utils.output.println("  quick_alloc: {d:.0} ops/sec", .{result.ops_per_sec});
 }

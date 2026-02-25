@@ -679,13 +679,13 @@ fn setCursorPosition(term: *tui.Terminal, row: u16, col: u16) !void {
 }
 
 fn printFallbackInfo() void {
-    std.debug.print("\nBrain Dashboard requires a terminal.\n", .{});
-    std.debug.print("  Use 'abi system-info' for system status\n", .{});
-    std.debug.print("  Use 'abi ui gpu' for GPU monitoring\n", .{});
+    utils.output.println("\nBrain Dashboard requires a terminal.", .{});
+    utils.output.println("  Use 'abi system-info' for system status", .{});
+    utils.output.println("  Use 'abi ui gpu' for GPU monitoring", .{});
 }
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi ui brain [OPTIONS]
         \\
         \\Interactive brain visualization dashboard combining a 3D neural

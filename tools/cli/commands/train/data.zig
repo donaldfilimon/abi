@@ -16,7 +16,7 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
     var output_path: []const u8 = "synthetic.bin";
 
     if (utils.args.containsHelpArgs(args)) {
-        std.debug.print(
+        utils.output.print(
             \\Usage: abi train generate-data [options]
             \\
             \\Generate synthetic tokenized training data for pipeline testing.
@@ -69,13 +69,13 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
     const total_tokens: u64 = @as(u64, num_samples) * @as(u64, seq_length);
     const file_size = 8 + total_tokens * 4; // header (2 x u32) + tokens (u32 each)
 
-    std.debug.print("Generating synthetic training data:\n", .{});
-    std.debug.print("  Samples:    {d}\n", .{num_samples});
-    std.debug.print("  Seq length: {d}\n", .{seq_length});
-    std.debug.print("  Vocab size: {d}\n", .{vocab_size});
-    std.debug.print("  Total tokens: {d}\n", .{total_tokens});
-    std.debug.print("  File size: {d} bytes\n", .{file_size});
-    std.debug.print("  Output:     {s}\n", .{output_path});
+    utils.output.printHeader("Generating synthetic training data");
+    utils.output.printKeyValueFmt("Samples", "{d}", .{num_samples});
+    utils.output.printKeyValueFmt("Seq length", "{d}", .{seq_length});
+    utils.output.printKeyValueFmt("Vocab size", "{d}", .{vocab_size});
+    utils.output.printKeyValueFmt("Total tokens", "{d}", .{total_tokens});
+    utils.output.printKeyValueFmt("File size", "{d} bytes", .{file_size});
+    utils.output.printKeyValueFmt("Output", "{s}", .{output_path});
 
     // Initialize I/O backend for file writing
     var io_backend = cli_io.initIoBackend(std.heap.page_allocator);
@@ -84,7 +84,7 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
 
     // Create output file
     const file = std.Io.Dir.cwd().createFile(io, output_path, .{}) catch |err| {
-        utils.output.printError("could not create output file '{s}': {t}\n", .{ output_path, err });
+        utils.output.printError("could not create output file '{s}': {t}", .{ output_path, err });
         return;
     };
     defer file.close(io);
@@ -104,11 +104,11 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
 
     // Write header: num_samples (u32 LE) + seq_length (u32 LE)
     writeU32LE(w, num_samples) catch |err| {
-        std.debug.print("Error writing header: {t}\n", .{err});
+        utils.output.printError("writing header: {t}", .{err});
         return;
     };
     writeU32LE(w, seq_length) catch |err| {
-        std.debug.print("Error writing header: {t}\n", .{err});
+        utils.output.printError("writing header: {t}", .{err});
         return;
     };
 
@@ -121,7 +121,7 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
         for (0..seq_length) |_| {
             const token: u32 = random.intRangeLessThan(u32, 0, vocab_size);
             writeU32LE(w, token) catch |err| {
-                std.debug.print("Error writing token data: {t}\n", .{err});
+                utils.output.printError("writing token data: {t}", .{err});
                 return;
             };
             written += 1;
@@ -130,10 +130,11 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
 
     // Flush remaining buffered data
     file_writer.flush() catch |err| {
-        std.debug.print("Error flushing output: {t}\n", .{err});
+        utils.output.printError("flushing output: {t}", .{err});
         return;
     };
 
-    std.debug.print("\nWrote {d} tokens to {s}\n", .{ written, output_path });
-    std.debug.print("Use with: abi train new --dataset-path {s}\n", .{output_path});
+    utils.output.println("", .{});
+    utils.output.printSuccess("Wrote {d} tokens to {s}", .{ written, output_path });
+    utils.output.println("Use with: abi train new --dataset-path {s}", .{output_path});
 }

@@ -3,6 +3,7 @@
 const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
+const utils = @import("../../utils/mod.zig");
 const shared_time = abi.shared.time;
 
 const Config = struct {
@@ -104,8 +105,8 @@ pub fn runVisualizer(allocator: std.mem.Allocator, args: []const [:0]const u8) !
     var canvas = try allocator.alloc(u8, cfg.width * canvas_h);
     defer allocator.free(canvas);
 
-    std.debug.print("\x1b[?25l\x1b[2J", .{});
-    defer std.debug.print("\x1b[?25h\x1b[0m\n", .{});
+    utils.output.print("\x1b[?25l\x1b[2J", .{});
+    defer utils.output.println("\x1b[?25h\x1b[0m", .{});
 
     const sleep_ms = @max(@as(u32, 1), @divFloor(@as(u32, 1000), cfg.fps));
     var frame: u32 = 0;
@@ -120,21 +121,21 @@ pub fn runVisualizer(allocator: std.mem.Allocator, args: []const [:0]const u8) !
         drawEdges(canvas, cfg.width, canvas_h, projected, layers, layer_offsets);
         drawNodes(canvas, cfg.width, canvas_h, projected);
 
-        std.debug.print("\x1b[H", .{});
-        std.debug.print("ABI Neural 3D | frame {d}", .{frame + 1});
-        if (cfg.frames > 0) std.debug.print("/{d}", .{cfg.frames});
-        std.debug.print(" | fps {d} | layers ", .{cfg.fps});
+        utils.output.print("\x1b[H", .{});
+        utils.output.print("ABI Neural 3D | frame {d}", .{frame + 1});
+        if (cfg.frames > 0) utils.output.print("/{d}", .{cfg.frames});
+        utils.output.print(" | fps {d} | layers ", .{cfg.fps});
         for (layers, 0..) |layer_size, idx| {
-            if (idx > 0) std.debug.print(",", .{});
-            std.debug.print("{d}", .{layer_size});
+            if (idx > 0) utils.output.print(",", .{});
+            utils.output.print("{d}", .{layer_size});
         }
-        std.debug.print("\n", .{});
-        std.debug.print("Ctrl-C to stop. Tunables: --layers 8,16,12,6 --frames 240 --fps 30\n", .{});
+        utils.output.println("", .{});
+        utils.output.println("Ctrl-C to stop. Tunables: --layers 8,16,12,6 --frames 240 --fps 30", .{});
 
         var row: usize = 0;
         while (row < canvas_h) : (row += 1) {
             const start = row * cfg.width;
-            std.debug.print("{s}\n", .{canvas[start .. start + cfg.width]});
+            utils.output.println("{s}", .{canvas[start .. start + cfg.width]});
         }
 
         shared_time.sleepMs(sleep_ms);
@@ -352,7 +353,7 @@ fn edgeChar(depth: f32) u8 {
 }
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi ui neural [options]
         \\
         \\Render a dynamic 3D neural-network view in the terminal.

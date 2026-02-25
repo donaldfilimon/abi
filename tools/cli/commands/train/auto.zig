@@ -24,8 +24,8 @@ pub fn runAutoTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
         }
     }
 
-    std.debug.print("Auto-train: Abbey, Aviva, Abi (basic data + vision/multimodal)\n", .{});
-    std.debug.print("============================================================\n\n", .{});
+    utils.output.printHeader("Auto-train: Abbey, Aviva, Abi (basic data + vision/multimodal)");
+    utils.output.println("", .{});
 
     const vision_enabled = abi.ai.vision.isEnabled();
     const config = abi.ai.training.SelfLearningConfig{
@@ -40,7 +40,7 @@ pub fn runAutoTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     };
 
     var system = abi.ai.training.SelfLearningSystem.init(allocator, config) catch |err| {
-        utils.output.printError("Self-learning init failed: {t}\n", .{err});
+        utils.output.printError("Self-learning init failed: {t}", .{err});
         return;
     };
     defer system.deinit();
@@ -62,7 +62,7 @@ pub fn runAutoTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
             0.9,
             .text_conversation,
         ) catch |e| {
-            std.debug.print("Error recording Abbey experience: {t}\n", .{e});
+            utils.output.printError("recording Abbey experience: {t}", .{e});
             return;
         };
     }
@@ -75,7 +75,7 @@ pub fn runAutoTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
             0.9,
             .text_conversation,
         ) catch |e| {
-            std.debug.print("Error recording Aviva experience: {t}\n", .{e});
+            utils.output.printError("recording Aviva experience: {t}", .{e});
             return;
         };
     }
@@ -88,7 +88,7 @@ pub fn runAutoTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
             0.9,
             .text_conversation,
         ) catch |e| {
-            std.debug.print("Error recording Abi experience: {t}\n", .{e});
+            utils.output.printError("recording Abi experience: {t}", .{e});
             return;
         };
     }
@@ -103,42 +103,43 @@ pub fn runAutoTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
         const vision_in: []const u32 = &[_]u32{ 100, 101 };
         const vision_out: []const u32 = &[_]u32{ 100, 101, 102 };
         system.recordVisionExperience(vision_in, vision_out, synth_img, .positive, 0.85) catch |e| {
-            std.debug.print("Error recording vision experience: {t}\n", .{e});
+            utils.output.printError("recording vision experience: {t}", .{e});
             return;
         };
         system.recordVisionExperience(vision_in, vision_out, synth_img, .positive, 0.8) catch |e| {
-            std.debug.print("Error recording vision experience 2: {t}\n", .{e});
+            utils.output.printError("recording vision experience 2: {t}", .{e});
             return;
         };
     }
 
     system.update() catch |e| {
-        std.debug.print("Error during self-learning update: {t}\n", .{e});
+        utils.output.printError("during self-learning update: {t}", .{e});
         return;
     };
 
     const stats = system.getStats();
-    std.debug.print("Self-learning complete\n", .{});
-    std.debug.print("=====================\n", .{});
-    std.debug.print("Total experiences: {d}\n", .{stats.total_experiences});
-    std.debug.print("Total updates:      {d}\n", .{stats.total_updates});
-    std.debug.print("Vision samples:     {d}\n", .{stats.vision_samples});
-    std.debug.print("Document samples:   {d}\n", .{stats.document_samples});
-    std.debug.print("Avg reward:          {d:.4}\n", .{stats.avg_reward});
-    std.debug.print("Improvement rate:    {d:.4}\n\n", .{stats.improvement_rate});
+    utils.output.printHeader("Self-learning complete");
+    utils.output.printKeyValueFmt("Total experiences", "{d}", .{stats.total_experiences});
+    utils.output.printKeyValueFmt("Total updates", "{d}", .{stats.total_updates});
+    utils.output.printKeyValueFmt("Vision samples", "{d}", .{stats.vision_samples});
+    utils.output.printKeyValueFmt("Document samples", "{d}", .{stats.document_samples});
+    utils.output.printKeyValueFmt("Avg reward", "{d:.4}", .{stats.avg_reward});
+    utils.output.printKeyValueFmt("Improvement rate", "{d:.4}", .{stats.improvement_rate});
+    utils.output.println("", .{});
 
     if (vision_enabled and run_multimodal) {
-        std.debug.print("Multimodal micro-steps (vision + CLIP)...\n", .{});
+        utils.output.println("Multimodal micro-steps (vision + CLIP)...", .{});
         runAutoTrainMicroVision(allocator) catch |e| {
-            std.debug.print("Warning: vision micro-step failed: {t}\n", .{e});
+            utils.output.printWarning("vision micro-step failed: {t}", .{e});
         };
         runAutoTrainMicroClip(allocator) catch |e| {
-            std.debug.print("Warning: CLIP micro-step failed: {t}\n", .{e});
+            utils.output.printWarning("CLIP micro-step failed: {t}", .{e});
         };
-        std.debug.print("Multimodal micro-steps done.\n\n", .{});
+        utils.output.println("Multimodal micro-steps done.", .{});
+        utils.output.println("", .{});
     }
 
-    std.debug.print("Auto-train complete.\n", .{});
+    utils.output.printSuccess("Auto-train complete.", .{});
 }
 
 pub fn runAutoTrainMicroVision(allocator: std.mem.Allocator) !void {
@@ -192,7 +193,7 @@ pub fn runAutoTrainMicroVision(allocator: std.mem.Allocator) !void {
         model.applySgdUpdate(learning_rate);
         model.zeroGradients();
     }
-    std.debug.print("  ViT micro: {d} batches\n", .{num_batches});
+    utils.output.println("  ViT micro: {d} batches", .{num_batches});
 }
 
 pub fn runAutoTrainMicroClip(allocator: std.mem.Allocator) !void {
@@ -267,11 +268,11 @@ pub fn runAutoTrainMicroClip(allocator: std.mem.Allocator) !void {
         model.zeroGradients();
         model.applySgdUpdate(1e-4);
     }
-    std.debug.print("  CLIP micro: {d} batches\n", .{num_batches});
+    utils.output.println("  CLIP micro: {d} batches", .{num_batches});
 }
 
 pub fn printAutoHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: train auto [options]
         \\Auto-train Abbey, Aviva, and Abi with basic seed data and optional vision/multimodal.
         \\

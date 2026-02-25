@@ -52,15 +52,15 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         printHelp();
         return;
     }
-    std.debug.print("Unknown llm command: {s}\n", .{sub});
+    utils.output.printError("Unknown llm command: {s}", .{sub});
     if (utils.args.suggestCommand(sub, &.{ "run", "session", "serve", "providers", "plugins", "discover" })) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
     return error.ExecutionFailed;
 }
 
 pub fn printHelp() void {
-    std.debug.print(
+    utils.output.println(
         "Usage: abi llm <subcommand> [options]\\n\\n" ++
             "Canonical commands:\\n" ++
             "  run         One-shot generation through provider router\\n" ++
@@ -76,7 +76,7 @@ pub fn printHelp() void {
             "  abi llm discover\\n" ++
             "  abi llm providers\\n" ++
             "  abi llm plugins list\\n" ++
-            "  abi llm serve --help\\n",
+            "  abi llm serve --help",
         .{},
     );
 }

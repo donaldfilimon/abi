@@ -180,44 +180,44 @@ pub fn runTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const 
 
     // Validate configuration
     config.validate() catch |err| {
-        std.debug.print("Invalid configuration: {t}\n", .{err});
+        utils.output.printError("Invalid configuration: {t}", .{err});
         return;
     };
 
     // Print configuration summary
-    std.debug.print("Training Configuration\n", .{});
-    std.debug.print("======================\n", .{});
-    std.debug.print("Epochs:           {d}\n", .{config.epochs});
-    std.debug.print("Batch size:       {d}\n", .{config.batch_size});
-    std.debug.print("Sample count:     {d}\n", .{config.sample_count});
-    std.debug.print("Model size:       {d}\n", .{config.model_size});
-    std.debug.print("Learning rate:    {d:.6}\n", .{config.learning_rate});
-    std.debug.print("Optimizer:        {t}\n", .{config.optimizer});
-    std.debug.print("LR schedule:      {t}\n", .{config.learning_rate_schedule});
-    std.debug.print("Warmup steps:     {d}\n", .{config.warmup_steps});
-    std.debug.print("Decay steps:      {d}\n", .{config.decay_steps});
-    std.debug.print("Weight decay:     {d:.6}\n", .{config.weight_decay});
-    std.debug.print("Gradient clip:    {d:.2}\n", .{config.gradient_clip_norm});
-    std.debug.print("Grad accumulation:{d}\n", .{config.gradient_accumulation_steps});
+    utils.output.printHeader("Training Configuration");
+    utils.output.printKeyValueFmt("Epochs", "{d}", .{config.epochs});
+    utils.output.printKeyValueFmt("Batch size", "{d}", .{config.batch_size});
+    utils.output.printKeyValueFmt("Sample count", "{d}", .{config.sample_count});
+    utils.output.printKeyValueFmt("Model size", "{d}", .{config.model_size});
+    utils.output.printKeyValueFmt("Learning rate", "{d:.6}", .{config.learning_rate});
+    utils.output.printKeyValueFmt("Optimizer", "{t}", .{config.optimizer});
+    utils.output.printKeyValueFmt("LR schedule", "{t}", .{config.learning_rate_schedule});
+    utils.output.printKeyValueFmt("Warmup steps", "{d}", .{config.warmup_steps});
+    utils.output.printKeyValueFmt("Decay steps", "{d}", .{config.decay_steps});
+    utils.output.printKeyValueFmt("Weight decay", "{d:.6}", .{config.weight_decay});
+    utils.output.printKeyValueFmt("Gradient clip", "{d:.2}", .{config.gradient_clip_norm});
+    utils.output.printKeyValueFmt("Grad accumulation", "{d}", .{config.gradient_accumulation_steps});
     if (config.checkpoint_interval > 0) {
-        std.debug.print("Checkpoint interval: {d}\n", .{config.checkpoint_interval});
+        utils.output.printKeyValueFmt("Checkpoint interval", "{d}", .{config.checkpoint_interval});
     }
     if (config.checkpoint_path) |path| {
-        std.debug.print("Checkpoint path:  {s}\n", .{path});
+        utils.output.printKeyValueFmt("Checkpoint path", "{s}", .{path});
     }
-    std.debug.print("Mixed precision:  {}\n", .{config.mixed_precision});
-    std.debug.print("\n", .{});
+    utils.output.printKeyValueFmt("Mixed precision", "{}", .{config.mixed_precision});
+    utils.output.println("", .{});
 
     // Run training
-    std.debug.print("Starting training...\n\n", .{});
+    utils.output.println("Starting training...", .{});
+    utils.output.println("", .{});
 
     var timer = abi.shared.time.Timer.start() catch {
-        utils.output.printError("Failed to start timer\n", .{});
+        utils.output.printError("Failed to start timer", .{});
         return;
     };
 
     var result = abi.ai.training.trainWithResult(allocator, config) catch |err| {
-        std.debug.print("Training failed: {t}\n", .{err});
+        utils.output.printError("Training failed: {t}", .{err});
         return;
     };
     defer result.deinit();
@@ -226,28 +226,28 @@ pub fn runTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     const elapsed_ms = elapsed_ns / std.time.ns_per_ms;
 
     // Print results
-    std.debug.print("Training Complete\n", .{});
-    std.debug.print("=================\n", .{});
-    std.debug.print("Epochs completed: {d}\n", .{result.report.epochs});
-    std.debug.print("Batches/epoch:    {d}\n", .{result.report.batches});
-    std.debug.print("Gradient updates: {d}\n", .{result.report.gradient_updates});
-    std.debug.print("Final loss:       {d:.6}\n", .{result.report.final_loss});
-    std.debug.print("Final accuracy:   {d:.2}%\n", .{result.report.final_accuracy * 100});
-    std.debug.print("Best loss:        {d:.6}\n", .{result.report.best_loss});
-    std.debug.print("Final LR:         {d:.8}\n", .{result.report.learning_rate});
-    std.debug.print("Checkpoints saved:{d}\n", .{result.report.checkpoints_saved});
+    utils.output.printHeader("Training Complete");
+    utils.output.printKeyValueFmt("Epochs completed", "{d}", .{result.report.epochs});
+    utils.output.printKeyValueFmt("Batches/epoch", "{d}", .{result.report.batches});
+    utils.output.printKeyValueFmt("Gradient updates", "{d}", .{result.report.gradient_updates});
+    utils.output.printKeyValueFmt("Final loss", "{d:.6}", .{result.report.final_loss});
+    utils.output.printKeyValueFmt("Final accuracy", "{d:.2}%", .{result.report.final_accuracy * 100});
+    utils.output.printKeyValueFmt("Best loss", "{d:.6}", .{result.report.best_loss});
+    utils.output.printKeyValueFmt("Final LR", "{d:.8}", .{result.report.learning_rate});
+    utils.output.printKeyValueFmt("Checkpoints saved", "{d}", .{result.report.checkpoints_saved});
     if (result.report.early_stopped) {
-        std.debug.print("Early stopped:    yes\n", .{});
+        utils.output.printKeyValue("Early stopped", "yes");
     }
-    std.debug.print("Total time:       {d}ms\n", .{elapsed_ms});
+    utils.output.printKeyValueFmt("Total time", "{d}ms", .{elapsed_ms});
 
     // Print loss history (abbreviated)
     if (result.loss_history.len > 0) {
-        std.debug.print("\nLoss history (sampled):\n", .{});
+        utils.output.println("", .{});
+        utils.output.println("Loss history (sampled):", .{});
         const step_size = @max(1, result.loss_history.len / 5);
         var idx: usize = 0;
         while (idx < result.loss_history.len) : (idx += step_size) {
-            std.debug.print("  Epoch {d}: loss={d:.6}, acc={d:.2}%\n", .{
+            utils.output.println("  Epoch {d}: loss={d:.6}, acc={d:.2}%", .{
                 idx + 1,
                 result.loss_history[idx],
                 result.accuracy_history[idx] * 100,

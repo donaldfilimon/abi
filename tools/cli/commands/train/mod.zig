@@ -147,9 +147,9 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     // Unknown subcommand
-    std.debug.print("Unknown train command: {s}\n", .{cmd});
+    utils.output.printError("Unknown train command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &train_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -254,5 +254,5 @@ pub fn printHelp() void {
         \\  abi train info
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }

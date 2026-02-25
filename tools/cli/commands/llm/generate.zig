@@ -182,38 +182,40 @@ pub fn runGenerate(ctx: *const context_mod.CommandContext, args: []const [:0]con
     }
 
     if (model_path == null) {
-        std.debug.print("Error: Model path required\n", .{});
-        std.debug.print("Usage: abi llm generate <model> --prompt <text>\n", .{});
+        utils.output.printError("Model path required", .{});
+        utils.output.println("Usage: abi llm generate <model> --prompt <text>", .{});
         return;
     }
 
     if (prompt == null) {
-        std.debug.print("Error: Prompt required\n", .{});
-        std.debug.print("Usage: abi llm generate <model> --prompt <text>\n", .{});
+        utils.output.printError("Prompt required", .{});
+        utils.output.println("Usage: abi llm generate <model> --prompt <text>", .{});
         return;
     }
 
-    std.debug.print("Loading model: {s}\n", .{model_path.?});
-    std.debug.print("Prompt: {s}\n", .{prompt.?});
-    std.debug.print("Max tokens: {d}, Temperature: {d:.2}, Top-p: {d:.2}, Top-k: {d}, Repeat penalty: {d:.2}\n", .{ max_tokens, temperature, top_p, top_k, repeat_penalty });
+    utils.output.printKeyValueFmt("Loading model", "{s}", .{model_path.?});
+    utils.output.printKeyValueFmt("Prompt", "{s}", .{prompt.?});
+    utils.output.println("Max tokens: {d}, Temperature: {d:.2}, Top-p: {d:.2}, Top-k: {d}, Repeat penalty: {d:.2}", .{ max_tokens, temperature, top_p, top_k, repeat_penalty });
     if (seed) |s| {
-        std.debug.print("Seed: {d}\n", .{s});
+        utils.output.printKeyValueFmt("Seed", "{d}", .{s});
     }
     if (tfs_z < 1.0) {
-        std.debug.print("Tail-free sampling: z={d:.2}\n", .{tfs_z});
+        utils.output.println("Tail-free sampling: z={d:.2}", .{tfs_z});
     }
     if (mirostat > 0) {
-        std.debug.print("Mirostat v{d}: tau={d:.2}, eta={d:.2}\n", .{ mirostat, mirostat_tau, mirostat_eta });
+        utils.output.println("Mirostat v{d}: tau={d:.2}, eta={d:.2}", .{ mirostat, mirostat_tau, mirostat_eta });
     }
     if (stream) {
-        std.debug.print("Streaming: enabled\n", .{});
+        utils.output.println("Streaming: enabled", .{});
     }
     if (!allow_ollama_fallback) {
-        std.debug.print("Ollama fallback: disabled\n", .{});
+        utils.output.println("Ollama fallback: disabled", .{});
     } else if (ollama_model) |name| {
-        std.debug.print("Ollama model override: {s}\n", .{name});
+        utils.output.printKeyValueFmt("Ollama model override", "{s}", .{name});
     }
-    std.debug.print("\nGenerating...\n\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("Generating...", .{});
+    utils.output.println("", .{});
 
     // Create inference engine
     var engine = abi.ai.llm.Engine.init(allocator, .{
@@ -229,45 +231,48 @@ pub fn runGenerate(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
     // Load model
     engine.loadModel(model_path.?) catch |err| {
-        std.debug.print("Error loading model: {t}\n", .{err});
+        utils.output.printError("loading model: {t}", .{err});
         if (err == error.FileTooLarge) {
             info.printModelFileSizeHint(allocator, model_path.?);
             return;
         }
         if (err == error.UnsupportedArchitecture) {
-            std.debug.print("\nThis GGUF architecture is not yet supported by ABI local inference.\n", .{});
-            std.debug.print("Current local engine targets LLaMA-compatible transformer layouts.\n", .{});
-            std.debug.print("Tip: remove `--no-ollama-fallback` to run this model via Ollama.\n", .{});
+            utils.output.println("", .{});
+            utils.output.printWarning("This GGUF architecture is not yet supported by ABI local inference.", .{});
+            utils.output.println("Current local engine targets LLaMA-compatible transformer layouts.", .{});
+            utils.output.printInfo("Tip: remove `--no-ollama-fallback` to run this model via Ollama.", .{});
             info.printUnsupportedLayoutSummary(allocator, model_path.?);
             return;
         }
-        std.debug.print("\nNote: GGUF model loading requires a valid GGUF file.\n", .{});
-        std.debug.print("You can download models from: https://huggingface.co/TheBloke\n", .{});
+        utils.output.println("", .{});
+        utils.output.printInfo("GGUF model loading requires a valid GGUF file.", .{});
+        utils.output.println("You can download models from: https://huggingface.co/TheBloke", .{});
         return;
     };
 
     const backend = engine.getBackend();
-    std.debug.print("Backend: {s}\n", .{backend.label()});
+    utils.output.printKeyValueFmt("Backend", "{s}", .{backend.label()});
     if (backend == .ollama) {
         if (engine.getBackendModelName()) |name| {
-            std.debug.print("Ollama model: {s}\n", .{name});
+            utils.output.printKeyValueFmt("Ollama model", "{s}", .{name});
         }
     }
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     // Generate
-    const output = engine.generate(allocator, prompt.?) catch |err| {
-        std.debug.print("Error during generation: {t}\n", .{err});
+    const gen_output = engine.generate(allocator, prompt.?) catch |err| {
+        utils.output.printError("during generation: {t}", .{err});
         return;
     };
-    defer allocator.free(output);
+    defer allocator.free(gen_output);
 
-    std.debug.print("{s}\n", .{output});
+    utils.output.println("{s}", .{gen_output});
 
     // Print stats
     const stats = engine.getStats();
-    std.debug.print("\n---\n", .{});
-    std.debug.print("Stats: {d:.1} tok/s prefill, {d:.1} tok/s decode\n", .{
+    utils.output.println("", .{});
+    utils.output.printSeparator(3);
+    utils.output.println("Stats: {d:.1} tok/s prefill, {d:.1} tok/s decode", .{
         stats.prefillTokensPerSecond(),
         stats.decodeTokensPerSecond(),
     });

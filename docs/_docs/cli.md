@@ -23,7 +23,7 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 ## Command Tree
 
-Top-level commands: **31** | aliases: **10** | structural subcommands: **170**
+Top-level commands: **31** | aliases: **10** | structural subcommands: **171**
 
 | Command | Aliases | Description | Subcommands |
 | --- | --- | --- | --- |
@@ -45,7 +45,7 @@ Top-level commands: **31** | aliases: **10** | structural subcommands: **170**
 | `lsp` | — | ZLS LSP client (request, hover, completion, definition, rename, format) | request, notify, hover, completion, definition, references, rename, format, diagnostics, help |
 | `mcp` | — | MCP server for WDBX database or ZLS (serve, tools) | serve, tools, help |
 | `model` | — | Model management (list, download, remove, search) | list, info, download, remove, search, path |
-| `multi-agent` | — | Run multi-agent workflows | info, run, list, create, status |
+| `multi-agent` | — | Run multi-agent workflows | info, run, run-workflow, list, create, status |
 | `network` | — | Network and distributed systems management | status, list, nodes, register, unregister, touch, set-status, raft, discovery, balancer, health |
 | `os-agent` | — | OS-aware AI agent with tools, memory, and self-learning | — |
 | `plugins` | — | Plugin management (list, enable, disable, info) | list, info, enable, disable, search |

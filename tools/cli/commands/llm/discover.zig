@@ -12,8 +12,8 @@ pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]con
         }
     }
 
-    std.debug.print("\nLLM Provider Discovery\n", .{});
-    std.debug.print("======================\n\n", .{});
+    utils.output.printHeader("LLM Provider Discovery");
+    utils.output.println("", .{});
 
     const providers = .{
         .{ "local_gguf", "Built-in GGUF engine", "Always available — load .gguf model files directly" },
@@ -45,39 +45,44 @@ pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]con
 
         if (is_available) {
             available_count += 1;
-            std.debug.print("  [OK]  {s:16} {s}\n", .{ display_name, "" });
+            utils.output.printStatusLineFmt("{s:16}", .{display_name}, true);
         } else {
-            std.debug.print("  [ ]   {s:16} {s}\n", .{ display_name, hint });
+            utils.output.printStatusLineFmt("{s:16} {s}", .{ display_name, hint }, false);
         }
     }
 
-    std.debug.print("\n{d}/{d} providers available\n\n", .{ available_count, providers.len });
+    utils.output.printCountSummary(available_count, providers.len, "providers available");
+    utils.output.println("", .{});
 
-    std.debug.print("Default routing (model file path):\n  ", .{});
+    utils.output.println("Default routing (model file path):", .{});
+    utils.output.print("  ", .{});
     for (abi.ai.llm.providers.registry.file_model_chain[0..], 0..) |p, idx| {
-        if (idx != 0) std.debug.print(" -> ", .{});
-        std.debug.print("{s}", .{p.label()});
+        if (idx != 0) utils.output.print(" -> ", .{});
+        utils.output.print("{s}", .{p.label()});
     }
-    std.debug.print("\n\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("", .{});
 
-    std.debug.print("Default routing (model name):\n  ", .{});
+    utils.output.println("Default routing (model name):", .{});
+    utils.output.print("  ", .{});
     for (abi.ai.llm.providers.registry.model_name_chain[0..], 0..) |p, idx| {
-        if (idx != 0) std.debug.print(" -> ", .{});
-        std.debug.print("{s}", .{p.label()});
+        if (idx != 0) utils.output.print(" -> ", .{});
+        utils.output.print("{s}", .{p.label()});
     }
-    std.debug.print("\n\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("", .{});
 
-    std.debug.print("Quick start:\n", .{});
-    std.debug.print("  abi llm session --model llama3 --backend ollama\n", .{});
-    std.debug.print("  abi llm session --model claude-3-5-sonnet-20241022 --backend anthropic\n", .{});
-    std.debug.print("  abi llm session --model gpt-4 --backend openai\n", .{});
-    std.debug.print("  abi llm session --sync --sync-providers codex,opencode,claude,gemini,ollama_passthrough,ollama\n", .{});
-    std.debug.print("  abi ralph run --backend anthropic --model claude-3-5-sonnet-20241022 --task \"...\"\n", .{});
-    std.debug.print("  abi ralph improve --backend ollama --model llama3\n", .{});
+    utils.output.println("Quick start:", .{});
+    utils.output.println("  abi llm session --model llama3 --backend ollama", .{});
+    utils.output.println("  abi llm session --model claude-3-5-sonnet-20241022 --backend anthropic", .{});
+    utils.output.println("  abi llm session --model gpt-4 --backend openai", .{});
+    utils.output.println("  abi llm session --sync --sync-providers codex,opencode,claude,gemini,ollama_passthrough,ollama", .{});
+    utils.output.println("  abi ralph run --backend anthropic --model claude-3-5-sonnet-20241022 --task \"...\"", .{});
+    utils.output.println("  abi ralph improve --backend ollama --model llama3", .{});
 }
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         "Usage: abi llm discover\n\n" ++
             "Auto-discover available LLM providers and show routing configuration.\n\n" ++
             "Probes all known provider endpoints (local servers, cloud APIs, plugins)\n" ++

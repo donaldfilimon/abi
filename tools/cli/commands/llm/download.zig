@@ -15,12 +15,15 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
     }
 
     if (args.len == 0) {
-        std.debug.print("Usage: abi llm download <url> [--output <path>]\n\n", .{});
-        std.debug.print("Download a GGUF model from a URL.\n\n", .{});
-        std.debug.print("Examples:\n", .{});
-        std.debug.print("  abi llm download https://example.com/model.gguf\n", .{});
-        std.debug.print("  abi llm download https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.Q4_K_M.gguf\n\n", .{});
-        std.debug.print("Note: For HuggingFace models, use the 'resolve/main/' URL format.\n", .{});
+        utils.output.println("Usage: abi llm download <url> [--output <path>]", .{});
+        utils.output.println("", .{});
+        utils.output.println("Download a GGUF model from a URL.", .{});
+        utils.output.println("", .{});
+        utils.output.println("Examples:", .{});
+        utils.output.println("  abi llm download https://example.com/model.gguf", .{});
+        utils.output.println("  abi llm download https://huggingface.co/TheBloke/Llama-2-7B-GGUF/resolve/main/llama-2-7b.Q4_K_M.gguf", .{});
+        utils.output.println("", .{});
+        utils.output.println("Note: For HuggingFace models, use the 'resolve/main/' URL format.", .{});
         return;
     }
 
@@ -46,7 +49,7 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
     }
 
     if (url == null) {
-        std.debug.print("Error: URL required\n", .{});
+        utils.output.printError("URL required", .{});
         return;
     }
 
@@ -59,8 +62,9 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
         break :blk "model.gguf";
     };
 
-    std.debug.print("Downloading: {s}\n", .{url.?});
-    std.debug.print("Output: {s}\n\n", .{final_path});
+    utils.output.println("Downloading: {s}", .{url.?});
+    utils.output.printKeyValueFmt("Output", "{s}", .{final_path});
+    utils.output.println("", .{});
 
     // Initialize I/O backend for HTTP download
     var io_backend = cli_io.initIoBackend(allocator);
@@ -85,21 +89,21 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
             const speed_mb = @as(f64, @floatFromInt(progress.speed_bytes_per_sec)) / (1024 * 1024);
 
             if (progress.total_bytes > 0) {
-                std.debug.print("\r{d}% ({d:.1}/{d:.1} MB) {d:.1} MB/s", .{
+                utils.output.print("\r{d}% ({d:.1}/{d:.1} MB) {d:.1} MB/s", .{
                     progress.percent,
                     downloaded_mb,
                     total_mb,
                     speed_mb,
                 });
             } else {
-                std.debug.print("\r{d:.1} MB {d:.1} MB/s", .{
+                utils.output.print("\r{d:.1} MB {d:.1} MB/s", .{
                     downloaded_mb,
                     speed_mb,
                 });
             }
 
             if (progress.percent >= 100) {
-                std.debug.print("\n", .{});
+                utils.output.println("", .{});
             }
         }
     }.callback;
@@ -113,19 +117,21 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
     if (result) |download_result| {
         defer allocator.free(download_result.path);
         const size_mb = @as(f64, @floatFromInt(download_result.bytes_downloaded)) / (1024 * 1024);
-        std.debug.print("Download complete: {s}\n", .{download_result.path});
-        std.debug.print("Size: {d:.2} MB\n", .{size_mb});
-        std.debug.print("SHA256: {s}\n", .{&download_result.checksum});
+        utils.output.printSuccess("Download complete: {s}", .{download_result.path});
+        utils.output.printKeyValueFmt("Size", "{d:.2} MB", .{size_mb});
+        utils.output.printKeyValueFmt("SHA256", "{s}", .{&download_result.checksum});
         if (download_result.was_resumed) {
-            std.debug.print("Note: Download resumed from partial file.\n", .{});
+            utils.output.printInfo("Download resumed from partial file.", .{});
         }
         if (download_result.checksum_verified) {
-            std.debug.print("Checksum verified.\n", .{});
+            utils.output.printSuccess("Checksum verified.", .{});
         }
     } else |err| {
-        std.debug.print("\nDownload failed: {t}\n\n", .{err});
-        std.debug.print("Manual download options:\n", .{});
-        std.debug.print("  curl -L -o {s} \"{s}\"\n", .{ final_path, url.? });
-        std.debug.print("  wget -O {s} \"{s}\"\n", .{ final_path, url.? });
+        utils.output.println("", .{});
+        utils.output.printError("Download failed: {t}", .{err});
+        utils.output.println("", .{});
+        utils.output.println("Manual download options:", .{});
+        utils.output.println("  curl -L -o {s} \"{s}\"", .{ final_path, url.? });
+        utils.output.println("  wget -O {s} \"{s}\"", .{ final_path, url.? });
     }
 }

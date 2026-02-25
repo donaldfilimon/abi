@@ -99,5 +99,5 @@ pub fn printHelp() void {
         \\  abi ui neural --layers 12,24,24,12,4 --frames 0
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }

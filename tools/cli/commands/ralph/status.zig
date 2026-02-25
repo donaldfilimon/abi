@@ -30,11 +30,10 @@ pub fn runStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const
     const allocator = ctx.allocator;
     for (args) |arg| {
         if (utils.args.matchesAny(std.mem.sliceTo(arg, 0), &[_][]const u8{ "--help", "-h", "help" })) {
-            std.debug.print(
+            utils.output.println(
                 \\Usage: abi ralph status
                 \\
                 \\Show Ralph run status: latest run id, backend chain, lock state, and persisted skills.
-                \\
             , .{});
             return;
         }
@@ -45,7 +44,7 @@ pub fn runStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const
     const io = io_backend.io();
 
     if (!cfg.fileExists(io, cfg.STATE_FILE)) {
-        std.debug.print("No Ralph workspace found. Run 'abi ralph init' first.\n", .{});
+        utils.output.printWarning("No Ralph workspace found. Run 'abi ralph init' first.", .{});
         return;
     }
 
@@ -54,43 +53,42 @@ pub fn runStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const
     const lock_info = workspace.readLockInfo(allocator, io, 60 * 60 * 4);
     const skill_count = skills_store.countSkills(allocator, io);
 
-    std.debug.print("Ralph status\n", .{});
-    std.debug.print("────────────\n", .{});
-    std.debug.print("Loop lock:       {s}\n", .{if (lock_exists) "present" else "idle"});
+    utils.output.printHeader("Ralph status");
+    utils.output.printKeyValue("Loop lock", if (lock_exists) "present" else "idle");
     if (lock_exists and lock_info.started_at > 0) {
-        std.debug.print("Lock started_at: {d} (stale={s})\n", .{
+        utils.output.printKeyValueFmt("Lock started_at", "{d} (stale={s})", .{
             lock_info.started_at,
             if (lock_info.stale) "true" else "false",
         });
     }
-    std.debug.print("Total runs:      {d}\n", .{state.runs});
-    std.debug.print("State last_ts:   {d}\n", .{state.last_run_ts});
-    std.debug.print("State last_gate: {s}\n", .{if (state.last_gate_passed) "pass" else "fail"});
-    std.debug.print("Persisted skills:{d} ({s})\n", .{ skill_count, cfg.SKILLS_FILE });
+    utils.output.printKeyValueFmt("Total runs", "{d}", .{state.runs});
+    utils.output.printKeyValueFmt("State last_ts", "{d}", .{state.last_run_ts});
+    utils.output.printKeyValue("State last_gate", if (state.last_gate_passed) "pass" else "fail");
+    utils.output.printKeyValueFmt("Persisted skills", "{d} ({s})", .{ skill_count, cfg.SKILLS_FILE });
 
     const latest_report_path = workspace.latestReportPath(allocator, io);
     if (latest_report_path) |path| {
         defer allocator.free(path);
-        std.debug.print("Latest report:   {s}\n", .{path});
+        utils.output.printKeyValue("Latest report", path);
 
         if (parseReport(allocator, io, path)) |report| {
             defer {
                 var mutable = report;
                 mutable.deinit(allocator);
             }
-            std.debug.print("Run id:          {s}\n", .{report.run_id});
-            std.debug.print("Backend:         {s}\n", .{report.backend});
-            std.debug.print("Fallback:        {s}\n", .{report.fallback});
-            std.debug.print("Model:           {s}\n", .{report.model});
-            std.debug.print("Iterations:      {d}\n", .{report.iterations});
-            std.debug.print("Passing iters:   {d}\n", .{report.passing_iterations});
-            std.debug.print("Last gate:       {s} (exit={d})\n", .{
+            utils.output.printKeyValue("Run id", report.run_id);
+            utils.output.printKeyValue("Backend", report.backend);
+            utils.output.printKeyValue("Fallback", report.fallback);
+            utils.output.printKeyValue("Model", report.model);
+            utils.output.printKeyValueFmt("Iterations", "{d}", .{report.iterations});
+            utils.output.printKeyValueFmt("Passing iters", "{d}", .{report.passing_iterations});
+            utils.output.printKeyValueFmt("Last gate", "{s} (exit={d})", .{
                 if (report.gate_passed) "pass" else "fail",
                 report.gate_exit,
             });
         }
     } else {
-        std.debug.print("Latest report:   (none)\n", .{});
+        utils.output.printKeyValue("Latest report", "(none)");
     }
 }
 

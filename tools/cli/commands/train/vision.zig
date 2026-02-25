@@ -17,7 +17,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
 
     // Check if Vision feature is enabled
     if (!abi.ai.vision.isEnabled()) {
-        utils.output.printError("Vision feature is not enabled. Build with -Denable-vision=true\n", .{});
+        utils.output.printError("Vision feature is not enabled. Build with -Denable-vision=true", .{});
         return;
     }
 
@@ -212,56 +212,57 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
     const num_params = trainable_vit_config.numParams();
 
     // Print configuration
-    std.debug.print("Vision Transformer (ViT) Training Configuration\n", .{});
-    std.debug.print("================================================\n", .{});
-    std.debug.print("Architecture:\n", .{});
-    std.debug.print("  Image size:    {d}x{d}\n", .{ image_size, image_size });
-    std.debug.print("  Patch size:    {d}x{d}\n", .{ patch_size, patch_size });
-    std.debug.print("  Hidden size:   {d}\n", .{hidden_size});
-    std.debug.print("  Num layers:    {d}\n", .{num_layers});
-    std.debug.print("  Num heads:     {d}\n", .{num_heads});
-    std.debug.print("  MLP dim:       {d}\n", .{mlp_dim});
-    std.debug.print("  Num classes:   {d}\n", .{num_classes});
-    std.debug.print("  Parameters:    {d} ({d:.2} MB)\n", .{
+    utils.output.printHeader("Vision Transformer (ViT) Training Configuration");
+    utils.output.println("Architecture:", .{});
+    utils.output.printKeyValueFmt("Image size", "{d}x{d}", .{ image_size, image_size });
+    utils.output.printKeyValueFmt("Patch size", "{d}x{d}", .{ patch_size, patch_size });
+    utils.output.printKeyValueFmt("Hidden size", "{d}", .{hidden_size});
+    utils.output.printKeyValueFmt("Num layers", "{d}", .{num_layers});
+    utils.output.printKeyValueFmt("Num heads", "{d}", .{num_heads});
+    utils.output.printKeyValueFmt("MLP dim", "{d}", .{mlp_dim});
+    utils.output.printKeyValueFmt("Num classes", "{d}", .{num_classes});
+    utils.output.printKeyValueFmt("Parameters", "{d} ({d:.2} MB)", .{
         num_params,
         @as(f64, @floatFromInt(num_params * 4)) / (1024 * 1024),
     });
-    std.debug.print("\nTraining:\n", .{});
-    std.debug.print("  Epochs:        {d}\n", .{epochs});
-    std.debug.print("  Batch size:    {d}\n", .{batch_size});
-    std.debug.print("  Learning rate: {e:.2}\n", .{learning_rate});
-    std.debug.print("  Warmup steps:  {d}\n", .{warmup_steps});
-    std.debug.print("  Weight decay:  {d:.4}\n", .{weight_decay});
-    std.debug.print("  Gradient clip: {d:.2}\n", .{gradient_clip});
-    std.debug.print("  Dropout:       {d:.2}\n", .{dropout});
+    utils.output.println("", .{});
+    utils.output.println("Training:", .{});
+    utils.output.printKeyValueFmt("Epochs", "{d}", .{epochs});
+    utils.output.printKeyValueFmt("Batch size", "{d}", .{batch_size});
+    utils.output.printKeyValueFmt("Learning rate", "{e:.2}", .{learning_rate});
+    utils.output.printKeyValueFmt("Warmup steps", "{d}", .{warmup_steps});
+    utils.output.printKeyValueFmt("Weight decay", "{d:.4}", .{weight_decay});
+    utils.output.printKeyValueFmt("Gradient clip", "{d:.2}", .{gradient_clip});
+    utils.output.printKeyValueFmt("Dropout", "{d:.2}", .{dropout});
     if (dataset_path) |path| {
-        std.debug.print("  Dataset:       {s}\n", .{path});
+        utils.output.printKeyValueFmt("Dataset", "{s}", .{path});
     } else {
-        std.debug.print("  Dataset:       (synthetic)\n", .{});
+        utils.output.printKeyValue("Dataset", "(synthetic)");
     }
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     // Initialize model
-    std.debug.print("Initializing ViT model with random weights...\n", .{});
+    utils.output.println("Initializing ViT model with random weights...", .{});
     var model = abi.ai.training.TrainableViTModel.init(allocator, trainable_vit_config) catch |err| {
-        std.debug.print("Error initializing model: {t}\n", .{err});
+        utils.output.printError("initializing model: {t}", .{err});
         return;
     };
     defer model.deinit();
 
-    std.debug.print("Model initialized: {d} parameters\n\n", .{num_params});
+    utils.output.println("Model initialized: {d} parameters", .{num_params});
+    utils.output.println("", .{});
 
     // Generate synthetic training data (images)
     const image_dim = image_size * image_size * 3;
     const num_samples = batch_size * 10;
     var train_images = allocator.alloc(f32, num_samples * image_dim) catch |err| {
-        std.debug.print("Error allocating training data: {t}\n", .{err});
+        utils.output.printError("allocating training data: {t}", .{err});
         return;
     };
     defer allocator.free(train_images);
 
     const train_labels = allocator.alloc(u32, num_samples) catch |err| {
-        std.debug.print("Error allocating labels: {t}\n", .{err});
+        utils.output.printError("allocating labels: {t}", .{err});
         return;
     };
     defer allocator.free(train_labels);
@@ -275,11 +276,12 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
         l.* = rng.random().intRangeLessThan(u32, 0, num_classes);
     }
 
-    std.debug.print("Generated {d} synthetic images for training\n\n", .{num_samples});
-    std.debug.print("Starting Vision training...\n", .{});
+    utils.output.println("Generated {d} synthetic images for training", .{num_samples});
+    utils.output.println("", .{});
+    utils.output.println("Starting Vision training...", .{});
 
     var timer = abi.shared.time.Timer.start() catch {
-        utils.output.printError("Failed to start timer\n", .{});
+        utils.output.printError("Failed to start timer", .{});
         return;
     };
 
@@ -334,24 +336,23 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
             step += 1;
 
             if (step % log_interval == 0) {
-                std.debug.print("  Step {d}: loss={d:.4}\n", .{ step, batch_loss });
+                utils.output.println("  Step {d}: loss={d:.4}", .{ step, batch_loss });
             }
         }
 
         epoch_loss /= @as(f32, @floatFromInt(batches_per_epoch));
         total_loss = epoch_loss;
 
-        std.debug.print("Epoch {d}/{d}: avg_loss={d:.4}\n", .{ epoch + 1, epochs, epoch_loss });
+        utils.output.println("Epoch {d}/{d}: avg_loss={d:.4}", .{ epoch + 1, epochs, epoch_loss });
     }
 
     const elapsed_ns = timer.read();
     const elapsed_s = @as(f64, @floatFromInt(elapsed_ns)) / 1e9;
 
-    std.debug.print("\nVision Training Complete\n", .{});
-    std.debug.print("========================\n", .{});
-    std.debug.print("Final loss:  {d:.6}\n", .{total_loss});
-    std.debug.print("Total steps: {d}\n", .{step});
-    std.debug.print("Wall time:   {d:.2}s\n", .{elapsed_s});
+    utils.output.printHeader("Vision Training Complete");
+    utils.output.printKeyValueFmt("Final loss", "{d:.6}", .{total_loss});
+    utils.output.printKeyValueFmt("Total steps", "{d}", .{step});
+    utils.output.printKeyValueFmt("Wall time", "{d:.2}s", .{elapsed_s});
 }
 
 pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -363,7 +364,7 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
 
     // Check if Vision feature is enabled
     if (!abi.ai.vision.isEnabled()) {
-        utils.output.printError("Vision feature is not enabled. Build with -Denable-vision=true\n", .{});
+        utils.output.printError("Vision feature is not enabled. Build with -Denable-vision=true", .{});
         return;
     }
 
@@ -570,48 +571,51 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     const num_params = clip_config.numParams();
 
     // Print configuration
-    std.debug.print("CLIP (Contrastive Language-Image Pretraining) Configuration\n", .{});
-    std.debug.print("============================================================\n", .{});
-    std.debug.print("Vision Encoder:\n", .{});
-    std.debug.print("  Image size:    {d}x{d}\n", .{ image_size, image_size });
-    std.debug.print("  Patch size:    {d}x{d}\n", .{ patch_size, patch_size });
-    std.debug.print("  Hidden size:   {d}\n", .{vision_hidden});
-    std.debug.print("  Num layers:    {d}\n", .{vision_layers});
-    std.debug.print("  Num heads:     {d}\n", .{vision_heads});
-    std.debug.print("\nText Encoder:\n", .{});
-    std.debug.print("  Hidden size:   {d}\n", .{text_hidden});
-    std.debug.print("  Num layers:    {d}\n", .{text_layers});
-    std.debug.print("  Num heads:     {d}\n", .{text_heads});
-    std.debug.print("\nContrastive:\n", .{});
-    std.debug.print("  Projection dim:{d}\n", .{projection_dim});
-    std.debug.print("  Temperature:   {d:.4}\n", .{temperature});
-    std.debug.print("  Parameters:    {d} ({d:.2} MB)\n", .{
+    utils.output.printHeader("CLIP (Contrastive Language-Image Pretraining) Configuration");
+    utils.output.println("Vision Encoder:", .{});
+    utils.output.printKeyValueFmt("Image size", "{d}x{d}", .{ image_size, image_size });
+    utils.output.printKeyValueFmt("Patch size", "{d}x{d}", .{ patch_size, patch_size });
+    utils.output.printKeyValueFmt("Hidden size", "{d}", .{vision_hidden});
+    utils.output.printKeyValueFmt("Num layers", "{d}", .{vision_layers});
+    utils.output.printKeyValueFmt("Num heads", "{d}", .{vision_heads});
+    utils.output.println("", .{});
+    utils.output.println("Text Encoder:", .{});
+    utils.output.printKeyValueFmt("Hidden size", "{d}", .{text_hidden});
+    utils.output.printKeyValueFmt("Num layers", "{d}", .{text_layers});
+    utils.output.printKeyValueFmt("Num heads", "{d}", .{text_heads});
+    utils.output.println("", .{});
+    utils.output.println("Contrastive:", .{});
+    utils.output.printKeyValueFmt("Projection dim", "{d}", .{projection_dim});
+    utils.output.printKeyValueFmt("Temperature", "{d:.4}", .{temperature});
+    utils.output.printKeyValueFmt("Parameters", "{d} ({d:.2} MB)", .{
         num_params,
         @as(f64, @floatFromInt(num_params * 4)) / (1024 * 1024),
     });
-    std.debug.print("\nTraining:\n", .{});
-    std.debug.print("  Epochs:        {d}\n", .{epochs});
-    std.debug.print("  Batch size:    {d}\n", .{batch_size});
-    std.debug.print("  Learning rate: {e:.2}\n", .{learning_rate});
-    std.debug.print("  Warmup steps:  {d}\n", .{warmup_steps});
-    std.debug.print("  Weight decay:  {d:.4}\n", .{weight_decay});
-    std.debug.print("  Gradient clip: {d:.2}\n", .{gradient_clip});
+    utils.output.println("", .{});
+    utils.output.println("Training:", .{});
+    utils.output.printKeyValueFmt("Epochs", "{d}", .{epochs});
+    utils.output.printKeyValueFmt("Batch size", "{d}", .{batch_size});
+    utils.output.printKeyValueFmt("Learning rate", "{e:.2}", .{learning_rate});
+    utils.output.printKeyValueFmt("Warmup steps", "{d}", .{warmup_steps});
+    utils.output.printKeyValueFmt("Weight decay", "{d:.4}", .{weight_decay});
+    utils.output.printKeyValueFmt("Gradient clip", "{d:.2}", .{gradient_clip});
     if (dataset_path) |path| {
-        std.debug.print("  Dataset:       {s}\n", .{path});
+        utils.output.printKeyValueFmt("Dataset", "{s}", .{path});
     } else {
-        std.debug.print("  Dataset:       (synthetic)\n", .{});
+        utils.output.printKeyValue("Dataset", "(synthetic)");
     }
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     // Initialize model
-    std.debug.print("Initializing CLIP model with random weights...\n", .{});
+    utils.output.println("Initializing CLIP model with random weights...", .{});
     var model = abi.ai.training.TrainableCLIPModel.init(allocator, clip_config) catch |err| {
-        std.debug.print("Error initializing model: {t}\n", .{err});
+        utils.output.printError("initializing model: {t}", .{err});
         return;
     };
     defer model.deinit();
 
-    std.debug.print("Model initialized: {d} parameters\n\n", .{num_params});
+    utils.output.println("Model initialized: {d} parameters", .{num_params});
+    utils.output.println("", .{});
 
     // Generate synthetic training data (image-text pairs)
     const image_dim = image_size * image_size * 3;
@@ -619,13 +623,13 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
     const num_samples = batch_size * 10;
 
     var train_images = allocator.alloc(f32, num_samples * image_dim) catch |err| {
-        std.debug.print("Error allocating training images: {t}\n", .{err});
+        utils.output.printError("allocating training images: {t}", .{err});
         return;
     };
     defer allocator.free(train_images);
 
     var train_tokens = allocator.alloc(u32, num_samples * text_max_len) catch |err| {
-        std.debug.print("Error allocating training tokens: {t}\n", .{err});
+        utils.output.printError("allocating training tokens: {t}", .{err});
         return;
     };
     defer allocator.free(train_tokens);
@@ -639,11 +643,12 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
         t.* = rng.random().intRangeLessThan(u32, 0, clip_config.text_vocab_size);
     }
 
-    std.debug.print("Generated {d} synthetic image-text pairs for training\n\n", .{num_samples});
-    std.debug.print("Starting CLIP contrastive training...\n", .{});
+    utils.output.println("Generated {d} synthetic image-text pairs for training", .{num_samples});
+    utils.output.println("", .{});
+    utils.output.println("Starting CLIP contrastive training...", .{});
 
     var timer = abi.shared.time.Timer.start() catch {
-        utils.output.printError("Failed to start timer\n", .{});
+        utils.output.printError("Failed to start timer", .{});
         return;
     };
 
@@ -654,25 +659,25 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
 
     // Allocate embedding buffers
     const image_embeddings = allocator.alloc(f32, batch_size * projection_dim) catch |err| {
-        std.debug.print("Error allocating embeddings: {t}\n", .{err});
+        utils.output.printError("allocating embeddings: {t}", .{err});
         return;
     };
     defer allocator.free(image_embeddings);
 
     const text_embeddings = allocator.alloc(f32, batch_size * projection_dim) catch |err| {
-        std.debug.print("Error allocating embeddings: {t}\n", .{err});
+        utils.output.printError("allocating embeddings: {t}", .{err});
         return;
     };
     defer allocator.free(text_embeddings);
 
     const d_image_emb = allocator.alloc(f32, batch_size * projection_dim) catch |err| {
-        std.debug.print("Error allocating gradients: {t}\n", .{err});
+        utils.output.printError("allocating gradients: {t}", .{err});
         return;
     };
     defer allocator.free(d_image_emb);
 
     const d_text_emb = allocator.alloc(f32, batch_size * projection_dim) catch |err| {
-        std.debug.print("Error allocating gradients: {t}\n", .{err});
+        utils.output.printError("allocating gradients: {t}", .{err});
         return;
     };
     defer allocator.free(d_text_emb);
@@ -708,24 +713,23 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
             step += 1;
 
             if (step % log_interval == 0) {
-                std.debug.print("  Step {d}: loss={d:.4}\n", .{ step, loss });
+                utils.output.println("  Step {d}: loss={d:.4}", .{ step, loss });
             }
         }
 
         epoch_loss /= @as(f32, @floatFromInt(batches_per_epoch));
         total_loss = epoch_loss;
 
-        std.debug.print("Epoch {d}/{d}: avg_loss={d:.4}\n", .{ epoch + 1, epochs, epoch_loss });
+        utils.output.println("Epoch {d}/{d}: avg_loss={d:.4}", .{ epoch + 1, epochs, epoch_loss });
     }
 
     const elapsed_ns = timer.read();
     const elapsed_s = @as(f64, @floatFromInt(elapsed_ns)) / 1e9;
 
-    std.debug.print("\nCLIP Training Complete\n", .{});
-    std.debug.print("======================\n", .{});
-    std.debug.print("Final loss:  {d:.6}\n", .{total_loss});
-    std.debug.print("Total steps: {d}\n", .{step});
-    std.debug.print("Wall time:   {d:.2}s\n", .{elapsed_s});
+    utils.output.printHeader("CLIP Training Complete");
+    utils.output.printKeyValueFmt("Final loss", "{d:.6}", .{total_loss});
+    utils.output.printKeyValueFmt("Total steps", "{d}", .{step});
+    utils.output.printKeyValueFmt("Wall time", "{d:.2}s", .{elapsed_s});
 }
 
 pub fn printVisionHelp() void {
@@ -760,7 +764,7 @@ pub fn printVisionHelp() void {
         \\  abi train vision --dataset-path ./imagenet --epochs 90
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }
 
 pub fn printClipHelp() void {
@@ -799,5 +803,5 @@ pub fn printClipHelp() void {
         \\  abi train clip --dataset-path ./laion --epochs 32
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }

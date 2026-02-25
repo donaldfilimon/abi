@@ -5,19 +5,20 @@
 const std = @import("std");
 const abi = @import("abi");
 const mod = @import("mod.zig");
+const utils = @import("../../utils/mod.zig");
 
 /// Run micro-benchmark for specific operation
 pub fn runMicroBenchmark(allocator: std.mem.Allocator, args: []const [:0]const u8, config: *mod.BenchConfig) !void {
     if (args.len == 0) {
-        std.debug.print("Usage: abi bench micro <operation>\n", .{});
-        std.debug.print("Operations: hash, alloc, parse, noop\n", .{});
+        utils.output.println("Usage: abi bench micro <operation>", .{});
+        utils.output.println("Operations: hash, alloc, parse, noop", .{});
         return;
     }
 
     const op_name = std.mem.sliceTo(args[0], 0);
     const op = std.meta.stringToEnum(mod.MicroOp, op_name) orelse {
-        std.debug.print("Unknown micro-benchmark: {s}\n", .{op_name});
-        std.debug.print("Available: hash, alloc, parse, noop\n", .{});
+        utils.output.printError("Unknown micro-benchmark: {s}", .{op_name});
+        utils.output.println("Available: hash, alloc, parse, noop", .{});
         return;
     };
 
@@ -39,9 +40,9 @@ pub fn runMicroBenchmark(allocator: std.mem.Allocator, args: []const [:0]const u
         }
     }
 
-    std.debug.print("\nMicro-Benchmark: {s}\n", .{op.toString()});
-    std.debug.print("Iterations: {d}\n", .{config.iterations});
-    std.debug.print("Warmup: {d}\n\n", .{config.warmup});
+    utils.output.println("\nMicro-Benchmark: {s}", .{op.toString()});
+    utils.output.println("Iterations: {d}", .{config.iterations});
+    utils.output.println("Warmup: {d}\n", .{config.warmup});
 
     // Warmup
     var warmup_i: u32 = 0;
@@ -51,7 +52,7 @@ pub fn runMicroBenchmark(allocator: std.mem.Allocator, args: []const [:0]const u
 
     // Benchmark
     const timer = abi.shared.time.Timer.start() catch {
-        std.debug.print("Timer not available.\n", .{});
+        utils.output.printError("Timer not available.", .{});
         return;
     };
 
@@ -66,16 +67,16 @@ pub fn runMicroBenchmark(allocator: std.mem.Allocator, args: []const [:0]const u
     const ops_per_sec = if (mean_ns > 0) 1_000_000_000.0 / mean_ns else 0;
 
     if (config.output_json) {
-        std.debug.print("{{\"operation\":\"{s}\",\"iterations\":{d},\"mean_ns\":{d:.2},\"ops_per_sec\":{d:.2}}}\n", .{
+        utils.output.println("{{\"operation\":\"{s}\",\"iterations\":{d},\"mean_ns\":{d:.2},\"ops_per_sec\":{d:.2}}}", .{
             op.toString(),
             config.iterations,
             mean_ns,
             ops_per_sec,
         });
     } else {
-        std.debug.print("Results:\n", .{});
-        std.debug.print("  Mean time: {d:.2} ns\n", .{mean_ns});
-        std.debug.print("  Ops/sec: {d:.0}\n", .{ops_per_sec});
+        utils.output.println("Results:", .{});
+        utils.output.println("  Mean time: {d:.2} ns", .{mean_ns});
+        utils.output.println("  Ops/sec: {d:.0}", .{ops_per_sec});
     }
 }
 

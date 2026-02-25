@@ -32,12 +32,14 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
     defer allocator.free(parsed.fallback);
 
     if (parsed.model == null) {
-        std.debug.print("Error: --model is required.\n\n", .{});
+        utils.output.printError("--model is required.", .{});
+        utils.output.println("", .{});
         printRunHelp();
         return;
     }
     if (parsed.prompt == null) {
-        std.debug.print("Error: --prompt is required.\n\n", .{});
+        utils.output.printError("--prompt is required.", .{});
+        utils.output.println("", .{});
         printRunHelp();
         return;
     }
@@ -55,7 +57,7 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         .top_k = parsed.top_k,
         .repetition_penalty = parsed.repetition_penalty,
     }) catch |err| {
-        std.debug.print("LLM run failed: {t}\n", .{err});
+        utils.output.printError("LLM run failed: {t}", .{err});
         return err;
     };
     defer result.deinit(allocator);
@@ -65,9 +67,10 @@ pub fn runRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
         return;
     }
 
-    std.debug.print("provider: {s}\n", .{result.provider.label()});
-    std.debug.print("model:    {s}\n\n", .{result.model_used});
-    std.debug.print("{s}\n", .{result.content});
+    utils.output.printKeyValueFmt("provider", "{s}", .{result.provider.label()});
+    utils.output.printKeyValueFmt("model", "{s}", .{result.model_used});
+    utils.output.println("", .{});
+    utils.output.println("{s}", .{result.content});
 }
 
 pub fn parseRunArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !RunOptions {
@@ -104,7 +107,7 @@ pub fn parseRunArgs(allocator: std.mem.Allocator, args: []const [:0]const u8) !R
                 const value = std.mem.sliceTo(args[i], 0);
                 i += 1;
                 options.backend = provider_parser.parseProviderId(value) orelse {
-                    std.debug.print("Unknown backend: {s}\n", .{value});
+                    utils.output.printError("Unknown backend: {s}", .{value});
                     return error.InvalidBackend;
                 };
             }
@@ -207,7 +210,7 @@ fn parseFallbackCsv(
         const trimmed = std.mem.trim(u8, piece, " \t\r\n");
         if (trimmed.len == 0) continue;
         const provider = provider_parser.parseProviderId(trimmed) orelse {
-            std.debug.print("Unknown fallback backend: {s}\n", .{trimmed});
+            utils.output.printError("Unknown fallback backend: {s}", .{trimmed});
             return error.InvalidBackend;
         };
         try appendUnique(allocator, fallback_builder, provider);
@@ -237,7 +240,7 @@ fn printResultJson(allocator: std.mem.Allocator, result: *const abi.ai.llm.provi
     try appendEscaped(allocator, &out, result.content);
     try out.appendSlice(allocator, "\"}\n");
 
-    std.debug.print("{s}", .{out.items});
+    utils.output.print("{s}", .{out.items});
 }
 
 fn appendEscaped(
@@ -258,7 +261,7 @@ fn appendEscaped(
 }
 
 pub fn printRunHelp() void {
-    std.debug.print(
+    utils.output.print(
         "Usage: abi llm run --model <id|path> --prompt <text> [options]\\n\\n" ++
             "Run one-shot LLM inference through the local-first provider router.\\n\\n" ++
             "Options:\\n" ++

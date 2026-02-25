@@ -103,7 +103,14 @@ src/
 tools/
 ├── cli/                       # CLI executable
 │   ├── main.zig               # Entry point (uses Init.Minimal)
-│   └── commands/              # 30+ command implementations
+│   ├── commands/              # 30+ command implementations
+│   │   ├── llm/               # LLM subcommands (chat, demo, list)
+│   │   ├── train/             # Training subcommands (info, monitor, self)
+│   │   ├── ralph/             # Ralph agent subcommands (init, run, status, skills)
+│   │   ├── bench/             # Benchmark subcommands (micro, suites, training)
+│   │   └── ui/                # TUI subcommands (brain, gpu, network, streaming, etc.)
+│   ├── tui/                   # TUI panels and rendering (async_loop, widgets, terminal)
+│   └── utils/output.zig       # CLI output formatting (NO_COLOR, colors, structured output)
 ├── scripts/                   # Build and consistency scripts
 │   └── baseline.zig           # Test count baselines (source of truth)
 build/
@@ -268,6 +275,29 @@ defer list.deinit(allocator);
 try list.append(allocator, item);
 ```
 
+## CLI Output Convention
+
+All CLI commands must use `tools/cli/utils/output.zig` instead of raw `std.debug.print`. This provides:
+- Colored error/warning/info/success prefixes
+- Structured key-value formatting
+- `NO_COLOR` environment variable compliance
+
+```zig
+const utils = @import("../utils/mod.zig");   // from commands/*.zig
+const utils = @import("../../utils/mod.zig"); // from commands/llm/*.zig, commands/train/*.zig, etc.
+
+// Instead of: std.debug.print("Error: {s}\n", .{msg});
+utils.output.printError("something failed: {s}", .{msg});
+utils.output.printWarning("Check config", .{});
+utils.output.printInfo("Processing...", .{});
+utils.output.printSuccess("Done!", .{});
+utils.output.printHeader("Section Title");
+utils.output.printKeyValue("Name", value);
+utils.output.printKeyValueFmt("Count", "{d}", .{n});
+```
+
+**Exceptions:** `completions.zig` (shell eval output must stay on stderr) and `DebugWriter` callbacks.
+
 ## Code Style
 
 | Rule | Convention |
@@ -278,6 +308,7 @@ try list.append(allocator, item);
 | Imports | Explicit only (no `usingnamespace`) |
 | Cleanup | Prefer `defer`/`errdefer` |
 | ArrayList | Prefer `std.ArrayListUnmanaged` with explicit allocator passing |
+| CLI output | Use `utils.output.*`, never raw `std.debug.print` in commands |
 
 ## Quick File Navigation
 
@@ -292,12 +323,64 @@ try list.append(allocator, item);
 | Test baselines | `tools/scripts/baseline.zig` |
 | Feature catalog | `src/core/feature_catalog.zig` |
 
+## Consistency Checks
+
+`zig build full-check` and `zig build verify-all` validate marker strings across docs. These exact literals must stay aligned with `tools/scripts/baseline.zig` and `.zigversion`:
+
+| Marker | Where Validated |
+|--------|----------------|
+| `0.16.0-dev.2637+6a9510c0e` | README.md, CONTRIBUTING.md, CLAUDE.md |
+| `1290 pass, 6 skip (1296 total)` | CLAUDE.md, `.claude/rules/zig.md` |
+| `2360 pass (2365 total)` | CLAUDE.md, `.claude/rules/zig.md` |
+
+If test counts change, run `/baseline-sync` to update all markers.
+
+## Claude Code Tooling
+
+### Skills (invoke with `/skill-name`)
+
+| Skill | Purpose |
+|-------|---------|
+| `/ci-gate` | Run quality gates (quick, full, verify) with failure diagnosis |
+| `/parity-check` | Verify mod.zig/stub.zig signature parity across all features |
+| `/baseline-sync` | Update test baselines after test count changes |
+| `/new-feature` | Scaffold a feature module through all 9 integration points |
+| `/cli-add-command` | Scaffold a new CLI command with registration |
+| `/zig-build` | Build, test, format pipeline |
+| `/zig-migrate` | Apply Zig 0.16 migration patterns to old code |
+| `/zig-std` | Look up Zig 0.16 std lib APIs from actual source |
+| `/connector-add` | Scaffold a new LLM provider connector |
+| `/super-ralph` | Run autonomous Ralph agent loop |
+
+### Agents (auto-triggered via Task tool)
+
+| Agent | Trigger |
+|-------|---------|
+| `stub-parity` | After editing mod.zig or stub.zig |
+| `feature-module` | When scaffolding new features |
+| `ci-triage` | After build/test/CI failures |
+| `zig-expert` | Deep Zig 0.16 reasoning with ABI context |
+| `security-auditor` | Security review of code changes |
+| `doc-reviewer` | Verify docs match codebase |
+| `test-coverage` | Map test coverage gaps |
+
+### Hooks (auto-run in `.claude/settings.json`)
+
+- **PreToolUse:** Blocks `@import("abi")` in `features/` (circular import prevention)
+- **PostToolUse:** Auto-formats `.zig` files, warns on mod/stub edits, detects baseline drift, guards test discovery patterns
+
 ## Post-Edit Checklist
 
 ```bash
-zig fmt .                        # Format code
-zig build test --summary all     # Run main tests
-zig build lint                   # Verify formatting passes CI
+zig fmt .                              # Format code (also auto-runs via hook)
+zig build test --summary all           # Run main tests
+zig build feature-tests --summary all  # Run feature tests (if touching features/)
+zig build lint                         # Verify formatting passes CI
 ```
 
-If modifying feature module APIs, verify both enabled and disabled builds compile.
+If modifying feature module APIs:
+1. Update both `mod.zig` and `stub.zig` with identical signatures
+2. Verify: `zig build -Denable-<feature>=true && zig build -Denable-<feature>=false`
+3. Or run `/parity-check` to audit all modules at once
+
+If changing test counts: run `/baseline-sync` to update markers.

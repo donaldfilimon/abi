@@ -75,7 +75,8 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     defer sync.deinit(allocator);
 
     if (options.model == null and !sync.enabled) {
-        std.debug.print("Error: --model is required.\n\n", .{});
+        utils.output.printError("--model is required.", .{});
+        utils.output.println("", .{});
         printSessionHelp();
         return;
     }
@@ -83,8 +84,9 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
         options.model = "sync";
     }
 
-    std.debug.print("LLM session started (model: {s}).\n", .{options.model.?});
-    std.debug.print("Commands: /quit, /exit, /clear, /help, /providers, /backend <id>, /model <id>, /sync\n\n", .{});
+    utils.output.printSuccess("LLM session started (model: {s}).", .{options.model.?});
+    utils.output.println("Commands: /quit, /exit, /clear, /help, /providers, /backend <id>, /model <id>, /sync", .{});
+    utils.output.println("", .{});
 
     // Track heap-allocated model name from /model command to avoid dangling pointers.
     var model_switched: ?[]u8 = null;
@@ -110,9 +112,9 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
     }
 
     while (true) {
-        std.debug.print("You> ", .{});
+        utils.output.print("You> ", .{});
         const line = reader.interface.takeDelimiter('\n') catch |err| {
-            std.debug.print("\nInput error: {t}\n", .{err});
+            utils.output.printError("Input error: {t}", .{err});
             continue;
         } orelse break;
 
@@ -131,7 +133,8 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
             for (history_text.items) |text| allocator.free(text);
             history_text.clearRetainingCapacity();
             history.clearRetainingCapacity();
-            std.debug.print("Session context cleared.\n\n", .{});
+            utils.output.printSuccess("Session context cleared.", .{});
+            utils.output.println("", .{});
             continue;
         }
         if (std.mem.eql(u8, trimmed, "/providers")) {
@@ -148,12 +151,15 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
                 printSyncStatus(&sync);
             } else if (std.mem.eql(u8, rest, "on")) {
                 sync.enabled = true;
-                std.debug.print("Sync mode enabled.\n\n", .{});
+                utils.output.printSuccess("Sync mode enabled.", .{});
+                utils.output.println("", .{});
             } else if (std.mem.eql(u8, rest, "off")) {
                 sync.enabled = false;
-                std.debug.print("Sync mode disabled.\n\n", .{});
+                utils.output.println("Sync mode disabled.", .{});
+                utils.output.println("", .{});
             } else {
-                std.debug.print("Usage: /sync [on|off]\n\n", .{});
+                utils.output.println("Usage: /sync [on|off]", .{});
+                utils.output.println("", .{});
             }
             continue;
         }
@@ -161,9 +167,11 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
             const rest = std.mem.trim(u8, trimmed["/backend".len..], " \t");
             if (rest.len == 0) {
                 if (options.backend) |b| {
-                    std.debug.print("Current backend: {s}\n\n", .{b.label()});
+                    utils.output.printKeyValueFmt("Current backend", "{s}", .{b.label()});
+                    utils.output.println("", .{});
                 } else {
-                    std.debug.print("No backend pinned (using auto-routing).\n\n", .{});
+                    utils.output.println("No backend pinned (using auto-routing).", .{});
+                    utils.output.println("", .{});
                 }
                 continue;
             }
@@ -171,32 +179,37 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
                 options.backend = new_backend;
                 if (sync.enabled) {
                     sync.enabled = false;
-                    std.debug.print("Backend switched to: {s} (sync disabled)\n\n", .{new_backend.label()});
+                    utils.output.printSuccess("Backend switched to: {s} (sync disabled)", .{new_backend.label()});
+                    utils.output.println("", .{});
                 } else {
-                    std.debug.print("Backend switched to: {s}\n\n", .{new_backend.label()});
+                    utils.output.printSuccess("Backend switched to: {s}", .{new_backend.label()});
+                    utils.output.println("", .{});
                 }
             } else {
-                std.debug.print("Unknown backend: {s}\n", .{rest});
-                std.debug.print("Available: local_gguf, llama_cpp, mlx, ollama, ollama_passthrough, lm_studio, vllm, anthropic, openai, codex, opencode, claude, gemini, plugin_http, plugin_native\n\n", .{});
+                utils.output.printError("Unknown backend: {s}", .{rest});
+                utils.output.println("Available: local_gguf, llama_cpp, mlx, ollama, ollama_passthrough, lm_studio, vllm, anthropic, openai, codex, opencode, claude, gemini, plugin_http, plugin_native", .{});
+                utils.output.println("", .{});
             }
             continue;
         }
         if (std.mem.startsWith(u8, trimmed, "/model")) {
             const rest = std.mem.trim(u8, trimmed["/model".len..], " \t");
             if (rest.len == 0) {
-                std.debug.print("Current model: {s}\n\n", .{options.model.?});
+                utils.output.printKeyValueFmt("Current model", "{s}", .{options.model.?});
+                utils.output.println("", .{});
                 continue;
             }
             // Dupe into heap so it survives read buffer reuse
             const model_copy = allocator.dupe(u8, rest) catch {
-                std.debug.print("Error: out of memory\n", .{});
+                utils.output.printError("out of memory", .{});
                 continue;
             };
             // Free previous model if it was heap-allocated via /model
             if (model_switched) |prev| allocator.free(prev);
             model_switched = model_copy;
             options.model = model_copy;
-            std.debug.print("Model switched to: {s}\n\n", .{model_copy});
+            utils.output.printSuccess("Model switched to: {s}", .{model_copy});
+            utils.output.println("", .{});
             continue;
         }
 
@@ -214,7 +227,7 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
                 const idx = (sync.next_index + attempts) % sync.chain.len;
                 const provider = sync.chain[idx];
                 const model = sync.modelForProvider(provider) orelse {
-                    std.debug.print("[{s}] skipped: no model configured\n", .{provider.label()});
+                    utils.output.printWarning("[{s}] skipped: no model configured", .{provider.label()});
                     continue;
                 };
 
@@ -233,7 +246,7 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
                     .top_k = options.top_k,
                     .repetition_penalty = options.repetition_penalty,
                 }) catch |err| {
-                    std.debug.print("[{s}] failed: {t}\n", .{ provider.label(), err });
+                    utils.output.printError("[{s}] failed: {t}", .{ provider.label(), err });
                     continue;
                 };
 
@@ -242,7 +255,8 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
                 break;
             }
             if (!got_result) {
-                std.debug.print("All sync providers failed for this turn.\n\n", .{});
+                utils.output.printError("All sync providers failed for this turn.", .{});
+                utils.output.println("", .{});
                 continue;
             }
         } else {
@@ -261,7 +275,8 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
                 .top_k = options.top_k,
                 .repetition_penalty = options.repetition_penalty,
             }) catch |err| {
-                std.debug.print("LLM session call failed: {t}\n\n", .{err});
+                utils.output.printError("LLM session call failed: {t}", .{err});
+                utils.output.println("", .{});
                 continue;
             };
         }
@@ -272,19 +287,20 @@ pub fn runSession(ctx: *const context_mod.CommandContext, args: []const [:0]cons
         try history_text.append(allocator, assistant_text);
         try history.append(allocator, .{ .role = "assistant", .content = assistant_text });
 
-        std.debug.print("[{s}] Assistant> {s}\n\n", .{ result.provider.label(), result.content });
+        utils.output.println("[{s}] Assistant> {s}", .{ result.provider.label(), result.content });
+        utils.output.println("", .{});
     }
 
-    std.debug.print("Session ended.\n", .{});
+    utils.output.println("Session ended.", .{});
 }
 
 fn printProviderStatus(allocator: std.mem.Allocator) void {
-    std.debug.print("\nProvider status:\n", .{});
+    utils.output.printHeader("Provider status");
     inline for (abi.ai.llm.providers.registry.all_providers) |provider| {
         const available = abi.ai.llm.providers.health.isAvailable(allocator, provider, null);
-        std.debug.print("  {s:16} {s}\n", .{ provider.label(), if (available) "[OK]" else "[ ]" });
+        utils.output.printStatusLineFmt("{s:16}", .{provider.label()}, available);
     }
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 }
 
 fn parseProviderId(value: []const u8) ?ProviderId {
@@ -482,21 +498,24 @@ fn defaultModelForProvider(allocator: std.mem.Allocator, provider: ProviderId) !
 }
 
 fn printSyncStatus(sync: *const SyncState) void {
-    std.debug.print("Sync: {s}\n", .{if (sync.enabled) "enabled" else "disabled"});
+    utils.output.printKeyValueFmt("Sync", "{s}", .{if (sync.enabled) "enabled" else "disabled"});
     if (sync.chain.len == 0) {
-        std.debug.print("Sync chain: (empty)\n\n", .{});
+        utils.output.println("Sync chain: (empty)", .{});
+        utils.output.println("", .{});
         return;
     }
-    std.debug.print("Sync chain: ", .{});
+    utils.output.print("  Sync chain: ", .{});
     for (sync.chain, 0..) |provider, idx| {
-        if (idx != 0) std.debug.print(" -> ", .{});
-        std.debug.print("{s}", .{provider.label()});
+        if (idx != 0) utils.output.print(" -> ", .{});
+        utils.output.print("{s}", .{provider.label()});
     }
-    std.debug.print("\nNext provider: {s}\n\n", .{sync.chain[sync.next_index % sync.chain.len].label()});
+    utils.output.println("", .{});
+    utils.output.printKeyValueFmt("Next provider", "{s}", .{sync.chain[sync.next_index % sync.chain.len].label()});
+    utils.output.println("", .{});
 }
 
 fn printSlashHelp() void {
-    std.debug.print(
+    utils.output.print(
         "\nSession commands:\n" ++
             "  /quit, /exit           Exit session\n" ++
             "  /clear                 Clear conversation history\n" ++
@@ -510,7 +529,7 @@ fn printSlashHelp() void {
 }
 
 pub fn printSessionHelp() void {
-    std.debug.print(
+    utils.output.print(
         "Usage: abi llm session --model <id|path> [options]\n\n" ++
             "Interactive LLM session using the same provider router as 'llm run'.\n" ++
             "Maintains structured multi-turn conversation history.\n\n" ++

@@ -79,16 +79,16 @@ fn runInteractive(
     terminal.enter() catch |err| {
         utils.output.printError("Failed to start interactive TUI: {t}", .{err});
         utils.output.printInfo("Falling back to command list display.", .{});
-        std.debug.print("\nAvailable commands (run individually):\n", .{});
-        std.debug.print("  abi llm providers               - Show provider availability\n", .{});
-        std.debug.print("  abi llm run --model llama3 --prompt \"hi\" --backend ollama --strict-backend\n", .{});
-        std.debug.print("  abi bench all                   - Run all benchmarks\n", .{});
-        std.debug.print("  abi system-info                 - Show system information\n", .{});
-        std.debug.print("  abi config show                 - Show current configuration\n", .{});
-        std.debug.print("  abi db stats                    - Show database statistics\n", .{});
-        std.debug.print("  abi gpu backends                - List GPU backends\n", .{});
-        std.debug.print("  abi task list                   - List tasks\n", .{});
-        std.debug.print("  abi --list-features             - Show available features\n", .{});
+        utils.output.println("\nAvailable commands (run individually):", .{});
+        utils.output.println("  abi llm providers               - Show provider availability", .{});
+        utils.output.println("  abi llm run --model llama3 --prompt \"hi\" --backend ollama --strict-backend", .{});
+        utils.output.println("  abi bench all                   - Run all benchmarks", .{});
+        utils.output.println("  abi system-info                 - Show system information", .{});
+        utils.output.println("  abi config show                 - Show current configuration", .{});
+        utils.output.println("  abi db stats                    - Show database statistics", .{});
+        utils.output.println("  abi gpu backends                - List GPU backends", .{});
+        utils.output.println("  abi task list                   - List tasks", .{});
+        utils.output.println("  abi --list-features             - Show available features", .{});
         return;
     };
     defer terminal.exit() catch {};
@@ -155,7 +155,7 @@ fn launcherUpdate(loop: *tui.AsyncLoop, event: tui.AsyncEvent) !bool {
 
 pub fn printHelp() void {
     input.printHelp();
-    std.debug.print(
+    utils.output.print(
         \\
         \\Launcher options:
         \\  --theme <name>     Set initial theme (exact lowercase name)

@@ -275,7 +275,7 @@ pub fn runBench(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     }
 
     if (model_path == null and !compare_ollama and !compare_mlx and !compare_vllm and !compare_lmstudio) {
-        std.debug.print("Usage: abi llm bench <model> [--prompt-tokens N] [--gen-tokens N] [--runs N] [--compare-ollama] [--compare-mlx] [--compare-vllm] [--compare-lmstudio] [--compare-all] [--json]\n", .{});
+        utils.output.println("Usage: abi llm bench <model> [--prompt-tokens N] [--gen-tokens N] [--runs N] [--compare-ollama] [--compare-mlx] [--compare-vllm] [--compare-lmstudio] [--compare-all] [--json]", .{});
         return;
     }
 
@@ -284,63 +284,62 @@ pub fn runBench(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     const bench_prompt = if (prompt_text) |p| p else try buildBenchmarkPrompt(allocator, prompt_tokens);
     defer if (prompt_text == null) allocator.free(@constCast(bench_prompt));
 
-    std.debug.print("LLM Benchmark\n", .{});
-    std.debug.print("=============\n", .{});
+    utils.output.printHeader("LLM Benchmark");
     if (model_path) |path| {
-        std.debug.print("Local model: {s}\n", .{path});
+        utils.output.printKeyValueFmt("Local model", "{s}", .{path});
     }
-    std.debug.print("Prompt: {s}\n", .{bench_prompt});
-    std.debug.print("Prompt tokens: {d}\n", .{prompt_tokens});
-    std.debug.print("Generation tokens: {d}\n", .{gen_tokens});
-    std.debug.print("Runtime runs: {d}\n", .{runtime_runs});
+    utils.output.printKeyValueFmt("Prompt", "{s}", .{bench_prompt});
+    utils.output.printKeyValueFmt("Prompt tokens", "{d}", .{prompt_tokens});
+    utils.output.printKeyValueFmt("Generation tokens", "{d}", .{gen_tokens});
+    utils.output.printKeyValueFmt("Runtime runs", "{d}", .{runtime_runs});
     if (compare_ollama) {
-        std.debug.print("Compare with Ollama: enabled\n", .{});
+        utils.output.println("Compare with Ollama: enabled", .{});
     }
     if (ollama_model) |name| {
-        std.debug.print("Ollama model override: {s}\n", .{name});
+        utils.output.printKeyValueFmt("Ollama model override", "{s}", .{name});
     }
     if (compare_mlx) {
-        std.debug.print("Compare with MLX: enabled\n", .{});
+        utils.output.println("Compare with MLX: enabled", .{});
     }
     if (mlx_model) |name| {
-        std.debug.print("MLX model override: {s}\n", .{name});
+        utils.output.printKeyValueFmt("MLX model override", "{s}", .{name});
     }
     if (compare_vllm) {
-        std.debug.print("Compare with vLLM: enabled\n", .{});
+        utils.output.println("Compare with vLLM: enabled", .{});
     }
     if (vllm_model) |name| {
-        std.debug.print("vLLM model override: {s}\n", .{name});
+        utils.output.printKeyValueFmt("vLLM model override", "{s}", .{name});
     }
     if (compare_lmstudio) {
-        std.debug.print("Compare with LM Studio: enabled\n", .{});
+        utils.output.println("Compare with LM Studio: enabled", .{});
     }
     if (lmstudio_model) |name| {
-        std.debug.print("LM Studio model override: {s}\n", .{name});
+        utils.output.printKeyValueFmt("LM Studio model override", "{s}", .{name});
     }
     if (json_output) {
-        std.debug.print("Output: JSON\n", .{});
+        utils.output.println("Output: JSON", .{});
     }
     if (wdbx_out) |path| {
-        std.debug.print("WDBX output: {s}\n", .{path});
+        utils.output.printKeyValueFmt("WDBX output", "{s}", .{path});
     }
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     // Synthetic compute benchmark (backend-agnostic)
     const bench_result = runComputeBenchmark(allocator, prompt_tokens, gen_tokens);
 
-    std.debug.print("Synthetic Compute Benchmark\n", .{});
-    std.debug.print("---------------------------\n", .{});
-    std.debug.print("  Dimensions: {d}x{d} @ {d}x{d}\n", .{ bench_result.m, bench_result.k, bench_result.k, bench_result.n });
-    std.debug.print("  Time: {d:.2} ms\n", .{bench_result.time_ms});
-    std.debug.print("  GFLOPS: {d:.2}\n", .{bench_result.gflops});
-    std.debug.print("Estimated local throughput from matmul:\n", .{});
-    std.debug.print("  Prefill: ~{d:.0} tokens/sec\n", .{bench_result.est_prefill_tok_s});
-    std.debug.print("  Decode:  ~{d:.0} tokens/sec\n", .{bench_result.est_decode_tok_s});
+    utils.output.println("Synthetic Compute Benchmark", .{});
+    utils.output.printSeparator(27);
+    utils.output.println("  Dimensions: {d}x{d} @ {d}x{d}", .{ bench_result.m, bench_result.k, bench_result.k, bench_result.n });
+    utils.output.println("  Time: {d:.2} ms", .{bench_result.time_ms});
+    utils.output.println("  GFLOPS: {d:.2}", .{bench_result.gflops});
+    utils.output.println("Estimated local throughput from matmul:", .{});
+    utils.output.println("  Prefill: ~{d:.0} tokens/sec", .{bench_result.est_prefill_tok_s});
+    utils.output.println("  Decode:  ~{d:.0} tokens/sec", .{bench_result.est_decode_tok_s});
 
     var local_runtime: ?RuntimeBenchResult = null;
     if (model_path) |path| {
         local_runtime = runLocalRuntimeBenchmark(allocator, path, bench_prompt, gen_tokens, runtime_runs) catch |err| blk: {
-            std.debug.print("\nLocal runtime benchmark unavailable: {t}\n", .{err});
+            utils.output.printWarning("Local runtime benchmark unavailable: {t}", .{err});
             break :blk null;
         };
     }
@@ -349,7 +348,7 @@ pub fn runBench(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     var ollama_runtime: ?OllamaRuntimeBenchResult = null;
     if (compare_ollama) {
         ollama_runtime = runOllamaRuntimeBenchmark(allocator, bench_prompt, gen_tokens, ollama_model, runtime_runs) catch |err| blk: {
-            std.debug.print("\nOllama benchmark unavailable: {t}\n", .{err});
+            utils.output.printWarning("Ollama benchmark unavailable: {t}", .{err});
             break :blk null;
         };
     }
@@ -358,7 +357,7 @@ pub fn runBench(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     var mlx_runtime: ?MlxRuntimeBenchResult = null;
     if (compare_mlx) {
         mlx_runtime = runMlxRuntimeBenchmark(allocator, bench_prompt, gen_tokens, mlx_model, runtime_runs) catch |err| blk: {
-            std.debug.print("\nMLX benchmark unavailable: {t}\n", .{err});
+            utils.output.printWarning("MLX benchmark unavailable: {t}", .{err});
             break :blk null;
         };
     }
@@ -367,7 +366,7 @@ pub fn runBench(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     var vllm_runtime: ?VllmRuntimeBenchResult = null;
     if (compare_vllm) {
         vllm_runtime = runVllmRuntimeBenchmark(allocator, bench_prompt, gen_tokens, vllm_model, runtime_runs) catch |err| blk: {
-            std.debug.print("\nvLLM benchmark unavailable: {t}\n", .{err});
+            utils.output.printWarning("vLLM benchmark unavailable: {t}", .{err});
             break :blk null;
         };
     }
@@ -376,70 +375,75 @@ pub fn runBench(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     var lmstudio_runtime: ?LmStudioRuntimeBenchResult = null;
     if (compare_lmstudio) {
         lmstudio_runtime = runLmStudioRuntimeBenchmark(allocator, bench_prompt, gen_tokens, lmstudio_model, runtime_runs) catch |err| blk: {
-            std.debug.print("\nLM Studio benchmark unavailable: {t}\n", .{err});
+            utils.output.printWarning("LM Studio benchmark unavailable: {t}", .{err});
             break :blk null;
         };
     }
     defer if (lmstudio_runtime) |*res| res.deinit(allocator);
 
     if (local_runtime) |local| {
-        std.debug.print("\nLocal Runtime Benchmark\n", .{});
-        std.debug.print("-----------------------\n", .{});
-        std.debug.print("  Backend: {s}\n", .{local.backend.label()});
-        std.debug.print("  Runs: {d}\n", .{local.runs.len});
-        std.debug.print("  Prompt tokens (mean): {d}\n", .{local.summary.prompt_tokens_mean});
-        std.debug.print("  Generated tokens (mean): {d}\n", .{local.summary.generated_tokens_mean});
+        utils.output.println("", .{});
+        utils.output.println("Local Runtime Benchmark", .{});
+        utils.output.printSeparator(23);
+        utils.output.printKeyValueFmt("Backend", "{s}", .{local.backend.label()});
+        utils.output.printKeyValueFmt("Runs", "{d}", .{local.runs.len});
+        utils.output.printKeyValueFmt("Prompt tokens (mean)", "{d}", .{local.summary.prompt_tokens_mean});
+        utils.output.printKeyValueFmt("Generated tokens (mean)", "{d}", .{local.summary.generated_tokens_mean});
         printRuntimeStats("Wall time ms", local.summary.elapsed_ms);
         printRuntimeStats("Prefill tok/s", local.summary.prefill_tok_s);
         printRuntimeStats("Decode tok/s", local.summary.decode_tok_s);
     }
 
     if (ollama_runtime) |res| {
-        std.debug.print("\nOllama Runtime Benchmark\n", .{});
-        std.debug.print("------------------------\n", .{});
-        std.debug.print("  Backend: ollama\n", .{});
-        std.debug.print("  Model: {s}\n", .{res.model_name});
-        std.debug.print("  Runs: {d}\n", .{res.runs.len});
-        std.debug.print("  Prompt tokens (mean): {d}\n", .{res.summary.prompt_tokens_mean});
-        std.debug.print("  Generated tokens (mean): {d}\n", .{res.summary.generated_tokens_mean});
+        utils.output.println("", .{});
+        utils.output.println("Ollama Runtime Benchmark", .{});
+        utils.output.printSeparator(24);
+        utils.output.printKeyValue("Backend", "ollama");
+        utils.output.printKeyValueFmt("Model", "{s}", .{res.model_name});
+        utils.output.printKeyValueFmt("Runs", "{d}", .{res.runs.len});
+        utils.output.printKeyValueFmt("Prompt tokens (mean)", "{d}", .{res.summary.prompt_tokens_mean});
+        utils.output.printKeyValueFmt("Generated tokens (mean)", "{d}", .{res.summary.generated_tokens_mean});
         printRuntimeStats("Wall time ms", res.summary.elapsed_ms);
         printRuntimeStats("Prefill tok/s", res.summary.prefill_tok_s);
         printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
     }
 
     if (mlx_runtime) |res| {
-        std.debug.print("\nMLX Runtime Benchmark\n", .{});
-        std.debug.print("---------------------\n", .{});
-        std.debug.print("  Backend: mlx\n", .{});
-        std.debug.print("  Model: {s}\n", .{res.model_name});
-        std.debug.print("  Runs: {d}\n", .{res.runs.len});
-        std.debug.print("  Prompt tokens (mean): {d}\n", .{res.summary.prompt_tokens_mean});
-        std.debug.print("  Generated tokens (mean): {d}\n", .{res.summary.generated_tokens_mean});
+        utils.output.println("", .{});
+        utils.output.println("MLX Runtime Benchmark", .{});
+        utils.output.printSeparator(21);
+        utils.output.printKeyValue("Backend", "mlx");
+        utils.output.printKeyValueFmt("Model", "{s}", .{res.model_name});
+        utils.output.printKeyValueFmt("Runs", "{d}", .{res.runs.len});
+        utils.output.printKeyValueFmt("Prompt tokens (mean)", "{d}", .{res.summary.prompt_tokens_mean});
+        utils.output.printKeyValueFmt("Generated tokens (mean)", "{d}", .{res.summary.generated_tokens_mean});
         printRuntimeStats("Wall time ms", res.summary.elapsed_ms);
         printRuntimeStats("Prefill tok/s", res.summary.prefill_tok_s);
         printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
     }
 
     if (vllm_runtime) |res| {
-        std.debug.print("\nvLLM Runtime Benchmark\n", .{});
-        std.debug.print("----------------------\n", .{});
-        std.debug.print("  Backend: vllm\n", .{});
-        std.debug.print("  Model: {s}\n", .{res.model_name});
-        std.debug.print("  Runs: {d}\n", .{res.runs.len});
-        std.debug.print("  Prompt tokens (mean): {d}\n", .{res.summary.prompt_tokens_mean});
-        std.debug.print("  Generated tokens (mean): {d}\n", .{res.summary.generated_tokens_mean});
+        utils.output.println("", .{});
+        utils.output.println("vLLM Runtime Benchmark", .{});
+        utils.output.printSeparator(22);
+        utils.output.printKeyValue("Backend", "vllm");
+        utils.output.printKeyValueFmt("Model", "{s}", .{res.model_name});
+        utils.output.printKeyValueFmt("Runs", "{d}", .{res.runs.len});
+        utils.output.printKeyValueFmt("Prompt tokens (mean)", "{d}", .{res.summary.prompt_tokens_mean});
+        utils.output.printKeyValueFmt("Generated tokens (mean)", "{d}", .{res.summary.generated_tokens_mean});
         printRuntimeStats("Wall time ms", res.summary.elapsed_ms);
         printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
     }
 
     if (lmstudio_runtime) |res| {
-        std.debug.print("\nLM Studio Runtime Benchmark\n", .{});
-        std.debug.print("---------------------------\n", .{});
-        std.debug.print("  Backend: lm-studio\n", .{});
-        std.debug.print("  Model: {s}\n", .{res.model_name});
-        std.debug.print("  Runs: {d}\n", .{res.runs.len});
-        std.debug.print("  Prompt tokens (mean): {d}\n", .{res.summary.prompt_tokens_mean});
-        std.debug.print("  Generated tokens (mean): {d}\n", .{res.summary.generated_tokens_mean});
+        utils.output.println("", .{});
+        utils.output.println("LM Studio Runtime Benchmark", .{});
+        utils.output.printSeparator(27);
+        utils.output.printKeyValue("Backend", "lm-studio");
+        utils.output.printKeyValueFmt("Model", "{s}", .{res.model_name});
+        utils.output.printKeyValueFmt("Runs", "{d}", .{res.runs.len});
+        utils.output.printKeyValueFmt("Prompt tokens (mean)", "{d}", .{res.summary.prompt_tokens_mean});
+        utils.output.printKeyValueFmt("Generated tokens (mean)", "{d}", .{res.summary.generated_tokens_mean});
         printRuntimeStats("Wall time ms", res.summary.elapsed_ms);
         printRuntimeStats("Decode tok/s", res.summary.decode_tok_s);
     }
@@ -534,31 +538,31 @@ pub fn runBench(ctx: *const context_mod.CommandContext, args: []const [:0]const 
         }
 
         if (entry_count >= 2) {
-            std.debug.print("\nBackend Comparison\n", .{});
-            std.debug.print("==================\n", .{});
-            std.debug.print("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}\n", .{ "Backend", "Decode tok/s", "Prefill tok/s", "Wall ms", "Status" });
-            std.debug.print("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}\n", .{ "-" ** 14, "-" ** 14, "-" ** 14, "-" ** 12, "-" ** 6 });
+            utils.output.printHeader("Backend Comparison");
+            utils.output.println("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}", .{ "Backend", "Decode tok/s", "Prefill tok/s", "Wall ms", "Status" });
+            utils.output.println("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}", .{ "-" ** 14, "-" ** 14, "-" ** 14, "-" ** 12, "-" ** 6 });
             for (entries[0..entry_count]) |e| {
                 if (std.mem.eql(u8, e.status, "OK")) {
                     if (e.prefill_mean > 0) {
-                        std.debug.print("  {s:<14} {d:>7.1} ({d:.1}) {d:>14.1} {d:>12.1} {s:>6}\n", .{ e.name, e.decode_mean, e.decode_p50, e.prefill_mean, e.wall_mean, e.status });
+                        utils.output.println("  {s:<14} {d:>7.1} ({d:.1}) {d:>14.1} {d:>12.1} {s:>6}", .{ e.name, e.decode_mean, e.decode_p50, e.prefill_mean, e.wall_mean, e.status });
                     } else {
-                        std.debug.print("  {s:<14} {d:>7.1} ({d:.1}) {s:>14} {d:>12.1} {s:>6}\n", .{ e.name, e.decode_mean, e.decode_p50, "N/A", e.wall_mean, e.status });
+                        utils.output.println("  {s:<14} {d:>7.1} ({d:.1}) {s:>14} {d:>12.1} {s:>6}", .{ e.name, e.decode_mean, e.decode_p50, "N/A", e.wall_mean, e.status });
                     }
                 } else {
-                    std.debug.print("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}\n", .{ e.name, "-", "-", "-", e.status });
+                    utils.output.println("  {s:<14} {s:>14} {s:>14} {s:>12} {s:>6}", .{ e.name, "-", "-", "-", e.status });
                 }
             }
 
             // Pairwise decode speed ratios
-            std.debug.print("\n  Decode Speed Ratios (mean):\n", .{});
+            utils.output.println("", .{});
+            utils.output.println("  Decode Speed Ratios (mean):", .{});
             for (entries[0..entry_count], 0..) |a, ai| {
                 if (a.decode_mean <= 0) continue;
                 for (entries[0..entry_count], 0..) |b, bi| {
                     if (bi <= ai) continue;
                     if (b.decode_mean <= 0) continue;
                     const ratio = b.decode_mean / a.decode_mean;
-                    std.debug.print("    {s} / {s}: {d:.2}x\n", .{ b.name, a.name, ratio });
+                    utils.output.println("    {s} / {s}: {d:.2}x", .{ b.name, a.name, ratio });
                 }
             }
         }
@@ -592,20 +596,21 @@ pub fn runBench(ctx: *const context_mod.CommandContext, args: []const [:0]const 
             local_runtime,
             ollama_runtime,
         ) catch |err| {
-            std.debug.print("\nWDBX write failed: {t}\n", .{err});
+            utils.output.printError("WDBX write failed: {t}", .{err});
         };
     }
 
     if (!json_output) {
-        std.debug.print("\nNote: Local runtime requires ABI-native support for the GGUF architecture.\n", .{});
-        std.debug.print("When unsupported, use Ollama fallback for execution and compare decode throughput.\n", .{});
+        utils.output.println("", .{});
+        utils.output.printInfo("Local runtime requires ABI-native support for the GGUF architecture.", .{});
+        utils.output.println("When unsupported, use Ollama fallback for execution and compare decode throughput.", .{});
     }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
 pub fn printRuntimeStats(label: []const u8, stats: RuntimeStatsSummary) void {
-    std.debug.print("  {s}: mean={d:.2}, p50={d:.2}, p90={d:.2}, p95={d:.2}\n", .{
+    utils.output.println("  {s}: mean={d:.2}, p50={d:.2}, p90={d:.2}, p95={d:.2}", .{
         label,
         stats.mean,
         stats.p50,
@@ -1198,22 +1203,22 @@ pub fn printBenchJson(
     vllm_runtime: ?VllmRuntimeBenchResult,
     lmstudio_runtime: ?LmStudioRuntimeBenchResult,
 ) void {
-    std.debug.print("{{\n", .{});
-    std.debug.print("  \"prompt_tokens\": {d},\n", .{prompt_tokens});
-    std.debug.print("  \"gen_tokens\": {d},\n", .{gen_tokens});
-    std.debug.print("  \"runs\": {d},\n", .{runs});
-    std.debug.print("  \"compute\": {{ \"gflops\": {d:.2}, \"est_prefill_tok_s\": {d:.1}, \"est_decode_tok_s\": {d:.1} }},\n", .{
+    utils.output.println("{{", .{});
+    utils.output.println("  \"prompt_tokens\": {d},", .{prompt_tokens});
+    utils.output.println("  \"gen_tokens\": {d},", .{gen_tokens});
+    utils.output.println("  \"runs\": {d},", .{runs});
+    utils.output.println("  \"compute\": {{ \"gflops\": {d:.2}, \"est_prefill_tok_s\": {d:.1}, \"est_decode_tok_s\": {d:.1} }},", .{
         compute.gflops,
         compute.est_prefill_tok_s,
         compute.est_decode_tok_s,
     });
-    std.debug.print("  \"backends\": {{\n", .{});
+    utils.output.println("  \"backends\": {{", .{});
 
     var printed_any = false;
 
     if (local_runtime) |local| {
-        if (printed_any) std.debug.print(",\n", .{});
-        std.debug.print("    \"local_gguf\": {{ \"status\": \"ok\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"prefill_tok_s\": {{ \"mean\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+        if (printed_any) utils.output.println(",", .{});
+        utils.output.print("    \"local_gguf\": {{ \"status\": \"ok\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"prefill_tok_s\": {{ \"mean\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
             local.summary.decode_tok_s.mean,
             local.summary.decode_tok_s.p50,
             local.summary.decode_tok_s.p90,
@@ -1223,8 +1228,8 @@ pub fn printBenchJson(
         printed_any = true;
     }
     if (ollama_runtime) |res| {
-        if (printed_any) std.debug.print(",\n", .{});
-        std.debug.print("    \"ollama\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"prefill_tok_s\": {{ \"mean\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+        if (printed_any) utils.output.println(",", .{});
+        utils.output.print("    \"ollama\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"prefill_tok_s\": {{ \"mean\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
             res.model_name,
             res.summary.decode_tok_s.mean,
             res.summary.decode_tok_s.p50,
@@ -1235,8 +1240,8 @@ pub fn printBenchJson(
         printed_any = true;
     }
     if (mlx_runtime) |res| {
-        if (printed_any) std.debug.print(",\n", .{});
-        std.debug.print("    \"mlx\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+        if (printed_any) utils.output.println(",", .{});
+        utils.output.print("    \"mlx\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
             res.model_name,
             res.summary.decode_tok_s.mean,
             res.summary.decode_tok_s.p50,
@@ -1246,8 +1251,8 @@ pub fn printBenchJson(
         printed_any = true;
     }
     if (vllm_runtime) |res| {
-        if (printed_any) std.debug.print(",\n", .{});
-        std.debug.print("    \"vllm\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+        if (printed_any) utils.output.println(",", .{});
+        utils.output.print("    \"vllm\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
             res.model_name,
             res.summary.decode_tok_s.mean,
             res.summary.decode_tok_s.p50,
@@ -1257,8 +1262,8 @@ pub fn printBenchJson(
         printed_any = true;
     }
     if (lmstudio_runtime) |res| {
-        if (printed_any) std.debug.print(",\n", .{});
-        std.debug.print("    \"lm_studio\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
+        if (printed_any) utils.output.println(",", .{});
+        utils.output.print("    \"lm_studio\": {{ \"status\": \"ok\", \"model\": \"{s}\", \"decode_tok_s\": {{ \"mean\": {d:.2}, \"p50\": {d:.2}, \"p90\": {d:.2} }}, \"wall_ms\": {{ \"mean\": {d:.2} }} }}", .{
             res.model_name,
             res.summary.decode_tok_s.mean,
             res.summary.decode_tok_s.p50,
@@ -1268,8 +1273,9 @@ pub fn printBenchJson(
         printed_any = true;
     }
 
-    std.debug.print("\n  }}\n", .{});
-    std.debug.print("}}\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("  }}", .{});
+    utils.output.println("}}", .{});
 }
 
 pub fn mapRuntimeRunsForJson(allocator: std.mem.Allocator, runs: []const RuntimeBenchSample) ![]RuntimeRunRecordJson {
@@ -1415,5 +1421,5 @@ pub fn appendBenchRecordToWdbx(
 
     try abi.database.wdbx.insertVector(&handle, record_id, &[_]f32{}, metadata);
     try abi.database.wdbx.backup(&handle, output_path);
-    std.debug.print("\nWDBX benchmark record appended: {s}\n", .{output_path});
+    utils.output.printSuccess("WDBX benchmark record appended: {s}", .{output_path});
 }

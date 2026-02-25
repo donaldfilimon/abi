@@ -162,23 +162,23 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 pub fn printAvailableSuites() void {
-    std.debug.print("Available benchmark suites:\n\n", .{});
-    std.debug.print("  all          Run all benchmark suites\n", .{});
-    std.debug.print("  simd         SIMD/Vector operations (dot product, matmul)\n", .{});
-    std.debug.print("  memory       Memory allocator patterns (arena, pool)\n", .{});
-    std.debug.print("  concurrency  Concurrency primitives (atomics, locks)\n", .{});
-    std.debug.print("  database     Database/HNSW vector search\n", .{});
-    std.debug.print("  network      HTTP/Network operations\n", .{});
-    std.debug.print("  crypto       Cryptographic operations\n", .{});
-    std.debug.print("  ai           AI/ML inference (GEMM, attention)\n", .{});
-    std.debug.print("  streaming           Streaming inference (TTFT, ITL, throughput)\n", .{});
-    std.debug.print("  quick               Quick benchmarks for CI\n", .{});
-    std.debug.print("  compare-training    Compare training optimizers (AdamW vs Adam vs SGD)\n", .{});
-    std.debug.print("\nMicro-benchmarks:\n", .{});
-    std.debug.print("  abi bench micro hash   - Simple hash computation\n", .{});
-    std.debug.print("  abi bench micro alloc  - Memory allocation pattern\n", .{});
-    std.debug.print("  abi bench micro parse  - Simple parsing operation\n", .{});
-    std.debug.print("  abi bench micro noop   - Empty operation (baseline)\n", .{});
+    utils.output.println("Available benchmark suites:\n", .{});
+    utils.output.println("  all          Run all benchmark suites", .{});
+    utils.output.println("  simd         SIMD/Vector operations (dot product, matmul)", .{});
+    utils.output.println("  memory       Memory allocator patterns (arena, pool)", .{});
+    utils.output.println("  concurrency  Concurrency primitives (atomics, locks)", .{});
+    utils.output.println("  database     Database/HNSW vector search", .{});
+    utils.output.println("  network      HTTP/Network operations", .{});
+    utils.output.println("  crypto       Cryptographic operations", .{});
+    utils.output.println("  ai           AI/ML inference (GEMM, attention)", .{});
+    utils.output.println("  streaming           Streaming inference (TTFT, ITL, throughput)", .{});
+    utils.output.println("  quick               Quick benchmarks for CI", .{});
+    utils.output.println("  compare-training    Compare training optimizers (AdamW vs Adam vs SGD)", .{});
+    utils.output.println("\nMicro-benchmarks:", .{});
+    utils.output.println("  abi bench micro hash   - Simple hash computation", .{});
+    utils.output.println("  abi bench micro alloc  - Memory allocation pattern", .{});
+    utils.output.println("  abi bench micro parse  - Simple parsing operation", .{});
+    utils.output.println("  abi bench micro noop   - Empty operation (baseline)", .{});
 }
 
 pub fn printHelp() void {

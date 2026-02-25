@@ -49,12 +49,12 @@ pub fn runDemo(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         prompt = "Hello, can you tell me about the ABI framework?";
     }
 
-    std.debug.print("\xf0\x9f\xa4\x96 ABI LLM Demo Mode\n", .{});
-    std.debug.print("==================\n", .{});
-    std.debug.print("Prompt: {s}\n", .{prompt.?});
-    std.debug.print("Max tokens: {d}\n\n", .{max_tokens});
+    utils.output.printHeader("ABI LLM Demo Mode");
+    utils.output.printKeyValue("Prompt", prompt.?);
+    utils.output.printKeyValueFmt("Max tokens", "{d}", .{max_tokens});
+    utils.output.println("", .{});
 
-    std.debug.print("Generating response...\n\n", .{});
+    utils.output.println("Generating response...\n", .{});
 
     // Simulate generation with a demo response
     const response =
@@ -71,9 +71,9 @@ pub fn runDemo(ctx: *const context_mod.CommandContext, args: []const [:0]const u
 
     const truncated_response = if (response.len > max_tokens * 4) response[0 .. max_tokens * 4] else response;
 
-    std.debug.print("{s}\n", .{truncated_response});
+    utils.output.println("{s}", .{truncated_response});
 
-    std.debug.print("\n---\n", .{});
-    std.debug.print("Demo Stats: 25.0 tok/s prefill, 15.0 tok/s decode\n", .{});
-    std.debug.print("\xf0\x9f\x92\xa1 Tip: Use 'abi llm list' to see supported model formats\n", .{});
+    utils.output.printSeparator(60);
+    utils.output.println("Demo Stats: 25.0 tok/s prefill, 15.0 tok/s decode", .{});
+    utils.output.printInfo("Tip: Use 'abi llm list' to see supported model formats", .{});
 }
