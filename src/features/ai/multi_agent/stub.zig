@@ -8,6 +8,7 @@
 const std = @import("std");
 const retry = @import("../../../services/shared/utils/retry.zig");
 const sync = @import("../../../services/shared/sync.zig");
+const agents = @import("../agents/stub.zig");
 const workflow_mod = @import("workflow.zig");
 const blackboard_mod = @import("blackboard.zig");
 const roles_mod = @import("roles.zig");
@@ -256,7 +257,7 @@ pub const CoordinatorConfig = struct {
 pub const Coordinator = struct {
     allocator: std.mem.Allocator = undefined,
     config: CoordinatorConfig = .{},
-    agents: std.ArrayListUnmanaged(*anyopaque) = .empty,
+    agents: std.ArrayListUnmanaged(*agents.Agent) = .empty,
     health: std.ArrayListUnmanaged(AgentHealth) = .empty,
     mailboxes: std.ArrayListUnmanaged(messaging.AgentMailbox) = .empty,
     results: std.ArrayListUnmanaged(AgentResult) = .empty,

@@ -234,12 +234,12 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
         if (workflow_name) |wf| {
             const tmpl = findTemplate(wf) orelse {
                 utils.output.printError("Unknown workflow template: {s}", .{wf});
-                std.debug.print("Available templates: ", .{});
+                utils.output.print("Available templates: ", .{});
                 for (workflow_templates, 0..) |item, i| {
-                    if (i > 0) std.debug.print(", ", .{});
-                    std.debug.print("{s}", .{item.name});
+                    if (i > 0) utils.output.print(", ", .{});
+                    utils.output.print("{s}", .{item.name});
                 }
-                std.debug.print("\n", .{});
+                utils.output.println("", .{});
                 return;
             };
             break :blk tmpl;
@@ -251,19 +251,18 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     if (selected_template) |tmpl| {
         utils.output.printKeyValue("Workflow", tmpl.name);
         utils.output.printInfo("Using template: {s}", .{tmpl.description});
-        std.debug.print("Agents: ", .{});
+        utils.output.print("  Agents: ", .{});
         for (tmpl.agents, 0..) |agent, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}", .{agent});
+            if (i > 0) utils.output.print(", ", .{});
+            utils.output.print("{s}", .{agent});
         }
-        std.debug.print("\n", .{});
+        utils.output.println("", .{});
     } else {
         utils.output.printKeyValue("Workflow", "default (sequential)");
     }
 
     utils.output.printKeyValue("Task", task_description.?);
-
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     // Initialize coordinator
     const Coordinator = abi.ai.multi_agent.Coordinator;
@@ -310,8 +309,9 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     };
     defer allocator.free(result);
 
-    std.debug.print("\n[Workflow Output]\n", .{});
-    std.debug.print("{s}\n", .{result});
+    utils.output.println("", .{});
+    utils.output.printHeader("Workflow Output");
+    utils.output.println("{s}", .{result});
 
     // Show stats
     const stats = coord.getStats();
@@ -354,11 +354,11 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
 
     if (wf_name == null) {
         utils.output.printError("No workflow name specified", .{});
-        std.debug.print("\nAvailable DAG workflows:\n", .{});
+        utils.output.println("\nAvailable DAG workflows:", .{});
         for (dag_presets) |preset| {
-            std.debug.print("  {s:<25} {s}\n", .{ preset.name, preset.def.description });
+            utils.output.println("  {s:<25} {s}", .{ preset.name, preset.def.description });
         }
-        std.debug.print("\n", .{});
+        utils.output.println("", .{});
         printDagRunHelp();
         return;
     }
@@ -376,9 +376,9 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     // Look up preset
     const wf_def = findDagPreset(wf_name.?) orelse {
         utils.output.printError("Unknown DAG workflow: {s}", .{wf_name.?});
-        std.debug.print("\nAvailable DAG workflows:\n", .{});
+        utils.output.println("\nAvailable DAG workflows:", .{});
         for (dag_presets) |preset| {
-            std.debug.print("  {s:<25} {s}\n", .{ preset.name, preset.def.description });
+            utils.output.println("  {s:<25} {s}", .{ preset.name, preset.def.description });
         }
         return;
     };
@@ -401,10 +401,11 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     }
 
     // Print header
-    std.debug.print("\n=== Workflow: {s} ===\n", .{wf_def.name});
-    std.debug.print("Steps: {d} | Layers: {d}\n", .{ wf_def.steps.len, layers.len });
-    std.debug.print("Task: {s}\n", .{task_text});
-    std.debug.print("\n", .{});
+    utils.output.printHeaderFmt("Workflow: {s}", .{wf_def.name});
+    utils.output.printKeyValueFmt("Steps", "{d}", .{wf_def.steps.len});
+    utils.output.printKeyValueFmt("Layers", "{d}", .{layers.len});
+    utils.output.printKeyValue("Task", task_text);
+    utils.output.println("", .{});
 
     // Initialize coordinator and tracker
     const Coordinator = abi.ai.multi_agent.Coordinator;
@@ -461,7 +462,7 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
 
     // Execute layer by layer
     for (layers, 0..) |layer_step_ids, layer_idx| {
-        std.debug.print("[Layer {d}]\n", .{layer_idx + 1});
+        utils.output.println("{s}[Layer {d}]{s}", .{ utils.output.Color.bold(), layer_idx + 1, utils.output.Color.reset() });
 
         for (layer_step_ids) |step_id| {
             global_step_num += 1;
@@ -481,9 +482,9 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
             var step_timer = abi.shared.time.Timer.start() catch null;
             const result_text = coord.runTask(prompt) catch |err| {
                 const dur = if (step_timer) |*t| t.read() else 0;
-                std.debug.print("  Step {d}/{d}: {s} ", .{ global_step_num, wf_def.steps.len, step_id });
+                utils.output.print("  Step {d}/{d}: {s} ", .{ global_step_num, wf_def.steps.len, step_id });
                 printDots(step_id.len);
-                std.debug.print(" FAIL ({t})\n", .{err});
+                utils.output.println(" {s}FAIL{s} ({t})", .{ utils.output.Color.red(), utils.output.Color.reset(), err });
                 tracker.markFailed(step_id, .{
                     .step_id = step_id,
                     .status = .failed,
@@ -513,36 +514,36 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
             }) catch {};
 
             // Print step status line
-            std.debug.print("  Step {d}/{d}: {s} ", .{ global_step_num, wf_def.steps.len, step_id });
+            utils.output.print("  Step {d}/{d}: {s} ", .{ global_step_num, wf_def.steps.len, step_id });
             printDots(step_id.len);
-            std.debug.print(" OK (echo agent, {d}us)\n", .{dur / 1000});
+            utils.output.println(" {s}OK{s} (echo agent, {d}us)", .{ utils.output.Color.green(), utils.output.Color.reset(), dur / 1000 });
         }
 
-        std.debug.print("\n", .{});
+        utils.output.println("", .{});
     }
 
     // Print results section
-    std.debug.print("=== Results ===\n", .{});
+    utils.output.printHeader("Results");
     for (wf_def.steps) |step| {
-        std.debug.print("Step: {s}\n", .{step.id});
+        utils.output.println("{s}{s}{s}:", .{ utils.output.Color.bold(), step.id, utils.output.Color.reset() });
         if (step_outputs.get(step.id)) |output| {
             // Truncate long output for display
             const max_display: usize = 200;
             if (output.len > max_display) {
-                std.debug.print("  Output: {s}...\n", .{output[0..max_display]});
+                utils.output.println("  Output: {s}...", .{output[0..max_display]});
             } else {
-                std.debug.print("  Output: {s}\n", .{output});
+                utils.output.println("  Output: {s}", .{output});
             }
         } else {
             const status = tracker.getStepStatus(step.id);
             if (status) |s| {
                 switch (s) {
-                    .failed => std.debug.print("  Output: [FAILED]\n", .{}),
-                    .skipped => std.debug.print("  Output: [SKIPPED - dependency failed]\n", .{}),
-                    else => std.debug.print("  Output: [NO OUTPUT]\n", .{}),
+                    .failed => utils.output.println("  Output: {s}[FAILED]{s}", .{ utils.output.Color.red(), utils.output.Color.reset() }),
+                    .skipped => utils.output.println("  Output: {s}[SKIPPED - dependency failed]{s}", .{ utils.output.Color.yellow(), utils.output.Color.reset() }),
+                    else => utils.output.println("  Output: [NO OUTPUT]", .{}),
                 }
             } else {
-                std.debug.print("  Output: [NO OUTPUT]\n", .{});
+                utils.output.println("  Output: [NO OUTPUT]", .{});
             }
         }
     }
@@ -551,13 +552,11 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     const overall_dur = if (overall_timer) |*t| t.read() else 0;
     const prog = tracker.progress();
 
-    std.debug.print("\n=== Stats ===\n", .{});
-    std.debug.print("Total steps: {d} | Completed: {d} | Failed: {d}\n", .{
-        prog.total,
-        prog.completed,
-        prog.failed,
-    });
-    std.debug.print("Duration: {d}ms\n", .{overall_dur / std.time.ns_per_ms});
+    utils.output.printHeader("Stats");
+    utils.output.printKeyValueFmt("Total steps", "{d}", .{prog.total});
+    utils.output.printKeyValueFmt("Completed", "{d}", .{prog.completed});
+    utils.output.printKeyValueFmt("Failed", "{d}", .{prog.failed});
+    utils.output.printKeyValueFmt("Duration", "{d}ms", .{overall_dur / std.time.ns_per_ms});
 
     if (total_failed == 0) {
         utils.output.printSuccess("DAG workflow completed successfully", .{});
@@ -572,21 +571,21 @@ fn printDots(name_len: usize) void {
     const dots = if (name_len < target_width) target_width - name_len else 2;
     var i: usize = 0;
     while (i < dots) : (i += 1) {
-        std.debug.print(".", .{});
+        utils.output.print(".", .{});
     }
 }
 
 fn printDagRunHelp() void {
-    std.debug.print("Usage: abi multi-agent run-workflow <name> [--task \"...\"]\n", .{});
-    std.debug.print("\nExecute a preset DAG workflow with dependency-ordered step execution.\n", .{});
-    std.debug.print("\nAvailable workflows:\n", .{});
-    std.debug.print("  code-review        Multi-perspective code review (4 steps, 2 layers)\n", .{});
-    std.debug.print("  research           Research and analysis pipeline (3 steps, 3 layers)\n", .{});
-    std.debug.print("  implement-feature  Feature implementation pipeline (4 steps, 4 layers)\n", .{});
-    std.debug.print("\nExamples:\n", .{});
-    std.debug.print("  abi multi-agent run-workflow code-review\n", .{});
-    std.debug.print("  abi multi-agent run-workflow research --task \"Analyze Zig allocators\"\n", .{});
-    std.debug.print("  abi multi-agent run-workflow implement-feature -t \"Add caching layer\"\n", .{});
+    utils.output.println("Usage: abi multi-agent run-workflow <name> [--task \"...\"]", .{});
+    utils.output.println("\nExecute a preset DAG workflow with dependency-ordered step execution.", .{});
+    utils.output.println("\nAvailable workflows:", .{});
+    utils.output.println("  code-review        Multi-perspective code review (4 steps, 2 layers)", .{});
+    utils.output.println("  research           Research and analysis pipeline (3 steps, 3 layers)", .{});
+    utils.output.println("  implement-feature  Feature implementation pipeline (4 steps, 4 layers)", .{});
+    utils.output.println("\nExamples:", .{});
+    utils.output.println("  abi multi-agent run-workflow code-review", .{});
+    utils.output.println("  abi multi-agent run-workflow research --task \"Analyze Zig allocators\"", .{});
+    utils.output.println("  abi multi-agent run-workflow implement-feature -t \"Add caching layer\"", .{});
 }
 
 // ============================================================================
@@ -597,20 +596,20 @@ fn listWorkflows(allocator: std.mem.Allocator) !void {
     utils.output.printHeader("Available Workflow Templates");
 
     // Simple templates
-    std.debug.print("\n{s}{s:<20} {s:<50}{s}\n", .{
+    utils.output.println("\n{s}{s:<20} {s:<50}{s}", .{
         utils.output.Color.bold(),  "NAME", "DESCRIPTION",
         utils.output.Color.reset(),
     });
-    std.debug.print("{s}\n", .{"-" ** 70});
+    utils.output.println("{s}", .{"-" ** 70});
 
     for (workflow_templates) |tmpl| {
-        std.debug.print("{s:<20} {s:<50}\n", .{ tmpl.name, tmpl.description });
+        utils.output.println("{s:<20} {s:<50}", .{ tmpl.name, tmpl.description });
     }
 
-    std.debug.print("\nTotal: {d} simple template(s)\n", .{workflow_templates.len});
+    utils.output.println("\nTotal: {d} simple template(s)", .{workflow_templates.len});
 
     // DAG workflow presets
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
     utils.output.printHeader("DAG Workflow Presets");
 
     for (dag_presets) |preset| {
@@ -618,10 +617,10 @@ fn listWorkflows(allocator: std.mem.Allocator) !void {
 
         // Compute layers for display
         const layers = wf.computeLayers(allocator) catch {
-            std.debug.print("\n  {s}{s}{s} — {s}\n", .{
+            utils.output.println("\n  {s}{s}{s} — {s}", .{
                 utils.output.Color.cyan(), preset.name, utils.output.Color.reset(), wf.description,
             });
-            std.debug.print("    (failed to compute layers)\n", .{});
+            utils.output.println("    (failed to compute layers)", .{});
             continue;
         };
         defer {
@@ -629,44 +628,44 @@ fn listWorkflows(allocator: std.mem.Allocator) !void {
             allocator.free(layers);
         }
 
-        std.debug.print("\n  {s}{s}{s} — {s}\n", .{
+        utils.output.println("\n  {s}{s}{s} — {s}", .{
             utils.output.Color.cyan(), preset.name, utils.output.Color.reset(), wf.description,
         });
-        std.debug.print("    Steps: {d} | Layers: {d}\n", .{ wf.steps.len, layers.len });
+        utils.output.println("    Steps: {d} | Layers: {d}", .{ wf.steps.len, layers.len });
 
         // Show each step with deps, capabilities, and criticality
         for (wf.steps) |step| {
             const critical_marker: []const u8 = if (step.is_critical) " [critical]" else "";
-            std.debug.print("    - {s}{s}\n", .{ step.id, critical_marker });
-            std.debug.print("      {s}\n", .{step.description});
+            utils.output.println("    - {s}{s}", .{ step.id, critical_marker });
+            utils.output.println("      {s}", .{step.description});
 
             // Dependencies
             if (step.depends_on.len > 0) {
-                std.debug.print("      depends_on: ", .{});
+                utils.output.print("      depends_on: ", .{});
                 for (step.depends_on, 0..) |dep, di| {
-                    if (di > 0) std.debug.print(", ", .{});
-                    std.debug.print("{s}", .{dep});
+                    if (di > 0) utils.output.print(", ", .{});
+                    utils.output.print("{s}", .{dep});
                 }
-                std.debug.print("\n", .{});
+                utils.output.println("", .{});
             } else {
-                std.debug.print("      depends_on: (none — root step)\n", .{});
+                utils.output.println("      depends_on: (none — root step)", .{});
             }
 
             // Capabilities
             if (step.required_capabilities.len > 0) {
-                std.debug.print("      capabilities: ", .{});
+                utils.output.print("      capabilities: ", .{});
                 for (step.required_capabilities, 0..) |cap, ci| {
-                    if (ci > 0) std.debug.print(", ", .{});
-                    std.debug.print("{s}", .{@tagName(cap)});
+                    if (ci > 0) utils.output.print(", ", .{});
+                    utils.output.print("{s}", .{@tagName(cap)});
                 }
-                std.debug.print("\n", .{});
+                utils.output.println("", .{});
             }
         }
     }
 
-    std.debug.print("\nTotal: {d} DAG preset(s)\n", .{dag_presets.len});
-    std.debug.print("\nUse 'abi multi-agent run-workflow <name>' to execute a DAG workflow\n", .{});
-    std.debug.print("Use 'abi multi-agent run --workflow <name> --task \"...\"' for simple workflows\n", .{});
+    utils.output.println("\nTotal: {d} DAG preset(s)", .{dag_presets.len});
+    utils.output.println("\nUse 'abi multi-agent run-workflow <name>' to execute a DAG workflow", .{});
+    utils.output.println("Use 'abi multi-agent run --workflow <name> --task \"...\"' for simple workflows", .{});
 }
 
 fn createWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
@@ -720,18 +719,18 @@ fn createWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     defer allocator.free(workflow_path);
 
     // Show creation guidance
-    std.debug.print("\nTo create a custom workflow, define it in your configuration:\n", .{});
-    std.debug.print("\n", .{});
-    std.debug.print("  {s}\n", .{workflow_path});
-    std.debug.print("\n", .{});
-    std.debug.print("Example workflow definition:\n", .{});
-    std.debug.print("  {{\n", .{});
-    std.debug.print("    \"name\": \"{s}\",\n", .{name});
-    std.debug.print("    \"description\": \"Custom workflow\",\n", .{});
-    std.debug.print("    \"agents\": [\"agent1\", \"agent2\"],\n", .{});
-    std.debug.print("    \"mode\": \"sequential\"\n", .{});
-    std.debug.print("  }}\n", .{});
-    std.debug.print("\n", .{});
+    utils.output.println("\nTo create a custom workflow, define it in your configuration:", .{});
+    utils.output.println("", .{});
+    utils.output.println("  {s}", .{workflow_path});
+    utils.output.println("", .{});
+    utils.output.println("Example workflow definition:", .{});
+    utils.output.println("  {{", .{});
+    utils.output.println("    \"name\": \"{s}\",", .{name});
+    utils.output.println("    \"description\": \"Custom workflow\",", .{});
+    utils.output.println("    \"agents\": [\"agent1\", \"agent2\"],", .{});
+    utils.output.println("    \"mode\": \"sequential\"", .{});
+    utils.output.println("  }}", .{});
+    utils.output.println("", .{});
 
     utils.output.printSuccess("Workflow configuration guide shown", .{});
 }
@@ -741,12 +740,12 @@ fn getPrimaryWorkflowsDir(allocator: std.mem.Allocator) ![]u8 {
 }
 
 fn printRunHelp() void {
-    std.debug.print("Usage: abi multi-agent run [--workflow <name>] --task \"...\"\n", .{});
-    std.debug.print("       abi multi-agent run [--workflow <name>] \"...\"\n", .{});
+    utils.output.println("Usage: abi multi-agent run [--workflow <name>] --task \"...\"", .{});
+    utils.output.println("       abi multi-agent run [--workflow <name>] \"...\"", .{});
 }
 
 fn printCreateHelp() void {
-    std.debug.print("Usage: abi multi-agent create <name>\n", .{});
+    utils.output.println("Usage: abi multi-agent create <name>", .{});
 }
 
 fn showStatus(allocator: std.mem.Allocator) !void {

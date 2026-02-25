@@ -137,7 +137,7 @@ fn resolveAndEnsureSessionsDir(allocator: std.mem.Allocator) ![]u8 {
     const sessions_dir = try app_paths.resolvePath(allocator, "sessions");
     errdefer allocator.free(sessions_dir);
 
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = std.Io.Threaded.init(allocator, .{});
     defer io_backend.deinit();
     const io = io_backend.io();
 
