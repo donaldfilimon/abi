@@ -656,7 +656,7 @@ fn listWorkflows(allocator: std.mem.Allocator) !void {
                 utils.output.print("      capabilities: ", .{});
                 for (step.required_capabilities, 0..) |cap, ci| {
                     if (ci > 0) utils.output.print(", ", .{});
-                    utils.output.print("{s}", .{@tagName(cap)});
+                    utils.output.print("{t}", .{cap});
                 }
                 utils.output.println("", .{});
             }
