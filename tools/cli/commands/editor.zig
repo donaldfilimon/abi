@@ -11,6 +11,10 @@ const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
 const tui = @import("../tui/mod.zig");
 
+const EditorError = error{
+    TerminalNotAttached,
+};
+
 const max_file_size = 8 * 1024 * 1024;
 const gutter_cols: usize = 6;
 const tab_width: usize = 4;
@@ -31,12 +35,13 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     var file_path: ?[]const u8 = null;
     if (args.len > 0) {
-        file_path = std.mem.sliceTo(args[0], 0);
-        if (file_path.?.len > 0 and file_path.?[0] == '-') {
-            std.debug.print("Unknown editor option: {s}\n", .{file_path.?});
+        const arg = std.mem.sliceTo(args[0], 0);
+        if (arg.len > 0 and arg[0] == '-') {
+            std.debug.print("Unknown editor option: {s}\n", .{arg});
             printHelp();
             return error.InvalidArgument;
         }
+        file_path = arg;
     }
     if (args.len > 1) {
         std.debug.print("editor accepts at most one file path.\n", .{});
@@ -68,16 +73,21 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 }
 
+/// Checks if any argument in the provided slice is a help flag.
+/// Recognizes `--help`, `-h`, or `help` as help arguments.
 fn containsHelpArg(args: []const [:0]const u8) bool {
     for (args) |arg_z| {
         const arg = std.mem.sliceTo(arg_z, 0);
-        if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "help")) {
-            return true;
+        if (arg) |a| {
+            if (std.mem.eql(u8, a, "--help") or std.mem.eql(u8, a, "-h") or std.mem.eql(u8, a, "help")) {
+                return true;
+            }
         }
     }
     return false;
 }
 
+/// Prints the editor command help text to stdout.
 fn printHelp() void {
     const text =
         \\Usage: abi editor [file]
@@ -106,6 +116,8 @@ fn printHelp() void {
     std.debug.print("{s}", .{text});
 }
 
+/// Represents a single line of text in the editor buffer.
+/// Each line stores its content as a byte array.
 const Line = struct {
     bytes: std.ArrayListUnmanaged(u8) = .empty,
 
@@ -121,6 +133,8 @@ const Line = struct {
     }
 };
 
+/// Manages the text content of the editor as a collection of lines.
+/// Tracks modification state and provides operations for editing text.
 const TextBuffer = struct {
     allocator: std.mem.Allocator,
     lines: std.ArrayListUnmanaged(Line) = .empty,
@@ -191,9 +205,9 @@ const TextBuffer = struct {
         return self.lines.items[row].bytes.items.len;
     }
 
-    fn clampCursor(self: *TextBuffer, row: *usize, col: *usize) void {
+    fn clampCursor(self: *TextBuffer, row: *usize, col: *usize) !void {
         if (self.lines.items.len == 0) {
-            self.lines.append(self.allocator, .{}) catch {};
+            try self.lines.append(self.allocator, .{});
         }
         if (row.* >= self.lines.items.len) row.* = self.lines.items.len - 1;
         const len = self.lineLen(row.*);
@@ -255,8 +269,7 @@ const TextBuffer = struct {
         }
 
         if (row.* + 1 >= self.lines.items.len) return;
-        var next = self.lines.items[row.* + 1];
-        try current.bytes.appendSlice(self.allocator, next.bytes.items);
+        try current.bytes.appendSlice(self.allocator, self.lines.items[row.* + 1].bytes.items);
 
         var removed = self.lines.orderedRemove(row.* + 1);
         removed.deinit(self.allocator);
@@ -277,6 +290,9 @@ const TextBuffer = struct {
     }
 };
 
+/// Manages the complete editor state including buffer, cursor position,
+/// viewport offsets, and UI rendering. Handles user input events and
+/// coordinates between the text buffer and terminal display.
 const EditorState = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -317,7 +333,7 @@ const EditorState = struct {
         self.terminal = term;
     }
 
-    fn render(self: *EditorState) !void {
+    fn render(self: *EditorState) EditorError!void {
         const term = self.terminal orelse return error.TerminalNotAttached;
         const size = term.size();
 
@@ -331,7 +347,7 @@ const EditorState = struct {
         if (self.message_ticks > 0) self.message_ticks -= 1;
     }
 
-    fn handleEvent(self: *EditorState, event: tui.Event) !bool {
+    fn handleEvent(self: *EditorState, event: tui.Event) (EditorError || std.mem.Allocator.Error)!bool {
         const term = self.terminal orelse return error.TerminalNotAttached;
         const size = term.size();
 
@@ -427,12 +443,12 @@ const EditorState = struct {
             },
         }
 
-        self.buffer.clampCursor(&self.cursor_row, &self.cursor_col);
+        try self.buffer.clampCursor(&self.cursor_row, &self.cursor_col);
         self.ensureCursorVisible(size);
         return false;
     }
 
-    fn renderHeader(self: *EditorState, size: tui.TerminalSize) !void {
+    fn renderHeader(self: *EditorState, size: tui.TerminalSize) EditorError!void {
         const term = self.terminal orelse return error.TerminalNotAttached;
         const file_name = self.file_path orelse "[scratch]";
         const dirty = if (self.buffer.modified) " *" else "";
@@ -450,7 +466,7 @@ const EditorState = struct {
         try term.write("\x1b[0m\x1b[K");
     }
 
-    fn renderBody(self: *EditorState, size: tui.TerminalSize) !void {
+    fn renderBody(self: *EditorState, size: tui.TerminalSize) EditorError!void {
         const term = self.terminal orelse return error.TerminalNotAttached;
         const rows = contentRows(size.rows);
         const max_text_cols = textCols(size.cols);
@@ -483,7 +499,7 @@ const EditorState = struct {
         }
     }
 
-    fn renderStatusBar(self: *EditorState, size: tui.TerminalSize) !void {
+    fn renderStatusBar(self: *EditorState, size: tui.TerminalSize) EditorError!void {
         const term = self.terminal orelse return error.TerminalNotAttached;
         if (size.rows == 0) return;
 
@@ -523,7 +539,7 @@ const EditorState = struct {
         }
     }
 
-    fn placeCursor(self: *EditorState, size: tui.TerminalSize) !void {
+    fn placeCursor(self: *EditorState, size: tui.TerminalSize) EditorError!void {
         const term = self.terminal orelse return error.TerminalNotAttached;
         const rows = contentRows(size.rows);
         if (rows == 0) return;
@@ -592,16 +608,22 @@ const EditorState = struct {
     }
 };
 
+/// Calculates the number of content rows available for text display.
+/// Subtracts header and status bar rows from the total terminal rows.
 fn contentRows(total_rows: u16) usize {
     if (total_rows <= 2) return 0;
     return total_rows - 2;
 }
 
+/// Calculates the number of text columns available for content display.
+/// Subtracts the gutter (line numbers) width from the total terminal columns.
 fn textCols(total_cols: u16) usize {
     if (total_cols <= gutter_cols) return 0;
     return total_cols - gutter_cols;
 }
 
+/// Writes text to the terminal, clipping it to fit within the maximum column width.
+/// If the text exceeds max_cols, only the first max_cols characters are written.
 fn writeClipped(term: *tui.Terminal, text: []const u8, max_cols: u16) !void {
     const cols: usize = max_cols;
     if (cols == 0) return;
@@ -624,4 +646,397 @@ test "text buffer newline/backspace keeps expected cursor semantics" {
     try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
     try std.testing.expectEqual(@as(usize, 0), row);
     try std.testing.expectEqual(@as(usize, 3), col);
+}
+
+test "EditorState.init without file path" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var editor = try EditorState.init(std.testing.allocator, io, null);
+    defer editor.deinit();
+
+    try std.testing.expect(editor.file_path == null);
+    try std.testing.expectEqual(@as(usize, 1), editor.buffer.lines.items.len);
+    try std.testing.expectEqual(@as(usize, 0), editor.buffer.lines.items[0].bytes.items.len);
+    try std.testing.expectEqual(@as(usize, 0), editor.cursor_row);
+    try std.testing.expectEqual(@as(usize, 0), editor.cursor_col);
+    try std.testing.expect(!editor.buffer.modified);
+}
+
+test "EditorState.init with file path" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    // Create a temporary file
+    const test_file = "test_editor_init.txt";
+    var file = try std.Io.Dir.cwd().createFile(io, test_file, .{ .truncate = true });
+    defer file.close(io);
+    try file.writeStreamingAll(io, "hello\nworld");
+    file.close(io);
+
+    defer std.Io.Dir.cwd().deleteFile(io, test_file) catch {};
+
+    var editor = try EditorState.init(std.testing.allocator, io, test_file);
+    defer editor.deinit();
+
+    try std.testing.expect(editor.file_path != null);
+    try std.testing.expectEqualStrings(test_file, editor.file_path.?);
+    try std.testing.expectEqual(@as(usize, 2), editor.buffer.lines.items.len);
+    try std.testing.expectEqualStrings("hello", editor.buffer.lines.items[0].bytes.items);
+    try std.testing.expectEqualStrings("world", editor.buffer.lines.items[1].bytes.items);
+}
+
+test "TextBuffer.loadFromPath file not found" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const non_existent = "non_existent_file_12345.txt";
+    var buf = try TextBuffer.loadFromPath(std.testing.allocator, io, non_existent);
+    defer buf.deinit();
+
+    // Should return empty buffer when file not found
+    try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
+    try std.testing.expectEqual(@as(usize, 0), buf.lines.items[0].bytes.items.len);
+}
+
+test "TextBuffer.loadFromPath with valid file" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const test_file = "test_load.txt";
+    var file = try std.Io.Dir.cwd().createFile(io, test_file, .{ .truncate = true });
+    defer file.close(io);
+    try file.writeStreamingAll(io, "line1\nline2\nline3");
+    file.close(io);
+
+    defer std.Io.Dir.cwd().deleteFile(io, test_file) catch {};
+
+    var buf = try TextBuffer.loadFromPath(std.testing.allocator, io, test_file);
+    defer buf.deinit();
+
+    try std.testing.expectEqual(@as(usize, 3), buf.lines.items.len);
+    try std.testing.expectEqualStrings("line1", buf.lines.items[0].bytes.items);
+    try std.testing.expectEqualStrings("line2", buf.lines.items[1].bytes.items);
+    try std.testing.expectEqualStrings("line3", buf.lines.items[2].bytes.items);
+    try std.testing.expect(!buf.modified);
+}
+
+test "TextBuffer.loadFromPath with empty file" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const test_file = "test_empty.txt";
+    var file = try std.Io.Dir.cwd().createFile(io, test_file, .{ .truncate = true });
+    defer file.close(io);
+    file.close(io);
+
+    defer std.Io.Dir.cwd().deleteFile(io, test_file) catch {};
+
+    var buf = try TextBuffer.loadFromPath(std.testing.allocator, io, test_file);
+    defer buf.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
+    try std.testing.expectEqual(@as(usize, 0), buf.lines.items[0].bytes.items.len);
+}
+
+test "TextBuffer.loadFromPath with CRLF line endings" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const test_file = "test_crlf.txt";
+    var file = try std.Io.Dir.cwd().createFile(io, test_file, .{ .truncate = true });
+    defer file.close(io);
+    try file.writeStreamingAll(io, "line1\r\nline2\r\n");
+    file.close(io);
+
+    defer std.Io.Dir.cwd().deleteFile(io, test_file) catch {};
+
+    var buf = try TextBuffer.loadFromPath(std.testing.allocator, io, test_file);
+    defer buf.deinit();
+
+    try std.testing.expectEqual(@as(usize, 2), buf.lines.items.len);
+    try std.testing.expectEqualStrings("line1", buf.lines.items[0].bytes.items);
+    try std.testing.expectEqualStrings("line2", buf.lines.items[1].bytes.items);
+}
+
+test "TextBuffer.saveToPath creates and writes file" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const test_file = "test_save.txt";
+    defer std.Io.Dir.cwd().deleteFile(io, test_file) catch {};
+
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "save\nme\nplease");
+    defer buf.deinit();
+
+    buf.modified = true;
+    try buf.saveToPath(io, test_file);
+    try std.testing.expect(!buf.modified);
+
+    // Verify file contents
+    const content = try std.Io.Dir.cwd().readFileAlloc(io, test_file, std.testing.allocator, .{});
+    defer std.testing.allocator.free(content);
+    try std.testing.expectEqualStrings("save\nme\nplease", content);
+}
+
+test "TextBuffer.saveToPath overwrites existing file" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const test_file = "test_overwrite.txt";
+    defer std.Io.Dir.cwd().deleteFile(io, test_file) catch {};
+
+    // Create initial file
+    var file = try std.Io.Dir.cwd().createFile(io, test_file, .{ .truncate = true });
+    try file.writeStreamingAll(io, "old content");
+    file.close(io);
+
+    // Save new content
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "new content");
+    defer buf.deinit();
+
+    try buf.saveToPath(io, test_file);
+
+    // Verify overwrite
+    const content = try std.Io.Dir.cwd().readFileAlloc(io, test_file, std.testing.allocator, .{});
+    defer std.testing.allocator.free(content);
+    try std.testing.expectEqualStrings("new content", content);
+}
+
+test "TextBuffer.saveToPath with empty buffer" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    const test_file = "test_empty_save.txt";
+    defer std.Io.Dir.cwd().deleteFile(io, test_file) catch {};
+
+    var buf = try TextBuffer.initEmpty(std.testing.allocator);
+    defer buf.deinit();
+
+    try buf.saveToPath(io, test_file);
+
+    // Empty buffer should create file with no newline
+    const content = try std.Io.Dir.cwd().readFileAlloc(io, test_file, std.testing.allocator, .{});
+    defer std.testing.allocator.free(content);
+    try std.testing.expectEqual(@as(usize, 0), content.len);
+}
+
+test "TextBuffer.clampCursor with empty buffer" {
+    var buf = try TextBuffer.initEmpty(std.testing.allocator);
+    defer buf.deinit();
+
+    var row: usize = 10;
+    var col: usize = 20;
+    buf.clampCursor(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 0), row);
+    try std.testing.expectEqual(@as(usize, 0), col);
+}
+
+test "TextBuffer.clampCursor with row out of bounds" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "line1\nline2\nline3");
+    defer buf.deinit();
+
+    var row: usize = 100;
+    var col: usize = 5;
+    buf.clampCursor(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 2), row); // Last valid row
+    try std.testing.expectEqual(@as(usize, 5), col);
+}
+
+test "TextBuffer.clampCursor with col out of bounds" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "short\nvery long line here");
+    defer buf.deinit();
+
+    var row: usize = 1;
+    var col: usize = 1000;
+    buf.clampCursor(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 1), row);
+    try std.testing.expectEqual(@as(usize, 21), col); // Length of "very long line here"
+}
+
+test "TextBuffer.clampCursor with both out of bounds" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "a");
+    defer buf.deinit();
+
+    var row: usize = 50;
+    var col: usize = 50;
+    buf.clampCursor(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 0), row);
+    try std.testing.expectEqual(@as(usize, 1), col);
+}
+
+test "EditorState.render returns TerminalNotAttached when no terminal" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var editor = try EditorState.init(std.testing.allocator, io, null);
+    defer editor.deinit();
+
+    // Should error when terminal not attached
+    try std.testing.expectError(error.TerminalNotAttached, editor.render());
+}
+
+test "EditorState.handleEvent returns TerminalNotAttached when no terminal" {
+    var io_backend = std.Io.Threaded.init(std.testing.allocator, .{ .environ = std.process.Environ.empty });
+    defer io_backend.deinit();
+    const io = io_backend.io();
+
+    var editor = try EditorState.init(std.testing.allocator, io, null);
+    defer editor.deinit();
+
+    const event = tui.Event{ .key = .{ .code = .up, .char = null } };
+    try std.testing.expectError(error.TerminalNotAttached, editor.handleEvent(event));
+}
+
+test "TextBuffer.initEmpty creates single empty line" {
+    var buf = try TextBuffer.initEmpty(std.testing.allocator);
+    defer buf.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
+    try std.testing.expectEqual(@as(usize, 0), buf.lines.items[0].bytes.items.len);
+    try std.testing.expect(!buf.modified);
+}
+
+test "TextBuffer.initFromSlice with empty string" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "");
+    defer buf.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
+    try std.testing.expectEqual(@as(usize, 0), buf.lines.items[0].bytes.items.len);
+}
+
+test "TextBuffer.initFromSlice with single line" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "single line");
+    defer buf.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
+    try std.testing.expectEqualStrings("single line", buf.lines.items[0].bytes.items);
+}
+
+test "TextBuffer.initFromSlice with very long line" {
+    const long_line = "a" ** 10000;
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, long_line);
+    defer buf.deinit();
+
+    try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
+    try std.testing.expectEqual(@as(usize, 10000), buf.lines.items[0].bytes.items.len);
+    try std.testing.expectEqualStrings(long_line, buf.lines.items[0].bytes.items);
+}
+
+test "TextBuffer.initFromSlice with multiple lines" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "line1\nline2\nline3\n");
+    defer buf.deinit();
+
+    try std.testing.expectEqual(@as(usize, 4), buf.lines.items.len);
+    try std.testing.expectEqualStrings("line1", buf.lines.items[0].bytes.items);
+    try std.testing.expectEqualStrings("line2", buf.lines.items[1].bytes.items);
+    try std.testing.expectEqualStrings("line3", buf.lines.items[2].bytes.items);
+    try std.testing.expectEqualStrings("", buf.lines.items[3].bytes.items);
+}
+
+test "TextBuffer.insertByte modifies buffer" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "abc");
+    defer buf.deinit();
+
+    buf.modified = false;
+    try buf.insertByte(0, 1, 'X');
+    try std.testing.expect(buf.modified);
+    try std.testing.expectEqualStrings("aXbc", buf.lines.items[0].bytes.items);
+}
+
+test "TextBuffer.insertByte at end of line" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "abc");
+    defer buf.deinit();
+
+    try buf.insertByte(0, 3, 'X');
+    try std.testing.expectEqualStrings("abcX", buf.lines.items[0].bytes.items);
+}
+
+test "TextBuffer.insertByte beyond line length clamps" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "abc");
+    defer buf.deinit();
+
+    try buf.insertByte(0, 100, 'X');
+    try std.testing.expectEqualStrings("abcX", buf.lines.items[0].bytes.items);
+}
+
+test "TextBuffer.insertNewline splits line correctly" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "hello world");
+    defer buf.deinit();
+
+    var row: usize = 0;
+    var col: usize = 5;
+    try buf.insertNewline(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 2), buf.lines.items.len);
+    try std.testing.expectEqualStrings("hello", buf.lines.items[0].bytes.items);
+    try std.testing.expectEqualStrings(" world", buf.lines.items[1].bytes.items);
+    try std.testing.expectEqual(@as(usize, 1), row);
+    try std.testing.expectEqual(@as(usize, 0), col);
+    try std.testing.expect(buf.modified);
+}
+
+test "TextBuffer.backspace at start of line merges with previous" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "line1\nline2");
+    defer buf.deinit();
+
+    var row: usize = 1;
+    var col: usize = 0;
+    try buf.backspace(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
+    try std.testing.expectEqualStrings("line1line2", buf.lines.items[0].bytes.items);
+    try std.testing.expectEqual(@as(usize, 0), row);
+    try std.testing.expectEqual(@as(usize, 5), col);
+}
+
+test "TextBuffer.backspace at first line does nothing" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "line1\nline2");
+    defer buf.deinit();
+
+    var row: usize = 0;
+    var col: usize = 0;
+    try buf.backspace(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 2), buf.lines.items.len);
+    try std.testing.expectEqual(@as(usize, 0), row);
+    try std.testing.expectEqual(@as(usize, 0), col);
+}
+
+test "TextBuffer.deleteForward at end of line merges with next" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "line1\nline2");
+    defer buf.deinit();
+
+    var row: usize = 0;
+    var col: usize = 5;
+    try buf.deleteForward(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 1), buf.lines.items.len);
+    try std.testing.expectEqualStrings("line1line2", buf.lines.items[0].bytes.items);
+}
+
+test "TextBuffer.deleteForward at last line does nothing" {
+    var buf = try TextBuffer.initFromSlice(std.testing.allocator, "line1\nline2");
+    defer buf.deinit();
+
+    var row: usize = 1;
+    var col: usize = 5;
+    try buf.deleteForward(&row, &col);
+
+    try std.testing.expectEqual(@as(usize, 2), buf.lines.items.len);
+    try std.testing.expectEqualStrings("line2", buf.lines.items[1].bytes.items);
 }
