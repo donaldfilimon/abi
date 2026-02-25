@@ -127,16 +127,7 @@ const BrainState = struct {
 // Box Drawing
 // ===============================================================================
 
-const box = struct {
-    const tl = "\u{256D}";
-    const tr = "\u{256E}";
-    const bl = "\u{2570}";
-    const br = "\u{256F}";
-    const h = "\u{2500}";
-    const v = "\u{2502}";
-    const lsep = "\u{251C}";
-    const rsep = "\u{2524}";
-};
+const box = tui.render_utils.boxChars(.rounded);
 
 // ===============================================================================
 // Entry Point

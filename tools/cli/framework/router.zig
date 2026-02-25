@@ -3,6 +3,7 @@ const context_mod = @import("context.zig");
 const types = @import("types.zig");
 const completion = @import("completion.zig");
 const errors = @import("errors.zig");
+const utils = @import("../utils/mod.zig");
 
 const max_forward_depth: usize = 8;
 
@@ -38,7 +39,7 @@ fn runDescriptor(
 
     if (descriptor.forward) |forward| {
         if (forward.warning) |warning| {
-            std.debug.print("Warning: {s}\n", .{warning});
+            utils.output.printWarning("{s}", .{warning});
         }
 
         const target = completion.findDescriptor(descriptors, forward.target) orelse return errors.Error.UnknownCommand;

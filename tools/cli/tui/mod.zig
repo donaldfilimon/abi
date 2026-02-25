@@ -27,6 +27,8 @@ pub const brain_panel = @import("brain_panel.zig");
 pub const metrics_file_reader = @import("metrics_file_reader.zig");
 pub const training_brain_mapper = @import("training_brain_mapper.zig");
 pub const async_loop = @import("async_loop.zig");
+pub const dashboard = @import("dashboard.zig");
+pub const keybindings = @import("keybindings.zig");
 
 pub const Key = events.Key;
 pub const KeyCode = events.KeyCode;
@@ -114,3 +116,6 @@ pub const AsyncLoop = async_loop.AsyncLoop;
 pub const AsyncEvent = async_loop.AsyncEvent;
 pub const AsyncLoopConfig = async_loop.AsyncLoopConfig;
 pub const MetricsTracker = async_loop.MetricsTracker;
+
+// Generic Dashboard
+pub const Dashboard = dashboard.Dashboard;

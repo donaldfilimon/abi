@@ -64,6 +64,22 @@ fn convertChildren(comptime children: []const ChildMeta) []const CommandDescript
     return &Holder.data;
 }
 
+/// Derive subcommand names from children metadata at comptime.
+/// Only used when `meta.subcommands` is empty but `meta.children` is non-empty.
+fn deriveSubcommandNames(comptime children: []const ChildMeta) []const []const u8 {
+    if (children.len == 0) return &.{};
+    const Holder = struct {
+        const data: [children.len][]const u8 = blk: {
+            var result: [children.len][]const u8 = undefined;
+            for (children, 0..) |child, i| {
+                result[i] = child.name;
+            }
+            break :blk result;
+        };
+    };
+    return &Holder.data;
+}
+
 /// Convert a command module's Meta + run function into a CommandDescriptor.
 /// Bridges the declarative `Meta` to the runtime `CommandDescriptor` used
 /// by the router, help, and completion systems.
@@ -74,7 +90,10 @@ pub fn toDescriptor(comptime Module: type) CommandDescriptor {
         .name = m.name,
         .description = m.description,
         .aliases = m.aliases,
-        .subcommands = m.subcommands,
+        .subcommands = if (m.subcommands.len == 0 and m.children.len > 0)
+            deriveSubcommandNames(m.children)
+        else
+            m.subcommands,
         .children = convertChildren(m.children),
         .kind = m.kind,
         .handler = Module.run,
@@ -181,6 +200,21 @@ test "Meta defaults: verify zero-value defaults" {
     try std.testing.expectEqual(@as(usize, 0), m.children.len);
     try std.testing.expectEqual(CommandKind.action, m.kind);
     try std.testing.expect(m.forward == null);
+}
+
+test "toDescriptor: auto-derives subcommands from children when empty" {
+    const d = comptime toDescriptor(TestGroupModule);
+    // TestGroupModule has children but no explicit subcommands
+    try std.testing.expectEqual(@as(usize, 2), d.subcommands.len);
+    try std.testing.expectEqualStrings("child-a", d.subcommands[0]);
+    try std.testing.expectEqualStrings("child-b", d.subcommands[1]);
+}
+
+test "toDescriptor: explicit subcommands preserved over children" {
+    const d = comptime toDescriptor(TestGroupForwardModule);
+    // TestGroupForwardModule has explicit subcommands — should NOT be overwritten
+    try std.testing.expectEqual(@as(usize, 3), d.subcommands.len);
+    try std.testing.expectEqualStrings("sub1", d.subcommands[0]);
 }
 
 test {

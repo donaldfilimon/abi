@@ -286,6 +286,11 @@ pub const StreamingDashboard = struct {
         }
     }
 
+    /// Alias for pollMetrics — satisfies the Dashboard panel contract.
+    pub fn update(self: *Self) !void {
+        return self.pollMetrics();
+    }
+
     /// Record a new TTFT sample
     pub fn recordTtft(self: *Self, ttft_ms: u32) void {
         self.ttft_history.push(ttft_ms);

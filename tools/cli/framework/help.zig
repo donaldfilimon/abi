@@ -1,8 +1,9 @@
 const std = @import("std");
 const types = @import("types.zig");
+const utils = @import("../utils/mod.zig");
 
 pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi [global-flags] <command> [options]
         \\
         \\Global Flags:
@@ -19,15 +20,15 @@ pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
 
     for (descriptors) |descriptor| {
         const padding = if (descriptor.name.len < 14) 14 - descriptor.name.len else 2;
-        std.debug.print("  {s}", .{descriptor.name});
-        for (0..padding) |_| std.debug.print(" ", .{});
-        std.debug.print("{s}\n", .{descriptor.description});
+        utils.output.print("  {s}", .{descriptor.name});
+        for (0..padding) |_| utils.output.print(" ", .{});
+        utils.output.print("{s}\n", .{descriptor.description});
     }
 
-    std.debug.print("  version       Show framework version\n", .{});
-    std.debug.print("  help          Show help (use: abi help <command>)\n", .{});
+    utils.output.print("  version       Show framework version\n", .{});
+    utils.output.print("  help          Show help (use: abi help <command>)\n", .{});
 
-    std.debug.print(
+    utils.output.print(
         \\
         \\Examples:
         \\  abi --list-features              # Show available features
@@ -43,7 +44,7 @@ pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
 
     for (descriptors) |descriptor| {
         for (descriptor.aliases) |alias| {
-            std.debug.print("  {s} -> {s}\n", .{ alias, descriptor.name });
+            utils.output.print("  {s} -> {s}\n", .{ alias, descriptor.name });
         }
     }
 }
