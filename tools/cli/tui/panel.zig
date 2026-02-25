@@ -169,11 +169,11 @@ pub const ErrorBoundaryPanel = struct {
         };
     }
 
-    pub fn getName(self: *ErrorBoundaryPanel) []const u8 {
+    pub fn name(self: *ErrorBoundaryPanel) []const u8 {
         return self.inner.getName();
     }
 
-    pub fn getShortcutHint(self: *ErrorBoundaryPanel) []const u8 {
+    pub fn shortcutHint(self: *ErrorBoundaryPanel) []const u8 {
         return self.inner.shortcutHint();
     }
 

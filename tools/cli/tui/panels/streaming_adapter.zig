@@ -46,8 +46,8 @@ pub const StreamingAdapter = struct {
     }
 
     /// Convert to a type-erased Panel.
-    pub fn panel(self: *StreamingAdapter) panel_mod {
-        return panel_mod.from(StreamingAdapter, self);
+    pub fn panel(self: *StreamingAdapter) panel_mod.Panel {
+        return panel_mod.Panel.from(StreamingAdapter, self);
     }
 };
 

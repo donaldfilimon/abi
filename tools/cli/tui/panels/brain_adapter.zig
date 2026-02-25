@@ -52,8 +52,8 @@ pub const BrainAdapter = struct {
     }
 
     /// Convert to a type-erased Panel.
-    pub fn panel(self: *BrainAdapter) panel_mod {
-        return panel_mod.from(BrainAdapter, self);
+    pub fn panel(self: *BrainAdapter) panel_mod.Panel {
+        return panel_mod.Panel.from(BrainAdapter, self);
     }
 };
 

@@ -46,8 +46,8 @@ pub const NetworkAdapter = struct {
     }
 
     /// Convert to a type-erased Panel.
-    pub fn panel(self: *NetworkAdapter) panel_mod {
-        return panel_mod.from(NetworkAdapter, self);
+    pub fn panel(self: *NetworkAdapter) panel_mod.Panel {
+        return panel_mod.Panel.from(NetworkAdapter, self);
     }
 };
 

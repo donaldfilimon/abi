@@ -46,8 +46,8 @@ pub const GpuAdapter = struct {
     }
 
     /// Convert to a type-erased Panel.
-    pub fn panel(self: *GpuAdapter) panel_mod {
-        return panel_mod.from(GpuAdapter, self);
+    pub fn panel(self: *GpuAdapter) panel_mod.Panel {
+        return panel_mod.Panel.from(GpuAdapter, self);
     }
 };
 

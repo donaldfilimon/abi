@@ -46,8 +46,8 @@ pub const BenchAdapter = struct {
     }
 
     /// Convert to a type-erased Panel.
-    pub fn panel(self: *BenchAdapter) panel_mod {
-        return panel_mod.from(BenchAdapter, self);
+    pub fn panel(self: *BenchAdapter) panel_mod.Panel {
+        return panel_mod.Panel.from(BenchAdapter, self);
     }
 };
 

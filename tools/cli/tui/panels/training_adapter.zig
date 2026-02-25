@@ -64,8 +64,8 @@ pub const TrainingAdapter = struct {
     }
 
     /// Convert to a type-erased Panel.
-    pub fn panel(self: *TrainingAdapter) panel_mod {
-        return panel_mod.from(TrainingAdapter, self);
+    pub fn panel(self: *TrainingAdapter) panel_mod.Panel {
+        return panel_mod.Panel.from(TrainingAdapter, self);
     }
 };
 

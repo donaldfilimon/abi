@@ -46,8 +46,8 @@ pub const AgentAdapter = struct {
     }
 
     /// Convert to a type-erased Panel.
-    pub fn panel(self: *AgentAdapter) panel_mod {
-        return panel_mod.from(AgentAdapter, self);
+    pub fn panel(self: *AgentAdapter) panel_mod.Panel {
+        return panel_mod.Panel.from(AgentAdapter, self);
     }
 };
 

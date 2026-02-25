@@ -46,8 +46,8 @@ pub const DbAdapter = struct {
     }
 
     /// Convert to a type-erased Panel.
-    pub fn panel(self: *DbAdapter) panel_mod {
-        return panel_mod.from(DbAdapter, self);
+    pub fn panel(self: *DbAdapter) panel_mod.Panel {
+        return panel_mod.Panel.from(DbAdapter, self);
     }
 };
 
