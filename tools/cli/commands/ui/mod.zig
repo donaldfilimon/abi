@@ -14,16 +14,17 @@ const db_cmd = @import("db.zig");
 const network_cmd = @import("network.zig");
 const bench_cmd = @import("bench.zig");
 const brain_cmd = @import("brain.zig");
+const dashboard_cmd = @import("dashboard.zig");
 
 const ui_subcommands = [_][]const u8{
-    "launch", "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "help",
+    "launch", "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "dashboard", "help",
 };
 
 pub const meta: command_mod.Meta = .{
     .name = "ui",
-    .description = "UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)",
+    .description = "UI command family (launch, gpu, train, model, streaming, db, network, bench, brain, dashboard)",
     .aliases = &.{ "launch", "start" },
-    .subcommands = &.{ "launch", "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "help" },
+    .subcommands = &.{ "launch", "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "dashboard", "help" },
     .kind = .group,
     .children = &.{
         .{ .name = "launch", .description = "Open command launcher TUI", .handler = launch.run },
@@ -36,6 +37,7 @@ pub const meta: command_mod.Meta = .{
         .{ .name = "network", .description = "Open network status dashboard", .handler = network_cmd.run },
         .{ .name = "bench", .description = "Open benchmark results dashboard", .handler = bench_cmd.run },
         .{ .name = "brain", .description = "Open brain visualization dashboard", .handler = brain_cmd.run },
+        .{ .name = "dashboard", .description = "Open unified tabbed dashboard", .handler = dashboard_cmd.run },
     },
 };
 
@@ -82,6 +84,7 @@ pub fn printHelp() void {
         \\  network              Open network status dashboard
         \\  bench                Open benchmark results dashboard
         \\  brain                Open brain visualization dashboard
+        \\  dashboard            Open unified tabbed dashboard
         \\  help                 Show this help
         \\
         \\Examples:
@@ -95,6 +98,8 @@ pub fn printHelp() void {
         \\  abi ui network
         \\  abi ui bench
         \\  abi ui brain
+        \\  abi ui dashboard
+        \\  abi ui dashboard --theme nord
         \\  abi ui train --refresh-ms 250
         \\  abi ui neural --layers 12,24,24,12,4 --frames 0
         \\

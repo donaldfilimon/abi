@@ -80,6 +80,7 @@ fn findTemplate(name: []const u8) ?WorkflowTemplate {
 pub const meta: command_mod.Meta = .{
     .name = "multi-agent",
     .description = "Run multi-agent workflows",
+    .kind = .group,
     .subcommands = &.{ "info", "run", "list", "create", "status" },
     .children = &.{
         .{ .name = "info", .description = "Show coordinator status and capabilities", .handler = wrapMaInfo },

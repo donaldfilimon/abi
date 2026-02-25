@@ -42,6 +42,7 @@ fn wrapPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
 pub const meta: command_mod.Meta = .{
     .name = "model",
     .description = "Model management (list, download, remove, search)",
+    .kind = .group,
     .subcommands = &.{ "list", "info", "download", "remove", "search", "path" },
     .children = &.{
         .{ .name = "list", .description = "List cached models", .handler = wrapList },

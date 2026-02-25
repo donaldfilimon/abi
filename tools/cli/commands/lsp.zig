@@ -63,6 +63,7 @@ fn wrapDiagnostics(ctx: *const context_mod.CommandContext, args: []const [:0]con
 pub const meta: command_mod.Meta = .{
     .name = "lsp",
     .description = "ZLS LSP client (request, hover, completion, definition, rename, format)",
+    .kind = .group,
     .subcommands = &.{
         "request",
         "notify",
@@ -113,7 +114,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
     output.printError("Unknown lsp command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &lsp_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 

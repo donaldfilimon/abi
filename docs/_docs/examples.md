@@ -17,7 +17,7 @@ This guide is generated from repository metadata for **Reference** coverage and 
 
 ## Build Snapshot
 
-- Zig pin: `0.16.0-dev.2623+27eec9bd6`
+- Zig pin: `0.16.0-dev.2637+6a9510c0e`
 - Main tests: `1290` pass / `6` skip / `1296` total
 - Feature tests: `2360` pass / `5` skip / `2365` total
 
@@ -74,7 +74,7 @@ No feature modules directly mapped to this section.
 - `abi task` — Task management (add, list, done, stats, seed-self-improve)
 - `abi toolchain` — Build and install Zig/ZLS from master (install, update, status)
 - `abi train` — Training pipeline (run, llm, vision, auto, self, resume, info)
-- `abi ui` — UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)
+- `abi ui` — UI command family (launch, gpu, train, model, streaming, db, network, bench, brain, dashboard)
 
 ## Validation Commands
 

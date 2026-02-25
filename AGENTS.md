@@ -40,6 +40,14 @@
 - Keep commits scoped; avoid mixing refactors with behavior changes.
 - PRs should include: clear summary, linked issue (if applicable), docs/example updates for API changes, and passing `zig build full-check`.
 
+## TUI Development
+- Panel protocol: implement `render(term, rect, theme)`, `tick()`, `handleEvent(event) !bool`, `name()`, `shortcutHint()`, `deinit()`.
+- Adapters in `tools/cli/tui/panels/` wrap existing panels in the vtable; native panels implement it directly.
+- Use `term.moveTo(row, col)` for positioning; `render_utils.drawBox(term, Rect, BoxStyle, theme)` for boxes.
+- CLI error output: always `utils.output.printError`/`printInfo`, never raw `std.debug.print` for user-facing errors.
+- Theme: pass `*const themes.Theme` per-render; use `theme.success`/`theme.@"error"`/`theme.text_dim` etc.
+- File I/O in panels: use `std.c.fopen`/`std.c.fread` (no I/O backend needed) or simulated data.
+
 ## Security & Configuration Tips
 - Do not commit secrets, API keys, `.env`, `.zig-cache/`, or `zig-out/`.
 - Report vulnerabilities through `SECURITY.md`.

@@ -34,6 +34,7 @@ fn wrapStatus(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !
 pub const meta: command_mod.Meta = .{
     .name = "gpu",
     .description = "GPU commands (backends, devices, summary, default)",
+    .kind = .group,
     .subcommands = &.{ "backends", "devices", "list", "summary", "default", "status" },
     .children = &.{
         .{ .name = "backends", .description = "List GPU backends and build flags", .handler = wrapBackends },
@@ -66,7 +67,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown gpu command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &gpu_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 

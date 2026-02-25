@@ -371,15 +371,19 @@ test "writeRepeat basic operation" {
 test "moveTo ANSI sequence format" {
     // Verify the format string produces correct ANSI sequence.
     var buf: [32]u8 = undefined;
-    const seq = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{
+    const seq = try std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{
         @as(u32, 0) + 1,
         @as(u32, 0) + 1,
-    }) catch unreachable;
+    });
     try std.testing.expectEqualStrings("\x1b[1;1H", seq);
 
-    const seq2 = std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{
+    const seq2 = try std.fmt.bufPrint(&buf, "\x1b[{d};{d}H", .{
         @as(u32, 9) + 1,
         @as(u32, 19) + 1,
-    }) catch unreachable;
+    });
     try std.testing.expectEqualStrings("\x1b[10;20H", seq2);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

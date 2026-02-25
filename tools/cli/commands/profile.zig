@@ -69,6 +69,7 @@ fn wrapImport(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
 pub const meta: command_mod.Meta = .{
     .name = "profile",
     .description = "User profile and settings management",
+    .kind = .group,
     .subcommands = &.{ "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help" },
     .children = &.{
         .{ .name = "show", .description = "Show current profile", .handler = wrapShow },
@@ -412,7 +413,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown profile command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &profile_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 

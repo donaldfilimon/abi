@@ -61,6 +61,7 @@ fn wrapSkills(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
 pub const meta: command_mod.Meta = .{
     .name = "ralph",
     .description = "Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)",
+    .kind = .group,
     .subcommands = &.{ "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help" },
     .children = &.{
         .{ .name = "init", .description = "Create workspace: ralph.yml, .ralph/, PROMPT.md", .handler = wrapInit },
@@ -111,8 +112,7 @@ const ralph_subcommands = [_][]const u8{
 
 /// Entry point called by CLI dispatcher.
 /// Only reached when no child matches (help / unknown).
-pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    _ = ctx;
+pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printHelp();
         return;
@@ -123,9 +123,9 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     // Unknown subcommand
-    std.debug.print("Unknown ralph subcommand: {s}\n", .{cmd});
+    utils.output.printError("Unknown ralph subcommand: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &ralph_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -134,7 +134,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 // ============================================================================
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi ralph <subcommand> [options]
         \\
         \\Ralph orchestrator — iterative AI agent loop with skill memory.

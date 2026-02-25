@@ -50,7 +50,16 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "help", "lsp" },
     &.{ "help", "os-agent" },
 
+    // ── Missing top-level help commands ─────────────────────────────────
+    &.{ "help", "brain" },
+
     // ── Nested help (subcommand-level) ──────────────────────────────────
+    &.{ "help", "brain", "info" },
+    &.{ "help", "brain", "export" },
+    &.{ "help", "config", "setup" },
+    &.{ "help", "config", "path" },
+    &.{ "help", "config", "env" },
+    &.{ "help", "llm", "discover" },
     &.{ "help", "llm", "run" },
     &.{ "help", "llm", "session" },
     &.{ "help", "llm", "providers" },

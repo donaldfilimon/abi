@@ -88,6 +88,7 @@ fn initNetwork(allocator: std.mem.Allocator) !void {
 pub const meta: command_mod.Meta = .{
     .name = "network",
     .description = "Network and distributed systems management",
+    .kind = .group,
     .subcommands = &.{ "status", "list", "nodes", "register", "unregister", "touch", "set-status", "raft", "discovery", "balancer", "health" },
     .children = &.{
         .{ .name = "status", .description = "Show network config and node count", .handler = wrapStatus },
@@ -124,7 +125,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown network command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &network_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 

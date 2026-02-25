@@ -31,6 +31,7 @@ fn wrapServe(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
 pub const meta: command_mod.Meta = .{
     .name = "acp",
     .description = "Agent Communication Protocol (card, serve)",
+    .kind = .group,
     .subcommands = &.{ "card", "serve", "help" },
     .children = &.{
         .{ .name = "card", .description = "Print agent card JSON to stdout", .handler = wrapCard },
@@ -56,7 +57,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown acp command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &acp_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 

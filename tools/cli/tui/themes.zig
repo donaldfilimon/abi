@@ -49,6 +49,11 @@ pub const Theme = struct {
 
     // Semantic styles
     header: []const u8 = "\x1b[1m", // Bold for headers by default
+
+    // Tab bar styles
+    tab_active: []const u8 = "\x1b[1;7m", // Bold + inverse for active tab
+    tab_inactive: []const u8 = "\x1b[2m", // Dim for inactive tabs
+    tab_separator: []const u8 = "\x1b[38;5;240m", // Dark gray separator
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -299,7 +304,7 @@ pub const ThemeManager = struct {
         }
     }
 
-    pub fn getThemeNames(self: *const ThemeManager) [7][]const u8 {
+    pub fn getThemeNames(self: *const ThemeManager) [all_theme_names.len][]const u8 {
         var names: [all_theme_names.len][]const u8 = undefined;
         for (self.available, 0..) |theme, i| {
             names[i] = theme.name;
@@ -359,4 +364,8 @@ test "theme cycling" {
 
     manager.prevTheme();
     try std.testing.expectEqualStrings("minimal", manager.current.name);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

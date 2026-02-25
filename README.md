@@ -2,7 +2,7 @@
 
 # ABI Framework
 
-<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2623%2B27eec9bd6-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2623+27eec9bd6"/>
+<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2637%2B6a9510c0e-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2637+6a9510c0e"/>
 <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Status"/>
 <img src="https://img.shields.io/github/license/donaldfilimon/abi?style=for-the-badge" alt="License"/>
 
@@ -14,7 +14,7 @@
 
 <br/><br/>
 
-**A modern Zig 0.16.0-dev.2623+27eec9bd6 framework for AI services, vector search, and high-performance systems**
+**A modern Zig 0.16.0-dev.2637+6a9510c0e framework for AI services, vector search, and high-performance systems**
 
 [Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
 
@@ -114,7 +114,7 @@ export PATH="$HOME/.zvm/bin:$PATH"
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | `0.16.0-dev.2623+27eec9bd6` or newer | Yes |
+| Zig | `0.16.0-dev.2637+6a9510c0e` or newer | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
@@ -353,14 +353,11 @@ abi/
 │   │   ├── framework.zig # Lifecycle orchestration
 │   │   └── registry/     # Feature registry
 │   │
-│   ├── features/         # Feature modules (21 total, each with mod.zig + stub.zig)
-│   │   ├── ai/           # AI Module (llm, agents, training, embeddings)
-│   │   ├── ai_core/      # Agents, tools, prompts, personas, memory
-│   │   ├── ai_inference/  # LLM, embeddings, vision, streaming
-│   │   ├── ai_training/   # Training pipelines, federated learning
-│   │   ├── ai_reasoning/  # Abbey, RAG, eval, templates, orchestration
+│   ├── features/         # Feature modules (16 dirs, 24 catalog entries, 7 AI sub-features)
+│   │   ├── ai/           # AI Module (llm, agents, training, embeddings, personas, reasoning, constitution)
 │   │   ├── analytics/    # Event Tracking & Experiments
-│   │   ├── auth/         # Security infrastructure (16 modules)
+│   │   ├── auth/         # Security infrastructure (17 modules)
+│   │   ├── benchmarks/   # Performance benchmarks
 │   │   ├── cache/        # In-memory LRU/LFU, TTL, eviction
 │   │   ├── cloud/        # Cloud Function Adapters (AWS, GCP, Azure)
 │   │   ├── database/     # Vector Database (WDBX)
@@ -369,7 +366,7 @@ abi/
 │   │   ├── messaging/    # Event bus, pub/sub, message queues
 │   │   ├── mobile/       # Mobile platform support
 │   │   ├── network/      # Distributed Compute
-│   │   ├── observability/ # Metrics & Tracing
+│   │   ├── observability/ # Metrics, Tracing & Pages
 │   │   ├── search/       # Full-text BM25 search
 │   │   ├── storage/      # Unified file/object storage
 │   │   └── web/          # Web/HTTP utilities
@@ -378,7 +375,7 @@ abi/
 │       ├── runtime/      # Compute infrastructure (engine, concurrency, memory)
 │       ├── platform/     # Platform detection (OS, arch, CPU)
 │       ├── shared/       # Utilities (security, io, utils)
-│       ├── connectors/   # LLM provider connectors (8 providers + discord)
+│       ├── connectors/   # LLM provider connectors (15 providers + scheduler + discord)
 │       ├── mcp/          # MCP server (JSON-RPC 2.0 over stdio)
 │       ├── acp/          # Agent Communication Protocol
 │       ├── ha/           # High availability (backup, PITR, replication)
@@ -536,7 +533,7 @@ zig build fix
 
 | Milestone | Status |
 |:----------|:------:|
-| Zig 0.16.0-dev.2623+27eec9bd6 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Zig 0.16.0-dev.2637+6a9510c0e Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |

@@ -57,6 +57,7 @@ fn wrapPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
 pub const meta: command_mod.Meta = .{
     .name = "toolchain",
     .description = "Build and install Zig/ZLS from master (install, update, status)",
+    .kind = .group,
     .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "help" },
     .children = &.{
         .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = wrapInstall },
@@ -105,7 +106,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     output.printError("Unknown toolchain command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &toolchain_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 

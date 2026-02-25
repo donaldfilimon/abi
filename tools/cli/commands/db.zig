@@ -26,8 +26,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     // Check if database feature is enabled
     if (!abi.database.isEnabled()) {
-        std.debug.print("Error: Database feature is disabled.\n", .{});
-        std.debug.print("Rebuild with: zig build -Denable-database=true\n", .{});
+        utils.output.printError("Database feature is disabled.", .{});
+        utils.output.printInfo("Rebuild with: zig build -Denable-database=true", .{});
         return;
     }
 

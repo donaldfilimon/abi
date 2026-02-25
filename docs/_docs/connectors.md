@@ -17,7 +17,7 @@ This guide is generated from repository metadata for **Services** coverage and s
 
 ## Build Snapshot
 
-- Zig pin: `0.16.0-dev.2623+27eec9bd6`
+- Zig pin: `0.16.0-dev.2637+6a9510c0e`
 - Main tests: `1290` pass / `6` skip / `1296` total
 - Feature tests: `2360` pass / `5` skip / `2365` total
 

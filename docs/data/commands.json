@@ -146,8 +146,7 @@
     "description": "LLM inference (run, session, serve, providers, plugins, discover)",
     "aliases": [
       "chat",
-      "reasoning",
-      "serve"
+      "reasoning"
     ],
     "subcommands": [
       "run",
@@ -366,7 +365,7 @@
   },
   {
     "name": "ui",
-    "description": "UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)",
+    "description": "UI command family (launch, gpu, train, model, streaming, db, network, bench, brain, dashboard)",
     "aliases": [
       "launch",
       "start"
@@ -382,6 +381,7 @@
       "network",
       "bench",
       "brain",
+      "dashboard",
       "help"
     ]
   }

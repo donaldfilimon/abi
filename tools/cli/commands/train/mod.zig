@@ -135,8 +135,7 @@ const train_subcommands = [_][]const u8{
 
 /// Run the train command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
-pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    _ = ctx;
+pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printHelp();
         return;
@@ -147,9 +146,9 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     // Unknown subcommand
-    std.debug.print("Unknown train command: {s}\n", .{cmd});
+    utils.output.printError("Unknown train command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &train_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -254,5 +253,5 @@ pub fn printHelp() void {
         \\  abi train info
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }

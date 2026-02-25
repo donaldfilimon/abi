@@ -1,6 +1,6 @@
 ---
 title: CLI
-description: 29 commands + 9 aliases for AI, GPU, database, and system management
+description: 30 commands + 8 aliases for AI, GPU, database, and system management
 section: Core
 order: 13
 permalink: /cli/
@@ -8,7 +8,7 @@ permalink: /cli/
 
 # CLI
 ## Summary
-29 commands + 9 aliases for AI, GPU, database, and system management
+30 commands + 8 aliases for AI, GPU, database, and system management
 
 ## Generated Reference
 ## Overview
@@ -17,13 +17,13 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 ## Build Snapshot
 
-- Zig pin: `0.16.0-dev.2623+27eec9bd6`
+- Zig pin: `0.16.0-dev.2637+6a9510c0e`
 - Main tests: `1290` pass / `6` skip / `1296` total
 - Feature tests: `2360` pass / `5` skip / `2365` total
 
 ## Command Tree
 
-Top-level commands: **30** | aliases: **9** | structural subcommands: **169**
+Top-level commands: **30** | aliases: **8** | structural subcommands: **170**
 
 | Command | Aliases | Description | Subcommands |
 | --- | --- | --- | --- |
@@ -40,7 +40,7 @@ Top-level commands: **30** | aliases: **9** | structural subcommands: **169**
 | `explore` | — | Search and explore codebase | — |
 | `gendocs` | — | Generate API docs (runs zig build gendocs) | — |
 | `gpu` | — | GPU commands (backends, devices, summary, default) | backends, devices, list, summary, default, status |
-| `llm` | chat, reasoning, serve | LLM inference (run, session, serve, providers, plugins, discover) | run, session, serve, providers, plugins, discover, help |
+| `llm` | chat, reasoning | LLM inference (run, session, serve, providers, plugins, discover) | run, session, serve, providers, plugins, discover, help |
 | `lsp` | — | ZLS LSP client (request, hover, completion, definition, rename, format) | request, notify, hover, completion, definition, references, rename, format, diagnostics, help |
 | `mcp` | — | MCP server for WDBX database or ZLS (serve, tools) | serve, tools, help |
 | `model` | — | Model management (list, download, remove, search) | list, info, download, remove, search, path |
@@ -56,7 +56,7 @@ Top-level commands: **30** | aliases: **9** | structural subcommands: **169**
 | `task` | — | Task management (add, list, done, stats, seed-self-improve) | add, list, ls, show, done, start, cancel, delete, rm, stats, import-roadmap, seed-self-improve, edit, block, unblock, due, help |
 | `toolchain` | — | Build and install Zig/ZLS from master (install, update, status) | install, zig, zls, status, update, path, help |
 | `train` | — | Training pipeline (run, llm, vision, auto, self, resume, info) | run, new, llm, vision, clip, auto, self, resume, monitor, info, generate-data, help |
-| `ui` | launch, start | UI command family (launch, gpu, train, model, streaming, db, network, bench, brain) | launch, gpu, train, neural, model, streaming, db, network, bench, brain, help |
+| `ui` | launch, start | UI command family (launch, gpu, train, model, streaming, db, network, bench, brain, dashboard) | launch, gpu, train, neural, model, streaming, db, network, bench, brain, dashboard, help |
 
 ## Validation Commands
 

@@ -27,6 +27,7 @@ fn wrapEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]cons
 pub const meta: command_mod.Meta = .{
     .name = "convert",
     .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)",
+    .kind = .group,
     .subcommands = &.{ "dataset", "model", "embeddings" },
     .children = &.{
         .{ .name = "dataset", .description = "Convert between dataset formats", .handler = wrapDataset },
@@ -51,9 +52,9 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     // Unknown subcommand
-    std.debug.print("Unknown convert command: {s}\n", .{cmd});
+    utils.output.printError("Unknown convert command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &convert_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 

@@ -31,6 +31,7 @@ fn wrapTools(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
 pub const meta: command_mod.Meta = .{
     .name = "mcp",
     .description = "MCP server for WDBX database or ZLS (serve, tools)",
+    .kind = .group,
     .subcommands = &.{ "serve", "tools", "help" },
     .children = &.{
         .{ .name = "serve", .description = "Start MCP server (JSON-RPC over stdio)", .handler = wrapServe },
@@ -56,7 +57,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown mcp command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &mcp_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }
 

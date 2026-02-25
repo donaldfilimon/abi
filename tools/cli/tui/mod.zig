@@ -27,6 +27,10 @@ pub const brain_panel = @import("brain_panel.zig");
 pub const metrics_file_reader = @import("metrics_file_reader.zig");
 pub const training_brain_mapper = @import("training_brain_mapper.zig");
 pub const async_loop = @import("async_loop.zig");
+pub const panel = @import("panel.zig");
+pub const tab_bar = @import("tab_bar.zig");
+pub const help_overlay = @import("help_overlay.zig");
+pub const panels = @import("panels/mod.zig");
 
 pub const Key = events.Key;
 pub const KeyCode = events.KeyCode;
@@ -114,3 +118,8 @@ pub const AsyncLoop = async_loop.AsyncLoop;
 pub const AsyncEvent = async_loop.AsyncEvent;
 pub const AsyncLoopConfig = async_loop.AsyncLoopConfig;
 pub const MetricsTracker = async_loop.MetricsTracker;
+
+// Panel Protocol
+pub const Panel = panel;
+pub const TabBar = tab_bar.TabBar;
+pub const HelpOverlay = help_overlay.HelpOverlay;
