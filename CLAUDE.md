@@ -141,7 +141,7 @@ build/
 - `zig build feature-tests` → `src/feature_test_root.zig` (inline: 2360 pass (2365 total))
 - Baselines tracked in `tools/scripts/baseline.zig`
 
-## Feature Flags
+**Non-obvious env vars:** `ABI_HF_API_TOKEN` (not HUGGINGFACE), `DISCORD_BOT_TOKEN` (no ABI_ prefix), `ABI_OLLAMA_PASSTHROUGH_URL` (uses _URL), `ABI_MASTER_KEY` (secrets encryption).
 
 All flags default to `true` except `enable_mobile`.
 
