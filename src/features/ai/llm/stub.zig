@@ -57,6 +57,7 @@ pub const MappedFile = struct {};
 pub const Tensor = struct {};
 pub const Q4_0Block = struct {};
 pub const Q8_0Block = struct {};
+pub const unified_orchestrator = @import("unified_orchestrator/stub.zig");
 
 pub const BpeTokenizer = struct {
     pub fn init(_: std.mem.Allocator) BpeTokenizer {

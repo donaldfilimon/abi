@@ -1,6 +1,7 @@
 # Repository Guidelines
 
 ## Workflow Orchestration (Required)
+
 - For non-trivial tasks (3+ steps, architectural decisions, or cross-file behavioral changes), write a checkable plan in `tasks/todo.md` before implementation.
 - Define objective, scope, and verification criteria in `tasks/todo.md` before editing.
 - Mark checklist items complete only after evidence exists.
@@ -12,6 +13,7 @@
 - If using a reusable workflow contract, prefer `.codex/skills/workflow-orchestration/` as canonical and sync to `/Users/donaldfilimon/.codex/skills/workflow-orchestration/`.
 
 ## Project Structure & Module Organization
+
 - `src/abi.zig`: public API entry point and compile-time feature wiring.
 - `src/core/`: framework lifecycle, config, registry, and core errors.
 - `src/features/<name>/`: feature implementation in `mod.zig` plus disabled `stub.zig` (public signatures must match).
@@ -23,6 +25,7 @@
 - `examples/`: runnable examples for public API usage.
 
 ## Build, Test, and Development Commands
+
 - `zig build`: build project defaults.
 - `zig build run -- --help`: run CLI help and inspect command surface.
 - `zig fmt .`: format all Zig code.
@@ -34,6 +37,7 @@
 - `zig build verify-all`: release-oriented gate (expands full-check with consistency/tests/examples/WASM checks).
 
 ## Coding Style & Naming Conventions
+
 - Zig `0.16.0-dev` only (see `.zigversion`).
 - 4 spaces, no tabs; keep lines near 100 chars.
 - Naming: `PascalCase` (types/enums), `camelCase` (functions/vars), `snake_case.zig` (files).
@@ -42,32 +46,30 @@
 - Use `std.log.*` in library code; reserve `std.debug.print` for CLI/TUI output.
 
 ## Testing Guidelines
+
 - Add or update tests with behavioral changes.
 - Run focused checks during iteration: `zig test src/path/to/file.zig` or `--test-filter "pattern"`.
 - For feature-module edits, update both `mod.zig` and `stub.zig`, then test both states:
-  `zig build -Denable-<feature>=true` and `zig build -Denable-<feature>=false`.
+`zig build -Denable-<feature>=true` and `zig build -Denable-<feature>=false`.
 
 ## Commit & Pull Request Guidelines
-<<<<<<< Current (Your changes)
-- Follow Conventional Commit prefixes seen in history: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `ci:`.
+
+- Use Conventional Commit prefixes with optional scopes, e.g. `feat(scope): description`, `docs: ...`
+- Common types in history include `feat`, `fix`, `docs`, `chore`, `ci`, `security`, `refactor`, and `test`.
 - Keep commits scoped; avoid mixing refactors with behavior changes.
-- PRs should include: clear summary, linked issue (if applicable), docs/example updates for API changes, and passing `zig build full-check`.
+- PRs should include a clear summary, linked issue (if applicable), docs/example updates for API changes, and passing tests.
 
 ## Security & Configuration Tips
+
 - Do not commit secrets, API keys, `.env`, `.zig-cache/`, or `zig-out/`.
 - Report vulnerabilities through `SECURITY.md`.
 
 ## Canonical Sources
+
 - Zig toolchain pin: `.zigversion`
 - Command surface and build steps: `zig build --help`
 - Test baseline source of truth: `tools/scripts/baseline.zig`
-=======
-- Commit messages follow Conventional Commits with optional scopes, e.g. `feat(metal): add unified memory` or `docs: update README`.
-- Common types in history: `feat`, `fix`, `docs`, `chore`, `ci`, `security`, `refactor`, `test`.
-- PRs should include a clear description, linked issues (if any), passing tests, and formatted code. Add benchmarks for performance-sensitive changes.
-
-## References
-- Architecture and contribution details: `docs/content/architecture.html`, `CONTRIBUTING.md`.
+- Architecture and contribution details: `docs/README.md`, `CONTRIBUTING.md`.
 - Security and deployment guidance: `SECURITY.md`, `DEPLOYMENT_GUIDE.md`.
 - Agent-specific requirements: `PROMPT.md` and `CLAUDE.md`.
->>>>>>> Incoming (Background Agent changes)
+

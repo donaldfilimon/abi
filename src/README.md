@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "Source Directory"
 tags: [source, architecture, modules]
@@ -24,7 +22,7 @@ Context structs.
 | Directory | Description |
 |-----------|-------------|
 | `abi.zig` | Public API entry point with curated re-exports |
-| `config.zig` | Unified configuration system (struct literal + builder APIs) |
+| `config/` | Unified configuration system (Config + Builder APIs) |
 | `framework.zig` | Framework orchestration and lifecycle management |
 | `registry/` | Plugin registry system (comptime, runtime-toggle, dynamic modes) |
 | `runtime/` | Always-on infrastructure (engine, scheduling, concurrency, memory) |
@@ -46,7 +44,7 @@ Context structs.
 ```
 src/
 ├── abi.zig              # Public API
-├── config.zig           # Unified configuration
+├── config/              # Unified configuration
 ├── framework.zig        # Framework orchestration
 │
 ├── registry/            # Feature registry system
@@ -113,8 +111,8 @@ src/
 
 ## Key Entry Points
 
-- **Public API**: `abi.zig` - Use `abi.init()`, `abi.shutdown()`, `abi.version()`
-- **Configuration**: `config.zig` - Unified `Config` struct with `Builder` API
+- **Public API**: `abi.zig` - Use `abi.initDefault()`, `Framework.builder()`, `Framework.deinit()`, `abi.version()`
+- **Configuration**: `config/mod.zig` - Unified `Config` struct with `Builder` API
 - **Framework**: `framework.zig` - `Framework` struct manages feature lifecycle
 - **Runtime**: `runtime/mod.zig` - Always-available scheduling and concurrency
 
@@ -155,5 +153,4 @@ pub fn isEnabled() bool {
 - [CLAUDE.md](../CLAUDE.md) - Full project documentation
 - [API Reference](../API_REFERENCE.md)
 - [Docs Map](../docs/README.md) - Documentation layout and entry points
-- [Architecture](../docs/content/architecture.html) - Architecture overview
->>>>>>> Incoming (Background Agent changes)
+- [docs/README.md](../docs/README.md) - Documentation site source

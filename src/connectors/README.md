@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -62,4 +60,3 @@ tags: []
 //! - [AI Module](../ai/README.md)
 //! - [Agent Documentation](../../docs/content/ai.html)
 
->>>>>>> Incoming (Background Agent changes)

@@ -19,12 +19,19 @@ pub fn main(_: std.process.Init) !void {
         return;
     }
 
-    // Initialize module-level network state used by defaultRegistry().
-    try abi.network.initWithConfig(allocator, .{
-        .cluster_id = "example-cluster",
-        .heartbeat_timeout_ms = 30_000,
-        .max_nodes = 32,
-    });
+    var builder = abi.Framework.builder(allocator);
+    _ = builder.withNetworkDefaults();
+    var framework = builder.build() catch |err| {
+        std.debug.print("Failed to initialize network framework: {t}\n", .{err});
+        return err;
+    };
+    defer framework.deinit();
+
+    // Explicitly initialize the network subsystem before accessing the registry.
+    abi.network.init(allocator) catch |err| {
+        std.debug.print("Network init failed: {t}\n", .{err});
+        return err;
+    };
     defer abi.network.deinit();
 
     // The network registry is available after network module initialization.

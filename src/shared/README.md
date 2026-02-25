@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -63,4 +61,3 @@ tags: []
 //! - [Logging](logging.zig)
 //! - [Platform](platform.zig)
 //! - [Utils](utils/README.md)
->>>>>>> Incoming (Background Agent changes)

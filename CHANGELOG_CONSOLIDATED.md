@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "Changelog"
 tags: [changelog, releases, history]
@@ -142,4 +140,3 @@ This changelog combines information from both CHANGELOG.md and RELEASE_NOTES.md 
 Updates will now be tracked exclusively in this file.
 
 © 2026 ABI Framework contributors.
->>>>>>> Incoming (Background Agent changes)

@@ -93,6 +93,11 @@ pub fn build(b: *std.Build) void {
     if (b.args) |args| run_cli.addArgs(args);
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
+    const run_editor = b.addRunArtifact(exe);
+    run_editor.addArg("editor");
+    if (b.args) |args| run_editor.addArgs(args);
+    b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
+
     // ── Examples (table-driven) ─────────────────────────────────────────
     const examples_step = b.step("examples", "Build all examples");
     targets.buildTargets(b, &targets.example_targets, abi_module, build_opts, target, optimize, examples_step, false);

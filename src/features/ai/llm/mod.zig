@@ -10,9 +10,9 @@
 //! - KV caching for efficient autoregressive generation
 //! - GPU acceleration with CPU fallback
 //!
-//! Usage:
+//! Usage (public API):
 //! ```zig
-//! const llm = @import("llm");
+//! const llm = @import("abi").ai.llm;
 //!
 //! var model = try llm.Model.load(allocator, "model.gguf");
 //! defer model.deinit();

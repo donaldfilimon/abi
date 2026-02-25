@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "DEPLOYMENT_GUIDE"
 tags: [deployment, devops, production]
@@ -289,4 +287,3 @@ zig build benchmarks
 
 
 
->>>>>>> Incoming (Background Agent changes)

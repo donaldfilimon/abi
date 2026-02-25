@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -52,4 +50,3 @@ tags: []
 //!
 //! - [HTTP Utilities](../shared/utils/README.md)
 //! - [CLAUDE.md Web Section](../../CLAUDE.md)
->>>>>>> Incoming (Background Agent changes)
