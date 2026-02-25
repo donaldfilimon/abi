@@ -1,6 +1,7 @@
 const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
+const utils = @import("../../utils/mod.zig");
 
 pub fn runDiscover(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;

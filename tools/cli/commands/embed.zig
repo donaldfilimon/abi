@@ -47,6 +47,9 @@ pub const OutputFormat = enum {
     raw,
 };
 
+/// When true, the user explicitly requested local fallback via --local.
+var use_local_fallback: bool = false;
+
 pub const EmbedError = error{
     NoInput,
     ProviderNotConfigured,
@@ -78,6 +81,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var model: ?[]const u8 = null;
     var output_path: ?[]const u8 = null;
     var format: OutputFormat = .json;
+    use_local_fallback = false;
 
     while (parser.hasMore()) {
         if (parser.consumeOption(&[_][]const u8{ "--text", "-t" })) |val| {
@@ -100,6 +104,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
                 utils.output.printInfo("Available formats: json, csv, raw", .{});
                 return;
             };
+        } else if (parser.consumeFlag(&[_][]const u8{"--local"})) {
+            use_local_fallback = true;
         } else {
             _ = parser.next();
         }
@@ -179,14 +185,22 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
         utils.output.printInfo("Using custom model: {s}", .{m});
     }
 
+    // If the user explicitly requested local fallback, use it with a warning
+    if (use_local_fallback) {
+        utils.output.printWarning("Using local character-hash embeddings (not ML-based)", .{});
+        utils.output.printInfo("These are NOT real embeddings. For production use, configure a provider API key.", .{});
+        return generateLocalEmbedding(allocator, text);
+    }
+
     switch (provider) {
         .openai => {
-            // OpenAI embeddings via their API
             const config = abi.connectors.tryLoadOpenAI(allocator) catch {
-                utils.output.printError("OpenAI not configured. Set OPENAI_API_KEY", .{});
+                utils.output.printError("OpenAI not configured. Set ABI_OPENAI_API_KEY environment variable.", .{});
+                utils.output.printInfo("Run 'abi env' to check your environment setup.", .{});
                 return EmbedError.ProviderNotConfigured;
             } orelse {
-                utils.output.printError("OpenAI API key not found. Set OPENAI_API_KEY", .{});
+                utils.output.printError("ABI_OPENAI_API_KEY not set.", .{});
+                utils.output.printInfo("Run 'abi env' for setup help, or use --local for non-ML fallback.", .{});
                 return EmbedError.ProviderNotConfigured;
             };
             defer {
@@ -197,14 +211,15 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             const effective_model = model orelse "text-embedding-3-small";
             utils.output.printKeyValue("Model", effective_model);
 
-            // Generate embedding using local embeddings model as fallback
-            // When full API integration is implemented, pass effective_model to the API
-            return generateLocalEmbedding(allocator, text);
+            // Real API call not yet implemented — tell the user clearly
+            utils.output.printError("OpenAI embedding API integration not yet implemented.", .{});
+            utils.output.printInfo("Use --local for character-hash fallback (not ML-based), or try --provider ollama.", .{});
+            return EmbedError.EmbeddingFailed;
         },
         .ollama => {
-            // Ollama embeddings
             var config = abi.connectors.loadOllama(allocator) catch {
-                utils.output.printError("Could not load Ollama config", .{});
+                utils.output.printError("Ollama not configured. Set ABI_OLLAMA_HOST or start Ollama locally.", .{});
+                utils.output.printInfo("Default host: http://127.0.0.1:11434", .{});
                 return EmbedError.ProviderNotConfigured;
             };
             defer config.deinit(allocator);
@@ -212,15 +227,19 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             const effective_model = model orelse config.model;
             utils.output.printKeyValue("Model", effective_model);
 
-            // When full API integration is implemented, pass effective_model to the API
-            return generateLocalEmbedding(allocator, text);
+            // Real API call not yet implemented
+            utils.output.printError("Ollama embedding API integration not yet implemented.", .{});
+            utils.output.printInfo("Use --local for character-hash fallback (not ML-based).", .{});
+            return EmbedError.EmbeddingFailed;
         },
         .mistral => {
             const config = abi.connectors.tryLoadMistral(allocator) catch {
-                utils.output.printError("Mistral not configured. Set MISTRAL_API_KEY", .{});
+                utils.output.printError("Mistral not configured. Set MISTRAL_API_KEY environment variable.", .{});
+                utils.output.printInfo("Run 'abi env' for setup help.", .{});
                 return EmbedError.ProviderNotConfigured;
             } orelse {
-                utils.output.printError("Mistral API key not found. Set MISTRAL_API_KEY", .{});
+                utils.output.printError("MISTRAL_API_KEY not set.", .{});
+                utils.output.printInfo("Run 'abi env' for setup help, or use --local for non-ML fallback.", .{});
                 return EmbedError.ProviderNotConfigured;
             };
             defer {
@@ -231,15 +250,18 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             const effective_model = model orelse "mistral-embed";
             utils.output.printKeyValue("Model", effective_model);
 
-            // When full API integration is implemented, pass effective_model to the API
-            return generateLocalEmbedding(allocator, text);
+            utils.output.printError("Mistral embedding API integration not yet implemented.", .{});
+            utils.output.printInfo("Use --local for character-hash fallback (not ML-based).", .{});
+            return EmbedError.EmbeddingFailed;
         },
         .cohere => {
             const config = abi.connectors.tryLoadCohere(allocator) catch {
-                utils.output.printError("Cohere not configured. Set COHERE_API_KEY", .{});
+                utils.output.printError("Cohere not configured. Set COHERE_API_KEY environment variable.", .{});
+                utils.output.printInfo("Run 'abi env' for setup help.", .{});
                 return EmbedError.ProviderNotConfigured;
             } orelse {
-                utils.output.printError("Cohere API key not found. Set COHERE_API_KEY", .{});
+                utils.output.printError("COHERE_API_KEY not set.", .{});
+                utils.output.printInfo("Run 'abi env' for setup help, or use --local for non-ML fallback.", .{});
                 return EmbedError.ProviderNotConfigured;
             };
             defer {
@@ -250,8 +272,9 @@ fn generateEmbedding(allocator: std.mem.Allocator, provider: Provider, text: []c
             const effective_model = model orelse "embed-english-v3.0";
             utils.output.printKeyValue("Model", effective_model);
 
-            // When full API integration is implemented, pass effective_model to the API
-            return generateLocalEmbedding(allocator, text);
+            utils.output.printError("Cohere embedding API integration not yet implemented.", .{});
+            utils.output.printInfo("Use --local for character-hash fallback (not ML-based).", .{});
+            return EmbedError.EmbeddingFailed;
         },
     }
 }
@@ -393,6 +416,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
         .option(.{ .short = "-m", .long = "--model", .arg = "name", .description = "Model to use (provider-specific)" })
         .option(.{ .short = "-o", .long = "--output", .arg = "path", .description = "Save embeddings to file" })
         .option(.{ .long = "--format", .arg = "type", .description = "Output format: json, csv, raw (default: json)" })
+        .option(.{ .long = "--local", .description = "Use local character-hash fallback (not ML-based)" })
         .option(utils.help.common_options.help)
         .newline()
         .section("Environment Variables")

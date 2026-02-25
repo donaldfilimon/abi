@@ -317,8 +317,23 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Load session if requested
     if (load_session) |sid| {
         session.load(sid) catch |err| {
-            utils.output.printWarning("Could not load session '{s}': {t}", .{ sid, err });
+            utils.output.printError("Could not load session '{s}': {t}", .{ sid, err });
+            const sessions_dir = app_paths.resolvePath(allocator, "sessions") catch "~/.abi/sessions";
+            utils.output.printInfo("Session directory: {s}", .{sessions_dir});
+            utils.output.printInfo("Use --list-sessions to see available sessions, or start a new session without --load.", .{});
+            return;
         };
+    }
+
+    // Check for AI provider configuration before proceeding
+    const has_openai = std.c.getenv("ABI_OPENAI_API_KEY") != null;
+    const has_anthropic = std.c.getenv("ABI_ANTHROPIC_API_KEY") != null;
+    const has_ollama = std.c.getenv("ABI_OLLAMA_HOST") != null;
+    if (!has_openai and !has_anthropic and !has_ollama) {
+        utils.output.printWarning("No AI provider configured.", .{});
+        utils.output.printInfo("Set one of: ABI_OPENAI_API_KEY, ABI_ANTHROPIC_API_KEY, or ABI_OLLAMA_HOST", .{});
+        utils.output.printInfo("Without a provider, the agent will use built-in response generation.", .{});
+        utils.output.println("", .{});
     }
 
     if (use_tools) {
@@ -336,15 +351,26 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
         // Register requested tools
         if (enable_all_tools) {
-            try tool_agent.registerAllAgentTools();
+            tool_agent.registerAllAgentTools() catch |err| {
+                utils.output.printWarning("Some agent tools failed to register: {t}", .{err});
+                utils.output.printInfo("Agent will continue with available tools.", .{});
+            };
         } else {
             if (enable_os_tools) {
-                abi.ai.tools.os_tools.registerAll(&tool_agent.tool_registry) catch {};
+                abi.ai.tools.os_tools.registerAll(&tool_agent.tool_registry) catch |err| {
+                    utils.output.printWarning("OS tools registration failed: {t}", .{err});
+                };
             }
             if (enable_file_tools) {
-                abi.ai.tools.file_tools.registerAll(&tool_agent.tool_registry) catch {};
-                abi.ai.tools.search_tools.registerAll(&tool_agent.tool_registry) catch {};
-                abi.ai.tools.edit_tools.registerAll(&tool_agent.tool_registry) catch {};
+                abi.ai.tools.file_tools.registerAll(&tool_agent.tool_registry) catch |err| {
+                    utils.output.printWarning("File tools registration failed: {t}", .{err});
+                };
+                abi.ai.tools.search_tools.registerAll(&tool_agent.tool_registry) catch |err| {
+                    utils.output.printWarning("Search tools registration failed: {t}", .{err});
+                };
+                abi.ai.tools.edit_tools.registerAll(&tool_agent.tool_registry) catch |err| {
+                    utils.output.printWarning("Edit tools registration failed: {t}", .{err});
+                };
             }
         }
 

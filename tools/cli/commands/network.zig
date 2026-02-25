@@ -78,7 +78,8 @@ fn wrapHealth(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !
 fn initNetwork(allocator: std.mem.Allocator) !void {
     abi.network.init(allocator) catch |err| switch (err) {
         error.NetworkDisabled => {
-            utils.output.printWarning("Network support disabled at build time.", .{});
+            utils.output.printError("Network features are disabled.", .{});
+            utils.output.printInfo("Rebuild with: zig build -Denable-network=true", .{});
             return err;
         },
         else => return err,
@@ -131,11 +132,11 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 /// Print a short network summary for system-info.
 pub fn printSummary() void {
     if (!abi.network.isEnabled()) {
-        utils.output.println("  Network: disabled", .{});
+        utils.output.println("  Network: disabled (rebuild with -Denable-network=true)", .{});
         return;
     }
     if (!abi.network.isInitialized()) {
-        utils.output.println("  Network: enabled (not initialized)", .{});
+        utils.output.println("  Network: enabled (run 'abi network status' to initialize)", .{});
         return;
     }
     if (abi.network.defaultConfig()) |config| {
@@ -178,12 +179,14 @@ fn printHelp(allocator: std.mem.Allocator) void {
 
 fn printStatus() !void {
     if (!abi.network.isEnabled()) {
-        utils.output.printWarning("Network: disabled", .{});
+        utils.output.printError("Network features are disabled.", .{});
+        utils.output.printInfo("Rebuild with: zig build -Denable-network=true", .{});
         return;
     }
     const config = abi.network.defaultConfig();
     if (config == null) {
-        utils.output.printInfo("Network: enabled (not initialized)", .{});
+        utils.output.printInfo("Network: enabled but no cluster configured yet.", .{});
+        utils.output.printInfo("Use 'abi network register <id> <address>' to add nodes.", .{});
         return;
     }
     const registry = try abi.network.defaultRegistry();

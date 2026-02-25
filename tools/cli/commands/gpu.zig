@@ -211,7 +211,12 @@ fn printDevices(allocator: std.mem.Allocator) !void {
     defer allocator.free(devices);
 
     if (devices.len == 0) {
-        utils.output.printInfo("GPU Devices: none", .{});
+        utils.output.printInfo("No GPU devices detected. Using CPU fallback.", .{});
+        if (@import("builtin").os.tag == .macos) {
+            utils.output.printInfo("On macOS, try: zig build -Dgpu-backend=metal", .{});
+        } else {
+            utils.output.printInfo("Try: zig build -Dgpu-backend=vulkan  (or cuda for NVIDIA)", .{});
+        }
         return;
     }
 

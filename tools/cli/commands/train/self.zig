@@ -68,6 +68,21 @@ pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
         return;
     }
 
+    var continue_on_error = false;
+    // Check for --continue-on-error flag
+    {
+        var j: usize = 0;
+        while (j < args.len) : (j += 1) {
+            if (std.mem.eql(u8, std.mem.sliceTo(args[j], 0), "--continue-on-error")) {
+                continue_on_error = true;
+            }
+        }
+    }
+
+    var stages_passed: u8 = 0;
+    var stages_failed: u8 = 0;
+    var stages_skipped: u8 = 0;
+
     if (run_auto) {
         utils.output.println("==> Stage 1/3: self-training", .{});
         var auto_args = std.ArrayListUnmanaged([:0]const u8).empty;
@@ -75,9 +90,20 @@ pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
         if (multimodal) {
             try auto_args.append(allocator, "--multimodal");
         }
-        try auto.runAutoTrain(ctx, auto_args.items);
+        if (auto.runAutoTrain(ctx, auto_args.items)) |_| {
+            utils.output.printSuccess("Stage 1/3: PASSED", .{});
+            stages_passed += 1;
+        } else |err| {
+            utils.output.printError("Stage 1/3: FAILED — {t}", .{err});
+            stages_failed += 1;
+            if (!continue_on_error) {
+                utils.output.printInfo("Pipeline stopped. Use --continue-on-error to proceed past failures.", .{});
+                return;
+            }
+        }
     } else {
         utils.output.println("==> Stage 1/3: self-training skipped", .{});
+        stages_skipped += 1;
     }
 
     if (run_improve) {
@@ -95,9 +121,20 @@ pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
             try improve_args.appendSlice(allocator, &[_][:0]const u8{ "--task", task_z });
         }
 
-        try ralph_improve.runImprove(ctx, improve_args.items);
+        if (ralph_improve.runImprove(ctx, improve_args.items)) |_| {
+            utils.output.printSuccess("Stage 2/3: PASSED", .{});
+            stages_passed += 1;
+        } else |err| {
+            utils.output.printError("Stage 2/3: FAILED — {t}", .{err});
+            stages_failed += 1;
+            if (!continue_on_error) {
+                utils.output.printInfo("Pipeline stopped. Use --continue-on-error to proceed past failures.", .{});
+                return;
+            }
+        }
     } else {
         utils.output.println("==> Stage 2/3: self-improvement loop skipped", .{});
+        stages_skipped += 1;
     }
 
     if (run_visualize) {
@@ -109,9 +146,28 @@ pub fn runSelfTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
             "--frames",
             frames_str,
         };
-        try neural_ui.runVisualizer(allocator, &viz_args);
+        if (neural_ui.runVisualizer(allocator, &viz_args)) |_| {
+            utils.output.printSuccess("Stage 3/3: PASSED", .{});
+            stages_passed += 1;
+        } else |err| {
+            utils.output.printError("Stage 3/3: FAILED — {t}", .{err});
+            stages_failed += 1;
+        }
     } else {
         utils.output.println("==> Stage 3/3: visualization skipped", .{});
+        stages_skipped += 1;
+    }
+
+    // Summary
+    utils.output.println("", .{});
+    utils.output.printHeader("Pipeline Summary");
+    utils.output.printKeyValueFmt("Passed", "{d}", .{stages_passed});
+    utils.output.printKeyValueFmt("Failed", "{d}", .{stages_failed});
+    utils.output.printKeyValueFmt("Skipped", "{d}", .{stages_skipped});
+    if (stages_failed > 0) {
+        utils.output.printError("Pipeline completed with {d} failure(s).", .{stages_failed});
+    } else {
+        utils.output.printSuccess("Pipeline completed successfully.", .{});
     }
 }
 
@@ -143,6 +199,7 @@ pub fn printHelp() void {
         \\  --task <text>             Override Ralph improve task prompt
         \\  --visualize               Run 3D neural visualization after pipeline
         \\  --visualize-frames <n>    Frames for visualization (default: 240)
+        \\  --continue-on-error       Continue pipeline even if a stage fails
         \\  -h, --help                Show this help
         \\
         \\Examples:

@@ -44,7 +44,7 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
 
     const registry = framework_runtime.getRegistry();
     global_flags.applyToRegistry(registry) catch |err| {
-        std.debug.print("Warning: Could not apply feature override: {t}\n", .{err});
+        utils.output.printWarning("Could not apply feature override: {t}", .{err});
     };
 
     const args = global_flags.remaining_args;
@@ -71,7 +71,7 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
     }
 
     if (utils.args.matchesAny(command, &[_][]const u8{ "version", "--version", "-v" })) {
-        std.debug.print("ABI Framework v{s}\n", .{abi.version()});
+        utils.output.println("ABI Framework v{s}", .{abi.version()});
         return;
     }
 
@@ -130,11 +130,11 @@ fn runHelpTarget(
 }
 
 fn printUnknownCommand(command: []const u8) void {
-    std.debug.print("Unknown command: {s}\n", .{command});
+    utils.output.printError("Unknown command: {s}", .{command});
     if (utils.args.suggestCommand(command, spec.command_names_with_aliases)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
-    std.debug.print("Use 'help' for usage.\n", .{});
+    utils.output.printInfo("Run 'abi help' for a list of available commands.", .{});
 }
 
 test {

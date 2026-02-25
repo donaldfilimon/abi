@@ -55,6 +55,7 @@ zig build check-wasm                   # Check WASM compilation
 | Import paths | Always use `@import("abi")` for public API, not direct file paths |
 | `build.zig` file checks | Use existing `pathExists()` helper, not `std.fs.cwd()` |
 | WASM limitations | `database`, `network`, `gpu` auto-disabled; no `std.Io.Threaded` |
+| macOS 26 Xcode-beta | Set `DEVELOPER_DIR=/Library/Developer/CommandLineTools` in `~/.zshenv` |
 
 **Zig 0.16 gotchas** are in `.claude/rules/zig.md` (auto-loaded for `.zig` files). Key ones: `std.Io.Dir.cwd()` not `std.fs.cwd()`, `.empty` init for ArrayList/HashMap, `{t}` format specifier for enums/errors, `catch {` not `catch |_| {`.
 
@@ -103,7 +104,7 @@ src/
 tools/
 ├── cli/                       # CLI executable
 │   ├── main.zig               # Entry point (uses Init.Minimal)
-│   ├── commands/              # 30+ command implementations
+│   ├── commands/              # 35 command implementations
 │   │   ├── llm/               # LLM subcommands (chat, demo, list)
 │   │   ├── train/             # Training subcommands (info, monitor, self)
 │   │   ├── ralph/             # Ralph agent subcommands (init, run, status, skills)
@@ -251,10 +252,24 @@ Modular configs in `src/core/config/`: `ai.zig`, `gpu.zig`, `database.zig`, `net
 | `ABI_HF_API_TOKEN` | HuggingFace token |
 | `ABI_MASTER_KEY` | 32-byte key for secrets encryption (required in production) |
 | `ABI_DB_PATH` | Database file path (default: `abi.db`) |
+| `DEVELOPER_DIR` | macOS: override Xcode SDK path (set to `/Library/Developer/CommandLineTools` for macOS 26) |
+
+## Developer CLI Commands
+
+Quick-reference for the developer-focused CLI commands:
+
+```bash
+abi doctor             # Health check: Zig, framework, GPU, API keys, features
+abi clean              # Remove .zig-cache/ (add --state for .ralph/, --all --force for models)
+abi env                # List ABI_* environment variables (redacted)
+abi env validate       # Check AI providers, GPU, master key
+abi env export         # Print export commands for shell sourcing
+abi init <name>        # Scaffold project (templates: default, llm-app, agent, training)
+```
 
 ## Zig 0.16 Quick Reference
 
-**Pinned version:** `0.16.0-dev.2637+6a9510c0e` (see `.zigversion`)
+**Pinned version:** `0.16.0-dev.2653+784e89fd4` (see `.zigversion`)
 
 Full Zig 0.16 patterns are in `.claude/rules/zig.md` (auto-loaded). Essential patterns:
 
@@ -329,7 +344,7 @@ utils.output.printKeyValueFmt("Count", "{d}", .{n});
 
 | Marker | Where Validated |
 |--------|----------------|
-| `0.16.0-dev.2637+6a9510c0e` | README.md, CONTRIBUTING.md, CLAUDE.md |
+| `0.16.0-dev.2653+784e89fd4` | README.md, CONTRIBUTING.md, CLAUDE.md |
 | `1290 pass, 6 skip (1296 total)` | CLAUDE.md, `.claude/rules/zig.md` |
 | `2360 pass (2365 total)` | CLAUDE.md, `.claude/rules/zig.md` |
 

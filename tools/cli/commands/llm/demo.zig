@@ -49,12 +49,14 @@ pub fn runDemo(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         prompt = "Hello, can you tell me about the ABI framework?";
     }
 
-    utils.output.printHeader("ABI LLM Demo Mode");
+    utils.output.printHeader("[DEMO MODE] ABI LLM");
+    utils.output.printWarning("This is a demo with canned responses. Use 'abi llm run <model>' for real inference.", .{});
+    utils.output.println("", .{});
     utils.output.printKeyValue("Prompt", prompt.?);
     utils.output.printKeyValueFmt("Max tokens", "{d}", .{max_tokens});
     utils.output.println("", .{});
 
-    utils.output.println("Generating response...\n", .{});
+    utils.output.println("[DEMO MODE] Generating canned response...\n", .{});
 
     // Simulate generation with a demo response
     const response =
@@ -74,6 +76,7 @@ pub fn runDemo(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     utils.output.println("{s}", .{truncated_response});
 
     utils.output.printSeparator(60);
-    utils.output.println("Demo Stats: 25.0 tok/s prefill, 15.0 tok/s decode", .{});
-    utils.output.printInfo("Tip: Use 'abi llm list' to see supported model formats", .{});
+    utils.output.println("[DEMO MODE] Stats: N/A (canned response, no real inference)", .{});
+    utils.output.printInfo("To run real inference: abi llm run <model-path> --prompt \"your prompt\"", .{});
+    utils.output.printInfo("To list supported formats: abi llm list", .{});
 }

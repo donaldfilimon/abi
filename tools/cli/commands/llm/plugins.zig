@@ -1,6 +1,7 @@
 const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const abi = @import("abi");
+const utils = @import("../../utils/mod.zig");
 
 const plugins = abi.ai.llm.providers.plugins;
 

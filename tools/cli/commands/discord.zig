@@ -15,23 +15,39 @@ const utils = @import("../utils/mod.zig");
 
 const discord = abi.connectors.discord;
 
+/// Check that the Discord bot token is configured.
+/// Returns true if token is present, false (with error message) if not.
+fn ensureToken() bool {
+    if (std.c.getenv("DISCORD_BOT_TOKEN")) |_| return true;
+    // Also check ABI-prefixed variant
+    if (std.c.getenv("ABI_DISCORD_TOKEN")) |_| return true;
+    utils.output.printError("Discord bot token not configured.", .{});
+    utils.output.printInfo("Set DISCORD_BOT_TOKEN environment variable.", .{});
+    utils.output.printInfo("Get your token from: https://discord.com/developers/applications", .{});
+    return false;
+}
+
 // Wrapper functions for comptime children dispatch
 fn wrapDcStatus(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
     try printStatus(allocator);
 }
 fn wrapDcInfo(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    if (!ensureToken()) return;
     const allocator = ctx.allocator;
     try printBotInfo(allocator);
 }
 fn wrapDcGuilds(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
+    if (!ensureToken()) return;
     const allocator = ctx.allocator;
     try listGuilds(allocator);
 }
 fn wrapDcSend(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    if (!ensureToken()) return;
     try sendMessage(ctx, args);
 }
 fn wrapDcCommands(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    if (!ensureToken()) return;
     const allocator = ctx.allocator;
     var parser = utils.args.ArgParser.init(allocator, args);
     try manageCommands(allocator, &parser);
@@ -40,6 +56,7 @@ fn wrapDcWebhook(ctx: *const context_mod.CommandContext, args: []const [:0]const
     try executeWebhook(ctx, args);
 }
 fn wrapDcChannel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    if (!ensureToken()) return;
     try channelInfo(ctx, args);
 }
 

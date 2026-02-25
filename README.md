@@ -86,7 +86,7 @@ zig build run -- --help
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | 0.16.0-dev.2637+6a9510c0e | Yes |
+| Zig | 0.16.0-dev.2653+784e89fd4 | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 

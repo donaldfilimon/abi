@@ -41,6 +41,10 @@ pub const ralph = @import("ralph/mod.zig");
 pub const gendocs = @import("gendocs.zig");
 pub const os_agent = @import("os_agent.zig");
 pub const brain = @import("brain.zig");
+pub const doctor = @import("doctor.zig");
+pub const clean = @import("clean.zig");
+pub const env = @import("env.zig");
+pub const init = @import("init.zig");
 
 // ─── Comptime-derived command registry ───────────────────────────────────────
 
@@ -52,7 +56,7 @@ const command_modules = .{
     llm,         model,    embed,   train,   convert,     task,
     editor,      ui,       plugins, profile, completions, status,
     toolchain,   lsp,      mcp,     acp,     ralph,       gendocs,
-    brain,
+    brain,       doctor,   clean,   env,     init,
 };
 
 /// Command descriptors auto-derived from command module metadata.
