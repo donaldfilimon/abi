@@ -1,5 +1,16 @@
 # Repository Guidelines
 
+## Workflow Orchestration (Required)
+- For non-trivial tasks (3+ steps, architectural decisions, or cross-file behavioral changes), write a checkable plan in `tasks/todo.md` before implementation.
+- Define objective, scope, and verification criteria in `tasks/todo.md` before editing.
+- Mark checklist items complete only after evidence exists.
+- Stop and re-plan immediately if assumptions fail, commands block, or verification fails.
+- Never mark work complete without proof (tests, logs, or behavior checks as appropriate).
+- For UI changes, include visual verification; for API changes, validate the endpoint behavior.
+- After any user correction, append a root-cause lesson and prevention rule to `tasks/lessons.md`.
+- Review relevant lessons before starting related tasks.
+- If using a reusable workflow contract, prefer `.codex/skills/workflow-orchestration/` as canonical and sync to `/Users/donaldfilimon/.codex/skills/workflow-orchestration/`.
+
 ## Project Structure & Module Organization
 - `src/abi.zig`: public API entry point and compile-time feature wiring.
 - `src/core/`: framework lifecycle, config, registry, and core errors.
@@ -19,7 +30,8 @@
 - `zig build test --summary all`: run main test suite.
 - `zig build feature-tests --summary all`: run feature inline tests.
 - `zig build validate-flags`: compile-check feature-flag combinations.
-- `zig build full-check`: pre-PR gate (format, tests, flags, CLI checks, imports).
+- `zig build full-check`: pre-PR gate (format, unit tests, CLI smoke tests, flag validation).
+- `zig build verify-all`: release-oriented gate (expands full-check with consistency/tests/examples/WASM checks).
 
 ## Coding Style & Naming Conventions
 - Zig `0.16.0-dev` only (see `.zigversion`).
@@ -43,3 +55,8 @@
 ## Security & Configuration Tips
 - Do not commit secrets, API keys, `.env`, `.zig-cache/`, or `zig-out/`.
 - Report vulnerabilities through `SECURITY.md`.
+
+## Canonical Sources
+- Zig toolchain pin: `.zigversion`
+- Command surface and build steps: `zig build --help`
+- Test baseline source of truth: `tools/scripts/baseline.zig`

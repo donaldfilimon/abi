@@ -1,0 +1,4 @@
+interface:
+  display_name: "Workflow Orchestration"
+  short_description: "Enforce structured plan-build-verify workflows"
+  default_prompt: "Use this skill to enforce plan-first execution, verification, and lessons capture."

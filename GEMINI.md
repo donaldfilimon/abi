@@ -12,7 +12,7 @@
 *   **Modular Architecture:** Every feature is toggleable at compile-time via feature flags.
 
 **Technology Stack:**
-*   **Language:** Zig (Strictly pinned to `0.16.0-dev.2623+27eec9bd6` as per `.zigversion`).
+*   **Language:** Zig (Strictly pinned to `0.16.0-dev.2637+6a9510c0e` as per `.zigversion`).
 *   **Toolchain Manager:** `zvm` is recommended for managing the Zig version.
 
 ## Building and Running

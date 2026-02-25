@@ -1,6 +1,6 @@
 //! Canonical baseline metadata for build consistency gates.
 
-pub const zig_version = "0.16.0-dev.2623+27eec9bd6";
+pub const zig_version = "0.16.0-dev.2637+6a9510c0e";
 
 pub const test_main_pass: usize = 1290;
 pub const test_main_skip: usize = 6;

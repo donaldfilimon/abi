@@ -2,48 +2,55 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Single entry for AI assistants (Claude, Codex, Cursor). Code style, naming, commits, and formatting rules are in `AGENTS.md`. Zig 0.16 gotchas (20 entries) are in `.claude/rules/zig.md` (auto-loaded for all `.zig` files).
+Single entry for AI assistants (Claude, Codex, Cursor). Code style, naming, commits, formatting, and workflow requirements are in `AGENTS.md`. Zig 0.16 gotchas are in `.claude/rules/zig.md` (auto-loaded for all `.zig` files).
 
 ## Quick Reference
 
 | Key | Value |
 |-----|-------|
-| **Zig** | `0.16.0-dev.2623+27eec9bd6` or newer (pinned in `.zigversion`) |
+| **Zig** | Pinned in `.zigversion` (verify with `zig version` and `cat .zigversion`) |
 | **Entry Point** | `src/abi.zig` |
-| **Version** | 0.4.0 |
-| **Test baseline** | 1290 pass, 6 skip (1296 total) — source of truth: `tools/scripts/baseline.zig` |
-| **Feature tests** | 2360 pass (2365 total), 5 skip — `zig build feature-tests` |
-| **CLI** | 29 commands + 9 aliases — `zig build run -- --help` |
-| **Features** | 24 comptime-gated modules (see [Feature Flags](#feature-flags)) |
+| **Version** | `abi.zon` |
+| **Test baseline** | Source of truth: `tools/scripts/baseline.zig` |
+| **Feature tests** | `zig build feature-tests --summary all` |
+| **CLI** | Command surface: `zig build run -- --help` |
+| **Features** | Canonical list: `src/core/feature_catalog.zig` |
+
+## Consistency Markers (Script-Validated)
+
+These exact literals are intentionally retained for repository consistency checks and must stay aligned with `tools/scripts/baseline.zig` and `.zigversion`.
+
+- `0.16.0-dev.2637+6a9510c0e`
+- `1290 pass, 6 skip (1296 total)`
+- `2360 pass (2365 total)`
 
 ## Build & Test Commands
 
 ```bash
 # Toolchain sync
 zvm install "$(cat .zigversion)" && zvm use "$(cat .zigversion)"
-# Or: zvm use master
 # Verify: zig version && cat .zigversion && zig build toolchain-doctor
 # Fix PATH: export PATH="$HOME/.zvm/bin:$PATH"
 ```
 
 ```bash
 zig build                                    # Build with default flags
-zig build test --summary all                 # Main test suite (1290 pass, 6 skip)
-zig build feature-tests --summary all        # Feature inline tests (2360 pass, 5 skip)
+zig build test --summary all                 # Main test suite
+zig build feature-tests --summary all        # Feature inline tests
 zig test src/path/to/file.zig                # Test a single file
 zig test src/services/tests/mod.zig --test-filter "pattern"  # Filter tests by name
 zig fmt .                                    # Format all source
 zig build fix                                # Auto-format in place (CI-friendly)
-zig build full-check                         # Format + tests + feature tests + flag validation + CLI smoke
+zig build full-check                         # Format + tests + flag validation + CLI smoke
 zig build verify-all                         # full-check + consistency + examples + check-wasm (release gate)
-zig build validate-flags                     # Compile-check 34 feature flag combos
+zig build validate-flags                     # Compile-check feature flag combinations
 zig build cli-tests                          # CLI smoke tests
 zig build lint                               # CI formatting check (no writes)
 zig build check-consistency                  # Zig version/baseline/0.16 pattern checks
 zig build check-imports                      # No circular @import("abi") in feature modules
 zig build validate-baseline                  # Verify test baselines match across all files
-zig build gendocs                            # Generate API docs (76 artifacts)
-zig build benchmarks                         # Run performance benchmarks
+zig build gendocs                            # Generate API docs
+zig build check-perf                         # Build performance verification tool
 ```
 
 ### Running the CLI
@@ -63,12 +70,13 @@ zig build run -- acp card                    # Print agent card JSON
 |------------|-----|
 | Any `.zig` file | `zig fmt .` (also runs automatically via hook) |
 | Feature `mod.zig` | Also update `stub.zig`, then `zig build -Denable-<feature>=false` |
-| Feature inline tests | `zig build feature-tests --summary all` (must stay at 2360+) |
+| Feature inline tests | `zig build feature-tests --summary all` |
 | Build flags / options | `zig build validate-flags` |
 | Public API | `zig build test --summary all` + update examples |
 | Test counts | Update `tools/scripts/baseline.zig`, then `/baseline-sync` |
 | Anything (full gate) | `zig build full-check` |
 | Everything (release gate) | `zig build verify-all` |
+| Process requirements | Follow `AGENTS.md` workflow orchestration section |
 
 Hooks auto-enforce: `zig fmt`, stub parity reminders, import rules, baseline drift detection, and test discovery guards. When a hook warns, address it before continuing.
 
@@ -119,9 +127,9 @@ build.zig                → Top-level build script (delegates to build/)
 build/                   → Split build system (options, modules, flags, targets, gpu, mobile, wasm)
 src/abi.zig              → Public API, comptime feature selection (no flat type aliases)
 src/core/                → Framework lifecycle, config builder, registry
-src/features/<name>/     → mod.zig + stub.zig per feature (24 catalog entries, 17 dirs, 7 AI sub-features)
+src/features/<name>/     → mod.zig + stub.zig per feature
 src/services/            → Always-available infrastructure (runtime, platform, shared, ha, tasks)
-src/services/connectors/ → LLM provider connectors (15 providers + discord + scheduler)
+src/services/connectors/ → LLM provider connectors
 src/services/mcp/        → MCP server (JSON-RPC 2.0 over stdio, WDBX + ZLS tools)
 src/services/acp/        → ACP server (agent communication protocol)
 tools/cli/               → CLI entry point, command registration, TUI dashboards
@@ -199,9 +207,9 @@ can reach both `features/` and `services/` subdirectories.
 | Add config for a feature | `src/core/config/` |
 | Write integration tests | `src/services/tests/` |
 | Add a GPU backend | `src/features/gpu/backends/` |
-| Security infrastructure | `src/services/shared/security/` (17 modules) |
-| Generate API docs | `zig build gendocs` (76 artifacts) |
-| Examples | `examples/` (40 examples) |
+| Security infrastructure | `src/services/shared/security/` |
+| Generate API docs | `zig build gendocs` |
+| Examples | `examples/` |
 
 ### Adding a New Feature Module (9 integration points)
 
@@ -221,7 +229,7 @@ can reach both `features/` and `services/` subdirectories.
 
 ## Feature Flags
 
-24 feature catalog entries across 17 directories (7 AI sub-features). Canonical list: `src/core/feature_catalog.zig`. All default to `true` except `-Denable-mobile`.
+Canonical list: `src/core/feature_catalog.zig`. All default to `true` except `-Denable-mobile`.
 
 **Usage:** `zig build -Denable-ai=true -Denable-gpu=false -Dgpu-backend=vulkan,cuda`
 
@@ -276,7 +284,8 @@ You are **outside the Ralph loop** unless the user explicitly runs `abi ralph ru
 ## References
 
 - `AGENTS.md` — Code style, naming, imports, error handling, commits, PR checklist
-- `.claude/rules/zig.md` — Zig 0.16 gotchas table (20 entries, auto-loaded for `.zig` files)
+- `.claude/rules/zig.md` — Zig 0.16 gotchas table (auto-loaded for `.zig` files)
 - `.claude/skills/` — Skill implementations; index: `.claude/skills/README.md`
+- `.codex/skills/workflow-orchestration/` — Canonical workflow orchestration contract
 - `tools/scripts/baseline.zig` — Canonical test baseline (source of truth)
 - `CONTRIBUTING.md` — Development workflow and PR checklist

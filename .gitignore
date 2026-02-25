@@ -139,6 +139,8 @@ perf.data*
 !.claude/rules/**
 !.claude/skills/
 !.claude/skills/**
+!.claude/agents/
+!.claude/agents/**
 !.claude/settings.json
 .claude-plugin/
 
