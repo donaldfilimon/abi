@@ -805,3 +805,7 @@ pub var resize_pending: bool = false;
 fn winchHandler(_: posix.SIG) callconv(.c) void {
     resize_pending = true;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

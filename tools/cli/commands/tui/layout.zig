@@ -329,3 +329,7 @@ test "menuStartRow clamped to term_size.rows - 3" {
     };
     try std.testing.expectEqual(@as(u16, 9), menuStartRow(state));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

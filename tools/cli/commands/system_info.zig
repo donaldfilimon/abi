@@ -100,3 +100,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
 
     builder.print();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

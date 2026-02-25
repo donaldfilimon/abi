@@ -624,3 +624,7 @@ test "agent panel decision history limit" {
     // Should be capped at 20
     try std.testing.expectEqual(@as(usize, 20), panel.decision_history.items.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

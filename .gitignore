@@ -118,6 +118,13 @@ testingllm.ckpt/
 # ── GPU shader artifacts ─────────────────────────────────────────────
 *.spv
 
+# ── Root-level build artifacts (one-off test binaries) ────────────────
+/test_page_size
+/cast_test
+/runner
+/unused_test
+/synthetic.bin
+
 # ── Binary executables and object files ───────────────────────────────
 *.a
 *.o

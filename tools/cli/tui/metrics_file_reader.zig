@@ -102,3 +102,7 @@ test "MetricsFileReader poll on missing file" {
     var reader = MetricsFileReader.init("/nonexistent/path/metrics.jsonl");
     try std.testing.expect(!reader.poll());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -254,3 +254,7 @@ pub fn fileExists(path: []const u8) bool {
     file.close(io);
     return true;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

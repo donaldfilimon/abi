@@ -102,3 +102,7 @@ pub fn runMulti(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
     }
     if (msg_count > 0) utils.output.println("Bus messages: {d}", .{msg_count});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

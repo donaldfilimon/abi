@@ -231,3 +231,7 @@ pub fn printPluginsHelp() void {
         .{},
     );
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

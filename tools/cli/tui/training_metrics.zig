@@ -295,3 +295,7 @@ test "TrainingMetrics updates from events" {
     try std.testing.expectApproxEqAbs(@as(f32, 0.5), metrics.train_loss.latest(), 0.001);
     try std.testing.expectEqual(@as(u64, 1000), metrics.start_time);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

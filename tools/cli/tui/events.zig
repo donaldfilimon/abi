@@ -57,3 +57,8 @@ pub const Event = union(enum) {
 pub fn isChar(key: Key, ch: u8) bool {
     return key.code == .character and key.char != null and key.char.? == ch;
 }
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}

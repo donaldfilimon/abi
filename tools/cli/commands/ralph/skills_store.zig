@@ -383,3 +383,7 @@ pub fn listSkills(allocator: std.mem.Allocator, io: std.Io) ![]u8 {
 
     return out.toOwnedSlice(allocator);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

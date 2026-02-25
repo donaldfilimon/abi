@@ -53,3 +53,7 @@ pub fn main(init: std.process.Init.Minimal) void {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

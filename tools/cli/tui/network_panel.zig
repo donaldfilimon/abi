@@ -193,3 +193,7 @@ pub const NetworkPanel = struct {
         try self.term.write(self.theme.reset);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

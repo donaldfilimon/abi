@@ -135,3 +135,7 @@ pub fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]con
         utils.output.println("  wget -O {s} \"{s}\"", .{ final_path, url.? });
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

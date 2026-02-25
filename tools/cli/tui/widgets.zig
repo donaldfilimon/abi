@@ -922,3 +922,7 @@ test "ProgressGauge renders percentage" {
     const empty = ProgressGauge.render(0, 10, &buf);
     try std.testing.expect(std.mem.indexOf(u8, empty, "█") == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

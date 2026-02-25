@@ -222,3 +222,7 @@ pub fn printHelp() void {
 
     builder.print();
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

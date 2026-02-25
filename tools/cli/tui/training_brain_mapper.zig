@@ -207,3 +207,7 @@ test "TrainingBrainMapper node activity" {
     }
     try std.testing.expect(has_activity);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

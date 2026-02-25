@@ -80,3 +80,7 @@ pub fn runDemo(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     utils.output.printInfo("To run real inference: abi llm run <model-path> --prompt \"your prompt\"", .{});
     utils.output.printInfo("To list supported formats: abi llm list", .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

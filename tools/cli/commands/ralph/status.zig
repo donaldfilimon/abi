@@ -162,3 +162,7 @@ fn valueBool(obj: std.json.ObjectMap, key: []const u8) bool {
         else => false,
     } else false;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

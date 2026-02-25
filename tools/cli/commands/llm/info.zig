@@ -108,3 +108,7 @@ pub fn printModelFileSizeHint(allocator: std.mem.Allocator, model_path: []const 
         utils.output.printWarning("Model file is empty (0 bytes). Re-download or use the real Ollama blob path.", .{});
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

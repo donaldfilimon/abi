@@ -9,3 +9,7 @@ const full_matrix = @import("tests/full_matrix.zig");
 pub fn main(init: std.process.Init.Minimal) !void {
     return full_matrix.main(init);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

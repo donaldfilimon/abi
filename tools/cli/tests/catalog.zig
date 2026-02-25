@@ -60,3 +60,7 @@ test "catalog command names unique" {
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

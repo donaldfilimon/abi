@@ -454,3 +454,7 @@ fn printHealthStatus(allocator: std.mem.Allocator) void {
     utils.output.printKeyValueFmt("Check Interval", "{d}ms", .{hc.config.health_check_interval_ms});
     utils.output.printKeyValueFmt("Check Timeout", "{d}ms", .{hc.config.health_check_timeout_ms});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -817,3 +817,7 @@ test "truncateToWidth with CJK at boundary" {
     const result = truncateToWidth(text, 3);
     try std.testing.expectEqualStrings("\xE4\xB8\xAD", result);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

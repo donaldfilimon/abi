@@ -284,3 +284,7 @@ test "keybindings integration" {
     const action = keybindings.resolve(.{ .code = .character, .char = 'q' });
     try std.testing.expectEqual(keybindings.KeyAction.quit, action);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

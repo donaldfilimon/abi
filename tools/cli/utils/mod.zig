@@ -6,3 +6,8 @@ pub const help = @import("help.zig");
 pub const global_flags = @import("global_flags.zig");
 pub const io_backend = @import("io_backend.zig");
 pub const subcommand = @import("subcommand.zig");
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}

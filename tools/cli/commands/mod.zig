@@ -79,3 +79,7 @@ pub fn findDescriptor(raw_name: []const u8) ?*const CommandDescriptor {
     }
     return null;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

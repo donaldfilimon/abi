@@ -309,3 +309,7 @@ pub const TuiState = struct {
         return true;
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

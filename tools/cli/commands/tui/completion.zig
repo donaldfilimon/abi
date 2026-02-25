@@ -179,3 +179,7 @@ test "recent history prefers newest prefix entries" {
     };
     try std.testing.expect(!isRecentlyUsed(&item, &old_only));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

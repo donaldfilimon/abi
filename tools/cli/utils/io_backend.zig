@@ -33,3 +33,7 @@ pub fn initIoBackendWithEnv(
 
     return std.Io.Threaded.init(allocator, .{ .environ = environ });
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

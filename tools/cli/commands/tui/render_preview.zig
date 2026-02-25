@@ -161,3 +161,8 @@ fn renderBodyLine(
     try term.write(th.reset);
     try term.write("\n");
 }
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}

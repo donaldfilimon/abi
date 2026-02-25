@@ -122,3 +122,7 @@ pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: 
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

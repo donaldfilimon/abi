@@ -658,3 +658,7 @@ fn printSpaceSeparated(words: []const []const u8) void {
         std.debug.print("{s}", .{word});
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

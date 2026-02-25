@@ -255,3 +255,7 @@ pub fn printHelp() void {
     ;
     utils.output.print("{s}", .{help_text});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -527,3 +527,7 @@ fn executeWebhook(ctx: *const context_mod.CommandContext, args: []const [:0]cons
 
     utils.output.printSuccess("Webhook executed successfully!", .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -174,3 +174,7 @@ test {
     _ = @import("../tui/state.zig");
     _ = @import("../tui/layout.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -58,3 +58,8 @@ test {
     _ = @import("render_footer.zig");
     _ = @import("render_preview.zig");
 }
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}

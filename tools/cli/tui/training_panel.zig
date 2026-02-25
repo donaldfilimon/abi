@@ -994,3 +994,7 @@ test "refresh loop helpers compute cadence and timeout" {
     try std.testing.expectEqual(@as(u32, 200), pollTimeoutMs(1_300, 1_000, 500));
     try std.testing.expectEqual(@as(u32, 0), pollTimeoutMs(1_600, 1_000, 500));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

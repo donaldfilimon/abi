@@ -629,3 +629,7 @@ test "text buffer newline/backspace keeps expected cursor semantics" {
     try std.testing.expectEqual(@as(usize, 0), row);
     try std.testing.expectEqual(@as(usize, 3), col);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

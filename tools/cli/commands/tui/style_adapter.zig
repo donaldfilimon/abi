@@ -66,3 +66,8 @@ pub fn gpu(theme: *const tui.Theme) ChromeStyle {
         .success = theme.success,
     };
 }
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}

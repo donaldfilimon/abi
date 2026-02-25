@@ -25,9 +25,9 @@
 //! Features: gpu, ai, llm, embeddings, agents, training, database, network, observability, web
 
 const std = @import("std");
+const output = @import("output.zig");
 const config_module = @import("abi").config;
 const registry_mod = @import("abi").registry;
-const output = @import("output.zig");
 
 pub const Feature = config_module.Feature;
 
@@ -119,25 +119,21 @@ pub const ValidationError = struct {
 
     /// Print a user-friendly error message.
     pub fn print(self: ValidationError) void {
-        std.debug.print("\n", .{});
-        std.debug.print("Error: Cannot enable feature '{t}'\n", .{self.feature});
-        std.debug.print("\n", .{});
+        output.printError("Cannot enable feature '{t}'", .{self.feature});
 
         switch (self.reason) {
             .not_compiled => {
-                std.debug.print("Reason: Feature not compiled into this build.\n", .{});
-                std.debug.print("\n", .{});
-                std.debug.print("Solution: Rebuild with:\n", .{});
-                std.debug.print("  zig build -Denable-{t}=true\n", .{self.feature});
+                output.printInfo("Reason: Feature not compiled into this build.", .{});
+                output.printInfo("Solution: Rebuild with:", .{});
+                output.printInfo("  zig build -Denable-{t}=true", .{self.feature});
             },
             .dependency_missing => {
-                std.debug.print("Reason: Required dependency not available.\n", .{});
+                output.printInfo("Reason: Required dependency not available.", .{});
             },
             .conflict => {
-                std.debug.print("Reason: Conflicts with another enabled feature.\n", .{});
+                output.printInfo("Reason: Conflicts with another enabled feature.", .{});
             },
         }
-        std.debug.print("\n", .{});
     }
 };
 
@@ -269,23 +265,23 @@ fn applyFeatureOverride(
 }
 
 fn printInvalidFeatureName() void {
-    std.debug.print("\nError: Missing feature name. Use --enable-<feature> or --disable-<feature>.\n\n", .{});
+    output.printError("Missing feature name. Use --enable-<feature> or --disable-<feature>.", .{});
 }
 
 fn printInvalidFlagFormat(flag: []const u8) void {
-    std.debug.print("\nError: Invalid flag format '{s}'. Expected a feature value after it.\n\n", .{flag});
+    output.printError("Invalid flag format '{s}'. Expected a feature value after it.", .{flag});
 }
 
 /// Print error message for unknown feature.
 fn printUnknownFeatureError(feature_name: []const u8) void {
-    std.debug.print("\nError: Unknown feature '{s}'\n\n", .{feature_name});
-    std.debug.print("Available features:\n", .{});
+    output.printError("Unknown feature '{s}'", .{feature_name});
+    output.printInfo("Available features:", .{});
 
     const features = std.meta.fields(Feature);
     inline for (features) |field| {
-        std.debug.print("  - {s}\n", .{field.name});
+        output.printInfo("  - {s}", .{field.name});
     }
-    std.debug.print("\nUse --list-features to see status of each feature.\n\n", .{});
+    output.printInfo("Use --list-features to see status of each feature.", .{});
 }
 
 /// Parse a feature name string to Feature enum.
@@ -299,10 +295,9 @@ fn parseFeature(name: []const u8) ?Feature {
     return null;
 }
 
-/// Print available features and their status to stderr (using std.debug.print).
+/// Print available features and their status.
 pub fn printFeaturesToStderr(comptime comptime_status: type) void {
-    std.debug.print("\nAvailable Features:\n", .{});
-    std.debug.print("--------------------------------------------------\n", .{});
+    output.printHeader("Available Features");
 
     const features = std.meta.fields(Feature);
     inline for (features) |field| {
@@ -311,15 +306,17 @@ pub fn printFeaturesToStderr(comptime comptime_status: type) void {
         const status_icon = if (compiled) "[x]" else "[ ]";
         const status_text = if (compiled) "COMPILED" else "DISABLED";
 
-        std.debug.print("  {s} {s: <15} {s}\n", .{ status_icon, field.name, status_text });
+        output.printInfo("  {s} {s: <15} {s}", .{ status_icon, field.name, status_text });
     }
 
-    std.debug.print("\nUsage:\n", .{});
-    std.debug.print("  --enable-<feature>   Enable a feature at runtime\n", .{});
-    std.debug.print("  --disable-<feature>  Disable a feature at runtime\n", .{});
-    std.debug.print("  --list-features      Show this list\n", .{});
-    std.debug.print("\nNote: Features must be compiled in to be enabled at runtime.\n", .{});
-    std.debug.print("      Rebuild with -Denable-<feature>=true to compile in.\n", .{});
+    output.printInfo("", .{});
+    output.printInfo("Usage:", .{});
+    output.printInfo("  --enable-<feature>   Enable a feature at runtime", .{});
+    output.printInfo("  --disable-<feature>  Disable a feature at runtime", .{});
+    output.printInfo("  --list-features      Show this list", .{});
+    output.printInfo("", .{});
+    output.printInfo("Note: Features must be compiled in to be enabled at runtime.", .{});
+    output.printInfo("      Rebuild with -Denable-<feature>=true to compile in.", .{});
 }
 
 /// Print available features and their status to a writer.
@@ -462,4 +459,8 @@ test "strict mode returns error for equals style unknown feature" {
     const args = [_][:0]const u8{ "abi", "--enable=foobar" };
     const result = parseGlobalFlagsWithOptions(std.testing.allocator, &args, .{ .strict = true });
     try std.testing.expectError(FlagError.UnknownFeature, result);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

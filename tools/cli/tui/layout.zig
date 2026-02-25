@@ -443,3 +443,7 @@ test "distribute overflow shrinks proportionally" {
     try std.testing.expectEqual(@as(u16, 30), result[0]);
     try std.testing.expectEqual(@as(u16, 20), result[1]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

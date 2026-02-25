@@ -880,3 +880,7 @@ pub fn runQuickMemoryBenchmarks(allocator: std.mem.Allocator, results: *std.Arra
 
     utils.output.println("  quick_alloc: {d:.0} ops/sec", .{result.ops_per_sec});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

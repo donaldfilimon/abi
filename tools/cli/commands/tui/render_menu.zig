@@ -149,3 +149,8 @@ pub fn render(term: *tui.Terminal, state: *TuiState, width: usize) !void {
         }
     }
 }
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}

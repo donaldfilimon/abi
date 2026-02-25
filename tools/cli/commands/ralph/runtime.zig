@@ -340,3 +340,7 @@ fn extractSkillSentence(text: []const u8) ?[]const u8 {
 
     return sentences[best_idx];
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

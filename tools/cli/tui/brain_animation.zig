@@ -444,3 +444,7 @@ fn setCursorAt(term: *Terminal, base_row: u16, base_col: u16, row: u16, col: u16
     }) catch return;
     try term.write(seq);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

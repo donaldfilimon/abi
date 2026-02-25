@@ -509,16 +509,6 @@ fn runInteractive(
             utils.output.printWarning("failed to persist os-agent session: {t}", .{err});
         };
 
-        session.addMessage(.user, trimmed) catch |err| {
-            std.debug.print("Warning: failed to record user message: {t}\n", .{err});
-        };
-        session.addMessage(.assistant, response) catch |err| {
-            std.debug.print("Warning: failed to record assistant message: {t}\n", .{err});
-        };
-        session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
-            std.debug.print("Warning: failed to persist os-agent session: {t}\n", .{err});
-        };
-
         // Record metrics and clear log for next turn
         const metrics = improver.evaluateResponse(response, trimmed);
         improver.recordMetrics(metrics) catch {};
@@ -635,33 +625,6 @@ fn handleSlashCommand(
         return;
     }
 
-    if (std.mem.eql(u8, cmd, "save")) {
-        session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
-            std.debug.print("Error saving session: {t}\n", .{err});
-            return;
-        };
-        std.debug.print("Session saved: {s} ({d} messages)\n", .{ session.session_name, session.messages.items.len });
-        return;
-    }
-
-    if (std.mem.eql(u8, cmd, "load")) {
-        session.load() catch |err| {
-            std.debug.print("Error loading session: {t}\n", .{err});
-            return;
-        };
-        std.debug.print("Session loaded: {s} ({d} messages)\n", .{ session.session_name, session.messages.items.len });
-        return;
-    }
-
-    if (std.mem.eql(u8, cmd, "info")) {
-        std.debug.print("\nSession Information:\n", .{});
-        std.debug.print("  ID: {s}\n", .{session.session_id});
-        std.debug.print("  Name: {s}\n", .{session.session_name});
-        std.debug.print("  Messages: {d}\n", .{session.messages.items.len});
-        std.debug.print("  Modified: {}\n\n", .{session.modified});
-        return;
-    }
-
     if (std.mem.eql(u8, cmd, "clear")) {
         tool_agent.clearLog();
         session.clear();
@@ -758,3 +721,7 @@ const os_agent_system_prompt =
     \\You also have self-awareness of your own codebase and can answer questions
     \\about how you work internally.
 ;
+
+test {
+    std.testing.refAllDecls(@This());
+}

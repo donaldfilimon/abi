@@ -5,3 +5,7 @@ const train_monitor = @import("../train/monitor.zig");
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     try train_monitor.runMonitor(ctx, args);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

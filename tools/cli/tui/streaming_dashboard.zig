@@ -909,3 +909,7 @@ test "Action enum completeness" {
     };
     try std.testing.expectEqual(@as(usize, 8), actions.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

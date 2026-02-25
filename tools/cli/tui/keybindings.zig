@@ -61,3 +61,7 @@ test "resolve unknown keys return none" {
     try std.testing.expectEqual(KeyAction.none, resolve(.{ .code = .up }));
     try std.testing.expectEqual(KeyAction.none, resolve(.{ .code = .character, .char = 'z' }));
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

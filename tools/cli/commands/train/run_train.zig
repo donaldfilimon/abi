@@ -255,3 +255,7 @@ pub fn runTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const 
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

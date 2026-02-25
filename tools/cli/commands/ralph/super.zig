@@ -137,3 +137,7 @@ pub fn runSuper(allocator: std.mem.Allocator, args: []const [:0]const u8) !void 
         try gate_mod.runGate(&cmd_ctx, gate_args.items);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

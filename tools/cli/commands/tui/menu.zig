@@ -231,3 +231,7 @@ test "command default args mapping" {
     try std.testing.expectEqualStrings("monitor", commandDefaultArgs(.train_monitor)[0]);
     try std.testing.expectEqual(@as(usize, 0), commandDefaultArgs(.agent).len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

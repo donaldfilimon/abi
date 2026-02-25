@@ -346,3 +346,7 @@ fn printStatus(allocator: std.mem.Allocator) !void {
         }
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

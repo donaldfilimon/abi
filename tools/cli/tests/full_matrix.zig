@@ -746,3 +746,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     std.debug.print("{s}", .{json_data});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

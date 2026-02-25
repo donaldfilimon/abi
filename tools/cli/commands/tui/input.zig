@@ -242,7 +242,7 @@ pub fn executeActionFromState(state: *TuiState, action: Action) !bool {
     errdefer state.terminal.enter() catch {};
 
     runAction(state.allocator, state.framework, action) catch {};
-    std.debug.print("\n{s}Press Enter to return to menu...{s}", .{ colors.dim, colors.reset });
+    utils.output.printInfo("\nPress Enter to return to menu...", .{});
     _ = state.terminal.readKey() catch {};
     try state.terminal.enter();
     return false;
@@ -250,7 +250,6 @@ pub fn executeActionFromState(state: *TuiState, action: Action) !bool {
 
 fn runAction(allocator: std.mem.Allocator, framework: *abi.Framework, action: Action) !void {
     _ = framework;
-    std.debug.print("\n", .{});
 
     switch (action) {
         .command => |cmd| runCommand(allocator, cmd) catch |err| {
@@ -359,4 +358,8 @@ pub fn printHelp() void {
         colors.bold,
         colors.reset,
     });
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

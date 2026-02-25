@@ -4,3 +4,7 @@ pub const CommandContext = struct {
     allocator: std.mem.Allocator,
     io: std.Io,
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

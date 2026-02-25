@@ -193,3 +193,7 @@ pub fn printFooter(duration_sec: f64) void {
     utils.output.println(" BENCHMARK COMPLETE - Total time: {d:.2}s", .{duration_sec});
     utils.output.println("================================================================================", .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

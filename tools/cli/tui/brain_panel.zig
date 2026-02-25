@@ -710,3 +710,7 @@ fn setCursor(term: *Terminal, row: u16, col: u16) !void {
     // Match agent_panel/gpu_monitor convention: saturating -1 for 0-indexed coords.
     try term.moveTo(row -| 1, col -| 1);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

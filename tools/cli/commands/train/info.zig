@@ -50,3 +50,7 @@ pub fn runInfo() void {
     utils.output.println("Available optimizers: sgd, adam, adamw", .{});
     utils.output.println("Available LR schedules: constant, cosine, warmup_cosine, step, polynomial", .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

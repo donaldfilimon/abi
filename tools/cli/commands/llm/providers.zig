@@ -66,3 +66,7 @@ pub fn printProvidersHelp() void {
         .{},
     );
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

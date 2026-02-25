@@ -165,3 +165,7 @@ fn printHelp() void {
         \\Run 'abi ralph <subcommand> help' for subcommand-specific help.
     , .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

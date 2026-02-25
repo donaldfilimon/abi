@@ -456,3 +456,7 @@ pub fn runLlmTrain(ctx: *const context_mod.CommandContext, args: []const [:0]con
     utils.output.printKeyValueFmt("Wall time", "{d}ms", .{elapsed_ms});
     utils.output.printKeyValueFmt("Checkpoints saved", "{d}", .{report.checkpoints_saved});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

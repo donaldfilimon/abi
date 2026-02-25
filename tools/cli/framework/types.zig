@@ -34,3 +34,7 @@ pub fn isHelpToken(token: []const u8) bool {
         std.mem.eql(u8, token, "--help") or
         std.mem.eql(u8, token, "-h");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

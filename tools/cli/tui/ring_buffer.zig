@@ -367,3 +367,7 @@ test "RingBuffer sum" {
 
     try std.testing.expectEqual(@as(u32, 60), buf.sum());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

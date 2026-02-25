@@ -188,3 +188,7 @@ pub fn renderDropdown(term: *tui.Terminal, state: *TuiState, width: usize) !void
     try term.write(th.reset);
     try term.write("\n");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

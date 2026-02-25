@@ -176,3 +176,7 @@ test "runSubcommand reports unknown command and then prints help" {
     try std.testing.expectEqual(@as(usize, 1), TestState.unknown_calls);
     try std.testing.expectEqualStrings("unknown", TestState.unknownSlice());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

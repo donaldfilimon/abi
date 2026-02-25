@@ -152,3 +152,7 @@ fn writeKeyHint(
     try term.write(label);
     try term.write(th.reset);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -252,3 +252,7 @@ pub fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
     }
     return false;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

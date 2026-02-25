@@ -1423,3 +1423,7 @@ pub fn appendBenchRecordToWdbx(
     try abi.database.wdbx.backup(&handle, output_path);
     utils.output.printSuccess("WDBX benchmark record appended: {s}", .{output_path});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

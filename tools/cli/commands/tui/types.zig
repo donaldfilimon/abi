@@ -212,3 +212,7 @@ pub const colors = struct {
     pub const bright_black = "\x1b[90m";
     pub const bright_white = "\x1b[97m";
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

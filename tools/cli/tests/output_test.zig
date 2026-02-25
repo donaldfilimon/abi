@@ -11,3 +11,7 @@ test "color re-export alias works" {
     utils.output.enableColor();
     try std.testing.expectEqualStrings(utils.output.Color.red(), utils.output.color.red());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

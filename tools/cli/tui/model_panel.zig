@@ -876,3 +876,7 @@ test "Action enum values" {
     };
     try std.testing.expectEqual(@as(usize, 13), actions.len);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

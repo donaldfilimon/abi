@@ -311,3 +311,7 @@ test "parseRunArgs parses strict backend and fallback" {
     try std.testing.expect(parsed.fallback[0] == .mlx);
     try std.testing.expect(parsed.fallback[1] == .ollama);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -192,3 +192,7 @@ pub const BenchmarkPanel = struct {
         try self.term.write(self.theme.reset);
     }
 };
+
+test {
+    std.testing.refAllDecls(@This());
+}

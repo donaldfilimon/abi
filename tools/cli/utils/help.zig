@@ -187,7 +187,8 @@ pub const HelpBuilder = struct {
 
     /// Build and print help text.
     pub fn print(self: *HelpBuilder) void {
-        std.debug.print("{s}", .{self.buffer.items});
+        const output_mod = @import("output.zig");
+        output_mod.print("{s}", .{self.buffer.items});
     }
 
     /// Build and return help text (caller must free).
@@ -250,15 +251,17 @@ pub fn printSimpleHelp(
     desc: []const u8,
     opts: []const Option,
 ) void {
-    std.debug.print("Usage: {s} {s}\n\n", .{ command, usage_args });
-    std.debug.print("{s}\n\n", .{desc});
+    const output_mod = @import("output.zig");
+    output_mod.println("Usage: {s} {s}", .{ command, usage_args });
+    output_mod.println("", .{});
+    output_mod.println("{s}", .{desc});
+    output_mod.println("", .{});
     if (opts.len > 0) {
-        std.debug.print("Options:\n", .{});
+        output_mod.println("Options:", .{});
         for (opts) |opt| {
-            std.debug.print("{}\n", .{opt});
+            output_mod.println("{}", .{opt});
         }
     }
-    std.debug.print("\n", .{});
 }
 
 /// Compute the Levenshtein edit distance between two strings.

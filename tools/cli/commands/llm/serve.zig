@@ -172,3 +172,7 @@ pub fn printServeHelp() void {
         "    -d '{\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"stream\":true}'\n";
     utils.output.print("{s}", .{help_text});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

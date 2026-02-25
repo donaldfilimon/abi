@@ -277,3 +277,7 @@ pub fn runGenerate(ctx: *const context_mod.CommandContext, args: []const [:0]con
         stats.decodeTokensPerSecond(),
     });
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

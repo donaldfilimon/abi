@@ -104,3 +104,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
         std.process.exit(1);
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

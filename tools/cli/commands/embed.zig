@@ -463,3 +463,7 @@ test "generate local embedding" {
     }
     try std.testing.expect(@abs(sum_sq - 1.0) < 0.001);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

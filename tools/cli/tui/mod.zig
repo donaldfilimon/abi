@@ -119,3 +119,8 @@ pub const MetricsTracker = async_loop.MetricsTracker;
 
 // Generic Dashboard
 pub const Dashboard = dashboard.Dashboard;
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -4,6 +4,7 @@
 //! reducing boilerplate in CLI command implementations.
 
 const std = @import("std");
+const output = @import("output.zig");
 
 /// Check if text matches any of the provided options.
 pub fn matchesAny(text: []const u8, options: []const []const u8) bool {
@@ -204,9 +205,9 @@ pub const CliError = struct {
     }
 
     pub fn print(self: CliError) void {
-        std.debug.print("Error: {s} ({t})\n", .{ self.context, self.code });
+        output.printError("{s} ({t})", .{ self.context, self.code });
         if (self.suggestion) |s| {
-            std.debug.print("Suggestion: {s}\n", .{s});
+            output.printInfo("Suggestion: {s}", .{s});
         }
     }
 };
@@ -225,13 +226,11 @@ pub fn cliErrorWithSuggestion(err: anyerror, context: []const u8, suggestion: []
 /// Prints an error and returns null if missing or invalid.
 pub fn parseRequiredId(args: []const [:0]const u8, comptime entity: []const u8) ?u64 {
     if (args.len == 0) {
-        const output = @import("output.zig");
         output.printError("{s} ID required", .{entity});
         return null;
     }
     const id_str = std.mem.sliceTo(args[0], 0);
     return std.fmt.parseInt(u64, id_str, 10) catch {
-        const output = @import("output.zig");
         output.printError("Invalid {s} ID: {s}", .{ entity, id_str });
         return null;
     };
@@ -368,4 +367,8 @@ test "CliError formatting" {
     );
     try std.testing.expectEqual(error.FileNotFound, err.code);
     try std.testing.expectEqualStrings("Could not open config file", err.context);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

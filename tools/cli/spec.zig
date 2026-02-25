@@ -446,3 +446,7 @@ test "findSubcommandInfos returns infos for group commands" {
     const unknown = findSubcommandInfos("nonexistent");
     try std.testing.expect(unknown == null);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

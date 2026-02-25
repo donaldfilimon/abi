@@ -832,3 +832,7 @@ fn getUnixSeconds() i64 {
     const base = timer.read();
     return @intCast(base / 1_000_000); // Convert to milliseconds for shorter IDs
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

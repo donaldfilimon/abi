@@ -141,3 +141,7 @@ test {
     _ = @import("commands/ui/launch.zig");
     _ = @import("tui/mod.zig");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

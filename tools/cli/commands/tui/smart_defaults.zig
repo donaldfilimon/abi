@@ -35,3 +35,7 @@ pub fn commandDefaultArgs(cmd: anytype) []const [:0]const u8 {
     if (std.mem.eql(u8, tag, "train_monitor")) return &args_monitor;
     return empty_args;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

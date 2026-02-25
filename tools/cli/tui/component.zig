@@ -451,3 +451,7 @@ test "renderStack constraint distribution" {
     try std.testing.expectEqual(@as(u16, 3), sizes[0]);
     try std.testing.expectEqual(@as(u16, 21), sizes[1]);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

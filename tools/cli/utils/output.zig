@@ -381,3 +381,7 @@ test "print functions do not crash (smoke)" {
     printStatusLineFmt("{s}", .{"feature"}, false);
     printCountSummary(5, 10, "items");
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

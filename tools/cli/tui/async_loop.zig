@@ -443,3 +443,7 @@ test "MetricsTracker initialization" {
     _ = tracker.getCpuHistory(&cpu_buf);
     _ = tracker.getMemoryHistory(&mem_buf);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

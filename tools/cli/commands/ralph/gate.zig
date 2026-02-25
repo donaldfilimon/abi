@@ -336,3 +336,7 @@ pub fn runGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     }
     utils.output.printSuccess("Ralph gate passed ({s}).", .{out_path});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

@@ -70,3 +70,7 @@ pub fn runGateCommand(
         .command = command,
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

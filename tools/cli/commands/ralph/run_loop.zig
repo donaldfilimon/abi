@@ -341,3 +341,7 @@ fn firstSentence(text: []const u8) ?[]const u8 {
     }
     return trimmed;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

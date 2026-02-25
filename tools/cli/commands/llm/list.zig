@@ -79,3 +79,7 @@ pub fn runListLocal(allocator: std.mem.Allocator, args: []const [:0]const u8) vo
         utils.output.println("\nFound {d} model(s).", .{count});
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

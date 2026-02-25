@@ -119,3 +119,7 @@ pub fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         \\  2. Run: abi ralph run
     , .{backend});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

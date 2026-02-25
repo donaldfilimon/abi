@@ -67,3 +67,7 @@ fn skillsClear(allocator: std.mem.Allocator, io: std.Io) !void {
     try skills_store.clearSkills(allocator, io);
     utils.output.printSuccess("Cleared persisted skills ({s}).", .{cfg.SKILLS_FILE});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

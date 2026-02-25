@@ -56,3 +56,7 @@ fn runDescriptor(
 
     try descriptor.handler(&ctx, args);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

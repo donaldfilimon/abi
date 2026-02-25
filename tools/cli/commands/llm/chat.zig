@@ -188,3 +188,7 @@ pub fn runChat(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         utils.output.println("{s}\n", .{response});
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

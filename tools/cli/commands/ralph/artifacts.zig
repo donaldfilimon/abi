@@ -130,3 +130,7 @@ pub fn writeReport(
     try cfg.writeFile(allocator, io, report_path, buffer.items);
     try workspace.writeLatestRun(allocator, io, report.run_id, report_path);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

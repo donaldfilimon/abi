@@ -567,3 +567,7 @@ fn printHelp() void {
     ;
     utils.output.print("{s}", .{help});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

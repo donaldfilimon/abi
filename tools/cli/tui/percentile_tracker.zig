@@ -346,3 +346,7 @@ test "PercentileTracker standard deviation" {
     const stddev = tracker.getStdDev();
     try std.testing.expect(stddev > 1.5 and stddev < 2.5);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

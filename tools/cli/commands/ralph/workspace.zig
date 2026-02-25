@@ -136,3 +136,7 @@ pub fn writeLatestRun(
     defer allocator.free(json);
     try cfg.writeFile(allocator, io, cfg.LATEST_RUN_FILE, json);
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

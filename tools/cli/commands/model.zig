@@ -912,3 +912,7 @@ fn printPathHelp() void {
         \\
     , .{});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

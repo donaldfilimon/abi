@@ -111,3 +111,7 @@ pub fn runMicroOp(allocator: std.mem.Allocator, op: mod.MicroOp) usize {
         },
     }
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

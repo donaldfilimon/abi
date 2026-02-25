@@ -37,3 +37,7 @@ fn findDescriptorInSlice(
     }
     return null;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

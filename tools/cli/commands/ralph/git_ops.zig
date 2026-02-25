@@ -94,3 +94,7 @@ pub fn commitAllIfChanged(
     }
     return commit.term == .exited and commit.term.exited == 0;
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

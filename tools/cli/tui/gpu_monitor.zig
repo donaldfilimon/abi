@@ -768,3 +768,7 @@ test "BackendType name" {
     try std.testing.expectEqualStrings("Metal", BackendType.metal.name());
     try std.testing.expectEqualStrings("None", BackendType.none.name());
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

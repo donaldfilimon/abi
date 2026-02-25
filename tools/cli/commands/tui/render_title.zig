@@ -101,3 +101,8 @@ fn writeChip(
     try term.write("]");
     try term.write(th.reset);
 }
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}

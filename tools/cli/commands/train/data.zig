@@ -138,3 +138,7 @@ pub fn runGenerateData(args: []const [:0]const u8) !void {
     utils.output.printSuccess("Wrote {d} tokens to {s}", .{ written, output_path });
     utils.output.println("Use with: abi train new --dataset-path {s}", .{output_path});
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

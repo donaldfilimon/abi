@@ -42,3 +42,8 @@ pub const gpu_gl_es = false;
 pub const gpu_webgl2 = false;
 pub const gpu_fpga = false;
 pub const gpu_tpu = false;
+
+const std = @import("std");
+test {
+    std.testing.refAllDecls(@This());
+}
