@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 # High Availability (HA) Module
 
 The HA module provides production-ready high availability features for the ABI framework, ensuring system resilience and data durability through replication, automated backups, and point-in-time recovery.
@@ -249,4 +247,3 @@ All public methods on `HaManager` are thread-safe and use internal mutex for syn
 
 - [docs/content/deployment.html](/docs/content/deployment.html) - Production deployment guide
 - [/PLAN.md](/PLAN.md) - Development roadmap and sprint status
->>>>>>> Incoming (Background Agent changes)

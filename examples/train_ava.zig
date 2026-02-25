@@ -79,10 +79,9 @@ pub fn toLlmConfig(config: AvaTrainingConfig) abi.ai.training.LlmTrainingConfig 
     };
 }
 
-pub fn main(init: std.process.Init.Minimal) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const arena = init.arena.allocator();
 
     std.debug.print("=== Ava Training ===\n", .{});
     std.debug.print("Training a locally-optimized AI assistant based on gpt-oss\n\n", .{});
@@ -94,43 +93,38 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     // Parse command line arguments
     var config = defaultConfig();
-    var args_it = init.args.iterateAllocator(allocator) catch |err| {
+    const argv = init.minimal.args.toSlice(arena) catch |err| {
         std.debug.print("Failed to read args: {t}\n", .{err});
         return;
     };
-    defer args_it.deinit();
 
-    _ = args_it.next(); // Skip executable name
+    // Skip executable name, process remaining args
+    var i: usize = 1;
 
     // First positional arg is base model path
-    if (args_it.next()) |arg| {
-        if (!std.mem.startsWith(u8, arg, "--")) {
-            config.base_model = arg;
-        }
+    if (i < argv.len and !std.mem.startsWith(u8, argv[i], "--")) {
+        config.base_model = argv[i];
+        i += 1;
     }
 
     // Parse remaining options
-    while (args_it.next()) |arg| {
+    while (i < argv.len) : (i += 1) {
+        const arg = argv[i];
         if (std.mem.eql(u8, arg, "--dataset-path") or std.mem.eql(u8, arg, "-d")) {
-            if (args_it.next()) |val| {
-                config.dataset_path = val;
-            }
+            i += 1;
+            if (i < argv.len) config.dataset_path = argv[i];
         } else if (std.mem.eql(u8, arg, "--epochs") or std.mem.eql(u8, arg, "-e")) {
-            if (args_it.next()) |val| {
-                config.epochs = std.fmt.parseInt(u32, val, 10) catch config.epochs;
-            }
+            i += 1;
+            if (i < argv.len) config.epochs = std.fmt.parseInt(u32, argv[i], 10) catch config.epochs;
         } else if (std.mem.eql(u8, arg, "--lr")) {
-            if (args_it.next()) |val| {
-                config.learning_rate = std.fmt.parseFloat(f32, val) catch config.learning_rate;
-            }
+            i += 1;
+            if (i < argv.len) config.learning_rate = std.fmt.parseFloat(f32, argv[i]) catch config.learning_rate;
         } else if (std.mem.eql(u8, arg, "--output") or std.mem.eql(u8, arg, "-o")) {
-            if (args_it.next()) |val| {
-                config.output_path = val;
-            }
+            i += 1;
+            if (i < argv.len) config.output_path = argv[i];
         } else if (std.mem.eql(u8, arg, "--batch-size") or std.mem.eql(u8, arg, "-b")) {
-            if (args_it.next()) |val| {
-                config.batch_size = std.fmt.parseInt(u32, val, 10) catch config.batch_size;
-            }
+            i += 1;
+            if (i < argv.len) config.batch_size = std.fmt.parseInt(u32, argv[i], 10) catch config.batch_size;
         } else if (std.mem.eql(u8, arg, "--no-gpu")) {
             config.use_gpu = false;
         } else if (std.mem.eql(u8, arg, "--no-lora")) {
@@ -162,7 +156,7 @@ pub fn main(init: std.process.Init.Minimal) !void {
     var builder = abi.Framework.builder(allocator);
     _ = builder.withAi(ai_config);
     if (config.use_gpu) {
-        _ = builder.withGpu(.{});
+        _ = builder.withGpuDefaults();
     }
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
@@ -274,7 +268,7 @@ fn showTrainingDemo(config: AvaTrainingConfig) void {
 }
 
 fn readDataset(allocator: std.mem.Allocator, path: []const u8) ![]u8 {
-    var io_backend = std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    var io_backend = std.Io.Threaded.init(allocator, .{});
     defer io_backend.deinit();
     const io = io_backend.io();
 

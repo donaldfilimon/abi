@@ -54,6 +54,7 @@ No feature modules directly mapped to this section.
 - `abi convert` — Dataset conversion tools (tokenbin, text, jsonl, wdbx)
 - `abi db` — Database operations (add, query, stats, optimize, backup, restore)
 - `abi discord` — Discord bot operations (status, guilds, send, commands)
+- `abi editor` — Open an inline Cursor-like terminal text editor
 - `abi embed` — Generate embeddings from text (openai, mistral, cohere, ollama)
 - `abi explore` — Search and explore codebase
 - `abi gendocs` — Generate API docs (runs zig build gendocs)

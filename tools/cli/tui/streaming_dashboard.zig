@@ -347,14 +347,34 @@ pub const StreamingDashboard = struct {
         width: usize,
         height: usize,
     ) !void {
-        if (height < 10) return; // Minimum height required
+        if (height < 4 or width < 30) return; // Minimum dimensions required
+
+        // Dynamic layout: header=2, metrics=6, connections=3, footer=1
+        // Request log gets whatever remains.
+        const header_h: usize = 2;
+        const footer_h: usize = 1;
+        const metrics_h: usize = 6;
+        const connections_h: usize = 3;
+        const fixed_h = header_h + footer_h;
 
         try self.renderHeader(start_row, start_col, width);
-        try self.renderMetricsPanel(start_row + 2, start_col, width);
-        try self.renderConnectionsPanel(start_row + 8, start_col, width);
 
-        if (self.show_request_log and height > 13) {
-            try self.renderRequestLog(start_row + 11, start_col, width, height - 13);
+        var current_row = start_row + header_h;
+        const available = height -| fixed_h;
+
+        if (available >= metrics_h) {
+            try self.renderMetricsPanel(current_row, start_col, width);
+            current_row += metrics_h;
+        }
+
+        if (available >= metrics_h + connections_h) {
+            try self.renderConnectionsPanel(current_row, start_col, width);
+            current_row += connections_h;
+        }
+
+        const log_space = (start_row + height) -| current_row -| footer_h;
+        if (self.show_request_log and log_space > 2) {
+            try self.renderRequestLog(current_row, start_col, width, log_space);
         }
 
         try self.renderFooter(start_row + height - 1, start_col, width);
@@ -437,14 +457,17 @@ pub const StreamingDashboard = struct {
         try self.term.write(box.rsep);
         try self.term.write(self.theme.reset);
 
-        // TTFT and Throughput boxes header
+        // TTFT and Throughput boxes header — adapt to available width
         try self.moveTo(row + 1, col);
         try self.term.write(self.theme.border);
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
         try self.term.write(" ");
         try self.term.write(self.theme.text_dim);
-        try self.term.write("┌─ Time to First Token ─┐  ┌─ Token Throughput ──┐");
+        const metrics_header = "┌─ Time to First Token ─┐  ┌─ Token Throughput ──┐";
+        const inner_w = if (width > 2) width - 2 else 0;
+        const header_clipped = unicode.truncateToWidth(metrics_header, inner_w -| 1);
+        try self.term.write(header_clipped);
         try self.term.write(self.theme.reset);
 
         // TTFT Current
@@ -461,7 +484,7 @@ pub const StreamingDashboard = struct {
             latest_ttft,
             latest_throughput,
         }) catch " │ Current: ??          │  │ Rate: ??           │";
-        try self.term.write(ttft_line);
+        try self.term.write(unicode.truncateToWidth(ttft_line, inner_w -| 1));
 
         // TTFT P50
         const p50 = self.ttft_percentiles.getPercentile(50);
@@ -477,7 +500,7 @@ pub const StreamingDashboard = struct {
             p50,
             total_k,
         }) catch " │ P50:     ??          │  │ Total: ??          │";
-        try self.term.write(p50_line);
+        try self.term.write(unicode.truncateToWidth(p50_line, inner_w -| 1));
 
         // TTFT P99
         const p99 = self.ttft_percentiles.getPercentile(99);
@@ -492,7 +515,7 @@ pub const StreamingDashboard = struct {
             p99,
             self.total_requests,
         }) catch " │ P99:     ??          │  │ Reqs:  ??          │";
-        try self.term.write(p99_line);
+        try self.term.write(unicode.truncateToWidth(p99_line, inner_w -| 1));
 
         // Box bottoms
         try self.moveTo(row + 5, col);
@@ -500,7 +523,9 @@ pub const StreamingDashboard = struct {
         try self.term.write(box.v);
         try self.term.write(self.theme.reset);
         try self.term.write(self.theme.text_dim);
-        try self.term.write(" └───────────────────────┘  └─────────────────────┘");
+        const metrics_footer = " └───────────────────────┘  └─────────────────────┘";
+        const footer_clipped = unicode.truncateToWidth(metrics_footer, inner_w -| 1);
+        try self.term.write(footer_clipped);
         try self.term.write(self.theme.reset);
 
         // Right borders for all rows

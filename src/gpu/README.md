@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -52,4 +50,3 @@ _ = try gpu.vectorAdd(a, b, result);
 - [GPU Documentation](../../docs/content/gpu.html)
 - [API Reference](../../API_REFERENCE.md)
 
->>>>>>> Incoming (Background Agent changes)

@@ -18,9 +18,11 @@ pub fn main(_: std.process.Init) !void {
 
     // Initialize framework
     var builder = abi.Framework.builder(allocator);
-    var framework = try builder
-        .withDatabase(.{})
-        .build();
+    _ = builder.withDatabaseDefaults();
+    var framework = builder.build() catch |err| {
+        std.debug.print("Framework initialization failed: {t}\n", .{err});
+        return err;
+    };
     defer framework.deinit();
 
     // === HA Manager Setup ===

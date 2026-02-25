@@ -14,7 +14,7 @@ pub fn main(_: std.process.Init) !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    var framework = abi.init(allocator, abi.Config.minimal()) catch |err| {
+    var framework = abi.Framework.initMinimal(allocator) catch |err| {
         std.debug.print("Failed to initialize framework: {t}\n", .{err});
         return err;
     };

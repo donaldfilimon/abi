@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -80,4 +78,3 @@ tags: []
 //!
 //! - [Database Documentation](../../docs/content/database.html)
 //! - [API Reference](../../API_REFERENCE.md)
->>>>>>> Incoming (Background Agent changes)

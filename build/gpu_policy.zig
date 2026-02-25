@@ -8,6 +8,12 @@ pub const PlatformClass = enum {
     ios,
     android,
     web,
+    freebsd,
+    netbsd,
+    openbsd,
+    dragonfly,
+    haiku,
+    solaris,
     freestanding,
     other,
 };
@@ -31,6 +37,12 @@ pub const windows_order = [_]BackendName{ "cuda", "vulkan", "opengl", "stdgpu" }
 pub const ios_order = [_]BackendName{ "metal", "opengles", "stdgpu" };
 pub const android_order = [_]BackendName{ "vulkan", "opengles", "stdgpu" };
 pub const web_order = [_]BackendName{ "webgpu", "webgl2", "simulated" };
+pub const freebsd_order = [_]BackendName{ "vulkan", "opengl", "stdgpu" };
+pub const netbsd_order = [_]BackendName{ "opengl", "stdgpu" };
+pub const openbsd_order = [_]BackendName{ "opengl", "stdgpu" };
+pub const dragonfly_order = [_]BackendName{ "opengl", "stdgpu" };
+pub const haiku_order = [_]BackendName{ "opengl", "stdgpu" };
+pub const solaris_order = [_]BackendName{ "opengl", "stdgpu" };
 pub const fallback_order = [_]BackendName{ "stdgpu", "simulated" };
 
 /// Fixed-capacity list that deduplicates backend names on insert.
@@ -67,9 +79,15 @@ pub fn classify(os_tag: std.Target.Os.Tag, abi: std.Target.Abi) PlatformClass {
     return switch (os_tag) {
         .macos => .macos,
         .windows => .windows,
-        .ios => .ios,
-        .wasi => .web,
+        .ios, .tvos, .watchos => .ios,
+        .wasi, .emscripten => .web,
         .freestanding => .freestanding,
+        .freebsd => .freebsd,
+        .netbsd => .netbsd,
+        .openbsd => .openbsd,
+        .dragonfly => .dragonfly,
+        .haiku => .haiku,
+        .illumos => .solaris,
         .linux => if (abi == .android) .android else .linux,
         else => .other,
     };
@@ -84,6 +102,12 @@ pub fn defaultOrder(platform: PlatformClass) []const BackendName {
         .ios => ios_order[0..],
         .android => android_order[0..],
         .web => web_order[0..],
+        .freebsd => freebsd_order[0..],
+        .netbsd => netbsd_order[0..],
+        .openbsd => openbsd_order[0..],
+        .dragonfly => dragonfly_order[0..],
+        .haiku => haiku_order[0..],
+        .solaris => solaris_order[0..],
         .freestanding, .other => fallback_order[0..],
     };
 }
@@ -173,6 +197,34 @@ pub fn optimizationHintsForPlatform(platform: PlatformClass) OptimizationHints {
             .prefer_unified_memory = false,
             .prefer_pinned_staging = false,
             .transfer_chunk_bytes = 1 * 1024 * 1024,
+        },
+        .freebsd => .{
+            .default_local_size = 256,
+            .default_queue_depth = 8,
+            .prefer_unified_memory = false,
+            .prefer_pinned_staging = true,
+            .transfer_chunk_bytes = 16 * 1024 * 1024,
+        },
+        .netbsd, .openbsd, .dragonfly => .{
+            .default_local_size = 128,
+            .default_queue_depth = 4,
+            .prefer_unified_memory = false,
+            .prefer_pinned_staging = false,
+            .transfer_chunk_bytes = 8 * 1024 * 1024,
+        },
+        .haiku => .{
+            .default_local_size = 64,
+            .default_queue_depth = 2,
+            .prefer_unified_memory = false,
+            .prefer_pinned_staging = false,
+            .transfer_chunk_bytes = 4 * 1024 * 1024,
+        },
+        .solaris => .{
+            .default_local_size = 128,
+            .default_queue_depth = 4,
+            .prefer_unified_memory = false,
+            .prefer_pinned_staging = true,
+            .transfer_chunk_bytes = 8 * 1024 * 1024,
         },
         .freestanding, .other => .{
             .default_local_size = 64,

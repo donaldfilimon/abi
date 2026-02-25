@@ -129,7 +129,7 @@ pub const ObservabilityBundle = struct {
 // Context for Framework integration
 pub const Context = struct {
     pub fn init(_: std.mem.Allocator, _: config_module.ObservabilityConfig) Error!*Context {
-        return error.FeatureDisabled;
+        return error.ObservabilityDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn recordMetric(_: *Context, _: []const u8, _: f64) Error!void {

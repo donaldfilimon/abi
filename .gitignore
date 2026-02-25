@@ -115,6 +115,9 @@ test-models/
 train.bin
 testingllm.ckpt/
 
+# ── GPU shader artifacts ─────────────────────────────────────────────
+*.spv
+
 # ── Binary executables and object files ───────────────────────────────
 *.a
 *.o
@@ -143,6 +146,9 @@ perf.data*
 !.claude/agents/**
 !.claude/settings.json
 .claude-plugin/
+
+# ── Local task tracking (agent notes) ────────────────────────────────
+tasks/
 
 # ── ABI runtime state ────────────────────────────────────────────────
 .abi/

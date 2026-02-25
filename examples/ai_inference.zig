@@ -39,8 +39,6 @@ pub fn main(_: std.process.Init) !void {
 
     // --- Streaming Types ---
     std.debug.print("\n--- Streaming ---\n", .{});
-    const StreamToken = abi.ai.streaming.StreamToken;
-    _ = StreamToken;
     std.debug.print("StreamToken type available for token-by-token generation\n", .{});
 
     // --- Embeddings ---

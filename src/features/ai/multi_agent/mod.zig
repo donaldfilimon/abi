@@ -43,6 +43,9 @@ pub const blackboard = @import("blackboard.zig");
 pub const workflow = @import("workflow.zig");
 pub const supervisor = @import("supervisor.zig");
 pub const protocol = @import("protocol.zig");
+pub const runner = @import("runner.zig");
+
+pub const WorkflowRunner = runner.WorkflowRunner;
 
 pub const Error = error{
     AgentDisabled, // Underlying agents module disabled
@@ -166,10 +169,10 @@ pub const CoordinatorConfig = struct {
 pub const Coordinator = struct {
     allocator: std.mem.Allocator,
     config: CoordinatorConfig,
-    agents: std.ArrayListUnmanaged(*agents.Agent) = .{},
-    health: std.ArrayListUnmanaged(AgentHealth) = .{},
-    mailboxes: std.ArrayListUnmanaged(messaging.AgentMailbox) = .{},
-    results: std.ArrayListUnmanaged(AgentResult) = .{},
+    agents: std.ArrayListUnmanaged(*agents.Agent) = .empty,
+    health: std.ArrayListUnmanaged(AgentHealth) = .empty,
+    mailboxes: std.ArrayListUnmanaged(messaging.AgentMailbox) = .empty,
+    results: std.ArrayListUnmanaged(AgentResult) = .empty,
     mutex: sync.Mutex = .{},
     event_bus: ?messaging.EventBus = null,
 
@@ -183,10 +186,10 @@ pub const Coordinator = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .agents = .{},
-            .health = .{},
-            .mailboxes = .{},
-            .results = .{},
+            .agents = .empty,
+            .health = .empty,
+            .mailboxes = .empty,
+            .results = .empty,
             .mutex = .{},
             .event_bus = if (config.enable_events) messaging.EventBus.init(allocator) else null,
         };
@@ -194,7 +197,6 @@ pub const Coordinator = struct {
 
     /// Deinitialise and free resources.
     pub fn deinit(self: *Coordinator) void {
-        // Free any stored results
         for (self.results.items) |result| {
             self.allocator.free(result.response);
         }
@@ -260,13 +262,11 @@ pub const Coordinator = struct {
 
         var task_timer = time.Timer.start() catch null;
 
-        // Clear previous results
         for (self.results.items) |result| {
             self.allocator.free(result.response);
         }
         self.results.clearRetainingCapacity();
 
-        // Execute based on strategy
         switch (self.config.execution_strategy) {
             .sequential => try self.executeSequential(task),
             .parallel => try self.executeParallel(task),
@@ -274,7 +274,6 @@ pub const Coordinator = struct {
             .adaptive => try self.executeAdaptive(task),
         }
 
-        // Aggregate results
         const aggregated = self.aggregateResults() catch |err| {
             if (self.event_bus) |*bus| bus.taskFailed(task_id, "aggregation failed");
             return err;
@@ -292,7 +291,6 @@ pub const Coordinator = struct {
         const timeout_ns: u64 = self.config.agent_timeout_ms * std.time.ns_per_ms;
 
         for (self.agents.items, 0..) |ag, i| {
-            // Skip agents with open circuit breaker
             if (self.config.circuit_breaker_threshold > 0 and
                 i < self.health.items.len and
                 !self.health.items[i].canAttempt())
@@ -362,29 +360,24 @@ pub const Coordinator = struct {
         const agent_count = self.agents.items.len;
         const timeout_ns: u64 = self.config.agent_timeout_ms * std.time.ns_per_ms;
 
-        // Allocate per-thread result slots
         const thread_results = self.allocator.alloc(ThreadResult, agent_count) catch
             return Error.ExecutionFailed;
         defer self.allocator.free(thread_results);
 
-        // Track which threads were actually spawned
         const thread_spawned = self.allocator.alloc(bool, agent_count) catch
             return Error.ExecutionFailed;
         defer self.allocator.free(thread_spawned);
         @memset(thread_spawned, false);
 
-        // Initialize all results
         for (thread_results) |*tr| {
             tr.* = .{};
         }
 
-        // Spawn threads for each agent
         const threads = self.allocator.alloc(std.Thread, agent_count) catch
             return Error.ExecutionFailed;
         defer self.allocator.free(threads);
 
         for (self.agents.items, 0..) |ag, i| {
-            // Skip agents with open circuit breaker
             if (self.config.circuit_breaker_threshold > 0 and
                 i < self.health.items.len and
                 !self.health.items[i].canAttempt())
@@ -405,7 +398,6 @@ pub const Coordinator = struct {
                 timeout_ns,
                 self.config.retry_config,
             }) catch {
-                // If spawn fails, mark as failed
                 thread_results[i] = .{
                     .response = self.allocator.dupe(u8, "[Error: thread spawn failed]") catch null,
                     .success = false,
@@ -416,14 +408,12 @@ pub const Coordinator = struct {
             thread_spawned[i] = true;
         }
 
-        // Join all spawned threads
         for (0..agent_count) |i| {
             if (thread_spawned[i]) {
                 threads[i].join();
             }
         }
 
-        // Collect results and update health
         for (thread_results, 0..) |tr, i| {
             if (i < self.health.items.len) {
                 if (tr.success) {
@@ -461,7 +451,6 @@ pub const Coordinator = struct {
                 return Error.ExecutionFailed; // Pipeline broken
             };
 
-            // Store result
             self.results.append(self.allocator, .{
                 .agent_index = i,
                 .response = response,
@@ -472,7 +461,6 @@ pub const Coordinator = struct {
                 return Error.ExecutionFailed;
             };
 
-            // Update input for next stage
             if (owned_input) |o| self.allocator.free(o);
             owned_input = self.allocator.dupe(u8, response) catch return Error.ExecutionFailed;
             current_input = owned_input.?;
@@ -519,7 +507,6 @@ pub const Coordinator = struct {
 
     /// Return most common response using hash-based majority vote.
     fn aggregateVote(self: *Coordinator) Error![]u8 {
-        // Convert results to AgentOutput for the aggregation module
         const outputs = self.allocator.alloc(aggregation.AgentOutput, self.results.items.len) catch
             return Error.AggregationFailed;
         defer self.allocator.free(outputs);
@@ -830,10 +817,10 @@ test "coordinator config with retry" {
     try std.testing.expectEqual(@as(u32, 3), config.circuit_breaker_threshold);
 }
 
-// Bring in submodule tests
 test {
     _ = aggregation;
     _ = messaging;
+    _ = runner;
 }
 
 test {

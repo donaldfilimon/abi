@@ -14,10 +14,8 @@ pub fn main(_: std.process.Init) !void {
     const allocator = gpa.allocator();
 
     var builder = abi.Framework.builder(allocator);
-
-    var framework = try builder
-        .withDatabase(.{})
-        .build();
+    _ = builder.withDatabaseDefaults();
+    var framework = try builder.build();
     defer framework.deinit();
 
     if (!abi.database.isEnabled()) {

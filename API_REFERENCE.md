@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "API_REFERENCE"
 tags: []
@@ -9,12 +7,12 @@ tags: []
 
 <p align="center">
   <img src="https://img.shields.io/badge/API-Stable-success?style=for-the-badge" alt="API Stable"/>
-  <img src="https://img.shields.io/badge/Version-0.3.0-blue?style=for-the-badge" alt="Version"/>
+  <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=for-the-badge" alt="Version"/>
   <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig"/>
 </p>
 
 <p align="center">
-  <a href="docs/content/index.html">Documentation Index</a> |
+  <a href="docs/README.md">Documentation</a> |
   <a href="CONTRIBUTING.md">Coding Patterns</a> |
   <a href="CLAUDE.md">Development Guide</a>
 </p>
@@ -455,7 +453,7 @@ const result = try abi.runtime.runTask(&engine, u32, computeTask, 1000);
 std.debug.print("Result: {d}\n", .{result});
 ```
 
-See [Runtime Guide](src/runtime/README.md) for detailed usage.
+See [Runtime Guide](docs/compute.md) for detailed usage.
 
 **Timeout Semantics**:
 
@@ -575,7 +573,7 @@ defer cuda.destroyKernel(allocator, kernel);
 try cuda.launchKernel(allocator, kernel, config, args);
 ```
 
-See [GPU Guide](docs/content/gpu.html) for detailed usage.
+See [GPU Guide](docs/gpu.md) for detailed usage.
 
 ## Network API
 
@@ -607,7 +605,7 @@ _ = net_ctx;
 // Network features available through context
 ```
 
-See [Network Guide](docs/content/network.html) for detailed usage.
+See [Network Guide](docs/network.md) for detailed usage.
 
 ## AI & Agent API
 
@@ -636,7 +634,7 @@ defer allocator.free(response);
 std.debug.print("Agent: {s}\n", .{response});
 ```
 
-See [AI Guide](docs/content/ai.html) for detailed usage.
+See [AI Guide](docs/ai.md) for detailed usage.
 
 ## Streaming API
 
@@ -793,7 +791,8 @@ const abbey_response = try orchestrator.processWithPersona(.abbey, .{
 });
 ```
 
-See [AI Guide](docs/content/ai.html) for persona capabilities and routing.
+See [Personas API Reference](docs/api/personas.md) for complete documentation.
+See [Personas Tutorial](docs/tutorials/personas.md) for getting started guide.
 
 ## Connectors API
 
@@ -852,7 +851,7 @@ Flat domain structure (modular architecture):
 | Module | Description | Status |
 |--------|-------------|--------|
 | `src/abi.zig` | Public API entry point | ![Core](https://img.shields.io/badge/-Core-blue) |
-| `src/config.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
+| `src/config/mod.zig` | Unified configuration system | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/framework.zig` | Framework orchestration | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/runtime/` | Scheduler, memory, concurrency | ![Core](https://img.shields.io/badge/-Core-blue) |
 | `src/gpu/` | GPU backends and unified API | ![Feature](https://img.shields.io/badge/-Feature-green) |
@@ -872,11 +871,11 @@ Flat domain structure (modular architecture):
 <td>
 
 ### Guides
-- [Architecture](docs/content/architecture.html) — System overview
-- [Configuration](docs/content/configuration.html) — Configuration and lifecycle
-- [Runtime Guide](src/runtime/README.md) — Task execution
-- [AI Guide](docs/content/ai.html) — LLM connectors and agents
-- [GPU Guide](docs/content/gpu.html) — GPU backends
+- [Documentation](docs/README.md) — Documentation site source
+- [Framework Guide](docs/framework.md) — Configuration and lifecycle
+- [Compute Guide](docs/compute.md) — Task execution
+- [AI Guide](docs/ai.md) — LLM connectors and agents
+- [GPU Guide](docs/gpu.md) — GPU backends
 
 </td>
 <td>
@@ -895,6 +894,5 @@ Flat domain structure (modular architecture):
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="docs/content/index.html">Full Documentation →</a>
+  <a href="docs/README.md">Full Documentation →</a>
 </p>
->>>>>>> Incoming (Background Agent changes)

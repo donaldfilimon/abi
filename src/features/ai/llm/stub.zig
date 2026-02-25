@@ -20,7 +20,14 @@ pub const LlmError = error{
     ShapeMismatch,
 };
 
-pub const Error = LlmError;
+pub const Error = error{
+    LlmDisabled,
+    ModelNotFound,
+    ModelLoadFailed,
+    InferenceFailed,
+    TokenizationFailed,
+    InvalidConfig,
+};
 
 // --- Core Types ---
 
@@ -57,6 +64,7 @@ pub const MappedFile = struct {};
 pub const Tensor = struct {};
 pub const Q4_0Block = struct {};
 pub const Q8_0Block = struct {};
+pub const unified_orchestrator = @import("unified_orchestrator/stub.zig");
 
 pub const BpeTokenizer = struct {
     pub fn init(_: std.mem.Allocator) BpeTokenizer {
@@ -179,6 +187,12 @@ pub const TensorParallelConfig = struct {};
 pub const PipelineParallelConfig = struct {};
 pub const ParallelConfig = struct {};
 pub const ParallelCoordinator = struct {};
+pub const ParallelExecutor = struct {
+    pub fn init(_: std.mem.Allocator) LlmError!ParallelExecutor {
+        return error.FeatureDisabled;
+    }
+    pub fn deinit(_: *ParallelExecutor) void {}
+};
 
 // --- Streaming Types ---
 
@@ -471,6 +485,7 @@ pub const parallel = struct {
     pub const ParallelCoordinator = stub_root.ParallelCoordinator;
     pub const TensorParallelConfig = stub_root.TensorParallelConfig;
     pub const PipelineParallelConfig = stub_root.PipelineParallelConfig;
+    pub const ParallelExecutor = stub_root.ParallelExecutor;
 };
 
 pub const providers = struct {

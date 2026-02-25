@@ -134,6 +134,7 @@ pub const ProgressIndicator = struct {
             try self.term.write(msg);
             try self.term.write("\n");
         }
+        try self.term.flush();
     }
 
     pub fn fail(self: *ProgressIndicator, error_message: ?[]const u8) !void {
@@ -147,6 +148,7 @@ pub const ProgressIndicator = struct {
             try self.term.write(msg);
             try self.term.write("\n");
         }
+        try self.term.flush();
     }
 
     fn render(self: *ProgressIndicator) !void {
@@ -168,6 +170,7 @@ pub const ProgressIndicator = struct {
         try self.term.write(colors.dim);
         try self.term.write(time_str);
         try self.term.write(colors.reset);
+        try self.term.flush();
     }
 };
 
@@ -185,11 +188,20 @@ pub const ProgressBar = struct {
     show_count: bool,
 
     pub fn init(term: *terminal.Terminal, total: usize, label: []const u8) ProgressBar {
+        // Adapt progress bar width to terminal size.
+        // Reserve space for: label + " " + "[" + "]" + " 100%" + " (nnn/nnn)" ~ 30 chars overhead
+        const term_cols = term.size().cols;
+        const overhead: usize = label.len + 20;
+        const dynamic_width: usize = if (term_cols > overhead + 10)
+            @min(60, @as(usize, term_cols) - overhead)
+        else
+            @max(10, @as(usize, term_cols) -| overhead);
+
         return .{
             .term = term,
             .total = total,
             .current = 0,
-            .width = 40,
+            .width = dynamic_width,
             .label = label,
             .show_percentage = true,
             .show_count = true,
@@ -213,6 +225,7 @@ pub const ProgressBar = struct {
     pub fn complete(self: *ProgressBar) !void {
         try self.update(self.total);
         try self.term.write("\n");
+        try self.term.flush();
     }
 
     fn render(self: *ProgressBar) !void {
@@ -270,6 +283,7 @@ pub const ProgressBar = struct {
             try self.term.write(count_str);
             try self.term.write(colors.reset);
         }
+        try self.term.flush();
     }
 };
 
@@ -319,6 +333,14 @@ pub const Dialog = struct {
     }
 
     pub fn show(self: *Dialog) !void {
+        // Adapt dialog width to terminal size if a terminal is available
+        const term_size = self.term.size();
+        const max_width = @as(usize, term_size.cols) -| 4;
+        if (self.width > max_width and max_width >= 20) {
+            self.width = max_width;
+        }
+        if (self.width < 10) self.width = 10; // Minimum usable width
+
         const style_color = switch (self.style) {
             .info => colors.cyan,
             .warning => colors.yellow,
@@ -337,7 +359,7 @@ pub const Dialog = struct {
         try self.term.write("\n");
         try self.term.write(style_color);
         try self.term.write(box.tl);
-        try writeRepeat(self.term, box.h, self.width - 2);
+        try writeRepeat(self.term, box.h, self.width -| 2);
         try self.term.write(box.tr);
         try self.term.write(colors.reset);
         try self.term.write("\n");
@@ -353,8 +375,8 @@ pub const Dialog = struct {
         try self.term.write(colors.reset);
 
         const title_len = self.title.len + 4;
-        if (title_len < self.width - 2) {
-            try writeRepeat(self.term, " ", self.width - 2 - title_len);
+        if (title_len < self.width -| 2) {
+            try writeRepeat(self.term, " ", self.width -| 2 -| title_len);
         }
         try self.term.write(style_color);
         try self.term.write(box.v);
@@ -364,7 +386,7 @@ pub const Dialog = struct {
         // Separator
         try self.term.write(style_color);
         try self.term.write(box.lsep);
-        try writeRepeat(self.term, box.h, self.width - 2);
+        try writeRepeat(self.term, box.h, self.width -| 2);
         try self.term.write(box.rsep);
         try self.term.write(colors.reset);
         try self.term.write("\n");
@@ -375,10 +397,11 @@ pub const Dialog = struct {
         // Bottom border
         try self.term.write(style_color);
         try self.term.write(box.bl);
-        try writeRepeat(self.term, box.h, self.width - 2);
+        try writeRepeat(self.term, box.h, self.width -| 2);
         try self.term.write(box.br);
         try self.term.write(colors.reset);
         try self.term.write("\n");
+        try self.term.flush();
     }
 
     pub fn confirm(self: *Dialog, yes_label: []const u8, no_label: []const u8) !DialogResult {
@@ -443,7 +466,8 @@ pub const Dialog = struct {
     }
 
     fn renderWrappedText(self: *Dialog, text: []const u8, border_color: []const u8) !void {
-        const max_line_width = self.width - 4;
+        const max_line_width = self.width -| 4;
+        if (max_line_width == 0) return;
         var start: usize = 0;
 
         while (start < text.len) {
@@ -541,11 +565,14 @@ pub const CommandPreview = struct {
     }
 
     pub fn render(self: *CommandPreview, width: usize) !void {
+        // Adapt to terminal size if width would overflow
+        const actual_width = if (width < 10) @as(usize, 10) else width;
+
         // Header
         try self.term.write("\n");
         try self.term.write(colors.cyan);
         try self.term.write(box.dtl);
-        try writeRepeat(self.term, box.dh, width - 2);
+        try writeRepeat(self.term, box.dh, actual_width -| 2);
         try self.term.write(box.dtr);
         try self.term.write(colors.reset);
         try self.term.write("\n");
@@ -561,8 +588,8 @@ pub const CommandPreview = struct {
         try self.term.write(colors.reset);
 
         const title_len = self.name.len + 2;
-        if (title_len < width - 1) {
-            try writeRepeat(self.term, " ", width - 1 - title_len);
+        if (title_len < actual_width -| 1) {
+            try writeRepeat(self.term, " ", actual_width -| 1 -| title_len);
         }
         try self.term.write(colors.cyan);
         try self.term.write(box.dv);
@@ -580,8 +607,8 @@ pub const CommandPreview = struct {
             try self.term.write(colors.reset);
 
             const desc_len = self.description.len + 2;
-            if (desc_len < width - 1) {
-                try writeRepeat(self.term, " ", width - 1 - desc_len);
+            if (desc_len < actual_width -| 1) {
+                try writeRepeat(self.term, " ", actual_width -| 1 -| desc_len);
             }
             try self.term.write(colors.cyan);
             try self.term.write(box.dv);
@@ -591,13 +618,13 @@ pub const CommandPreview = struct {
 
         // Usage section
         if (self.usage.len > 0) {
-            try self.renderSection("Usage", width);
-            try self.renderLine(self.usage, width);
+            try self.renderSection("Usage", actual_width);
+            try self.renderLine(self.usage, actual_width);
         }
 
         // Examples section
         if (self.examples.len > 0) {
-            try self.renderSection("Examples", width);
+            try self.renderSection("Examples", actual_width);
             for (self.examples) |example| {
                 try self.term.write(colors.cyan);
                 try self.term.write(box.dv);
@@ -609,8 +636,8 @@ pub const CommandPreview = struct {
                 try self.term.write(example);
 
                 const ex_len = example.len + 5;
-                if (ex_len < width - 1) {
-                    try writeRepeat(self.term, " ", width - 1 - ex_len);
+                if (ex_len < actual_width -| 1) {
+                    try writeRepeat(self.term, " ", actual_width -| 1 -| ex_len);
                 }
                 try self.term.write(colors.cyan);
                 try self.term.write(box.dv);
@@ -621,7 +648,7 @@ pub const CommandPreview = struct {
 
         // Related commands
         if (self.related.len > 0) {
-            try self.renderSection("Related", width);
+            try self.renderSection("Related", actual_width);
             try self.term.write(colors.cyan);
             try self.term.write(box.dv);
             try self.term.write(colors.reset);
@@ -639,8 +666,8 @@ pub const CommandPreview = struct {
                 total_len += rel.len;
             }
 
-            if (total_len < width - 1) {
-                try writeRepeat(self.term, " ", width - 1 - total_len);
+            if (total_len < actual_width -| 1) {
+                try writeRepeat(self.term, " ", actual_width -| 1 -| total_len);
             }
             try self.term.write(colors.cyan);
             try self.term.write(box.dv);
@@ -651,7 +678,7 @@ pub const CommandPreview = struct {
         // Footer
         try self.term.write(colors.cyan);
         try self.term.write(box.dbl);
-        try writeRepeat(self.term, box.dh, width - 2);
+        try writeRepeat(self.term, box.dh, actual_width -| 2);
         try self.term.write(box.dbr);
         try self.term.write(colors.reset);
         try self.term.write("\n");
@@ -672,13 +699,14 @@ pub const CommandPreview = struct {
         try self.term.write(colors.dim);
         try self.term.write(" to go back\n");
         try self.term.write(colors.reset);
+        try self.term.flush();
     }
 
     fn renderSection(self: *CommandPreview, title: []const u8, width: usize) !void {
         try self.term.write(colors.cyan);
         try self.term.write(box.dv);
         try self.term.write(colors.reset);
-        try writeRepeat(self.term, " ", width - 2);
+        try writeRepeat(self.term, " ", width -| 2);
         try self.term.write(colors.cyan);
         try self.term.write(box.dv);
         try self.term.write(colors.reset);
@@ -695,8 +723,8 @@ pub const CommandPreview = struct {
         try self.term.write(colors.reset);
 
         const sect_len = title.len + 3;
-        if (sect_len < width - 1) {
-            try writeRepeat(self.term, " ", width - 1 - sect_len);
+        if (sect_len < width -| 1) {
+            try writeRepeat(self.term, " ", width -| 1 -| sect_len);
         }
         try self.term.write(colors.cyan);
         try self.term.write(box.dv);
@@ -712,8 +740,8 @@ pub const CommandPreview = struct {
         try self.term.write(text);
 
         const line_len = text.len + 3;
-        if (line_len < width - 1) {
-            try writeRepeat(self.term, " ", width - 1 - line_len);
+        if (line_len < width -| 1) {
+            try writeRepeat(self.term, " ", width -| 1 -| line_len);
         }
         try self.term.write(colors.cyan);
         try self.term.write(box.dv);
@@ -752,6 +780,7 @@ pub const Toast = struct {
         try self.term.write(colors.reset);
         try self.term.write(message);
         try self.term.write("\n");
+        try self.term.flush();
     }
 };
 

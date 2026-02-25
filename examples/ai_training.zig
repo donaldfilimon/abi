@@ -47,8 +47,6 @@ pub fn main(_: std.process.Init) !void {
 
     // --- Training Result Type ---
     std.debug.print("\n--- Result Types ---\n", .{});
-    const TrainingResult = abi.ai.training.TrainingResult;
-    _ = TrainingResult;
     std.debug.print("TrainingResult type available for tracking metrics\n", .{});
 
     std.debug.print("\nTraining example complete.\n", .{});

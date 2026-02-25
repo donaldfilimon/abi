@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "Benchmark Suite"
 tags: [benchmarks, performance, testing]
@@ -21,6 +19,9 @@ Comprehensive performance benchmarks for the ABI framework, measuring throughput
 # Run all benchmark suites
 zig build benchmarks
 
+# Run all benchmark suites (including competitive)
+zig build bench-all
+
 # Run specific suite
 zig build benchmarks -- --suite=simd
 
@@ -38,14 +39,11 @@ zig build benchmarks -- --verbose
 | Path | Purpose |
 | --- | --- |
 | `benchmarks/` | Suite entry points (`main.zig`, `run.zig`, `mod.zig`) |
-| `benchmarks/core/` | Core framework benchmarks (config, vectors, distance) |
-| `benchmarks/infrastructure/` | SIMD, memory, concurrency, network, crypto, GPU availability |
-| `benchmarks/domain/` | Domain benchmarks (ai, database, gpu) |
-| `benchmarks/system/` | Framework init, CI integration, baseline utilities |
 | `benchmarks/competitive/` | Competitive comparisons (FAISS, vector DBs, LLMs) |
-| `benchmarks/baselines/` | Regression baselines and comparisons |
-| `benchmarks/run_competitive.zig` | CLI entry point for competitive runs |
-| `benchmarks/system/industry_standard.zig` | Industry-standard baseline harness |
+| `benchmarks/domain/` | Feature-specific suites (ai, database, gpu) |
+| `benchmarks/infrastructure/` | SIMD, memory, concurrency, crypto, network |
+| `benchmarks/system/` | Framework, CI, baseline store/comparator |
+| `benchmarks/baselines/` | Baseline JSON storage (main/branches/releases) |
 
 ---
 
@@ -60,14 +58,14 @@ zig build benchmarks -- --verbose
 | **network** | HTTP/JSON parsing | req/sec, parse time (ns) |
 | **crypto** | Hash/encrypt ops | MB/sec, cycles/byte |
 | **ai** | GEMM/attention | GFLOPS, memory bandwidth |
-| **gpu** | Kernel and backend checks | throughput, availability |
-| **quick** | Fast verification | subset of all suites |
+| **gpu** | GPU kernels | kernel time (ns), throughput |
+| **quick** | Fast verification | CI-friendly subset |
 
 ---
 
 ## Suite Details
 
-### SIMD Suite (`simd.zig`)
+### SIMD Suite (`infrastructure/simd.zig`)
 
 Tests vectorized operations using SIMD intrinsics:
 - Dot product (single/batch)
@@ -80,7 +78,7 @@ Tests vectorized operations using SIMD intrinsics:
 zig build benchmarks -- --suite=simd
 ```
 
-### Memory Suite (`memory.zig`)
+### Memory Suite (`infrastructure/memory.zig`)
 
 Measures allocator performance:
 - General purpose allocator throughput
@@ -93,7 +91,7 @@ Measures allocator performance:
 zig build benchmarks -- --suite=memory
 ```
 
-### Concurrency Suite (`concurrency.zig`)
+### Concurrency Suite (`infrastructure/concurrency.zig`)
 
 Tests lock-free data structures:
 - Lock-free queue throughput
@@ -106,7 +104,7 @@ Tests lock-free data structures:
 zig build benchmarks -- --suite=concurrency
 ```
 
-### Database Suite (`database.zig`)
+### Database Suite (`domain/database/`)
 
 WDBX vector database benchmarks:
 - Vector insertion (single/batch)
@@ -120,7 +118,7 @@ WDBX vector database benchmarks:
 zig build benchmarks -- --suite=database
 ```
 
-### Network Suite (`network.zig`)
+### Network Suite (`infrastructure/network.zig`)
 
 Network protocol benchmarks:
 - HTTP header parsing
@@ -132,7 +130,7 @@ Network protocol benchmarks:
 zig build benchmarks -- --suite=network
 ```
 
-### Crypto Suite (`crypto.zig`)
+### Crypto Suite (`infrastructure/crypto.zig`)
 
 Cryptographic operation benchmarks:
 - SHA-256/SHA-512 hashing
@@ -145,7 +143,7 @@ Cryptographic operation benchmarks:
 zig build benchmarks -- --suite=crypto
 ```
 
-### AI Suite (`ai.zig`)
+### AI Suite (`domain/ai/`)
 
 Machine learning operation benchmarks:
 - GEMM (General Matrix Multiply)
@@ -158,12 +156,12 @@ Machine learning operation benchmarks:
 zig build benchmarks -- --suite=ai
 ```
 
-### GPU Suite (`gpu.zig`)
+### GPU Suite (`domain/gpu/`)
 
-GPU-related benchmarks:
-- Backend availability checks
-- Kernel throughput comparisons
-- GPU vs CPU baselines
+GPU kernel benchmarks:
+- Matmul, vector ops, reductions
+- Backend comparisons
+- GPU vs CPU comparisons
 
 ```bash
 zig build benchmarks -- --suite=gpu
@@ -204,10 +202,10 @@ zig build benchmarks -- [OPTIONS]
 
 OPTIONS:
   --suite=<name>    Run specific suite (simd, memory, concurrency, database, network, crypto, ai, gpu)
-  --quick           Run quick subset for CI
+  --quick           Run with reduced iterations
   --verbose         Show detailed output
   --json            Output results as JSON to stdout
-  --output=<file>   Output results as JSON to a file
+  --output=<file>   Write JSON report to a file
 ```
 
 ### Examples
@@ -216,16 +214,13 @@ OPTIONS:
 # All suites with verbose output
 zig build benchmarks -- --verbose
 
-# Database benchmarks only
-zig build benchmarks -- --suite=database
+# Database benchmarks with more iterations
+zig build benchmarks -- --suite=database --iterations=10000
 
 # Quick verification run
 zig build benchmarks -- --quick
 
 # JSON output for CI integration
-zig build benchmarks -- --json > benchmark_results.json
-
-# Write JSON output to a file
 zig build benchmarks -- --output=benchmark_results.json
 ```
 
@@ -253,17 +248,15 @@ zig build benchmarks -- --output=benchmark_results.json
 
 ---
 
-## Performance Baseline
+## Performance Baselines
 
-Baselines are stored under `benchmarks/baselines/`. See
-`benchmarks/baselines/README.md` for format and storage conventions.
+Baseline reports are stored under `benchmarks/baselines/` (see `benchmarks/baselines/README.md`).
+After significant changes, generate a fresh JSON report and store it under the
+appropriate branch or release directory:
 
 ```bash
-# Generate new baseline results
-zig build benchmarks -- --output=benchmarks/baselines/branches/local.json
-
-# Compare using the baseline comparator utilities
-zig test benchmarks/system/baseline_comparator.zig
+# Generate a new baseline report
+zig build benchmarks -- --output=benchmarks/baselines/branches/my_branch.json
 ```
 
 ---
@@ -317,7 +310,6 @@ zig build benchmarks -Denable-database=true -Denable-gpu=true
 
 ## See Also
 
-- [benchmarks/baselines/README.md](baselines/README.md) - Baseline format and workflow
-- [GPU Docs](../docs/content/gpu.html) - GPU-specific benchmarking
+- [docs/PERFORMANCE_BASELINE.md](../docs/PERFORMANCE_BASELINE.md) - Reference performance metrics
+- [docs/gpu.md](../docs/gpu.md) - GPU-specific benchmarking
 - [CLAUDE.md](../CLAUDE.md) - Development guidelines
->>>>>>> Incoming (Background Agent changes)

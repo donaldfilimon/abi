@@ -88,11 +88,10 @@ pub const ModelConfig = struct {
 // --- Router ---
 
 pub const router = struct {
-    pub const RoutingStrategy = @import("mod.zig").RoutingStrategy;
-    pub const TaskType = @import("mod.zig").TaskType;
-    pub const RouteResult = @import("mod.zig").RouteResult;
-    pub const RoutingCriteria = @import("mod.zig").RoutingCriteria;
-    pub const Router = @import("mod.zig").Router;
+    pub const RoutingStrategy_ = RoutingStrategy;
+    pub const TaskType_ = TaskType;
+    pub const RouteResult_ = RouteResult;
+    pub const Router_ = Router;
 };
 
 pub const RoutingStrategy = enum {
@@ -145,9 +144,9 @@ pub const Router = struct {
 // --- Ensemble ---
 
 pub const ensemble = struct {
-    pub const EnsembleMethod = @import("mod.zig").EnsembleMethod;
-    pub const EnsembleResult = @import("mod.zig").EnsembleResult;
-    pub const Ensemble = @import("mod.zig").Ensemble;
+    pub const EnsembleMethod_ = EnsembleMethod;
+    pub const EnsembleResult_ = EnsembleResult;
+    pub const Ensemble_ = Ensemble;
 };
 
 pub const EnsembleMethod = enum {
@@ -175,9 +174,9 @@ pub const Ensemble = struct {
 // --- Fallback ---
 
 pub const fallback = struct {
-    pub const FallbackManager = @import("mod.zig").FallbackManager;
-    pub const FallbackPolicy = @import("mod.zig").FallbackPolicy;
-    pub const HealthStatus = @import("mod.zig").HealthStatus;
+    pub const FallbackManager_ = FallbackManager;
+    pub const FallbackPolicy_ = FallbackPolicy;
+    pub const HealthStatus_ = HealthStatus;
 };
 
 pub const FallbackPolicy = enum {

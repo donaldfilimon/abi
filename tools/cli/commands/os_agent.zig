@@ -228,7 +228,7 @@ fn recoverUserFacingResponse(
     user_input: []const u8,
     previous_response: []const u8,
     allocator: std.mem.Allocator,
-) ![]u8 {
+) ![]const u8 {
     const repair_prompt = try std.fmt.allocPrint(
         allocator,
         "You produced a non-user-facing reply.\nUser message:\n{s}\n\n" ++
@@ -358,7 +358,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         defer allocator.free(input);
 
         // One-shot mode
-        var response = try tool_agent.processWithTools(input, allocator);
+        var response: []const u8 = try tool_agent.processWithTools(input, allocator);
         if (responseNeedsRecovery(response)) {
             const repaired = recoverUserFacingResponse(&tool_agent, msg, response, allocator) catch null;
             if (repaired) |fixed| {
@@ -425,7 +425,7 @@ fn runInteractive(
     defer io_backend.deinit();
 
     const io = io_backend.io();
-    var stdin_file = std.Io.File.stdin();
+    const stdin_file = std.Io.File.stdin();
     var buffer: [4096]u8 = undefined;
     var reader = stdin_file.reader(io, &buffer);
 
@@ -465,7 +465,7 @@ fn runInteractive(
         defer allocator.free(input);
 
         // Process with tools
-        var response = tool_agent.processWithTools(input, allocator) catch |err| {
+        var response: []const u8 = tool_agent.processWithTools(input, allocator) catch |err| {
             std.debug.print("Error: {t}\n", .{err});
             continue;
         };

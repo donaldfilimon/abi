@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 # FPGA Backend for ABI
 
 > **Status:** Phase 2 Complete (LLM Kernels Integrated)
@@ -355,4 +353,3 @@ v++ -l -t hw --platform xilinx_u250_gen3x16_xdma_4_1_202210_1 \
 - [Hybrid GPU-FPGA Architecture](../../../../ROADMAP.md)
 - [AMD Vitis Documentation](https://docs.xilinx.com/r/en-US/ug1393-vitis-application-acceleration)
 - [Intel oneAPI FPGA](https://www.intel.com/content/www/us/en/developer/tools/oneapi/fpga.html)
->>>>>>> Incoming (Background Agent changes)

@@ -27,6 +27,7 @@ pub const embed = @import("embed.zig");
 pub const train = @import("train/mod.zig");
 pub const convert = @import("convert.zig");
 pub const task = @import("task.zig");
+pub const editor = @import("editor.zig");
 pub const ui = @import("ui/mod.zig");
 pub const plugins = @import("plugins.zig");
 pub const profile = @import("profile.zig");
@@ -46,11 +47,12 @@ pub const brain = @import("brain.zig");
 /// Tuple of all registered command modules, in display order.
 /// Each module must export `pub const meta: command_mod.Meta` and `pub fn run`.
 const command_modules = .{
-    db,          agent,    bench,   gpu,         network, system_info,
-    multi_agent, os_agent, explore, simd,        config,  discord,
-    llm,         model,    embed,   train,       convert, task,
-    ui,          plugins,  profile, completions, status,  toolchain,
-    lsp,         mcp,      acp,     ralph,       gendocs, brain,
+    db,          agent,    bench,   gpu,     network,     system_info,
+    multi_agent, os_agent, explore, simd,    config,      discord,
+    llm,         model,    embed,   train,   convert,     task,
+    editor,      ui,       plugins, profile, completions, status,
+    toolchain,   lsp,      mcp,     acp,     ralph,       gendocs,
+    brain,
 };
 
 /// Command descriptors auto-derived from command module metadata.

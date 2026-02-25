@@ -305,7 +305,7 @@ abi --disable-ai system-info  # Disable feature for command
 abi/
 ├── src/
 │   ├── abi.zig           # Public API entry point
-│   ├── config.zig        # Unified configuration
+│   ├── config/           # Unified configuration
 │   ├── framework.zig     # Lifecycle orchestration
 │   ├── platform/         # Platform detection (OS, arch, CPU)
 │   │

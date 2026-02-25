@@ -9,8 +9,14 @@ pub const CircuitBreaker = struct {
 
 pub const CircuitConfig = struct {
     failure_threshold: u32 = 5,
+    success_threshold: u32 = 2,
     recovery_timeout_ms: u64 = 30_000,
+    timeout_ms: u64 = 60000,
     half_open_max_requests: u32 = 1,
+    half_open_max_calls: u32 = 3,
+    failure_window_ms: u64 = 0,
+    auto_half_open: bool = true,
+    on_state_change: ?*const fn ([]const u8, CircuitState, CircuitState) void = null,
 };
 
 pub const CircuitState = enum { closed, open, half_open };

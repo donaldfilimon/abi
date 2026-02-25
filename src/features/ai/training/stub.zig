@@ -701,9 +701,137 @@ pub fn calculateLearningRate(_: TrainingConfig, _: u64, _: f32) f32 {
     return 0;
 }
 
+// ── Missing top-level types for mod.zig parity ────────────────────────────
+
+pub const TrainingError = error{
+    InvalidConfiguration,
+    ConvergenceFailed,
+    NaNGradient,
+    InvalidCheckpoint,
+};
+
+pub const ModelState = struct {
+    allocator: std.mem.Allocator,
+    weights: []f32,
+    gradients: []f32,
+    momentum: ?[]f32,
+    velocity: ?[]f32,
+    step: u64,
+    name: []const u8,
+    pub fn init(_: std.mem.Allocator, _: usize, _: []const u8) !ModelState {
+        return error.FeatureDisabled;
+    }
+    pub fn deinit(_: *ModelState) void {}
+    pub fn zeroGradients(_: *ModelState) void {}
+    pub fn numParams(_: *const ModelState) usize {
+        return 0;
+    }
+};
+
+pub const SgdOptimizer = struct {
+    learning_rate: f32 = 0,
+    momentum: f32 = 0.9,
+    nesterov: bool = false,
+    pub fn init(_: std.mem.Allocator, _: *ModelState, _: TrainingConfig) !SgdOptimizer {
+        return error.FeatureDisabled;
+    }
+    pub fn deinit(_: *SgdOptimizer, _: std.mem.Allocator) void {}
+    pub fn step(_: *SgdOptimizer, _: *ModelState, _: f32, _: u64) void {}
+};
+
+pub const AdamOptimizer = struct {
+    learning_rate: f32 = 0,
+    beta1: f32 = 0.9,
+    beta2: f32 = 0.999,
+    epsilon: f32 = 1e-8,
+    t: u64 = 0,
+    pub fn init(_: std.mem.Allocator, _: *ModelState, _: TrainingConfig) !AdamOptimizer {
+        return error.FeatureDisabled;
+    }
+    pub fn deinit(_: *AdamOptimizer, _: std.mem.Allocator) void {}
+    pub fn step(_: *AdamOptimizer, _: *ModelState, _: f32, _: u64) void {}
+};
+
+pub const AdamWOptimizer = struct {
+    learning_rate: f32 = 0,
+    beta1: f32 = 0.9,
+    beta2: f32 = 0.999,
+    epsilon: f32 = 1e-8,
+    weight_decay: f32 = 0.01,
+    t: u64 = 0,
+    pub fn init(_: std.mem.Allocator, _: *ModelState, _: TrainingConfig) !AdamWOptimizer {
+        return error.FeatureDisabled;
+    }
+    pub fn deinit(_: *AdamWOptimizer, _: std.mem.Allocator) void {}
+    pub fn step(_: *AdamWOptimizer, _: *ModelState, _: f32, _: u64) void {}
+};
+
+pub const Optimizer = union(OptimizerType) {
+    sgd: SgdOptimizer,
+    adam: AdamOptimizer,
+    adamw: AdamWOptimizer,
+    pub fn init(_: std.mem.Allocator, _: *ModelState, _: TrainingConfig) !Optimizer {
+        return error.FeatureDisabled;
+    }
+    pub fn deinit(_: *Optimizer, _: std.mem.Allocator) void {}
+    pub fn step(_: *Optimizer, _: *ModelState, _: f32, _: u64) void {}
+    pub fn setLearningRate(_: *Optimizer, _: f32) void {}
+};
+
+// Self-learning re-exports
+pub const LearningExperience = struct {};
+pub const ExperienceBuffer = struct {};
+pub const RewardModel = struct {};
+pub const SelfLearningVisionTrainer = struct {};
+pub const DocumentTrainer = struct {};
+
 // ── Submodule re-exports ───────────────────────────────────────────────────
 
 const stub_root = @This();
+
+pub const checkpoint = struct {
+    pub const Checkpoint = stub_root.Checkpoint;
+    pub const CheckpointError = stub_root.CheckpointError;
+    pub const CheckpointStore = stub_root.CheckpointStore;
+    pub const CheckpointView = stub_root.CheckpointView;
+    pub const SaveError = stub_root.SaveError;
+    pub const LoadError = stub_root.LoadError;
+    pub const SaveLatestError = stub_root.SaveError;
+    pub const loadCheckpoint = stub_root.loadCheckpoint;
+    pub const saveCheckpoint = stub_root.saveCheckpoint;
+};
+
+pub const llm_checkpoint = struct {
+    pub const LlmCheckpoint = stub_root.LlmCheckpoint;
+    pub const LlmCheckpointView = stub_root.LlmCheckpointView;
+    pub const LoadError = stub_root.LoadError;
+    pub const SaveError = stub_root.SaveError;
+    pub const loadLlmCheckpoint = stub_root.loadLlmCheckpoint;
+    pub const saveLlmCheckpoint = stub_root.saveLlmCheckpoint;
+};
+
+pub const gradient = struct {
+    pub const GradientAccumulator = stub_root.GradientAccumulator;
+    pub const GradientError = stub_root.GradientError;
+};
+
+pub const loss = struct {
+    pub const CrossEntropyLoss = stub_root.CrossEntropyLoss;
+    pub const MSELoss = stub_root.MSELoss;
+    pub const FocalLoss = stub_root.FocalLoss;
+    pub const perplexity = stub_root.perplexity;
+    pub const klDivergence = stub_root.klDivergence;
+};
+
+pub const trainable_model = struct {
+    pub const TrainableModel = stub_root.TrainableModel;
+    pub const TrainableModelConfig = stub_root.TrainableModelConfig;
+    pub const TrainableWeights = stub_root.TrainableWeights;
+    pub const TrainableLayerWeights = stub_root.TrainableLayerWeights;
+    pub const ActivationCache = stub_root.ActivationCache;
+    pub const LoadError = stub_root.ModelLoadError;
+};
+
 pub const llm_trainer = struct {
     pub const TrainingReport = stub_root.TrainingReport;
     pub const TrainingStats = stub_root.TrainingStats;
@@ -711,9 +839,76 @@ pub const llm_trainer = struct {
     pub const LlamaTrainer = stub_root.LlamaTrainer;
     pub const trainLlm = stub_root.trainLlm;
 };
-pub const trainable_model = struct {
-    pub const TrainableModel = stub_root.TrainableModel;
-    pub const TrainableModelConfig = stub_root.TrainableModelConfig;
+
+pub const data_loader = struct {
+    pub const DataLoader = stub_root.DataLoader;
+    pub const TokenizedDataset = stub_root.TokenizedDataset;
+    pub const Batch = stub_root.Batch;
+    pub const BatchIterator = stub_root.BatchIterator;
+    pub const SequencePacker = stub_root.SequencePacker;
+    pub const InstructionSample = stub_root.InstructionSample;
+    pub const parseInstructionDataset = stub_root.parseInstructionDataset;
+};
+
+pub const wdbx_dataset = struct {
+    pub const WdbxTokenDataset = stub_root.WdbxTokenDataset;
+    pub const TokenBlock = stub_root.TokenBlock;
+    pub const encodeTokenBlock = stub_root.encodeTokenBlock;
+    pub const decodeTokenBlock = stub_root.decodeTokenBlock;
+    pub const readTokenBinFile = stub_root.readTokenBinFile;
+    pub const writeTokenBinFile = stub_root.writeTokenBinFile;
+};
+
+pub const lora = struct {
+    pub const LoraAdapter = stub_root.LoraAdapter;
+    pub const LoraConfig = stub_root.LoraConfig;
+    pub const LoraLayerAdapters = stub_root.LoraLayerAdapters;
+    pub const LoraModel = stub_root.LoraModel;
+};
+
+pub const mixed_precision = struct {
+    pub const MixedPrecisionConfig = stub_root.MixedPrecisionConfig;
+    pub const MixedPrecisionContext = stub_root.MixedPrecisionContext;
+    pub const LossScaler = stub_root.LossScaler;
+    pub const MasterWeights = stub_root.MasterWeights;
+    pub const fp32ToFp16 = stub_root.fp32ToFp16;
+    pub const fp16ToFp32 = stub_root.fp16ToFp32;
+};
+
+pub const logging = struct {
+    pub const TrainingLogger = stub_root.TrainingLogger;
+    pub const LoggerConfig = stub_root.TrainingLogConfig;
+    pub const Metric = stub_root.TrainingLogMetric;
+};
+
+pub const self_learning = struct {
+    pub const SelfLearningSystem = stub_root.SelfLearningSystem;
+    pub const SelfLearningConfig = stub_root.SelfLearningConfig;
+    pub const LearningExperience = stub_root.LearningExperience;
+    pub const ExperienceBuffer = stub_root.ExperienceBuffer;
+    pub const RewardModel = stub_root.RewardModel;
+    pub const VisionTrainer = stub_root.SelfLearningVisionTrainer;
+    pub const DocumentTrainer = stub_root.DocumentTrainer;
+    pub const ExperienceType = stub_root.ExperienceType;
+    pub const FeedbackType = stub_root.FeedbackType;
+    pub const DataKind = stub_root.DataKind;
+};
+
+pub const vision_trainer = struct {
+    pub const TrainableViTModel = stub_root.TrainableViTModel;
+    pub const TrainableViTConfig = stub_root.TrainableViTConfig;
+    pub const TrainableViTWeights = stub_root.TrainableViTWeights;
+    pub const TrainableViTLayerWeights = stub_root.TrainableViTLayerWeights;
+    pub const ViTActivationCache = stub_root.ViTActivationCache;
+    pub const VisionTrainingError = stub_root.VisionTrainingError;
+};
+
+pub const multimodal_trainer = struct {
+    pub const TrainableCLIPModel = stub_root.TrainableCLIPModel;
+    pub const CLIPTrainingConfig = stub_root.CLIPTrainingConfig;
+    pub const TrainableTextEncoderWeights = stub_root.TrainableTextEncoderWeights;
+    pub const TextTransformerLayerWeights = stub_root.TextTransformerLayerWeights;
+    pub const MultimodalTrainingError = stub_root.MultimodalTrainingError;
 };
 
 test {

@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -89,4 +87,3 @@ tags: []
 //! - [Training Guide](../../docs/content/ai.html)
 
 
->>>>>>> Incoming (Background Agent changes)

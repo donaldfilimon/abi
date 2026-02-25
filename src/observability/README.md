@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 # Observability Module
 
 Unified observability layer providing metrics collection, distributed tracing, and performance profiling.
@@ -267,4 +265,3 @@ All metric primitives are thread-safe:
 - Histogram bucket lookup is O(n) where n = number of bounds
 - No allocations during metric recording (only during registration)
 - Thread-safe atomic operations with minimal contention
->>>>>>> Incoming (Background Agent changes)

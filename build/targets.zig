@@ -53,6 +53,49 @@ pub const example_targets = [_]BuildTarget{
     .{ .name = "example-web-observability", .step_name = "run-web-observability", .description = "Run web + observability integration example", .source_path = "examples/web_observability.zig" },
 };
 
+// ── Cross-compilation target matrix ─────────────────────────────────────
+
+/// Descriptor for a cross-compilation verification target.
+pub const CrossTarget = struct {
+    name: []const u8,
+    arch: std.Target.Cpu.Arch,
+    os: std.Target.Os.Tag,
+    abi: std.Target.Abi = .none,
+};
+
+/// All platform targets the ABI module must compile for.
+/// Used by the `cross-check` build step to verify portability.
+pub const cross_check_targets = [_]CrossTarget{
+    // ── Linux variants ──────────────────────────────────────────────────
+    .{ .name = "linux-x86_64", .arch = .x86_64, .os = .linux, .abi = .gnu },
+    .{ .name = "linux-aarch64", .arch = .aarch64, .os = .linux, .abi = .gnu },
+    .{ .name = "linux-riscv64", .arch = .riscv64, .os = .linux, .abi = .gnu },
+    .{ .name = "linux-arm", .arch = .arm, .os = .linux, .abi = .gnueabihf },
+
+    // ── macOS ───────────────────────────────────────────────────────────
+    .{ .name = "macos-aarch64", .arch = .aarch64, .os = .macos },
+    .{ .name = "macos-x86_64", .arch = .x86_64, .os = .macos },
+
+    // ── Windows ─────────────────────────────────────────────────────────
+    .{ .name = "windows-x86_64", .arch = .x86_64, .os = .windows },
+    .{ .name = "windows-aarch64", .arch = .aarch64, .os = .windows },
+
+    // ── BSD family ──────────────────────────────────────────────────────
+    .{ .name = "freebsd-x86_64", .arch = .x86_64, .os = .freebsd },
+    .{ .name = "freebsd-aarch64", .arch = .aarch64, .os = .freebsd },
+    .{ .name = "netbsd-x86_64", .arch = .x86_64, .os = .netbsd },
+    .{ .name = "openbsd-x86_64", .arch = .x86_64, .os = .openbsd },
+    .{ .name = "dragonfly-x86_64", .arch = .x86_64, .os = .dragonfly },
+
+    // ── Mobile ──────────────────────────────────────────────────────────
+    .{ .name = "ios-aarch64", .arch = .aarch64, .os = .ios },
+    .{ .name = "android-aarch64", .arch = .aarch64, .os = .linux, .abi = .android },
+
+    // ── WASM / Freestanding ─────────────────────────────────────────────
+    .{ .name = "wasm32-freestanding", .arch = .wasm32, .os = .freestanding },
+    .{ .name = "wasm32-wasi", .arch = .wasm32, .os = .wasi },
+};
+
 /// Check whether a path exists within the build root.
 pub fn pathExists(b: *std.Build, path: []const u8) bool {
     b.build_root.handle.access(b.graph.io, path, .{}) catch return false;

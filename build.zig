@@ -93,6 +93,11 @@ pub fn build(b: *std.Build) void {
     if (b.args) |args| run_cli.addArgs(args);
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
+    const run_editor = b.addRunArtifact(exe);
+    run_editor.addArg("editor");
+    if (b.args) |args| run_editor.addArgs(args);
+    b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
+
     // ── Examples (table-driven) ─────────────────────────────────────────
     const examples_step = b.step("examples", "Build all examples");
     targets.buildTargets(b, &targets.example_targets, abi_module, build_opts, target, optimize, examples_step, false);
@@ -335,14 +340,57 @@ pub fn build(b: *std.Build) void {
     // ── WASM ────────────────────────────────────────────────────────────
     const check_wasm_step = wasm.addWasmBuild(b, options, abi_module, optimize);
 
+    // ── Cross-compilation platform matrix ────────────────────────────────
+    const cross_check_step = b.step(
+        "cross-check",
+        "Verify the abi module compiles for all supported platform targets",
+    );
+    const cross_targets = targets.cross_check_targets;
+    inline for (cross_targets) |ct| {
+        const cross_target = b.resolveTargetQuery(.{
+            .cpu_arch = ct.arch,
+            .os_tag = ct.os,
+            .abi = ct.abi,
+        });
+        var cross_opts = options;
+        // Disable features that cannot compile for non-native targets
+        cross_opts.enable_mobile = false;
+        if (ct.os == .wasi or ct.os == .freestanding or ct.os == .emscripten) {
+            cross_opts.enable_database = false;
+            cross_opts.enable_network = false;
+            cross_opts.enable_gpu = false;
+            cross_opts.enable_profiling = false;
+            cross_opts.enable_web = false;
+            cross_opts.enable_cloud = false;
+            cross_opts.enable_storage = false;
+            cross_opts.gpu_backends = &.{};
+        } else {
+            cross_opts.gpu_backends = &.{.stdgpu};
+        }
+        const cross_build_opts = modules.createBuildOptionsModule(b, cross_opts);
+        const cross_abi_mod = b.createModule(.{
+            .root_source_file = b.path("src/abi.zig"),
+            .target = cross_target,
+            .optimize = optimize,
+        });
+        cross_abi_mod.addImport("build_options", cross_build_opts);
+        const cross_lib = b.addLibrary(.{
+            .name = "cross-" ++ ct.name,
+            .root_module = cross_abi_mod,
+            .linkage = .static,
+        });
+        cross_check_step.dependOn(&cross_lib.step);
+    }
+
     // ── Verify-all ──────────────────────────────────────────────────────
-    const verify_all_step = b.step("verify-all", "full-check + consistency + feature-tests + examples + check-wasm");
+    const verify_all_step = b.step("verify-all", "full-check + consistency + feature-tests + examples + check-wasm + cross-check");
     verify_all_step.dependOn(full_check_step);
     verify_all_step.dependOn(consistency_step);
     if (feature_tests_step) |fts| verify_all_step.dependOn(fts);
     verify_all_step.dependOn(examples_step);
     if (check_wasm_step) |s| verify_all_step.dependOn(s);
     if (check_docs_step) |docs_step| verify_all_step.dependOn(docs_step);
+    verify_all_step.dependOn(cross_check_step);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────

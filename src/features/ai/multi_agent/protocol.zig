@@ -13,10 +13,6 @@
 const std = @import("std");
 const time = @import("../../../services/shared/time.zig");
 
-// ============================================================================
-// Types
-// ============================================================================
-
 /// The intent of a message in a conversation.
 pub const SpeechAct = enum {
     /// Propose a solution or approach.
@@ -151,10 +147,17 @@ pub const Conversation = struct {
     }
 
     /// Get all turns by a specific sender.
-    pub fn turnsBySender(self: *const Conversation, sender: []const u8) []const Turn {
-        // Return a view — caller iterates, no allocation needed
-        _ = sender;
-        return self.turns.items;
+    pub fn turnsBySender(self: *const Conversation, sender: []const u8) ![]const Turn {
+        var filtered = std.ArrayListUnmanaged(Turn).empty;
+        errdefer filtered.deinit(self.allocator);
+
+        for (self.turns.items) |turn| {
+            if (std.mem.eql(u8, turn.sender, sender)) {
+                try filtered.append(self.allocator, turn);
+            }
+        }
+
+        return filtered.toOwnedSlice(self.allocator);
     }
 
     /// Count turns by speech act type.
@@ -249,7 +252,7 @@ pub const ConversationManager = struct {
     pub fn init(allocator: std.mem.Allocator, default_max_turns: u32) ConversationManager {
         return .{
             .allocator = allocator,
-            .conversations = .{},
+            .conversations = .empty,
             .default_max_turns = default_max_turns,
         };
     }

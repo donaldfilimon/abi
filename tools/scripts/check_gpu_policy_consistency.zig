@@ -13,10 +13,17 @@ const target_cases = [_]TargetCase{
     .{ .name = "linux", .os = .linux, .abi = .none },
     .{ .name = "windows", .os = .windows, .abi = .none },
     .{ .name = "ios", .os = .ios, .abi = .none },
+    .{ .name = "tvos", .os = .tvos, .abi = .none },
     .{ .name = "android", .os = .linux, .abi = .android },
     .{ .name = "wasi/web", .os = .wasi, .abi = .none },
+    .{ .name = "emscripten/web", .os = .emscripten, .abi = .none },
+    .{ .name = "freebsd", .os = .freebsd, .abi = .none },
+    .{ .name = "netbsd", .os = .netbsd, .abi = .none },
+    .{ .name = "openbsd", .os = .openbsd, .abi = .none },
+    .{ .name = "dragonfly", .os = .dragonfly, .abi = .none },
+    .{ .name = "haiku", .os = .haiku, .abi = .none },
+    .{ .name = "illumos", .os = .illumos, .abi = .none },
     .{ .name = "freestanding", .os = .freestanding, .abi = .none },
-    .{ .name = "other", .os = .openbsd, .abi = .none },
 };
 
 pub fn main(_: std.process.Init) !void {

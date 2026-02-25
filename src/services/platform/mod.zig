@@ -76,10 +76,13 @@ pub fn getDescription() []const u8 {
             else => "macOS",
         },
         .ios => "iOS",
+        .tvos => "tvOS/watchOS",
         .freebsd => "FreeBSD",
         .netbsd => "NetBSD",
         .openbsd => "OpenBSD",
         .dragonfly => "DragonFly BSD",
+        .haiku => "Haiku",
+        .solaris => "Solaris/illumos",
         .wasm => "WebAssembly",
         .other => "Unknown Platform",
     };
@@ -100,15 +103,33 @@ pub fn isAppleSilicon() bool {
 /// Check if the current platform is a desktop OS
 pub fn isDesktop() bool {
     return switch (Os.current()) {
-        .windows, .linux, .macos, .freebsd, .netbsd, .openbsd, .dragonfly => true,
+        .windows, .linux, .macos, .freebsd, .netbsd, .openbsd, .dragonfly, .haiku, .solaris => true,
         else => false,
     };
 }
 
 /// Check if the current platform is mobile
 pub fn isMobile() bool {
-    return Os.current() == .ios;
+    return switch (Os.current()) {
+        .ios, .tvos => true,
+        else => false,
+    };
     // Note: Android detection would need additional checks via builtin.abi
+}
+
+/// Check if the current platform is a BSD variant
+pub fn isBsd() bool {
+    return Os.current().isBsd();
+}
+
+/// Check if the current platform is POSIX-compliant
+pub fn isPosix() bool {
+    return Os.current().isPosix();
+}
+
+/// Check if the current platform is an Apple OS
+pub fn isApple() bool {
+    return Os.current().isApple();
 }
 
 /// Check if the current platform is WebAssembly
@@ -163,6 +184,18 @@ test "platform category detection" {
     // At least one of these should be true on any platform
     const is_any = isDesktop() or isMobile() or isWasm();
     _ = is_any; // May be false on unusual platforms, that's ok
+}
+
+test "bsd detection" {
+    _ = isBsd();
+}
+
+test "posix detection" {
+    _ = isPosix();
+}
+
+test "apple detection" {
+    _ = isApple();
 }
 
 test {

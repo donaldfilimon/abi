@@ -1258,35 +1258,56 @@
         "signature": "pub fn hasSimd() bool",
         "doc": "Check if SIMD is available on the current platform",
         "kind": "fn",
-        "line": 89
+        "line": 92
       },
       {
         "anchor": "pub-fn-isapplesilicon-bool",
         "signature": "pub fn isAppleSilicon() bool",
         "doc": "Check if the current platform is Apple Silicon (macOS/iOS ARM64)",
         "kind": "fn",
-        "line": 94
+        "line": 97
       },
       {
         "anchor": "pub-fn-isdesktop-bool",
         "signature": "pub fn isDesktop() bool",
         "doc": "Check if the current platform is a desktop OS",
         "kind": "fn",
-        "line": 101
+        "line": 104
       },
       {
         "anchor": "pub-fn-ismobile-bool",
         "signature": "pub fn isMobile() bool",
         "doc": "Check if the current platform is mobile",
         "kind": "fn",
-        "line": 109
+        "line": 112
+      },
+      {
+        "anchor": "pub-fn-isbsd-bool",
+        "signature": "pub fn isBsd() bool",
+        "doc": "Check if the current platform is a BSD variant",
+        "kind": "fn",
+        "line": 121
+      },
+      {
+        "anchor": "pub-fn-isposix-bool",
+        "signature": "pub fn isPosix() bool",
+        "doc": "Check if the current platform is POSIX-compliant",
+        "kind": "fn",
+        "line": 126
+      },
+      {
+        "anchor": "pub-fn-isapple-bool",
+        "signature": "pub fn isApple() bool",
+        "doc": "Check if the current platform is an Apple OS",
+        "kind": "fn",
+        "line": 131
       },
       {
         "anchor": "pub-fn-iswasm-bool",
         "signature": "pub fn isWasm() bool",
         "doc": "Check if the current platform is WebAssembly",
         "kind": "fn",
-        "line": 115
+        "line": 136
       }
     ]
   },

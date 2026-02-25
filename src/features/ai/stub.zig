@@ -3,7 +3,24 @@
 const std = @import("std");
 const config_module = @import("../../core/config/mod.zig");
 
-pub const Error = error{ FeatureDisabled, ModelNotFound, InferenceFailed, InvalidConfig };
+pub const Error = error{
+    /// AI feature is disabled at compile time
+    AiDisabled,
+    /// LLM sub-feature is disabled
+    LlmDisabled,
+    /// Embeddings sub-feature is disabled
+    EmbeddingsDisabled,
+    /// Agents sub-feature is disabled
+    AgentsDisabled,
+    /// Training sub-feature is disabled
+    TrainingDisabled,
+    /// Model not found
+    ModelNotFound,
+    /// Inference failed
+    InferenceFailed,
+    /// Invalid configuration
+    InvalidConfig,
+};
 
 // Sub-module stubs (each has its own stub.zig)
 pub const core = @import("core/stub.zig");
@@ -40,64 +57,39 @@ pub const self_improve = @import("self_improve.zig");
 pub const gpu_agent = @import("agents/stub.zig");
 pub const discovery = @import("explore/stub.zig");
 
-// Compatibility re-exports
-pub const Agent = agent.Agent;
-pub const MultiAgentCoordinator = multi_agent.Coordinator;
-pub const ToolRegistry = tools.ToolRegistry;
-pub const DiscordTools = tools.DiscordTools;
-pub const registerDiscordTools = tools.registerDiscordTools;
-pub const ToolAugmentedAgent = tool_agent.ToolAugmentedAgent;
-pub const TrainingConfig = training.TrainingConfig;
-pub const TrainingResult = training.TrainingResult;
-pub const LlmTrainingConfig = training.LlmTrainingConfig;
-pub const LlamaTrainer = training.LlamaTrainer;
-pub const OptimizerType = training.OptimizerType;
-pub const LearningRateSchedule = training.LearningRateSchedule;
-pub const LoraConfig = training.LoraConfig;
-pub const LoraModel = training.LoraModel;
-pub const TrainableModel = training.TrainableModel;
-pub const trainable_model = training.trainable_model;
-pub const TrainableModelConfig = training.trainable_model.TrainableModelConfig;
-pub const TrainableViTModel = training.TrainableViTModel;
-pub const TrainableViTConfig = training.TrainableViTConfig;
-pub const TrainableCLIPModel = training.TrainableCLIPModel;
-pub const CLIPTrainingConfig = training.CLIPTrainingConfig;
-pub const TokenizedDataset = training.TokenizedDataset;
-pub const parseInstructionDataset = training.parseInstructionDataset;
-pub const WdbxTokenDataset = database.WdbxTokenDataset;
-pub const loadCheckpoint = training.loadCheckpoint;
-pub const train = training.train;
-pub const trainWithResult = training.trainWithResult;
-pub const readTokenBinFile = database.readTokenBinFile;
-pub const writeTokenBinFile = database.writeTokenBinFile;
-pub const tokenBinToWdbx = database.tokenBinToWdbx;
-pub const wdbxToTokenBin = database.wdbxToTokenBin;
-pub const TaskType = orchestration.TaskType;
-pub const StreamToken = streaming.StreamToken;
-pub const LlmConfig = llm.InferenceConfig;
-pub const SelfImprover = self_improve.SelfImprover;
+// NOTE(v0.4.0): Flat compatibility re-exports removed.
+// Use canonical sub-module paths instead:
+//   abi.ai.agent.Agent          (was abi.ai.Agent)
+//   abi.ai.multi_agent.Coordinator (was abi.ai.MultiAgentCoordinator)
+//   abi.ai.tools.ToolRegistry   (was abi.ai.ToolRegistry)
+//   abi.ai.training.*           (was abi.ai.TrainingConfig, etc.)
+//   abi.ai.orchestration.TaskType (was abi.ai.TaskType)
+//   abi.ai.streaming.StreamToken (was abi.ai.StreamToken)
+//   abi.ai.llm.InferenceConfig  (was abi.ai.LlmConfig)
+//   abi.ai.self_improve.SelfImprover (was abi.ai.SelfImprover)
+//   abi.ai.database.*           (was abi.ai.WdbxTokenDataset, etc.)
 
 // Context
 pub const Context = struct {
     pub const SubFeature = enum { llm, embeddings, agents, training, personas };
     pub fn init(_: std.mem.Allocator, _: config_module.AiConfig) Error!*Context {
-        return error.FeatureDisabled;
+        return error.AiDisabled;
     }
     pub fn deinit(_: *Context) void {}
     pub fn getLlm(_: *Context) Error!*llm.Context {
-        return error.FeatureDisabled;
+        return error.AiDisabled;
     }
     pub fn getEmbeddings(_: *Context) Error!*embeddings.Context {
-        return error.FeatureDisabled;
+        return error.AiDisabled;
     }
     pub fn getAgents(_: *Context) Error!*agents.Context {
-        return error.FeatureDisabled;
+        return error.AiDisabled;
     }
     pub fn getTraining(_: *Context) Error!*training.Context {
-        return error.FeatureDisabled;
+        return error.AiDisabled;
     }
     pub fn getPersonas(_: *Context) Error!*personas.Context {
-        return error.FeatureDisabled;
+        return error.AiDisabled;
     }
     pub fn isSubFeatureEnabled(_: *Context, _: SubFeature) bool {
         return false;
@@ -118,10 +110,10 @@ pub const Context = struct {
         return .{};
     }
     pub fn addModelPath(_: *Context, _: []const u8) !void {
-        return error.FeatureDisabled;
+        return error.AiDisabled;
     }
     pub fn addModelWithSize(_: *Context, _: []const u8, _: u64) !void {
-        return error.FeatureDisabled;
+        return error.AiDisabled;
     }
     pub fn clearDiscoveredModels(_: *Context) void {}
 };
@@ -136,12 +128,12 @@ pub fn isInitialized() bool {
     return false;
 }
 pub fn init(_: std.mem.Allocator) Error!void {
-    return error.FeatureDisabled;
+    return error.AiDisabled;
 }
 pub fn deinit() void {}
 
-pub fn createAgent(_: std.mem.Allocator, _: []const u8) !Agent {
-    return error.FeatureDisabled;
+pub fn createAgent(_: std.mem.Allocator, _: []const u8) !agent.Agent {
+    return error.AiDisabled;
 }
 
 test {

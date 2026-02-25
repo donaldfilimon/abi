@@ -259,7 +259,7 @@ pub const GpuMonitor = struct {
 
             // Vary memory usage
             const mem_base: u64 = device.total_memory / 3;
-            const mem_variation = (self.update_counter * 1024 * 1024 * 100) % (device.total_memory / 4);
+            const mem_variation = (self.update_counter *% 1024 *% 1024 *% 100) % (device.total_memory / 4);
             device.used_memory = mem_base + mem_variation;
 
             // Update history
@@ -308,13 +308,15 @@ pub const GpuMonitor = struct {
     }
 
     fn renderHeader(self: *GpuMonitor, row: u16, col: u16, width: u16) !void {
+        if (width < 4) return; // Too narrow to render
+
         // Position cursor
         try self.setCursorPosition(row, col);
 
         // Draw top border
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.tl);
-        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width -| 2);
         try self.term.write(widgets.box.tr);
         try self.term.write(self.theme.reset);
 
@@ -348,13 +350,15 @@ pub const GpuMonitor = struct {
     }
 
     fn renderDevice(self: *GpuMonitor, device: GpuDeviceStatus, history: ?*const MemoryHistory, row: u16, col: u16, width: u16) !u16 {
+        if (width < 4) return 0; // Too narrow to render
+
         var current_row = row;
 
         // Device separator
         try self.setCursorPosition(current_row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.lsep);
-        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width -| 2);
         try self.term.write(widgets.box.rsep);
         try self.term.write(self.theme.reset);
         current_row += 1;
@@ -506,11 +510,13 @@ pub const GpuMonitor = struct {
     }
 
     fn renderSchedulerStats(self: *GpuMonitor, row: u16, col: u16, width: u16) !void {
+        if (width < 4) return; // Too narrow to render
+
         // Separator
         try self.setCursorPosition(row, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.lsep);
-        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width -| 2);
         try self.term.write(widgets.box.rsep);
         try self.term.write(self.theme.reset);
 
@@ -570,7 +576,7 @@ pub const GpuMonitor = struct {
         try self.setCursorPosition(row + 3, col);
         try self.term.write(self.theme.border);
         try self.term.write(widgets.box.bl);
-        try render_utils.writeRepeat(self.term, widgets.box.h, width - 2);
+        try render_utils.writeRepeat(self.term, widgets.box.h, width -| 2);
         try self.term.write(widgets.box.br);
         try self.term.write(self.theme.reset);
     }

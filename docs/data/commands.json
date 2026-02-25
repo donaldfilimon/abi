@@ -111,6 +111,16 @@
     ]
   },
   {
+    "name": "editor",
+    "description": "Open an inline Cursor-like terminal text editor",
+    "aliases": [
+      "edit"
+    ],
+    "subcommands": [
+      "help"
+    ]
+  },
+  {
     "name": "embed",
     "description": "Generate embeddings from text (openai, mistral, cohere, ollama)",
     "aliases": [],

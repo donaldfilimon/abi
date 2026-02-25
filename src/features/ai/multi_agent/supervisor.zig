@@ -77,6 +77,16 @@ pub const FailureEvent = struct {
     attempt_number: u32,
 };
 
+/// Scope of agents affected by a supervisor decision.
+pub const AffectedScope = enum {
+    /// Only the failed agent is affected (one_for_one).
+    single,
+    /// All agents in the group are affected (one_for_all).
+    all,
+    /// The failed agent and all agents registered after it (rest_for_one).
+    dependents,
+};
+
 /// Decision made by the supervisor in response to a failure.
 pub const SupervisorDecision = struct {
     action: SupervisorAction,
@@ -86,6 +96,8 @@ pub const SupervisorDecision = struct {
     reason: []const u8,
     /// Delay before executing the action (nanoseconds).
     delay_ns: u64,
+    /// Scope of agents affected by this decision.
+    affected_scope: AffectedScope = .single,
 };
 
 /// Configuration for the supervisor.
@@ -161,8 +173,8 @@ pub const Supervisor = struct {
         return .{
             .allocator = allocator,
             .config = config,
-            .agent_failures = .{},
-            .attempt_counts = .{},
+            .agent_failures = .empty,
+            .attempt_counts = .empty,
             .total_failures = 0,
             .decision_log = .empty,
             .event_bus = null,
@@ -278,12 +290,20 @@ pub const Supervisor = struct {
     }
 
     fn decide(self: *const Supervisor, event: FailureEvent, attempts: u32) SupervisorDecision {
+        // Determine scope from restart strategy
+        const scope: AffectedScope = switch (self.config.restart_strategy) {
+            .one_for_one => .single,
+            .one_for_all => .all,
+            .rest_for_one => .dependents,
+        };
+
         if (self.total_failures >= self.config.max_total_failures) {
             return .{
                 .action = .escalate,
                 .replacement_agent = "",
                 .reason = "max total failures exceeded",
                 .delay_ns = 0,
+                .affected_scope = scope,
             };
         }
 
@@ -294,12 +314,14 @@ pub const Supervisor = struct {
                     .replacement_agent = "",
                     .reason = "max retries exhausted for transient error",
                     .delay_ns = 0,
+                    .affected_scope = scope,
                 },
                 .persistent, .fatal => .{
                     .action = .escalate,
                     .replacement_agent = "",
                     .reason = "max retries exhausted for non-transient error",
                     .delay_ns = 0,
+                    .affected_scope = scope,
                 },
             };
         }
@@ -307,15 +329,26 @@ pub const Supervisor = struct {
         const action = event.severity.suggestedAction();
         const delay = if (action == .retry) self.retryDelay(attempts) else 0;
 
+        // For restart actions with one_for_all/rest_for_one, use .restart to
+        // signal the broader scope; for one_for_one keep the suggested action.
+        const final_action = if (scope != .single and action == .retry)
+            SupervisorAction.restart
+        else
+            action;
+
         return .{
-            .action = action,
+            .action = final_action,
             .replacement_agent = "",
             .reason = switch (event.severity) {
-                .transient => "transient error, retrying with backoff",
+                .transient => if (scope != .single)
+                    "transient error, restarting affected agents"
+                else
+                    "transient error, retrying with backoff",
                 .persistent => "persistent error, reassigning to different agent",
                 .fatal => "fatal error, escalating",
             },
             .delay_ns = delay,
+            .affected_scope = scope,
         };
     }
 };

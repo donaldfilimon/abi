@@ -17,11 +17,11 @@
 | [mcp](mcp.md) | 1 | 1 | 100% |
 | [connectors](connectors.md) | 5 | 5 | 100% |
 | [lsp](lsp.md) | 0 | 0 | 100% |
-| [platform](platform.md) | 9 | 9 | 100% |
+| [platform](platform.md) | 12 | 12 | 100% |
 | [shared](shared.md) | 25 | 25 | 100% |
 | [tasks](tasks.md) | 19 | 19 | 100% |
 
-**Overall: 212/212 symbols documented (100%)**
+**Overall: 215/215 symbols documented (100%)**
 
 ---
 

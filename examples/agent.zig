@@ -19,10 +19,8 @@ pub fn main(_: std.process.Init) !void {
     }
 
     var builder = abi.Framework.builder(allocator);
-
-    var framework = try builder
-        .withAi(.{ .agents = .{} })
-        .build();
+    _ = builder.withAiDefaults();
+    var framework = try builder.build();
     defer framework.deinit();
 
     var agent = abi.ai.agent.Agent.init(allocator, .{

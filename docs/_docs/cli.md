@@ -23,7 +23,7 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 ## Command Tree
 
-Top-level commands: **30** | aliases: **9** | structural subcommands: **169**
+Top-level commands: **31** | aliases: **10** | structural subcommands: **170**
 
 | Command | Aliases | Description | Subcommands |
 | --- | --- | --- | --- |
@@ -36,6 +36,7 @@ Top-level commands: **30** | aliases: **9** | structural subcommands: **169**
 | `convert` | — | Dataset conversion tools (tokenbin, text, jsonl, wdbx) | dataset, model, embeddings |
 | `db` | ls | Database operations (add, query, stats, optimize, backup, restore) | add, query, stats, optimize, backup, restore, serve, help |
 | `discord` | — | Discord bot operations (status, guilds, send, commands) | status, info, guilds, send, commands, webhook, channel, help |
+| `editor` | edit | Open an inline Cursor-like terminal text editor | help |
 | `embed` | — | Generate embeddings from text (openai, mistral, cohere, ollama) | — |
 | `explore` | — | Search and explore codebase | — |
 | `gendocs` | — | Generate API docs (runs zig build gendocs) | — |

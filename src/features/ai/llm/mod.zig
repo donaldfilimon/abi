@@ -10,9 +10,9 @@
 //! - KV caching for efficient autoregressive generation
 //! - GPU acceleration with CPU fallback
 //!
-//! Usage:
+//! Usage (public API):
 //! ```zig
-//! const llm = @import("llm");
+//! const llm = @import("abi").ai.llm;
 //!
 //! var model = try llm.Model.load(allocator, "model.gguf");
 //! defer model.deinit();
@@ -27,7 +27,6 @@ const connectors = @import("../../../services/connectors/mod.zig");
 const build_options = @import("build_options");
 const config_module = @import("../../../core/config/mod.zig");
 
-// Core modules (local imports)
 pub const io = @import("io/mod.zig");
 pub const tensor = @import("tensor/mod.zig");
 pub const tokenizer = @import("tokenizer/mod.zig");
@@ -40,7 +39,6 @@ pub const providers = @import("providers/mod.zig");
 pub const wdbx_fusion = @import("wdbx_fusion.zig");
 pub const unified_orchestrator = @import("unified_orchestrator/mod.zig");
 
-// Re-exports for convenience
 pub const MappedFile = io.MappedFile;
 pub const GgufFile = io.GgufFile;
 pub const GgufHeader = io.GgufHeader;
@@ -62,7 +60,6 @@ pub const Generator = generation.Generator;
 pub const Sampler = generation.Sampler;
 pub const SamplerConfig = generation.SamplerConfig;
 
-// Streaming exports
 pub const StreamingGenerator = generation.StreamingGenerator;
 pub const StreamingResponse = generation.StreamingResponse;
 pub const StreamingConfig = generation.StreamingConfig;
@@ -74,11 +71,9 @@ pub const TokenEvent = generation.TokenEvent;
 pub const SSEFormatter = generation.SSEFormatter;
 pub const collectStreamingResponse = generation.collectStreamingResponse;
 
-// WDBX Fusion exports
 pub const WdbxFusion = wdbx_fusion.WdbxFusion;
 pub const FusionConfig = wdbx_fusion.FusionConfig;
 
-// Parallel inference exports
 pub const ParallelExecutor = parallel.ParallelExecutor;
 
 /// LLM-specific errors
@@ -274,11 +269,9 @@ pub const Engine = struct {
         self.stats.generated_tokens = 0;
 
         if (self.loaded_model) |m| {
-            // Encode prompt to tokens
             const prompt_tokens = try m.encode(prompt);
             defer self.allocator.free(prompt_tokens);
 
-            // Generate output tokens
             const output_tokens = try m.generate(prompt_tokens, .{
                 .max_tokens = self.config.max_new_tokens,
                 .temperature = self.config.temperature,
@@ -287,7 +280,6 @@ pub const Engine = struct {
             });
             defer self.allocator.free(output_tokens);
 
-            // Decode tokens to text
             const decoded = try m.decode(output_tokens);
             defer self.allocator.free(decoded);
 
@@ -344,12 +336,10 @@ pub const Engine = struct {
 
         const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
 
-        // Encode prompt to tokens
         const tok = if (m.tokenizer) |*t| t else return LlmError.TokenizationFailed;
         const prompt_tokens = try tok.encode(self.allocator, prompt);
         defer self.allocator.free(prompt_tokens);
 
-        // Create generator with streaming enabled
         var gen = m.generator(.{
             .max_tokens = self.config.max_new_tokens,
             .temperature = self.config.temperature,
@@ -358,11 +348,9 @@ pub const Engine = struct {
         });
         defer gen.deinit();
 
-        // Generate with per-token streaming callback
         const output_tokens = try gen.generateTokensStreaming(prompt_tokens, tok, callback);
         defer self.allocator.free(output_tokens);
 
-        // Update stats
         self.stats.generated_tokens += @intCast(output_tokens.len);
     }
 
@@ -396,14 +384,9 @@ pub const Engine = struct {
     ) !StreamingResponse {
         const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
 
-        // Get tokenizer
         const tok = if (m.tokenizer) |*t| t else return LlmError.TokenizationFailed;
-
-        // Encode prompt to tokens
         const prompt_tokens = try tok.encode(self.allocator, prompt);
-        // Note: prompt_tokens ownership transfers to caller, must be freed
 
-        // Create streaming response with model and config
         return StreamingResponse.init(
             self.allocator,
             m,
@@ -429,12 +412,10 @@ pub const Engine = struct {
         var response = try self.createStreamingResponse(prompt, stream_config);
         defer response.deinit();
 
-        // Iterate through all tokens
         while (try response.next()) |event| {
             if (event.is_final) break;
         }
 
-        // Update engine stats
         const stats = response.getStats();
         self.stats.generated_tokens += stats.tokens_generated;
         self.stats.prefill_time_ns += stats.prefill_time_ns;
@@ -445,7 +426,7 @@ pub const Engine = struct {
 
     /// Tokenize text
     pub fn tokenize(self: *Engine, allocator: std.mem.Allocator, text: []const u8) ![]u32 {
-        var m = self.loaded_model orelse return LlmError.InvalidModelFormat;
+        const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
         const tokens = try m.encode(text);
         defer self.allocator.free(tokens);
 
@@ -456,7 +437,7 @@ pub const Engine = struct {
 
     /// Detokenize tokens
     pub fn detokenize(self: *Engine, allocator: std.mem.Allocator, tokens: []const u32) ![]u8 {
-        var m = self.loaded_model orelse return LlmError.InvalidModelFormat;
+        const m = self.loaded_model orelse return LlmError.InvalidModelFormat;
         const text = try m.decode(tokens);
         defer self.allocator.free(text);
         return allocator.dupe(u8, text);

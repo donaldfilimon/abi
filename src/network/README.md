@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -59,4 +57,3 @@ tags: []
 //! - [API Reference](../../API_REFERENCE.md)
 
 
->>>>>>> Incoming (Background Agent changes)

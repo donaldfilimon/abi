@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -55,4 +53,3 @@ tags: []
 //! - [Shared Module](../README.md)
 
 
->>>>>>> Incoming (Background Agent changes)

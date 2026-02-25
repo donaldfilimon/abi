@@ -213,3 +213,160 @@ test "default backends: android target uses vulkan then opengles" {
     try std.testing.expectEqual(GpuBackend.opengles, buffer[1]);
     try std.testing.expectEqual(GpuBackend.stdgpu, buffer[2]);
 }
+
+test "default backends: linux uses cuda then vulkan then opengl then stdgpu" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .linux, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 4), count);
+    try std.testing.expectEqual(GpuBackend.cuda, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.vulkan, buffer[1]);
+    try std.testing.expectEqual(GpuBackend.opengl, buffer[2]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[3]);
+}
+
+test "default backends: freebsd uses vulkan then opengl then stdgpu" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .freebsd, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 3), count);
+    try std.testing.expectEqual(GpuBackend.vulkan, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.opengl, buffer[1]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[2]);
+}
+
+test "default backends: netbsd uses opengl then stdgpu" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .netbsd, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 2), count);
+    try std.testing.expectEqual(GpuBackend.opengl, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[1]);
+}
+
+test "default backends: openbsd uses opengl then stdgpu" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .openbsd, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 2), count);
+    try std.testing.expectEqual(GpuBackend.opengl, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[1]);
+}
+
+test "default backends: dragonfly uses opengl then stdgpu" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .dragonfly, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 2), count);
+    try std.testing.expectEqual(GpuBackend.opengl, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[1]);
+}
+
+test "default backends: haiku uses opengl then stdgpu" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .haiku, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 2), count);
+    try std.testing.expectEqual(GpuBackend.opengl, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[1]);
+}
+
+test "default backends: illumos uses opengl then stdgpu" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .illumos, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 2), count);
+    try std.testing.expectEqual(GpuBackend.opengl, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[1]);
+}
+
+test "default backends: ios uses metal then opengles then stdgpu" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .ios, .none, true, false, false);
+    try std.testing.expectEqual(@as(usize, 3), count);
+    try std.testing.expectEqual(GpuBackend.metal, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.opengles, buffer[1]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[2]);
+}
+
+test "default backends: wasi web target uses webgpu then webgl2" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    // Web backends require both enable_gpu and enable_web
+    appendAutoBackends(&buffer, &count, &seen, true, true, .wasi, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 2), count);
+    try std.testing.expectEqual(GpuBackend.webgpu, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.webgl2, buffer[1]);
+}
+
+test "default backends: freestanding falls back to stdgpu only" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .freestanding, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 1), count);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer[0]);
+}
+
+test "default backends: gpu disabled returns empty list" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, false, false, .linux, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 0), count);
+}
+
+test "default backends: tvos classified as ios" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, false, .tvos, .none, true, false, false);
+    try std.testing.expectEqual(@as(usize, 3), count);
+    try std.testing.expectEqual(GpuBackend.metal, buffer[0]);
+}
+
+test "default backends: emscripten classified as web" {
+    var buffer: [backend_count]GpuBackend = undefined;
+    var seen = [_]bool{false} ** backend_count;
+    var count: usize = 0;
+
+    appendAutoBackends(&buffer, &count, &seen, true, true, .emscripten, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 2), count);
+    try std.testing.expectEqual(GpuBackend.webgpu, buffer[0]);
+    try std.testing.expectEqual(GpuBackend.webgl2, buffer[1]);
+}
+
+test "default backends: illumos maps same as solaris policy" {
+    // illumos is the only Solaris-family OS in Zig's target list.
+    // Verify it gets the solaris GPU policy (opengl + stdgpu).
+    var buffer_a: [backend_count]GpuBackend = undefined;
+    var seen_a = [_]bool{false} ** backend_count;
+    var count_a: usize = 0;
+
+    appendAutoBackends(&buffer_a, &count_a, &seen_a, true, false, .illumos, .none, false, false, false);
+    try std.testing.expectEqual(@as(usize, 2), count_a);
+    try std.testing.expectEqual(GpuBackend.opengl, buffer_a[0]);
+    try std.testing.expectEqual(GpuBackend.stdgpu, buffer_a[1]);
+}

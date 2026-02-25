@@ -786,4 +786,22 @@ fn installSignalHandlers() void {
     };
     posix.sigaction(.TERM, &action, null);
     posix.sigaction(.INT, &action, null);
+
+    // Install SIGWINCH handler for terminal resize events.
+    // Uses SA.RESTART so that interrupted syscalls (like read) are
+    // automatically restarted rather than returning EINTR.
+    const winch_action: posix.Sigaction = .{
+        .handler = .{ .handler = &winchHandler },
+        .mask = posix.sigemptyset(),
+        .flags = posix.SA.RESTART,
+    };
+    posix.sigaction(.WINCH, &winch_action, null);
+}
+
+/// Flag set by SIGWINCH handler, polled by the event loop.
+pub var resize_pending: bool = false;
+
+/// Signal-safe SIGWINCH handler — just sets a flag for the event loop to poll.
+fn winchHandler(_: posix.SIG) callconv(.c) void {
+    resize_pending = true;
 }

@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "Tools Directory"
 tags: [tools, cli, utilities]
@@ -36,4 +34,3 @@ zig build benchmarks
 ---
 
 See also: `benchmarks/README.md`, `docs/README.md`.
->>>>>>> Incoming (Background Agent changes)

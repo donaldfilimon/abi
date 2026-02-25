@@ -72,9 +72,68 @@ pub const ErrorContext = struct {
     operation: OperationContext,
     http_status: ?u16 = null,
     endpoint: ?[]const u8 = null,
+    model: ?[]const u8 = null,
     message: ?[]const u8 = null,
-    retry_count: ?u32 = null,
+    retry_attempt: ?u32 = null,
     max_retries: ?u32 = null,
+
+    pub fn apiError(
+        err: AgentError,
+        backend: AgentBackend,
+        endpoint_val: []const u8,
+        status: ?u16,
+        model_val: ?[]const u8,
+    ) ErrorContext {
+        return .{
+            .@"error" = err,
+            .backend = backend,
+            .operation = .api_request,
+            .http_status = status,
+            .endpoint = endpoint_val,
+            .model = model_val,
+        };
+    }
+
+    pub fn configError(err: AgentError, message_val: []const u8) ErrorContext {
+        return .{
+            .@"error" = err,
+            .backend = .echo,
+            .operation = .configuration_validation,
+            .message = message_val,
+        };
+    }
+
+    pub fn generationError(
+        err: AgentError,
+        backend: AgentBackend,
+        model_val: []const u8,
+        message_val: ?[]const u8,
+    ) ErrorContext {
+        return .{
+            .@"error" = err,
+            .backend = backend,
+            .operation = .response_generation,
+            .model = model_val,
+            .message = message_val,
+        };
+    }
+
+    pub fn retryError(
+        err: AgentError,
+        backend: AgentBackend,
+        endpoint_val: []const u8,
+        attempt: u32,
+        max_attempts: u32,
+    ) ErrorContext {
+        return .{
+            .@"error" = err,
+            .backend = backend,
+            .operation = .api_request,
+            .endpoint = endpoint_val,
+            .retry_attempt = attempt,
+            .max_retries = max_attempts,
+        };
+    }
 
     pub fn format(self: ErrorContext, writer: anytype) !void {
         _ = self;
@@ -133,8 +192,16 @@ pub const Message = struct {
 pub const Agent = struct {
     allocator: std.mem.Allocator,
     config: AgentConfig,
-    history: std.ArrayListUnmanaged(Message) = .{},
+    history: std.ArrayListUnmanaged(Message) = .empty,
     total_tokens_used: u64 = 0,
+
+    pub const AgentStats = struct {
+        history_length: usize,
+        user_messages: usize,
+        assistant_messages: usize,
+        total_characters: usize,
+        total_tokens_used: u64,
+    };
 
     pub fn init(allocator: std.mem.Allocator, config: AgentConfig) AgentError!Agent {
         _ = config;
@@ -148,12 +215,59 @@ pub const Agent = struct {
         return self.history.items.len;
     }
 
+    pub fn historySlice(self: *const Agent) []const Message {
+        return self.history.items;
+    }
+
+    pub fn historyStrings(_: *const Agent, _: std.mem.Allocator) ?[]const []const u8 {
+        return &.{};
+    }
+
+    pub fn clearHistory(_: *Agent) void {}
+
     pub fn chat(_: *Agent, _: []const u8, _: std.mem.Allocator) AgentError![]const u8 {
         return error.ConnectorNotAvailable;
     }
 
     pub fn process(_: *Agent, _: []const u8, _: std.mem.Allocator) AgentError![]const u8 {
         return error.ConnectorNotAvailable;
+    }
+
+    pub fn name(self: *const Agent) []const u8 {
+        return self.config.name;
+    }
+
+    pub fn setTemperature(_: *Agent, _: f32) AgentError!void {
+        return error.ConnectorNotAvailable;
+    }
+
+    pub fn setTopP(_: *Agent, _: f32) AgentError!void {
+        return error.ConnectorNotAvailable;
+    }
+
+    pub fn setMaxTokens(_: *Agent, _: u32) AgentError!void {
+        return error.ConnectorNotAvailable;
+    }
+
+    pub fn setBackend(_: *Agent, _: AgentBackend) void {}
+
+    pub fn setModel(_: *Agent, _: []const u8) !void {}
+
+    pub fn setHistoryEnabled(_: *Agent, _: bool) void {}
+
+    pub fn getTotalTokensUsed(self: *const Agent) u64 {
+        return self.total_tokens_used;
+    }
+
+    pub fn getStats(self: *const Agent) Agent.AgentStats {
+        _ = self;
+        return .{
+            .history_length = 0,
+            .user_messages = 0,
+            .assistant_messages = 0,
+            .total_characters = 0,
+            .total_tokens_used = 0,
+        };
     }
 };
 
@@ -244,7 +358,7 @@ pub const GpuAwareResponse = struct {
     error_message: ?[]const u8 = null,
 };
 
-pub const AgentStats = struct {
+pub const GpuAgentStats = struct {
     total_requests: u64 = 0,
     gpu_accelerated: u64 = 0,
     cpu_fallback: u64 = 0,
@@ -256,7 +370,7 @@ pub const AgentStats = struct {
     failed_requests: u64 = 0,
     total_gpu_memory_mb: u64 = 0,
 
-    pub fn updateConfidence(self: *AgentStats, new_confidence: f32) void {
+    pub fn updateConfidence(self: *GpuAgentStats, new_confidence: f32) void {
         if (self.gpu_accelerated == 0) {
             self.avg_scheduling_confidence = new_confidence;
         } else {
@@ -266,7 +380,7 @@ pub const AgentStats = struct {
         }
     }
 
-    pub fn updateLatency(self: *AgentStats, latency: u64) void {
+    pub fn updateLatency(self: *GpuAgentStats, latency: u64) void {
         if (self.total_requests == 0) {
             self.avg_latency_ms = @floatFromInt(latency);
         } else {
@@ -276,19 +390,19 @@ pub const AgentStats = struct {
         }
     }
 
-    pub fn successRate(self: AgentStats) f32 {
+    pub fn successRate(self: GpuAgentStats) f32 {
         if (self.total_requests == 0) return 1.0;
         const successful = self.total_requests - self.failed_requests;
         return @as(f32, @floatFromInt(successful)) / @as(f32, @floatFromInt(self.total_requests));
     }
 
-    pub fn gpuUtilizationRate(self: AgentStats) f32 {
+    pub fn gpuUtilizationRate(self: GpuAgentStats) f32 {
         if (self.total_requests == 0) return 0.0;
         return @as(f32, @floatFromInt(self.gpu_accelerated)) /
             @as(f32, @floatFromInt(self.total_requests));
     }
 
-    pub fn avgTokensPerRequest(self: AgentStats) f32 {
+    pub fn avgTokensPerRequest(self: GpuAgentStats) f32 {
         if (self.total_requests == 0) return 0.0;
         return @as(f32, @floatFromInt(self.total_tokens)) /
             @as(f32, @floatFromInt(self.total_requests));
@@ -312,7 +426,7 @@ pub const LearningStatsInfo = struct {
 
 pub const GpuAgent = struct {
     allocator: std.mem.Allocator,
-    stats: AgentStats = .{},
+    stats: GpuAgentStats = .{},
 
     pub fn init(_: std.mem.Allocator) !*@This() {
         return error.FeatureDisabled;
@@ -334,7 +448,7 @@ pub const GpuAgent = struct {
         return error.FeatureDisabled;
     }
 
-    pub fn getStats(self: *const @This()) AgentStats {
+    pub fn getStats(self: *const @This()) GpuAgentStats {
         return self.stats;
     }
 
@@ -384,9 +498,111 @@ pub const Context = struct {
     }
 };
 
-pub const Tool = struct {};
-pub const ToolResult = struct {};
-pub const ToolRegistry = struct {};
+pub const ParameterType = enum {
+    string,
+    integer,
+    boolean,
+    array,
+    object,
+    number,
+};
+
+pub const Parameter = struct {
+    name: []const u8,
+    type: ParameterType,
+    required: bool = false,
+    description: []const u8 = "",
+    enum_values: ?[]const []const u8 = null,
+};
+
+pub const ToolExecutionError = error{
+    OutOfMemory,
+    InvalidArguments,
+    ExecutionFailed,
+    Timeout,
+    Cancelled,
+    PermissionDenied,
+    FileNotFound,
+    ToolNotFound,
+    InvalidState,
+};
+
+pub const ToolResult = struct {
+    allocator: std.mem.Allocator,
+    success: bool,
+    output: []const u8,
+    error_message: ?[]const u8,
+    metadata: ?std.json.ObjectMap,
+
+    pub fn init(allocator: std.mem.Allocator, success_val: bool, output_val: []const u8) ToolResult {
+        return .{
+            .allocator = allocator,
+            .success = success_val,
+            .output = output_val,
+            .error_message = null,
+            .metadata = null,
+        };
+    }
+
+    pub fn fromError(allocator: std.mem.Allocator, err: []const u8) ToolResult {
+        return .{
+            .allocator = allocator,
+            .success = false,
+            .output = "",
+            .error_message = err,
+            .metadata = null,
+        };
+    }
+
+    pub fn deinit(self: *ToolResult) void {
+        if (self.metadata) |*obj| {
+            obj.deinit();
+        }
+    }
+};
+
+pub const Tool = struct {
+    name: []const u8,
+    description: []const u8,
+    parameters: []const Parameter,
+    execute: *const fn (*ToolContext, std.json.Value) ToolExecutionError!ToolResult,
+};
+
+pub const ToolContext = struct {
+    allocator: std.mem.Allocator,
+    working_directory: []const u8,
+    environment: ?*const std.StringHashMapUnmanaged([]const u8),
+    cancellation: ?*const std.atomic.Value(bool),
+};
+
+pub const ToolRegistry = struct {
+    allocator: std.mem.Allocator,
+    tools: std.StringHashMapUnmanaged(*const Tool),
+
+    pub fn init(allocator: std.mem.Allocator) ToolRegistry {
+        return .{ .allocator = allocator, .tools = .{} };
+    }
+
+    pub fn deinit(self: *ToolRegistry) void {
+        self.tools.deinit(self.allocator);
+    }
+
+    pub fn register(self: *ToolRegistry, t: *const Tool) !void {
+        try self.tools.put(self.allocator, t.name, t);
+    }
+
+    pub fn get(self: *ToolRegistry, name_val: []const u8) ?*const Tool {
+        return self.tools.get(name_val);
+    }
+
+    pub fn count(self: *const ToolRegistry) usize {
+        return self.tools.count();
+    }
+
+    pub fn contains(self: *const ToolRegistry, name_val: []const u8) bool {
+        return self.tools.contains(name_val);
+    }
+};
 
 pub fn isEnabled() bool {
     return false;

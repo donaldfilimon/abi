@@ -397,27 +397,31 @@ pub const BrainDashboardPanel = struct {
         const theme = self.theme;
         const half_w = width / 2;
         const third_h = height / 3;
+        const bottom_h = height - third_h * 2; // Use remaining height for bottom row
         const row0 = start_row;
         const row1 = start_row + third_h;
         const row2 = start_row + third_h * 2;
+        // Use start_col=0 since renderTrainingMode is called from render()
+        // which already accounts for start_col in the caller's coordinate space.
+        const start_col: u16 = 0;
 
         // Row 1: Training Status | Optimizer
-        try self.renderPanel(term, theme, "Training", row0, 0, half_w, third_h);
-        try self.renderTrainingStatus(data, row0 + 1, 1, half_w - 2, third_h - 2);
-        try self.renderPanel(term, theme, "Optimizer", row0, half_w, half_w, third_h);
-        try self.renderOptimizerStatus(data, row0 + 1, half_w + 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "Training", row0, start_col, half_w, third_h);
+        try self.renderTrainingStatus(data, row0 + 1, start_col + 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "Optimizer", row0, start_col + half_w, half_w, third_h);
+        try self.renderOptimizerStatus(data, row0 + 1, start_col + half_w + 1, half_w - 2, third_h - 2);
 
         // Row 2: Throughput | Loss / Accuracy
-        try self.renderPanel(term, theme, "Throughput", row1, 0, half_w, third_h);
-        try self.renderThroughput(data, row1 + 1, 1, half_w - 2, third_h - 2);
-        try self.renderPanel(term, theme, "Loss / Accuracy", row1, half_w, half_w, third_h);
-        try self.renderRewardHistory(data, row1 + 1, half_w + 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "Throughput", row1, start_col, half_w, third_h);
+        try self.renderThroughput(data, row1 + 1, start_col + 1, half_w - 2, third_h - 2);
+        try self.renderPanel(term, theme, "Loss / Accuracy", row1, start_col + half_w, half_w, third_h);
+        try self.renderRewardHistory(data, row1 + 1, start_col + half_w + 1, half_w - 2, third_h - 2);
 
-        // Row 3: Perplexity | GPU
-        try self.renderPanel(term, theme, "Perplexity", row2, 0, half_w, third_h);
-        try self.renderSimilarity(data, row2 + 1, 1, half_w - 2, third_h - 2);
-        try self.renderPanel(term, theme, "GPU", row2, half_w, half_w, third_h);
-        try self.renderAttention(data, row2 + 1, half_w + 1, half_w - 2, third_h - 2);
+        // Row 3: Perplexity | GPU (uses remaining height)
+        try self.renderPanel(term, theme, "Perplexity", row2, start_col, half_w, bottom_h);
+        try self.renderSimilarity(data, row2 + 1, start_col + 1, half_w - 2, bottom_h -| 2);
+        try self.renderPanel(term, theme, "GPU", row2, start_col + half_w, half_w, bottom_h);
+        try self.renderAttention(data, row2 + 1, start_col + half_w + 1, half_w - 2, bottom_h -| 2);
     }
 
     fn renderTrainingStatus(self: *const BrainDashboardPanel, data: *const DashboardData, row: u16, col: u16, _: u16, _: u16) !void {

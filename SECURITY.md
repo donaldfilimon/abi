@@ -14,7 +14,8 @@ tags: [security, policy]
 
 ### [CVE-NOT-ASSIGNED] Path Traversal in Backup/Restore Endpoints (2025-12-27)
 
-**Severity**: CRITICAL (CWE-22: Improper Limitation of a Pathname to a Restricted Directory)
+**Severity**: CRITICAL (CWE-22: Impro
+Limitation of a Pathname to a Restricted Directory)
 
 **Affected Versions**: All versions prior to 0.2.0
 

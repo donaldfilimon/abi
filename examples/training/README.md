@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "README"
 tags: []
@@ -331,4 +329,3 @@ defer lora_model.deinit();
 - [AI Module Guide](../../docs/content/ai.html) - AI subsystem details
 - [Documentation Site](https://donaldfilimon.github.io/abi/) - Guides and reference
 
->>>>>>> Incoming (Background Agent changes)

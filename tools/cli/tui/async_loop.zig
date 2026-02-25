@@ -6,7 +6,8 @@
 const std = @import("std");
 const abi = @import("abi");
 const shared_time = abi.shared.time;
-const Terminal = @import("terminal.zig").Terminal;
+const terminal_mod = @import("terminal.zig");
+const Terminal = terminal_mod.Terminal;
 const events = @import("events.zig");
 const RingBuffer = @import("ring_buffer.zig").RingBuffer;
 
@@ -289,6 +290,13 @@ pub const AsyncLoop = struct {
     fn processResizeEvents(self: *AsyncLoop) !void {
         if (!self.config.auto_resize or !self.has_last_size) return;
 
+        // Check the SIGWINCH flag for immediate resize detection (POSIX only).
+        // On non-POSIX platforms, we still fall through to the size-polling path below.
+        if (terminal_mod.resize_pending) {
+            terminal_mod.resize_pending = false;
+            // Flag was set — force a size re-read below.
+        }
+
         const size = self.terminal.size();
         if (size.rows == self.last_rows and size.cols == self.last_cols) {
             return;
@@ -429,7 +437,7 @@ test "RingBuffer push and latest" {
 }
 
 test "MetricsTracker initialization" {
-    var tracker = MetricsTracker.init();
+    const tracker = MetricsTracker.init();
     var cpu_buf: [120]f32 = undefined;
     var mem_buf: [120]f32 = undefined;
     _ = tracker.getCpuHistory(&cpu_buf);

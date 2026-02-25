@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "GEMINI"
 tags: [ai, agents, gemini]
@@ -53,7 +51,7 @@ The codebase uses a domain-driven modular structure with unified configuration a
 ```
 src/
 ├── abi.zig              # Public API entry point: init(), shutdown(), version()
-├── config.zig           # Unified configuration system (single Config struct)
+├── config/              # Unified configuration system (Config + Builder)
 ├── config/              # Modular configuration system
 ├── framework.zig        # Framework orchestration with builder pattern
 ├── platform/            # Platform detection (NEW: mod.zig, detection.zig, cpu.zig)
@@ -194,4 +192,3 @@ try cache.storeToken("session", 1, "Hello", .local, hash);
 * **Format Specifiers** – Always use `{t}` for printing errors and enums.
 
 ★ *Tip:* After modifications run `zig fmt .` followed by `zig build test --summary all` to verify nothing broke.
->>>>>>> Incoming (Background Agent changes)

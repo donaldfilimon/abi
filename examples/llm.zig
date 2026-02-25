@@ -9,7 +9,7 @@
 const std = @import("std");
 const abi = @import("abi");
 
-pub fn main(init: std.process.Init.Minimal) !void {
+pub fn main(init: std.process.Init) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
@@ -23,9 +23,11 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     // Initialize framework
     var builder = abi.Framework.builder(allocator);
-    var framework = try builder
-        .withLlm(.{})
-        .build();
+    _ = builder.withAiDefaults();
+    var framework = builder.build() catch |err| {
+        std.debug.print("Framework initialization failed: {t}\n", .{err});
+        return err;
+    };
     defer framework.deinit();
 
     // === Model Loading Demo ===
@@ -33,13 +35,11 @@ pub fn main(init: std.process.Init.Minimal) !void {
 
     // Check for model file argument or use default
     const model_path = blk: {
-        var args_it = init.args.iterateAllocator(allocator) catch |err| {
+        const args = init.minimal.args.toSlice(init.arena.allocator()) catch |err| {
             std.debug.print("Failed to read args: {t}\n", .{err});
             break :blk "model.gguf";
         };
-        defer args_it.deinit();
-        _ = args_it.next(); // Skip executable name.
-        if (args_it.next()) |arg| break :blk arg[0..arg.len];
+        if (args.len > 1) break :blk args[1];
         break :blk "model.gguf";
     };
 

@@ -11,13 +11,50 @@ pub const Os = enum {
     netbsd,
     openbsd,
     dragonfly,
+    haiku,
+    solaris,
     ios,
+    tvos,
     wasm,
     other,
 
     /// Get current OS at comptime
     pub fn current() Os {
         return mapOs(builtin.target.os.tag);
+    }
+
+    /// Check if this is a BSD-family OS
+    pub fn isBsd(self: Os) bool {
+        return switch (self) {
+            .freebsd, .netbsd, .openbsd, .dragonfly => true,
+            else => false,
+        };
+    }
+
+    /// Check if this is a POSIX-compliant Unix
+    pub fn isPosix(self: Os) bool {
+        return switch (self) {
+            .linux,
+            .macos,
+            .freebsd,
+            .netbsd,
+            .openbsd,
+            .dragonfly,
+            .haiku,
+            .solaris,
+            .ios,
+            .tvos,
+            => true,
+            else => false,
+        };
+    }
+
+    /// Check if this is an Apple platform
+    pub fn isApple(self: Os) bool {
+        return switch (self) {
+            .macos, .ios, .tvos => true,
+            else => false,
+        };
     }
 };
 
@@ -80,12 +117,6 @@ pub const PlatformInfo = struct {
     }
 };
 
-pub const platform = struct {
-    pub const PlatformInfo = Self.PlatformInfo;
-    pub const Os = Self.Os;
-    pub const Arch = Self.Arch;
-};
-
 fn mapOs(os_tag: std.Target.Os.Tag) Os {
     return switch (os_tag) {
         .windows => .windows,
@@ -95,8 +126,11 @@ fn mapOs(os_tag: std.Target.Os.Tag) Os {
         .netbsd => .netbsd,
         .openbsd => .openbsd,
         .dragonfly => .dragonfly,
+        .haiku => .haiku,
+        .illumos => .solaris,
         .ios => .ios,
-        .wasi => .wasm,
+        .tvos, .watchos, .visionos => .tvos,
+        .wasi, .emscripten => .wasm,
         else => .other,
     };
 }
@@ -146,6 +180,48 @@ test "PlatformInfo fields are consistent" {
     const info = PlatformInfo.detect();
     try std.testing.expectEqual(Os.current(), info.os);
     try std.testing.expectEqual(Arch.current(), info.arch);
+}
+
+test "Os.isBsd returns true for BSD variants" {
+    try std.testing.expect(Os.freebsd.isBsd());
+    try std.testing.expect(Os.netbsd.isBsd());
+    try std.testing.expect(Os.openbsd.isBsd());
+    try std.testing.expect(Os.dragonfly.isBsd());
+    try std.testing.expect(!Os.linux.isBsd());
+    try std.testing.expect(!Os.windows.isBsd());
+    try std.testing.expect(!Os.macos.isBsd());
+}
+
+test "Os.isPosix returns true for Unix-like systems" {
+    try std.testing.expect(Os.linux.isPosix());
+    try std.testing.expect(Os.macos.isPosix());
+    try std.testing.expect(Os.freebsd.isPosix());
+    try std.testing.expect(Os.haiku.isPosix());
+    try std.testing.expect(Os.solaris.isPosix());
+    try std.testing.expect(!Os.windows.isPosix());
+    try std.testing.expect(!Os.wasm.isPosix());
+}
+
+test "Os.isApple returns true for Apple platforms" {
+    try std.testing.expect(Os.macos.isApple());
+    try std.testing.expect(Os.ios.isApple());
+    try std.testing.expect(Os.tvos.isApple());
+    try std.testing.expect(!Os.linux.isApple());
+    try std.testing.expect(!Os.windows.isApple());
+}
+
+test "mapOs handles extended OS tags" {
+    // Verify illumos maps to solaris (Zig has .illumos, no .solaris tag)
+    try std.testing.expectEqual(Os.solaris, mapOs(.illumos));
+    // Verify Apple variants
+    try std.testing.expectEqual(Os.tvos, mapOs(.tvos));
+    try std.testing.expectEqual(Os.tvos, mapOs(.watchos));
+    try std.testing.expectEqual(Os.tvos, mapOs(.visionos));
+    // Verify web variants
+    try std.testing.expectEqual(Os.wasm, mapOs(.wasi));
+    try std.testing.expectEqual(Os.wasm, mapOs(.emscripten));
+    // Verify haiku
+    try std.testing.expectEqual(Os.haiku, mapOs(.haiku));
 }
 
 test {

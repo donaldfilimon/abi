@@ -1,5 +1,3 @@
-<<<<<<< Current (Your changes)
-=======
 ---
 title: "PLAN"
 tags: [planning, sprint, development]
@@ -137,4 +135,3 @@ Potential focus areas for upcoming work:
 
 - [ROADMAP.md](ROADMAP.md) - Full project roadmap
 - [CLAUDE.md](CLAUDE.md) - Development guidelines
->>>>>>> Incoming (Background Agent changes)

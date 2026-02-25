@@ -84,6 +84,80 @@ pub fn applyWindowsLinks(
 }
 
 // =============================================================================
+// BSD System Library Linking
+// =============================================================================
+
+/// Link BSD system libraries based on selected GPU backends.
+/// FreeBSD, NetBSD, OpenBSD, and DragonFly share a similar library layout
+/// to Linux but may have different package paths.
+/// - Vulkan: libvulkan (primarily FreeBSD)
+/// - OpenGL: libGL
+pub fn applyBsdLinks(
+    mod: *std.Build.Module,
+    os_tag: std.Target.Os.Tag,
+    gpu_backends: []const GpuBackend,
+) void {
+    switch (os_tag) {
+        .freebsd, .netbsd, .openbsd, .dragonfly => {},
+        else => return,
+    }
+
+    mod.linkSystemLibrary("c", .{});
+    mod.linkSystemLibrary("m", .{});
+
+    if (hasBackend(gpu_backends, .vulkan)) {
+        mod.linkSystemLibrary("vulkan", .{});
+    }
+    if (hasBackend(gpu_backends, .opengl)) {
+        mod.linkSystemLibrary("GL", .{});
+    }
+}
+
+// =============================================================================
+// Solaris/illumos System Library Linking
+// =============================================================================
+
+/// Link Solaris/illumos system libraries.
+/// - OpenGL: libGL (via Mesa)
+pub fn applySolarisLinks(
+    mod: *std.Build.Module,
+    os_tag: std.Target.Os.Tag,
+    gpu_backends: []const GpuBackend,
+) void {
+    switch (os_tag) {
+        .illumos => {},
+        else => return,
+    }
+
+    mod.linkSystemLibrary("c", .{});
+    mod.linkSystemLibrary("m", .{});
+    mod.linkSystemLibrary("socket", .{});
+    mod.linkSystemLibrary("nsl", .{});
+
+    if (hasBackend(gpu_backends, .opengl)) {
+        mod.linkSystemLibrary("GL", .{});
+    }
+}
+
+// =============================================================================
+// Haiku System Library Linking
+// =============================================================================
+
+/// Link Haiku system libraries.
+/// - OpenGL: libGL (native Haiku OpenGL kit)
+pub fn applyHaikuLinks(
+    mod: *std.Build.Module,
+    os_tag: std.Target.Os.Tag,
+    gpu_backends: []const GpuBackend,
+) void {
+    if (os_tag != .haiku) return;
+
+    if (hasBackend(gpu_backends, .opengl)) {
+        mod.linkSystemLibrary("GL", .{});
+    }
+}
+
+// =============================================================================
 // Unified Linker Entry Point
 // =============================================================================
 
@@ -97,6 +171,9 @@ pub fn applyAllPlatformLinks(
     applyFrameworkLinks(mod, os_tag, gpu_metal);
     applyLinuxLinks(mod, os_tag, gpu_backends);
     applyWindowsLinks(mod, os_tag, gpu_backends);
+    applyBsdLinks(mod, os_tag, gpu_backends);
+    applySolarisLinks(mod, os_tag, gpu_backends);
+    applyHaikuLinks(mod, os_tag, gpu_backends);
 }
 
 // =============================================================================

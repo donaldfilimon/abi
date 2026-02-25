@@ -38,31 +38,49 @@ Get a human-readable platform description string
 
 ### <a id="pub-fn-hassimd-bool"></a>`pub fn hasSimd() bool`
 
-<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L89)
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L92)
 
 Check if SIMD is available on the current platform
 
 ### <a id="pub-fn-isapplesilicon-bool"></a>`pub fn isAppleSilicon() bool`
 
-<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L94)
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L97)
 
 Check if the current platform is Apple Silicon (macOS/iOS ARM64)
 
 ### <a id="pub-fn-isdesktop-bool"></a>`pub fn isDesktop() bool`
 
-<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L101)
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L104)
 
 Check if the current platform is a desktop OS
 
 ### <a id="pub-fn-ismobile-bool"></a>`pub fn isMobile() bool`
 
-<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L109)
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L112)
 
 Check if the current platform is mobile
 
+### <a id="pub-fn-isbsd-bool"></a>`pub fn isBsd() bool`
+
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L121)
+
+Check if the current platform is a BSD variant
+
+### <a id="pub-fn-isposix-bool"></a>`pub fn isPosix() bool`
+
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L126)
+
+Check if the current platform is POSIX-compliant
+
+### <a id="pub-fn-isapple-bool"></a>`pub fn isApple() bool`
+
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L131)
+
+Check if the current platform is an Apple OS
+
 ### <a id="pub-fn-iswasm-bool"></a>`pub fn isWasm() bool`
 
-<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L115)
+<sup>**fn**</sup> | [source](../../src/services/platform/mod.zig#L136)
 
 Check if the current platform is WebAssembly
 
