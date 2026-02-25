@@ -38,6 +38,11 @@ const build_options = @import("build_options");
 
 pub const aggregation = @import("aggregation.zig");
 pub const messaging = @import("messaging.zig");
+pub const roles = @import("roles.zig");
+pub const blackboard = @import("blackboard.zig");
+pub const workflow = @import("workflow.zig");
+pub const supervisor = @import("supervisor.zig");
+pub const protocol = @import("protocol.zig");
 
 pub const Error = error{
     AgentDisabled, // Underlying agents module disabled
