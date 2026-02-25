@@ -1,8 +1,13 @@
+---
+title: "SECURITY"
+tags: [security, policy]
+---
 # Security Policy
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/Security-Priority-critical?style=for-the-badge" alt="Security Priority"/>
-  <img src="https://img.shields.io/badge/Reporting-GitHub_Advisories-blue?style=for-the-badge" alt="Reporting"/>
+  <img src="https://img.shields.io/badge/Reporting-GitHub_Issues-blue?style=for-the-badge" alt="Reporting"/>
 </p>
 
 ## Security Advisories
@@ -14,7 +19,7 @@
 **Affected Versions**: All versions prior to 0.2.0
 
 **Vulnerability**:
-The database backup and restore HTTP endpoints in `src/features/database/unified.zig` did not validate user-provided filenames. An attacker could craft requests with path traversal sequences (e.g., `../`) to read arbitrary files on the server filesystem or write backup files to arbitrary locations.
+The database backup and restore HTTP endpoints in `src/database/unified.zig` did not validate user-provided filenames. An attacker could craft requests with path traversal sequences (e.g., `../`) to read arbitrary files on the server filesystem or write backup files to arbitrary locations.
 
 **Attack Scenario**:
 ```http
@@ -26,7 +31,7 @@ GET /api/database/backup?file=../../malicious_backup.db
 ```
 
 **Fix**:
-- Added path validation functions in `src/services/shared/utils/fs/mod.zig`
+- Added path validation functions in `src/shared/utils/fs/mod.zig`
 - Restricted backup/restore operations to the `backups/` directory only
 - Added validation to reject:
   - Path traversal sequences (`..`)
@@ -47,9 +52,9 @@ Upgrade to version 0.2.0 or later. If unable to upgrade immediately:
 - Use reverse proxies to block requests with `..` in parameters
 
 **References**:
-- Fix in `src/features/database/unified.zig:68-95`
-- Fix in `src/services/shared/utils/fs/mod.zig:1-90`
-- Fix in `src/features/database/http.zig:48`
+- Fix in `src/database/unified.zig:68-95`
+- Fix in `src/shared/utils/fs/mod.zig:1-90`
+- Fix in `src/database/http.zig:48`
 
 ## Supported Versions
 | Version | Supported |
@@ -66,31 +71,13 @@ Include reproduction steps, impact assessment, and suggested fixes.
 - Use the latest supported version.
 - Keep Zig updated.
 - Validate untrusted inputs and sandbox untrusted code.
-- **Secrets Management**: Use `src/services/shared/security/secrets.zig` for all credential handling. Secrets are encrypted in memory, audited on access, and never logged. Configure `SecretsConfig` with an appropriate `env_prefix` and enable `audit_logging`.
+- **Secrets Management**: Use `src/shared/security/secrets.zig` for all credential handling. Secrets are encrypted in memory, audited on access, and never logged. Configure `SecretsConfig` with an appropriate `env_prefix` and enable `audit_logging`.
 - Avoid printing secret values or their hashes to logs; the `SecretsManager` ensures decryption occurs only in controlled code paths.
-
-## Security-Sensitive v2 Surfaces
-- Input parsing and wire formats:
-  - `src/services/shared/utils/abix_serialize.zig`
-  - `src/services/shared/utils/structured_error.zig`
-  - Review for bounds checks, size limits, and error-path consistency on untrusted input.
-- Hash-table behavior under adversarial keys:
-  - `src/services/shared/utils/swiss_map.zig`
-  - Validate collision behavior and avoid unbounded attacker-controlled growth.
-- Runtime concurrency primitives:
-  - `src/services/runtime/concurrency/channel.zig`
-  - `src/services/runtime/scheduling/thread_pool.zig`
-  - `src/services/runtime/scheduling/dag_pipeline.zig`
-  - Confirm bounded queueing/backpressure where exposed to external request volume.
 
 ## Additional Details
 The CLI is minimal by design; most deployments should embed ABI as a library.
 
 ## See Also
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Maintainer contact information and development workflow
-- [AGENTS.md](AGENTS.md) - Baseline coding and testing conventions
-- [CLAUDE.md](CLAUDE.md) - Architectural context for coding agents
-
-## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.
+- [Contributing](docs/content/contributing.html) - Maintainer contact information
+- [TODO.md](TODO.md) - Pending implementations (see [Claude‑Code Massive TODO](TODO.md#claude-code-massive-todo))

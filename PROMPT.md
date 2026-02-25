@@ -1,4 +1,13 @@
+<<<<<<< Current (Your changes)
 # Ralph Task
+=======
+---
+title: "PROMPT"
+tags: [requirements, standards, kpi, architecture]
+---
+# ABI Framework: Engineering Requirements & Standards
+> **Codebase Status:** Synced with repository as of 2026-01-31.
+>>>>>>> Incoming (Background Agent changes)
 
 <!-- Replace this with your task description. -->
 

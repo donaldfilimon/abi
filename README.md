@@ -2,23 +2,21 @@
 
 # ABI Framework
 
-<img src="https://img.shields.io/badge/Zig-0.16.0--dev.2623%2B27eec9bd6-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2637+6a9510c0e"/>
+<img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
 <img src="https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge" alt="Status"/>
 <img src="https://img.shields.io/github/license/donaldfilimon/abi?style=for-the-badge" alt="License"/>
 
 <br/>
 
 <img src="https://img.shields.io/badge/build-passing-brightgreen?logo=github-actions&logoColor=white" alt="Build"/>
-<img src="https://img.shields.io/badge/tests-1290_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
+<img src="https://img.shields.io/badge/tests-787_passing-brightgreen?logo=checkmarx&logoColor=white" alt="Tests"/>
 <img src="https://img.shields.io/badge/coverage-85%25-yellow?logo=codecov&logoColor=white" alt="Coverage"/>
 
 <br/><br/>
 
-**A modern Zig 0.16.0-dev.2637+6a9510c0e framework for AI services, vector search, and high-performance systems**
+**A modern Zig 0.16 framework for AI services, vector search, and high-performance systems**
 
 [Quick Start](#-quick-start) · [Documentation](https://donaldfilimon.github.io/abi/) · [Examples](#-examples) · [Contributing](CONTRIBUTING.md)
-
-**Contents:** [Why ABI?](#why-abi) · [Highlights](#highlights) · [Quick Start](#-quick-start) · [Examples](#-examples) · [CLI Reference](#cli-reference) · [Architecture](#architecture) · [Feature Flags](#feature-flags) · [Documentation](#documentation)
 
 <br/>
 
@@ -44,7 +42,7 @@ Built with Zig for zero-cost abstractions, comptime optimization, and bare-metal
 <td width="33%" valign="top">
 
 ### Production Ready
-Battle-tested with 1296 tests (1290 passing, 6 skip), comprehensive error handling, graceful degradation, and circuit breakers for resilience.
+Battle-tested with 787+ tests, comprehensive error handling, graceful degradation, and circuit breakers for resilience.
 
 </td>
 <td width="33%" valign="top">
@@ -64,11 +62,11 @@ Enable only what you need. Every feature is toggleable at compile-time with zero
 |:--------|:------------|:------:|
 | **AI Runtime** | LLM inference with Llama-CPP parity, agent runtime, training pipelines | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Vector Database** | WDBX with HNSW/IVF-PQ indexing, hybrid search, real-time analytics | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **GPU Acceleration** | CUDA, Vulkan, Metal, WebGPU, TPU (stub), FPGA; multi-threaded CPU fallback | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **GPU Acceleration** | CUDA, Vulkan, Metal (Accelerate/AMX), WebGPU, FPGA with unified API | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Compute Engine** | Work-stealing scheduler, NUMA-aware, lock-free primitives | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Distributed Network** | Raft consensus, node discovery, load balancing | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Observability** | Metrics, tracing, profiling, circuit breakers | ![Ready](https://img.shields.io/badge/-Ready-success) |
-| **Interactive CLI** | UI launcher + dashboards (db/gpu/model/network/bench/brain/streaming) | ![Ready](https://img.shields.io/badge/-Ready-success) |
+| **Interactive CLI** | TUI launcher, GPU dashboard, training monitor | ![Ready](https://img.shields.io/badge/-Ready-success) |
 | **Streaming API** | SSE/WebSocket inference, circuit breakers, session recovery | ![Ready](https://img.shields.io/badge/-Ready-success) |
 
 ---
@@ -84,37 +82,11 @@ zig build
 zig build run -- --help
 ```
 
-Ensure your `zig` matches the version in `.zigversion`.
-
-```bash
-# Keep zvm current
-zvm upgrade
-
-# Developer convenience (latest dev toolchain)
-zvm use master
-
-# Reproducible/local CI parity (pinned in repo)
-PINNED_ZIG="$(cat .zigversion)"
-zvm install "$PINNED_ZIG"
-zvm use "$PINNED_ZIG"
-
-# Verify active zig matches the repository pin
-zig version
-cat .zigversion
-
-# Diagnose PATH/version drift (recommended before running quality gates)
-zig build toolchain-doctor
-zig run tools/scripts/toolchain_doctor.zig
-
-# If `which zig` is not ~/.zvm/bin/zig, fix PATH precedence first:
-export PATH="$HOME/.zvm/bin:$PATH"
-```
-
 ### Requirements
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | `0.16.0-dev.2637+6a9510c0e` or newer | Yes |
+| Zig | 0.16.x | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
@@ -184,7 +156,7 @@ pub fn main() !void {
     defer _ = gpa.deinit();
 
     // Create a 384-dimensional vector database
-    var db = try abi.database.open(allocator, "vectors");
+    var db = try abi.wdbx.createDatabase(allocator, .{ .dimension = 384 });
     defer db.deinit();
 
     // Insert vectors
@@ -272,7 +244,7 @@ pub fn main() !void {
 # Core Commands
 abi --help                    # Show all commands
 abi system-info               # System and feature status
-abi ui launch                 # Interactive TUI launcher
+abi tui                       # Interactive TUI launcher
 
 # Database Operations
 abi db stats                  # Database statistics
@@ -293,20 +265,8 @@ abi gpu summary               # Quick status
 
 # Training
 abi train run --epochs 10     # Start training
-abi train auto               # Auto-train Abbey/Aviva/Abi with default data
-abi train auto --multimodal  # Include vision/multimodal micro-steps
 abi train resume ./checkpoint # Resume from checkpoint
 abi train monitor             # Real-time metrics
-
-# Plugins & Info
-abi plugins list              # List available plugins
-abi --list-features           # Show feature status
-
-# MCP/ACP Servers
-abi mcp serve                 # Start MCP server (stdio JSON-RPC)
-abi mcp tools                 # List available MCP tools
-abi acp card                  # Print agent card JSON
-abi serve -m model.gguf       # Alias for llm serve
 
 # Runtime Feature Flags
 abi --list-features           # Show feature status
@@ -344,50 +304,41 @@ abi --disable-ai system-info  # Disable feature for command
 ```
 abi/
 ├── src/
-│   ├── abi.zig           # Public API module root
-│   ├── api/              # Entry points
-│   │   └── main.zig      # CLI fallback entrypoint
+│   ├── abi.zig           # Public API entry point
+│   ├── config.zig        # Unified configuration
+│   ├── framework.zig     # Lifecycle orchestration
+│   ├── platform/         # Platform detection (OS, arch, CPU)
 │   │
-│   ├── core/             # Framework orchestration and config
-│   │   ├── config/       # Unified configuration
-│   │   ├── framework.zig # Lifecycle orchestration
-│   │   └── registry/     # Feature registry
+│   ├── ai/               # AI Module
+│   │   ├── llm/          # Local LLM inference (Llama-CPP parity)
+│   │   ├── agents/       # Agent runtime with personas
+│   │   ├── training/     # Training pipelines
+│   │   └── embeddings/   # Vector embeddings
 │   │
-│   ├── features/         # Feature modules (21 total, each with mod.zig + stub.zig)
-│   │   ├── ai/           # AI Module (llm, agents, training, embeddings)
-│   │   ├── ai_core/      # Agents, tools, prompts, personas, memory
-│   │   ├── ai_inference/  # LLM, embeddings, vision, streaming
-│   │   ├── ai_training/   # Training pipelines, federated learning
-│   │   ├── ai_reasoning/  # Abbey, RAG, eval, templates, orchestration
-│   │   ├── analytics/    # Event Tracking & Experiments
-│   │   ├── auth/         # Security infrastructure (16 modules)
-│   │   ├── cache/        # In-memory LRU/LFU, TTL, eviction
-│   │   ├── cloud/        # Cloud Function Adapters (AWS, GCP, Azure)
-│   │   ├── database/     # Vector Database (WDBX)
-│   │   ├── gateway/      # API gateway: routing, rate limiting, circuit breaker
-│   │   ├── gpu/          # GPU Acceleration (10 backends)
-│   │   ├── messaging/    # Event bus, pub/sub, message queues
-│   │   ├── mobile/       # Mobile platform support
-│   │   ├── network/      # Distributed Compute
-│   │   ├── observability/ # Metrics & Tracing
-│   │   ├── search/       # Full-text BM25 search
-│   │   ├── storage/      # Unified file/object storage
-│   │   └── web/          # Web/HTTP utilities
+│   ├── gpu/              # GPU Acceleration
+│   │   ├── backends/     # CUDA, Vulkan, Metal, WebGPU, FPGA
+│   │   ├── kernels/      # Compute kernels
+│   │   └── dsl/          # Shader DSL & codegen
 │   │
-│   └── services/         # Shared infrastructure
-│       ├── runtime/      # Compute infrastructure (engine, concurrency, memory)
-│       ├── platform/     # Platform detection (OS, arch, CPU)
-│       ├── shared/       # Utilities (security, io, utils)
-│       ├── connectors/   # LLM provider connectors (8 providers + discord)
-│       ├── mcp/          # MCP server (JSON-RPC 2.0 over stdio)
-│       ├── acp/          # Agent Communication Protocol
-│       ├── ha/           # High availability (backup, PITR, replication)
-│       ├── tasks/        # Task management
-│       └── tests/        # Test infrastructure
+│   ├── database/         # Vector Database (WDBX)
+│   │   ├── hnsw.zig      # HNSW indexing
+│   │   └── distributed/  # Sharding & replication
+│   │
+│   ├── runtime/          # Compute Infrastructure
+│   │   ├── engine/       # Work-stealing scheduler
+│   │   ├── concurrency/  # Lock-free primitives
+│   │   └── memory/       # Pool allocators
+│   │
+│   ├── network/          # Distributed Compute
+│   │   └── raft/         # Consensus protocol
+│   │
+│   ├── shared/           # Shared utilities (security, io, utils)
+│   │
+│   └── observability/    # Metrics & Tracing
 │
 ├── tools/cli/            # CLI implementation
 ├── examples/             # Usage examples
-└── docs/api/             # Auto-generated API docs (abi gendocs or zig build gendocs)
+└── docs/                 # Documentation
 ```
 
 <details>
@@ -451,14 +402,6 @@ All features are enabled by default. Disable unused features to reduce binary si
 | `-Denable-network` | true | Distributed compute |
 | `-Denable-web` | true | HTTP client utilities |
 | `-Denable-profiling` | true | Performance profiling |
-| `-Denable-cache` | true | In-memory LRU/LFU cache |
-| `-Denable-gateway` | true | API gateway, rate limiting, circuit breaker |
-| `-Denable-messaging` | true | Pub/sub, message queues |
-| `-Denable-search` | true | Full-text BM25 search |
-| `-Denable-storage` | true | Unified object storage |
-| `-Denable-cloud` | true | Cloud function adapters |
-| `-Denable-auth` | true | Security infrastructure |
-| `-Denable-mobile` | false | Mobile platform support |
 
 ### GPU Backend Selection
 
@@ -467,8 +410,6 @@ All features are enabled by default. Disable unused features to reduce binary si
 zig build -Dgpu-backend=vulkan
 zig build -Dgpu-backend=cuda
 zig build -Dgpu-backend=metal
-zig build -Dgpu-backend=webgpu
-zig build -Dgpu-backend=tpu    # Stub until TPU runtime linked
 
 # Multiple backends (comma-separated)
 zig build -Dgpu-backend=cuda,vulkan
@@ -479,37 +420,51 @@ zig build -Dgpu-backend=auto
 
 ---
 
+## C Bindings (Reintroduction Planned)
+
+C bindings were removed during the 2026-01-30 cleanup and are being
+reintroduced as part of the language bindings roadmap. Track progress in
+[ROADMAP.md](ROADMAP.md) under **Language bindings**.
+
+---
+
 ## Documentation
 
 | Resource | Description |
 |:---------|:------------|
-| [API Reference](docs/api/index.md) | Auto-generated API docs (`abi gendocs` or `zig build gendocs`) |
-| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns, gotchas, features, CLI; **main entry for AI assistants** |
-| [Agent Guidelines](AGENTS.md) | Structure, style, testing, **plans index and multi-agent roles (A0–A4)** |
-| [.claude/](.claude/README.md) | Rules (Zig gotchas), skills (`/baseline-sync`, `/zig-migrate`), hooks |
-| [.cursor/](.cursor/README.md) | Cursor agents (e.g. Metal/CoreML), plans |
-| [plans/plan.md](plans/plan.md) | Master execution plan; [CLAUDE.md#skills-plans-and-agents](CLAUDE.md#skills-plans-and-agents-full-index) for full index |
-
-**For AI assistants (Claude, Codex, Cursor):** Setup is **ready for use**. Start at [CLAUDE.md](CLAUDE.md); use [Skills, Plans, and Agents](CLAUDE.md#skills-plans-and-agents-full-index) for rules, skills, plans, and agents. Root config: `.claude/`, `.cursor/`. Reuse in other projects: copy those dirs and add a CLAUDE.md (or equivalent) pointing to your baselines and plans.
+| [Online Docs](https://donaldfilimon.github.io/abi/) | Published documentation site |
+| [Docs Source](docs/README.md) | Docs build and layout |
+| [API Overview](docs/content/api.html) | High-level API reference |
+| [Getting Started](docs/content/getting-started.html) | First steps and setup |
+| [Configuration](docs/content/configuration.html) | Config system overview |
+| [Architecture](docs/content/architecture.html) | System structure |
+| [AI Guide](docs/content/ai.html) | LLM, agents, training |
+| [GPU Guide](docs/content/gpu.html) | Multi-backend GPU acceleration |
+| [Database Guide](docs/content/database.html) | WDBX vector database |
+| [Network Guide](docs/content/network.html) | Distributed compute |
+| [Deployment Guide](docs/content/deployment.html) | Production deployment |
+| [Observability Guide](docs/content/observability.html) | Metrics and profiling |
+| [Security Guide](docs/content/security.html) | Security model |
+| [Examples Guide](docs/content/examples.html) | Example walkthroughs |
+| [API Reference](API_REFERENCE.md) | Public API summary |
+| [Quickstart](QUICKSTART.md) | Getting started guide |
+| [Developer Guide](CLAUDE.md) | Zig 0.16 patterns and conventions |
 
 ```bash
 # Run all tests
 zig build test --summary all
 
 # Test specific module
-zig test src/services/runtime/engine/engine.zig
+zig test src/runtime/engine/engine.zig
 
 # Filter tests by pattern
-zig test src/services/tests/mod.zig --test-filter "pattern"
+zig test src/tests/mod.zig --test-filter "pattern"
 
 # Run benchmarks
 zig build benchmarks
 
 # Lint check
 zig build lint
-
-# Format sources in place
-zig build fix
 ```
 
 ---
@@ -518,16 +473,11 @@ zig build fix
 
 | Variable | Description |
 |:---------|:------------|
-| `ABI_GPU_BACKEND` | GPU backend: `auto`, `cuda`, `vulkan`, `metal`, `webgpu`, `tpu`, `none` |
 | `ABI_OPENAI_API_KEY` | OpenAI API key |
 | `ABI_ANTHROPIC_API_KEY` | Anthropic/Claude API key |
 | `ABI_OLLAMA_HOST` | Ollama host (default: `http://127.0.0.1:11434`) |
 | `ABI_OLLAMA_MODEL` | Default Ollama model |
 | `ABI_HF_API_TOKEN` | HuggingFace API token |
-| `ABI_LM_STUDIO_HOST` | LM Studio host (default: `http://localhost:1234`) |
-| `ABI_LM_STUDIO_MODEL` | Default LM Studio model |
-| `ABI_VLLM_HOST` | vLLM host (default: `http://localhost:8000`) |
-| `ABI_VLLM_MODEL` | Default vLLM model |
 | `DISCORD_BOT_TOKEN` | Discord bot token |
 
 ---
@@ -536,20 +486,15 @@ zig build fix
 
 | Milestone | Status |
 |:----------|:------:|
-| Zig 0.16.0-dev.2637+6a9510c0e Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
+| Zig 0.16 Migration | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Llama-CPP Parity | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | C Library Bindings | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Plugin Registry | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Runtime Consolidation | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Feature Stubs | ![Complete](https://img.shields.io/badge/-Complete-success) |
 | Multi-GPU Orchestration | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| Modular Refactor | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| v2 Architecture Rewrite | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| Phase 9 Feature Modules | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| MCP/ACP Server Infrastructure | ![Complete](https://img.shields.io/badge/-Complete-success) |
-| Local Server Connectors | ![Complete](https://img.shields.io/badge/-Complete-success) |
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
+See [PLAN.md](PLAN.md) for current sprint status and [ROADMAP.md](ROADMAP.md) for version history.
 
 ---
 
@@ -557,10 +502,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
 
 We welcome contributions! Please see:
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) — Development workflow and PR checklist
-- [AGENTS.md](AGENTS.md) — Baseline agent guidelines
-- [CLAUDE.md](CLAUDE.md) — Detailed coding guidelines and patterns
-- [SECURITY.md](SECURITY.md) — Security policy and reporting
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Development workflow
+- [CLAUDE.md](CLAUDE.md) - Coding guidelines and patterns
 
 <div align="center">
 
@@ -583,6 +526,3 @@ MIT License - See [LICENSE](LICENSE) for details.
 **Built with Zig**
 
 </div>
-
-## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for ABI Zig 0.16-dev syntax updates, modular build/layout guidance, and validation workflows.

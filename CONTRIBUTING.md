@@ -1,8 +1,13 @@
+---
+title: "CONTRIBUTING"
+tags: []
+---
 # Contributing
+> **Codebase Status:** Synced with repository as of 2026-01-31.
 
 <p align="center">
   <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge" alt="PRs Welcome"/>
-  <img src="https://img.shields.io/badge/Zig-0.16.0--dev.2623%2B27eec9bd6-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16.0-dev.2637+6a9510c0e"/>
+  <img src="https://img.shields.io/badge/Zig-0.16-F7A41D?style=for-the-badge&logo=zig&logoColor=white" alt="Zig 0.16"/>
   <img src="https://img.shields.io/badge/Code_Style-Zig_fmt-blue?style=for-the-badge" alt="Code Style"/>
 </p>
 
@@ -12,18 +17,7 @@
 
 ---
 
-> **Before You Start**: Please review the [Documentation README](docs/README.md) to understand the system design.
-
-## AI-assisted development
-
-When using Claude, Codex, or Cursor in this repo:
-
-- **Single entry:** [CLAUDE.md](CLAUDE.md) — build, test, gotchas, features, CLI.
-- **Skills, plans, agents:** [CLAUDE.md — Skills, Plans, and Agents](CLAUDE.md#skills-plans-and-agents-full-index) — rules (`.claude/rules/zig.md`), skills (`/baseline-sync`, `/zig-migrate`), execution plans (`plans/plan.md`), multi-agent roles (A0–A4), Cursor agents (`.cursor/agents/`).
-- **Structure and style:** [AGENTS.md](AGENTS.md).
-- You work **outside the Ralph loop** unless you explicitly run `abi ralph run`; see [Working outside the Ralph loop](CLAUDE.md#working-outside-the-ralph-loop-cursor--claude).
-
-Reusing this setup in **other projects:** copy `.claude/` and optionally `.cursor/`, add a CLAUDE.md (or equivalent) that points to your baselines and plans. See [.claude/README.md](.claude/README.md) and [.cursor/README.md](.cursor/README.md).
+> **Before You Start**: Please review the [Architecture Documentation](docs/content/architecture.html) to understand the system design.
 
 ## Quick Reference
 
@@ -32,13 +26,10 @@ Reusing this setup in **other projects:** copy `.claude/` and optionally `.curso
 | Clone | `git clone https://github.com/donaldfilimon/abi.git && cd abi` |
 | Build | `zig build` |
 | Test | `zig build test --summary all` |
-| Feature tests | `zig build feature-tests --summary all` |
 | Format | `zig fmt .` |
-| CLI smoke test | `zig build cli-tests` |
-| Validate flags | `zig build validate-flags` |
-| Zig version check | `zig run tools/scripts/check_zig_version_consistency.zig` |
-| Full check (gate) | `zig build full-check` |
-| Single-file test | `zig test src/path/to/file.zig` |
+| CLI Smoke Test | `zig build cli-tests` |
+| Full Check | `zig build full-check` |
+| Single File Test | `zig test src/path/to/file.zig` |
 
 ## Workflow
 
@@ -56,8 +47,8 @@ flowchart LR
 |------|--------|-----------------|
 | 1 | Create branch | `git checkout -b feature/my-feature` |
 | 2 | Make changes | Keep scope focused |
-| 3 | Format | `zig fmt .` |
-| 4 | Full check | `zig build full-check` (format + tests + flag validation + CLI smoke tests) |
+| 3 | Build & test | `zig build && zig build test` |
+| 4 | Format | `zig fmt .` |
 | 5 | Update docs | For public API changes |
 
 ## Style Guide
@@ -72,7 +63,7 @@ flowchart LR
 | Error handling | `!` return types, specific error enums | ![Required](https://img.shields.io/badge/-Required-red) |
 | Cleanup | Prefer `defer`/`errdefer` | ![Recommended](https://img.shields.io/badge/-Recommended-yellow) |
 
-## Zig 0.16.0-dev.2637+6a9510c0e Conventions
+## Zig 0.16 Conventions
 
 ### Memory Management
 
@@ -120,8 +111,8 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 | Test Type | Command | Notes |
 |-----------|---------|-------|
 | All tests | `zig build test --summary all` | Detailed output |
-| Single file | `zig test src/services/runtime/engine/engine.zig` | Direct file test |
-| Filtered | `zig test src/services/tests/mod.zig --test-filter "pattern"` | Pattern matching |
+| Single file | `zig test src/runtime/engine/engine.zig` | Direct file test |
+| Filtered | `zig test src/tests/mod.zig --test-filter "pattern"` | Pattern matching |
 | With features | `zig build test -Denable-gpu=true` | Feature-gated |
 | Skip hardware | Use `error.SkipZigTest` | For hardware-gated tests |
 
@@ -169,17 +160,10 @@ std.debug.print("Status: {s}\n", .{@tagName(status)});
 
 </details>
 
-## Security
-
-Do not open PRs for security vulnerabilities. See [SECURITY.md](SECURITY.md) for reporting.
-
 ---
 
 <p align="center">
   <a href="README.md">← Back to README</a> •
-  <a href="CLAUDE.md">Development Guide</a> •
-  <a href="SECURITY.md">Security</a>
+  <a href="CLAUDE.md">Development Guide →</a>
 </p>
 
-## Zig Skill
-Use [$zig](/Users/donaldfilimon/.codex/skills/zig/SKILL.md) for new Zig syntax improvements and validation guidance.

@@ -48,6 +48,7 @@
   `zig build -Denable-<feature>=true` and `zig build -Denable-<feature>=false`.
 
 ## Commit & Pull Request Guidelines
+<<<<<<< Current (Your changes)
 - Follow Conventional Commit prefixes seen in history: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `ci:`.
 - Keep commits scoped; avoid mixing refactors with behavior changes.
 - PRs should include: clear summary, linked issue (if applicable), docs/example updates for API changes, and passing `zig build full-check`.
@@ -60,3 +61,13 @@
 - Zig toolchain pin: `.zigversion`
 - Command surface and build steps: `zig build --help`
 - Test baseline source of truth: `tools/scripts/baseline.zig`
+=======
+- Commit messages follow Conventional Commits with optional scopes, e.g. `feat(metal): add unified memory` or `docs: update README`.
+- Common types in history: `feat`, `fix`, `docs`, `chore`, `ci`, `security`, `refactor`, `test`.
+- PRs should include a clear description, linked issues (if any), passing tests, and formatted code. Add benchmarks for performance-sensitive changes.
+
+## References
+- Architecture and contribution details: `docs/content/architecture.html`, `CONTRIBUTING.md`.
+- Security and deployment guidance: `SECURITY.md`, `DEPLOYMENT_GUIDE.md`.
+- Agent-specific requirements: `PROMPT.md` and `CLAUDE.md`.
+>>>>>>> Incoming (Background Agent changes)

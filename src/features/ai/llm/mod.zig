@@ -38,6 +38,7 @@ pub const generation = @import("generation/mod.zig");
 pub const parallel = @import("parallel.zig");
 pub const providers = @import("providers/mod.zig");
 pub const wdbx_fusion = @import("wdbx_fusion.zig");
+pub const unified_orchestrator = @import("unified_orchestrator/mod.zig");
 
 // Re-exports for convenience
 pub const MappedFile = io.MappedFile;
