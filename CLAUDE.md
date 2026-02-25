@@ -28,8 +28,8 @@ zig build full-check    # Format + tests + feature-tests + flag validation + CLI
 
 ```bash
 zig build                              # Build the project
-zig build test --summary all           # Main tests (~1290 pass, 6 skip)
-zig build feature-tests --summary all  # Feature tests (~2360 pass, 5 skip)
+zig build test --summary all           # Main tests: 1290 pass, 6 skip (1296 total)
+zig build feature-tests --summary all  # Feature tests: 2360 pass (2365 total)
 zig build full-check                   # Format + tests + feature-tests + flag validation + CLI smoke
 zig build verify-all                   # Release gate (full-check + consistency + examples + wasm)
 zig build validate-flags               # Check 34 feature flag combinations
@@ -81,7 +81,7 @@ src/
 │   ├── lsp/                   # ZLS client utilities
 │   ├── mcp/                   # Model Context Protocol server (WDBX)
 │   ├── acp/                   # Agent Communication Protocol
-│   └── tests/mod.zig          # Main test root (~1290 tests)
+│   └── tests/mod.zig          # Main test root (1290 pass, 6 skip)
 ├── features/                  # Comptime-gated: each has mod.zig + stub.zig
 │   ├── ai/                    # AI (24 submodules: llm, agents, training, streaming, etc.)
 │   ├── gpu/                   # GPU acceleration (Vulkan, CUDA, Metal, etc.)
@@ -99,7 +99,7 @@ src/
 │   ├── gateway/               # API gateway (routing, rate limiting, circuit breaker)
 │   ├── mobile/                # Mobile platform (Android/iOS)
 │   └── benchmarks/            # Performance benchmarking
-├── feature_test_root.zig      # Feature test root (~2360 tests)
+├── feature_test_root.zig      # Feature test root (2360 pass, 5 skip)
 tools/
 ├── cli/                       # CLI executable
 │   ├── main.zig               # Entry point (uses Init.Minimal)
@@ -129,8 +129,8 @@ build/
 **Table-driven build:** `build.zig` uses `BuildTarget` struct arrays for examples and benchmarks. Add entries to `example_targets` or `benchmark_targets` rather than duplicating build code.
 
 **Two test roots:**
-- `zig build test` → `src/services/tests/mod.zig` (main: ~1290 pass, 6 skip)
-- `zig build feature-tests` → `src/feature_test_root.zig` (inline: ~2360 pass, 5 skip)
+- `zig build test` → `src/services/tests/mod.zig` (main: 1290 pass, 6 skip (1296 total))
+- `zig build feature-tests` → `src/feature_test_root.zig` (inline: 2360 pass (2365 total))
 - Baselines tracked in `tools/scripts/baseline.zig`
 
 ## Feature Flags
@@ -246,6 +246,8 @@ Modular configs in `src/core/config/`: `ai.zig`, `gpu.zig`, `database.zig`, `net
 | `ABI_DB_PATH` | Database file path (default: `abi.db`) |
 
 ## Zig 0.16 Quick Reference
+
+**Pinned version:** `0.16.0-dev.2637+6a9510c0e` (see `.zigversion`)
 
 Full Zig 0.16 patterns are in `.claude/rules/zig.md` (auto-loaded). Essential patterns:
 
