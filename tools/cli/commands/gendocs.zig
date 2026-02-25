@@ -19,7 +19,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     var file = std.Io.Dir.cwd().openFile(io, "build.zig", .{}) catch {
-        std.debug.print("Error: build.zig not found in current directory. Run from repo root.\n", .{});
+        utils.output.printError("build.zig not found in current directory. Run from repo root.", .{});
         return error.ExecutionFailed;
     };
     defer file.close(io);
@@ -38,7 +38,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             continue;
         }
 
-        std.debug.print("Error: unknown argument for gendocs: {s}\n", .{arg});
+        utils.output.printError("unknown argument for gendocs: {s}", .{arg});
         printHelp();
         return error.ExecutionFailed;
     }
@@ -69,7 +69,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi gendocs [--check] [--api-only] [--no-wasm]
         \\
         \\Generate ABI docs outputs via `zig build gendocs`.

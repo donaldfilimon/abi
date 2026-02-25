@@ -350,7 +350,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     var session = try SessionState.init(allocator, session_name);
     defer session.deinit();
     session.load() catch |err| {
-        std.debug.print("Warning: could not load session '{s}': {t}\n", .{ session_name, err });
+        utils.output.printWarning("could not load session '{s}': {t}", .{ session_name, err });
     };
 
     if (message) |msg| {
@@ -375,15 +375,15 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         // Show tool calls if any
         const log = tool_agent.getToolCallLog();
         if (log.len > 0) {
-            std.debug.print("\n[Tool Calls: {d}]\n", .{log.len});
+            utils.output.println("\n[Tool Calls: {d}]", .{log.len});
             for (log) |record| {
                 const status = if (record.success) "ok" else "FAIL";
-                std.debug.print("  {s}: {s} [{s}]\n", .{ record.tool_name, record.args_summary, status });
+                utils.output.println("  {s}: {s} [{s}]", .{ record.tool_name, record.args_summary, status });
             }
-            std.debug.print("\n", .{});
+            utils.output.println("", .{});
         }
 
-        std.debug.print("{s}\n", .{response});
+        utils.output.println("{s}", .{response});
 
         // Record metrics
         const metrics = improver.evaluateResponse(response, msg);
@@ -391,7 +391,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         try session.addMessage(.user, msg);
         try session.addMessage(.assistant, response);
         session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
-            std.debug.print("Warning: failed to persist os-agent session: {t}\n", .{err});
+            utils.output.printWarning("failed to persist os-agent session: {t}", .{err});
         };
         return;
     }
@@ -408,16 +408,15 @@ fn runInteractive(
     model_name: []const u8,
     system_prompt: []const u8,
 ) !void {
-    std.debug.print("\n{s}", .{
+    utils.output.println("\n{s}", .{
         \\╔════════════════════════════════════════════════════════════╗
         \\║              ABI OS Agent (Tool-Augmented)               ║
         \\╚════════════════════════════════════════════════════════════╝
-        \\
     });
-    std.debug.print("\nSession: {s}\n", .{session.session_name});
-    std.debug.print("Tools: {d} registered | Memory: enabled | Self-reflection: enabled\n", .{tool_agent.toolCount()});
-    std.debug.print("Loaded messages: {d}\n", .{session.messages.items.len});
-    std.debug.print("Type '/help' for commands, 'exit' to quit.\n\n", .{});
+    utils.output.println("\nSession: {s}", .{session.session_name});
+    utils.output.println("Tools: {d} registered | Memory: enabled | Self-reflection: enabled", .{tool_agent.toolCount()});
+    utils.output.println("Loaded messages: {d}", .{session.messages.items.len});
+    utils.output.println("Type '/help' for commands, 'exit' to quit.\n", .{});
 
     var seed_with_session_context = session.messages.items.len > 0;
 
@@ -430,11 +429,11 @@ fn runInteractive(
     var reader = stdin_file.reader(io, &buffer);
 
     while (true) {
-        std.debug.print("os-agent> ", .{});
+        utils.output.print("os-agent> ", .{});
         const line_opt = reader.interface.takeDelimiter('\n') catch |err| switch (err) {
             error.ReadFailed => return err,
             error.StreamTooLong => {
-                std.debug.print("Input too long. Try a shorter line.\n", .{});
+                utils.output.printWarning("Input too long. Try a shorter line.", .{});
                 continue;
             },
         };
@@ -446,7 +445,7 @@ fn runInteractive(
         if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) {
             if (session.modified) {
                 session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
-                    std.debug.print("Warning: failed to persist os-agent session: {t}\n", .{err});
+                    utils.output.printWarning("failed to persist os-agent session: {t}", .{err});
                 };
             }
             break;
@@ -466,7 +465,7 @@ fn runInteractive(
 
         // Process with tools
         var response: []const u8 = tool_agent.processWithTools(input, allocator) catch |err| {
-            std.debug.print("Error: {t}\n", .{err});
+            utils.output.printError("{t}", .{err});
             continue;
         };
         if (responseNeedsRecovery(response)) {
@@ -479,7 +478,7 @@ fn runInteractive(
         if (std.mem.trim(u8, response, " \t\r\n").len == 0) {
             allocator.free(response);
             response = allocator.dupe(u8, "I couldn't produce a final answer for that request. Please try a more specific prompt.") catch {
-                std.debug.print("Error: OutOfMemory\n", .{});
+                utils.output.printError("OutOfMemory", .{});
                 continue;
             };
         }
@@ -489,23 +488,23 @@ fn runInteractive(
         // Show tool calls
         const log = tool_agent.getToolCallLog();
         if (log.len > 0) {
-            std.debug.print("\n[Tool Calls: {d}]\n", .{log.len});
+            utils.output.println("\n[Tool Calls: {d}]", .{log.len});
             for (log) |record| {
                 const status = if (record.success) "ok" else "FAIL";
-                std.debug.print("  {s}: [{s}]\n", .{ record.tool_name, status });
+                utils.output.println("  {s}: [{s}]", .{ record.tool_name, status });
             }
         }
 
-        std.debug.print("\n{s}\n\n", .{response});
+        utils.output.println("\n{s}\n", .{response});
 
         session.addMessage(.user, trimmed) catch |err| {
-            std.debug.print("Warning: failed to record user message: {t}\n", .{err});
+            utils.output.printWarning("failed to record user message: {t}", .{err});
         };
         session.addMessage(.assistant, response) catch |err| {
-            std.debug.print("Warning: failed to record assistant message: {t}\n", .{err});
+            utils.output.printWarning("failed to record assistant message: {t}", .{err});
         };
         session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
-            std.debug.print("Warning: failed to persist os-agent session: {t}\n", .{err});
+            utils.output.printWarning("failed to persist os-agent session: {t}", .{err});
         };
 
         // Record metrics and clear log for next turn
@@ -514,7 +513,7 @@ fn runInteractive(
         tool_agent.clearLog();
     }
 
-    std.debug.print("Goodbye!\n", .{});
+    utils.output.println("Goodbye!", .{});
 }
 
 fn handleSlashCommand(
@@ -534,89 +533,93 @@ fn handleSlashCommand(
     }
 
     if (std.mem.eql(u8, cmd, "tools")) {
-        std.debug.print("\nRegistered Tools: {d}\n", .{tool_agent.toolCount()});
-        std.debug.print("Use tools by describing what you want in natural language.\n\n", .{});
+        utils.output.println("\nRegistered Tools: {d}", .{tool_agent.toolCount()});
+        utils.output.println("Use tools by describing what you want in natural language.\n", .{});
         return;
     }
 
     if (std.mem.eql(u8, cmd, "feedback")) {
         const fb = iter.next() orelse {
-            std.debug.print("Usage: /feedback good|bad\n", .{});
+            utils.output.println("Usage: /feedback good|bad", .{});
             return;
         };
         if (std.mem.eql(u8, fb, "good")) {
             improver.recordFeedback(true);
-            std.debug.print("Positive feedback recorded.\n", .{});
+            utils.output.printSuccess("Positive feedback recorded.", .{});
         } else if (std.mem.eql(u8, fb, "bad")) {
             improver.recordFeedback(false);
-            std.debug.print("Negative feedback recorded.\n", .{});
+            utils.output.printSuccess("Negative feedback recorded.", .{});
         } else {
-            std.debug.print("Usage: /feedback good|bad\n", .{});
+            utils.output.println("Usage: /feedback good|bad", .{});
         }
         return;
     }
 
     if (std.mem.eql(u8, cmd, "reflect")) {
         if (improver.getLatestMetrics()) |m| {
-            std.debug.print("\nLast Response Reflection:\n", .{});
-            std.debug.print("  Coherence:    {d:.2}\n", .{m.coherence});
-            std.debug.print("  Relevance:    {d:.2}\n", .{m.relevance});
-            std.debug.print("  Completeness: {d:.2}\n", .{m.completeness});
-            std.debug.print("  Clarity:      {d:.2}\n", .{m.clarity});
-            std.debug.print("  Overall:      {d:.2}\n\n", .{m.overall});
+            utils.output.printHeader("Last Response Reflection");
+            utils.output.printKeyValueFmt("Coherence", "{d:.2}", .{m.coherence});
+            utils.output.printKeyValueFmt("Relevance", "{d:.2}", .{m.relevance});
+            utils.output.printKeyValueFmt("Completeness", "{d:.2}", .{m.completeness});
+            utils.output.printKeyValueFmt("Clarity", "{d:.2}", .{m.clarity});
+            utils.output.printKeyValueFmt("Overall", "{d:.2}", .{m.overall});
+            utils.output.println("", .{});
         } else {
-            std.debug.print("No responses to reflect on yet.\n", .{});
+            utils.output.printInfo("No responses to reflect on yet.", .{});
         }
         return;
     }
 
     if (std.mem.eql(u8, cmd, "metrics")) {
         const report = improver.getReport();
-        std.debug.print("\nPerformance Metrics:\n", .{});
-        std.debug.print("  Total interactions:  {d}\n", .{report.total_interactions});
-        std.debug.print("  Avg quality:         {d:.2}\n", .{report.avg_quality});
-        std.debug.print("  Positive feedback:   {d}\n", .{report.positive_feedback_count});
-        std.debug.print("  Negative feedback:   {d}\n", .{report.negative_feedback_count});
-        std.debug.print("  Tool usage count:    {d}\n", .{report.tool_usage_count});
-        std.debug.print("  Trend:               {t}\n\n", .{report.trend});
+        utils.output.printHeader("Performance Metrics");
+        utils.output.printKeyValueFmt("Total interactions", "{d}", .{report.total_interactions});
+        utils.output.printKeyValueFmt("Avg quality", "{d:.2}", .{report.avg_quality});
+        utils.output.printKeyValueFmt("Positive feedback", "{d}", .{report.positive_feedback_count});
+        utils.output.printKeyValueFmt("Negative feedback", "{d}", .{report.negative_feedback_count});
+        utils.output.printKeyValueFmt("Tool usage count", "{d}", .{report.tool_usage_count});
+        utils.output.printKeyValueFmt("Trend", "{t}", .{report.trend});
+        utils.output.println("", .{});
         return;
     }
 
     if (std.mem.eql(u8, cmd, "memory")) {
-        std.debug.print("\nMemory Status:\n", .{});
-        std.debug.print("  Session messages:     {d}\n", .{session.messages.items.len});
-        std.debug.print("  Interactions tracked: {d}\n", .{improver.total_interactions});
-        std.debug.print("  Feedback recorded:    {d} positive, {d} negative\n\n", .{
+        utils.output.printHeader("Memory Status");
+        utils.output.printKeyValueFmt("Session messages", "{d}", .{session.messages.items.len});
+        utils.output.printKeyValueFmt("Interactions tracked", "{d}", .{improver.total_interactions});
+        utils.output.printKeyValueFmt("Feedback recorded", "{d} positive, {d} negative", .{
             improver.positive_feedback,
             improver.negative_feedback,
         });
+        utils.output.println("", .{});
         return;
     }
 
     if (std.mem.eql(u8, cmd, "save")) {
         session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
-            std.debug.print("Error saving session: {t}\n", .{err});
+            utils.output.printError("saving session: {t}", .{err});
             return;
         };
-        std.debug.print("Session saved: {s} ({d} messages)\n", .{ session.session_name, session.messages.items.len });
+        utils.output.printSuccess("Session saved: {s} ({d} messages)", .{ session.session_name, session.messages.items.len });
         return;
     }
 
     if (std.mem.eql(u8, cmd, "load")) {
         session.load() catch |err| {
-            std.debug.print("Error loading session: {t}\n", .{err});
+            utils.output.printError("loading session: {t}", .{err});
             return;
         };
-        std.debug.print("Session loaded: {s} ({d} messages)\n", .{ session.session_name, session.messages.items.len });
+        utils.output.printSuccess("Session loaded: {s} ({d} messages)", .{ session.session_name, session.messages.items.len });
         return;
     }
 
     if (std.mem.eql(u8, cmd, "info")) {
-        std.debug.print("\nSession Information:\n", .{});
-        std.debug.print("  ID: {s}\n", .{session.session_id});
-        std.debug.print("  Name: {s}\n", .{session.session_name});
-        std.debug.print("  Messages: {d}\n", .{session.messages.items.len});
-        std.debug.print("  Modified: {}\n\n", .{session.modified});
+        utils.output.printHeader("Session Information");
+        utils.output.printKeyValue("ID", session.session_id);
+        utils.output.printKeyValue("Name", session.session_name);
+        utils.output.printKeyValueFmt("Messages", "{d}", .{session.messages.items.len});
+        utils.output.printKeyValueFmt("Modified", "{}", .{session.modified});
+        utils.output.println("", .{});
         return;
     }
 
@@ -624,18 +627,19 @@ fn handleSlashCommand(
         tool_agent.clearLog();
         session.clear();
         session.save(model_name, system_prompt, tool_agent.agent.config.temperature) catch |err| {
-            std.debug.print("Warning: failed to persist cleared session: {t}\n", .{err});
+            utils.output.printWarning("failed to persist cleared session: {t}", .{err});
         };
-        std.debug.print("Session history and tool call log cleared.\n", .{});
+        utils.output.printSuccess("Session history and tool call log cleared.", .{});
         return;
     }
 
-    std.debug.print("Unknown command: /{s}\nType /help for available commands.\n", .{cmd});
+    utils.output.printWarning("Unknown command: /{s}", .{cmd});
+    utils.output.println("Type /help for available commands.", .{});
 }
 
 fn confirmDestructiveOp(tool_name: []const u8, args_json: []const u8) bool {
-    std.debug.print("\n[Confirm] Agent wants to use '{s}' with args: {s}\n", .{ tool_name, args_json });
-    std.debug.print("Allow? (y/n): ", .{});
+    utils.output.printWarning("[Confirm] Agent wants to use '{s}' with args: {s}", .{ tool_name, args_json });
+    utils.output.print("Allow? (y/n): ", .{});
 
     // For now, default to yes since we can't easily read stdin in a callback
     // In production, this would prompt the user
@@ -643,70 +647,62 @@ fn confirmDestructiveOp(tool_name: []const u8, args_json: []const u8) bool {
 }
 
 fn printInteractiveHelp() void {
-    const help =
-        \\
-        \\OS Agent Commands:
-        \\  /help      - Show this help
-        \\  /tools     - List registered tools
-        \\  /feedback  - Provide feedback (good/bad) on last response
-        \\  /reflect   - Show self-reflection scores for last response
-        \\  /metrics   - Show performance metrics over time
-        \\  /memory    - Show memory statistics
-        \\  /save      - Persist current session state
-        \\  /load      - Reload current session from disk
-        \\  /info      - Show session metadata
-        \\  /clear     - Clear tool call log
-        \\  exit, quit - Exit the agent
-        \\
-        \\The agent can autonomously use tools to answer your questions.
-        \\Just describe what you need in natural language.
-        \\
-        \\
-    ;
-    std.debug.print("{s}", .{help});
+    utils.output.println("", .{});
+    utils.output.printHeader("OS Agent Commands");
+    utils.output.println("  /help      - Show this help", .{});
+    utils.output.println("  /tools     - List registered tools", .{});
+    utils.output.println("  /feedback  - Provide feedback (good/bad) on last response", .{});
+    utils.output.println("  /reflect   - Show self-reflection scores for last response", .{});
+    utils.output.println("  /metrics   - Show performance metrics over time", .{});
+    utils.output.println("  /memory    - Show memory statistics", .{});
+    utils.output.println("  /save      - Persist current session state", .{});
+    utils.output.println("  /load      - Reload current session from disk", .{});
+    utils.output.println("  /info      - Show session metadata", .{});
+    utils.output.println("  /clear     - Clear tool call log", .{});
+    utils.output.println("  exit, quit - Exit the agent", .{});
+    utils.output.println("", .{});
+    utils.output.println("The agent can autonomously use tools to answer your questions.", .{});
+    utils.output.println("Just describe what you need in natural language.", .{});
+    utils.output.println("", .{});
 }
 
 fn printHelp() void {
-    const help_text =
-        \\Usage: abi os-agent [options]
-        \\
-        \\OS-aware AI agent with full tool access, memory, and self-learning.
-        \\
-        \\Options:
-        \\  -m, --message <msg>   Send single message (non-interactive)
-        \\  -s, --session <name>  Session name (default: os-agent-default)
-        \\  --backend <name>      LLM backend: echo, openai, ollama, huggingface
-        \\  --model <name>        Model name for the backend
-        \\  --self-aware          Enable codebase indexing for self-awareness
-        \\  --no-confirm          Skip confirmation for destructive operations
-        \\  -h, --help            Show this help
-        \\
-        \\Features:
-        \\  - 26+ tools: file I/O, shell, search, edit, process, network, system
-        \\  - Hybrid memory with long-term learning
-        \\  - Self-reflection and quality metrics
-        \\  - Codebase self-awareness (with --self-aware)
-        \\
-        \\Interactive Commands:
-        \\  /tools      List registered tools
-        \\  /feedback   Provide feedback (good/bad)
-        \\  /reflect    Show quality scores for last response
-        \\  /metrics    Show performance over time
-        \\  /memory     Show memory statistics
-        \\  /save       Persist current session state
-        \\  /load       Reload current session from disk
-        \\  /info       Show session metadata
-        \\  /clear      Clear tool call log
-        \\  exit, quit  Exit the agent
-        \\
-        \\Examples:
-        \\  abi os-agent                            # Interactive session
-        \\  abi os-agent -m "what processes are running?"
-        \\  abi os-agent --backend ollama --model llama3
-        \\  abi os-agent --self-aware               # With codebase awareness
-        \\
-    ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.println("Usage: abi os-agent [options]", .{});
+    utils.output.println("", .{});
+    utils.output.println("OS-aware AI agent with full tool access, memory, and self-learning.", .{});
+    utils.output.println("", .{});
+    utils.output.println("Options:", .{});
+    utils.output.println("  -m, --message <msg>   Send single message (non-interactive)", .{});
+    utils.output.println("  -s, --session <name>  Session name (default: os-agent-default)", .{});
+    utils.output.println("  --backend <name>      LLM backend: echo, openai, ollama, huggingface", .{});
+    utils.output.println("  --model <name>        Model name for the backend", .{});
+    utils.output.println("  --self-aware          Enable codebase indexing for self-awareness", .{});
+    utils.output.println("  --no-confirm          Skip confirmation for destructive operations", .{});
+    utils.output.println("  -h, --help            Show this help", .{});
+    utils.output.println("", .{});
+    utils.output.println("Features:", .{});
+    utils.output.println("  - 26+ tools: file I/O, shell, search, edit, process, network, system", .{});
+    utils.output.println("  - Hybrid memory with long-term learning", .{});
+    utils.output.println("  - Self-reflection and quality metrics", .{});
+    utils.output.println("  - Codebase self-awareness (with --self-aware)", .{});
+    utils.output.println("", .{});
+    utils.output.println("Interactive Commands:", .{});
+    utils.output.println("  /tools      List registered tools", .{});
+    utils.output.println("  /feedback   Provide feedback (good/bad)", .{});
+    utils.output.println("  /reflect    Show quality scores for last response", .{});
+    utils.output.println("  /metrics    Show performance over time", .{});
+    utils.output.println("  /memory     Show memory statistics", .{});
+    utils.output.println("  /save       Persist current session state", .{});
+    utils.output.println("  /load       Reload current session from disk", .{});
+    utils.output.println("  /info       Show session metadata", .{});
+    utils.output.println("  /clear      Clear tool call log", .{});
+    utils.output.println("  exit, quit  Exit the agent", .{});
+    utils.output.println("", .{});
+    utils.output.println("Examples:", .{});
+    utils.output.println("  abi os-agent                            # Interactive session", .{});
+    utils.output.println("  abi os-agent -m \"what processes are running?\"", .{});
+    utils.output.println("  abi os-agent --backend ollama --model llama3", .{});
+    utils.output.println("  abi os-agent --self-aware               # With codebase awareness", .{});
 }
 
 const os_agent_system_prompt =

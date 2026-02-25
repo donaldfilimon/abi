@@ -124,24 +124,24 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown network command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &network_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
 /// Print a short network summary for system-info.
 pub fn printSummary() void {
     if (!abi.network.isEnabled()) {
-        std.debug.print("  Network: disabled\n", .{});
+        utils.output.println("  Network: disabled", .{});
         return;
     }
     if (!abi.network.isInitialized()) {
-        std.debug.print("  Network: enabled (not initialized)\n", .{});
+        utils.output.println("  Network: enabled (not initialized)", .{});
         return;
     }
     if (abi.network.defaultConfig()) |config| {
         const registry = abi.network.defaultRegistry() catch null;
         const node_count = if (registry) |reg| reg.list().len else 0;
-        std.debug.print("  Network: {s} ({d} nodes)\n", .{ config.cluster_id, node_count });
+        utils.output.println("  Network: {s} ({d} nodes)", .{ config.cluster_id, node_count });
     }
 }
 
@@ -286,7 +286,7 @@ fn printNodes(allocator: std.mem.Allocator) !void {
     }
     utils.output.printHeaderFmt("Registered Nodes ({d})", .{nodes.len});
     for (nodes) |node| {
-        std.debug.print("  {s}•{s} {s: <15} {s: <20} ({t}) seen {d}ms ago\n", .{ utils.output.Color.green(), utils.output.Color.reset(), node.id, node.address, node.status, node.last_seen_ms });
+        utils.output.println("  {s}•{s} {s: <15} {s: <20} ({t}) seen {d}ms ago", .{ utils.output.Color.green(), utils.output.Color.reset(), node.id, node.address, node.status, node.last_seen_ms });
     }
 }
 
@@ -381,14 +381,14 @@ fn printBalancerStatus(allocator: std.mem.Allocator) void {
 
     // Show per-node stats if any nodes present
     if (lb.nodes.items.len > 0) {
-        std.debug.print("\n", .{});
+        utils.output.println("", .{});
         for (lb.nodes.items) |*node| {
             const health_indicator = if (node.is_healthy)
                 @as([]const u8, "healthy")
             else
                 @as([]const u8, "unhealthy");
             const health_color = if (node.is_healthy) utils.output.Color.green() else utils.output.Color.red();
-            std.debug.print("  {s: <15} w={d: <4} conns={d: <4} ({s}{s}{s})\n", .{
+            utils.output.println("  {s: <15} w={d: <4} conns={d: <4} ({s}{s}{s})", .{
                 node.id,
                 node.weight,
                 node.current_connections.load(.monotonic),

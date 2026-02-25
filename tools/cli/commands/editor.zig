@@ -9,6 +9,7 @@
 const std = @import("std");
 const command_mod = @import("../command.zig");
 const context_mod = @import("../framework/context.zig");
+const utils = @import("../utils/mod.zig");
 const tui = @import("../tui/mod.zig");
 
 const max_file_size = 8 * 1024 * 1024;
@@ -33,20 +34,20 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     if (args.len > 0) {
         file_path = std.mem.sliceTo(args[0], 0);
         if (file_path.?.len > 0 and file_path.?[0] == '-') {
-            std.debug.print("Unknown editor option: {s}\n", .{file_path.?});
+            utils.output.printError("Unknown editor option: {s}", .{file_path.?});
             printHelp();
             return error.InvalidArgument;
         }
     }
     if (args.len > 1) {
-        std.debug.print("editor accepts at most one file path.\n", .{});
+        utils.output.printError("editor accepts at most one file path.", .{});
         printHelp();
         return error.InvalidArgument;
     }
 
     if (!tui.Terminal.isSupported()) {
         const caps = tui.Terminal.capabilities();
-        std.debug.print("TUI editor is not supported on {s}\n", .{caps.platform_name});
+        utils.output.printError("TUI editor is not supported on {s}", .{caps.platform_name});
         return;
     }
 
@@ -103,7 +104,7 @@ fn printHelp() void {
         \\  abi editor build.zig
         \\
     ;
-    std.debug.print("{s}", .{text});
+    utils.output.print("{s}", .{text});
 }
 
 const Line = struct {
@@ -194,7 +195,7 @@ const TextBuffer = struct {
     fn clampCursor(self: *TextBuffer, row: *usize, col: *usize) void {
         if (self.lines.items.len == 0) {
             self.lines.append(self.allocator, .{}) catch {
-                std.debug.print("editor: OOM while recovering empty buffer\n", .{});
+                utils.output.printError("editor: OOM while recovering empty buffer", .{});
                 return;
             };
         }

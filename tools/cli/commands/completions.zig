@@ -340,7 +340,7 @@ fn printHelp() void {
         \\         . $HOME\abi-completions.ps1
         \\
     ;
-    std.debug.print("{s}", .{help});
+    utils.output.print("{s}", .{help});
 }
 
 fn printFeatureGlobalFlags() void {

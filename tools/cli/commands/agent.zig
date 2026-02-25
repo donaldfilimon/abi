@@ -169,10 +169,10 @@ fn runRalph(allocator: std.mem.Allocator, args: []const [:0]const u8) !void {
     }
 
     if (!task_value_present) {
-        std.debug.print("Error: --task argument is required for Ralph mode.\n", .{});
-        std.debug.print("Usage: abi agent ralph --task \"Your task description\"\n", .{});
-        std.debug.print("       abi agent ralph --task \"...\" --store-skill \"Lesson learned\"\n", .{});
-        std.debug.print("       abi agent ralph --task \"...\" --auto-skill  # LLM extracts and stores a lesson\n", .{});
+        utils.output.printError("--task argument is required for Ralph mode.", .{});
+        utils.output.println("Usage: abi agent ralph --task \"Your task description\"", .{});
+        utils.output.println("       abi agent ralph --task \"...\" --store-skill \"Lesson learned\"", .{});
+        utils.output.println("       abi agent ralph --task \"...\" --auto-skill  # LLM extracts and stores a lesson", .{});
         return;
     }
 
@@ -317,7 +317,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Load session if requested
     if (load_session) |sid| {
         session.load(sid) catch |err| {
-            std.debug.print("Warning: Could not load session '{s}': {t}\n", .{ sid, err });
+            utils.output.printWarning("Could not load session '{s}': {t}", .{ sid, err });
         };
     }
 
@@ -355,7 +355,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
                 try builder.addUserMessage(msg);
                 const exported = try builder.exportDebug();
                 defer allocator.free(exported);
-                std.debug.print("{s}\n", .{exported});
+                utils.output.println("{s}", .{exported});
             }
 
             const response = try tool_agent.processWithTools(msg, allocator);
@@ -364,16 +364,16 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             // Show tool calls
             const log = tool_agent.getToolCallLog();
             if (log.len > 0) {
-                std.debug.print("\n[Tool Calls: {d}]\n", .{log.len});
+                utils.output.println("\n[Tool Calls: {d}]", .{log.len});
                 for (log) |record| {
                     const status = if (record.success) "ok" else "FAIL";
-                    std.debug.print("  {s}: [{s}]\n", .{ record.tool_name, status });
+                    utils.output.println("  {s}: [{s}]", .{ record.tool_name, status });
                 }
-                std.debug.print("\n", .{});
+                utils.output.println("", .{});
             }
 
-            std.debug.print("User: {s}\n", .{msg});
-            std.debug.print("Agent: {s}\n", .{response});
+            utils.output.println("User: {s}", .{msg});
+            utils.output.println("Agent: {s}", .{response});
 
             try session.addMessage(.user, msg);
             try session.addMessage(.assistant, response);
@@ -382,8 +382,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
         // Interactive with tools — use basic agent path for now
         // (tool-augmented interactive REPL uses the os-agent command)
-        std.debug.print("Tool-augmented interactive mode. Tools: {d} registered.\n", .{tool_agent.toolCount()});
-        std.debug.print("Tip: Use 'abi os-agent' for the full interactive tool experience.\n\n", .{});
+        utils.output.println("Tool-augmented interactive mode. Tools: {d} registered.", .{tool_agent.toolCount()});
+        utils.output.printInfo("Tip: Use 'abi os-agent' for the full interactive tool experience.\n", .{});
 
         // Fall through to standard interactive with the inner agent
         try runInteractive(allocator, &tool_agent.agent, &session, persona_type, show_prompt);
@@ -403,13 +403,13 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
                 try builder.addUserMessage(msg);
                 const exported = try builder.exportDebug();
                 defer allocator.free(exported);
-                std.debug.print("{s}\n", .{exported});
+                utils.output.println("{s}", .{exported});
             }
 
             const response = try agent.process(msg, allocator);
             defer allocator.free(response);
-            std.debug.print("User: {s}\n", .{msg});
-            std.debug.print("Agent: {s}\n", .{response});
+            utils.output.println("User: {s}", .{msg});
+            utils.output.println("Agent: {s}", .{response});
 
             try session.addMessage(.user, msg);
             try session.addMessage(.assistant, response);
@@ -428,12 +428,12 @@ fn runInteractive(
     show_prompt: bool,
 ) !void {
     const persona = abi.ai.prompts.getPersona(persona_type);
-    std.debug.print("\n╔════════════════════════════════════════════════════════════╗\n", .{});
-    std.debug.print("║                    ABI AI Agent                            ║\n", .{});
-    std.debug.print("╚════════════════════════════════════════════════════════════╝\n\n", .{});
-    std.debug.print("Session: {s} ({s})\n", .{ session.session_name, session.session_id });
-    std.debug.print("Persona: {s} - {s}\n", .{ persona.name, persona.description });
-    std.debug.print("Type '/help' for commands, 'exit' to quit.\n\n", .{});
+    utils.output.println("\n╔════════════════════════════════════════════════════════════╗", .{});
+    utils.output.println("║                    ABI AI Agent                            ║", .{});
+    utils.output.println("╚════════════════════════════════════════════════════════════╝\n", .{});
+    utils.output.println("Session: {s} ({s})", .{ session.session_name, session.session_id });
+    utils.output.println("Persona: {s} - {s}", .{ persona.name, persona.description });
+    utils.output.println("Type '/help' for commands, 'exit' to quit.\n", .{});
 
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
@@ -444,11 +444,11 @@ fn runInteractive(
     var reader = stdin_file.reader(io, &buffer);
 
     while (true) {
-        std.debug.print("> ", .{});
+        utils.output.print("> ", .{});
         const line_opt = reader.interface.takeDelimiter('\n') catch |err| switch (err) {
             error.ReadFailed => return err,
             error.StreamTooLong => {
-                std.debug.print("Input too long. Try a shorter line.\n", .{});
+                utils.output.printWarning("Input too long. Try a shorter line.", .{});
                 continue;
             },
         };
@@ -459,13 +459,13 @@ fn runInteractive(
         // Handle exit commands
         if (std.mem.eql(u8, trimmed, "exit") or std.mem.eql(u8, trimmed, "quit")) {
             if (session.modified) {
-                std.debug.print("Session has unsaved changes. Save before exit? (y/n): ", .{});
+                utils.output.print("Session has unsaved changes. Save before exit? (y/n): ", .{});
                 const save_opt = reader.interface.takeDelimiter('\n') catch continue;
                 const save_line = save_opt orelse continue;
                 const save_trimmed = std.mem.trim(u8, save_line, " \t\r\n");
                 if (save_trimmed.len > 0 and (save_trimmed[0] == 'y' or save_trimmed[0] == 'Y')) {
                     session.save(null) catch |err| {
-                        std.debug.print("Error saving: {t}\n", .{err});
+                        utils.output.printError("saving: {t}", .{err});
                     };
                 }
             }
@@ -475,7 +475,7 @@ fn runInteractive(
         // Handle slash commands
         if (trimmed[0] == '/') {
             handleSlashCommand(allocator, session, trimmed, persona_type) catch |err| {
-                std.debug.print("Command error: {t}\n", .{err});
+                utils.output.printError("Command error: {t}", .{err});
             };
             continue;
         }
@@ -497,7 +497,7 @@ fn runInteractive(
             try builder.addUserMessage(trimmed);
             const exported = try builder.exportDebug();
             defer allocator.free(exported);
-            std.debug.print("{s}\n", .{exported});
+            utils.output.println("{s}", .{exported});
         }
 
         // Process message with agent
@@ -508,10 +508,10 @@ fn runInteractive(
         try session.addMessage(.user, trimmed);
         try session.addMessage(.assistant, response);
 
-        std.debug.print("Agent: {s}\n\n", .{response});
+        utils.output.println("Agent: {s}\n", .{response});
     }
 
-    std.debug.print("Goodbye!\n", .{});
+    utils.output.println("Goodbye!", .{});
 }
 
 fn handleSlashCommand(
@@ -543,16 +543,17 @@ fn handleSlashCommand(
         }
         const exported = try builder.exportDebug();
         defer allocator.free(exported);
-        std.debug.print("{s}\n", .{exported});
+        utils.output.println("{s}", .{exported});
         return;
     }
 
     if (std.mem.eql(u8, cmd, "persona")) {
         const persona = abi.ai.prompts.getPersona(persona_type);
-        std.debug.print("\nCurrent Persona: {s}\n", .{persona.name});
-        std.debug.print("Description: {s}\n", .{persona.description});
-        std.debug.print("Temperature: {d:.1}\n\n", .{persona.suggested_temperature});
-        std.debug.print("System Prompt:\n{s}\n\n", .{persona.system_prompt});
+        utils.output.printHeader("Current Persona");
+        utils.output.printKeyValue("Name", persona.name);
+        utils.output.printKeyValue("Description", persona.description);
+        utils.output.printKeyValueFmt("Temperature", "{d:.1}", .{persona.suggested_temperature});
+        utils.output.println("\nSystem Prompt:\n{s}\n", .{persona.system_prompt});
         return;
     }
 
@@ -564,51 +565,51 @@ fn handleSlashCommand(
     if (std.mem.eql(u8, cmd, "save")) {
         const name = iter.next();
         session.save(name) catch |err| {
-            std.debug.print("Error saving session: {t}\n", .{err});
+            utils.output.printError("saving session: {t}", .{err});
             return;
         };
-        std.debug.print("Session saved: {s}\n", .{session.session_name});
+        utils.output.printSuccess("Session saved: {s}", .{session.session_name});
         return;
     }
 
     if (std.mem.eql(u8, cmd, "load")) {
         const session_id = iter.next() orelse {
-            std.debug.print("Usage: /load <session_id>\n", .{});
+            utils.output.println("Usage: /load <session_id>", .{});
             return;
         };
         session.load(session_id) catch |err| {
-            std.debug.print("Error loading session: {t}\n", .{err});
+            utils.output.printError("loading session: {t}", .{err});
             return;
         };
-        std.debug.print("Session loaded: {s} ({d} messages)\n", .{ session.session_name, session.messages.items.len });
+        utils.output.printSuccess("Session loaded: {s} ({d} messages)", .{ session.session_name, session.messages.items.len });
         return;
     }
 
     if (std.mem.eql(u8, cmd, "sessions")) {
         listSessions(allocator) catch |err| {
-            std.debug.print("Error listing sessions: {t}\n", .{err});
+            utils.output.printError("listing sessions: {t}", .{err});
         };
         return;
     }
 
     if (std.mem.eql(u8, cmd, "clear")) {
         session.clear();
-        std.debug.print("Conversation cleared.\n", .{});
+        utils.output.printSuccess("Conversation cleared.", .{});
         return;
     }
 
     if (std.mem.eql(u8, cmd, "info")) {
-        std.debug.print("\nSession Information:\n", .{});
-        std.debug.print("  ID: {s}\n", .{session.session_id});
-        std.debug.print("  Name: {s}\n", .{session.session_name});
-        std.debug.print("  Messages: {d}\n", .{session.messages.items.len});
-        std.debug.print("  Modified: {}\n\n", .{session.modified});
+        utils.output.printHeader("Session Information");
+        utils.output.printKeyValue("ID", session.session_id);
+        utils.output.printKeyValue("Name", session.session_name);
+        utils.output.printKeyValueFmt("Messages", "{d}", .{session.messages.items.len});
+        utils.output.printKeyValueFmt("Modified", "{}", .{session.modified});
+        utils.output.println("", .{});
         return;
     }
 
     if (std.mem.eql(u8, cmd, "history")) {
-        std.debug.print("\nConversation History:\n", .{});
-        std.debug.print("─────────────────────────────────────────\n", .{});
+        utils.output.printHeader("Conversation History");
         for (session.messages.items, 0..) |msg, idx| {
             const role_str = switch (msg.role) {
                 .user => "You",
@@ -616,18 +617,19 @@ fn handleSlashCommand(
                 .system => "System",
                 .tool => "Tool",
             };
-            std.debug.print("[{d}] {s}: {s}\n", .{ idx + 1, role_str, msg.content });
+            utils.output.println("[{d}] {s}: {s}", .{ idx + 1, role_str, msg.content });
         }
-        std.debug.print("─────────────────────────────────────────\n\n", .{});
+        utils.output.println("", .{});
         return;
     }
 
-    std.debug.print("Unknown command: /{s}\nType /help for available commands.\n", .{cmd});
+    utils.output.printWarning("Unknown command: /{s}", .{cmd});
+    utils.output.println("Type /help for available commands.", .{});
 }
 
 fn listSessions(allocator: std.mem.Allocator) !void {
     const sessions_dir = app_paths.resolvePath(allocator, "sessions") catch |err| {
-        std.debug.print("Error resolving session directories: {t}\n", .{err});
+        utils.output.printError("resolving session directories: {t}", .{err});
         return;
     };
     defer allocator.free(sessions_dir);
@@ -643,7 +645,7 @@ fn listSessions(allocator: std.mem.Allocator) !void {
     primary_sessions = primary_store.listSessions() catch |err| switch (err) {
         error.SessionNotFound => null,
         else => {
-            std.debug.print("Error listing sessions: {t}\n", .{err});
+            utils.output.printError("listing sessions: {t}", .{err});
             return;
         },
     };
@@ -656,24 +658,23 @@ fn listSessions(allocator: std.mem.Allocator) !void {
     }
 
     if (sessions.items.len == 0) {
-        std.debug.print("No saved sessions found.\n", .{});
+        utils.output.printInfo("No saved sessions found.", .{});
         return;
     }
 
-    std.debug.print("\nSaved Sessions:\n", .{});
-    std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
-    std.debug.print("{s:<20} {s:<20} {s:<10} {s:<10}\n", .{ "ID", "Name", "Messages", "Updated" });
-    std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
+    utils.output.printHeader("Saved Sessions");
+    utils.output.println("{s:<20} {s:<20} {s:<10} {s:<10}", .{ "ID", "Name", "Messages", "Updated" });
+    utils.output.println("─────────────────────────────────────────────────────────────", .{});
 
     for (sessions.items) |sess_meta| {
-        std.debug.print("{s:<20} {s:<20} {d:<10} {d:<10}\n", .{
+        utils.output.println("{s:<20} {s:<20} {d:<10} {d:<10}", .{
             sess_meta.id,
             sess_meta.name,
             sess_meta.message_count,
             sess_meta.updated_at,
         });
     }
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 }
 
 fn sessionMetaExistsById(list: []const abi.ai.memory.SessionMeta, session_id: []const u8) bool {
@@ -701,20 +702,19 @@ fn printInteractiveHelp() void {
         \\
         \\
     ;
-    std.debug.print("{s}", .{help});
+    utils.output.print("{s}", .{help});
 }
 
 fn listPersonas() void {
     const all_personas = abi.ai.prompts.listPersonas();
-    std.debug.print("\nAvailable Personas:\n", .{});
-    std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
-    std.debug.print("{s:<12} {s:<15} {s}\n", .{ "Name", "Temperature", "Description" });
-    std.debug.print("─────────────────────────────────────────────────────────────\n", .{});
+    utils.output.printHeader("Available Personas");
+    utils.output.println("{s:<12} {s:<15} {s}", .{ "Name", "Temperature", "Description" });
+    utils.output.println("─────────────────────────────────────────────────────────────", .{});
     for (all_personas) |pt| {
         const p = abi.ai.prompts.getPersona(pt);
-        std.debug.print("{s:<12} {d:<15.1} {s}\n", .{ p.name, p.suggested_temperature, p.description });
+        utils.output.println("{s:<12} {d:<15.1} {s}", .{ p.name, p.suggested_temperature, p.description });
     }
-    std.debug.print("\nUse --persona <name> to select a persona.\n\n", .{});
+    utils.output.println("\nUse --persona <name> to select a persona.\n", .{});
 }
 
 fn parsePersonaType(name: []const u8) abi.ai.prompts.PersonaType {
@@ -792,7 +792,7 @@ fn printHelp() void {
         \\  --auto-skill                       # LLM extracts a lesson from this run and stores it (model self-improves)
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }
 
 /// Get a pseudo-unique timestamp for session IDs.

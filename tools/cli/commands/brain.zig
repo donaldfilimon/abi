@@ -71,41 +71,44 @@ fn runExport(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
 
     if (wdbx_path == null) {
         utils.output.printError("--wdbx <path> is required", .{});
-        std.debug.print("\nUsage: abi brain export --wdbx <output.wdbx> [--gguf <output.gguf>]\n", .{});
+        utils.output.println("", .{});
+        utils.output.println("Usage: abi brain export --wdbx <output.wdbx> [--gguf <output.gguf>]", .{});
         return;
     }
 
-    std.debug.print("Brain export configuration:\n", .{});
-    std.debug.print("  WDBX output: {s}\n", .{wdbx_path.?});
+    utils.output.println("Brain export configuration:", .{});
+    utils.output.printKeyValue("WDBX output", wdbx_path.?);
     if (gguf_path) |gp| {
-        std.debug.print("  GGUF output: {s}\n", .{gp});
+        utils.output.printKeyValue("GGUF output", gp);
     }
-    std.debug.print("\nNote: To export a trained model, use:\n", .{});
-    std.debug.print("  abi train run --wdbx-output {s}", .{wdbx_path.?});
+    utils.output.println("", .{});
+    utils.output.println("Note: To export a trained model, use:", .{});
+    utils.output.print("  abi train run --wdbx-output {s}", .{wdbx_path.?});
     if (gguf_path) |gp| {
-        std.debug.print(" --output {s}", .{gp});
+        utils.output.print(" --output {s}", .{gp});
     }
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 }
 
 fn runInfo(_: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         utils.output.printError("Path to .wdbx file required", .{});
-        std.debug.print("Usage: abi brain info <path.wdbx>\n", .{});
+        utils.output.println("Usage: abi brain info <path.wdbx>", .{});
         return;
     }
 
     const path = std.mem.sliceTo(args[0], 0);
-    std.debug.print("Brain file: {s}\n", .{path});
+    utils.output.println("Brain file: {s}", .{path});
 
     // Check file extension
     if (!std.mem.endsWith(u8, path, ".wdbx")) {
         utils.output.printWarning("File does not have .wdbx extension", .{});
     }
 
-    std.debug.print("  Format:  WDBX (native brain)\n", .{});
-    std.debug.print("  Status:  File inspection requires WDBX database module\n", .{});
-    std.debug.print("\nUse 'abi db stats' for detailed database statistics.\n", .{});
+    utils.output.printKeyValue("Format", "WDBX (native brain)");
+    utils.output.printKeyValue("Status", "File inspection requires WDBX database module");
+    utils.output.println("", .{});
+    utils.output.println("Use 'abi db stats' for detailed database statistics.", .{});
 }
 
 fn printHelp() void {
@@ -129,5 +132,5 @@ fn printHelp() void {
         \\  abi brain info abbey.wdbx
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }

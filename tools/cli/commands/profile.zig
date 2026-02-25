@@ -412,7 +412,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown profile command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &profile_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -553,11 +553,11 @@ fn getProfilesPrimaryPath(allocator: std.mem.Allocator) ![]u8 {
 
 fn printProfilesConfigLocation(allocator: std.mem.Allocator) void {
     const profiles_path = getProfilesPrimaryPath(allocator) catch {
-        std.debug.print("\nConfig: (unavailable)\n", .{});
+        utils.output.println("\nConfig: (unavailable)", .{});
         return;
     };
     defer allocator.free(profiles_path);
-    std.debug.print("\nConfig: {s}\n", .{profiles_path});
+    utils.output.println("\nConfig: {s}", .{profiles_path});
 }
 
 fn printProfilesSavedPath(allocator: std.mem.Allocator) void {
@@ -599,34 +599,34 @@ fn showCurrentProfile(allocator: std.mem.Allocator) !void {
     const hf_token = getEnvOwned(allocator, "ABI_HF_API_TOKEN");
     defer if (hf_token) |t| allocator.free(t);
 
-    std.debug.print("\n", .{});
-    std.debug.print("Profile:          {s}\n", .{store.active_profile});
-    std.debug.print("Default Provider: {s}\n", .{provider});
-    std.debug.print("Default Model:    {s}\n", .{model});
-    std.debug.print("Temperature:      {d:.2}\n", .{temperature});
-    std.debug.print("Max Tokens:       {d}\n", .{max_tokens});
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("Profile:          {s}", .{store.active_profile});
+    utils.output.println("Default Provider: {s}", .{provider});
+    utils.output.println("Default Model:    {s}", .{model});
+    utils.output.println("Temperature:      {d:.2}", .{temperature});
+    utils.output.println("Max Tokens:       {d}", .{max_tokens});
+    utils.output.println("", .{});
 
-    std.debug.print("API Keys:\n", .{});
+    utils.output.println("API Keys:", .{});
     if (openai_key) |_| {
-        std.debug.print("  OpenAI:      {s}\n", .{"********"});
+        utils.output.println("  OpenAI:      {s}", .{"********"});
     } else {
-        std.debug.print("  OpenAI:      (not set)\n", .{});
+        utils.output.println("  OpenAI:      (not set)", .{});
     }
     if (anthropic_key) |_| {
-        std.debug.print("  Anthropic:   {s}\n", .{"********"});
+        utils.output.println("  Anthropic:   {s}", .{"********"});
     } else {
-        std.debug.print("  Anthropic:   (not set)\n", .{});
+        utils.output.println("  Anthropic:   (not set)", .{});
     }
     if (hf_token) |_| {
-        std.debug.print("  HuggingFace: {s}\n", .{"********"});
+        utils.output.println("  HuggingFace: {s}", .{"********"});
     } else {
-        std.debug.print("  HuggingFace: (not set)\n", .{});
+        utils.output.println("  HuggingFace: (not set)", .{});
     }
 
     printProfilesConfigLocation(allocator);
-    std.debug.print("Use 'abi profile set <key> <value>' to update settings\n", .{});
-    std.debug.print("Use 'abi profile api-key set <provider> <key>' to set API keys\n", .{});
+    utils.output.println("Use 'abi profile set <key> <value>' to update settings", .{});
+    utils.output.println("Use 'abi profile api-key set <provider> <key>' to set API keys", .{});
 }
 
 fn listProfiles(allocator: std.mem.Allocator) !void {
@@ -636,16 +636,16 @@ fn listProfiles(allocator: std.mem.Allocator) !void {
     var store = try loadProfileStore(allocator);
     defer store.deinit();
 
-    std.debug.print("\n{s:<20} {s:<10} {s:<20} {s:<15}\n", .{ "NAME", "STATUS", "PROVIDER", "MODEL" });
-    std.debug.print("{s}\n", .{"-" ** 65});
+    utils.output.println("\n{s:<20} {s:<10} {s:<20} {s:<15}", .{ "NAME", "STATUS", "PROVIDER", "MODEL" });
+    utils.output.println("{s}", .{"-" ** 65});
 
     // Default profile is always available
     const default_active = std.mem.eql(u8, store.active_profile, "default");
     const default_status = if (default_active) "active" else "";
     if (store.getProfile("default")) |p| {
-        std.debug.print("{s:<20} {s:<10} {s:<20} {s:<15}\n", .{ "default", default_status, p.default_provider, p.default_model });
+        utils.output.println("{s:<20} {s:<10} {s:<20} {s:<15}", .{ "default", default_status, p.default_provider, p.default_model });
     } else {
-        std.debug.print("{s:<20} {s:<10} {s:<20} {s:<15}\n", .{ "default", default_status, "openai", "gpt-4" });
+        utils.output.println("{s:<20} {s:<10} {s:<20} {s:<15}", .{ "default", default_status, "openai", "gpt-4" });
     }
 
     // List other profiles
@@ -654,7 +654,7 @@ fn listProfiles(allocator: std.mem.Allocator) !void {
         if (std.mem.eql(u8, entry.key_ptr.*, "default")) continue;
         const is_active = std.mem.eql(u8, store.active_profile, entry.key_ptr.*);
         const status = if (is_active) "active" else "";
-        std.debug.print("{s:<20} {s:<10} {s:<20} {s:<15}\n", .{
+        utils.output.println("{s:<20} {s:<10} {s:<20} {s:<15}", .{
             entry.key_ptr.*,
             status,
             entry.value_ptr.default_provider,
@@ -663,8 +663,8 @@ fn listProfiles(allocator: std.mem.Allocator) !void {
     }
 
     printProfilesConfigLocation(allocator);
-    std.debug.print("Use 'abi profile create <name>' to create a new profile\n", .{});
-    std.debug.print("Use 'abi profile switch <name>' to switch profiles\n", .{});
+    utils.output.println("Use 'abi profile create <name>' to create a new profile", .{});
+    utils.output.println("Use 'abi profile switch <name>' to switch profiles", .{});
 }
 
 fn createProfile(allocator: std.mem.Allocator, name: []const u8) !void {
@@ -811,13 +811,13 @@ fn getProfileValue(allocator: std.mem.Allocator, key: []const u8) !void {
     // Get value from active profile
     if (store.getProfile(store.active_profile)) |profile| {
         if (std.mem.eql(u8, key, "default_model")) {
-            std.debug.print("{s}\n", .{profile.default_model});
+            utils.output.println("{s}", .{profile.default_model});
         } else if (std.mem.eql(u8, key, "default_provider")) {
-            std.debug.print("{s}\n", .{profile.default_provider});
+            utils.output.println("{s}", .{profile.default_provider});
         } else if (std.mem.eql(u8, key, "temperature")) {
-            std.debug.print("{d:.2}\n", .{profile.temperature});
+            utils.output.println("{d:.2}", .{profile.temperature});
         } else if (std.mem.eql(u8, key, "max_tokens")) {
-            std.debug.print("{d}\n", .{profile.max_tokens});
+            utils.output.println("{d}", .{profile.max_tokens});
         } else {
             utils.output.printError("Unknown setting: {s}", .{key});
         }
@@ -831,7 +831,7 @@ fn getProfileValue(allocator: std.mem.Allocator, key: []const u8) !void {
         });
 
         if (defaults.get(key)) |value| {
-            std.debug.print("{s}\n", .{value});
+            utils.output.println("{s}", .{value});
         } else {
             utils.output.printError("Unknown setting: {s}", .{key});
         }
@@ -895,7 +895,7 @@ fn handleApiKey(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !vo
 }
 
 fn printApiKeyHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi profile api-key [action] [options]
         \\
         \\Actions:
@@ -922,20 +922,20 @@ fn showApiKeyStatus(allocator: std.mem.Allocator) !void {
         .{ .name = "ollama", .env_var = "ABI_OLLAMA_HOST" },
     };
 
-    std.debug.print("\n{s:<15} {s:<15} {s:<30}\n", .{ "PROVIDER", "STATUS", "ENV VARIABLE" });
-    std.debug.print("{s}\n", .{"-" ** 60});
+    utils.output.println("\n{s:<15} {s:<15} {s:<30}", .{ "PROVIDER", "STATUS", "ENV VARIABLE" });
+    utils.output.println("{s}", .{"-" ** 60});
 
     for (providers) |p| {
         const status = getEnvOwned(allocator, p.env_var);
         defer if (status) |s| allocator.free(s);
 
         const status_str = if (status != null) "configured" else "not set";
-        std.debug.print("{s:<15} {s:<15} {s:<30}\n", .{ p.name, status_str, p.env_var });
+        utils.output.println("{s:<15} {s:<15} {s:<30}", .{ p.name, status_str, p.env_var });
     }
 
-    std.debug.print("\nTo set an API key:\n", .{});
-    std.debug.print("  export ABI_OPENAI_API_KEY=sk-...\n", .{});
-    std.debug.print("  # or on Windows: $env:ABI_OPENAI_API_KEY=\"sk-...\"\n", .{});
+    utils.output.println("\nTo set an API key:", .{});
+    utils.output.println("  export ABI_OPENAI_API_KEY=sk-...", .{});
+    utils.output.println("  # or on Windows: $env:ABI_OPENAI_API_KEY=\"sk-...\"", .{});
 }
 
 fn setApiKey(allocator: std.mem.Allocator, provider: []const u8, key: []const u8) !void {
@@ -950,12 +950,12 @@ fn setApiKey(allocator: std.mem.Allocator, provider: []const u8, key: []const u8
     if (env_vars.get(provider)) |env_var| {
         utils.output.printWarning("API keys cannot be set programmatically for security", .{});
         utils.output.printInfo("Please set the environment variable directly:", .{});
-        std.debug.print("\n  # Linux/macOS:\n", .{});
-        std.debug.print("  export {s}=<your-key>\n", .{env_var});
-        std.debug.print("\n  # Windows PowerShell:\n", .{});
-        std.debug.print("  $env:{s}=\"<your-key>\"\n", .{env_var});
-        std.debug.print("\n  # Windows cmd:\n", .{});
-        std.debug.print("  set {s}=<your-key>\n", .{env_var});
+        utils.output.println("\n  # Linux/macOS:", .{});
+        utils.output.println("  export {s}=<your-key>", .{env_var});
+        utils.output.println("\n  # Windows PowerShell:", .{});
+        utils.output.println("  $env:{s}=\"<your-key>\"", .{env_var});
+        utils.output.println("\n  # Windows cmd:", .{});
+        utils.output.println("  set {s}=<your-key>", .{env_var});
     } else {
         utils.output.printError("Unknown provider: {s}", .{provider});
         utils.output.printInfo("Supported providers: openai, anthropic, huggingface", .{});
@@ -972,10 +972,10 @@ fn removeApiKey(allocator: std.mem.Allocator, provider: []const u8) !void {
         provider;
 
     utils.output.printInfo("To remove the API key, unset the environment variable:", .{});
-    std.debug.print("\n  # Linux/macOS:\n", .{});
-    std.debug.print("  unset ABI_{s}_API_KEY\n", .{upper_provider});
-    std.debug.print("\n  # Windows PowerShell:\n", .{});
-    std.debug.print("  Remove-Item Env:ABI_{s}_API_KEY\n", .{upper_provider});
+    utils.output.println("\n  # Linux/macOS:", .{});
+    utils.output.println("  unset ABI_{s}_API_KEY", .{upper_provider});
+    utils.output.println("\n  # Windows PowerShell:", .{});
+    utils.output.println("  Remove-Item Env:ABI_{s}_API_KEY", .{upper_provider});
 }
 
 fn exportProfile(allocator: std.mem.Allocator, path: ?[]const u8) !void {
@@ -1030,5 +1030,5 @@ fn printHelp() void {
         \\  abi profile switch work           # Switch to 'work' profile
         \\
     ;
-    std.debug.print("{s}", .{help});
+    utils.output.print("{s}", .{help});
 }

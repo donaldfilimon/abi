@@ -147,15 +147,15 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             try result.formatJSON(DebugWriter{});
         },
         .compact => {
-            std.debug.print("Query: \"{s}\" | Found: {d} matches in {d}ms\n", .{
+            utils.output.println("Query: \"{s}\" | Found: {d} matches in {d}ms", .{
                 search_query, result.matches_found, duration_ms,
             });
         },
         .yaml => {
-            std.debug.print("query: \"{s}\"\n", .{search_query});
-            std.debug.print("level: {t}\n", .{level});
-            std.debug.print("matches_found: {d}\n", .{result.matches_found});
-            std.debug.print("duration_ms: {d}\n", .{duration_ms});
+            utils.output.println("query: \"{s}\"", .{search_query});
+            utils.output.println("level: {t}", .{level});
+            utils.output.println("matches_found: {d}", .{result.matches_found});
+            utils.output.println("duration_ms: {d}", .{duration_ms});
         },
     }
 

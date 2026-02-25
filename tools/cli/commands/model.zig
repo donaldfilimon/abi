@@ -115,11 +115,13 @@ fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     const models = manager.listModels();
 
     if (models.len == 0) {
-        std.debug.print("No models found in cache.\n\n", .{});
-        std.debug.print("Download models with:\n", .{});
-        std.debug.print("  abi model download TheBloke/Llama-2-7B-GGUF:Q4_K_M\n\n", .{});
-        std.debug.print("Or place GGUF files in:\n", .{});
-        std.debug.print("  {s}\n", .{manager.getCacheDir()});
+        utils.output.println("No models found in cache.", .{});
+        utils.output.println("", .{});
+        utils.output.println("Download models with:", .{});
+        utils.output.println("  abi model download TheBloke/Llama-2-7B-GGUF:Q4_K_M", .{});
+        utils.output.println("", .{});
+        utils.output.println("Or place GGUF files in:", .{});
+        utils.output.println("  {s}", .{manager.getCacheDir()});
         return;
     }
 
@@ -167,25 +169,27 @@ fn runInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         scanModelDirectories(allocator, &manager);
 
         if (manager.getModel(model_ref)) |model| {
-            std.debug.print("\nModel: {s}\n", .{model.name});
-            std.debug.print("Path: {s}\n", .{model.path});
-            std.debug.print("Size: {s}\n", .{formatSize(model.size_bytes)});
-            std.debug.print("Format: {t}\n", .{model.format});
+            utils.output.println("", .{});
+            utils.output.printKeyValue("Model", model.name);
+            utils.output.printKeyValue("Path", model.path);
+            utils.output.printKeyValueFmt("Size", "{s}", .{formatSize(model.size_bytes)});
+            utils.output.printKeyValueFmt("Format", "{t}", .{model.format});
             if (model.quantization) |q| {
-                std.debug.print("Quantization: {t}\n", .{q});
+                utils.output.printKeyValueFmt("Quantization", "{t}", .{q});
             }
             if (model.source_url) |url| {
-                std.debug.print("Source: {s}\n", .{url});
+                utils.output.printKeyValue("Source", url);
             }
 
             // Also show GGUF details if it's a GGUF file
             if (model.format == .gguf) {
-                std.debug.print("\n--- GGUF Details ---\n", .{});
+                utils.output.println("", .{});
+                utils.output.printHeader("GGUF Details");
                 showGgufInfo(allocator, model.path);
             }
         } else {
-            std.debug.print("Model not found: {s}\n", .{model_ref});
-            std.debug.print("\nUse 'abi model list' to see available models.\n", .{});
+            utils.output.printError("Model not found: {s}", .{model_ref});
+            utils.output.printInfo("Use 'abi model list' to see available models.", .{});
         }
     }
 }
@@ -224,7 +228,7 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     }
 
     if (model_spec == null) {
-        utils.output.printError("Model specification required.\n", .{});
+        utils.output.printError("Model specification required.", .{});
         printDownloadHelp();
         return;
     }
@@ -240,39 +244,40 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
     // Parse HuggingFace model specification
     const parsed = abi.ai.models.HuggingFaceClient.parseModelSpec(spec);
 
-    std.debug.print("\nModel: {s}\n", .{parsed.model_id});
+    utils.output.println("", .{});
+    utils.output.printKeyValue("Model", parsed.model_id);
 
     if (parsed.filename) |filename| {
-        std.debug.print("File: {s}\n", .{filename});
+        utils.output.printKeyValue("File", filename);
 
         // Build download URL
         var hf_client = abi.ai.models.HuggingFaceClient.init(allocator, null);
         defer hf_client.deinit();
 
         const url = hf_client.resolveDownloadUrl(parsed.model_id, filename) catch |err| {
-            std.debug.print("Error building URL: {t}\n", .{err});
+            utils.output.printError("Error building URL: {t}", .{err});
             return;
         };
         defer allocator.free(url);
 
         downloadFromUrl(allocator, url, output_path, verify_checksum);
     } else if (parsed.quantization_hint) |quant| {
-        std.debug.print("Quantization: {s}\n", .{quant});
+        utils.output.printKeyValue("Quantization", quant);
 
         // Build filename from hint
         var hf_client = abi.ai.models.HuggingFaceClient.init(allocator, null);
         defer hf_client.deinit();
 
         const filename = hf_client.buildFilenameFromHint(parsed.model_id, quant) catch |err| {
-            std.debug.print("Error building filename: {t}\n", .{err});
+            utils.output.printError("Error building filename: {t}", .{err});
             return;
         };
         defer allocator.free(filename);
 
-        std.debug.print("Resolved filename: {s}\n", .{filename});
+        utils.output.printInfo("Resolved filename: {s}", .{filename});
 
         const url = hf_client.resolveDownloadUrl(parsed.model_id, filename) catch |err| {
-            std.debug.print("Error building URL: {t}\n", .{err});
+            utils.output.printError("Error building URL: {t}", .{err});
             return;
         };
         defer allocator.free(url);
@@ -280,16 +285,19 @@ fn runDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u
         downloadFromUrl(allocator, url, output_path, verify_checksum);
     } else {
         // No specific file - show available quantizations
-        std.debug.print("\nNo quantization specified. Available options:\n\n", .{});
+        utils.output.println("", .{});
+        utils.output.printWarning("No quantization specified. Available options:", .{});
+        utils.output.println("", .{});
 
         const quants = abi.ai.models.HuggingFaceClient.getQuantizationInfo();
         for (quants) |q| {
-            std.debug.print("  {s: <10} ({d:.1} bits/weight) - {s}\n", .{ q.name, q.bits, q.desc });
+            utils.output.println("  {s: <10} ({d:.1} bits/weight) - {s}", .{ q.name, q.bits, q.desc });
         }
 
-        std.debug.print("\nUsage:\n", .{});
-        std.debug.print("  abi model download {s}:Q4_K_M\n", .{parsed.model_id});
-        std.debug.print("  abi model download {s}:Q5_K_S\n", .{parsed.model_id});
+        utils.output.println("", .{});
+        utils.output.println("Usage:", .{});
+        utils.output.println("  abi model download {s}:Q4_K_M", .{parsed.model_id});
+        utils.output.println("  abi model download {s}:Q5_K_S", .{parsed.model_id});
     }
 }
 
@@ -321,27 +329,29 @@ fn runRemove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
     scanModelDirectories(allocator, &manager);
 
     if (manager.getModel(model_name)) |model| {
-        std.debug.print("Model: {s}\n", .{model.name});
-        std.debug.print("Path: {s}\n", .{model.path});
-        std.debug.print("Size: {s}\n\n", .{formatSize(model.size_bytes)});
+        utils.output.printKeyValue("Model", model.name);
+        utils.output.printKeyValue("Path", model.path);
+        utils.output.printKeyValueFmt("Size", "{s}", .{formatSize(model.size_bytes)});
+        utils.output.println("", .{});
 
         if (!force) {
-            std.debug.print("To remove this model, run:\n", .{});
-            std.debug.print("  abi model remove {s} --force\n\n", .{model_name});
-            std.debug.print("Note: This will delete the file from disk.\n", .{});
+            utils.output.println("To remove this model, run:", .{});
+            utils.output.println("  abi model remove {s} --force", .{model_name});
+            utils.output.println("", .{});
+            utils.output.printWarning("This will delete the file from disk.", .{});
             return;
         }
 
         // Remove from catalog
         manager.removeModel(model_name) catch |err| {
-            std.debug.print("Error removing model: {t}\n", .{err});
+            utils.output.printError("Error removing model: {t}", .{err});
             return;
         };
 
-        std.debug.print("Model removed from catalog and deleted from disk.\n", .{});
+        utils.output.printSuccess("Model removed from catalog and deleted from disk.", .{});
     } else {
-        std.debug.print("Model not found: {s}\n", .{model_name});
-        std.debug.print("\nUse 'abi model list' to see available models.\n", .{});
+        utils.output.printError("Model not found: {s}", .{model_name});
+        utils.output.printInfo("Use 'abi model list' to see available models.", .{});
     }
 }
 
@@ -356,22 +366,26 @@ fn runSearch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
 
     const query = std.mem.sliceTo(args[0], 0);
 
-    std.debug.print("\nSearching HuggingFace for: {s}\n\n", .{query});
+    utils.output.println("", .{});
+    utils.output.printInfo("Searching HuggingFace for: {s}", .{query});
+    utils.output.println("", .{});
 
     // Note: Full search requires HTTP client
     // For now, show instructions for manual search
 
-    std.debug.print("Search on HuggingFace:\n", .{});
-    std.debug.print("  https://huggingface.co/models?search={s}&library=gguf\n\n", .{query});
+    utils.output.println("Search on HuggingFace:", .{});
+    utils.output.println("  https://huggingface.co/models?search={s}&library=gguf", .{query});
+    utils.output.println("", .{});
 
-    std.debug.print("Popular GGUF model authors:\n", .{});
+    utils.output.println("Popular GGUF model authors:", .{});
     const authors = abi.ai.models.HuggingFaceClient.getPopularAuthors();
     for (authors) |author| {
-        std.debug.print("  • {s}\n", .{author});
+        utils.output.println("  - {s}", .{author});
     }
 
-    std.debug.print("\nOnce you find a model, download with:\n", .{});
-    std.debug.print("  abi model download <author>/<model>:Q4_K_M\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("Once you find a model, download with:", .{});
+    utils.output.println("  abi model download <author>/<model>:Q4_K_M", .{});
 }
 
 fn runPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -389,27 +403,28 @@ fn runPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     if (args.len == 0) {
         // Show current cache directory
-        std.debug.print("Model cache directory: {s}\n", .{manager.getCacheDir()});
-        std.debug.print("Models cached: {d}\n", .{manager.modelCount()});
-        std.debug.print("Total size: {s}\n", .{formatSize(manager.totalCacheSize())});
+        utils.output.printKeyValue("Model cache directory", manager.getCacheDir());
+        utils.output.printKeyValueFmt("Models cached", "{d}", .{manager.modelCount()});
+        utils.output.printKeyValueFmt("Total size", "{s}", .{formatSize(manager.totalCacheSize())});
         return;
     }
 
     // Check for --reset flag
     const arg = std.mem.sliceTo(args[0], 0);
     if (std.mem.eql(u8, arg, "--reset")) {
-        std.debug.print("Cache directory reset to default: {s}\n", .{manager.getCacheDir()});
+        utils.output.printSuccess("Cache directory reset to default: {s}", .{manager.getCacheDir()});
         return;
     }
 
     // Set new cache directory
-    std.debug.print("Setting cache directory: {s}\n", .{arg});
-    std.debug.print("\nTo make this permanent, set the environment variable:\n", .{});
+    utils.output.printInfo("Setting cache directory: {s}", .{arg});
+    utils.output.println("", .{});
+    utils.output.println("To make this permanent, set the environment variable:", .{});
 
     if (builtin.os.tag == .windows) {
-        std.debug.print("  setx ABI_MODEL_CACHE \"{s}\"\n", .{arg});
+        utils.output.println("  setx ABI_MODEL_CACHE \"{s}\"", .{arg});
     } else {
-        std.debug.print("  export ABI_MODEL_CACHE=\"{s}\"\n", .{arg});
+        utils.output.println("  export ABI_MODEL_CACHE=\"{s}\"", .{arg});
     }
 }
 
@@ -428,7 +443,7 @@ fn scanModelDirectories(allocator: std.mem.Allocator, manager: *abi.ai.models.Ma
 
 fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {
     var gguf_file = abi.ai.llm.io.GgufFile.open(allocator, path) catch |err| {
-        std.debug.print("Error opening GGUF file: {t}\n", .{err});
+        utils.output.printError("Error opening GGUF file: {t}", .{err});
         return;
     };
     defer gguf_file.deinit();
@@ -440,21 +455,23 @@ fn showGgufInfo(allocator: std.mem.Allocator, path: []const u8) void {
     const mem_estimate = config.estimateMemory();
     const param_estimate = config.estimateParameters();
 
-    std.debug.print("\nEstimated Parameters: {d:.2}B\n", .{@as(f64, @floatFromInt(param_estimate)) / 1e9});
-    std.debug.print("Estimated Memory: {d:.2} GB\n", .{@as(f64, @floatFromInt(mem_estimate)) / (1024 * 1024 * 1024)});
-    std.debug.print("Attention dims: q={d}, kv={d}, v={d}\n", .{ config.queryDim(), config.kvDim(), config.valueDim() });
-    std.debug.print("Local LLaMA layout: {s}\n", .{if (config.supportsLlamaAttentionLayout()) "compatible" else "unsupported"});
+    utils.output.println("", .{});
+    utils.output.printKeyValueFmt("Estimated Parameters", "{d:.2}B", .{@as(f64, @floatFromInt(param_estimate)) / 1e9});
+    utils.output.printKeyValueFmt("Estimated Memory", "{d:.2} GB", .{@as(f64, @floatFromInt(mem_estimate)) / (1024 * 1024 * 1024)});
+    utils.output.printKeyValueFmt("Attention dims", "q={d}, kv={d}, v={d}", .{ config.queryDim(), config.kvDim(), config.valueDim() });
+    utils.output.printKeyValueFmt("Local LLaMA layout", "{s}", .{if (config.supportsLlamaAttentionLayout()) "compatible" else "unsupported"});
 }
 
 fn showModelPathInfo(path: []const u8) void {
     const ext = std.fs.path.extension(path);
     const format = abi.ai.discovery.ModelFormat.fromExtension(ext);
 
-    std.debug.print("\nModel path: {s}\n", .{path});
-    std.debug.print("Format: {t}\n", .{format});
+    utils.output.println("", .{});
+    utils.output.printKeyValue("Model path", path);
+    utils.output.printKeyValueFmt("Format", "{t}", .{format});
 
     if (format == .mlx and builtin.os.tag == .macos) {
-        std.debug.print("MLX format detected (macOS): prefer Metal backend for local execution.\n", .{});
+        utils.output.printInfo("MLX format detected (macOS): prefer Metal backend for local execution.", .{});
     }
 }
 
@@ -472,9 +489,11 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
     const up_line = "\x1b[1A";
     const clear_line = "\x1b[2K";
 
-    std.debug.print("\n{s}{s}Downloading Model{s}\n", .{ Color.bold(), Color.cyan(), Color.reset() });
-    std.debug.print("{s}URL:{s} {s}\n", .{ Color.dim(), Color.reset(), url });
-    std.debug.print("{s}Output:{s} {s}\n\n", .{ Color.dim(), Color.reset(), filename });
+    utils.output.println("", .{});
+    utils.output.printHeader("Downloading Model");
+    utils.output.printKeyValue("URL", url);
+    utils.output.printKeyValue("Output", filename);
+    utils.output.println("", .{});
 
     // Initialize I/O backend for HTTP download
     var io_backend = cli_io.initIoBackend(allocator);
@@ -494,11 +513,12 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
     // Progress callback with detailed multi-line display
     const progress_callback = struct {
         fn callback(progress: abi.ai.models.DownloadProgress) void {
+            const out = utils.output;
             // Move cursor up and clear previous lines
             if (ProgressState.lines_printed > 0) {
                 var i: usize = 0;
                 while (i < ProgressState.lines_printed) : (i += 1) {
-                    std.debug.print("{s}{s}", .{ up_line, clear_line });
+                    out.print("{s}{s}", .{ up_line, clear_line });
                 }
             }
 
@@ -524,7 +544,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
 
             // Line 1: Progress bar and percentage
             const bar_color = if (progress.percent >= 100) Color.green() else Color.cyan();
-            std.debug.print("{s}{s}{s} {d}%{s}\n", .{
+            out.println("{s}{s}{s} {d}%{s}", .{
                 bar_color,
                 &bar,
                 Color.reset(),
@@ -534,7 +554,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
 
             // Line 2: Size and speed
             if (progress.total_bytes > 0) {
-                std.debug.print("{s}Size:{s} {d:.1} / {d:.1} MB  {s}Speed:{s} {d:.1} MB/s\n", .{
+                out.println("{s}Size:{s} {d:.1} / {d:.1} MB  {s}Speed:{s} {d:.1} MB/s", .{
                     Color.dim(),
                     Color.reset(),
                     downloaded_mb,
@@ -544,7 +564,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
                     speed_mb,
                 });
             } else {
-                std.debug.print("{s}Downloaded:{s} {d:.1} MB  {s}Speed:{s} {d:.1} MB/s\n", .{
+                out.println("{s}Downloaded:{s} {d:.1} MB  {s}Speed:{s} {d:.1} MB/s", .{
                     Color.dim(),
                     Color.reset(),
                     downloaded_mb,
@@ -559,7 +579,7 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
                 if (eta >= 3600) {
                     const hours = eta / 3600;
                     const mins = (eta % 3600) / 60;
-                    std.debug.print("{s}ETA:{s} {d}h {d}m remaining\n", .{
+                    out.println("{s}ETA:{s} {d}h {d}m remaining", .{
                         Color.dim(),
                         Color.reset(),
                         hours,
@@ -568,21 +588,21 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
                 } else if (eta >= 60) {
                     const mins = eta / 60;
                     const secs = eta % 60;
-                    std.debug.print("{s}ETA:{s} {d}m {d}s remaining\n", .{
+                    out.println("{s}ETA:{s} {d}m {d}s remaining", .{
                         Color.dim(),
                         Color.reset(),
                         mins,
                         secs,
                     });
                 } else {
-                    std.debug.print("{s}ETA:{s} {d}s remaining\n", .{
+                    out.println("{s}ETA:{s} {d}s remaining", .{
                         Color.dim(),
                         Color.reset(),
                         eta,
                     });
                 }
             } else {
-                std.debug.print("{s}ETA:{s} calculating...\n", .{ Color.dim(), Color.reset() });
+                out.println("{s}ETA:{s} calculating...", .{ Color.dim(), Color.reset() });
             }
 
             // Track state for next update
@@ -606,69 +626,65 @@ fn downloadFromUrl(allocator: std.mem.Allocator, url: []const u8, output_path: ?
         if (ProgressState.lines_printed > 0) {
             var i: usize = 0;
             while (i < ProgressState.lines_printed) : (i += 1) {
-                std.debug.print("{s}{s}", .{ up_line, clear_line });
+                utils.output.print("{s}{s}", .{ up_line, clear_line });
             }
         }
 
         // Show success summary
-        std.debug.print("{s}{s}✓ Download Complete{s}\n\n", .{ Color.bold(), Color.green(), Color.reset() });
+        utils.output.printSuccess("Download Complete", .{});
+        utils.output.println("", .{});
 
         const size_mb = @as(f64, @floatFromInt(download_result.bytes_downloaded)) / (1024 * 1024);
-        std.debug.print("{s}File:{s} {s}\n", .{ Color.dim(), Color.reset(), download_result.path });
-        std.debug.print("{s}Size:{s} {d:.2} MB\n", .{ Color.dim(), Color.reset(), size_mb });
-        std.debug.print("{s}SHA256:{s} {s}\n", .{ Color.dim(), Color.reset(), &download_result.checksum });
+        utils.output.printKeyValue("File", download_result.path);
+        utils.output.printKeyValueFmt("Size", "{d:.2} MB", .{size_mb});
+        utils.output.printKeyValueFmt("SHA256", "{s}", .{&download_result.checksum});
 
         if (download_result.was_resumed) {
-            std.debug.print("{s}(Download was resumed from partial file){s}\n", .{ Color.yellow(), Color.reset() });
+            utils.output.printWarning("Download was resumed from partial file", .{});
         }
 
         if (download_result.checksum_verified) {
-            std.debug.print("{s}✓ Checksum verified{s}\n", .{ Color.green(), Color.reset() });
+            utils.output.printSuccess("Checksum verified", .{});
         }
 
-        std.debug.print("\nUse 'abi model info {s}' to view model details.\n", .{filename});
+        utils.output.println("", .{});
+        utils.output.printInfo("Use 'abi model info {s}' to view model details.", .{filename});
     } else |err| {
         // Download failed - show error and fallback instructions
-        utils.output.printError("Download failed: {t}\n", .{err});
+        utils.output.printError("Download failed: {t}", .{err});
 
         // Show fallback curl/wget commands
-        std.debug.print("You can download manually with:\n\n", .{});
-        std.debug.print("{s}curl:{s}\n  curl -L -o \"{s}\" \"{s}\"\n\n", .{
-            Color.dim(),
-            Color.reset(),
-            filename,
-            url,
-        });
-        std.debug.print("{s}wget:{s}\n  wget -O \"{s}\" \"{s}\"\n", .{
-            Color.dim(),
-            Color.reset(),
-            filename,
-            url,
-        });
+        utils.output.println("You can download manually with:", .{});
+        utils.output.println("", .{});
+        utils.output.println("{s}curl:{s}", .{ Color.dim(), Color.reset() });
+        utils.output.println("  curl -L -o \"{s}\" \"{s}\"", .{ filename, url });
+        utils.output.println("", .{});
+        utils.output.println("{s}wget:{s}", .{ Color.dim(), Color.reset() });
+        utils.output.println("  wget -O \"{s}\" \"{s}\"", .{ filename, url });
     }
 }
 
 fn printModelsTable(models: []abi.ai.models.CachedModel, show_sizes: bool) void {
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     if (show_sizes) {
-        std.debug.print("{s: <40} {s: <12} {s: <10}\n", .{ "NAME", "SIZE", "QUANT" });
-        std.debug.print("{s:-<40} {s:-<12} {s:-<10}\n", .{ "", "", "" });
+        utils.output.println("{s: <40} {s: <12} {s: <10}", .{ "NAME", "SIZE", "QUANT" });
+        utils.output.println("{s:-<40} {s:-<12} {s:-<10}", .{ "", "", "" });
     } else {
-        std.debug.print("{s: <40} {s: <10}\n", .{ "NAME", "QUANT" });
-        std.debug.print("{s:-<40} {s:-<10}\n", .{ "", "" });
+        utils.output.println("{s: <40} {s: <10}", .{ "NAME", "QUANT" });
+        utils.output.println("{s:-<40} {s:-<10}", .{ "", "" });
     }
 
     for (models) |model| {
         if (show_sizes) {
             if (model.quantization) |q| {
-                std.debug.print("{s: <40} {s: <12} {t: <10}\n", .{
+                utils.output.println("{s: <40} {s: <12} {t: <10}", .{
                     model.name,
                     formatSize(model.size_bytes),
                     q,
                 });
             } else {
-                std.debug.print("{s: <40} {s: <12} {s: <10}\n", .{
+                utils.output.println("{s: <40} {s: <12} {s: <10}", .{
                     model.name,
                     formatSize(model.size_bytes),
                     "-",
@@ -676,36 +692,37 @@ fn printModelsTable(models: []abi.ai.models.CachedModel, show_sizes: bool) void 
             }
         } else {
             if (model.quantization) |q| {
-                std.debug.print("{s: <40} {t: <10}\n", .{ model.name, q });
+                utils.output.println("{s: <40} {t: <10}", .{ model.name, q });
             } else {
-                std.debug.print("{s: <40} {s: <10}\n", .{ model.name, "-" });
+                utils.output.println("{s: <40} {s: <10}", .{ model.name, "-" });
             }
         }
     }
 
-    std.debug.print("\n{d} model(s) cached.\n", .{models.len});
+    utils.output.println("", .{});
+    utils.output.println("{d} model(s) cached.", .{models.len});
 }
 
 fn printModelsJson(models: []abi.ai.models.CachedModel) void {
-    std.debug.print("[\n", .{});
+    utils.output.println("[", .{});
     for (models, 0..) |model, i| {
-        std.debug.print("  {{\n", .{});
-        std.debug.print("    \"name\": \"{s}\",\n", .{model.name});
-        std.debug.print("    \"path\": \"{s}\",\n", .{model.path});
-        std.debug.print("    \"size_bytes\": {d},\n", .{model.size_bytes});
-        std.debug.print("    \"format\": \"{t}\",\n", .{model.format});
+        utils.output.println("  {{", .{});
+        utils.output.println("    \"name\": \"{s}\",", .{model.name});
+        utils.output.println("    \"path\": \"{s}\",", .{model.path});
+        utils.output.println("    \"size_bytes\": {d},", .{model.size_bytes});
+        utils.output.println("    \"format\": \"{t}\",", .{model.format});
         if (model.quantization) |q| {
-            std.debug.print("    \"quantization\": \"{t}\"\n", .{q});
+            utils.output.println("    \"quantization\": \"{t}\"", .{q});
         } else {
-            std.debug.print("    \"quantization\": null\n", .{});
+            utils.output.println("    \"quantization\": null", .{});
         }
         if (i < models.len - 1) {
-            std.debug.print("  }},\n", .{});
+            utils.output.println("  }},", .{});
         } else {
-            std.debug.print("  }}\n", .{});
+            utils.output.println("  }}", .{});
         }
     }
-    std.debug.print("]\n", .{});
+    utils.output.println("]", .{});
 }
 
 fn formatSize(bytes: u64) [16]u8 {
@@ -765,11 +782,11 @@ fn printHelp() void {
         \\Run 'abi model <command> --help' for command-specific help.
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }
 
 fn printListHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi model list [options]
         \\
         \\List all cached models.
@@ -783,7 +800,7 @@ fn printListHelp() void {
 }
 
 fn printInfoHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi model info <name|path>
         \\
         \\Show detailed information about a model.
@@ -800,7 +817,7 @@ fn printInfoHelp() void {
 }
 
 fn printDownloadHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi model download <spec> [options]
         \\
         \\Download a GGUF model from HuggingFace or a direct URL.
@@ -839,7 +856,7 @@ fn printDownloadHelp() void {
 }
 
 fn printRemoveHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi model remove <name> [options]
         \\
         \\Remove a model from the local cache.
@@ -858,7 +875,7 @@ fn printRemoveHelp() void {
 }
 
 fn printSearchHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi model search <query>
         \\
         \\Search HuggingFace for GGUF models.
@@ -875,7 +892,7 @@ fn printSearchHelp() void {
 }
 
 fn printPathHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi model path [directory]
         \\
         \\Show or set the model cache directory.

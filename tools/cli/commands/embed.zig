@@ -117,10 +117,12 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             break :blk content;
         } else {
             utils.output.printError("No input provided. Use --text or --file", .{});
-            std.debug.print("\nExamples:\n", .{});
-            std.debug.print("  abi embed --text \"Hello world\"\n", .{});
-            std.debug.print("  abi embed --file document.txt\n", .{});
-            std.debug.print("  abi embed --text \"Query\" --provider ollama\n\n", .{});
+            utils.output.println("", .{});
+            utils.output.println("Examples:", .{});
+            utils.output.println("  abi embed --text \"Hello world\"", .{});
+            utils.output.println("  abi embed --file document.txt", .{});
+            utils.output.println("  abi embed --text \"Query\" --provider ollama", .{});
+            utils.output.println("", .{});
             printHelp(allocator);
             return EmbedError.NoInput;
         }
@@ -338,40 +340,40 @@ fn printOutput(allocator: std.mem.Allocator, embedding: []const f32, format: Out
 
     switch (format) {
         .json => {
-            std.debug.print("{{\"embedding\":[", .{});
+            utils.output.print("{{\"embedding\":[", .{});
             for (embedding, 0..) |v, i| {
-                if (i > 0) std.debug.print(",", .{});
+                if (i > 0) utils.output.print(",", .{});
                 if (i < 5 or i >= embedding.len - 2) {
-                    std.debug.print("{d:.6}", .{v});
+                    utils.output.print("{d:.6}", .{v});
                 } else if (i == 5) {
-                    std.debug.print("...", .{});
+                    utils.output.print("...", .{});
                 }
             }
-            std.debug.print("],\"dimension\":{d}}}\n", .{embedding.len});
+            utils.output.println("],\"dimension\":{d}}}", .{embedding.len});
         },
         .csv => {
             // Print first few and last few values
             for (embedding[0..@min(5, embedding.len)], 0..) |v, i| {
-                if (i > 0) std.debug.print(",", .{});
-                std.debug.print("{d:.6}", .{v});
+                if (i > 0) utils.output.print(",", .{});
+                utils.output.print("{d:.6}", .{v});
             }
             if (embedding.len > 7) {
-                std.debug.print(",...", .{});
+                utils.output.print(",...", .{});
             }
             if (embedding.len > 5) {
                 for (embedding[embedding.len - 2 ..]) |v| {
-                    std.debug.print(",{d:.6}", .{v});
+                    utils.output.print(",{d:.6}", .{v});
                 }
             }
-            std.debug.print("\n", .{});
+            utils.output.println("", .{});
         },
         .raw => {
-            std.debug.print("First 5 values:\n", .{});
+            utils.output.println("First 5 values:", .{});
             for (embedding[0..@min(5, embedding.len)]) |v| {
-                std.debug.print("  {d:.8}\n", .{v});
+                utils.output.println("  {d:.8}", .{v});
             }
             if (embedding.len > 5) {
-                std.debug.print("  ... ({d} more values)\n", .{embedding.len - 5});
+                utils.output.println("  ... ({d} more values)", .{embedding.len - 5});
             }
         },
     }

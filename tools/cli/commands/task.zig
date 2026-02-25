@@ -116,7 +116,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown task command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &task_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -185,7 +185,7 @@ fn runAdd(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !v
 
     if (title == null) {
         utils.output.printError("Task title is required", .{});
-        std.debug.print("Usage: abi task add <title> [--priority <p>] [--category <c>] [--desc <text>] [--due <date>]\n", .{});
+        utils.output.println("Usage: abi task add <title> [--priority <p>] [--category <c>] [--desc <text>] [--due <date>]", .{});
         return;
     }
 
@@ -298,13 +298,13 @@ fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
 
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
     utils.output.printHeader("Tasks");
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     // Print table header
-    std.debug.print("  {s:<6} {s:<12} {s:<10} {s:<10} {s}\n", .{ "ID", "STATUS", "PRIORITY", "CATEGORY", "TITLE" });
-    std.debug.print("  {s:-<6} {s:-<12} {s:-<10} {s:-<10} {s:-<40}\n", .{ "", "", "", "", "" });
+    utils.output.println("  {s:<6} {s:<12} {s:<10} {s:<10} {s}", .{ "ID", "STATUS", "PRIORITY", "CATEGORY", "TITLE" });
+    utils.output.println("  {s:-<6} {s:-<12} {s:-<10} {s:-<10} {s:-<40}", .{ "", "", "", "", "" });
 
     for (task_list) |task| {
         const status_str = task.status.toString();
@@ -327,7 +327,7 @@ fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             .blocked => utils.output.Color.red(),
         };
 
-        std.debug.print("  {d:<6} {s}{s:<12}{s} {s:<10} {s:<10} {s}", .{
+        utils.output.print("  {d:<6} {s}{s:<12}{s} {s:<10} {s:<10} {s}", .{
             task.id,
             status_color,
             status_str,
@@ -338,12 +338,12 @@ fn runList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         });
 
         if (task.title.len > max_title_len) {
-            std.debug.print("...", .{});
+            utils.output.print("...", .{});
         }
-        std.debug.print("\n", .{});
+        utils.output.println("", .{});
     }
 
-    std.debug.print("\n  Total: {d} task(s)\n\n", .{task_list.len});
+    utils.output.println("\n  Total: {d} task(s)\n", .{task_list.len});
 }
 
 fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -361,9 +361,9 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     };
 
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
     utils.output.printHeader("Task Details");
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
     utils.output.printKeyValueFmt("ID", "{d}", .{task.id});
     utils.output.printKeyValue("Title", task.title);
@@ -389,7 +389,7 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         defer if (due_str.len > 0 and !std.mem.eql(u8, due_str, "unknown")) allocator.free(due_str);
         utils.output.printKeyValue("Due", due_str);
         if (task.isOverdue()) {
-            std.debug.print("  {s}OVERDUE{s}\n", .{ utils.output.Color.red(), utils.output.Color.reset() });
+            utils.output.println("  {s}OVERDUE{s}", .{ utils.output.Color.red(), utils.output.Color.reset() });
         }
     }
 
@@ -403,7 +403,7 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         utils.output.printKeyValueFmt("Parent Task", "{d}", .{parent});
     }
 
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 }
 
 fn runDone(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -503,24 +503,24 @@ fn runStats(allocator: std.mem.Allocator) !void {
 
     const stats = manager.getStats();
 
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
     utils.output.printHeader("Task Statistics");
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 
-    std.debug.print("  Total:       {d}\n", .{stats.total});
-    std.debug.print("  {s}Pending:{s}     {d}\n", .{ utils.output.Color.yellow(), utils.output.Color.reset(), stats.pending });
-    std.debug.print("  {s}In Progress:{s} {d}\n", .{ utils.output.Color.cyan(), utils.output.Color.reset(), stats.in_progress });
-    std.debug.print("  {s}Completed:{s}   {d}\n", .{ utils.output.Color.green(), utils.output.Color.reset(), stats.completed });
-    std.debug.print("  {s}Cancelled:{s}   {d}\n", .{ utils.output.Color.dim(), utils.output.Color.reset(), stats.cancelled });
-    std.debug.print("  {s}Blocked:{s}     {d}\n", .{ utils.output.Color.red(), utils.output.Color.reset(), stats.blocked });
-    std.debug.print("  {s}Overdue:{s}     {d}\n", .{ utils.output.Color.red(), utils.output.Color.reset(), stats.overdue });
+    utils.output.println("  Total:       {d}", .{stats.total});
+    utils.output.println("  {s}Pending:{s}     {d}", .{ utils.output.Color.yellow(), utils.output.Color.reset(), stats.pending });
+    utils.output.println("  {s}In Progress:{s} {d}", .{ utils.output.Color.cyan(), utils.output.Color.reset(), stats.in_progress });
+    utils.output.println("  {s}Completed:{s}   {d}", .{ utils.output.Color.green(), utils.output.Color.reset(), stats.completed });
+    utils.output.println("  {s}Cancelled:{s}   {d}", .{ utils.output.Color.dim(), utils.output.Color.reset(), stats.cancelled });
+    utils.output.println("  {s}Blocked:{s}     {d}", .{ utils.output.Color.red(), utils.output.Color.reset(), stats.blocked });
+    utils.output.println("  {s}Overdue:{s}     {d}", .{ utils.output.Color.red(), utils.output.Color.reset(), stats.overdue });
 
     if (stats.total > 0) {
         const completion_rate = @as(f64, @floatFromInt(stats.completed)) / @as(f64, @floatFromInt(stats.total)) * 100.0;
-        std.debug.print("\n  Completion rate: {d:.1}%\n", .{completion_rate});
+        utils.output.println("\n  Completion rate: {d:.1}%", .{completion_rate});
     }
 
-    std.debug.print("\n", .{});
+    utils.output.println("", .{});
 }
 
 fn runImportRoadmap(allocator: std.mem.Allocator) !void {
@@ -732,7 +732,7 @@ fn runBlock(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     const allocator = ctx.allocator;
     if (args.len < 2) {
         utils.output.printError("Usage: abi task block <task_id> <blocker_id>", .{});
-        std.debug.print("Marks task <task_id> as blocked by <blocker_id>\n", .{});
+        utils.output.println("Marks task <task_id> as blocked by <blocker_id>", .{});
         return;
     }
 
@@ -797,9 +797,9 @@ fn runDue(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !v
     const allocator = ctx.allocator;
     if (args.len < 2) {
         utils.output.printError("Usage: abi task due <task_id> <due_date>", .{});
-        std.debug.print("Due date formats: +Nd (days), +Nh (hours), +Nm (minutes), 'clear', or Unix timestamp\n", .{});
-        std.debug.print("Examples: abi task due 1 +7d    # Due in 7 days\n", .{});
-        std.debug.print("          abi task due 1 clear  # Remove due date\n", .{});
+        utils.output.println("Due date formats: +Nd (days), +Nh (hours), +Nm (minutes), 'clear', or Unix timestamp", .{});
+        utils.output.println("Examples: abi task due 1 +7d    # Due in 7 days", .{});
+        utils.output.println("          abi task due 1 clear  # Remove due date", .{});
         return;
     }
 
@@ -963,5 +963,5 @@ fn printHelp() void {
         \\  abi task seed-self-improve
         \\
     ;
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }

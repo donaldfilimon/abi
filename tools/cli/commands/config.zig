@@ -118,9 +118,9 @@ fn runInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     };
 
-    std.debug.print("Created configuration file: {s}\n", .{output_path});
-    std.debug.print("\nEdit this file to customize your ABI framework settings.\n", .{});
-    std.debug.print("Run 'abi config validate {s}' to check your configuration.\n", .{output_path});
+    utils.output.printSuccess("Created configuration file: {s}", .{output_path});
+    utils.output.println("\nEdit this file to customize your ABI framework settings.", .{});
+    utils.output.println("Run 'abi config validate {s}' to check your configuration.", .{output_path});
 }
 
 fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -163,8 +163,8 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
             if (err == error.NoHomeDirectory) {
                 switch (format) {
                     .human => printDefaultConfigHuman(),
-                    .json => std.debug.print("{s}\n", .{getDefaultConfigJson()}),
-                    .zon => std.debug.print("{s}\n", .{getDefaultConfigZon()}),
+                    .json => utils.output.println("{s}", .{getDefaultConfigJson()}),
+                    .zon => utils.output.println("{s}", .{getDefaultConfigZon()}),
                 }
                 return;
             }
@@ -184,8 +184,8 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         // Show built-in default configuration only when no user config exists.
         switch (format) {
             .human => printDefaultConfigHuman(),
-            .json => std.debug.print("{s}\n", .{getDefaultConfigJson()}),
-            .zon => std.debug.print("{s}\n", .{getDefaultConfigZon()}),
+            .json => utils.output.println("{s}", .{getDefaultConfigJson()}),
+            .zon => utils.output.println("{s}", .{getDefaultConfigZon()}),
         }
     }
 }
@@ -193,12 +193,12 @@ fn runShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 fn runValidate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     const allocator = ctx.allocator;
     if (args.len == 0) {
-        std.debug.print("Usage: abi config validate <config-file>\n", .{});
+        utils.output.println("Usage: abi config validate <config-file>", .{});
         return;
     }
 
     if (utils.args.matchesAny(std.mem.sliceTo(args[0], 0), &[_][]const u8{ "--help", "-h", "help" })) {
-        std.debug.print("Usage: abi config validate <config-file>\n", .{});
+        utils.output.println("Usage: abi config validate <config-file>", .{});
         return;
     }
 
@@ -270,7 +270,7 @@ fn printByFormat(
     switch (format) {
         .human => printConfigHuman(config),
         .json => try printConfigJson(allocator, config),
-        .zon => std.debug.print("{s}\n", .{getDefaultConfigZon()}),
+        .zon => utils.output.println("{s}", .{getDefaultConfigZon()}),
     }
 }
 
@@ -288,8 +288,8 @@ fn runPath(ctx: *const context_mod.CommandContext) !void {
     const config_path = try app_paths.resolvePath(allocator, "config.json");
     defer allocator.free(config_path);
 
-    std.debug.print("Primary user config directory: {s}\n", .{primary_dir});
-    std.debug.print("Primary user config file:      {s}\n", .{config_path});
+    utils.output.printKeyValue("Primary user config directory", primary_dir);
+    utils.output.printKeyValue("Primary user config file", config_path);
 }
 
 fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -334,8 +334,8 @@ fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     if (existing) |file| {
         file.close(io);
         if (!force) {
-            std.debug.print("Config already exists: {s}\n", .{config_path});
-            std.debug.print("Use 'abi config setup --force' to overwrite it.\n", .{});
+            utils.output.printWarning("Config already exists: {s}", .{config_path});
+            utils.output.println("Use 'abi config setup --force' to overwrite it.", .{});
             printStartupHints(config_path);
             return;
         }
@@ -352,7 +352,7 @@ fn runSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
         return;
     };
 
-    std.debug.print("User config ready: {s}\n", .{config_path});
+    utils.output.printSuccess("User config ready: {s}", .{config_path});
     printStartupHints(config_path);
 }
 
@@ -362,15 +362,15 @@ fn printSetupHelp() void {
         "Create the default user config file in the platform-specific location.\n\n" ++
         "Options:\n" ++
         "  -f, --force          Overwrite existing config file\n";
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }
 
 fn printStartupHints(config_path: []const u8) void {
-    std.debug.print("\nQuick start:\n", .{});
-    std.debug.print("  abi launch                         Open command launcher\n", .{});
-    std.debug.print("  abi config show {s}         Review config\n", .{config_path});
-    std.debug.print("  abi llm discover                    Detect available LLM providers\n", .{});
-    std.debug.print("  abi profile show                    Check active profile settings\n", .{});
+    utils.output.println("\nQuick start:", .{});
+    utils.output.println("  abi launch                         Open command launcher", .{});
+    utils.output.println("  abi config show {s}         Review config", .{config_path});
+    utils.output.println("  abi llm discover                    Detect available LLM providers", .{});
+    utils.output.println("  abi profile show                    Check active profile settings", .{});
 }
 
 fn printHelp() void {
@@ -399,74 +399,74 @@ fn printHelp() void {
         "  abi config show -f json            Show as JSON\n" ++
         "  abi config validate abi.json       Validate config file\n" ++
         "  abi config env                     List environment variables\n";
-    std.debug.print("{s}", .{help_text});
+    utils.output.print("{s}", .{help_text});
 }
 
 fn printConfigHuman(config: *const shared_config.Config) void {
-    std.debug.print("  Source: {t}\n", .{config.source});
-    std.debug.print("\n  [Framework]\n", .{});
-    std.debug.print("    enable_ai: {s}\n", .{utils.output.boolLabel(config.framework.enable_ai)});
-    std.debug.print("    enable_gpu: {s}\n", .{utils.output.boolLabel(config.framework.enable_gpu)});
-    std.debug.print("    enable_web: {s}\n", .{utils.output.boolLabel(config.framework.enable_web)});
-    std.debug.print("    enable_database: {s}\n", .{utils.output.boolLabel(config.framework.enable_database)});
-    std.debug.print("    enable_network: {s}\n", .{utils.output.boolLabel(config.framework.enable_network)});
-    std.debug.print("    worker_threads: {d}\n", .{config.framework.worker_threads});
-    std.debug.print("    log_level: {t}\n", .{config.framework.log_level});
+    utils.output.println("  Source: {t}", .{config.source});
+    utils.output.println("\n  [Framework]", .{});
+    utils.output.printKeyValue("enable_ai", utils.output.boolLabel(config.framework.enable_ai));
+    utils.output.printKeyValue("enable_gpu", utils.output.boolLabel(config.framework.enable_gpu));
+    utils.output.printKeyValue("enable_web", utils.output.boolLabel(config.framework.enable_web));
+    utils.output.printKeyValue("enable_database", utils.output.boolLabel(config.framework.enable_database));
+    utils.output.printKeyValue("enable_network", utils.output.boolLabel(config.framework.enable_network));
+    utils.output.printKeyValueFmt("worker_threads", "{d}", .{config.framework.worker_threads});
+    utils.output.printKeyValueFmt("log_level", "{t}", .{config.framework.log_level});
 
-    std.debug.print("\n  [Database]\n", .{});
-    std.debug.print("    name: {s}\n", .{config.database.name});
-    std.debug.print("    persistence_enabled: {s}\n", .{utils.output.boolLabel(config.database.persistence_enabled)});
-    std.debug.print("    vector_search_enabled: {s}\n", .{utils.output.boolLabel(config.database.vector_search_enabled)});
-    std.debug.print("    default_search_limit: {d}\n", .{config.database.default_search_limit});
+    utils.output.println("\n  [Database]", .{});
+    utils.output.printKeyValue("name", config.database.name);
+    utils.output.printKeyValue("persistence_enabled", utils.output.boolLabel(config.database.persistence_enabled));
+    utils.output.printKeyValue("vector_search_enabled", utils.output.boolLabel(config.database.vector_search_enabled));
+    utils.output.printKeyValueFmt("default_search_limit", "{d}", .{config.database.default_search_limit});
 
-    std.debug.print("\n  [AI]\n", .{});
-    std.debug.print("    temperature: {d:.2}\n", .{config.ai.temperature});
-    std.debug.print("    max_tokens: {d}\n", .{config.ai.max_tokens});
-    std.debug.print("    streaming_enabled: {s}\n", .{utils.output.boolLabel(config.ai.streaming_enabled)});
+    utils.output.println("\n  [AI]", .{});
+    utils.output.printKeyValueFmt("temperature", "{d:.2}", .{config.ai.temperature});
+    utils.output.printKeyValueFmt("max_tokens", "{d}", .{config.ai.max_tokens});
+    utils.output.printKeyValue("streaming_enabled", utils.output.boolLabel(config.ai.streaming_enabled));
 
-    std.debug.print("\n  [Network]\n", .{});
-    std.debug.print("    distributed_enabled: {s}\n", .{utils.output.boolLabel(config.network.distributed_enabled)});
-    std.debug.print("    cluster_id: {s}\n", .{config.network.cluster_id});
-    std.debug.print("    node_address: {s}\n", .{config.network.node_address});
+    utils.output.println("\n  [Network]", .{});
+    utils.output.printKeyValue("distributed_enabled", utils.output.boolLabel(config.network.distributed_enabled));
+    utils.output.printKeyValue("cluster_id", config.network.cluster_id);
+    utils.output.printKeyValue("node_address", config.network.node_address);
 
-    std.debug.print("\n  [Web]\n", .{});
-    std.debug.print("    server_enabled: {s}\n", .{utils.output.boolLabel(config.web.server_enabled)});
-    std.debug.print("    port: {d}\n", .{config.web.port});
-    std.debug.print("    cors_enabled: {s}\n", .{utils.output.boolLabel(config.web.cors_enabled)});
+    utils.output.println("\n  [Web]", .{});
+    utils.output.printKeyValue("server_enabled", utils.output.boolLabel(config.web.server_enabled));
+    utils.output.printKeyValueFmt("port", "{d}", .{config.web.port});
+    utils.output.printKeyValue("cors_enabled", utils.output.boolLabel(config.web.cors_enabled));
 }
 
 fn printDefaultConfigHuman() void {
-    std.debug.print("Default Configuration:\n", .{});
-    std.debug.print("  Source: default\n", .{});
-    std.debug.print("\n  [Framework]\n", .{});
-    std.debug.print("    enable_ai: yes\n", .{});
-    std.debug.print("    enable_gpu: yes\n", .{});
-    std.debug.print("    enable_web: yes\n", .{});
-    std.debug.print("    enable_database: yes\n", .{});
-    std.debug.print("    enable_network: no\n", .{});
-    std.debug.print("    worker_threads: 0 (auto-detect)\n", .{});
-    std.debug.print("    log_level: info\n", .{});
+    utils.output.println("Default Configuration:", .{});
+    utils.output.printKeyValue("Source", "default");
+    utils.output.println("\n  [Framework]", .{});
+    utils.output.printKeyValue("enable_ai", "yes");
+    utils.output.printKeyValue("enable_gpu", "yes");
+    utils.output.printKeyValue("enable_web", "yes");
+    utils.output.printKeyValue("enable_database", "yes");
+    utils.output.printKeyValue("enable_network", "no");
+    utils.output.printKeyValue("worker_threads", "0 (auto-detect)");
+    utils.output.printKeyValue("log_level", "info");
 
-    std.debug.print("\n  [Database]\n", .{});
-    std.debug.print("    name: abi.db\n", .{});
-    std.debug.print("    persistence_enabled: yes\n", .{});
-    std.debug.print("    vector_search_enabled: yes\n", .{});
-    std.debug.print("    default_search_limit: 10\n", .{});
+    utils.output.println("\n  [Database]", .{});
+    utils.output.printKeyValue("name", "abi.db");
+    utils.output.printKeyValue("persistence_enabled", "yes");
+    utils.output.printKeyValue("vector_search_enabled", "yes");
+    utils.output.printKeyValue("default_search_limit", "10");
 
-    std.debug.print("\n  [AI]\n", .{});
-    std.debug.print("    temperature: 0.70\n", .{});
-    std.debug.print("    max_tokens: 2048\n", .{});
-    std.debug.print("    streaming_enabled: yes\n", .{});
+    utils.output.println("\n  [AI]", .{});
+    utils.output.printKeyValue("temperature", "0.70");
+    utils.output.printKeyValue("max_tokens", "2048");
+    utils.output.printKeyValue("streaming_enabled", "yes");
 
-    std.debug.print("\n  [Network]\n", .{});
-    std.debug.print("    distributed_enabled: no\n", .{});
-    std.debug.print("    cluster_id: default\n", .{});
-    std.debug.print("    node_address: 0.0.0.0:9000\n", .{});
+    utils.output.println("\n  [Network]", .{});
+    utils.output.printKeyValue("distributed_enabled", "no");
+    utils.output.printKeyValue("cluster_id", "default");
+    utils.output.printKeyValue("node_address", "0.0.0.0:9000");
 
-    std.debug.print("\n  [Web]\n", .{});
-    std.debug.print("    server_enabled: no\n", .{});
-    std.debug.print("    port: 8080\n", .{});
-    std.debug.print("    cors_enabled: yes\n", .{});
+    utils.output.println("\n  [Web]", .{});
+    utils.output.printKeyValue("server_enabled", "no");
+    utils.output.printKeyValue("port", "8080");
+    utils.output.printKeyValue("cors_enabled", "yes");
 }
 
 fn printConfigJson(allocator: std.mem.Allocator, config: *const shared_config.Config) !void {
@@ -494,7 +494,7 @@ fn printConfigJson(allocator: std.mem.Allocator, config: *const shared_config.Co
 
     const json_data = try json_writer.toOwnedSlice();
     defer allocator.free(json_data);
-    std.debug.print("{s}\n", .{json_data});
+    utils.output.println("{s}", .{json_data});
 }
 
 fn getDefaultConfigZon() []const u8 {

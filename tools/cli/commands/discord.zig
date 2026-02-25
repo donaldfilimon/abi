@@ -84,25 +84,25 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown discord command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &discord_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
 /// Print a short discord summary for system-info.
 pub fn printSummary(allocator: std.mem.Allocator) void {
     const config = abi.connectors.tryLoadDiscord(allocator) catch {
-        std.debug.print("  Discord: error loading config\n", .{});
+        utils.output.println("  Discord: error loading config", .{});
         return;
     };
 
     if (config) |cfg| {
         var mutable_cfg = cfg;
         defer mutable_cfg.deinit(allocator);
-        std.debug.print("  Discord: configured (token: {s}...)\n", .{
+        utils.output.println("  Discord: configured (token: {s}...)", .{
             if (cfg.bot_token.len > 8) cfg.bot_token[0..8] else cfg.bot_token,
         });
     } else {
-        std.debug.print("  Discord: not configured (set DISCORD_BOT_TOKEN)\n", .{});
+        utils.output.println("  Discord: not configured (set DISCORD_BOT_TOKEN)", .{});
     }
 }
 
@@ -211,7 +211,7 @@ fn listGuilds(allocator: std.mem.Allocator) !void {
 
     utils.output.printHeaderFmt("Guilds ({d})", .{guilds.len});
     for (guilds) |guild| {
-        std.debug.print("  {s}•{s} {s: <20} (ID: {s})\n", .{ utils.output.Color.green(), utils.output.Color.reset(), guild.name, guild.id });
+        utils.output.println("  {s}•{s} {s: <20} (ID: {s})", .{ utils.output.Color.green(), utils.output.Color.reset(), guild.name, guild.id });
     }
 }
 
@@ -383,7 +383,7 @@ fn dcCommandsList(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
 
     utils.output.printHeaderFmt("Application Commands ({d})", .{commands.len});
     for (commands) |cmd| {
-        std.debug.print("  {s}/{s}{s: <15} - {s} (ID: {s})\n", .{ utils.output.Color.cyan(), utils.output.Color.reset(), cmd.name, cmd.description, cmd.id });
+        utils.output.println("  {s}/{s}{s: <15} - {s} (ID: {s})", .{ utils.output.Color.cyan(), utils.output.Color.reset(), cmd.name, cmd.description, cmd.id });
     }
 }
 

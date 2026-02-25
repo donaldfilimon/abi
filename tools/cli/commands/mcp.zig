@@ -56,7 +56,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown mcp command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &mcp_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -128,17 +128,20 @@ fn runTools(allocator: std.mem.Allocator, use_zls: bool) !void {
     utils.output.printHeader(title);
 
     for (server.tools.items) |tool| {
-        std.debug.print("\n  {s}\n", .{tool.def.name});
-        std.debug.print("    {s}\n", .{tool.def.description});
+        utils.output.println("", .{});
+        utils.output.println("  {s}", .{tool.def.name});
+        utils.output.println("    {s}", .{tool.def.description});
     }
 
-    std.debug.print("\nTotal: {d} tools available\n", .{server.tools.items.len});
-    std.debug.print("\nUsage with Claude Desktop:\n", .{});
-    std.debug.print("  Add to claude_desktop_config.json:\n", .{});
+    utils.output.println("", .{});
+    utils.output.println("Total: {d} tools available", .{server.tools.items.len});
+    utils.output.println("", .{});
+    utils.output.println("Usage with Claude Desktop:", .{});
+    utils.output.println("  Add to claude_desktop_config.json:", .{});
     if (use_zls) {
-        std.debug.print("  {{\"mcpServers\":{{\"abi-zls\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\",\"--zls\"]}}}}}}\n", .{});
+        utils.output.println("  {{\"mcpServers\":{{\"abi-zls\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\",\"--zls\"]}}}}}}", .{});
     } else {
-        std.debug.print("  {{\"mcpServers\":{{\"abi-wdbx\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\"]}}}}}}\n", .{});
+        utils.output.println("  {{\"mcpServers\":{{\"abi-wdbx\":{{\"command\":\"abi\",\"args\":[\"mcp\",\"serve\"]}}}}}}", .{});
     }
 }
 

@@ -105,7 +105,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     output.printError("Unknown toolchain command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &toolchain_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -413,18 +413,18 @@ fn runPath(allocator: std.mem.Allocator, parser: *ArgParser) !void {
 
     if (shell) |sh| {
         if (std.mem.eql(u8, sh, "bash") or std.mem.eql(u8, sh, "zsh")) {
-            std.debug.print("export PATH=\"{s}:$PATH\"\n", .{bin_dir});
+            utils.output.println("export PATH=\"{s}:$PATH\"", .{bin_dir});
         } else if (std.mem.eql(u8, sh, "fish")) {
-            std.debug.print("set -gx PATH {s} $PATH\n", .{bin_dir});
+            utils.output.println("set -gx PATH {s} $PATH", .{bin_dir});
         } else if (std.mem.eql(u8, sh, "powershell") or std.mem.eql(u8, sh, "pwsh")) {
-            std.debug.print("$env:PATH = \"{s};$env:PATH\"\n", .{bin_dir});
+            utils.output.println("$env:PATH = \"{s};$env:PATH\"", .{bin_dir});
         } else if (std.mem.eql(u8, sh, "cmd")) {
-            std.debug.print("set PATH={s};%PATH%\n", .{bin_dir});
+            utils.output.println("set PATH={s};%PATH%", .{bin_dir});
         } else {
-            std.debug.print("{s}\n", .{bin_dir});
+            utils.output.println("{s}", .{bin_dir});
         }
     } else {
-        std.debug.print("{s}\n", .{bin_dir});
+        utils.output.println("{s}", .{bin_dir});
     }
 }
 
@@ -617,16 +617,19 @@ fn printPathInstructions(base_dir: []const u8) void {
 
     switch (builtin.os.tag) {
         .windows => {
-            std.debug.print("  PowerShell:\n", .{});
-            std.debug.print("    $env:PATH = \"{s}\\bin;$env:PATH\"\n", .{base_dir});
-            std.debug.print("\n  Or run: abi toolchain path --shell powershell\n", .{});
+            utils.output.println("  PowerShell:", .{});
+            utils.output.println("    $env:PATH = \"{s}\\bin;$env:PATH\"", .{base_dir});
+            utils.output.println("", .{});
+            utils.output.println("  Or run: abi toolchain path --shell powershell", .{});
         },
         else => {
-            std.debug.print("  Bash/Zsh:\n", .{});
-            std.debug.print("    export PATH=\"{s}/bin:$PATH\"\n", .{base_dir});
-            std.debug.print("\n  Fish:\n", .{});
-            std.debug.print("    set -gx PATH {s}/bin $PATH\n", .{base_dir});
-            std.debug.print("\n  Or run: abi toolchain path --shell bash\n", .{});
+            utils.output.println("  Bash/Zsh:", .{});
+            utils.output.println("    export PATH=\"{s}/bin:$PATH\"", .{base_dir});
+            utils.output.println("", .{});
+            utils.output.println("  Fish:", .{});
+            utils.output.println("    set -gx PATH {s}/bin $PATH", .{base_dir});
+            utils.output.println("", .{});
+            utils.output.println("  Or run: abi toolchain path --shell bash", .{});
         },
     }
 }

@@ -66,7 +66,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown gpu command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &gpu_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -74,27 +74,27 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 pub fn printSummary(allocator: std.mem.Allocator) !void {
     const summary = gpu_listing.summary();
     if (!summary.module_enabled) {
-        std.debug.print("  GPU Backends: disabled\n", .{});
-        std.debug.print("  GPU Devices: 0\n", .{});
+        utils.output.println("  GPU Backends: disabled", .{});
+        utils.output.println("  GPU Devices: 0", .{});
         return;
     }
 
     const backends = try gpu_detect.availableBackends(allocator);
     defer allocator.free(backends);
 
-    std.debug.print("  GPU Backends: ", .{});
+    utils.output.print("  GPU Backends: ", .{});
     if (backends.len == 0) {
-        std.debug.print("none\n", .{});
+        utils.output.println("none", .{});
     } else {
         for (backends, 0..) |backend, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}", .{gpu_meta.backendName(backend)});
+            if (i > 0) utils.output.print(", ", .{});
+            utils.output.print("{s}", .{gpu_meta.backendName(backend)});
         }
-        std.debug.print("\n", .{});
+        utils.output.println("", .{});
     }
 
-    std.debug.print(
-        "  GPU Devices: {d} (emulated {d})\n",
+    utils.output.println(
+        "  GPU Devices: {d} (emulated {d})",
         .{ summary.device_count, summary.emulated_devices },
     );
 }
@@ -134,13 +134,13 @@ fn printBackends(allocator: std.mem.Allocator) !void {
     for (infos) |info| {
         if (!info.enabled) {
             if (info.build_flag.len > 0) {
-                std.debug.print(
-                    "  {s} (disabled) - {s} [enable {s}]\n",
+                utils.output.println(
+                    "  {s} (disabled) - {s} [enable {s}]",
                     .{ info.name, info.description, info.build_flag },
                 );
             } else {
-                std.debug.print(
-                    "  {s} (disabled) - {s}\n",
+                utils.output.println(
+                    "  {s} (disabled) - {s}",
                     .{ info.name, info.description },
                 );
             }
@@ -148,28 +148,28 @@ fn printBackends(allocator: std.mem.Allocator) !void {
         }
 
         if (!info.available) {
-            std.debug.print(
-                "  {s} (enabled) - {s} [unavailable: {s}]\n",
+            utils.output.println(
+                "  {s} (enabled) - {s} [unavailable: {s}]",
                 .{ info.name, info.description, info.availability },
             );
             continue;
         }
 
         if (info.device_count > 0) {
-            std.debug.print(
-                "  {s} (enabled) - {s} [devices: {d}]\n",
+            utils.output.println(
+                "  {s} (enabled) - {s} [devices: {d}]",
                 .{ info.name, info.description, info.device_count },
             );
         } else {
             const suffix = if (std.mem.eql(u8, info.name, "simulated")) " (fallback)" else "";
-            std.debug.print(
-                "  {s} (enabled) - {s}{s}\n",
+            utils.output.println(
+                "  {s} (enabled) - {s}{s}",
                 .{ info.name, info.description, suffix },
             );
         }
     }
     if (gpu_detect.moduleEnabled()) {
-        std.debug.print("\n  Simulated is always available as a fallback when no hardware backend is detected.\n", .{});
+        utils.output.println("\n  Simulated is always available as a fallback when no hardware backend is detected.", .{});
     }
 }
 
@@ -184,19 +184,19 @@ fn printSummaryCommand(allocator: std.mem.Allocator) !void {
     const backends = try gpu_detect.availableBackends(allocator);
     defer allocator.free(backends);
 
-    std.debug.print("  Backends: ", .{});
+    utils.output.print("  Backends: ", .{});
     if (backends.len == 0) {
-        std.debug.print("none\n", .{});
+        utils.output.println("none", .{});
     } else {
         for (backends, 0..) |backend, i| {
-            if (i > 0) std.debug.print(", ", .{});
-            std.debug.print("{s}", .{gpu_meta.backendName(backend)});
+            if (i > 0) utils.output.print(", ", .{});
+            utils.output.print("{s}", .{gpu_meta.backendName(backend)});
         }
-        std.debug.print("\n", .{});
+        utils.output.println("", .{});
     }
 
-    std.debug.print(
-        "  Devices: {d} (emulated {d})\n",
+    utils.output.println(
+        "  Devices: {d} (emulated {d})",
         .{ summary.device_count, summary.emulated_devices },
     );
 }
@@ -219,8 +219,8 @@ fn printDevices(allocator: std.mem.Allocator) !void {
     for (devices) |device| {
         const emulated_suffix = if (device.is_emulated) " [emulated]" else "";
         if (device.total_memory_bytes) |memory| {
-            std.debug.print(
-                "  #{d} {s} ({s}) {d} bytes{s}\n",
+            utils.output.println(
+                "  #{d} {s} ({s}) {d} bytes{s}",
                 .{
                     device.id,
                     device.name,
@@ -230,14 +230,14 @@ fn printDevices(allocator: std.mem.Allocator) !void {
                 },
             );
         } else {
-            std.debug.print(
-                "  #{d} {s} ({s}){s}\n",
+            utils.output.println(
+                "  #{d} {s} ({s}){s}",
                 .{ device.id, device.name, gpu_meta.backendName(device.backend), emulated_suffix },
             );
         }
         const caps = device.capability;
-        std.debug.print(
-            "      caps: unified={s} fp16={s} int8={s} async={s}\n",
+        utils.output.println(
+            "      caps: unified={s} fp16={s} int8={s} async={s}",
             .{
                 utils.output.boolLabel(caps.unified_memory),
                 utils.output.boolLabel(caps.supports_fp16),
@@ -246,32 +246,32 @@ fn printDevices(allocator: std.mem.Allocator) !void {
             },
         );
         if (caps.max_threads_per_block != null or caps.max_shared_memory_bytes != null) {
-            std.debug.print("      limits: threads/block=", .{});
+            utils.output.print("      limits: threads/block=", .{});
             utils.output.printOptionalU32(caps.max_threads_per_block);
-            std.debug.print(" shared=", .{});
+            utils.output.print(" shared=", .{});
             utils.output.printOptionalU32(caps.max_shared_memory_bytes);
-            std.debug.print("\n", .{});
+            utils.output.println("", .{});
         }
     }
 }
 
 fn printDefaultDevice(allocator: std.mem.Allocator) !void {
     if (!gpu_detect.moduleEnabled()) {
-        std.debug.print("GPU default device: disabled (build without -Denable-gpu)\n", .{});
+        utils.output.printWarning("GPU default device: disabled (build without -Denable-gpu)", .{});
         return;
     }
 
     const device = try gpu_listing.defaultDevice(allocator);
     if (device == null) {
-        std.debug.print("GPU default device: none\n", .{});
+        utils.output.printInfo("GPU default device: none", .{});
         return;
     }
 
     const selected = device.?;
     const emulated_suffix = if (selected.is_emulated) " [emulated]" else "";
     if (selected.total_memory_bytes) |memory| {
-        std.debug.print(
-            "GPU default device: #{d} {s} ({s}) {d} bytes{s}\n",
+        utils.output.println(
+            "GPU default device: #{d} {s} ({s}) {d} bytes{s}",
             .{
                 selected.id,
                 selected.name,
@@ -281,8 +281,8 @@ fn printDefaultDevice(allocator: std.mem.Allocator) !void {
             },
         );
     } else {
-        std.debug.print(
-            "GPU default device: #{d} {s} ({s}){s}\n",
+        utils.output.println(
+            "GPU default device: #{d} {s} ({s}){s}",
             .{ selected.id, selected.name, gpu_meta.backendName(selected.backend), emulated_suffix },
         );
     }
@@ -302,7 +302,7 @@ fn printStatus(allocator: std.mem.Allocator) !void {
     utils.output.printHeader("GPU Status");
 
     if (backends.len == 0) {
-        std.debug.print("  No backends available\n", .{});
+        utils.output.println("  No backends available", .{});
         return;
     }
 
@@ -311,7 +311,7 @@ fn printStatus(allocator: std.mem.Allocator) !void {
         const backend_enabled = abi.gpu.isEnabled(backend);
 
         if (!backend_enabled) {
-            std.debug.print("  {s}: disabled (build)\n", .{backend_name});
+            utils.output.println("  {s}: disabled (build)", .{backend_name});
             continue;
         }
 
@@ -327,14 +327,14 @@ fn printStatus(allocator: std.mem.Allocator) !void {
         };
 
         if (backend_devices_count == 0) {
-            std.debug.print("  {s}: enabled (no devices)\n", .{backend_name});
+            utils.output.println("  {s}: enabled (no devices)", .{backend_name});
         } else {
-            std.debug.print("  {s}: enabled ({d} device(s))\n", .{ backend_name, backend_devices_count });
+            utils.output.println("  {s}: enabled ({d} device(s))", .{ backend_name, backend_devices_count });
 
             for (devices) |dev| {
                 if (dev.backend == backend) {
                     const mode = if (dev.is_emulated) "fallback/simulation" else "native GPU";
-                    std.debug.print("    #{d} {s} ({s})\n", .{ dev.id, dev.name, mode });
+                    utils.output.println("    #{d} {s} ({s})", .{ dev.id, dev.name, mode });
                 }
             }
         }

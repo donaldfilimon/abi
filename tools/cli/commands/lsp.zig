@@ -113,7 +113,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
     output.printError("Unknown lsp command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &lsp_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -194,7 +194,7 @@ fn runRequestSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void 
     if (resp.is_error) {
         output.printWarning("LSP error response", .{});
     }
-    std.debug.print("{s}\n", .{resp.json});
+    output.println("{s}", .{resp.json});
 }
 
 fn runNotifySubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -255,7 +255,7 @@ fn runHoverSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     const resp = resp_opt.?;
     defer allocator.free(resp.json);
     if (resp.is_error) output.printWarning("LSP error response", .{});
-    std.debug.print("{s}\n", .{resp.json});
+    output.println("{s}", .{resp.json});
 }
 
 fn runCompletionSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -264,7 +264,7 @@ fn runCompletionSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !vo
     const resp = resp_opt.?;
     defer allocator.free(resp.json);
     if (resp.is_error) output.printWarning("LSP error response", .{});
-    std.debug.print("{s}\n", .{resp.json});
+    output.println("{s}", .{resp.json});
 }
 
 fn runDefinitionSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -273,7 +273,7 @@ fn runDefinitionSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !vo
     const resp = resp_opt.?;
     defer allocator.free(resp.json);
     if (resp.is_error) output.printWarning("LSP error response", .{});
-    std.debug.print("{s}\n", .{resp.json});
+    output.println("{s}", .{resp.json});
 }
 
 fn runReferencesSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -340,7 +340,7 @@ fn runReferencesSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !vo
     const resp = try client.references(uri, pos, include_decl);
     defer allocator.free(resp.json);
     if (resp.is_error) output.printWarning("LSP error response", .{});
-    std.debug.print("{s}\n", .{resp.json});
+    output.println("{s}", .{resp.json});
 }
 
 fn runRenameSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -403,7 +403,7 @@ fn runRenameSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     const resp = try client.rename(uri, pos, new_name.?);
     defer allocator.free(resp.json);
     if (resp.is_error) output.printWarning("LSP error response", .{});
-    std.debug.print("{s}\n", .{resp.json});
+    output.println("{s}", .{resp.json});
 }
 
 fn runFormatSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -468,7 +468,7 @@ fn runFormatSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     const resp = try client.formatting(uri, options);
     defer allocator.free(resp.json);
     if (resp.is_error) output.printWarning("LSP error response", .{});
-    std.debug.print("{s}\n", .{resp.json});
+    output.println("{s}", .{resp.json});
 }
 
 fn runDiagnosticsSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
@@ -515,7 +515,7 @@ fn runDiagnosticsSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !v
     const resp = try client.diagnostics(uri);
     defer allocator.free(resp.json);
     if (resp.is_error) output.printWarning("LSP error response", .{});
-    std.debug.print("{s}\n", .{resp.json});
+    output.println("{s}", .{resp.json});
 }
 
 const PositionCommand = enum { hover, completion, definition };

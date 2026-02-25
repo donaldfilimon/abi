@@ -51,9 +51,9 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     // Unknown subcommand
-    std.debug.print("Unknown convert command: {s}\n", .{cmd});
+    utils.output.printError("Unknown convert command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &convert_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -101,26 +101,26 @@ fn runDataset(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
     }
 
     if (input_path == null or output_path == null or format == null) {
-        utils.output.printError("--input, --output, and --format are required.\n", .{});
+        utils.output.printError("--input, --output, and --format are required.", .{});
         return;
     }
 
     if (std.mem.eql(u8, format.?, "to-wdbx")) {
-        std.debug.print("Converting TokenBin {s} -> WDBX {s}...\n", .{ input_path.?, output_path.? });
+        utils.output.printInfo("Converting TokenBin {s} -> WDBX {s}...", .{ input_path.?, output_path.? });
         abi.ai.database.tokenBinToWdbx(allocator, input_path.?, output_path.?, block_size) catch |err| {
-            std.debug.print("Conversion failed: {t}\n", .{err});
+            utils.output.printError("Conversion failed: {t}", .{err});
             return;
         };
-        std.debug.print("Success.\n", .{});
+        utils.output.printSuccess("Success.", .{});
     } else if (std.mem.eql(u8, format.?, "to-tokenbin")) {
-        std.debug.print("Converting WDBX {s} -> TokenBin {s}...\n", .{ input_path.?, output_path.? });
+        utils.output.printInfo("Converting WDBX {s} -> TokenBin {s}...", .{ input_path.?, output_path.? });
         abi.ai.database.wdbxToTokenBin(allocator, input_path.?, output_path.?) catch |err| {
-            std.debug.print("Conversion failed: {t}\n", .{err});
+            utils.output.printError("Conversion failed: {t}", .{err});
             return;
         };
-        std.debug.print("Success.\n", .{});
+        utils.output.printSuccess("Success.", .{});
     } else {
-        std.debug.print("Unknown format: {s}\n", .{format.?});
+        utils.output.printError("Unknown format: {s}", .{format.?});
     }
 }
 
@@ -159,7 +159,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     }
 
     if (input_path == null) {
-        utils.output.printError("--input is required.\n", .{});
+        utils.output.printError("--input is required.", .{});
         return;
     }
 
@@ -167,93 +167,93 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
     const fmt = format orelse "info";
 
     if (std.mem.eql(u8, fmt, "info")) {
-        std.debug.print("Model Information: {s}\n", .{input_path.?});
-        std.debug.print("\n", .{});
+        utils.output.println("Model Information: {s}", .{input_path.?});
+        utils.output.println("", .{});
 
         // Check file extension to determine format
         if (std.mem.endsWith(u8, input_path.?, ".gguf")) {
-            std.debug.print("Format: GGUF (GGML Universal Format)\n", .{});
-            std.debug.print("Description: Quantized model format for llama.cpp compatible inference\n", .{});
+            utils.output.println("Format: GGUF (GGML Universal Format)", .{});
+            utils.output.println("Description: Quantized model format for llama.cpp compatible inference", .{});
         } else if (std.mem.endsWith(u8, input_path.?, ".safetensors")) {
-            std.debug.print("Format: SafeTensors\n", .{});
-            std.debug.print("Description: Safe tensor serialization format by HuggingFace\n", .{});
+            utils.output.println("Format: SafeTensors", .{});
+            utils.output.println("Description: Safe tensor serialization format by HuggingFace", .{});
         } else if (std.mem.endsWith(u8, input_path.?, ".bin") or std.mem.endsWith(u8, input_path.?, ".pt")) {
-            std.debug.print("Format: PyTorch Binary\n", .{});
-            std.debug.print("Description: PyTorch model checkpoint\n", .{});
+            utils.output.println("Format: PyTorch Binary", .{});
+            utils.output.println("Description: PyTorch model checkpoint", .{});
         } else if (std.mem.endsWith(u8, input_path.?, ".onnx")) {
-            std.debug.print("Format: ONNX\n", .{});
-            std.debug.print("Description: Open Neural Network Exchange format\n", .{});
+            utils.output.println("Format: ONNX", .{});
+            utils.output.println("Description: Open Neural Network Exchange format", .{});
         } else {
-            std.debug.print("Format: Unknown\n", .{});
+            utils.output.println("Format: Unknown", .{});
         }
 
-        std.debug.print("\n", .{});
-        std.debug.print("Supported conversions:\n", .{});
-        std.debug.print("  GGUF <-> SafeTensors (quantization preserved)\n", .{});
-        std.debug.print("  GGUF -> Info (metadata extraction)\n", .{});
-        std.debug.print("\n", .{});
-        std.debug.print("Use --format to specify output format:\n", .{});
-        std.debug.print("  --format to-safetensors  Convert GGUF to SafeTensors\n", .{});
-        std.debug.print("  --format to-gguf         Convert SafeTensors to GGUF\n", .{});
+        utils.output.println("", .{});
+        utils.output.println("Supported conversions:", .{});
+        utils.output.println("  GGUF <-> SafeTensors (quantization preserved)", .{});
+        utils.output.println("  GGUF -> Info (metadata extraction)", .{});
+        utils.output.println("", .{});
+        utils.output.println("Use --format to specify output format:", .{});
+        utils.output.println("  --format to-safetensors  Convert GGUF to SafeTensors", .{});
+        utils.output.println("  --format to-gguf         Convert SafeTensors to GGUF", .{});
         return;
     }
 
     if (output_path == null) {
-        utils.output.printError("--output is required for conversion.\n", .{});
+        utils.output.printError("--output is required for conversion.", .{});
         return;
     }
 
     if (std.mem.eql(u8, fmt, "to-safetensors")) {
-        std.debug.print("Converting {s} -> SafeTensors {s}...\n", .{ input_path.?, output_path.? });
+        utils.output.printInfo("Converting {s} -> SafeTensors {s}...", .{ input_path.?, output_path.? });
 
         // Check AI feature
         if (!abi.ai.isEnabled()) {
-            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Denable-ai=true\n", .{});
+            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Denable-ai=true", .{});
             return;
         }
 
         // Model conversion would use the LLM module's export functionality
-        std.debug.print("\n", .{});
-        std.debug.print("Model conversion requires the LLM module.\n", .{});
-        std.debug.print("This operation will:\n", .{});
-        std.debug.print("  1. Parse GGUF metadata and tensor data\n", .{});
-        std.debug.print("  2. Dequantize weights (if quantized)\n", .{});
-        std.debug.print("  3. Write to SafeTensors format\n", .{});
-        std.debug.print("\n", .{});
-        std.debug.print("Note: Full conversion requires additional model loading support.\n", .{});
-        std.debug.print("For now, use 'abi llm export' for model export operations.\n", .{});
+        utils.output.println("", .{});
+        utils.output.println("Model conversion requires the LLM module.", .{});
+        utils.output.println("This operation will:", .{});
+        utils.output.println("  1. Parse GGUF metadata and tensor data", .{});
+        utils.output.println("  2. Dequantize weights (if quantized)", .{});
+        utils.output.println("  3. Write to SafeTensors format", .{});
+        utils.output.println("", .{});
+        utils.output.println("Note: Full conversion requires additional model loading support.", .{});
+        utils.output.println("For now, use 'abi llm export' for model export operations.", .{});
         return;
     }
 
     if (std.mem.eql(u8, fmt, "to-gguf")) {
-        std.debug.print("Converting {s} -> GGUF {s}...\n", .{ input_path.?, output_path.? });
+        utils.output.printInfo("Converting {s} -> GGUF {s}...", .{ input_path.?, output_path.? });
 
         // Check AI feature
         if (!abi.ai.isEnabled()) {
-            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Denable-ai=true\n", .{});
+            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Denable-ai=true", .{});
             return;
         }
 
-        std.debug.print("\n", .{});
-        std.debug.print("Model conversion requires the LLM module.\n", .{});
-        std.debug.print("This operation will:\n", .{});
-        std.debug.print("  1. Parse SafeTensors metadata and weights\n", .{});
-        std.debug.print("  2. Apply quantization (Q4_0, Q4_1, Q8_0, etc.)\n", .{});
-        std.debug.print("  3. Write to GGUF format\n", .{});
-        std.debug.print("\n", .{});
-        std.debug.print("Supported quantization levels:\n", .{});
-        std.debug.print("  Q4_0 - 4-bit quantization (smallest)\n", .{});
-        std.debug.print("  Q4_1 - 4-bit with scale\n", .{});
-        std.debug.print("  Q5_0 - 5-bit quantization\n", .{});
-        std.debug.print("  Q5_1 - 5-bit with scale\n", .{});
-        std.debug.print("  Q8_0 - 8-bit quantization (best quality)\n", .{});
-        std.debug.print("\n", .{});
-        std.debug.print("Use 'abi train export' for full model export with quantization.\n", .{});
+        utils.output.println("", .{});
+        utils.output.println("Model conversion requires the LLM module.", .{});
+        utils.output.println("This operation will:", .{});
+        utils.output.println("  1. Parse SafeTensors metadata and weights", .{});
+        utils.output.println("  2. Apply quantization (Q4_0, Q4_1, Q8_0, etc.)", .{});
+        utils.output.println("  3. Write to GGUF format", .{});
+        utils.output.println("", .{});
+        utils.output.println("Supported quantization levels:", .{});
+        utils.output.println("  Q4_0 - 4-bit quantization (smallest)", .{});
+        utils.output.println("  Q4_1 - 4-bit with scale", .{});
+        utils.output.println("  Q5_0 - 5-bit quantization", .{});
+        utils.output.println("  Q5_1 - 5-bit with scale", .{});
+        utils.output.println("  Q8_0 - 8-bit quantization (best quality)", .{});
+        utils.output.println("", .{});
+        utils.output.println("Use 'abi train export' for full model export with quantization.", .{});
         return;
     }
 
-    std.debug.print("Unknown format: {s}\n", .{fmt});
-    std.debug.print("Supported formats: info, to-safetensors, to-gguf\n", .{});
+    utils.output.printError("Unknown format: {s}", .{fmt});
+    utils.output.println("Supported formats: info, to-safetensors, to-gguf", .{});
 }
 
 fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -291,16 +291,16 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
     }
 
     if (input_path == null or output_path == null or format == null) {
-        utils.output.printError("--input, --output, and --format are required.\n", .{});
-        std.debug.print("\nUsage: abi convert embeddings --input <file> --output <file> --format <fmt>\n", .{});
-        std.debug.print("\nFormats:\n", .{});
-        std.debug.print("  json    JSON array format\n", .{});
-        std.debug.print("  binary  Raw float32 binary\n", .{});
-        std.debug.print("  csv     Comma-separated values\n", .{});
+        utils.output.printError("--input, --output, and --format are required.", .{});
+        utils.output.println("\nUsage: abi convert embeddings --input <file> --output <file> --format <fmt>", .{});
+        utils.output.println("\nFormats:", .{});
+        utils.output.println("  json    JSON array format", .{});
+        utils.output.println("  binary  Raw float32 binary", .{});
+        utils.output.println("  csv     Comma-separated values", .{});
         return;
     }
 
-    std.debug.print("Converting embeddings: {s} -> {s} (format: {s})\n", .{ input_path.?, output_path.?, format.? });
+    utils.output.printInfo("Converting embeddings: {s} -> {s} (format: {s})", .{ input_path.?, output_path.?, format.? });
 
     // Initialize I/O backend for Zig 0.16
     var io_backend = cli_io.initIoBackend(allocator);
@@ -309,12 +309,12 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
 
     // Read input file
     const content = std.Io.Dir.cwd().readFileAlloc(io, input_path.?, allocator, .limited(100 * 1024 * 1024)) catch |err| {
-        std.debug.print("Error reading input file: {t}\n", .{err});
+        utils.output.printError("Error reading input file: {t}", .{err});
         return;
     };
     defer allocator.free(content);
 
-    std.debug.print("Read {d} bytes from input\n", .{content.len});
+    utils.output.println("Read {d} bytes from input", .{content.len});
 
     // Determine input format by trying to parse
     var embeddings: []f32 = &[_]f32{};
@@ -337,7 +337,7 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
                     }
                     embeddings = list.toOwnedSlice(allocator) catch &[_]f32{};
                     owns_embeddings = true;
-                    std.debug.print("Parsed {d} embeddings from JSON\n", .{embeddings.len});
+                    utils.output.println("Parsed {d} embeddings from JSON", .{embeddings.len});
                 }
             }
         } else if (parsed.value == .array) {
@@ -351,14 +351,14 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
             }
             embeddings = list.toOwnedSlice(allocator) catch &[_]f32{};
             owns_embeddings = true;
-            std.debug.print("Parsed {d} embeddings from JSON array\n", .{embeddings.len});
+            utils.output.println("Parsed {d} embeddings from JSON array", .{embeddings.len});
         }
     } else |_| {
         // Try binary format (raw f32 array)
         if (content.len >= 4 and content.len % 4 == 0) {
             const float_count = content.len / 4;
             embeddings = allocator.alloc(f32, float_count) catch {
-                std.debug.print("Error allocating memory\n", .{});
+                utils.output.printError("Error allocating memory", .{});
                 return;
             };
             owns_embeddings = true;
@@ -368,14 +368,14 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
                 const offset = j * 4;
                 embeddings[j] = @bitCast([4]u8{ bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3] });
             }
-            std.debug.print("Parsed {d} embeddings from binary format\n", .{float_count});
+            utils.output.println("Parsed {d} embeddings from binary format", .{float_count});
         }
     }
 
     defer if (owns_embeddings) allocator.free(embeddings);
 
     if (embeddings.len == 0) {
-        utils.output.printError("Could not parse embeddings from input file\n", .{});
+        utils.output.printError("Could not parse embeddings from input file", .{});
         return;
     }
 
@@ -405,26 +405,26 @@ fn runEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]const
         const byte_ptr: [*]const u8 = @ptrCast(embeddings.ptr);
         try output.appendSlice(allocator, byte_ptr[0 .. embeddings.len * 4]);
     } else {
-        std.debug.print("Unknown format: {s}\n", .{format.?});
+        utils.output.printError("Unknown format: {s}", .{format.?});
         return;
     }
 
     // Write output file
     var file = std.Io.Dir.cwd().createFile(io, output_path.?, .{ .truncate = true }) catch |err| {
-        std.debug.print("Error creating output file: {t}\n", .{err});
+        utils.output.printError("Error creating output file: {t}", .{err});
         return;
     };
     defer file.close(io);
     file.writeStreamingAll(io, output.items) catch |err| {
-        std.debug.print("Error writing output: {t}\n", .{err});
+        utils.output.printError("Error writing output: {t}", .{err});
         return;
     };
 
-    std.debug.print("Success. Wrote {d} bytes to {s}\n", .{ output.items.len, output_path.? });
+    utils.output.printSuccess("Success. Wrote {d} bytes to {s}", .{ output.items.len, output_path.? });
 }
 
 fn printHelp() void {
-    std.debug.print(
+    utils.output.print(
         \\Usage: abi convert <command> [options]
         \\
         \\Commands:

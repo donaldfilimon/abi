@@ -56,7 +56,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Unknown subcommand
     utils.output.printError("Unknown acp command: {s}", .{cmd});
     if (utils.args.suggestCommand(cmd, &acp_subcommands)) |suggestion| {
-        std.debug.print("Did you mean: {s}\n", .{suggestion});
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
 
@@ -97,7 +97,7 @@ fn runCard(allocator: std.mem.Allocator) !void {
     const json = try card.toJson(allocator);
     defer allocator.free(json);
 
-    std.debug.print("{s}\n", .{json});
+    utils.output.println("{s}", .{json});
 }
 
 fn runServe(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
@@ -158,7 +158,7 @@ fn runServe(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !void {
         },
     };
 
-    std.debug.print("ACP HTTP server starting on http://{s}\n", .{address});
+    utils.output.printInfo("ACP HTTP server starting on http://{s}", .{address});
 
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
