@@ -40,6 +40,7 @@ fn wrapCfgSetup(ctx: *const context_mod.CommandContext, args: []const [:0]const 
 pub const meta: command_mod.Meta = .{
     .name = "config",
     .description = "Configuration management (init, setup, show, validate, env)",
+    .kind = .group,
     .subcommands = &.{ "init", "setup", "show", "validate", "env", "path", "help" },
     .children = &.{
         .{ .name = "init", .description = "Generate a default configuration file", .handler = wrapCfgInit },

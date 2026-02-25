@@ -22,6 +22,7 @@ fn wrapInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
 pub const meta: command_mod.Meta = .{
     .name = "brain",
     .description = "Brain file management (export, info)",
+    .kind = .group,
     .subcommands = &.{ "export", "info", "help" },
     .children = &.{
         .{ .name = "export", .description = "Export model to .wdbx (+ optional .gguf)", .handler = wrapExport },

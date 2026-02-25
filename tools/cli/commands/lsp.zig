@@ -63,6 +63,7 @@ fn wrapDiagnostics(ctx: *const context_mod.CommandContext, args: []const [:0]con
 pub const meta: command_mod.Meta = .{
     .name = "lsp",
     .description = "ZLS LSP client (request, hover, completion, definition, rename, format)",
+    .kind = .group,
     .subcommands = &.{
         "request",
         "notify",

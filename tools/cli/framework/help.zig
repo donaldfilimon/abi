@@ -2,6 +2,35 @@ const std = @import("std");
 const types = @import("types.zig");
 const utils = @import("../utils/mod.zig");
 
+/// Global flags shown in top-level help.
+const global_flags = [_]help_utils.Option{
+    .{
+        .long = "--list-features",
+        .description = "List available features and their status",
+    },
+    .{
+        .long = "--enable-<feature>",
+        .description = "Enable a feature at runtime",
+    },
+    .{
+        .long = "--disable-<feature>",
+        .description = "Disable a feature at runtime",
+    },
+    .{
+        .long = "--no-color",
+        .description = "Disable colored output (also respects NO_COLOR env var)",
+    },
+};
+
+/// Feature list for the top-level help text.
+const features_text =
+    \\Features: gpu, ai, llm, embeddings, agents, training, reasoning, database, network,
+    \\          observability, web, cloud, analytics, auth, messaging, cache, storage,
+    \\          search, mobile, gateway, pages, benchmarks, personas, constitution
+;
+
+/// Print the top-level help screen using the unified HelpBuilder.
+/// Uses a stack-backed fixed buffer allocator since help output is bounded.
 pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
     utils.output.print(
         \\Usage: abi [global-flags] <command> [options]
@@ -18,6 +47,20 @@ pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
         \\
     , .{});
 
+    var builder = HelpBuilder.init(allocator);
+    // No deinit needed — backed by stack buffer.
+
+    _ = builder
+        .usage("abi", "[global-flags] <command> [options]")
+        .section("Global Flags")
+        .options(&global_flags)
+        .newline()
+        .text(features_text)
+        .newline()
+        .newline()
+        .section("Commands");
+
+    // Add all registered commands
     for (descriptors) |descriptor| {
         const padding = if (descriptor.name.len < 14) 14 - descriptor.name.len else 2;
         utils.output.print("  {s}", .{descriptor.name});
@@ -42,9 +85,16 @@ pub fn printTopLevel(descriptors: []const types.CommandDescriptor) void {
         \\
     , .{});
 
+    // Add alias mappings
     for (descriptors) |descriptor| {
         for (descriptor.aliases) |alias| {
             utils.output.print("  {s} -> {s}\n", .{ alias, descriptor.name });
         }
     }
+
+    builder.print();
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

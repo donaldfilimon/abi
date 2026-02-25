@@ -261,6 +261,42 @@ pub fn printSimpleHelp(
     std.debug.print("\n", .{});
 }
 
+/// Compute the Levenshtein edit distance between two strings.
+/// Uses a single-row buffer with a stack allocation for strings up to 64 chars.
+/// Returns the minimum number of single-character edits (insertions, deletions,
+/// substitutions) needed to transform `a` into `b`.
+pub fn editDistance(a: []const u8, b: []const u8) usize {
+    if (a.len == 0) return b.len;
+    if (b.len == 0) return a.len;
+    if (std.mem.eql(u8, a, b)) return 0;
+
+    // Use a single-row DP approach. We need (b.len + 1) entries.
+    var stack_buf: [65]usize = undefined;
+    const row = stack_buf[0 .. b.len + 1];
+
+    // Initialize row: row[j] = j (cost of inserting j chars)
+    for (row, 0..) |*cell, j| {
+        cell.* = j;
+    }
+
+    for (a, 0..) |ca, i| {
+        var prev = i; // row[0] before update = i
+        row[0] = i + 1;
+
+        for (b, 0..) |cb, j| {
+            const cost: usize = if (ca == cb) 0 else 1;
+            const delete = row[j + 1] + 1; // deletion
+            const insert = row[j] + 1; // insertion
+            const substitute = prev + cost; // substitution
+
+            prev = row[j + 1]; // save before overwrite
+            row[j + 1] = @min(delete, @min(insert, substitute));
+        }
+    }
+
+    return row[b.len];
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -277,7 +313,7 @@ test "Option: formatting with all fields" {
     // The format output for this test option is approximately:
     // "  -n, --name <NAME>          Set the name" = ~42 chars
     var buf: [128]u8 = undefined;
-    const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch unreachable;
+    const result = try std.fmt.bufPrint(&buf, "{}", .{opt});
     try std.testing.expect(std.mem.indexOf(u8, result, "-n") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "--name") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "<NAME>") != null);
@@ -294,7 +330,7 @@ test "Option: formatting without short" {
     // The format output for this test option is approximately:
     // "      --verbose              Enable verbose output" = ~50 chars
     var buf: [128]u8 = undefined;
-    const result = std.fmt.bufPrint(&buf, "{}", .{opt}) catch unreachable;
+    const result = try std.fmt.bufPrint(&buf, "{}", .{opt});
     try std.testing.expect(std.mem.indexOf(u8, result, "--verbose") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "Enable verbose") != null);
 }
@@ -309,7 +345,7 @@ test "Subcommand: formatting" {
     // The format output for this test subcommand is approximately:
     // "  run             Run the command" = ~34 chars
     var buf: [128]u8 = undefined;
-    const result = std.fmt.bufPrint(&buf, "{}", .{cmd}) catch unreachable;
+    const result = try std.fmt.bufPrint(&buf, "{}", .{cmd});
     try std.testing.expect(std.mem.indexOf(u8, result, "run") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "Run the command") != null);
 }
@@ -345,4 +381,40 @@ test "common_options: all defined" {
     try std.testing.expect(common_options.quiet.long.len > 0);
     try std.testing.expect(common_options.output.long.len > 0);
     try std.testing.expect(common_options.format.long.len > 0);
+}
+
+test "editDistance: identical strings" {
+    try std.testing.expectEqual(@as(usize, 0), editDistance("hello", "hello"));
+    try std.testing.expectEqual(@as(usize, 0), editDistance("", ""));
+}
+
+test "editDistance: empty vs non-empty" {
+    try std.testing.expectEqual(@as(usize, 5), editDistance("", "hello"));
+    try std.testing.expectEqual(@as(usize, 5), editDistance("hello", ""));
+}
+
+test "editDistance: single edit" {
+    // substitution
+    try std.testing.expectEqual(@as(usize, 1), editDistance("cat", "bat"));
+    // insertion
+    try std.testing.expectEqual(@as(usize, 1), editDistance("cat", "cats"));
+    // deletion
+    try std.testing.expectEqual(@as(usize, 1), editDistance("cats", "cat"));
+}
+
+test "editDistance: common typos" {
+    // "trian" -> "train" (transposition = 2 edits in Levenshtein)
+    try std.testing.expectEqual(@as(usize, 2), editDistance("trian", "train"));
+    // "nework" -> "network" (missing 't' = 1)
+    try std.testing.expectEqual(@as(usize, 1), editDistance("nework", "network"));
+    // "cofig" -> "config" (missing 'n' = 1)
+    try std.testing.expectEqual(@as(usize, 1), editDistance("cofig", "config"));
+}
+
+test "editDistance: completely different" {
+    try std.testing.expectEqual(@as(usize, 3), editDistance("abc", "xyz"));
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

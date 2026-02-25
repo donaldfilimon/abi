@@ -72,6 +72,7 @@ fn wrapDue(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 pub const meta: command_mod.Meta = .{
     .name = "task",
     .description = "Task management (add, list, done, stats, seed-self-improve)",
+    .kind = .group,
     .subcommands = &.{ "add", "list", "ls", "show", "done", "start", "cancel", "delete", "rm", "stats", "import-roadmap", "seed-self-improve", "edit", "block", "unblock", "due", "help" },
     .children = &.{
         .{ .name = "add", .description = "Add a new task", .handler = wrapAdd },

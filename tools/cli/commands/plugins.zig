@@ -265,6 +265,7 @@ fn wrapPlSearch(ctx: *const context_mod.CommandContext, args: []const [:0]const 
 pub const meta: command_mod.Meta = .{
     .name = "plugins",
     .description = "Plugin management (list, enable, disable, info)",
+    .kind = .group,
     .subcommands = &.{ "list", "info", "enable", "disable", "search" },
     .children = &.{
         .{ .name = "list", .description = "List installed plugins", .handler = wrapPlList },

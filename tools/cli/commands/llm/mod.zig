@@ -22,7 +22,7 @@ const discover_cmd = @import("discover.zig");
 pub const meta: command_mod.Meta = .{
     .name = "llm",
     .description = "LLM inference (run, session, serve, providers, plugins, discover)",
-    .aliases = &.{ "chat", "reasoning", "serve" },
+    .aliases = &.{ "chat", "reasoning" },
     .subcommands = &.{ "run", "session", "serve", "providers", "plugins", "discover", "help" },
     .kind = .group,
     .children = &.{
@@ -41,8 +41,7 @@ pub const meta: command_mod.Meta = .{
 /// - No args: print help
 /// - Unknown subcommands: print error + suggestion
 /// - Explicit help request
-pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    _ = ctx;
+pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printHelp();
         return;

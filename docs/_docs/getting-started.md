@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **Start** coverage and stay
 
 - Zig pin: `0.16.0-dev.2653+784e89fd4`
 - Main tests: `1290` pass / `6` skip / `1296` total
-- Feature tests: `2360` pass / `2365` total
+- Feature tests: `2360` pass / `5` skip / `2365` total
 
 ## Quickstart Commands
 
@@ -71,7 +71,7 @@ zig build check-docs
 - `abi system-info` — Show system and framework status
 - `abi db` — Database operations (add, query, stats, optimize, backup, restore)
 - `abi llm` — LLM inference (run, session, serve, providers, plugins, discover)
-- `abi ui` — UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)
+- `abi ui` — UI command family (launch, gpu, train, model, streaming, db, network, bench, brain, dashboard)
 - `abi gpu` — GPU commands (backends, devices, summary, default)
 - `abi task` — Task management (add, list, done, stats, seed-self-improve)
 - `abi train` — Training pipeline (run, llm, vision, auto, self, resume, info)

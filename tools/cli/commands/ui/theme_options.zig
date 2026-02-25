@@ -30,7 +30,7 @@ pub fn parseThemeArgs(
     allocator: std.mem.Allocator,
     args: []const [:0]const u8,
 ) !ParseResult {
-    var remaining: std.ArrayList([:0]const u8) = .empty;
+    var remaining: std.ArrayListUnmanaged([:0]const u8) = .empty;
     errdefer remaining.deinit(allocator);
 
     const wants_help = utils.args.containsHelpArgs(args);
@@ -135,4 +135,8 @@ test "parseThemeArgs keeps unknown args as remaining" {
     try std.testing.expectEqual(@as(usize, 2), parsed.remaining_args.len);
     try std.testing.expectEqualStrings("--foo", parsed.remaining_args[0]);
     try std.testing.expectEqualStrings("bar", parsed.remaining_args[1]);
+}
+
+test {
+    std.testing.refAllDecls(@This());
 }

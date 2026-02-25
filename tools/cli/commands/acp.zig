@@ -31,6 +31,7 @@ fn wrapServe(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
 pub const meta: command_mod.Meta = .{
     .name = "acp",
     .description = "Agent Communication Protocol (card, serve)",
+    .kind = .group,
     .subcommands = &.{ "card", "serve", "help" },
     .children = &.{
         .{ .name = "card", .description = "Print agent card JSON to stdout", .handler = wrapCard },

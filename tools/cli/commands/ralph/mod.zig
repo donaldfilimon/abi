@@ -61,6 +61,7 @@ fn wrapSkills(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
 pub const meta: command_mod.Meta = .{
     .name = "ralph",
     .description = "Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)",
+    .kind = .group,
     .subcommands = &.{ "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help" },
     .children = &.{
         .{ .name = "init", .description = "Create workspace: ralph.yml, .ralph/, PROMPT.md", .handler = wrapInit },
@@ -111,8 +112,7 @@ const ralph_subcommands = [_][]const u8{
 
 /// Entry point called by CLI dispatcher.
 /// Only reached when no child matches (help / unknown).
-pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    _ = ctx;
+pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printHelp();
         return;

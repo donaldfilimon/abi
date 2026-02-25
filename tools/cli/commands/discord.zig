@@ -63,6 +63,7 @@ fn wrapDcChannel(ctx: *const context_mod.CommandContext, args: []const [:0]const
 pub const meta: command_mod.Meta = .{
     .name = "discord",
     .description = "Discord bot operations (status, guilds, send, commands)",
+    .kind = .group,
     .subcommands = &.{ "status", "info", "guilds", "send", "commands", "webhook", "channel", "help" },
     .children = &.{
         .{ .name = "status", .description = "Show configuration status", .handler = wrapDcStatus },

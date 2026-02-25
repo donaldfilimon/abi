@@ -27,6 +27,7 @@ fn wrapEmbeddings(ctx: *const context_mod.CommandContext, args: []const [:0]cons
 pub const meta: command_mod.Meta = .{
     .name = "convert",
     .description = "Dataset conversion tools (tokenbin, text, jsonl, wdbx)",
+    .kind = .group,
     .subcommands = &.{ "dataset", "model", "embeddings" },
     .children = &.{
         .{ .name = "dataset", .description = "Convert between dataset formats", .handler = wrapDataset },

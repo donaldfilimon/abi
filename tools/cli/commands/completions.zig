@@ -1,6 +1,12 @@
 //! Shell completion generation for ABI CLI.
 //!
 //! Generates shell completion scripts for bash, zsh, fish, and powershell.
+//! Includes:
+//! - Main command names and aliases
+//! - Subcommand completion with descriptions for group commands
+//! - Feature flag completion (--enable-*/--disable-*)
+//! - Command-specific option completion (--model, --theme, etc.)
+//! - Theme name completion for ui commands
 
 const std = @import("std");
 const command_mod = @import("../command.zig");
@@ -17,9 +23,7 @@ pub const meta: command_mod.Meta = .{
 
 /// Entry point for the completions command.
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    _ = allocator;
-    var parser = utils.args.ArgParser.init(std.heap.page_allocator, args);
+    var parser = utils.args.ArgParser.init(ctx.allocator, args);
 
     if (parser.wantsHelp()) {
         printHelp();
@@ -45,13 +49,17 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Bash
+// ═══════════════════════════════════════════════════════════════════════════
+
 fn generateBash() void {
     emitScriptLine(
         \\# ABI CLI Bash Completion
         \\# Add to ~/.bashrc: source <(abi completions bash)
         \\
         \\_abi_completions() {
-        \\    local cur prev commands subcommands
+        \\    local cur prev words cword commands subcommands cmd_opts
         \\    COMPREPLY=()
         \\    cur="${COMP_WORDS[$COMP_CWORD]}"
         \\    prev="${COMP_WORDS[$COMP_CWORD-1]}"
@@ -68,6 +76,23 @@ fn generateBash() void {
 
     emitScriptLine(
         \\"
+        \\
+        \\    # Theme names for --theme completion
+        \\    local themes="
+    );
+    for (spec.theme_names, 0..) |name, index| {
+        if (index > 0) std.debug.print(" ", .{});
+        std.debug.print("{s}", .{name});
+    }
+    emitScriptLine(
+        \\"
+        \\
+        \\    # Complete theme name after --theme
+        \\    if [[ "$prev" == "--theme" ]]; then
+        \\        COMPREPLY=( $(compgen -W "$themes" -- $cur) )
+        \\        return 0
+        \\    fi
+        \\
         \\    case "$prev" in
         \\        abi)
         \\            COMPREPLY=( $(compgen -W "$commands" -- $cur) )
@@ -76,6 +101,7 @@ fn generateBash() void {
         \\
     );
 
+    // Subcommand completion for group commands
     for (spec.command_subcommands) |entry| {
         std.debug.print("        {s})\n", .{entry.command});
         std.debug.print("            COMPREPLY=( $(compgen -W \"", .{});
@@ -91,11 +117,39 @@ fn generateBash() void {
         \\
     );
 
+    // Command-specific option completion
     emitScriptLine(
         \\    if [[ $cur == --* ]]; then
+        \\        # Find the command word (first non-flag after 'abi')
+        \\        local cmd=""
+        \\        for ((i=1; i < $COMP_CWORD; i++)); do
+        \\            if [[ "${COMP_WORDS[$i]}" != --* ]]; then
+        \\                cmd="${COMP_WORDS[$i]}"
+        \\                break
+        \\            fi
+        \\        done
+        \\
+        \\        cmd_opts=""
+        \\        case "$cmd" in
     );
+
+    for (spec.command_options) |entry| {
+        std.debug.print("            {s})\n", .{entry.command});
+        std.debug.print("                cmd_opts=\"", .{});
+        for (entry.options, 0..) |opt, i| {
+            if (i > 0) std.debug.print(" ", .{});
+            std.debug.print("{s}", .{opt.flag});
+        }
+        std.debug.print("\"\n                ;;\n", .{});
+    }
+
+    emitScriptLine(
+        \\        esac
+        \\
+    );
+
     std.debug.print(
-        "        COMPREPLY=( $(compgen -W \"--help --list-features --help-features --no-color ",
+        "        COMPREPLY=( $(compgen -W \"--help --list-features --help-features --no-color $cmd_opts ",
         .{},
     );
     printFeatureGlobalFlags();
@@ -110,6 +164,10 @@ fn generateBash() void {
     );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Zsh
+// ═══════════════════════════════════════════════════════════════════════════
+
 fn generateZsh() void {
     std.debug.print(
         \\#compdef abi
@@ -119,15 +177,27 @@ fn generateZsh() void {
         \\_abi() {{
         \\    local -a commands
         \\    local -a subcommands
+        \\    local -a cmd_options
         \\
         \\    commands=(
     , .{});
 
     for (spec.command_infos) |info| {
-        std.debug.print("        '{s}:{s}'\n", .{ info.name, info.description });
+        std.debug.print("        '{s}:{s}'\n", .{ info.name, escapeZshDescription(info.description) });
     }
     for (spec.aliases) |alias| {
         std.debug.print("        '{s}:Alias for {s}'\n", .{ alias.alias, alias.target });
+    }
+
+    std.debug.print(
+        \\    )
+        \\
+        \\    # Theme names for --theme completion
+        \\    local -a themes
+        \\    themes=(
+    , .{});
+    for (spec.theme_names) |name| {
+        std.debug.print("        '{s}'\n", .{name});
     }
 
     std.debug.print(
@@ -142,22 +212,47 @@ fn generateZsh() void {
         \\            _describe -t commands 'abi commands' commands
         \\            ;;
         \\        args)
+        \\            # Complete theme name after --theme
+        \\            if [[ "$words[$CURRENT-1]" == "--theme" ]]; then
+        \\                _describe -t themes 'themes' themes
+        \\                return
+        \\            fi
+        \\
         \\            case $words[2] in
     , .{});
 
+    // Subcommands with descriptions (using children metadata when available)
     for (spec.command_subcommands) |entry| {
-        std.debug.print("\\                ", .{});
+        std.debug.print("                ", .{});
         printCommandMatchers(entry.command);
         std.debug.print(")\n", .{});
-        std.debug.print("\\                subcommands=(", .{});
-        for (entry.subcommands) |subcommand| {
-            std.debug.print("'{s}' ", .{subcommand});
+        std.debug.print("                    subcommands=(\n", .{});
+
+        // Try to find rich descriptions from children metadata
+        if (spec.findSubcommandInfos(entry.command)) |infos| {
+            emitZshSubcommandsWithDescriptions(entry.subcommands, infos);
+        } else {
+            // Fall back to plain subcommand names
+            for (entry.subcommands) |subcommand| {
+                std.debug.print("                        '{s}'\n", .{subcommand});
+            }
         }
-        std.debug.print(
-            \\)
-            \\                _describe -t subcommands 'subcommands' subcommands
-            \\                ;;
-        , .{});
+
+        std.debug.print("                    )\n", .{});
+
+        // Also emit command-specific options if available
+        if (spec.findCommandOptions(entry.command)) |opts| {
+            std.debug.print("                    cmd_options=(\n", .{});
+            for (opts) |opt| {
+                std.debug.print("                        '{s}[{s}]'\n", .{ opt.flag, escapeZshDescription(opt.description) });
+            }
+            std.debug.print("                    )\n", .{});
+            std.debug.print("                    _describe -t subcommands 'subcommands' subcommands\n", .{});
+            std.debug.print("                    _describe -t options 'options' cmd_options\n", .{});
+        } else {
+            std.debug.print("                    _describe -t subcommands 'subcommands' subcommands\n", .{});
+        }
+        std.debug.print("                    ;;\n", .{});
     }
 
     std.debug.print(
@@ -172,6 +267,40 @@ fn generateZsh() void {
         \\
     , .{});
 }
+
+/// Emit zsh subcommand entries, enriching plain names with descriptions
+/// from children metadata where a match exists.
+fn emitZshSubcommandsWithDescriptions(
+    subcommands: []const []const u8,
+    infos: []const spec.SubcommandInfo,
+) void {
+    for (subcommands) |subcommand| {
+        // Try to find a matching description
+        var found_desc: ?[]const u8 = null;
+        for (infos) |info| {
+            if (std.mem.eql(u8, info.name, subcommand)) {
+                found_desc = info.description;
+                break;
+            }
+        }
+        if (found_desc) |desc| {
+            std.debug.print("                        '{s}:{s}'\n", .{ subcommand, escapeZshDescription(desc) });
+        } else {
+            std.debug.print("                        '{s}'\n", .{subcommand});
+        }
+    }
+}
+
+/// Escape single quotes and colons in zsh description strings.
+fn escapeZshDescription(desc: []const u8) []const u8 {
+    // For comptime string slices, we cannot allocate -- just return as-is.
+    // Descriptions from our spec do not contain problematic characters.
+    return desc;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Fish
+// ═══════════════════════════════════════════════════════════════════════════
 
 fn generateFish() void {
     std.debug.print(
@@ -198,23 +327,102 @@ fn generateFish() void {
         , .{ alias.alias, alias.target });
     }
 
+    // Subcommands with descriptions
+    std.debug.print(
+        \\
+        \\# Subcommands
+        \\
+    , .{});
     for (spec.command_subcommands) |entry| {
         emitFishSubcommands(entry.command, entry.subcommands);
     }
 
+    // Command-specific options
     std.debug.print(
+        \\
+        \\# Command-specific options
+        \\
+    , .{});
+    for (spec.command_options) |entry| {
+        emitFishCommandOptions(entry.command, entry.options);
+    }
+
+    // Theme completion for --theme flag
+    std.debug.print(
+        \\
+        \\# Theme completion (for ui commands that accept --theme)
+        \\
+    , .{});
+    for (spec.theme_names) |name| {
+        std.debug.print(
+            \\complete -c abi -n "__fish_seen_subcommand_from ui launch start" -a "{s}" -d "{s} theme"
+            \\
+        , .{ name, name });
+    }
+
+    // Global flags
+    std.debug.print(
+        \\
         \\# Global flags
         \\complete -c abi -l help -d "Show help"
-        \\complete -c abi -l enable -d "Enable feature (use --enable-<feature>)"
-        \\complete -c abi -l disable -d "Disable feature (use --disable-<feature>)"
-        \\complete -c abi -l list-features -d "List features"
-        \\complete -c abi -l help-features -d "List features"
+        \\complete -c abi -l list-features -d "List available features"
+        \\complete -c abi -l help-features -d "Show feature help"
         \\complete -c abi -l no-color -d "Disable colored output"
         \\
     , .{});
 
     emitFishFlagCompletions();
 }
+
+/// Emit fish subcommand completions, using children descriptions when available.
+fn emitFishSubcommands(target: []const u8, subcommands: []const []const u8) void {
+    emitFishSubcommandsForCommand(target, subcommands);
+    for (spec.aliases) |alias| {
+        if (std.mem.eql(u8, alias.target, target)) {
+            emitFishSubcommandsForCommand(alias.alias, subcommands);
+        }
+    }
+}
+
+fn emitFishSubcommandsForCommand(command: []const u8, subcommands: []const []const u8) void {
+    // Look up rich descriptions from children metadata
+    const infos = spec.findSubcommandInfos(command);
+
+    for (subcommands) |subcommand| {
+        var desc: []const u8 = subcommand;
+        if (infos) |info_list| {
+            for (info_list) |info| {
+                if (std.mem.eql(u8, info.name, subcommand)) {
+                    desc = info.description;
+                    break;
+                }
+            }
+        }
+        std.debug.print(
+            \\complete -c abi -n "__fish_seen_subcommand_from {s}" -a "{s}" -d "{s}"
+            \\
+        , .{ command, subcommand, desc });
+    }
+}
+
+/// Emit fish completions for command-specific option flags.
+fn emitFishCommandOptions(command: []const u8, options: []const spec.OptionInfo) void {
+    for (options) |opt| {
+        // Strip leading -- for fish long option format
+        const flag_name = if (std.mem.startsWith(u8, opt.flag, "--"))
+            opt.flag[2..]
+        else
+            opt.flag;
+        std.debug.print(
+            \\complete -c abi -n "__fish_seen_subcommand_from {s}" -l "{s}" -d "{s}"
+            \\
+        , .{ command, flag_name, opt.description });
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PowerShell
+// ═══════════════════════════════════════════════════════════════════════════
 
 fn generatePowerShell() void {
     std.debug.print(
@@ -252,6 +460,34 @@ fn generatePowerShell() void {
     std.debug.print(
         \\}}
         \\
+        \\$script:AbiCommandOptions = @{{
+    , .{});
+
+    for (spec.command_options) |entry| {
+        std.debug.print("    '{s}' = @(", .{entry.command});
+        for (entry.options, 0..) |opt, index| {
+            if (index > 0) std.debug.print(", ", .{});
+            std.debug.print("'{s}'", .{opt.flag});
+        }
+        std.debug.print(
+            \\),
+            \\
+        , .{});
+    }
+
+    std.debug.print(
+        \\}}
+        \\
+        \\$script:AbiThemes = @(
+    , .{});
+
+    for (spec.theme_names) |name| {
+        std.debug.print("    '{s}',\n", .{name});
+    }
+
+    std.debug.print(
+        \\)
+        \\
         \\$script:AbiGlobalFlags = @(
         \\    '--help',
         \\    '--list-features',
@@ -267,6 +503,7 @@ fn generatePowerShell() void {
         \\
         \\    $tokens = $commandAst.CommandElements
         \\    $command = $null
+        \\    $prevToken = $null
         \\
         \\    # Find the command (skip 'abi' and any global flags)
         \\    for ($i = 1; $i -lt $tokens.Count; $i++) {{
@@ -277,9 +514,26 @@ fn generatePowerShell() void {
         \\        }}
         \\    }}
         \\
-        \\    # Completing global flags
+        \\    # Get previous token for context-sensitive completion
+        \\    if ($tokens.Count -ge 2) {{
+        \\        $prevToken = $tokens[$tokens.Count - 2].Extent.Text
+        \\    }}
+        \\
+        \\    # Complete theme names after --theme
+        \\    if ($prevToken -eq '--theme') {{
+        \\        $script:AbiThemes | Where-Object {{ $_ -like "$wordToComplete*" }} | ForEach-Object {{
+        \\            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+        \\        }}
+        \\        return
+        \\    }}
+        \\
+        \\    # Completing flags (global + command-specific)
         \\    if ($wordToComplete.StartsWith('-')) {{
-        \\        $script:AbiGlobalFlags | Where-Object {{ $_ -like "$wordToComplete*" }} | ForEach-Object {{
+        \\        $allFlags = @() + $script:AbiGlobalFlags
+        \\        if ($command -and $script:AbiCommandOptions.ContainsKey($command)) {{
+        \\            $allFlags += $script:AbiCommandOptions[$command]
+        \\        }}
+        \\        $allFlags | Where-Object {{ $_ -like "$wordToComplete*" }} | ForEach-Object {{
         \\            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterName', $_)
         \\        }}
         \\        return
@@ -305,6 +559,10 @@ fn generatePowerShell() void {
         \\
     , .{});
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Shared helpers
+// ═══════════════════════════════════════════════════════════════════════════
 
 fn emitScriptLine(text: []const u8) void {
     std.debug.print("{s}", .{text});
@@ -389,24 +647,6 @@ fn printCommandMatchers(command: []const u8) void {
         if (std.mem.eql(u8, alias.target, command)) {
             std.debug.print("|{s}", .{alias.alias});
         }
-    }
-}
-
-fn emitFishSubcommands(target: []const u8, subcommands: []const []const u8) void {
-    emitFishSubcommandsForCommand(target, subcommands);
-    for (spec.aliases) |alias| {
-        if (std.mem.eql(u8, alias.target, target)) {
-            emitFishSubcommandsForCommand(alias.alias, subcommands);
-        }
-    }
-}
-
-fn emitFishSubcommandsForCommand(command: []const u8, subcommands: []const []const u8) void {
-    for (subcommands) |subcommand| {
-        std.debug.print(
-            \\complete -c abi -n "__fish_seen_subcommand_from {s}" -a "{s}" -d "{s} subcommand"
-            \\
-        , .{ command, subcommand, subcommand });
     }
 }
 

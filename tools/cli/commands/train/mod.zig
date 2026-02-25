@@ -135,8 +135,7 @@ const train_subcommands = [_][]const u8{
 
 /// Run the train command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
-pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    _ = ctx;
+pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
     if (args.len == 0) {
         printHelp();
         return;

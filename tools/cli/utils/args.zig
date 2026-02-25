@@ -32,22 +32,37 @@ fn containsIgnoreCase(haystack: []const u8, needle: []const u8) bool {
 }
 
 /// Suggest a command based on a partial or mistyped input.
+/// Tries exact (case-insensitive), prefix, substring, then Levenshtein distance.
 pub fn suggestCommand(input: []const u8, commands: []const []const u8) ?[]const u8 {
     if (input.len == 0) return null;
 
+    // 1. Exact match (case-insensitive)
     for (commands) |cmd| {
         if (std.ascii.eqlIgnoreCase(input, cmd)) return cmd;
     }
 
+    // 2. Prefix match (either direction)
     for (commands) |cmd| {
         if (startsWithIgnoreCase(cmd, input) or startsWithIgnoreCase(input, cmd)) return cmd;
     }
 
+    // 3. Substring match
     for (commands) |cmd| {
         if (containsIgnoreCase(cmd, input)) return cmd;
     }
 
-    return null;
+    // 4. Fuzzy match via Levenshtein edit distance (max distance 3)
+    const help_utils = @import("help.zig");
+    var best: ?[]const u8 = null;
+    var best_dist: usize = 4; // threshold: only suggest if distance <= 3
+    for (commands) |cmd| {
+        const dist = help_utils.editDistance(input, cmd);
+        if (dist < best_dist) {
+            best_dist = dist;
+            best = cmd;
+        }
+    }
+    return best;
 }
 
 /// Convert a null-terminated argument to a regular slice.
@@ -262,6 +277,21 @@ test "suggestCommand" {
     const suggestion = suggestCommand("lm", &commands);
     try std.testing.expect(suggestion != null);
     try std.testing.expectEqualStrings("llm", suggestion.?);
+}
+
+test "suggestCommand: fuzzy match via edit distance" {
+    const commands = [_][]const u8{ "config", "network", "train", "embed" };
+    // "trian" doesn't match any prefix/substring, but is 2 edits from "train"
+    const suggestion = suggestCommand("trian", &commands);
+    try std.testing.expect(suggestion != null);
+    try std.testing.expectEqualStrings("train", suggestion.?);
+}
+
+test "suggestCommand: no match when too distant" {
+    const commands = [_][]const u8{ "config", "network", "train" };
+    // "xyz" is too far from anything (distance > 3)
+    const suggestion = suggestCommand("xyz", &commands);
+    try std.testing.expect(suggestion == null);
 }
 
 test "ArgParser basic operations" {

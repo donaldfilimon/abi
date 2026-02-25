@@ -57,6 +57,7 @@ fn wrapPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
 pub const meta: command_mod.Meta = .{
     .name = "toolchain",
     .description = "Build and install Zig/ZLS from master (install, update, status)",
+    .kind = .group,
     .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "help" },
     .children = &.{
         .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = wrapInstall },

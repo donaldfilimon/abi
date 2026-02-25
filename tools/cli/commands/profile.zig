@@ -69,6 +69,7 @@ fn wrapImport(ctx: *const context_mod.CommandContext, args: []const [:0]const u8
 pub const meta: command_mod.Meta = .{
     .name = "profile",
     .description = "User profile and settings management",
+    .kind = .group,
     .subcommands = &.{ "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help" },
     .children = &.{
         .{ .name = "show", .description = "Show current profile", .handler = wrapShow },

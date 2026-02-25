@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **Services** coverage and s
 
 - Zig pin: `0.16.0-dev.2653+784e89fd4`
 - Main tests: `1290` pass / `6` skip / `1296` total
-- Feature tests: `2360` pass / `2365` total
+- Feature tests: `2360` pass / `5` skip / `2365` total
 
 ## Feature Coverage
 
@@ -70,7 +70,7 @@ No feature modules directly mapped to this section.
 - `abi task` — Task management (add, list, done, stats, seed-self-improve)
 - `abi toolchain` — Build and install Zig/ZLS from master (install, update, status)
 - `abi train` — Training pipeline (run, llm, vision, auto, self, resume, info)
-- `abi ui` — UI command family (launch, gpu, train, model, streaming, db, network, bench, brain)
+- `abi ui` — UI command family (launch, gpu, train, model, streaming, db, network, bench, brain, dashboard)
 
 ## Validation Commands
 

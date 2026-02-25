@@ -201,6 +201,7 @@ pub const BuildMeta = struct {
     test_main_skip: usize,
     test_main_total: usize,
     test_feature_pass: usize,
+    test_feature_skip: usize,
     test_feature_total: usize,
 };
 

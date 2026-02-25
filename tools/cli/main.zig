@@ -33,6 +33,11 @@
 //!   toolchain        Zig/ZLS toolchain (install, update, status)
 //!   lsp              ZLS LSP client (hover, completion, definition, etc.)
 //!   ralph            Ralph orchestrator (init, run, status, gate, improve, skills)
+//!   os-agent         OS-level agent operations
+//!   gendocs          Generate API documentation
+//!   brain            Brain/neural knowledge graph (info, export)
+//!   acp              Agent Communication Protocol (card, serve)
+//!   mcp              Model Context Protocol (serve, tools)
 
 const std = @import("std");
 const cli = @import("cli");
@@ -40,7 +45,7 @@ const cli = @import("cli");
 pub fn main(init: std.process.Init.Minimal) void {
     cli.mainWithArgs(init.args, init.environ) catch |err| {
         switch (err) {
-            error.InvalidArgument => std.process.exit(1),
+            error.InvalidArgument, error.ExecutionFailed => std.process.exit(1),
             else => {
                 std.debug.print("error: {t}\n", .{err});
                 std.process.exit(1);

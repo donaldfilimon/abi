@@ -39,7 +39,7 @@
     "title": "CLI",
     "section": "Core",
     "permalink": "/cli/",
-    "description": "29 commands + 9 aliases for AI, GPU, database, and system management"
+    "description": "30 commands + 8 aliases for AI, GPU, database, and system management"
   },
   {
     "slug": "ai-overview",
