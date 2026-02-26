@@ -23,23 +23,24 @@ const EnvVar = struct {
     display_name: []const u8,
     description: []const u8,
     required: bool,
+    secret: bool,
 };
 
 const abi_env_vars = [_]EnvVar{
-    .{ .name = "ABI_OPENAI_API_KEY", .display_name = "ABI_OPENAI_API_KEY", .description = "OpenAI API key", .required = false },
-    .{ .name = "ABI_ANTHROPIC_API_KEY", .display_name = "ABI_ANTHROPIC_API_KEY", .description = "Anthropic/Claude API key", .required = false },
-    .{ .name = "ABI_OLLAMA_HOST", .display_name = "ABI_OLLAMA_HOST", .description = "Ollama host URL", .required = false },
-    .{ .name = "ABI_HF_API_TOKEN", .display_name = "ABI_HF_API_TOKEN", .description = "HuggingFace API token", .required = false },
-    .{ .name = "ABI_GPU_BACKEND", .display_name = "ABI_GPU_BACKEND", .description = "GPU backend override", .required = false },
-    .{ .name = "ABI_LLM_MODEL_PATH", .display_name = "ABI_LLM_MODEL_PATH", .description = "Default LLM model file path", .required = false },
-    .{ .name = "ABI_MASTER_KEY", .display_name = "ABI_MASTER_KEY", .description = "32-byte secrets encryption key", .required = false },
-    .{ .name = "ABI_DB_PATH", .display_name = "ABI_DB_PATH", .description = "Database file path", .required = false },
-    .{ .name = "ABI_DISCORD_TOKEN", .display_name = "ABI_DISCORD_TOKEN", .description = "Discord bot token", .required = false },
-    .{ .name = "OPENAI_API_KEY", .display_name = "OPENAI_API_KEY", .description = "OpenAI API key (legacy)", .required = false },
-    .{ .name = "MISTRAL_API_KEY", .display_name = "MISTRAL_API_KEY", .description = "Mistral API key", .required = false },
-    .{ .name = "COHERE_API_KEY", .display_name = "COHERE_API_KEY", .description = "Cohere API key", .required = false },
-    .{ .name = "DISCORD_BOT_TOKEN", .display_name = "DISCORD_BOT_TOKEN", .description = "Discord bot token (legacy)", .required = false },
-    .{ .name = "NO_COLOR", .display_name = "NO_COLOR", .description = "Disable colored output", .required = false },
+    .{ .name = "ABI_OPENAI_API_KEY", .display_name = "ABI_OPENAI_API_KEY", .description = "OpenAI API key", .required = false, .secret = true },
+    .{ .name = "ABI_ANTHROPIC_API_KEY", .display_name = "ABI_ANTHROPIC_API_KEY", .description = "Anthropic/Claude API key", .required = false, .secret = true },
+    .{ .name = "ABI_OLLAMA_HOST", .display_name = "ABI_OLLAMA_HOST", .description = "Ollama host URL", .required = false, .secret = false },
+    .{ .name = "ABI_HF_API_TOKEN", .display_name = "ABI_HF_API_TOKEN", .description = "HuggingFace API token", .required = false, .secret = true },
+    .{ .name = "ABI_GPU_BACKEND", .display_name = "ABI_GPU_BACKEND", .description = "GPU backend override", .required = false, .secret = false },
+    .{ .name = "ABI_LLM_MODEL_PATH", .display_name = "ABI_LLM_MODEL_PATH", .description = "Default LLM model file path", .required = false, .secret = false },
+    .{ .name = "ABI_MASTER_KEY", .display_name = "ABI_MASTER_KEY", .description = "32-byte secrets encryption key", .required = false, .secret = true },
+    .{ .name = "ABI_DB_PATH", .display_name = "ABI_DB_PATH", .description = "Database file path", .required = false, .secret = false },
+    .{ .name = "ABI_DISCORD_TOKEN", .display_name = "ABI_DISCORD_TOKEN", .description = "Discord bot token", .required = false, .secret = true },
+    .{ .name = "OPENAI_API_KEY", .display_name = "OPENAI_API_KEY", .description = "OpenAI API key (legacy)", .required = false, .secret = true },
+    .{ .name = "MISTRAL_API_KEY", .display_name = "MISTRAL_API_KEY", .description = "Mistral API key", .required = false, .secret = true },
+    .{ .name = "COHERE_API_KEY", .display_name = "COHERE_API_KEY", .description = "Cohere API key", .required = false, .secret = true },
+    .{ .name = "DISCORD_BOT_TOKEN", .display_name = "DISCORD_BOT_TOKEN", .description = "Discord bot token (legacy)", .required = false, .secret = true },
+    .{ .name = "NO_COLOR", .display_name = "NO_COLOR", .description = "Disable colored output", .required = false, .secret = false },
 };
 
 fn wrapList(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
@@ -170,13 +171,24 @@ fn validateVars() void {
 fn exportVars() void {
     utils.output.println("# ABI environment variables (source this in your shell)", .{});
     utils.output.println("# Usage: eval $(abi env export)", .{});
+    utils.output.println("# NOTE: Secret variables (API keys, tokens) are excluded for safety.", .{});
     utils.output.println("", .{});
 
+    var skipped: usize = 0;
     for (abi_env_vars) |ev| {
         if (std.c.getenv(ev.name)) |ptr| {
+            if (ev.secret) {
+                skipped += 1;
+                continue;
+            }
             const val = std.mem.sliceTo(ptr, 0);
             utils.output.println("export {s}=\"{s}\"", .{ ev.display_name, val });
         }
+    }
+
+    if (skipped > 0) {
+        utils.output.println("", .{});
+        utils.output.println("# {d} secret variable(s) excluded. Set them manually or use a secrets manager.", .{skipped});
     }
 }
 
