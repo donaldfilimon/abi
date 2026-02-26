@@ -1,27 +1,31 @@
-# Cursor-like CLI TUI Editor Task Plan
+# ABI Zig Improvement Implementation Plan (Track A First)
 
 ## Objective
-Add an inline CLI TUI text editor command (Cursor-like terminal workflow) to ABI, reachable via `abi editor` and a dedicated `zig build` step, using existing Zig CLI architecture.
+Implement the approved reliability-first plan by stabilizing CLI/build health now (Track A), then advancing broader improvement work (Track B) without disrupting existing in-progress repository work.
 
 ## Scope
-- Add a new CLI command module under `tools/cli/commands/`.
-- Register the command in `tools/cli/commands/mod.zig`.
-- Add a build step in `build.zig` for launching the editor flow.
-- Keep implementation self-contained and compatible with Zig 0.16 patterns in this repo.
+- Track A (now): unblock CLI compile failures and prove MCP/LSP/CLI command paths.
+- Track A (now): run stabilization gates (`toolchain-doctor`, `typecheck`, command help paths, `cli-tests`, broader checks).
+- Track B (next): start reliability hardening with targeted `catch {}` cleanup and command help consistency follow-up.
 
 ## Verification Criteria
-- `zig build run -- editor --help` shows the new command and help output.
-- `zig build editor -- --help` invokes the editor entry path via build step.
-- No unresolved command wiring errors during command execution.
+- `zig build run -- mcp --help` passes.
+- `zig build run -- mcp serve --zls --help` passes.
+- `zig build run -- mcp tools --help` passes.
+- `zig build run -- lsp --help` passes.
+- `zig build cli-tests` passes.
+- `zig build typecheck` remains passing.
 
 ## Checklist
-- [x] Create `editor` command module with inline TUI loop and basic file editing behavior.
-- [x] Register `editor` command in the command module registry.
-- [x] Add `editor` build step in `build.zig` that forwards args to `abi editor`.
-- [x] Run command-surface verification commands and capture outcomes.
-- [x] Mark checklist complete with evidence.
+- [ ] Fix duplicate local variable in `tools/cli/commands/os_agent.zig`.
+- [ ] Fix top-level help wiring in `tools/cli/framework/help.zig` (missing symbol/allocator issues).
+- [ ] Fix `std` import visibility issue in `tools/cli/tui/keybindings.zig` tests.
+- [ ] Run `zig build toolchain-doctor`.
+- [ ] Run `zig build typecheck`.
+- [ ] Run CLI command-surface checks for MCP/LSP.
+- [ ] Run `zig build cli-tests`.
+- [ ] Run broader gate (`zig build full-check`) if fast enough after unblock.
+- [ ] Record outcomes and residual risk.
 
-## Evidence
-- `zig build run -- editor --help` succeeded and printed editor usage/help text.
-- `zig build editor -- --help` succeeded and printed the same help text via the dedicated build step.
-- PTY visual verification: `zig build run -- editor` rendered the TUI frame (alt-screen header, line gutter/status bar) and exited cleanly on `Ctrl-Q`.
+## Review
+- In progress.

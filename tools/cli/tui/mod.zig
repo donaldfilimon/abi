@@ -11,6 +11,9 @@ pub const widgets = @import("widgets.zig");
 pub const themes = @import("themes.zig");
 pub const render_utils = @import("render_utils.zig");
 pub const component = @import("component.zig");
+pub const panel = @import("panel.zig");
+pub const tab_bar = @import("tab_bar.zig");
+pub const help_overlay = @import("help_overlay.zig");
 pub const gpu_monitor = @import("gpu_monitor.zig");
 pub const agent_panel = @import("agent_panel.zig");
 pub const training_panel = @import("training_panel.zig");
@@ -110,6 +113,9 @@ pub const BoxChars = render_utils.BoxChars;
 // Component System
 pub const SubPanel = component.SubPanel;
 pub const RenderFn = component.RenderFn;
+pub const Panel = panel.Panel;
+pub const TabBar = tab_bar.TabBar;
+pub const HelpOverlay = help_overlay.HelpOverlay;
 
 // Async Loop
 pub const AsyncLoop = async_loop.AsyncLoop;

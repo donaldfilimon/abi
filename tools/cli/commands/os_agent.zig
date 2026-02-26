@@ -420,8 +420,6 @@ fn runInteractive(
 
     var seed_with_session_context = session.messages.items.len > 0;
 
-    var seed_with_session_context = session.messages.items.len > 0;
-
     var io_backend = cli_io.initIoBackend(allocator);
     defer io_backend.deinit();
 

@@ -3,6 +3,7 @@
 //! Maps raw key events to semantic actions, providing a single source
 //! of truth for common keyboard shortcuts across all dashboard views.
 
+const std = @import("std");
 const events = @import("events.zig");
 
 pub const KeyAction = enum {
@@ -40,14 +41,12 @@ pub fn resolve(key: events.Key) KeyAction {
 // ═══════════════════════════════════════════════════════════════════════════
 
 test "resolve quit keys" {
-    const std = @import("std");
     try std.testing.expectEqual(KeyAction.quit, resolve(.{ .code = .ctrl_c }));
     try std.testing.expectEqual(KeyAction.quit, resolve(.{ .code = .escape }));
     try std.testing.expectEqual(KeyAction.quit, resolve(.{ .code = .character, .char = 'q' }));
 }
 
 test "resolve action keys" {
-    const std = @import("std");
     try std.testing.expectEqual(KeyAction.pause, resolve(.{ .code = .character, .char = 'p' }));
     try std.testing.expectEqual(KeyAction.theme_next, resolve(.{ .code = .character, .char = 't' }));
     try std.testing.expectEqual(KeyAction.theme_prev, resolve(.{ .code = .character, .char = 'T' }));
@@ -56,7 +55,6 @@ test "resolve action keys" {
 }
 
 test "resolve unknown keys return none" {
-    const std = @import("std");
     try std.testing.expectEqual(KeyAction.none, resolve(.{ .code = .character, .char = 'x' }));
     try std.testing.expectEqual(KeyAction.none, resolve(.{ .code = .up }));
     try std.testing.expectEqual(KeyAction.none, resolve(.{ .code = .character, .char = 'z' }));

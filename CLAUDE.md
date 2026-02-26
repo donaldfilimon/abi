@@ -29,7 +29,7 @@ zig build full-check    # Format + tests + feature-tests + flag validation + CLI
 ```bash
 zig build                              # Build the project
 zig build test --summary all           # Main tests: 1290 pass, 6 skip (1296 total)
-zig build feature-tests --summary all  # Feature tests: 2360 pass (2365 total)
+zig build feature-tests --summary all  # Feature tests: 2836 pass (2845 total)
 zig build full-check                   # Format + tests + feature-tests + flag validation + CLI smoke
 zig build verify-all                   # Release gate (full-check + consistency + examples + wasm)
 zig build validate-flags               # Check 34 feature flag combinations
@@ -100,7 +100,7 @@ src/
 │   ├── gateway/               # API gateway (routing, rate limiting, circuit breaker)
 │   ├── mobile/                # Mobile platform (Android/iOS)
 │   └── benchmarks/            # Performance benchmarking
-├── feature_test_root.zig      # Feature test root (2360 pass, 5 skip)
+├── feature_test_root.zig      # Feature test root (2836 pass, 9 skip)
 tools/
 ├── cli/                       # CLI executable
 │   ├── main.zig               # Entry point (uses Init.Minimal)
@@ -138,7 +138,7 @@ build/
 
 **Two test roots:**
 - `zig build test` → `src/services/tests/mod.zig` (main: 1290 pass, 6 skip (1296 total))
-- `zig build feature-tests` → `src/feature_test_root.zig` (inline: 2360 pass (2365 total))
+- `zig build feature-tests` → `src/feature_test_root.zig` (inline: 2836 pass (2845 total))
 - Baselines tracked in `tools/scripts/baseline.zig`
 
 **Non-obvious env vars:** `ABI_HF_API_TOKEN` (not HUGGINGFACE), `DISCORD_BOT_TOKEN` (no ABI_ prefix), `ABI_OLLAMA_PASSTHROUGH_URL` (uses _URL), `ABI_MASTER_KEY` (secrets encryption).
@@ -346,7 +346,7 @@ utils.output.printKeyValueFmt("Count", "{d}", .{n});
 |--------|----------------|
 | `0.16.0-dev.2653+784e89fd4` | README.md, CONTRIBUTING.md, CLAUDE.md |
 | `1290 pass, 6 skip (1296 total)` | CLAUDE.md, `.claude/rules/zig.md` |
-| `2360 pass (2365 total)` | CLAUDE.md, `.claude/rules/zig.md` |
+| `2836 pass (2845 total)` | CLAUDE.md, `.claude/rules/zig.md` |
 
 If test counts change, run `/baseline-sync` to update all markers.
 

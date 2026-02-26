@@ -12,13 +12,9 @@ pub const Option = struct {
     arg: ?[]const u8 = null,
     description: []const u8,
 
-    /// Format as "-s, --long <ARG>  Description"
-    pub fn format(
-        self: Option,
-        comptime _: []const u8,
-        _: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
+    /// Custom formatter used with the `{f}` format specifier.
+    /// Renders as "-s, --long <ARG>  Description".
+    pub fn format(self: Option, writer: anytype) !void {
         // Short option
         if (self.short) |s| {
             try writer.print("  {s}, ", .{s});
@@ -38,7 +34,7 @@ pub const Option = struct {
         const long_len = self.long.len + if (self.arg) |a| a.len + 3 else 0;
         const total_len = opt_len + long_len;
         const padding = if (total_len < 28) 28 - total_len else 2;
-        try writer.writeByteNTimes(' ', padding);
+        try writer.splatByteAll(' ', padding);
         try writer.print("{s}", .{self.description});
     }
 };
@@ -48,15 +44,11 @@ pub const Subcommand = struct {
     name: []const u8,
     description: []const u8,
 
-    pub fn format(
-        self: Subcommand,
-        comptime _: []const u8,
-        _: std.fmt.FormatOptions,
-        writer: anytype,
-    ) !void {
+    /// Custom formatter used with the `{f}` format specifier.
+    pub fn format(self: Subcommand, writer: anytype) !void {
         try writer.print("  {s}", .{self.name});
         const padding = if (self.name.len < 16) 16 - self.name.len else 2;
-        try writer.writeByteNTimes(' ', padding);
+        try writer.splatByteAll(' ', padding);
         try writer.print("{s}", .{self.description});
     }
 };
@@ -259,7 +251,7 @@ pub fn printSimpleHelp(
     if (opts.len > 0) {
         output_mod.println("Options:", .{});
         for (opts) |opt| {
-            output_mod.println("{}", .{opt});
+            output_mod.println("{f}", .{opt});
         }
     }
 }
@@ -316,7 +308,7 @@ test "Option: formatting with all fields" {
     // The format output for this test option is approximately:
     // "  -n, --name <NAME>          Set the name" = ~42 chars
     var buf: [128]u8 = undefined;
-    const result = try std.fmt.bufPrint(&buf, "{}", .{opt});
+    const result = try std.fmt.bufPrint(&buf, "{f}", .{opt});
     try std.testing.expect(std.mem.indexOf(u8, result, "-n") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "--name") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "<NAME>") != null);
@@ -333,7 +325,7 @@ test "Option: formatting without short" {
     // The format output for this test option is approximately:
     // "      --verbose              Enable verbose output" = ~50 chars
     var buf: [128]u8 = undefined;
-    const result = try std.fmt.bufPrint(&buf, "{}", .{opt});
+    const result = try std.fmt.bufPrint(&buf, "{f}", .{opt});
     try std.testing.expect(std.mem.indexOf(u8, result, "--verbose") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "Enable verbose") != null);
 }
@@ -348,7 +340,7 @@ test "Subcommand: formatting" {
     // The format output for this test subcommand is approximately:
     // "  run             Run the command" = ~34 chars
     var buf: [128]u8 = undefined;
-    const result = try std.fmt.bufPrint(&buf, "{}", .{cmd});
+    const result = try std.fmt.bufPrint(&buf, "{f}", .{cmd});
     try std.testing.expect(std.mem.indexOf(u8, result, "run") != null);
     try std.testing.expect(std.mem.indexOf(u8, result, "Run the command") != null);
 }

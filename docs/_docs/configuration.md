@@ -19,7 +19,7 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 - Zig pin: `0.16.0-dev.2653+784e89fd4`
 - Main tests: `1290` pass / `6` skip / `1296` total
-- Feature tests: `2360` pass / `5` skip / `2365` total
+- Feature tests: `2836` pass / `9` skip / `2845` total
 
 ## Feature Coverage
 
@@ -41,16 +41,20 @@ No feature modules directly mapped to this section.
 - `abi agent` — Run AI agent (interactive or one-shot)
 - `abi bench` — Run performance benchmarks (all, simd, memory, ai, quick)
 - `abi brain` — Brain file management (export, info)
+- `abi clean` — Remove build cache, state files, and downloaded models
 - `abi completions` — Generate shell completions (bash, zsh, fish, powershell)
 - `abi config` — Configuration management (init, setup, show, validate, env)
 - `abi convert` — Dataset conversion tools (tokenbin, text, jsonl, wdbx)
 - `abi db` — Database operations (add, query, stats, optimize, backup, restore)
 - `abi discord` — Discord bot operations (status, guilds, send, commands)
+- `abi doctor` — Check environment, dependencies, and configuration
 - `abi editor` — Open an inline Cursor-like terminal text editor
 - `abi embed` — Generate embeddings from text (openai, mistral, cohere, ollama)
+- `abi env` — Show and validate ABI environment variables
 - `abi explore` — Search and explore codebase
 - `abi gendocs` — Generate API docs (runs zig build gendocs)
 - `abi gpu` — GPU commands (backends, devices, summary, default)
+- `abi init` — Create a new ABI project from a template
 - `abi llm` — LLM inference (run, session, serve, providers, plugins, discover)
 - `abi lsp` — ZLS LSP client (request, hover, completion, definition, rename, format)
 - `abi mcp` — MCP server for WDBX database or ZLS (serve, tools)

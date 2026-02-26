@@ -13,7 +13,7 @@
 | Command | Purpose |
 |---------|---------|
 | `zig build test --summary all` | Main tests (1290 pass, 6 skip) |
-| `zig build feature-tests --summary all` | Feature tests (2360 pass, 5 skip); can take several minutes |
+| `zig build feature-tests --summary all` | Feature tests (2836 pass, 9 skip); can take several minutes |
 | `zig build full-check` | Format + tests + feature tests + flag validation + CLI smoke |
 | `zig build validate-flags` | Check 34 feature flag combos |
 | `zig build verify-all` | Release gate (full-check + consistency + examples + wasm) |

@@ -43,6 +43,14 @@
     ]
   },
   {
+    "name": "clean",
+    "description": "Remove build cache, state files, and downloaded models",
+    "aliases": [],
+    "subcommands": [
+      "help"
+    ]
+  },
+  {
     "name": "completions",
     "description": "Generate shell completions (bash, zsh, fish, powershell)",
     "aliases": [],
@@ -111,6 +119,14 @@
     ]
   },
   {
+    "name": "doctor",
+    "description": "Check environment, dependencies, and configuration",
+    "aliases": [],
+    "subcommands": [
+      "help"
+    ]
+  },
+  {
     "name": "editor",
     "description": "Open an inline Cursor-like terminal text editor",
     "aliases": [
@@ -125,6 +141,17 @@
     "description": "Generate embeddings from text (openai, mistral, cohere, ollama)",
     "aliases": [],
     "subcommands": []
+  },
+  {
+    "name": "env",
+    "description": "Show and validate ABI environment variables",
+    "aliases": [],
+    "subcommands": [
+      "list",
+      "validate",
+      "export",
+      "help"
+    ]
   },
   {
     "name": "explore",
@@ -149,6 +176,14 @@
       "summary",
       "default",
       "status"
+    ]
+  },
+  {
+    "name": "init",
+    "description": "Create a new ABI project from a template",
+    "aliases": [],
+    "subcommands": [
+      "help"
     ]
   },
   {

@@ -9,7 +9,7 @@ const layout = @import("layout.zig");
 const themes = @import("themes.zig");
 const events = @import("events.zig");
 
-const Panel = @This();
+pub const Panel = @This();
 
 ptr: *anyopaque,
 vtable: *const VTable,

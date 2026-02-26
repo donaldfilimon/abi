@@ -19,11 +19,11 @@ This guide is generated from repository metadata for **Core** coverage and stays
 
 - Zig pin: `0.16.0-dev.2653+784e89fd4`
 - Main tests: `1290` pass / `6` skip / `1296` total
-- Feature tests: `2360` pass / `5` skip / `2365` total
+- Feature tests: `2836` pass / `9` skip / `2845` total
 
 ## Command Tree
 
-Top-level commands: **31** | aliases: **10** | structural subcommands: **171**
+Top-level commands: **35** | aliases: **9** | structural subcommands: **179**
 
 | Command | Aliases | Description | Subcommands |
 | --- | --- | --- | --- |
@@ -31,16 +31,20 @@ Top-level commands: **31** | aliases: **10** | structural subcommands: **171**
 | `agent` | — | Run AI agent (interactive or one-shot) | — |
 | `bench` | run | Run performance benchmarks (all, simd, memory, ai, quick) | all, simd, memory, ai, quick, compare-training, list, micro |
 | `brain` | — | Brain file management (export, info) | export, info, help |
+| `clean` | — | Remove build cache, state files, and downloaded models | help |
 | `completions` | — | Generate shell completions (bash, zsh, fish, powershell) | bash, zsh, fish, powershell, help |
 | `config` | — | Configuration management (init, setup, show, validate, env) | init, setup, show, validate, env, path, help |
 | `convert` | — | Dataset conversion tools (tokenbin, text, jsonl, wdbx) | dataset, model, embeddings |
 | `db` | ls | Database operations (add, query, stats, optimize, backup, restore) | add, query, stats, optimize, backup, restore, serve, help |
 | `discord` | — | Discord bot operations (status, guilds, send, commands) | status, info, guilds, send, commands, webhook, channel, help |
+| `doctor` | — | Check environment, dependencies, and configuration | help |
 | `editor` | edit | Open an inline Cursor-like terminal text editor | help |
 | `embed` | — | Generate embeddings from text (openai, mistral, cohere, ollama) | — |
+| `env` | — | Show and validate ABI environment variables | list, validate, export, help |
 | `explore` | — | Search and explore codebase | — |
 | `gendocs` | — | Generate API docs (runs zig build gendocs) | — |
 | `gpu` | — | GPU commands (backends, devices, summary, default) | backends, devices, list, summary, default, status |
+| `init` | — | Create a new ABI project from a template | help |
 | `llm` | chat, reasoning | LLM inference (run, session, serve, providers, plugins, discover) | run, session, serve, providers, plugins, discover, help |
 | `lsp` | — | ZLS LSP client (request, hover, completion, definition, rename, format) | request, notify, hover, completion, definition, references, rename, format, diagnostics, help |
 | `mcp` | — | MCP server for WDBX database or ZLS (serve, tools) | serve, tools, help |

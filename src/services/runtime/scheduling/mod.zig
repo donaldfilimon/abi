@@ -13,7 +13,7 @@ const std = @import("std");
 pub const future_mod = @import("future.zig");
 pub const cancellation_mod = @import("cancellation.zig");
 pub const task_group_mod = @import("task_group.zig");
-pub const async_mod = @import("async.zig");
+const async_mod = @import("async.zig");
 pub const thread_pool_mod = @import("thread_pool.zig");
 pub const dag_pipeline_mod = @import("dag_pipeline.zig");
 
