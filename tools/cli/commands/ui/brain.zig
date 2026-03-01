@@ -686,7 +686,7 @@ fn printHelp() void {
         \\Options:
         \\  --theme <name>       Set initial theme (e.g., nord, monokai)
         \\  --list-themes        Print available themes and exit
-        \\  --db <path>          Use live WDBX database (requires -Denable-database)
+        \\  --db <path>          Use live WDBX database (requires -Dfeat-database=true (legacy: -Denable-database=true))
         \\  --training <path>    Use training metrics JSONL file as data source
         \\  -h, --help           Show this help message
         \\

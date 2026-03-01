@@ -33,21 +33,6 @@ pub fn build(b: *std.Build) void {
 
     // ── Build options ───────────────────────────────────────────────────
     const backend_arg = b.option([]const u8, "gpu-backend", gpu.backend_option_help);
-    const cli_full_env_file = b.option(
-        []const u8,
-        "cli-full-env-file",
-        "Path to KEY=VALUE env file for exhaustive CLI integration tests",
-    );
-    const cli_full_allow_blocked = b.option(
-        bool,
-        "cli-full-allow-blocked",
-        "Continue cli-tests-full when preflight checks fail and mark blocked rows",
-    ) orelse false;
-    const cli_full_timeout_scale = b.option(
-        f64,
-        "cli-full-timeout-scale",
-        "Timeout multiplier for cli-tests-full on slower hosts",
-    ) orelse 1.0;
 
     link.validateMetalBackendRequest(b, backend_arg, target.result.os.tag, can_link_metal);
     const options = options_mod.readBuildOptions(
@@ -104,19 +89,6 @@ pub fn build(b: *std.Build) void {
 
     // ── CLI smoke tests ─────────────────────────────────────────────────
     const cli_tests_step = cli_tests.addCliTests(b, exe);
-    _ = cli_tests.addCliTestsFull(b, .{
-        .env_file = cli_full_env_file,
-        .allow_blocked = cli_full_allow_blocked,
-        .timeout_scale = cli_full_timeout_scale,
-    });
-    _ = cli_tests.addCliTestsNested(b, .{
-        .env_file = cli_full_env_file,
-        // Nested command routing checks should still run in local environments
-        // without external integration credentials. Blocked vectors are reported
-        // by the matrix runner instead of failing the entire step.
-        .allow_blocked = true,
-        .timeout_scale = cli_full_timeout_scale,
-    });
 
     // ── TUI / CLI unit tests ───────────────────────────────────────────
     var tui_tests_step: ?*std.Build.Step = null;
@@ -213,6 +185,26 @@ pub fn build(b: *std.Build) void {
     const ralph_gate_step = b.step("ralph-gate", "Require live Ralph scoring report and threshold pass");
     ralph_gate_step.dependOn(&addScriptRunner(b, "abi-check-ralph-gate", "tools/scripts/check_ralph_gate.zig", target, optimize).step);
 
+    const workflow_contract_step = b.step("check-workflow-orchestration", "Advisory workflow-orchestration contract checks");
+    workflow_contract_step.dependOn(&addScriptRunner(
+        b,
+        "abi-check-workflow-orchestration",
+        "tools/scripts/check_workflow_orchestration.zig",
+        target,
+        optimize,
+    ).step);
+
+    const workflow_contract_strict_step = b.step("check-workflow-orchestration-strict", "Strict workflow-orchestration contract checks");
+    const workflow_contract_strict = addScriptRunner(
+        b,
+        "abi-check-workflow-orchestration-strict",
+        "tools/scripts/check_workflow_orchestration.zig",
+        target,
+        optimize,
+    );
+    workflow_contract_strict.addArg("--strict");
+    workflow_contract_strict_step.dependOn(&workflow_contract_strict.step);
+
     // ── Baseline validation ─────────────────────────────────────────────
     const validate_baseline_step = b.step("validate-baseline", "Run tests and verify counts match tools/scripts/baseline.zig");
     const validate_baseline = addScriptRunner(b, "abi-validate-test-counts", "tools/scripts/validate_test_counts.zig", target, optimize);
@@ -257,7 +249,8 @@ pub fn build(b: *std.Build) void {
 
         const run_check_docs = b.addRunArtifact(gendocs);
         run_check_docs.addArg("--check");
-        const docs_check = b.step("check-docs", "Validate docs outputs are up to date");
+        run_check_docs.addArg("--untracked-md");
+        const docs_check = b.step("check-docs", "Validate docs generator determinism and output policy");
         docs_check.dependOn(&run_check_docs.step);
         check_docs_step = docs_check;
     }

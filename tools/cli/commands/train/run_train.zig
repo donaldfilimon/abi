@@ -18,7 +18,7 @@ pub fn runTrain(ctx: *const context_mod.CommandContext, args: []const [:0]const 
     }
 
     if (!abi.ai.training.isEnabled()) {
-        utils.output.printError("training feature is not enabled. Build with -Denable-training=true", .{});
+        utils.output.printError("training feature is not enabled. Build with -Dfeat-training=true (legacy: -Denable-training=true)", .{});
         return;
     }
 

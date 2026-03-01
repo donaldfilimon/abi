@@ -183,7 +183,7 @@ pub fn runConcurrencyBenchmarks(allocator: std.mem.Allocator, results: *std.Arra
 pub fn runDatabaseBenchmarks(allocator: std.mem.Allocator, results: *std.ArrayListUnmanaged(mod.BenchResult)) mod.BenchmarkError!void {
     // Check if database feature is enabled
     if (!abi.database.isEnabled()) {
-        utils.output.println("  (Database benchmarks require -Denable-database=true build flag)", .{});
+        utils.output.println("  (Database benchmarks require -Dfeat-database=true (legacy: -Denable-database=true) build flag)", .{});
         return;
     }
 

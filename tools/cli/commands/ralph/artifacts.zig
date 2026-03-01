@@ -26,6 +26,22 @@ pub const RunReport = struct {
     skills_added: u64 = 0,
     /// Gate command used for verification.
     gate_command: []const u8 = "zig build verify-all",
+    workflow_contract_passed: bool = true,
+    workflow_warning_count: usize = 0,
+    replan_trigger_count: usize = 0,
+    correction_count: usize = 0,
+    lessons_appended: usize = 0,
+};
+
+pub const WorkflowIteration = struct {
+    contract_prompt_injected: bool = false,
+    warning_count: usize = 0,
+    trigger: ?[]const u8 = null,
+    trigger_logged: bool = false,
+    correction_applied: bool = false,
+    lessons_appended: usize = 0,
+    verify_attempts: usize = 0,
+    verify_command_rejected: bool = false,
 };
 
 pub fn writeIterationArtifact(
@@ -36,6 +52,7 @@ pub fn writeIterationArtifact(
     task: []const u8,
     response: []const u8,
     verify: ?verification.VerifyResult,
+    workflow: ?WorkflowIteration,
     changed: bool,
     committed: bool,
 ) !void {
@@ -63,9 +80,19 @@ pub fn writeIterationArtifact(
         try allocator.dupe(u8, "null");
     defer allocator.free(verify_json);
 
+    const workflow_json = if (workflow) |wf| blk: {
+        var wf_buffer = std.ArrayListUnmanaged(u8).empty;
+        defer wf_buffer.deinit(allocator);
+        var wf_writer: std.Io.Writer.Allocating = .fromArrayList(allocator, &wf_buffer);
+        defer wf_buffer = wf_writer.toArrayList();
+        try std.json.Stringify.value(wf, .{}, &wf_writer.writer);
+        break :blk try wf_buffer.toOwnedSlice(allocator);
+    } else try allocator.dupe(u8, "null");
+    defer allocator.free(workflow_json);
+
     const json = try std.fmt.allocPrint(
         allocator,
-        "{{\"iteration\":{d},\"timestamp\":{d},\"task\":{f},\"response\":{f},\"changed\":{s},\"committed\":{s},\"verify\":{s}}}",
+        "{{\"iteration\":{d},\"timestamp\":{d},\"task\":{f},\"response\":{f},\"changed\":{s},\"committed\":{s},\"verify\":{s},\"workflow\":{s}}}",
         .{
             iteration,
             workspace.nowEpochSeconds(),
@@ -74,6 +101,7 @@ pub fn writeIterationArtifact(
             if (changed) "true" else "false",
             if (committed) "true" else "false",
             verify_json,
+            workflow_json,
         },
     );
     defer allocator.free(json);

@@ -17,6 +17,12 @@ pub fn createBuildOptionsModule(b: *std.Build, options: BuildOptions) *std.Build
         }
     }
 
+    // Export canonical feat_* aliases for migration to the v2 flag model.
+    const canonical = options_mod.buildOptionsToCanonical(options);
+    inline for (std.meta.fields(options_mod.CanonicalFlags)) |field| {
+        opts.addOption(bool, field.name, @field(canonical, field.name));
+    }
+
     // GPU backend convenience flags (derived from the backend list).
     opts.addOption(bool, "gpu_cuda", options.gpu_cuda());
     opts.addOption(bool, "gpu_vulkan", options.gpu_vulkan());

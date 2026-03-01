@@ -1,0 +1,65 @@
+{
+    "base_settings": {
+        "format_on_save": "off",
+        "tab_size": 4,
+        "insert_final_newline": true,
+        "trim_trailing_whitespace": true,
+        "line_width": 100,
+        "show_whitespace": false,
+        "auto_indent": true,
+        "soft_wrap": "none"
+    },
+
+    "language": {
+        "zig": {
+            "formatter": "external",
+            "external_command": "zig",
+            "external_arguments": ["fmt", "{buffer_path}"],
+            "tab_size": 4,
+            "insert_final_newline": true,
+            "line_width": 100
+        },
+
+        "json": {
+            "formatter": "prettier"
+        },
+
+        "jsonc": {
+            "formatter": "prettier"
+        },
+
+        "markdown": {
+            "formatter": "prettier",
+            "soft_wrap": "preferred_line_length"
+        },
+
+        "yaml": {
+            "formatter": "prettier",
+            "tab_size": 2
+        }
+    },
+
+    "lsp": {
+        "zls": {
+            "binary": {
+                "path": "zls",
+                "arguments": []
+            }
+        }
+    },
+
+    "terminal": {
+        "shell": "zsh",
+        "pty_width": 120,
+        "pty_height": 24
+    },
+
+    "telemetry": {
+        "diagnostics": false,
+        "metrics": false
+    },
+
+    "theme": {
+        "mode": "system"
+    }
+}

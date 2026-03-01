@@ -374,6 +374,34 @@ pub const AbbeyEngine = struct {
             }
         }
 
+        // Final stop-hook verification pass for contract parity with runtime Ralph.
+        if (last_assistant != null) {
+            try history.append(self.allocator, .{
+                .role = "system",
+                .content = try self.allocator.dupe(u8, prompts.ralph.STOP_HOOK_TEMPLATE),
+            });
+
+            const verify_request = client.CompletionRequest{
+                .messages = history.items,
+                .model = self.config.llm.model,
+                .temperature = ralph_persona.suggested_temperature,
+                .max_tokens = self.config.behavior.max_tokens,
+            };
+
+            var verify_response = try self.llm_client.complete(verify_request);
+            defer verify_response.deinit(self.allocator);
+
+            const verified_content = try self.allocator.dupe(u8, verify_response.content);
+            errdefer self.allocator.free(verified_content);
+            try history.append(self.allocator, .{
+                .role = "assistant",
+                .content = verified_content,
+            });
+            last_assistant = verified_content;
+            self.total_tokens_used += verify_response.usage.total_tokens;
+            self.turn_count += 1;
+        }
+
         const final_response = if (last_assistant) |resp|
             try self.allocator.dupe(u8, resp)
         else

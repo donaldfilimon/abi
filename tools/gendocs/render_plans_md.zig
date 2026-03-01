@@ -1,18 +1,7 @@
 const std = @import("std");
 const model = @import("model.zig");
 
-const generated_footer =
-    \\
-    \\
-    \\---
-    \\
-    \\*Generated automatically by `zig build gendocs`*
-    \\
-    \\
-    \\## Zig Skill
-    \\Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
-    \\
-;
+const generated_footer = model.generated_footer;
 
 pub fn render(
     allocator: std.mem.Allocator,
@@ -179,25 +168,7 @@ fn applyTemplate(allocator: std.mem.Allocator, template: []const u8, args: Templ
     return r10;
 }
 
-fn replaceAll(allocator: std.mem.Allocator, input: []const u8, needle: []const u8, repl: []const u8) ![]u8 {
-    if (needle.len == 0) return allocator.dupe(u8, input);
-
-    var out = std.ArrayListUnmanaged(u8).empty;
-    errdefer out.deinit(allocator);
-
-    var cursor: usize = 0;
-    while (true) {
-        const pos = std.mem.indexOfPos(u8, input, cursor, needle) orelse {
-            try out.appendSlice(allocator, input[cursor..]);
-            break;
-        };
-        try out.appendSlice(allocator, input[cursor..pos]);
-        try out.appendSlice(allocator, repl);
-        cursor = pos + needle.len;
-    }
-
-    return out.toOwnedSlice(allocator);
-}
+const replaceAll = model.replaceAll;
 
 fn formatBullets(
     allocator: std.mem.Allocator,
@@ -295,16 +266,7 @@ fn relatedRoadmapForPlan(
     return out.toOwnedSlice(allocator);
 }
 
-fn appendFmt(
-    allocator: std.mem.Allocator,
-    out: *std.ArrayListUnmanaged(u8),
-    comptime fmt: []const u8,
-    args: anytype,
-) !void {
-    const text = try std.fmt.allocPrint(allocator, fmt, args);
-    defer allocator.free(text);
-    try out.appendSlice(allocator, text);
-}
+const appendFmt = model.appendFmt;
 
 const default_index_template =
     \\## Summary

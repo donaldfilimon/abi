@@ -30,7 +30,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Check if AI explore feature is enabled
     if (!abi.ai.explore.isEnabled()) {
         utils.output.printError("AI code exploration feature is disabled.", .{});
-        utils.output.printInfo("Rebuild with: zig build -Denable-ai=true -Denable-explore=true", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true) -Dfeat-explore=true (legacy: -Denable-explore=true)", .{});
         return;
     }
 

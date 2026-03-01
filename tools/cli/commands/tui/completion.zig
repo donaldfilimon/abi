@@ -137,7 +137,7 @@ pub fn isRecentlyUsed(item: *const MenuItem, history_items: []const HistoryEntry
             // History is newest-first (inserted at index 0), so inspect prefix.
             const check_count = @min(history_items.len, 5);
             for (history_items[0..check_count]) |entry| {
-                if (entry.command == cmd) return true;
+                if (std.mem.eql(u8, entry.command_id, cmd.id)) return true;
             }
         },
         else => {},
@@ -155,27 +155,32 @@ pub fn suggestionCompare(_: void, a: CompletionSuggestion, b: CompletionSuggesti
 // ═══════════════════════════════════════════════════════════════════
 
 test "recent history prefers newest prefix entries" {
+    const no_args = &[_][:0]const u8{};
     const item = MenuItem{
         .label = "Ralph",
         .description = "desc",
-        .action = .{ .command = .ralph },
+        .action = .{ .command = .{
+            .id = "ralph",
+            .command = "ralph",
+            .args = no_args,
+        } },
         .category = .ai,
     };
 
     const history = [_]HistoryEntry{
-        .{ .command = .ralph, .timestamp = 30 },
-        .{ .command = .db, .timestamp = 20 },
-        .{ .command = .bench, .timestamp = 10 },
+        .{ .command_id = "ralph", .timestamp = 30 },
+        .{ .command_id = "db", .timestamp = 20 },
+        .{ .command_id = "bench", .timestamp = 10 },
     };
     try std.testing.expect(isRecentlyUsed(&item, &history));
 
     const old_only = [_]HistoryEntry{
-        .{ .command = .db, .timestamp = 30 },
-        .{ .command = .bench, .timestamp = 20 },
-        .{ .command = .config, .timestamp = 10 },
-        .{ .command = .gpu, .timestamp = 9 },
-        .{ .command = .llm, .timestamp = 8 },
-        .{ .command = .ralph, .timestamp = 1 },
+        .{ .command_id = "db", .timestamp = 30 },
+        .{ .command_id = "bench", .timestamp = 20 },
+        .{ .command_id = "config", .timestamp = 10 },
+        .{ .command_id = "gpu", .timestamp = 9 },
+        .{ .command_id = "llm", .timestamp = 8 },
+        .{ .command_id = "ralph", .timestamp = 1 },
     };
     try std.testing.expect(!isRecentlyUsed(&item, &old_only));
 }

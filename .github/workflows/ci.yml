@@ -50,6 +50,10 @@ jobs:
         run: zig build validate-baseline
       - name: Validate feature flags
         run: zig build validate-flags
+      - name: Workflow orchestration check (non-blocking)
+        if: ${{ always() }}
+        continue-on-error: true
+        run: zig build check-workflow-orchestration
       - name: CLI smoke tests
         run: zig build cli-tests
 

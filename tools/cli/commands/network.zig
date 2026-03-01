@@ -79,7 +79,7 @@ fn initNetwork(allocator: std.mem.Allocator) !void {
     abi.network.init(allocator) catch |err| switch (err) {
         error.NetworkDisabled => {
             utils.output.printError("Network features are disabled.", .{});
-            utils.output.printInfo("Rebuild with: zig build -Denable-network=true", .{});
+            utils.output.printInfo("Rebuild with: zig build -Dfeat-network=true (legacy: -Denable-network=true)", .{});
             return err;
         },
         else => return err,
@@ -133,7 +133,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 /// Print a short network summary for system-info.
 pub fn printSummary() void {
     if (!abi.network.isEnabled()) {
-        utils.output.println("  Network: disabled (rebuild with -Denable-network=true)", .{});
+        utils.output.println("  Network: disabled (rebuild with -Dfeat-network=true (legacy: -Denable-network=true))", .{});
         return;
     }
     if (!abi.network.isInitialized()) {
@@ -181,7 +181,7 @@ fn printHelp(allocator: std.mem.Allocator) void {
 fn printStatus() !void {
     if (!abi.network.isEnabled()) {
         utils.output.printError("Network features are disabled.", .{});
-        utils.output.printInfo("Rebuild with: zig build -Denable-network=true", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-network=true (legacy: -Denable-network=true)", .{});
         return;
     }
     const config = abi.network.defaultConfig();

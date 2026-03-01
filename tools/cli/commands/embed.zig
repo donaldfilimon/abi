@@ -71,7 +71,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Check if AI feature is enabled
     if (!abi.ai.isEnabled()) {
         utils.output.printError("AI feature is disabled.", .{});
-        utils.output.printInfo("Rebuild with: zig build -Denable-ai=true", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
         return;
     }
 

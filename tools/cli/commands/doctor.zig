@@ -46,7 +46,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     // 2. Framework initialization
     {
-        var fw = abi.initDefault(allocator) catch |err| {
+        var fw = abi.initAppDefault(allocator) catch |err| {
             var buf: [128]u8 = undefined;
             const detail = std.fmt.bufPrint(&buf, "init failed: {t}", .{err}) catch "init failed";
             printCheck("Framework init", false, detail);
@@ -61,7 +61,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // 3. GPU detection
     blk: {
         if (!abi.gpu.backends.detect.moduleEnabled()) {
-            printCheck("GPU module", false, "disabled at build time (-Denable-gpu=true to enable)");
+            printCheck("GPU module", false, "disabled at build time (-Dfeat-gpu=true (legacy: -Denable-gpu=true) to enable)");
             checks_warned += 1;
             break :blk;
         }
@@ -131,7 +131,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         const features = std.enums.values(abi.Feature);
         var enabled_count: usize = 0;
         for (features) |tag| {
-            var fw2 = abi.initDefault(allocator) catch break;
+            var fw2 = abi.initAppDefault(allocator) catch break;
             defer fw2.deinit();
             if (fw2.isEnabled(tag)) enabled_count += 1;
         }

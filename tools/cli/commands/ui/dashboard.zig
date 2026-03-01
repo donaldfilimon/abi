@@ -8,6 +8,9 @@
 const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
+const security_panel_mod = @import("../../tui/panels/security_panel.zig");
+const connectors_panel_mod = @import("../../tui/panels/connectors_panel.zig");
+const ralph_panel_mod = @import("../../tui/panels/ralph_panel.zig");
 const utils = @import("../../utils/mod.zig");
 const theme_options = @import("theme_options.zig");
 const render_utils = tui.render_utils;
@@ -17,6 +20,18 @@ const render_utils = tui.render_utils;
 // ===============================================================================
 
 const panel_count = 12;
+const tab_gpu = 0;
+const tab_agent = 1;
+const tab_train = 2;
+const tab_model = 3;
+const tab_stream = 4;
+const tab_db = 5;
+const tab_net = 6;
+const tab_bench = 7;
+const tab_brain = 8;
+const tab_security = 9;
+const tab_connectors = 10;
+const tab_ralph = 11;
 
 const help_title = "Dashboard Keyboard Shortcuts";
 
@@ -35,6 +50,394 @@ const help_lines = [_][]const u8{
 // ===============================================================================
 
 const ErrorBoundaryPanel = tui.Panel.ErrorBoundaryPanel;
+const SecurityPanel = security_panel_mod.SecurityPanel;
+const ConnectorsPanel = connectors_panel_mod.ConnectorsPanel;
+const RalphPanel = ralph_panel_mod.RalphPanel;
+
+const GpuAdapter = struct {
+    inner: tui.GpuMonitor,
+
+    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) GpuAdapter {
+        return .{ .inner = tui.GpuMonitor.init(allocator, term, theme) };
+    }
+
+    pub fn render(self: *GpuAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
+        _ = term;
+    }
+
+    pub fn tick(self: *GpuAdapter) anyerror!void {
+        try self.inner.update();
+    }
+
+    pub fn handleEvent(_: *GpuAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *GpuAdapter) []const u8 {
+        return "GPU";
+    }
+
+    pub fn shortcutHint(_: *GpuAdapter) []const u8 {
+        return "1";
+    }
+
+    pub fn deinit(self: *GpuAdapter) void {
+        self.inner.deinit();
+    }
+
+    pub fn panel(self: *GpuAdapter) tui.Panel {
+        return tui.Panel.from(GpuAdapter, self);
+    }
+};
+
+const AgentAdapter = struct {
+    inner: tui.AgentPanel,
+
+    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) AgentAdapter {
+        return .{ .inner = tui.AgentPanel.init(allocator, term, theme) };
+    }
+
+    pub fn render(self: *AgentAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
+        _ = term;
+    }
+
+    pub fn tick(self: *AgentAdapter) anyerror!void {
+        try self.inner.update();
+    }
+
+    pub fn handleEvent(_: *AgentAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *AgentAdapter) []const u8 {
+        return "Agent";
+    }
+
+    pub fn shortcutHint(_: *AgentAdapter) []const u8 {
+        return "2";
+    }
+
+    pub fn deinit(self: *AgentAdapter) void {
+        self.inner.deinit();
+    }
+
+    pub fn panel(self: *AgentAdapter) tui.Panel {
+        return tui.Panel.from(AgentAdapter, self);
+    }
+};
+
+const TrainingAdapter = struct {
+    inner: tui.TrainingPanel,
+
+    pub fn init(allocator: std.mem.Allocator, theme: *const tui.Theme) TrainingAdapter {
+        return .{ .inner = tui.TrainingPanel.init(allocator, theme, .{}) };
+    }
+
+    pub fn render(self: *TrainingAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        self.inner.width = rect.width;
+        try renderTrainingPanelInRect(self.inner.allocator, &self.inner, term, rect);
+    }
+
+    pub fn tick(self: *TrainingAdapter) anyerror!void {
+        _ = try self.inner.pollMetrics();
+    }
+
+    pub fn handleEvent(_: *TrainingAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *TrainingAdapter) []const u8 {
+        return "Train";
+    }
+
+    pub fn shortcutHint(_: *TrainingAdapter) []const u8 {
+        return "3";
+    }
+
+    pub fn deinit(self: *TrainingAdapter) void {
+        self.inner.deinit();
+    }
+
+    pub fn panel(self: *TrainingAdapter) tui.Panel {
+        return tui.Panel.from(TrainingAdapter, self);
+    }
+};
+
+fn renderTrainingPanelInRect(
+    allocator: std.mem.Allocator,
+    panel: *tui.TrainingPanel,
+    term: *tui.Terminal,
+    rect: tui.Rect,
+) !void {
+    if (rect.isEmpty()) return;
+
+    var render_buf = std.ArrayListUnmanaged(u8).empty;
+    defer render_buf.deinit(allocator);
+
+    const BufferWriter = struct {
+        allocator: std.mem.Allocator,
+        out: *std.ArrayListUnmanaged(u8),
+
+        pub const Error = anyerror;
+
+        pub fn print(self: @This(), comptime fmt: []const u8, args: anytype) anyerror!void {
+            const text = try std.fmt.allocPrint(self.allocator, fmt, args);
+            defer self.allocator.free(text);
+            try self.out.appendSlice(self.allocator, text);
+        }
+    };
+    const writer = BufferWriter{
+        .allocator = allocator,
+        .out = &render_buf,
+    };
+    try panel.render(writer);
+
+    var row: usize = 0;
+    var lines = std.mem.splitScalar(u8, render_buf.items, '\n');
+    while (lines.next()) |line| : (row += 1) {
+        if (row >= @as(usize, rect.height)) break;
+        const trimmed = if (line.len > 0 and line[line.len - 1] == '\r')
+            line[0 .. line.len - 1]
+        else
+            line;
+
+        try term.moveTo(rect.y + @as(u16, @intCast(row)), rect.x);
+        _ = try render_utils.writeClipped(term, trimmed, rect.width);
+    }
+}
+
+const ModelAdapter = struct {
+    inner: tui.ModelManagementPanel,
+
+    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) ModelAdapter {
+        return .{ .inner = tui.ModelManagementPanel.init(allocator, term, theme) };
+    }
+
+    pub fn render(self: *ModelAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        try self.inner.render(@intCast(rect.y), @intCast(rect.x), @intCast(rect.width), @intCast(rect.height));
+        _ = term;
+    }
+
+    pub fn tick(self: *ModelAdapter) anyerror!void {
+        try self.inner.update();
+    }
+
+    pub fn handleEvent(_: *ModelAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *ModelAdapter) []const u8 {
+        return "Model";
+    }
+
+    pub fn shortcutHint(_: *ModelAdapter) []const u8 {
+        return "4";
+    }
+
+    pub fn deinit(self: *ModelAdapter) void {
+        self.inner.deinit();
+    }
+
+    pub fn panel(self: *ModelAdapter) tui.Panel {
+        return tui.Panel.from(ModelAdapter, self);
+    }
+};
+
+const StreamingAdapter = struct {
+    inner: tui.StreamingDashboard,
+
+    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) !StreamingAdapter {
+        return .{ .inner = try tui.StreamingDashboard.init(allocator, term, theme, "localhost:8080") };
+    }
+
+    pub fn render(self: *StreamingAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        try self.inner.render(@intCast(rect.y), @intCast(rect.x), @intCast(rect.width), @intCast(rect.height));
+        _ = term;
+    }
+
+    pub fn tick(self: *StreamingAdapter) anyerror!void {
+        try self.inner.pollMetrics();
+    }
+
+    pub fn handleEvent(_: *StreamingAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *StreamingAdapter) []const u8 {
+        return "Stream";
+    }
+
+    pub fn shortcutHint(_: *StreamingAdapter) []const u8 {
+        return "5";
+    }
+
+    pub fn deinit(self: *StreamingAdapter) void {
+        self.inner.deinit();
+    }
+
+    pub fn panel(self: *StreamingAdapter) tui.Panel {
+        return tui.Panel.from(StreamingAdapter, self);
+    }
+};
+
+const DbAdapter = struct {
+    inner: tui.DatabasePanel,
+
+    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) DbAdapter {
+        return .{ .inner = tui.DatabasePanel.init(allocator, term, theme) };
+    }
+
+    pub fn render(self: *DbAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
+        _ = term;
+    }
+
+    pub fn tick(self: *DbAdapter) anyerror!void {
+        try self.inner.update();
+    }
+
+    pub fn handleEvent(_: *DbAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *DbAdapter) []const u8 {
+        return "DB";
+    }
+
+    pub fn shortcutHint(_: *DbAdapter) []const u8 {
+        return "6";
+    }
+
+    pub fn deinit(self: *DbAdapter) void {
+        self.inner.deinit();
+    }
+
+    pub fn panel(self: *DbAdapter) tui.Panel {
+        return tui.Panel.from(DbAdapter, self);
+    }
+};
+
+const NetworkAdapter = struct {
+    inner: tui.NetworkPanel,
+
+    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) NetworkAdapter {
+        return .{ .inner = tui.NetworkPanel.init(allocator, term, theme) };
+    }
+
+    pub fn render(self: *NetworkAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
+        _ = term;
+    }
+
+    pub fn tick(self: *NetworkAdapter) anyerror!void {
+        try self.inner.update();
+    }
+
+    pub fn handleEvent(_: *NetworkAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *NetworkAdapter) []const u8 {
+        return "Net";
+    }
+
+    pub fn shortcutHint(_: *NetworkAdapter) []const u8 {
+        return "7";
+    }
+
+    pub fn deinit(self: *NetworkAdapter) void {
+        self.inner.deinit();
+    }
+
+    pub fn panel(self: *NetworkAdapter) tui.Panel {
+        return tui.Panel.from(NetworkAdapter, self);
+    }
+};
+
+const BenchAdapter = struct {
+    inner: tui.BenchmarkPanel,
+
+    pub fn init(allocator: std.mem.Allocator, term: *tui.Terminal, theme: *const tui.Theme) BenchAdapter {
+        return .{ .inner = tui.BenchmarkPanel.init(allocator, term, theme) };
+    }
+
+    pub fn render(self: *BenchAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        try self.inner.render(rect.y, rect.x, rect.width, rect.height);
+        _ = term;
+    }
+
+    pub fn tick(self: *BenchAdapter) anyerror!void {
+        try self.inner.update();
+    }
+
+    pub fn handleEvent(_: *BenchAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *BenchAdapter) []const u8 {
+        return "Bench";
+    }
+
+    pub fn shortcutHint(_: *BenchAdapter) []const u8 {
+        return "8";
+    }
+
+    pub fn deinit(self: *BenchAdapter) void {
+        self.inner.deinit();
+    }
+
+    pub fn panel(self: *BenchAdapter) tui.Panel {
+        return tui.Panel.from(BenchAdapter, self);
+    }
+};
+
+const BrainAdapter = struct {
+    inner: tui.BrainDashboardPanel,
+    data: tui.BrainDashboardData,
+
+    pub fn init(term: *tui.Terminal, theme: *const tui.Theme) BrainAdapter {
+        return .{
+            .inner = tui.BrainDashboardPanel.init(term, theme),
+            .data = tui.BrainDashboardData.init(),
+        };
+    }
+
+    pub fn render(self: *BrainAdapter, term: *tui.Terminal, rect: tui.Rect, theme: *const tui.Theme) anyerror!void {
+        self.inner.theme = theme;
+        self.inner.term = term;
+        try self.inner.render(&self.data, rect.y, rect.x, rect.width, rect.height);
+    }
+
+    pub fn tick(_: *BrainAdapter) anyerror!void {}
+
+    pub fn handleEvent(_: *BrainAdapter, _: tui.Event) anyerror!bool {
+        return false;
+    }
+
+    pub fn name(_: *BrainAdapter) []const u8 {
+        return "Brain";
+    }
+
+    pub fn shortcutHint(_: *BrainAdapter) []const u8 {
+        return "9";
+    }
+
+    pub fn deinit(_: *BrainAdapter) void {}
+
+    pub fn panel(self: *BrainAdapter) tui.Panel {
+        return tui.Panel.from(BrainAdapter, self);
+    }
+};
 
 const DashboardState = struct {
     allocator: std.mem.Allocator,
@@ -51,12 +454,26 @@ const DashboardState = struct {
     /// so that a single panel crashing does not kill the entire dashboard.
     boundaries: [panel_count]ErrorBoundaryPanel,
 
+    // Owned panel instances with stable lifetime for Panel vtable pointers.
+    gpu_adapter: GpuAdapter,
+    agent_adapter: AgentAdapter,
+    training_adapter: TrainingAdapter,
+    model_adapter: ModelAdapter,
+    streaming_adapter: StreamingAdapter,
+    db_adapter: DbAdapter,
+    network_adapter: NetworkAdapter,
+    bench_adapter: BenchAdapter,
+    brain_adapter: BrainAdapter,
+    security_panel: SecurityPanel,
+    connectors_panel: ConnectorsPanel,
+    ralph_panel: RalphPanel,
+
     pub fn init(
         allocator: std.mem.Allocator,
         terminal_ptr: *tui.Terminal,
         initial_theme: *const tui.Theme,
         tab_labels: []const []const u8,
-    ) DashboardState {
+    ) !DashboardState {
         var theme_manager = tui.ThemeManager.init();
         theme_manager.current = initial_theme;
 
@@ -69,6 +486,12 @@ const DashboardState = struct {
             p.* = tui.Panel.noop_panel; // placeholder; overwritten below
         }
 
+        const streaming_adapter = try StreamingAdapter.init(
+            allocator,
+            terminal_ptr,
+            initial_theme,
+        );
+
         var state: DashboardState = .{
             .allocator = allocator,
             .terminal = terminal_ptr,
@@ -80,23 +503,48 @@ const DashboardState = struct {
             .panels = panels,
             .help = tui.HelpOverlay.init(help_title, &help_lines),
             .boundaries = boundaries,
+            .gpu_adapter = GpuAdapter.init(allocator, terminal_ptr, initial_theme),
+            .agent_adapter = AgentAdapter.init(allocator, terminal_ptr, initial_theme),
+            .training_adapter = TrainingAdapter.init(allocator, initial_theme),
+            .model_adapter = ModelAdapter.init(allocator, terminal_ptr, initial_theme),
+            .streaming_adapter = streaming_adapter,
+            .db_adapter = DbAdapter.init(allocator, terminal_ptr, initial_theme),
+            .network_adapter = NetworkAdapter.init(allocator, terminal_ptr, initial_theme),
+            .bench_adapter = BenchAdapter.init(allocator, terminal_ptr, initial_theme),
+            .brain_adapter = BrainAdapter.init(terminal_ptr, initial_theme),
+            .security_panel = SecurityPanel.init(allocator),
+            .connectors_panel = ConnectorsPanel.init(allocator),
+            .ralph_panel = RalphPanel.init(allocator),
         };
 
-        // Wire panel slots to point at the boundary wrappers.
-        // This must happen after the struct is at its final memory location
-        // in the caller's stack frame, so we do it via a separate method.
-        // (See wrapAllPanels below.)
+        // Panel pointers are wired after init once the struct has stable
+        // memory in the caller's stack frame.
         _ = &state;
 
         return state;
     }
 
-    /// Finalize error boundary wiring after the struct has stable memory.
-    /// Must be called once after init, before the event loop starts.
-    pub fn wrapAllPanels(self: *DashboardState) void {
-        for (&self.boundaries, &self.panels) |*b, *p| {
-            p.* = b.asPanel();
+    pub fn deinit(self: *DashboardState) void {
+        for (&self.boundaries) |*boundary| {
+            boundary.deinit();
         }
+    }
+
+    /// Finalize panel wiring after the struct has stable memory.
+    /// Must be called once after init, before the event loop starts.
+    pub fn wirePanels(self: *DashboardState) void {
+        self.setPanel(tab_gpu, self.gpu_adapter.panel());
+        self.setPanel(tab_agent, self.agent_adapter.panel());
+        self.setPanel(tab_train, self.training_adapter.panel());
+        self.setPanel(tab_model, self.model_adapter.panel());
+        self.setPanel(tab_stream, self.streaming_adapter.panel());
+        self.setPanel(tab_db, self.db_adapter.panel());
+        self.setPanel(tab_net, self.network_adapter.panel());
+        self.setPanel(tab_bench, self.bench_adapter.panel());
+        self.setPanel(tab_brain, self.brain_adapter.panel());
+        self.setPanel(tab_security, self.security_panel.asPanel());
+        self.setPanel(tab_connectors, self.connectors_panel.asPanel());
+        self.setPanel(tab_ralph, self.ralph_panel.asPanel());
     }
 
     /// Set a panel slot, wrapping it in an error boundary automatically.
@@ -159,13 +607,14 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     defer terminal.exit() catch {};
     terminal.setTitle("ABI Dashboard") catch {};
 
-    var state = DashboardState.init(allocator, &terminal, initial_theme, &tab_labels);
+    var state = try DashboardState.init(allocator, &terminal, initial_theme, &tab_labels);
+    defer state.deinit();
 
-    // Finalize error boundary wiring now that state has stable stack memory.
+    // Finalize panel wiring now that state has stable stack memory.
     // Each panel slot is wrapped in an ErrorBoundaryPanel so that a single
     // panel crashing renders a fallback error message instead of killing
     // the entire dashboard.
-    state.wrapAllPanels();
+    state.wirePanels();
 
     // Use AsyncLoop for timer-driven refresh
     var loop = tui.AsyncLoop.init(allocator, &terminal, .{

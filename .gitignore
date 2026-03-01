@@ -144,6 +144,7 @@ perf.data*
 
 # ── Claude Code (track rules, skills, README, hooks — ignore the rest)
 .claude/
+!.claude/
 !.claude/README.md
 !.claude/rules/
 !.claude/rules/**
@@ -156,6 +157,7 @@ perf.data*
 
 # ── Local task tracking (agent notes) ────────────────────────────────
 tasks/
+!/tasks/
 
 # ── ABI runtime state ────────────────────────────────────────────────
 .abi/
@@ -204,3 +206,15 @@ examples/c_test
 # ── Trash (cleanup staging) ─────────────────────────────────────────
 TRASH/
 TRASH-FILES.md
+
+# ── Cleanup policy: markdown allowlist only ─────────────────────────
+*.md
+!/AGENTS.md
+!/README.md
+!/tasks/todo.md
+!/tasks/lessons.md
+
+# ── Local one-off artifacts ──────────────────────────────────────────
+.zig-global-cache/
+/hashmap_check
+/hashmap_check2

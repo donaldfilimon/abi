@@ -6,6 +6,7 @@ const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
+const session_runner = @import("session_runner.zig");
 const theme_options = @import("theme_options.zig");
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -36,22 +37,14 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 fn runDashboard(allocator: std.mem.Allocator, initial_theme: *const tui.Theme, endpoint: []const u8) !void {
-    if (!tui.Terminal.isSupported()) {
-        utils.output.printError("Streaming Dashboard requires a terminal.", .{});
-        return;
-    }
+    var session = session_runner.startSimpleDashboard(allocator, .{
+        .dashboard_name = "Streaming Dashboard",
+        .terminal_title = "ABI Streaming Dashboard",
+    }) orelse return;
+    defer session.deinit();
 
-    var terminal = tui.Terminal.init(allocator);
-    defer terminal.deinit();
-    terminal.enter() catch |err| {
-        utils.output.printError("Failed to start Streaming Dashboard: {t}", .{err});
-        return;
-    };
-    defer terminal.exit() catch {};
-    terminal.setTitle("ABI Streaming Dashboard") catch {};
-
-    const panel = try tui.StreamingDashboard.init(allocator, &terminal, initial_theme, endpoint);
-    var dash = tui.dashboard.Dashboard(tui.StreamingDashboard).init(allocator, &terminal, initial_theme, panel, .{
+    const panel = try tui.StreamingDashboard.init(allocator, &session.terminal, initial_theme, endpoint);
+    var dash = tui.dashboard.Dashboard(tui.StreamingDashboard).init(allocator, &session.terminal, initial_theme, panel, .{
         .title = "ABI STREAMING DASHBOARD",
         .refresh_rate_ms = 200,
         .min_width = 50,

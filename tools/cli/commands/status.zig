@@ -21,7 +21,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
 
-    var fw = abi.initDefault(allocator) catch |err| {
+    var fw = abi.initAppDefault(allocator) catch |err| {
         utils.output.printError("Framework initialization failed: {t}", .{err});
         utils.output.println("", .{});
         utils.output.println("Status: UNHEALTHY", .{});

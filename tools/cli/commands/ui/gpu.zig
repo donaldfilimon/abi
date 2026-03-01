@@ -255,12 +255,12 @@ fn handleKeyEvent(state: *DashboardState, key: tui.Key) !bool {
                     't' => {
                         state.theme_manager.nextTheme();
                         state.updateTheme();
-                        state.showNotification(themeNotificationMessage(state.theme_manager.current.name));
+                        state.showNotification(theme_options.themeNotificationMessage(state.theme_manager.current.name));
                     },
                     'T' => {
                         state.theme_manager.prevTheme();
                         state.updateTheme();
-                        state.showNotification(themeNotificationMessage(state.theme_manager.current.name));
+                        state.showNotification(theme_options.themeNotificationMessage(state.theme_manager.current.name));
                     },
                     'h', '?' => {
                         state.show_help = true;
@@ -283,25 +283,6 @@ fn handleKeyEvent(state: *DashboardState, key: tui.Key) !bool {
         else => {},
     }
     return false;
-}
-
-fn themeNotificationMessage(theme_name: []const u8) []const u8 {
-    return if (std.mem.eql(u8, theme_name, "default"))
-        "Theme: default"
-    else if (std.mem.eql(u8, theme_name, "monokai"))
-        "Theme: monokai"
-    else if (std.mem.eql(u8, theme_name, "solarized"))
-        "Theme: solarized"
-    else if (std.mem.eql(u8, theme_name, "nord"))
-        "Theme: nord"
-    else if (std.mem.eql(u8, theme_name, "gruvbox"))
-        "Theme: gruvbox"
-    else if (std.mem.eql(u8, theme_name, "high_contrast"))
-        "Theme: high_contrast"
-    else if (std.mem.eql(u8, theme_name, "minimal"))
-        "Theme: minimal"
-    else
-        "Theme changed";
 }
 
 // ===============================================================================

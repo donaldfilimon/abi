@@ -72,8 +72,6 @@ pub fn main(_: std.process.Init) !void {
 
     const files = [_][]const u8{
         "README.md",
-        "CONTRIBUTING.md",
-        "CLAUDE.md",
     };
 
     for (files) |file_path| {

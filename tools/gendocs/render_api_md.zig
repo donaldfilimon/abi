@@ -1,10 +1,7 @@
 const std = @import("std");
 const model = @import("model.zig");
 
-pub const skill_footer =
-    \\## Zig Skill
-    \\Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
-;
+pub const skill_footer = model.generated_footer;
 
 pub fn render(
     allocator: std.mem.Allocator,
@@ -63,13 +60,7 @@ fn renderCoverage(
     const overall_pct = if (total_symbols > 0) (total_documented * 100) / total_symbols else 100;
     try appendFmt(allocator, &buf, "\n**Overall: {d}/{d} symbols documented ({d}%)**\n", .{ total_documented, total_symbols, overall_pct });
 
-    try buf.appendSlice(allocator,
-        \\
-        \\---
-        \\
-        \\*Generated automatically by `zig build gendocs`*
-        \\
-    );
+    try buf.appendSlice(allocator, model.generated_footer);
 
     try model.pushOutput(allocator, outputs, "docs/api/coverage.md", buf.items);
 
@@ -140,15 +131,7 @@ fn renderIndex(
         }
     }
 
-    try buf.appendSlice(allocator,
-        \\---
-        \\
-        \\*Generated automatically by `zig build gendocs`*
-        \\
-        \\
-    );
     try buf.appendSlice(allocator, skill_footer);
-    try buf.append(allocator, '\n');
 
     try model.pushOutput(allocator, outputs, "docs/api/index.md", buf.items);
 }
@@ -189,15 +172,7 @@ fn renderModule(
         }
     }
 
-    try buf.appendSlice(allocator,
-        \\---
-        \\
-        \\*Generated automatically by `zig build gendocs`*
-        \\
-        \\
-    );
     try buf.appendSlice(allocator, skill_footer);
-    try buf.append(allocator, '\n');
 
     const out_path = try std.fmt.allocPrint(allocator, "docs/api/{s}.md", .{mod.name});
     defer allocator.free(out_path);
@@ -210,13 +185,4 @@ fn summary(text: []const u8) []const u8 {
     return one_line;
 }
 
-fn appendFmt(
-    allocator: std.mem.Allocator,
-    buf: *std.ArrayListUnmanaged(u8),
-    comptime fmt: []const u8,
-    args: anytype,
-) !void {
-    const s = try std.fmt.allocPrint(allocator, fmt, args);
-    defer allocator.free(s);
-    try buf.appendSlice(allocator, s);
-}
+const appendFmt = model.appendFmt;

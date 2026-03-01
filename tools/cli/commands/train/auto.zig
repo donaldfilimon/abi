@@ -278,10 +278,10 @@ pub fn printAutoHelp() void {
         \\
         \\  Seeds the self-learning system with:
         \\  - Text experiences for Abbey (empathetic), Aviva (direct), Abi (adaptive)
-        \\  - Vision experiences if -Denable-vision=true
+        \\  - Vision experiences if -Dfeat-vision=true (legacy: -Denable-vision=true)
         \\  Runs one update step and prints stats.
         \\
-        \\  With --multimodal (and -Denable-vision=true): also runs minimal ViT and CLIP
+        \\  With --multimodal (and -Dfeat-vision=true (legacy: -Denable-vision=true)): also runs minimal ViT and CLIP
         \\  micro-training steps to exercise vision and multimodal pipelines.
         \\
         \\Options:

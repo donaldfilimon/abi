@@ -209,7 +209,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
 
         // Check AI feature
         if (!abi.ai.isEnabled()) {
-            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Denable-ai=true", .{});
+            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
             return;
         }
 
@@ -231,7 +231,7 @@ fn runModel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) 
 
         // Check AI feature
         if (!abi.ai.isEnabled()) {
-            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Denable-ai=true", .{});
+            utils.output.printError("AI feature is disabled. Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
             return;
         }
 

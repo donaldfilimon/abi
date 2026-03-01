@@ -91,31 +91,35 @@ pub const validation_matrix = [_]FlagCombo{
 /// Convert a compact `FlagCombo` into a full `BuildOptions`.  Sub-feature
 /// flags inherit from `enable_ai` when not explicitly set.
 pub fn comboToBuildOptions(combo: FlagCombo) BuildOptions {
-    return .{
-        .enable_ai = combo.enable_ai,
-        .enable_gpu = combo.enable_gpu,
-        .enable_explore = combo.enable_ai,
-        .enable_llm = combo.enable_ai or combo.enable_llm,
-        .enable_vision = combo.enable_ai,
-        .enable_web = combo.enable_web,
-        .enable_database = combo.enable_database,
-        .enable_network = combo.enable_network,
-        .enable_profiling = combo.enable_profiling,
-        .enable_analytics = combo.enable_analytics,
-        .enable_cloud = combo.enable_cloud,
-        .enable_training = combo.enable_ai or combo.enable_training,
-        .enable_reasoning = combo.enable_ai or combo.enable_reasoning,
-        .enable_auth = combo.enable_auth,
-        .enable_messaging = combo.enable_messaging,
-        .enable_cache = combo.enable_cache,
-        .enable_storage = combo.enable_storage,
-        .enable_search = combo.enable_search,
-        .enable_gateway = combo.enable_gateway,
-        .enable_pages = combo.enable_pages,
-        .enable_benchmarks = combo.enable_benchmarks,
-        .enable_mobile = combo.enable_mobile,
-        .gpu_backends = if (combo.enable_gpu) &.{.vulkan} else &.{},
+    const canonical: options_mod.CanonicalFlags = .{
+        .feat_ai = combo.enable_ai,
+        .feat_gpu = combo.enable_gpu,
+        .feat_explore = combo.enable_ai,
+        .feat_llm = combo.enable_ai or combo.enable_llm,
+        .feat_vision = combo.enable_ai,
+        .feat_web = combo.enable_web,
+        .feat_database = combo.enable_database,
+        .feat_network = combo.enable_network,
+        .feat_profiling = combo.enable_profiling,
+        .feat_analytics = combo.enable_analytics,
+        .feat_cloud = combo.enable_cloud,
+        .feat_training = combo.enable_ai or combo.enable_training,
+        .feat_reasoning = combo.enable_ai or combo.enable_reasoning,
+        .feat_auth = combo.enable_auth,
+        .feat_messaging = combo.enable_messaging,
+        .feat_cache = combo.enable_cache,
+        .feat_storage = combo.enable_storage,
+        .feat_search = combo.enable_search,
+        .feat_gateway = combo.enable_gateway,
+        .feat_pages = combo.enable_pages,
+        .feat_benchmarks = combo.enable_benchmarks,
+        .feat_mobile = combo.enable_mobile,
     };
+
+    return options_mod.canonicalToBuildOptions(
+        canonical,
+        if (combo.enable_gpu) &.{.vulkan} else &.{},
+    );
 }
 
 /// Register the "validate-flags" build step.  For each entry in the

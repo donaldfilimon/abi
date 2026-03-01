@@ -86,7 +86,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     // Check if web feature is enabled (Discord requires web/HTTP support)
     if (!abi.web.isEnabled()) {
         utils.output.printError("Web feature is disabled.", .{});
-        utils.output.printInfo("Rebuild with: zig build -Denable-web=true", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-web=true (legacy: -Denable-web=true)", .{});
         return;
     }
     if (args.len == 0) {

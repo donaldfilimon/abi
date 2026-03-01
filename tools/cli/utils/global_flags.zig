@@ -125,7 +125,7 @@ pub const ValidationError = struct {
             .not_compiled => {
                 output.printInfo("Reason: Feature not compiled into this build.", .{});
                 output.printInfo("Solution: Rebuild with:", .{});
-                output.printInfo("  zig build -Denable-{t}=true", .{self.feature});
+                output.printInfo("  zig build -Dfeat-{t}=true (legacy: -Denable-{t}=true)", .{ self.feature, self.feature });
             },
             .dependency_missing => {
                 output.printInfo("Reason: Required dependency not available.", .{});
@@ -316,7 +316,7 @@ pub fn printFeaturesToStderr(comptime comptime_status: type) void {
     output.printInfo("  --list-features      Show this list", .{});
     output.printInfo("", .{});
     output.printInfo("Note: Features must be compiled in to be enabled at runtime.", .{});
-    output.printInfo("      Rebuild with -Denable-<feature>=true to compile in.", .{});
+    output.printInfo("      Rebuild with -Dfeat-<feature>=true (legacy: -Denable-<feature>=true).", .{});
 }
 
 /// Print available features and their status to a writer.
@@ -339,7 +339,7 @@ pub fn printFeatures(writer: anytype, comptime_status: anytype) !void {
     try writer.print("  --disable-<feature>  Disable a feature at runtime\n", .{});
     try writer.print("  --list-features      Show this list\n", .{});
     try writer.print("\nNote: Features must be compiled in to be enabled at runtime.\n", .{});
-    try writer.print("      Rebuild with -Denable-<feature>=true to compile in.\n", .{});
+    try writer.print("      Rebuild with -Dfeat-<feature>=true (legacy: -Denable-<feature>=true).\n", .{});
 }
 
 /// Simple compile-time status checker using abi's registry module.

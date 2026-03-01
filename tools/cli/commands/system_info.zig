@@ -28,7 +28,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     // Load framework instance for feature matrix (required for runtime checks)
-    var framework = try abi.initDefault(allocator);
+    var framework = try abi.initAppDefault(allocator);
     defer framework.deinit();
 
     const info = abi.platform.getPlatformInfo();

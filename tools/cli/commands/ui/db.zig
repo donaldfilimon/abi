@@ -6,6 +6,7 @@ const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
+const session_runner = @import("session_runner.zig");
 const theme_options = @import("theme_options.zig");
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -32,22 +33,14 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 }
 
 fn runDashboard(allocator: std.mem.Allocator, initial_theme: *const tui.Theme) !void {
-    if (!tui.Terminal.isSupported()) {
-        utils.output.printError("Database Dashboard requires a terminal.", .{});
-        return;
-    }
+    var session = session_runner.startSimpleDashboard(allocator, .{
+        .dashboard_name = "Database Dashboard",
+        .terminal_title = "ABI Database Dashboard",
+    }) orelse return;
+    defer session.deinit();
 
-    var terminal = tui.Terminal.init(allocator);
-    defer terminal.deinit();
-    terminal.enter() catch |err| {
-        utils.output.printError("Failed to start Database Dashboard: {t}", .{err});
-        return;
-    };
-    defer terminal.exit() catch {};
-    terminal.setTitle("ABI Database Dashboard") catch {};
-
-    const panel = tui.DatabasePanel.init(allocator, &terminal, initial_theme);
-    var dash = tui.dashboard.Dashboard(tui.DatabasePanel).init(allocator, &terminal, initial_theme, panel, .{
+    const panel = tui.DatabasePanel.init(allocator, &session.terminal, initial_theme);
+    var dash = tui.dashboard.Dashboard(tui.DatabasePanel).init(allocator, &session.terminal, initial_theme, panel, .{
         .title = "ABI DATABASE DASHBOARD",
     });
     defer dash.deinit();

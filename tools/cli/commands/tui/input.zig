@@ -6,34 +6,20 @@
 const std = @import("std");
 const abi = @import("abi");
 const context_mod = @import("../../framework/context.zig");
+const framework_mod = @import("../../framework/mod.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
+const commands_mod = @import("../mod.zig");
+const theme_options = @import("../ui/theme_options.zig");
 const types = @import("types.zig");
 const state_mod = @import("state.zig");
 const menu_mod = @import("menu.zig");
 const render = @import("render.zig");
 const tui_layout = @import("layout.zig");
 
-const agent = @import("../agent.zig");
-const bench = @import("../bench/mod.zig");
-const config = @import("../config.zig");
-const db = @import("../db.zig");
-const discord = @import("../discord.zig");
-const embed = @import("../embed.zig");
-const explore = @import("../explore.zig");
-const gpu = @import("../gpu.zig");
-const llm = @import("../llm/mod.zig");
-const model = @import("../model.zig");
-const network = @import("../network.zig");
-const ralph = @import("../ralph/mod.zig");
-const simd = @import("../simd.zig");
-const system_info = @import("../system_info.zig");
-const train = @import("../train/mod.zig");
-const task = @import("../task.zig");
-
 const TuiState = state_mod.TuiState;
 const Action = types.Action;
-const Command = types.Command;
+const CommandRef = types.CommandRef;
 const colors = types.colors;
 
 // ═══════════════════════════════════════════════════════════════════
@@ -78,12 +64,12 @@ pub fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
                     't' => {
                         // Cycle theme
                         state.theme_manager.nextTheme();
-                        state.showNotification(themeNotificationMessage(state.theme_manager.current.name), .info);
+                        state.showNotification(theme_options.themeNotificationMessage(state.theme_manager.current.name), .info);
                     },
                     'T' => {
                         // Cycle theme backwards
                         state.theme_manager.prevTheme();
-                        state.showNotification(themeNotificationMessage(state.theme_manager.current.name), .info);
+                        state.showNotification(theme_options.themeNotificationMessage(state.theme_manager.current.name), .info);
                     },
                     '?' => {
                         // Show preview for selected item
@@ -121,25 +107,6 @@ pub fn handleKeyEvent(state: *TuiState, key: tui.Key) !bool {
         else => {},
     }
     return false;
-}
-
-fn themeNotificationMessage(theme_name: []const u8) []const u8 {
-    return if (std.mem.eql(u8, theme_name, "default"))
-        "Theme: default"
-    else if (std.mem.eql(u8, theme_name, "monokai"))
-        "Theme: monokai"
-    else if (std.mem.eql(u8, theme_name, "solarized"))
-        "Theme: solarized"
-    else if (std.mem.eql(u8, theme_name, "nord"))
-        "Theme: nord"
-    else if (std.mem.eql(u8, theme_name, "gruvbox"))
-        "Theme: gruvbox"
-    else if (std.mem.eql(u8, theme_name, "high_contrast"))
-        "Theme: high_contrast"
-    else if (std.mem.eql(u8, theme_name, "minimal"))
-        "Theme: minimal"
-    else
-        "Theme changed";
 }
 
 fn handlePreviewKey(state: *TuiState, key: tui.Key) !bool {
@@ -234,7 +201,7 @@ pub fn executeActionFromState(state: *TuiState, action: Action) !bool {
     if (action == .quit) return true;
 
     switch (action) {
-        .command => |cmd| try state.addToHistory(cmd),
+        .command => |cmd| try state.addToHistory(cmd.id),
         else => {},
     }
 
@@ -242,13 +209,15 @@ pub fn executeActionFromState(state: *TuiState, action: Action) !bool {
     errdefer state.terminal.enter() catch {};
 
     runAction(state.allocator, state.framework, action) catch {};
+
     utils.output.printInfo("\nPress Enter to return to menu...", .{});
     _ = state.terminal.readKey() catch {};
     try state.terminal.enter();
+
     return false;
 }
 
-fn runAction(allocator: std.mem.Allocator, framework: *abi.Framework, action: Action) !void {
+fn runAction(allocator: std.mem.Allocator, framework: *abi.App, action: Action) !void {
     _ = framework;
 
     switch (action) {
@@ -262,30 +231,15 @@ fn runAction(allocator: std.mem.Allocator, framework: *abi.Framework, action: Ac
     }
 }
 
-fn commandLabel(cmd: Command) []const u8 {
-    return switch (cmd) {
-        .db => "db",
-        .agent => "agent",
-        .bench => "bench",
-        .config => "config",
-        .discord => "discord",
-        .embed => "embed",
-        .explore => "explore",
-        .gpu => "gpu",
-        .llm => "llm",
-        .model => "model",
-        .network => "network",
-        .ralph => "ralph",
-        .simd => "simd",
-        .system_info => "system-info",
-        .train => "train",
-        .train_monitor => "train monitor",
-        .task => "task",
-    };
+fn commandLabel(cmd: CommandRef) []const u8 {
+    if (std.mem.eql(u8, cmd.command, "train") and cmd.args.len > 0) {
+        const first = std.mem.sliceTo(cmd.args[0], 0);
+        if (std.mem.eql(u8, first, "monitor")) return "train monitor";
+    }
+    return cmd.id;
 }
 
-fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
-    const cmd_args = menu_mod.commandDefaultArgs(cmd);
+fn runCommand(allocator: std.mem.Allocator, cmd: CommandRef) !void {
     var io_backend = utils.io_backend.initIoBackend(allocator);
     defer io_backend.deinit();
 
@@ -294,24 +248,10 @@ fn runCommand(allocator: std.mem.Allocator, cmd: Command) !void {
         .io = io_backend.io(),
     };
 
-    switch (cmd) {
-        .db => try db.run(&cmd_ctx, cmd_args),
-        .agent => try agent.run(&cmd_ctx, cmd_args),
-        .bench => try bench.run(&cmd_ctx, cmd_args),
-        .config => try config.run(&cmd_ctx, cmd_args),
-        .discord => try discord.run(&cmd_ctx, cmd_args),
-        .embed => try embed.run(&cmd_ctx, cmd_args),
-        .explore => try explore.run(&cmd_ctx, cmd_args),
-        .gpu => try gpu.run(&cmd_ctx, cmd_args),
-        .llm => try llm.run(&cmd_ctx, cmd_args),
-        .model => try model.run(&cmd_ctx, cmd_args),
-        .network => try network.run(&cmd_ctx, cmd_args),
-        .ralph => try ralph.run(&cmd_ctx, cmd_args),
-        .simd => try simd.run(&cmd_ctx, cmd_args),
-        .system_info => try system_info.run(&cmd_ctx, cmd_args),
-        .train => try train.run(&cmd_ctx, cmd_args),
-        .train_monitor => try train.run(&cmd_ctx, cmd_args),
-        .task => try task.run(&cmd_ctx, cmd_args),
+    const command_name = framework_mod.completion.resolveAlias(&commands_mod.descriptors, cmd.command);
+    const matched = try framework_mod.router.runCommand(cmd_ctx, &commands_mod.descriptors, command_name, cmd.args);
+    if (!matched) {
+        return framework_mod.errors.Error.UnknownCommand;
     }
 }
 

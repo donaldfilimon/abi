@@ -52,7 +52,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
 
     const fw_config = abi.Config.defaults();
-    var framework = try abi.Framework.initWithIo(allocator, fw_config, io);
+    var framework = try abi.App.initWithIo(allocator, fw_config, io);
     defer framework.deinit();
 
     const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
@@ -61,7 +61,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 fn runInteractive(
     allocator: std.mem.Allocator,
-    framework: *abi.Framework,
+    framework: *abi.App,
     initial_theme: *const tui.Theme,
 ) !void {
     // Check platform support before initializing

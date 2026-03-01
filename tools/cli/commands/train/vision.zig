@@ -17,7 +17,7 @@ pub fn runVisionTrain(ctx: *const context_mod.CommandContext, args: []const [:0]
 
     // Check if Vision feature is enabled
     if (!abi.ai.vision.isEnabled()) {
-        utils.output.printError("Vision feature is not enabled. Build with -Denable-vision=true", .{});
+        utils.output.printError("Vision feature is not enabled. Build with -Dfeat-vision=true (legacy: -Denable-vision=true)", .{});
         return;
     }
 
@@ -364,7 +364,7 @@ pub fn runClipTrain(ctx: *const context_mod.CommandContext, args: []const [:0]co
 
     // Check if Vision feature is enabled
     if (!abi.ai.vision.isEnabled()) {
-        utils.output.printError("Vision feature is not enabled. Build with -Denable-vision=true", .{});
+        utils.output.printError("Vision feature is not enabled. Build with -Dfeat-vision=true (legacy: -Denable-vision=true)", .{});
         return;
     }
 

@@ -81,7 +81,7 @@ pub fn containsHelpArgs(args: []const [:0]const u8) bool {
 }
 
 /// Parse a node status string to enum value.
-pub fn parseNodeStatus(text: []const u8) ?@import("abi").network.NodeStatus {
+pub fn parseNodeStatus(text: []const u8) ?@import("abi").features.network.NodeStatus {
     if (std.ascii.eqlIgnoreCase(text, "healthy")) return .healthy;
     if (std.ascii.eqlIgnoreCase(text, "degraded")) return .degraded;
     if (std.ascii.eqlIgnoreCase(text, "offline")) return .offline;

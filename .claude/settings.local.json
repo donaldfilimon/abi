@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(zig build:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(zig fmt:*)",
+      "Bash(echo:*)",
+      "Skill(claude-md-management:revise-claude-md)",
+      "Skill(claude-md-management:revise-claude-md:*)",
+      "Bash(find:*)",
+      "Bash(zig run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebSearch"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "zig-docs",
+    "zig-stdlib",
+    "context7"
+  ],
+  "outputStyle": "Explanatory",
+  "prefersReducedMotion": true
+}

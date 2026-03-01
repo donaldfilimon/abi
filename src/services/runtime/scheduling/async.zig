@@ -160,30 +160,45 @@ fn addOne(value: u32) u32 {
     return value + 1;
 }
 
-fn increment(counter: *std.atomic.Value(u32)) void {
-    _ = counter.fetchAdd(1, .seq_cst);
+fn cancelableNoop() std.Io.Cancelable!void {}
+
+test "async runtime init exposes io handle" {
+    var runtime = AsyncRuntime.init(std.testing.allocator, .{
+        .environ = std.process.Environ.empty,
+        .async_limit = .nothing,
+        .concurrent_limit = .nothing,
+    });
+    defer runtime.deinit();
+
+    _ = runtime.ioHandle();
 }
 
-fn incrementCancelable(counter: *std.atomic.Value(u32)) std.Io.Cancelable!void {
-    increment(counter);
-}
-
-test "async runtime reports concurrency unavailable when disabled" {
-    // TODO: Re-enable once std.Io.Threaded-based runtime tests are stable under
-    // the feature-test runner. These tests currently hang/crash on this target.
+test "async runtime spawn reports concurrency unavailable when disabled" {
+    // TODO: Re-enable once non-concurrent spawn behavior is stable under CI.
     return error.SkipZigTest;
 }
 
-test "async runtime spawnAsync executes task" {
-    return error.SkipZigTest;
+test "task group awaitUncancelable returns on empty group" {
+    var runtime = AsyncRuntime.init(std.testing.allocator, .{
+        .environ = std.process.Environ.empty,
+        .async_limit = .nothing,
+        .concurrent_limit = .nothing,
+    });
+    defer runtime.deinit();
+
+    var group = runtime.taskGroup();
+    group.awaitUncancelable();
 }
 
-test "async runtime cancel returns completed async result" {
-    return error.SkipZigTest;
-}
+test "task group spawnConcurrent reports concurrency unavailable when disabled" {
+    var runtime = AsyncRuntime.init(std.testing.allocator, .{
+        .environ = std.process.Environ.empty,
+        .concurrent_limit = .nothing,
+    });
+    defer runtime.deinit();
 
-test "task group awaits tasks" {
-    return error.SkipZigTest;
+    var group = runtime.taskGroup();
+    try std.testing.expectError(error.ConcurrencyUnavailable, group.spawnConcurrent(cancelableNoop, .{}));
 }
 
 test {

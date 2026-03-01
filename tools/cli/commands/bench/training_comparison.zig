@@ -9,7 +9,7 @@ const utils = @import("../../utils/mod.zig");
 pub fn runTrainingComparisonBenchmarks(allocator: std.mem.Allocator, json_mode: bool) void {
     if (!abi.ai.training.isEnabled()) {
         if (!json_mode) {
-            utils.output.printWarning("Training feature is disabled. Rebuild with -Denable-training=true", .{});
+            utils.output.printWarning("Training feature is disabled. Rebuild with -Dfeat-training=true (legacy: -Denable-training=true)", .{});
         }
         return;
     }

@@ -136,7 +136,6 @@ fn readAll(allocator: std.mem.Allocator, reader: *std.Io.Reader, limit: usize) !
         if (n == 0) break;
         if (list.items.len + n > limit) return error.InputTooLarge;
         try list.appendSlice(allocator, chunk[0..n]);
-        if (n < chunk.len) break;
     }
 
     return list.toOwnedSlice(allocator);

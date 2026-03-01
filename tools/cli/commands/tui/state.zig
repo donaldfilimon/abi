@@ -12,14 +12,13 @@ const menu = @import("menu.zig");
 const tui_layout = @import("layout.zig");
 
 const MenuItem = types.MenuItem;
-const Command = types.Command;
 const CompletionState = types.CompletionState;
 const CompletionSuggestion = types.CompletionSuggestion;
 
 pub const TuiState = struct {
     allocator: std.mem.Allocator,
     terminal: *tui.Terminal,
-    framework: *abi.Framework,
+    framework: *abi.App,
     items: []const MenuItem,
     filtered_indices: std.ArrayListUnmanaged(usize),
     selected: usize,
@@ -43,7 +42,7 @@ pub const TuiState = struct {
     pub fn init(
         allocator: std.mem.Allocator,
         terminal: *tui.Terminal,
-        framework: *abi.Framework,
+        framework: *abi.App,
         initial_theme: *const tui.Theme,
     ) !TuiState {
         var theme_manager = tui.ThemeManager.init();
@@ -86,11 +85,11 @@ pub const TuiState = struct {
         return self.theme_manager.current;
     }
 
-    pub fn addToHistory(self: *TuiState, cmd: Command) !void {
+    pub fn addToHistory(self: *TuiState, command_id: []const u8) !void {
         // Remove duplicates
         var i: usize = 0;
         while (i < self.history.items.len) {
-            if (self.history.items[i].command == cmd) {
+            if (std.mem.eql(u8, self.history.items[i].command_id, command_id)) {
                 _ = self.history.orderedRemove(i);
             } else {
                 i += 1;
@@ -98,7 +97,7 @@ pub const TuiState = struct {
         }
         // Add to front
         try self.history.insert(self.allocator, 0, .{
-            .command = cmd,
+            .command_id = command_id,
             .timestamp = abi.shared.utils.unixMs(),
         });
         // Keep only last 10

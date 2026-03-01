@@ -40,7 +40,7 @@ pub fn render(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     const max_show = @min(state.history.items.len, 5);
     for (0..max_show) |i| {
         const entry = state.history.items[i];
-        const cmd_name = menu_mod.commandName(entry.command);
+        const cmd_name = menu_mod.commandName(entry.command_id);
 
         try term.write(chrome.frame);
         try term.write(box.v);

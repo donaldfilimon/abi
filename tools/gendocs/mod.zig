@@ -16,6 +16,7 @@ pub const Options = struct {
     check: bool = false,
     api_only: bool = false,
     no_wasm: bool = false,
+    untracked_md: bool = false,
     help: bool = false,
 };
 
@@ -107,7 +108,9 @@ pub fn main(init: std.process.Init.Minimal) !void {
     }
 
     if (opts.check) {
-        try check.verifyOutputs(allocator, io, cwd, outputs.items);
+        try check.verifyOutputs(allocator, io, cwd, outputs.items, .{
+            .untracked_markdown = opts.untracked_md,
+        });
         if (!opts.api_only and !opts.no_wasm) {
             try verifyWasmDrift(allocator, io, cwd);
         }
@@ -134,6 +137,8 @@ fn parseArgs(args: []const [:0]const u8) Options {
             opts.api_only = true;
         } else if (std.mem.eql(u8, arg, "--no-wasm")) {
             opts.no_wasm = true;
+        } else if (std.mem.eql(u8, arg, "--untracked-md")) {
+            opts.untracked_md = true;
         } else if (std.mem.eql(u8, arg, "-h") or std.mem.eql(u8, arg, "--help")) {
             opts.help = true;
         }
@@ -143,7 +148,7 @@ fn parseArgs(args: []const [:0]const u8) Options {
 
 fn printHelp() void {
     std.debug.print(
-        \\Usage: zig build gendocs -- [--check] [--api-only] [--no-wasm]
+        \\Usage: zig build gendocs -- [--check] [--api-only] [--no-wasm] [--untracked-md]
         \\
         \\Generate ABI docs pipeline outputs.
         \\
@@ -151,6 +156,7 @@ fn printHelp() void {
         \\  --check      Validate generated outputs are up to date (no writes)
         \\  --api-only   Generate only docs/api markdown outputs
         \\  --no-wasm    Skip docs api-app wasm runtime build
+        \\  --untracked-md  Allow generated markdown outputs to be untracked by git
         \\
         \\Artifacts:
         \\  docs/api/*.md

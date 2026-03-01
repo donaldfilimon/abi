@@ -250,6 +250,54 @@ pub fn deinitPlanSlice(allocator: std.mem.Allocator, entries: []PlanDocEntry) vo
     allocator.free(entries);
 }
 
+// ─── Shared template/rendering utilities ─────────────────────────────────────
+
+pub const generated_footer =
+    \\
+    \\
+    \\---
+    \\
+    \\*Generated automatically by `zig build gendocs`*
+    \\
+    \\
+    \\## Zig Skill
+    \\Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
+    \\
+;
+
+pub fn replaceAll(allocator: std.mem.Allocator, input: []const u8, needle: []const u8, repl: []const u8) ![]u8 {
+    if (needle.len == 0) return allocator.dupe(u8, input);
+
+    var out = std.ArrayListUnmanaged(u8).empty;
+    errdefer out.deinit(allocator);
+
+    var cursor: usize = 0;
+    while (true) {
+        const pos = std.mem.indexOfPos(u8, input, cursor, needle) orelse {
+            try out.appendSlice(allocator, input[cursor..]);
+            break;
+        };
+        try out.appendSlice(allocator, input[cursor..pos]);
+        try out.appendSlice(allocator, repl);
+        cursor = pos + needle.len;
+    }
+
+    return out.toOwnedSlice(allocator);
+}
+
+pub fn appendFmt(
+    allocator: std.mem.Allocator,
+    out: *std.ArrayListUnmanaged(u8),
+    comptime fmt: []const u8,
+    args: anytype,
+) !void {
+    const text = try std.fmt.allocPrint(allocator, fmt, args);
+    defer allocator.free(text);
+    try out.appendSlice(allocator, text);
+}
+
+// ─── Sort comparators ────────────────────────────────────────────────────────
+
 pub fn compareModules(_: void, lhs: ModuleDoc, rhs: ModuleDoc) bool {
     if (lhs.category.order() != rhs.category.order()) {
         return lhs.category.order() < rhs.category.order();
@@ -355,4 +403,23 @@ fn escapeTableCell(allocator: std.mem.Allocator, text: []const u8) ![]u8 {
     }
 
     return escaped.toOwnedSlice(allocator);
+}
+
+test "replaceAll substitutes all occurrences" {
+    const result = try replaceAll(std.testing.allocator, "{{A}} and {{A}}", "{{A}}", "hello");
+    defer std.testing.allocator.free(result);
+    try std.testing.expectEqualStrings("hello and hello", result);
+}
+
+test "replaceAll returns copy when needle absent" {
+    const result = try replaceAll(std.testing.allocator, "no match", "{{X}}", "y");
+    defer std.testing.allocator.free(result);
+    try std.testing.expectEqualStrings("no match", result);
+}
+
+test "appendFmt writes formatted text" {
+    var out = std.ArrayListUnmanaged(u8).empty;
+    defer out.deinit(std.testing.allocator);
+    try appendFmt(std.testing.allocator, &out, "count: {d}", .{42});
+    try std.testing.expectEqualStrings("count: 42", out.items);
 }

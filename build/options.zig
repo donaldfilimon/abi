@@ -28,6 +28,35 @@ pub fn isAllowedInternalFlag(comptime field_name: []const u8) bool {
     return false;
 }
 
+/// Canonical feature flag model used internally by the build system.
+///
+/// CLI compatibility is handled by accepting both `-Dfeat-*` and `-Denable-*`
+/// arguments in `readBuildOptions`.
+pub const CanonicalFlags = struct {
+    feat_gpu: bool,
+    feat_ai: bool,
+    feat_explore: bool,
+    feat_llm: bool,
+    feat_vision: bool,
+    feat_web: bool,
+    feat_database: bool,
+    feat_network: bool,
+    feat_profiling: bool,
+    feat_analytics: bool,
+    feat_cloud: bool,
+    feat_training: bool,
+    feat_reasoning: bool,
+    feat_auth: bool,
+    feat_messaging: bool,
+    feat_cache: bool,
+    feat_storage: bool,
+    feat_search: bool,
+    feat_mobile: bool,
+    feat_gateway: bool,
+    feat_pages: bool,
+    feat_benchmarks: bool,
+};
+
 /// All compile-time build options for the ABI project.
 ///
 /// Boolean fields prefixed with `enable_` are feature gates that select
@@ -110,6 +139,73 @@ pub const BuildOptions = struct {
     }
 };
 
+pub fn canonicalToBuildOptions(canonical: CanonicalFlags, gpu_backends: []const GpuBackend) BuildOptions {
+    return .{
+        .enable_gpu = canonical.feat_gpu,
+        .enable_ai = canonical.feat_ai,
+        .enable_explore = canonical.feat_explore,
+        .enable_llm = canonical.feat_llm,
+        .enable_vision = canonical.feat_vision,
+        .enable_web = canonical.feat_web,
+        .enable_database = canonical.feat_database,
+        .enable_network = canonical.feat_network,
+        .enable_profiling = canonical.feat_profiling,
+        .enable_analytics = canonical.feat_analytics,
+        .enable_cloud = canonical.feat_cloud,
+        .enable_training = canonical.feat_training,
+        .enable_reasoning = canonical.feat_reasoning,
+        .enable_auth = canonical.feat_auth,
+        .enable_messaging = canonical.feat_messaging,
+        .enable_cache = canonical.feat_cache,
+        .enable_storage = canonical.feat_storage,
+        .enable_search = canonical.feat_search,
+        .enable_mobile = canonical.feat_mobile,
+        .enable_gateway = canonical.feat_gateway,
+        .enable_pages = canonical.feat_pages,
+        .enable_benchmarks = canonical.feat_benchmarks,
+        .gpu_backends = gpu_backends,
+    };
+}
+
+pub fn buildOptionsToCanonical(options: BuildOptions) CanonicalFlags {
+    return .{
+        .feat_gpu = options.enable_gpu,
+        .feat_ai = options.enable_ai,
+        .feat_explore = options.enable_explore,
+        .feat_llm = options.enable_llm,
+        .feat_vision = options.enable_vision,
+        .feat_web = options.enable_web,
+        .feat_database = options.enable_database,
+        .feat_network = options.enable_network,
+        .feat_profiling = options.enable_profiling,
+        .feat_analytics = options.enable_analytics,
+        .feat_cloud = options.enable_cloud,
+        .feat_training = options.enable_training,
+        .feat_reasoning = options.enable_reasoning,
+        .feat_auth = options.enable_auth,
+        .feat_messaging = options.enable_messaging,
+        .feat_cache = options.enable_cache,
+        .feat_storage = options.enable_storage,
+        .feat_search = options.enable_search,
+        .feat_mobile = options.enable_mobile,
+        .feat_gateway = options.enable_gateway,
+        .feat_pages = options.enable_pages,
+        .feat_benchmarks = options.enable_benchmarks,
+    };
+}
+
+fn readFeatureGate(
+    b: *std.Build,
+    comptime canonical_name: []const u8,
+    comptime legacy_name: []const u8,
+    description: []const u8,
+    default_value: bool,
+) bool {
+    if (b.option(bool, canonical_name, description)) |value| return value;
+    if (b.option(bool, legacy_name, description)) |value| return value;
+    return default_value;
+}
+
 // ── Comptime validation ─────────────────────────────────────────────────
 // Every catalog flag must exist in BuildOptions, and every enable_* field
 // in BuildOptions must be in the catalog or the internal-allowed list.
@@ -135,43 +231,46 @@ pub fn readBuildOptions(
     can_link_metal: bool,
     backend_arg: ?[]const u8,
 ) BuildOptions {
-    const enable_gpu = b.option(bool, "enable-gpu", "Enable GPU support") orelse true;
-    const enable_ai = b.option(bool, "enable-ai", "Enable AI features") orelse true;
-    const enable_web = b.option(bool, "enable-web", "Enable web features") orelse true;
+    const feat_gpu = readFeatureGate(b, "feat-gpu", "enable-gpu", "Enable GPU support", true);
+    const feat_ai = readFeatureGate(b, "feat-ai", "enable-ai", "Enable AI features", true);
+    const feat_web = readFeatureGate(b, "feat-web", "enable-web", "Enable web features", true);
 
-    return .{
-        .enable_gpu = enable_gpu,
-        .enable_ai = enable_ai,
-        .enable_explore = b.option(bool, "enable-explore", "Enable AI code exploration") orelse enable_ai,
-        .enable_llm = b.option(bool, "enable-llm", "Enable local LLM inference") orelse enable_ai,
-        .enable_vision = b.option(bool, "enable-vision", "Enable vision/image processing") orelse enable_ai,
-        .enable_web = enable_web,
-        .enable_database = b.option(bool, "enable-database", "Enable database features") orelse true,
-        .enable_network = b.option(bool, "enable-network", "Enable network distributed compute") orelse true,
-        .enable_profiling = b.option(bool, "enable-profiling", "Enable profiling and metrics") orelse true,
-        .enable_analytics = b.option(bool, "enable-analytics", "Enable analytics event tracking") orelse true,
-        .enable_cloud = b.option(bool, "enable-cloud", "Enable cloud provider integration") orelse true,
-        .enable_training = b.option(bool, "enable-training", "Enable AI training pipelines") orelse enable_ai,
-        .enable_reasoning = b.option(bool, "enable-reasoning", "Enable AI reasoning (Abbey, eval, RAG)") orelse enable_ai,
-        .enable_auth = b.option(bool, "enable-auth", "Enable authentication and security") orelse true,
-        .enable_messaging = b.option(bool, "enable-messaging", "Enable event bus and messaging") orelse true,
-        .enable_cache = b.option(bool, "enable-cache", "Enable in-memory caching") orelse true,
-        .enable_storage = b.option(bool, "enable-storage", "Enable unified file/object storage") orelse true,
-        .enable_search = b.option(bool, "enable-search", "Enable full-text search") orelse true,
-        .enable_mobile = b.option(bool, "enable-mobile", "Enable mobile target cross-compilation") orelse false,
-        .enable_gateway = b.option(bool, "enable-gateway", "Enable API gateway (routing, rate limiting, circuit breaker)") orelse true,
-        .enable_pages = b.option(bool, "enable-pages", "Enable dashboard/UI pages with routing") orelse true,
-        .enable_benchmarks = b.option(bool, "enable-benchmarks", "Enable performance benchmarking module") orelse true,
-        .gpu_backends = gpu.parseGpuBackends(
-            b,
-            backend_arg,
-            enable_gpu,
-            enable_web,
-            target_os,
-            target_abi,
-            can_link_metal,
-        ),
+    const canonical = CanonicalFlags{
+        .feat_gpu = feat_gpu,
+        .feat_ai = feat_ai,
+        .feat_explore = readFeatureGate(b, "feat-explore", "enable-explore", "Enable AI code exploration", feat_ai),
+        .feat_llm = readFeatureGate(b, "feat-llm", "enable-llm", "Enable local LLM inference", feat_ai),
+        .feat_vision = readFeatureGate(b, "feat-vision", "enable-vision", "Enable vision/image processing", feat_ai),
+        .feat_web = feat_web,
+        .feat_database = readFeatureGate(b, "feat-database", "enable-database", "Enable database features", true),
+        .feat_network = readFeatureGate(b, "feat-network", "enable-network", "Enable network distributed compute", true),
+        .feat_profiling = readFeatureGate(b, "feat-profiling", "enable-profiling", "Enable profiling and metrics", true),
+        .feat_analytics = readFeatureGate(b, "feat-analytics", "enable-analytics", "Enable analytics event tracking", true),
+        .feat_cloud = readFeatureGate(b, "feat-cloud", "enable-cloud", "Enable cloud provider integration", true),
+        .feat_training = readFeatureGate(b, "feat-training", "enable-training", "Enable AI training pipelines", feat_ai),
+        .feat_reasoning = readFeatureGate(b, "feat-reasoning", "enable-reasoning", "Enable AI reasoning (Abbey, eval, RAG)", feat_ai),
+        .feat_auth = readFeatureGate(b, "feat-auth", "enable-auth", "Enable authentication and security", true),
+        .feat_messaging = readFeatureGate(b, "feat-messaging", "enable-messaging", "Enable event bus and messaging", true),
+        .feat_cache = readFeatureGate(b, "feat-cache", "enable-cache", "Enable in-memory caching", true),
+        .feat_storage = readFeatureGate(b, "feat-storage", "enable-storage", "Enable unified file/object storage", true),
+        .feat_search = readFeatureGate(b, "feat-search", "enable-search", "Enable full-text search", true),
+        .feat_mobile = readFeatureGate(b, "feat-mobile", "enable-mobile", "Enable mobile target cross-compilation", false),
+        .feat_gateway = readFeatureGate(b, "feat-gateway", "enable-gateway", "Enable API gateway (routing, rate limiting, circuit breaker)", true),
+        .feat_pages = readFeatureGate(b, "feat-pages", "enable-pages", "Enable dashboard/UI pages with routing", true),
+        .feat_benchmarks = readFeatureGate(b, "feat-benchmarks", "enable-benchmarks", "Enable performance benchmarking module", true),
     };
+
+    const gpu_backends = gpu.parseGpuBackends(
+        b,
+        backend_arg,
+        canonical.feat_gpu,
+        canonical.feat_web,
+        target_os,
+        target_abi,
+        can_link_metal,
+    );
+
+    return canonicalToBuildOptions(canonical, gpu_backends);
 }
 
 /// Warn about conflicting or nonsensical flag combinations.

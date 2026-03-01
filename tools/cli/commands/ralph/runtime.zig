@@ -10,6 +10,7 @@ const git_ops = @import("git_ops.zig");
 const verification = @import("verification.zig");
 const artifacts = @import("artifacts.zig");
 const skills_store = @import("skills_store.zig");
+const workflow_contract = @import("workflow_contract.zig");
 
 pub const ImproveOptions = struct {
     task: []const u8,
@@ -25,6 +26,10 @@ pub const ImproveOptions = struct {
     require_clean_tree: bool = true,
     /// Gate command from ralph.yml (default: "zig build verify-all").
     gate_command: []const u8 = "zig build verify-all",
+    workflow_enable_contract: bool = true,
+    workflow_todo_file: []const u8 = "tasks/todo.md",
+    workflow_lessons_file: []const u8 = "tasks/lessons.md",
+    workflow_strict_contract: bool = false,
 };
 
 pub const RunSummary = struct {
@@ -82,10 +87,24 @@ pub fn runImprove(
     const skills_context = try skills_store.loadSkillsContext(allocator, io, 2048);
     defer allocator.free(skills_context);
 
+    const contract_check = if (options.workflow_enable_contract)
+        workflow_contract.inspectContractFiles(io, options.workflow_todo_file, options.workflow_lessons_file)
+    else
+        workflow_contract.ContractCheck{};
+    var workflow_metrics = workflow_contract.RuntimeMetrics{
+        .workflow_contract_passed = contract_check.passed,
+        .workflow_warning_count = contract_check.warning_count,
+    };
+    if (options.workflow_enable_contract and options.workflow_strict_contract and !contract_check.passed) {
+        utils.output.printError("Workflow contract strict mode failed (todo/lessons files not ready).", .{});
+        return error.WorkflowContractFailed;
+    }
+    const contract_prompt = if (options.workflow_enable_contract) workflow_contract.contractPrompt() else "";
+
     var prompt = try std.fmt.allocPrint(
         allocator,
-        "Task:\n{s}\n\nConstraints:\n- Work inside {s}\n- Prefer minimal, correct edits\n- Run and fix zig build verify-all\n- Use tools directly to edit files and execute commands\n{s}",
-        .{ options.task, options.worktree, skills_context },
+        "Task:\n{s}\n\nConstraints:\n- Work inside {s}\n- Prefer minimal, correct edits\n- Run and fix {s}\n- Use tools directly to edit files and execute commands\n{s}\n{s}",
+        .{ options.task, options.worktree, options.gate_command, skills_context, contract_prompt },
     );
     defer allocator.free(prompt);
 
@@ -110,11 +129,20 @@ pub fn runImprove(
         var changed = in_repo and git_ops.hasChanges(allocator, io, options.worktree);
         var committed = false;
         var verify_result_opt: ?verification.VerifyResult = null;
+        var verify_attempts: usize = 0;
+        var verify_command_rejected = false;
+        var correction_applied = false;
+        var lessons_appended_iter: usize = 0;
+        var trigger_kind: ?workflow_contract.ReplanTrigger = null;
+        var trigger_label: ?[]const u8 = null;
+        var trigger_logged = false;
         // Ensure verify_result_opt is cleaned up if we exit the iteration early via try.
         errdefer if (verify_result_opt) |*vr| vr.deinit(allocator);
 
         if (!options.analysis_only) {
             verify_result_opt = try verification.runGateCommand(allocator, io, options.worktree, options.gate_command);
+            verify_attempts += 1;
+            verify_command_rejected = workflow_contract.isVerifyCommandRejected(verify_result_opt.?.stderr);
             last_gate_passed = verify_result_opt.?.passed;
             last_gate_exit = verify_result_opt.?.exit_code;
 
@@ -133,25 +161,89 @@ pub fn runImprove(
                     changed = in_repo and git_ops.hasChanges(allocator, io, options.worktree);
                 }
             } else {
+                if (options.workflow_enable_contract) {
+                    const trigger = workflow_contract.classifyTrigger(false, verify_command_rejected, false) orelse .verification_fail;
+                    trigger_kind = trigger;
+                    trigger_label = trigger.label();
+                    const impact = try std.fmt.allocPrint(
+                        allocator,
+                        "Gate command '{s}' failed with exit={d}.",
+                        .{ options.gate_command, verify_result_opt.?.exit_code },
+                    );
+                    defer allocator.free(impact);
+                    const wrote_replan = workflow_contract.appendReplanNote(allocator, io, options.workflow_todo_file, .{
+                        .trigger = trigger,
+                        .impact = impact,
+                        .plan_change = "Stop current path and switch to explicit fix-attempt loop.",
+                        .verification_change = "Rerun the gate command after each fix attempt and log the result.",
+                    }) catch false;
+                    if (wrote_replan) {
+                        trigger_logged = true;
+                        workflow_metrics.replan_trigger_count += 1;
+                    }
+                }
+
                 var fix_attempt: usize = 0;
                 while (fix_attempt < options.max_fix_attempts and !last_gate_passed) : (fix_attempt += 1) {
                     const fail_prompt = try std.fmt.allocPrint(
                         allocator,
-                        "{s} failed (exit {d}). Apply direct code fixes and rerun.\n\nstdout:\n{s}\n\nstderr:\n{s}",
-                        .{ options.gate_command, verify_result_opt.?.exit_code, verify_result_opt.?.stdout, verify_result_opt.?.stderr },
+                        "{s} failed (exit {d}). Apply direct code fixes and rerun.\n\nstdout:\n{s}\n\nstderr:\n{s}\n\n{s}",
+                        .{ options.gate_command, verify_result_opt.?.exit_code, verify_result_opt.?.stdout, verify_result_opt.?.stderr, contract_prompt },
                     );
                     defer allocator.free(fail_prompt);
-                    const fix_response = tool_agent.processWithTools(fail_prompt, allocator) catch break;
+                    const fix_response = tool_agent.processWithTools(fail_prompt, allocator) catch |err| {
+                        if (options.workflow_enable_contract and trigger_kind == null) {
+                            trigger_kind = workflow_contract.classifyTrigger(false, false, true) orelse .blocked_step;
+                            trigger_label = trigger_kind.?.label();
+                            const wrote_replan = workflow_contract.appendReplanNote(allocator, io, options.workflow_todo_file, .{
+                                .trigger = trigger_kind.?,
+                                .impact = "A tool execution failed during automatic fix attempt.",
+                                .plan_change = "Pause current fix attempt and re-plan from current repository state.",
+                                .verification_change = "Resume gate checks after the blocked step is resolved.",
+                            }) catch false;
+                            if (wrote_replan) {
+                                trigger_logged = true;
+                                workflow_metrics.replan_trigger_count += 1;
+                            }
+                        }
+                        utils.output.printWarning("Fix attempt tool run failed: {t}", .{err});
+                        break;
+                    };
                     defer allocator.free(fix_response);
 
                     verify_result_opt.?.deinit(allocator);
                     verify_result_opt = null;
                     verify_result_opt = try verification.runGateCommand(allocator, io, options.worktree, options.gate_command);
+                    verify_attempts += 1;
+                    verify_command_rejected = verify_command_rejected or workflow_contract.isVerifyCommandRejected(verify_result_opt.?.stderr);
                     last_gate_passed = verify_result_opt.?.passed;
                     last_gate_exit = verify_result_opt.?.exit_code;
                     changed = in_repo and git_ops.hasChanges(allocator, io, options.worktree);
 
                     if (last_gate_passed and in_repo and changed) {
+                        correction_applied = true;
+                        workflow_metrics.correction_count += 1;
+                        if (options.workflow_enable_contract) {
+                            const root_cause = try std.fmt.allocPrint(
+                                allocator,
+                                "Gate '{s}' failed and required an automated correction cycle in iteration {d}.",
+                                .{ options.gate_command, iteration + 1 },
+                            );
+                            defer allocator.free(root_cause);
+                            const lesson_written = workflow_contract.appendCorrectionLesson(
+                                allocator,
+                                io,
+                                options.workflow_lessons_file,
+                                trigger_kind orelse .verification_fail,
+                                root_cause,
+                                "When verification fails, log a re-plan note and rerun the gate after each fix before continuing.",
+                            ) catch false;
+                            if (lesson_written) {
+                                lessons_appended_iter += 1;
+                                workflow_metrics.lessons_appended += 1;
+                            }
+                        }
+
                         committed = git_ops.commitAllIfChanged(
                             allocator,
                             io,
@@ -185,6 +277,16 @@ pub fn runImprove(
             options.task,
             response,
             verify_result_opt,
+            .{
+                .contract_prompt_injected = options.workflow_enable_contract,
+                .warning_count = workflow_metrics.workflow_warning_count,
+                .trigger = trigger_label,
+                .trigger_logged = trigger_logged,
+                .correction_applied = correction_applied,
+                .lessons_appended = lessons_appended_iter,
+                .verify_attempts = verify_attempts,
+                .verify_command_rejected = verify_command_rejected,
+            },
             changed,
             committed,
         );
@@ -207,12 +309,13 @@ pub fn runImprove(
 
         const next_prompt = try std.fmt.allocPrint(
             allocator,
-            "Iteration {d} complete (gate_passed={s}, changed={s}). Continue improving for task:\n{s}",
+            "Iteration {d} complete (gate_passed={s}, changed={s}). Continue improving for task:\n{s}\n\n{s}",
             .{
                 iteration + 1,
                 if (last_gate_passed) "true" else "false",
                 if (changed) "true" else "false",
                 options.task,
+                contract_prompt,
             },
         );
         allocator.free(prompt);
@@ -241,6 +344,11 @@ pub fn runImprove(
         .duration_seconds = ended_at - started_at,
         .skills_added = skills_added,
         .gate_command = options.gate_command,
+        .workflow_contract_passed = workflow_metrics.workflow_contract_passed,
+        .workflow_warning_count = workflow_metrics.workflow_warning_count,
+        .replan_trigger_count = workflow_metrics.replan_trigger_count,
+        .correction_count = workflow_metrics.correction_count,
+        .lessons_appended = workflow_metrics.lessons_appended,
     });
 
     var state = cfg.readState(allocator, io);

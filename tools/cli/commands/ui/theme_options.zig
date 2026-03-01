@@ -111,6 +111,25 @@ pub fn printThemeHint() void {
     utils.output.println("Use --list-themes to see available names.", .{});
 }
 
+pub fn themeNotificationMessage(theme_name: []const u8) []const u8 {
+    return if (std.mem.eql(u8, theme_name, "default"))
+        "Theme: default"
+    else if (std.mem.eql(u8, theme_name, "monokai"))
+        "Theme: monokai"
+    else if (std.mem.eql(u8, theme_name, "solarized"))
+        "Theme: solarized"
+    else if (std.mem.eql(u8, theme_name, "nord"))
+        "Theme: nord"
+    else if (std.mem.eql(u8, theme_name, "gruvbox"))
+        "Theme: gruvbox"
+    else if (std.mem.eql(u8, theme_name, "high_contrast"))
+        "Theme: high_contrast"
+    else if (std.mem.eql(u8, theme_name, "minimal"))
+        "Theme: minimal"
+    else
+        "Theme changed";
+}
+
 test "parseThemeArgs parses valid theme and list flag" {
     const allocator = std.testing.allocator;
     const args = [_][:0]const u8{ "--theme", "nord", "--list-themes" };
@@ -135,6 +154,11 @@ test "parseThemeArgs keeps unknown args as remaining" {
     try std.testing.expectEqual(@as(usize, 2), parsed.remaining_args.len);
     try std.testing.expectEqualStrings("--foo", parsed.remaining_args[0]);
     try std.testing.expectEqualStrings("bar", parsed.remaining_args[1]);
+}
+
+test "themeNotificationMessage returns named messages and fallback" {
+    try std.testing.expectEqualStrings("Theme: nord", themeNotificationMessage("nord"));
+    try std.testing.expectEqualStrings("Theme changed", themeNotificationMessage("unknown"));
 }
 
 test {

@@ -204,7 +204,7 @@ fn printSummaryCommand(allocator: std.mem.Allocator) !void {
 
 fn printDevices(allocator: std.mem.Allocator) !void {
     if (!gpu_detect.moduleEnabled()) {
-        utils.output.printWarning("GPU Devices: disabled (build without -Denable-gpu)", .{});
+        utils.output.printWarning("GPU Devices: disabled (build without -Dfeat-gpu=true (legacy: -Denable-gpu=true))", .{});
         return;
     }
 
@@ -263,7 +263,7 @@ fn printDevices(allocator: std.mem.Allocator) !void {
 
 fn printDefaultDevice(allocator: std.mem.Allocator) !void {
     if (!gpu_detect.moduleEnabled()) {
-        utils.output.printWarning("GPU default device: disabled (build without -Denable-gpu)", .{});
+        utils.output.printWarning("GPU default device: disabled (build without -Dfeat-gpu=true (legacy: -Denable-gpu=true))", .{});
         return;
     }
 
@@ -296,7 +296,7 @@ fn printDefaultDevice(allocator: std.mem.Allocator) !void {
 
 fn printStatus(allocator: std.mem.Allocator) !void {
     if (!gpu_detect.moduleEnabled()) {
-        utils.output.printWarning("GPU status: disabled (build without -Denable-gpu)", .{});
+        utils.output.printWarning("GPU status: disabled (build without -Dfeat-gpu=true (legacy: -Denable-gpu=true))", .{});
         return;
     }
 

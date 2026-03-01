@@ -218,14 +218,6 @@ pub const cli_commands = [_][]const []const u8{
     &.{ "ls", "stats" },
 };
 
-/// Options for the exhaustive CLI integration test runner.
-pub const CliTestsFullOptions = struct {
-    env_file: ?[]const u8 = null,
-    allow_blocked: bool = false,
-    id_prefixes: ?[]const []const u8 = null,
-    timeout_scale: f64 = 1.0,
-};
-
 /// Register CLI smoke tests as a build step.
 ///
 /// Creates a "cli-tests" step that runs every command vector in
@@ -239,58 +231,5 @@ pub fn addCliTests(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step 
         run_cmd.addArgs(args);
         step.dependOn(&run_cmd.step);
     }
-    return step;
-}
-
-/// Register the exhaustive CLI behavioral verification step.
-///
-/// Invokes `tools/scripts/run_cli_full_matrix.py` which handles preflight,
-/// isolation, PTY probing, and full command-tree coverage.
-pub fn addCliTestsFull(b: *std.Build, options: CliTestsFullOptions) *std.Build.Step {
-    const step = b.step("cli-tests-full", "Run exhaustive behavioral CLI command-tree tests");
-
-    const run_full = b.addSystemCommand(&.{
-        "python3",
-        "tools/scripts/run_cli_full_matrix.py",
-        "--repo",
-        b.pathFromRoot("."),
-        "--timeout-scale",
-        b.fmt("{d}", .{options.timeout_scale}),
-    });
-    run_full.setCwd(b.path("."));
-    if (options.env_file) |env_file|
-        run_full.addArgs(&.{ "--env-file", env_file });
-    if (options.id_prefixes) |id_prefixes| {
-        for (id_prefixes) |prefix| {
-            run_full.addArgs(&.{ "--id-prefix", prefix });
-        }
-    }
-    if (options.allow_blocked)
-        run_full.addArg("--allow-blocked");
-    step.dependOn(&run_full.step);
-    return step;
-}
-
-/// Register a focused nested-command CLI verification step.
-///
-/// Runs only explicit `nested.*` vectors from the full matrix.
-pub fn addCliTestsNested(b: *std.Build, options: CliTestsFullOptions) *std.Build.Step {
-    const step = b.step("cli-tests-nested", "Run nested CLI command-tree behavioral tests");
-    const run_nested = b.addSystemCommand(&.{
-        "python3",
-        "tools/scripts/run_cli_full_matrix.py",
-        "--repo",
-        b.pathFromRoot("."),
-        "--id-prefix",
-        "nested.",
-        "--timeout-scale",
-        b.fmt("{d}", .{options.timeout_scale}),
-    });
-    run_nested.setCwd(b.path("."));
-    if (options.env_file) |env_file|
-        run_nested.addArgs(&.{ "--env-file", env_file });
-    if (options.allow_blocked)
-        run_nested.addArg("--allow-blocked");
-    step.dependOn(&run_nested.step);
     return step;
 }

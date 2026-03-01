@@ -57,6 +57,7 @@ pub const Subcommand = struct {
 pub const HelpBuilder = struct {
     buffer: std.ArrayListUnmanaged(u8),
     allocator: std.mem.Allocator,
+    last_error: ?anyerror = null,
 
     pub fn init(allocator: std.mem.Allocator) HelpBuilder {
         return .{
@@ -69,27 +70,33 @@ pub const HelpBuilder = struct {
         self.buffer.deinit(self.allocator);
     }
 
+    fn captureError(self: *HelpBuilder, result: anytype) void {
+        _ = result catch |err| {
+            self.last_error = err;
+        };
+    }
+
     /// Add usage line.
     pub fn usage(self: *HelpBuilder, command: []const u8, args: []const u8) *HelpBuilder {
-        self.writeFmt("Usage: {s} {s}\n\n", .{ command, args }) catch {};
+        self.captureError(self.writeFmt("Usage: {s} {s}\n\n", .{ command, args }));
         return self;
     }
 
     /// Add description paragraph.
     pub fn description(self: *HelpBuilder, desc: []const u8) *HelpBuilder {
-        self.writeFmt("{s}\n\n", .{desc}) catch {};
+        self.captureError(self.writeFmt("{s}\n\n", .{desc}));
         return self;
     }
 
     /// Add section header.
     pub fn section(self: *HelpBuilder, title: []const u8) *HelpBuilder {
-        self.writeFmt("{s}:\n", .{title}) catch {};
+        self.captureError(self.writeFmt("{s}:\n", .{title}));
         return self;
     }
 
     /// Add option.
     pub fn option(self: *HelpBuilder, opt: Option) *HelpBuilder {
-        self.writeOption(opt) catch {};
+        self.captureError(self.writeOption(opt));
         return self;
     }
 
@@ -133,7 +140,7 @@ pub const HelpBuilder = struct {
 
     /// Add subcommand.
     pub fn subcommand(self: *HelpBuilder, cmd: Subcommand) *HelpBuilder {
-        self.writeSubcommand(cmd) catch {};
+        self.captureError(self.writeSubcommand(cmd));
         return self;
     }
 
@@ -158,21 +165,21 @@ pub const HelpBuilder = struct {
 
     /// Add raw text.
     pub fn text(self: *HelpBuilder, t: []const u8) *HelpBuilder {
-        self.writeFmt("{s}", .{t}) catch {};
+        self.captureError(self.writeFmt("{s}", .{t}));
         return self;
     }
 
     /// Add newline.
     pub fn newline(self: *HelpBuilder) *HelpBuilder {
-        self.writeFmt("\n", .{}) catch {};
+        self.captureError(self.writeFmt("\n", .{}));
         return self;
     }
 
     /// Add example.
     pub fn example(self: *HelpBuilder, cmd: []const u8, desc: []const u8) *HelpBuilder {
-        self.writeFmt("  {s}\n", .{cmd}) catch {};
+        self.captureError(self.writeFmt("  {s}\n", .{cmd}));
         if (desc.len > 0) {
-            self.writeFmt("    # {s}\n", .{desc}) catch {};
+            self.captureError(self.writeFmt("    # {s}\n", .{desc}));
         }
         return self;
     }

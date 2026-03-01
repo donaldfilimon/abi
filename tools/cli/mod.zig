@@ -39,7 +39,7 @@ pub fn mainWithArgs(proc_args: std.process.Args, environ: std.process.Environ) !
     const io = io_backend.io();
 
     const fw_config = abi.Config.defaults();
-    var framework_runtime = try abi.Framework.initWithIo(allocator, fw_config, io);
+    var framework_runtime = try abi.App.initWithIo(allocator, fw_config, io);
     defer framework_runtime.deinit();
 
     const registry = framework_runtime.getRegistry();

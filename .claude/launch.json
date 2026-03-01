@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "abi-llm-serve",
+      "runtimeExecutable": "zig",
+      "runtimeArgs": ["build", "run", "--", "llm", "serve", "--address", "127.0.0.1:8080"],
+      "port": 8080
+    },
+    {
+      "name": "abi-mcp-serve",
+      "runtimeExecutable": "zig",
+      "runtimeArgs": ["build", "run", "--", "mcp", "serve"],
+      "port": 0
+    },
+    {
+      "name": "abi-acp-serve",
+      "runtimeExecutable": "zig",
+      "runtimeArgs": ["build", "run", "--", "acp", "serve"],
+      "port": 0
+    },
+    {
+      "name": "abi-build-watch",
+      "runtimeExecutable": "zig",
+      "runtimeArgs": ["build", "test", "--summary", "all", "--watch"],
+      "port": 0
+    }
+  ]
+}

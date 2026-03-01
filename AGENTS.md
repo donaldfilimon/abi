@@ -1,8 +1,3 @@
----
-description: 
-alwaysApply: true
----
-
 ## Workflow Orchestration
 
 ### 1. Plan Node Default

@@ -53,31 +53,20 @@ pub const Category = enum {
 // Actions & Commands
 // ═══════════════════════════════════════════════════════════════════
 
+pub const CommandRef = struct {
+    /// Stable id used by history/completion.
+    id: []const u8,
+    /// Top-level CLI command routed through descriptor dispatch.
+    command: []const u8,
+    /// Default argument vector for launcher execution.
+    args: []const [:0]const u8,
+};
+
 pub const Action = union(enum) {
-    command: Command,
+    command: CommandRef,
     version: void,
     help: void,
     quit: void,
-};
-
-pub const Command = enum {
-    db,
-    agent,
-    bench,
-    config,
-    discord,
-    embed,
-    explore,
-    gpu,
-    llm,
-    model,
-    network,
-    ralph,
-    simd,
-    system_info,
-    train,
-    train_monitor,
-    task,
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -111,7 +100,7 @@ pub const MenuItem = struct {
 
 /// Command history entry
 pub const HistoryEntry = struct {
-    command: Command,
+    command_id: []const u8,
     timestamp: i64,
 };
 

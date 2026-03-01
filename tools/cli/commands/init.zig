@@ -189,7 +189,8 @@ const build_zig_training = build_zig_default;
 const main_zig_default =
     \\const std = @import("std");
     \\
-    \\pub fn main() !void {
+    \\pub fn main(init: std.process.Init) !void {
+    \\    _ = init;
     \\    std.debug.print("Hello from ABI!\n", .{});
     \\}
     \\
@@ -198,7 +199,8 @@ const main_zig_default =
 const main_zig_llm =
     \\const std = @import("std");
     \\
-    \\pub fn main() !void {
+    \\pub fn main(init: std.process.Init) !void {
+    \\    _ = init;
     \\    std.debug.print("ABI LLM Application\n", .{});
     \\    std.debug.print("Set ABI_LLM_MODEL_PATH to your GGUF model file.\n", .{});
     \\    std.debug.print("Then use: abi llm run <model-path>\n", .{});
@@ -209,7 +211,8 @@ const main_zig_llm =
 const main_zig_agent =
     \\const std = @import("std");
     \\
-    \\pub fn main() !void {
+    \\pub fn main(init: std.process.Init) !void {
+    \\    _ = init;
     \\    std.debug.print("ABI Agent Application\n", .{});
     \\    std.debug.print("Configure an AI provider (ABI_OPENAI_API_KEY or ABI_ANTHROPIC_API_KEY).\n", .{});
     \\    std.debug.print("Then use: abi agent --persona coder\n", .{});
@@ -220,7 +223,8 @@ const main_zig_agent =
 const main_zig_training =
     \\const std = @import("std");
     \\
-    \\pub fn main() !void {
+    \\pub fn main(init: std.process.Init) !void {
+    \\    _ = init;
     \\    std.debug.print("ABI Training Pipeline\n", .{});
     \\    std.debug.print("Use: abi train self\n", .{});
     \\    std.debug.print("Or:  abi agent ralph --task \"Your task\"\n", .{});

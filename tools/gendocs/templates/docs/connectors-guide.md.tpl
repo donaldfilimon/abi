@@ -75,7 +75,7 @@ export LLAMA_CPP_HOST="http://192.168.1.100:8080"
 Every connector follows the same two-phase pattern:
 
 ```zig
-const connectors = @import("abi").connectors;
+const connectors = @import("abi").services.connectors;
 
 // Phase 1: Load config from environment
 if (try connectors.tryLoadOpenAI(allocator)) |config| {

@@ -32,7 +32,8 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         if (std.mem.eql(u8, arg, "--")) continue;
         if (std.mem.eql(u8, arg, "--check") or
             std.mem.eql(u8, arg, "--api-only") or
-            std.mem.eql(u8, arg, "--no-wasm"))
+            std.mem.eql(u8, arg, "--no-wasm") or
+            std.mem.eql(u8, arg, "--untracked-md"))
         {
             try flags.append(allocator, arg);
             continue;
@@ -70,7 +71,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 fn printHelp() void {
     utils.output.print(
-        \\Usage: abi gendocs [--check] [--api-only] [--no-wasm]
+        \\Usage: abi gendocs [--check] [--api-only] [--no-wasm] [--untracked-md]
         \\
         \\Generate ABI docs outputs via `zig build gendocs`.
         \\Outputs: docs/api, docs/_docs, docs/plans, docs/api-app.
@@ -79,11 +80,13 @@ fn printHelp() void {
         \\  --check      Verify generated docs are up to date (no writes)
         \\  --api-only   Generate only docs/api markdown files
         \\  --no-wasm    Skip docs api-app wasm runtime generation
+        \\  --untracked-md  Treat generated markdown outputs as untracked artifacts
         \\
         \\Examples:
         \\  abi gendocs
         \\  abi gendocs --check
         \\  abi gendocs --api-only --no-wasm
+        \\  abi gendocs --check --no-wasm --untracked-md
         \\
     , .{});
 }

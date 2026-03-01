@@ -17,6 +17,11 @@ const ReportView = struct {
     passing_iterations: usize = 0,
     gate_passed: bool = false,
     gate_exit: u8 = 1,
+    workflow_contract_passed: bool = true,
+    workflow_warning_count: usize = 0,
+    replan_trigger_count: usize = 0,
+    correction_count: usize = 0,
+    lessons_appended: usize = 0,
 
     fn deinit(self: *ReportView, allocator: std.mem.Allocator) void {
         allocator.free(self.run_id);
@@ -86,6 +91,11 @@ pub fn runStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const
                 if (report.gate_passed) "pass" else "fail",
                 report.gate_exit,
             });
+            utils.output.printKeyValue("Workflow contract", if (report.workflow_contract_passed) "pass" else "warn");
+            utils.output.printKeyValueFmt("Workflow warnings", "{d}", .{report.workflow_warning_count});
+            utils.output.printKeyValueFmt("Re-plan triggers", "{d}", .{report.replan_trigger_count});
+            utils.output.printKeyValueFmt("Corrections", "{d}", .{report.correction_count});
+            utils.output.printKeyValueFmt("Lessons appended", "{d}", .{report.lessons_appended});
         }
     } else {
         utils.output.printKeyValue("Latest report", "(none)");
@@ -117,6 +127,11 @@ fn parseReport(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ?Repo
     const passing_iterations = valueUsize(obj, "passing_iterations");
     const gate_passed = valueBool(obj, "last_gate_passed");
     const gate_exit = valueU8(obj, "last_gate_exit");
+    const workflow_contract_passed = valueBoolOr(obj, "workflow_contract_passed", true);
+    const workflow_warning_count = valueUsize(obj, "workflow_warning_count");
+    const replan_trigger_count = valueUsize(obj, "replan_trigger_count");
+    const correction_count = valueUsize(obj, "correction_count");
+    const lessons_appended = valueUsize(obj, "lessons_appended");
 
     return .{
         .run_id = run_id,
@@ -127,6 +142,11 @@ fn parseReport(allocator: std.mem.Allocator, io: std.Io, path: []const u8) ?Repo
         .passing_iterations = passing_iterations,
         .gate_passed = gate_passed,
         .gate_exit = gate_exit,
+        .workflow_contract_passed = workflow_contract_passed,
+        .workflow_warning_count = workflow_warning_count,
+        .replan_trigger_count = replan_trigger_count,
+        .correction_count = correction_count,
+        .lessons_appended = lessons_appended,
     };
 }
 
@@ -161,6 +181,16 @@ fn valueBool(obj: std.json.ObjectMap, key: []const u8) bool {
         .bool => |b| b,
         else => false,
     } else false;
+}
+
+fn valueBoolOr(obj: std.json.ObjectMap, key: []const u8, default: bool) bool {
+    if (obj.get(key)) |v| {
+        return switch (v) {
+            .bool => |b| b,
+            else => default,
+        };
+    }
+    return default;
 }
 
 test {

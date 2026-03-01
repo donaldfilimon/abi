@@ -149,7 +149,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
 fn runInfo(allocator: std.mem.Allocator) !void {
     // Initialise the framework to access runtime feature matrix.
-    var framework = try abi.initDefault(allocator);
+    var framework = try abi.initAppDefault(allocator);
     defer framework.deinit();
 
     utils.output.printHeader("Multi‑Agent Coordinator");
@@ -161,7 +161,7 @@ fn runInfo(allocator: std.mem.Allocator) !void {
     if (!ai_enabled) {
         // When disabled, the stub returns error.AgentDisabled.
         utils.output.printInfo("Coordinator is unavailable (AI disabled)", .{});
-        utils.output.printInfo("Rebuild with: zig build -Denable-ai=true", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
         return;
     }
 
@@ -224,7 +224,7 @@ fn runWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !voi
     // Check AI feature
     if (!abi.ai.isEnabled()) {
         utils.output.printError("AI feature is disabled", .{});
-        utils.output.printInfo("Rebuild with: zig build -Denable-ai=true", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
         return;
     }
 
@@ -369,7 +369,7 @@ fn runDagWorkflow(allocator: std.mem.Allocator, parser: *utils.args.ArgParser) !
     // Check AI feature
     if (!abi.ai.isEnabled()) {
         utils.output.printError("AI feature is disabled", .{});
-        utils.output.printInfo("Rebuild with: zig build -Denable-ai=true", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
         return;
     }
 
@@ -757,7 +757,7 @@ fn showStatus(allocator: std.mem.Allocator) !void {
 
     if (!ai_enabled) {
         utils.output.printInfo("Multi-agent coordination requires AI feature", .{});
-        utils.output.printInfo("Rebuild with: zig build -Denable-ai=true", .{});
+        utils.output.printInfo("Rebuild with: zig build -Dfeat-ai=true (legacy: -Denable-ai=true)", .{});
         return;
     }
 

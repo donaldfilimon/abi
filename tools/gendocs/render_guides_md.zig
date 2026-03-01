@@ -2,18 +2,7 @@ const std = @import("std");
 const model = @import("model.zig");
 const site_map = @import("site_map.zig");
 
-const generated_footer =
-    \\
-    \\
-    \\---
-    \\
-    \\*Generated automatically by `zig build gendocs`*
-    \\
-    \\
-    \\## Zig Skill
-    \\Use the `$zig` Codex skill for ABI Zig 0.16-dev syntax updates, modular build graph guidance, and targeted validation workflows.
-    \\
-;
+const generated_footer = model.generated_footer;
 
 pub fn render(
     allocator: std.mem.Allocator,
@@ -119,25 +108,7 @@ fn applyTemplate(allocator: std.mem.Allocator, template: []const u8, args: Templ
     return t3;
 }
 
-fn replaceAll(allocator: std.mem.Allocator, input: []const u8, needle: []const u8, repl: []const u8) ![]u8 {
-    if (needle.len == 0) return allocator.dupe(u8, input);
-
-    var out = std.ArrayListUnmanaged(u8).empty;
-    errdefer out.deinit(allocator);
-
-    var cursor: usize = 0;
-    while (true) {
-        const pos = std.mem.indexOfPos(u8, input, cursor, needle) orelse {
-            try out.appendSlice(allocator, input[cursor..]);
-            break;
-        };
-        try out.appendSlice(allocator, input[cursor..pos]);
-        try out.appendSlice(allocator, repl);
-        cursor = pos + needle.len;
-    }
-
-    return out.toOwnedSlice(allocator);
-}
+const replaceAll = model.replaceAll;
 
 fn buildAutoContent(
     allocator: std.mem.Allocator,
@@ -211,6 +182,20 @@ fn buildAutoContent(
             \\
             \\
         );
+    } else if (std.mem.eql(u8, slug, "contributing")) {
+        try out.appendSlice(allocator,
+            \\## Workflow Contract
+            \\
+            \\- Canonical policy: [AGENTS.md](../../AGENTS.md)
+            \\- Task plan interface: `tasks/todo.md`
+            \\- Lessons interface: `tasks/lessons.md`
+            \\
+            \\Use the advisory contract check during iteration:
+            \\
+            \\- `zig build check-workflow-orchestration`
+            \\
+        );
+        try appendCommandEntryPoints(allocator, &out, section, commands);
     } else {
         try appendFeatureCoverage(allocator, &out, slug, feature_tags, features);
         try appendModuleCoverage(allocator, &out, section, modules);
@@ -222,6 +207,7 @@ fn buildAutoContent(
         \\
         \\- `zig build typecheck`
         \\- `zig build check-docs`
+        \\- `zig build check-workflow-orchestration`
         \\- `zig build run -- gendocs --check`
         \\
         \\## Navigation
@@ -640,16 +626,7 @@ fn formatStructuralSubcommands(
     return out.toOwnedSlice(allocator);
 }
 
-fn appendFmt(
-    allocator: std.mem.Allocator,
-    out: *std.ArrayListUnmanaged(u8),
-    comptime fmt: []const u8,
-    args: anytype,
-) !void {
-    const text = try std.fmt.allocPrint(allocator, fmt, args);
-    defer allocator.free(text);
-    try out.appendSlice(allocator, text);
-}
+const appendFmt = model.appendFmt;
 
 test "applyTemplate replaces known placeholders deterministically" {
     const template =

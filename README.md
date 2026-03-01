@@ -86,7 +86,7 @@ zig build run -- --help
 
 | Dependency | Version | Required |
 |:-----------|:--------|:--------:|
-| Zig | 0.16.0-dev.2653+784e89fd4 | Yes |
+| Zig | 0.16.0-dev.2682+02142a54d | Yes |
 | Git | Any | Yes |
 | GPU Drivers | Latest | Optional |
 
@@ -112,6 +112,18 @@ pub fn main() !void {
     std.debug.print("ABI v{s} ready!\n", .{abi.version()});
 }
 ```
+
+---
+
+## API Migration (v2 Surface)
+
+ABI now exposes canonical v2 entrypoints while keeping temporary v1 compatibility:
+
+- Use `abi.App` / `abi.AppBuilder` as the canonical runtime types.
+- Use `abi.features.<name>` for feature modules and `abi.services.<name>` for always-on services.
+- Build metadata is available at `abi.meta.version()`.
+- Existing `abi.Framework`, `abi.init*`, and top-level feature exports remain available during the compatibility window.
+- `-Dfeat-*` flags are accepted as canonical build flags, with `-Denable-*` preserved as adapters.
 
 ---
 

@@ -131,6 +131,10 @@ pub fn runImprove(ctx: *const context_mod.CommandContext, args: []const [:0]cons
         .worktree = worktree,
         .require_clean_tree = require_clean_tree,
         .gate_command = loaded_cfg.gate_per_iteration,
+        .workflow_enable_contract = loaded_cfg.workflow_enable_contract,
+        .workflow_todo_file = loaded_cfg.workflow_todo_file,
+        .workflow_lessons_file = loaded_cfg.workflow_lessons_file,
+        .workflow_strict_contract = loaded_cfg.workflow_strict_contract,
     });
     defer allocator.free(summary.run_id);
 

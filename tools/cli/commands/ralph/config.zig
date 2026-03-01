@@ -38,6 +38,10 @@ pub const RalphConfig = struct {
     max_fix_attempts: usize = 2,
     require_clean_tree: bool = true,
     gate_per_iteration: []const u8 = "zig build verify-all",
+    workflow_enable_contract: bool = true,
+    workflow_todo_file: []const u8 = "tasks/todo.md",
+    workflow_lessons_file: []const u8 = "tasks/lessons.md",
+    workflow_strict_contract: bool = false,
 };
 
 /// Parse ralph.yml into config. Returned strings are slices into `contents`.
@@ -49,6 +53,7 @@ pub fn parseRalphYamlInto(contents: []const u8, out: *RalphConfig) void {
         event_loop,
         execution,
         gates,
+        workflow,
     };
 
     var section: Section = .root;
@@ -62,7 +67,7 @@ pub fn parseRalphYamlInto(contents: []const u8, out: *RalphConfig) void {
         const value = std.mem.trim(u8, line[colon + 1 ..], " \t\"");
 
         if (value.len == 0 and line[line.len - 1] == ':') {
-            if (std.mem.eql(u8, key, "cli")) section = .cli else if (std.mem.eql(u8, key, "llm")) section = .llm else if (std.mem.eql(u8, key, "event_loop")) section = .event_loop else if (std.mem.eql(u8, key, "execution")) section = .execution else if (std.mem.eql(u8, key, "gates")) section = .gates else section = .root;
+            if (std.mem.eql(u8, key, "cli")) section = .cli else if (std.mem.eql(u8, key, "llm")) section = .llm else if (std.mem.eql(u8, key, "event_loop")) section = .event_loop else if (std.mem.eql(u8, key, "execution")) section = .execution else if (std.mem.eql(u8, key, "gates")) section = .gates else if (std.mem.eql(u8, key, "workflow")) section = .workflow else section = .root;
             continue;
         }
 
@@ -118,6 +123,17 @@ pub fn parseRalphYamlInto(contents: []const u8, out: *RalphConfig) void {
             .gates => {
                 if (std.mem.eql(u8, key, "per_iteration")) {
                     out.gate_per_iteration = value;
+                }
+            },
+            .workflow => {
+                if (std.mem.eql(u8, key, "enable_contract")) {
+                    out.workflow_enable_contract = parseBool(value, out.workflow_enable_contract);
+                } else if (std.mem.eql(u8, key, "todo_file")) {
+                    out.workflow_todo_file = value;
+                } else if (std.mem.eql(u8, key, "lessons_file")) {
+                    out.workflow_lessons_file = value;
+                } else if (std.mem.eql(u8, key, "strict_contract")) {
+                    out.workflow_strict_contract = parseBool(value, out.workflow_strict_contract);
                 }
             },
         }
