@@ -21,7 +21,7 @@ pub fn main(_: std.process.Init) !void {
     var builder = abi.Framework.builder(allocator);
 
     var framework = try builder
-        .withMessaging(.{})
+        .with(.messaging, .{})
         .build();
     defer framework.deinit();
 

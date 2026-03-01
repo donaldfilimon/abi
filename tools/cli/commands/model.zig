@@ -19,43 +19,19 @@ const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const cli_io = utils.io_backend;
 
-// Wrapper functions for comptime children dispatch
-fn wrapList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runList(ctx, args);
-}
-fn wrapInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runInfo(ctx, args);
-}
-fn wrapDownload(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runDownload(ctx, args);
-}
-fn wrapRemove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runRemove(ctx, args);
-}
-fn wrapSearch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runSearch(ctx, args);
-}
-fn wrapPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runPath(ctx, args);
-}
-
 pub const meta: command_mod.Meta = .{
     .name = "model",
     .description = "Model management (list, download, remove, search)",
     .kind = .group,
     .subcommands = &.{ "list", "info", "download", "remove", "search", "path" },
     .children = &.{
-        .{ .name = "list", .description = "List cached models", .handler = wrapList },
-        .{ .name = "info", .description = "Show detailed model information", .handler = wrapInfo },
-        .{ .name = "download", .description = "Download model from HuggingFace or URL", .handler = wrapDownload },
-        .{ .name = "remove", .description = "Remove a cached model", .handler = wrapRemove },
-        .{ .name = "search", .description = "Search HuggingFace for models", .handler = wrapSearch },
-        .{ .name = "path", .description = "Show or set cache directory", .handler = wrapPath },
+        .{ .name = "list", .description = "List cached models", .handler = runList },
+        .{ .name = "info", .description = "Show detailed model information", .handler = runInfo },
+        .{ .name = "download", .description = "Download model from HuggingFace or URL", .handler = runDownload },
+        .{ .name = "remove", .description = "Remove a cached model", .handler = runRemove },
+        .{ .name = "search", .description = "Search HuggingFace for models", .handler = runSearch },
+        .{ .name = "path", .description = "Show or set cache directory", .handler = runPath },
     },
-};
-
-const model_subcommands = [_][]const u8{
-    "list", "info", "download", "remove", "search", "path", "help",
 };
 
 /// Run the model command with the provided arguments.
@@ -72,7 +48,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
     // Unknown subcommand
     utils.output.printError("unknown model command: {s}", .{cmd});
-    if (utils.args.suggestCommand(cmd, &model_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         utils.output.printInfo("did you mean: {s}", .{suggestion});
     }
     utils.output.printInfo("Run 'abi model help' for usage.", .{});

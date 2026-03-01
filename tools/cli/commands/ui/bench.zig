@@ -6,50 +6,39 @@ const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
-const session_runner = @import("session_runner.zig");
-const theme_options = @import("theme_options.zig");
+const dsl = @import("../../ui/dsl/mod.zig");
 
-const Dash = tui.dashboard.Dashboard(tui.BenchmarkPanel);
+const PanelType = tui.BenchmarkPanel;
+const Dash = tui.dashboard.Dashboard(PanelType);
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parsed = try theme_options.parseThemeArgs(allocator, args);
-    defer parsed.deinit();
-
-    if (parsed.list_themes) {
-        theme_options.printAvailableThemes();
-        return;
-    }
-    if (parsed.wants_help) {
-        printHelp();
-        return;
-    }
-    if (parsed.remaining_args.len > 0) {
-        utils.output.printError("Unknown argument for ui bench: {s}", .{parsed.remaining_args[0]});
-        theme_options.printThemeHint();
-        return error.InvalidArgument;
-    }
-
-    const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
-    try runDashboard(allocator, initial_theme);
-}
-
-fn runDashboard(allocator: std.mem.Allocator, initial_theme: *const tui.Theme) !void {
-    var session = session_runner.startSimpleDashboard(allocator, .{
+    try dsl.runSimpleDashboard(PanelType, ctx, args, .{
         .dashboard_name = "Benchmark Dashboard",
         .terminal_title = "ABI Benchmark Dashboard",
-    }) orelse return;
-    defer session.deinit();
-
-    const panel = tui.BenchmarkPanel.init(allocator, &session.terminal, initial_theme);
-    var dash = Dash.init(allocator, &session.terminal, initial_theme, panel, .{
         .title = "ABI BENCHMARK DASHBOARD",
         .refresh_rate_ms = 300,
         .help_keys = " [q]uit  [p]ause  [up/down]select  [t]heme  [?]help",
+        .print_help = printHelp,
+        .init_panel = initPanel,
+        .validate_args = validateArgs,
+        .extra_key_handler = handleBenchKeys,
     });
-    dash.extra_key_handler = &handleBenchKeys;
-    defer dash.deinit();
-    try dash.run();
+}
+
+fn validateArgs(remaining_args: []const [:0]const u8) !void {
+    if (remaining_args.len == 0) return;
+    utils.output.printError("Unknown argument for ui bench: {s}", .{remaining_args[0]});
+    @import("theme_options.zig").printThemeHint();
+    return error.InvalidArgument;
+}
+
+fn initPanel(
+    allocator: std.mem.Allocator,
+    terminal: *tui.Terminal,
+    initial_theme: *const tui.Theme,
+    _: []const [:0]const u8,
+) !PanelType {
+    return tui.BenchmarkPanel.init(allocator, terminal, initial_theme);
 }
 
 fn handleBenchKeys(self: *Dash, key: tui.Key) bool {

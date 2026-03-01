@@ -22,51 +22,16 @@ const utils = @import("../utils/mod.zig");
 const tasks = abi.tasks;
 const time_utils = abi.shared.utils;
 
-// Wrapper functions for comptime children dispatch
-fn wrapAdd(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runAdd(ctx, args);
-}
-fn wrapList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runList(ctx, args);
-}
-fn wrapShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runShow(ctx, args);
-}
-fn wrapDone(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runDone(ctx, args);
-}
-fn wrapStart(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runStart(ctx, args);
-}
-fn wrapCancel(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runCancel(ctx, args);
-}
-fn wrapDelete(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runDelete(ctx, args);
-}
-fn wrapStats(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
+fn runStatsSubcommand(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
     try runStats(allocator);
 }
-fn wrapImportRoadmap(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
+
+fn runImportRoadmapSubcommand(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
     try runImportRoadmap(allocator);
 }
-fn wrapSeedSelfImprove(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
+
+fn runSeedSelfImproveSubcommand(allocator: std.mem.Allocator, _: []const [:0]const u8) !void {
     try runSeedSelfImprove(allocator);
-}
-fn wrapEdit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runEdit(ctx, args);
-}
-fn wrapBlock(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runBlock(ctx, args);
-}
-fn wrapUnblock(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runUnblock(ctx, args);
-}
-fn wrapDue(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    try runDue(ctx, args);
 }
 
 pub const meta: command_mod.Meta = .{
@@ -75,31 +40,23 @@ pub const meta: command_mod.Meta = .{
     .kind = .group,
     .subcommands = &.{ "add", "list", "ls", "show", "done", "start", "cancel", "delete", "rm", "stats", "import-roadmap", "seed-self-improve", "edit", "block", "unblock", "due", "help" },
     .children = &.{
-        .{ .name = "add", .description = "Add a new task", .handler = wrapAdd },
-        .{ .name = "list", .description = "List tasks with optional filters", .handler = wrapList },
-        .{ .name = "ls", .description = "List tasks with optional filters", .handler = wrapList },
-        .{ .name = "show", .description = "Show task details", .handler = wrapShow },
-        .{ .name = "done", .description = "Mark task as completed", .handler = wrapDone },
-        .{ .name = "start", .description = "Mark task as in-progress", .handler = wrapStart },
-        .{ .name = "cancel", .description = "Cancel a task", .handler = wrapCancel },
-        .{ .name = "delete", .description = "Delete a task", .handler = wrapDelete },
-        .{ .name = "rm", .description = "Delete a task", .handler = wrapDelete },
-        .{ .name = "stats", .description = "Show task statistics", .handler = wrapStats },
-        .{ .name = "import-roadmap", .description = "Import roadmap items as tasks", .handler = wrapImportRoadmap },
-        .{ .name = "seed-self-improve", .description = "Seed a self-improvement execution plan", .handler = wrapSeedSelfImprove },
-        .{ .name = "edit", .description = "Edit task properties", .handler = wrapEdit },
-        .{ .name = "block", .description = "Mark task blocked by another task", .handler = wrapBlock },
-        .{ .name = "unblock", .description = "Remove blocked status", .handler = wrapUnblock },
-        .{ .name = "due", .description = "Set or clear task due date", .handler = wrapDue },
+        .{ .name = "add", .description = "Add a new task", .handler = runAdd },
+        .{ .name = "list", .description = "List tasks with optional filters", .handler = runList },
+        .{ .name = "ls", .description = "List tasks with optional filters", .handler = runList },
+        .{ .name = "show", .description = "Show task details", .handler = runShow },
+        .{ .name = "done", .description = "Mark task as completed", .handler = runDone },
+        .{ .name = "start", .description = "Mark task as in-progress", .handler = runStart },
+        .{ .name = "cancel", .description = "Cancel a task", .handler = runCancel },
+        .{ .name = "delete", .description = "Delete a task", .handler = runDelete },
+        .{ .name = "rm", .description = "Delete a task", .handler = runDelete },
+        .{ .name = "stats", .description = "Show task statistics", .handler = command_mod.allocatorHandler(runStatsSubcommand) },
+        .{ .name = "import-roadmap", .description = "Import roadmap items as tasks", .handler = command_mod.allocatorHandler(runImportRoadmapSubcommand) },
+        .{ .name = "seed-self-improve", .description = "Seed a self-improvement execution plan", .handler = command_mod.allocatorHandler(runSeedSelfImproveSubcommand) },
+        .{ .name = "edit", .description = "Edit task properties", .handler = runEdit },
+        .{ .name = "block", .description = "Mark task blocked by another task", .handler = runBlock },
+        .{ .name = "unblock", .description = "Remove blocked status", .handler = runUnblock },
+        .{ .name = "due", .description = "Set or clear task due date", .handler = runDue },
     },
-};
-
-const task_subcommands = [_][]const u8{
-    "add",  "list",  "ls",             "show",
-    "done", "start", "cancel",         "delete",
-    "rm",   "stats", "import-roadmap", "seed-self-improve",
-    "edit", "block", "unblock",        "due",
-    "help",
 };
 
 /// Run the task command with the provided arguments.
@@ -116,7 +73,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
     // Unknown subcommand
     utils.output.printError("Unknown task command: {s}", .{cmd});
-    if (utils.args.suggestCommand(cmd, &task_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }

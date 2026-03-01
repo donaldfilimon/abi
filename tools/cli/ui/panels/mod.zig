@@ -18,6 +18,7 @@ pub const network_adapter = @import("network_adapter.zig");
 pub const security_panel = @import("security_panel.zig");
 pub const connectors_panel = @import("connectors_panel.zig");
 pub const ralph_panel = @import("ralph_panel.zig");
+pub const registry = @import("registry.zig");
 
 // Convenience type aliases
 pub const SecurityPanel = security_panel.SecurityPanel;

@@ -154,9 +154,9 @@ pub fn main(init: std.process.Init) !void {
     var ai_config = abi.config.AiConfig.defaults();
     ai_config.training = .{};
     var builder = abi.Framework.builder(allocator);
-    _ = builder.withAi(ai_config);
+    _ = builder.with(.ai, ai_config);
     if (config.use_gpu) {
-        _ = builder.withGpuDefaults();
+        _ = builder.withDefault(.gpu);
     }
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});

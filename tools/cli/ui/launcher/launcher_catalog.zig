@@ -1,4 +1,4 @@
-//! Descriptor-validated launcher catalog for the TUI command launcher.
+//! Descriptor-driven launcher catalog for the TUI command launcher.
 
 const std = @import("std");
 const framework = @import("../../framework/mod.zig");
@@ -9,14 +9,6 @@ const MenuItem = types.MenuItem;
 const CommandRef = types.CommandRef;
 
 const empty_args = &[_][:0]const u8{};
-const args_stats = [_][:0]const u8{"stats"};
-const args_quick = [_][:0]const u8{"quick"};
-const args_show = [_][:0]const u8{"show"};
-const args_status = [_][:0]const u8{"status"};
-const args_summary = [_][:0]const u8{"summary"};
-const args_list = [_][:0]const u8{"list"};
-const args_info = [_][:0]const u8{"info"};
-const args_monitor = [_][:0]const u8{"monitor"};
 
 pub fn menuItems() []const MenuItem {
     return &catalog_items;
@@ -39,193 +31,121 @@ pub fn commandName(command_id: []const u8) []const u8 {
     return command_id;
 }
 
-const catalog_items = [_]MenuItem{
-    // AI & ML (shortcuts 1-3)
-    .{
-        .label = "AI Agent",
-        .description = "Interactive AI assistant",
-        .action = .{ .command = commandRef("agent", "agent", empty_args) },
-        .category = .ai,
-        .shortcut = 1,
-        .usage = "abi agent [--message \"...\"] [--persona <name>]",
-        .examples = &[_][]const u8{ "abi agent", "abi agent --message \"Hello\"" },
-        .related = &[_][]const u8{ "llm", "train" },
-    },
-    .{
-        .label = "LLM",
-        .description = "Local LLM inference",
-        .action = .{ .command = commandRef("llm", "llm", &args_list) },
-        .category = .ai,
-        .shortcut = 2,
-        .usage = "abi llm <subcommand> [options]",
-        .examples = &[_][]const u8{ "abi llm run --model llama3 --prompt \"hello\"", "abi llm session --model llama3", "abi llm providers" },
-        .related = &[_][]const u8{ "agent", "embed" },
-    },
-    .{
-        .label = "Training",
-        .description = "Run training pipelines",
-        .action = .{ .command = commandRef("train", "train", &args_info) },
-        .category = .ai,
-        .shortcut = 3,
-        .usage = "abi train <subcommand> [options]",
-        .examples = &[_][]const u8{ "abi train run", "abi train resume", "abi train info" },
-        .related = &[_][]const u8{ "agent", "llm", "train-monitor" },
-    },
-    .{
-        .label = "Training Monitor",
-        .description = "Live training dashboard",
-        .action = .{ .command = commandRef("train-monitor", "train", &args_monitor) },
-        .category = .ai,
-        .usage = "abi train monitor [run-id]",
-        .examples = &[_][]const u8{ "abi train monitor", "abi train monitor --log-dir ./logs" },
-        .related = &[_][]const u8{ "train", "llm" },
-    },
-    .{
-        .label = "Embeddings",
-        .description = "Generate embeddings",
-        .action = .{ .command = commandRef("embed", "embed", empty_args) },
-        .category = .ai,
-        .usage = "abi embed [--provider <name>] <text>",
-        .examples = &[_][]const u8{ "abi embed \"hello world\"", "abi embed --provider openai \"text\"" },
-        .related = &[_][]const u8{ "db", "llm" },
-    },
-    .{
-        .label = "Model",
-        .description = "Model management (download, cache, switch)",
-        .action = .{ .command = commandRef("model", "model", &args_list) },
-        .category = .ai,
-        .usage = "abi model <subcommand> [options]",
-        .examples = &[_][]const u8{ "abi model list", "abi model download llama-7b", "abi model info mistral" },
-        .related = &[_][]const u8{ "llm", "agent", "embed" },
-    },
-    .{
-        .label = "Ralph",
-        .description = "Iterative agent loop (init, run, status, gate, improve, skills)",
-        .action = .{ .command = commandRef("ralph", "ralph", &args_status) },
-        .category = .ai,
-        .usage = "abi ralph <subcommand> [options]",
-        .examples = &[_][]const u8{ "abi ralph init", "abi ralph run", "abi ralph run --task \"...\"", "abi ralph status" },
-        .related = &[_][]const u8{ "agent", "llm" },
-    },
+fn mapCategory(category: framework.types.UiCategory) types.Category {
+    return switch (category) {
+        .ai => .ai,
+        .data => .data,
+        .system => .system,
+        .tools => .tools,
+        .meta => .meta,
+    };
+}
 
-    // Data (shortcuts 4-5)
-    .{
-        .label = "Database",
-        .description = "Manage vector database",
-        .action = .{ .command = commandRef("db", "db", &args_stats) },
-        .category = .data,
-        .shortcut = 4,
-        .usage = "abi db <subcommand> [options]",
-        .examples = &[_][]const u8{ "abi db stats", "abi db add", "abi db query", "abi db backup" },
-        .related = &[_][]const u8{ "embed", "explore" },
-    },
-    .{
-        .label = "Explore",
-        .description = "Search the codebase",
-        .action = .{ .command = commandRef("explore", "explore", empty_args) },
-        .category = .data,
-        .shortcut = 5,
-        .usage = "abi explore [query]",
-        .examples = &[_][]const u8{ "abi explore", "abi explore \"function name\"" },
-        .related = &[_][]const u8{ "db", "agent" },
-    },
+fn heuristicCategory(comptime command_name: []const u8) types.Category {
+    if (std.mem.eql(u8, command_name, "agent") or
+        std.mem.eql(u8, command_name, "llm") or
+        std.mem.eql(u8, command_name, "train") or
+        std.mem.eql(u8, command_name, "embed") or
+        std.mem.eql(u8, command_name, "model") or
+        std.mem.eql(u8, command_name, "brain") or
+        std.mem.eql(u8, command_name, "ralph") or
+        std.mem.eql(u8, command_name, "ui"))
+    {
+        return .ai;
+    }
+    if (std.mem.eql(u8, command_name, "db") or
+        std.mem.eql(u8, command_name, "explore") or
+        std.mem.eql(u8, command_name, "task"))
+    {
+        return .data;
+    }
+    if (std.mem.eql(u8, command_name, "gpu") or
+        std.mem.eql(u8, command_name, "network") or
+        std.mem.eql(u8, command_name, "system-info") or
+        std.mem.eql(u8, command_name, "toolchain") or
+        std.mem.eql(u8, command_name, "lsp") or
+        std.mem.eql(u8, command_name, "mcp") or
+        std.mem.eql(u8, command_name, "acp") or
+        std.mem.eql(u8, command_name, "env"))
+    {
+        return .system;
+    }
+    return .tools;
+}
 
-    // System (shortcuts 6-7)
-    .{
-        .label = "GPU",
-        .description = "GPU devices and backends",
-        .action = .{ .command = commandRef("gpu", "gpu", &args_summary) },
-        .category = .system,
-        .shortcut = 6,
-        .usage = "abi gpu <subcommand>",
-        .examples = &[_][]const u8{ "abi gpu backends", "abi gpu devices", "abi gpu summary" },
-        .related = &[_][]const u8{ "bench", "system-info" },
-    },
-    .{
-        .label = "Network",
-        .description = "Cluster management",
-        .action = .{ .command = commandRef("network", "network", &args_status) },
-        .category = .system,
-        .shortcut = 7,
-        .usage = "abi network <subcommand>",
-        .examples = &[_][]const u8{ "abi network list", "abi network status", "abi network register" },
-        .related = &[_][]const u8{ "system-info", "config" },
-    },
-    .{
-        .label = "System Info",
-        .description = "System and framework status",
-        .action = .{ .command = commandRef("system-info", "system-info", empty_args) },
-        .category = .system,
-        .usage = "abi system-info",
-        .examples = &[_][]const u8{"abi system-info"},
-        .related = &[_][]const u8{ "gpu", "network" },
-    },
+fn defaultArgs(comptime desc: framework.types.CommandDescriptor) []const [:0]const u8 {
+    if (desc.default_subcommand) |default_subcommand| {
+        const Holder = struct {
+            const args = [_][:0]const u8{default_subcommand};
+        };
+        return &Holder.args;
+    }
+    return empty_args;
+}
 
-    // Tools (shortcuts 8-9)
-    .{
-        .label = "Benchmarks",
-        .description = "Performance benchmarks",
-        .action = .{ .command = commandRef("bench", "bench", &args_quick) },
-        .category = .tools,
-        .shortcut = 8,
-        .usage = "abi bench [suite]",
-        .examples = &[_][]const u8{ "abi bench", "abi bench all", "abi bench simd" },
-        .related = &[_][]const u8{ "simd", "gpu" },
-    },
-    .{
-        .label = "SIMD",
-        .description = "SIMD performance demo",
-        .action = .{ .command = commandRef("simd", "simd", empty_args) },
-        .category = .tools,
-        .shortcut = 9,
-        .usage = "abi simd",
-        .examples = &[_][]const u8{"abi simd"},
-        .related = &[_][]const u8{ "bench", "gpu" },
-    },
-    .{
-        .label = "Config",
-        .description = "Configuration management",
-        .action = .{ .command = commandRef("config", "config", &args_show) },
-        .category = .tools,
-        .usage = "abi config <subcommand>",
-        .examples = &[_][]const u8{ "abi config show", "abi config setup", "abi config validate" },
-        .related = &[_][]const u8{ "system-info", "network" },
-    },
-    .{
-        .label = "Tasks",
-        .description = "Task management",
-        .action = .{ .command = commandRef("task", "task", &args_list) },
-        .category = .tools,
-        .usage = "abi task <subcommand>",
-        .examples = &[_][]const u8{ "abi task list", "abi task add", "abi task done" },
-        .related = &[_][]const u8{ "agent", "config" },
-    },
-    .{
-        .label = "Discord",
-        .description = "Discord bot integration",
-        .action = .{ .command = commandRef("discord", "discord", &args_status) },
-        .category = .tools,
-        .usage = "abi discord <subcommand>",
-        .examples = &[_][]const u8{ "abi discord status", "abi discord guilds" },
-        .related = &[_][]const u8{ "agent", "config" },
-    },
+fn commandLabel(comptime desc: framework.types.CommandDescriptor) []const u8 {
+    return if (desc.ui.label) |label| label else desc.name;
+}
 
-    // Meta
-    .{ .label = "Help", .description = "Show CLI usage", .action = .help, .category = .meta },
-    .{ .label = "Version", .description = "Show version", .action = .version, .category = .meta },
-    .{ .label = "Quit", .description = "Exit the launcher", .action = .quit, .category = .meta },
+fn commandUsage(comptime desc: framework.types.CommandDescriptor) []const u8 {
+    return if (desc.ui.usage) |usage|
+        usage
+    else
+        std.fmt.comptimePrint("abi {s}", .{desc.name});
+}
+
+fn includeInLauncher(comptime desc: framework.types.CommandDescriptor) bool {
+    return desc.visibility == .public and desc.ui.include_in_launcher;
+}
+
+const visible_command_count: usize = blk: {
+    var count: usize = 0;
+    inline for (commands.descriptors) |desc| {
+        if (includeInLauncher(desc)) count += 1;
+    }
+    break :blk count;
+};
+
+const catalog_items = blk: {
+    var out: [visible_command_count + 3]MenuItem = undefined;
+    var index: usize = 0;
+
+    inline for (commands.descriptors) |desc| {
+        if (!includeInLauncher(desc)) continue;
+
+        const category = if (desc.ui.category) |explicit_category|
+            mapCategory(explicit_category)
+        else
+            heuristicCategory(desc.name);
+
+        out[index] = .{
+            .label = commandLabel(desc),
+            .description = desc.description,
+            .action = .{ .command = .{
+                .id = desc.name,
+                .command = desc.name,
+                .args = defaultArgs(desc),
+            } },
+            .category = category,
+            .shortcut = desc.ui.shortcut,
+            .usage = commandUsage(desc),
+            .examples = desc.ui.examples,
+            .related = desc.ui.related,
+        };
+        index += 1;
+    }
+
+    out[index] = .{ .label = "Help", .description = "Show CLI usage", .action = .help, .category = .meta };
+    index += 1;
+    out[index] = .{ .label = "Version", .description = "Show version", .action = .version, .category = .meta };
+    index += 1;
+    out[index] = .{ .label = "Quit", .description = "Exit the launcher", .action = .quit, .category = .meta };
+
+    break :blk out;
 };
 
 comptime {
     validateCatalog(&catalog_items);
-}
-
-fn commandRef(comptime id: []const u8, comptime command: []const u8, comptime args: []const [:0]const u8) CommandRef {
-    return .{
-        .id = id,
-        .command = command,
-        .args = args,
-    };
 }
 
 fn validateCatalog(comptime items: []const MenuItem) void {
@@ -237,7 +157,6 @@ fn validateCatalog(comptime items: []const MenuItem) void {
                     .{ item.label, shortcut },
                 ));
             }
-
             inline for (items[0..index]) |prev| {
                 if (prev.shortcut) |prev_shortcut| {
                     if (prev_shortcut == shortcut) {
@@ -252,40 +171,16 @@ fn validateCatalog(comptime items: []const MenuItem) void {
 
         switch (item.action) {
             .command => |cmd| {
-                validateCommandRef(cmd, item.label);
-                inline for (items[0..index]) |prev| {
-                    switch (prev.action) {
-                        .command => |prev_cmd| {
-                            if (std.mem.eql(u8, prev_cmd.id, cmd.id)) {
-                                @compileError(std.fmt.comptimePrint(
-                                    "duplicate launcher command id '{s}' in '{s}' and '{s}'",
-                                    .{ cmd.id, prev.label, item.label },
-                                ));
-                            }
-                        },
-                        else => {},
-                    }
+                if (findTopLevelDescriptor(cmd.command) == null) {
+                    @compileError(std.fmt.comptimePrint(
+                        "launcher item '{s}' references unknown command '{s}'",
+                        .{ item.label, cmd.command },
+                    ));
                 }
             },
             else => {},
         }
     }
-}
-
-fn validateCommandRef(comptime cmd: CommandRef, comptime item_label: []const u8) void {
-    if (cmd.id.len == 0) {
-        @compileError(std.fmt.comptimePrint(
-            "launcher item '{s}' has empty command id",
-            .{item_label},
-        ));
-    }
-
-    _ = findTopLevelDescriptor(cmd.command) orelse {
-        @compileError(std.fmt.comptimePrint(
-            "launcher item '{s}' maps id '{s}' to unknown command '{s}'",
-            .{ item_label, cmd.id, cmd.command },
-        ));
-    };
 }
 
 fn findTopLevelDescriptor(comptime raw_command: []const u8) ?*const framework.types.CommandDescriptor {

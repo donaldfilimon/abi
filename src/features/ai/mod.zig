@@ -36,7 +36,7 @@
 //! const ai_ctx = try fw.get(.ai);
 //!
 //! // Use LLM
-//! const llm = try ai_ctx.getLlm();
+//! const llm = try ai_ctx.get(.llm);
 //! // ... perform inference ...
 //! ```
 //!
@@ -53,7 +53,7 @@
 //!
 //! // Check which sub-features are enabled
 //! if (ctx.isSubFeatureEnabled(.llm)) {
-//!     const llm = try ctx.getLlm();
+//!     const llm = try ctx.get(.llm);
 //!     // ... use LLM ...
 //! }
 //! ```
@@ -234,8 +234,8 @@ pub const Error = error{
 /// defer ctx.deinit();
 ///
 /// // Access sub-features
-/// const llm = try ctx.getLlm();
-/// const emb = try ctx.getEmbeddings();
+/// const llm = try ctx.get(.llm);
+/// const emb = try ctx.get(.embeddings);
 /// ```
 pub const Context = struct {
     /// Memory allocator for context resources.
@@ -302,24 +302,12 @@ pub const Context = struct {
         // Initialize enabled sub-features
         errdefer ctx.deinitSubFeatures();
 
-        if (cfg.llm) |llm_cfg| {
-            ctx.llm_ctx = try llm.Context.init(allocator, llm_cfg);
-        }
-
-        if (cfg.embeddings) |emb_cfg| {
-            ctx.embeddings_ctx = try embeddings.Context.init(allocator, emb_cfg);
-        }
-
-        if (cfg.agents) |agent_cfg| {
-            ctx.agents_ctx = try agents.Context.init(allocator, agent_cfg);
-        }
-
-        if (cfg.training) |train_cfg| {
-            ctx.training_ctx = try training.Context.init(allocator, train_cfg);
-        }
-
-        if (cfg.personas) |personas_cfg| {
-            ctx.personas_ctx = try personas.Context.init(allocator, personas_cfg);
+        inline for (std.meta.fields(SubFeature)) |field| {
+            const feature = @as(SubFeature, @enumFromInt(field.value));
+            const sub_cfg = @field(cfg, @tagName(feature));
+            if (sub_cfg) |sc| {
+                @field(ctx, @tagName(feature) ++ "_ctx") = try SubFeatureContext(feature).init(allocator, sc);
+            }
         }
 
         return ctx;
@@ -341,62 +329,35 @@ pub const Context = struct {
             self.allocator.destroy(disc);
             self.model_discovery = null;
         }
-        if (self.personas_ctx) |p| {
-            p.deinit();
-            self.personas_ctx = null;
-        }
-        if (self.training_ctx) |t| {
-            t.deinit();
-            self.training_ctx = null;
-        }
-        if (self.agents_ctx) |a| {
-            a.deinit();
-            self.agents_ctx = null;
-        }
-        if (self.embeddings_ctx) |e| {
-            e.deinit();
-            self.embeddings_ctx = null;
-        }
-        if (self.llm_ctx) |l| {
-            l.deinit();
-            self.llm_ctx = null;
+
+        inline for (std.meta.fields(SubFeature)) |field| {
+            const ctx_field = field.name ++ "_ctx";
+            if (@field(self, ctx_field)) |ctx| {
+                ctx.deinit();
+                @field(self, ctx_field) = null;
+            }
         }
     }
 
-    /// Get LLM context (returns error if not enabled).
-    pub fn getLlm(self: *Context) Error!*llm.Context {
-        return self.llm_ctx orelse error.LlmDisabled;
-    }
-
-    /// Get embeddings context (returns error if not enabled).
-    pub fn getEmbeddings(self: *Context) Error!*embeddings.Context {
-        return self.embeddings_ctx orelse error.EmbeddingsDisabled;
-    }
-
-    /// Get agents context (returns error if not enabled).
-    pub fn getAgents(self: *Context) Error!*agents.Context {
-        return self.agents_ctx orelse error.AgentsDisabled;
-    }
-
-    /// Get training context (returns error if not enabled).
-    pub fn getTraining(self: *Context) Error!*training.Context {
-        return self.training_ctx orelse error.TrainingDisabled;
-    }
-
-    /// Get personas context (returns error if not enabled).
-    pub fn getPersonas(self: *Context) Error!*personas.Context {
-        return self.personas_ctx orelse error.AiDisabled;
+    /// Get a sub-feature context (e.g., `get(.llm)`).
+    pub fn get(self: *Context, comptime feature: SubFeature) Error!*SubFeatureContext(feature) {
+        return @field(self, @tagName(feature) ++ "_ctx") orelse switch (feature) {
+            .llm => error.LlmDisabled,
+            .embeddings => error.EmbeddingsDisabled,
+            .agents => error.AgentsDisabled,
+            .training => error.TrainingDisabled,
+            .personas => error.AiDisabled, // Personas currently maps to AiDisabled
+        };
     }
 
     /// Check if a sub-feature is enabled.
     pub fn isSubFeatureEnabled(self: *Context, feature: SubFeature) bool {
-        return switch (feature) {
-            .llm => self.llm_ctx != null,
-            .embeddings => self.embeddings_ctx != null,
-            .agents => self.agents_ctx != null,
-            .training => self.training_ctx != null,
-            .personas => self.personas_ctx != null,
-        };
+        inline for (std.meta.fields(SubFeature)) |field| {
+            if (feature == @as(SubFeature, @enumFromInt(field.value))) {
+                return @field(self, field.name ++ "_ctx") != null;
+            }
+        }
+        unreachable;
     }
 
     /// Get discovered models (returns empty slice if discovery not enabled).
@@ -472,6 +433,17 @@ pub const Context = struct {
         training,
         personas,
     };
+
+    /// Helper trait to resolve the context type for a given sub-feature.
+    pub fn SubFeatureContext(comptime feature: SubFeature) type {
+        return switch (feature) {
+            .llm => llm.Context,
+            .embeddings => embeddings.Context,
+            .agents => agents.Context,
+            .training => training.Context,
+            .personas => personas.Context,
+        };
+    }
 };
 
 // ============================================================================

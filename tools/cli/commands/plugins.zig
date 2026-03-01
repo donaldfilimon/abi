@@ -33,7 +33,7 @@ const PluginState = struct {
 
     pub fn init(allocator: std.mem.Allocator) PluginState {
         return .{
-            .enabled_plugins = . {},
+            .enabled_plugins = .{},
             .allocator = allocator,
         };
     }
@@ -57,7 +57,7 @@ const PluginLoadState = enum {
 };
 
 const PersistedPluginState = struct {
-    plugins: std.StringArrayHashMapUnmanaged(bool) = . {},
+    plugins: std.StringArrayHashMapUnmanaged(bool) = .{},
 };
 
 fn getPluginsConfigPath(allocator: std.mem.Allocator) ![]u8 {
@@ -84,7 +84,7 @@ fn tryLoadPluginStateFromPath(
     const content_z = try allocator.dupeZ(u8, content);
     defer allocator.free(content_z);
 
-    const parsed = std.zon.parse.fromSlice(PersistedPluginState, allocator, content_z, null, .{}) catch {
+    const parsed = std.zon.parse.fromSliceAlloc(PersistedPluginState, allocator, content_z, null, .{}) catch {
         return .loaded;
     };
     defer parsed.deinit();
@@ -115,8 +115,8 @@ fn savePluginState(allocator: std.mem.Allocator, state: *const PluginState) !voi
     defer allocator.free(config_path);
 
     // Build ZON content
-    var zon_buf = std.ArrayList(u8).init(allocator);
-    defer zon_buf.deinit();
+    var zon_buf = std.ArrayListUnmanaged(u8).empty;
+    defer zon_buf.deinit(allocator);
 
     var persisted = PersistedPluginState{};
     var iter = state.enabled_plugins.iterator();
@@ -125,7 +125,7 @@ fn savePluginState(allocator: std.mem.Allocator, state: *const PluginState) !voi
     }
     defer persisted.plugins.deinit(allocator);
 
-    var writer = zon_buf.writer();
+    var writer = zon_buf.writer(allocator);
     try std.zon.stringify.serialize(persisted, .{}, &writer);
 
     // Initialize I/O backend for Zig 0.16
@@ -157,11 +157,19 @@ fn getPlugins(allocator: std.mem.Allocator) ![]PluginInfo {
 pub const meta: command_mod.Meta = .{
     .name = "plugins",
     .description = "Manage framework plugins (list, enable, disable, info)",
+    .kind = .group,
     .subcommands = &.{ "list", "enable", "disable", "info", "search", "help" },
+    .children = &.{
+        .{ .name = "list", .description = "List all available plugins", .handler = runListSubcommand },
+        .{ .name = "enable", .description = "Enable a plugin", .handler = runEnableSubcommand },
+        .{ .name = "disable", .description = "Disable a plugin", .handler = runDisableSubcommand },
+        .{ .name = "info", .description = "Show plugin details", .handler = runInfoSubcommand },
+        .{ .name = "search", .description = "Search for plugins", .handler = runSearchSubcommand },
+    },
 };
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
+    _ = ctx;
     if (args.len == 0) {
         printHelp();
         return;
@@ -172,21 +180,51 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         printHelp();
         return;
     }
-
-    if (std.mem.eql(u8, cmd, "list")) {
-        try runList(ctx);
-    } else if (std.mem.eql(u8, cmd, "enable")) {
-        try runEnable(ctx, args[1..]);
-    } else if (std.mem.eql(u8, cmd, "disable")) {
-        try runDisable(ctx, args[1..]);
-    } else if (std.mem.eql(u8, cmd, "info")) {
-        try runInfo(ctx, args[1..]);
-    } else if (std.mem.eql(u8, cmd, "search")) {
-        try runSearch(ctx, args[1..]);
-    } else {
-        utils.output.printError("Unknown plugins command: {s}", .{cmd});
-        printHelp();
+    utils.output.printError("Unknown plugins command: {s}", .{cmd});
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
+        utils.output.println("Did you mean: {s}", .{suggestion});
     }
+    printHelp();
+}
+
+fn runListSubcommand(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+    try runList(ctx);
+}
+
+fn runEnableSubcommand(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+    try runEnable(ctx, args);
+}
+
+fn runDisableSubcommand(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+    try runDisable(ctx, args);
+}
+
+fn runInfoSubcommand(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+    try runInfo(ctx, args);
+}
+
+fn runSearchSubcommand(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
+    if (utils.args.containsHelpArgs(args)) {
+        printHelp();
+        return;
+    }
+    try runSearch(ctx, args);
 }
 
 fn runList(ctx: *const context_mod.CommandContext) !void {
@@ -318,7 +356,8 @@ fn runSearch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8)
     var found = false;
     for (builtin_plugins) |p| {
         if (std.ascii.indexOfIgnoreCase(p.name, query) != null or
-            std.ascii.indexOfIgnoreCase(p.description, query) != null) {
+            std.ascii.indexOfIgnoreCase(p.description, query) != null)
+        {
             const status = if (state_local.isEnabled(p.name)) "[Enabled]" else "[Disabled]";
             utils.output.println("{s:<25} {s:<10} {s}", .{ p.name, status, p.description });
             found = true;

@@ -73,12 +73,12 @@ fn printFrameworkInfo(allocator: std.mem.Allocator) !void {
 
     // Build a fully‑featured framework using the builder pattern.
     var builder = abi.Framework.builder(allocator);
-    _ = builder.withGpuDefaults();
-    _ = builder.withAiDefaults();
-    _ = builder.withDatabaseDefaults();
-    _ = builder.withWebDefaults();
-    _ = builder.withNetworkDefaults();
-    _ = builder.withObservabilityDefaults();
+    _ = builder.withDefault(.gpu);
+    _ = builder.withDefault(.ai);
+    _ = builder.withDefault(.database);
+    _ = builder.withDefault(.web);
+    _ = builder.withDefault(.network);
+    _ = builder.withDefault(.observability);
     _ = builder.withIo(io_backend.io);
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});

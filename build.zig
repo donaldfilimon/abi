@@ -54,22 +54,17 @@ pub fn build(b: *std.Build) void {
     abi_module.addImport("build_options", build_opts);
 
     // ── CLI executable ──────────────────────────────────────────────────
-    const cli_path = if (targets.pathExists(b, "tools/cli/main.zig"))
-        "tools/cli/main.zig"
-    else
-        "src/api/main.zig";
     const exe = b.addExecutable(.{
         .name = "abi",
         .root_module = b.createModule(.{
-            .root_source_file = b.path(cli_path),
+            .root_source_file = b.path("tools/cli/main.zig"),
             .target = target,
             .optimize = optimize,
             .link_libc = true,
         }),
     });
     exe.root_module.addImport("abi", abi_module);
-    if (targets.pathExists(b, "tools/cli/main.zig"))
-        exe.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
+    exe.root_module.addImport("cli", modules.createCliModule(b, abi_module, target, optimize));
     targets.applyPerformanceTweaks(exe, optimize);
     link.applyAllPlatformLinks(exe.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     b.installArtifact(exe);
@@ -79,6 +74,7 @@ pub fn build(b: *std.Build) void {
     b.step("run", "Run the ABI CLI").dependOn(&run_cli.step);
 
     const run_editor = b.addRunArtifact(exe);
+    run_editor.addArg("ui");
     run_editor.addArg("editor");
     if (b.args) |args| run_editor.addArgs(args);
     b.step("editor", "Run the inline CLI TUI editor").dependOn(&run_editor.step);
@@ -92,21 +88,19 @@ pub fn build(b: *std.Build) void {
 
     // ── TUI / CLI unit tests ───────────────────────────────────────────
     var tui_tests_step: ?*std.Build.Step = null;
-    if (targets.pathExists(b, "tools/cli/main.zig")) {
-        const cli_test_mod = b.createModule(.{
-            .root_source_file = b.path("tools/cli/mod.zig"),
-            .target = target,
-            .optimize = optimize,
-            .link_libc = true,
-        });
-        cli_test_mod.addImport("abi", abi_module);
-        const cli_tests_artifact = b.addTest(.{ .root_module = cli_test_mod });
-        link.applyAllPlatformLinks(cli_tests_artifact.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
-        const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
-        run_cli_tests.skip_foreign_checks = true;
-        tui_tests_step = b.step("tui-tests", "Run TUI and CLI unit tests");
-        tui_tests_step.?.dependOn(&run_cli_tests.step);
-    }
+    const cli_test_mod = b.createModule(.{
+        .root_source_file = b.path("tools/cli/mod.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    cli_test_mod.addImport("abi", abi_module);
+    const cli_tests_artifact = b.addTest(.{ .root_module = cli_test_mod });
+    link.applyAllPlatformLinks(cli_tests_artifact.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+    const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
+    run_cli_tests.skip_foreign_checks = true;
+    tui_tests_step = b.step("tui-tests", "Run TUI and CLI unit tests");
+    tui_tests_step.?.dependOn(&run_cli_tests.step);
 
     // ── Lint / format ───────────────────────────────────────────────────
     const fmt_paths = &.{ "build.zig", "build", "src", "tools", "examples" };
@@ -205,6 +199,51 @@ pub fn build(b: *std.Build) void {
     workflow_contract_strict.addArg("--strict");
     workflow_contract_strict_step.dependOn(&workflow_contract_strict.step);
 
+    // ── CLI DSL registry/codegen ───────────────────────────────────────
+    const generate_cli_registry = addScriptRunner(
+        b,
+        "abi-generate-cli-registry",
+        "tools/scripts/generate_cli_registry.zig",
+        target,
+        optimize,
+    );
+    generate_cli_registry.addArg("--output");
+    generate_cli_registry.addArg(".zig-cache/abi/generated/cli_registry.zig");
+    const generate_cli_registry_step = b.step("generate-cli-registry", "Generate CLI registry artifact in build cache");
+    generate_cli_registry_step.dependOn(&generate_cli_registry.step);
+
+    const refresh_cli_registry = addScriptRunner(
+        b,
+        "abi-refresh-cli-registry",
+        "tools/scripts/generate_cli_registry.zig",
+        target,
+        optimize,
+    );
+    refresh_cli_registry.addArg("--snapshot");
+    const refresh_cli_registry_step = b.step("refresh-cli-registry", "Refresh tracked CLI registry snapshot");
+    refresh_cli_registry_step.dependOn(&refresh_cli_registry.step);
+
+    const check_cli_registry = addScriptRunner(
+        b,
+        "abi-check-cli-registry",
+        "tools/scripts/generate_cli_registry.zig",
+        target,
+        optimize,
+    );
+    check_cli_registry.addArg("--check");
+    check_cli_registry.addArg("--snapshot");
+    const check_cli_registry_step = b.step("check-cli-registry", "Check CLI registry snapshot determinism");
+    check_cli_registry_step.dependOn(&check_cli_registry.step);
+
+    const check_cli_dsl_consistency_step = b.step("check-cli-dsl-consistency", "Verify CLI/TUI DSL organization contracts");
+    check_cli_dsl_consistency_step.dependOn(&addScriptRunner(
+        b,
+        "abi-check-cli-dsl-consistency",
+        "tools/scripts/check_cli_dsl_consistency.zig",
+        target,
+        optimize,
+    ).step);
+
     // ── Baseline validation ─────────────────────────────────────────────
     const validate_baseline_step = b.step("validate-baseline", "Run tests and verify counts match tools/scripts/baseline.zig");
     const validate_baseline = addScriptRunner(b, "abi-validate-test-counts", "tools/scripts/validate_test_counts.zig", target, optimize);
@@ -220,6 +259,8 @@ pub fn build(b: *std.Build) void {
     full_check_step.dependOn(validate_flags_step);
     full_check_step.dependOn(import_check_step);
     full_check_step.dependOn(consistency_step);
+    full_check_step.dependOn(check_cli_registry_step);
+    full_check_step.dependOn(check_cli_dsl_consistency_step);
     if (tui_tests_step) |step| full_check_step.dependOn(step);
 
     var check_docs_step: ?*std.Build.Step = null;
@@ -256,28 +297,26 @@ pub fn build(b: *std.Build) void {
     }
 
     // ── Profile build ───────────────────────────────────────────────────
-    if (targets.pathExists(b, "tools/cli/main.zig")) {
-        var profile_opts = options;
-        profile_opts.enable_profiling = true;
-        const abi_profile = modules.createAbiModule(b, profile_opts, target, optimize);
-        const profile_exe = b.addExecutable(.{
-            .name = "abi-profile",
-            .root_module = b.createModule(.{
-                .root_source_file = b.path("tools/cli/main.zig"),
-                .target = target,
-                .optimize = .ReleaseFast,
-                .link_libc = true,
-            }),
-        });
-        const profile_mod = profile_exe.root_module;
-        profile_mod.addImport("abi", abi_profile);
-        profile_mod.addImport("cli", modules.createCliModule(b, abi_profile, target, optimize));
-        profile_mod.strip = false;
-        profile_mod.omit_frame_pointer = false;
-        link.applyAllPlatformLinks(profile_mod, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
-        b.installArtifact(profile_exe);
-        b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
-    }
+    var profile_opts = options;
+    profile_opts.enable_profiling = true;
+    const abi_profile = modules.createAbiModule(b, profile_opts, target, optimize);
+    const profile_exe = b.addExecutable(.{
+        .name = "abi-profile",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/cli/main.zig"),
+            .target = target,
+            .optimize = .ReleaseFast,
+            .link_libc = true,
+        }),
+    });
+    const profile_mod = profile_exe.root_module;
+    profile_mod.addImport("abi", abi_profile);
+    profile_mod.addImport("cli", modules.createCliModule(b, abi_profile, target, optimize));
+    profile_mod.strip = false;
+    profile_mod.omit_frame_pointer = false;
+    link.applyAllPlatformLinks(profile_mod, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
+    b.installArtifact(profile_exe);
+    b.step("profile", "Build with performance profiling").dependOn(b.getInstallStep());
 
     // ── Mobile ──────────────────────────────────────────────────────────
     _ = mobile.addMobileBuild(b, options, optimize);

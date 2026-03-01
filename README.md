@@ -101,13 +101,8 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    // Initialize with builder pattern
-    var framework = try abi.Framework.builder(allocator)
-        .withAiDefaults()
-        .withGpuDefaults()
-        .withDatabaseDefaults()
-        .build();
-    defer framework.deinit();
+    var app = try abi.App.initDefault(allocator);
+    defer app.deinit();
 
     std.debug.print("ABI v{s} ready!\n", .{abi.version()});
 }
@@ -117,13 +112,12 @@ pub fn main() !void {
 
 ## API Migration (v2 Surface)
 
-ABI now exposes canonical v2 entrypoints while keeping temporary v1 compatibility:
+ABI now exposes canonical v2 entrypoints only:
 
-- Use `abi.App` / `abi.AppBuilder` as the canonical runtime types.
-- Use `abi.features.<name>` for feature modules and `abi.services.<name>` for always-on services.
-- Build metadata is available at `abi.meta.version()`.
-- Existing `abi.Framework`, `abi.init*`, and top-level feature exports remain available during the compatibility window.
-- `-Dfeat-*` flags are accepted as canonical build flags, with `-Denable-*` preserved as adapters.
+- Use `abi.App` / `abi.AppBuilder` as the runtime types.
+- Use `abi.features.<name>` for feature modules and `abi.services.<name>` for service modules.
+- Use `abi.App.init(...)`, `abi.App.initDefault(...)`, and `abi.App.builder(...)` for app bootstrap.
+- Legacy aliases (`abi.Framework`, `abi.init*`, top-level `abi.<feature|service>`) are removed.
 
 ---
 
@@ -140,7 +134,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    var agent = try abi.ai.Agent.init(allocator, .{
+    var agent = try abi.features.ai.Agent.init(allocator, .{
         .name = "assistant",
         .temperature = 0.7,
         .enable_history = true,
@@ -232,14 +226,14 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    const config = abi.ai.TrainingConfig{
+    const config = abi.features.ai.TrainingConfig{
         .epochs = 10,
         .batch_size = 32,
         .learning_rate = 0.001,
         .optimizer = .adamw,
     };
 
-    var result = try abi.ai.trainWithResult(allocator, config);
+    var result = try abi.features.ai.trainWithResult(allocator, config);
     defer result.deinit();
 
     std.debug.print("Final loss: {d:.6}\n", .{result.report.final_loss});
@@ -252,11 +246,22 @@ pub fn main() !void {
 
 ## CLI Reference
 
+### Adding CLI/TUI tools via the comptime DSL
+
+- Define command metadata in the command module using `pub const meta: command.Meta`.
+- Keep registry ordering/metadata overrides in `/Users/donaldfilimon/abi/tools/cli/registry/overrides.zig`.
+- Refresh the generated registry snapshot with `zig build refresh-cli-registry` after adding commands.
+- Use command metadata fields for options/UI/risk so launcher/completion/help are derived from one source.
+- For simple UI dashboards, use `/Users/donaldfilimon/abi/tools/cli/ui/dsl/mod.zig` to avoid repeated theme/session/dashboard boilerplate.
+- Refresh/check registry snapshots with:
+`zig build refresh-cli-registry`
+`zig build check-cli-registry`
+
 ```bash
 # Core Commands
 abi --help                    # Show all commands
 abi system-info               # System and feature status
-abi tui                       # Interactive TUI launcher
+abi ui launch                 # Interactive TUI launcher
 
 # Database Operations
 abi db stats                  # Database statistics

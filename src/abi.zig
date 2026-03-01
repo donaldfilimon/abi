@@ -401,8 +401,8 @@ test "framework initialization with defaults" {
 test "config builder pattern" {
     var builder = config.Builder.init(std.testing.allocator);
     const cfg = builder
-        .withGpuDefaults()
-        .withAiDefaults()
+        .withDefault(.gpu)
+        .withDefault(.ai)
         .build();
 
     if (build_options.enable_gpu) {

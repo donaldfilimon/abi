@@ -119,4 +119,3 @@ pub const command_overrides = [_]CommandOverride{
     .{ .name = "completions", .visibility = .hidden, .ui = .{ .include_in_launcher = false } },
     .{ .name = "clean", .risk = .destructive, .ui = .{ .risk_badge = "destructive" } },
 };
-

@@ -261,14 +261,14 @@ pub const Config = struct {
             .allocator = allocator,
             .source = .default,
             .source_path = "",
-            .owned_strings = .{}, 
-            .framework = .{}, 
-            .database = .{}, 
-            .gpu = .{}, 
-            .ai = .{}, 
-            .network = .{}, 
-            .web = .{}, 
-            .custom = .{}, 
+            .owned_strings = .{},
+            .framework = .{},
+            .database = .{},
+            .gpu = .{},
+            .ai = .{},
+            .network = .{},
+            .web = .{},
+            .custom = .{},
         };
     }
 
@@ -308,17 +308,17 @@ pub const Config = struct {
 };
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
-    return std.Io.Threaded.init(allocator, .{.environ = std.process.Environ.empty});
+    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
 }
 
 /// Helper struct for ZON parsing
 const ConfigZon = struct {
-    framework: FrameworkConfig = .{}, 
-    database: DatabaseConfig = .{}, 
-    gpu: GpuConfig = .{}, 
-    ai: AiConfig = .{}, 
-    network: NetworkConfig = .{}, 
-    web: WebConfig = .{}, 
+    framework: FrameworkConfig = .{},
+    database: DatabaseConfig = .{},
+    gpu: GpuConfig = .{},
+    ai: AiConfig = .{},
+    network: NetworkConfig = .{},
+    web: WebConfig = .{},
 };
 
 /// Configuration loader
@@ -357,12 +357,12 @@ pub const ConfigLoader = struct {
         var config = Config.init(self.allocator);
         errdefer config.deinit();
 
-        const parsed = std.zon.parse.fromSlice(ConfigZon, self.allocator, zon_str, null, .{}) catch {
+        const parsed = std.zon.parse.fromSliceAlloc(ConfigZon, self.allocator, zon_str, null, .{}) catch {
             return ConfigError.ParseError;
         };
-        defer parsed.deinit();
+        
 
-        const data = parsed.value;
+        const data = parsed;
         config.framework = data.framework;
         config.database = data.database;
         config.gpu = data.gpu;

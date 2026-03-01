@@ -48,6 +48,7 @@ pub const Meta = struct {
 
 pub const AllocatorArgHandler = *const fn (allocator: std.mem.Allocator, args: []const [:0]const u8) anyerror!void;
 pub const ArgParserHandler = *const fn (allocator: std.mem.Allocator, parser: *args_mod.ArgParser) anyerror!void;
+pub const ContextArgParserHandler = *const fn (ctx: *const context_mod.CommandContext, parser: *args_mod.ArgParser) anyerror!void;
 pub const Middleware = *const fn (
     ctx: *const context_mod.CommandContext,
     args: []const [:0]const u8,
@@ -67,6 +68,15 @@ pub fn parserHandler(comptime handler: ArgParserHandler) CommandHandler {
         fn call(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) anyerror!void {
             var parser = args_mod.ArgParser.init(ctx.allocator, args);
             try handler(ctx.allocator, &parser);
+        }
+    }.call;
+}
+
+pub fn contextParserHandler(comptime handler: ContextArgParserHandler) CommandHandler {
+    return struct {
+        fn call(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) anyerror!void {
+            var parser = args_mod.ArgParser.init(ctx.allocator, args);
+            try handler(ctx, &parser);
         }
     }.call;
 }

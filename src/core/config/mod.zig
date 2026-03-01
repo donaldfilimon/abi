@@ -9,6 +9,7 @@
 const std = @import("std");
 const build_options = @import("build_options");
 const feature_catalog = @import("../feature_catalog.zig");
+const comptime_meta = @import("../comptime_meta.zig");
 
 // Domain-specific config imports
 pub const gpu_config = @import("gpu.zig");
@@ -188,198 +189,56 @@ pub const Builder = struct {
         return self;
     }
 
-    pub fn withGpu(self: *Builder, cfg: GpuConfig) *Builder {
-        self.config.gpu = cfg;
+    /// Helper to get the correct config type for a feature
+    fn FeatureConfig(comptime feature: Feature) type {
+        return switch (feature) {
+            .gpu => GpuConfig,
+            .ai, .llm, .embeddings, .agents, .training, .personas, .reasoning, .constitution => AiConfig,
+            .database => DatabaseConfig,
+            .network => NetworkConfig,
+            .observability => ObservabilityConfig,
+            .web => WebConfig,
+            .cloud => CloudConfig,
+            .analytics => AnalyticsConfig,
+            .auth => AuthConfig,
+            .messaging => MessagingConfig,
+            .cache => CacheConfig,
+            .storage => StorageConfig,
+            .search => SearchConfig,
+            .mobile => MobileConfig,
+            .gateway => GatewayConfig,
+            .pages => PagesConfig,
+            .benchmarks => BenchmarksConfig,
+        };
+    }
+
+    /// Enable a feature with explicit configuration.
+    pub fn with(self: *Builder, comptime feature: Feature, cfg: anytype) *Builder {
+        const ExpectedCfg = FeatureConfig(feature);
+        // Coerce the anytype argument (which might be an anonymous literal `.{}`)
+        // into the explicitly expected config type. Emits a standard compiler error if invalid.
+        const typed_cfg: ExpectedCfg = cfg;
+        @field(self.config, @tagName(feature)) = typed_cfg;
         return self;
     }
 
-    pub fn withGpuDefaults(self: *Builder) *Builder {
-        self.config.gpu = GpuConfig.defaults();
-        return self;
-    }
+    /// Enable a feature with its default configuration.
+    pub fn withDefault(self: *Builder, comptime feature: Feature) *Builder {
+        const CfgType = FeatureConfig(feature);
 
-    pub fn withAi(self: *Builder, cfg: AiConfig) *Builder {
-        self.config.ai = cfg;
-        return self;
-    }
-
-    pub fn withAiDefaults(self: *Builder) *Builder {
-        if (build_options.enable_ai) {
-            self.config.ai = AiConfig.defaults();
+        if (feature == .llm) {
+            if (self.config.ai == null) {
+                self.config.ai = .{};
+            }
+            self.config.ai.?.llm = LlmConfig.defaults();
+        } else if (feature == .embeddings or feature == .agents or feature == .training or feature == .personas or feature == .reasoning) {
+            // These don't have distinct config structs at the moment, handled through AiConfig
+            if (self.config.ai == null) {
+                self.config.ai = .{};
+            }
+        } else {
+            @field(self.config, @tagName(feature)) = CfgType.defaults();
         }
-        return self;
-    }
-
-    pub fn withLlm(self: *Builder, cfg: LlmConfig) *Builder {
-        if (self.config.ai == null) {
-            self.config.ai = .{};
-        }
-        self.config.ai.?.llm = cfg;
-        return self;
-    }
-
-    pub fn withDatabase(self: *Builder, cfg: DatabaseConfig) *Builder {
-        self.config.database = cfg;
-        return self;
-    }
-
-    pub fn withDatabaseDefaults(self: *Builder) *Builder {
-        self.config.database = DatabaseConfig.defaults();
-        return self;
-    }
-
-    pub fn withNetwork(self: *Builder, cfg: NetworkConfig) *Builder {
-        self.config.network = cfg;
-        return self;
-    }
-
-    pub fn withNetworkDefaults(self: *Builder) *Builder {
-        self.config.network = NetworkConfig.defaults();
-        return self;
-    }
-
-    pub fn withObservability(self: *Builder, cfg: ObservabilityConfig) *Builder {
-        self.config.observability = cfg;
-        return self;
-    }
-
-    pub fn withObservabilityDefaults(self: *Builder) *Builder {
-        self.config.observability = ObservabilityConfig.defaults();
-        return self;
-    }
-
-    pub fn withWeb(self: *Builder, cfg: WebConfig) *Builder {
-        self.config.web = cfg;
-        return self;
-    }
-
-    pub fn withWebDefaults(self: *Builder) *Builder {
-        self.config.web = WebConfig.defaults();
-        return self;
-    }
-
-    pub fn withCloud(self: *Builder, cfg: CloudConfig) *Builder {
-        self.config.cloud = cfg;
-        return self;
-    }
-
-    pub fn withCloudDefaults(self: *Builder) *Builder {
-        self.config.cloud = CloudConfig.defaults();
-        return self;
-    }
-
-    pub fn withAnalytics(self: *Builder, cfg: AnalyticsConfig) *Builder {
-        self.config.analytics = cfg;
-        return self;
-    }
-
-    pub fn withAnalyticsDefaults(self: *Builder) *Builder {
-        self.config.analytics = AnalyticsConfig.defaults();
-        return self;
-    }
-
-    pub fn withAuth(self: *Builder, cfg: AuthConfig) *Builder {
-        self.config.auth = cfg;
-        return self;
-    }
-
-    pub fn withAuthDefaults(self: *Builder) *Builder {
-        self.config.auth = AuthConfig.defaults();
-        return self;
-    }
-
-    pub fn withMessaging(self: *Builder, cfg: MessagingConfig) *Builder {
-        self.config.messaging = cfg;
-        return self;
-    }
-
-    pub fn withMessagingDefaults(self: *Builder) *Builder {
-        self.config.messaging = MessagingConfig.defaults();
-        return self;
-    }
-
-    pub fn withCache(self: *Builder, cfg: CacheConfig) *Builder {
-        self.config.cache = cfg;
-        return self;
-    }
-
-    pub fn withCacheDefaults(self: *Builder) *Builder {
-        self.config.cache = CacheConfig.defaults();
-        return self;
-    }
-
-    pub fn withStorage(self: *Builder, cfg: StorageConfig) *Builder {
-        self.config.storage = cfg;
-        return self;
-    }
-
-    pub fn withStorageDefaults(self: *Builder) *Builder {
-        self.config.storage = StorageConfig.defaults();
-        return self;
-    }
-
-    pub fn withSearch(self: *Builder, cfg: SearchConfig) *Builder {
-        self.config.search = cfg;
-        return self;
-    }
-
-    pub fn withSearchDefaults(self: *Builder) *Builder {
-        self.config.search = SearchConfig.defaults();
-        return self;
-    }
-
-    pub fn withMobile(self: *Builder, cfg: MobileConfig) *Builder {
-        self.config.mobile = cfg;
-        return self;
-    }
-
-    pub fn withMobileDefaults(self: *Builder) *Builder {
-        self.config.mobile = MobileConfig.defaults();
-        return self;
-    }
-
-    pub fn withGateway(self: *Builder, cfg: GatewayConfig) *Builder {
-        self.config.gateway = cfg;
-        return self;
-    }
-
-    pub fn withGatewayDefaults(self: *Builder) *Builder {
-        self.config.gateway = GatewayConfig.defaults();
-        return self;
-    }
-
-    pub fn withPages(self: *Builder, cfg: PagesConfig) *Builder {
-        self.config.pages = cfg;
-        return self;
-    }
-
-    pub fn withPagesDefaults(self: *Builder) *Builder {
-        self.config.pages = PagesConfig.defaults();
-        return self;
-    }
-
-    pub fn withBenchmarks(self: *Builder, cfg: BenchmarksConfig) *Builder {
-        self.config.benchmarks = cfg;
-        return self;
-    }
-
-    pub fn withBenchmarksDefaults(self: *Builder) *Builder {
-        self.config.benchmarks = BenchmarksConfig.defaults();
-        return self;
-    }
-
-    pub fn withPlugins(self: *Builder, cfg: PluginConfig) *Builder {
-        self.config.plugins = cfg;
-        return self;
-    }
-
-    pub fn withLsp(self: *Builder, cfg: LspConfig) *Builder {
-        self.config.lsp = cfg;
-        return self;
-    }
-
-    pub fn withLspDefaults(self: *Builder) *Builder {
-        self.config.lsp = LspConfig.defaults();
         return self;
     }
 

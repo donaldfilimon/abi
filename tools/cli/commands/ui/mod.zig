@@ -16,14 +16,10 @@ const bench_cmd = @import("bench.zig");
 const brain_cmd = @import("brain.zig");
 const dashboard_cmd = @import("dashboard.zig");
 
-const ui_subcommands = [_][]const u8{
-    "launch", "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "dashboard", "help",
-};
-
 pub const meta: command_mod.Meta = .{
     .name = "ui",
     .description = "UI command family (launch, gpu, train, model, streaming, db, network, bench, brain, dashboard)",
-    .aliases = &.{ "launch", "start" },
+    .aliases = &.{},
     .subcommands = &.{ "launch", "gpu", "train", "neural", "model", "streaming", "db", "network", "bench", "brain", "dashboard", "help" },
     .kind = .group,
     .children = &.{
@@ -60,7 +56,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     utils.output.printError("Unknown ui subcommand: {s}", .{sub});
-    if (utils.args.suggestCommand(sub, &ui_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, sub)) |suggestion| {
         utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
     utils.output.printInfo("Run 'abi ui help' for usage.", .{});
@@ -89,8 +85,6 @@ pub fn printHelp() void {
         \\
         \\Examples:
         \\  abi ui launch
-        \\  abi launch
-        \\  abi start
         \\  abi ui gpu
         \\  abi ui model
         \\  abi ui streaming http://localhost:8080

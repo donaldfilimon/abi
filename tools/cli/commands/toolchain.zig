@@ -22,50 +22,18 @@ const c = @cImport({
     @cInclude("stdio.h");
 });
 
-// Wrapper functions for comptime children dispatch
-fn wrapInstall(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = ArgParser.init(allocator, args);
-    try runInstallBoth(allocator, &parser);
-}
-fn wrapZig(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = ArgParser.init(allocator, args);
-    try runInstallZig(allocator, &parser);
-}
-fn wrapZls(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = ArgParser.init(allocator, args);
-    try runInstallZls(allocator, &parser);
-}
-fn wrapStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = ArgParser.init(allocator, args);
-    try runStatusSubcommand(allocator, &parser);
-}
-fn wrapUpdate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = ArgParser.init(allocator, args);
-    try runUpdateSubcommand(allocator, &parser);
-}
-fn wrapPath(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = ArgParser.init(allocator, args);
-    try runPathSubcommand(allocator, &parser);
-}
-
 pub const meta: command_mod.Meta = .{
     .name = "toolchain",
     .description = "Build and install Zig/ZLS from master (install, update, status)",
     .kind = .group,
     .subcommands = &.{ "install", "zig", "zls", "status", "update", "path", "help" },
     .children = &.{
-        .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = wrapInstall },
-        .{ .name = "zig", .description = "Install only Zig from master", .handler = wrapZig },
-        .{ .name = "zls", .description = "Install only ZLS from master", .handler = wrapZls },
-        .{ .name = "status", .description = "Show installed versions", .handler = wrapStatus },
-        .{ .name = "update", .description = "Update to latest master", .handler = wrapUpdate },
-        .{ .name = "path", .description = "Print install directory for shell config", .handler = wrapPath },
+        .{ .name = "install", .description = "Install both Zig and ZLS from master", .handler = command_mod.parserHandler(runInstallBoth) },
+        .{ .name = "zig", .description = "Install only Zig from master", .handler = command_mod.parserHandler(runInstallZig) },
+        .{ .name = "zls", .description = "Install only ZLS from master", .handler = command_mod.parserHandler(runInstallZls) },
+        .{ .name = "status", .description = "Show installed versions", .handler = command_mod.parserHandler(runStatusSubcommand) },
+        .{ .name = "update", .description = "Update to latest master", .handler = command_mod.parserHandler(runUpdateSubcommand) },
+        .{ .name = "path", .description = "Print install directory for shell config", .handler = command_mod.parserHandler(runPathSubcommand) },
     },
 };
 
@@ -86,10 +54,6 @@ const zig_repo = "https://github.com/ziglang/zig.git";
 /// ZLS repository URL
 const zls_repo = "https://github.com/zigtools/zls.git";
 
-const toolchain_subcommands = [_][]const u8{
-    "install", "zig", "zls", "status", "update", "path", "help",
-};
-
 /// Run the toolchain command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -105,7 +69,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
     // Unknown subcommand
     output.printError("Unknown toolchain command: {s}", .{cmd});
-    if (utils.args.suggestCommand(cmd, &toolchain_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }

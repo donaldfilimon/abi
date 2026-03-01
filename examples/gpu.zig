@@ -19,7 +19,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Initialize framework
     var builder = abi.Framework.builder(allocator);
-    _ = builder.withGpuDefaults();
+    _ = builder.withDefault(.gpu);
     var framework = builder.build() catch |err| {
         std.debug.print("Framework initialization failed: {t}\n", .{err});
         return err;

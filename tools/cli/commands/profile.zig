@@ -14,74 +14,22 @@ const app_paths = abi.shared.app_paths;
 // libc import for environment access - required for Zig 0.16
 const c = @cImport(@cInclude("stdlib.h"));
 
-// Wrapper functions for comptime children dispatch
-fn wrapShow(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runShowSubcommand(allocator, &parser);
-}
-fn wrapList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runListSubcommand(allocator, &parser);
-}
-fn wrapCreate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runCreateSubcommand(allocator, &parser);
-}
-fn wrapSwitch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runSwitchSubcommand(allocator, &parser);
-}
-fn wrapDelete(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runDeleteSubcommand(allocator, &parser);
-}
-fn wrapSet(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runSetSubcommand(allocator, &parser);
-}
-fn wrapGet(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runGetSubcommand(allocator, &parser);
-}
-fn wrapApiKey(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runApiKeySubcommand(allocator, &parser);
-}
-fn wrapExport(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runExportSubcommand(allocator, &parser);
-}
-fn wrapImport(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parser = utils.args.ArgParser.init(allocator, args);
-    try runImportSubcommand(allocator, &parser);
-}
-
 pub const meta: command_mod.Meta = .{
     .name = "profile",
     .description = "User profile and settings management",
     .kind = .group,
     .subcommands = &.{ "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help" },
     .children = &.{
-        .{ .name = "show", .description = "Show current profile", .handler = wrapShow },
-        .{ .name = "list", .description = "List all profiles", .handler = wrapList },
-        .{ .name = "create", .description = "Create a new profile", .handler = wrapCreate },
-        .{ .name = "switch", .description = "Switch to a profile", .handler = wrapSwitch },
-        .{ .name = "delete", .description = "Delete a profile", .handler = wrapDelete },
-        .{ .name = "set", .description = "Set a profile setting", .handler = wrapSet },
-        .{ .name = "get", .description = "Get a profile setting", .handler = wrapGet },
-        .{ .name = "api-key", .description = "Manage API keys", .handler = wrapApiKey },
-        .{ .name = "export", .description = "Export profile to file", .handler = wrapExport },
-        .{ .name = "import", .description = "Import profile from file", .handler = wrapImport },
+        .{ .name = "show", .description = "Show current profile", .handler = command_mod.parserHandler(runShowSubcommand) },
+        .{ .name = "list", .description = "List all profiles", .handler = command_mod.parserHandler(runListSubcommand) },
+        .{ .name = "create", .description = "Create a new profile", .handler = command_mod.parserHandler(runCreateSubcommand) },
+        .{ .name = "switch", .description = "Switch to a profile", .handler = command_mod.parserHandler(runSwitchSubcommand) },
+        .{ .name = "delete", .description = "Delete a profile", .handler = command_mod.parserHandler(runDeleteSubcommand) },
+        .{ .name = "set", .description = "Set a profile setting", .handler = command_mod.parserHandler(runSetSubcommand) },
+        .{ .name = "get", .description = "Get a profile setting", .handler = command_mod.parserHandler(runGetSubcommand) },
+        .{ .name = "api-key", .description = "Manage API keys", .handler = command_mod.parserHandler(runApiKeySubcommand) },
+        .{ .name = "export", .description = "Export profile to file", .handler = command_mod.parserHandler(runExportSubcommand) },
+        .{ .name = "import", .description = "Import profile from file", .handler = command_mod.parserHandler(runImportSubcommand) },
     },
 };
 
@@ -392,10 +340,6 @@ fn saveProfileStore(allocator: std.mem.Allocator, store: *const ProfileStore) !v
     try file.writeStreamingAll(io, json_buf.items);
 }
 
-const profile_subcommands = [_][]const u8{
-    "show", "list", "create", "switch", "delete", "set", "get", "api-key", "export", "import", "help",
-};
-
 /// Entry point for the profile command.
 /// Only reached when no child matches (help / unknown / default).
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -412,7 +356,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
     // Unknown subcommand
     utils.output.printError("Unknown profile command: {s}", .{cmd});
-    if (utils.args.suggestCommand(cmd, &profile_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }

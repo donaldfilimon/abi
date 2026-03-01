@@ -16,7 +16,7 @@ pub fn main(_: std.process.Init) !void {
 
     // Configure GPU with specific settings
     const config = builder
-        .withGpu(.{
+        .with(.gpu, .{
             .backend = .auto,
             .device_index = 0, // First available GPU
             .memory_limit = 4 * 1024 * 1024 * 1024, // 4GB limit
@@ -28,8 +28,8 @@ pub fn main(_: std.process.Init) !void {
                 .fallback_to_cpu = true,
             },
         })
-        .withAiDefaults()
-        .withDatabaseDefaults()
+        .withDefault(.ai)
+        .withDefault(.database)
         .build();
 
     // Initialize framework with configuration

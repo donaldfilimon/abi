@@ -20,7 +20,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     var builder = abi.Framework.builder(allocator);
-    _ = builder.withNetworkDefaults();
+    _ = builder.withDefault(.network);
     var framework = builder.build() catch |err| {
         std.debug.print("Failed to initialize network framework: {t}\n", .{err});
         return err;

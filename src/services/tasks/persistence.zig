@@ -57,13 +57,13 @@ pub fn save(
     var file = try std.Io.Dir.cwd().createFile(io, storage_path, .{ .truncate = true });
     defer file.close(io);
 
-    var persisted_tasks = std.ArrayList(PersistedTask).init(allocator);
-    defer persisted_tasks.deinit();
+    var persisted_tasks = std.ArrayListUnmanaged(PersistedTask).empty;
+    defer persisted_tasks.deinit(allocator);
 
     var iter = tasks.iterator();
     while (iter.next()) |entry| {
         const t = entry.value_ptr.*;
-        try persisted_tasks.append(.{
+        try persisted_tasks.append(allocator, .{
             .id = t.id,
             .title = t.title,
             .status = t.status.toString(),
@@ -83,9 +83,9 @@ pub fn save(
         .tasks = persisted_tasks.items,
     };
 
-    var zon_buffer = std.ArrayList(u8).init(allocator);
-    defer zon_buffer.deinit();
-    var writer = zon_buffer.writer();
+    var zon_buffer = std.ArrayListUnmanaged(u8).empty;
+    defer zon_buffer.deinit(allocator);
+    var writer = zon_buffer.writer(allocator);
     try std.zon.stringify.serialize(data, .{}, &writer);
 
     try file.writeStreamingAll(io, zon_buffer.items);
@@ -117,12 +117,12 @@ pub fn load(
     const contents_z = try allocator.dupeZ(u8, contents);
     defer allocator.free(contents_z);
 
-    const parsed = std.zon.parse.fromSlice(PersistedData, allocator, contents_z, null, .{}) catch {
+    const parsed = std.zon.parse.fromSliceAlloc(PersistedData, allocator, contents_z, null, .{}) catch {
         return error.ParseError;
     };
-    defer parsed.deinit();
+    
 
-    const data = parsed.value;
+    const data = parsed;
     next_id.* = data.next_id;
 
     for (data.tasks) |pt| {

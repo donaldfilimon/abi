@@ -8,6 +8,7 @@
 const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
+const panel_registry = @import("../../tui/panels/registry.zig");
 const security_panel_mod = @import("../../tui/panels/security_panel.zig");
 const connectors_panel_mod = @import("../../tui/panels/connectors_panel.zig");
 const ralph_panel_mod = @import("../../tui/panels/ralph_panel.zig");
@@ -32,6 +33,14 @@ const tab_brain = 8;
 const tab_security = 9;
 const tab_connectors = 10;
 const tab_ralph = 11;
+
+inline fn panelLabel(comptime idx: usize) []const u8 {
+    return panel_registry.panel_specs[idx].label;
+}
+
+inline fn panelShortcut(comptime idx: usize) []const u8 {
+    return panel_registry.panel_specs[idx].shortcut_hint;
+}
 
 const help_title = "Dashboard Keyboard Shortcuts";
 
@@ -76,11 +85,11 @@ const GpuAdapter = struct {
     }
 
     pub fn name(_: *GpuAdapter) []const u8 {
-        return "GPU";
+        return panelLabel(tab_gpu);
     }
 
     pub fn shortcutHint(_: *GpuAdapter) []const u8 {
-        return "1";
+        return panelShortcut(tab_gpu);
     }
 
     pub fn deinit(self: *GpuAdapter) void {
@@ -114,11 +123,11 @@ const AgentAdapter = struct {
     }
 
     pub fn name(_: *AgentAdapter) []const u8 {
-        return "Agent";
+        return panelLabel(tab_agent);
     }
 
     pub fn shortcutHint(_: *AgentAdapter) []const u8 {
-        return "2";
+        return panelShortcut(tab_agent);
     }
 
     pub fn deinit(self: *AgentAdapter) void {
@@ -152,11 +161,11 @@ const TrainingAdapter = struct {
     }
 
     pub fn name(_: *TrainingAdapter) []const u8 {
-        return "Train";
+        return panelLabel(tab_train);
     }
 
     pub fn shortcutHint(_: *TrainingAdapter) []const u8 {
-        return "3";
+        return panelShortcut(tab_train);
     }
 
     pub fn deinit(self: *TrainingAdapter) void {
@@ -233,11 +242,11 @@ const ModelAdapter = struct {
     }
 
     pub fn name(_: *ModelAdapter) []const u8 {
-        return "Model";
+        return panelLabel(tab_model);
     }
 
     pub fn shortcutHint(_: *ModelAdapter) []const u8 {
-        return "4";
+        return panelShortcut(tab_model);
     }
 
     pub fn deinit(self: *ModelAdapter) void {
@@ -271,11 +280,11 @@ const StreamingAdapter = struct {
     }
 
     pub fn name(_: *StreamingAdapter) []const u8 {
-        return "Stream";
+        return panelLabel(tab_stream);
     }
 
     pub fn shortcutHint(_: *StreamingAdapter) []const u8 {
-        return "5";
+        return panelShortcut(tab_stream);
     }
 
     pub fn deinit(self: *StreamingAdapter) void {
@@ -309,11 +318,11 @@ const DbAdapter = struct {
     }
 
     pub fn name(_: *DbAdapter) []const u8 {
-        return "DB";
+        return panelLabel(tab_db);
     }
 
     pub fn shortcutHint(_: *DbAdapter) []const u8 {
-        return "6";
+        return panelShortcut(tab_db);
     }
 
     pub fn deinit(self: *DbAdapter) void {
@@ -347,11 +356,11 @@ const NetworkAdapter = struct {
     }
 
     pub fn name(_: *NetworkAdapter) []const u8 {
-        return "Net";
+        return panelLabel(tab_net);
     }
 
     pub fn shortcutHint(_: *NetworkAdapter) []const u8 {
-        return "7";
+        return panelShortcut(tab_net);
     }
 
     pub fn deinit(self: *NetworkAdapter) void {
@@ -385,11 +394,11 @@ const BenchAdapter = struct {
     }
 
     pub fn name(_: *BenchAdapter) []const u8 {
-        return "Bench";
+        return panelLabel(tab_bench);
     }
 
     pub fn shortcutHint(_: *BenchAdapter) []const u8 {
-        return "8";
+        return panelShortcut(tab_bench);
     }
 
     pub fn deinit(self: *BenchAdapter) void {
@@ -425,11 +434,11 @@ const BrainAdapter = struct {
     }
 
     pub fn name(_: *BrainAdapter) []const u8 {
-        return "Brain";
+        return panelLabel(tab_brain);
     }
 
     pub fn shortcutHint(_: *BrainAdapter) []const u8 {
-        return "9";
+        return panelShortcut(tab_brain);
     }
 
     pub fn deinit(_: *BrainAdapter) void {}
@@ -592,11 +601,6 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
 
     const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
 
-    // Tab labels for the unified view
-    const tab_labels = [_][]const u8{
-        "GPU", "Agent", "Train", "Model", "Stream", "DB", "Net", "Bench", "Brain", "Security", "Connectors", "Ralph",
-    };
-
     var terminal = tui.Terminal.init(allocator);
     defer terminal.deinit();
 
@@ -607,7 +611,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     defer terminal.exit() catch {};
     terminal.setTitle("ABI Dashboard") catch {};
 
-    var state = try DashboardState.init(allocator, &terminal, initial_theme, &tab_labels);
+    var state = try DashboardState.init(allocator, &terminal, initial_theme, &panel_registry.tab_labels);
     defer state.deinit();
 
     // Finalize panel wiring now that state has stable stack memory.

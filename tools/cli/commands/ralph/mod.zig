@@ -24,57 +24,23 @@ const skills_mod = @import("skills.zig");
 const super_mod = @import("super.zig");
 const multi_mod = @import("multi.zig");
 
-// Wrapper functions for comptime children dispatch
-fn wrapInit(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try ralphInit(ctx, &parser);
-}
-fn wrapRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try ralphRun(ctx, &parser);
-}
-fn wrapSuper(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try ralphSuper(ctx, &parser);
-}
-fn wrapMulti(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try ralphMulti(ctx, &parser);
-}
-fn wrapStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try ralphStatus(ctx, &parser);
-}
-fn wrapGate(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try ralphGate(ctx, &parser);
-}
-fn wrapImprove(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try ralphImprove(ctx, &parser);
-}
-fn wrapSkills(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try ralphSkills(ctx, &parser);
-}
-
 pub const meta: command_mod.Meta = .{
     .name = "ralph",
     .description = "Ralph orchestrator (init, run, super, multi, status, gate, improve, skills)",
     .kind = .group,
     .subcommands = &.{ "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help" },
     .children = &.{
-        .{ .name = "init", .description = "Create workspace: ralph.yml, .ralph/, PROMPT.md", .handler = wrapInit },
-        .{ .name = "run", .description = "Execute the Ralph iterative loop", .handler = wrapRun },
-        .{ .name = "super", .description = "Init if needed, run, optional gate (power one-shot)", .handler = wrapSuper },
-        .{ .name = "super-ralph", .description = "Init if needed, run, optional gate (power one-shot)", .handler = wrapSuper },
-        .{ .name = "multi", .description = "Zig-native multithreaded multi-agent", .handler = wrapMulti },
-        .{ .name = "swarm", .description = "Zig-native multithreaded multi-agent", .handler = wrapMulti },
-        .{ .name = "status", .description = "Show loop state, skills stored, last run stats", .handler = wrapStatus },
-        .{ .name = "gate", .description = "Native quality gate", .handler = wrapGate },
-        .{ .name = "improve", .description = "Autonomous self-improvement loop", .handler = wrapImprove },
-        .{ .name = "skills", .description = "List/add/clear persisted skills", .handler = wrapSkills },
-        .{ .name = "skill", .description = "List/add/clear persisted skills", .handler = wrapSkills },
+        .{ .name = "init", .description = "Create workspace: ralph.yml, .ralph/, PROMPT.md", .handler = command_mod.contextParserHandler(ralphInit) },
+        .{ .name = "run", .description = "Execute the Ralph iterative loop", .handler = command_mod.contextParserHandler(ralphRun) },
+        .{ .name = "super", .description = "Init if needed, run, optional gate (power one-shot)", .handler = command_mod.contextParserHandler(ralphSuper) },
+        .{ .name = "super-ralph", .description = "Init if needed, run, optional gate (power one-shot)", .handler = command_mod.contextParserHandler(ralphSuper) },
+        .{ .name = "multi", .description = "Zig-native multithreaded multi-agent", .handler = command_mod.contextParserHandler(ralphMulti) },
+        .{ .name = "swarm", .description = "Zig-native multithreaded multi-agent", .handler = command_mod.contextParserHandler(ralphMulti) },
+        .{ .name = "status", .description = "Show loop state, skills stored, last run stats", .handler = command_mod.contextParserHandler(ralphStatus) },
+        .{ .name = "gate", .description = "Native quality gate", .handler = command_mod.contextParserHandler(ralphGate) },
+        .{ .name = "improve", .description = "Autonomous self-improvement loop", .handler = command_mod.contextParserHandler(ralphImprove) },
+        .{ .name = "skills", .description = "List/add/clear persisted skills", .handler = command_mod.contextParserHandler(ralphSkills) },
+        .{ .name = "skill", .description = "List/add/clear persisted skills", .handler = command_mod.contextParserHandler(ralphSkills) },
     },
 };
 
@@ -106,9 +72,6 @@ fn ralphSuper(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgPar
 fn ralphMulti(ctx: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
     try multi_mod.runMulti(ctx.allocator, parser.remaining());
 }
-const ralph_subcommands = [_][]const u8{
-    "init", "run", "super", "multi", "status", "gate", "improve", "skills", "help",
-};
 
 /// Entry point called by CLI dispatcher.
 /// Only reached when no child matches (help / unknown).
@@ -124,7 +87,7 @@ pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !vo
     }
     // Unknown subcommand
     utils.output.printError("Unknown ralph subcommand: {s}", .{cmd});
-    if (utils.args.suggestCommand(cmd, &ralph_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         utils.output.printInfo("Did you mean: {s}", .{suggestion});
     }
 }

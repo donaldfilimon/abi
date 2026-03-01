@@ -11,7 +11,7 @@ pub fn main(init: std.process.Init) !void {
     }
 
     const input_path = args[1];
-    
+
     var io_backend = std.Io.Threaded.init(arena, .{ .environ = init.minimal.environ });
     defer io_backend.deinit();
     const io = io_backend.io();

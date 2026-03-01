@@ -19,7 +19,7 @@ pub fn main(_: std.process.Init) !void {
     }
 
     var builder = abi.Framework.builder(allocator);
-    _ = builder.withAiDefaults();
+    _ = builder.withDefault(.ai);
     var framework = try builder.build();
     defer framework.deinit();
 

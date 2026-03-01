@@ -7,72 +7,14 @@ const context_mod = @import("../framework/context.zig");
 const utils = @import("../utils/mod.zig");
 const ArgParser = utils.args.ArgParser;
 
-// Wrapper functions for comptime children dispatch.
-// Each wrapper performs network init/deinit (previously done in run()).
-fn wrapStatus(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
+fn withNetwork(
+    ctx: *const context_mod.CommandContext,
+    args: []const [:0]const u8,
+    next: command_mod.CommandHandler,
+) !void {
+    try initNetwork(ctx.allocator);
     defer abi.network.deinit();
-    try printStatus();
-}
-fn wrapList(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    var parser = ArgParser.init(allocator, args);
-    try runListSubcommand(allocator, &parser);
-}
-fn wrapRegister(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    var parser = ArgParser.init(allocator, args);
-    try runRegisterSubcommand(allocator, &parser);
-}
-fn wrapUnregister(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    var parser = ArgParser.init(allocator, args);
-    try runUnregisterSubcommand(allocator, &parser);
-}
-fn wrapTouch(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    var parser = ArgParser.init(allocator, args);
-    try runTouchSubcommand(allocator, &parser);
-}
-fn wrapSetStatus(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    var parser = ArgParser.init(allocator, args);
-    try runSetStatusSubcommand(allocator, &parser);
-}
-fn wrapRaft(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    printRaftStatus(allocator);
-}
-fn wrapDiscovery(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    printDiscoveryStatus(allocator);
-}
-fn wrapBalancer(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    printBalancerStatus(allocator);
-}
-fn wrapHealth(ctx: *const context_mod.CommandContext, _: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    try initNetwork(allocator);
-    defer abi.network.deinit();
-    printHealthStatus(allocator);
+    try next(ctx, args);
 }
 
 fn initNetwork(allocator: std.mem.Allocator) !void {
@@ -92,22 +34,62 @@ pub const meta: command_mod.Meta = .{
     .kind = .group,
     .subcommands = &.{ "status", "list", "nodes", "register", "unregister", "touch", "set-status", "raft", "discovery", "balancer", "health" },
     .children = &.{
-        .{ .name = "status", .description = "Show network config and node count", .handler = wrapStatus },
-        .{ .name = "list", .description = "List registered nodes", .handler = wrapList },
-        .{ .name = "nodes", .description = "List registered nodes", .handler = wrapList },
-        .{ .name = "register", .description = "Register or update a node", .handler = wrapRegister },
-        .{ .name = "unregister", .description = "Remove a node", .handler = wrapUnregister },
-        .{ .name = "touch", .description = "Update node heartbeat timestamp", .handler = wrapTouch },
-        .{ .name = "set-status", .description = "Set status (healthy, degraded, offline)", .handler = wrapSetStatus },
-        .{ .name = "raft", .description = "Show Raft consensus state", .handler = wrapRaft },
-        .{ .name = "discovery", .description = "Show service discovery status", .handler = wrapDiscovery },
-        .{ .name = "balancer", .description = "Show load balancer status", .handler = wrapBalancer },
-        .{ .name = "health", .description = "Show cluster health evaluation", .handler = wrapHealth },
+        .{
+            .name = "status",
+            .description = "Show network config and node count",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runStatusSubcommand), withNetwork),
+        },
+        .{
+            .name = "list",
+            .description = "List registered nodes",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runListSubcommand), withNetwork),
+        },
+        .{
+            .name = "nodes",
+            .description = "List registered nodes",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runListSubcommand), withNetwork),
+        },
+        .{
+            .name = "register",
+            .description = "Register or update a node",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runRegisterSubcommand), withNetwork),
+        },
+        .{
+            .name = "unregister",
+            .description = "Remove a node",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runUnregisterSubcommand), withNetwork),
+        },
+        .{
+            .name = "touch",
+            .description = "Update node heartbeat timestamp",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runTouchSubcommand), withNetwork),
+        },
+        .{
+            .name = "set-status",
+            .description = "Set status (healthy, degraded, offline)",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runSetStatusSubcommand), withNetwork),
+        },
+        .{
+            .name = "raft",
+            .description = "Show Raft consensus state",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runRaftSubcommand), withNetwork),
+        },
+        .{
+            .name = "discovery",
+            .description = "Show service discovery status",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runDiscoverySubcommand), withNetwork),
+        },
+        .{
+            .name = "balancer",
+            .description = "Show load balancer status",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runBalancerSubcommand), withNetwork),
+        },
+        .{
+            .name = "health",
+            .description = "Show cluster health evaluation",
+            .handler = command_mod.withMiddleware(command_mod.parserHandler(runHealthSubcommand), withNetwork),
+        },
     },
-};
-
-const network_subcommands = [_][]const u8{
-    "status", "list", "nodes", "register", "unregister", "touch", "set-status", "raft", "discovery", "balancer", "health", "help",
 };
 
 /// Run the network command with the provided arguments.
@@ -125,7 +107,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
     }
     // Unknown subcommand
     utils.output.printError("Unknown network command: {s}", .{cmd});
-    if (utils.args.suggestCommand(cmd, &network_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
@@ -200,6 +182,26 @@ fn runStatusSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     _ = allocator;
     _ = parser;
     try printStatus();
+}
+
+fn runRaftSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    _ = parser;
+    printRaftStatus(allocator);
+}
+
+fn runDiscoverySubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    _ = parser;
+    printDiscoveryStatus(allocator);
+}
+
+fn runBalancerSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    _ = parser;
+    printBalancerStatus(allocator);
+}
+
+fn runHealthSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {
+    _ = parser;
+    printHealthStatus(allocator);
 }
 
 fn runListSubcommand(allocator: std.mem.Allocator, parser: *ArgParser) !void {

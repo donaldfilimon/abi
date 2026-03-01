@@ -1,72 +1,138 @@
 //! CLI command modules.
 //!
-//! Each command declares `pub const meta: command_mod.Meta` and `pub fn run`.
-//! The descriptors array is auto-derived at comptime from these declarations,
-//! eliminating the manual three-layer bridge (catalog → descriptor → wiring).
+//! Command definitions are sourced from the generated registry snapshot and
+//! normalized into descriptors at comptime.
 
 const std = @import("std");
 const command_mod = @import("../command.zig");
 const CommandDescriptor = command_mod.CommandDescriptor;
+const generated = @import("../generated/cli_registry_snapshot.zig");
+const registry_overrides = @import("../registry/overrides.zig");
 
-// ─── Command module imports (pub for test discovery) ─────────────────────────
+// ─── Command module re-exports (pub for test discovery) ──────────────────────
 
-pub const db = @import("db.zig");
-pub const agent = @import("agent.zig");
-pub const bench = @import("bench/mod.zig");
-pub const gpu = @import("gpu.zig");
-pub const network = @import("network.zig");
-pub const system_info = @import("system_info.zig");
-pub const multi_agent = @import("multi_agent.zig");
-pub const explore = @import("explore.zig");
-pub const simd = @import("simd.zig");
-pub const config = @import("config.zig");
-pub const discord = @import("discord.zig");
-pub const llm = @import("llm/mod.zig");
-pub const model = @import("model.zig");
-pub const embed = @import("embed.zig");
-pub const train = @import("train/mod.zig");
-pub const convert = @import("convert.zig");
-pub const task = @import("task.zig");
-pub const editor = @import("editor.zig");
-pub const ui = @import("ui/mod.zig");
-pub const plugins = @import("plugins.zig");
-pub const profile = @import("profile.zig");
-pub const completions = @import("completions.zig");
-pub const status = @import("status.zig");
-pub const toolchain = @import("toolchain.zig");
-pub const lsp = @import("lsp.zig");
-pub const mcp = @import("mcp.zig");
-pub const acp = @import("acp.zig");
-pub const ralph = @import("ralph/mod.zig");
-pub const gendocs = @import("gendocs.zig");
-pub const os_agent = @import("os_agent.zig");
-pub const brain = @import("brain.zig");
-pub const doctor = @import("doctor.zig");
-pub const clean = @import("clean.zig");
-pub const env = @import("env.zig");
-pub const init = @import("init.zig");
+pub const db = generated.db;
+pub const agent = generated.agent;
+pub const bench = generated.bench;
+pub const gpu = generated.gpu;
+pub const network = generated.network;
+pub const system_info = generated.system_info;
+pub const multi_agent = generated.multi_agent;
+pub const os_agent = generated.os_agent;
+pub const explore = generated.explore;
+pub const simd = generated.simd;
+pub const config = generated.config;
+pub const discord = generated.discord;
+pub const llm = generated.llm;
+pub const model = generated.model;
+pub const embed = generated.embed;
+pub const train = generated.train;
+pub const convert = generated.convert;
+pub const task = generated.task;
+pub const ui = generated.ui;
+pub const plugins = generated.plugins;
+pub const profile = generated.profile;
+pub const completions = generated.completions;
+pub const status = generated.status;
+pub const toolchain = generated.toolchain;
+pub const lsp = generated.lsp;
+pub const mcp = generated.mcp;
+pub const acp = generated.acp;
+pub const ralph = generated.ralph;
+pub const gendocs = generated.gendocs;
+pub const brain = generated.brain;
+pub const doctor = generated.doctor;
+pub const clean = generated.clean;
+pub const env = generated.env;
+pub const init = generated.init;
 
-// ─── Comptime-derived command registry ───────────────────────────────────────
+// ─── Comptime-derived command registry ────────────────────────────────────────
 
-/// Tuple of all registered command modules, in display order.
-/// Each module must export `pub const meta: command_mod.Meta` and `pub fn run`.
-const command_modules = .{
-    db,          agent,    bench,   gpu,     network,     system_info,
-    multi_agent, os_agent, explore, simd,    config,      discord,
-    llm,         model,    embed,   train,   convert,     task,
-    editor,      ui,       plugins, profile, completions, status,
-    toolchain,   lsp,      mcp,     acp,     ralph,       gendocs,
-    brain,       doctor,   clean,   env,     init,
-};
+const command_modules = generated.command_modules;
 
-/// Command descriptors auto-derived from command module metadata.
+fn applyOverride(desc: *CommandDescriptor, comptime ov: registry_overrides.CommandOverride) void {
+    if (ov.source_id) |source_id| desc.source_id = source_id;
+    if (ov.default_subcommand) |default_subcommand| desc.default_subcommand = default_subcommand;
+    if (ov.visibility) |visibility| desc.visibility = visibility;
+    if (ov.risk) |risk| desc.risk = risk;
+    if (ov.ui) |ui| desc.ui = ui;
+    if (ov.options) |options| desc.options = options;
+    if (ov.middleware_tags) |middleware_tags| desc.middleware_tags = middleware_tags;
+}
+
+fn validateRegistry(comptime descriptors: []const CommandDescriptor) void {
+    inline for (descriptors, 0..) |desc, i| {
+        if (desc.name.len == 0) {
+            @compileError(std.fmt.comptimePrint("Empty command name at index {d}", .{i}));
+        }
+        inline for (descriptors[0..i]) |prev| {
+            if (std.mem.eql(u8, prev.name, desc.name)) {
+                @compileError(std.fmt.comptimePrint("Duplicate command name '{s}'", .{desc.name}));
+            }
+        }
+
+        inline for (desc.aliases) |alias| {
+            if (std.mem.eql(u8, alias, desc.name)) {
+                @compileError(std.fmt.comptimePrint(
+                    "Alias '{s}' duplicates command name '{s}'",
+                    .{ alias, desc.name },
+                ));
+            }
+        }
+    }
+
+    inline for (descriptors) |lhs| {
+        inline for (lhs.aliases) |alias| {
+            inline for (descriptors) |rhs| {
+                if (std.mem.eql(u8, rhs.name, alias)) {
+                    @compileError(std.fmt.comptimePrint(
+                        "Alias '{s}' on '{s}' collides with command name '{s}'",
+                        .{ alias, lhs.name, rhs.name },
+                    ));
+                }
+                if (!std.mem.eql(u8, rhs.name, lhs.name)) {
+                    inline for (rhs.aliases) |rhs_alias| {
+                        if (std.mem.eql(u8, rhs_alias, alias)) {
+                            @compileError(std.fmt.comptimePrint(
+                                "Alias collision: '{s}' used by '{s}' and '{s}'",
+                                .{ alias, lhs.name, rhs.name },
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Command descriptors auto-derived from command module metadata + overrides.
 pub const descriptors: [std.meta.fields(@TypeOf(command_modules)).len]CommandDescriptor = blk: {
     const fields = std.meta.fields(@TypeOf(command_modules));
     var result: [fields.len]CommandDescriptor = undefined;
+
     for (fields, 0..) |field, i| {
         const mod = @field(command_modules, field.name);
         result[i] = command_mod.toDescriptor(mod);
     }
+
+    inline for (registry_overrides.command_overrides) |override| {
+        var matched = false;
+        inline for (&result) |*desc| {
+            if (std.mem.eql(u8, desc.name, override.name)) {
+                applyOverride(desc, override);
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            @compileError(std.fmt.comptimePrint(
+                "Unknown command override target: '{s}'",
+                .{override.name},
+            ));
+        }
+    }
+
+    comptime validateRegistry(&result);
     break :blk result;
 };
 

@@ -6,52 +6,39 @@ const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
-const session_runner = @import("session_runner.zig");
-const theme_options = @import("theme_options.zig");
+const dsl = @import("../../ui/dsl/mod.zig");
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parsed = try theme_options.parseThemeArgs(allocator, args);
-    defer parsed.deinit();
-
-    if (parsed.list_themes) {
-        theme_options.printAvailableThemes();
-        return;
-    }
-    if (parsed.wants_help) {
-        printHelp();
-        return;
-    }
-
-    // Parse endpoint from remaining args or use default
-    var endpoint: []const u8 = "http://127.0.0.1:8080";
-    for (parsed.remaining_args) |arg| {
-        const a = std.mem.sliceTo(arg, 0);
-        if (std.mem.startsWith(u8, a, "http")) {
-            endpoint = a;
-        }
-    }
-
-    const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
-    try runDashboard(allocator, initial_theme, endpoint);
-}
-
-fn runDashboard(allocator: std.mem.Allocator, initial_theme: *const tui.Theme, endpoint: []const u8) !void {
-    var session = session_runner.startSimpleDashboard(allocator, .{
+    try dsl.runSimpleDashboard(tui.StreamingDashboard, ctx, args, .{
         .dashboard_name = "Streaming Dashboard",
         .terminal_title = "ABI Streaming Dashboard",
-    }) orelse return;
-    defer session.deinit();
-
-    const panel = try tui.StreamingDashboard.init(allocator, &session.terminal, initial_theme, endpoint);
-    var dash = tui.dashboard.Dashboard(tui.StreamingDashboard).init(allocator, &session.terminal, initial_theme, panel, .{
         .title = "ABI STREAMING DASHBOARD",
         .refresh_rate_ms = 200,
         .min_width = 50,
         .min_height = 12,
+        .print_help = printHelp,
+        .init_panel = initPanel,
+        .validate_args = validateArgs,
     });
-    defer dash.deinit();
-    try dash.run();
+}
+
+fn validateArgs(remaining_args: []const [:0]const u8) !void {
+    if (remaining_args.len <= 1) return;
+    utils.output.printError("Expected at most one endpoint argument for ui streaming.", .{});
+    return error.InvalidArgument;
+}
+
+fn initPanel(
+    allocator: std.mem.Allocator,
+    terminal: *tui.Terminal,
+    initial_theme: *const tui.Theme,
+    remaining_args: []const [:0]const u8,
+) !tui.StreamingDashboard {
+    var endpoint: []const u8 = "http://127.0.0.1:8080";
+    if (remaining_args.len > 0) {
+        endpoint = std.mem.sliceTo(remaining_args[0], 0);
+    }
+    return tui.StreamingDashboard.init(allocator, terminal, initial_theme, endpoint);
 }
 
 fn printHelp() void {

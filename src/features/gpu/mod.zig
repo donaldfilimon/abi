@@ -49,7 +49,7 @@
 //!
 //! // Get GPU context
 //! const gpu_ctx = try fw.get(.gpu);
-//! const gpu = gpu_ctx.getGpu();
+//! const gpu = gpu_ctx.get(.gpu);
 //!
 //! // Create buffers
 //! var a = try gpu.createBufferFromSlice(f32, &[_]f32{ 1, 2, 3, 4 }, .{});
@@ -389,7 +389,7 @@ const config_module = @import("../../core/config/mod.zig");
 /// defer ctx.deinit();
 ///
 /// // Get the underlying Gpu instance
-/// const gpu = ctx.getGpu();
+/// const gpu = ctx.get(.gpu);
 ///
 /// // Create and use buffers
 /// var buffer = try ctx.createBuffer(f32, 1024, .{});

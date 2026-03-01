@@ -208,13 +208,12 @@ fn renderZonData(
 }
 
 fn stringifyAlloc(allocator: std.mem.Allocator, value: anytype) ![]u8 {
-    var out = std.ArrayList(u8).init(allocator);
+    var out: std.Io.Writer.Allocating = .init(allocator);
     defer out.deinit();
 
     // In Zig 0.16, we use std.zon.stringify.serialize
-    var writer = out.writer();
-    try std.zon.stringify.serialize(value, .{}, &writer);
-    try writer.writeByte('\n');
+    try std.zon.stringify.serialize(value, .{}, &out.writer);
+    try out.writer.writeByte('\n');
     return out.toOwnedSlice();
 }
 

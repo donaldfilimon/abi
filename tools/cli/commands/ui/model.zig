@@ -6,45 +6,31 @@ const std = @import("std");
 const context_mod = @import("../../framework/context.zig");
 const tui = @import("../../tui/mod.zig");
 const utils = @import("../../utils/mod.zig");
-const session_runner = @import("session_runner.zig");
-const theme_options = @import("theme_options.zig");
+const dsl = @import("../../ui/dsl/mod.zig");
 
-const Dash = tui.dashboard.Dashboard(tui.ModelManagementPanel);
+const PanelType = tui.ModelManagementPanel;
+const Dash = tui.dashboard.Dashboard(PanelType);
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    const allocator = ctx.allocator;
-    var parsed = try theme_options.parseThemeArgs(allocator, args);
-    defer parsed.deinit();
-
-    if (parsed.list_themes) {
-        theme_options.printAvailableThemes();
-        return;
-    }
-    if (parsed.wants_help) {
-        printHelp();
-        return;
-    }
-
-    const initial_theme = parsed.initial_theme orelse &tui.themes.themes.default;
-    try runDashboard(allocator, initial_theme);
-}
-
-fn runDashboard(allocator: std.mem.Allocator, initial_theme: *const tui.Theme) !void {
-    var session = session_runner.startSimpleDashboard(allocator, .{
+    try dsl.runSimpleDashboard(PanelType, ctx, args, .{
         .dashboard_name = "Model Dashboard",
         .terminal_title = "ABI Model Manager",
-    }) orelse return;
-    defer session.deinit();
-
-    const panel = tui.ModelManagementPanel.init(allocator, &session.terminal, initial_theme);
-    var dash = Dash.init(allocator, &session.terminal, initial_theme, panel, .{
         .title = "ABI MODEL MANAGER",
         .refresh_rate_ms = 500,
-        .help_keys = " [q]uit  [\xe2\x86\x91\xe2\x86\x93]navigate  [enter]select  [t]heme  [?]help",
+        .help_keys = " [q]uit  [↑↓]navigate  [enter]select  [t]heme  [?]help",
+        .print_help = printHelp,
+        .init_panel = initPanel,
+        .extra_key_handler = handleModelKeys,
     });
-    dash.extra_key_handler = &handleModelKeys;
-    defer dash.deinit();
-    try dash.run();
+}
+
+fn initPanel(
+    allocator: std.mem.Allocator,
+    terminal: *tui.Terminal,
+    initial_theme: *const tui.Theme,
+    _: []const [:0]const u8,
+) !PanelType {
+    return tui.ModelManagementPanel.init(allocator, terminal, initial_theme);
 }
 
 fn handleModelKeys(self: *Dash, key: tui.Key) bool {

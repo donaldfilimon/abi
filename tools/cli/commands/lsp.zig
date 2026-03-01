@@ -22,44 +22,6 @@ const common_options = utils.help.common_options;
 
 const max_doc_bytes = 4 * 1024 * 1024;
 
-// Wrapper functions for comptime children dispatch
-fn wrapRequest(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runRequestSubcommand(ctx.allocator, &parser);
-}
-fn wrapNotify(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runNotifySubcommand(ctx.allocator, &parser);
-}
-fn wrapHover(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runHoverSubcommand(ctx.allocator, &parser);
-}
-fn wrapCompletion(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runCompletionSubcommand(ctx.allocator, &parser);
-}
-fn wrapDefinition(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runDefinitionSubcommand(ctx.allocator, &parser);
-}
-fn wrapReferences(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runReferencesSubcommand(ctx.allocator, &parser);
-}
-fn wrapRename(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runRenameSubcommand(ctx.allocator, &parser);
-}
-fn wrapFormat(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runFormatSubcommand(ctx.allocator, &parser);
-}
-fn wrapDiagnostics(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = ArgParser.init(ctx.allocator, args);
-    try runDiagnosticsSubcommand(ctx.allocator, &parser);
-}
-
 pub const meta: command_mod.Meta = .{
     .name = "lsp",
     .description = "ZLS LSP client (request, hover, completion, definition, rename, format)",
@@ -77,29 +39,16 @@ pub const meta: command_mod.Meta = .{
         "help",
     },
     .children = &.{
-        .{ .name = "request", .description = "Send an LSP request", .handler = wrapRequest },
-        .{ .name = "notify", .description = "Send an LSP notification", .handler = wrapNotify },
-        .{ .name = "hover", .description = "Get hover info at position", .handler = wrapHover },
-        .{ .name = "completion", .description = "Get completion items at position", .handler = wrapCompletion },
-        .{ .name = "definition", .description = "Get definition at position", .handler = wrapDefinition },
-        .{ .name = "references", .description = "Find references at position", .handler = wrapReferences },
-        .{ .name = "rename", .description = "Rename symbol at position", .handler = wrapRename },
-        .{ .name = "format", .description = "Format document and return edits", .handler = wrapFormat },
-        .{ .name = "diagnostics", .description = "Fetch document diagnostics", .handler = wrapDiagnostics },
+        .{ .name = "request", .description = "Send an LSP request", .handler = command_mod.parserHandler(runRequestSubcommand) },
+        .{ .name = "notify", .description = "Send an LSP notification", .handler = command_mod.parserHandler(runNotifySubcommand) },
+        .{ .name = "hover", .description = "Get hover info at position", .handler = command_mod.parserHandler(runHoverSubcommand) },
+        .{ .name = "completion", .description = "Get completion items at position", .handler = command_mod.parserHandler(runCompletionSubcommand) },
+        .{ .name = "definition", .description = "Get definition at position", .handler = command_mod.parserHandler(runDefinitionSubcommand) },
+        .{ .name = "references", .description = "Find references at position", .handler = command_mod.parserHandler(runReferencesSubcommand) },
+        .{ .name = "rename", .description = "Rename symbol at position", .handler = command_mod.parserHandler(runRenameSubcommand) },
+        .{ .name = "format", .description = "Format document and return edits", .handler = command_mod.parserHandler(runFormatSubcommand) },
+        .{ .name = "diagnostics", .description = "Fetch document diagnostics", .handler = command_mod.parserHandler(runDiagnosticsSubcommand) },
     },
-};
-
-const lsp_subcommands = [_][]const u8{
-    "request",
-    "notify",
-    "hover",
-    "completion",
-    "definition",
-    "references",
-    "rename",
-    "format",
-    "diagnostics",
-    "help",
 };
 
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -113,7 +62,7 @@ pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !
         return;
     }
     output.printError("Unknown lsp command: {s}", .{cmd});
-    if (utils.args.suggestCommand(cmd, &lsp_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         output.println("Did you mean: {s}", .{suggestion});
     }
 }

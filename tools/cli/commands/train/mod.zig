@@ -29,68 +29,22 @@ const monitor = @import("monitor.zig");
 const info = @import("info.zig");
 const data = @import("data.zig");
 
-// Wrapper functions for comptime children dispatch
-fn wrapRun(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tRun(ctx, &parser);
-}
-fn wrapNew(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tNew(ctx, &parser);
-}
-fn wrapLlm(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tLlm(ctx, &parser);
-}
-fn wrapVision(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tVision(ctx, &parser);
-}
-fn wrapClip(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tClip(ctx, &parser);
-}
-fn wrapAuto(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tAuto(ctx, &parser);
-}
-fn wrapSelf(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tSelf(ctx, &parser);
-}
-fn wrapResume(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tResume(ctx, &parser);
-}
-fn wrapMonitor(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tMonitor(ctx, &parser);
-}
-fn wrapInfo(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tInfo(ctx, &parser);
-}
-fn wrapGenerateData(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
-    var parser = utils.args.ArgParser.init(ctx.allocator, args);
-    try tGenerateData(ctx, &parser);
-}
-
 pub const meta: command_mod.Meta = .{
     .name = "train",
     .description = "Training pipeline (run, llm, vision, auto, self, resume, info)",
     .subcommands = &.{ "run", "new", "llm", "vision", "clip", "auto", "self", "resume", "monitor", "info", "generate-data", "help" },
     .children = &.{
-        .{ .name = "run", .description = "Run basic training pipeline", .handler = wrapRun },
-        .{ .name = "new", .description = "Create and train a new transformer from scratch", .handler = wrapNew },
-        .{ .name = "llm", .description = "Train LLM from GGUF model file", .handler = wrapLlm },
-        .{ .name = "vision", .description = "Train Vision Transformer (ViT)", .handler = wrapVision },
-        .{ .name = "clip", .description = "Train CLIP multimodal model", .handler = wrapClip },
-        .{ .name = "auto", .description = "Auto-train with seed data", .handler = wrapAuto },
-        .{ .name = "self", .description = "Self-improvement pipeline", .handler = wrapSelf },
-        .{ .name = "resume", .description = "Resume training from checkpoint", .handler = wrapResume },
-        .{ .name = "monitor", .description = "Monitor training progress (TUI dashboard)", .handler = wrapMonitor },
-        .{ .name = "info", .description = "Show default training configuration", .handler = wrapInfo },
-        .{ .name = "generate-data", .description = "Generate synthetic tokenized data", .handler = wrapGenerateData },
+        .{ .name = "run", .description = "Run basic training pipeline", .handler = command_mod.contextParserHandler(tRun) },
+        .{ .name = "new", .description = "Create and train a new transformer from scratch", .handler = command_mod.contextParserHandler(tNew) },
+        .{ .name = "llm", .description = "Train LLM from GGUF model file", .handler = command_mod.contextParserHandler(tLlm) },
+        .{ .name = "vision", .description = "Train Vision Transformer (ViT)", .handler = command_mod.contextParserHandler(tVision) },
+        .{ .name = "clip", .description = "Train CLIP multimodal model", .handler = command_mod.contextParserHandler(tClip) },
+        .{ .name = "auto", .description = "Auto-train with seed data", .handler = command_mod.contextParserHandler(tAuto) },
+        .{ .name = "self", .description = "Self-improvement pipeline", .handler = command_mod.contextParserHandler(tSelf) },
+        .{ .name = "resume", .description = "Resume training from checkpoint", .handler = command_mod.contextParserHandler(tResume) },
+        .{ .name = "monitor", .description = "Monitor training progress (TUI dashboard)", .handler = command_mod.contextParserHandler(tMonitor) },
+        .{ .name = "info", .description = "Show default training configuration", .handler = command_mod.contextParserHandler(tInfo) },
+        .{ .name = "generate-data", .description = "Generate synthetic tokenized data", .handler = command_mod.contextParserHandler(tGenerateData) },
     },
 };
 
@@ -129,9 +83,6 @@ fn tInfo(_: *const context_mod.CommandContext, _: *utils.args.ArgParser) !void {
 fn tGenerateData(_: *const context_mod.CommandContext, parser: *utils.args.ArgParser) !void {
     try data.runGenerateData(parser.remaining());
 }
-const train_subcommands = [_][]const u8{
-    "run", "new", "llm", "vision", "clip", "auto", "self", "resume", "monitor", "info", "generate-data", "help",
-};
 
 /// Run the train command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
@@ -147,7 +98,7 @@ pub fn run(_: *const context_mod.CommandContext, args: []const [:0]const u8) !vo
     }
     // Unknown subcommand
     utils.output.printError("Unknown train command: {s}", .{cmd});
-    if (utils.args.suggestCommand(cmd, &train_subcommands)) |suggestion| {
+    if (command_mod.suggestSubcommand(meta, cmd)) |suggestion| {
         utils.output.println("Did you mean: {s}", .{suggestion});
     }
 }
