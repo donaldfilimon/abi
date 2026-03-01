@@ -300,6 +300,12 @@ function commandSubcommands(cmd) {
   return cmd.subcommands;
 }
 
+function addResult(results, query, score, payload) {
+  if (!query || score > 0) {
+    results.push({ ...payload, score });
+  }
+}
+
 function toResults(modules, commands, guides, plans, roadmap, query, category, type) {
   const results = [];
   const q = query.trim();
@@ -308,29 +314,23 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
     for (const mod of modules) {
       if (category && mod.category !== category) continue;
       const score = wasmScore(q, `${mod.name} ${mod.description}`);
-      if (!q || score > 0) {
-        results.push({
-          type: "module",
-          score,
-          title: mod.name,
-          subtitle: `${mod.category} • ${mod.build_flag}`,
-          detail: `Path: ${mod.path}\n\n${mod.description}`,
-          href: `./api/${mod.name}.html`,
-        });
-      }
+      addResult(results, q, score, {
+        type: "module",
+        title: mod.name,
+        subtitle: `${mod.category} • ${mod.build_flag}`,
+        detail: `Path: ${mod.path}\n\n${mod.description}`,
+        href: `./api/${mod.name}.html`,
+      });
       if (type === "all" || type === "symbols") {
         for (const symbol of mod.symbols) {
           const symScore = wasmScore(q, `${mod.name} ${symbol.signature} ${symbol.doc}`);
-          if (!q || symScore > 0) {
-            results.push({
-              type: "symbol",
-              score: symScore,
-              title: symbol.signature,
-              subtitle: `${mod.name} • line ${symbol.line}`,
-              detail: `${symbol.doc}\n\nSource: ${mod.path}#L${symbol.line}`,
-              href: `./api/${mod.name}.html#${symbol.anchor}`,
-            });
-          }
+          addResult(results, q, symScore, {
+            type: "symbol",
+            title: symbol.signature,
+            subtitle: `${mod.name} • line ${symbol.line}`,
+            detail: `${symbol.doc}\n\nSource: ${mod.path}#L${symbol.line}`,
+            href: `./api/${mod.name}.html#${symbol.anchor}`,
+          });
         }
       }
     }
@@ -340,32 +340,26 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
     for (const cmd of commands) {
       const subs = commandSubcommands(cmd);
       const score = wasmScore(q, `${cmd.name} ${cmd.description} ${subs.join(" ")}`);
-      if (!q || score > 0) {
-        results.push({
-          type: "command",
-          score,
-          title: cmd.name,
-          subtitle: `aliases: ${cmd.aliases.join(", ") || "none"}`,
-          detail: `${cmd.description}\n\nSubcommands: ${subs.join(", ") || "none"}`,
-          href: `./cli/`,
-        });
-      }
+      addResult(results, q, score, {
+        type: "command",
+        title: cmd.name,
+        subtitle: `aliases: ${cmd.aliases.join(", ") || "none"}`,
+        detail: `${cmd.description}\n\nSubcommands: ${subs.join(", ") || "none"}`,
+        href: `./cli/`,
+      });
     }
   }
 
   if (type === "all" || type === "guides") {
     for (const guide of guides) {
       const score = wasmScore(q, `${guide.title} ${guide.section} ${guide.description}`);
-      if (!q || score > 0) {
-        results.push({
-          type: "guide",
-          score,
-          title: guide.title,
-          subtitle: `${guide.section} • ${guide.slug}`,
-          detail: `${guide.description}\n\nPermalink: ${guide.permalink}`,
-          href: `./${guide.slug}/`,
-        });
-      }
+      addResult(results, q, score, {
+        type: "guide",
+        title: guide.title,
+        subtitle: `${guide.section} • ${guide.slug}`,
+        detail: `${guide.description}\n\nPermalink: ${guide.permalink}`,
+        href: `./${guide.slug}/`,
+      });
     }
   }
 
@@ -373,32 +367,26 @@ function toResults(modules, commands, guides, plans, roadmap, query, category, t
     for (const plan of plans) {
       const gateText = (plan.gate_commands || []).join(" ; ");
       const score = wasmScore(q, `${plan.title} ${plan.status} ${plan.owner} ${plan.scope} ${gateText}`);
-      if (!q || score > 0) {
-        results.push({
-          type: "plan",
-          score,
-          title: plan.title,
-          subtitle: `${plan.status} • owner: ${plan.owner}`,
-          detail: `${plan.scope}\n\nValidation: ${gateText || "none"}`,
-          href: `./plans/${plan.slug}.md`,
-        });
-      }
+      addResult(results, q, score, {
+        type: "plan",
+        title: plan.title,
+        subtitle: `${plan.status} • owner: ${plan.owner}`,
+        detail: `${plan.scope}\n\nValidation: ${gateText || "none"}`,
+        href: `./plans/${plan.slug}.md`,
+      });
     }
   }
 
   if (type === "all" || type === "roadmap") {
     for (const item of roadmap) {
       const score = wasmScore(q, `${item.id} ${item.title} ${item.summary} ${item.track} ${item.horizon} ${item.status} ${item.owner} ${item.plan_title}`);
-      if (!q || score > 0) {
-        results.push({
-          type: "roadmap",
-          score,
-          title: `${item.id} ${item.title}`,
-          subtitle: `${item.horizon} • ${item.track} • ${item.status}`,
-          detail: `${item.summary}\n\nOwner: ${item.owner}\nValidation Gate: ${item.validation_gate}\nPlan: ${item.plan_title}`,
-          href: `./roadmap/`,
-        });
-      }
+      addResult(results, q, score, {
+        type: "roadmap",
+        title: `${item.id} ${item.title}`,
+        subtitle: `${item.horizon} • ${item.track} • ${item.status}`,
+        detail: `${item.summary}\n\nOwner: ${item.owner}\nValidation Gate: ${item.validation_gate}\nPlan: ${item.plan_title}`,
+        href: `./roadmap/`,
+      });
     }
   }
 
