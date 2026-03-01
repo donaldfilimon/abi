@@ -34,8 +34,8 @@ pub const SearchResult = struct {
     vector: []const f32,
 };
 
-// Simplified internal tracking layout
-const EngineVector = struct {
+// Internal tracking layout (pub for persistence access).
+pub const EngineVector = struct {
     id: []const u8,
     vec: []const f32,
     metadata: Metadata,
@@ -121,6 +121,47 @@ pub const Engine = struct {
 
         // Placed in HW index bounds mapping array offsets directly inline
         _ = try self.hnsw_index.insert(cloned_vec);
+    }
+
+    /// Index a document with a pre-computed embedding (bypasses AI client).
+    pub fn indexByVector(
+        self: *Engine,
+        id: []const u8,
+        vector: []const f32,
+        metadata: Metadata,
+    ) !void {
+        const cloned_id = try self.allocator.dupe(u8, id);
+        errdefer self.allocator.free(cloned_id);
+        const cloned_vec = try self.allocator.dupe(f32, vector);
+        errdefer self.allocator.free(cloned_vec);
+        const owned_metadata = try self.cloneMetadata(metadata);
+        errdefer self.deinitOwnedMetadata(owned_metadata);
+
+        try self.vectors_array.append(self.allocator, EngineVector{
+            .id = cloned_id,
+            .vec = cloned_vec,
+            .metadata = owned_metadata,
+        });
+        _ = try self.hnsw_index.insert(cloned_vec);
+    }
+
+    /// Delete a vector by ID. Returns true if found and removed.
+    pub fn delete(self: *Engine, id: []const u8) bool {
+        for (self.vectors_array.items, 0..) |item, i| {
+            if (std.mem.eql(u8, item.id, id)) {
+                self.allocator.free(item.id);
+                self.allocator.free(item.vec);
+                self.deinitOwnedMetadata(item.metadata);
+                _ = self.vectors_array.swapRemove(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// Return the current number of indexed vectors.
+    pub fn count(self: *const Engine) usize {
+        return self.vectors_array.items.len;
     }
 
     pub fn search(
