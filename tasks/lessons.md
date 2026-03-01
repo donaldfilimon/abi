@@ -15,3 +15,8 @@
 ## 2026-03-01 - Generated registry and ZON data parsing regressions
 - Root cause: Tooling still assumed direct `@import(...)` command wiring and used ad-hoc regex conversion for `.zon` data in the browser, which broke once command metadata moved to generated snapshot wiring and nested ZON structures were introduced.
 - Prevention rule: For docs/CLI metadata extraction, resolve generated registry artifacts explicitly (not only direct imports); for `.zon` web consumption, use a deterministic parser for the generated subset instead of regex-based structural rewrites.
+
+
+## 2026-03-01 - Respect non-shell patch workflow reminders
+- Root cause: I invoked `apply_patch` through a shell command wrapper despite explicit workflow preference, triggering a user correction.
+- Prevention rule: Avoid shell-wrapped patch helpers; use direct file-edit mechanisms (scripted writes or dedicated patch tool entrypoint) and keep shell for inspection/testing only.
