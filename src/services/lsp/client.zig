@@ -1,6 +1,7 @@
 //! ZLS LSP client (JSON-RPC over stdio).
 
 const std = @import("std");
+const zig_toolchain = @import("../shared/zig_toolchain.zig");
 const config_mod = @import("../../core/config/mod.zig");
 const jsonrpc = @import("jsonrpc.zig");
 const types = @import("types.zig");
@@ -401,12 +402,11 @@ fn resolveZigPath(
         return .{ .path = path, .owned = null };
     }
 
-    const home_ptr = std.c.getenv("HOME") orelse std.c.getenv("USERPROFILE") orelse return .{
+    const home = zig_toolchain.resolveHomeDir() orelse return .{
         .path = null,
         .owned = null,
     };
-    const home = std.mem.span(home_ptr);
-    const candidate = std.fs.path.join(allocator, &.{ home, ".zvm", "master", "zig" }) catch return .{
+    const candidate = zig_toolchain.allocZvmMasterZigPath(allocator, home) catch return .{
         .path = null,
         .owned = null,
     };

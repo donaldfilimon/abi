@@ -5,6 +5,7 @@
 //! Also provides helpers to generate kernel source skeletons.
 
 const std = @import("std");
+const zig_toolchain = @import("../../../services/shared/zig_toolchain.zig");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
@@ -80,9 +81,10 @@ pub fn resolveZigPath(allocator: Allocator) ![]const u8 {
     }
 
     // 2. ZVM default location
-    if (std.c.getenv("HOME")) |home_ptr| {
-        const home = std.mem.sliceTo(home_ptr, 0);
-        const zvm_path = try std.fmt.allocPrint(allocator, "{s}/.zvm/master/zig", .{home});
+    if (zig_toolchain.resolveHomeDir()) |home| {
+        const zvm_path = zig_toolchain.allocZvmMasterZigPath(allocator, home) catch {
+            return allocator.dupe(u8, "zig");
+        };
         // Check existence via C access().
         const path_z = std.posix.toPosixPath(zvm_path) catch {
             allocator.free(zvm_path);
