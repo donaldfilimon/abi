@@ -154,3 +154,23 @@ Stabilize `db.neural`/WDBX on Zig 0.16 by removing compatibility blockers, harde
   - A local `wdbx/sync_compat.zig` mirrors shared `RwLock` behavior so direct file tests (`zig test src/features/database/wdbx/*.zig`) compile under Zig module-path restrictions.
 - **Residual risk:**
   - `sync_compat.zig` duplicates lock logic and may drift from `src/services/shared/sync.zig`; consider unifying via build-module wiring in Wave 2.
+
+---
+
+## Zig 0.16 Master Files Organization (2026-03-01)
+
+### Objective
+Organize Zig/ZLS master-branch handling in the toolchain command by centralizing repeated branch/repository path constants and keeping behavior unchanged.
+
+### Checklist
+- [x] Identify repeated "master" literals and path fragments in `tools/cli/commands/toolchain.zig`.
+- [x] Introduce centralized constants/helpers for branch naming and source layout paths.
+- [x] Update call sites to use the centralized definitions without changing user-facing behavior.
+- [x] Run targeted validation for the toolchain command module.
+- [x] Document implementation notes and validation results in Review.
+
+### Review
+- **Status:** Completed.
+- **Changes:** Centralized master-branch/source layout tokens in `toolchain.zig` with reusable helpers for source and binary directories; updated `gitPull` to derive `origin/<branch>` from a single branch constant.
+- **Validation:** `zig fmt tools/cli/commands/toolchain.zig` could not be executed in this environment because `zig` is not installed (`bash: command not found: zig`).
+

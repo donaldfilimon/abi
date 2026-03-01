@@ -54,6 +54,14 @@ const zig_repo = "https://github.com/ziglang/zig.git";
 /// ZLS repository URL
 const zls_repo = "https://github.com/zigtools/zls.git";
 
+/// Upstream branch used for Zig/ZLS source sync.
+const upstream_branch = "master";
+
+const source_root_dir = "src";
+const zig_source_dir_name = "zig";
+const zls_source_dir_name = "zls";
+const bin_dir_name = "bin";
+
 /// Run the toolchain command with the provided arguments.
 /// Only reached when no child matches (help / unknown).
 pub fn run(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) !void {
@@ -144,10 +152,10 @@ fn runInstall(allocator: std.mem.Allocator, parser: *ArgParser, target: InstallT
 fn installZig(allocator: std.mem.Allocator, base_dir: []const u8, jobs: u32, clean: bool) !void {
     output.printHeader("Installing Zig from master");
 
-    const src_dir = try std.fs.path.join(allocator, &.{ base_dir, "src", "zig" });
+    const src_dir = try sourceDirPath(allocator, base_dir, zig_source_dir_name);
     defer allocator.free(src_dir);
 
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, "bin" });
+    const bin_dir = try binaryDirPath(allocator, base_dir);
     defer allocator.free(bin_dir);
 
     try ensureDir(allocator, bin_dir);
@@ -218,10 +226,10 @@ fn installZig(allocator: std.mem.Allocator, base_dir: []const u8, jobs: u32, cle
 fn installZls(allocator: std.mem.Allocator, base_dir: []const u8, jobs: u32, clean: bool) !void {
     output.printHeader("Installing ZLS from master");
 
-    const src_dir = try std.fs.path.join(allocator, &.{ base_dir, "src", "zls" });
+    const src_dir = try sourceDirPath(allocator, base_dir, zls_source_dir_name);
     defer allocator.free(src_dir);
 
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, "bin" });
+    const bin_dir = try binaryDirPath(allocator, base_dir);
     defer allocator.free(bin_dir);
 
     try ensureDir(allocator, bin_dir);
@@ -299,7 +307,7 @@ fn runStatus(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     const base_dir = try getInstallDir(allocator, install_dir);
     defer allocator.free(base_dir);
 
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, "bin" });
+    const bin_dir = try binaryDirPath(allocator, base_dir);
     defer allocator.free(bin_dir);
 
     output.printHeader("Toolchain Status");
@@ -373,7 +381,7 @@ fn runPath(allocator: std.mem.Allocator, parser: *ArgParser) !void {
     const base_dir = try getInstallDir(allocator, install_dir);
     defer allocator.free(base_dir);
 
-    const bin_dir = try std.fs.path.join(allocator, &.{ base_dir, "bin" });
+    const bin_dir = try binaryDirPath(allocator, base_dir);
     defer allocator.free(bin_dir);
 
     if (shell) |sh| {
@@ -462,8 +470,19 @@ fn cloneRepo(allocator: std.mem.Allocator, repo: []const u8, dest: []const u8) !
 }
 
 fn gitPull(allocator: std.mem.Allocator, dir: []const u8) !void {
-    try runShellCommandInDir(allocator, dir, &.{ "git", "fetch", "--depth", "1", "origin", "master" });
-    try runShellCommandInDir(allocator, dir, &.{ "git", "reset", "--hard", "origin/master" });
+    const origin_branch = try std.fmt.allocPrint(allocator, "origin/{s}", .{upstream_branch});
+    defer allocator.free(origin_branch);
+
+    try runShellCommandInDir(allocator, dir, &.{ "git", "fetch", "--depth", "1", "origin", upstream_branch });
+    try runShellCommandInDir(allocator, dir, &.{ "git", "reset", "--hard", origin_branch });
+}
+
+fn sourceDirPath(allocator: std.mem.Allocator, base_dir: []const u8, component_dir: []const u8) ![]const u8 {
+    return std.fs.path.join(allocator, &.{ base_dir, source_root_dir, component_dir });
+}
+
+fn binaryDirPath(allocator: std.mem.Allocator, base_dir: []const u8) ![]const u8 {
+    return std.fs.path.join(allocator, &.{ base_dir, bin_dir_name });
 }
 
 fn runShellCommand(allocator: std.mem.Allocator, argv: []const []const u8) !void {
