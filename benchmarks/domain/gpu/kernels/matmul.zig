@@ -31,7 +31,7 @@ fn runGpuMatmulBenchmark(
 
     const abi = @import("abi");
 
-    var gpu_ctx = abi.gpu.Gpu.init(allocator, .{}) catch return error.GpuInitFailed;
+    var gpu_ctx = abi.features.gpu.Gpu.init(allocator, .{}) catch return error.GpuInitFailed;
     defer gpu_ctx.deinit();
 
     if (!gpu_ctx.isAvailable()) return error.NoGpuDevice;
@@ -53,7 +53,7 @@ fn runGpuMatmulBenchmark(
     var iterations: u32 = 0;
 
     while (total_ns < config.min_time_ns and iterations < config.benchmark_iterations) : (iterations += 1) {
-        var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
+        var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
         _ = try gpu_ctx.matrixMultiply(buf_a, buf_b, buf_c, .{ .m = size, .n = size, .k = size });
         try gpu_ctx.synchronize();
         const elapsed = timer.read();

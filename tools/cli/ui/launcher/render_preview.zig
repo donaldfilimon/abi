@@ -1,18 +1,20 @@
 //! Command preview renderer for command launcher TUI.
 
 const tui = @import("../core/mod.zig");
+const layout = @import("layout.zig");
 const state_mod = @import("state.zig");
 const style_adapter = @import("style_adapter.zig");
 
 const TuiState = state_mod.TuiState;
 const unicode = tui.unicode;
 const writeRepeat = tui.render_utils.writeRepeat;
+const writeClipped = tui.render_utils.writeClipped;
 
 pub fn render(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     const th = state.theme();
     const chrome = style_adapter.launcher(th);
     const item = state.selectedItem() orelse return;
-    const inner = width -| 2;
+    const inner = layout.frameInnerWidth(width);
 
     try term.write("\n");
     try term.write(chrome.frame);
@@ -33,12 +35,15 @@ pub fn render(term: *tui.Terminal, state: *TuiState, width: usize) !void {
     try term.write(" ");
     try term.write(item.categoryColor(th));
     try term.write(th.bold);
-    const title_max = inner -| 12;
+    const title_max = layout.safeSub(inner, 12);
     const title = unicode.truncateToWidth(item.label, title_max);
     try term.write(title);
     try term.write(th.reset);
     const title_w = 11 + unicode.displayWidth(title);
-    if (title_w < inner) try writeRepeat(term, " ", inner - title_w);
+    if (title_w < inner) {
+        try writeRepeat(term, " ", inner - title_w);
+    }
+
     try term.write(chrome.frame);
     try term.write("│");
     try term.write(th.reset);
@@ -125,7 +130,9 @@ fn renderSectionHeader(
     try term.write(" ");
     try term.write(th.reset);
     const used = title.len + 4;
-    if (used < inner) try writeRepeat(term, " ", inner - used);
+    if (used < inner) {
+        try writeRepeat(term, " ", inner - used);
+    }
     try term.write(chrome.frame);
     try term.write("│");
     try term.write(th.reset);
@@ -149,20 +156,23 @@ fn renderBodyLine(
         try term.write(prefix);
         try term.write(th.reset);
     }
-    const body_max = inner -| 1 -| prefix.len;
+    const body_max = layout.safeSub(inner -| 1, prefix.len);
     const body = unicode.truncateToWidth(text, body_max);
+    const body_w = unicode.displayWidth(body);
     try term.write(th.text_dim);
-    try term.write(body);
+    try writeClipped(term, body, body_max);
     try term.write(th.reset);
-    const used = 1 + prefix.len + unicode.displayWidth(body);
-    if (used < inner) try writeRepeat(term, " ", inner - used);
+    const used = 1 + prefix.len + body_w;
+    if (used < inner) {
+        try writeRepeat(term, " ", inner - used);
+    }
     try term.write(chrome.frame);
     try term.write("│");
     try term.write(th.reset);
     try term.write("\n");
 }
 
-const std = @import("std");
 test {
+    const std = @import("std");
     std.testing.refAllDecls(@This());
 }

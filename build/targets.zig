@@ -51,6 +51,7 @@ pub const example_targets = [_]BuildTarget{
     .{ .name = "example-gpu-training", .step_name = "run-gpu-training", .description = "Run GPU + training integration example", .source_path = "examples/gpu_training.zig" },
     .{ .name = "example-distributed-db", .step_name = "run-distributed-db", .description = "Run distributed database integration example", .source_path = "examples/distributed_db.zig" },
     .{ .name = "example-web-observability", .step_name = "run-web-observability", .description = "Run web + observability integration example", .source_path = "examples/web_observability.zig" },
+    .{ .name = "benchmarks", .step_name = "benchmarks", .description = "Run comprehensive benchmark suite", .source_path = "benchmarks/main.zig" },
 };
 
 // ── Cross-compilation target matrix ─────────────────────────────────────

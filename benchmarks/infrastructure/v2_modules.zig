@@ -12,10 +12,10 @@ const abi = @import("abi");
 const framework = @import("../system/framework.zig");
 
 // v2 modules accessed via abi re-exports
-const simd = abi.shared.simd;
-const matrix_mod = abi.shared.matrix;
-const tensor_mod = abi.shared.tensor;
-const utils = abi.shared.utils;
+const simd = abi.services.shared.simd;
+const matrix_mod = abi.services.shared.matrix;
+const tensor_mod = abi.services.shared.tensor;
+const utils = abi.services.shared.utils;
 
 pub const V2BenchConfig = struct {
     /// Vector sizes for SIMD benchmarks
@@ -668,7 +668,7 @@ fn benchPrimitives(runner: *framework.BenchmarkRunner) !void {
             },
             struct {
                 fn bench() u64 {
-                    var ring: utils.v2_primitives.RingBuffer(u64, 1024) = .{};
+                    var ring: utils.primitives.RingBuffer(u64, 1024) = .{};
                     var sum: u64 = 0;
                     // Fill and drain 10 times
                     for (0..10) |round| {
@@ -700,7 +700,7 @@ fn benchPrimitives(runner: *framework.BenchmarkRunner) !void {
                 fn bench() u64 {
                     var sum: u64 = 0;
                     for (1..10001) |i| {
-                        sum +%= utils.v2_primitives.Math.alignUp(usize, i, 64);
+                        sum +%= utils.primitives.Math.alignUp(usize, i, 64);
                     }
                     return sum;
                 }

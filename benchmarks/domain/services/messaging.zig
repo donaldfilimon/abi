@@ -18,15 +18,15 @@ pub const MessagingBenchConfig = struct {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const messaging_config = abi.messaging.MessagingConfig{
+const messaging_config = abi.features.messaging.MessagingConfig{
     .max_channels = 1000,
     .buffer_size = 200,
 };
 
 fn noopCallback(
-    _: abi.messaging.Message,
+    _: abi.features.messaging.Message,
     _: ?*anyopaque,
-) abi.messaging.DeliveryResult {
+) abi.features.messaging.DeliveryResult {
     return .ok;
 }
 
@@ -48,11 +48,11 @@ fn benchPublishThroughput(
     allocator: std.mem.Allocator,
     count: usize,
 ) !void {
-    try abi.messaging.init(allocator, messaging_config);
-    defer abi.messaging.deinit();
+    try abi.features.messaging.init(allocator, messaging_config);
+    defer abi.features.messaging.deinit();
 
     // Subscribe one listener so messages are actually delivered
-    _ = try abi.messaging.subscribe(
+    _ = try abi.features.messaging.subscribe(
         allocator,
         "bench.publish",
         noopCallback,
@@ -62,7 +62,7 @@ fn benchPublishThroughput(
     var payload_buf: [128]u8 = undefined;
     for (0..count) |i| {
         const payload = generatePayload(&payload_buf, i);
-        try abi.messaging.publish(allocator, "bench.publish", payload);
+        try abi.features.messaging.publish(allocator, "bench.publish", payload);
     }
 }
 
@@ -73,12 +73,12 @@ fn benchFanoutThroughput(
     subscriber_count: usize,
     message_count: usize,
 ) !void {
-    try abi.messaging.init(allocator, messaging_config);
-    defer abi.messaging.deinit();
+    try abi.features.messaging.init(allocator, messaging_config);
+    defer abi.features.messaging.deinit();
 
     // Register N subscribers on the same topic
     for (0..subscriber_count) |_| {
-        _ = try abi.messaging.subscribe(
+        _ = try abi.features.messaging.subscribe(
             allocator,
             "bench.fanout",
             noopCallback,
@@ -89,7 +89,7 @@ fn benchFanoutThroughput(
     var payload_buf: [128]u8 = undefined;
     for (0..message_count) |i| {
         const payload = generatePayload(&payload_buf, i);
-        try abi.messaging.publish(allocator, "bench.fanout", payload);
+        try abi.features.messaging.publish(allocator, "bench.fanout", payload);
     }
 }
 
@@ -99,36 +99,36 @@ fn benchTopicMatching(
     allocator: std.mem.Allocator,
     count: usize,
 ) !void {
-    try abi.messaging.init(allocator, messaging_config);
-    defer abi.messaging.deinit();
+    try abi.features.messaging.init(allocator, messaging_config);
+    defer abi.features.messaging.deinit();
 
     // Subscribe with various wildcard patterns (MQTT-style, `.` separator)
     // `*` = single-level wildcard, `#` = multi-level wildcard
-    _ = try abi.messaging.subscribe(
+    _ = try abi.features.messaging.subscribe(
         allocator,
         "sensor.*.temp",
         noopCallback,
         null,
     );
-    _ = try abi.messaging.subscribe(
+    _ = try abi.features.messaging.subscribe(
         allocator,
         "sensor.#",
         noopCallback,
         null,
     );
-    _ = try abi.messaging.subscribe(
+    _ = try abi.features.messaging.subscribe(
         allocator,
         "logs.#",
         noopCallback,
         null,
     );
-    _ = try abi.messaging.subscribe(
+    _ = try abi.features.messaging.subscribe(
         allocator,
         "events.*",
         noopCallback,
         null,
     );
-    _ = try abi.messaging.subscribe(
+    _ = try abi.features.messaging.subscribe(
         allocator,
         "*.alert",
         noopCallback,
@@ -152,7 +152,7 @@ fn benchTopicMatching(
     for (0..count) |i| {
         const topic = topics[i % topics.len];
         const payload = generatePayload(&payload_buf, i);
-        try abi.messaging.publish(allocator, topic, payload);
+        try abi.features.messaging.publish(allocator, topic, payload);
     }
 }
 
@@ -162,19 +162,19 @@ fn benchSubscribeChurn(
     allocator: std.mem.Allocator,
     cycles: usize,
 ) !void {
-    try abi.messaging.init(allocator, messaging_config);
-    defer abi.messaging.deinit();
+    try abi.features.messaging.init(allocator, messaging_config);
+    defer abi.features.messaging.deinit();
 
     var topic_buf: [64]u8 = undefined;
     for (0..cycles) |i| {
         const topic = generateTopic(&topic_buf, i % 100);
-        const sub_id = try abi.messaging.subscribe(
+        const sub_id = try abi.features.messaging.subscribe(
             allocator,
             topic,
             noopCallback,
             null,
         );
-        const removed = try abi.messaging.unsubscribe(sub_id);
+        const removed = try abi.features.messaging.unsubscribe(sub_id);
         std.mem.doNotOptimizeAway(&removed);
     }
 }

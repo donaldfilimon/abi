@@ -100,7 +100,7 @@ fn includeInLauncher(comptime desc: framework.types.CommandDescriptor) bool {
 
 const visible_command_count: usize = blk: {
     var count: usize = 0;
-    inline for (commands.descriptors) |desc| {
+    for (commands.descriptors) |desc| {
         if (includeInLauncher(desc)) count += 1;
     }
     break :blk count;
@@ -110,7 +110,7 @@ const catalog_items = blk: {
     var out: [visible_command_count + 3]MenuItem = undefined;
     var index: usize = 0;
 
-    inline for (commands.descriptors) |desc| {
+    for (commands.descriptors) |desc| {
         if (!includeInLauncher(desc)) continue;
 
         const category = if (desc.ui.category) |explicit_category|

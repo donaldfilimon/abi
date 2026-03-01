@@ -62,7 +62,7 @@ fn benchmarkTokenGeneration(
     context_size: usize,
 ) !struct { tokens_per_sec: f64, ttft_ms: f64 } {
     // Simulate token generation (replace with actual LLM inference)
-    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
 
     // Simulate context processing (TTFT)
     var context = try allocator.alloc(f32, context_size * 4096); // Simulated hidden state
@@ -109,7 +109,7 @@ fn benchmarkBatchThroughput(
 ) !struct { total_tokens_per_sec: f64, latency_per_request_ms: f64 } {
     if (batch_size == 0) return error.InvalidBatchSize;
 
-    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
 
     // Simulate batch processing
     const batch_results = try allocator.alloc([]u32, batch_size);

@@ -238,11 +238,11 @@ pub const TrackingAllocator = struct {
 
 /// High-resolution timer with CPU cycle support
 pub const Timer = struct {
-    inner: ?abi.shared.time.Timer,
+    inner: ?abi.services.shared.time.Timer,
 
     pub fn start() Timer {
         return .{
-            .inner = abi.shared.time.Timer.start() catch null,
+            .inner = abi.services.shared.time.Timer.start() catch null,
         };
     }
 

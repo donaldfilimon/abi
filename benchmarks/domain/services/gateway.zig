@@ -37,18 +37,18 @@ fn generateWildcardLookup(buf: *[64]u8, i: usize) []const u8 {
     return len;
 }
 
-const methods = [_]abi.gateway.HttpMethod{
+const methods = [_]abi.features.gateway.HttpMethod{
     .GET, .POST, .PUT, .DELETE, .PATCH, .HEAD, .OPTIONS,
 };
 
-fn methodForIndex(i: usize) abi.gateway.HttpMethod {
+fn methodForIndex(i: usize) abi.features.gateway.HttpMethod {
     return methods[i % methods.len];
 }
 
 // ── Route Registration Benchmark ─────────────────────────────────────
 
 fn benchRouteRegistration(allocator: std.mem.Allocator, count: usize) !void {
-    const gateway = abi.gateway;
+    const gateway = abi.features.gateway;
     try gateway.init(allocator, .{
         .max_routes = @intCast(@min(count * 2, 100_000)),
         .default_timeout_ms = 30000,
@@ -74,7 +74,7 @@ fn benchMatchStatic(
     route_count: usize,
     match_count: usize,
 ) !void {
-    const gateway = abi.gateway;
+    const gateway = abi.features.gateway;
     try gateway.init(allocator, .{
         .max_routes = @intCast(@min(route_count * 2, 100_000)),
         .default_timeout_ms = 30000,
@@ -105,7 +105,7 @@ fn benchMatchStatic(
 // ── Parameterized Route Matching Benchmark ───────────────────────────
 
 fn benchMatchParam(allocator: std.mem.Allocator, match_count: usize) !void {
-    const gateway = abi.gateway;
+    const gateway = abi.features.gateway;
     try gateway.init(allocator, .{
         .max_routes = 256,
         .default_timeout_ms = 30000,
@@ -143,7 +143,7 @@ fn benchMatchParam(allocator: std.mem.Allocator, match_count: usize) !void {
 // ── Wildcard Route Matching Benchmark ────────────────────────────────
 
 fn benchMatchWildcard(allocator: std.mem.Allocator, match_count: usize) !void {
-    const gateway = abi.gateway;
+    const gateway = abi.features.gateway;
     try gateway.init(allocator, .{
         .max_routes = 256,
         .default_timeout_ms = 30000,
@@ -172,7 +172,7 @@ fn benchRateLimitTokenBucket(
     allocator: std.mem.Allocator,
     count: usize,
 ) !void {
-    const gateway = abi.gateway;
+    const gateway = abi.features.gateway;
     try gateway.init(allocator, .{
         .max_routes = 256,
         .default_timeout_ms = 30000,
@@ -206,7 +206,7 @@ fn benchRateLimitSlidingWindow(
     allocator: std.mem.Allocator,
     count: usize,
 ) !void {
-    const gateway = abi.gateway;
+    const gateway = abi.features.gateway;
     try gateway.init(allocator, .{
         .max_routes = 256,
         .default_timeout_ms = 30000,
@@ -240,7 +240,7 @@ fn benchRateLimitFixedWindow(
     allocator: std.mem.Allocator,
     count: usize,
 ) !void {
-    const gateway = abi.gateway;
+    const gateway = abi.features.gateway;
     try gateway.init(allocator, .{
         .max_routes = 256,
         .default_timeout_ms = 30000,
@@ -273,7 +273,7 @@ fn benchRateLimitFixedWindow(
 // ── Mixed Workload Benchmark ─────────────────────────────────────────
 
 fn benchMixedWorkload(allocator: std.mem.Allocator, count: usize) !void {
-    const gateway = abi.gateway;
+    const gateway = abi.features.gateway;
     try gateway.init(allocator, .{
         .max_routes = @intCast(@min(count * 2, 100_000)),
         .default_timeout_ms = 30000,

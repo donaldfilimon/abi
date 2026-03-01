@@ -16,6 +16,8 @@ const brain_animation = @import("../../tui/brain_animation.zig");
 const brain_panel = @import("../../tui/brain_panel.zig");
 const metrics_file_reader = @import("../../tui/metrics_file_reader.zig");
 const training_brain_mapper = @import("../../tui/training_brain_mapper.zig");
+const layout_scale = @import("layout_scale.zig");
+const unicode = tui.unicode;
 
 // ===============================================================================
 // Types
@@ -388,11 +390,18 @@ fn renderBrain(state: *BrainState) !void {
 
 fn renderTitleBar(term: *tui.Terminal, theme_val: *const tui.Theme, state: *const BrainState, width: u16) !void {
     const chrome = style_adapter.gpu(theme_val);
-    const inner: usize = if (width >= 2) @as(usize, width) - 2 else 0;
+    const inner: usize = layout_scale.innerWidth(width);
     const title = " ABI BRAIN VISUALIZER ";
     const mode_label = if (state.paused) "PAUSED" else "LIVE";
+    const view_label = state.view_mode.label();
+    const show_mode = inner >= mode_label.len + 4;
+    const show_view = if (show_mode)
+        inner >= mode_label.len + view_label.len + 10
+    else
+        inner >= view_label.len + 4;
 
-    const right_width = mode_label.len + state.view_mode.label().len + 10;
+    const right_width = (if (show_mode) mode_label.len + 2 else 0) +
+        (if (show_view) view_label.len + 2 + (@as(usize, if (show_mode) 1 else 0)) else 0);
     const left_max = inner -| right_width -| 1;
     const left_display = if (title.len > left_max) title[0..left_max] else title;
     const gap = inner -| left_display.len -| right_width;
@@ -415,22 +424,25 @@ fn renderTitleBar(term: *tui.Terminal, theme_val: *const tui.Theme, state: *cons
     try term.write(theme_val.reset);
     try writeRepeat(term, " ", gap);
 
-    // Mode chip
-    try term.write(chrome.chip_bg);
-    try term.write(if (state.paused) chrome.paused else chrome.live);
-    try term.write("[");
-    try term.write(mode_label);
-    try term.write("]");
-    try term.write(theme_val.reset);
-    try term.write(" ");
-
-    // View chip
-    try term.write(chrome.chip_bg);
-    try term.write(chrome.chip_fg);
-    try term.write("[");
-    try term.write(state.view_mode.label());
-    try term.write("]");
-    try term.write(theme_val.reset);
+    if (show_mode) {
+        // Mode chip
+        try term.write(chrome.chip_bg);
+        try term.write(if (state.paused) chrome.paused else chrome.live);
+        try term.write("[");
+        try term.write(mode_label);
+        try term.write("]");
+        try term.write(theme_val.reset);
+        if (show_view) try term.write(" ");
+    }
+    if (show_view) {
+        // View chip
+        try term.write(chrome.chip_bg);
+        try term.write(chrome.chip_fg);
+        try term.write("[");
+        try term.write(view_label);
+        try term.write("]");
+        try term.write(theme_val.reset);
+    }
 
     try term.write(chrome.frame);
     try term.write(box.v);
@@ -448,6 +460,7 @@ fn renderTitleBar(term: *tui.Terminal, theme_val: *const tui.Theme, state: *cons
 
 fn renderNotification(term: *tui.Terminal, theme_val: *const tui.Theme, msg: []const u8, row: u16, width: u16) !void {
     const chrome = style_adapter.gpu(theme_val);
+    const inner = layout_scale.innerWidth(width);
     try setCursorPosition(term, row, 0);
 
     try term.write(chrome.frame);
@@ -460,12 +473,15 @@ fn renderNotification(term: *tui.Terminal, theme_val: *const tui.Theme, msg: []c
     try term.write(theme_val.reset);
     try term.write(" ");
     try term.write(theme_val.text);
-    try term.write(msg);
+    const msg_budget = layout_scale.safeSub(inner, 10);
+    const clipped = unicode.truncateToWidth(msg, msg_budget);
+    const msg_w = unicode.displayWidth(clipped);
+    try term.write(clipped);
     try term.write(theme_val.reset);
 
-    const used = 10 + msg.len;
-    if (used < @as(usize, width) - 1) {
-        try writeRepeat(term, " ", @as(usize, width) - 1 - used);
+    const used = 10 + msg_w;
+    if (used < inner + 1) {
+        try writeRepeat(term, " ", inner + 1 - used);
     }
 
     try term.write(chrome.frame);
@@ -480,7 +496,7 @@ fn renderStatusBar(term: *tui.Terminal, theme_val: *const tui.Theme, state: *con
     // Separator
     try term.write(chrome.frame);
     try term.write(box.lsep);
-    try writeRepeat(term, box.h, @as(usize, width) - 2);
+    try writeRepeat(term, box.h, layout_scale.innerWidth(width));
     try term.write(box.rsep);
     try term.write(theme_val.reset);
     try term.write("\n");
@@ -491,25 +507,18 @@ fn renderStatusBar(term: *tui.Terminal, theme_val: *const tui.Theme, state: *con
     try term.write(theme_val.reset);
 
     var buf: [64]u8 = undefined;
+    var budget = layout_scale.innerWidth(width);
 
-    try term.write(" ");
-    try writeChip(term, chrome, theme_val, "view", state.view_mode.label());
-
-    try term.write("  ");
     const frame_str = std.fmt.bufPrint(&buf, "{d}", .{state.frame_count}) catch "?";
-    try writeChip(term, chrome, theme_val, "frame", frame_str);
-
-    try term.write("  ");
     const vec_str = std.fmt.bufPrint(&buf, "{d}", .{state.data.vector_count}) catch "?";
-    try writeChip(term, chrome, theme_val, "vecs", vec_str);
 
-    try term.write("  ");
-    try writeChip(term, chrome, theme_val, "data", state.data_source.label());
-
-    // Pad and close
-    const status_inner: usize = if (width >= 2) @as(usize, width) - 2 else 0;
-    const approx_used: usize = 60 + frame_str.len + vec_str.len;
-    if (approx_used < status_inner) try writeRepeat(term, " ", status_inner - approx_used);
+    try writeStatusChip(term, chrome, theme_val, &budget, 1, "view", state.view_mode.label());
+    try writeStatusChip(term, chrome, theme_val, &budget, 2, "frame", frame_str);
+    try writeStatusChip(term, chrome, theme_val, &budget, 2, "vecs", vec_str);
+    try writeStatusChip(term, chrome, theme_val, &budget, 2, "data", state.data_source.label());
+    if (budget > 0) {
+        try writeRepeat(term, " ", budget);
+    }
 
     try term.write(chrome.frame);
     try term.write(box.v);
@@ -520,7 +529,7 @@ fn renderHelpBar(term: *tui.Terminal, theme_val: *const tui.Theme, row: u16, wid
     const chrome = style_adapter.gpu(theme_val);
     try setCursorPosition(term, row, 0);
 
-    const inner: usize = if (width >= 2) @as(usize, width) - 2 else 0;
+    const inner: usize = layout_scale.innerWidth(width);
     try term.write(chrome.frame);
     try term.write(box.bl);
     try writeRepeat(term, box.h, inner);
@@ -567,15 +576,16 @@ fn renderResizeMessage(term: *tui.Terminal, theme_val: *const tui.Theme, width: 
 
 fn renderHelpOverlay(term: *tui.Terminal, theme_val: *const tui.Theme, width: u16, height: u16) !void {
     const chrome = style_adapter.gpu(theme_val);
-    const box_width: u16 = @min(56, width - 4);
-    const box_height: u16 = @min(@as(u16, 16), height - 2);
+    const box_width: u16 = @as(u16, @intCast(layout_scale.clampDimension(width, 56, 4)));
+    const box_height: u16 = @as(u16, @intCast(layout_scale.clampDimension(height, 16, 2)));
+    const inner_width = layout_scale.safeSub(@as(usize, box_width), 2);
     const start_col = (width - box_width) / 2;
     const start_row = (height - box_height) / 2;
 
     try setCursorPosition(term, start_row, start_col);
     try term.write(chrome.frame);
     try term.write("\u{2554}");
-    try writeRepeat(term, "\u{2550}", @as(usize, box_width) - 2);
+    try writeRepeat(term, "\u{2550}", inner_width);
     try term.write("\u{2557}");
     try term.write(theme_val.reset);
 
@@ -596,14 +606,14 @@ fn renderHelpOverlay(term: *tui.Terminal, theme_val: *const tui.Theme, width: u1
         "",
     };
 
-    const max_lines = @min(help_lines.len, @as(usize, box_height - 2));
+    const max_lines = @min(help_lines.len, layout_scale.safeSub(@as(usize, box_height), 2));
     for (help_lines[0..max_lines], 0..) |line, i| {
         try setCursorPosition(term, start_row + 1 + @as(u16, @intCast(i)), start_col);
         try term.write(chrome.frame);
         try term.write("\u{2551}");
         try term.write(theme_val.reset);
         try term.write(line);
-        const pad = @as(usize, box_width) - 2 - line.len;
+        const pad = layout_scale.safeSub(inner_width, line.len);
         try writeRepeat(term, " ", pad);
         try term.write(chrome.frame);
         try term.write("\u{2551}");
@@ -613,7 +623,7 @@ fn renderHelpOverlay(term: *tui.Terminal, theme_val: *const tui.Theme, width: u1
     try setCursorPosition(term, start_row + box_height - 1, start_col);
     try term.write(chrome.frame);
     try term.write("\u{255A}");
-    try writeRepeat(term, "\u{2550}", @as(usize, box_width) - 2);
+    try writeRepeat(term, "\u{2550}", inner_width);
     try term.write("\u{255D}");
     try term.write(theme_val.reset);
 
@@ -627,21 +637,38 @@ fn renderHelpOverlay(term: *tui.Terminal, theme_val: *const tui.Theme, width: u1
 // Utilities
 // ===============================================================================
 
-fn writeChip(
+fn writeStatusChip(
     term: *tui.Terminal,
     chrome: style_adapter.ChromeStyle,
     theme_val: *const tui.Theme,
+    budget: *usize,
+    leading: usize,
     label: []const u8,
     value: []const u8,
 ) !void {
+    const chip_width = label.len + 2;
+    const chip_needed = leading + chip_width;
+    if (budget.* < chip_needed) return;
+
+    try writeRepeat(term, " ", leading);
+    budget.* -|= leading;
+
     try term.write(chrome.chip_bg);
     try term.write(chrome.chip_fg);
     try term.write(" ");
     try term.write(label);
     try term.write(" ");
     try term.write(theme_val.reset);
+
+    budget.* -|= chip_width;
+    if (budget.* == 0) return;
+
     try term.write(" ");
-    try term.write(value);
+    budget.* -|= 1;
+    const clipped = unicode.truncateToWidth(value, budget.*);
+    const value_w = unicode.displayWidth(clipped);
+    try term.write(clipped);
+    budget.* -|= value_w;
 }
 
 fn writeKeyHint(

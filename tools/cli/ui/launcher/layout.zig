@@ -6,6 +6,30 @@ pub const CompactLayout = struct {
     min_width: usize = 40,
 };
 
+pub fn frameWidth(cols: u16) usize {
+    return @as(usize, cols);
+}
+
+pub fn frameInnerWidth(width: usize) usize {
+    return width -| 2;
+}
+
+pub fn safeSub(width: usize, amount: usize) usize {
+    return width -| amount;
+}
+
+pub fn titleBudget(width: usize) usize {
+    return frameInnerWidth(width);
+}
+
+pub fn menuBudget(width: usize) usize {
+    return frameInnerWidth(width);
+}
+
+pub fn statusBudget(width: usize) usize {
+    return frameInnerWidth(width);
+}
+
 pub fn computeVisibleRows(rows: u16) usize {
     const content_rows = rows -| 11;
     // On very small terminals, don't promise more rows than physically exist
@@ -14,7 +38,7 @@ pub fn computeVisibleRows(rows: u16) usize {
 }
 
 pub fn clampedFrameWidth(cols: u16) usize {
-    return @max(@as(usize, 40), @as(usize, @intCast(cols)));
+    return frameWidth(cols);
 }
 
 pub fn completionDropdownRowCount(state: anytype) u16 {
@@ -105,9 +129,21 @@ test "computeVisibleRows rows < 11 and very small terminals" {
 }
 
 test "clampedFrameWidth" {
-    try std.testing.expectEqual(@as(usize, 40), clampedFrameWidth(30));
-    try std.testing.expectEqual(@as(usize, 40), clampedFrameWidth(40));
+    try std.testing.expectEqual(@as(usize, 30), clampedFrameWidth(30));
     try std.testing.expectEqual(@as(usize, 80), clampedFrameWidth(80));
+}
+
+test "frameWidth pass-through" {
+    try std.testing.expectEqual(@as(usize, 0), frameWidth(0));
+    try std.testing.expectEqual(@as(usize, 10), frameWidth(10));
+    try std.testing.expectEqual(@as(usize, 20), frameWidth(20));
+    try std.testing.expectEqual(@as(usize, 80), frameWidth(80));
+}
+
+test "frameInnerWidth" {
+    try std.testing.expectEqual(@as(usize, 78), frameInnerWidth(80));
+    try std.testing.expectEqual(@as(usize, 0), frameInnerWidth(1));
+    try std.testing.expectEqual(@as(usize, 0), frameInnerWidth(0));
 }
 
 test "completionDropdownRowCount inactive" {

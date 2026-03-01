@@ -178,6 +178,10 @@ pub fn validateInternalLinks(
     for (expected) |file| {
         try expected_set.put(allocator, file.path, {});
     }
+    // Root files are valid link targets
+    try expected_set.put(allocator, "README.md", {});
+    try expected_set.put(allocator, "AGENTS.md", {});
+    try expected_set.put(allocator, "LICENSE", {});
 
     var broken_count: usize = 0;
     for (expected) |file| {

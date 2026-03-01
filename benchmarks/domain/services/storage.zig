@@ -32,7 +32,7 @@ fn generateValue(allocator: std.mem.Allocator, size: usize) ![]u8 {
 // ── Put Benchmarks ───────────────────────────────────────────────────
 
 fn benchStoragePut(allocator: std.mem.Allocator, count: usize, val_size: usize) !void {
-    const storage = abi.storage;
+    const storage = abi.features.storage;
     try storage.init(allocator, .{ .backend = .memory });
     defer storage.deinit();
 
@@ -49,7 +49,7 @@ fn benchStoragePut(allocator: std.mem.Allocator, count: usize, val_size: usize) 
 // ── Get Benchmarks (all keys pre-populated) ─────────────────────────
 
 fn benchStorageGet(allocator: std.mem.Allocator, count: usize, val_size: usize) !void {
-    const storage = abi.storage;
+    const storage = abi.features.storage;
     try storage.init(allocator, .{ .backend = .memory });
     defer storage.deinit();
 
@@ -75,7 +75,7 @@ fn benchStorageGet(allocator: std.mem.Allocator, count: usize, val_size: usize) 
 // ── Delete Benchmarks ────────────────────────────────────────────────
 
 fn benchStorageDelete(allocator: std.mem.Allocator, count: usize) !void {
-    const storage = abi.storage;
+    const storage = abi.features.storage;
     try storage.init(allocator, .{ .backend = .memory });
     defer storage.deinit();
 
@@ -97,7 +97,7 @@ fn benchStorageDelete(allocator: std.mem.Allocator, count: usize) !void {
 // ── Exists Benchmarks (hit and miss) ─────────────────────────────────
 
 fn benchStorageExistsHit(allocator: std.mem.Allocator, count: usize) !void {
-    const storage = abi.storage;
+    const storage = abi.features.storage;
     try storage.init(allocator, .{ .backend = .memory });
     defer storage.deinit();
 
@@ -117,7 +117,7 @@ fn benchStorageExistsHit(allocator: std.mem.Allocator, count: usize) !void {
 }
 
 fn benchStorageExistsMiss(count: usize) !void {
-    const storage = abi.storage;
+    const storage = abi.features.storage;
     // Init with memory backend (empty store — all checks are misses)
     try storage.init(std.heap.page_allocator, .{ .backend = .memory });
     defer storage.deinit();
@@ -134,7 +134,7 @@ fn benchStorageExistsMiss(count: usize) !void {
 // Workload: 40% get, 30% put, 20% exists, 10% delete
 
 fn benchStorageMixed(allocator: std.mem.Allocator, count: usize) !void {
-    const storage = abi.storage;
+    const storage = abi.features.storage;
     try storage.init(allocator, .{ .backend = .memory });
     defer storage.deinit();
 

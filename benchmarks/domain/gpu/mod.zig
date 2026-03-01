@@ -103,7 +103,7 @@ pub fn hasHardwareGpu(allocator: std.mem.Allocator) bool {
     if (!build_options.enable_gpu) return false;
 
     const abi = @import("abi");
-    var gpu_ctx = abi.gpu.Gpu.init(allocator, .{}) catch return false;
+    var gpu_ctx = abi.features.gpu.Gpu.init(allocator, .{}) catch return false;
     defer gpu_ctx.deinit();
 
     if (!gpu_ctx.isAvailable()) return false;

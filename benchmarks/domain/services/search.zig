@@ -50,7 +50,7 @@ fn generateContent(allocator: std.mem.Allocator, size: usize) ![]u8 {
     return content;
 }
 
-fn freeQueryResults(allocator: std.mem.Allocator, results: []abi.search.SearchResult) void {
+fn freeQueryResults(allocator: std.mem.Allocator, results: []abi.features.search.SearchResult) void {
     for (results) |r| {
         if (r.doc_id.len > 0) allocator.free(r.doc_id);
         if (r.snippet.len > 0) allocator.free(r.snippet);
@@ -61,7 +61,7 @@ fn freeQueryResults(allocator: std.mem.Allocator, results: []abi.search.SearchRe
 // ── Indexing Throughput ──────────────────────────────────────────────
 
 fn benchIndexing(allocator: std.mem.Allocator, count: usize, doc_size: usize) !void {
-    const search = abi.search;
+    const search = abi.features.search;
     try search.init(allocator, .{ .default_result_limit = 10 });
     defer search.deinit();
 
@@ -80,7 +80,7 @@ fn benchIndexing(allocator: std.mem.Allocator, count: usize, doc_size: usize) !v
 // ── Query Throughput (pre-populated corpus) ─────────────────────────
 
 fn benchQuery(allocator: std.mem.Allocator, corpus_size: usize, query_count: usize) !void {
-    const search = abi.search;
+    const search = abi.features.search;
     try search.init(allocator, .{ .default_result_limit = 10 });
     defer search.deinit();
 
@@ -115,7 +115,7 @@ fn benchQuery(allocator: std.mem.Allocator, corpus_size: usize, query_count: usi
 // ── Mixed Workload (80% query, 15% index, 5% delete) ───────────────
 
 fn benchMixed(allocator: std.mem.Allocator, op_count: usize) !void {
-    const search = abi.search;
+    const search = abi.features.search;
     try search.init(allocator, .{ .default_result_limit = 10 });
     defer search.deinit();
 

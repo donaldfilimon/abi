@@ -19,7 +19,7 @@ const TuiState = state_mod.TuiState;
 
 pub fn renderFrame(state: *TuiState) !void {
     const term = state.terminal;
-    const width = tui_layout.clampedFrameWidth(state.term_size.cols);
+    const width = tui_layout.frameWidth(state.term_size.cols);
 
     if (state.preview_mode) {
         try preview_renderer.render(term, state, width);

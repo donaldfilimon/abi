@@ -17,7 +17,7 @@ pub fn runGpuBackendBenchmarks(allocator: std.mem.Allocator) !void {
     };
     defer framework.deinit();
 
-    if (!abi.gpu.moduleEnabled()) {
+    if (!abi.features.gpu.moduleEnabled()) {
         std.debug.print("GPU module not enabled\n", .{});
         return;
     }
@@ -35,7 +35,7 @@ pub fn runGpuBackendBenchmarks(allocator: std.mem.Allocator) !void {
 fn detectAndBenchmarkBackends(allocator: std.mem.Allocator) !void {
     std.debug.print("\n--- Backend Detection ---\n", .{});
 
-    const backends = try abi.gpu.availableBackends(allocator);
+    const backends = try abi.features.gpu.availableBackends(allocator);
     defer allocator.free(backends);
 
     if (backends.len == 0) {
@@ -49,14 +49,14 @@ fn detectAndBenchmarkBackends(allocator: std.mem.Allocator) !void {
     }
 
     // Get current backend info
-    const current_backend = abi.gpu.currentBackend();
+    const current_backend = abi.features.gpu.currentBackend();
     std.debug.print("\nActive backend: {t}\n", .{current_backend});
 }
 
 fn detectMultiGpu(allocator: std.mem.Allocator) !void {
     std.debug.print("\n--- Multi-GPU Detection ---\n", .{});
 
-    const devices = try abi.gpu.listDevices(allocator);
+    const devices = try abi.features.gpu.listDevices(allocator);
     defer allocator.free(devices);
 
     if (devices.len == 0) {
@@ -107,11 +107,11 @@ fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void
 
     // Vector addition benchmark
     const vec_size = 1024 * 1024;
-    var vec_a = try allocator.alloc(f32, vec_size);
+    const vec_a = try allocator.alloc(f32, vec_size);
     defer allocator.free(vec_a);
-    var vec_b = try allocator.alloc(f32, vec_size);
+    const vec_b = try allocator.alloc(f32, vec_size);
     defer allocator.free(vec_b);
-    var result = try allocator.alloc(f32, vec_size);
+    const result = try allocator.alloc(f32, vec_size);
     defer allocator.free(result);
 
     // Initialize data
@@ -128,7 +128,7 @@ fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void
     }
 
     // Benchmark
-    var timer = try abi.shared.time.Timer.start();
+    var timer = try abi.services.shared.time.Timer.start();
     const iterations: usize = 100;
     for (0..iterations) |_| {
         abi.simd.vectorAdd(vec_a, vec_b, result);
@@ -146,11 +146,11 @@ fn benchmarkBackend(allocator: std.mem.Allocator, backend: abi.GpuBackend) !void
 }
 
 fn benchmarkMatrixMultiply(allocator: std.mem.Allocator, size: usize) !void {
-    var mat_a = try allocator.alloc(f32, size * size);
+    const mat_a = try allocator.alloc(f32, size * size);
     defer allocator.free(mat_a);
-    var mat_b = try allocator.alloc(f32, size * size);
+    const mat_b = try allocator.alloc(f32, size * size);
     defer allocator.free(mat_b);
-    var result = try allocator.alloc(f32, size * size);
+    const result = try allocator.alloc(f32, size * size);
     defer allocator.free(result);
 
     // Initialize matrices
@@ -167,7 +167,7 @@ fn benchmarkMatrixMultiply(allocator: std.mem.Allocator, size: usize) !void {
     }
 
     // Benchmark
-    var timer = try abi.shared.time.Timer.start();
+    var timer = try abi.services.shared.time.Timer.start();
     const iterations: usize = 10;
     for (0..iterations) |_| {
         abi.simd.matrixMultiply(mat_a, mat_b, result, size, size, size);

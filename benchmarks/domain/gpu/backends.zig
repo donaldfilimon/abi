@@ -16,7 +16,7 @@ const mod = @import("mod.zig");
 const GpuBenchConfig = mod.GpuBenchConfig;
 
 // Conditional imports based on build options
-const gpu_mod = if (build_options.enable_gpu) @import("abi").gpu else struct {
+const gpu_mod = if (build_options.enable_gpu) @import("abi").features.gpu else struct {
     pub const Backend = enum { none, auto, cuda, vulkan, metal, webgpu, opengl, stdgpu, fpga };
     pub const moduleEnabled = struct {
         pub fn call() bool {
@@ -241,7 +241,7 @@ fn gpuVsCpuComparison(
         if (build_options.enable_gpu) {
             const abi = @import("abi");
 
-            var gpu_ctx = abi.gpu.Gpu.init(allocator, .{}) catch {
+            var gpu_ctx = abi.features.gpu.Gpu.init(allocator, .{}) catch {
                 std.debug.print("  matmul_gpu_{d}x{d}: GPU init failed\n", .{ size, size });
                 continue;
             };
@@ -285,7 +285,7 @@ fn gpuVsCpuComparison(
             var iterations: u32 = 0;
 
             while (total_ns < config.min_time_ns and iterations < config.benchmark_iterations) : (iterations += 1) {
-                var timer = abi.shared.time.Timer.start() catch continue;
+                var timer = abi.services.shared.time.Timer.start() catch continue;
                 _ = gpu_ctx.matrixMultiply(buf_a, buf_b, buf_c, .{
                     .m = size,
                     .n = size,

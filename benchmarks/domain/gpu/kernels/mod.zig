@@ -25,7 +25,7 @@ pub const memory_ops = @import("memory_ops.zig");
 const GpuBenchConfig = parent_mod.GpuBenchConfig;
 
 // Conditional GPU imports based on build options
-pub const gpu = if (build_options.enable_gpu) @import("abi").gpu else struct {
+pub const gpu = if (build_options.enable_gpu) @import("abi").features.gpu else struct {
     pub const Gpu = void;
     pub const GpuConfig = struct {};
     pub const moduleEnabled = struct {

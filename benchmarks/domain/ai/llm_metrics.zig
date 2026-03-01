@@ -148,7 +148,7 @@ fn measureEfficiency(
 
     const total_tokens = config.num_samples * config.output_length;
 
-    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
 
     // Simulate work
     const buffer = try tracked.alloc(f32, config.context_length * 4096);
@@ -308,10 +308,10 @@ fn measureBatchPerformance(
     defer allocator.free(latencies);
 
     var total_tokens: u64 = 0;
-    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
 
     // Time to first token
-    var ttft_timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
+    var ttft_timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
     var sum: f32 = 0;
     for (buffer[0..@min(1024, buffer.len)]) |v| {
         sum += v;
@@ -322,7 +322,7 @@ fn measureBatchPerformance(
     // Generate tokens
     const num_iterations = 100;
     for (0..num_iterations) |i| {
-        var iter_timer = abi.shared.time.Timer.start() catch continue;
+        var iter_timer = abi.services.shared.time.Timer.start() catch continue;
 
         var token_sum: f32 = 0;
         for (buffer[0..@min(batch_size * 1024, buffer.len)]) |v| {
@@ -440,7 +440,7 @@ fn analyzeQuantizationLevel(
         w.* = 0;
     }
 
-    var timer = abi.shared.time.Timer.start() catch return error.TimerFailed;
+    var timer = abi.services.shared.time.Timer.start() catch return error.TimerFailed;
 
     var total_tokens: usize = 0;
     for (0..num_eval_samples) |_| {

@@ -23,11 +23,11 @@ fn databaseInsertBenchmark(allocator: std.mem.Allocator) !void {
     });
     defer framework.deinit();
 
-    var db_handle = try abi.database.open(allocator, "bench");
-    defer abi.database.close(&db_handle);
+    var db_handle = try abi.features.database.open(allocator, "bench");
+    defer abi.features.database.close(&db_handle);
 
     const vector = [_]f32{ 1.0, 0.5, 0.2, 0.8 };
-    try abi.database.insert(&db_handle, 1, &vector, null);
+    try abi.features.database.insert(&db_handle, 1, &vector, null);
 }
 
 fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
@@ -36,8 +36,8 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
     });
     defer framework.deinit();
 
-    var db_handle = try abi.database.open(allocator, "bench");
-    defer abi.database.close(&db_handle);
+    var db_handle = try abi.features.database.open(allocator, "bench");
+    defer abi.features.database.close(&db_handle);
 
     // Insert some test data
     const vectors = [_][4]f32{
@@ -48,12 +48,12 @@ fn databaseSearchBenchmark(allocator: std.mem.Allocator) !void {
     };
 
     for (vectors, 0..) |vec, i| {
-        try abi.database.insert(&db_handle, @intCast(i + 1), &vec, null);
+        try abi.features.database.insert(&db_handle, @intCast(i + 1), &vec, null);
     }
 
     // Perform search
     const query = [_]f32{ 1.0, 0.0, 0.0, 0.0 };
-    const results = try abi.database.search(&db_handle, allocator, &query, 3);
+    const results = try abi.features.database.search(&db_handle, allocator, &query, 3);
     defer allocator.free(results);
     std.mem.doNotOptimizeAway(results);
 }
@@ -109,7 +109,7 @@ fn gpuAvailabilityBenchmark(allocator: std.mem.Allocator) !void {
     };
     defer framework.deinit();
 
-    const available = abi.gpu.moduleEnabled();
+    const available = abi.features.gpu.moduleEnabled();
     std.mem.doNotOptimizeAway(available);
 }
 
@@ -122,7 +122,7 @@ fn networkRegistryBenchmark(allocator: std.mem.Allocator) !void {
     defer framework.deinit();
 
     // Attempt to obtain the default registry; if that fails, simply skip the benchmark.
-    const registry = abi.network.defaultRegistry() catch return;
+    const registry = abi.features.network.defaultRegistry() catch return;
     const node_id = "bench-node";
     // Register a node – ignore errors (e.g., bind failures) to keep benchmark stable.
     _ = registry.register(node_id, "127.0.0.1:8080") catch {};

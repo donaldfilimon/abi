@@ -96,6 +96,10 @@ pub fn build(b: *std.Build) void {
     });
     cli_test_mod.addImport("abi", abi_module);
     const cli_tests_artifact = b.addTest(.{ .root_module = cli_test_mod });
+    cli_tests_artifact.test_runner = .{
+        .path = b.path("build/cli_tui_test_runner.zig"),
+        .mode = .simple,
+    };
     link.applyAllPlatformLinks(cli_tests_artifact.root_module, target.result.os.tag, options.gpu_metal(), options.gpu_backends);
     const run_cli_tests = b.addRunArtifact(cli_tests_artifact);
     run_cli_tests.skip_foreign_checks = true;

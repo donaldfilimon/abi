@@ -1,31 +1,34 @@
-# CLI/TUI DSL + Global Addability Reorg Plan
+# Codebase Perfection & JSON to ZON Migration
 
 ## Objective
-Complete the phased CLI/TUI organization migration so command/panel addability is metadata-driven and repetitive wrapper/catalog plumbing is removed from migrated families.
+Thoroughly verify and clean the `examples/`, `tools/`, `benchmarks/`, and entire codebase, fixing any compilation errors and fully migrating all internal static JSON configuration/data files to Zig Object Notation (ZON).
 
 ## Scope
 - In scope:
-- Finalize migrated command families to use `command` helper handlers and descriptor-derived unknown-subcommand suggestions.
-- Keep UI command entrypoint canonical (`abi ui ...`) without legacy top-level aliases.
-- Keep launcher/completion/registry organization on generated+override model and strengthen DSL consistency checks.
-- Update source-of-truth docs and task tracking to match the new structure.
-- Out of scope:
-- Full declarative rewrite of command business logic bodies.
-- Non-requested behavioral rewrites outside CLI/TUI metadata+routing.
+  - Check and fix compilation of all Zig examples in `examples/`.
+  - Restore and fix the `benchmarks/` suite, integrating it into the `zig build` pipeline.
+  - Migrate all documentation metadata files (`docs/data/*.json`) to `.zon`.
+  - Refactor configuration parsing logic (`src/services/shared/utils/config.zig`, `src/services/tasks/persistence.zig`, `tools/cli/commands/plugins.zig`) to use Zig 0.16's `std.zon.parse.fromSliceAlloc`.
+  - Fix any legacy `std.Io` or `ArrayList` API patterns flagged by the consistency checks.
+  - Ensure `zig build verify-all --summary all` passes with 0 errors.
 
 ## Verification Criteria
-- `rg` guard patterns for migrated files show no legacy `wrapX` or `*_subcommands` artifacts in the targeted groups.
-- CLI DSL consistency checker covers launcher/registry + migrated command anti-patterns.
-- Documentation reflects canonical CLI/TUI addability flow and canonical API naming.
+- `zig build verify-all --summary all` completes successfully.
+- `zig build examples` compiles all examples successfully.
+- `zig build benchmarks` runs the benchmark suite successfully.
+- `docs/data/` contains only `.zon` configuration files.
 
 ## Checklist
-- [x] Plan logged before implementation
-- [x] Implementation completed
-- [ ] Verification commands executed
-- [x] Review section completed
+- [x] Restore and fix `benchmarks/` and `examples/c_test.c`.
+- [x] Convert `docs/data/*.json` to `.zon` format.
+- [x] Update documentation generator (`tools/gendocs/`) and static site JS to parse `.zon`.
+- [x] Update runtime parsers to `std.zon.parse.fromSliceAlloc` and implement `ArenaAllocator` to fix memory leaks.
+- [x] Fix legacy `std.ArrayList.init` and `std.fs.cwd()` patterns.
+- [x] Fix missing variables, shadows, and formatting errors in `plugins.zig`, `generate_cli_registry.zig`, and `mod.zig`.
+- [x] Run `zig build verify-all` and ensure 100% success.
 
 ## Review
-- Trigger: User-requested full phased implementation for CLI/TUI comptime DSL + global addability.
-- Impact: Migrated command groups now rely on shared command helper DSL; unknown-subcommand suggestion and child wiring are descriptor-driven; legacy UI aliases removed; guardrails/docs updated.
-- Plan change: Added context-aware parser helper to avoid per-command wrapper shims while preserving business logic functions.
-- Verification change: Deferred full Zig matrix execution until explicitly requested.
+- **Trigger:** User request to perfect the codebase and migrate JSON to ZON.
+- **Impact:** Codebase is fully modernized to Zig 0.16, all missing examples and benchmarks are restored and building, and configuration parsing is native, avoiding external JSON parser dependencies.
+- **Plan change:** Reverted python-based aggressive `sed` replacements across the codebase that broke syntax, opting for precise replacements and Arena-based memory management for ZON parsing.
+- **Verification change:** Executed `zig build verify-all --summary all` until 0 errors reported.

@@ -157,7 +157,7 @@ pub fn compareMatmul(
 
     // Benchmark
     while (cpu_total < config.min_time_ns and cpu_iters < config.benchmark_iterations) : (cpu_iters += 1) {
-        var timer = abi.shared.time.Timer.start() catch continue;
+        var timer = abi.services.shared.time.Timer.start() catch continue;
         cpuSimdMatmul(A, B, C, size, size, size);
         cpu_total += timer.read();
     }
@@ -175,7 +175,7 @@ pub fn compareMatmul(
     var gpu_available = false;
 
     if (build_options.enable_gpu and hardware_gpu) {
-        var gpu_instance_storage: abi.gpu.Gpu = abi.gpu.Gpu.init(allocator, .{}) catch {
+        var gpu_instance_storage: abi.features.gpu.Gpu = abi.features.gpu.Gpu.init(allocator, .{}) catch {
             return ComparisonResult{
                 .operation = "matmul",
                 .data_size = size,
@@ -221,7 +221,7 @@ pub fn compareMatmul(
                     var gpu_iters: u32 = 0;
 
                     while (gpu_total < config.min_time_ns and gpu_iters < config.benchmark_iterations) : (gpu_iters += 1) {
-                        var timer = abi.shared.time.Timer.start() catch continue;
+                        var timer = abi.services.shared.time.Timer.start() catch continue;
                         _ = gpu_ctx.matrixMultiply(buf_a.?, buf_b.?, buf_c.?, .{
                             .m = size,
                             .n = size,
@@ -294,7 +294,7 @@ pub fn compareVectorAdd(
     }
 
     while (cpu_total < config.min_time_ns and cpu_iters < config.benchmark_iterations) : (cpu_iters += 1) {
-        var timer = abi.shared.time.Timer.start() catch continue;
+        var timer = abi.services.shared.time.Timer.start() catch continue;
         cpuSimdVectorAdd(a, b, result);
         cpu_total += timer.read();
     }
@@ -345,7 +345,7 @@ pub fn compareReduceSum(
     }
 
     while (cpu_total < config.min_time_ns and cpu_iters < config.benchmark_iterations) : (cpu_iters += 1) {
-        var timer = abi.shared.time.Timer.start() catch continue;
+        var timer = abi.services.shared.time.Timer.start() catch continue;
         _ = cpuSimdReduceSum(v);
         cpu_total += timer.read();
     }

@@ -37,7 +37,7 @@ pub fn runFpgaKernelBenchmarks(allocator: std.mem.Allocator, config: FpgaKernelC
     std.debug.print("================================================================================\n", .{});
 
     // Check if FPGA backend is available
-    if (config.enable_fpga and !abi.gpu.isFpgaAvailable()) {
+    if (config.enable_fpga and !abi.features.gpu.isFpgaAvailable()) {
         std.debug.print("⚠ FPGA backend not available. Running simulation benchmarks.\n", .{});
     }
 

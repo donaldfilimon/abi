@@ -1,13 +1,14 @@
 //! Notification renderer for command launcher TUI.
 
 const tui = @import("../core/mod.zig");
+const layout = @import("layout.zig");
 const types = @import("types.zig");
 const state_mod = @import("state.zig");
 const style_adapter = @import("style_adapter.zig");
+const unicode = tui.unicode;
 
 const TuiState = state_mod.TuiState;
 const box = types.box;
-const unicode = tui.unicode;
 const writeRepeat = tui.render_utils.writeRepeat;
 
 pub fn render(term: *tui.Terminal, state: *TuiState, width: usize, msg: []const u8) !void {
@@ -25,7 +26,7 @@ pub fn render(term: *tui.Terminal, state: *TuiState, width: usize, msg: []const 
         .warning => " WARN ",
         .@"error" => " ERR ",
     };
-    const inner = width -| 2;
+    const inner = layout.frameInnerWidth(width);
 
     try term.write(chrome.frame);
     try term.write(box.v);
@@ -37,21 +38,26 @@ pub fn render(term: *tui.Terminal, state: *TuiState, width: usize, msg: []const 
     try term.write(th.reset);
     try term.write(" ");
     try term.write(th.text);
-    try term.write(msg);
+
+    const icon_width = unicode.displayWidth(icon);
+    const msg_budget = layout.safeSub(inner, icon_width + 3);
+    const message = if (msg.len > msg_budget) unicode.truncateToWidth(msg, msg_budget) else msg;
+    const msg_w = unicode.displayWidth(message);
+    try term.write(message);
     try term.write(th.reset);
 
-    const used = 2 + unicode.displayWidth(icon) + unicode.displayWidth(msg);
-    if (used < inner) {
-        try writeRepeat(term, " ", inner - used);
+    const used = 2 + icon_width + msg_w;
+    const pad = layout.safeSub(inner, used);
+    if (pad > 0) {
+        try writeRepeat(term, " ", pad);
     }
 
     try term.write(chrome.frame);
     try term.write(box.v);
     try term.write(th.reset);
-    try term.write("\n");
 }
 
-const std = @import("std");
 test {
+    const std = @import("std");
     std.testing.refAllDecls(@This());
 }

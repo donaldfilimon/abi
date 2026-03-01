@@ -33,7 +33,7 @@ fn generateValue(allocator: std.mem.Allocator, size: usize) ![]u8 {
 // ── Put Benchmarks ───────────────────────────────────────────────────
 
 fn benchCachePut(allocator: std.mem.Allocator, count: usize, val_size: usize) !void {
-    const cache = abi.cache;
+    const cache = abi.features.cache;
     try cache.init(allocator, .{
         .max_entries = @intCast(@min(count * 2, 100_000)),
         .eviction_policy = .lru,
@@ -53,7 +53,7 @@ fn benchCachePut(allocator: std.mem.Allocator, count: usize, val_size: usize) !v
 // ── Get Benchmarks (100% hit rate — all keys pre-populated) ─────────
 
 fn benchCacheGetHit(allocator: std.mem.Allocator, count: usize, val_size: usize) !void {
-    const cache = abi.cache;
+    const cache = abi.features.cache;
     try cache.init(allocator, .{
         .max_entries = @intCast(@min(count * 2, 100_000)),
         .eviction_policy = .lru,
@@ -81,7 +81,7 @@ fn benchCacheGetHit(allocator: std.mem.Allocator, count: usize, val_size: usize)
 // ── Get Benchmarks (0% hit rate — all misses) ───────────────────────
 
 fn benchCacheGetMiss(allocator: std.mem.Allocator, count: usize) !void {
-    const cache = abi.cache;
+    const cache = abi.features.cache;
     try cache.init(allocator, .{
         .max_entries = 100,
         .eviction_policy = .lru,
@@ -98,8 +98,8 @@ fn benchCacheGetMiss(allocator: std.mem.Allocator, count: usize) !void {
 
 // ── Eviction Benchmark (cache full, every put triggers eviction) ────
 
-fn benchCacheEviction(allocator: std.mem.Allocator, count: usize, policy: abi.cache.EvictionPolicy) !void {
-    const cache = abi.cache;
+fn benchCacheEviction(allocator: std.mem.Allocator, count: usize, policy: abi.features.cache.EvictionPolicy) !void {
+    const cache = abi.features.cache;
     const capacity: u32 = 500;
     try cache.init(allocator, .{
         .max_entries = capacity,
@@ -120,7 +120,7 @@ fn benchCacheEviction(allocator: std.mem.Allocator, count: usize, policy: abi.ca
 // ── Mixed Read/Write Benchmark ──────────────────────────────────────
 
 fn benchCacheMixed(allocator: std.mem.Allocator, count: usize) !void {
-    const cache = abi.cache;
+    const cache = abi.features.cache;
     try cache.init(allocator, .{
         .max_entries = 5000,
         .eviction_policy = .lru,
@@ -216,13 +216,13 @@ pub fn runCacheBenchmarks(allocator: std.mem.Allocator, config: CacheBenchConfig
 
     // Eviction overhead by policy
     std.debug.print("\n[Eviction Overhead]\n", .{});
-    const policies = [_]abi.cache.EvictionPolicy{ .lru, .lfu, .fifo, .random };
+    const policies = [_]abi.features.cache.EvictionPolicy{ .lru, .lfu, .fifo, .random };
     const policy_names = [_][]const u8{ "evict_lru", "evict_lfu", "evict_fifo", "evict_random" };
     for (policies, policy_names) |policy, pname| {
         const result = try runner.run(
             .{ .name = pname, .category = "cache/eviction", .warmup_iterations = 3, .min_time_ns = 100_000_000 },
             struct {
-                fn bench(a: std.mem.Allocator, c: usize, p: abi.cache.EvictionPolicy) !void {
+                fn bench(a: std.mem.Allocator, c: usize, p: abi.features.cache.EvictionPolicy) !void {
                     try benchCacheEviction(a, c, p);
                 }
             }.bench,

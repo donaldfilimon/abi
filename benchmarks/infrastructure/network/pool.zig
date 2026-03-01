@@ -1,7 +1,7 @@
 //! Connection pool simulation benchmarks.
 
 const std = @import("std");
-const sync = @import("abi").shared.sync;
+const sync = @import("abi").services.shared.sync;
 
 pub const ConnectionPool = struct {
     const Connection = struct {
