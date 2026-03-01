@@ -300,148 +300,91 @@ function commandSubcommands(cmd) {
   return cmd.subcommands;
 }
 
-
-function buildResult(type, score, title, subtitle, detail, href) {
-  return { type, score, title, subtitle, detail, href };
+function addResult(results, query, score, payload) {
+  if (!query || score > 0) {
+    results.push({ ...payload, score });
+  }
 }
-
-const SEARCH_DEFINITIONS = {
-  modules: {
-    enabled: (type) => type === "all" || type === "modules" || type === "symbols",
-    collect: (results, query, category, modules, type) => {
-      for (const mod of modules) {
-        if (category && mod.category !== category) continue;
-
-        if (type === "all" || type === "modules") {
-          const score = wasmScore(query, `${mod.name} ${mod.description}`);
-          if (!query || score > 0) {
-            results.push(buildResult(
-              "module",
-              score,
-              mod.name,
-              `${mod.category} • ${mod.build_flag}`,
-              `Path: ${mod.path}
-
-${mod.description}`,
-              `./api/${mod.name}.html`,
-            ));
-          }
-        }
-
-        if (type === "all" || type === "symbols") {
-          for (const symbol of mod.symbols) {
-            const symScore = wasmScore(query, `${mod.name} ${symbol.signature} ${symbol.doc}`);
-            if (!query || symScore > 0) {
-              results.push(buildResult(
-                "symbol",
-                symScore,
-                symbol.signature,
-                `${mod.name} • line ${symbol.line}`,
-                `${symbol.doc}
-
-Source: ${mod.path}#L${symbol.line}`,
-                `./api/${mod.name}.html#${symbol.anchor}`,
-              ));
-            }
-          }
-        }
-      }
-    },
-  },
-  commands: {
-    enabled: (type) => type === "all" || type === "commands",
-    collect: (results, query, _category, _modules, _type, commands) => {
-      for (const cmd of commands) {
-        const subs = commandSubcommands(cmd);
-        const score = wasmScore(query, `${cmd.name} ${cmd.description} ${subs.join(" ")}`);
-        if (!query || score > 0) {
-          results.push(buildResult(
-            "command",
-            score,
-            cmd.name,
-            `aliases: ${cmd.aliases.join(", ") || "none"}`,
-            `${cmd.description}
-
-Subcommands: ${subs.join(", ") || "none"}`,
-            "./cli/",
-          ));
-        }
-      }
-    },
-  },
-  guides: {
-    enabled: (type) => type === "all" || type === "guides",
-    collect: (results, query, _category, _modules, _type, _commands, guides) => {
-      for (const guide of guides) {
-        const score = wasmScore(query, `${guide.title} ${guide.section} ${guide.description}`);
-        if (!query || score > 0) {
-          results.push(buildResult(
-            "guide",
-            score,
-            guide.title,
-            `${guide.section} • ${guide.slug}`,
-            `${guide.description}
-
-Permalink: ${guide.permalink}`,
-            `./${guide.slug}/`,
-          ));
-        }
-      }
-    },
-  },
-  plans: {
-    enabled: (type) => type === "all" || type === "plans",
-    collect: (results, query, _category, _modules, _type, _commands, _guides, plans) => {
-      for (const plan of plans) {
-        const gateText = (plan.gate_commands || []).join(" ; ");
-        const score = wasmScore(query, `${plan.title} ${plan.status} ${plan.owner} ${plan.scope} ${gateText}`);
-        if (!query || score > 0) {
-          results.push(buildResult(
-            "plan",
-            score,
-            plan.title,
-            `${plan.status} • owner: ${plan.owner}`,
-            `${plan.scope}
-
-Validation: ${gateText || "none"}`,
-            `./plans/${plan.slug}.md`,
-          ));
-        }
-      }
-    },
-  },
-  roadmap: {
-    enabled: (type) => type === "all" || type === "roadmap",
-    collect: (results, query, _category, _modules, _type, _commands, _guides, _plans, roadmap) => {
-      for (const item of roadmap) {
-        const score = wasmScore(query, `${item.id} ${item.title} ${item.summary} ${item.track} ${item.horizon} ${item.status} ${item.owner} ${item.plan_title}`);
-        if (!query || score > 0) {
-          results.push(buildResult(
-            "roadmap",
-            score,
-            `${item.id} ${item.title}`,
-            `${item.horizon} • ${item.track} • ${item.status}`,
-            `${item.summary}
-
-Owner: ${item.owner}
-Validation Gate: ${item.validation_gate}
-Plan: ${item.plan_title}`,
-            "./roadmap/",
-          ));
-        }
-      }
-    },
-  },
-};
 
 function toResults(modules, commands, guides, plans, roadmap, query, category, type) {
   const results = [];
   const q = query.trim();
 
-  for (const key of ["modules", "commands", "guides", "plans", "roadmap"]) {
-    const definition = SEARCH_DEFINITIONS[key];
-    if (!definition.enabled(type)) continue;
-    definition.collect(results, q, category, modules, type, commands, guides, plans, roadmap);
+  if (type === "all" || type === "modules") {
+    for (const mod of modules) {
+      if (category && mod.category !== category) continue;
+      const score = wasmScore(q, `${mod.name} ${mod.description}`);
+      addResult(results, q, score, {
+        type: "module",
+        title: mod.name,
+        subtitle: `${mod.category} • ${mod.build_flag}`,
+        detail: `Path: ${mod.path}\n\n${mod.description}`,
+        href: `./api/${mod.name}.html`,
+      });
+      if (type === "all" || type === "symbols") {
+        for (const symbol of mod.symbols) {
+          const symScore = wasmScore(q, `${mod.name} ${symbol.signature} ${symbol.doc}`);
+          addResult(results, q, symScore, {
+            type: "symbol",
+            title: symbol.signature,
+            subtitle: `${mod.name} • line ${symbol.line}`,
+            detail: `${symbol.doc}\n\nSource: ${mod.path}#L${symbol.line}`,
+            href: `./api/${mod.name}.html#${symbol.anchor}`,
+          });
+        }
+
+  if (type === "all" || type === "commands") {
+    for (const cmd of commands) {
+      const subs = commandSubcommands(cmd);
+      const score = wasmScore(q, `${cmd.name} ${cmd.description} ${subs.join(" ")}`);
+      addResult(results, q, score, {
+        type: "command",
+        title: cmd.name,
+        subtitle: `aliases: ${cmd.aliases.join(", ") || "none"}`,
+        detail: `${cmd.description}\n\nSubcommands: ${subs.join(", ") || "none"}`,
+        href: `./cli/`,
+      });
+    }
+  }
+
+  if (type === "all" || type === "guides") {
+    for (const guide of guides) {
+      const score = wasmScore(q, `${guide.title} ${guide.section} ${guide.description}`);
+      addResult(results, q, score, {
+        type: "guide",
+        title: guide.title,
+        subtitle: `${guide.section} • ${guide.slug}`,
+        detail: `${guide.description}\n\nPermalink: ${guide.permalink}`,
+        href: `./${guide.slug}/`,
+      });
+    }
+  }
+
+  if (type === "all" || type === "plans") {
+    for (const plan of plans) {
+      const gateText = (plan.gate_commands || []).join(" ; ");
+      const score = wasmScore(q, `${plan.title} ${plan.status} ${plan.owner} ${plan.scope} ${gateText}`);
+      addResult(results, q, score, {
+        type: "plan",
+        title: plan.title,
+        subtitle: `${plan.status} • owner: ${plan.owner}`,
+        detail: `${plan.scope}\n\nValidation: ${gateText || "none"}`,
+        href: `./plans/${plan.slug}.md`,
+      });
+    }
+  }
+
+  if (type === "all" || type === "roadmap") {
+    for (const item of roadmap) {
+      const score = wasmScore(q, `${item.id} ${item.title} ${item.summary} ${item.track} ${item.horizon} ${item.status} ${item.owner} ${item.plan_title}`);
+      addResult(results, q, score, {
+        type: "roadmap",
+        title: `${item.id} ${item.title}`,
+        subtitle: `${item.horizon} • ${item.track} • ${item.status}`,
+        detail: `${item.summary}\n\nOwner: ${item.owner}\nValidation Gate: ${item.validation_gate}\nPlan: ${item.plan_title}`,
+        href: `./roadmap/`,
+      });
+    }
   }
 
   results.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
