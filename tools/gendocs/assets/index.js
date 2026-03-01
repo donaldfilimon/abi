@@ -1,8 +1,18 @@
-const loadJson = async (path) => {
+const loadZon = async (path) => {
   const res = await fetch(path, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load ${path}`);
-  return await res.json();
+  const text = await res.text();
+  let result = text.trim();
+  if (result.startsWith(".{")) {
+    result = result.replace(/^\.\{/, "[").replace(/\}$/, "]");
+    result = result.replace(/\.\{/g, "{");
+    result = result.replace(/\.[a-zA-Z0-9_]+ =/g, '"$1":');
+    result = result.replace(/\.@\"(.*?)\" =/g, '"$1":');
+    result = result.replace(/,(\s*[\}\]])/g, "$1");
+  }
+  return JSON.parse(result);
 };
+
 
 const utf8 = new TextEncoder();
 let wasmApi = null;
@@ -272,11 +282,11 @@ function bindUI(modules, commands, guides, plans, roadmap) {
 
 async function boot() {
   const [modules, commands, guides, plans, roadmap] = await Promise.all([
-    loadJson("./data/modules.json"),
-    loadJson("./data/commands.json"),
-    loadJson("./data/guides.json"),
-    loadJson("./data/plans.json"),
-    loadJson("./data/roadmap.json"),
+    loadZon("./data/modules.zon"),
+    loadZon("./data/commands.zon"),
+    loadZon("./data/guides.zon"),
+    loadZon("./data/plans.zon"),
+    loadZon("./data/roadmap.zon"),
   ]);
   await loadWasmRanker();
   renderStats(modules, commands, guides, plans, roadmap);

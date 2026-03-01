@@ -1,0 +1,73 @@
+.{
+  .{
+    .@"slug" = "cli-framework-local-agents",
+    .@"title" = "CLI Framework + Local-Agent Fallback",
+    .@"status" = "In Progress",
+    .@"owner" = "Abbey",
+    .@"scope" = "Descriptor-driven CLI framework and local-first LLM provider routing with plugin support.",
+    .@"gate_commands" = .{
+      "zig build cli-tests",
+      "zig build feature-tests",
+      "zig build verify-all",
+    },
+  },
+  .{
+    .@"slug" = "docs-roadmap-sync-v2",
+    .@"title" = "Docs + Roadmap Canonical Sync",
+    .@"status" = "In Progress",
+    .@"owner" = "Abbey",
+    .@"scope" = "Canonical roadmap catalog, generated roadmap docs, generated plan docs, and task import synchronization.",
+    .@"gate_commands" = .{
+      "zig build gendocs",
+      "zig build check-docs",
+      "zig build verify-all",
+    },
+  },
+  .{
+    .@"slug" = "gpu-redesign-v3",
+    .@"title" = "GPU Redesign v3",
+    .@"status" = "In Progress",
+    .@"owner" = "Abbey",
+    .@"scope" = "Metal/Vulkan policy hardening, GL family consolidation, strict backend creation, and mixed-backend stability.",
+    .@"gate_commands" = .{
+      "zig build typecheck",
+      "zig build -Dtarget=x86_64-linux-gnu -Dgpu-backend=auto typecheck",
+      "zig build -Dtarget=x86_64-windows-gnu -Dgpu-backend=auto typecheck",
+      "zig build verify-all",
+    },
+  },
+  .{
+    .@"slug" = "tui-modular-v2",
+    .@"title" = "TUI Modular Extraction v2",
+    .@"status" = "In Progress",
+    .@"owner" = "Abbey",
+    .@"scope" = "Split launcher/dashboard rendering into reusable modules with responsive layout and shared async loop behavior.",
+    .@"gate_commands" = .{
+      "zig build cli-tests",
+      "zig build run -- ui launch --help",
+      "zig build run -- ui gpu --help",
+    },
+  },
+  .{
+    .@"slug" = "feature-modules-restructure-v1",
+    .@"title" = "Feature Modules Restructure v1",
+    .@"status" = "Planned",
+    .@"owner" = "Abbey",
+    .@"scope" = "Consolidate feature layout, remove obsolete facades, and align mod/stub parity under new module boundaries.",
+    .@"gate_commands" = .{
+      "zig build validate-flags",
+      "zig build full-check",
+    },
+  },
+  .{
+    .@"slug" = "integration-gates-v1",
+    .@"title" = "Integration Gates v1",
+    .@"status" = "Blocked",
+    .@"owner" = "Abbey",
+    .@"scope" = "Expand exhaustive integration and long-running command probes while keeping default gates fast.",
+    .@"gate_commands" = .{
+      "zig build cli-tests-full",
+      "zig build verify-all",
+    },
+  },
+}

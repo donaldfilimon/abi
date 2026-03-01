@@ -360,11 +360,11 @@ test "generated markdown classifier and drift mode" {
     try std.testing.expect(isGeneratedMarkdownPath("docs/api/index.md"));
     try std.testing.expect(isGeneratedMarkdownPath("docs/_docs/architecture.md"));
     try std.testing.expect(isGeneratedMarkdownPath("docs/plans/index.md"));
-    try std.testing.expect(!isGeneratedMarkdownPath("docs/data/features.json"));
+    try std.testing.expect(!isGeneratedMarkdownPath("docs/data/features.zon"));
     try std.testing.expect(!isGeneratedMarkdownPath("README.md"));
 
     try std.testing.expect(!shouldEnforceDrift("docs/api/index.md", .{ .untracked_markdown = true }));
-    try std.testing.expect(shouldEnforceDrift("docs/data/features.json", .{ .untracked_markdown = true }));
+    try std.testing.expect(shouldEnforceDrift("docs/data/features.zon", .{ .untracked_markdown = true }));
     try std.testing.expect(shouldEnforceDrift("docs/api/index.md", .{}));
 }
 
@@ -378,13 +378,13 @@ test "filterGeneratedMarkdownExtras removes only generated markdown paths" {
 
     try extras.append(allocator, try allocator.dupe(u8, "docs/api/index.md"));
     try extras.append(allocator, try allocator.dupe(u8, "docs/_docs/architecture.md"));
-    try extras.append(allocator, try allocator.dupe(u8, "docs/data/features.json"));
+    try extras.append(allocator, try allocator.dupe(u8, "docs/data/features.zon"));
     try extras.append(allocator, try allocator.dupe(u8, "docs/index.html"));
 
     filterGeneratedMarkdownExtras(allocator, &extras);
 
     try std.testing.expectEqual(@as(usize, 2), extras.items.len);
-    try std.testing.expectEqualStrings("docs/data/features.json", extras.items[0]);
+    try std.testing.expectEqualStrings("docs/data/features.zon", extras.items[0]);
     try std.testing.expectEqualStrings("docs/index.html", extras.items[1]);
 }
 

@@ -3,7 +3,7 @@
 
 ## Architecture Overview
 
-The AI streaming subsystem lives at `abi.ai.streaming` and provides a unified
+The AI streaming subsystem lives at `abi.features.ai.streaming` and provides a unified
 abstraction for token-by-token LLM output delivery. It supports multiple transport
 protocols and includes production-grade resilience patterns.
 
@@ -35,7 +35,7 @@ SSE is the default streaming transport. The `sse.zig` module provides both
 encoding and decoding:
 
 ```zig
-const sse = abi.ai.streaming.sse;
+const sse = abi.features.ai.streaming.sse;
 
 // Encode a stream event
 var encoder = try sse.Encoder.init(allocator, .{});
@@ -72,7 +72,7 @@ For bidirectional communication (e.g., interactive sessions), use the WebSocket
 handler:
 
 ```zig
-const websocket = abi.ai.streaming.websocket;
+const websocket = abi.features.ai.streaming.websocket;
 
 var handler = try websocket.WebSocketHandler.init(allocator, .{
     .max_frame_size = 64 * 1024,
@@ -92,7 +92,7 @@ Close codes follow RFC 6455 (normal=1000, going_away=1001, protocol_error=1002).
 The backpressure module prevents fast producers from overwhelming slow consumers:
 
 ```zig
-const backpressure = abi.ai.streaming.backpressure;
+const backpressure = abi.features.ai.streaming.backpressure;
 
 var controller = try backpressure.Controller.init(allocator, .{
     .high_water_mark = 1024,   // Pause production above this
@@ -115,7 +115,7 @@ Each streaming backend is wrapped in a circuit breaker that prevents cascading
 failures:
 
 ```zig
-const cb = abi.ai.streaming.circuit_breaker;
+const cb = abi.features.ai.streaming.circuit_breaker;
 
 var breaker = cb.CircuitBreaker.init(.{
     .failure_threshold = 5,     // Open after 5 consecutive failures
@@ -138,7 +138,7 @@ HALF_OPEN -- any failure            -->  OPEN
 Different retry policies for local and external backends:
 
 ```zig
-const retry = abi.ai.streaming.retry_config;
+const retry = abi.features.ai.streaming.retry_config;
 
 // Local backends (fast retry, short timeout)
 const local = retry.StreamingRetryConfig.forLocalBackend();

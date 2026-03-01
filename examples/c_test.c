@@ -28,7 +28,7 @@ int main() {
     printf("Creating vector database...\n");
     abi_database_config_t db_cfg;
     abi_database_config_init(&db_cfg);
-    db_cfg.dimensions = 128;
+    db_cfg.dimension = 128;
 
     abi_database_t *db = NULL;
     err = abi_database_create(&db_cfg, &db);
@@ -44,7 +44,7 @@ int main() {
     for (int i = 0; i < 128; i++) {
         vector[i] = (float)i / 128.0f;
     }
-    err = abi_database_insert(db, 1, vector, 128);
+    err = abi_database_insert(db, 1, vector, 128, "{\"source\": \"c_test\"}");
     if (err == ABI_OK) {
         printf("Inserted vector with ID 1.\n");
     }

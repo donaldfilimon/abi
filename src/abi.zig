@@ -24,9 +24,9 @@
 //!
 //! ```zig
 //! var fw = try abi.Framework.builder(allocator)
-//!     .withGpu(.{ .backend = .vulkan })
-//!     .withAi(.{ .llm = .{ .model_path = "./models/llama.gguf" } })
-//!     .withDatabase(.{ .path = "./data" })
+//!     .with(.gpu, .{ .backend = .vulkan })
+//!     .with(.ai, .{ .llm = .{ .model_path = "./models/llama.gguf" } })
+//!     .with(.database, .{ .path = "./data" })
 //!     .build();
 //! defer fw.deinit();
 //! ```

@@ -8,11 +8,17 @@
 const std = @import("std");
 const context_mod = @import("framework/context.zig");
 const types = @import("framework/types.zig");
+const args_mod = @import("utils/args.zig");
 
 pub const CommandDescriptor = types.CommandDescriptor;
 pub const CommandHandler = types.CommandHandler;
 pub const CommandForward = types.CommandForward;
 pub const CommandKind = types.CommandKind;
+pub const OptionInfo = types.OptionInfo;
+pub const UiMeta = types.UiMeta;
+pub const UiCategory = types.UiCategory;
+pub const Visibility = types.Visibility;
+pub const RiskLevel = types.RiskLevel;
 
 /// Child command metadata for group commands (e.g. llm children, ui children).
 pub const ChildMeta = struct {
@@ -31,7 +37,62 @@ pub const Meta = struct {
     kind: CommandKind = .action,
     forward: ?CommandForward = null,
     children: []const ChildMeta = &.{},
+    options: []const OptionInfo = &.{},
+    ui: UiMeta = .{},
+    visibility: Visibility = .public,
+    risk: RiskLevel = .safe,
+    source_id: ?[]const u8 = null,
+    default_subcommand: ?[:0]const u8 = null,
+    middleware_tags: []const []const u8 = &.{},
 };
+
+pub const AllocatorArgHandler = *const fn (allocator: std.mem.Allocator, args: []const [:0]const u8) anyerror!void;
+pub const ArgParserHandler = *const fn (allocator: std.mem.Allocator, parser: *args_mod.ArgParser) anyerror!void;
+pub const Middleware = *const fn (
+    ctx: *const context_mod.CommandContext,
+    args: []const [:0]const u8,
+    next: CommandHandler,
+) anyerror!void;
+
+pub fn allocatorHandler(comptime handler: AllocatorArgHandler) CommandHandler {
+    return struct {
+        fn call(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) anyerror!void {
+            try handler(ctx.allocator, args);
+        }
+    }.call;
+}
+
+pub fn parserHandler(comptime handler: ArgParserHandler) CommandHandler {
+    return struct {
+        fn call(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) anyerror!void {
+            var parser = args_mod.ArgParser.init(ctx.allocator, args);
+            try handler(ctx.allocator, &parser);
+        }
+    }.call;
+}
+
+pub fn withMiddleware(
+    comptime next: CommandHandler,
+    comptime middleware: Middleware,
+) CommandHandler {
+    return struct {
+        fn call(ctx: *const context_mod.CommandContext, args: []const [:0]const u8) anyerror!void {
+            try middleware(ctx, args, next);
+        }
+    }.call;
+}
+
+pub fn withMiddlewares(
+    comptime handler: CommandHandler,
+    comptime middlewares: []const Middleware,
+) CommandHandler {
+    if (middlewares.len == 0) return handler;
+    var current = handler;
+    inline for (middlewares) |mw| {
+        current = withMiddleware(current, mw);
+    }
+    return current;
+}
 
 /// Comptime validation: compile-error if a module is missing the required
 /// command protocol exports (`meta` and `run`).
@@ -41,6 +102,78 @@ pub fn validate(comptime Module: type) void {
     }
     if (!@hasDecl(Module, "run")) {
         @compileError("Command module missing `pub fn run`");
+    }
+
+    const m: Meta = Module.meta;
+
+    inline for (m.aliases, 0..) |alias, i| {
+        if (alias.len == 0) {
+            @compileError(std.fmt.comptimePrint(
+                "Command '{s}' has an empty alias at index {d}",
+                .{ m.name, i },
+            ));
+        }
+        inline for (m.aliases[0..i]) |prev| {
+            if (std.mem.eql(u8, prev, alias)) {
+                @compileError(std.fmt.comptimePrint(
+                    "Command '{s}' has duplicate alias '{s}'",
+                    .{ m.name, alias },
+                ));
+            }
+        }
+        if (std.mem.eql(u8, alias, m.name)) {
+            @compileError(std.fmt.comptimePrint(
+                "Command '{s}' alias '{s}' duplicates the command name",
+                .{ m.name, alias },
+            ));
+        }
+    }
+
+    if (m.ui.shortcut) |shortcut| {
+        if (shortcut < 1 or shortcut > 9) {
+            @compileError(std.fmt.comptimePrint(
+                "Command '{s}' UI shortcut {d} is outside [1..9]",
+                .{ m.name, shortcut },
+            ));
+        }
+    }
+
+    if (m.visibility == .hidden and m.ui.include_in_launcher) {
+        @compileError(std.fmt.comptimePrint(
+            "Command '{s}' is hidden but include_in_launcher=true",
+            .{m.name},
+        ));
+    }
+
+    if (m.ui.include_in_dashboard and !m.ui.include_in_launcher) {
+        @compileError(std.fmt.comptimePrint(
+            "Command '{s}' has include_in_dashboard=true but include_in_launcher=false",
+            .{m.name},
+        ));
+    }
+
+    if (m.default_subcommand) |default_sub| {
+        var found = false;
+        inline for (m.subcommands) |sub| {
+            if (std.mem.eql(u8, sub, default_sub)) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            inline for (m.children) |child| {
+                if (std.mem.eql(u8, child.name, default_sub)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found) {
+            @compileError(std.fmt.comptimePrint(
+                "Command '{s}' default_subcommand '{s}' not found in subcommands/children",
+                .{ m.name, default_sub },
+            ));
+        }
     }
 }
 
@@ -80,6 +213,17 @@ fn deriveSubcommandNames(comptime children: []const ChildMeta) []const []const u
     return &Holder.data;
 }
 
+pub fn subcommandNames(comptime m: Meta) []const []const u8 {
+    return if (m.subcommands.len == 0 and m.children.len > 0)
+        deriveSubcommandNames(m.children)
+    else
+        m.subcommands;
+}
+
+pub fn suggestSubcommand(comptime m: Meta, raw: []const u8) ?[]const u8 {
+    return args_mod.suggestCommand(raw, subcommandNames(m));
+}
+
 /// Convert a command module's Meta + run function into a CommandDescriptor.
 /// Bridges the declarative `Meta` to the runtime `CommandDescriptor` used
 /// by the router, help, and completion systems.
@@ -98,6 +242,13 @@ pub fn toDescriptor(comptime Module: type) CommandDescriptor {
         .kind = m.kind,
         .handler = Module.run,
         .forward = m.forward,
+        .options = m.options,
+        .ui = m.ui,
+        .visibility = m.visibility,
+        .risk = m.risk,
+        .source_id = if (m.source_id) |source_id| source_id else m.name,
+        .default_subcommand = m.default_subcommand,
+        .middleware_tags = m.middleware_tags,
     };
 }
 

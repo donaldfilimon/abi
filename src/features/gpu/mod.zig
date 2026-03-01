@@ -48,7 +48,7 @@
 //! defer fw.deinit();
 //!
 //! // Get GPU context
-//! const gpu_ctx = try fw.getGpu();
+//! const gpu_ctx = try fw.get(.gpu);
 //! const gpu = gpu_ctx.getGpu();
 //!
 //! // Create buffers

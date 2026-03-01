@@ -28,7 +28,7 @@
 //! defer fw.deinit();
 //!
 //! // Get database context
-//! const db_ctx = try fw.getDatabase();
+//! const db_ctx = try fw.get(.database);
 //!
 //! // Insert a vector
 //! try db_ctx.insertVector(1, &[_]f32{ 0.1, 0.2, 0.3, 0.4 }, "metadata");

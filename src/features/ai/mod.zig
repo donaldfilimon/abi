@@ -33,7 +33,7 @@
 //! defer fw.deinit();
 //!
 //! // Access AI context
-//! const ai_ctx = try fw.getAi();
+//! const ai_ctx = try fw.get(.ai);
 //!
 //! // Use LLM
 //! const llm = try ai_ctx.getLlm();

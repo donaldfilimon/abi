@@ -19,13 +19,7 @@
 //! defer report.deinit(allocator);
 //!
 //! if (report.hasRegressions()) {
-//!     var io_backend = std.Io.Threaded.init(allocator, .{
-//!         .environ = std.process.Environ.empty,
-//!     });
-//!     defer io_backend.deinit();
-//!     var stderr_buffer: [4096]u8 = undefined;
-//!     var stderr_writer = std.Io.File.stderr().writer(io_backend.io(), &stderr_buffer);
-//!     try report.format(&stderr_writer);
+//!     try report.format(std.io.getStdErr().writer());
 //!     return error.RegressionDetected;
 //! }
 //! ```
@@ -272,7 +266,7 @@ pub const RegressionReport = struct {
 
     /// Format the report as JSON
     pub fn toJson(self: RegressionReport, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         try buf.appendSlice(allocator, "{\n");
@@ -370,7 +364,7 @@ pub const RegressionReport = struct {
 
     /// Format the report as Markdown
     pub fn toMarkdown(self: RegressionReport, allocator: std.mem.Allocator) ![]u8 {
-        var buf = std.ArrayListUnmanaged(u8){};
+        var buf = std.ArrayListUnmanaged(u8).empty;
         errdefer buf.deinit(allocator);
 
         // Header
@@ -502,7 +496,7 @@ pub fn compareAllWithConfig(
     allocator: std.mem.Allocator,
     config: ComparisonConfig,
 ) !RegressionReport {
-    var results = std.ArrayListUnmanaged(ComparisonResult){};
+    var results = std.ArrayListUnmanaged(ComparisonResult).empty;
     errdefer {
         for (results.items) |*r| r.deinit(allocator);
         results.deinit(allocator);
@@ -667,7 +661,7 @@ pub fn compareSingle(
     config: ComparisonConfig,
 ) !ComparisonResult {
     const results = [_]BenchmarkResult{current};
-    var report = try compareAllWithConfig(store, &results, allocator, config);
+    const report = try compareAllWithConfig(store, &results, allocator, config);
     defer {
         if (report.branch) |b| allocator.free(b);
         if (report.commit) |c| allocator.free(c);

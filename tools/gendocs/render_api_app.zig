@@ -11,13 +11,13 @@ pub fn render(
     plan_entries: []const model.PlanDocEntry,
     outputs: *std.ArrayListUnmanaged(model.OutputFile),
 ) !void {
-    try renderJsonData(allocator, modules, commands, features, roadmap_entries, plan_entries, outputs);
+    try renderZonData(allocator, modules, commands, features, roadmap_entries, plan_entries, outputs);
     try model.pushOutput(allocator, outputs, "docs/index.html", html_template);
     try model.pushOutput(allocator, outputs, "docs/index.css", css_template);
     try model.pushOutput(allocator, outputs, "docs/index.js", js_template);
 }
 
-fn renderJsonData(
+fn renderZonData(
     allocator: std.mem.Allocator,
     modules: []const model.ModuleDoc,
     commands: []const model.CliCommand,
@@ -26,30 +26,30 @@ fn renderJsonData(
     plan_entries: []const model.PlanDocEntry,
     outputs: *std.ArrayListUnmanaged(model.OutputFile),
 ) !void {
-    const JsonSymbol = struct {
+    const ZonSymbol = struct {
         anchor: []const u8,
         signature: []const u8,
         doc: []const u8,
         kind: []const u8,
         line: usize,
     };
-    const JsonModule = struct {
+    const ZonModule = struct {
         name: []const u8,
         path: []const u8,
         description: []const u8,
         category: []const u8,
         build_flag: []const u8,
-        symbols: []JsonSymbol,
+        symbols: []ZonSymbol,
     };
 
-    var module_json = try allocator.alloc(JsonModule, modules.len);
+    var module_zon = try allocator.alloc(ZonModule, modules.len);
     defer {
-        for (module_json) |item| allocator.free(item.symbols);
-        allocator.free(module_json);
+        for (module_zon) |item| allocator.free(item.symbols);
+        allocator.free(module_zon);
     }
 
     for (modules, 0..) |mod, idx| {
-        const symbols = try allocator.alloc(JsonSymbol, mod.symbols.len);
+        const symbols = try allocator.alloc(ZonSymbol, mod.symbols.len);
         for (mod.symbols, 0..) |symbol, sidx| {
             symbols[sidx] = .{
                 .anchor = symbol.anchor,
@@ -60,7 +60,7 @@ fn renderJsonData(
             };
         }
 
-        module_json[idx] = .{
+        module_zon[idx] = .{
             .name = mod.name,
             .path = mod.path,
             .description = mod.description,
@@ -70,17 +70,17 @@ fn renderJsonData(
         };
     }
 
-    const JsonCommand = struct {
+    const ZonCommand = struct {
         name: []const u8,
         description: []const u8,
         aliases: []const []const u8,
         subcommands: []const []const u8,
     };
 
-    var command_json = try allocator.alloc(JsonCommand, commands.len);
-    defer allocator.free(command_json);
+    var command_zon = try allocator.alloc(ZonCommand, commands.len);
+    defer allocator.free(command_zon);
     for (commands, 0..) |command, idx| {
-        command_json[idx] = .{
+        command_zon[idx] = .{
             .name = command.name,
             .description = command.description,
             .aliases = command.aliases,
@@ -88,7 +88,7 @@ fn renderJsonData(
         };
     }
 
-    const JsonGuide = struct {
+    const ZonGuide = struct {
         slug: []const u8,
         title: []const u8,
         section: []const u8,
@@ -96,10 +96,10 @@ fn renderJsonData(
         description: []const u8,
     };
 
-    var guides_json = try allocator.alloc(JsonGuide, site_map.guides.len);
-    defer allocator.free(guides_json);
+    var guides_zon = try allocator.alloc(ZonGuide, site_map.guides.len);
+    defer allocator.free(guides_zon);
     for (site_map.guides, 0..) |guide, idx| {
-        guides_json[idx] = .{
+        guides_zon[idx] = .{
             .slug = guide.slug,
             .title = guide.title,
             .section = guide.section,
@@ -108,15 +108,15 @@ fn renderJsonData(
         };
     }
 
-    const modules_json_text = try stringifyAlloc(allocator, module_json);
-    defer allocator.free(modules_json_text);
-    try model.pushOutput(allocator, outputs, "docs/data/modules.json", modules_json_text);
+    const modules_zon_text = try stringifyAlloc(allocator, module_zon);
+    defer allocator.free(modules_zon_text);
+    try model.pushOutput(allocator, outputs, "docs/data/modules.zon", modules_zon_text);
 
-    const commands_json_text = try stringifyAlloc(allocator, command_json);
-    defer allocator.free(commands_json_text);
-    try model.pushOutput(allocator, outputs, "docs/data/commands.json", commands_json_text);
+    const commands_zon_text = try stringifyAlloc(allocator, command_zon);
+    defer allocator.free(commands_zon_text);
+    try model.pushOutput(allocator, outputs, "docs/data/commands.zon", commands_zon_text);
 
-    const JsonFeature = struct {
+    const ZonFeature = struct {
         name: []const u8,
         description: []const u8,
         compile_flag: []const u8,
@@ -125,10 +125,10 @@ fn renderJsonData(
         stub_module_path: []const u8,
     };
 
-    var features_json = try allocator.alloc(JsonFeature, features.len);
-    defer allocator.free(features_json);
+    var features_zon = try allocator.alloc(ZonFeature, features.len);
+    defer allocator.free(features_zon);
     for (features, 0..) |feat, idx| {
-        features_json[idx] = .{
+        features_zon[idx] = .{
             .name = feat.name,
             .description = feat.description,
             .compile_flag = feat.compile_flag,
@@ -138,15 +138,15 @@ fn renderJsonData(
         };
     }
 
-    const features_json_text = try stringifyAlloc(allocator, features_json);
-    defer allocator.free(features_json_text);
-    try model.pushOutput(allocator, outputs, "docs/data/features.json", features_json_text);
+    const features_zon_text = try stringifyAlloc(allocator, features_zon);
+    defer allocator.free(features_zon_text);
+    try model.pushOutput(allocator, outputs, "docs/data/features.zon", features_zon_text);
 
-    const guides_json_text = try stringifyAlloc(allocator, guides_json);
-    defer allocator.free(guides_json_text);
-    try model.pushOutput(allocator, outputs, "docs/data/guides.json", guides_json_text);
+    const guides_zon_text = try stringifyAlloc(allocator, guides_zon);
+    defer allocator.free(guides_zon_text);
+    try model.pushOutput(allocator, outputs, "docs/data/guides.zon", guides_zon_text);
 
-    const JsonPlan = struct {
+    const ZonPlan = struct {
         slug: []const u8,
         title: []const u8,
         status: []const u8,
@@ -155,10 +155,10 @@ fn renderJsonData(
         gate_commands: []const []const u8,
     };
 
-    var plans_json = try allocator.alloc(JsonPlan, plan_entries.len);
-    defer allocator.free(plans_json);
+    var plans_zon = try allocator.alloc(ZonPlan, plan_entries.len);
+    defer allocator.free(plans_zon);
     for (plan_entries, 0..) |plan, idx| {
-        plans_json[idx] = .{
+        plans_zon[idx] = .{
             .slug = plan.slug,
             .title = plan.title,
             .status = plan.status,
@@ -168,11 +168,11 @@ fn renderJsonData(
         };
     }
 
-    const plans_json_text = try stringifyAlloc(allocator, plans_json);
-    defer allocator.free(plans_json_text);
-    try model.pushOutput(allocator, outputs, "docs/data/plans.json", plans_json_text);
+    const plans_zon_text = try stringifyAlloc(allocator, plans_zon);
+    defer allocator.free(plans_zon_text);
+    try model.pushOutput(allocator, outputs, "docs/data/plans.zon", plans_zon_text);
 
-    const JsonRoadmap = struct {
+    const ZonRoadmap = struct {
         id: []const u8,
         title: []const u8,
         summary: []const u8,
@@ -185,10 +185,10 @@ fn renderJsonData(
         plan_title: []const u8,
     };
 
-    var roadmap_json = try allocator.alloc(JsonRoadmap, roadmap_entries.len);
-    defer allocator.free(roadmap_json);
+    var roadmap_zon = try allocator.alloc(ZonRoadmap, roadmap_entries.len);
+    defer allocator.free(roadmap_zon);
     for (roadmap_entries, 0..) |entry, idx| {
-        roadmap_json[idx] = .{
+        roadmap_zon[idx] = .{
             .id = entry.id,
             .title = entry.title,
             .summary = entry.summary,
@@ -202,18 +202,20 @@ fn renderJsonData(
         };
     }
 
-    const roadmap_json_text = try stringifyAlloc(allocator, roadmap_json);
-    defer allocator.free(roadmap_json_text);
-    try model.pushOutput(allocator, outputs, "docs/data/roadmap.json", roadmap_json_text);
+    const roadmap_zon_text = try stringifyAlloc(allocator, roadmap_zon);
+    defer allocator.free(roadmap_zon_text);
+    try model.pushOutput(allocator, outputs, "docs/data/roadmap.zon", roadmap_zon_text);
 }
 
 fn stringifyAlloc(allocator: std.mem.Allocator, value: anytype) ![]u8 {
-    var json_writer: std.Io.Writer.Allocating = .init(allocator);
-    defer json_writer.deinit();
+    var out = std.ArrayList(u8).init(allocator);
+    defer out.deinit();
 
-    try std.json.Stringify.value(value, .{ .whitespace = .indent_2 }, &json_writer.writer);
-    try json_writer.writer.writeByte('\n');
-    return json_writer.toOwnedSlice();
+    // In Zig 0.16, we use std.zon.stringify.serialize
+    var writer = out.writer();
+    try std.zon.stringify.serialize(value, .{}, &writer);
+    try writer.writeByte('\n');
+    return out.toOwnedSlice();
 }
 
 const html_template = @embedFile("assets/index.html");

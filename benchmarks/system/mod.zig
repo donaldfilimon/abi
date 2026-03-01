@@ -2,79 +2,13 @@
 //!
 //! System-level benchmarking infrastructure including:
 //! - **framework**: Core benchmark runner with statistical analysis
-//! - **ci_integration**: CI/CD pipeline integration (GitHub Actions, GitLab, etc.)
-//! - **industry_standard**: ANN-Benchmarks compatibility and industry metrics
 //! - **baseline_store**: JSON-based baseline persistence for regression detection
 //! - **baseline_comparator**: Comparison and reporting tools
-//!
-//! ## Quick Start
-//!
-//! ```zig
-//! const system = @import("benchmarks/system/mod.zig");
-//!
-//! // Run benchmarks
-//! var runner = system.framework.BenchmarkRunner.init(allocator);
-//! defer runner.deinit();
-//!
-//! const result = try runner.run(.{ .name = "my_bench" }, myFunction, .{});
-//!
-//! // Save as baseline
-//! var store = system.BaselineStore.init(allocator, "benchmarks/baselines");
-//! defer store.deinit();
-//! try store.saveBaseline(system.baseline_store.BenchmarkResult{
-//!     .name = "my_bench",
-//!     .metric = "ops_per_sec",
-//!     .value = result.stats.opsPerSecond(),
-//!     .unit = "ops/s",
-//!     .timestamp = std.time.timestamp(),
-//!     .git_branch = "main",
-//! });
-//!
-//! // Compare against baseline
-//! const report = try system.compareAll(&store, current_results, allocator);
-//! defer report.deinit(allocator);
-//!
-//! if (report.hasRegressions()) {
-//!     var io_backend = std.Io.Threaded.init(allocator, .{
-//!         .environ = std.process.Environ.empty,
-//!     });
-//!     defer io_backend.deinit();
-//!     var stderr_buffer: [4096]u8 = undefined;
-//!     var stderr_writer = std.Io.File.stderr().writer(io_backend.io(), &stderr_buffer);
-//!     try report.format(&stderr_writer);
-//! }
-//! ```
-//!
-//! ## Directory Structure for Baselines
-//!
-//! ```
-//! benchmarks/baselines/
-//! ├── main/                    # Main branch baselines
-//! │   ├── vector_dot_128.json
-//! │   ├── database_insert.json
-//! │   └── ...
-//! ├── releases/                # Release tag baselines
-//! │   ├── v1.0.0/
-//! │   │   └── ...
-//! │   └── v1.1.0/
-//! │       └── ...
-//! └── branches/                # Feature branch baselines
-//!     ├── feature_simd/
-//!     │   └── ...
-//!     └── fix_memory_leak/
-//!         └── ...
-//! ```
 
 const std = @import("std");
 
 // Core benchmark framework
 pub const framework = @import("framework.zig");
-
-// CI/CD integration
-pub const ci_integration = @import("ci_integration.zig");
-
-// Industry-standard metrics
-pub const industry_standard = @import("industry_standard.zig");
 
 // Baseline persistence
 pub const baseline_store = @import("baseline_store.zig");
@@ -122,34 +56,6 @@ pub const compareAllWithConfig = baseline_comparator.compareAllWithConfig;
 /// Compare a single benchmark result
 pub const compareSingle = baseline_comparator.compareSingle;
 
-// Re-export industry standard types
-
-/// Hardware capability detection
-pub const HardwareCapabilities = industry_standard.HardwareCapabilities;
-
-/// Cache profiling statistics
-pub const CacheStats = industry_standard.CacheStats;
-
-/// Energy efficiency metrics
-pub const EnergyMetrics = industry_standard.EnergyMetrics;
-
-/// Scaling analysis results
-pub const ScalingAnalysis = industry_standard.ScalingAnalysis;
-
-/// ANN-Benchmarks compatible result
-pub const AnnBenchmarkResult = industry_standard.AnnBenchmarkResult;
-
-// Re-export CI integration types
-
-/// CI benchmark report
-pub const CiBenchmarkReport = ci_integration.CiBenchmarkReport;
-
-/// CI runner configuration
-pub const CiRunnerConfig = ci_integration.CiRunnerConfig;
-
-/// CI platform detection
-pub const CiPlatform = ci_integration.CiPlatform;
-
 /// Convert framework BenchResult to persistable BenchmarkResult
 pub fn benchResultToBaseline(
     result: BenchResult,
@@ -196,7 +102,6 @@ pub fn runAndCompare(
     store: *BaselineStore,
     config: ComparisonConfig,
 ) !RegressionReport {
-    // Convert runner results to baseline format
     const baselines = try benchResultsToBaselines(
         allocator,
         runner.results.items,
@@ -209,51 +114,10 @@ pub fn runAndCompare(
 }
 
 // ============================================================================
-// Entry Point for Direct Execution
-// ============================================================================
-
-pub fn main(_: std.process.Init) !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-
-    std.debug.print("Benchmark System Module\n", .{});
-    std.debug.print("=======================\n\n", .{});
-
-    // Run framework example
-    std.debug.print("Running sample benchmark...\n", .{});
-    var runner = BenchmarkRunner.init(allocator);
-    defer runner.deinit();
-
-    _ = try runner.run(
-        .{
-            .name = "sample_op",
-            .category = "demo",
-            .min_time_ns = 100_000_000, // 100ms
-            .warmup_iterations = 10,
-        },
-        struct {
-            fn op() u64 {
-                var sum: u64 = 0;
-                for (0..100) |i| {
-                    sum +%= i * i;
-                }
-                return sum;
-            }
-        }.op,
-        .{},
-    );
-
-    runner.printSummaryDebug();
-    runner.exportJson();
-}
-
-// ============================================================================
 // Tests
 // ============================================================================
 
 test "module exports" {
-    // Verify all exports are accessible
     _ = BaselineStore;
     _ = BenchmarkResult;
     _ = ComparisonResult;
@@ -266,14 +130,6 @@ test "module exports" {
     _ = compareAll;
     _ = compareAllWithConfig;
     _ = compareSingle;
-    _ = HardwareCapabilities;
-    _ = CacheStats;
-    _ = EnergyMetrics;
-    _ = ScalingAnalysis;
-    _ = AnnBenchmarkResult;
-    _ = CiBenchmarkReport;
-    _ = CiRunnerConfig;
-    _ = CiPlatform;
 }
 
 test "benchResultToBaseline conversion" {
@@ -311,7 +167,6 @@ test "benchResultToBaseline conversion" {
 }
 
 test {
-    // Run tests from submodules
     _ = baseline_store;
     _ = baseline_comparator;
     _ = framework;

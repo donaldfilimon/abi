@@ -41,9 +41,9 @@
 //!
 //! ```zig
 //! var fw = try abi.Framework.builder(allocator)
-//!     .withGpu(.{ .backend = .vulkan })
-//!     .withAiDefaults()
-//!     .withDatabaseDefaults()
+//!     .with(.gpu, .{ .backend = .vulkan })
+//!     .withDefault(.ai)
+//!     .withDefault(.database)
 //!     .build();
 //! defer fw.deinit();
 //! ```
@@ -54,7 +54,7 @@
 //! // Check if a feature is enabled
 //! if (fw.isEnabled(.gpu)) {
 //!     // Get the feature context
-//!     const gpu_ctx = try fw.getGpu();
+//!     const gpu_ctx = try fw.get(.gpu);
 //!     // Use GPU features...
 //! }
 //!
@@ -328,8 +328,8 @@ pub const Framework = struct {
     ///
     /// ```zig
     /// var fw = try Framework.builder(allocator)
-    ///     .withGpuDefaults()
-    ///     .withAi(.{ .llm = .{} })
+    ///     .withDefault(.gpu)
+    ///     .with(.ai, .{ .llm = .{} })
     ///     .build();
     /// defer fw.deinit();
     /// ```
@@ -384,115 +384,6 @@ pub const Framework = struct {
         return self.state;
     }
 
-    fn requireFeature(comptime Context: type, value: ?*Context) Error!*Context {
-        return value orelse error.FeatureDisabled;
-    }
-
-    /// Get GPU context (returns error if not enabled).
-    pub fn getGpu(self: *Framework) Error!*gpu_mod.Context {
-        return requireFeature(gpu_mod.Context, self.gpu);
-    }
-
-    /// Get AI context (returns error if not enabled).
-    pub fn getAi(self: *Framework) Error!*ai_mod.Context {
-        return requireFeature(ai_mod.Context, self.ai);
-    }
-
-    /// Get database context (returns error if not enabled).
-    pub fn getDatabase(self: *Framework) Error!*database_mod.Context {
-        return requireFeature(database_mod.Context, self.database);
-    }
-
-    /// Get network context (returns error if not enabled).
-    pub fn getNetwork(self: *Framework) Error!*network_mod.Context {
-        return requireFeature(network_mod.Context, self.network);
-    }
-
-    /// Get observability context (returns error if not enabled).
-    pub fn getObservability(self: *Framework) Error!*observability_mod.Context {
-        return requireFeature(observability_mod.Context, self.observability);
-    }
-
-    /// Get web context (returns error if not enabled).
-    pub fn getWeb(self: *Framework) Error!*web_mod.Context {
-        return requireFeature(web_mod.Context, self.web);
-    }
-
-    /// Get cloud context (returns error if not enabled).
-    pub fn getCloud(self: *Framework) Error!*cloud_mod.Context {
-        return requireFeature(cloud_mod.Context, self.cloud);
-    }
-
-    /// Get analytics context (returns error if not enabled).
-    pub fn getAnalytics(self: *Framework) Error!*analytics_mod.Context {
-        return requireFeature(analytics_mod.Context, self.analytics);
-    }
-
-    /// Get auth context (returns error if not enabled).
-    pub fn getAuth(self: *Framework) Error!*auth_mod.Context {
-        return requireFeature(auth_mod.Context, self.auth);
-    }
-
-    /// Get messaging context (returns error if not enabled).
-    pub fn getMessaging(self: *Framework) Error!*messaging_mod.Context {
-        return requireFeature(messaging_mod.Context, self.messaging);
-    }
-
-    /// Get cache context (returns error if not enabled).
-    pub fn getCache(self: *Framework) Error!*cache_mod.Context {
-        return requireFeature(cache_mod.Context, self.cache);
-    }
-
-    /// Get storage context (returns error if not enabled).
-    pub fn getStorage(self: *Framework) Error!*storage_mod.Context {
-        return requireFeature(storage_mod.Context, self.storage);
-    }
-
-    /// Get search context (returns error if not enabled).
-    pub fn getSearch(self: *Framework) Error!*search_mod.Context {
-        return requireFeature(search_mod.Context, self.search);
-    }
-
-    /// Get gateway context (returns error if not enabled).
-    pub fn getGateway(self: *Framework) Error!*gateway_mod.Context {
-        return requireFeature(gateway_mod.Context, self.gateway);
-    }
-
-    /// Get pages context (returns error if not enabled).
-    pub fn getPages(self: *Framework) Error!*pages_mod.Context {
-        return requireFeature(pages_mod.Context, self.pages);
-    }
-
-    /// Get benchmarks context (returns error if not enabled).
-    pub fn getBenchmarks(self: *Framework) Error!*benchmarks_mod.Context {
-        return requireFeature(benchmarks_mod.Context, self.benchmarks);
-    }
-
-    /// Get mobile context (returns error if not enabled).
-    pub fn getMobile(self: *Framework) Error!*mobile_mod.Context {
-        return requireFeature(mobile_mod.Context, self.mobile);
-    }
-
-    /// Get AI core context (agents, tools, prompts).
-    pub fn getAiCore(self: *Framework) Error!*ai_core_mod.Context {
-        return requireFeature(ai_core_mod.Context, self.ai_core);
-    }
-
-    /// Get AI inference context (LLM, embeddings, vision).
-    pub fn getAiInference(self: *Framework) Error!*ai_inference_mod.Context {
-        return requireFeature(ai_inference_mod.Context, self.ai_inference);
-    }
-
-    /// Get AI training context (pipelines, federated).
-    pub fn getAiTraining(self: *Framework) Error!*ai_training_mod.Context {
-        return requireFeature(ai_training_mod.Context, self.ai_training);
-    }
-
-    /// Get AI reasoning context (Abbey, RAG, eval).
-    pub fn getAiReasoning(self: *Framework) Error!*ai_reasoning_mod.Context {
-        return requireFeature(ai_reasoning_mod.Context, self.ai_reasoning);
-    }
-
     /// Get runtime context (always available).
     pub fn getRuntime(self: *Framework) *runtime_mod.Context {
         return self.runtime;
@@ -531,185 +422,38 @@ pub const FrameworkBuilder = struct {
         return framework_builder.withDefaults(FrameworkBuilder, self);
     }
 
-    /// Enable GPU with configuration.
-    pub fn withGpu(self: *FrameworkBuilder, gpu_config: config_module.GpuConfig) *FrameworkBuilder {
-        return framework_builder.withGpu(FrameworkBuilder, self, gpu_config);
-    }
-
-    /// Enable GPU with defaults.
-    pub fn withGpuDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withGpuDefaults(FrameworkBuilder, self);
-    }
-
     /// Provide a shared I/O backend for the framework.
     /// Pass the `std.Io` obtained from `IoBackend.init`.
     pub fn withIo(self: *FrameworkBuilder, io: std.Io) *FrameworkBuilder {
         return framework_builder.withIo(FrameworkBuilder, self, io);
     }
 
-    /// Enable AI with configuration.
-    pub fn withAi(self: *FrameworkBuilder, ai_config: config_module.AiConfig) *FrameworkBuilder {
-        return framework_builder.withAi(FrameworkBuilder, self, ai_config);
+    // ── Feature builder methods (delegate to config builder) ──────────
+
+    /// Enable a feature with explicit configuration.
+    ///
+    /// ## Example
+    /// ```zig
+    /// var fw = try Framework.builder(allocator)
+    ///     .with(.gpu, .{ .backend = .vulkan })
+    ///     .with(.database, .{ .path = "./data" })
+    ///     .build();
+    /// ```
+    pub fn with(self: *FrameworkBuilder, comptime feature: Feature, cfg: anytype) *FrameworkBuilder {
+        return framework_builder.with(FrameworkBuilder, self, feature, cfg);
     }
 
-    /// Enable AI with defaults.
-    pub fn withAiDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withAiDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable LLM only.
-    pub fn withLlm(self: *FrameworkBuilder, llm_config: config_module.LlmConfig) *FrameworkBuilder {
-        return framework_builder.withLlm(FrameworkBuilder, self, llm_config);
-    }
-
-    /// Enable database with configuration.
-    pub fn withDatabase(self: *FrameworkBuilder, db_config: config_module.DatabaseConfig) *FrameworkBuilder {
-        return framework_builder.withDatabase(FrameworkBuilder, self, db_config);
-    }
-
-    /// Enable database with defaults.
-    pub fn withDatabaseDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withDatabaseDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable network with configuration.
-    pub fn withNetwork(self: *FrameworkBuilder, net_config: config_module.NetworkConfig) *FrameworkBuilder {
-        return framework_builder.withNetwork(FrameworkBuilder, self, net_config);
-    }
-
-    /// Enable network with defaults.
-    pub fn withNetworkDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withNetworkDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable observability with configuration.
-    pub fn withObservability(self: *FrameworkBuilder, obs_config: config_module.ObservabilityConfig) *FrameworkBuilder {
-        return framework_builder.withObservability(FrameworkBuilder, self, obs_config);
-    }
-
-    /// Enable observability with defaults.
-    pub fn withObservabilityDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withObservabilityDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable web with configuration.
-    pub fn withWeb(self: *FrameworkBuilder, web_config: config_module.WebConfig) *FrameworkBuilder {
-        return framework_builder.withWeb(FrameworkBuilder, self, web_config);
-    }
-
-    /// Enable web with defaults.
-    pub fn withWebDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withWebDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable analytics with configuration.
-    pub fn withAnalytics(self: *FrameworkBuilder, analytics_cfg: config_module.AnalyticsConfig) *FrameworkBuilder {
-        return framework_builder.withAnalytics(FrameworkBuilder, self, analytics_cfg);
-    }
-
-    /// Enable analytics with defaults.
-    pub fn withAnalyticsDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withAnalyticsDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable cloud with configuration.
-    pub fn withCloud(self: *FrameworkBuilder, cloud_config: config_module.CloudConfig) *FrameworkBuilder {
-        return framework_builder.withCloud(FrameworkBuilder, self, cloud_config);
-    }
-
-    /// Enable cloud with defaults.
-    pub fn withCloudDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withCloudDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable auth with configuration.
-    pub fn withAuth(self: *FrameworkBuilder, auth_config: config_module.AuthConfig) *FrameworkBuilder {
-        return framework_builder.withAuth(FrameworkBuilder, self, auth_config);
-    }
-
-    /// Enable auth with defaults.
-    pub fn withAuthDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withAuthDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable messaging with configuration.
-    pub fn withMessaging(self: *FrameworkBuilder, msg_config: config_module.MessagingConfig) *FrameworkBuilder {
-        return framework_builder.withMessaging(FrameworkBuilder, self, msg_config);
-    }
-
-    /// Enable messaging with defaults.
-    pub fn withMessagingDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withMessagingDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable cache with configuration.
-    pub fn withCache(self: *FrameworkBuilder, cache_config: config_module.CacheConfig) *FrameworkBuilder {
-        return framework_builder.withCache(FrameworkBuilder, self, cache_config);
-    }
-
-    /// Enable cache with defaults.
-    pub fn withCacheDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withCacheDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable storage with configuration.
-    pub fn withStorage(self: *FrameworkBuilder, storage_config: config_module.StorageConfig) *FrameworkBuilder {
-        return framework_builder.withStorage(FrameworkBuilder, self, storage_config);
-    }
-
-    /// Enable storage with defaults.
-    pub fn withStorageDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withStorageDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable search with configuration.
-    pub fn withSearch(self: *FrameworkBuilder, search_config: config_module.SearchConfig) *FrameworkBuilder {
-        return framework_builder.withSearch(FrameworkBuilder, self, search_config);
-    }
-
-    /// Enable search with defaults.
-    pub fn withSearchDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withSearchDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable gateway with configuration.
-    pub fn withGateway(self: *FrameworkBuilder, gateway_cfg: config_module.GatewayConfig) *FrameworkBuilder {
-        return framework_builder.withGateway(FrameworkBuilder, self, gateway_cfg);
-    }
-
-    /// Enable gateway with defaults.
-    pub fn withGatewayDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withGatewayDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable pages with configuration.
-    pub fn withPages(self: *FrameworkBuilder, pages_cfg: config_module.PagesConfig) *FrameworkBuilder {
-        return framework_builder.withPages(FrameworkBuilder, self, pages_cfg);
-    }
-
-    /// Enable pages with defaults.
-    pub fn withPagesDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withPagesDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable benchmarks with configuration.
-    pub fn withBenchmarks(self: *FrameworkBuilder, benchmarks_cfg: config_module.BenchmarksConfig) *FrameworkBuilder {
-        return framework_builder.withBenchmarks(FrameworkBuilder, self, benchmarks_cfg);
-    }
-
-    /// Enable benchmarks with defaults.
-    pub fn withBenchmarksDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withBenchmarksDefaults(FrameworkBuilder, self);
-    }
-
-    /// Enable mobile with configuration.
-    pub fn withMobile(self: *FrameworkBuilder, mobile_cfg: config_module.MobileConfig) *FrameworkBuilder {
-        return framework_builder.withMobile(FrameworkBuilder, self, mobile_cfg);
-    }
-
-    /// Enable mobile with defaults.
-    pub fn withMobileDefaults(self: *FrameworkBuilder) *FrameworkBuilder {
-        return framework_builder.withMobileDefaults(FrameworkBuilder, self);
+    /// Enable a feature with its default configuration.
+    ///
+    /// ## Example
+    /// ```zig
+    /// var fw = try Framework.builder(allocator)
+    ///     .withDefault(.gpu)
+    ///     .withDefault(.database)
+    ///     .build();
+    /// ```
+    pub fn withDefault(self: *FrameworkBuilder, comptime feature: Feature) *FrameworkBuilder {
+        return framework_builder.withDefault(FrameworkBuilder, self, feature);
     }
 
     /// Configure plugins.

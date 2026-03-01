@@ -1,11 +1,11 @@
 //! Configuration system for ABI Framework
 //!
 //! Provides comprehensive configuration management including file-based
-//! configuration (JSON), environment variable loading, and validation.
+//! configuration (ZON), environment variable loading, and validation.
 //!
 //! ## Usage
 //! ```zig
-//! const config = try abi.config.loadFromFile(allocator, "abi.json");
+//! const config = try abi.config.loadFromFile(allocator, "abi.zon");
 //! defer config.deinit();
 //!
 //! // Or load from environment variables
@@ -13,7 +13,7 @@
 //! defer env_config.deinit();
 //!
 //! // Create framework with configuration
-//! var framework = try abi.init(allocator, config.frameworkOptions());
+//! var framework = try abi.App.init(allocator, config.frameworkOptions());
 //! ```
 
 const std = @import("std");
@@ -31,7 +31,7 @@ pub const ConfigError = error{
 
 /// Source of configuration
 pub const ConfigSource = enum {
-    file_json,
+    file_zon,
     file_yaml,
     environment,
     default,
@@ -261,14 +261,14 @@ pub const Config = struct {
             .allocator = allocator,
             .source = .default,
             .source_path = "",
-            .owned_strings = .{},
-            .framework = .{},
-            .database = .{},
-            .gpu = .{},
-            .ai = .{},
-            .network = .{},
-            .web = .{},
-            .custom = .{},
+            .owned_strings = .{}, 
+            .framework = .{}, 
+            .database = .{}, 
+            .gpu = .{}, 
+            .ai = .{}, 
+            .network = .{}, 
+            .web = .{}, 
+            .custom = .{}, 
         };
     }
 
@@ -308,8 +308,18 @@ pub const Config = struct {
 };
 
 fn initIoBackend(allocator: std.mem.Allocator) std.Io.Threaded {
-    return std.Io.Threaded.init(allocator, .{ .environ = std.process.Environ.empty });
+    return std.Io.Threaded.init(allocator, .{.environ = std.process.Environ.empty});
 }
+
+/// Helper struct for ZON parsing
+const ConfigZon = struct {
+    framework: FrameworkConfig = .{}, 
+    database: DatabaseConfig = .{}, 
+    gpu: GpuConfig = .{}, 
+    ai: AiConfig = .{}, 
+    network: NetworkConfig = .{}, 
+    web: WebConfig = .{}, 
+};
 
 /// Configuration loader
 pub const ConfigLoader = struct {
@@ -327,7 +337,7 @@ pub const ConfigLoader = struct {
         self.io_backend.deinit();
     }
 
-    /// Load configuration from JSON file
+    /// Load configuration from ZON file
     pub fn loadFromFile(self: *ConfigLoader, path: []const u8) !Config {
         const io = self.io_backend.io();
         const contents = std.Io.Dir.cwd().readFileAlloc(io, path, self.allocator, .limited(1024 * 1024)) catch {
@@ -335,22 +345,41 @@ pub const ConfigLoader = struct {
         };
         defer self.allocator.free(contents);
 
-        return try self.loadFromJson(contents, path);
+        // Ensure null-terminated for ZON parser
+        const contents_z = try self.allocator.dupeZ(u8, contents);
+        defer self.allocator.free(contents_z);
+
+        return try self.loadFromZon(contents_z, path);
     }
 
-    /// Load configuration from JSON string
-    pub fn loadFromJson(self: *ConfigLoader, json_str: []const u8, source: []const u8) !Config {
+    /// Load configuration from ZON string
+    pub fn loadFromZon(self: *ConfigLoader, zon_str: [:0]const u8, source: []const u8) !Config {
         var config = Config.init(self.allocator);
         errdefer config.deinit();
 
-        const parsed = std.json.parseFromSlice(std.json.Value, self.allocator, json_str, .{}) catch {
+        const parsed = std.zon.parse.fromSlice(ConfigZon, self.allocator, zon_str, null, .{}) catch {
             return ConfigError.ParseError;
         };
         defer parsed.deinit();
 
-        try self.parseJsonIntoConfig(&config, parsed.value);
+        const data = parsed.value;
+        config.framework = data.framework;
+        config.database = data.database;
+        config.gpu = data.gpu;
+        config.ai = data.ai;
+        config.network = data.network;
+        config.web = data.web;
 
-        config.source = .file_json;
+        // Note: Strings inside data are owned by 'parsed'. We need to own them in 'config'.
+        config.database.name = try config.ownString(data.database.name);
+        config.database.persistence_path = try config.ownString(data.database.persistence_path);
+        config.gpu.preferred_backend = try config.ownString(data.gpu.preferred_backend);
+        config.ai.default_model = try config.ownString(data.ai.default_model);
+        config.network.cluster_id = try config.ownString(data.network.cluster_id);
+        config.network.node_address = try config.ownString(data.network.node_address);
+        config.web.cors_origins = try config.ownString(data.web.cors_origins);
+
+        config.source = .file_zon;
         config.source_path = try config.ownString(source);
 
         return config;
@@ -409,89 +438,6 @@ pub const ConfigLoader = struct {
         return config;
     }
 
-    fn parseJsonIntoConfig(_: *ConfigLoader, config: *Config, root: std.json.Value) !void {
-        switch (root) {
-            .object => |obj| {
-                if (obj.get("framework")) |framework| {
-                    if (framework.object.get("enable_ai")) |v| {
-                        if (v == .bool) config.framework.enable_ai = v.bool;
-                    }
-                    if (framework.object.get("enable_gpu")) |v| {
-                        if (v == .bool) config.framework.enable_gpu = v.bool;
-                    }
-                    if (framework.object.get("worker_threads")) |v| {
-                        if (v == .integer) config.framework.worker_threads = @as(usize, @intCast(v.integer));
-                    }
-                    if (framework.object.get("log_level")) |v| {
-                        if (v == .string) {
-                            if (parseLogLevel(v.string)) |parsed| {
-                                config.framework.log_level = parsed;
-                            }
-                        }
-                    }
-                }
-
-                if (obj.get("database")) |db| {
-                    if (db.object.get("name")) |v| {
-                        if (v == .string) config.database.name = try config.ownString(v.string);
-                    }
-                    if (db.object.get("max_records")) |v| {
-                        if (v == .integer) config.database.max_records = @as(usize, @intCast(v.integer));
-                    }
-                    if (db.object.get("persistence_enabled")) |v| {
-                        if (v == .bool) config.database.persistence_enabled = v.bool;
-                    }
-                    if (db.object.get("default_search_limit")) |v| {
-                        if (v == .integer) config.database.default_search_limit = @as(usize, @intCast(v.integer));
-                    }
-                }
-
-                if (obj.get("gpu")) |gpu| {
-                    if (gpu.object.get("enable_cuda")) |v| {
-                        if (v == .bool) config.gpu.enable_cuda = v.bool;
-                    }
-                    if (gpu.object.get("preferred_backend")) |v| {
-                        if (v == .string) config.gpu.preferred_backend = try config.ownString(v.string);
-                    }
-                }
-
-                if (obj.get("ai")) |ai| {
-                    if (ai.object.get("default_model")) |v| {
-                        if (v == .string) config.ai.default_model = try config.ownString(v.string);
-                    }
-                    if (ai.object.get("temperature")) |v| {
-                        if (v == .float) config.ai.temperature = @floatCast(v.float);
-                    }
-                    if (ai.object.get("max_tokens")) |v| {
-                        if (v == .integer) config.ai.max_tokens = @as(u32, @intCast(v.integer));
-                    }
-                }
-
-                if (obj.get("network")) |net| {
-                    if (net.object.get("cluster_id")) |v| {
-                        if (v == .string) config.network.cluster_id = try config.ownString(v.string);
-                    }
-                    if (net.object.get("node_address")) |v| {
-                        if (v == .string) config.network.node_address = try config.ownString(v.string);
-                    }
-                    if (net.object.get("distributed_enabled")) |v| {
-                        if (v == .bool) config.network.distributed_enabled = v.bool;
-                    }
-                }
-
-                if (obj.get("web")) |web| {
-                    if (web.object.get("port")) |v| {
-                        if (v == .integer) config.web.port = @as(u16, @intCast(v.integer));
-                    }
-                    if (web.object.get("cors_enabled")) |v| {
-                        if (v == .bool) config.web.cors_enabled = v.bool;
-                    }
-                }
-            },
-            else => {},
-        }
-    }
-
     fn parseLogLevel(level: []const u8) ?LogLevel {
         if (std.ascii.eqlIgnoreCase(level, "debug")) return .debug;
         if (std.ascii.eqlIgnoreCase(level, "info")) return .info;
@@ -547,30 +493,20 @@ test "config creation and validation" {
     try config.validate();
 }
 
-test "config loader from JSON" {
+test "config loader from ZON" {
     const allocator = std.testing.allocator;
 
     var loader = ConfigLoader.init(allocator);
+    defer loader.deinit();
 
-    const json =
-        \\{
-        \\  "framework": {
-        \\    "enable_ai": true,
-        \\    "worker_threads": 4,
-        \\    "log_level": "debug"
-        \\  },
-        \\  "database": {
-        \\    "name": "test.db",
-        \\    "default_search_limit": 20
-        \\  },
-        \\  "ai": {
-        \\    "temperature": 0.5,
-        \\    "max_tokens": 1024
-        \\  }
+    const zon: [:0]const u8 =
+        \\.{ .framework = .{ .enable_ai = true, .worker_threads = 4, .log_level = .debug, },
+        \\  .database = .{ .name = "test.db", .default_search_limit = 20, },
+        \\  .ai = .{ .temperature = 0.5, .max_tokens = 1024, },
         \\}
     ;
 
-    var config = try loader.loadFromJson(json, "test.json");
+    var config = try loader.loadFromZon(zon, "test.zon");
     defer config.deinit();
 
     try std.testing.expect(config.framework.enable_ai);
@@ -582,41 +518,11 @@ test "config loader from JSON" {
     try std.testing.expectEqual(@as(u32, 1024), config.ai.max_tokens);
 }
 
-test "config log level parsing handles info and invalid values" {
+test "config log level parsing" {
     try std.testing.expectEqual(@as(?LogLevel, .info), ConfigLoader.parseLogLevel("info"));
     try std.testing.expectEqual(@as(?LogLevel, .info), ConfigLoader.parseLogLevel("INFO"));
     try std.testing.expectEqual(@as(?LogLevel, .warn), ConfigLoader.parseLogLevel("Warn"));
     try std.testing.expectEqual(@as(?LogLevel, null), ConfigLoader.parseLogLevel("invalid"));
-}
-
-test "config loader ignores invalid log level from JSON" {
-    const allocator = std.testing.allocator;
-
-    var loader = ConfigLoader.init(allocator);
-    defer loader.deinit();
-
-    const json =
-        \\{
-        \\  "framework": {
-        \\    "log_level": "not-a-level"
-        \\  }
-        \\}
-    ;
-
-    var config = try loader.loadFromJson(json, "invalid-log-level.json");
-    defer config.deinit();
-
-    // Default remains unchanged when log level cannot be parsed.
-    try std.testing.expectEqual(.info, config.framework.log_level);
-}
-
-test "config validation failures" {
-    const allocator = std.testing.allocator;
-
-    var invalid_config = Config.init(allocator);
-    defer invalid_config.deinit();
-
-    try invalid_config.validate();
 }
 
 test {

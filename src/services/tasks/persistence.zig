@@ -1,6 +1,6 @@
 //! Task Persistence
 //!
-//! JSON serialization and file I/O for task data.
+//! ZON serialization and file I/O for task data.
 
 const std = @import("std");
 const types = @import("types.zig");
@@ -11,19 +11,25 @@ const Priority = types.Priority;
 const Category = types.Category;
 const ManagerError = types.ManagerError;
 
-/// Write a JSON-escaped string to the buffer.
-pub fn writeJsonString(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8), s: []const u8) !void {
-    for (s) |c| {
-        switch (c) {
-            '"' => try buf.appendSlice(allocator, "\\\""),
-            '\\' => try buf.appendSlice(allocator, "\\\\"),
-            '\n' => try buf.appendSlice(allocator, "\n"),
-            '\r' => try buf.appendSlice(allocator, "\r"),
-            '\t' => try buf.appendSlice(allocator, "\t"),
-            else => try buf.append(allocator, c),
-        }
-    }
-}
+/// Helper structs for ZON persistence
+const PersistedTask = struct {
+    id: u64,
+    title: []const u8,
+    status: []const u8,
+    priority: []const u8,
+    category: []const u8,
+    created_at: i64,
+    updated_at: i64,
+    description: ?[]const u8 = null,
+    due_date: ?i64 = null,
+    completed_at: ?i64 = null,
+    parent_id: ?u64 = null,
+};
+
+const PersistedData = struct {
+    next_id: u64,
+    tasks: []const PersistedTask,
+};
 
 /// Duplicate a string and store it in the strings list.
 pub fn dupeString(allocator: std.mem.Allocator, strings: *std.ArrayListUnmanaged([]u8), s: []const u8) ManagerError![]const u8 {
@@ -32,76 +38,7 @@ pub fn dupeString(allocator: std.mem.Allocator, strings: *std.ArrayListUnmanaged
     return duped;
 }
 
-/// Write a single task as JSON to the buffer.
-pub fn writeTask(allocator: std.mem.Allocator, buf: *std.ArrayListUnmanaged(u8), task: Task) !void {
-    try buf.appendSlice(allocator, "    {");
-    try buf.print(allocator, "\"id\":{d},", .{task.id});
-    try buf.appendSlice(allocator, "\"title\":\"");
-    try writeJsonString(allocator, buf, task.title);
-    try buf.appendSlice(allocator, "\",");
-    try buf.print(allocator, "\"status\":\"{s}\",", .{task.status.toString()});
-    try buf.print(allocator, "\"priority\":\"{s}\",", .{task.priority.toString()});
-    try buf.print(allocator, "\"category\":\"{s}\",", .{task.category.toString()});
-    try buf.print(allocator, "\"created_at\":{d},", .{task.created_at});
-    try buf.print(allocator, "\"updated_at\":{d}", .{task.updated_at});
-    if (task.description) |d| {
-        try buf.appendSlice(allocator, ",\"description\":\"");
-        try writeJsonString(allocator, buf, d);
-        try buf.append(allocator, '"');
-    }
-    if (task.due_date) |d| {
-        try buf.print(allocator, ",\"due_date\":{d}", .{d});
-    }
-    if (task.completed_at) |c| {
-        try buf.print(allocator, ",\"completed_at\":{d}", .{c});
-    }
-    if (task.parent_id) |p| {
-        try buf.print(allocator, ",\"parent_id\":{d}", .{p});
-    }
-    try buf.append(allocator, '}');
-}
-
-/// Parse a task from JSON object.
-pub fn parseTask(
-    allocator: std.mem.Allocator,
-    obj: std.json.ObjectMap,
-    strings: *std.ArrayListUnmanaged([]u8),
-) ManagerError!Task {
-    const id: u64 = @intCast(obj.get("id").?.integer);
-    const title = try dupeString(allocator, strings, obj.get("title").?.string);
-    const status = Status.fromString(obj.get("status").?.string) orelse .pending;
-    const priority = Priority.fromString(obj.get("priority").?.string) orelse .normal;
-    const category = Category.fromString(obj.get("category").?.string) orelse .personal;
-    const created_at: i64 = obj.get("created_at").?.integer;
-    const updated_at: i64 = obj.get("updated_at").?.integer;
-
-    var task = Task{
-        .id = id,
-        .title = title,
-        .status = status,
-        .priority = priority,
-        .category = category,
-        .created_at = created_at,
-        .updated_at = updated_at,
-    };
-
-    if (obj.get("description")) |d| {
-        task.description = try dupeString(allocator, strings, d.string);
-    }
-    if (obj.get("due_date")) |d| {
-        task.due_date = d.integer;
-    }
-    if (obj.get("completed_at")) |c| {
-        task.completed_at = c.integer;
-    }
-    if (obj.get("parent_id")) |p| {
-        task.parent_id = @intCast(p.integer);
-    }
-
-    return task;
-}
-
-/// Save tasks to a JSON file.
+/// Save tasks to a ZON file.
 pub fn save(
     allocator: std.mem.Allocator,
     storage_path: []const u8,
@@ -117,32 +54,44 @@ pub fn save(
         std.log.warn("persistence: failed to create directory '{s}': {t}", .{ dir_path, err });
     };
 
-    var file = std.Io.Dir.cwd().createFile(io, storage_path, .{ .truncate = true }) catch |err| {
-        return err;
-    };
+    var file = try std.Io.Dir.cwd().createFile(io, storage_path, .{ .truncate = true });
     defer file.close(io);
 
-    var json_buffer = std.ArrayListUnmanaged(u8).empty;
-    defer json_buffer.deinit(allocator);
+    var persisted_tasks = std.ArrayList(PersistedTask).init(allocator);
+    defer persisted_tasks.deinit();
 
-    try json_buffer.appendSlice(allocator, "{\n  \"next_id\": ");
-    try json_buffer.print(allocator, "{d}", .{next_id});
-    try json_buffer.appendSlice(allocator, ",\n  \"tasks\": [\n");
-
-    var first = true;
     var iter = tasks.iterator();
     while (iter.next()) |entry| {
-        if (!first) try json_buffer.appendSlice(allocator, ",\n");
-        first = false;
-        try writeTask(allocator, &json_buffer, entry.value_ptr.*);
+        const t = entry.value_ptr.*;
+        try persisted_tasks.append(.{
+            .id = t.id,
+            .title = t.title,
+            .status = t.status.toString(),
+            .priority = t.priority.toString(),
+            .category = t.category.toString(),
+            .created_at = t.created_at,
+            .updated_at = t.updated_at,
+            .description = t.description,
+            .due_date = t.due_date,
+            .completed_at = t.completed_at,
+            .parent_id = t.parent_id,
+        });
     }
 
-    try json_buffer.appendSlice(allocator, "\n  ]\n}\n");
+    const data = PersistedData{
+        .next_id = next_id,
+        .tasks = persisted_tasks.items,
+    };
 
-    try file.writeStreamingAll(io, json_buffer.items);
+    var zon_buffer = std.ArrayList(u8).init(allocator);
+    defer zon_buffer.deinit();
+    var writer = zon_buffer.writer();
+    try std.zon.stringify.serialize(data, .{}, &writer);
+
+    try file.writeStreamingAll(io, zon_buffer.items);
 }
 
-/// Load tasks from a JSON file.
+/// Load tasks from a ZON file.
 pub fn load(
     allocator: std.mem.Allocator,
     storage_path: []const u8,
@@ -154,37 +103,44 @@ pub fn load(
     defer io_backend.deinit();
     const io = io_backend.io();
 
-    const content = std.Io.Dir.cwd().readFileAlloc(
+    const contents = std.Io.Dir.cwd().readFileAlloc(
         io,
         storage_path,
         allocator,
         .limited(1024 * 1024),
-    ) catch |err| {
-        return err;
+    ) catch |err| switch (err) {
+        error.FileNotFound => return,
+        else => return err,
     };
-    defer allocator.free(content);
+    defer allocator.free(contents);
 
-    var parsed = std.json.parseFromSlice(std.json.Value, allocator, content, .{}) catch {
+    const contents_z = try allocator.dupeZ(u8, contents);
+    defer allocator.free(contents_z);
+
+    const parsed = std.zon.parse.fromSlice(PersistedData, allocator, contents_z, null, .{}) catch {
         return error.ParseError;
     };
     defer parsed.deinit();
 
-    const root = parsed.value.object;
+    const data = parsed.value;
+    next_id.* = data.next_id;
 
-    var next_id_local: u64 = 1;
-    if (root.get("next_id")) |nid| {
-        next_id_local = @intCast(nid.integer);
+    for (data.tasks) |pt| {
+        const task = Task{
+            .id = pt.id,
+            .title = try dupeString(allocator, strings, pt.title),
+            .status = Status.fromString(pt.status) orelse .pending,
+            .priority = Priority.fromString(pt.priority) orelse .normal,
+            .category = Category.fromString(pt.category) orelse .personal,
+            .created_at = pt.created_at,
+            .updated_at = pt.updated_at,
+            .description = if (pt.description) |d| try dupeString(allocator, strings, d) else null,
+            .due_date = pt.due_date,
+            .completed_at = pt.completed_at,
+            .parent_id = pt.parent_id,
+        };
+        try tasks.put(allocator, task.id, task);
     }
-
-    if (root.get("tasks")) |tasks_val| {
-        for (tasks_val.array.items) |task_val| {
-            const obj = task_val.object;
-            const task = try parseTask(allocator, obj, strings);
-            try tasks.put(allocator, task.id, task);
-        }
-    }
-
-    next_id.* = next_id_local;
 }
 
 test {

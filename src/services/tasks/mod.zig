@@ -56,7 +56,7 @@ pub const Manager = struct {
         const default_config: ManagerConfig = .{};
 
         if (config.storage_path.len == 0 or std.mem.eql(u8, config.storage_path, default_config.storage_path)) {
-            const resolved_path = app_paths.resolvePath(allocator, "tasks.json") catch |err| switch (err) {
+            const resolved_path = app_paths.resolvePath(allocator, "tasks.zon") catch |err| switch (err) {
                 error.NoHomeDirectory => return error.PersistenceFailed,
                 error.OutOfMemory => return error.OutOfMemory,
             };
@@ -261,7 +261,7 @@ pub const Manager = struct {
 
 test "Manager basic operations" {
     var manager = try Manager.init(std.testing.allocator, .{
-        .storage_path = ".zig-cache/test_tasks.json",
+        .storage_path = ".zig-cache/test_tasks.zon",
         .auto_save = false,
     });
     defer manager.deinit();

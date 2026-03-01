@@ -15,6 +15,7 @@
 //!   zig build benchmarks -- --help          # Show help
 
 const std = @import("std");
+const abi = @import("abi");
 const framework = @import("system/framework.zig");
 const infrastructure = @import("infrastructure/mod.zig");
 const domains = @import("mod.zig").domains;
@@ -23,13 +24,15 @@ const domains = @import("mod.zig").domains;
 const simd = @import("infrastructure/simd.zig");
 const memory = @import("infrastructure/memory.zig");
 const concurrency = @import("infrastructure/concurrency.zig");
-const network = @import("infrastructure/network.zig");
+const network = @import("infrastructure/network/mod.zig");
 const crypto = @import("infrastructure/crypto.zig");
+const v2_modules = @import("infrastructure/v2_modules.zig");
 
 // Consolidated domain modules
 const database = @import("domain/database/mod.zig");
 const ai = @import("domain/ai/mod.zig");
 const gpu_bench = @import("domain/gpu/mod.zig");
+const services = @import("domain/services/mod.zig");
 
 // Core utilities
 const core = @import("core/mod.zig");
@@ -44,6 +47,8 @@ const BenchmarkSuite = enum {
     crypto,
     ai,
     gpu,
+    v2,
+    services,
     quick,
 };
 
@@ -99,6 +104,8 @@ fn parseSuite(name: []const u8) BenchmarkSuite {
     if (std.mem.eql(u8, name, "crypto")) return .crypto;
     if (std.mem.eql(u8, name, "ai")) return .ai;
     if (std.mem.eql(u8, name, "gpu")) return .gpu;
+    if (std.mem.eql(u8, name, "v2")) return .v2;
+    if (std.mem.eql(u8, name, "services")) return .services;
     if (std.mem.eql(u8, name, "quick")) return .quick;
     if (std.mem.eql(u8, name, "all")) return .all;
     return .all; // Default to all if unknown
@@ -112,8 +119,8 @@ fn printHelp() void {
         \\
         \\Options:
         \\  --suite=<name>    Run specific benchmark suite
-        \\                    Available: all, simd, memory, concurrency,
-        \\                               database, network, crypto, ai, gpu, quick
+        \\                    Available: all, simd, memory, concurrency, database,
+        \\                    network, crypto, ai, gpu, v2, services, quick
         \\  --output=<file>   Output results to JSON file
         \\  --json            Output results as JSON to stdout
         \\  --verbose, -v     Show verbose output
@@ -129,6 +136,8 @@ fn printHelp() void {
         \\  crypto        Cryptographic operations (hashing, encryption, KDF)
         \\  ai            AI/ML inference (GEMM, attention, activations, LLM metrics)
         \\  gpu           GPU kernel operations (matmul, vector ops, reductions, memory)
+        \\  v2            v2 modules (SIMD activations, matrix, SwissMap, primitives)
+        \\  services      Service modules (cache, search, gateway, messaging, storage)
         \\  quick         Fast subset for continuous integration
         \\  all           Run all benchmark suites (default)
         \\
@@ -176,67 +185,70 @@ const BenchJsonMeta = struct {
 };
 
 fn writeJsonReport(
-    writer: *std.Io.Writer,
+    writer: anytype,
     results: []const framework.BenchResult,
     meta: BenchJsonMeta,
 ) !void {
     try writer.writeAll("{\n  \"metadata\": {\n    \"suite\": ");
-    try std.json.Stringify.encodeJsonString(meta.suite, .{}, writer);
-    try writer.print(
-        ",\n    \"quick\": {s},\n    \"duration_ns\": {d},\n    \"duration_sec\": {d:.4},\n    \"benchmarks\": {d}\n  }},\n  \"benchmarks\": [\n",
-        .{
-            if (meta.quick) "true" else "false",
-            meta.duration_ns,
-            meta.duration_sec,
-            results.len,
-        },
-    );
+    try writer.print("{}", .{std.json.fmt(meta.suite, .{})});
+    try writer.writeAll(",\n    \"quick\": ");
+    try writer.writeAll(if (meta.quick) "true" else "false");
+    try writer.writeAll(",\n    \"duration_ns\": ");
+    try writer.print("{d}", .{meta.duration_ns});
+    try writer.writeAll(",\n    \"duration_sec\": ");
+    try writer.print("{d:.4}", .{meta.duration_sec});
+    try writer.writeAll(",\n    \"benchmarks\": ");
+    try writer.print("{d}", .{results.len});
+    try writer.writeAll("\n  },\n  \"benchmarks\": [\n");
 
     for (results, 0..) |result, idx| {
         if (idx > 0) try writer.writeAll(",\n");
         try writer.writeAll("    {\"name\":");
-        try std.json.Stringify.encodeJsonString(result.config.name, .{}, writer);
+        try writer.print("{}", .{std.json.fmt(result.config.name, .{})});
         try writer.writeAll(",\"category\":");
-        try std.json.Stringify.encodeJsonString(result.config.category, .{}, writer);
-        try writer.print(
-            ",\"iterations\":{d},\"mean_ns\":{d:.2},\"median_ns\":{d:.2},\"std_dev_ns\":{d:.2},\"min_ns\":{d},\"max_ns\":{d},\"p50_ns\":{d},\"p90_ns\":{d},\"p95_ns\":{d},\"p99_ns\":{d},\"ops_per_sec\":{d:.2},\"bytes_per_op\":{d},\"throughput_mb_s\":{d:.2},\"memory_allocated\":{d},\"memory_freed\":{d}}}",
-            .{
-                result.stats.iterations,
-                result.stats.mean_ns,
-                result.stats.median_ns,
-                result.stats.std_dev_ns,
-                result.stats.min_ns,
-                result.stats.max_ns,
-                result.stats.p50_ns,
-                result.stats.p90_ns,
-                result.stats.p95_ns,
-                result.stats.p99_ns,
-                result.stats.opsPerSecond(),
-                result.config.bytes_per_op,
-                result.stats.throughputMBps(result.config.bytes_per_op),
-                result.memory_allocated,
-                result.memory_freed,
-            },
-        );
+        try writer.print("{}", .{std.json.fmt(result.config.category, .{})});
+        try writer.writeAll(",\"iterations\":");
+        try writer.print("{d}", .{result.stats.iterations});
+        try writer.writeAll(",\"mean_ns\":");
+        try writer.print("{d:.2}", .{result.stats.mean_ns});
+        try writer.writeAll(",\"median_ns\":");
+        try writer.print("{d:.2}", .{result.stats.median_ns});
+        try writer.writeAll(",\"std_dev_ns\":");
+        try writer.print("{d:.2}", .{result.stats.std_dev_ns});
+        try writer.writeAll(",\"min_ns\":");
+        try writer.print("{d}", .{result.stats.min_ns});
+        try writer.writeAll(",\"max_ns\":");
+        try writer.print("{d}", .{result.stats.max_ns});
+        try writer.writeAll(",\"p50_ns\":");
+        try writer.print("{d}", .{result.stats.p50_ns});
+        try writer.writeAll(",\"p90_ns\":");
+        try writer.print("{d}", .{result.stats.p90_ns});
+        try writer.writeAll(",\"p95_ns\":");
+        try writer.print("{d}", .{result.stats.p95_ns});
+        try writer.writeAll(",\"p99_ns\":");
+        try writer.print("{d}", .{result.stats.p99_ns});
+        try writer.writeAll(",\"ops_per_sec\":");
+        try writer.print("{d:.2}", .{result.stats.opsPerSecond()});
+        try writer.writeAll(",\"bytes_per_op\":");
+        try writer.print("{d}", .{result.config.bytes_per_op});
+        try writer.writeAll(",\"throughput_mb_s\":");
+        try writer.print("{d:.2}", .{result.stats.throughputMBps(result.config.bytes_per_op)});
+        try writer.writeAll(",\"memory_allocated\":");
+        try writer.print("{d}", .{result.memory_allocated});
+        try writer.writeAll(",\"memory_freed\":");
+        try writer.print("{d}", .{result.memory_freed});
+        try writer.writeAll("}");
     }
 
     try writer.writeAll("\n  ]\n}\n");
 }
 
-fn initThreadedIo(allocator: std.mem.Allocator, options: std.Io.Threaded.InitOptions) !std.Io.Threaded {
-    const Result = @TypeOf(std.Io.Threaded.init(allocator, options));
-    if (@typeInfo(Result) == .error_union) {
-        return try std.Io.Threaded.init(allocator, options);
-    }
-    return std.Io.Threaded.init(allocator, options);
-}
-
-pub fn main(init: std.process.Init) !void {
+pub fn main(init: std.process.Init.Minimal) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const args = parseArgs(allocator, init.minimal.args);
+    const args = parseArgs(allocator, init.args);
     defer if (args.output_json) |path| allocator.free(path);
 
     var collector_storage: ?framework.BenchCollector = null;
@@ -251,7 +263,7 @@ pub fn main(init: std.process.Init) !void {
 
     printHeader();
 
-    var timer = std.time.Timer.start() catch {
+    var timer = abi.shared.time.Timer.start() catch {
         std.debug.print("Timer not supported on this platform\n", .{});
         return;
     };
@@ -281,6 +293,12 @@ pub fn main(init: std.process.Init) !void {
 
             printSuiteHeader("GPU Kernel Operations");
             try gpu_bench.runAllBenchmarks(allocator, .standard);
+
+            printSuiteHeader("v2 Module Benchmarks");
+            try v2_modules.runV2Benchmarks(allocator, .{});
+
+            printSuiteHeader("Service Module Benchmarks (Cache, Search, Gateway, Messaging, Storage)");
+            try services.runAllBenchmarks(allocator);
         },
         .simd => {
             printSuiteHeader("SIMD/Vector Operations");
@@ -313,6 +331,14 @@ pub fn main(init: std.process.Init) !void {
         .gpu => {
             printSuiteHeader("GPU Kernel Operations");
             try gpu_bench.runAllBenchmarks(allocator, .standard);
+        },
+        .v2 => {
+            printSuiteHeader("v2 Module Benchmarks");
+            try v2_modules.runV2Benchmarks(allocator, .{});
+        },
+        .services => {
+            printSuiteHeader("Service Module Benchmarks (Cache, Search, Gateway, Messaging, Storage)");
+            try services.runAllBenchmarks(allocator);
         },
         .quick => {
             printSuiteHeader("Quick Benchmark Suite (CI Mode)");
@@ -347,6 +373,16 @@ pub fn main(init: std.process.Init) !void {
 
             // GPU - quick config
             try gpu_bench.runAllBenchmarks(allocator, .quick);
+
+            // v2 modules - quick config
+            try v2_modules.runV2Benchmarks(allocator, .{
+                .vector_sizes = &.{ 64, 256 },
+                .matrix_sizes = &.{ 32, 64 },
+                .map_sizes = &.{100},
+            });
+
+            // Service modules
+            try services.runAllBenchmarks(allocator);
         },
     }
 
@@ -362,26 +398,26 @@ pub fn main(init: std.process.Init) !void {
         };
 
         if (args.json or args.output_json != null) {
-            var io_backend = try initThreadedIo(allocator, .{
-                .environ = std.process.Environ.empty,
-            });
+            var io_backend = std.Io.Threaded.init(allocator, .{ .environ = init.environ });
             defer io_backend.deinit();
             const io = io_backend.io();
 
             if (args.json) {
                 var stdout_buffer: [4096]u8 = undefined;
                 var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
-                try writeJsonReport(&stdout_writer.interface, collector.results.items, meta);
-                try stdout_writer.flush();
+                const stdout = &stdout_writer.interface;
+                try writeJsonReport(stdout, collector.results.items, meta);
+                try stdout.flush();
             }
 
             if (args.output_json) |path| {
                 var file = try std.Io.Dir.cwd().createFile(io, path, .{ .truncate = true });
                 defer file.close(io);
-                var file_buffer: [4096]u8 = undefined;
-                var file_writer = file.writer(io, &file_buffer);
-                try writeJsonReport(&file_writer.interface, collector.results.items, meta);
-                try file_writer.flush();
+                var buffer: [4096]u8 = undefined;
+                var writer = file.writer(io, &buffer);
+                const out = &writer.interface;
+                try writeJsonReport(out, collector.results.items, meta);
+                try out.flush();
             }
         }
     }
@@ -403,5 +439,7 @@ test "benchmark imports" {
     _ = crypto;
     _ = ai;
     _ = gpu_bench;
+    _ = v2_modules;
+    _ = services;
     _ = core;
 }
