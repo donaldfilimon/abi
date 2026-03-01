@@ -1,33 +1,21 @@
-# Codebase Perfection & JSON to ZON Migration
+# Task Plan - Refactor docs/
 
 ## Objective
-Thoroughly verify and clean the `examples/`, `tools/`, `benchmarks/`, and entire codebase, fixing any compilation errors and fully migrating all internal static JSON configuration/data files to Zig Object Notation (ZON).
-
-## Scope
-- In scope:
-  - Check and fix compilation of all Zig examples in `examples/`.
-  - Restore and fix the `benchmarks/` suite, integrating it into the `zig build` pipeline.
-  - Migrate all documentation metadata files (`docs/data/*.json`) to `.zon`.
-  - Refactor configuration parsing logic (`src/services/shared/utils/config.zig`, `src/services/tasks/persistence.zig`, `tools/cli/commands/plugins.zig`) to use Zig 0.16's `std.zon.parse.fromSliceAlloc`.
-  - Fix any legacy `std.Io` or `ArrayList` API patterns flagged by the consistency checks.
-  - Ensure `zig build verify-all --summary all` passes with 0 errors.
-
-## Verification Criteria
-- `zig build verify-all --summary all` completes successfully.
-- `zig build examples` compiles all examples successfully.
-- `zig build benchmarks` runs the benchmark suite successfully.
-- `docs/data/` contains only `.zon` configuration files.
+Refactor `docs/index.js` to reduce duplication and improve maintainability without changing search behavior.
 
 ## Checklist
-- [x] Restore and fix `benchmarks/` and `examples/c_test.c`.
-- [x] Convert `docs/data/*.json` to `.zon` format.
-- [x] Update documentation generator (`tools/gendocs/`) and static site JS to parse `.zon`.
-- [x] Update runtime parsers to `std.zon.parse.fromSliceAlloc` and implement `ArenaAllocator` to fix memory leaks.
-- [x] Fix legacy `std.ArrayList.init` and `std.fs.cwd()` patterns.
-- [x] Fix missing variables, shadows, and formatting errors in `plugins.zig`, `generate_cli_registry.zig`, and `mod.zig`.
-- [x] Run `zig build verify-all` and ensure 100% success.
+- [x] Identify repetitive patterns in docs search result construction.
+- [x] Introduce helper(s) to normalize result object creation.
+- [x] Keep ranking/filtering behavior unchanged.
+- [x] Run a quick syntax/behavioral sanity check for `docs/index.js`.
+- [x] Add a short review summary with verification notes.
 
 ## Review
+<<<<<<< ours
+- Added `addResult(results, query, score, payload)` to centralize result append conditions and score assignment.
+- Replaced repeated `if (!q || score > 0) results.push(...)` blocks for modules, symbols, commands, guides, plans, and roadmap entries.
+- Verified syntax correctness with `node --check docs/index.js`.
+=======
 - **Trigger:** User request to perfect the codebase and migrate JSON to ZON.
 - **Impact:** Codebase is fully modernized to Zig 0.16, all missing examples and benchmarks are restored and building, and configuration parsing is native, avoiding external JSON parser dependencies.
 - **Plan change:** Reverted python-based aggressive `sed` replacements across the codebase that broke syntax, opting for precise replacements and Arena-based memory management for ZON parsing.
@@ -154,3 +142,55 @@ Stabilize `db.neural`/WDBX on Zig 0.16 by removing compatibility blockers, harde
   - A local `wdbx/sync_compat.zig` mirrors shared `RwLock` behavior so direct file tests (`zig test src/features/database/wdbx/*.zig`) compile under Zig module-path restrictions.
 - **Residual risk:**
   - `sync_compat.zig` duplicates lock logic and may drift from `src/services/shared/sync.zig`; consider unifying via build-module wiring in Wave 2.
+
+---
+
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
+## Docs Folder Refactor (2026-03-01)
+
+### Objective
+Refactor `docs/index.js` to reduce duplication in result construction and keep the docs search logic easier to extend, with no intended behavior changes.
+
+### Checklist
+- [x] Define reusable result builders/config for docs entity types.
+- [x] Refactor `toResults` to iterate through shared definitions instead of repeated loops.
+- [x] Run a JavaScript syntax check for `docs/index.js`.
+- [x] Document review notes and outcomes.
+
+### Review
+- Result: Refactor completed with no intended behavior changes; search-result construction now uses reusable definitions to reduce duplicated loops.
+- Validation: `node --check docs/index.js` passed.
+- Risk check: Ranking, filters, and item detail formatting paths remain unchanged semantically, only reorganized into shared builders.
+>>>>>>> theirs
+=======
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
+## Task: Organize Zig 0.16 master files (2026-03-01)
+
+### Plan
+- [x] Identify all current Zig "master" path-resolution sites and decide a minimal shared organization approach.
+- [x] Implement focused refactor to centralize Zig 0.16 master path fallback logic where duplicated.
+- [x] Run targeted validation for touched modules and record outcomes.
+- [x] Add review notes summarizing scope and behavior impact.
+
+### Review
+- Centralized ZVM master Zig path helpers in `src/services/shared/utils/zig_toolchain.zig`.
+- Updated LSP client and SPIR-V compiler bridge to reuse the shared helper, removing duplicated HOME/USERPROFILE path join logic.
+- Validation status: unable to run Zig-based formatting/build checks in this environment because `zig` is not installed and `~/.zvm/master/zig` is unavailable.
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
+>>>>>>> theirs
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs

@@ -8,6 +8,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
+const zig_toolchain = @import("../../../services/shared/utils/zig_toolchain.zig");
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -80,19 +81,16 @@ pub fn resolveZigPath(allocator: Allocator) ![]const u8 {
     }
 
     // 2. ZVM default location
-    if (std.c.getenv("HOME")) |home_ptr| {
-        const home = std.mem.sliceTo(home_ptr, 0);
-        const zvm_path = try std.fmt.allocPrint(allocator, "{s}/.zvm/master/zig", .{home});
-        // Check existence via C access().
-        const path_z = std.posix.toPosixPath(zvm_path) catch {
-            allocator.free(zvm_path);
+    const zvm_path = try zig_toolchain.allocZvmMasterZigPath(allocator);
+    if (zvm_path) |path| {
+        const path_z = std.posix.toPosixPath(path) catch {
+            allocator.free(path);
             return allocator.dupe(u8, "zig");
         };
         if (std.c.access(&path_z, std.posix.F_OK) == 0) {
-            return zvm_path;
+            return path;
         }
-        allocator.free(zvm_path);
-        return allocator.dupe(u8, "zig");
+        allocator.free(path);
     }
 
     // 3. Fallback
